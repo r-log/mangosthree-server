@@ -23,16 +23,14 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Decoupling D4k: a character's friend and ignore list, its statements and packets, and the
-/// online-visibility verdict, with no character.
+/// A character's friend and ignore list, its statements and facts, and the online-visibility
+/// verdict, with no character.
 ///
-/// Before this PR PlayerSocial found its owner through the object manager to send the contact list,
-/// and the verdict lived inside SocialMgr::GetFriendInfo and ::BroadcastToFriendListers, over two
-/// live characters. Now the list takes the per-entry fill and the packet sink as parameters, and
-/// the verdict is a free function over plain facts (SocialList.h), so every case builds what it
-/// needs from nothing.
+/// The list takes the per-entry fill and the fact sink as parameters, and the verdict is a free
+/// function over plain facts (SocialList.h), so every case builds what it needs from nothing. The
+/// reported facts are built into packets with the session's builders (SocialPackets.h).
 ///
-/// The statements run through the GLOBAL CharacterDatabase with D7a's fakes attached and
+/// The statements run through the GLOBAL CharacterDatabase with the fake connections attached and
 /// asynchronous writes on: they are queued, and what the delay thread would have sent to MySQL is
 /// the exact SQL asserted after ExecuteQueuedForTest(). The note is a bound statement, which
 /// arrives through SqlPlainPreparedStatement with its parameters quoted (the fake connection's
@@ -52,6 +50,7 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "SocialList.h"
+#include "session/packets/entities/SocialPackets.h"
 
 #include <map>
 #include <string>
@@ -85,16 +84,18 @@ namespace
         return text;
     }
 
-    /// Records every packet the sink receives.
+    /// Records the packet the session's builder makes of every fact the sink receives.
     struct Sink
     {
         std::vector<std::string> packets;
 
-        ManagerPacketSink Get()
+        ContactListSink Get()
         {
-            return [this](WorldPacket const* packet)
+            return [this](ContactListFact const& fact)
             {
-                packets.push_back(PacketText(*packet));
+                WorldPacket packet;
+                BuildContactListPacket(packet, fact);
+                packets.push_back(PacketText(packet));
             };
         }
     };
@@ -548,7 +549,7 @@ TEST(SocialMgr_VisibilityVerdictTable)
 // SMSG_FRIEND_STATUS for every result: the result byte and the guid; the note ("hi" 686900) after
 // that for ADDED_ONLINE (6) and ADDED_OFFLINE (7) only; status, area, level, class (DND 04, area
 // 1519 ef050000, level 85 55000000, class 8 08000000) for ADDED_ONLINE (6) and ONLINE (2) only.
-// The fill is called once per packet, with the related guid (7), after the header.
+// The fill is called once per fact, with the related guid (7).
 TEST(SocialMgr_FriendStatusBytesPerResult)
 {
     const std::string guid = "0700000000000000";
@@ -566,8 +567,9 @@ TEST(SocialMgr_FriendStatusBytesPerResult)
             info.Level = 85;
             info.Class = 8;
         };
+        FriendStatusFact fact = MakeFriendStatusFact(FriendsResult(r), 7, fill);
         WorldPacket data;
-        BuildFriendStatusPacket(FriendsResult(r), 7, fill, data);
+        BuildFriendStatusPacket(data, fact);
 
         static const char* digits = "0123456789abcdef";
         std::string want = std::string("0717:") + digits[r >> 4] + digits[r & 0x0F] + guid;
@@ -592,12 +594,12 @@ TEST(SocialMgr_FriendStatusBytesPerResult)
         info.Note = "x";
     };
     WorldPacket a;
-    BuildFriendStatusPacket(FRIEND_ADDED_ONLINE, 9, offline, a);
+    BuildFriendStatusPacket(a, MakeFriendStatusFact(FRIEND_ADDED_ONLINE, 9, offline));
     CHECK_STR(PacketText(a), "0717:06" "0900000000000000" "7800" "00" "00000000" "00000000" "00000000");
     WorldPacket b;
-    BuildFriendStatusPacket(FRIEND_REMOVED, 9, offline, b);
+    BuildFriendStatusPacket(b, MakeFriendStatusFact(FRIEND_REMOVED, 9, offline));
     CHECK_STR(PacketText(b), "0717:05" "0900000000000000");
     WorldPacket c;
-    MakeFriendStatusPacket(FRIEND_IGNORE_ADDED, 11, &c);
+    BuildFriendStatusPacket(c, MakeFriendStatusFact(FRIEND_IGNORE_ADDED, 11, offline));
     CHECK_STR(PacketText(c), "0717:0f" "0b00000000000000");
 }

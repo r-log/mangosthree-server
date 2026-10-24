@@ -26,8 +26,6 @@
 #include <string>
 #include "SocialList.h"
 #include "Database/DatabaseEnv.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
 #include "Util.h"
 #include "Log.h"
 
@@ -162,8 +160,7 @@ void PlayerSocial::SetFriendNote(ObjectGuid friend_guid, std::string note)
 
     utf8truncate(note, 48);                                 // DB and client size limitation
 
-    // Decoupling D7i: the escaped copy is a bound parameter (C5). The in-memory note below
-    // is, and always was, the unescaped string.
+    // The note is a bound parameter; the in-memory note below is the unescaped string.
     static SqlStatementID updFriendNote;
     SqlStatement update = CharacterDatabase.CreateStatement(updFriendNote,
                           "UPDATE `character_social` SET `note` = ? WHERE `guid` = ? AND `friend` = ?");
@@ -175,35 +172,23 @@ void PlayerSocial::SetFriendNote(ObjectGuid friend_guid, std::string note)
     m_playerSocialMap[friend_guid.GetCounter()].Note = note;
 }
 
-void PlayerSocial::SendSocialList(FriendInfoFill const& fill, ManagerPacketSink const& send)
+void PlayerSocial::SendSocialList(FriendInfoFill const& fill, ContactListSink const& send)
 {
-    uint32 size = m_playerSocialMap.size();
-
-    WorldPacket data(SMSG_CONTACT_LIST, (4 + 4 + size * 25)); // just can guess size
-    data << uint32(7);                                      // unk flag (0x1, 0x2, 0x4), 0x7 if it include ignore list
-    data << uint32(size);                                   // friends count
+    ContactListFact fact;
+    fact.entries.reserve(m_playerSocialMap.size());
 
     for (PlayerSocialMap::iterator itr = m_playerSocialMap.begin(); itr != m_playerSocialMap.end(); ++itr)
     {
         FriendInfo& friendInfo = itr->second;
         fill(itr->first, friendInfo);
 
-        data << ObjectGuid(HIGHGUID_PLAYER, itr->first);    // player guid
-        data << uint32(friendInfo.Flags);                  // player flag (0x1-friend?, 0x2-ignored?, 0x4-muted?)
-        data << friendInfo.Note;                           // string note
-        if (friendInfo.Flags & SOCIAL_FLAG_FRIEND)         // if IsFriend()
-        {
-            data << uint8(friendInfo.Status);              // online/offline/etc?
-            if (friendInfo.Status)                         // if online
-            {
-                data << uint32(friendInfo.Area);           // player area
-                data << uint32(friendInfo.Level);          // player level
-                data << uint32(friendInfo.Class);          // player class
-            }
-        }
+        ContactListFact::Entry entry;
+        entry.lowGuid = itr->first;
+        entry.info = friendInfo;
+        fact.entries.push_back(entry);
     }
 
-    send(&data);
+    send(fact);
     DEBUG_LOG("WORLD: Sent SMSG_CONTACT_LIST");
 }
 
@@ -280,46 +265,11 @@ bool IsFriendVisibleOnline(FriendVisibility const& facts)
            facts.seenVisibleGlobally;
 }
 
-/**
- * @brief Builds a friend status packet header.
- *
- * @param result The friend status result code.
- * @param guid The low GUID of the related player.
- * @param data The packet to initialize.
- */
-void MakeFriendStatusPacket(FriendsResult result, uint32 guid, WorldPacket* data)
+FriendStatusFact MakeFriendStatusFact(FriendsResult result, uint32 friend_lowguid, FriendInfoFill const& fill)
 {
-    data->Initialize(SMSG_FRIEND_STATUS, 5);
-    *data << uint8(result);
-    *data << ObjectGuid(HIGHGUID_PLAYER, guid);
-}
-
-void BuildFriendStatusPacket(FriendsResult result, uint32 friend_lowguid, FriendInfoFill const& fill, WorldPacket& data)
-{
-    FriendInfo fi;
-
-    MakeFriendStatusPacket(result, friend_lowguid, &data);
-    fill(friend_lowguid, fi);
-    switch (result)
-    {
-        case FRIEND_ADDED_OFFLINE:
-        case FRIEND_ADDED_ONLINE:
-            data << fi.Note;
-            break;
-        default:
-            break;
-    }
-
-    switch (result)
-    {
-        case FRIEND_ADDED_ONLINE:
-        case FRIEND_ONLINE:
-            data << uint8(fi.Status);
-            data << uint32(fi.Area);
-            data << uint32(fi.Level);
-            data << uint32(fi.Class);
-            break;
-        default:
-            break;
-    }
+    FriendStatusFact fact;
+    fact.result = result;
+    fact.friendLowGuid = friend_lowguid;
+    fill(friend_lowguid, fact.info);
+    return fact;
 }

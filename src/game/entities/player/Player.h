@@ -78,7 +78,6 @@
 #include "HonorMgr.h"   // HonorMgr is held by value on Player; owns daily-kill rollover + RewardHonor calculation
 #include "CurrencyMgr.h" // CurrencyMgr is held by value on Player; brings in PlayerCurrency struct + PlayerCurrencyState/Flag enums + PlayerCurrenciesMap typedef
 #include "RuneMgr.h"    // RuneMgr is held by value on Player; brings in RuneType/RuneInfo/Runes + owns death-knight rune state
-#include "ManagerPacketSink.h" // the packet sink type SessionSink() returns to every manager
 #include "PlayerClientFacts.h" // the facts and callbacks of the player's own client
 #include "entities/GroupUpdateFacts.h" // the facts and callbacks of the player's group updates
 #include "spells/SpellModMgr.h" // SpellModMgr is held by value on Player; brings in the spell modifier fact and its sink
@@ -92,6 +91,7 @@
 #include "MapReference.h"
 #include "Util.h"                                           // for Tokens typedef
 #include "ReputationMgr.h"
+#include "SocialList.h"     // the contact list and friend status facts of the player's own client
 #include "SharedDefines.h"
 
 #include<string>
@@ -2326,7 +2326,7 @@ class Player : public Unit
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-        /// where the player is created: twenty facts out, one read in.
+        /// where the player is created: twenty-two facts out, one read in.
         struct ClientCallbacks
         {
             SwingOutOfReachSink swingOutOfReach;
@@ -2349,9 +2349,16 @@ class Player : public Unit
             InitialReputationsSink initialReputations;
             FactionVisibleSink factionVisible;
             FactionAtWarSink factionAtWar;
+            ContactListSink contactList;
+            FriendStatusSink friendStatus;
             SecurityLevelQuery securityLevel;
         };
         void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }
+
+        /// Tells the player's own client its contact list, which its social list reports.
+        void ReportContactList(ContactListFact const& fact) const { ReportClientFact(m_clientCallbacks.contactList, fact); }
+        /// Tells the player's own client a contact's change, which SocialMgr reports.
+        void ReportFriendStatus(FriendStatusFact const& fact) const { ReportClientFact(m_clientCallbacks.friendStatus, fact); }
 
         /// What the session installs for the player's group, once, by InstallPlayerPacketSinks where
         /// the player is created; Unit reports through it.
@@ -4140,9 +4147,6 @@ class Player : public Unit
 
     private:
         Cell m_currentCell;   ///< the grid cell this player is filed under (see GetCurrentCell)
-
-        // Decoupling D4k: where a manager's packets go -- this character's session, read at each send
-        ManagerPacketSink SessionSink() const;
 
         // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
         // so only a call through Unit reaches it

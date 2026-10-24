@@ -380,10 +380,10 @@ state_row(social
     TYPES   PlayerSocial)
 
 state_allow(social src/game/entities/player/social/SocialList.cpp
-    WHY "the owner: builds its packets for the sink or the caller, writes the rows (add, remove, note)"
-    NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS character_social)
-state_allow(social src/game/entities/player/social/SocialList.h
-    WHY "the owner's header: the class's and the builders' doc comments name the packets"
+    WHY "the owner: writes the rows (add, remove, note); its debug log line names the packet its contact list fact becomes"
+    NAMES SMSG_CONTACT_LIST character_social)
+state_allow(social src/game/session/packets/entities/SocialPackets.cpp
+    WHY "the session's builders of the owner's two facts: the contact list and a contact's change"
     NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS)
 state_allow(social src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB: the read of who lists the character, and the DELETE)"
@@ -395,7 +395,7 @@ state_allow(social src/game/WorldHandlers/CalendarHandler.cpp
     WHY "an offline invitee's ignore flag for the inviter (the calendar invite's read, and its comments): the invitee's list is not loaded"
     NAMES character_social)
 state_allow(social src/game/session/handlers/social/ContactHandlers.cpp
-    WHY "the social handlers' debug log lines name the packet SocialMgr::SendFriendStatus sent (a relay, builds nothing)"
+    WHY "the social handlers' debug log lines name the packet of the fact SocialMgr::SendFriendStatus reports (builds nothing)"
     NAMES SMSG_FRIEND_STATUS)
 state_allow(social src/tests/CalendarMailAsyncTest.cpp
     WHY "unit test that observes the calendar's read through a fake connection (checks the statement, runs nothing itself)"
@@ -404,8 +404,11 @@ state_allow(social src/tests/CharacterOpsAsyncTest.cpp
     WHY "unit test that observes the delete's read through a fake connection (checks the statement, runs nothing itself)"
     NAMES character_social)
 state_allow(social src/tests/SocialMgrTest.cpp
-    WHY "unit test that observes the packets through a capturing sink and the statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
+    WHY "unit test that builds the reported facts with the session's builders and observes the statements through a fake connection (checks each opcode, byte and statement)"
     NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS character_social)
+state_allow(social src/tests/PlayerClientPacketsTest.cpp
+    WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"
+    NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS)
 state_row(currency
     OWNER   CurrencyMgr
     PACKETS SMSG_SET_CURRENCY

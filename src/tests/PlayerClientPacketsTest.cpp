@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The packets a player's own client is told, built from the player's twenty facts: the bytes of each
+/// The packets a player's own client is told, built from the player's twenty-two facts: the bytes of each
 /// builder, the callbacks the session installs on a player, which build the packet at each report
 /// and send it to the session the player holds at that moment, the security level read from that
 /// session at each call, and the assertion on a callback no session installed.
@@ -212,6 +212,38 @@ namespace
         return fact;
     }
 
+    /// A friend with the note "hi", DND in area 1519, level 85, class 8.
+    FriendInfo DndFriend()
+    {
+        FriendInfo info(SOCIAL_FLAG_FRIEND, "hi");
+        info.Status = FRIEND_STATUS_DND;
+        info.Area = 1519;
+        info.Level = 85;
+        info.Class = 8;
+        return info;
+    }
+
+    /// One entry: the friend above, low guid 7.
+    ContactListFact OneContact()
+    {
+        ContactListFact fact;
+        ContactListFact::Entry entry;
+        entry.lowGuid = 7;
+        entry.info = DndFriend();
+        fact.entries.push_back(entry);
+        return fact;
+    }
+
+    /// `result` about the friend above, low guid 7.
+    FriendStatusFact StatusOf(FriendsResult result)
+    {
+        FriendStatusFact fact;
+        fact.result = result;
+        fact.friendLowGuid = 7;
+        fact.info = DndFriend();
+        return fact;
+    }
+
     /// Conquest points (390) with a week cap and a week count, then honor points (392) with a
     /// season count.
     CurrencyListFact TwoCurrencies()
@@ -274,6 +306,8 @@ namespace
         ReportClientFact(callbacks.initialReputations, TwoSlots());
         ReportClientFact(callbacks.factionVisible, Visible(25));
         ReportClientFact(callbacks.factionAtWar, AtWar(25, 0x03));
+        ReportClientFact(callbacks.contactList, OneContact());
+        ReportClientFact(callbacks.friendStatus, StatusOf(FRIEND_ONLINE));
     }
 
     const char* const kEach[] =
@@ -298,6 +332,8 @@ namespace
         "4634:0001000011282300000000000000",
         "2525:19000000",
         "4216:1900000003",
+        "6017:070000000100000007000000000000000100000068690004ef0500005500000008000000",
+        "0717:02070000000000000004ef0500005500000008000000",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -496,6 +532,27 @@ TEST(PlayerClientPackets_SetFactionAtWarBytes)
     CHECK_STR(Built(&BuildSetFactionAtWarPacket, AtWar(25, 0x03)), "4216:1900000003");
 }
 
+// SMSG_CONTACT_LIST (0x6017): 7, the count, then per entry the guid as a uint64, the flags, the note
+// and its 0 byte and, for a friend, the status byte and, when online, the area, level and class.
+TEST(PlayerClientPackets_ContactListBytes)
+{
+    // 07000000 01000000; guid 7, flags 1, "hi", DND 04, area 1519 ef050000, level 85, class 8.
+    CHECK_STR(Built(&BuildContactListPacket, OneContact()),
+              "6017:070000000100000007000000000000000100000068690004ef0500005500000008000000");
+    CHECK_STR(Built(&BuildContactListPacket, ContactListFact()), "6017:0700000000000000");
+}
+
+// SMSG_FRIEND_STATUS (0x0717): the result byte and the guid as a uint64, then the note for the two
+// ADDED results, then the status, area, level and class for ADDED_ONLINE and ONLINE.
+TEST(PlayerClientPackets_FriendStatusBytes)
+{
+    CHECK_STR(Built(&BuildFriendStatusPacket, StatusOf(FRIEND_ONLINE)), "0717:02070000000000000004ef0500005500000008000000");
+    CHECK_STR(Built(&BuildFriendStatusPacket, StatusOf(FRIEND_ADDED_ONLINE)),
+              "0717:06070000000000000068690004ef0500005500000008000000");
+    CHECK_STR(Built(&BuildFriendStatusPacket, StatusOf(FRIEND_ADDED_OFFLINE)), "0717:070700000000000000686900");
+    CHECK_STR(Built(&BuildFriendStatusPacket, StatusOf(FRIEND_REMOVED)), "0717:050700000000000000");
+}
+
 // The callbacks the session installs turn each fact into the packet above and send it to the
 // owner's session, each fact to its own packet.
 TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
@@ -507,8 +564,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 20u);
-    for (size_t i = 0; i < 20; ++i)
+    REQUIRE(session.sent.size() == 22u);
+    for (size_t i = 0; i < 22; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -528,9 +585,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 20u);
-    REQUIRE(second.sent.size() == 20u);
-    for (size_t i = 0; i < 20; ++i)
+    REQUIRE(first.sent.size() == 22u);
+    REQUIRE(second.sent.size() == 22u);
+    for (size_t i = 0; i < 22; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);

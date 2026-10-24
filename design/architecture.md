@@ -38,11 +38,11 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 468 include lines go against the table.
+**Today:** 465 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
-| domain -> proto | 136 | `WorldPacket.h` 84, `Opcodes.h` 49 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
+| domain -> proto | 133 | `WorldPacket.h` 82, `Opcodes.h` 48 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
 | domain -> session | 121 | `WorldSession.h` 94, `GossipDef.h` 15, `UpdateData.h` 10 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
 | any -> app | 54 | `World.h`: domain 32, scripts 10, session 8, data 3, foundation 1 | `BattleGround.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
 | domain, data, session -> scripts | 52 | `ScriptMgr.h` 28, `Chat.h` 24 | `Map.cpp`, `MiscHandler.cpp`, `ObjectMgr.cpp` |
@@ -98,15 +98,15 @@ domain therefore never names session or `WorldPacket`.
 
 `persistence/` makes every `CharacterDatabase.`, `WorldDatabase.` and `LoginDatabase.` call.
 
-**Today (packets):** 407 `WorldPacket data(` sites: session 178, the domain tier 216 (entities 146, 90 of them under
-`entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 2), scripts 7, app 4, motion 2. The shared sink
-`ManagerPacketSink` is `std::function<void(WorldPacket const*)>`: it names the packet. What a player's own client is
+**Today (packets):** 406 `WorldPacket data(` sites: session 178, the domain tier 215 (entities 145, 89 of them under
+`entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 2), scripts 7, app 4, motion 2. What a player's own client is
 told when its swing is out of reach or faces away, its attack or its auto-repeat spell is cancelled, its pet is set,
 its pet action bar is cleared, its stand state changes or it is credited honor for a kill are eight typed facts
 declared beside `Player` (`PlayerClientFacts.h`); a rune converted, the runes resynchronised and rune power added are
 three declared beside `RuneMgr`; a currency's count changed, its week limit, the weekly reset and every currency are
 four declared beside `CurrencyMgr`; the forced reactions, the changed standings, the reputation table, a faction made
-visible and a faction's at-war flag are five declared beside `ReputationMgr`. All twenty are built into packets by
+visible and a faction's at-war flag are five declared beside `ReputationMgr`; the contact list and a contact's change
+are two declared beside `PlayerSocial` (`SocialList.h`). All twenty-two are built into packets by
 `session/packets/combat/`, `spells/` and
 `entities/` and sent through the callbacks `InstallPlayerPacketSinks` installs where a player is created.
 
@@ -115,8 +115,8 @@ visible and a faction's at-war flag are five declared beside `ReputationMgr`. Al
 spells 13, pvp 9, ai 2. Game `.cpp` files hold 994 calls in 127 files.
 
 **Today (entities, the manager audit):**
-- One manager builds packets: `SocialList`/`PlayerSocial` (2 opcodes). `CurrencyMgr` and `ReputationMgr` report their
-  four and five client notices as typed facts that `session/packets/entities/` builds.
+- No manager builds packets. `CurrencyMgr`, `ReputationMgr` and `SocialList`/`PlayerSocial` report their four, five
+  and one client notices as typed facts that `session/packets/entities/` builds.
 - Six call the database: `CurrencyMgr` (3 lines), `QuestStatusMgr` (6), `ReputationMgr` (2), `SocialList` (5),
   `GlyphMgr` (6) and `TalentMgr` (8).
 - Six are clean: `InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, which reports a kill's honor
@@ -124,9 +124,10 @@ spells 13, pvp 9, ai 2. Game `.cpp` files hold 994 calls in 127 files.
   action bar is a fact of the player's own client) and `RuneMgr`, which reports its three rune facts the same way.
 - In `spells/`, `SpellCooldownMgr` calls the database (2 lines) and builds no packet: it reports a cooldown event
   and the clear of every cooldown as typed facts, and `session/packets/spells/` builds the two packets.
-- `QuestCompletePacket` is a packet builder on the manager list, and the owner-side global `SocialMgr` sends packets.
-- `CheckStateOwnership`'s manager rows allow each packet-building manager to spell its opcodes, the opposite of
-  this section; the cooldown, honor, pet, rune, currency and reputation rows allow them to the session's builders instead. The cooldown row holds `SMSG_COOLDOWN_EVENT`
+- `QuestCompletePacket` is a packet builder on the manager list. The owner-side global `SocialMgr` reports each
+  friend status fact to the own client of each player it goes to, and `session/packets/entities/` builds the packet.
+- `CheckStateOwnership`'s cooldown, honor, pet, rune, currency, reputation and social rows allow the opcodes to the
+  session's builders, not to the managers; `SocialList.cpp` keeps a debug log line that names its contact list's. The cooldown row holds `SMSG_COOLDOWN_EVENT`
   and the whole-map `SMSG_CLEAR_COOLDOWNS` only: `SMSG_SPELL_COOLDOWN` and `SMSG_ITEM_COOLDOWN` are the cast's and the
   item's notices, the one-spell clear stays with `Player::SendClearCooldown`, nothing builds `SMSG_MODIFY_COOLDOWN` or
   `SMSG_COOLDOWN_CHEAT`, and a builder of `SMSG_MODIFY_COOLDOWN` for a character's spell joins the row. The pet row
@@ -372,7 +373,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 
 | # | Today, against the target | Closed by |
 |---|---|---|
-| 1 | domain -> proto: 136 lines; 216 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
+| 1 | domain -> proto: 133 lines; 215 `WorldPacket data(` sites in the domain tier; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
 | 2 | domain -> session: 121 lines (`WorldSession.h`, `GossipDef.h`, `UpdateData.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` included 54 times below app | the configuration interface (#143), when content touches it |
 | 4 | `Chat.h` (24) and `ScriptMgr.h` (28) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |

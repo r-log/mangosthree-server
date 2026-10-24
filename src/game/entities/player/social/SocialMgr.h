@@ -31,28 +31,26 @@
 #include "Policies/Singleton.h"
 #include "Database/DatabaseEnv.h"
 #include "ObjectGuid.h"
-#include "SocialList.h"                                     // PlayerSocial, FriendInfo, the enums and the packet builders
+#include "SocialList.h"                                     // PlayerSocial, FriendInfo, the enums and the facts
 
 class Player;
-class WorldPacket;
 
 typedef std::map<uint32, PlayerSocial> SocialMap;
 
 /**
- * @brief The global over every loaded character's social list (decoupling D4k: the owner side of
- * `social/SocialList`).
+ * @brief The global over every loaded character's social list, the owner side of
+ * `social/SocialList`.
  *
  * It is cross-character, so it stays a global and is not a member of the character: it owns the
  * map of lists (created at login by LoadFromDB, which keeps the loop over the rows and hands each
  * row to PlayerSocial::LoadRow; erased at logout), finds other characters through the registry,
- * reads what the verdict and the list need from them, and sends each packet to its recipients.
- * The rules it applies live in `SocialList`: the online-visibility verdict
- * (IsFriendVisibleOnline) and the friend status packet (BuildFriendStatusPacket).
+ * reads what the verdict and the list need from them, and reports each friend status fact to the
+ * own client of each recipient. The rules it applies live in `SocialList`: the online-visibility
+ * verdict (IsFriendVisibleOnline) and the friend status fact (MakeFriendStatusFact).
  *
  * PlayerSocial befriends this class (`friend class SocialMgr`), which grants write access to every
- * list's private map; today it only reads through it (GetFriendInfo reads the requester's note,
- * BroadcastToFriendListers each lister's flags; LoadFromDB goes through LoadRow). To be replaced by a
- * const lookup on PlayerSocial and the friend dropped at D4i/D4l, so the list has one writer.
+ * list's private map; it only reads through it (GetFriendInfo reads the requester's note,
+ * BroadcastToFriendListers each lister's flags; LoadFromDB goes through LoadRow).
  */
 class SocialMgr
 {
@@ -65,7 +63,7 @@ class SocialMgr
         void GetFriendInfo(Player* player, uint32 friendGUID, FriendInfo& friendInfo);
         // Packet management
         void SendFriendStatus(Player* player, FriendsResult result, ObjectGuid friend_guid, bool broadcast);
-        void BroadcastToFriendListers(Player* player, WorldPacket* packet);
+        void BroadcastToFriendListers(Player* player, FriendStatusFact const& fact);
         // Loading
         PlayerSocial* LoadFromDB(QueryResult* result, ObjectGuid guid);
     private:
