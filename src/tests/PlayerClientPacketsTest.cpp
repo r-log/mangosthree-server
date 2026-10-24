@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The packets a player's own client is told, built from the player's eight facts: the bytes of each
+/// The packets a player's own client is told, built from the player's eleven facts: the bytes of each
 /// builder, the callbacks the session installs on a player, which build the packet at each report
 /// and send it to the session the player holds at that moment, the security level read from that
 /// session at each call, and the assertion on a callback no session installed.
@@ -101,6 +101,36 @@ namespace
         return fact;
     }
 
+    RuneConvertedFact Converted(uint8 index, uint8 type)
+    {
+        RuneConvertedFact fact;
+        fact.index = index;
+        fact.type = type;
+        return fact;
+    }
+
+    /// Slots blood, blood, unholy, death, frost, frost; three quarters, all, none, half, all and all
+    /// of their cooldowns passed.
+    RunesResyncedFact Resynced()
+    {
+        RunesResyncedFact fact;
+        const uint8 types[MAX_RUNES] = { 0, 0, 1, 3, 2, 2 };
+        const uint8 fractions[MAX_RUNES] = { 0xbf, 0xff, 0x00, 0x7f, 0xff, 0xff };
+        for (int i = 0; i < MAX_RUNES; ++i)
+        {
+            fact.types[i] = types[i];
+            fact.cooldownFractions[i] = fractions[i];
+        }
+        return fact;
+    }
+
+    RunePowerAddedFact PowerAdded(uint8 index)
+    {
+        RunePowerAddedFact fact;
+        fact.index = index;
+        return fact;
+    }
+
     /// Stands in for the session: records "<opcode>:<hex>" per packet it is sent, and answers its
     /// account security level.
     struct FakeSession
@@ -141,6 +171,9 @@ namespace
         ReportClientFact(callbacks.petActionBarCleared, PetActionBarClearedFact());
         ReportClientFact(callbacks.standState, Stand(8));
         ReportClientFact(callbacks.pvpCredit, Credit(40, kPlayer, 5));
+        ReportClientFact(callbacks.runeConverted, Converted(1, 3));
+        ReportClientFact(callbacks.runesResynced, Resynced());
+        ReportClientFact(callbacks.runePowerAdded, PowerAdded(3));
     }
 
     const char* const kEach[] =
@@ -153,6 +186,9 @@ namespace
         "4114:0000000000000000",
         "6f04:08",
         "6015:280000000000f0000000000005000000",
+        "4f14:0103",
+        "6224:0600000000bf00ff0100037f02ff02ff",
+        "6915:08000000",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -251,6 +287,29 @@ TEST(PlayerClientPackets_PvpCreditBytes)
     CHECK_STR(Built(&BuildPvpCreditPacket, Credit(0xFFFFFFFF, kCreature, 19)), "6015:ffffffff2a000000b80b30f113000000");
 }
 
+// SMSG_CONVERT_RUNE (0x4F14): the slot, then the new rune type, one byte each.
+TEST(PlayerClientPackets_ConvertRuneBytes)
+{
+    CHECK_STR(Built(&BuildConvertRunePacket, Converted(1, 3)), "4f14:0103");
+    CHECK_STR(Built(&BuildConvertRunePacket, Converted(5, 0)), "4f14:0500");
+}
+
+// SMSG_RESYNC_RUNES (0x6224): uint32 MAX_RUNES, then the rune type and the cooldown fraction of
+// each slot, one byte each.
+TEST(PlayerClientPackets_ResyncRunesBytes)
+{
+    CHECK_STR(Built(&BuildResyncRunesPacket, Resynced()), "6224:0600000000bf00ff0100037f02ff02ff");
+    CHECK_STR(Built(&BuildResyncRunesPacket, RunesResyncedFact()), "6224:06000000000000000000000000000000");
+}
+
+// SMSG_ADD_RUNE_POWER (0x6915): the uint32 mask 1 << slot.
+TEST(PlayerClientPackets_AddRunePowerBytes)
+{
+    CHECK_STR(Built(&BuildAddRunePowerPacket, PowerAdded(0)), "6915:01000000");
+    CHECK_STR(Built(&BuildAddRunePowerPacket, PowerAdded(3)), "6915:08000000");
+    CHECK_STR(Built(&BuildAddRunePowerPacket, PowerAdded(5)), "6915:20000000");
+}
+
 // The callbacks the session installs turn each fact into the packet above and send it to the
 // owner's session, each fact to its own packet.
 TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
@@ -262,8 +321,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 8u);
-    for (size_t i = 0; i < 8; ++i)
+    REQUIRE(session.sent.size() == 11u);
+    for (size_t i = 0; i < 11; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -283,9 +342,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 8u);
-    REQUIRE(second.sent.size() == 8u);
-    for (size_t i = 0; i < 8; ++i)
+    REQUIRE(first.sent.size() == 11u);
+    REQUIRE(second.sent.size() == 11u);
+    for (size_t i = 0; i < 11; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);

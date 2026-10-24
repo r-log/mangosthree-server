@@ -28,13 +28,11 @@
 
 #include "Platform/Define.h"
 #include "Common/TimeConstants.h"
-#include "ManagerPacketSink.h"
 #include "SharedDefines.h"
 
 #include <functional>
 
 class Aura;
-class WorldPacket;
 
 #define MAX_RUNES               6
 
@@ -43,6 +41,31 @@ enum RuneCooldowns
     RUNE_BASE_COOLDOWN          = 10000,
     RUNE_MISS_COOLDOWN          = 1500     // cooldown applied on runes when the spell misses
 };
+
+/// A rune slot is converted: slot `index` now holds a rune of `type`.
+struct RuneConvertedFact
+{
+    uint8 index = 0;
+    uint8 type = 0;
+};
+
+/// The client's runes are resynchronised: each slot's current rune type and how much of its
+/// cooldown has passed (0 none, 255 all of it or no cooldown).
+struct RunesResyncedFact
+{
+    uint8 types[MAX_RUNES] = {};
+    uint8 cooldownFractions[MAX_RUNES] = {};
+};
+
+/// Rune power is added to slot `index`.
+struct RunePowerAddedFact
+{
+    uint8 index = 0;
+};
+
+typedef std::function<void(RuneConvertedFact const&)> RuneConvertedSink;
+typedef std::function<void(RunesResyncedFact const&)> RunesResyncedSink;
+typedef std::function<void(RunePowerAddedFact const&)> RunePowerAddedSink;
 
 struct RuneInfo
 {
@@ -86,9 +109,10 @@ struct Runes
  * the class at Init(), the regeneration auras' multiplier and the melee haste rating at
  * UpdateRuneRegen(), the facts about a slot's convert aura at RestoreBaseRune() -- and what it
  * used to write to the owner goes out through a callback called at the exact point the old body
- * wrote it: the rune packets (built here, handed to a PacketSink), the regeneration fields (a
- * RegenSink) and the removal of a convert aura that no slot holds any more (an AuraDrop). So
- * `mangos_tests` builds one from nothing and reads every packet's bytes.
+ * wrote it: the rune facts (a RuneConvertedSink, a RunesResyncedSink and a RunePowerAddedSink,
+ * which the session builds into the client's packets), the regeneration fields (a RegenSink) and
+ * the removal of a convert aura that no slot holds any more (an AuraDrop). So `mangos_tests`
+ * builds one from nothing and reads every fact.
  *
  * THE CONVERT AURA IS AN OPAQUE IDENTITY. A slot stores the `Aura const*` that converted it; this
  * object stores it, compares it and hands it back, and never dereferences it (Aura is only
@@ -102,13 +126,11 @@ struct Runes
  * KEPT SEMANTICS, stated rather than fixed (backlog): the constructor leaves the state
  * uninitialised, as it always did -- Init() fills it for a death knight only, and it never
  * touches the last-used mask; RemoveRunesByAuraEffect(NULL) restores every slot that has no
- * convert aura, sending a packet for each.
+ * convert aura, reporting a conversion for each.
  */
 class RuneMgr
 {
     public:
-        /// Hands a built rune packet to the owner's session: `GetSession()->SendPacket(packet)`.
-        typedef ManagerPacketSink PacketSink;
         /// Writes one rune type's regeneration rate: `SetFloatValue(PLAYER_RUNE_REGEN_1 + runeType, value)`.
         typedef std::function<void(uint32 runeType, float value)> RegenSink;
         /// Takes a convert aura that no slot holds any more off its target.
@@ -149,12 +171,12 @@ class RuneMgr
         void SetRuneCooldown(uint8 index, uint16 cooldown) { m_data.runes[index].Cooldown = cooldown; m_data.SetRuneState(index, (cooldown == 0) ? true : false); }
         void SetBaseRuneCooldown(uint8 index, uint16 cooldown) { m_data.runes[index].BaseCooldown = cooldown; }
         void SetRuneConvertAura(uint8 index, Aura const* aura) { m_data.runes[index].ConvertAura = aura; }
-        void RemoveRunesByAuraEffect(Aura const* aura, PacketSink const& send);
-        void RestoreBaseRune(uint8 index, ConvertAuraFacts const& facts, PacketSink const& send, AuraDrop const& dropAura);
-        void ConvertRune(uint8 index, RuneType newType, PacketSink const& send);
+        void RemoveRunesByAuraEffect(Aura const* aura, RuneConvertedSink const& converted);
+        void RestoreBaseRune(uint8 index, ConvertAuraFacts const& facts, RuneConvertedSink const& converted, AuraDrop const& dropAura);
+        void ConvertRune(uint8 index, RuneType newType, RuneConvertedSink const& converted);
         bool ActivateRunes(RuneType type, uint32 count);
-        void ResyncRunes(PacketSink const& send) const;
-        void AddRunePower(uint8 index, PacketSink const& send) const;
+        void ResyncRunes(RunesResyncedSink const& resynced) const;
+        void AddRunePower(uint8 index, RunePowerAddedSink const& powerAdded) const;
         /// `classId` is the owner's class; anything but a death knight leaves the state untouched.
         void Init(uint8 classId, RegenSink const& setRegen);
 

@@ -29,7 +29,8 @@
 /// Before this PR RuneMgr held a pointer to its owner and read the owner's class, auras and haste
 /// rating and wrote the owner's regeneration fields and session. Now the reads are parameters and
 /// the writes are callbacks, so every case builds a RuneMgr from nothing, and a Wire records what
-/// the callbacks received, in call order: each packet (opcode and bytes), each regeneration write
+/// the callbacks received, in call order: each rune fact as the packet the session's builder makes
+/// of it (opcode and bytes), each regeneration write
 /// (rune type and the float's bits) and each convert-aura drop.
 ///
 /// The convert auras are opaque identities: three suitably aligned blocks of a local array stand
@@ -49,6 +50,7 @@
 #include "RuneMgr.h"
 #include "SharedDefines.h"
 #include "WorldPacket.h"
+#include "session/packets/entities/RunePackets.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -113,13 +115,32 @@ namespace
         std::vector<std::string> events;                // "4f14:0103" per packet, "drop A" per drop
         std::vector<std::pair<uint32, uint32> > regen;  // (rune type, the value's bits)
 
-        RuneMgr::PacketSink Sink()
+        /// Records the packet the session's builder makes of each reported fact.
+        template <class Fact>
+        std::function<void(Fact const&)> Built(void (*build)(WorldPacket&, Fact const&))
         {
-            return [this](WorldPacket const* packet)
+            return [this, build](Fact const& fact)
             {
-                packets.push_back(*packet);
-                events.push_back(PacketText(*packet));
+                WorldPacket packet;
+                build(packet, fact);
+                packets.push_back(packet);
+                events.push_back(PacketText(packet));
             };
+        }
+
+        RuneConvertedSink Converted()
+        {
+            return Built(&BuildConvertRunePacket);
+        }
+
+        RunesResyncedSink Resynced()
+        {
+            return Built(&BuildResyncRunesPacket);
+        }
+
+        RunePowerAddedSink PowerAdded()
+        {
+            return Built(&BuildAddRunePowerPacket);
         }
 
         RuneMgr::RegenSink Regen()
@@ -396,12 +417,12 @@ TEST(RuneMgr_ConvertRuneSetsTheCurrentTypeAndSendsItsPacket)
     InitDeathKnight(runes);
     Wire wire;
 
-    runes.ConvertRune(1, RUNE_DEATH, wire.Sink());
+    runes.ConvertRune(1, RUNE_DEATH, wire.Converted());
     CHECK_EQ(int(runes.GetCurrentRune(1)), int(RUNE_DEATH));
     CHECK_EQ(int(runes.GetBaseRune(1)), int(RUNE_BLOOD));
     CHECK(runes.GetRuneConvertAura(1) == NULL);             // ConvertRune alone stores no aura
 
-    runes.ConvertRune(4, RUNE_FROST, wire.Sink());          // already frost: still a packet
+    runes.ConvertRune(4, RUNE_FROST, wire.Converted());          // already frost: still a packet
     REQUIRE(wire.packets.size() == 2);
     // uint8 index, uint8 new type.
     CHECK(wire.packets[0].GetOpcode() == SMSG_CONVERT_RUNE);
@@ -418,15 +439,15 @@ TEST(RuneMgr_RemoveRunesByAuraEffectRestoresEverySlotOfThatAura)
 
     // A converted slots 1 and 4, B converted slot 2.
     runes.SetRuneConvertAura(1, kAuraA);
-    runes.ConvertRune(1, RUNE_DEATH, wire.Sink());
+    runes.ConvertRune(1, RUNE_DEATH, wire.Converted());
     runes.SetRuneConvertAura(4, kAuraA);
-    runes.ConvertRune(4, RUNE_DEATH, wire.Sink());
+    runes.ConvertRune(4, RUNE_DEATH, wire.Converted());
     runes.SetRuneConvertAura(2, kAuraB);
-    runes.ConvertRune(2, RUNE_DEATH, wire.Sink());
+    runes.ConvertRune(2, RUNE_DEATH, wire.Converted());
     wire.Clear();
 
     // A: slot 1 back to blood, then slot 4 back to frost, in slot order; both forget A.
-    runes.RemoveRunesByAuraEffect(kAuraA, wire.Sink());
+    runes.RemoveRunesByAuraEffect(kAuraA, wire.Converted());
     REQUIRE(wire.events.size() == 2);
     CHECK_STR(wire.events[0], "4f14:0100");
     CHECK_STR(wire.events[1], "4f14:0402");
@@ -439,12 +460,12 @@ TEST(RuneMgr_RemoveRunesByAuraEffectRestoresEverySlotOfThatAura)
 
     // An aura no slot holds: nothing.
     wire.Clear();
-    runes.RemoveRunesByAuraEffect(kAuraC, wire.Sink());
+    runes.RemoveRunesByAuraEffect(kAuraC, wire.Converted());
     CHECK(wire.events.empty());
 
     // KEPT: NULL matches every slot WITHOUT a convert aura -- 0, 1, 3, 4, 5 -- and restores each
     // to its base type with a packet; slot 2 keeps B.
-    runes.RemoveRunesByAuraEffect(NULL, wire.Sink());
+    runes.RemoveRunesByAuraEffect(NULL, wire.Converted());
     REQUIRE(wire.events.size() == 5);
     CHECK_STR(wire.events[0], "4f14:0000");
     CHECK_STR(wire.events[1], "4f14:0100");
@@ -524,7 +545,7 @@ TEST(RuneMgr_RestoreBaseRuneFactTable)
         Wire wire;
 
         // Slot 2 (base unholy) is a death rune, converted by A when the row has an aura.
-        runes.ConvertRune(2, RUNE_DEATH, wire.Sink());
+        runes.ConvertRune(2, RUNE_DEATH, wire.Converted());
         if (row.withAura)
         {
             runes.SetRuneConvertAura(2, kAuraA);
@@ -532,11 +553,11 @@ TEST(RuneMgr_RestoreBaseRuneFactTable)
         if (row.other)
         {
             runes.SetRuneConvertAura(5, kAuraA);
-            runes.ConvertRune(5, RUNE_DEATH, wire.Sink());
+            runes.ConvertRune(5, RUNE_DEATH, wire.Converted());
         }
         wire.Clear();
 
-        runes.RestoreBaseRune(2, Facts(row.nonPassive, row.bloodOfTheNorth, row.convertsRunes), wire.Sink(), wire.Drop());
+        runes.RestoreBaseRune(2, Facts(row.nonPassive, row.bloodOfTheNorth, row.convertsRunes), wire.Converted(), wire.Drop());
 
         std::vector<std::string> expected;
         if (row.restored)
@@ -707,16 +728,16 @@ TEST(RuneMgr_ResyncAndAddRunePowerBytes)
     runes.SetRuneCooldown(3, 5000);
     runes.SetRuneCooldown(4, 1000);
 
-    runes.ResyncRunes(wire.Sink());
+    runes.ResyncRunes(wire.Resynced());
     REQUIRE(wire.packets.size() == 1);
     CHECK(wire.packets[0].GetOpcode() == SMSG_RESYNC_RUNES);
     // uint32 MAX_RUNES, then (uint8 current type, uint8 cooldown fraction) per slot.
     CHECK_HEX(wire.packets[0].contents(), wire.packets[0].size(), "06000000" "00bf" "00ff" "0100" "037f" "02ff" "02ff");
 
     // uint32 mask 1 << index.
-    runes.AddRunePower(0, wire.Sink());
-    runes.AddRunePower(3, wire.Sink());
-    runes.AddRunePower(5, wire.Sink());
+    runes.AddRunePower(0, wire.PowerAdded());
+    runes.AddRunePower(3, wire.PowerAdded());
+    runes.AddRunePower(5, wire.PowerAdded());
     REQUIRE(wire.packets.size() == 4);
     CHECK(wire.packets[1].GetOpcode() == SMSG_ADD_RUNE_POWER);
     CHECK_HEX(wire.packets[1].contents(), wire.packets[1].size(), "01000000");

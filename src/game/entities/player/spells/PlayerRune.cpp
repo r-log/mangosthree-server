@@ -33,7 +33,8 @@
  * regeneration fields, the T11 Death Eater cast and the removal of a convert aura. Each input is
  * computed with the old expression, in the old order, just before the one call into the manager;
  * each write is a callback the manager calls where the old body wrote. The forwarders with no
- * such input stay inline in Player.h, and the packets go through Player::SessionSink().
+ * such input stay inline in Player.h, and the rune facts go to the callbacks the session installed
+ * on the character (ClientCallbacks::runeConverted, runesResynced and runePowerAdded).
  */
 
 #include "Player.h"
@@ -105,7 +106,7 @@ void Player::AddRuneByAuraEffect(uint8 index, RuneType newType, Aura const* aura
         CastSpell(this, 90507, true);   // Death Eater
     }
 
-    m_runeMgr.SetRuneConvertAura(index, aura); m_runeMgr.ConvertRune(index, newType, SessionSink());
+    m_runeMgr.SetRuneConvertAura(index, aura); m_runeMgr.ConvertRune(index, newType, m_clientCallbacks.runeConverted);
 }
 
 void Player::RestoreBaseRune(uint8 index)
@@ -120,7 +121,7 @@ void Player::RestoreBaseRune(uint8 index)
     // Don't drop passive talents providing rune convertion
     facts.convertsRunes = aura && aura->GetModifier()->m_auraname == SPELL_AURA_CONVERT_RUNE;
 
-    m_runeMgr.RestoreBaseRune(index, facts, SessionSink(), DropConvertAura);
+    m_runeMgr.RestoreBaseRune(index, facts, m_clientCallbacks.runeConverted, DropConvertAura);
 }
 
 void Player::InitRunes()
