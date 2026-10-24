@@ -38,13 +38,13 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 465 include lines go against the table.
+**Today:** 452 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 133 | `WorldPacket.h` 82, `Opcodes.h` 48 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
 | domain -> session | 121 | `WorldSession.h` 94, `GossipDef.h` 15, `UpdateData.h` 10 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
-| any -> app | 54 | `World.h`: domain 32, scripts 10, session 8, data 3, foundation 1 | `BattleGround.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
+| any -> app | 41 | `World.h`: domain 19, scripts 10, session 8, data 3, foundation 1 | `BattleGround.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
 | domain, data, session -> scripts | 52 | `ScriptMgr.h` 28, `Chat.h` 24 | `Map.cpp`, `MiscHandler.cpp`, `ObjectMgr.cpp` |
 | data -> domain | 77 | `Group.h` 9, `GridNotifiersImpl.h` 8, `MapManager.h` 6, `SpellMgr.h` 6 | `ObjectMgr.cpp`, `ObjectMgr.h`, `ObjectMgrCreatures.cpp` |
 | data -> session | 3 | `GossipDef.h` 2, `NPCHandler.h` 1 | `ObjectMgr.h`, `ObjectMgrGossipMenu.cpp`, `ObjectMgrLocales.cpp` |
@@ -375,7 +375,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 |---|---|---|
 | 1 | domain -> proto: 133 lines; 215 `WorldPacket data(` sites in the domain tier; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
 | 2 | domain -> session: 121 lines (`WorldSession.h`, `GossipDef.h`, `UpdateData.h`) | Unit reopen, D11, then when content touches it |
-| 3 | `World.h` included 54 times below app | the configuration interface (#143), when content touches it |
+| 3 | `World.h` included 41 times below app | the configuration interface (#143), when content touches it |
 | 4 | `Chat.h` (24) and `ScriptMgr.h` (28) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
 | 5 | data -> domain: 77 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
