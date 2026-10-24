@@ -46,7 +46,7 @@
 #include "Creature.h"
 #include "Language.h"
 #include "ArenaTeam.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "Group.h"
 #include "ObjectGuid.h"
@@ -560,9 +560,9 @@ void BattleGround::Update(uint32 diff)
                 }
 
                 // Announce BG starting
-                if (sWorld.getConfig(CONFIG_BOOL_BATTLEGROUND_QUEUE_ANNOUNCER_START))
+                if (sGameConfig.getConfig(CONFIG_BOOL_BATTLEGROUND_QUEUE_ANNOUNCER_START))
                 {
-                    sWorld.SendWorldText(LANG_BG_STARTED_ANNOUNCE_WORLD, GetName(), GetMinLevel(), GetMaxLevel());
+                    sBattleGroundMgr.SendWorldText(LANG_BG_STARTED_ANNOUNCE_WORLD, GetName(), GetMinLevel(), GetMaxLevel());
                 }
             }
         }

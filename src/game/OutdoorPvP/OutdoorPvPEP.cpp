@@ -26,7 +26,6 @@
 #include <list>
 #include "OutdoorPvPEP.h"
 #include "WorldPacket.h"
-#include "World.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "Object.h"
@@ -272,7 +271,7 @@ bool OutdoorPvPEP::HandleEvent(uint32 eventId, GameObject* go)
                     {
                         if (plaguelandsTowerEvents[i][j].defenseMessage)
                         {
-                            sWorld.SendDefenseMessage(ZONE_ID_EASTERN_PLAGUELANDS, plaguelandsTowerEvents[i][j].defenseMessage);
+                            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_EASTERN_PLAGUELANDS, plaguelandsTowerEvents[i][j].defenseMessage);
                         }
 
                         return ProcessCaptureEvent(go, i, plaguelandsTowerEvents[i][j].team, plaguelandsTowerEvents[i][j].worldState);

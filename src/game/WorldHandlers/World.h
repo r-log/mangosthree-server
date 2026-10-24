@@ -36,6 +36,7 @@
 #include "Common/ServerDefines.h"
 #include "Platform/Define.h"
 #include "Common/Locales.h"
+#include <cstdarg>
 #include <cstring>
 #include <ctime>
 #include <string>
@@ -236,6 +237,7 @@ class World
         void LoadConfigSettings(bool reload = false);
 
         void SendWorldText(int32 string_id, ...);
+        void SendWorldTextV(int32 string_id, va_list* args);
         void SendGlobalMessage(WorldPacket* packet, AccountTypes minSec = SEC_PLAYER);
         void SendServerMessage(ServerMessageType type, const char* text = "", Player* player = NULL);
         void SendZoneUnderAttackMessage(uint32 zoneId, Team team);

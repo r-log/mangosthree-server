@@ -18,7 +18,6 @@ src/game/BattleGround [pvp] -> src/game/WorldHandlers/Mail.h
 src/game/BattleGround [pvp] -> src/game/WorldHandlers/Map.h
 src/game/BattleGround [pvp] -> src/game/WorldHandlers/MapManager.h
 src/game/BattleGround/BattleGround.cpp -> src/game/WorldHandlers/Chat.h
-src/game/BattleGround/BattleGround.cpp -> src/game/WorldHandlers/World.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGround.cpp -> src/proto/WorldPacket.h
@@ -39,14 +38,12 @@ src/game/BattleGround/BattleGroundHandler.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundIC.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundMgr.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundMgr.cpp -> src/proto/WorldPacket.h
-src/game/BattleGround/BattleGroundMgrUtil.cpp -> src/game/WorldHandlers/World.h
 src/game/BattleGround/BattleGroundMgrUtil.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundObjects.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/Server/WorldSession.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/WorldHandlers/Chat.h
-src/game/BattleGround/BattleGroundQueue.cpp -> src/game/WorldHandlers/World.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundRB.cpp -> src/game/entities/player/Player.h
@@ -345,22 +342,16 @@ src/game/OutdoorPvP [pvp] -> src/game/Object/Object.h
 src/game/OutdoorPvP [pvp] -> src/game/WorldHandlers/Map.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/Server/WorldSession.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/Player.h
-src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/proto/WorldPacket.h
-src/game/OutdoorPvP/OutdoorPvPHP.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvPHP.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPHP.cpp -> src/proto/WorldPacket.h
-src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/proto/WorldPacket.h
-src/game/OutdoorPvP/OutdoorPvPSI.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvPSI.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPSI.cpp -> src/proto/WorldPacket.h
-src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/proto/WorldPacket.h
-src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/proto/WorldPacket.h
 src/game/References [combat] -> src/game/Object/Creature.h

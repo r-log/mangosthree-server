@@ -760,6 +760,10 @@ void World::SetInitialWorldSettings()
 
     ///- Initialize Battlegrounds
     sLog.outString("Starting BattleGround System");
+    sBattleGroundMgr.SetWorldTextSink([this](int32 textId, va_list* args)
+    {
+        SendWorldTextV(textId, args);
+    });
     sBattleGroundMgr.CreateInitialBattleGrounds();
     if (getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
     {
@@ -772,6 +776,10 @@ void World::SetInitialWorldSettings()
 
     ///- Initialize Outdoor PvP
     sLog.outString("Starting Outdoor PvP System");
+    sOutdoorPvPMgr.SetDefenseMessageSink([this](uint32 zoneId, int32 textId)
+    {
+        SendDefenseMessage(zoneId, textId);
+    });
     sOutdoorPvPMgr.InitOutdoorPvP();
 
     // Not sure if this can be moved up in the sequence (with static data loading) as it uses MapManager
@@ -1179,8 +1187,14 @@ void World::SendWorldText(int32 string_id, ...)
 {
     va_list ap;
     va_start(ap, string_id);
+    SendWorldTextV(string_id, &ap);
+    va_end(ap);
+}
 
-    MaNGOS::WorldWorldTextBuilder wt_builder(string_id, &ap);
+/// Sends a system message, formatted with `args`, to all players
+void World::SendWorldTextV(int32 string_id, va_list* args)
+{
+    MaNGOS::WorldWorldTextBuilder wt_builder(string_id, args);
     MaNGOS::LocalizedPacketListDo<MaNGOS::WorldWorldTextBuilder> wt_do(wt_builder);
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
     {
@@ -1193,8 +1207,6 @@ void World::SendWorldText(int32 string_id, ...)
             }
         }
     }
-
-    va_end(ap);
 }
 
 /// Sends a packet to all players with optional account access level restrictions

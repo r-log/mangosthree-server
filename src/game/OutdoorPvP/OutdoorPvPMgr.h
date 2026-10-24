@@ -30,6 +30,7 @@
 #include "Common/TimeConstants.h"
 #include <map>
 #include <mutex>
+#include <functional>
 #include "Policies/Singleton.h"
 #include "Timer.h"
 
@@ -139,6 +140,10 @@ class CapturePointSliderStore
         mutable std::mutex m_lock;
 };
 
+/// Where a zone's defense message goes: the text `textId`, in each player's locale, to every player in
+/// the world outside an instance. The world installs it at startup, before the scripts are created.
+typedef std::function<void(uint32 zoneId, int32 textId)> DefenseMessageSink;
+
 /**
  * @brief Manager class for outdoor PvP zones
  *
@@ -208,6 +213,19 @@ class OutdoorPvPMgr
          */
         void SetCapturePointSlider(uint32 entry, CapturePointSlider value) { m_capturePointSliders.Set(entry, value); }
 
+        /**
+         * @brief Set where a zone's defense message goes
+         * @param sink The world's defense message, installed once at startup
+         */
+        void SetDefenseMessageSink(DefenseMessageSink const& sink) { m_defenseMessage = sink; }
+
+        /**
+         * @brief Send a zone's defense message through the installed callback
+         * @param zoneId Zone ID the message names
+         * @param textId Text ID of the message
+         */
+        void SendDefenseMessage(uint32 zoneId, int32 textId) const;
+
     private:
         /**
          * @brief Get outdoor PvP script for affected zone
@@ -221,6 +239,8 @@ class OutdoorPvPMgr
         CapturePointSliderStore m_capturePointSliders; ///< Map of capture point slider states
 
         IntervalTimer m_updateTimer; ///< Update interval timer
+
+        DefenseMessageSink m_defenseMessage; ///< Where a zone's defense message goes
 };
 
 /**
