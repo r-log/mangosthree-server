@@ -33,6 +33,7 @@
 #include "session/packets/entities/PetActionBarPacket.h"
 #include "session/packets/entities/PetGuidsPacket.h"
 #include "session/packets/entities/PvpCreditPacket.h"
+#include "session/packets/entities/ReputationPackets.h"
 #include "session/packets/entities/RunePackets.h"
 #include "session/packets/entities/StandStatePacket.h"
 #include "session/packets/spells/AutoRepeatPackets.h"
@@ -84,6 +85,11 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.currencyWeekCap = FactToSession(owner, &BuildSetCurrencyWeekLimitPacket);
     callbacks.currencyWeekReset = FactToSession(owner, &BuildWeeklyResetCurrenciesPacket);
     callbacks.currencyList = FactToSession(owner, &BuildSendCurrenciesPacket);
+    callbacks.forcedReactions = FactToSession(owner, &BuildSetForcedReactionsPacket);
+    callbacks.factionStanding = FactToSession(owner, &BuildSetFactionStandingPacket);
+    callbacks.initialReputations = FactToSession(owner, &BuildInitializeFactionsPacket);
+    callbacks.factionVisible = FactToSession(owner, &BuildSetFactionVisiblePacket);
+    callbacks.factionAtWar = FactToSession(owner, &BuildSetFactionAtWarPacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }

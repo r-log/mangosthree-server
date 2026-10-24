@@ -27,8 +27,6 @@
 #include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
 
 const int32 ReputationMgr::PointsInRank[MAX_REPUTATION_RANK] = {36000, 3000, 3000, 3000, 6000, 12000, 21000, 1000};
 
@@ -195,40 +193,29 @@ uint32 ReputationMgr::GetDefaultStateFlags(FactionEntry const* factionEntry) con
 /**
  * @brief Sends forced reaction states to the client.
  *
- * @param send Where the packet goes.
+ * @param forced Where the forced reactions are reported.
  */
-void ReputationMgr::SendForceReactions(ManagerPacketSink const& send)
+void ReputationMgr::SendForceReactions(ForcedReactionsSink const& forced)
 {
-    WorldPacket data;
-    data.Initialize(SMSG_SET_FORCED_REACTIONS, 4 + m_forcedReactions.size() * (4 + 4));
-    data << uint32(m_forcedReactions.size());
+    ForcedReactionsFact fact;
     for (ForcedReactions::const_iterator itr = m_forcedReactions.begin(); itr != m_forcedReactions.end(); ++itr)
     {
-        data << uint32(itr->first);                         // faction_id (Faction.dbc)
-        data << uint32(itr->second);                        // reputation rank
+        fact.reactions.push_back(std::make_pair(uint32(itr->first), uint32(itr->second)));
     }
-    send(&data);
+    forced(fact);
 }
 
 /**
  * @brief Sends updated faction standing data to the client.
  *
  * @param faction The primary faction state being reported.
- * @param send Where the packet goes.
+ * @param standing Where the standings are reported.
  */
-void ReputationMgr::SendState(FactionState const* faction, bool anyRankIncreased, ManagerPacketSink const& send)
+void ReputationMgr::SendState(FactionState const* faction, bool anyRankIncreased, FactionStandingSink const& standing)
 {
-    uint32 count = 1;
-
-    WorldPacket data(SMSG_SET_FACTION_STANDING, 17);
-    data << float(0);                                       // refer-a-friend bonus reputation
-    data << uint8(anyRankIncreased ? 1 : 0);                // display visual effect
-
-    size_t p_count = data.wpos();
-    data << (uint32) count;                                 // placeholder
-
-    data << (uint32) faction->ReputationListID;
-    data << (uint32) faction->Standing;
+    FactionStandingFact fact;
+    fact.anyRankIncreased = anyRankIncreased;
+    fact.standings.push_back(std::make_pair((uint32) faction->ReputationListID, (uint32) faction->Standing));
 
     for (FactionStateList::iterator itr = m_factions.begin(); itr != m_factions.end(); ++itr)
     {
@@ -238,28 +225,24 @@ void ReputationMgr::SendState(FactionState const* faction, bool anyRankIncreased
             subFaction.needSend = false;
             if (subFaction.ReputationListID != faction->ReputationListID)
             {
-                data << uint32(subFaction.ReputationListID);
-                data << uint32(subFaction.Standing);
-
-                ++count;
+                fact.standings.push_back(std::make_pair(uint32(subFaction.ReputationListID), uint32(subFaction.Standing)));
             }
         }
     }
 
-    data.put<uint32>(p_count, count);
-    send(&data);
+    standing(fact);
 }
 
 /* Called from the owner's SendInitialPacketsBeforeAddToMap (login) */
 /**
  * @brief Sends the initial reputation table to the client.
  *
- * @param send Where the packet goes.
+ * @param initial Where the table is reported.
  */
-void ReputationMgr::SendInitialReputations(ManagerPacketSink const& send)
+void ReputationMgr::SendInitialReputations(InitialReputationsSink const& initial)
 {
-    WorldPacket data(SMSG_INITIALIZE_FACTIONS, (4 + 128 * 5));
-    data << uint32 (0x00000100);
+    InitialReputationsFact fact;
+    InitialReputationsFact::Slot const absent;
 
     RepListID a = 0;
 
@@ -268,13 +251,14 @@ void ReputationMgr::SendInitialReputations(ManagerPacketSink const& send)
         // fill in absent fields
         for (; a != itr->first; ++a)
         {
-            data << uint8(0x00);
-            data << uint32(0x00000000);
+            fact.slots.push_back(absent);
         }
 
         // fill in encountered data
-        data << uint8(itr->second.Flags);
-        data << uint32(itr->second.Standing);
+        InitialReputationsFact::Slot slot;
+        slot.flags = uint8(itr->second.Flags);
+        slot.standing = uint32(itr->second.Standing);
+        fact.slots.push_back(slot);
 
         itr->second.needSend = false;
 
@@ -284,18 +268,17 @@ void ReputationMgr::SendInitialReputations(ManagerPacketSink const& send)
     // fill in absent fields
     for (; a != 256; ++a)
     {
-        data << uint8(0x00);
-        data << uint32(0x00000000);
+        fact.slots.push_back(absent);
     }
 
-    send(&data);
+    initial(fact);
 }
 
 /**
  * @brief Marks a faction as visible in the client reputation list.
  *
  * @param faction The faction state to reveal.
- * @param notify Whether the character is still loading (no packet then), and where the packet goes.
+ * @param notify Whether the character is still loading (no notice then), and where the notice goes.
  */
 void ReputationMgr::SendVisible(FactionState const* faction, FlagNotify const& notify) const
 {
@@ -305,9 +288,9 @@ void ReputationMgr::SendVisible(FactionState const* faction, FlagNotify const& n
     }
 
     // make faction visible in reputation list at client
-    WorldPacket data(SMSG_SET_FACTION_VISIBLE, 4);
-    data << faction->ReputationListID;
-    notify.send(&data);
+    FactionVisibleFact fact;
+    fact.listId = faction->ReputationListID;
+    notify.visible(fact);
 }
 
 /**
@@ -325,7 +308,7 @@ void ReputationMgr::SendVisible(FactionState const* faction, FlagNotify const& n
  * therefore says exactly what the client asks for; the other bits are ignored by
  * its reader for opcode 0x4216.
  *
- * @param notify Whether the character is still loading (no packet then), and where the packet goes.
+ * @param notify Whether the character is still loading (no notice then), and where the notice goes.
  */
 void ReputationMgr::SendAtWar(FactionState const* faction, FlagNotify const& notify) const
 {
@@ -334,10 +317,10 @@ void ReputationMgr::SendAtWar(FactionState const* faction, FlagNotify const& not
         return;
     }
 
-    WorldPacket data(SMSG_SET_FACTION_ATWAR, 4 + 1);
-    data << uint32(faction->ReputationListID);
-    data << uint8(faction->Flags & 0xFF);
-    notify.send(&data);
+    FactionAtWarFact fact;
+    fact.listId = uint32(faction->ReputationListID);
+    fact.flags = uint8(faction->Flags & 0xFF);
+    notify.atWar(fact);
 }
 
 /**
@@ -384,7 +367,7 @@ void ReputationMgr::Initialize()
  * @param standing The new reputation value or delta.
  * @param incremental true if the standing value is a delta; otherwise, false.
  * @param inputs The spillover template and team list lookups, each read at its point of use.
- * @param sinks The packets and the owner's per-faction quest check and achievement updates.
+ * @param sinks The notices and the owner's per-faction quest check and achievement updates.
  * @return true if the faction state was updated; otherwise, false.
  */
 void ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standing, bool incremental, ChangeInputs const& inputs, ChangeSinks const& sinks)
@@ -468,7 +451,7 @@ void ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standi
         }
 
         // only this faction gets reported to client, even if it has no own visible standing
-        SendState(&faction->second, anyRankIncreased, sinks.notify.send);
+        SendState(&faction->second, anyRankIncreased, sinks.standing);
     }
 }
 
@@ -478,7 +461,7 @@ void ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standi
  * @param factionEntry The faction entry to modify.
  * @param standing The new reputation value or delta.
  * @param incremental true if the standing value is a delta; otherwise, false.
- * @param sinks The packets and the owner's quest check and achievement updates for this faction.
+ * @param sinks The notices and the owner's quest check and achievement updates for this faction.
  * @return true if the faction state was updated; otherwise, false.
  */
 bool ReputationMgr::SetOneFactionReputation(FactionEntry const* factionEntry, int32 standing, bool incremental, ChangeSinks const& sinks)
@@ -539,7 +522,7 @@ bool ReputationMgr::SetOneFactionReputation(FactionEntry const* factionEntry, in
  * @brief Makes the faction referenced by a faction template visible.
  *
  * @param factionTemplateEntry The faction template entry to inspect.
- * @param notify Whether the character is still loading, and where the packet goes.
+ * @param notify Whether the character is still loading, and where the notices go.
  */
 void ReputationMgr::SetVisible(FactionTemplateEntry const* factionTemplateEntry, FlagNotify const& notify)
 {
@@ -558,7 +541,7 @@ void ReputationMgr::SetVisible(FactionTemplateEntry const* factionTemplateEntry,
  * @brief Marks a faction visible using its faction entry.
  *
  * @param factionEntry The faction entry to reveal.
- * @param notify Whether the character is still loading, and where the packet goes.
+ * @param notify Whether the character is still loading, and where the notices go.
  */
 void ReputationMgr::SetVisible(FactionEntry const* factionEntry, FlagNotify const& notify)
 {
@@ -580,7 +563,7 @@ void ReputationMgr::SetVisible(FactionEntry const* factionEntry, FlagNotify cons
  * @brief Marks a faction state as visible and schedules updates.
  *
  * @param faction The faction state to reveal.
- * @param notify Whether the character is still loading, and where the packet goes.
+ * @param notify Whether the character is still loading, and where the notices go.
  */
 void ReputationMgr::SetVisible(FactionState* faction, FlagNotify const& notify)
 {
@@ -610,7 +593,7 @@ void ReputationMgr::SetVisible(FactionState* faction, FlagNotify const& notify)
  *
  * @param repListID The reputation list identifier.
  * @param on true to declare war; false to clear it.
- * @param notify Whether the character is still loading, and where the packet goes.
+ * @param notify Whether the character is still loading, and where the notices go.
  */
 void ReputationMgr::SetAtWar(RepListID repListID, bool on, FlagNotify const& notify)
 {
@@ -634,7 +617,7 @@ void ReputationMgr::SetAtWar(RepListID repListID, bool on, FlagNotify const& not
  *
  * @param faction The faction state to update.
  * @param atWar true to declare war; false to clear it.
- * @param notify Whether the character is still loading, and where the packet goes.
+ * @param notify Whether the character is still loading, and where the notices go.
  */
 void ReputationMgr::SetAtWar(FactionState* faction, bool atWar, FlagNotify const& notify)
 {
@@ -751,7 +734,7 @@ void ReputationMgr::SetInactive(FactionState* faction, bool inactive)
  * @brief Loads one saved reputation row (standing and flags) over the initialized list.
  *
  * @param fields The row: faction, standing, flags.
- * @param notify Whether the character is still loading, and where the packets of the flag
+ * @param notify Whether the character is still loading, and where the notices of the flag
  *               changes go.
  */
 void ReputationMgr::LoadRow(Field* fields, FlagNotify const& notify)

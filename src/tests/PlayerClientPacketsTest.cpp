@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The packets a player's own client is told, built from the player's fifteen facts: the bytes of each
+/// The packets a player's own client is told, built from the player's twenty facts: the bytes of each
 /// builder, the callbacks the session installs on a player, which build the packet at each report
 /// and send it to the session the player holds at that moment, the security level read from that
 /// session at each call, and the assertion on a callback no session installed.
@@ -169,6 +169,49 @@ namespace
         return entry;
     }
 
+    ForcedReactionsFact TwoForcedReactions()
+    {
+        ForcedReactionsFact fact;
+        fact.reactions.push_back(std::make_pair(uint32(1), uint32(7)));
+        fact.reactions.push_back(std::make_pair(uint32(5), uint32(1)));
+        return fact;
+    }
+
+    FactionStandingFact Standing(bool anyRankIncreased, uint32 listId, uint32 standing)
+    {
+        FactionStandingFact fact;
+        fact.anyRankIncreased = anyRankIncreased;
+        fact.standings.push_back(std::make_pair(listId, standing));
+        return fact;
+    }
+
+    /// Two slots: flags 0x11 at standing 9000, then an absent one.
+    InitialReputationsFact TwoSlots()
+    {
+        InitialReputationsFact fact;
+        InitialReputationsFact::Slot slot;
+        slot.flags = 0x11;
+        slot.standing = 9000;
+        fact.slots.push_back(slot);
+        fact.slots.push_back(InitialReputationsFact::Slot());
+        return fact;
+    }
+
+    FactionVisibleFact Visible(uint32 listId)
+    {
+        FactionVisibleFact fact;
+        fact.listId = listId;
+        return fact;
+    }
+
+    FactionAtWarFact AtWar(uint32 listId, uint8 flags)
+    {
+        FactionAtWarFact fact;
+        fact.listId = listId;
+        fact.flags = flags;
+        return fact;
+    }
+
     /// Conquest points (390) with a week cap and a week count, then honor points (392) with a
     /// season count.
     CurrencyListFact TwoCurrencies()
@@ -226,6 +269,11 @@ namespace
         ReportClientFact(callbacks.currencyWeekCap, WeekCapIs(396, 1000));
         ReportClientFact(callbacks.currencyWeekReset, CurrencyWeekResetFact());
         ReportClientFact(callbacks.currencyList, TwoCurrencies());
+        ReportClientFact(callbacks.forcedReactions, TwoForcedReactions());
+        ReportClientFact(callbacks.factionStanding, Standing(true, 21, 10));
+        ReportClientFact(callbacks.initialReputations, TwoSlots());
+        ReportClientFact(callbacks.factionVisible, Visible(25));
+        ReportClientFact(callbacks.factionAtWar, AtWar(25, 0x03));
     }
 
     const char* const kEach[] =
@@ -245,6 +293,11 @@ namespace
         "70a7:e80300008c010000",
         "3ca1:",
         "15a5:000005480864000000460500008601000014000000050000000900000088010000",
+        "4615:0200000001000000070000000500000001000000",
+        "0126:000000000101000000150000000a000000",
+        "4634:0001000011282300000000000000",
+        "2525:19000000",
+        "4216:1900000003",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -406,6 +459,43 @@ TEST(PlayerClientPackets_SendCurrenciesBytes)
     CHECK_STR(Built(&BuildSendCurrenciesPacket, one), "15a5:000002f00100000069010000");
 }
 
+// SMSG_SET_FORCED_REACTIONS (0x4615): the count, then each faction id and rank, each a uint32.
+TEST(PlayerClientPackets_SetForcedReactionsBytes)
+{
+    CHECK_STR(Built(&BuildSetForcedReactionsPacket, ForcedReactionsFact()), "4615:00000000");
+    CHECK_STR(Built(&BuildSetForcedReactionsPacket, TwoForcedReactions()), "4615:0200000001000000070000000500000001000000");
+}
+
+// SMSG_SET_FACTION_STANDING (0x0126): the refer-a-friend bonus as a float (0), the visual effect
+// flag as a byte, the count, then each reputation list id and standing, each a uint32.
+TEST(PlayerClientPackets_SetFactionStandingBytes)
+{
+    CHECK_STR(Built(&BuildSetFactionStandingPacket, Standing(true, 21, 10)), "0126:000000000101000000150000000a000000");
+    // Two standings, no rank increased; -42000 = 0xffff5bf0.
+    FactionStandingFact two = Standing(false, 21, 10);
+    two.standings.push_back(std::make_pair(uint32(3), uint32(-42000)));
+    CHECK_STR(Built(&BuildSetFactionStandingPacket, two), "0126:000000000002000000150000000a00000003000000f05bffff");
+}
+
+// SMSG_INITIALIZE_FACTIONS (0x4634): uint32 0x100, then each slot's flags as a byte and its
+// standing as a uint32.
+TEST(PlayerClientPackets_InitializeFactionsBytes)
+{
+    CHECK_STR(Built(&BuildInitializeFactionsPacket, TwoSlots()), "4634:0001000011282300000000000000");
+}
+
+// SMSG_SET_FACTION_VISIBLE (0x2525): the reputation list id as a uint32.
+TEST(PlayerClientPackets_SetFactionVisibleBytes)
+{
+    CHECK_STR(Built(&BuildSetFactionVisiblePacket, Visible(25)), "2525:19000000");
+}
+
+// SMSG_SET_FACTION_ATWAR (0x4216): the reputation list id as a uint32, then the flags' low byte.
+TEST(PlayerClientPackets_SetFactionAtWarBytes)
+{
+    CHECK_STR(Built(&BuildSetFactionAtWarPacket, AtWar(25, 0x03)), "4216:1900000003");
+}
+
 // The callbacks the session installs turn each fact into the packet above and send it to the
 // owner's session, each fact to its own packet.
 TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
@@ -417,8 +507,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 15u);
-    for (size_t i = 0; i < 15; ++i)
+    REQUIRE(session.sent.size() == 20u);
+    for (size_t i = 0; i < 20; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -438,9 +528,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 15u);
-    REQUIRE(second.sent.size() == 15u);
-    for (size_t i = 0; i < 15; ++i)
+    REQUIRE(first.sent.size() == 20u);
+    REQUIRE(second.sent.size() == 20u);
+    for (size_t i = 0; i < 20; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);

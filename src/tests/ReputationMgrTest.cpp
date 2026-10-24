@@ -70,7 +70,8 @@
 ///
 /// Opcodes (Opcodes.h): SMSG_INITIALIZE_FACTIONS 0x4634, SMSG_SET_FACTION_VISIBLE 0x2525,
 /// SMSG_SET_FACTION_STANDING 0x0126, SMSG_SET_FORCED_REACTIONS 0x4615, SMSG_SET_FACTION_ATWAR
-/// 0x4216; PacketText prints the opcode as four hex digits, then the bytes. Numbers are
+/// 0x4216; each fact the manager reports is built by the session's builder, and PacketText prints
+/// the opcode as four hex digits, then the bytes. Numbers are
 /// little-endian: 9000 = 0x2328 -> 28230000, 42999 = 0xa7f7 -> f7a70000, -42000 = 0xffff5bf0 ->
 /// f05bffff, -21000 = 0xffffadf8 -> f8adffff, 1000 -> e8030000, 500 -> f4010000, 250 -> fa000000,
 /// 125 -> 7d000000, 100 -> 64000000.
@@ -86,6 +87,7 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "ReputationMgr.h"
+#include "session/packets/entities/ReputationPackets.h"
 
 #include <cstdio>
 #include <list>
@@ -189,6 +191,15 @@ namespace
         return text;
     }
 
+    /// The packet the session's builder makes of `fact`, as PacketText prints it.
+    template <class Fact>
+    std::string BuiltText(void (*build)(WorldPacket&, Fact const&), Fact const& fact)
+    {
+        WorldPacket packet;
+        build(packet, fact);
+        return PacketText(packet);
+    }
+
     typedef std::vector<std::string> Events;
 
     /// The callbacks, recording in call order. `mgr` is the manager under test, read by the quest
@@ -222,9 +233,13 @@ namespace
                 events.push_back("loading?");
                 return loading;
             };
-            notify.send = [this](WorldPacket const* packet)
+            notify.visible = [this](FactionVisibleFact const& fact)
             {
-                events.push_back(PacketText(*packet));
+                events.push_back(BuiltText(&BuildSetFactionVisiblePacket, fact));
+            };
+            notify.atWar = [this](FactionAtWarFact const& fact)
+            {
+                events.push_back(BuiltText(&BuildSetFactionAtWarPacket, fact));
             };
             return notify;
         }
@@ -251,6 +266,10 @@ namespace
         {
             ReputationMgr::ChangeSinks sinks;
             sinks.notify = Notify();
+            sinks.standing = [this](FactionStandingFact const& fact)
+            {
+                events.push_back(BuiltText(&BuildSetFactionStandingPacket, fact));
+            };
             sinks.reputationChanged = [this](FactionEntry const* factionEntry)
             {
                 events.push_back("changed " + std::to_string(factionEntry->ID)
@@ -328,7 +347,7 @@ namespace
         wire.mgr = &mgr;
         mgr.SetOwnerFacts(kRace, kClass, "Kael");
         mgr.Initialize();
-        mgr.SendInitialReputations([](WorldPacket const*) {});
+        mgr.SendInitialReputations([](InitialReputationsFact const&) {});
     }
 
     int32 StandingOf(ReputationMgr const& mgr, RepListID listId)
@@ -780,7 +799,7 @@ TEST(ReputationMgr_VisibleAtWarInactiveTransitions)
 
     // Inactive: never a packet; only a visible, not hidden, not invisible faction goes inactive;
     // any faction may go active.
-    mgr.SendInitialReputations([](WorldPacket const*) {});
+    mgr.SendInitialReputations([](InitialReputationsFact const&) {});
     mgr.SetInactive(25, true);
     CHECK_EQ(FlagsOf(mgr, 25), 0x21u);
     CHECK(mgr.GetState(RepListID(25))->needSend);
@@ -831,7 +850,7 @@ TEST(ReputationMgr_SendInitialReputationsBytes)
     }
 
     Events sent;
-    mgr.SendInitialReputations([&sent](WorldPacket const* packet) { sent.push_back(PacketText(*packet)); });
+    mgr.SendInitialReputations([&sent](InitialReputationsFact const& fact) { sent.push_back(BuiltText(&BuildInitializeFactionsPacket, fact)); });
     REQUIRE(sent.size() == 1u);
     CHECK_EQ(sent[0].size(), size_t(5 + 2 * (4 + 256 * 5)));
     CHECK_STR(sent[0], want);
@@ -851,7 +870,7 @@ TEST(ReputationMgr_ForcedReactionsBytes)
 {
     ReputationMgr mgr;
     Events sent;
-    ManagerPacketSink sink = [&sent](WorldPacket const* packet) { sent.push_back(PacketText(*packet)); };
+    ForcedReactionsSink sink = [&sent](ForcedReactionsFact const& fact) { sent.push_back(BuiltText(&BuildSetForcedReactionsPacket, fact)); };
 
     mgr.SendForceReactions(sink);
     mgr.ApplyForceReaction(5, REP_HOSTILE, true);

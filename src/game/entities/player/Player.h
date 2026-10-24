@@ -2326,7 +2326,7 @@ class Player : public Unit
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-        /// where the player is created: fifteen facts out, one read in.
+        /// where the player is created: twenty facts out, one read in.
         struct ClientCallbacks
         {
             SwingOutOfReachSink swingOutOfReach;
@@ -2344,6 +2344,11 @@ class Player : public Unit
             CurrencyWeekCapSink currencyWeekCap;
             CurrencyWeekResetSink currencyWeekReset;
             CurrencyListSink currencyList;
+            ForcedReactionsSink forcedReactions;
+            FactionStandingSink factionStanding;
+            InitialReputationsSink initialReputations;
+            FactionVisibleSink factionVisible;
+            FactionAtWarSink factionAtWar;
             SecurityLevelQuery securityLevel;
         };
         void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }
@@ -3060,8 +3065,8 @@ class Player : public Unit
         void SetFactionAtWar(RepListID repListID, bool on);
 
         // Send the forced reactions, and the whole reputation list (login)
-        void SendForceReactions() { m_reputationMgr.SendForceReactions(SessionSink()); }
-        void SendInitialReputations() { m_reputationMgr.SendInitialReputations(SessionSink()); }
+        void SendForceReactions() { m_reputationMgr.SendForceReactions(m_clientCallbacks.forcedReactions); }
+        void SendInitialReputations() { m_reputationMgr.SendInitialReputations(m_clientCallbacks.initialReputations); }
 
         // Build the reputation list, then load the saved rows (NULL: no rows, the list alone).
         // Public, unlike the other _Load* members: the harness's LoginReputations

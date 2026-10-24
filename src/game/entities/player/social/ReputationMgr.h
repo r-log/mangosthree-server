@@ -30,11 +30,11 @@
 #include "Platform/Define.h"
 #include "SharedDefines.h"
 #include "DBCStructure.h"
-#include "ManagerPacketSink.h"
 #include <functional>
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 enum FactionFlags
 {
@@ -64,6 +64,52 @@ typedef std::pair<FactionStateList::const_iterator, FactionStateList::const_iter
 
 typedef std::map<uint32, ReputationRank> ForcedReactions;
 
+// What the character's own client is told about its reputations.
+
+/// The forced reactions: each faction id and the rank forced on it, in the manager's order.
+struct ForcedReactionsFact
+{
+    std::vector<std::pair<uint32, uint32> > reactions;
+};
+
+/// Standings changed: whether any rank went up (the client's visual effect), then each
+/// (reputation list id, standing) sent, the faction the change was made on first.
+struct FactionStandingFact
+{
+    bool anyRankIncreased = false;
+    std::vector<std::pair<uint32, uint32> > standings;
+};
+
+/// The reputation table at login: each slot's flags and standing, in reputation list order.
+struct InitialReputationsFact
+{
+    struct Slot
+    {
+        uint8 flags = 0;
+        uint32 standing = 0;
+    };
+    std::vector<Slot> slots;
+};
+
+/// A faction is made visible in the client's reputation list.
+struct FactionVisibleFact
+{
+    RepListID listId = 0;
+};
+
+/// A faction's at-war flag: its reputation list id and the low byte of its flags.
+struct FactionAtWarFact
+{
+    uint32 listId = 0;
+    uint8 flags = 0;
+};
+
+typedef std::function<void(ForcedReactionsFact const&)> ForcedReactionsSink;
+typedef std::function<void(FactionStandingFact const&)> FactionStandingSink;
+typedef std::function<void(InitialReputationsFact const&)> InitialReputationsSink;
+typedef std::function<void(FactionVisibleFact const&)> FactionVisibleSink;
+typedef std::function<void(FactionAtWarFact const&)> FactionAtWarSink;
+
 /// A reputation spillover row (the world database's spillover template): the factions that also
 /// receive a change to one faction, each with its rate and the highest rank it still gains at.
 /// The object manager loads and holds the rows; the definition lives here because this manager
@@ -91,7 +137,7 @@ class Field;
  * counters; the visible, at-war and inactive transitions (a hidden or invisible faction never
  * changes, peace-forced refuses war above hated, war cannot be called off at hostile or below);
  * the login rows one at a time (LoadRow); the save as a DELETE then an INSERT per changed faction.
- * It builds the five reputation packets.
+ * It reports what the five reputation packets carry.
  *
  * The object carries no owner. What it used to read from the character comes in three ways:
  *
@@ -106,9 +152,11 @@ class Field;
  *   skills do.
  * - The rest is read at its point of use through a call-scoped read callback: whether the
  *   character is still loading (FlagNotify::playerLoading, read before each visible or at-war
- *   packet), and the spillover template and the team list of a faction (ChangeInputs).
- * - The writes are call-scoped callbacks at the old statements: the packet sink, and for each
- *   changed faction the owner's quest check and its achievement criteria updates (ChangeSinks).
+ *   notice), and the spillover template and the team list of a faction (ChangeInputs).
+ * - The writes are call-scoped callbacks at the old statements: the client's facts (the forced
+ *   reactions, the standings, the initial table, a faction made visible, a faction's at-war flag,
+ *   which the session builds into the client's packets), and for each changed faction the owner's
+ *   quest check and its achievement criteria updates (ChangeSinks).
  *
  * None of the callbacks is stored, so `mangos_tests` builds one from nothing.
  */
@@ -116,12 +164,13 @@ class ReputationMgr
 {
     public:                                                 // call-scoped inputs and sinks
         /// What a visible or at-war change needs: whether the character is still loading (read at
-        /// each packet decision, as the old code read the session's PlayerLoading()), and where the
-        /// packet goes (the character's session).
+        /// each notice decision, as the old code read the session's PlayerLoading()), and where the
+        /// two notices go.
         struct FlagNotify
         {
             std::function<bool()> playerLoading;
-            ManagerPacketSink send;
+            FactionVisibleSink visible;
+            FactionAtWarSink atWar;
         };
 
         /// What a change reads beyond this object, each at its old point: a faction's spillover
@@ -133,12 +182,14 @@ class ReputationMgr
             std::function<std::list<uint32> const*(uint32 factionId)> teamList;
         };
 
-        /// What a change writes beyond this object: the visible, at-war and standing packets
-        /// (notify), then, for each faction whose standing is set, the owner's quest check
-        /// (ReputationChanged) and one achievement criteria update per type, with the faction id.
+        /// What a change writes beyond this object: the visible and at-war notices (notify) and
+        /// the standings (standing), then, for each faction whose standing is set, the owner's
+        /// quest check (ReputationChanged) and one achievement criteria update per type, with the
+        /// faction id.
         struct ChangeSinks
         {
             FlagNotify notify;
+            FactionStandingSink standing;
             std::function<void(FactionEntry const* factionEntry)> reputationChanged;
             std::function<void(AchievementCriteriaTypes type, uint32 miscValue1)> updateAchievement;
         };
@@ -225,9 +276,9 @@ class ReputationMgr
         void ApplyForceReaction(uint32 faction_id, ReputationRank rank, bool apply);
 
     public:                                                 // senders
-        void SendInitialReputations(ManagerPacketSink const& send);
-        void SendForceReactions(ManagerPacketSink const& send);
-        void SendState(FactionState const* faction, bool anyRankIncreased, ManagerPacketSink const& send);
+        void SendInitialReputations(InitialReputationsSink const& initial);
+        void SendForceReactions(ForcedReactionsSink const& forced);
+        void SendState(FactionState const* faction, bool anyRankIncreased, FactionStandingSink const& standing);
 
     private:                                                // internal helper functions
         uint32 GetDefaultStateFlags(const FactionEntry* factionEntry) const;
