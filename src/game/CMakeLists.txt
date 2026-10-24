@@ -76,6 +76,9 @@ source_group("Persistence\\Characters\\Inventory" FILES ${SRC_GRP_PERSISTENCE_CH
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL persistence/characters/social/*.cpp persistence/characters/social/*.h)
 source_group("Persistence\\Characters\\Social" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL})
 
+file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_SPELLS persistence/characters/spells/*.cpp persistence/characters/spells/*.h)
+source_group("Persistence\\Characters\\Spells" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_SPELLS})
+
 file(GLOB SRC_GRP_REFERENCES References/*.cpp References/*.h)
 source_group("References" FILES ${SRC_GRP_REFERENCES})
 
@@ -162,6 +165,7 @@ add_library(game STATIC
     ${SRC_GRP_OUTDOOR_PVP}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL}
+    ${SRC_GRP_PERSISTENCE_CHARACTERS_SPELLS}
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}

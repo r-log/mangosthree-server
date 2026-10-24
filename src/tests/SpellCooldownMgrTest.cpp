@@ -57,6 +57,7 @@
 #include "ItemPrototype.h"
 #include "ObjectGuid.h"
 #include "spells/SpellCooldownMgr.h"
+#include "persistence/characters/spells/SpellCooldownRepository.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -947,7 +948,7 @@ TEST(SpellCooldownMgr_LoadRowSkipsUnknownSpellsAndExpiredRows)
     REQUIRE(result.NextRow());
     do
     {
-        mgr.LoadRow(result.Fetch(), kNow, kGuid);
+        mgr.LoadRow(SpellCooldownRepository::ReadRow(result.Fetch()), kNow, kGuid);
     }
     while (result.NextRow());
 
@@ -966,7 +967,7 @@ TEST(SpellCooldownMgr_LoadRowSkipsUnknownSpellsAndExpiredRows)
     SpellCooldownMgr later;
     FakeQueryResult one(FakeRows{ CooldownRow(kSpellPlain, 0, kNow + 100) });
     REQUIRE(one.NextRow());
-    later.LoadRow(one.Fetch(), kNow + 100, kGuid);
+    later.LoadRow(SpellCooldownRepository::ReadRow(one.Fetch()), kNow + 100, kGuid);
     CHECK(later.GetSpellCooldownMap().empty());
 }
 
@@ -1039,4 +1040,35 @@ TEST(SpellCooldownMgr_SaveWritesTheActiveCooldownsAndForgetsTheExpired)
     CHECK_EQ(End(mgr, kSpellUnknown), int64(-1));
     CHECK_EQ(End(mgr, kSpellArena15), int64(kNow + 2592000));
     CHECK_EQ(TickGuard::Violations(), 0u);
+}
+
+// The repository on its own: a login row read into its three values (the end through the 64-bit
+// getter, as the load always read it); the owner's DELETE of every saved cooldown and one INSERT,
+// queued, no blocking call.
+TEST(SpellCooldownRepository_ReadRowAndStatements)
+{
+    FakeQueryResult result(FakeRows{ CooldownRow(93001, 777, kNow + 30) });
+    REQUIRE(result.NextRow());
+    SpellCooldownRow row = SpellCooldownRepository::ReadRow(result.Fetch());
+    CHECK_EQ(row.spell, 93001u);
+    CHECK_EQ(row.item, 777u);
+    CHECK_EQ(int64(row.end), int64(kNow + 30));
+
+    TickGuard::ResetViolations();
+    FakeConnection query(CharacterDatabase);
+    FakeConnection async(CharacterDatabase);
+    SqlResultQueue results;
+    AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
+
+    {
+        TickGuard::Scope scope;
+        SpellCooldownRepository::DeleteAll(kGuid);
+        SpellCooldownRepository::Insert(kGuid, 93001, 777, uint64(kNow + 30));
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CharacterDatabase.ExecuteQueuedForTest();
+    REQUIRE(async.executed.size() == size_t(2));
+    CHECK_STR(async.executed[0], "DELETE FROM `character_spell_cooldown` WHERE `guid` = '42'");
+    CHECK_STR(async.executed[1], InsertSql(93001, 777, kNow + 30));
+    CHECK_EQ(query.executed.size(), size_t(0));
 }

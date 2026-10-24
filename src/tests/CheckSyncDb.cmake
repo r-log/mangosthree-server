@@ -51,6 +51,8 @@ set(CONVERTED_FILES
     src/game/entities/player/spells/RuneMgr.cpp
     src/game/spells/SpellCooldownMgr.h
     src/game/spells/SpellCooldownMgr.cpp
+    src/game/persistence/characters/spells/SpellCooldownRepository.h
+    src/game/persistence/characters/spells/SpellCooldownRepository.cpp
     src/game/entities/player/talents/GlyphMgr.h
     src/game/entities/player/talents/GlyphMgr.cpp
     src/game/entities/player/pets/PetMgr.h

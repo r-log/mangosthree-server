@@ -41,6 +41,7 @@
 #include "ObjectMgr.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/data/SpellMgr.h"
+#include "persistence/characters/spells/SpellCooldownRepository.h"
 
 #include <ctime>
 
@@ -114,7 +115,7 @@ void Player::_LoadSpellCooldowns(QueryResult* result)
 
         do
         {
-            m_spellCooldownMgr.LoadRow(result->Fetch(), curTime, GetGUIDLow());
+            m_spellCooldownMgr.LoadRow(SpellCooldownRepository::ReadRow(result->Fetch()), curTime, GetGUIDLow());
         }
         while (result->NextRow());
 
