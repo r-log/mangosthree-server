@@ -30,7 +30,7 @@
 #include "ItemPrototype.h"
 #include "SharedDefines.h"
 #include "DBCStores.h"
-#include "Database/DatabaseEnv.h"
+#include "persistence/characters/spells/SpellCooldownRepository.h"
 
 void SpellCooldownMgr::AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, bool infinityCooldown)
 {
@@ -236,11 +236,11 @@ void SpellCooldownMgr::RemoveAllSpellCooldown(ObjectGuid ownerGuid, CooldownsCle
     }
 }
 
-void SpellCooldownMgr::LoadRow(Field* fields, time_t now, uint32 ownerGuidLow)
+void SpellCooldownMgr::LoadRow(SpellCooldownRow const& row, time_t now, uint32 ownerGuidLow)
 {
-    uint32 spell_id = fields[0].GetUInt32();
-    uint32 item_id  = fields[1].GetUInt32();
-    time_t db_time  = (time_t)fields[2].GetUInt64();
+    uint32 spell_id = row.spell;
+    uint32 item_id  = row.item;
+    time_t db_time  = row.end;
 
     if (!sSpellStore.LookupEntry(spell_id))
     {
@@ -261,11 +261,7 @@ void SpellCooldownMgr::LoadRow(Field* fields, time_t now, uint32 ownerGuidLow)
 
 void SpellCooldownMgr::SaveToDB(uint32 ownerGuidLow, time_t now)
 {
-    static SqlStatementID deleteSpellCooldown ;
-    static SqlStatementID insertSpellCooldown ;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(deleteSpellCooldown, "DELETE FROM `character_spell_cooldown` WHERE `guid` = ?");
-    stmt.PExecute(ownerGuidLow);
+    SpellCooldownRepository::DeleteAll(ownerGuidLow);
 
     time_t curTime = now;
     time_t infTime = curTime + infinityCooldownDelayCheck;
@@ -279,8 +275,7 @@ void SpellCooldownMgr::SaveToDB(uint32 ownerGuidLow, time_t now)
         }
         else if (itr->second.end <= infTime)                // not save locked cooldowns, it will be reset or set at reload
         {
-            stmt = CharacterDatabase.CreateStatement(insertSpellCooldown, "INSERT INTO `character_spell_cooldown` (`guid`,`spell`,`item`,`time`) VALUES( ?, ?, ?, ?)");
-            stmt.PExecute(ownerGuidLow, itr->first, itr->second.itemid, uint64(itr->second.end));
+            SpellCooldownRepository::Insert(ownerGuidLow, itr->first, itr->second.itemid, uint64(itr->second.end));
             ++itr;
         }
         else

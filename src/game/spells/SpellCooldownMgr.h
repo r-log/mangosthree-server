@@ -34,7 +34,7 @@
 #include <map>
 #include <vector>
 
-class Field;
+struct SpellCooldownRow;
 struct ItemPrototype;
 struct SpellEntry;
 
@@ -149,7 +149,7 @@ class SpellCooldownMgr
         void RemoveAllSpellCooldown(ObjectGuid ownerGuid, CooldownsClearedSink const& sendCleared);
         /// One row of the login holder's cooldown result: spell, item, end time. `now` is the
         /// owner's clock, read once before the first row; `ownerGuidLow` is for the log lines.
-        void LoadRow(Field* fields, time_t now, uint32 ownerGuidLow);
+        void LoadRow(SpellCooldownRow const& row, time_t now, uint32 ownerGuidLow);
         void SaveToDB(uint32 ownerGuidLow, time_t now);
 
     private:

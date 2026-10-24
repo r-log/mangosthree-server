@@ -259,7 +259,10 @@ state_row(cooldown
             SpellCooldown)
 
 state_allow(cooldown src/game/spells/SpellCooldownMgr.cpp
-    WHY "the owner: loads the rows one at a time and saves them; its cooldown event and clear of every cooldown leave as facts"
+    WHY "the owner: its load's log line names the table it read; its rows go through its repository, and its cooldown event and clear of every cooldown leave as facts"
+    NAMES character_spell_cooldown)
+state_allow(cooldown src/game/persistence/characters/spells/SpellCooldownRepository.cpp
+    WHY "the owner's repository: reads a login row and writes the rows the owner hands it to save"
     NAMES character_spell_cooldown)
 state_allow(cooldown src/game/session/packets/spells/CooldownPackets.cpp
     WHY "the session's builders of the owner's two facts: the cooldown event and the clear of every cooldown"
