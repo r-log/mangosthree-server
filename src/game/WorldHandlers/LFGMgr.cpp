@@ -40,6 +40,7 @@
 #include "ObjectMgr.h"
 #include "SharedDefines.h"
 #include "WorldSession.h"
+#include "data/GameConfig.h"
 
 
 LFGMgr::LFGMgr()
@@ -182,7 +183,7 @@ void LFGMgr::UpdateShortageMasks()
 {
     m_shortageMasks.clear();
 
-    if (!sWorld.getConfig(CONFIG_BOOL_LFG_CALL_TO_ARMS))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_LFG_CALL_TO_ARMS))
     {
         return;
     }
@@ -264,7 +265,7 @@ void LFGMgr::UpdateShortageMasks()
     }
 
     uint32 const minQueued =
-        sWorld.getConfig(CONFIG_UINT32_LFG_CALL_TO_ARMS_MIN_QUEUED);
+        sGameConfig.getConfig(CONFIG_UINT32_LFG_CALL_TO_ARMS_MIN_QUEUED);
 
     // Slots nobody queued for are absent from `supply` and stay absent from
     // the mask map: an empty queue calls for nobody.
@@ -473,7 +474,7 @@ void LFGMgr::BuildRandomDungeonRewards(Player* pPlayer,
     }
 
     uint32 const level = pPlayer->getLevel();
-    bool const atMaxLevel = (level >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
+    bool const atMaxLevel = (level >= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
 
     DungeonFinderRewards const* rewards = sObjectMgr.GetDungeonFinderRewards(level);
 

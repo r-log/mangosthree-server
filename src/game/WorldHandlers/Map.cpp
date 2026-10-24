@@ -207,7 +207,7 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
 void Map::InitVisibilityDistance()
 {
     // init visibility for continents
-    m_VisibleDistance = World::GetMaxVisibleDistanceOnContinents();
+    m_VisibleDistance = GameConfig::GetMaxVisibleDistanceOnContinents();
 }
 
 // Map::GetVisibilityDistance() is defined inline in Map.h (hot path).
@@ -2395,7 +2395,7 @@ DungeonMap::~DungeonMap()
 void DungeonMap::InitVisibilityDistance()
 {
     // init visibility distance for instances
-    m_VisibleDistance = World::GetMaxVisibleDistanceInInstances();
+    m_VisibleDistance = GameConfig::GetMaxVisibleDistanceInInstances();
 }
 
 /*
@@ -2741,7 +2741,7 @@ BattleGroundPersistentState* BattleGroundMap::GetPersistanceState() const
 void BattleGroundMap::InitVisibilityDistance()
 {
     // init visibility distance for BG/Arenas
-    m_VisibleDistance = World::GetMaxVisibleDistanceInBGArenas();
+    m_VisibleDistance = GameConfig::GetMaxVisibleDistanceInBGArenas();
 }
 
 /**

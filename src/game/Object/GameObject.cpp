@@ -35,7 +35,7 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/pipeline/Spell.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"
 #include "LootMgr.h"
 #include "GridNotifiers.h"
@@ -712,7 +712,7 @@ bool GameObject::IsVisibleForInState(Player const* u, WorldObject const* viewPoi
 
     // check distance
     return SeenWithin(*this, *viewPoint, GetMap()->GetVisibilityDistance() +
-                             (inVisibleList ? World::GetVisibleObjectGreyDistance() : 0.0f), false);
+                             (inVisibleList ? GameConfig::GetVisibleObjectGreyDistance() : 0.0f), false);
 }
 
 /**

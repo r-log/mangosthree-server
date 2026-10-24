@@ -46,6 +46,7 @@
 #include "SharedDefines.h"
 #include "Util.h"
 #include "WorldSession.h"
+#include "data/GameConfig.h"
 
 /**
  * @file LFGMgrProposal.cpp
@@ -1335,7 +1336,7 @@ void LFGMgr::RewardDungeonCompletion(Player* pPlayer, LFGGroupStatus const& stat
     DungeonTypes const randomType = GetDungeonType(queuedID);
     uint32 const level = pPlayer->getLevel();
     bool const atMaxLevel =
-        (level >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
+        (level >= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
 
     // Max-level heroic randoms are paid in currency on a weekly cadence;
     // everything else pays gold and experience, doubled on the first run of

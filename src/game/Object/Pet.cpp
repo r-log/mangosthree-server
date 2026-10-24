@@ -37,6 +37,7 @@
 #include "Unit.h"
 #include "Util.h"
 #include "WorldSession.h"
+#include "data/GameConfig.h"
 
 /**
  * @brief Creates a pet instance of the specified type.
@@ -414,7 +415,7 @@ void Pet::GivePetXP(uint32 xp)
     }
 
     uint32 level = getLevel();
-    uint32 maxlevel = std::min(sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL), GetOwner()->getLevel());
+    uint32 maxlevel = std::min(sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL), GetOwner()->getLevel());
 
     // pet not receive xp for level equal to owner level
     if (level >= maxlevel)
@@ -422,7 +423,7 @@ void Pet::GivePetXP(uint32 xp)
         return;
     }
 
-    xp *= sWorld.getConfig(CONFIG_FLOAT_RATE_PET_XP_KILL);
+    xp *= sGameConfig.getConfig(CONFIG_FLOAT_RATE_PET_XP_KILL);
 
     uint32 nextLvlXP = GetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP);
     uint32 curXP = GetUInt32Value(UNIT_FIELD_PETEXPERIENCE);
@@ -524,7 +525,7 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
     {
         if (CreatureFamilyEntry const* cFamily = sCreatureFamilyStore.LookupEntry(cInfo->Family))
         {
-            petName = cFamily->Name_lang[sWorld.GetDefaultDbcLocale()];
+            petName = cFamily->Name_lang[sGameConfig.GetDefaultDbcLocale()];
         }
     }
     if (petName.empty())
@@ -631,7 +632,7 @@ void Pet::InitStatsForLevel(uint32 petlevel)
             }
 
             // Max level
-            if (petlevel < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+            if (petlevel < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
             {
                 SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, sObjectMgr.GetXPForPetLevel(petlevel));
             }

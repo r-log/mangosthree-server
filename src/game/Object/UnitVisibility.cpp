@@ -26,7 +26,7 @@
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
 #include "Log.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "QuestDef.h"
@@ -120,7 +120,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     if (u->IsTaxiFlying())                                  // what see player in flight
     {
         // use object grey distance for all (only see objects any way)
-        if (!SeenWithin(*this, *viewPoint, World::GetMaxVisibleDistanceInFlight() + (inVisibleList ? World::GetVisibleObjectGreyDistance() : 0.0f), is3dDistance))
+        if (!SeenWithin(*this, *viewPoint, GameConfig::GetMaxVisibleDistanceInFlight() + (inVisibleList ? GameConfig::GetVisibleObjectGreyDistance() : 0.0f), is3dDistance))
         {
             return false;
         }
@@ -136,7 +136,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
         }
 
         // Any units far than max visible distance for viewer or not in our map are not visible too
-        if (!SeenWithin(*this, *viewPoint, visibilityDistance + (inVisibleList ? World::GetVisibleUnitGreyDistance() : 0.0f), is3dDistance))
+        if (!SeenWithin(*this, *viewPoint, visibilityDistance + (inVisibleList ? GameConfig::GetVisibleUnitGreyDistance() : 0.0f), is3dDistance))
         {
             return false;
         }

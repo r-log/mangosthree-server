@@ -53,6 +53,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Formulas.h"
+#include "data/GameConfig.h"
 
 // Constructor for GossipMenu, initializes the session and reserves space for menu items
 GossipMenu::GossipMenu(WorldSession* session) : m_session(session)
@@ -618,7 +619,7 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* pQuest, ObjectGuid guid
         }
 
     // send rewMoneyMaxLevel explicit for max player level, else send RewOrReqMoney
-    if (GetMenuSession()->GetPlayer()->getLevel() >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (GetMenuSession()->GetPlayer()->getLevel() >= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         data << pQuest->GetRewMoneyMaxLevel();
     }
@@ -1053,7 +1054,7 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* pQuest, ObjectGuid npcGU
         }
 
     // send rewMoneyMaxLevel explicit for max player level, else send RewOrReqMoney
-    if (GetMenuSession()->GetPlayer()->getLevel() >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (GetMenuSession()->GetPlayer()->getLevel() >= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         data << uint32(pQuest->GetRewMoneyMaxLevel());
     }

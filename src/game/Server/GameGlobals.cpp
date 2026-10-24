@@ -29,7 +29,6 @@
 /// links `game`.
 
 #include "Database/DatabaseEnv.h"
-#include "World.h"
 
 DatabaseType WorldDatabase;                                 ///< Accessor to the world database
 DatabaseType CharacterDatabase;                             ///< Accessor to the character database

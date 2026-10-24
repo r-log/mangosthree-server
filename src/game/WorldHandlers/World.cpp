@@ -129,20 +129,6 @@ uint8 World::m_ExitCode = SHUTDOWN_EXIT_CODE;
 
 std::atomic<uint32> World::m_worldLoopCounter{0};
 
-float World::m_MaxVisibleDistanceOnContinents = DEFAULT_VISIBILITY_DISTANCE;
-float World::m_MaxVisibleDistanceInInstances  = DEFAULT_VISIBILITY_INSTANCE;
-float World::m_MaxVisibleDistanceInBGArenas   = DEFAULT_VISIBILITY_BGARENAS;
-
-float World::m_MaxVisibleDistanceInFlight     = DEFAULT_VISIBILITY_DISTANCE;
-float World::m_VisibleUnitGreyDistance        = 0;
-float World::m_VisibleObjectGreyDistance      = 0;
-
-float  World::m_relocation_lower_limit_sq     = 10.f * 10.f;
-uint32 World::m_relocation_ai_notify_delay    = 1000u;
-
-bool   World::m_visibility_observer_sweep_enabled  = true;
-uint32 World::m_visibility_observer_sweep_interval = 2000u;
-
 /**
  * @brief World class constructor
  *
