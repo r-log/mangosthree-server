@@ -322,7 +322,7 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
     m_speakCount = 0;
     m_isOptingOutOfLoot = false;
 
-    m_visibilityObserverSweepTimer = World::GetVisibilityObserverSweepInterval();
+    m_visibilityObserverSweepTimer = GameConfig::GetVisibilityObserverSweepInterval();
 
     m_objectType |= TYPEMASK_PLAYER;
     m_objectTypeId = TYPEID_PLAYER;
@@ -1023,11 +1023,11 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     // owner's visible set on an interval so out-of-range objects are dropped even
     // when the player stands still. Skipped mid-teleport (visibility is rebuilt
     // by the teleport path) and gated by config.
-    if (World::GetVisibilityObserverSweepEnabled() && !IsBeingTeleported())
+    if (GameConfig::GetVisibilityObserverSweepEnabled() && !IsBeingTeleported())
     {
         if (m_visibilityObserverSweepTimer <= update_diff)
         {
-            m_visibilityObserverSweepTimer = World::GetVisibilityObserverSweepInterval();
+            m_visibilityObserverSweepTimer = GameConfig::GetVisibilityObserverSweepInterval();
             GetCamera().UpdateVisibilityForOwner();
         }
         else

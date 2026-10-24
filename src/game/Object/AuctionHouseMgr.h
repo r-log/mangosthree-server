@@ -47,7 +47,6 @@
 #include <ctime>
 #include <map>
 #include "DBCStructure.h"
-#include "World.h"
 
 /** \addtogroup auctionhouse
  * @{

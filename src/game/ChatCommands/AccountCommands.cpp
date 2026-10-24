@@ -38,7 +38,7 @@
 
 #include <string>
 #include <type_traits>
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Chat.h"
 #include "Language.h"
 #include "AccountMgr.h"

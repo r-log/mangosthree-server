@@ -31,7 +31,7 @@
 #include "TestHarness.h"
 #include "Creature.h"
 #include "Database/DatabaseEnv.h"   // WorldDatabase, CharacterDatabase, LoginDatabase (F13)
-#include "World.h"                  // realmID (F13)
+#include "data/GameConfig.h"         // realmID
 
 TEST(GameLink_CreatureOnTheStackIsNotInWorld)
 {

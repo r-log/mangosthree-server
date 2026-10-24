@@ -38,6 +38,7 @@
 #include "ObjectMgr.h"
 #include "SharedDefines.h"
 #include "WorldSession.h"
+#include "data/GameConfig.h"
 
 /**
  * @file LFGMgrQueue.cpp
@@ -550,8 +551,8 @@ void LFGMgr::ApplyRemovalPenalty(ObjectGuid playerGuid, uint8 removeMethod,
 {
     LFGRewardLogic::RemovalPenalty const penalty = LFGRewardLogic::PenaltyForRemoval(
         removeMethod, dungeonInProgress, remainingMembers,
-        sWorld.getConfig(CONFIG_UINT32_LFG_DESERTER_MIN_REMAINING),
-        sWorld.getConfig(CONFIG_BOOL_LFG_DESERTER_ON_VOTE_KICK));
+        sGameConfig.getConfig(CONFIG_UINT32_LFG_DESERTER_MIN_REMAINING),
+        sGameConfig.getConfig(CONFIG_BOOL_LFG_DESERTER_ON_VOTE_KICK));
 
     if (penalty == LFGRewardLogic::RemovalPenalty::NONE)
     {

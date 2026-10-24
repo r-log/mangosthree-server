@@ -36,6 +36,7 @@
 #include "Unit.h"
 #include "Util.h"
 #include "WorldSession.h"
+#include "World.h"
 
 /**
  * @file PetSpells.cpp

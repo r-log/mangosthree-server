@@ -60,7 +60,6 @@ src/game/BattleGround/BattleGroundSA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/proto/WorldPacket.h
 src/game/ChatCommands/AHBotCommands.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
-src/game/ChatCommands/AccountCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/BanAndKickCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/CommunicationCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/CreatureCommands.cpp -> src/game/WorldHandlers/World.h
@@ -156,13 +155,11 @@ src/game/Object/AuctionHouseMgr.cpp -> src/game/Server/WorldSession.h
 src/game/Object/AuctionHouseMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/Player.h
 src/game/Object/AuctionHouseMgr.cpp -> src/proto/WorldPacket.h
-src/game/Object/AuctionHouseMgr.h -> src/game/WorldHandlers/World.h
 src/game/Object/Bag.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/Camera.cpp -> src/game/entities/player/Player.h
 src/game/Object/CharacterCache.cpp -> src/game/Object/ArenaTeam.h
 src/game/Object/CharacterCache.cpp -> src/game/entities/player/Player.h
 src/game/Object/CinematicFlyover.cpp -> src/game/entities/player/Player.h
-src/game/Object/Corpse.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/Corpse.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/Object/Creature.cpp -> src/game/WorldHandlers/ScriptMgr.h
@@ -175,11 +172,9 @@ src/game/Object/CreatureAISelector.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/CreatureEventAI.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/CreatureThreat.cpp -> src/game/entities/player/Player.h
 src/game/Object/CreatureThreat.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/Object/DynamicObject.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/Player.h
 src/game/Object/GMTicketMgr.h -> src/game/Server/WorldSession.h
 src/game/Object/GameObject.cpp -> src/game/WorldHandlers/ScriptMgr.h
-src/game/Object/GameObject.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GameObjectDestructible.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/GameObjectDestructible.cpp -> src/proto/Opcodes.h
@@ -271,7 +266,6 @@ src/game/Object/ObjectMgrItems.cpp -> src/game/WorldHandlers/Group.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectMgrLocales.cpp -> src/game/WorldHandlers/GossipDef.h
-src/game/Object/ObjectMgrNameCheck.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/WorldHandlers/Group.h
 src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/WorldHandlers/MapManager.h
@@ -295,6 +289,7 @@ src/game/Object/PetAI.cpp -> src/game/entities/player/Player.h
 src/game/Object/PetDatabase.cpp -> src/game/entities/player/Player.h
 src/game/Object/PetDatabase.cpp -> src/game/entities/player/pets/PlayerPetCache.h
 src/game/Object/PetSpells.cpp -> src/game/Server/WorldSession.h
+src/game/Object/PetSpells.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/PetSpells.cpp -> src/game/entities/player/Player.h
 src/game/Object/PetSpells.cpp -> src/game/entities/player/pets/PlayerPetCache.h
 src/game/Object/PetSpells.cpp -> src/game/spells/auras/SpellAuras.h
@@ -306,7 +301,6 @@ src/game/Object/TemporarySummon.cpp -> src/game/entities/player/Player.h
 src/game/Object/Totem.cpp -> src/game/entities/player/Player.h
 src/game/Object/Unit.cpp -> src/game/Server/OpcodeTable.h
 src/game/Object/Unit.cpp -> src/game/Server/WorldSession.h
-src/game/Object/Unit.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/Unit.cpp -> src/game/entities/player/Player.h
 src/game/Object/Unit.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Unit.cpp -> src/game/spells/auras/SpellAuras.h
@@ -339,7 +333,6 @@ src/game/Object/UnitStatModifier.cpp -> src/game/Server/WorldSession.h
 src/game/Object/UnitThreat.cpp -> src/game/Server/WorldSession.h
 src/game/Object/UnitThreat.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitThreat.cpp -> src/proto/WorldPacket.h
-src/game/Object/UnitVisibility.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitVisibility.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitVisibility.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Vehicle.cpp -> src/game/Server/WorldSession.h
@@ -387,7 +380,6 @@ src/game/References/ThreatManager.cpp -> src/game/entities/player/Player.h
 src/game/Server/DB2Structure.h -> src/game/WorldHandlers/Path.h
 src/game/Server/DBCStores.cpp -> src/game/WorldHandlers/Path.h
 src/game/Server/DBCStores.cpp -> src/game/spells/auras/SpellAuraDefines.h
-src/game/Server/GameGlobals.cpp -> src/game/WorldHandlers/World.h
 src/game/Server/WorldGateway.cpp -> src/game/WorldHandlers/World.h
 src/game/Server/WorldNetwork.cpp -> src/game/WorldHandlers/World.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/Server/DBCStores.h

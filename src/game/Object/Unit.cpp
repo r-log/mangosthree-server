@@ -37,7 +37,7 @@
 #include "OpcodeTable.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
@@ -1336,7 +1336,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
             }
 
             // random durability for items (HIT TAKEN)
-            if (roll_chance_f(sWorld.getConfig(CONFIG_FLOAT_RATE_DURABILITY_LOSS_DAMAGE)))
+            if (roll_chance_f(sGameConfig.getConfig(CONFIG_FLOAT_RATE_DURABILITY_LOSS_DAMAGE)))
             {
                 EquipmentSlots slot = EquipmentSlots(urand(0, EQUIPMENT_SLOT_END - 1));
                 ((Player*)pVictim)->DurabilityPointLossForEquipSlot(slot);
@@ -1346,7 +1346,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         if (GetTypeId() == TYPEID_PLAYER)
         {
             // random durability for items (HIT DONE)
-            if (roll_chance_f(sWorld.getConfig(CONFIG_FLOAT_RATE_DURABILITY_LOSS_DAMAGE)))
+            if (roll_chance_f(sGameConfig.getConfig(CONFIG_FLOAT_RATE_DURABILITY_LOSS_DAMAGE)))
             {
                 EquipmentSlots slot = EquipmentSlots(urand(0, EQUIPMENT_SLOT_END - 1));
                 ((Player*)this)->DurabilityPointLossForEquipSlot(slot);
@@ -4080,7 +4080,7 @@ void Unit::Mount(uint32 mount, uint32 spellId, bool canFly)
                 // Unit::Unmount restores from the CharmInfo. A TEMPORARY summon keeps exactly
                 // the gate it had: PetUnsummonAtMount, and the arena with it.
                 if (pet->isControlled() && (pet->isTemporarySummoned() || InArena())
-                    && sWorld.getConfig(CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT))
+                    && sGameConfig.getConfig(CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT))
                 {
                     UnsummonPetTemporaryIfAny();
                 }
@@ -6767,7 +6767,7 @@ void Unit::CleanupDeletedAuras()
  */
 bool Unit::CheckAndIncreaseCastCounter()
 {
-    uint32 maxCasts = sWorld.getConfig(CONFIG_UINT32_MAX_SPELL_CASTS_IN_CHAIN);
+    uint32 maxCasts = sGameConfig.getConfig(CONFIG_UINT32_MAX_SPELL_CASTS_IN_CHAIN);
 
     if (maxCasts && m_castCounter >= maxCasts)
     {
@@ -6863,7 +6863,7 @@ class RelocationNotifyEvent : public BasicEvent
 
         bool Execute(uint64 /*e_time*/, uint32 /*p_time*/)
         {
-            float radius = MAX_CREATURE_ATTACK_RADIUS * sWorld.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO);
+            float radius = MAX_CREATURE_ATTACK_RADIUS * sGameConfig.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO);
             if (m_owner.GetTypeId() == TYPEID_PLAYER)
             {
                 MaNGOS::PlayerRelocationNotifier notify((Player&)m_owner);
@@ -6910,7 +6910,7 @@ void Unit::OnRelocated()
     float dy = m_last_notified_position.y - Where().Y();
     float dz = m_last_notified_position.z - Where().Z();
     float distsq = dx * dx + dy * dy + dz * dz;
-    if (distsq > World::GetRelocationLowerLimitSq())
+    if (distsq > GameConfig::GetRelocationLowerLimitSq())
     {
         m_last_notified_position.x = Where().X();
         m_last_notified_position.y = Where().Y();
@@ -6919,7 +6919,7 @@ void Unit::OnRelocated()
         GetViewPoint().Call_UpdateVisibilityForOwner();
         UpdateObjectVisibility();
     }
-    ScheduleAINotify(World::GetRelocationAINotifyDelay());
+    ScheduleAINotify(GameConfig::GetRelocationAINotifyDelay());
 }
 
 /*

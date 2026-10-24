@@ -25,7 +25,7 @@
 
 #include "Platform/Define.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectLookup.h"
 #include "Database/DatabaseEnv.h"
 #include "GridNotifiers.h"
@@ -317,7 +317,7 @@ bool DynamicObject::IsVisibleForInState(Player const* u, WorldObject const* view
     }
 
     // normal case
-    return SeenWithin(*this, *viewPoint, GetMap()->GetVisibilityDistance() + (inVisibleList ? World::GetVisibleObjectGreyDistance() : 0.0f), false);
+    return SeenWithin(*this, *viewPoint, GetMap()->GetVisibilityDistance() + (inVisibleList ? GameConfig::GetVisibleObjectGreyDistance() : 0.0f), false);
 }
 
 /**

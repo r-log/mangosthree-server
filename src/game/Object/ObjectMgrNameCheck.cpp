@@ -36,7 +36,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "Util.h"
-#include "World.h"
+#include "data/GameConfig.h"
 
 /**
  * @brief Loads the list of reserved player names.
@@ -123,7 +123,7 @@ enum LanguageType
  */
 static LanguageType GetRealmLanguageType(bool create)
 {
-    switch (sWorld.getConfig(CONFIG_UINT32_REALM_ZONE))
+    switch (sGameConfig.getConfig(CONFIG_UINT32_REALM_ZONE))
     {
         case REALM_ZONE_UNKNOWN:                            // any language
         case REALM_ZONE_DEVELOPMENT:
@@ -228,13 +228,13 @@ uint8 ObjectMgr::CheckPlayerName(const std::string& name, bool create)
         return CHAR_NAME_TOO_LONG;
     }
 
-    uint32 minName = sWorld.getConfig(CONFIG_UINT32_MIN_PLAYER_NAME);
+    uint32 minName = sGameConfig.getConfig(CONFIG_UINT32_MIN_PLAYER_NAME);
     if (wname.size() < minName)
     {
         return CHAR_NAME_TOO_SHORT;
     }
 
-    uint32 strictMask = sWorld.getConfig(CONFIG_UINT32_STRICT_PLAYER_NAMES);
+    uint32 strictMask = sGameConfig.getConfig(CONFIG_UINT32_STRICT_PLAYER_NAMES);
     if (!isValidString(wname, strictMask, false, create))
     {
         return CHAR_NAME_MIXED_LANGUAGES;
@@ -262,13 +262,13 @@ bool ObjectMgr::IsValidCharterName(const std::string& name)
         return false;
     }
 
-    uint32 minName = sWorld.getConfig(CONFIG_UINT32_MIN_CHARTER_NAME);
+    uint32 minName = sGameConfig.getConfig(CONFIG_UINT32_MIN_CHARTER_NAME);
     if (wname.size() < minName)
     {
         return false;
     }
 
-    uint32 strictMask = sWorld.getConfig(CONFIG_UINT32_STRICT_CHARTER_NAMES);
+    uint32 strictMask = sGameConfig.getConfig(CONFIG_UINT32_STRICT_CHARTER_NAMES);
 
     return isValidString(wname, strictMask, true);
 }
@@ -292,13 +292,13 @@ PetNameInvalidReason ObjectMgr::CheckPetName(const std::string& name)
         return PET_NAME_TOO_LONG;
     }
 
-    uint32 minName = sWorld.getConfig(CONFIG_UINT32_MIN_PET_NAME);
+    uint32 minName = sGameConfig.getConfig(CONFIG_UINT32_MIN_PET_NAME);
     if (wname.size() < minName)
     {
         return PET_NAME_TOO_SHORT;
     }
 
-    uint32 strictMask = sWorld.getConfig(CONFIG_UINT32_STRICT_PET_NAMES);
+    uint32 strictMask = sGameConfig.getConfig(CONFIG_UINT32_STRICT_PET_NAMES);
     if (!isValidString(wname, strictMask, false))
     {
         return PET_NAME_MIXED_LANGUAGES;
