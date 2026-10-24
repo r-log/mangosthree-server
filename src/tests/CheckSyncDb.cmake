@@ -25,6 +25,8 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/MailHandler.cpp
     src/game/WorldHandlers/SpellHandler.cpp
     src/game/Object/ArenaTeam.cpp
+    src/game/persistence/characters/social/ArenaTeamRepository.h
+    src/game/persistence/characters/social/ArenaTeamRepository.cpp
     src/game/Object/GuildBank.cpp
     src/game/WorldHandlers/Chat.cpp
     src/game/Harness/Harness.cpp
