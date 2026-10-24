@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The packets a player's own client is told, built from the player's six facts: the bytes of each
+/// The packets a player's own client is told, built from the player's seven facts: the bytes of each
 /// builder, the callbacks the session installs on a player, which build the packet at each report
 /// and send it to the session the player holds at that moment, the security level read from that
 /// session at each call, and the assertion on a callback no session installed.
@@ -92,6 +92,15 @@ namespace
         return fact;
     }
 
+    PvpCreditFact Credit(uint32 honor, ObjectGuid victim, uint32 victimRank)
+    {
+        PvpCreditFact fact;
+        fact.honor = honor;
+        fact.victim = victim;
+        fact.victimRank = victimRank;
+        return fact;
+    }
+
     /// Stands in for the session: records "<opcode>:<hex>" per packet it is sent, and answers its
     /// account security level.
     struct FakeSession
@@ -130,6 +139,7 @@ namespace
         ReportClientFact(callbacks.autoRepeatCancelled, AutoRepeat(kCreature));
         ReportClientFact(callbacks.currentPet, PetIs(kPet));
         ReportClientFact(callbacks.standState, Stand(8));
+        ReportClientFact(callbacks.pvpCredit, Credit(40, kPlayer, 5));
     }
 
     const char* const kEach[] =
@@ -140,6 +150,7 @@ namespace
         "6436:f12ab80b30f1",
         "2d26:0100000001000000a00140f1",
         "6f04:08",
+        "6015:280000000000f0000000000005000000",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -220,6 +231,17 @@ TEST(PlayerClientPackets_StandStateUpdateBytes)
     CHECK_STR(Built(&BuildStandStateUpdatePacket, Stand(255)), "6f04:ff");
 }
 
+// SMSG_PVP_CREDIT (0x6015): the honor as a uint32, the victim's raw guid as a uint64, then the
+// victim's rank as a uint32.
+TEST(PlayerClientPackets_PvpCreditBytes)
+{
+    // 28000000; the guid, low byte first: 00 00 f0 00 00 00 00 00; 05000000.
+    CHECK_STR(Built(&BuildPvpCreditPacket, Credit(40, kPlayer, 5)), "6015:280000000000f0000000000005000000");
+    // No victim named, rank 0.
+    CHECK_STR(Built(&BuildPvpCreditPacket, Credit(0, ObjectGuid(), 0)), "6015:00000000000000000000000000000000");
+    CHECK_STR(Built(&BuildPvpCreditPacket, Credit(0xFFFFFFFF, kCreature, 19)), "6015:ffffffff2a000000b80b30f113000000");
+}
+
 // The callbacks the session installs turn each fact into the packet above and send it to the
 // owner's session, each fact to its own packet.
 TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
@@ -231,8 +253,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 6u);
-    for (size_t i = 0; i < 6; ++i)
+    REQUIRE(session.sent.size() == 7u);
+    for (size_t i = 0; i < 7; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -252,9 +274,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 6u);
-    REQUIRE(second.sent.size() == 6u);
-    for (size_t i = 0; i < 6; ++i)
+    REQUIRE(first.sent.size() == 7u);
+    REQUIRE(second.sent.size() == 7u);
+    for (size_t i = 0; i < 7; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);

@@ -4,7 +4,7 @@ The session layer's own directory: the builders of the outgoing packets under `p
 
 ## `packets/`
 
-One directory per domain. A builder is a free function, `void BuildXPacket(WorldPacket& packet, XFact const& fact)`, that initializes one outgoing packet from a typed fact and sends nothing. The code that reports the fact names no packet: it calls a `std::function` callback declared beside it (the six facts of a player's own client in `PlayerClientFacts.h`, `CooldownEventSink` and `CooldownsClearedSink` in `spells/SpellCooldownMgr.h`, `SpellModChangedSink` in `spells/SpellModMgr.h`), and the session supplies the callback, which builds the packet and sends it to the session that `GetSession()` returns at that send.
+One directory per domain. A builder is a free function, `void BuildXPacket(WorldPacket& packet, XFact const& fact)`, that initializes one outgoing packet from a typed fact and sends nothing. The code that reports the fact names no packet: it calls a `std::function` callback declared beside it (the seven facts of a player's own client in `PlayerClientFacts.h`, `CooldownEventSink` and `CooldownsClearedSink` in `spells/SpellCooldownMgr.h`, `SpellModChangedSink` in `spells/SpellModMgr.h`), and the session supplies the callback, which builds the packet and sends it to the session that `GetSession()` returns at that send.
 
 `PlayerPacketSinks` installs them: `InstallPlayerPacketSinks` gives a player every callback the session installs, the cooldown callbacks (through `InstallCooldownPacketSinks`), those of its own client, those of its group updates and that of its spell modifiers. Every place that creates a player calls it right after the construction, and `src/tests/tools/player_sinks.py` fails a `new Player(` with no install on the three lines after it.
 
@@ -21,6 +21,7 @@ One stateless class per origin file, in its domain's directory (combat's, made f
 | `packets/` | `PlayerPacketSinks` | `InstallPlayerPacketSinks`, and the templates it installs through: `FactToSession`, `SecurityLevelOfSession` and `ClientCallbacksToSession` |
 | `packets/combat/` | `AttackSwingPackets` | `SMSG_ATTACKSWING_NOTINRANGE`, `SMSG_ATTACKSWING_BADFACING` and `SMSG_CANCEL_COMBAT`, from the swing out of reach, the swing facing away and the attack cancelled; no payload |
 | `packets/entities/` | `PetGuidsPacket` | `SMSG_PET_GUIDS`, from the player's pet: the count, 1, then the pet's guid |
+| `packets/entities/` | `PvpCreditPacket` | `SMSG_PVP_CREDIT`, from `HonorMgr`'s honor credit of a kill: the honor, the victim's guid, then the victim's rank |
 | `packets/entities/` | `StandStatePacket` | `SMSG_STANDSTATE_UPDATE`, from the player's stand state: one byte |
 | `packets/spells/` | `AutoRepeatPackets` | `SMSG_CANCEL_AUTO_REPEAT`, from the auto-repeat spell cancelled: the target's packed guid |
 | `packets/spells/` | `CooldownPackets` | `SMSG_COOLDOWN_EVENT` (the spell id, then the owner's guid) and `SMSG_CLEAR_COOLDOWNS` (the owner's bit-packed guid around the count and every spell id), from `SpellCooldownMgr`'s cooldown event and clear of every cooldown |

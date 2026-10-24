@@ -30,7 +30,7 @@
 #include "SharedDefines.h"                                  // Team
 #include "DBCEnums.h"                                       // AchievementCriteriaTypes
 #include "ObjectGuid.h"
-#include "ManagerPacketSink.h"
+#include "PlayerClientFacts.h"                              // PvpCreditFact
 
 #include <ctime>
 #include <functional>
@@ -45,7 +45,7 @@
  * victim checks (none, the owner itself, NO_PVP_CREDIT, the same team outside a free-for-all
  * realm, a grey victim, a creature that is not a racial leader), the honor of a kill from the two
  * levels, the victim's title rank, the rate, the honor-gain aura, the group split and the 80-120%
- * draw, and the bytes of SMSG_PVP_CREDIT.
+ * draw, and the credit the owner's client is told.
  *
  * The object carries no owner. What it used to read from the owner and the victim is handed in at
  * the call as plain values (HonorInputs: OwnerFacts, VictimFacts, the realm's type and honor rate),
@@ -53,8 +53,9 @@
  * read them: the clock (the rollover reads it twice), today's kills (read inside the rollover), and
  * the draw (`urand(8, 12)`, which must consume a random number only where the old body did). What
  * it used to do to the owner goes out through callbacks called at the exact point the old body did
- * it (RewardSinks): the kill-field writes, the three achievement updates, the packet (a
- * ManagerPacketSink, the owner's session) and the honor currency change, last. Callbacks are
+ * it (RewardSinks): the kill-field writes, the three achievement updates, the credit (a
+ * PvpCreditFact, which the session builds into the client's packet) and the honor currency change,
+ * last. Callbacks are
  * parameters only, never stored. So `mangos_tests` builds one from nothing.
  *
  * What stays with the owner: the victim's type and the casts that read its facts, the grey level
@@ -71,8 +72,6 @@
 class HonorMgr
 {
     public:
-        /// Hands the built SMSG_PVP_CREDIT to the owner's session: `GetSession()->SendPacket(packet)`.
-        typedef ManagerPacketSink PacketSink;
         /// The clock: `time(NULL)`.
         typedef std::function<time_t()> Clock;
         /// The honor draw: `urand(8, 12)`.
@@ -154,7 +153,7 @@ class HonorMgr
         {
             KillFields fields;                      ///< the rollover and the kill counts
             AchievementUpdate updateAchievement;    ///< the three honorable-kill criteria
-            PacketSink send;                        ///< SMSG_PVP_CREDIT
+            PvpCreditSink credit;                   ///< the honor credited and the victim named
             CurrencyChange modifyCurrencyCount;     ///< the honor points, last
         };
 
@@ -182,14 +181,14 @@ class HonorMgr
         /**
          * @brief Compute honor points for a kill and credit them to the owner.
          *
-         * Sends an SMSG_PVP_CREDIT packet and adds honor to CURRENCY_HONOR_POINTS
+         * Reports the credit (a PvpCreditFact) and adds honor to CURRENCY_HONOR_POINTS
          * when the kill is eligible. In arenas no honor flows but on-kill
          * spell procs are still allowed to fire.
          *
          * @param groupsize Number of group members to split the honor across; 1 means solo.
          * @param honor     Explicit honor value to award; pass a non-positive value to have it computed.
          * @param in        The owner's, the victim's and the realm's facts, the clock and the draw.
-         * @param sinks     The kill fields, the achievement updates, the packet and the currency change.
+         * @param sinks     The kill fields, the achievement updates, the credit and the currency change.
          * @return True if honor was awarded or arena on-kill procs should fire; false otherwise.
          */
         bool Reward(uint32 groupsize, float honor, HonorInputs const& in, RewardSinks const& sinks);

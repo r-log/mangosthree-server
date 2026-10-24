@@ -43,7 +43,8 @@
 ///
 /// Every expected honor value is the old arithmetic (HonorMgr.cpp at 9fb598e4e) done by hand in
 /// float32, derived in the row's comment; an independent float32 model (each operation rounded to
-/// float32) agreed with each. The packet is recorded as it goes on the wire: opcode, then the bytes
+/// float32) agreed with each. The credit the manager reports is built by the session's builder and
+/// recorded as it goes on the wire: opcode, then the bytes
 /// (uint32 honor, the victim's guid as 8 raw bytes, uint32 rank; little-endian).
 
 #include "TestHarness.h"
@@ -53,6 +54,7 @@
 #include "ObjectGuid.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
+#include "session/packets/entities/PvpCreditPacket.h"
 
 #include <string>
 #include <vector>
@@ -196,9 +198,11 @@ namespace
             {
                 events.push_back("ach " + std::to_string(uint32(type)) + " " + std::to_string(miscValue1));
             };
-            sinks.send = [this](WorldPacket const* packet)
+            sinks.credit = [this](PvpCreditFact const& credit)
             {
-                events.push_back("packet " + PacketText(*packet));
+                WorldPacket packet;
+                BuildPvpCreditPacket(packet, credit);
+                events.push_back("packet " + PacketText(packet));
             };
             sinks.modifyCurrencyCount = [this](uint32 currencyId, int32 count)
             {

@@ -30,6 +30,7 @@
 #include "WorldPacket.h"
 #include "session/packets/combat/AttackSwingPackets.h"
 #include "session/packets/entities/PetGuidsPacket.h"
+#include "session/packets/entities/PvpCreditPacket.h"
 #include "session/packets/entities/StandStatePacket.h"
 #include "session/packets/spells/AutoRepeatPackets.h"
 
@@ -71,6 +72,7 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.autoRepeatCancelled = FactToSession(owner, &BuildCancelAutoRepeatPacket);
     callbacks.currentPet = FactToSession(owner, &BuildPetGuidsPacket);
     callbacks.standState = FactToSession(owner, &BuildStandStateUpdatePacket);
+    callbacks.pvpCredit = FactToSession(owner, &BuildPvpCreditPacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }
