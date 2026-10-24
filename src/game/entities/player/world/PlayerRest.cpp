@@ -28,10 +28,8 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "data/GameConfig.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
-#include "Channel.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
@@ -43,7 +41,6 @@
 #include "DB2Stores.h"
 #include "SQLStorages.h"
 #include "Vehicle.h"
-#include "Calendar.h"
 #include "DisableMgr.h"
 
 #include <cmath>

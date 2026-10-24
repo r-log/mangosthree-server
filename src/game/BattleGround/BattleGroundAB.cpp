@@ -42,7 +42,6 @@
 
 #include "Utilities/Errors.h"
 #include <vector>
-#include "Object.h"
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundAB.h"

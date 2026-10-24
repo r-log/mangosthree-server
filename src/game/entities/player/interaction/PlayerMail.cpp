@@ -34,14 +34,10 @@
 #include "QuestDef.h"
 #include "ChannelMgr.h"
 #include "GridNotifiersImpl.h"
-#include "CellImpl.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "Util.h"
-#include "Weather.h"
 #include "BattleGround/BattleGroundAV.h"
-#include "spells/pipeline/Spell.h"
-#include "ScriptMgr.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"
 #include "Mail.h"
@@ -49,7 +45,6 @@
 #include "DB2Stores.h"
 #include "SQLStorages.h"
 #include "Vehicle.h"
-#include "Calendar.h"
 #include "DisableMgr.h"
 
 #include <cmath>

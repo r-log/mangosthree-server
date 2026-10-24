@@ -46,7 +46,7 @@
 #include "Channel.h"
 #include "ObjectMgr.h"
 #include "data/GameConfig.h"
-#include "SocialMgr.h"
+#include "SocialList.h"
 #include "Chat.h"
 #include "WorldSession.h"
 

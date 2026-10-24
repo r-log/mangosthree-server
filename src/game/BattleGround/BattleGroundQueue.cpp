@@ -41,8 +41,6 @@
 #include "BattleGroundRV.h"
 #include "BattleGroundIC.h"
 #include "BattleGroundRB.h"
-#include "MapManager.h"
-#include "Map.h"
 #include "ObjectMgr.h"
 #include "ProgressBar.h"
 #include "Chat.h"

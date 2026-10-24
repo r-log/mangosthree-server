@@ -33,7 +33,6 @@
 #include "Group.h"
 #include "LFGMgr.h"
 #include "LFGDungeonResolution.h"
-#include "Object.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "ObjectMgr.h"

@@ -49,9 +49,7 @@
 #include "CreatureLinkingMgr.h"
 #include "Chat.h"
 #include "GameTime.h"
-#include "Transports.h"
 #include "TransportMap.h"
-#include "MapManager.h"
 
 /**
  * @file WorldObjectChat.cpp

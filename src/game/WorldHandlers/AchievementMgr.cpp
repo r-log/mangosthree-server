@@ -49,7 +49,6 @@
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundAB.h"
 #include "Map.h"
-#include "InstanceData.h"
 #include "DBCStructure.h"
 #include "Chat.h"
 

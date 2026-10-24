@@ -59,7 +59,6 @@
 #include "InstanceData.h"
 #include "CreatureEventAIMgr.h"
 #include "DBCEnums.h"
-#include "AuctionHouseBot/AuctionHouseBot.h"
 #include "SQLStorages.h"
 #include "DisableMgr.h"
 

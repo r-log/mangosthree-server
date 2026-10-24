@@ -41,14 +41,11 @@
 #include "Log.h"
 #include "Transports.h"
 #include "TransportMap.h"
-#include "CellImpl.h"
-#include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectPosSelector.h"
 #include "TemporarySummon.h"
 #include "movement/packet_builder.h"
 #include "CreatureLinkingMgr.h"
-#include "Chat.h"
 #include "GameTime.h"
 
 /**

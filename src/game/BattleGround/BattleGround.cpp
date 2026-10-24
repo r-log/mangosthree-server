@@ -50,9 +50,7 @@
 #include "Group.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
-#include "Mail.h"
 #include "WorldPacket.h"
-#include "Formulas.h"
 #include "GridNotifiersImpl.h"
 #include "Chat.h"
 #include <cstdarg>

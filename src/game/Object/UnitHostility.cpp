@@ -30,8 +30,6 @@
 #include "ObjectGuid.h"
 #include "QuestDef.h"
 #include "Player.h"
-#include "spells/pipeline/Spell.h"
-#include "spells/auras/SpellAuras.h"
 #include "Formulas.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"

@@ -25,7 +25,7 @@
 
 #include "spells/handlers/AuraControlHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Creature.h"
+#include "Unit.h"
 
 /// 26400: Arcane Shroud: two threat per target level above 60
 static SpellHandlerOutcome<void> AuraThreatArcaneShroud(AuraThreatContext& ctx)
