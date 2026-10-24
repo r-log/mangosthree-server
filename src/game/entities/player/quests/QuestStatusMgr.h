@@ -32,6 +32,7 @@
 #include <functional>
 #include <map>
 #include <set>
+#include <vector>
 
 /**
  * @file QuestStatusMgr.h
@@ -80,8 +81,7 @@
  * the same order. The reward's arithmetic (XP, money) is in QuestRewardRules.h.
  */
 
-class QueryResult;
-class Field;
+struct QuestStatusRow;
 class Quest;
 
 typedef std::map<uint32, QuestStatusData> QuestStatusMap;
@@ -218,14 +218,14 @@ class QuestStatusMgr
 
         /// Called where the status load starts, before the first row.
         void ClearStatus() { m_status.clear(); }
-        /// The fill half of one `character_queststatus` row:
+        /// The fill half of one `character_queststatus` row, as the repository read it:
         /// `quest, status, rewarded, explored, timer, mobcount1..4, itemcount1..6`.
         /// `ownerName` is only used by the invalid-status log line.
-        QuestRowResult FillRow(Field* fields, time_t now, char const* ownerName, TemplateLookup const& lookup);
-        /// The whole weekly/monthly load (`SELECT quest ...`), deleting `result` as before.
+        QuestRowResult FillRow(QuestStatusRow const& saved, time_t now, char const* ownerName, TemplateLookup const& lookup);
+        /// The whole weekly/monthly load: the quest ids the repository read, in order.
         /// `guidLow` is only used by the debug log line.
-        void LoadWeekly(QueryResult* result, uint32 guidLow, TemplateLookup const& lookup);
-        void LoadMonthly(QueryResult* result, uint32 guidLow, TemplateLookup const& lookup);
+        void LoadWeekly(std::vector<uint32> const& questIds, uint32 guidLow, TemplateLookup const& lookup);
+        void LoadMonthly(std::vector<uint32> const& questIds, uint32 guidLow, TemplateLookup const& lookup);
 
         /// INSERT for every `QUEST_NEW` row, UPDATE for every `QUEST_CHANGED` row, in quest-id
         /// order; then every row is `QUEST_UNCHANGED`. Asynchronous statements, as before.
