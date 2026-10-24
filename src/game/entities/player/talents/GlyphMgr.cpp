@@ -25,9 +25,9 @@
 
 #include "GlyphMgr.h"
 #include "DBCStores.h"
-#include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "Object/UpdateFields.h"
+#include "persistence/characters/talents/GlyphRepository.h"
 
 void GlyphMgr::InitGlyphsForLevel(uint32 level, GlyphSlotSink const& setGlyphSlot, FieldSink const& setField)
 {
@@ -77,20 +77,17 @@ void GlyphMgr::ApplyGlyph(uint8 activeSpec, uint8 slot, bool apply, ApplySinks c
     }
 }
 
-void GlyphMgr::LoadRow(Field* fields, RowInputs const& inputs)
+void GlyphMgr::LoadRow(GlyphRow const& row, RowInputs const& inputs)
 {
-    //         0     1     2
-    // "SELECT spec, slot, glyph FROM character_glyphs WHERE guid='%u'"
-
-    uint8 spec = fields[0].GetUInt8();
-    uint8 slot = fields[1].GetUInt8();
-    uint32 glyph = fields[2].GetUInt32();
+    uint8 spec = row.spec;
+    uint8 slot = row.slot;
+    uint32 glyph = row.glyph;
 
     GlyphPropertiesEntry const* gp = sGlyphPropertiesStore.LookupEntry(glyph);
     if (!gp)
     {
         sLog.outError("Player %s has not existing glyph entry %u on index %u, spec %u", inputs.ownerName, glyph, slot, spec);
-        CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `glyph` = %u", glyph);
+        GlyphRepository::DeleteEveryRowOfGlyph(glyph);
         return;
     }
 
@@ -98,14 +95,14 @@ void GlyphMgr::LoadRow(Field* fields, RowInputs const& inputs)
     if (!gs)
     {
         sLog.outError("Player %s has not existing glyph slot entry %u on index %u, spec %u", inputs.ownerName, inputs.glyphSlot(slot), slot, spec);
-        CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `slot` = %u AND `spec` = %u AND `guid` = %u", slot, spec, inputs.ownerGuidLow);
+        GlyphRepository::DeleteInvalidRow(inputs.ownerGuidLow, spec, slot);
         return;
     }
 
     if (gp->GlyphSlotFlags != gs->Type)
     {
         sLog.outError("Player %s has glyph with typeflags %u in slot with typeflags %u, removing.", inputs.ownerName, gp->GlyphSlotFlags, gs->Type);
-        CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `slot` = %u AND `spec` = %u AND `guid` = %u", slot, spec, inputs.ownerGuidLow);
+        GlyphRepository::DeleteInvalidRow(inputs.ownerGuidLow, spec, slot);
         return;
     }
 
@@ -114,10 +111,6 @@ void GlyphMgr::LoadRow(Field* fields, RowInputs const& inputs)
 
 void GlyphMgr::Save(uint32 ownerGuidLow, uint8 specsCount)
 {
-    static SqlStatementID insertGlyph;
-    static SqlStatementID updateGlyph;
-    static SqlStatementID deleteGlyph;
-
     for (uint8 spec = 0; spec < specsCount; ++spec)
     {
         for (uint8 slot = 0; slot < MAX_GLYPH_SLOT_INDEX; ++slot)
@@ -125,23 +118,14 @@ void GlyphMgr::Save(uint32 ownerGuidLow, uint8 specsCount)
             switch (m_glyphs[spec][slot].uState)
             {
                 case GLYPH_NEW:
-                {
-                    SqlStatement stmt = CharacterDatabase.CreateStatement(insertGlyph, "INSERT INTO `character_glyphs` (`guid`, `spec`, `slot`, `glyph`) VALUES (?, ?, ?, ?)");
-                    stmt.PExecute(ownerGuidLow, spec, slot, m_glyphs[spec][slot].GetId());
-                }
-                break;
+                    GlyphRepository::Insert(ownerGuidLow, spec, slot, m_glyphs[spec][slot].GetId());
+                    break;
                 case GLYPH_CHANGED:
-                {
-                    SqlStatement stmt = CharacterDatabase.CreateStatement(updateGlyph, "UPDATE `character_glyphs` SET `glyph` = ? WHERE `guid` = ? AND `spec` = ? AND `slot` = ?");
-                    stmt.PExecute(m_glyphs[spec][slot].GetId(), ownerGuidLow, spec, slot);
-                }
-                break;
+                    GlyphRepository::Update(ownerGuidLow, spec, slot, m_glyphs[spec][slot].GetId());
+                    break;
                 case GLYPH_DELETED:
-                {
-                    SqlStatement stmt = CharacterDatabase.CreateStatement(deleteGlyph, "DELETE FROM `character_glyphs` WHERE `guid` = ? AND `spec` = ? AND `slot` = ?");
-                    stmt.PExecute(ownerGuidLow, spec, slot);
-                }
-                break;
+                    GlyphRepository::Delete(ownerGuidLow, spec, slot);
+                    break;
                 case GLYPH_UNCHANGED:
                     break;
             }
