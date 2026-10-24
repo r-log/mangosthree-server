@@ -30,10 +30,8 @@
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "Group.h"
-#include "BattleGround/BattleGround.h"
 #include "MapPersistentStateMgr.h"
 #include "Util.h"
-#include "LootMgr.h"
 
 /**
  * @file GroupMemberState.cpp

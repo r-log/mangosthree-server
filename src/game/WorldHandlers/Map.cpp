@@ -74,7 +74,6 @@
 #include "MapPersistentStateMgr.h"
 #include "MapPhase.h"
 #include "MoveMap.h"
-#include "BattleGround/BattleGroundMgr.h"
 #include "Calendar.h"
 #include "Chat.h"
 #include "Weather.h"

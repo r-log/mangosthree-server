@@ -40,7 +40,6 @@
 #include "Player.h"
 #include "Item.h"
 #include "UpdateData.h"
-#include "Chat.h"
 
 /**
  * @brief Splits part of an item stack into another destination slot.

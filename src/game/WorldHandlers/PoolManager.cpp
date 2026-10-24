@@ -54,7 +54,6 @@
 #include "ProgressBar.h"
 #include "Log.h"
 #include "MapPersistentStateMgr.h"
-#include "MapManager.h"
 #include "data/GameConfig.h"
 #include "Policies/Singleton.h"
 

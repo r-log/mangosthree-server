@@ -35,7 +35,6 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "Creature.h"
-#include "CreatureAI.h"
 #include "Util.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 

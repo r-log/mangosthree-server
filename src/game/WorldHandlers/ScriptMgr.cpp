@@ -52,7 +52,6 @@
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
 #include "WaypointManager.h"
-#include "World.h"
 #include <DBCStores.h>
 #include "Path.h"
 #include "GridNotifiers.h"

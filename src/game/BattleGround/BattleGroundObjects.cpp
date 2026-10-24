@@ -24,18 +24,15 @@
  */
 
 #include "Utilities/PackedValues.h"
-#include "Object.h"
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundMgr.h"
 #include "Creature.h"
 #include "Language.h"
-#include "ArenaTeam.h"
 #include "Group.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "GridNotifiersImpl.h"
-#include "Chat.h"
 
 /**
  * @file BattleGroundObjects.cpp

@@ -27,7 +27,6 @@
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundEY.h"
-#include "Creature.h"
 #include "ObjectMgr.h"
 #include "BattleGroundMgr.h"
 #include "Language.h"

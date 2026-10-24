@@ -35,7 +35,6 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "Opcodes.h"
-#include "spells/data/SpellMgr.h"
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"

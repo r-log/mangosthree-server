@@ -25,7 +25,7 @@
 
 #include "spells/handlers/SpellEffectTailHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Creature.h"
+#include "Unit.h"
 
 /// 29886: Create Soulwell: the soulwell entry chosen by the caster's auras 18692 and 18693
 static SpellHandlerOutcome<void> EffectTransmittedCreateSoulwell(SpellEffectTransmittedContext& ctx)

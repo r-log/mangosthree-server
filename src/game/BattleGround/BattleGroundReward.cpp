@@ -29,7 +29,6 @@
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundMgr.h"
-#include "Creature.h"
 #include "Language.h"
 #include "ArenaTeam.h"
 #include "data/GameConfig.h"
@@ -40,7 +39,6 @@
 #include "WorldPacket.h"
 #include "Formulas.h"
 #include "GridNotifiersImpl.h"
-#include "Chat.h"
 
 /**
  * @file BattleGroundReward.cpp

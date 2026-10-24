@@ -54,7 +54,6 @@
 #include "ObjectLookup.h"
 #include "CreatureAI.h"
 #include "TemporarySummon.h"
-#include "Formulas.h"
 #include "Pet.h"
 #include "Util.h"
 #include "Totem.h"

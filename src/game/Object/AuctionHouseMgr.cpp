@@ -35,7 +35,6 @@
 #include "DBCStores.h"
 #include "ProgressBar.h"
 
-#include "AccountMgr.h"
 #include "Item.h"
 #include "Language.h"
 #include "Log.h"

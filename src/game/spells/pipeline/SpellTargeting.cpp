@@ -68,8 +68,6 @@
 #include "CellImpl.h"
 #include "Policies/Singleton.h"
 #include "SharedDefines.h"
-#include "LootMgr.h"
-#include "BattleGround/BattleGround.h"
 #include "Util.h"
 #include "DB2Stores.h"
 #include "SQLStorages.h"

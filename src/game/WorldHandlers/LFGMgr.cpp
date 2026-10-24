@@ -34,7 +34,6 @@
 #include "LFGMgr.h"
 #include "LFGRoleAssignment.h"
 #include "Log.h"
-#include "Object.h"
 #include "AchievementMgr.h"
 #include "Player.h"
 #include "PlayerRegistry.h"

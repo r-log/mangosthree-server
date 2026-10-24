@@ -27,7 +27,6 @@
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -35,14 +34,12 @@
 #include "Pet.h"
 #include "Util.h"
 #include "BattleGround/BattleGroundAV.h"
-#include "ScriptMgr.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
 #include "SQLStorages.h"
 #include "Vehicle.h"
-#include "Calendar.h"
 #include "DisableMgr.h"
 
 #include <cmath>

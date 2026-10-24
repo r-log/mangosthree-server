@@ -34,7 +34,6 @@
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
-#include "CreatureAI.h"
 #include "Unit.h"
 #include "Util.h"
 

@@ -34,7 +34,7 @@
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Chat.h"
-#include "SocialMgr.h"
+#include "SocialList.h"
 #include "Util.h"
 #include "Language.h"
 #include "data/GameConfig.h"
