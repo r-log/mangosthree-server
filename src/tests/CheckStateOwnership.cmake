@@ -142,9 +142,16 @@ state_row(reputation
             ReputationRank)
 
 state_allow(reputation src/game/entities/player/social/ReputationMgr.cpp
-    WHY "the owner: builds its packets and saves the rows (the login rows come in one at a time, LoadRow)"
+    WHY "the owner: saves the rows (the login rows come in one at a time, LoadRow); its five client notices leave as facts"
+    NAMES character_reputation)
+state_allow(reputation src/game/session/packets/entities/ReputationPackets.cpp
+    WHY "the session's builders of the owner's five facts: the forced reactions, the standings, the initial table, a faction made visible and a faction's at-war flag"
     NAMES SMSG_INITIALIZE_FACTIONS SMSG_SET_FACTION_VISIBLE SMSG_SET_FACTION_STANDING
-          SMSG_SET_FORCED_REACTIONS SMSG_SET_FACTION_ATWAR character_reputation)
+          SMSG_SET_FORCED_REACTIONS SMSG_SET_FACTION_ATWAR)
+state_allow(reputation src/tests/PlayerClientPacketsTest.cpp
+    WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"
+    NAMES SMSG_INITIALIZE_FACTIONS SMSG_SET_FACTION_VISIBLE SMSG_SET_FACTION_STANDING
+          SMSG_SET_FORCED_REACTIONS SMSG_SET_FACTION_ATWAR)
 state_allow(reputation src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB)"
     NAMES character_reputation)
@@ -164,7 +171,7 @@ state_allow(reputation src/game/Harness/ScenariosQuest.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
     NAMES SMSG_SET_FACTION_STANDING)
 state_allow(reputation src/tests/ReputationMgrTest.cpp
-    WHY "the manager's own test: checks the opcodes it builds and the statements it saves (builds nothing)"
+    WHY "the manager's own test: builds the reported facts with the session's builders and checks the opcodes and bytes, and checks the statements it saves"
     NAMES SMSG_INITIALIZE_FACTIONS SMSG_SET_FACTION_VISIBLE SMSG_SET_FACTION_STANDING
           SMSG_SET_FORCED_REACTIONS SMSG_SET_FACTION_ATWAR character_reputation)
 state_allow(reputation src/tests/HarnessTest.cpp
