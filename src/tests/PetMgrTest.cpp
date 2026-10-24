@@ -23,13 +23,13 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Decoupling D4k: a character's pet-ownership state -- the stable-slot count, the pet a temporary
-/// unsummon put away, the packet that clears the pet action bar -- with no character and no pet.
+/// Decoupling D4k: a character's pet-ownership state -- the stable-slot count and the pet a
+/// temporary unsummon put away -- with no character and no pet.
 ///
 /// Before this PR PetMgr held a pointer to its owner, found the owner's live pet and read it,
 /// unsummoned it, and loaded a new one. Now the live pet comes in as plain facts (LivePet), the
-/// owner's two facts and the load as ResummonInputs, and the unsummon, the load and the packet go
-/// out through callbacks. A Wire records what the callbacks received, in call order, and -- the
+/// owner's two facts and the load as ResummonInputs, and the unsummon and the load go out
+/// through callbacks. A Wire records what the callbacks received, in call order, and -- the
 /// point of the order rows -- the manager's pending number AT THE MOMENT each callback ran: the
 /// pet's unsummon and the pet's save read that number (Pet::Unsummon, Pet::SavePetToDB), so it has
 /// to be recorded before the unsummon and cleared only after the load.
@@ -40,8 +40,6 @@
 #include "TestHarness.h"
 #include "PetMgr.h"
 #include "SharedDefines.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
 
 #include <string>
 #include <vector>
@@ -51,26 +49,11 @@ namespace
     const uint32 kPetNumber = 4242;     ///< the live pet's number
     const uint32 kPending   = 7;        ///< a number an earlier unsummon left pending
 
-    // The opcode and the save modes the rows below expect, pinned to their values: a row that
-    // compares against a constant from the same header would not see that header change.
-    static_assert(SMSG_PET_SPELLS == 0x4114, "SMSG_PET_SPELLS is 0x4114 in 4.3.4 15595");
+    // The save modes the rows below expect, pinned to their values: a row that compares against
+    // a constant from the same header would not see that header change.
     static_assert(PET_SAVE_AS_CURRENT == 0, "PET_SAVE_AS_CURRENT is 0");
     static_assert(PET_SAVE_NOT_IN_SLOT == 100, "PET_SAVE_NOT_IN_SLOT is 100");
     static_assert(MAX_PET_STABLES == 5, "MAX_PET_STABLES is 5");
-
-    std::string PacketText(WorldPacket const& packet)
-    {
-        static const char* digits = "0123456789abcdef";
-        std::string text;
-        uint16 opcode = packet.GetOpcode();
-        for (int shift = 12; shift >= 0; shift -= 4)
-        {
-            text += digits[(opcode >> shift) & 0x0F];
-        }
-        text += ":";
-        text += testing::BytesToHex(packet.contents(), packet.size());
-        return text;
-    }
 
     /// What the callbacks received, in call order, each with the manager's pending number at
     /// that moment ("seen").
@@ -96,14 +79,6 @@ namespace
             {
                 events.push_back("load " + std::to_string(petNumber) + " seen "
                                  + std::to_string(mgr.GetTemporaryUnsummonedPetNumber()));
-            };
-        }
-
-        ManagerPacketSink Send()
-        {
-            return [this](WorldPacket const* packet)
-            {
-                events.push_back("packet " + PacketText(*packet));
             };
         }
 
@@ -168,19 +143,6 @@ TEST(PetMgr_LoadStableSlotsFromFieldIsAlwaysTheMax)
         CHECK_EQ(mgr.GetStableSlots(), uint32(5));
         CHECK_EQ(mgr.GetTemporaryUnsummonedPetNumber(), uint32(0));    // touches nothing else
     }
-}
-
-// SMSG_PET_SPELLS with an empty guid: opcode 0x4114, eight zero bytes (the guid as a uint64),
-// one packet per call.
-TEST(PetMgr_RemoveActionBarBytes)
-{
-    PetMgr mgr;
-    Wire wire(mgr);
-    mgr.RemoveActionBar(wire.Send());
-    CHECK_STR(wire.Text(), "packet 4114:0000000000000000");
-
-    mgr.RemoveActionBar(wire.Send());
-    CHECK_EQ(wire.events.size(), size_t(2));
 }
 
 // No pet out: nothing is recorded and nothing is unsummoned, whatever the other facts say and

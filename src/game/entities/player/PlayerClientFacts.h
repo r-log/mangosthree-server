@@ -62,6 +62,11 @@ struct CurrentPetFact
     ObjectGuid pet;
 };
 
+/// The player's pet action bar is cleared.
+struct PetActionBarClearedFact
+{
+};
+
 /// The player's stand state is now `state`.
 struct StandStateFact
 {
@@ -82,6 +87,7 @@ typedef std::function<void(SwingBadFacingFact const&)> SwingBadFacingSink;
 typedef std::function<void(CombatCancelledFact const&)> CombatCancelledSink;
 typedef std::function<void(AutoRepeatCancelledFact const&)> AutoRepeatCancelledSink;
 typedef std::function<void(CurrentPetFact const&)> CurrentPetSink;
+typedef std::function<void(PetActionBarClearedFact const&)> PetActionBarClearedSink;
 typedef std::function<void(StandStateFact const&)> StandStateSink;
 typedef std::function<void(PvpCreditFact const&)> PvpCreditSink;
 

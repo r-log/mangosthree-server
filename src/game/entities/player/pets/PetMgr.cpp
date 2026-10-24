@@ -24,9 +24,6 @@
  */
 
 #include "PetMgr.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
-#include "ObjectGuid.h"
 #include "Log.h"
 
 void PetMgr::LoadStableSlotsFromField(uint32 raw)
@@ -40,13 +37,6 @@ void PetMgr::LoadStableSlotsFromField(uint32 raw)
         sLog.outError("Player can have not more %u stable slots, but have in DB %u", MAX_PET_STABLES, uint32(raw));
     }
     m_stableSlots = MAX_PET_STABLES;
-}
-
-void PetMgr::RemoveActionBar(ManagerPacketSink const& send)
-{
-    WorldPacket data(SMSG_PET_SPELLS, 8);
-    data << ObjectGuid();
-    send(&data);
 }
 
 void PetMgr::UnsummonTemporaryIfAny(LivePet const& pet, UnsummonSink const& unsummon)

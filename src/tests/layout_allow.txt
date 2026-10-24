@@ -674,8 +674,6 @@ src/game/entities/player/pets [entities] -> src/game/BattleGround/BattleGroundAV
 src/game/entities/player/pets [entities] -> src/game/WorldHandlers/ChannelMgr.h
 src/game/entities/player/pets [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/pets [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/pets/PetMgr.cpp -> src/proto/Opcodes.h
-src/game/entities/player/pets/PetMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/proto/Opcodes.h

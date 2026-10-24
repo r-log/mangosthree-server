@@ -27,7 +27,6 @@
 #define MANGOS_H_PETMGR
 
 #include "Platform/Define.h"
-#include "ManagerPacketSink.h"
 #include "PlayerPetCache.h"
 #include "SharedDefines.h"                                  // MAX_PET_STABLES, PetSaveMode
 
@@ -48,16 +47,14 @@
  * and the pet's save read it; when a resummon happens (a number pending, the owner in a state
  * that allows it, no pet out), that "not yet" keeps the number, and that an attempt clears it,
  * successful or not, AFTER the load (the old order, kept and pinned; nothing in the load reads
- * the number, so the order is preserved rather than relied on); and the bytes of the
- * packet that clears the client's pet action bar.
+ * the number, so the order is preserved rather than relied on).
  *
  * The object carries no owner. What it used to read from the owner is handed in at the call --
  * the owner's live pet as plain facts (LivePet), whether the owner may have a pet out now and
  * whether it has one (ResummonInputs) -- and what it used to do to the owner goes out through a
- * callback called at the exact point the old body did it: the pet's unsummon (an UnsummonSink),
- * the load of the put-away pet (a PetLoadSink) and the packet (a ManagerPacketSink, the owner's
- * session). Callbacks are parameters only, never stored. So `mangos_tests` builds one from
- * nothing.
+ * callback called at the exact point the old body did it: the pet's unsummon (an UnsummonSink)
+ * and the load of the put-away pet (a PetLoadSink). Callbacks are parameters only, never stored.
+ * So `mangos_tests` builds one from nothing.
  *
  * What stays with the owner, and why (pets/PlayerPet.cpp): finding the live pet (its lookup can
  * clear a dangling pet guid), reading the pet's facts, the unsummon itself, the new pet and its
@@ -117,13 +114,6 @@ class PetMgr
         /// hunter starts with a deity pet.
         uint32 GetTemporaryUnsummonedPetNumber() const { return m_temporaryUnsummonedPetNumber; }
         void SetTemporaryUnsummonedPetNumber(uint32 petnumber) { m_temporaryUnsummonedPetNumber = petnumber; }
-
-        /**
-         * @brief Clears the pet action bar on the client: the pet spells packet with an empty guid.
-         *
-         * @param send The owner's session sink.
-         */
-        void RemoveActionBar(ManagerPacketSink const& send);
 
         /**
          * @brief Unsummons the owner's pet for now, remembering it so that it can come back.

@@ -1359,7 +1359,7 @@ TEST(HarnessTrace_the_pet_spell_bar_reads_its_unit_and_refuses_a_clock)
     const std::string rest = Harness::Trace::Hex32(Harness::Trace::Fnv1a(bar.contents() + 8, bar.size() - 8));
     CHECK_STR(SpellDecoded(SMSG_PET_SPELLS, bar).c_str(), ("OP unit=caster spells=2 rest=" + std::to_string(bar.size() - 8) + " restfnv=" + rest).c_str());
     CheckRefusesOneByteEitherWay(SMSG_PET_SPELLS, bar, SpellRoles());
-    // PetMgr::RemoveActionBar's empty-guid form
+    // BuildPetActionBarClearedPacket's empty-guid form
     WorldPacket cleared(SMSG_PET_SPELLS, 8);
     cleared << uint64(0);
     CHECK_STR(SpellDecoded(SMSG_PET_SPELLS, cleared).c_str(), "OP unit=none");
