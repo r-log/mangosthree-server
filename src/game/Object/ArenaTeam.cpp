@@ -34,6 +34,7 @@
 #include "data/GameConfig.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "persistence/characters/social/ArenaTeamRepository.h"
 
 void ArenaTeamMember::ModifyPersonalRating(Player* plr, int32 mod, uint32 slot)
 {
@@ -89,6 +90,22 @@ ArenaTeam::~ArenaTeam()
 {
 }
 
+namespace
+{
+    /// The row a team's stats are saved as.
+    ArenaTeamStatsRow StatsRow(ArenaTeamStats const& stats)
+    {
+        ArenaTeamStatsRow row;
+        row.rating = stats.rating;
+        row.gamesWeek = stats.games_week;
+        row.winsWeek = stats.wins_week;
+        row.gamesSeason = stats.games_season;
+        row.winsSeason = stats.wins_season;
+        row.rank = stats.rank;
+        return row;
+    }
+}
+
 bool ArenaTeam::Create(ObjectGuid captainGuid, ArenaType type, std::string arenaTeamName)
 {
     if (!IsArenaTypeValid(type))
@@ -112,39 +129,24 @@ bool ArenaTeam::Create(ObjectGuid captainGuid, ArenaType type, std::string arena
 
     m_TeamId = sObjectMgr.GenerateArenaTeamId();
 
-    CharacterDatabase.BeginTransaction();
-    // CharacterDatabase.PExecute("DELETE FROM `arena_team` WHERE `arenateamid`='%u'", m_TeamId); - MAX(arenateam)+1 not exist
-    CharacterDatabase.PExecute("DELETE FROM `arena_team_member` WHERE `arenateamid`='%u'", m_TeamId);
+    ArenaTeamRow row;
+    row.id = m_TeamId;
+    row.name = m_Name;
+    row.captainGuid = m_CaptainGuid.GetCounter();
+    row.type = uint32(m_Type);
+    row.backgroundColor = m_BackgroundColor;
+    row.emblemStyle = m_EmblemStyle;
+    row.emblemColor = m_EmblemColor;
+    row.borderStyle = m_BorderStyle;
+    row.borderColor = m_BorderColor;
+    row.stats = StatsRow(m_stats);
+    ArenaTeamRepository::Create(row);
 
-    // Decoupling D7c: the same case as Guild::Create -- `arena_team_member` can hold rows
-    // for a team id with no `arena_team` row, ArenaTeam::LoadMembersFromDB only sweeps the
-    // orphans it walks past, and GenerateArenaTeamId() can hand out an id those leftovers
-    // already use. The cache indexed them at load and forgets them here.
+    // `arena_team_member` can hold rows for a team id with no `arena_team` row: the member load
+    // only sweeps the orphans it walks past, and GenerateArenaTeamId() can hand out an id those
+    // leftovers use. The create above deletes them, and the cache, which indexed them at load,
+    // forgets them here.
     sCharacterCache.ClearArenaTeam(m_TeamId);
-
-    // Decoupling D7g (C5): the team name is BOUND, not escaped -- the exact twin of
-    // Guild::Create's three bound strings (D7f). m_Name is the name the escape_string call
-    // that stood above used to mangle a local copy of; the statement joins the transaction
-    // opened above exactly as the PExecute it replaces did.
-    static SqlStatementID insArenaTeam;
-    SqlStatement insert = CharacterDatabase.CreateStatement(insArenaTeam,
-                          "INSERT INTO `arena_team` (`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`) "
-                          "VALUES(?,?,?,?,?,?,?,?,?)");
-    insert.addUInt32(m_TeamId);
-    insert.addString(m_Name);
-    insert.addUInt32(m_CaptainGuid.GetCounter());
-    insert.addUInt32(uint32(m_Type));
-    insert.addUInt32(m_BackgroundColor);
-    insert.addUInt32(m_EmblemStyle);
-    insert.addUInt32(m_EmblemColor);
-    insert.addUInt32(m_BorderStyle);
-    insert.addUInt32(m_BorderColor);
-    insert.Execute();
-
-    CharacterDatabase.PExecute("INSERT INTO `arena_team_stats` (`arenateamid`, `rating`, `games_week`, `wins_week`, `games_season`, `wins_season`, `rank`) VALUES "
-                               "('%u', '%u', '%u', '%u', '%u', '%u', '%u')", m_TeamId, m_stats.rating, m_stats.games_week, m_stats.wins_week, m_stats.games_season, m_stats.wins_season, m_stats.rank);
-
-    CharacterDatabase.CommitTransaction();
 
     AddMember(m_CaptainGuid);
     return true;
@@ -232,7 +234,7 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
 
     m_members.push_back(newmember);
 
-    CharacterDatabase.PExecute("INSERT INTO `arena_team_member` (`arenateamid`, `guid`, `personal_rating`) VALUES ('%u', '%u', '%u')", m_TeamId, newmember.guid.GetCounter(), newmember.personal_rating);
+    ArenaTeamRepository::InsertMember(m_TeamId, newmember.guid.GetCounter(), newmember.personal_rating);
 
     // Decoupling D7c: Player::GetArenaTeamIdFromDB reads this slot out of the cache.
     sCharacterCache.UpdateArenaTeam(playerGuid, GetSlot(), m_TeamId);
@@ -259,30 +261,30 @@ bool ArenaTeam::LoadArenaTeamFromDB(QueryResult* arenaTeamDataResult)
         return false;
     }
 
-    Field* fields = arenaTeamDataResult->Fetch();
+    ArenaTeamRow row = ArenaTeamRepository::ReadTeam(arenaTeamDataResult->Fetch());
 
-    m_TeamId             = fields[0].GetUInt32();
-    m_Name               = fields[1].GetCppString();
-    m_CaptainGuid        = ObjectGuid(HIGHGUID_PLAYER, fields[2].GetUInt32());
-    m_Type               = ArenaType(fields[3].GetUInt32());
+    m_TeamId             = row.id;
+    m_Name               = row.name;
+    m_CaptainGuid        = ObjectGuid(HIGHGUID_PLAYER, row.captainGuid);
+    m_Type               = ArenaType(row.type);
 
     if (!IsArenaTypeValid(m_Type))
     {
         return false;
     }
 
-    m_BackgroundColor    = fields[4].GetUInt32();
-    m_EmblemStyle        = fields[5].GetUInt32();
-    m_EmblemColor        = fields[6].GetUInt32();
-    m_BorderStyle        = fields[7].GetUInt32();
-    m_BorderColor        = fields[8].GetUInt32();
+    m_BackgroundColor    = row.backgroundColor;
+    m_EmblemStyle        = row.emblemStyle;
+    m_EmblemColor        = row.emblemColor;
+    m_BorderStyle        = row.borderStyle;
+    m_BorderColor        = row.borderColor;
     // load team stats
-    m_stats.rating       = fields[9].GetUInt32();
-    m_stats.games_week   = fields[10].GetUInt32();
-    m_stats.wins_week    = fields[11].GetUInt32();
-    m_stats.games_season = fields[12].GetUInt32();
-    m_stats.wins_season  = fields[13].GetUInt32();
-    m_stats.rank         = fields[14].GetUInt32();
+    m_stats.rating       = row.stats.rating;
+    m_stats.games_week   = row.stats.gamesWeek;
+    m_stats.wins_week    = row.stats.winsWeek;
+    m_stats.games_season = row.stats.gamesSeason;
+    m_stats.wins_season  = row.stats.winsSeason;
+    m_stats.rank         = row.stats.rank;
 
     return true;
 }
@@ -304,14 +306,15 @@ bool ArenaTeam::LoadMembersFromDB(QueryResult* arenaTeamMembersResult)
         {
             break;
         }
-        uint32 arenaTeamId        = fields[0].GetUInt32();
+        ArenaTeamMemberRow row = ArenaTeamRepository::ReadMember(fields);
+        uint32 arenaTeamId        = row.teamId;
         if (arenaTeamId < m_TeamId)
         {
             // there is in table arena_team_member record which doesn't have arenateamid in arena_team table, report error
             sLog.outErrorDb("ArenaTeam %u does not exist but it has record in arena_team_member table, deleting it!", arenaTeamId);
-            CharacterDatabase.PExecute("DELETE FROM `arena_team_member` WHERE `arenateamid` = '%u'", arenaTeamId);
-            // Decoupling D7c: the cache is loaded before the arena teams are, so it still
-            // holds the memberships this startup repair is deleting.
+            ArenaTeamRepository::DeleteMembersOfTeam(arenaTeamId);
+            // The cache is loaded before the arena teams are, so it still holds the memberships
+            // this startup repair is deleting.
             sCharacterCache.ClearArenaTeam(arenaTeamId);
             continue;
         }
@@ -321,14 +324,14 @@ bool ArenaTeam::LoadMembersFromDB(QueryResult* arenaTeamMembersResult)
             break;
 
         ArenaTeamMember newmember;
-        newmember.guid            = ObjectGuid(HIGHGUID_PLAYER, fields[1].GetUInt32());
-        newmember.games_week      = fields[2].GetUInt32();
-        newmember.wins_week       = fields[3].GetUInt32();
-        newmember.games_season    = fields[4].GetUInt32();
-        newmember.wins_season     = fields[5].GetUInt32();
-        newmember.personal_rating = fields[6].GetUInt32();
-        newmember.name            = fields[7].GetCppString();
-        newmember.Class           = fields[8].GetUInt8();
+        newmember.guid            = ObjectGuid(HIGHGUID_PLAYER, row.stats.guid);
+        newmember.games_week      = row.stats.gamesWeek;
+        newmember.wins_week       = row.stats.winsWeek;
+        newmember.games_season    = row.stats.gamesSeason;
+        newmember.wins_season     = row.stats.winsSeason;
+        newmember.personal_rating = row.stats.personalRating;
+        newmember.name            = row.name;
+        newmember.Class           = row.playerClass;
 
         // check if member exists in characters table
         if (newmember.name.empty())
@@ -376,7 +379,7 @@ void ArenaTeam::SetCaptain(ObjectGuid guid)
     m_CaptainGuid = guid;
 
     // update database
-    CharacterDatabase.PExecute("UPDATE `arena_team` SET `captainguid` = '%u' WHERE `arenateamid` = '%u'", guid.GetCounter(), m_TeamId);
+    ArenaTeamRepository::SetCaptain(m_TeamId, guid.GetCounter());
 
     // enable remove/promote buttons
     if (Player* newcaptain = sObjectMgr.GetPlayer(guid))
@@ -406,10 +409,10 @@ void ArenaTeam::DelMember(ObjectGuid guid)
         }
     }
 
-    CharacterDatabase.PExecute("DELETE FROM `arena_team_member` WHERE `arenateamid` = '%u' AND `guid` = '%u'", GetId(), guid.GetCounter());
+    ArenaTeamRepository::DeleteMember(GetId(), guid.GetCounter());
 
-    // Decoupling D7c: no row, no team -- and ArenaTeam::Disband reaches here for every
-    // member, so a disband clears them all through this one call.
+    // No row, no team: ArenaTeam::Disband reaches here for every member, so a disband clears
+    // them all through this one call.
     sCharacterCache.UpdateArenaTeam(guid, GetSlot(), 0);
 }
 
@@ -428,11 +431,7 @@ void ArenaTeam::Disband(WorldSession* session)
         DelMember(m_members.front().guid);
     }
 
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `arena_team` WHERE `arenateamid` = '%u'", m_TeamId);
-    CharacterDatabase.PExecute("DELETE FROM `arena_team_member` WHERE `arenateamid` = '%u'", m_TeamId); //< this should be already done by calling DelMember(memberGuids[j]); for each member
-    CharacterDatabase.PExecute("DELETE FROM `arena_team_stats` WHERE `arenateamid` = '%u'", m_TeamId);
-    CharacterDatabase.CommitTransaction();
+    ArenaTeamRepository::Disband(m_TeamId);
     sObjectMgr.RemoveArenaTeam(m_TeamId);
 }
 
@@ -542,7 +541,7 @@ void ArenaTeam::SetEmblem(uint32 backgroundColor, uint32 emblemStyle, uint32 emb
     m_BorderStyle = borderStyle;
     m_BorderColor = borderColor;
 
-    CharacterDatabase.PExecute("UPDATE `arena_team` SET `BackgroundColor`='%u', `EmblemStyle`='%u', `EmblemColor`='%u', `BorderStyle`='%u', `BorderColor`='%u' WHERE `arenateamid`='%u'", m_BackgroundColor, m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor, m_TeamId);
+    ArenaTeamRepository::SetEmblem(m_TeamId, m_BackgroundColor, m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor);
 }
 
 void ArenaTeam::SetStats(uint32 stat_type, uint32 value)
@@ -551,27 +550,27 @@ void ArenaTeam::SetStats(uint32 stat_type, uint32 value)
     {
         case STAT_TYPE_RATING:
             m_stats.rating = value;
-            CharacterDatabase.PExecute("UPDATE `arena_team_stats` SET `rating` = '%u' WHERE `arenateamid` = '%u'", value, GetId());
+            ArenaTeamRepository::SetRating(GetId(), value);
             break;
         case STAT_TYPE_GAMES_WEEK:
             m_stats.games_week = value;
-            CharacterDatabase.PExecute("UPDATE `arena_team_stats` SET `games_week` = '%u' WHERE `arenateamid` = '%u'", value, GetId());
+            ArenaTeamRepository::SetGamesWeek(GetId(), value);
             break;
         case STAT_TYPE_WINS_WEEK:
             m_stats.wins_week = value;
-            CharacterDatabase.PExecute("UPDATE `arena_team_stats` SET `wins_week` = '%u' WHERE `arenateamid` = '%u'", value, GetId());
+            ArenaTeamRepository::SetWinsWeek(GetId(), value);
             break;
         case STAT_TYPE_GAMES_SEASON:
             m_stats.games_season = value;
-            CharacterDatabase.PExecute("UPDATE `arena_team_stats` SET `games_season` = '%u' WHERE `arenateamid` = '%u'", value, GetId());
+            ArenaTeamRepository::SetGamesSeason(GetId(), value);
             break;
         case STAT_TYPE_WINS_SEASON:
             m_stats.wins_season = value;
-            CharacterDatabase.PExecute("UPDATE `arena_team_stats` SET `wins_season` = '%u' WHERE `arenateamid` = '%u'", value, GetId());
+            ArenaTeamRepository::SetWinsSeason(GetId(), value);
             break;
         case STAT_TYPE_RANK:
             m_stats.rank = value;
-            CharacterDatabase.PExecute("UPDATE `arena_team_stats` SET `rank` = '%u' WHERE `arenateamid` = '%u'", value, GetId());
+            ArenaTeamRepository::SetRank(GetId(), value);
             break;
         default:
             DEBUG_LOG("unknown stat type in ArenaTeam::SetStats() %u", stat_type);
@@ -866,7 +865,6 @@ void ArenaTeam::UpdateArenaPointsHelper(std::map<uint32, uint32>& PlayerPoints)
         {
             points_to_add = GetPoints(itr->personal_rating);
         }
-        // OBSOLETE : CharacterDatabase.PExecute("UPDATE arena_team_member SET points_to_add = '%u' WHERE arenateamid = '%u' AND guid = '%u'", points_to_add, m_TeamId, itr->guid);
 
         std::map<uint32, uint32>::iterator plr_itr = PlayerPoints.find(itr->guid.GetCounter());
         if (plr_itr != PlayerPoints.end())
@@ -888,13 +886,19 @@ void ArenaTeam::SaveToDB()
 {
     // save team and member stats to db
     // called after a match has ended, or when calculating arena_points
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("UPDATE `arena_team_stats` SET `rating` = '%u',`games_week` = '%u',`games_season` = '%u',`rank` = '%u',`wins_week` = '%u',`wins_season` = '%u' WHERE `arenateamid` = '%u'", m_stats.rating, m_stats.games_week, m_stats.games_season, m_stats.rank, m_stats.wins_week, m_stats.wins_season, GetId());
+    std::vector<ArenaTeamMemberStatsRow> members;
     for (MemberList::const_iterator itr = m_members.begin(); itr !=  m_members.end(); ++itr)
     {
-        CharacterDatabase.PExecute("UPDATE `arena_team_member` SET `played_week` = '%u', `wons_week` = '%u', `played_season` = '%u', `wons_season` = '%u', `personal_rating` = '%u' WHERE `arenateamid` = '%u' AND `guid` = '%u'", itr->games_week, itr->wins_week, itr->games_season, itr->wins_season, itr->personal_rating, m_TeamId, itr->guid.GetCounter());
+        ArenaTeamMemberStatsRow member;
+        member.guid = itr->guid.GetCounter();
+        member.gamesWeek = itr->games_week;
+        member.winsWeek = itr->wins_week;
+        member.gamesSeason = itr->games_season;
+        member.winsSeason = itr->wins_season;
+        member.personalRating = itr->personal_rating;
+        members.push_back(member);
     }
-    CharacterDatabase.CommitTransaction();
+    ArenaTeamRepository::SaveStats(GetId(), StatsRow(m_stats), members);
 }
 
 void ArenaTeam::FinishWeek()
