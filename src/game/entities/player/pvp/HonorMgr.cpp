@@ -24,8 +24,6 @@
  */
 
 #include "HonorMgr.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
 #include "ObjectGuid.h"
 #include "Object/UpdateFields.h"
 #include "Common/TimeConstants.h"                           // DAY
@@ -191,16 +189,11 @@ bool HonorMgr::Reward(uint32 groupsize, float honor, HonorInputs const& in, Rewa
         honor *= (((float)in.draw()) / 10);              // approx honor: 80% - 120% of real honor
     }
 
-    // honor - for show honor points in log
-    // victim_guid - for show victim name in log
-    // victim_rank [1..4]  HK: <dishonored rank>
-    // victim_rank [5..19] HK: <alliance\horde rank>
-    // victim_rank [0,20+] HK: <>
-    WorldPacket data(SMSG_PVP_CREDIT, 4 + 8 + 4);
-    data << uint32(honor);
-    data << ObjectGuid(victim_guid);
-    data << uint32(victim_rank);
-    sinks.send(&data);
+    PvpCreditFact credit;
+    credit.honor = uint32(honor);
+    credit.victim = victim_guid;
+    credit.victimRank = victim_rank;
+    sinks.credit(credit);
 
     // add honor points
     sinks.modifyCurrencyCount(CURRENCY_HONOR_POINTS, int32(honor));

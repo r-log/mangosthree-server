@@ -689,8 +689,6 @@ src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Channel.h
 src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridMap.h
 src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Group.h
-src/game/entities/player/pvp/HonorMgr.cpp -> src/proto/Opcodes.h
-src/game/entities/player/pvp/HonorMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/pvp/PlayerBattleGround.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/pvp/PlayerBattleGround.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/pvp/PlayerBattleGround.cpp -> src/game/spells/auras/SpellAuras.h

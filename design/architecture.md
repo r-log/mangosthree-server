@@ -98,11 +98,12 @@ domain therefore never names session or `WorldPacket`.
 
 `persistence/` makes every `CharacterDatabase.`, `WorldDatabase.` and `LoginDatabase.` call.
 
-**Today (packets):** 418 `WorldPacket data(` sites: session 178, the domain tier 227 (entities 157, 101 of them under
+**Today (packets):** 417 `WorldPacket data(` sites: session 178, the domain tier 226 (entities 156, 100 of them under
 `entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 2), scripts 7, app 4, motion 2. The shared sink
 `ManagerPacketSink` is `std::function<void(WorldPacket const*)>`: it names the packet. What a player's own client is
-told when its swing is out of reach or faces away, its attack or its auto-repeat spell is cancelled, its pet is set
-or its stand state changes are six typed facts declared beside `Player` (`PlayerClientFacts.h`), built into packets by
+told when its swing is out of reach or faces away, its attack or its auto-repeat spell is cancelled, its pet is set,
+its stand state changes or it is credited honor for a kill are seven typed facts declared beside `Player`
+(`PlayerClientFacts.h`), built into packets by
 `session/packets/combat/`, `spells/` and `entities/` and sent through the callbacks `InstallPlayerPacketSinks`
 installs where a player is created.
 
@@ -111,16 +112,17 @@ installs where a player is created.
 spells 13, pvp 9, ai 2. Game `.cpp` files hold 994 calls in 127 files.
 
 **Today (entities, the manager audit):**
-- Six managers build packets: `CurrencyMgr` (4 opcodes), `PetMgr` (1), `HonorMgr` (1), `ReputationMgr` (5),
+- Five managers build packets: `CurrencyMgr` (4 opcodes), `PetMgr` (1), `ReputationMgr` (5),
   `SocialList`/`PlayerSocial` (2) and `RuneMgr` (3).
 - Six call the database: `CurrencyMgr` (3 lines), `QuestStatusMgr` (6), `ReputationMgr` (2), `SocialList` (5),
   `GlyphMgr` (6) and `TalentMgr` (8).
-- Three are clean: `InventoryMgr`, `PlayerPetCache` and `QuestRewardRules`.
+- Four are clean: `InventoryMgr`, `PlayerPetCache`, `QuestRewardRules` and `HonorMgr`, which reports a kill's honor
+  credit as a typed fact that `session/packets/entities/` builds into its packet.
 - In `spells/`, `SpellCooldownMgr` calls the database (2 lines) and builds no packet: it reports a cooldown event
   and the clear of every cooldown as typed facts, and `session/packets/spells/` builds the two packets.
 - `QuestCompletePacket` is a packet builder on the manager list, and the owner-side global `SocialMgr` sends packets.
 - `CheckStateOwnership`'s manager rows allow each packet-building manager to spell its opcodes, the opposite of
-  this section; the cooldown row allows them to the session's builder instead. That row holds `SMSG_COOLDOWN_EVENT`
+  this section; the cooldown and honor rows allow them to the session's builders instead. The cooldown row holds `SMSG_COOLDOWN_EVENT`
   and the whole-map `SMSG_CLEAR_COOLDOWNS` only: `SMSG_SPELL_COOLDOWN` and `SMSG_ITEM_COOLDOWN` are the cast's and the
   item's notices, the one-spell clear stays with `Player::SendClearCooldown`, nothing builds `SMSG_MODIFY_COOLDOWN` or
   `SMSG_COOLDOWN_CHEAT`, and a builder of `SMSG_MODIFY_COOLDOWN` for a character's spell joins the row. The pet row
@@ -365,7 +367,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 
 | # | Today, against the target | Closed by |
 |---|---|---|
-| 1 | domain -> proto: 264 lines; 227 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
+| 1 | domain -> proto: 264 lines; 226 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
 | 2 | domain -> session: 241 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` included 220 times below app | the configuration interface (#143), when content touches it |
 | 4 | `Chat.h` (89) and `ScriptMgr.h` (84) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
@@ -373,7 +375,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump`, `CharacterDatabaseCleaner` and `GameGlobals` (9 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
 | 8 | 982 database calls outside persistence | #144, when content needs it |
-| 9 | **Entities, Today:** six managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`). **Spells, Today:** `SpellCooldownMgr` calls the database and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
+| 9 | **Entities, Today:** five managers build packets (`CurrencyMgr`, `PetMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); four are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`). **Spells, Today:** `SpellCooldownMgr` calls the database and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
@@ -409,7 +411,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
 - The edge tables: `python layers.py src against` (1,105, with the headers and the includers),
   `python layers.py src sideways` (2,357) and `python layers.py src edges` (every layer pair).
-- Packets and the database: `python layers.py src packets` (418 by layer and directory) and `python layers.py src db`
+- Packets and the database: `python layers.py src packets` (417 by layer and directory) and `python layers.py src db`
   (1,006). For game `.cpp` only:
   `grep -rhoE '\b(Character|World|Login)Database\.' --include=*.cpp src/game | wc -l` (994), with `-l` for the files
   (127).

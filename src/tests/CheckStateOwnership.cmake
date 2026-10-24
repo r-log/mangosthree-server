@@ -437,14 +437,14 @@ state_row(honor
     PACKETS SMSG_PVP_CREDIT
     TYPES   HonorMgr)
 
-state_allow(honor src/game/entities/player/pvp/HonorMgr.cpp
-    WHY "the owner: builds the kill's honor packet for the owner's session sink"
-    NAMES SMSG_PVP_CREDIT)
-state_allow(honor src/game/entities/player/pvp/HonorMgr.h
-    WHY "the owner's header: the class, the sink and Reward's doc comments name the packet"
+state_allow(honor src/game/session/packets/entities/PvpCreditPacket.cpp
+    WHY "the session's builder of the owner's fact: the honor credit of a kill"
     NAMES SMSG_PVP_CREDIT)
 state_allow(honor src/tests/HonorMgrTest.cpp
-    WHY "unit test that observes the packet through a capturing sink (checks the opcode and each byte, builds nothing)"
+    WHY "unit test that builds the reported credit with the session's builder and checks the opcode and each byte"
+    NAMES SMSG_PVP_CREDIT)
+state_allow(honor src/tests/PlayerClientPacketsTest.cpp
+    WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"
     NAMES SMSG_PVP_CREDIT)
 
 state_definition_site(src/proto/Opcodes.h

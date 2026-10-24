@@ -2326,7 +2326,7 @@ class Player : public Unit
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-        /// where the player is created: six facts out, one read in.
+        /// where the player is created: seven facts out, one read in.
         struct ClientCallbacks
         {
             SwingOutOfReachSink swingOutOfReach;
@@ -2335,6 +2335,7 @@ class Player : public Unit
             AutoRepeatCancelledSink autoRepeatCancelled;
             CurrentPetSink currentPet;
             StandStateSink standState;
+            PvpCreditSink pvpCredit;
             SecurityLevelQuery securityLevel;
         };
         void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }

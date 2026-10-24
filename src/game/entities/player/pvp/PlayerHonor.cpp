@@ -33,8 +33,9 @@
  * just before the call; the victim's type decides which of its facts are read, and the casts to
  * the character and creature classes stay here), the realm's type and honor rate, the clock and
  * the honor draw (read callbacks, called where the old body read them), and the writes: the kill
- * fields, the three achievement updates and the honor currency change. The packet the manager
- * builds goes through Player::SessionSink(). Both wrappers keep the signatures the callers use.
+ * fields, the three achievement updates and the honor currency change. The credit the manager
+ * reports goes to the callback the session installed on the character (ClientCallbacks::pvpCredit).
+ * Both wrappers keep the signatures the callers use.
  */
 
 #include "Player.h"
@@ -145,7 +146,7 @@ namespace
     }
 
     /// What HonorMgr::Reward did to the character before decoupling D4k.
-    HonorMgr::RewardSinks HonorRewardSinks(Player* player, ManagerPacketSink const& send)
+    HonorMgr::RewardSinks HonorRewardSinks(Player* player, PvpCreditSink const& credit)
     {
         HonorMgr::RewardSinks sinks;
         sinks.fields = HonorKillFields(player);
@@ -153,7 +154,7 @@ namespace
         {
             player->UpdateAchievementCriteria(type, miscValue1);
         };
-        sinks.send = send;
+        sinks.credit = credit;
         sinks.modifyCurrencyCount = [player](uint32 currencyId, int32 count)
         {
             player->ModifyCurrencyCount(currencyId, count);
@@ -170,7 +171,7 @@ void Player::UpdateHonorKills()
 bool Player::RewardHonor(Unit* pVictim, uint32 groupsize, float honor)
 {
     HonorMgr::HonorInputs const inputs = ReadHonorInputs(this, pVictim);
-    HonorMgr::RewardSinks const sinks = HonorRewardSinks(this, SessionSink());
+    HonorMgr::RewardSinks const sinks = HonorRewardSinks(this, m_clientCallbacks.pvpCredit);
 
     return m_honorMgr.Reward(groupsize, honor, inputs, sinks);
 }

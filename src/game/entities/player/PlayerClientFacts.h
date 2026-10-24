@@ -68,12 +68,22 @@ struct StandStateFact
     uint8 state = 0;
 };
 
+/// The player is credited `honor` points for a kill; `victim` is the victim the client names (an
+/// empty guid names none) and `victimRank` the victim's rank.
+struct PvpCreditFact
+{
+    uint32 honor = 0;
+    ObjectGuid victim;
+    uint32 victimRank = 0;
+};
+
 typedef std::function<void(SwingOutOfReachFact const&)> SwingOutOfReachSink;
 typedef std::function<void(SwingBadFacingFact const&)> SwingBadFacingSink;
 typedef std::function<void(CombatCancelledFact const&)> CombatCancelledSink;
 typedef std::function<void(AutoRepeatCancelledFact const&)> AutoRepeatCancelledSink;
 typedef std::function<void(CurrentPetFact const&)> CurrentPetSink;
 typedef std::function<void(StandStateFact const&)> StandStateSink;
+typedef std::function<void(PvpCreditFact const&)> PvpCreditSink;
 
 /// The account security level of the player's session, read at each call. An unsigned integer:
 /// the levels run from 0 to 4, and a caller comparing two of them with `<=` gets the answer the
