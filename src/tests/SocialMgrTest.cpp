@@ -51,6 +51,7 @@
 #include "WorldPacket.h"
 #include "SocialList.h"
 #include "session/packets/entities/SocialPackets.h"
+#include "persistence/characters/social/SocialRepository.h"
 
 #include <map>
 #include <string>
@@ -135,7 +136,7 @@ namespace
         }
     };
 
-    FakeRow SocialRow(uint32 friendLow, uint32 flags, std::string const& note)
+    FakeRow SocialFakeRow(uint32 friendLow, uint32 flags, std::string const& note)
     {
         FakeRow row;
         row.push_back(std::to_string(friendLow));
@@ -148,13 +149,13 @@ namespace
     void LoadOne(PlayerSocial& social, uint32 friendLow, uint32 flags, std::string const& note,
                  uint32& friendCounter, uint32& ignoreCounter)
     {
-        FakeQueryResult result(FakeRows{ SocialRow(friendLow, flags, note) });
+        FakeQueryResult result(FakeRows{ SocialFakeRow(friendLow, flags, note) });
         if (!result.NextRow())
         {
             testing::ReportFailure(__FILE__, __LINE__, "the fake row did not load");
             return;
         }
-        social.LoadRow(result.Fetch(), friendCounter, ignoreCounter);
+        social.LoadRow(SocialRepository::ReadRow(result.Fetch()), friendCounter, ignoreCounter);
     }
 
     std::string FlagsSql(char op, uint32 flag, uint32 friendLow)
@@ -602,4 +603,32 @@ TEST(SocialMgr_FriendStatusBytesPerResult)
     WorldPacket c;
     BuildFriendStatusPacket(c, MakeFriendStatusFact(FRIEND_IGNORE_ADDED, 11, offline));
     CHECK_STR(PacketText(c), "0717:0f" "0b00000000000000");
+}
+
+// The repository on its own: a login row read into its three values; each write the list makes,
+// in the argument order the statements name them (flag, owner, friend for the flag updates), the
+// note through the bound statement, all queued.
+TEST(SocialRepository_ReadRowAndStatements)
+{
+    FakeQueryResult result(FakeRows{ SocialFakeRow(7, 3, "hi") });
+    REQUIRE(result.NextRow());
+    SocialRow row = SocialRepository::ReadRow(result.Fetch());
+    CHECK_EQ(row.friendGuid, 7u);
+    CHECK_EQ(row.flags, 3u);
+    CHECK_STR(row.note, "hi");
+
+    Db db;
+    SocialRepository::AddFlag(kOwner, 7, 2);
+    SocialRepository::Insert(kOwner, 9, 1);
+    SocialRepository::RemoveFlag(kOwner, 7, 1);
+    SocialRepository::Delete(kOwner, 9);
+    SocialRepository::SetNote(kOwner, 7, "note");
+    CheckLines(db.Take(), {
+        FlagsSql('|', 2, 7),
+        InsertSql(9, 1),
+        FlagsSql('&', 1, 7),
+        DeleteSql(9),
+        "UPDATE `character_social` SET `note` = 'note' WHERE `guid` = '42' AND `friend` = '7'",
+    }, __LINE__);
+    CHECK_EQ(db.query.executed.size(), size_t(0));
 }

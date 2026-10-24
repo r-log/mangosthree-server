@@ -32,6 +32,7 @@
 #include "data/GameConfig.h"
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
+#include "persistence/characters/social/SocialRepository.h"
 
 
 /**
@@ -247,7 +248,7 @@ PlayerSocial* SocialMgr::LoadFromDB(QueryResult* result, ObjectGuid guid)
     {
         Field* fields  = result->Fetch();
 
-        social->LoadRow(fields, friendCounter, ignoreCounter);
+        social->LoadRow(SocialRepository::ReadRow(fields), friendCounter, ignoreCounter);
     }
     while (result->NextRow());
     delete result;

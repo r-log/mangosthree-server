@@ -383,8 +383,11 @@ state_row(social
     TYPES   PlayerSocial)
 
 state_allow(social src/game/entities/player/social/SocialList.cpp
-    WHY "the owner: writes the rows (add, remove, note); its debug log line names the packet its contact list fact becomes"
-    NAMES SMSG_CONTACT_LIST character_social)
+    WHY "the owner: its debug log line names the packet its contact list fact becomes; its rows go through its repository"
+    NAMES SMSG_CONTACT_LIST)
+state_allow(social src/game/persistence/characters/social/SocialRepository.cpp
+    WHY "the owner's repository: reads a login row and writes the rows the owner changes (add, remove, note)"
+    NAMES character_social)
 state_allow(social src/game/session/packets/entities/SocialPackets.cpp
     WHY "the session's builders of the owner's two facts: the contact list and a contact's change"
     NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS)

@@ -59,6 +59,8 @@ set(CONVERTED_FILES
     src/game/entities/player/pets/PetMgr.cpp
     src/game/entities/player/social/SocialList.h
     src/game/entities/player/social/SocialList.cpp
+    src/game/persistence/characters/social/SocialRepository.h
+    src/game/persistence/characters/social/SocialRepository.cpp
     src/game/entities/player/inventory/CurrencyMgr.h
     src/game/entities/player/inventory/CurrencyMgr.cpp
     src/game/persistence/characters/inventory/CurrencyRepository.h
