@@ -49,6 +49,7 @@
 #include "Database/TickGuard.h"
 #include "DBCStores.h"
 #include "TalentMgr.h"
+#include "persistence/characters/talents/TalentRepository.h"
 
 #include <algorithm>
 #include <map>
@@ -159,7 +160,7 @@ namespace
     };
 
     /// One `character_talent` row: talent_id, current_rank, spec.
-    FakeRow TalentRow(uint32 talentId, uint32 rank, uint32 spec)
+    FakeRow TalentFakeRow(uint32 talentId, uint32 rank, uint32 spec)
     {
         FakeRow row;
         row.push_back(std::to_string(talentId));
@@ -545,22 +546,22 @@ TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
     };
 
     FakeQueryResult result(FakeRows{
-        TalentRow(kTalentA, 1, 0),              // active spec: learned
-        TalentRow(kTalentUnknown, 0, 0),        // no talent: DELETE for every character
-        TalentRow(kTalentNoTab, 0, 0),          // no talent tab: DELETE for every character
-        TalentRow(kTalentC, 1, 1),              // inactive spec: stored, no statement
-        TalentRow(kTalentOtherClass, 0, 0),     // another class's tab: DELETE for this character
-        TalentRow(kTalentA, 3, 0),              // SpellRank[3] is 0: DELETE for this character
-        TalentRow(kTalentB, 0, 0),              // active spec: learned
-        TalentRow(kTalentA, 6, 0),              // rank above MAX_TALENT_RANK: DELETE for this character
-        TalentRow(kTalentB, 0, 3),              // spec above MAX_TALENT_SPEC_COUNT: DELETE for every character
-        TalentRow(kTalentB, 0, 2),              // spec 2 passes the check above (off by one) and fails the spec count
-        TalentRow(kTalentA, 2, 1),              // inactive spec: stored, no statement
+        TalentFakeRow(kTalentA, 1, 0),              // active spec: learned
+        TalentFakeRow(kTalentUnknown, 0, 0),        // no talent: DELETE for every character
+        TalentFakeRow(kTalentNoTab, 0, 0),          // no talent tab: DELETE for every character
+        TalentFakeRow(kTalentC, 1, 1),              // inactive spec: stored, no statement
+        TalentFakeRow(kTalentOtherClass, 0, 0),     // another class's tab: DELETE for this character
+        TalentFakeRow(kTalentA, 3, 0),              // SpellRank[3] is 0: DELETE for this character
+        TalentFakeRow(kTalentB, 0, 0),              // active spec: learned
+        TalentFakeRow(kTalentA, 6, 0),              // rank above MAX_TALENT_RANK: DELETE for this character
+        TalentFakeRow(kTalentB, 0, 3),              // spec above MAX_TALENT_SPEC_COUNT: DELETE for every character
+        TalentFakeRow(kTalentB, 0, 2),              // spec 2 passes the check above (off by one) and fails the spec count
+        TalentFakeRow(kTalentA, 2, 1),              // inactive spec: stored, no statement
     });
     REQUIRE(result.NextRow());
     do
     {
-        mgr.LoadRow(result.Fetch(), kGuid, kOwnClassMask, /*specsCount*/ 2, /*activeSpec*/ 0, onActiveSpell);
+        mgr.LoadRow(TalentRepository::ReadRow(result.Fetch()), kGuid, kOwnClassMask, /*specsCount*/ 2, /*activeSpec*/ 0, onActiveSpell);
     }
     while (result.NextRow());
     sync();
@@ -616,16 +617,16 @@ TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
         events.push_back("learn " + std::to_string(spellId));
     };
     FakeQueryResult second(FakeRows{
-        TalentRow(kTalentD, 0, 1),              // spec 1 with a spec count of 1: DELETE for this character
-        TalentRow(kTalentD, 1, 1),              // spec 1 active, spec count 2: learned
-        TalentRow(kTalentE, 0, 0),              // spec 0 inactive, spec count 2: stored
+        TalentFakeRow(kTalentD, 0, 1),              // spec 1 with a spec count of 1: DELETE for this character
+        TalentFakeRow(kTalentD, 1, 1),              // spec 1 active, spec count 2: learned
+        TalentFakeRow(kTalentE, 0, 0),              // spec 0 inactive, spec count 2: stored
     });
     REQUIRE(second.NextRow());
-    other.LoadRow(second.Fetch(), kGuid, kOwnClassMask, /*specsCount*/ 1, /*activeSpec*/ 0, recordOnly);
+    other.LoadRow(TalentRepository::ReadRow(second.Fetch()), kGuid, kOwnClassMask, /*specsCount*/ 1, /*activeSpec*/ 0, recordOnly);
     REQUIRE(second.NextRow());
-    other.LoadRow(second.Fetch(), kGuid, kOwnClassMask, /*specsCount*/ 2, /*activeSpec*/ 1, recordOnly);
+    other.LoadRow(TalentRepository::ReadRow(second.Fetch()), kGuid, kOwnClassMask, /*specsCount*/ 2, /*activeSpec*/ 1, recordOnly);
     REQUIRE(second.NextRow());
-    other.LoadRow(second.Fetch(), kGuid, kOwnClassMask, /*specsCount*/ 2, /*activeSpec*/ 1, recordOnly);
+    other.LoadRow(TalentRepository::ReadRow(second.Fetch()), kGuid, kOwnClassMask, /*specsCount*/ 2, /*activeSpec*/ 1, recordOnly);
     CHECK(!second.NextRow());
     sync();
     REQUIRE(events.size() == size_t(2));
@@ -638,9 +639,9 @@ TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
 
     // The class mask is a parameter too: another class's mask rejects a talent of the own tab.
     events.clear();
-    FakeQueryResult third(FakeRows{ TalentRow(kTalentA, 0, 0) });
+    FakeQueryResult third(FakeRows{ TalentFakeRow(kTalentA, 0, 0) });
     REQUIRE(third.NextRow());
-    other.LoadRow(third.Fetch(), kGuid, kOtherClassMask, 2, 0, recordOnly);
+    other.LoadRow(TalentRepository::ReadRow(third.Fetch()), kGuid, kOtherClassMask, 2, 0, recordOnly);
     sync();
     REQUIRE(events.size() == size_t(1));
     CHECK_STR(events[0], "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90001'");
@@ -905,4 +906,67 @@ TEST(TalentMgr_ActivateSpecReplayOnTheManagersMaps)
     CHECK(Find(mgr, 1, kTalentB) == NULL);
     CHECK(Find(mgr, 1, kTalentE) == NULL);
     CHECK_EQ(TickGuard::Violations(), 0u);
+}
+
+// The repository on its own: a login row read into its three values; the load's four DELETEs (two
+// that name no character: every character's rows of a talent, and of a spec) and the save of the
+// rows it is handed, in order, each its DELETE then its INSERT as its flags say, all queued.
+TEST(TalentRepository_ReadRowAndStatements)
+{
+    FakeQueryResult result(FakeRows{ TalentFakeRow(90001, 2, 1) });
+    REQUIRE(result.NextRow());
+    TalentRow row = TalentRepository::ReadRow(result.Fetch());
+    CHECK_EQ(row.talent, 90001u);
+    CHECK_EQ(row.rank, 2u);
+    CHECK_EQ(row.spec, 1u);
+
+    TickGuard::ResetViolations();
+    FakeConnection query(CharacterDatabase);
+    FakeConnection async(CharacterDatabase);
+    SqlResultQueue results;
+    AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
+
+    TalentSaveRow changed;
+    changed.talent = 90001;
+    changed.rank = 2;
+    changed.spec = 0;
+    changed.removeOld = true;
+    changed.insert = true;
+    TalentSaveRow removed;
+    removed.talent = 90002;
+    removed.spec = 1;
+    removed.removeOld = true;
+    TalentSaveRow added;
+    added.talent = 90003;
+    added.rank = 1;
+    added.spec = 1;
+    added.insert = true;
+    {
+        TickGuard::Scope scope;
+        TalentRepository::DeleteEveryRowOfTalent(90009);
+        TalentRepository::DeleteOwnerTalent(kGuid, 90008);
+        TalentRepository::DeleteEveryRowOfSpec(7);
+        TalentRepository::DeleteOwnerSpec(kGuid, 1);
+        TalentRepository::Save(kGuid, { changed, removed, added });
+        TalentRepository::Save(kGuid, std::vector<TalentSaveRow>());
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CharacterDatabase.ExecuteQueuedForTest();
+    const std::vector<std::string> want =
+    {
+        "DELETE FROM `character_talent` WHERE `talent_id` = '90009'",
+        "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90008'",
+        "DELETE FROM `character_talent` WHERE `spec` = '7' ",
+        "DELETE FROM `character_talent` WHERE `guid` = '42' AND `spec` = '1' ",
+        DeleteSql(90001, 0),
+        InsertSql(90001, 2, 0),
+        DeleteSql(90002, 1),
+        InsertSql(90003, 1, 1),
+    };
+    REQUIRE(async.executed.size() == want.size());
+    for (size_t i = 0; i < want.size(); ++i)
+    {
+        CHECK_STR(async.executed[i], want[i]);
+    }
+    CHECK_EQ(query.executed.size(), size_t(0));
 }

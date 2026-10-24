@@ -69,7 +69,7 @@
 
 struct TalentEntry;
 struct SpellEntry;
-class Field;
+struct TalentRow;
 
 /**
  * @brief Save state of one row of the spell book or the talent maps.
@@ -161,7 +161,7 @@ class TalentMgr
         /// One `character_talent` row: `talent_id, current_rank, spec`. `guidLow` is the
         /// character's, for the log lines and the scoped DELETEs; `classMask` is the character's
         /// class mask; `specsCount` and `activeSpec` are read by the owner at the start of the row.
-        void LoadRow(Field* fields, uint32 guidLow, uint32 classMask, uint8 specsCount, uint8 activeSpec,
+        void LoadRow(TalentRow const& row, uint32 guidLow, uint32 classMask, uint8 specsCount, uint8 activeSpec,
                      ActiveSpellCallback const& onActiveSpell);
         /// DELETE for every REMOVED or CHANGED entry, INSERT for every NEW or CHANGED one, spec by
         /// spec; REMOVED entries are erased and the rest become UNCHANGED. Asynchronous, as before.

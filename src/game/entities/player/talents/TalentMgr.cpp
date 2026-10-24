@@ -25,9 +25,9 @@
 
 #include "TalentMgr.h"
 #include "Common/TimeConstants.h"
-#include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
 #include "Log.h"
+#include "persistence/characters/talents/TalentRepository.h"
 
 #include <algorithm>
 
@@ -225,16 +225,16 @@ void TalentMgr::RefundPoints(uint32 cost)
     }
 }
 
-void TalentMgr::LoadRow(Field* fields, uint32 guidLow, uint32 classMask, uint8 specsCount, uint8 activeSpec,
+void TalentMgr::LoadRow(TalentRow const& row, uint32 guidLow, uint32 classMask, uint8 specsCount, uint8 activeSpec,
                         ActiveSpellCallback const& onActiveSpell)
 {
-    uint32 talent_id = fields[0].GetUInt32();
+    uint32 talent_id = row.talent;
     TalentEntry const* talentInfo = sTalentStore.LookupEntry(talent_id);
 
     if (!talentInfo)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has invalid talent_id: %u , this talent will be deleted from character_talent", guidLow, talent_id);
-        CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `talent_id` = '%u'", talent_id);
+        TalentRepository::DeleteEveryRowOfTalent(talent_id);
         return;
     }
 
@@ -243,7 +243,7 @@ void TalentMgr::LoadRow(Field* fields, uint32 guidLow, uint32 classMask, uint8 s
     if (!talentTabInfo)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has invalid talentTabInfo: %u for talentID: %u , this talent will be deleted from character_talent", guidLow, talentInfo->TabID, talentInfo->ID);
-        CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `talent_id` = '%u'", talent_id);
+        TalentRepository::DeleteEveryRowOfTalent(talent_id);
         return;
     }
 
@@ -251,32 +251,32 @@ void TalentMgr::LoadRow(Field* fields, uint32 guidLow, uint32 classMask, uint8 s
     if ((classMask & talentTabInfo->ClassMask) == 0)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has talent with ClassMask: %u , but Player's ClassMask is: %u , talentID: %u , this talent will be deleted from character_talent", guidLow, talentTabInfo->ClassMask, classMask , talentInfo->ID);
-        CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `guid` = '%u' AND `talent_id` = '%u'", guidLow, talent_id);
+        TalentRepository::DeleteOwnerTalent(guidLow, talent_id);
         return;
     }
 
-    uint32 currentRank = fields[1].GetUInt32();
+    uint32 currentRank = row.rank;
 
     if (currentRank > MAX_TALENT_RANK || talentInfo->SpellRank[currentRank] == 0)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has invalid talent rank: %u , talentID: %u , this talent will be deleted from character_talent", guidLow, currentRank, talentInfo->ID);
-        CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `guid` = '%u' AND `talent_id` = '%u'", guidLow, talent_id);
+        TalentRepository::DeleteOwnerTalent(guidLow, talent_id);
         return;
     }
 
-    uint32 spec = fields[2].GetUInt32();
+    uint32 spec = row.spec;
 
     if (spec > MAX_TALENT_SPEC_COUNT)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has invalid talent spec: %u, spec will be deleted from character_talent", guidLow, spec);
-        CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `spec` = '%u' ", spec);
+        TalentRepository::DeleteEveryRowOfSpec(spec);
         return;
     }
 
     if (spec >= specsCount)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has invalid talent spec: %u , this spec will be deleted from character_talent.", guidLow, spec);
-        CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `guid` = '%u' AND `spec` = '%u' ", guidLow, spec);
+        TalentRepository::DeleteOwnerSpec(guidLow, spec);
         return;
     }
 
@@ -296,25 +296,21 @@ void TalentMgr::LoadRow(Field* fields, uint32 guidLow, uint32 classMask, uint8 s
 
 void TalentMgr::SaveTalents(uint32 guidLow)
 {
-    static SqlStatementID delTalents ;
-    static SqlStatementID insTalents ;
-
-    SqlStatement stmtDel = CharacterDatabase.CreateStatement(delTalents, "DELETE FROM `character_talent` WHERE `guid` = ? and `talent_id` = ? and `spec` = ?");
-    SqlStatement stmtIns = CharacterDatabase.CreateStatement(insTalents, "INSERT INTO `character_talent` (`guid`, `talent_id`, `current_rank`, `spec`) VALUES (?, ?, ?, ?)");
-
+    std::vector<TalentSaveRow> rows;
     for (uint32 i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
     {
         for (PlayerTalentMap::iterator itr = m_talents[i].begin(); itr != m_talents[i].end();)
         {
-            if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.state == PLAYERSPELL_CHANGED)
-            {
-                stmtDel.PExecute(guidLow, itr->first, i);
-            }
-
+            TalentSaveRow row;
+            row.talent = itr->first;
+            row.rank = itr->second.currentRank;
+            row.spec = i;
+            row.removeOld = itr->second.state == PLAYERSPELL_REMOVED || itr->second.state == PLAYERSPELL_CHANGED;
             // add only changed/new talents
-            if (itr->second.state == PLAYERSPELL_NEW || itr->second.state == PLAYERSPELL_CHANGED)
+            row.insert = itr->second.state == PLAYERSPELL_NEW || itr->second.state == PLAYERSPELL_CHANGED;
+            if (row.removeOld || row.insert)
             {
-                stmtIns.PExecute(guidLow, itr->first, itr->second.currentRank, i);
+                rows.push_back(row);
             }
 
             if (itr->second.state == PLAYERSPELL_REMOVED)
@@ -328,4 +324,6 @@ void TalentMgr::SaveTalents(uint32 guidLow)
             }
         }
     }
+
+    TalentRepository::Save(guidLow, rows);
 }

@@ -45,6 +45,8 @@ set(CONVERTED_FILES
     src/game/entities/player/quests/QuestStatusMgr.cpp
     src/game/entities/player/talents/TalentMgr.h
     src/game/entities/player/talents/TalentMgr.cpp
+    src/game/persistence/characters/talents/TalentRepository.h
+    src/game/persistence/characters/talents/TalentRepository.cpp
     src/game/entities/player/inventory/InventoryMgr.h
     src/game/entities/player/inventory/InventoryMgr.cpp
     src/game/entities/player/spells/RuneMgr.h
