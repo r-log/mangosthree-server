@@ -88,6 +88,7 @@
 #include "WorldPacket.h"
 #include "ReputationMgr.h"
 #include "session/packets/entities/ReputationPackets.h"
+#include "persistence/characters/social/ReputationRepository.h"
 
 #include <cstdio>
 #include <list>
@@ -393,7 +394,7 @@ namespace
             testing::ReportFailure(__FILE__, __LINE__, "the fake row did not load");
             return;
         }
-        mgr.LoadRow(result.Fetch(), wire.Notify());
+        mgr.LoadRow(ReputationRepository::ReadRow(result.Fetch()), wire.Notify());
     }
 
     /// The fakes on the global character database, asynchronous writes on.
@@ -1010,6 +1011,34 @@ TEST(ReputationMgr_SaveStatementStream)
     wire.Take();
     mgr.SaveToDB(kOwner);
     CheckEvents(db.Take(), { DeleteSql(2), InsertSql(2, -500, 1) }, __LINE__);
+}
+
+// The repository on its own: a login row read into its three values (a negative standing read
+// through the unsigned getter, as the load always read it); the save of the rows it is handed, in
+// order, a DELETE then an INSERT each; nothing for no rows.
+TEST(ReputationRepository_ReadRowAndSave)
+{
+    FakeQueryResult result(FakeRows{ RepRow("6", "-10000", "3") });
+    REQUIRE(result.NextRow());
+    ReputationRow row = ReputationRepository::ReadRow(result.Fetch());
+    CHECK_EQ(row.faction, 6u);
+    CHECK_EQ(row.standing, -10000);
+    CHECK_EQ(row.flags, 3u);
+
+    Db db;
+    ReputationRepository::Save(kOwner, std::vector<ReputationRow>());
+    CheckEvents(db.Take(), {}, __LINE__);
+
+    ReputationRow a;
+    a.faction = 9;
+    a.standing = -500;
+    a.flags = 17;
+    ReputationRow b;
+    b.faction = 2;
+    b.standing = 21000;
+    b.flags = 1;
+    ReputationRepository::Save(kOwner, { a, b });
+    CheckEvents(db.Take(), { DeleteSql(9), InsertSql(9, -500, 17), DeleteSql(2), InsertSql(2, 21000, 1) }, __LINE__);
 }
 
 // EXHAUSTIVE, the owner facts: for every race (0..22) and class (1..11), the OLD expression --

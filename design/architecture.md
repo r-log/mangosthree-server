@@ -110,18 +110,19 @@ are two declared beside `PlayerSocial` (`SocialList.h`). All twenty-two are buil
 `session/packets/combat/`, `spells/` and
 `entities/` and sent through the callbacks `InstallPlayerPacketSinks` installs where a player is created.
 
-**Today (database):** 982 of the 1,006 calls are outside persistence: entities 238 (62 in
+**Today (database):** 980 of the 1,006 calls are outside persistence: entities 236 (62 in
 `entities/player/persistence/`), social 192, data 142, session 134, scripts 94, app 74, maps 62, economy 22,
 spells 13, pvp 9, ai 2. Game `.cpp` files hold 994 calls in 127 files.
 
 **Today (entities, the manager audit):**
 - No manager builds packets. `CurrencyMgr`, `ReputationMgr` and `SocialList`/`PlayerSocial` report their four, five
   and one client notices as typed facts that `session/packets/entities/` builds.
-- Six call the database: `CurrencyMgr` (3 lines), `QuestStatusMgr` (6), `ReputationMgr` (2), `SocialList` (5),
-  `GlyphMgr` (6) and `TalentMgr` (8).
-- Six are clean: `InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, which reports a kill's honor
+- Five call the database: `CurrencyMgr` (3 lines), `QuestStatusMgr` (6), `SocialList` (5), `GlyphMgr` (6) and
+  `TalentMgr` (8).
+- Seven are clean: `InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, which reports a kill's honor
   credit as a typed fact that `session/packets/entities/` builds into its packet, `PetMgr` (the clear of the pet
-  action bar is a fact of the player's own client) and `RuneMgr`, which reports its three rune facts the same way.
+  action bar is a fact of the player's own client), `RuneMgr`, which reports its three rune facts the same way, and
+  `ReputationMgr`, whose rows its repository reads and writes (`persistence/characters/social/`).
 - In `spells/`, `SpellCooldownMgr` calls the database (2 lines) and builds no packet: it reports a cooldown event
   and the clear of every cooldown as typed facts, and `session/packets/spells/` builds the two packets.
 - `QuestCompletePacket` is a packet builder on the manager list. The owner-side global `SocialMgr` reports each
@@ -380,8 +381,8 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 5 | data -> domain: 77 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump` and `CharacterDatabaseCleaner` (8 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
-| 8 | 982 database calls outside persistence | #144, when content needs it |
-| 9 | **Entities, Today:** one manager builds packets (`SocialList`/`PlayerSocial`; `CurrencyMgr`'s four and `ReputationMgr`'s five client notices are typed facts built by `session/packets/entities/`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); six are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, and `RuneMgr`, whose three rune facts the same directory builds). **Spells, Today:** `SpellCooldownMgr` calls the database and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
+| 8 | 980 database calls outside persistence | #144, when content needs it |
+| 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); five call the database (`CurrencyMgr`, `QuestStatusMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); seven are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, whose rows its repository in `persistence/characters/social/` reads and writes). **Spells, Today:** `SpellCooldownMgr` calls the database and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
@@ -474,7 +475,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
 import os, re, sys, collections
 RULES = [
  (r'^(tools|genrev)/|^game/pchdef', None), (r'^tests/', 'tests'), (r'^realmd/', 'realmd'), (r'^mangosd/', 'app'),
- (r'^shared/Database/|^game/Server/GameGlobals|^game/Tools/(PlayerDump|CharacterDatabaseCleaner)', 'persistence'),
+ (r'^shared/Database/|^game/persistence/|^game/Server/GameGlobals|^game/Tools/(PlayerDump|CharacterDatabaseCleaner)', 'persistence'),
  (r'^shared/|^game/Time/|^game/Object/ObjectGuid\.', 'foundation'), (r'^proto/', 'proto'), (r'^(motion|game/movement)/', 'motion'),
  (r'^modules/SD3/|^game/ChatCommands/|^game/WorldHandlers/(Chat\.|ChatArgExtract|ChatHelp|CommandMgr|ScriptMgr|ScriptAction)', 'scripts'),
  (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig)', 'app'),

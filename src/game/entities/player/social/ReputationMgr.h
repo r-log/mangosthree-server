@@ -121,7 +121,7 @@ struct RepSpilloverTemplate
     uint32 faction_rank[MAX_SPILLOVER_FACTIONS];
 };
 
-class Field;
+struct ReputationRow;
 
 /**
  * @brief Decoupling D4k: a character's reputations, and the rules over them, held apart from the
@@ -213,11 +213,11 @@ class ReputationMgr
         /**
          * @brief Loads one saved row (faction, standing, flags) over the initialized list.
          *
-         * @param fields The row.
+         * @param row The row, as the repository read it.
          * @param notify Where the visible and at-war changes the row's flags make are sent (not
          *               while the character is loading, which a login is).
          */
-        void LoadRow(Field* fields, FlagNotify const& notify);
+        void LoadRow(ReputationRow const& row, FlagNotify const& notify);
         /// Saves every changed faction: a DELETE then an INSERT of the owner's row for it.
         void SaveToDB(uint32 ownerGuidLow);
     public:                                                 // statics
