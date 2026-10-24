@@ -68,6 +68,7 @@
 #include "Calendar.h"
 #include "DisableMgr.h"
 #include "persistence/characters/talents/TalentRepository.h"
+#include "persistence/characters/quests/QuestStatusRepository.h"
 
 // corpse reclaim times -- file-local in Player.cpp; mirrored here so
 // LoadFromDB can clamp m_deathExpireTime.
@@ -1018,7 +1019,7 @@ void Player::_LoadQuestStatus(QueryResult* result)
             // next row is read. Applying a rewarded row casts spells, and a quest-complete
             // effect reaches AreaExploredOrEventHappens, which reads and writes a later row --
             // so the load must stay one pass, row by row, as it always was.
-            QuestRowResult row = m_questStatusMgr.FillRow(result->Fetch(), WorldGameTime::Get(), GetName(), ObjectMgr::QuestTemplateLookup());
+            QuestRowResult row = m_questStatusMgr.FillRow(QuestStatusRepository::ReadRow(result->Fetch()), WorldGameTime::Get(), GetName(), ObjectMgr::QuestTemplateLookup());
             if (row.accepted)
             {
                 uint32 quest_id = row.questId;

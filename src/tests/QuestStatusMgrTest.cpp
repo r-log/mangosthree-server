@@ -46,6 +46,7 @@
 #include "Database/TickGuard.h"
 #include "QuestDef.h"
 #include "QuestStatusMgr.h"
+#include "persistence/characters/quests/QuestStatusRepository.h"
 
 #include <map>
 #include <memory>
@@ -138,7 +139,7 @@ namespace
     {
         FakeQueryResult result(FakeRows{row});
         result.NextRow();
-        return mgr.FillRow(result.Fetch(), kNow, kOwner, templates.Lookup());
+        return mgr.FillRow(QuestStatusRepository::ReadRow(result.Fetch()), kNow, kOwner, templates.Lookup());
     }
 
     /// A weekly/monthly SELECT result as the login holder hands it over: positioned on its first
@@ -438,8 +439,8 @@ TEST(QuestStatusMgr_WeeklyAndMonthlyLoadKeepKnownQuestsAndClearTheFlag)
     CHECK(mgr.IsMonthlyChanged());
 
     // The load replaces the set, drops rows whose template is gone, and resets the flag.
-    mgr.LoadWeekly(QuestList({300, 999, 100}), kGuid, templates.Lookup());
-    mgr.LoadMonthly(QuestList({400, 999}), kGuid, templates.Lookup());
+    mgr.LoadWeekly(QuestStatusRepository::ReadQuestIds(QuestList({300, 999, 100})), kGuid, templates.Lookup());
+    mgr.LoadMonthly(QuestStatusRepository::ReadQuestIds(QuestList({400, 999})), kGuid, templates.Lookup());
     CHECK_EQ(mgr.WeeklyQuests().size(), size_t(2));
     CHECK_EQ(mgr.WeeklyQuests().count(300), size_t(1));
     CHECK_EQ(mgr.WeeklyQuests().count(100), size_t(1));
@@ -450,7 +451,7 @@ TEST(QuestStatusMgr_WeeklyAndMonthlyLoadKeepKnownQuestsAndClearTheFlag)
     CHECK(!mgr.IsMonthlyChanged());
 
     // A NULL result (no rows) empties the set.
-    mgr.LoadMonthly(QuestList({}), kGuid, templates.Lookup());
+    mgr.LoadMonthly(QuestStatusRepository::ReadQuestIds(QuestList({})), kGuid, templates.Lookup());
     CHECK_EQ(mgr.MonthlyQuests().size(), size_t(0));
 
     // Cooldowns: a weekly quest in the set is refused, one outside it and a non-weekly pass.
@@ -543,4 +544,77 @@ TEST(QuestStatusMgr_WeeklyAndMonthlySavesDeleteThenInsertOnlyWhenChangedAndNonEm
     CHECK_EQ(async.executed.size(), size_t(5));
     CHECK_EQ(query.executed.size(), size_t(0));
     CHECK_EQ(TickGuard::Violations(), 0u);
+}
+
+// The repository on its own: a login row read into its fifteen values (the flags through the 8-bit
+// getter and the timer through the 64-bit one, as the load always read them); the quest ids of a
+// weekly result in order, and none for no result; the owner's INSERT and UPDATE of a row and the
+// weekly and monthly replace, all queued, no blocking call.
+TEST(QuestStatusRepository_ReadAndStatements)
+{
+    FakeRow saved = StatusRow(200, QUEST_STATUS_INCOMPLETE, 1, 0, uint64(kNow) + 30);
+    saved[5] = "3";
+    saved[8] = "4";
+    saved[9] = "5";
+    saved[14] = "6";
+    FakeQueryResult result(FakeRows{ saved });
+    REQUIRE(result.NextRow());
+    QuestStatusRow row = QuestStatusRepository::ReadRow(result.Fetch());
+    CHECK_EQ(row.quest, 200u);
+    CHECK_EQ(row.status, uint32(QUEST_STATUS_INCOMPLETE));
+    CHECK_EQ(uint32(row.rewarded), 1u);
+    CHECK_EQ(uint32(row.explored), 0u);
+    CHECK_EQ(row.timer, uint64(kNow) + 30);
+    CHECK_EQ(row.creatureOrGoCount[0], 3u);
+    CHECK_EQ(row.creatureOrGoCount[3], 4u);
+    CHECK_EQ(row.itemCount[0], 5u);
+    CHECK_EQ(row.itemCount[5], 6u);
+
+    CHECK(QuestStatusRepository::ReadQuestIds(QuestList({300, 999, 100})) == std::vector<uint32>({ 300, 999, 100 }));
+    CHECK(QuestStatusRepository::ReadQuestIds(QuestList({})).empty());
+
+    TickGuard::ResetViolations();
+    FakeConnection query(CharacterDatabase);
+    FakeConnection async(CharacterDatabase);
+    SqlResultQueue results;
+    AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
+
+    QuestStatusSaveRow write;
+    write.quest = 700;
+    write.status = 1;
+    write.explored = 1;
+    write.timer = uint64(kNow);
+    write.creatureOrGoCount[1] = 2;
+    write.itemCount[4] = 9;
+    std::set<uint32> weekly = { 310, 300 };
+    std::set<uint32> monthly = { 400 };
+    {
+        TickGuard::Scope scope;
+        QuestStatusRepository::Insert(kGuid, write);
+        QuestStatusRepository::Update(kGuid, write);
+        QuestStatusRepository::SaveWeekly(kGuid, weekly);
+        QuestStatusRepository::SaveMonthly(kGuid, monthly);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CharacterDatabase.ExecuteQueuedForTest();
+    const std::vector<std::string> want =
+    {
+        "INSERT INTO `character_queststatus` (`guid`,`quest`,`status`,`rewarded`,`explored`,`timer`,`mobcount1`,`mobcount2`,"
+        "`mobcount3`,`mobcount4`,`itemcount1`,`itemcount2`,`itemcount3`,`itemcount4`,`itemcount5`,`itemcount6`) "
+        "VALUES ('42', '700', '1', '0', '1', '1700000000', '0', '2', '0', '0', '0', '0', '0', '0', '9', '0')",
+        "UPDATE `character_queststatus` SET `status` = '1',`rewarded` = '0',`explored` = '1',`timer` = '1700000000',"
+        "`mobcount1` = '0',`mobcount2` = '2',`mobcount3` = '0',`mobcount4` = '0',`itemcount1` = '0',`itemcount2` = '0',"
+        "`itemcount3` = '0',`itemcount4` = '0',`itemcount5` = '9',`itemcount6` = '0' WHERE `guid` = '42' AND `quest` = '700'",
+        "DELETE FROM `character_queststatus_weekly` WHERE `guid` = '42'",
+        "INSERT INTO `character_queststatus_weekly` (`guid`,`quest`) VALUES ('42', '300')",
+        "INSERT INTO `character_queststatus_weekly` (`guid`,`quest`) VALUES ('42', '310')",
+        "DELETE FROM `character_queststatus_monthly` WHERE `guid` = '42'",
+        "INSERT INTO `character_queststatus_monthly` (`guid`, `quest`) VALUES ('42', '400')",
+    };
+    REQUIRE(async.executed.size() == want.size());
+    for (size_t i = 0; i < want.size(); ++i)
+    {
+        CHECK_STR(async.executed[i], want[i]);
+    }
+    CHECK_EQ(query.executed.size(), size_t(0));
 }

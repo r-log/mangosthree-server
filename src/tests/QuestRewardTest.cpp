@@ -55,6 +55,7 @@
 #include "QuestDef.h"
 #include "QuestStatusMgr.h"
 #include "QuestRewardRules.h"
+#include "persistence/characters/quests/QuestStatusRepository.h"
 
 #include <map>
 #include <memory>
@@ -161,7 +162,7 @@ namespace
         row[9] = "6";                       // itemcount1
         FakeQueryResult result(FakeRows{row});
         result.NextRow();
-        mgr.FillRow(result.Fetch(), kNow, kOwner, templates.Lookup());
+        mgr.FillRow(QuestStatusRepository::ReadRow(result.Fetch()), kNow, kOwner, templates.Lookup());
     }
 }
 

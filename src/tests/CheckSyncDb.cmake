@@ -43,6 +43,8 @@ set(CONVERTED_FILES
     src/game/ChatCommands/AccountCommands.cpp
     src/game/entities/player/quests/QuestStatusMgr.h
     src/game/entities/player/quests/QuestStatusMgr.cpp
+    src/game/persistence/characters/quests/QuestStatusRepository.h
+    src/game/persistence/characters/quests/QuestStatusRepository.cpp
     src/game/entities/player/talents/TalentMgr.h
     src/game/entities/player/talents/TalentMgr.cpp
     src/game/persistence/characters/talents/TalentRepository.h
