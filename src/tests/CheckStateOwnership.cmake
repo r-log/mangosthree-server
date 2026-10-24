@@ -409,11 +409,17 @@ state_row(currency
     TYPES   CurrencyMgr)
 
 state_allow(currency src/game/entities/player/inventory/CurrencyMgr.cpp
-    WHY "the owner: builds its packets for the owner's session sink, loads the rows one at a time (the row's columns in a comment, the invalid-row DELETE) and saves them"
-    NAMES SMSG_SET_CURRENCY SMSG_SET_CURRENCY_WEEK_LIMIT SMSG_SEND_CURRENCIES SMSG_WEEKLY_RESET_CURRENCIES character_currencies)
+    WHY "the owner: loads the rows one at a time (the row's columns in a comment, the invalid-row DELETE) and saves them; its four client notices leave as facts"
+    NAMES character_currencies)
 state_allow(currency src/game/entities/player/inventory/CurrencyMgr.h
-    WHY "the owner's header: the flags' and the sinks' doc comments name the table and the packet"
-    NAMES SMSG_SET_CURRENCY character_currencies)
+    WHY "the owner's header: the flags' doc comment names the table"
+    NAMES character_currencies)
+state_allow(currency src/game/session/packets/entities/CurrencyPackets.cpp
+    WHY "the session's builders of the owner's four facts: a count changed, a week limit, the weekly reset and every currency"
+    NAMES SMSG_SET_CURRENCY SMSG_SET_CURRENCY_WEEK_LIMIT SMSG_SEND_CURRENCIES SMSG_WEEKLY_RESET_CURRENCIES)
+state_allow(currency src/tests/PlayerClientPacketsTest.cpp
+    WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"
+    NAMES SMSG_SET_CURRENCY SMSG_SET_CURRENCY_WEEK_LIMIT SMSG_SEND_CURRENCIES SMSG_WEEKLY_RESET_CURRENCIES)
 state_allow(currency src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB)"
     NAMES character_currencies)
@@ -433,7 +439,7 @@ state_allow(currency src/tests/HarnessTest.cpp
     WHY "unit test of the recorder's rule table (checks the opcode's rule, builds nothing)"
     NAMES SMSG_SET_CURRENCY)
 state_allow(currency src/tests/CurrencyMgrTest.cpp
-    WHY "unit test that observes the packets through a capturing sink and the load's DELETE and the save's statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
+    WHY "unit test that builds the reported facts with the session's builders and observes the load's DELETE and the save's statements through a fake connection (checks each opcode, byte and statement)"
     NAMES SMSG_SET_CURRENCY SMSG_SET_CURRENCY_WEEK_LIMIT SMSG_SEND_CURRENCIES SMSG_WEEKLY_RESET_CURRENCIES character_currencies)
 state_row(honor
     OWNER   HonorMgr

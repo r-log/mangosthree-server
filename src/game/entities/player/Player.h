@@ -2326,7 +2326,7 @@ class Player : public Unit
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-        /// where the player is created: eleven facts out, one read in.
+        /// where the player is created: fifteen facts out, one read in.
         struct ClientCallbacks
         {
             SwingOutOfReachSink swingOutOfReach;
@@ -2340,6 +2340,10 @@ class Player : public Unit
             RuneConvertedSink runeConverted;
             RunesResyncedSink runesResynced;
             RunePowerAddedSink runePowerAdded;
+            CurrencySetSink currencySet;
+            CurrencyWeekCapSink currencyWeekCap;
+            CurrencyWeekResetSink currencyWeekReset;
+            CurrencyListSink currencyList;
             SecurityLevelQuery securityLevel;
         };
         void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }
@@ -3089,7 +3093,7 @@ class Player : public Unit
         // Currency API — thin delegating wrappers around m_currencyMgr (extracted 2026-05-12).
         // Decoupling D4k: the ones that read the server config, the character's currency-gain
         // aura or its in-world state, or that pass the achievement update and the quest checks,
-        // live in inventory/PlayerCurrency.cpp; the packets go through SessionSink().
+        // live in inventory/PlayerCurrency.cpp; the currency facts go to the installed client callbacks.
         // Decoupling D4i: the counts, the total cap and the flags are read and set on the manager directly.
         CurrencyMgr& GetCurrencyMgr() { return m_currencyMgr; }
         CurrencyMgr const& GetCurrencyMgr() const { return m_currencyMgr; }
@@ -3101,7 +3105,7 @@ class Player : public Unit
         void SetCurrencyCount(uint32 id, uint32 count);
         void SendCurrencyWeekCap(uint32 id) const;
         void SendCurrencyWeekCap(CurrencyTypesEntry const * currency) const;
-        void ResetCurrencyWeekCounts() { m_currencyMgr.ResetWeekCounts(SessionSink()); }
+        void ResetCurrencyWeekCounts() { m_currencyMgr.ResetWeekCounts(m_clientCallbacks.currencyWeekReset); }
 
         /*********************************************************/
         /***                  PVP SYSTEM                       ***/

@@ -32,7 +32,9 @@
  * currency-gain aura multiplier and the in-world-and-not-loading check (read callbacks, called
  * where the old body read them), the conquest week cap from the server config, the guid, the
  * achievement update, the two currency quest checks, and the login loop over the rows. The
- * packets the manager builds go through Player::SessionSink(). The forwarders whose inputs are
+ * currency facts the manager reports go to the callbacks the session installed on the character
+ * (ClientCallbacks::currencySet, currencyWeekCap, currencyWeekReset and currencyList). The
+ * forwarders whose inputs are
  * plain expressions (the counts, the total cap, the flags, the weekly reset and the save) stay
  * inline in Player.h.
  */
@@ -65,14 +67,15 @@ namespace
     }
 
     /// What CurrencyMgr::ModifyCount did to the character before decoupling D4k.
-    CurrencyMgr::ModifySinks ModifyCurrencySinks(Player* player, ManagerPacketSink const& send)
+    CurrencyMgr::ModifySinks ModifyCurrencySinks(Player* player, CurrencySetSink const& currencySet, CurrencyWeekCapSink const& weekCapSet)
     {
         CurrencyMgr::ModifySinks sinks;
         sinks.updateAchievement = [player](AchievementCriteriaTypes type, uint32 miscValue1, uint32 miscValue2)
         {
             player->UpdateAchievementCriteria(type, miscValue1, miscValue2);
         };
-        sinks.send = send;
+        sinks.currencySet = currencySet;
+        sinks.weekCapSet = weekCapSet;
         sinks.addedQuestCheck = [player](uint32 currencyId)
         {
             player->CurrencyAddedQuestCheck(currencyId);
@@ -92,13 +95,13 @@ uint32 Player::GetCurrencyWeekCap(CurrencyTypesEntry const* currency) const
 
 void Player::SendCurrencies() const
 {
-    m_currencyMgr.SendAll(sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP), SessionSink());
+    m_currencyMgr.SendAll(sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP), m_clientCallbacks.currencyList);
 }
 
 void Player::ModifyCurrencyCount(uint32 id, int32 count, bool modifyWeek, bool modifySeason, bool ignoreMultipliers)
 {
     CurrencyMgr::CurrencyInputs const inputs = ReadCurrencyInputs(this);
-    CurrencyMgr::ModifySinks const sinks = ModifyCurrencySinks(this, SessionSink());
+    CurrencyMgr::ModifySinks const sinks = ModifyCurrencySinks(this, m_clientCallbacks.currencySet, m_clientCallbacks.currencyWeekCap);
 
     m_currencyMgr.ModifyCount(id, count, modifyWeek, modifySeason, ignoreMultipliers, inputs, sinks);
 }
@@ -106,19 +109,19 @@ void Player::ModifyCurrencyCount(uint32 id, int32 count, bool modifyWeek, bool m
 void Player::SetCurrencyCount(uint32 id, uint32 count)
 {
     CurrencyMgr::CurrencyInputs const inputs = ReadCurrencyInputs(this);
-    CurrencyMgr::ModifySinks const sinks = ModifyCurrencySinks(this, SessionSink());
+    CurrencyMgr::ModifySinks const sinks = ModifyCurrencySinks(this, m_clientCallbacks.currencySet, m_clientCallbacks.currencyWeekCap);
 
     m_currencyMgr.SetCount(id, count, inputs, sinks);
 }
 
 void Player::SendCurrencyWeekCap(uint32 id) const
 {
-    m_currencyMgr.SendWeekCap(id, ReadCurrencyInputs(this), SessionSink());
+    m_currencyMgr.SendWeekCap(id, ReadCurrencyInputs(this), m_clientCallbacks.currencyWeekCap);
 }
 
 void Player::SendCurrencyWeekCap(CurrencyTypesEntry const* currency) const
 {
-    m_currencyMgr.SendWeekCap(currency, ReadCurrencyInputs(this), SessionSink());
+    m_currencyMgr.SendWeekCap(currency, ReadCurrencyInputs(this), m_clientCallbacks.currencyWeekCap);
 }
 
 void Player::_LoadCurrencies(QueryResult* result)

@@ -29,6 +29,7 @@
 #include "PlayerClientFacts.h"
 #include "WorldPacket.h"
 #include "session/packets/combat/AttackSwingPackets.h"
+#include "session/packets/entities/CurrencyPackets.h"
 #include "session/packets/entities/PetActionBarPacket.h"
 #include "session/packets/entities/PetGuidsPacket.h"
 #include "session/packets/entities/PvpCreditPacket.h"
@@ -79,6 +80,10 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.runeConverted = FactToSession(owner, &BuildConvertRunePacket);
     callbacks.runesResynced = FactToSession(owner, &BuildResyncRunesPacket);
     callbacks.runePowerAdded = FactToSession(owner, &BuildAddRunePowerPacket);
+    callbacks.currencySet = FactToSession(owner, &BuildSetCurrencyPacket);
+    callbacks.currencyWeekCap = FactToSession(owner, &BuildSetCurrencyWeekLimitPacket);
+    callbacks.currencyWeekReset = FactToSession(owner, &BuildWeeklyResetCurrenciesPacket);
+    callbacks.currencyList = FactToSession(owner, &BuildSendCurrenciesPacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }

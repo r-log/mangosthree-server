@@ -42,7 +42,8 @@
 /// treats specially; 361, 395 and 396 are ordinary ids with the flags and caps each case needs;
 /// 9999 is never seeded.
 ///
-/// Packets are recorded as they would go on the wire: WorldSession::SendPacket flushes a packet's
+/// Each currency fact the manager reports is built by the session's builder, and the packet is
+/// recorded as it would go on the wire: WorldSession::SendPacket flushes a packet's
 /// pending bits before it sends (WorldSession.cpp), so the Wire flushes a copy the same way. Every
 /// expected byte string is derived by hand in its comment (bits most significant first, padded
 /// with zeros to a byte before the first whole value; values little-endian), and an independent
@@ -62,6 +63,7 @@
 #include "ObjectGuid.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
+#include "session/packets/entities/CurrencyPackets.h"
 
 #include <algorithm>
 #include <map>
@@ -164,12 +166,36 @@ namespace
             return inputs;
         }
 
-        ManagerPacketSink Send()
+        /// Records the packet the session's builder makes of each reported fact.
+        template <class Fact>
+        std::function<void(Fact const&)> Built(void (*build)(WorldPacket&, Fact const&))
         {
-            return [this](WorldPacket const* packet)
+            return [this, build](Fact const& fact)
             {
-                events.push_back("packet " + PacketText(*packet));
+                WorldPacket packet;
+                build(packet, fact);
+                events.push_back("packet " + PacketText(packet));
             };
+        }
+
+        CurrencySetSink CurrencySet()
+        {
+            return Built(&BuildSetCurrencyPacket);
+        }
+
+        CurrencyWeekCapSink WeekCap()
+        {
+            return Built(&BuildSetCurrencyWeekLimitPacket);
+        }
+
+        CurrencyWeekResetSink WeekReset()
+        {
+            return Built(&BuildWeeklyResetCurrenciesPacket);
+        }
+
+        CurrencyListSink List()
+        {
+            return Built(&BuildSendCurrenciesPacket);
         }
 
         CurrencyMgr::ModifySinks Sinks()
@@ -180,7 +206,8 @@ namespace
                 events.push_back("ach " + std::to_string(uint32(type)) + " " + std::to_string(miscValue1) + " "
                                  + std::to_string(miscValue2));
             };
-            sinks.send = Send();
+            sinks.currencySet = CurrencySet();
+            sinks.weekCapSet = WeekCap();
             sinks.addedQuestCheck = [this](uint32 currencyId)
             {
                 events.push_back("added " + std::to_string(currencyId) + " seen " + std::to_string(mgr.GetCount(currencyId)));
@@ -675,7 +702,7 @@ TEST(CurrencyMgr_ResetWeekCounts)
     wire.Modify(kPrecise, 6);                                       // NEW, week 6
     wire.events.clear();
 
-    mgr.ResetWeekCounts(wire.Send());
+    mgr.ResetWeekCounts(wire.WeekReset());
     CheckEvents(wire.events, { "packet 3ca1:" }, __LINE__);
     CHECK_STR(Counts(mgr, kPlain), std::string("50/0/40"));
     CHECK_STR(Counts(mgr, kCapped), std::string("300/0/7"));
@@ -694,7 +721,7 @@ TEST(CurrencyMgr_SendAllBytes)
         // Empty: 23 zero bits, flushed to three bytes on the wire.
         CurrencyMgr mgr;
         Wire wire(mgr);
-        mgr.SendAll(kConquestCap, wire.Send());
+        mgr.SendAll(kConquestCap, wire.List());
         CheckEvents(wire.events, { "packet 15a5:000000" }, __LINE__);
     }
     {
@@ -704,7 +731,7 @@ TEST(CurrencyMgr_SendAllBytes)
         CurrencyMgr mgr;
         Load(mgr, CURRENCY_CONQUEST_POINTS, 2000, 300, 5000, 4);
         Wire wire(mgr);
-        mgr.SendAll(kConquestCap, wire.Send());
+        mgr.SendAll(kConquestCap, wire.List());
         CheckEvents(wire.events, { "packet 15a5:0000034c140000001b000000320000008601000003000000" }, __LINE__);
     }
     {
@@ -713,7 +740,7 @@ TEST(CurrencyMgr_SendAllBytes)
         CurrencyMgr mgr;
         Load(mgr, kPlain, 7, 3, 9, 8);
         Wire wire(mgr);
-        mgr.SendAll(kConquestCap, wire.Send());
+        mgr.SendAll(kConquestCap, wire.List());
         CheckEvents(wire.events, { "packet 15a5:000002800700000069010000" }, __LINE__);
     }
     {
@@ -724,7 +751,7 @@ TEST(CurrencyMgr_SendAllBytes)
         Load(mgr, kPlain, 7, 3, 9, 8);
         Load(mgr, kCapped, 3000, 0, 11, 0);
         Wire wire(mgr);
-        mgr.SendAll(kConquestCap, wire.Send());
+        mgr.SendAll(kConquestCap, wire.List());
         REQUIRE(wire.events.size() == 1);
         // plain first: 0 1000 0 0 | 0 0000 1 0 -> 00 00 04 80 10; capped first: 0 0000 1 0 | 0 1000 0 0 -> 00 00 04 09 00.
         const std::string plainFirst = "packet 15a5:00000480100700000069010000b80b0000e80300008c010000";
@@ -742,27 +769,27 @@ TEST(CurrencyMgr_SendWeekCap)
     CurrencyMgr mgr;
     Wire wire(mgr);
 
-    mgr.SendWeekCap((CurrencyTypesEntry const*)NULL, wire.Inputs(), wire.Send());
+    mgr.SendWeekCap((CurrencyTypesEntry const*)NULL, wire.Inputs(), wire.WeekCap());
     CheckEvents(wire.events, {}, __LINE__);
 
-    mgr.SendWeekCap(kUnknown, wire.Inputs(), wire.Send());
+    mgr.SendWeekCap(kUnknown, wire.Inputs(), wire.WeekCap());
     CheckEvents(wire.events, {}, __LINE__);
 
     wire.canNotify = false;
-    mgr.SendWeekCap(&s_capped, wire.Inputs(), wire.Send());
+    mgr.SendWeekCap(&s_capped, wire.Inputs(), wire.WeekCap());
     CheckEvents(wire.events, { "gate" }, __LINE__);
 
     wire.canNotify = true;
     wire.events.clear();
-    mgr.SendWeekCap(&s_plain, wire.Inputs(), wire.Send());
+    mgr.SendWeekCap(&s_plain, wire.Inputs(), wire.WeekCap());
     CheckEvents(wire.events, { "gate" }, __LINE__);
 
     wire.events.clear();
-    mgr.SendWeekCap(kCapped, wire.Inputs(), wire.Send());           // 1000 = 0x3e8, id 396
+    mgr.SendWeekCap(kCapped, wire.Inputs(), wire.WeekCap());           // 1000 = 0x3e8, id 396
     CheckEvents(wire.events, { "gate", "packet 70a7:e80300008c010000" }, __LINE__);
 
     wire.events.clear();
-    mgr.SendWeekCap(&s_conquest, wire.Inputs(), wire.Send());       // 27, id 390
+    mgr.SendWeekCap(&s_conquest, wire.Inputs(), wire.WeekCap());       // 27, id 390
     CheckEvents(wire.events, { "gate", "packet 70a7:1b00000086010000" }, __LINE__);
 }
 
