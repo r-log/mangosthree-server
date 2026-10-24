@@ -36,7 +36,6 @@
 #include "ProgressBar.h"
 #include "SQLStorages.h"
 #include "DBCStores.h"
-#include "GossipDef.h"
 #include "Language.h"
 
 /**

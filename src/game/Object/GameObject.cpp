@@ -35,7 +35,6 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/pipeline/Spell.h"
 #include "UpdateMask.h"
-#include "WorldPacket.h"
 #include "World.h"
 #include "Database/DatabaseEnv.h"
 #include "LootMgr.h"
@@ -51,7 +50,6 @@
 #include "Util.h"
 #include "ScriptMgr.h"
 #include "GameObjectModel.h"
-#include "CreatureAISelector.h"
 #include "SQLStorages.h"
 #include "GameObjectAI.h"
 #include <memory>

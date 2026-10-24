@@ -61,7 +61,6 @@
 #include "GridDefines.h"
 #include "data/GameConfig.h"
 #include "CellImpl.h"
-#include "Corpse.h"
 #include "Transports.h"
 #include "TransportMap.h"
 #include "ObjectMgr.h"

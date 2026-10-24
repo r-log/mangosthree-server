@@ -35,7 +35,6 @@
 
 #include "SQLStorages.h"
 #include "Log.h"
-#include "MapManager.h"
 #include "ObjectGuid.h"
 #include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
@@ -48,18 +47,12 @@
 #include "PoolManager.h"
 #include "GameEventMgr.h"
 #include "spells/pipeline/Spell.h"
-#include "Chat.h"
 #include "MapPersistentStateMgr.h"
-#include "spells/auras/SpellAuras.h"
 #include "Util.h"
 #include "WaypointManager.h"
-#include "GossipDef.h"
-#include "Mail.h"
-#include "InstanceData.h"
 #include "DB2Structure.h"
 #include "DB2Stores.h"
 #include "GridNotifiersImpl.h"
-#include "CellImpl.h"
 #include "DisableMgr.h"
 
 #include <limits>

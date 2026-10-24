@@ -38,7 +38,6 @@
 #include "UpdateData.h"
 #include "UpdateMask.h"
 #include "Util.h"
-#include "MapManager.h"
 #include "Log.h"
 #include "Transports.h"
 #include "TransportMap.h"

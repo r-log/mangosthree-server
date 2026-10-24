@@ -44,7 +44,6 @@
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "InstanceData.h"
-#include "MapManager.h"
 #include "MapPersistentStateMgr.h"
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundAV.h"
@@ -52,9 +51,7 @@
 #include "Util.h"
 #include "ScriptMgr.h"
 #include "GameObjectModel.h"
-#include "CreatureAISelector.h"
 #include "SQLStorages.h"
-#include "GameObjectAI.h"
 #include <memory>
 #include "PlayerRegistry.h"
 

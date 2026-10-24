@@ -48,7 +48,6 @@
 #include "Common/TimeConstants.h"
 #include <ctime>
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Log.h"
 #include "UpdateMask.h"
@@ -63,7 +62,6 @@
 #include "Policies/Singleton.h"
 #include "Totem.h"
 #include "Creature.h"
-#include "Formulas.h"
 #include "BattleGround/BattleGround.h"
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "CreatureAI.h"
@@ -72,9 +70,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Vehicle.h"
-#include "CellImpl.h"
 #include "Language.h"
-#include "MapManager.h"
 #include "MotionMaster.h"
 #include "spells/handlers/AuraControlHandlers.h"
 
