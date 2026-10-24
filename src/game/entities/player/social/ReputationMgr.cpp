@@ -25,8 +25,8 @@
 
 #include "ReputationMgr.h"
 #include "DBCStores.h"
-#include "Database/DatabaseEnv.h"
 #include "Log.h"
+#include "persistence/characters/social/ReputationRepository.h"
 
 const int32 ReputationMgr::PointsInRank[MAX_REPUTATION_RANK] = {36000, 3000, 3000, 3000, 6000, 12000, 21000, 1000};
 
@@ -737,15 +737,15 @@ void ReputationMgr::SetInactive(FactionState* faction, bool inactive)
  * @param notify Whether the character is still loading, and where the notices of the flag
  *               changes go.
  */
-void ReputationMgr::LoadRow(Field* fields, FlagNotify const& notify)
+void ReputationMgr::LoadRow(ReputationRow const& row, FlagNotify const& notify)
 {
-    FactionEntry const* factionEntry = sFactionStore.LookupEntry(fields[0].GetUInt32());
+    FactionEntry const* factionEntry = sFactionStore.LookupEntry(row.faction);
     if (factionEntry && (factionEntry->ReputationIndex >= 0))
     {
         FactionState* faction = &m_factions[factionEntry->ReputationIndex];
 
         // update standing to current
-        faction->Standing = int32(fields[1].GetUInt32());
+        faction->Standing = row.standing;
 
         // update counters
         int32 BaseRep = GetBaseReputation(factionEntry);
@@ -753,7 +753,7 @@ void ReputationMgr::LoadRow(Field* fields, FlagNotify const& notify)
         ReputationRank new_rank = ReputationToRank(BaseRep + faction->Standing);
         UpdateRankCounters(old_rank, new_rank);
 
-        uint32 dbFactionFlags = fields[2].GetUInt32();
+        uint32 dbFactionFlags = row.flags;
 
         if (dbFactionFlags & FACTION_FLAG_VISIBLE)
         {
@@ -808,22 +808,22 @@ void ReputationMgr::LoadRow(Field* fields, FlagNotify const& notify)
  */
 void ReputationMgr::SaveToDB(uint32 ownerGuidLow)
 {
-    static SqlStatementID delRep ;
-    static SqlStatementID insRep ;
-
-    SqlStatement stmtDel = CharacterDatabase.CreateStatement(delRep, "DELETE FROM `character_reputation` WHERE `guid` = ? AND `faction`=?");
-    SqlStatement stmtIns = CharacterDatabase.CreateStatement(insRep, "INSERT INTO `character_reputation` (`guid`,`faction`,`standing`,`flags`) VALUES (?, ?, ?, ?)");
-
+    std::vector<ReputationRow> rows;
     for (FactionStateList::iterator itr = m_factions.begin(); itr != m_factions.end(); ++itr)
     {
         FactionState& faction = itr->second;
         if (faction.needSave)
         {
-            stmtDel.PExecute(ownerGuidLow, faction.ID);
-            stmtIns.PExecute(ownerGuidLow, faction.ID, faction.Standing, faction.Flags);
+            ReputationRow row;
+            row.faction = faction.ID;
+            row.standing = faction.Standing;
+            row.flags = faction.Flags;
+            rows.push_back(row);
             faction.needSave = false;
         }
     }
+
+    ReputationRepository::Save(ownerGuidLow, rows);
 }
 
 void ReputationMgr::UpdateRankCounters(ReputationRank old_rank, ReputationRank new_rank)

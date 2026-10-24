@@ -45,6 +45,7 @@
 #include "SQLStorages.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
+#include "persistence/characters/social/ReputationRepository.h"
 
 #include <cmath>
 
@@ -173,7 +174,7 @@ void Player::_LoadReputations(QueryResult* result)
         ReputationMgr::FlagNotify notify = ReputationNotify(this, m_clientCallbacks);
         do
         {
-            m_reputationMgr.LoadRow(result->Fetch(), notify);
+            m_reputationMgr.LoadRow(ReputationRepository::ReadRow(result->Fetch()), notify);
         }
         while (result->NextRow());
 

@@ -61,6 +61,8 @@ set(CONVERTED_FILES
     src/game/entities/player/inventory/CurrencyMgr.cpp
     src/game/entities/player/social/ReputationMgr.h
     src/game/entities/player/social/ReputationMgr.cpp
+    src/game/persistence/characters/social/ReputationRepository.h
+    src/game/persistence/characters/social/ReputationRepository.cpp
     src/game/entities/player/pvp/HonorMgr.h
     src/game/entities/player/pvp/HonorMgr.cpp
     src/game/session/handlers/entities/PetHandlers.cpp

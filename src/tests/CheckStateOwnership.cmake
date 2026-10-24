@@ -141,8 +141,8 @@ state_row(reputation
             FactionStateList
             ReputationRank)
 
-state_allow(reputation src/game/entities/player/social/ReputationMgr.cpp
-    WHY "the owner: saves the rows (the login rows come in one at a time, LoadRow); its five client notices leave as facts"
+state_allow(reputation src/game/persistence/characters/social/ReputationRepository.cpp
+    WHY "the owner's repository: reads a login row and writes the rows the owner hands it to save"
     NAMES character_reputation)
 state_allow(reputation src/game/session/packets/entities/ReputationPackets.cpp
     WHY "the session's builders of the owner's five facts: the forced reactions, the standings, the initial table, a faction made visible and a faction's at-war flag"
