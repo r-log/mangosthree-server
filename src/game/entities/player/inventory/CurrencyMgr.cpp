@@ -28,9 +28,9 @@
 #include "ObjectGuid.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
-#include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include <cmath>
+#include "persistence/characters/inventory/CurrencyRepository.h"
 
 uint32 CurrencyMgr::GetCount(uint32 id) const
 {
@@ -290,22 +290,19 @@ void CurrencyMgr::SendWeekCap(CurrencyTypesEntry const* currency, CurrencyInputs
     weekCapSet(fact);
 }
 
-void CurrencyMgr::LoadRow(Field* fields, uint32 conquestWeekCap, ObjectGuid ownerGuid)
+void CurrencyMgr::LoadRow(CurrencyRow const& row, uint32 conquestWeekCap, ObjectGuid ownerGuid)
 {
-    //         0   1           2          4            5
-    // "SELECT id, totalCount, weekCount, seasonCount, flags FROM character_currencies WHERE guid = '%u'"
-
-    uint32 currency_id = fields[0].GetUInt16();
-    uint32 totalCount  = fields[1].GetUInt32();
-    uint32 weekCount   = fields[2].GetUInt32();
-    uint32 seasonCount = fields[3].GetUInt32();
-    uint8 flags        = fields[4].GetUInt8();
+    uint32 currency_id = row.id;
+    uint32 totalCount  = row.totalCount;
+    uint32 weekCount   = row.weekCount;
+    uint32 seasonCount = row.seasonCount;
+    uint8 flags        = row.flags;
 
     CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(currency_id);
     if (!entry)
     {
         sLog.outError("CurrencyMgr::Load: %s has not existing currency id %u, removing.", ownerGuid.GetString().c_str(), currency_id);
-        CharacterDatabase.PExecute("DELETE FROM `character_currencies` WHERE `id` = '%u'", currency_id);
+        CurrencyRepository::DeleteEveryRowOf(currency_id);
         return;
     }
 
@@ -342,17 +339,32 @@ void CurrencyMgr::LoadRow(Field* fields, uint32 conquestWeekCap, ObjectGuid owne
     m_currencies[currency_id] = cur;
 }
 
+namespace
+{
+    /// The row a currency is saved as: its id, its counts and its flags.
+    CurrencyRow SavedRow(uint32 id, PlayerCurrency const& currency)
+    {
+        CurrencyRow row;
+        row.id = id;
+        row.totalCount = currency.totalCount;
+        row.weekCount = currency.weekCount;
+        row.seasonCount = currency.seasonCount;
+        row.flags = currency.flags;
+        return row;
+    }
+}
+
 void CurrencyMgr::Save(uint32 ownerGuidLow)
 {
     for (PlayerCurrenciesMap::iterator itr = m_currencies.begin(); itr != m_currencies.end();)
     {
         if (itr->second.state == PLAYERCURRENCY_CHANGED)
         {
-            CharacterDatabase.PExecute("UPDATE `character_currencies` SET `totalCount` = '%u', `weekCount` = '%u', `seasonCount` = '%u', `flags` = '%u' WHERE `guid` = '%u' AND `id` = '%u'", itr->second.totalCount, itr->second.weekCount, itr->second.seasonCount, itr->second.flags, ownerGuidLow, itr->first);
+            CurrencyRepository::Update(ownerGuidLow, SavedRow(itr->first, itr->second));
         }
         else if (itr->second.state == PLAYERCURRENCY_NEW)
         {
-            CharacterDatabase.PExecute("INSERT INTO `character_currencies` (`guid`, `id`, `totalCount`, `weekCount`, `seasonCount`, `flags`) VALUES ('%u', '%u', '%u', '%u', '%u', '%u')", ownerGuidLow, itr->first, itr->second.totalCount, itr->second.weekCount, itr->second.seasonCount, itr->second.flags);
+            CurrencyRepository::Insert(ownerGuidLow, SavedRow(itr->first, itr->second));
         }
 
         if (itr->second.state == PLAYERCURRENCY_REMOVED)

@@ -33,7 +33,7 @@
 #include <unordered_map>
 #include <vector>
 
-class Field;
+struct CurrencyRow;
 class ObjectGuid;
 struct CurrencyTypesEntry;
 
@@ -232,9 +232,10 @@ class CurrencyMgr
         void SendWeekCap(CurrencyTypesEntry const* currency, CurrencyInputs const& inputs, CurrencyWeekCapSink const& weekCapSet) const;
 
         // DB lifecycle
-        /// One row of the login holder's currency result: id, total, week, season, flags. The
-        /// owner keeps the loop. `ownerGuid` is for the log line of an unknown id.
-        void LoadRow(Field* fields, uint32 conquestWeekCap, ObjectGuid ownerGuid);
+        /// One row of the login holder's currency result (id, total, week, season, flags), as the
+        /// repository read it. The owner keeps the loop. `ownerGuid` is for the log line of an
+        /// unknown id.
+        void LoadRow(CurrencyRow const& row, uint32 conquestWeekCap, ObjectGuid ownerGuid);
         void Save(uint32 ownerGuidLow);
 
     private:

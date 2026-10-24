@@ -70,6 +70,9 @@ source_group("Object" FILES ${SRC_GRP_OBJECT})
 file(GLOB SRC_GRP_OUTDOOR_PVP OutdoorPvP/*.cpp OutdoorPvP/*.h)
 source_group("Outdoor PvP" FILES ${SRC_GRP_OUTDOOR_PVP})
 
+file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY persistence/characters/inventory/*.cpp persistence/characters/inventory/*.h)
+source_group("Persistence\\Characters\\Inventory" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY})
+
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL persistence/characters/social/*.cpp persistence/characters/social/*.h)
 source_group("Persistence\\Characters\\Social" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL})
 
@@ -157,6 +160,7 @@ add_library(game STATIC
     ${SRC_GRP_MOVEMENT}
     ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
+    ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL}
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
