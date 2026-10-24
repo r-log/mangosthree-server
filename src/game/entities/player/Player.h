@@ -2200,7 +2200,7 @@ class Player : public Unit
         void PossessSpellInitialize() override;
 
         // Remove the pet action bar
-        void RemovePetActionBar() override { m_petMgr.RemoveActionBar(SessionSink()); }
+        void RemovePetActionBar() override { ReportClientFact(m_clientCallbacks.petActionBarCleared, PetActionBarClearedFact()); }
 
         // Check if the player has a specific spell
         bool HasSpell(uint32 spell) const override;
@@ -2326,7 +2326,7 @@ class Player : public Unit
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-        /// where the player is created: seven facts out, one read in.
+        /// where the player is created: eight facts out, one read in.
         struct ClientCallbacks
         {
             SwingOutOfReachSink swingOutOfReach;
@@ -2334,6 +2334,7 @@ class Player : public Unit
             CombatCancelledSink combatCancelled;
             AutoRepeatCancelledSink autoRepeatCancelled;
             CurrentPetSink currentPet;
+            PetActionBarClearedSink petActionBarCleared;
             StandStateSink standState;
             PvpCreditSink pvpCredit;
             SecurityLevelQuery securityLevel;
@@ -3660,8 +3661,8 @@ class Player : public Unit
         // Pet ownership API. The state (temporary-unsummon pet number, stable slot count, pet
         // rows) and its rules live on PetMgr. The three that reach the live pet
         // (UnsummonPetTemporaryIfAny, UnsummonPetIfAny, ResummonPetTemporaryUnSummonedIfAny)
-        // live in pets/PlayerPet.cpp, with RemovePet; RemovePetActionBar's packet goes
-        // through SessionSink(). The temporary-unsummon pet number is read and
+        // live in pets/PlayerPet.cpp, with RemovePet; RemovePetActionBar reports the
+        // client fact. The temporary-unsummon pet number is read and
         // set on the manager directly.
         PetMgr& GetPetMgr() { return m_petMgr; }
         PetMgr const& GetPetMgr() const { return m_petMgr; }

@@ -343,14 +343,14 @@ state_row(pet
     TYPES   PetMgr
             PlayerPetCache)
 
-state_allow(pet src/game/entities/player/pets/PetMgr.cpp
-    WHY "the owner: builds the empty-guid pet spells packet for the owner's session sink"
+state_allow(pet src/game/session/packets/entities/PetActionBarPacket.cpp
+    WHY "the session's builder of the owner's fact: the empty-guid pet spells packet that clears the pet action bar"
     NAMES SMSG_PET_SPELLS)
 state_allow(pet src/game/entities/player/pets/PlayerPet.cpp
     WHY "the owner's full spell bars of its pet, possessed and charmed unit (Player::PetSpellInitialize, PossessSpellInitialize, CharmSpellInitialize)"
     NAMES SMSG_PET_SPELLS)
-state_allow(pet src/tests/PetMgrTest.cpp
-    WHY "unit test that observes the packet through a capturing sink (checks its opcode and bytes, builds nothing)"
+state_allow(pet src/tests/PlayerClientPacketsTest.cpp
+    WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"
     NAMES SMSG_PET_SPELLS)
 state_allow(pet src/game/Harness/Trace.h
     WHY "harness recorder (decoupling D11 PR 2): the decoder's doc comment names the packet it reads"

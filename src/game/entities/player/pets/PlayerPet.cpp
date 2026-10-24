@@ -254,7 +254,7 @@ void Player::CharmSpellInitialize()
 // and loading the pet a temporary unsummon put away. Each input is read with the old expression
 // just before the one call into the manager; each pet-side action is a callback the manager calls
 // where the old body acted. RemovePet and UnsummonPetIfAny touch no manager state: they are the
-// old bodies, verbatim. RemovePetActionBar stays inline in Player.h (its packet is the manager's).
+// old bodies, verbatim. RemovePetActionBar stays inline in Player.h (it reports the client fact).
 
 namespace
 {

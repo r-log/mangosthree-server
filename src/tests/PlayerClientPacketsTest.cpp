@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The packets a player's own client is told, built from the player's seven facts: the bytes of each
+/// The packets a player's own client is told, built from the player's eight facts: the bytes of each
 /// builder, the callbacks the session installs on a player, which build the packet at each report
 /// and send it to the session the player holds at that moment, the security level read from that
 /// session at each call, and the assertion on a callback no session installed.
@@ -138,6 +138,7 @@ namespace
         ReportClientFact(callbacks.combatCancelled, CombatCancelledFact());
         ReportClientFact(callbacks.autoRepeatCancelled, AutoRepeat(kCreature));
         ReportClientFact(callbacks.currentPet, PetIs(kPet));
+        ReportClientFact(callbacks.petActionBarCleared, PetActionBarClearedFact());
         ReportClientFact(callbacks.standState, Stand(8));
         ReportClientFact(callbacks.pvpCredit, Credit(40, kPlayer, 5));
     }
@@ -149,6 +150,7 @@ namespace
         "4f04:",
         "6436:f12ab80b30f1",
         "2d26:0100000001000000a00140f1",
+        "4114:0000000000000000",
         "6f04:08",
         "6015:280000000000f0000000000005000000",
     };
@@ -222,6 +224,13 @@ TEST(PlayerClientPackets_PetGuidsBytes)
     CHECK_STR(Built(&BuildPetGuidsPacket, PetIs(kCreature)), "2d26:010000002a000000b80b30f1");
 }
 
+// SMSG_PET_SPELLS (0x4114) with an empty guid: eight zero bytes (the guid as a uint64), which
+// clears the client's pet action bar.
+TEST(PlayerClientPackets_PetActionBarClearedBytes)
+{
+    CHECK_STR(Built(&BuildPetActionBarClearedPacket, PetActionBarClearedFact()), "4114:0000000000000000");
+}
+
 // SMSG_STANDSTATE_UPDATE (0x6F04): the state, one byte.
 TEST(PlayerClientPackets_StandStateUpdateBytes)
 {
@@ -253,8 +262,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 7u);
-    for (size_t i = 0; i < 7; ++i)
+    REQUIRE(session.sent.size() == 8u);
+    for (size_t i = 0; i < 8; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -274,9 +283,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 7u);
-    REQUIRE(second.sent.size() == 7u);
-    for (size_t i = 0; i < 7; ++i)
+    REQUIRE(first.sent.size() == 8u);
+    REQUIRE(second.sent.size() == 8u);
+    for (size_t i = 0; i < 8; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);

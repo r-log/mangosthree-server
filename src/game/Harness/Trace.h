@@ -267,7 +267,7 @@ namespace Harness
         bool DecodeSpellLogExecute(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_PET_SPELLS (Player::CharmSpellInitialize, PlayerPet.cpp:240-270; the same head in
         /// Player::PetSpellInitialize, :95-128, and PossessSpellInitialize, :189-198; the empty-guid
-        /// form of PetMgr::RemoveActionBar): the unit's raw guid as a role, then -- unless the payload
+        /// form of BuildPetActionBarClearedPacket): the unit's raw guid as a role, then -- unless the payload
         /// ends there (the empty form) -- the head, the ten action-bar words, the spell list and its
         /// count, recorded as `rest=<n>` and its FNV, and the cooldown count, which must be 0: the
         /// entries a pet's own form can carry hold the wall clock's remaining times, and a payload
