@@ -26,8 +26,6 @@
 #include "Utilities/Errors.h"
 #include "CurrencyMgr.h"
 #include "ObjectGuid.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
 #include "Database/DatabaseEnv.h"
@@ -166,30 +164,27 @@ void CurrencyMgr::ModifyCount(uint32 id, int32 count, bool modifyWeek, bool modi
                 sinks.updateAchievement(ACHIEVEMENT_CRITERIA_TYPE_CURRENCY_EARNED, id, newTotalCount);
             }
 
-            WorldPacket packet(SMSG_SET_CURRENCY, 13);
-            bool bit0 = modifyWeek && weekCap && diff > 0;
-            bool bit1 = currency->HasSeasonCount();
-            bool bit2 = currency->CategoryID == CURRENCY_CATEGORY_META;   // hides message in client when set
-            packet.WriteBit(bit0);
-            packet.WriteBit(bit1);
-            packet.WriteBit(bit2);
+            CurrencySetFact fact;
+            fact.weekShown = modifyWeek && weekCap && diff > 0;
+            fact.seasonShown = currency->HasSeasonCount();
+            fact.messageHidden = currency->CategoryID == CURRENCY_CATEGORY_META;   // hides message in client when set
 
-            if (bit1)
+            if (fact.seasonShown)
             {
-                packet << uint32(floor(itr->second.seasonCount / currency->GetPrecision()));
+                fact.season = uint32(floor(itr->second.seasonCount / currency->GetPrecision()));
             }
-            packet << uint32(floor(newTotalCount / currency->GetPrecision()));
-            packet << uint32(id);
-            if (bit0)
+            fact.total = uint32(floor(newTotalCount / currency->GetPrecision()));
+            fact.id = uint32(id);
+            if (fact.weekShown)
             {
-                packet << uint32(floor(newWeekCount / currency->GetPrecision()));
+                fact.week = uint32(floor(newWeekCount / currency->GetPrecision()));
             }
-            sinks.send(&packet);
+            sinks.currencySet(fact);
 
             // init currency week limit for new currencies
             if (initWeek)
             {
-                SendWeekCap(currency, inputs, sinks.send);
+                SendWeekCap(currency, inputs, sinks.weekCapSet);
             }
 
             if (diff > 0)
@@ -226,7 +221,7 @@ void CurrencyMgr::SetFlags(uint32 currencyId, uint8 flags)
     itr->second.state = PLAYERCURRENCY_CHANGED;
 }
 
-void CurrencyMgr::ResetWeekCounts(PacketSink const& send)
+void CurrencyMgr::ResetWeekCounts(CurrencyWeekResetSink const& reset)
 {
     for (PlayerCurrenciesMap::iterator itr = m_currencies.begin(); itr != m_currencies.end(); ++itr)
     {
@@ -234,53 +229,49 @@ void CurrencyMgr::ResetWeekCounts(PacketSink const& send)
         itr->second.state = PLAYERCURRENCY_CHANGED;
     }
 
-    WorldPacket data(SMSG_WEEKLY_RESET_CURRENCIES, 0);
-    send(&data);
+    reset(CurrencyWeekResetFact());
 }
 
-void CurrencyMgr::SendAll(uint32 conquestWeekCap, PacketSink const& send) const
+void CurrencyMgr::SendAll(uint32 conquestWeekCap, CurrencyListSink const& list) const
 {
-    WorldPacket data(SMSG_SEND_CURRENCIES, m_currencies.size() * 4);
-    data.WriteBits(m_currencies.size(), 23);
+    CurrencyListFact fact;
+    fact.entries.reserve(m_currencies.size());
 
     for (PlayerCurrenciesMap::const_iterator itr = m_currencies.begin(); itr != m_currencies.end(); ++itr)
     {
+        CurrencyListFact::Entry entry;
         uint32 weekCap = GetWeekCap(itr->second.currencyEntry, conquestWeekCap);
-        data.WriteBit(weekCap && itr->second.weekCount);
-        data.WriteBits(itr->second.flags, 4);
-        data.WriteBit(weekCap);
-        data.WriteBit(itr->second.currencyEntry->HasSeasonCount());
-    }
+        entry.weekShown = weekCap && itr->second.weekCount;
+        entry.flags = itr->second.flags;
+        entry.hasWeekCap = weekCap != 0;
+        entry.hasSeason = itr->second.currencyEntry->HasSeasonCount();
 
-    for (PlayerCurrenciesMap::const_iterator itr = m_currencies.begin(); itr != m_currencies.end(); ++itr)
-    {
-        data << uint32(floor(itr->second.totalCount / itr->second.currencyEntry->GetPrecision()));
-
-        uint32 weekCap = GetWeekCap(itr->second.currencyEntry, conquestWeekCap);
+        entry.total = uint32(floor(itr->second.totalCount / itr->second.currencyEntry->GetPrecision()));
         if (weekCap)
         {
-            data << uint32(floor(weekCap / itr->second.currencyEntry->GetPrecision()));
+            entry.weekCap = uint32(floor(weekCap / itr->second.currencyEntry->GetPrecision()));
         }
         if (itr->second.currencyEntry->HasSeasonCount())
         {
-            data << uint32(floor(itr->second.seasonCount / itr->second.currencyEntry->GetPrecision()));
+            entry.season = uint32(floor(itr->second.seasonCount / itr->second.currencyEntry->GetPrecision()));
         }
-        data << uint32(itr->first);
+        entry.id = uint32(itr->first);
         if (weekCap && itr->second.weekCount)
         {
-            data << uint32(floor(itr->second.weekCount / itr->second.currencyEntry->GetPrecision()));
+            entry.week = uint32(floor(itr->second.weekCount / itr->second.currencyEntry->GetPrecision()));
         }
+        fact.entries.push_back(entry);
     }
 
-    send(&data);
+    list(fact);
 }
 
-void CurrencyMgr::SendWeekCap(uint32 id, CurrencyInputs const& inputs, PacketSink const& send) const
+void CurrencyMgr::SendWeekCap(uint32 id, CurrencyInputs const& inputs, CurrencyWeekCapSink const& weekCapSet) const
 {
-    SendWeekCap(sCurrencyTypesStore.LookupEntry(id), inputs, send);
+    SendWeekCap(sCurrencyTypesStore.LookupEntry(id), inputs, weekCapSet);
 }
 
-void CurrencyMgr::SendWeekCap(CurrencyTypesEntry const* currency, CurrencyInputs const& inputs, PacketSink const& send) const
+void CurrencyMgr::SendWeekCap(CurrencyTypesEntry const* currency, CurrencyInputs const& inputs, CurrencyWeekCapSink const& weekCapSet) const
 {
     if (!currency || !inputs.canNotify())
     {
@@ -293,10 +284,10 @@ void CurrencyMgr::SendWeekCap(CurrencyTypesEntry const* currency, CurrencyInputs
         return;
     }
 
-    WorldPacket packet(SMSG_SET_CURRENCY_WEEK_LIMIT, 8);
-    packet << uint32(floor(cap / currency->GetPrecision()));
-    packet << uint32(currency->ID);
-    send(&packet);
+    CurrencyWeekCapFact fact;
+    fact.cap = uint32(floor(cap / currency->GetPrecision()));
+    fact.id = uint32(currency->ID);
+    weekCapSet(fact);
 }
 
 void CurrencyMgr::LoadRow(Field* fields, uint32 conquestWeekCap, ObjectGuid ownerGuid)

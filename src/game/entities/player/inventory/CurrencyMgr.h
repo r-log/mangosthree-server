@@ -28,10 +28,10 @@
 
 #include "Platform/Define.h"
 #include "DBCEnums.h"                                       // AchievementCriteriaTypes
-#include "ManagerPacketSink.h"
 
 #include <functional>
 #include <unordered_map>
+#include <vector>
 
 class Field;
 class ObjectGuid;
@@ -84,6 +84,56 @@ struct PlayerCurrency
 
 typedef std::unordered_map<uint32, PlayerCurrency> PlayerCurrenciesMap;
 
+// What the character's own client is told about its currencies. Every count is already divided by
+// the currency's precision.
+
+/// A currency's count changed: its id, the new total, and the season and week counts when shown.
+struct CurrencySetFact
+{
+    uint32 id = 0;
+    bool weekShown = false;                     ///< the week count is sent: a week cap, a week change and a gain
+    bool seasonShown = false;                   ///< the currency has a season count, which is sent
+    bool messageHidden = false;                 ///< a meta currency: the client shows no message
+    uint32 season = 0;
+    uint32 total = 0;
+    uint32 week = 0;
+};
+
+/// A currency's week limit.
+struct CurrencyWeekCapFact
+{
+    uint32 id = 0;
+    uint32 cap = 0;
+};
+
+/// Every currency's week count is reset.
+struct CurrencyWeekResetFact
+{
+};
+
+/// Every currency the character holds, in the order the manager holds them.
+struct CurrencyListFact
+{
+    struct Entry
+    {
+        uint32 id = 0;
+        uint8 flags = 0;                        ///< the client flags (PlayerCurrencyFlag)
+        bool hasWeekCap = false;                ///< the week cap is sent
+        bool hasSeason = false;                 ///< the season count is sent
+        bool weekShown = false;                 ///< the week count is sent: a week cap and a week count
+        uint32 total = 0;
+        uint32 weekCap = 0;
+        uint32 season = 0;
+        uint32 week = 0;
+    };
+    std::vector<Entry> entries;
+};
+
+typedef std::function<void(CurrencySetFact const&)> CurrencySetSink;
+typedef std::function<void(CurrencyWeekCapFact const&)> CurrencyWeekCapSink;
+typedef std::function<void(CurrencyWeekResetFact const&)> CurrencyWeekResetSink;
+typedef std::function<void(CurrencyListFact const&)> CurrencyListSink;
+
 /**
  * @brief Decoupling D4k: a character's Cataclysm currencies (honor, conquest, justice, valor and the
  * per-meta categories) and the rules over them, held apart from the object that plays the
@@ -94,8 +144,8 @@ typedef std::unordered_map<uint32, PlayerCurrency> PlayerCurrenciesMap;
  * login (LoadRow) and saves it with the rest of the character (Save). The rules are the counts,
  * the caps (a week cap from the DBC, conquest points' from the server config; a total cap from the
  * DBC), ModifyCount's arithmetic -- the gain multiplier, the clamps and the state transitions, a
- * meta currency forwarded to conquest points -- the flags, the weekly reset, and the bytes of the
- * four currency packets.
+ * meta currency forwarded to conquest points -- the flags, the weekly reset, and what the four
+ * currency facts carry.
  *
  * The object carries no owner. What it used to read from the owner is handed in at the call
  * (CurrencyInputs): the owner's currency-gain aura multiplier and whether the owner may be told
@@ -104,7 +154,8 @@ typedef std::unordered_map<uint32, PlayerCurrency> PlayerCurrenciesMap;
  * effects have run -- and the conquest week cap from the server config as a value; the owner's
  * guid for the load's log line and for the save. What it used to do to the owner goes out through
  * callbacks called at the exact point the old body did it (ModifySinks): the achievement update,
- * the packets (a ManagerPacketSink, the owner's session) and the owner's two currency quest checks.
+ * the currency facts (which the session builds into the client's packets) and the owner's two
+ * currency quest checks.
  * Callbacks are parameters only, never stored. So `mangos_tests` builds one from nothing.
  *
  * It reads one global store itself, as before: the currency types store (a new id's row, and a
@@ -127,8 +178,6 @@ typedef std::unordered_map<uint32, PlayerCurrency> PlayerCurrenciesMap;
 class CurrencyMgr
 {
     public:
-        /// Hands a built currency packet to the owner's session.
-        typedef ManagerPacketSink PacketSink;
         /// The owner's currency-gain multiplier for `currencyId`:
         /// `GetTotalAuraMultiplierByMiscValue(SPELL_AURA_MOD_CURRENCY_GAIN, currencyId)`.
         typedef std::function<float(uint32 currencyId)> GainMultiplier;
@@ -155,7 +204,8 @@ class CurrencyMgr
         struct ModifySinks
         {
             AchievementUpdate updateAchievement;    ///< a gain's achievement update
-            PacketSink send;                        ///< SMSG_SET_CURRENCY and a new currency's week limit
+            CurrencySetSink currencySet;            ///< the count change
+            CurrencyWeekCapSink weekCapSet;         ///< a new currency's week limit
             QuestCheck addedQuestCheck;             ///< after a gain
             QuestCheck removedQuestCheck;           ///< after a loss
         };
@@ -174,12 +224,12 @@ class CurrencyMgr
         void ModifyCount(uint32 id, int32 count, bool modifyWeek, bool modifySeason, bool ignoreMultipliers, CurrencyInputs const& inputs, ModifySinks const& sinks);
         void SetCount(uint32 id, uint32 count, CurrencyInputs const& inputs, ModifySinks const& sinks);
         void SetFlags(uint32 currencyId, uint8 flags);
-        void ResetWeekCounts(PacketSink const& send);
+        void ResetWeekCounts(CurrencyWeekResetSink const& reset);
 
         // Client notifications
-        void SendAll(uint32 conquestWeekCap, PacketSink const& send) const;
-        void SendWeekCap(uint32 id, CurrencyInputs const& inputs, PacketSink const& send) const;
-        void SendWeekCap(CurrencyTypesEntry const* currency, CurrencyInputs const& inputs, PacketSink const& send) const;
+        void SendAll(uint32 conquestWeekCap, CurrencyListSink const& list) const;
+        void SendWeekCap(uint32 id, CurrencyInputs const& inputs, CurrencyWeekCapSink const& weekCapSet) const;
+        void SendWeekCap(CurrencyTypesEntry const* currency, CurrencyInputs const& inputs, CurrencyWeekCapSink const& weekCapSet) const;
 
         // DB lifecycle
         /// One row of the login holder's currency result: id, total, week, season, flags. The

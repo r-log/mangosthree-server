@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The packets a player's own client is told, built from the player's eleven facts: the bytes of each
+/// The packets a player's own client is told, built from the player's fifteen facts: the bytes of each
 /// builder, the callbacks the session installs on a player, which build the packet at each report
 /// and send it to the session the player holds at that moment, the security level read from that
 /// session at each call, and the assertion on a callback no session installed.
@@ -131,6 +131,54 @@ namespace
         return fact;
     }
 
+    CurrencySetFact CurrencyIs(uint32 id, bool weekShown, bool seasonShown, bool messageHidden, uint32 season,
+                               uint32 total, uint32 week)
+    {
+        CurrencySetFact fact;
+        fact.id = id;
+        fact.weekShown = weekShown;
+        fact.seasonShown = seasonShown;
+        fact.messageHidden = messageHidden;
+        fact.season = season;
+        fact.total = total;
+        fact.week = week;
+        return fact;
+    }
+
+    CurrencyWeekCapFact WeekCapIs(uint32 id, uint32 cap)
+    {
+        CurrencyWeekCapFact fact;
+        fact.id = id;
+        fact.cap = cap;
+        return fact;
+    }
+
+    CurrencyListFact::Entry ListEntry(uint32 id, uint8 flags, bool hasWeekCap, bool hasSeason, bool weekShown,
+                                      uint32 total, uint32 weekCap, uint32 season, uint32 week)
+    {
+        CurrencyListFact::Entry entry;
+        entry.id = id;
+        entry.flags = flags;
+        entry.hasWeekCap = hasWeekCap;
+        entry.hasSeason = hasSeason;
+        entry.weekShown = weekShown;
+        entry.total = total;
+        entry.weekCap = weekCap;
+        entry.season = season;
+        entry.week = week;
+        return entry;
+    }
+
+    /// Conquest points (390) with a week cap and a week count, then honor points (392) with a
+    /// season count.
+    CurrencyListFact TwoCurrencies()
+    {
+        CurrencyListFact fact;
+        fact.entries.push_back(ListEntry(390, 0x4, true, false, true, 100, 1350, 0, 20));
+        fact.entries.push_back(ListEntry(392, 0x0, false, true, false, 5, 0, 9, 0));
+        return fact;
+    }
+
     /// Stands in for the session: records "<opcode>:<hex>" per packet it is sent, and answers its
     /// account security level.
     struct FakeSession
@@ -174,6 +222,10 @@ namespace
         ReportClientFact(callbacks.runeConverted, Converted(1, 3));
         ReportClientFact(callbacks.runesResynced, Resynced());
         ReportClientFact(callbacks.runePowerAdded, PowerAdded(3));
+        ReportClientFact(callbacks.currencySet, CurrencyIs(392, true, true, false, 300, 1500, 50));
+        ReportClientFact(callbacks.currencyWeekCap, WeekCapIs(396, 1000));
+        ReportClientFact(callbacks.currencyWeekReset, CurrencyWeekResetFact());
+        ReportClientFact(callbacks.currencyList, TwoCurrencies());
     }
 
     const char* const kEach[] =
@@ -189,6 +241,10 @@ namespace
         "4f14:0103",
         "6224:0600000000bf00ff0100037f02ff02ff",
         "6915:08000000",
+        "59b0:c02c010000dc0500008801000032000000",
+        "70a7:e80300008c010000",
+        "3ca1:",
+        "15a5:000005480864000000460500008601000014000000050000000900000088010000",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -310,6 +366,46 @@ TEST(PlayerClientPackets_AddRunePowerBytes)
     CHECK_STR(Built(&BuildAddRunePowerPacket, PowerAdded(5)), "6915:20000000");
 }
 
+// SMSG_SET_CURRENCY (0x59B0): three bits, most significant first (the week count sent, the season
+// count sent, no message), padded to a byte; then the season count if sent, the total, the id and
+// the week count if sent, each a uint32.
+TEST(PlayerClientPackets_SetCurrencyBytes)
+{
+    // bits 110 -> c0; season 300, total 1500, id 392, week 50.
+    CHECK_STR(Built(&BuildSetCurrencyPacket, CurrencyIs(392, true, true, false, 300, 1500, 50)),
+              "59b0:c02c010000dc0500008801000032000000");
+    // bits 000 -> 00; total 7, id 395.
+    CHECK_STR(Built(&BuildSetCurrencyPacket, CurrencyIs(395, false, false, false, 0, 7, 0)), "59b0:00070000008b010000");
+    // bits 001 -> 20; total 0, id 483.
+    CHECK_STR(Built(&BuildSetCurrencyPacket, CurrencyIs(483, false, false, true, 0, 0, 0)), "59b0:2000000000e3010000");
+}
+
+// SMSG_SET_CURRENCY_WEEK_LIMIT (0x70A7): the limit, then the id, each a uint32.
+TEST(PlayerClientPackets_SetCurrencyWeekLimitBytes)
+{
+    CHECK_STR(Built(&BuildSetCurrencyWeekLimitPacket, WeekCapIs(396, 1000)), "70a7:e80300008c010000");
+}
+
+// SMSG_WEEKLY_RESET_CURRENCIES (0x3CA1): no payload.
+TEST(PlayerClientPackets_WeeklyResetCurrenciesBytes)
+{
+    CHECK_STR(Built(&BuildWeeklyResetCurrenciesPacket, CurrencyWeekResetFact()), "3ca1:");
+}
+
+// SMSG_SEND_CURRENCIES (0x15A5): the count in 23 bits, then per currency the week count bit, the
+// four flag bits, the week cap bit and the season bit, padded to a byte; then per currency the
+// total, the week cap if sent, the season count if sent, the id and the week count if sent.
+TEST(PlayerClientPackets_SendCurrenciesBytes)
+{
+    // 2 in 23 bits, 1 0100 1 0, 0 0000 0 1, padded: 00 00 05 48 08; then 100, 1350, 390, 20; 5, 9, 392.
+    CHECK_STR(Built(&BuildSendCurrenciesPacket, TwoCurrencies()),
+              "15a5:000005480864000000460500008601000014000000050000000900000088010000");
+    // 1 in 23 bits, 0 1111 0 0, padded: 00 00 02 f0; then 1, 361.
+    CurrencyListFact one;
+    one.entries.push_back(ListEntry(361, 0xF, false, false, false, 1, 0, 0, 0));
+    CHECK_STR(Built(&BuildSendCurrenciesPacket, one), "15a5:000002f00100000069010000");
+}
+
 // The callbacks the session installs turn each fact into the packet above and send it to the
 // owner's session, each fact to its own packet.
 TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
@@ -321,8 +417,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 11u);
-    for (size_t i = 0; i < 11; ++i)
+    REQUIRE(session.sent.size() == 15u);
+    for (size_t i = 0; i < 15; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -342,9 +438,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 11u);
-    REQUIRE(second.sent.size() == 11u);
-    for (size_t i = 0; i < 11; ++i)
+    REQUIRE(first.sent.size() == 15u);
+    REQUIRE(second.sent.size() == 15u);
+    for (size_t i = 0; i < 15; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);
