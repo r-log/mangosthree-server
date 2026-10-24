@@ -57,6 +57,7 @@
 #include "DBCStores.h"
 #include "GlyphMgr.h"
 #include "Object/UpdateFields.h"
+#include "persistence/characters/talents/GlyphRepository.h"
 
 #include <string>
 #include <vector>
@@ -161,7 +162,7 @@ namespace
         }
     }
 
-    FakeRow GlyphRow(uint32 spec, uint32 slot, uint32 glyph)
+    FakeRow GlyphFakeRow(uint32 spec, uint32 slot, uint32 glyph)
     {
         FakeRow row;
         row.push_back(std::to_string(spec));
@@ -191,7 +192,7 @@ namespace
     /// Loads one row into `mgr` with a glyph slot read that answers `slotType` for any slot.
     void LoadValid(GlyphMgr& mgr, uint32 spec, uint32 slot, uint32 glyph, uint32 slotType)
     {
-        FakeQueryResult result(FakeRows{ GlyphRow(spec, slot, glyph) });
+        FakeQueryResult result(FakeRows{ GlyphFakeRow(spec, slot, glyph) });
         REQUIRE(result.NextRow());
         GlyphMgr::RowInputs inputs;
         inputs.ownerGuidLow = kGuid;
@@ -200,7 +201,7 @@ namespace
         {
             return slotType;
         };
-        mgr.LoadRow(result.Fetch(), inputs);
+        mgr.LoadRow(GlyphRepository::ReadRow(result.Fetch()), inputs);
     }
 }
 
@@ -435,17 +436,17 @@ TEST(GlyphMgr_LoadRowValidAndEachInvalidKind)
     };
 
     FakeQueryResult result(FakeRows{
-        GlyphRow(0, 1, kGlyphMajor),
-        GlyphRow(1, 4, kGlyphMinor),
-        GlyphRow(0, 3, kGlyphUnknown),
-        GlyphRow(1, 2, kGlyphMajor),
-        GlyphRow(0, 8, kGlyphMinor),
-        GlyphRow(1, 8, kGlyphPrime),
+        GlyphFakeRow(0, 1, kGlyphMajor),
+        GlyphFakeRow(1, 4, kGlyphMinor),
+        GlyphFakeRow(0, 3, kGlyphUnknown),
+        GlyphFakeRow(1, 2, kGlyphMajor),
+        GlyphFakeRow(0, 8, kGlyphMinor),
+        GlyphFakeRow(1, 8, kGlyphPrime),
     });
     REQUIRE(result.NextRow());
     do
     {
-        mgr.LoadRow(result.Fetch(), inputs);
+        mgr.LoadRow(GlyphRepository::ReadRow(result.Fetch()), inputs);
         sync();
     }
     while (result.NextRow());
@@ -482,9 +483,9 @@ TEST(GlyphMgr_LoadRowValidAndEachInvalidKind)
     // The guid is a parameter: another guid lands in the per-character DELETE.
     events.clear();
     inputs.ownerGuidLow = 7;
-    FakeQueryResult other(FakeRows{ GlyphRow(1, 2, kGlyphMajor) });
+    FakeQueryResult other(FakeRows{ GlyphFakeRow(1, 2, kGlyphMajor) });
     REQUIRE(other.NextRow());
-    mgr.LoadRow(other.Fetch(), inputs);
+    mgr.LoadRow(GlyphRepository::ReadRow(other.Fetch()), inputs);
     sync();
     CheckEvents(events, { "read 2", "read 2",
                           "DELETE FROM `character_glyphs` WHERE `slot` = 2 AND `spec` = 1 AND `guid` = 7" }, __LINE__);
@@ -588,4 +589,49 @@ TEST(GlyphMgr_SaveNewChangedDeletedAcrossTwoSpecs)
     CHECK_STR(async.executed.back(), InsertSql(0, 5, kGlyphMinor));
 
     CHECK_EQ(TickGuard::Violations(), 0u);
+}
+
+// The repository on its own: a login row read into its three values (spec and slot through the
+// 8-bit getter, as the load always read them); the load's two DELETEs (every character's rows of a
+// glyph, the owner's row of a slot) and the save's INSERT, UPDATE and DELETE, all queued, no
+// blocking call.
+TEST(GlyphRepository_ReadRowAndStatements)
+{
+    FakeQueryResult result(FakeRows{ GlyphFakeRow(1, 2, 94010) });
+    REQUIRE(result.NextRow());
+    GlyphRow row = GlyphRepository::ReadRow(result.Fetch());
+    CHECK_EQ(uint32(row.spec), 1u);
+    CHECK_EQ(uint32(row.slot), 2u);
+    CHECK_EQ(row.glyph, 94010u);
+
+    TickGuard::ResetViolations();
+    FakeConnection query(CharacterDatabase);
+    FakeConnection async(CharacterDatabase);
+    SqlResultQueue results;
+    AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
+
+    {
+        TickGuard::Scope scope;
+        GlyphRepository::DeleteEveryRowOfGlyph(94999);
+        GlyphRepository::DeleteInvalidRow(kGuid, 1, 2);
+        GlyphRepository::Insert(kGuid, 0, 3, 94010);
+        GlyphRepository::Update(kGuid, 1, 4, 94011);
+        GlyphRepository::Delete(kGuid, 0, 5);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CharacterDatabase.ExecuteQueuedForTest();
+    const std::vector<std::string> want =
+    {
+        "DELETE FROM `character_glyphs` WHERE `glyph` = 94999",
+        "DELETE FROM `character_glyphs` WHERE `slot` = 2 AND `spec` = 1 AND `guid` = 42",
+        InsertSql(0, 3, 94010),
+        UpdateSql(1, 4, 94011),
+        DeleteSql(0, 5),
+    };
+    REQUIRE(async.executed.size() == want.size());
+    for (size_t i = 0; i < want.size(); ++i)
+    {
+        CHECK_STR(async.executed[i], want[i]);
+    }
+    CHECK_EQ(query.executed.size(), size_t(0));
 }

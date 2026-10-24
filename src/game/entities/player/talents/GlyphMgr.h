@@ -31,7 +31,7 @@
 
 #include <functional>
 
-class Field;
+struct GlyphRow;
 
 /**
  * @brief Lifecycle state of a glyph slot's dirty flag.
@@ -198,10 +198,10 @@ class GlyphMgr
          *
          * An invalid row is logged and deleted, and leaves the array as it was.
          *
-         * @param fields The row.
+         * @param row The row, as the repository read it.
          * @param inputs The owner's guid, name and glyph slot read.
          */
-        void LoadRow(Field* fields, RowInputs const& inputs);
+        void LoadRow(GlyphRow const& row, RowInputs const& inputs);
 
         /**
          * @brief Persist dirty glyph slots to character_glyphs.

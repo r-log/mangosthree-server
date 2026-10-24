@@ -328,8 +328,8 @@ state_row(glyph
     TABLES  character_glyphs
     TYPES   GlyphMgr)
 
-state_allow(glyph src/game/entities/player/talents/GlyphMgr.cpp
-    WHY "the owner: loads the rows one at a time (the row's columns in a comment, the invalid-row DELETEs) and saves them"
+state_allow(glyph src/game/persistence/characters/talents/GlyphRepository.cpp
+    WHY "the owner's repository: reads a login row (its columns in a comment), the invalid-row DELETEs, and writes the rows the owner hands it to save"
     NAMES character_glyphs)
 state_allow(glyph src/game/entities/player/talents/GlyphMgr.h
     WHY "the owner's header: the save states' and the save's doc comments name the table"

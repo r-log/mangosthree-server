@@ -110,18 +110,18 @@ are two declared beside `PlayerSocial` (`SocialList.h`). All twenty-two are buil
 `session/packets/combat/`, `spells/` and
 `entities/` and sent through the callbacks `InstallPlayerPacketSinks` installs where a player is created.
 
-**Today (database):** 970 of the 1,006 calls are outside persistence: entities 228 (62 in
+**Today (database):** 964 of the 1,005 calls are outside persistence: entities 222 (62 in
 `entities/player/persistence/`), social 192, data 142, session 134, scripts 94, app 74, maps 62, economy 22,
-spells 11, pvp 9, ai 2. Game `.cpp` files hold 994 calls in 127 files.
+spells 11, pvp 9, ai 2. Game `.cpp` files hold 993 calls in 127 files.
 
 **Today (entities, the manager audit):**
 - No manager builds packets. `CurrencyMgr`, `ReputationMgr` and `SocialList`/`PlayerSocial` report their four, five
   and one client notices as typed facts that `session/packets/entities/` builds.
-- Three call the database: `QuestStatusMgr` (6 lines), `GlyphMgr` (6) and `TalentMgr` (8).
-- Nine are clean: `InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, which reports a kill's honor
+- Two call the database: `QuestStatusMgr` (6 lines) and `TalentMgr` (8).
+- Ten are clean: `InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, which reports a kill's honor
   credit as a typed fact that `session/packets/entities/` builds into its packet, `PetMgr` (the clear of the pet
   action bar is a fact of the player's own client), `RuneMgr`, which reports its three rune facts the same way, and
-  `ReputationMgr`, `CurrencyMgr` and `SocialList`, whose rows their repositories read and write
+  `ReputationMgr`, `CurrencyMgr`, `SocialList` and `GlyphMgr`, whose rows their repositories read and write
   (`persistence/characters/`).
 - In `spells/`, `SpellCooldownMgr` calls no database and builds no packet: its rows go through its repository
   (`persistence/characters/spells/`), and it reports a cooldown event and the clear of every cooldown as typed facts,
@@ -382,8 +382,8 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 5 | data -> domain: 77 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump` and `CharacterDatabaseCleaner` (8 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
-| 8 | 970 database calls outside persistence | #144, when content needs it |
-| 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); three call the database (`QuestStatusMgr`, `GlyphMgr`, `TalentMgr`); nine are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, `CurrencyMgr` and `SocialList`, whose rows their repositories in `persistence/characters/` read and write). **Spells, Today:** `SpellCooldownMgr` calls no database (its rows go through its repository in `persistence/characters/spells/`) and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
+| 8 | 964 database calls outside persistence | #144, when content needs it |
+| 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); two call the database (`QuestStatusMgr`, `TalentMgr`); ten are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, `CurrencyMgr`, `SocialList` and `GlyphMgr`, whose rows their repositories in `persistence/characters/` read and write). **Spells, Today:** `SpellCooldownMgr` calls no database (its rows go through its repository in `persistence/characters/spells/`) and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |

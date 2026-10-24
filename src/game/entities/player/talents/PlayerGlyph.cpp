@@ -40,6 +40,7 @@
 
 #include "Player.h"
 #include "Database/DatabaseEnv.h"                           // QueryResult: the login loop fetches, advances and deletes it
+#include "persistence/characters/talents/GlyphRepository.h"
 
 namespace
 {
@@ -106,7 +107,7 @@ void Player::_LoadGlyphs(QueryResult* result)
         {
             return GetGlyphSlot(slot);
         };
-        m_glyphMgr.LoadRow(result->Fetch(), inputs);
+        m_glyphMgr.LoadRow(GlyphRepository::ReadRow(result->Fetch()), inputs);
     }
     while (result->NextRow());
 
