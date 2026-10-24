@@ -27,7 +27,6 @@
 #include "SocialMgr.h"
 #include "Policies/Singleton.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
 #include "Player.h"
 #include "ObjectMgr.h"
 #include "data/GameConfig.h"
@@ -36,12 +35,11 @@
 
 
 /**
- * @brief Sends the character's contact list to its own client.
+ * @brief Tells the character's own client its contact list.
  *
- * Decoupling D4k: the owner side of PlayerSocial::SendSocialList(fill, send), defined here
- * because it finds the character by guid (nothing is sent when the lookup finds nobody) and fills
- * each entry from the other characters. The Player-less overload in SocialList.cpp builds the
- * packet.
+ * The owner side of PlayerSocial::SendSocialList(fill, send), defined here because it finds the
+ * character by guid (nothing is reported when the lookup finds nobody) and fills each entry from
+ * the other characters. The Player-less overload in SocialList.cpp makes the fact.
  */
 void PlayerSocial::SendSocialList()
 {
@@ -55,9 +53,9 @@ void PlayerSocial::SendSocialList()
     {
         sSocialMgr.GetFriendInfo(plr, friendLowGuid, friendInfo);
     },
-    [plr](WorldPacket const* packet)
+    [plr](ContactListFact const& fact)
     {
-        plr->GetSession()->SendPacket(packet);
+        plr->ReportContactList(fact);
     });
 }
 
@@ -102,9 +100,9 @@ void SocialMgr::GetFriendInfo(Player* player, uint32 friend_lowguid, FriendInfo&
         friendInfo.Note = itr->second.Note;
     }
 
-    // Decoupling D4k: the verdict (IsFriendVisibleOnline, SocialList.cpp) reads the requester as
-    // the viewer and the friend as the seen character. The friend's facts are pure field reads
-    // (team, session security, IsVisibleGloballyFor), read only when the friend is present.
+    // The verdict (IsFriendVisibleOnline, SocialList.cpp) reads the requester as the viewer and
+    // the friend as the seen character. The friend's facts are pure field reads (team, session
+    // security, IsVisibleGloballyFor), read only when the friend is present.
     FriendVisibility facts;
     facts.present = pFriend && pFriend->GetName();
     facts.viewerSecurity = security;
@@ -156,29 +154,29 @@ void SocialMgr::SendFriendStatus(Player* player, FriendsResult result, ObjectGui
 {
     uint32 friend_lowguid = friend_guid.GetCounter();
 
-    WorldPacket data;
-    BuildFriendStatusPacket(result, friend_lowguid, [this, player](uint32 lowguid, FriendInfo& fi)
+    FriendStatusFact fact = MakeFriendStatusFact(result, friend_lowguid, [this, player](uint32 lowguid, FriendInfo& fi)
     {
         GetFriendInfo(player, lowguid, fi);
-    }, data);
+    });
 
     if (broadcast)
     {
-        BroadcastToFriendListers(player, &data);
+        BroadcastToFriendListers(player, fact);
     }
     else
     {
-        player->GetSession()->SendPacket(&data);
+        player->ReportFriendStatus(fact);
     }
 }
 
 /**
- * @brief Broadcasts a social update packet to players who list this player as a friend.
+ * @brief Reports a friend status fact to the own client of each player who lists this player as
+ * a friend and may see it online.
  *
  * @param player The player whose status changed.
- * @param packet The packet to broadcast.
+ * @param fact The fact to report.
  */
-void SocialMgr::BroadcastToFriendListers(Player* player, WorldPacket* packet)
+void SocialMgr::BroadcastToFriendListers(Player* player, FriendStatusFact const& fact)
 {
     if (!player)
     {
@@ -198,10 +196,10 @@ void SocialMgr::BroadcastToFriendListers(Player* player, WorldPacket* packet)
         {
             Player* pFriend = sPlayerRegistry.Find(ObjectGuid(HIGHGUID_PLAYER, itr->first));
 
-            // Decoupling D4k: the same verdict with the roles swapped: the lister is the viewer,
-            // the changed character the seen one. The lister's facts are pure field reads (session
-            // security, team, and the changed character's IsVisibleGloballyFor(lister)), read
-            // only when the lister is present. Each recipient's send stays here: orchestration.
+            // The same verdict with the roles swapped: the lister is the viewer, the changed
+            // character the seen one. The lister's facts are pure field reads (session security,
+            // team, and the changed character's IsVisibleGloballyFor(lister)), read only when the
+            // lister is present.
             FriendVisibility facts;
             facts.present = pFriend && pFriend->IsInWorld();
             facts.seenSecurity = security;
@@ -219,7 +217,7 @@ void SocialMgr::BroadcastToFriendListers(Player* player, WorldPacket* packet)
             // MODERATOR, GAME MASTER, ADMINISTRATOR can see all
             if (IsFriendVisibleOnline(facts))
             {
-                pFriend->GetSession()->SendPacket(packet);
+                pFriend->ReportFriendStatus(fact);
             }
         }
     }

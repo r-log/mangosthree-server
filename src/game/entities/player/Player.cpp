@@ -3926,21 +3926,6 @@ void Player::SendDirectMessage(WorldPacket* data) const
 }
 
 /**
- * @brief Decoupling D4k: where a manager's packets go -- this character's session.
- *
- * The session is read at each send, as the managers' old `m_owner->GetSession()->SendPacket(&data)`
- * and `m_owner->SendDirectMessage(&data)` read it (SendDirectMessage above is that same call), and
- * the packet reaches the same WorldSession::SendPacket.
- */
-ManagerPacketSink Player::SessionSink() const
-{
-    return [this](WorldPacket const* packet)
-    {
-        GetSession()->SendPacket(packet);
-    };
-}
-
-/**
  * @brief Decoupling D5a: whether the player's session is still loading.
  */
 bool Player::IsLoading() const

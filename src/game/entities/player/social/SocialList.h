@@ -28,15 +28,14 @@
 
 #include <string>
 #include <map>
+#include <vector>
 #include <functional>
 #include "Platform/Define.h"
 #include "Common/ServerDefines.h"                           // AccountTypes
 #include "SharedDefines.h"                                  // Team
 #include "ObjectGuid.h"
-#include "ManagerPacketSink.h"
 
 class SocialMgr;
-class WorldPacket;
 class Field;
 
 enum FriendStatus
@@ -125,37 +124,61 @@ enum FriendsResult
 /// side passes `SocialMgr::GetFriendInfo`, which reads the other character; a test passes a table.
 typedef std::function<void(uint32 friendLowGuid, FriendInfo& friendInfo)> FriendInfoFill;
 
+/// The contact list a character's own client is told: each listed character in the list's order,
+/// with its flags and note and, for a friend, its status and, when online, its area, level and class.
+struct ContactListFact
+{
+    struct Entry
+    {
+        uint32 lowGuid = 0;
+        FriendInfo info;
+    };
+    std::vector<Entry> entries;
+};
+
+/// A contact's change a character's own client is told: the result, the contact's low guid, and
+/// what the character may see of the contact (the note for the two ADDED results; status, area,
+/// level and class for ADDED_ONLINE and ONLINE).
+struct FriendStatusFact
+{
+    FriendsResult result = FRIEND_DB_ERROR;
+    uint32 friendLowGuid = 0;
+    FriendInfo info;
+};
+
+typedef std::function<void(ContactListFact const&)> ContactListSink;
+typedef std::function<void(FriendStatusFact const&)> FriendStatusSink;
+
 /**
- * @brief Decoupling D4k: one character's friend and ignore list, and the rules over it, held
- * apart from the object that plays the character.
+ * @brief One character's friend and ignore list, and the rules over it, held apart from the
+ * object that plays the character.
  *
- * The state is the list (friend low guid -> flags, note, and the last status the list packet
+ * The state is the list (friend low guid -> flags, note, and the last status the contact list
  * filled in) and the owner's low guid, which every statement names. The rules: the 50 friend and
  * 50 ignore limits; a second flag on a listed character is ORed into its entry (an UPDATE), a new
  * one is an INSERT; removing a flag keeps the entry while another flag is left (an UPDATE) and
  * deletes it with the last one (a DELETE); a note is set only on a listed character, cut to 48
  * characters; the login rows are taken one at a time (LoadRow) under the same two limits. The
- * statements go to the character database asynchronously, as before. It builds the contact list
- * packet (`SMSG_CONTACT_LIST`); the friend status packet and the online-visibility verdict below
- * are free functions in this file.
+ * statements go to the character database asynchronously. It reports the contact list as a
+ * ContactListFact; the friend status fact and the online-visibility verdict below are free
+ * functions in this file.
  *
- * The object carries no owner and reads no other character. What the list packet needs from the
- * other characters comes in through a FriendInfoFill called for each entry at the old point, and
- * the packet goes to a ManagerPacketSink. So `mangos_tests` builds one from nothing.
+ * The object carries no owner and reads no other character. What the contact list needs from the
+ * other characters comes in through a FriendInfoFill called for each entry, and the fact goes to a
+ * ContactListSink. So `mangos_tests` builds one from nothing.
  *
- * What stays global and on the owner side, and why (`SocialMgr`, in `SocialMgr.h/.cpp`): the map
- * of every loaded character's list (it is cross-character: a status change is sent to every
- * character whose list names the changed one, so the broadcast walks every list); the login loop
- * over the rows; the registry lookups of other characters and every read of them (team, session
- * security, AFK/DND, zone, level, class); the recipients of each packet (the requester's own
- * session, or each lister's session in turn); and the no-argument SendSocialList below, which is
+ * `SocialMgr` (`SocialMgr.h/.cpp`) holds the rest: the map of every loaded character's list (a
+ * status change goes to every character whose list names the changed one, so the broadcast walks
+ * every list); the login loop over the rows; the registry lookups of other characters and every
+ * read of them (team, session security, AFK/DND, zone, level, class); the recipients of each fact
+ * (the requester, or each lister in turn); and the no-argument SendSocialList below, which is
  * declared here for its callers but defined in `SocialMgr.cpp`: it finds the character by guid
- * (and sends nothing when the lookup finds nobody) and hands this class the fill and the sink.
+ * (and reports nothing when the lookup finds nobody) and hands this class the fill and the sink.
  *
- * KEPT SEMANTICS, stated rather than fixed (backlog): the list packet writes each entry's status,
- * area, level and class back into the stored entry (the fill receives the stored entry itself);
- * a loaded row with both flags counts as an ignore only, while each limit check reads its own
- * flag; the destructor clears a map that is about to be destroyed anyway.
+ * The contact list writes each entry's status, area, level and class back into the stored entry
+ * (the fill receives the stored entry itself); a loaded row with both flags counts as an ignore
+ * only, while each limit check reads its own flag; the destructor clears a map that is about to
+ * be destroyed anyway.
  */
 class PlayerSocial
 {
@@ -171,16 +194,16 @@ class PlayerSocial
         /// Defined in SocialMgr.cpp, on the owner side, because two callers that may not change call it
         /// without arguments (the contact list handler in session/handlers/social/ContactHandlers.cpp, and the character's
         /// SendInitialPacketsBeforeAddToMap). Not for tests: it finds the character by guid, finds none in
-        /// mangos_tests and sends nothing -- call SendSocialList(fill, send) instead. The one entry in
+        /// mangos_tests and reports nothing -- call SendSocialList(fill, send) instead. The one entry in
         /// CheckManagerIsolation.cmake's OWNER_DEFINED allowlist.
         void SendSocialList();
         /**
-         * @brief Builds `SMSG_CONTACT_LIST` from the list and hands it to `send`.
+         * @brief Reports the contact list to `send`.
          *
-         * @param fill Fills each entry, in the list's order, before the entry is written.
-         * @param send Where the packet goes: the owner's session.
+         * @param fill Fills each entry, in the list's order, before the entry is copied into the fact.
+         * @param send Where the fact goes: the owner's own client.
          */
-        void SendSocialList(FriendInfoFill const& fill, ManagerPacketSink const& send);
+        void SendSocialList(FriendInfoFill const& fill, ContactListSink const& send);
         // Misc
         bool HasFriend(ObjectGuid friend_guid) const;
         bool HasIgnore(ObjectGuid ignore_guid) const;
@@ -228,23 +251,13 @@ struct FriendVisibility
 bool IsFriendVisibleOnline(FriendVisibility const& facts);
 
 /**
- * @brief Builds a friend status packet header.
- *
- * @param result The friend status result code.
- * @param guid The low GUID of the related player.
- * @param data The packet to initialize.
- */
-void MakeFriendStatusPacket(FriendsResult result, uint32 guid, WorldPacket* data);
-
-/**
- * @brief Builds the whole `SMSG_FRIEND_STATUS`: the header, then the note for the two ADDED
- * results, then status, area, level and class for ADDED_ONLINE and ONLINE.
+ * @brief The friend status fact of `result` about the related character.
  *
  * @param result The friend status result code.
  * @param friend_lowguid The low GUID of the related character.
- * @param fill Fills the related character's entry once, after the header.
- * @param data The packet to build.
+ * @param fill Fills the related character's entry once, from an empty entry.
+ * @return The result, the low GUID and the filled entry.
  */
-void BuildFriendStatusPacket(FriendsResult result, uint32 friend_lowguid, FriendInfoFill const& fill, WorldPacket& data);
+FriendStatusFact MakeFriendStatusFact(FriendsResult result, uint32 friend_lowguid, FriendInfoFill const& fill);
 
 #endif

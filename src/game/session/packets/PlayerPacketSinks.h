@@ -35,6 +35,7 @@
 #include "session/packets/entities/PvpCreditPacket.h"
 #include "session/packets/entities/ReputationPackets.h"
 #include "session/packets/entities/RunePackets.h"
+#include "session/packets/entities/SocialPackets.h"
 #include "session/packets/entities/StandStatePacket.h"
 #include "session/packets/spells/AutoRepeatPackets.h"
 
@@ -90,6 +91,8 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.initialReputations = FactToSession(owner, &BuildInitializeFactionsPacket);
     callbacks.factionVisible = FactToSession(owner, &BuildSetFactionVisiblePacket);
     callbacks.factionAtWar = FactToSession(owner, &BuildSetFactionAtWarPacket);
+    callbacks.contactList = FactToSession(owner, &BuildContactListPacket);
+    callbacks.friendStatus = FactToSession(owner, &BuildFriendStatusPacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }

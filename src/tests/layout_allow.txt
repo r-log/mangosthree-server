@@ -724,10 +724,7 @@ src/game/entities/player/social/PlayerChat.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/social/PlayerChat.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/social/PlayerGroup.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/social/PlayerReputation.cpp -> src/game/Server/WorldSession.h
-src/game/entities/player/social/SocialList.cpp -> src/proto/Opcodes.h
-src/game/entities/player/social/SocialList.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/social/SocialMgr.cpp -> src/game/Server/WorldSession.h
-src/game/entities/player/social/SocialMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/spells [entities] -> src/game/BattleGround/BattleGroundAV.h
 src/game/entities/player/spells [entities] -> src/game/WorldHandlers/Channel.h
 src/game/entities/player/spells [entities] -> src/game/WorldHandlers/ChannelMgr.h

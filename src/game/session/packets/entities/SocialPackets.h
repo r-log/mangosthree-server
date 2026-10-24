@@ -23,21 +23,19 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef MANGOS_H_MANAGERPACKETSINK
-#define MANGOS_H_MANAGERPACKETSINK
+#ifndef MANGOS_H_SOCIALPACKETS
+#define MANGOS_H_SOCIALPACKETS
 
-#include <functional>
+#include "SocialList.h"
 
 class WorldPacket;
 
-/**
- * @brief Where a character manager hands a packet it built.
- *
- * The owner's SessionSink() returns one: it passes the packet to the character's session
- * (`GetSession()->SendPacket(packet)`), reading the session at each send. A manager takes it as a
- * parameter of the call that sends and never stores it; a test passes one that records what it
- * receives. One type for every manager, so the owner keeps one sink.
- */
-typedef std::function<void(WorldPacket const* packet)> ManagerPacketSink;
+/// Initializes `packet` as the client's contact list: 7, the count, then per entry the guid, the
+/// flags and the note and, for a friend, the status and, when online, the area, level and class.
+void BuildContactListPacket(WorldPacket& packet, ContactListFact const& fact);
+
+/// Initializes `packet` as the client's friend status: the result and the guid, then the note for
+/// the two ADDED results, then status, area, level and class for ADDED_ONLINE and ONLINE.
+void BuildFriendStatusPacket(WorldPacket& packet, FriendStatusFact const& fact);
 
 #endif

@@ -87,13 +87,11 @@ set(MANAGER_FILES
     spells/SpellCooldownMgr.cpp
     spells/SpellModMgr.h
     spells/SpellModMgr.cpp
-    entities/player/ManagerPacketSink.h                     # decoupling D4k: the managers' shared packet sink type
     entities/player/PlayerClientFacts.h
     entities/player/talents/GlyphMgr.h                      # decoupling D4k
     entities/player/talents/GlyphMgr.cpp                    # decoupling D4k
     entities/player/pets/PetMgr.h                           # decoupling D4k
     entities/player/pets/PetMgr.cpp                         # decoupling D4k
-    # decoupling D4k: SocialList.h holds PlayerSocial, the verdict and the packet builders
     entities/player/social/SocialList.h                     # decoupling D4k
     entities/player/social/SocialList.cpp                   # decoupling D4k
     entities/player/inventory/CurrencyMgr.h                 # decoupling D4k
