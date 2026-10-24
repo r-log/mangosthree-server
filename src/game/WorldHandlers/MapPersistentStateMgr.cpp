@@ -68,7 +68,8 @@
 #include "Transports.h"
 #include "ObjectMgr.h"
 #include "GameEventMgr.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "Group.h"
 #include "InstanceData.h"
 #include "LFGMgr.h"
@@ -140,7 +141,7 @@ void MapPersistentState::SaveCreatureRespawnTime(uint32 loguid, time_t t)
     SqlStatement stmt = CharacterDatabase.CreateStatement(delSpawnTime, "DELETE FROM `creature_respawn` WHERE `guid` = ? AND `instance` = ?");
     stmt.PExecute(loguid, m_instanceid);
 
-    if (t > sWorld.GetGameTime())
+    if (t > WorldGameTime::Get())
     {
         stmt = CharacterDatabase.CreateStatement(insSpawnTime, "INSERT INTO `creature_respawn` VALUES ( ?, ?, ? )");
         stmt.PExecute(loguid, uint64(t), m_instanceid);
@@ -173,7 +174,7 @@ void MapPersistentState::SaveGORespawnTime(uint32 loguid, time_t t)
     SqlStatement stmt = CharacterDatabase.CreateStatement(delSpawnTime, "DELETE FROM `gameobject_respawn` WHERE `guid` = ? AND `instance` = ?");
     stmt.PExecute(loguid, m_instanceid);
 
-    if (t > sWorld.GetGameTime())
+    if (t > WorldGameTime::Get())
     {
         stmt = CharacterDatabase.CreateStatement(insSpawnTime, "INSERT INTO `gameobject_respawn` VALUES ( ?, ?, ? )");
         stmt.PExecute(loguid, uint64(t), m_instanceid);
@@ -190,7 +191,7 @@ void MapPersistentState::SaveGORespawnTime(uint32 loguid, time_t t)
  */
 void MapPersistentState::SetCreatureRespawnTime(uint32 loguid, time_t t)
 {
-    if (t > sWorld.GetGameTime())
+    if (t > WorldGameTime::Get())
     {
         m_creatureRespawnTimes[loguid] = t;
     }
@@ -209,7 +210,7 @@ void MapPersistentState::SetCreatureRespawnTime(uint32 loguid, time_t t)
  */
 void MapPersistentState::SetGORespawnTime(uint32 loguid, time_t t)
 {
-    if (t > sWorld.GetGameTime())
+    if (t > WorldGameTime::Get())
     {
         m_goRespawnTimes[loguid] = t;
     }
@@ -467,12 +468,12 @@ void DungeonPersistentState::UpdateEncounterState(EncounterCreditType type, uint
 
             CharacterDatabase.PExecute("UPDATE `instance` SET `encountersMask` = '%u' WHERE `id` = '%u'", m_completedEncountersMask, GetInstanceId());
 
-            DEBUG_LOG("DungeonPersistentState: Dungeon %s (Id %u) completed encounter %s", GetMap()->GetMapName(), GetInstanceId(), dbcEntry->Name_lang[sWorld.GetDefaultDbcLocale()]);
+            DEBUG_LOG("DungeonPersistentState: Dungeon %s (Id %u) completed encounter %s", GetMap()->GetMapName(), GetInstanceId(), dbcEntry->Name_lang[sGameConfig.GetDefaultDbcLocale()]);
             if (iter->second->lastEncounterDungeon)
             {
-                DEBUG_LOG("DungeonPersistentState:: Dungeon %s (Instance-Id %u) completed last encounter %s", GetMap()->GetMapName(), GetInstanceId(), dbcEntry->Name_lang[sWorld.GetDefaultDbcLocale()]);
+                DEBUG_LOG("DungeonPersistentState:: Dungeon %s (Instance-Id %u) completed last encounter %s", GetMap()->GetMapName(), GetInstanceId(), dbcEntry->Name_lang[sGameConfig.GetDefaultDbcLocale()]);
 
-                if (sWorld.getConfig(CONFIG_BOOL_LFG_ENABLE))
+                if (sGameConfig.getConfig(CONFIG_BOOL_LFG_ENABLE))
                 {
                     sLFGMgr.OnDungeonEncounterComplete(GetMap());
                 }
@@ -500,7 +501,7 @@ uint32 DungeonResetScheduler::GetMaxResetTimeFor(MapDifficultyEntry const* mapDi
         return 0;
     }
 
-    uint32 delay = uint32(mapDiff->RaidDuration / DAY * sWorld.getConfig(CONFIG_FLOAT_RATE_INSTANCE_RESET_TIME)) * DAY;
+    uint32 delay = uint32(mapDiff->RaidDuration / DAY * sGameConfig.getConfig(CONFIG_FLOAT_RATE_INSTANCE_RESET_TIME)) * DAY;
 
     if (delay < DAY)                                        // the reset_delay must be at least one day
     {
@@ -519,7 +520,7 @@ uint32 DungeonResetScheduler::GetMaxResetTimeFor(MapDifficultyEntry const* mapDi
  */
 time_t DungeonResetScheduler::CalculateNextResetTime(MapDifficultyEntry const* mapDiff, time_t prevResetTime)
 {
-    uint32 diff = sWorld.getConfig(CONFIG_UINT32_INSTANCE_RESET_TIME_HOUR) * HOUR;
+    uint32 diff = sGameConfig.getConfig(CONFIG_UINT32_INSTANCE_RESET_TIME_HOUR) * HOUR;
     uint32 period = GetMaxResetTimeFor(mapDiff);
     return ((prevResetTime + MINUTE) / DAY * DAY) + period + diff;
 }
@@ -598,7 +599,7 @@ void DungeonResetScheduler::LoadResetTimes()
     }
 
     // load the global respawn times for raid/heroic instances
-    uint32 diff = sWorld.getConfig(CONFIG_UINT32_INSTANCE_RESET_TIME_HOUR) * HOUR;
+    uint32 diff = sGameConfig.getConfig(CONFIG_UINT32_INSTANCE_RESET_TIME_HOUR) * HOUR;
     result = CharacterDatabase.Query("SELECT `mapid`, `difficulty`, `resettime` FROM `instance_reset`");
     if (result)
     {

@@ -46,7 +46,8 @@
 #include "Pet.h"
 #include "Player.h"
 #include "TaxiRoute.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "DBCStores.h"
 #include "ObjectMgr.h"
 
@@ -97,8 +98,8 @@ namespace
         // One cadence of lead on a trusted velocity by default: the heel point (design §6.3).
         // Movement.FollowHorizonMs = 0 turns it off, which is retail's own aim and the baseline
         // the harness's follow-keeps-pace scenario is measured against.
-        p.horizonMs = sWorld.getConfig(CONFIG_UINT32_MOVEMENT_FOLLOW_HORIZON_MS);
-        p.recalcRange = sWorld.getConfig(CONFIG_FLOAT_RATE_TARGET_POS_RECALCULATION_RANGE);
+        p.horizonMs = sGameConfig.getConfig(CONFIG_UINT32_MOVEMENT_FOLLOW_HORIZON_MS);
+        p.recalcRange = sGameConfig.getConfig(CONFIG_FLOAT_RATE_TARGET_POS_RECALCULATION_RANGE);
         return p;
     }
 
@@ -318,7 +319,7 @@ class MotionMaster::Scope
 MotionMaster::MotionMaster(Unit* unit)
     : m_owner(unit), m_depth(0), m_scopeKind(Motion::TransactionKind::Normal), m_pendingReset(PendingReset::None), m_exposedSeq(0), m_clientRooted(false)
 {
-    if (sWorld.getConfig(CONFIG_BOOL_MOVEMENT_DECISION_RING))
+    if (sGameConfig.getConfig(CONFIG_BOOL_MOVEMENT_DECISION_RING))
     {
         EnableDecisionRing();
     }
@@ -948,7 +949,7 @@ void MotionMaster::MoveConfused(uint64 claim)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s move confused", m_owner->GetGuidStr().c_str());
     Motion::ConfusedBehaviour::Params p;
-    p.radius = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
+    p.radius = sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
     Request(R(Motion::Kind::Confused, 0, false, claim ? claim : kScriptConfuse), std::unique_ptr<Motion::Behaviour>(new Motion::ConfusedBehaviour(p)));
 }
 
@@ -1130,7 +1131,7 @@ void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 start
         return;
     }
     Motion::TaxiBehaviour::Params p;
-    p.speed = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED);
+    p.speed = sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED);
     p.mountDisplayId = mountDisplayId;
     p.startNode = startNode;
     // The hops welded into one node array (design §5): the seam node once -- the incoming hop's
@@ -1181,7 +1182,7 @@ void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 start
     if (!passenger->m_taxi.GetLandingTime())
     {
         const float remaining = TaxiResume::Length(welded, startNode);
-        passenger->m_taxi.SetLandingTime(uint32(sWorld.GetGameTime()) + uint32(remaining / p.speed + 0.5f));
+        passenger->m_taxi.SetLandingTime(uint32(WorldGameTime::Get()) + uint32(remaining / p.speed + 0.5f));
     }
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s taxi from node %u to node %u (%u path nodes, from %u, landing at %u)",
                      m_owner->GetGuidStr().c_str(), route.front(), route.back(), uint32(p.nodes.size()), startNode,

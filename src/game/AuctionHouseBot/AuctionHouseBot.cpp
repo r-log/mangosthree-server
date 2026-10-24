@@ -35,6 +35,7 @@
 #include "Common/ServerDefines.h"
 #include "SQLStorages.h"
 #include "World.h"
+#include "WorldGameTime.h"
 
 /** \addtogroup auctionbot
  * @{
@@ -2527,7 +2528,7 @@ void AuctionHouseBot::Rebuild(bool all)
             {
                 if (all || entry->bid == 0)                                                        // expire auction now if no bid or forced
                 {
-                    entry->expireTime = sWorld.GetGameTime();
+                    entry->expireTime = WorldGameTime::Get();
                 }
             }
         }

@@ -37,7 +37,8 @@
 #include "Player.h"
 #include "spells/data/SpellMgr.h"
 #include "GameEventMgr.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "Map.h"
 #include "InstanceData.h"
 #include "BattleGround/BattleGround.h"
@@ -350,7 +351,7 @@ bool AchievementCriteriaRequirement::Meets(uint32 criteria_id, Player const* sou
         }
         case ACHIEVEMENT_CRITERIA_REQUIRE_NTH_BIRTHDAY:
         {
-            time_t birthday_start = time_t(sWorld.getConfig(CONFIG_UINT32_BIRTHDAY_TIME));
+            time_t birthday_start = time_t(sGameConfig.getConfig(CONFIG_UINT32_BIRTHDAY_TIME));
 
             tm birthday_tm = *localtime(&birthday_start);
 
@@ -359,7 +360,7 @@ bool AchievementCriteriaRequirement::Meets(uint32 criteria_id, Player const* sou
 
             time_t birthday = mktime(&birthday_tm);
 
-            time_t now = sWorld.GetGameTime();
+            time_t now = WorldGameTime::Get();
             return now <= birthday + DAY && now >= birthday;
         }
         case ACHIEVEMENT_CRITERIA_REQUIRE_KNOWN_TITLE:

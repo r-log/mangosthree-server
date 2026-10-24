@@ -33,7 +33,7 @@
 
 // Every body below moved here in decoupling D4c from the character object's spell, talent, load
 // and save files. The statements, their order and their values are the old ones; what changed
-// is where the inputs come from: the game time through `now` (it was sWorld.GetGameTime(), which
+// is where the inputs come from: the game time through `now` (the owner passes WorldGameTime::Get(), which
 // does not move inside a tick), the talent rate through `rate` (it was the world config), the
 // quest-reward talent bonus, the character's level, class, class mask, guid and world presence
 // through parameters (they were the owner's own members and accessors). The load log lines name

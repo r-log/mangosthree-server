@@ -34,6 +34,7 @@
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
 #include "World.h"
+#include "WorldGameTime.h"
 #include "ObjectMgr.h"
 #include "ScriptMgr.h"
 #include "ObjectGuid.h"
@@ -1813,7 +1814,7 @@ bool Creature::LoadFromDB(uint32 guidlow, Map* map)
     {
         time_t rabbit_day = time_t(sWorld.getConfig(CONFIG_UINT32_RABBIT_DAY));
         tm rabbit_day_tm = *localtime(&rabbit_day);
-        tm now_tm = *localtime(&sWorld.GetGameTime());
+        tm now_tm = *localtime(&WorldGameTime::Get());
 
         if (now_tm.tm_mon == rabbit_day_tm.tm_mon && now_tm.tm_mday == rabbit_day_tm.tm_mday)
         {

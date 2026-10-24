@@ -36,7 +36,7 @@
 // The statements, their order and their values are the old ones; what changed is
 // where the inputs come from:
 // the quest template through `lookup` (it was sObjectMgr.GetQuestTemplate), the game time
-// through `now` (it was sWorld.GetGameTime(), which does not move inside a tick), and the
+// through `now` (the owner passes WorldGameTime::Get(), which does not move inside a tick), and the
 // character's guid and name through parameters (they were the owner's own accessors).
 
 QuestStatusMgr::QuestStatusMgr()

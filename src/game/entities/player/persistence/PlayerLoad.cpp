@@ -40,7 +40,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "WorldGameTime.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -1017,7 +1017,7 @@ void Player::_LoadQuestStatus(QueryResult* result)
             // next row is read. Applying a rewarded row casts spells, and a quest-complete
             // effect reaches AreaExploredOrEventHappens, which reads and writes a later row --
             // so the load must stay one pass, row by row, as it always was.
-            QuestRowResult row = m_questStatusMgr.FillRow(result->Fetch(), sWorld.GetGameTime(), GetName(), ObjectMgr::QuestTemplateLookup());
+            QuestRowResult row = m_questStatusMgr.FillRow(result->Fetch(), WorldGameTime::Get(), GetName(), ObjectMgr::QuestTemplateLookup());
             if (row.accepted)
             {
                 uint32 quest_id = row.questId;

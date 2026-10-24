@@ -36,7 +36,8 @@
 #include "UpdateMask.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"
 #include "LootMgr.h"
 #include "GridNotifiersImpl.h"
@@ -73,12 +74,12 @@ void GameObject::Use(Unit* user)
     // test only for exist cooldown data (cooldown timer used for door/buttons reset that not have use cooldown)
     if (uint32 cooldown = GetGOInfo()->GetCooldown())
     {
-        if (m_cooldownTime > sWorld.GetGameTime())
+        if (m_cooldownTime > WorldGameTime::Get())
         {
             return;
         }
 
-        m_cooldownTime = sWorld.GetGameTime() + cooldown;
+        m_cooldownTime = WorldGameTime::Get() + cooldown;
     }
 
     bool scriptReturnValue = user->GetTypeId() == TYPEID_PLAYER && sScriptMgr.OnGameObjectUse((Player*)user, this);
@@ -459,7 +460,7 @@ void GameObject::Use(Unit* user)
                     // overwrite fail in case fishhole if allowed (after 3.3.0)
                     if (!success)
                     {
-                        if (!sWorld.getConfig(CONFIG_BOOL_SKILL_FAIL_POSSIBLE_FISHINGPOOL))
+                        if (!sGameConfig.getConfig(CONFIG_BOOL_SKILL_FAIL_POSSIBLE_FISHINGPOOL))
                         {
                             // TODO: find reasonable value for fishing hole search
                             fishingHole = LookupFishingHoleAround(20.0f + CONTACT_DISTANCE);
@@ -476,13 +477,13 @@ void GameObject::Use(Unit* user)
                         fishingHole = LookupFishingHoleAround(20.0f + CONTACT_DISTANCE);
                     }
 
-                    if (success || sWorld.getConfig(CONFIG_BOOL_SKILL_FAIL_GAIN_FISHING))
+                    if (success || sGameConfig.getConfig(CONFIG_BOOL_SKILL_FAIL_GAIN_FISHING))
                     {
                         player->UpdateFishingSkill();
                     }
 
                     // fish catch or fail and junk allowed (after 3.1.0)
-                    if (success || sWorld.getConfig(CONFIG_BOOL_SKILL_FAIL_LOOT_FISHING))
+                    if (success || sGameConfig.getConfig(CONFIG_BOOL_SKILL_FAIL_LOOT_FISHING))
                     {
                         // prevent removing GO at spell cancel
                         player->RemoveGameObject(this, false);

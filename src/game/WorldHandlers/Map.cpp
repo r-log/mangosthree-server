@@ -65,7 +65,8 @@
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "ObjectMgr.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "LFGMgr.h"
 #include "ScriptMgr.h"
 #include "Group.h"
@@ -174,7 +175,7 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
       i_gridExpiry(expiry), m_TerrainData(sTerrainMgr.LoadTerrain(id)),
       m_teamBuffs(this),
       i_data(NULL),
-      m_bare(MapIsBare(sWorld.getConfig(CONFIG_UINT32_MOVEMENT_HARNESS_BARE_MAP), id, InstanceId))
+      m_bare(MapIsBare(sGameConfig.getConfig(CONFIG_UINT32_MOVEMENT_HARNESS_BARE_MAP), id, InstanceId))
 {
     m_CreatureGuids.Set(sObjectMgr.GetFirstTemporaryCreatureLowGuid());
     m_GameObjectGuids.Set(sObjectMgr.GetFirstTemporaryGameObjectLowGuid());
@@ -411,7 +412,7 @@ void Map::RemoveFromGrid(Player* obj, NGridType* grid, Cell const& cell)
     grid->decPlayerCount();
     if (grid->getPlayerCount() == 0)
     {
-        grid->getDowngradeTimer().Reset(sWorld.getConfig(CONFIG_UINT32_LIVINGWORLD_CELL_ENVELOPE_DOWNGRADE_DELAY));
+        grid->getDowngradeTimer().Reset(sGameConfig.getConfig(CONFIG_UINT32_LIVINGWORLD_CELL_ENVELOPE_DOWNGRADE_DELAY));
     }
 }
 
@@ -489,7 +490,7 @@ Map::EnsureGridCreated(const GridPair& p)
 {
     if (!getNGrid(p.x_coord, p.y_coord))
     {
-        setNGrid(new NGridType(p.x_coord * MAX_NUMBER_OF_GRIDS + p.y_coord, p.x_coord, p.y_coord, i_gridExpiry, sWorld.getConfig(CONFIG_BOOL_GRID_UNLOAD)),
+        setNGrid(new NGridType(p.x_coord * MAX_NUMBER_OF_GRIDS + p.y_coord, p.x_coord, p.y_coord, i_gridExpiry, sGameConfig.getConfig(CONFIG_BOOL_GRID_UNLOAD)),
                  p.x_coord, p.y_coord);
 
         // build a linkage between this map and NGridType
@@ -513,7 +514,7 @@ Map::EnsureGridLoadedAtEnter(const Cell& cell, Player* player)
 {
     NGridType* grid;
 
-    bool useEnvelope = (player == NULL) && sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD) && IsContinent();
+    bool useEnvelope = (player == NULL) && sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD) && IsContinent();
     bool loadedNow = false;
 
     if (useEnvelope)
@@ -575,7 +576,7 @@ bool Map::EnsureGridLoaded(const Cell& cell)
         // finalise FULL bitset (idempotent; ensures all 256 bits set even though LoadN already set them)
         setGridObjectDataLoaded(true, cell.GridX(), cell.GridY());
 
-        if (wasEnvelope && sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD))
+        if (wasEnvelope && sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD))
         {
             ++m_cellEnvStats.fills;
         }
@@ -713,7 +714,7 @@ bool Map::Add(Player* player)
     // Every way into a map arrives here -- the formation teleport, a corpse
     // run back in, and a login inside one -- which is what Luck of the Draw
     // needs: it is applied on entry and taken away on exit by the spell.
-    if (sWorld.getConfig(CONFIG_BOOL_LFG_ENABLE))
+    if (sGameConfig.getConfig(CONFIG_BOOL_LFG_ENABLE))
     {
         sLFGMgr.OnPlayerEnterMap(player, this);
     }
@@ -1190,7 +1191,7 @@ Map::Remove(T* obj, bool remove)
     if (remove)
     {
         // if option set then object already saved at this moment
-        if (!sWorld.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY))
+        if (!sGameConfig.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY))
         {
             obj->SaveRespawnTime();
         }
@@ -1217,7 +1218,7 @@ Map::Remove(T* obj, bool remove)
  */
 void Map::PromoteEnvelopeNeighboursToFull(uint32 gridX, uint32 gridY)
 {
-    if (!sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD))
     {
         return;
     }
@@ -1257,7 +1258,7 @@ void Map::PromoteEnvelopeNeighboursToFull(uint32 gridX, uint32 gridY)
  */
 void Map::MaybePromoteEnvelopeGridForPlayer(uint32 gridX, uint32 gridY)
 {
-    if (!sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD))
     {
         return;
     }
@@ -1402,7 +1403,7 @@ bool Map::CreatureCellRelocation(Creature* c, const Cell &new_cell)
         // B-Cell accretion: an active anchor moving inside a partially-loaded
         // (ENVELOPE) grid must have its new 3x3 envelope resident before it lands.
         if (c->IsActiveObject()
-            && sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD)
+            && sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD)
             && !newGrid->isGridObjectDataLoaded())
         {
             // Count/log accretion only when the move actually loaded NEW envelope cells.
@@ -1420,7 +1421,7 @@ bool Map::CreatureCellRelocation(Creature* c, const Cell &new_cell)
         AddToGrid(c, newGrid, new_cell);
         c->GetViewPoint().Event_GridChanged(&(*newGrid)(new_cell.CellX(), new_cell.CellY()));
 
-        if (c->IsActiveObject() && sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD)
+        if (c->IsActiveObject() && sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD)
             && !newGrid->isCellObjectDataLoaded(new_cell.CellX(), new_cell.CellY()))
         {
             ++m_cellEnvStats.anomalyAnchorOutside;
@@ -1430,7 +1431,7 @@ bool Map::CreatureCellRelocation(Creature* c, const Cell &new_cell)
         // B-Cell trailing unload: cells in the anchor's OLD 3x3 envelope but not its
         // NEW one are candidates to reclaim, unless another anchor still covers them.
         if (c->IsActiveObject()
-            && sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD)
+            && sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD)
             && !newGrid->isGridObjectDataLoaded())          // ENVELOPE only (never on a FULL/player grid)
         {
             uint32 oldCX = LwGridLocalToGlobalCell(old_cell.GridX(), old_cell.CellX());
@@ -1839,7 +1840,7 @@ bool Map::CheckGridIntegrity(Creature* c, bool moved) const
  */
 const char* Map::GetMapName() const
 {
-    return i_mapEntry ? i_mapEntry->MapName_lang[sWorld.GetDefaultDbcLocale()] : "UNNAMEDMAP\x0";
+    return i_mapEntry ? i_mapEntry->MapName_lang[sGameConfig.GetDefaultDbcLocale()] : "UNNAMEDMAP\x0";
 }
 
 /**
@@ -2382,7 +2383,7 @@ DungeonMap::DungeonMap(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnM
 
     // the timer is started by default, and stopped when the first player joins
     // this make sure it gets unloaded if for some reason no player joins
-    m_unloadTimer = std::max(sWorld.getConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY);
+    m_unloadTimer = std::max(sGameConfig.getConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY);
 }
 
 DungeonMap::~DungeonMap()
@@ -2551,7 +2552,7 @@ void DungeonMap::Remove(Player* player, bool remove)
     // if last player set unload timer
     if (!m_unloadTimer && m_mapRefManager.getSize() == 1)
     {
-        m_unloadTimer = m_unloadWhenEmpty ? MIN_UNLOAD_DELAY : std::max(sWorld.getConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY);
+        m_unloadTimer = m_unloadWhenEmpty ? MIN_UNLOAD_DELAY : std::max(sGameConfig.getConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY);
     }
 
     Map::Remove(player, remove);
@@ -2890,7 +2891,7 @@ bool Map::ScriptsStart(DBScriptType type, uint32 id, Object* source, Object* tar
     {
         ScriptAction sa(type, this, sourceGuid, targetGuid, ownerGuid, &(*iter));
 
-        m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(sWorld.GetGameTime() + iter->delay), sa));
+        m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(WorldGameTime::Get() + iter->delay), sa));
 
         sScriptMgr.IncreaseScheduledScriptsCount();
     }
@@ -2917,7 +2918,7 @@ void Map::ScriptCommandStart(ScriptInfo const& script, uint32 delay, Object* sou
 
     ScriptAction sa(DBS_INTERNAL, this, sourceGuid, targetGuid, ownerGuid, &script);
 
-    m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(sWorld.GetGameTime() + delay), sa));
+    m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(WorldGameTime::Get() + delay), sa));
 
     sScriptMgr.IncreaseScheduledScriptsCount();
 }
@@ -2935,7 +2936,7 @@ void Map::ScriptsProcess()
     ///- Process overdue queued scripts
     ScriptScheduleMap::iterator iter = m_scriptSchedule.begin();
     // ok as multimap is a *sorted* associative container
-    while (!m_scriptSchedule.empty() && (iter->first <= sWorld.GetGameTime()))
+    while (!m_scriptSchedule.empty() && (iter->first <= WorldGameTime::Get()))
     {
         if (iter->second.HandleScriptStep())
         {
