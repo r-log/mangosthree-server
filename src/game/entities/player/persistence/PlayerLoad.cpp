@@ -67,6 +67,7 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
+#include "persistence/characters/talents/TalentRepository.h"
 
 // corpse reclaim times -- file-local in Player.cpp; mirrored here so
 // LoadFromDB can clamp m_deathExpireTime.
@@ -1185,7 +1186,7 @@ void Player::_LoadTalents(QueryResult* result)
 
         do
         {
-            m_talentMgr.LoadRow(result->Fetch(), GetGUIDLow(), getClassMask(), m_talentMgr.SpecsCount(), m_talentMgr.ActiveSpec(), onActiveSpell);
+            m_talentMgr.LoadRow(TalentRepository::ReadRow(result->Fetch()), GetGUIDLow(), getClassMask(), m_talentMgr.SpecsCount(), m_talentMgr.ActiveSpec(), onActiveSpell);
         }
         while (result->NextRow());
         delete result;
