@@ -32,6 +32,7 @@
 #include "session/packets/entities/PetActionBarPacket.h"
 #include "session/packets/entities/PetGuidsPacket.h"
 #include "session/packets/entities/PvpCreditPacket.h"
+#include "session/packets/entities/RunePackets.h"
 #include "session/packets/entities/StandStatePacket.h"
 #include "session/packets/spells/AutoRepeatPackets.h"
 
@@ -75,6 +76,9 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.petActionBarCleared = FactToSession(owner, &BuildPetActionBarClearedPacket);
     callbacks.standState = FactToSession(owner, &BuildStandStateUpdatePacket);
     callbacks.pvpCredit = FactToSession(owner, &BuildPvpCreditPacket);
+    callbacks.runeConverted = FactToSession(owner, &BuildConvertRunePacket);
+    callbacks.runesResynced = FactToSession(owner, &BuildResyncRunesPacket);
+    callbacks.runePowerAdded = FactToSession(owner, &BuildAddRunePowerPacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }

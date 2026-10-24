@@ -25,8 +25,6 @@
 
 #include "RuneMgr.h"
 #include "SharedDefines.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
 
 // Every body below is the one this file held before decoupling D4k, statement for statement and
 // in the same order. What changed is where the owner comes in: the class through `classId`, the
@@ -109,19 +107,19 @@ uint8 RuneMgr::GetRuneCooldownFraction(uint8 index) const
     return uint8(float(baseCd - GetRuneCooldown(index)) / baseCd * 255);
 }
 
-void RuneMgr::RemoveRunesByAuraEffect(Aura const* aura, PacketSink const& send)
+void RuneMgr::RemoveRunesByAuraEffect(Aura const* aura, RuneConvertedSink const& converted)
 {
     for (uint8 i = 0; i < MAX_RUNES; ++i)
     {
         if (m_data.runes[i].ConvertAura == aura)
         {
-            ConvertRune(i, GetBaseRune(i), send);
+            ConvertRune(i, GetBaseRune(i), converted);
             SetRuneConvertAura(i, NULL);
         }
     }
 }
 
-void RuneMgr::RestoreBaseRune(uint8 index, ConvertAuraFacts const& facts, PacketSink const& send, AuraDrop const& dropAura)
+void RuneMgr::RestoreBaseRune(uint8 index, ConvertAuraFacts const& facts, RuneConvertedSink const& converted, AuraDrop const& dropAura)
 {
     Aura const* aura = m_data.runes[index].ConvertAura;
     // If rune was converted by a non-pasive aura that still active we should keep it converted
@@ -136,7 +134,7 @@ void RuneMgr::RestoreBaseRune(uint8 index, ConvertAuraFacts const& facts, Packet
         return;
     }
 
-    ConvertRune(index, GetBaseRune(index), send);
+    ConvertRune(index, GetBaseRune(index), converted);
     SetRuneConvertAura(index, NULL);
     // Don't drop passive talents providing rune convertion
     if (!aura || !facts.convertsRunes)
@@ -153,14 +151,14 @@ void RuneMgr::RestoreBaseRune(uint8 index, ConvertAuraFacts const& facts, Packet
     dropAura(aura);
 }
 
-void RuneMgr::ConvertRune(uint8 index, RuneType newType, PacketSink const& send)
+void RuneMgr::ConvertRune(uint8 index, RuneType newType, RuneConvertedSink const& converted)
 {
     SetCurrentRune(index, newType);
 
-    WorldPacket data(SMSG_CONVERT_RUNE, 2);
-    data << uint8(index);
-    data << uint8(newType);
-    send(&data);
+    RuneConvertedFact fact;
+    fact.index = index;
+    fact.type = uint8(newType);
+    converted(fact);
 }
 
 bool RuneMgr::ActivateRunes(RuneType type, uint32 count)
@@ -179,23 +177,22 @@ bool RuneMgr::ActivateRunes(RuneType type, uint32 count)
     return modify;
 }
 
-void RuneMgr::ResyncRunes(PacketSink const& send) const
+void RuneMgr::ResyncRunes(RunesResyncedSink const& resynced) const
 {
-    WorldPacket data(SMSG_RESYNC_RUNES, 4 + MAX_RUNES * 2);
-    data << uint32(MAX_RUNES);
+    RunesResyncedFact fact;
     for (uint32 i = 0; i < MAX_RUNES; ++i)
     {
-        data << uint8(GetCurrentRune(i));                   // rune type
-        data << uint8(GetRuneCooldownFraction(i));
+        fact.types[i] = uint8(GetCurrentRune(i));
+        fact.cooldownFractions[i] = uint8(GetRuneCooldownFraction(i));
     }
-    send(&data);
+    resynced(fact);
 }
 
-void RuneMgr::AddRunePower(uint8 index, PacketSink const& send) const
+void RuneMgr::AddRunePower(uint8 index, RunePowerAddedSink const& powerAdded) const
 {
-    WorldPacket data(SMSG_ADD_RUNE_POWER, 4);
-    data << uint32(1 << index);                             // mask (0x00-0x3F probably)
-    send(&data);
+    RunePowerAddedFact fact;
+    fact.index = index;
+    powerAdded(fact);
 }
 
 void RuneMgr::Init(uint8 classId, RegenSink const& setRegen)

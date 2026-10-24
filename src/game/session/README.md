@@ -4,7 +4,7 @@ The session layer's own directory: the builders of the outgoing packets under `p
 
 ## `packets/`
 
-One directory per domain. A builder is a free function, `void BuildXPacket(WorldPacket& packet, XFact const& fact)`, that initializes one outgoing packet from a typed fact and sends nothing. The code that reports the fact names no packet: it calls a `std::function` callback declared beside it (the eight facts of a player's own client in `PlayerClientFacts.h`, `CooldownEventSink` and `CooldownsClearedSink` in `spells/SpellCooldownMgr.h`, `SpellModChangedSink` in `spells/SpellModMgr.h`), and the session supplies the callback, which builds the packet and sends it to the session that `GetSession()` returns at that send.
+One directory per domain. A builder is a free function, `void BuildXPacket(WorldPacket& packet, XFact const& fact)`, that initializes one outgoing packet from a typed fact and sends nothing. The code that reports the fact names no packet: it calls a `std::function` callback declared beside it (the eight facts of a player's own client in `PlayerClientFacts.h`, the three rune facts' sinks in `entities/player/spells/RuneMgr.h`, `CooldownEventSink` and `CooldownsClearedSink` in `spells/SpellCooldownMgr.h`, `SpellModChangedSink` in `spells/SpellModMgr.h`), and the session supplies the callback, which builds the packet and sends it to the session that `GetSession()` returns at that send.
 
 `PlayerPacketSinks` installs them: `InstallPlayerPacketSinks` gives a player every callback the session installs, the cooldown callbacks (through `InstallCooldownPacketSinks`), those of its own client, those of its group updates and that of its spell modifiers. Every place that creates a player calls it right after the construction, and `src/tests/tools/player_sinks.py` fails a `new Player(` with no install on the three lines after it.
 
@@ -23,6 +23,7 @@ One stateless class per origin file, in its domain's directory (combat's, made f
 | `packets/entities/` | `PetActionBarPacket` | `SMSG_PET_SPELLS` with an empty guid, from the player's pet action bar cleared: the empty guid, which clears the client's pet action bar |
 | `packets/entities/` | `PetGuidsPacket` | `SMSG_PET_GUIDS`, from the player's pet: the count, 1, then the pet's guid |
 | `packets/entities/` | `PvpCreditPacket` | `SMSG_PVP_CREDIT`, from `HonorMgr`'s honor credit of a kill: the honor, the victim's guid, then the victim's rank |
+| `packets/entities/` | `RunePackets` | `SMSG_CONVERT_RUNE` (the slot, then the new rune type), `SMSG_RESYNC_RUNES` (the slot count, then each slot's rune type and cooldown fraction) and `SMSG_ADD_RUNE_POWER` (the mask of the slot), from `RuneMgr`'s rune converted, runes resynchronised and rune power added |
 | `packets/entities/` | `StandStatePacket` | `SMSG_STANDSTATE_UPDATE`, from the player's stand state: one byte |
 | `packets/spells/` | `AutoRepeatPackets` | `SMSG_CANCEL_AUTO_REPEAT`, from the auto-repeat spell cancelled: the target's packed guid |
 | `packets/spells/` | `CooldownPackets` | `SMSG_COOLDOWN_EVENT` (the spell id, then the owner's guid) and `SMSG_CLEAR_COOLDOWNS` (the owner's bit-packed guid around the count and every spell id), from `SpellCooldownMgr`'s cooldown event and clear of every cooldown |

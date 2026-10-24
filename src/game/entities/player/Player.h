@@ -2326,7 +2326,7 @@ class Player : public Unit
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-        /// where the player is created: eight facts out, one read in.
+        /// where the player is created: eleven facts out, one read in.
         struct ClientCallbacks
         {
             SwingOutOfReachSink swingOutOfReach;
@@ -2337,6 +2337,9 @@ class Player : public Unit
             PetActionBarClearedSink petActionBarCleared;
             StandStateSink standState;
             PvpCreditSink pvpCredit;
+            RuneConvertedSink runeConverted;
+            RunesResyncedSink runesResynced;
+            RunePowerAddedSink runePowerAdded;
             SecurityLevelQuery securityLevel;
         };
         void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }
@@ -3105,7 +3108,8 @@ class Player : public Unit
         /*********************************************************/
         // Decoupling D4k: the two honor wrappers read the character's and the victim's facts, the
         // clock and the honor draw, and pass the kill-field writes, the achievement updates and the
-        // honor currency change; they live in pvp/PlayerHonor.cpp; the packet goes through SessionSink().
+        // honor currency change; they live in pvp/PlayerHonor.cpp; the credit goes to the installed
+        // client callback.
         void UpdateHonorKills();
         bool RewardHonor(Unit *pVictim, uint32 groupsize, float honor = -1);
         void SendPvPRewards();
@@ -3804,18 +3808,19 @@ class Player : public Unit
 
         // Rune functions (delegated to m_runeMgr), need check getClass() == CLASS_DEATH_KNIGHT before access.
         // Decoupling D4k: the five declared here without a body read the character's auras, ratings
-        // or class, or cast a spell, and live in spells/PlayerRune.cpp; the packets go through SessionSink().
+        // or class, or cast a spell, and live in spells/PlayerRune.cpp; the rune facts go to the
+        // installed client callbacks.
         // Decoupling D4i: the rune getters and setters are called on the manager directly.
         RuneMgr& GetRuneMgr() { return m_runeMgr; }
         RuneMgr const& GetRuneMgr() const { return m_runeMgr; }
         void UpdateRuneRegen(RuneType rune);
         void UpdateRuneRegen();
         void AddRuneByAuraEffect(uint8 index, RuneType newType, Aura const* aura);
-        void RemoveRunesByAuraEffect(Aura const* aura) { m_runeMgr.RemoveRunesByAuraEffect(aura, SessionSink()); }
+        void RemoveRunesByAuraEffect(Aura const* aura) { m_runeMgr.RemoveRunesByAuraEffect(aura, m_clientCallbacks.runeConverted); }
         void RestoreBaseRune(uint8 index);
-        void ConvertRune(uint8 index, RuneType newType) { m_runeMgr.ConvertRune(index, newType, SessionSink()); }
-        void ResyncRunes() { m_runeMgr.ResyncRunes(SessionSink()); }
-        void AddRunePower(uint8 index) { m_runeMgr.AddRunePower(index, SessionSink()); }
+        void ConvertRune(uint8 index, RuneType newType) { m_runeMgr.ConvertRune(index, newType, m_clientCallbacks.runeConverted); }
+        void ResyncRunes() { m_runeMgr.ResyncRunes(m_clientCallbacks.runesResynced); }
+        void AddRunePower(uint8 index) { m_runeMgr.AddRunePower(index, m_clientCallbacks.runePowerAdded); }
         void InitRunes();
 
         AchievementMgr const& GetAchievementMgr() const { return *m_achievementMgr; }

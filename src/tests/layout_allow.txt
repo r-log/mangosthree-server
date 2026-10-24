@@ -750,8 +750,6 @@ src/game/entities/player/spells/PlayerSpell.cpp -> src/game/WorldHandlers/World.
 src/game/entities/player/spells/PlayerSpell.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/PlayerSpell.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/spells/RuneMgr.cpp -> src/proto/Opcodes.h
-src/game/entities/player/spells/RuneMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/talents [entities] -> src/game/BattleGround/BattleGroundAV.h
 src/game/entities/player/talents [entities] -> src/game/WorldHandlers/Channel.h
 src/game/entities/player/talents [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h

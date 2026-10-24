@@ -232,11 +232,14 @@ state_row(rune
             SMSG_ADD_RUNE_POWER
     TYPES   RuneMgr)
 
-state_allow(rune src/game/entities/player/spells/RuneMgr.cpp
-    WHY "the owner: builds its packets and hands them to the owner's session sink"
+state_allow(rune src/game/session/packets/entities/RunePackets.cpp
+    WHY "the session's builders of the owner's three facts: a rune converted, the runes resynchronised and rune power added"
     NAMES SMSG_CONVERT_RUNE SMSG_RESYNC_RUNES SMSG_ADD_RUNE_POWER)
 state_allow(rune src/tests/RuneMgrTest.cpp
-    WHY "unit test that observes the packets through a capturing sink (checks each opcode and its bytes, builds nothing)"
+    WHY "unit test that builds the reported facts with the session's builders and checks each opcode and its bytes"
+    NAMES SMSG_CONVERT_RUNE SMSG_RESYNC_RUNES SMSG_ADD_RUNE_POWER)
+state_allow(rune src/tests/PlayerClientPacketsTest.cpp
+    WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"
     NAMES SMSG_CONVERT_RUNE SMSG_RESYNC_RUNES SMSG_ADD_RUNE_POWER)
 
 state_row(cooldown
