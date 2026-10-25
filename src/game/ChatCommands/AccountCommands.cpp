@@ -45,6 +45,8 @@
 #include "DatabaseEnv.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/login/AccountRepository.h"
 
 /**
  * @brief Displays the current account information and access level.
@@ -213,12 +215,12 @@ bool ChatHandler::HandleAccountLockCommand(char* args)
 
     if (value)
     {
-        LoginDatabase.PExecute("UPDATE `account` SET `locked` = '1' WHERE `id` = '%u'", GetAccountId());
+        AccountRepository::Lock(GetAccountId());
         PSendSysMessage(LANG_COMMAND_ACCLOCKLOCKED);
     }
     else
     {
-        LoginDatabase.PExecute("UPDATE `account` SET `locked` = '0' WHERE `id` = '%u'", GetAccountId());
+        AccountRepository::Unlock(GetAccountId());
         PSendSysMessage(LANG_COMMAND_ACCLOCKUNLOCKED);
     }
 
@@ -241,7 +243,7 @@ bool ChatHandler::HandleAccountOnlineListCommand(char* args)
 
     ///- Get the list of accounts ID logged to the realm
     //                                                 0   1         2        3        4
-    QueryResult* result = LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u", realmID);
+    QueryResult* result = AccountRepository::QueryActiveOnRealm(realmID);
 
     return ShowAccountListHelper(result, &limit);
 }
@@ -373,7 +375,7 @@ bool ChatHandler::HandleAccountCharactersCommand(char* args)
     }
 
     ///- Get the characters for account id
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u", account_id);
+    QueryResult* result = CharacterRepository::QueryAccountCharacterList(account_id);
 
     return ShowPlayerListHelper(result);
 }
@@ -410,7 +412,7 @@ bool ChatHandler::HandleAccountSetAddonCommand(char* args)
     }
 
     // No SQL injection
-    LoginDatabase.PExecute("UPDATE `account` SET `expansion` = '%u' WHERE `id` = '%u'", lev, account_id);
+    AccountRepository::SetExpansion(lev, account_id);
     PSendSysMessage(LANG_ACCOUNT_SETADDON, account_name.c_str(), account_id, lev);
     return true;
 }
@@ -478,7 +480,7 @@ bool ChatHandler::HandleAccountSetGmLevelCommand(char* args)
     }
 
     PSendSysMessage(LANG_YOU_CHANGE_SECURITY, targetAccountName.c_str(), gm);
-    LoginDatabase.PExecute("UPDATE `account` SET `gmlevel` = '%i' WHERE `id` = '%u'", gm, targetAccountId);
+    AccountRepository::SetGmLevel(gm, targetAccountId);
 
     return true;
 }

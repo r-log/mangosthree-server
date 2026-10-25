@@ -166,4 +166,40 @@ namespace AccountRepository
         LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`= '%u' AND `realmid`= '%u'", accountId, realmId);
         LoginDatabase.PExecute("INSERT INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)",  count, accountId, realmId);
     }
+
+    void Lock(uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `locked` = '1' WHERE `id` = '%u'", accountId);
+    }
+
+    void Unlock(uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `locked` = '0' WHERE `id` = '%u'", accountId);
+    }
+
+    QueryResult* QueryActiveOnRealm(uint32 realmId)
+    {
+        //                                  0   1         2        3        4
+        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u", realmId);
+    }
+
+    void SetExpansion(uint32 expansion, uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `expansion` = '%u' WHERE `id` = '%u'", expansion, accountId);
+    }
+
+    void SetGmLevel(int32 gmLevel, uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `gmlevel` = '%i' WHERE `id` = '%u'", gmLevel, accountId);
+    }
+
+    void SetMuteTime(uint64 muteTime, uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `mutetime` = " UI64FMTD " WHERE `id` = '%u'", muteTime, accountId);
+    }
+
+    void ClearMuteTime(uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `mutetime` = '0' WHERE `id` = '%u'", accountId);
+    }
 }

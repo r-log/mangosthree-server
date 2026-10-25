@@ -69,6 +69,10 @@ set(CONVERTED_FILES
     src/game/persistence/characters/pvp/BattleGroundStatsRepository.cpp
     src/game/persistence/characters/SavedVariablesRepository.h
     src/game/persistence/characters/SavedVariablesRepository.cpp
+    src/game/persistence/login/BanRepository.h
+    src/game/persistence/login/BanRepository.cpp
+    src/game/ChatCommands/BanAndKickCommands.cpp
+    src/game/ChatCommands/CommunicationCommands.cpp
     src/game/persistence/world/events/GameEventDataRepository.h
     src/game/persistence/world/events/GameEventDataRepository.cpp
     src/game/persistence/characters/events/GameEventStatusRepository.h
@@ -344,18 +348,18 @@ set(ALLOW_AccountRepository_cpp
     "return LoginDatabase.PQuery(\"SELECT `username` FROM `account` WHERE `id` = '%u'\", accountId)\;"
     "LoginDatabase.escape_string(safeAccount)\;"
     "return LoginDatabase.PQuery(\"SELECT \""
-    "return LoginDatabase.PQuery(\"SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 \"")
+    "return LoginDatabase.PQuery(\"SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 \""
+    "return LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u\", realmId)\;")
 
 set(ALLOW_CharacterRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accountId)\;"
     "return CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", accountId)\;"
     "return CharacterDatabase.PQuery(\"SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '%u'\", guid)\;"
     "return CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `characters`\")\;"
-    "return CharacterDatabase.Query(\"SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`\")\;")
-
-set(ALLOW_AccountCommands_cpp
-    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u\", realmID)\;"
-    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u\", account_id)\;")
+    "return CharacterDatabase.Query(\"SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`\")\;"
+    "LoginDatabase.escape_string(filter)\;"
+    "return CharacterDatabase.PQuery(\"SELECT `account` FROM `characters` WHERE `name` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), filter.c_str())\;"
+    "return CharacterDatabase.PQuery(\"SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u\", accountId)\;")
 
 set(ALLOW_PetRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `character_pet`\")\;")
@@ -486,6 +490,19 @@ set(ALLOW_PoolDataRepository_cpp
 
 set(ALLOW_DisableDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `sourceType`, `entry`, `flags`, `data` FROM `disables`\")\;")
+
+set(ALLOW_BanRepository_cpp
+    "return LoginDatabase.PQuery(\"SELECT `account`.`username` FROM `account`,`account_banned` WHERE `account_banned`.`id`='%u' AND `account_banned`.`id`=`account`.`id`\", accountId)\;"
+    "return LoginDatabase.PQuery(\"SELECT `bandate`,`unbandate`,`bannedby`,`banreason` FROM `account_banned` WHERE `id` = %u ORDER BY `unbandate`\", accountId)\;"
+    "return LoginDatabase.PQuery(\"SELECT FROM_UNIXTIME(`bandate`), `unbandate`-`bandate`, `active`, `unbandate`,`banreason`,`bannedby` FROM `account_banned` WHERE `id` = '%u' ORDER BY `bandate` ASC\", accountId)\;"
+    "LoginDatabase.escape_string(ip)\;"
+    "return LoginDatabase.PQuery(\"SELECT `ip`, FROM_UNIXTIME(`bandate`), FROM_UNIXTIME(`unbandate`), `unbandate`-UNIX_TIMESTAMP(), `banreason`,`bannedby`,`unbandate`-`bandate` FROM `ip_banned` WHERE `ip` = '%s'\", ip.c_str())\;"
+    "LoginDatabase.escape_string(filter)\;"
+    "return LoginDatabase.Query(\"SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`\""
+    "return LoginDatabase.PQuery(\"SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`\""
+    "LoginDatabase.escape_string(filter)\;"
+    "return LoginDatabase.Query(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\""
+    "return LoginDatabase.PQuery(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\"")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 
