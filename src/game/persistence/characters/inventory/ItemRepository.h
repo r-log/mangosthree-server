@@ -60,8 +60,13 @@ namespace ItemRepository
     void DeleteInstance(uint32 itemGuid);
 
     /// Deletes the instance row of an item whose template no longer exists, as a character's
-    /// delete does for a returned mail's item.
+    /// delete and load do.
     void DeleteUnknownItem(uint32 itemGuid);
+
+    /// Each deletes a row the load drops: the inventory row of an item it cannot place, and the
+    /// saved loot of an item the character no longer has.
+    void DropInventoryRow(uint32 itemGuid);
+    void DropLoot(uint32 itemGuid);
 
     /// Inserts an item's instance row: its owner, its values as text and its written text.
     void InsertInstance(uint32 itemGuid, uint32 ownerGuid, std::string const& data, std::string const& text);

@@ -286,6 +286,32 @@ namespace CharacterSaveRepository
         stmt.PExecute(guid, spell);
     }
 
+    void DeleteSpellOfEveryCharacter(uint32 spell)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `character_spell` WHERE `spell` = '%u'", spell);
+    }
+
+    void DeleteInvalidSkill(uint32 guid, uint32 skill)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `character_skills` WHERE `guid` = '%u' AND `skill` = '%u' ", guid, skill);
+    }
+
+    void DeleteHomebind(uint32 guid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `character_homebind` WHERE `guid` = '%u'", guid);
+    }
+
+    void InsertHomebind(uint32 guid, uint32 map, uint32 area, float x, float y, float z)
+    {
+        CharacterDatabase.PExecute("INSERT INTO `character_homebind` (`guid`,`map`,`zone`,`position_x`,`position_y`,`position_z`) VALUES ('%u', '%u', '%u', '%f', '%f', '%f')", guid, map, area, x, y, z);
+    }
+
+    void UpdateHomebind(uint32 guid, uint32 map, uint32 area, float x, float y, float z)
+    {
+        CharacterDatabase.PExecute("UPDATE `character_homebind` SET `map` = '%u', `zone` = '%u', `position_x` = '%f', `position_y` = '%f', `position_z` = '%f' WHERE `guid` = '%u'",
+                                   map, area, x, y, z, guid);
+    }
+
     void ReplaceStats(uint32 guid, CharacterStatsSaveRow const& row)
     {
         static SqlStatementID delStats ;

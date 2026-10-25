@@ -85,6 +85,9 @@ source_group("Persistence\\Characters\\Inventory" FILES ${SRC_GRP_PERSISTENCE_CH
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_MAIL persistence/characters/mail/*.cpp persistence/characters/mail/*.h)
 source_group("Persistence\\Characters\\Mail" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_MAIL})
 
+file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_MAPS persistence/characters/maps/*.cpp persistence/characters/maps/*.h)
+source_group("Persistence\\Characters\\Maps" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_MAPS})
+
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_PETS persistence/characters/pets/*.cpp persistence/characters/pets/*.h)
 source_group("Persistence\\Characters\\Pets" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_PETS})
 
@@ -192,6 +195,7 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_MAIL}
+    ${SRC_GRP_PERSISTENCE_CHARACTERS_MAPS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_PETS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_QUESTS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL}

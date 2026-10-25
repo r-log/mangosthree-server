@@ -53,6 +53,37 @@ namespace CharacterRepository
         return CharacterDatabase.PQuery("SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
     }
 
+    QueryResult* QueryPosition(uint32 guid)
+    {
+        return CharacterDatabase.PQuery("SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '%u'", guid);
+    }
+
+    void SetAtLoginFlag(uint32 flag, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE `guid` ='%u'",
+                                   flag, guid);
+    }
+
+    void ClearAtLoginFlag(uint32 flag, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` set `at_login` = `at_login` & ~ %u WHERE `guid` ='%u'", flag, guid);
+    }
+
+    void SetZone(uint32 zone, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `zone`='%u' WHERE `guid`='%u'", zone, guid);
+    }
+
+    void SetPhaseMap(uint32 guid, uint32 map)
+    {
+        CharacterDatabase.PExecute("REPLACE INTO `character_phase_data` (`guid`, `map`) VALUES (%u, %u)", guid, map);
+    }
+
+    void SetAppearance(uint32 gender, uint32 playerBytes, uint32 playerBytes2, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `gender` = '%u', `playerBytes` = '%u', `playerBytes2` = '%u' WHERE `guid` = '%u'", gender, playerBytes, playerBytes2, guid);
+    }
+
     void QueryEnum(uint32 accountId, uint32 currentPetSlot, bool declinedNames, CharacterReadCallback callback)
     {
         CharacterDatabase.AsyncPQuery(std::move(callback),

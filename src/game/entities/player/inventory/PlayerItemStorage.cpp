@@ -37,6 +37,7 @@
 #include "ObjectMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 
 // Return stored item (if stored to stack, it can diff. from pItem). And pItem ca be deleted in this case.
 Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update, int32 randomPropertyId)
@@ -587,10 +588,7 @@ void Player::DestroyItem(uint8 bag, uint8 slot, bool update)
 
         if (pItem->HasFlag(ITEM_FIELD_FLAGS, ITEM_DYNFLAG_WRAPPED))
         {
-            static SqlStatementID delGifts ;
-
-            SqlStatement stmt = CharacterDatabase.CreateStatement(delGifts, "DELETE FROM `character_gifts` WHERE `item_guid` = ?");
-            stmt.PExecute(pItem->GetGUIDLow());
+            ItemRepository::DeleteGift(pItem->GetGUIDLow());
         }
 
         RemoveEnchantmentDurations(pItem);

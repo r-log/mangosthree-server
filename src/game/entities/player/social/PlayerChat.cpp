@@ -46,6 +46,7 @@
 #include "SQLStorages.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
+#include "persistence/characters/social/TicketRepository.h"
 
 #include <cmath>
 
@@ -134,13 +135,7 @@ void Player::LogWhisper(const std::string& text, ObjectGuid receiver)
     if ((loggingLevel == WHISPER_LOGGING_TICKETS && ticket && isSomeoneGM)
         || loggingLevel == WHISPER_LOGGING_EVERYTHING)
     {
-        static SqlStatementID wlog;
-        SqlStatement stmt = CharacterDatabase.CreateStatement(wlog, "INSERT INTO `character_whispers` (`to_guid`, `from_guid`, `message`, `regarding_ticket_id`) VALUES (?, ?, ?, ?)");
-        stmt.addUInt32(receiver.GetCounter());          // to_guid
-        stmt.addUInt32(GetObjectGuid().GetCounter());   // from_guid
-        stmt.addString(text.c_str());                   // message
-        stmt.addUInt32(ticketId);                       // regarding_ticket_id
-        stmt.Execute();
+        TicketRepository::InsertWhisper(receiver.GetCounter(), GetObjectGuid().GetCounter(), text, ticketId);
     }
 }
 

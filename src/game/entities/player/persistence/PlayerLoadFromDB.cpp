@@ -125,8 +125,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
             (GetSession()->GetSecurity() == SEC_PLAYER && sObjectMgr.IsReservedName(m_name)))
     {
         delete result;
-        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE `guid` ='%u'",
-                                   uint32(AT_LOGIN_RENAME), guid.GetCounter());
+        CharacterRepository::SetAtLoginFlag(uint32(AT_LOGIN_RENAME), guid.GetCounter());
         return false;
     }
 

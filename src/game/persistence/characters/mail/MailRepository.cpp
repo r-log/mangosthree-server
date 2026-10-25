@@ -119,6 +119,11 @@ namespace MailRepository
         stmt.PExecute(mailId);
     }
 
+    void DropMailedItem(uint32 itemGuid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `item_guid` = '%u'", itemGuid);
+    }
+
     void SetMailedItemOwner(uint32 itemGuid, uint32 receiverGuid)
     {
         CharacterDatabase.PExecute("UPDATE `item_instance` SET `owner_guid` = '%u' WHERE `guid`='%u'", receiverGuid, itemGuid);

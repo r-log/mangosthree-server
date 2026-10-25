@@ -98,6 +98,9 @@ namespace TicketRepository
 
     /// Inserts a bug report or a suggestion, both strings bound.
     void InsertBugReport(std::string const& type, std::string const& content);
+
+    /// Logs a whisper, the message bound, with the ticket it is about (0 for none).
+    void InsertWhisper(uint32 toGuid, uint32 fromGuid, std::string const& message, uint32 ticketId);
 }
 
 #endif

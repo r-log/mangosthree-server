@@ -65,6 +65,10 @@
 #include "Calendar.h"
 #include "DisableMgr.h"
 #include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/CharacterSaveRepository.h"
+#include "persistence/characters/inventory/ItemRepository.h"
+#include "persistence/characters/mail/MailRepository.h"
+#include "persistence/characters/maps/InstanceBindRepository.h"
 #include "persistence/characters/talents/TalentRepository.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
 
@@ -137,7 +141,6 @@ void Player::_LoadArenaTeamInfo(QueryResult* result)
 
 void Player::_LoadEquipmentSets(QueryResult* result)
 {
-    // SetPQuery(PLAYER_LOGIN_QUERY_LOADEQUIPMENTSETS,   "SELECT setguid, setindex, name, iconname, ignore_mask, item0, item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, item11, item12, item13, item14, item15, item16, item17, item18 FROM character_equipmentsets WHERE guid = '%u' ORDER BY setindex", GUID_LOPART(m_guid));
     if (!result)
     {
         return;
@@ -218,7 +221,7 @@ void Player::_LoadBGData(QueryResult* result)
  */
 bool Player::LoadPositionFromDB(ObjectGuid guid, uint32& mapid, float& x, float& y, float& z, float& o, bool& in_flight)
 {
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '%u'", guid.GetCounter());
+    QueryResult* result = CharacterRepository::QueryPosition(guid.GetCounter());
     if (!result)
     {
         return false;
@@ -278,7 +281,6 @@ void Player::_LoadActions(QueryResult* result)
         m_actionButtons[i].clear();
     }
 
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `spec`, `button`,`action`,`type` FROM `character_action` WHERE `guid` = '%u' ORDER BY `button`",GetGUIDLow());
 
     if (result)
     {
@@ -319,7 +321,6 @@ void Player::_LoadAuras(QueryResult* result, uint32 timediff)
 {
     // RemoveAllAuras(); -- some spells casted before aura load, for example in LoadSkills, aura list explicitly cleaned early
 
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `caster_guid`,`item_guid`,`spell`,`stackcount`,`remaincharges`,`basepoints0`,`basepoints1`,`basepoints2`,`periodictime0`,`periodictime1`,`periodictime2`,`maxduration`,`remaintime`,`effIndexMask` FROM `character_aura` WHERE `guid` = '%u'",GetGUIDLow());
 
     if (result)
     {
@@ -516,7 +517,6 @@ void Player::LoadCorpse()
  */
 void Player::_LoadInventory(QueryResult* result, uint32 timediff)
 {
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `data`,`text`,`bag`,`slot`,`item`,`item_template` FROM `character_inventory` JOIN `item_instance` ON `character_inventory`.`item` = `item_instance`.`guid` WHERE `character_inventory`.`guid` = '%u' ORDER BY `bag`,`slot`", GetGUIDLow());
     std::map<uint32, Bag*> bagMap;                          // fast guid lookup for bags
     // NOTE: the "order by `bag`" is important because it makes sure
     // the bagMap is filled before items in the bags are loaded
@@ -543,8 +543,8 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
 
             if (!proto)
             {
-                CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `item` = '%u'", item_lowguid);
-                CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid` = '%u'", item_lowguid);
+                ItemRepository::DropInventoryRow(item_lowguid);
+                ItemRepository::DeleteUnknownItem(item_lowguid);
                 sLog.outError("Player::_LoadInventory: Player %s has an unknown item (id: #%u) in inventory, deleted.", GetName(), item_id);
                 continue;
             }
@@ -554,7 +554,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
             if (!item->LoadFromDB(item_lowguid, fields, GetObjectGuid()))
             {
                 sLog.outError("Player::_LoadInventory: Player %s has broken item (id: #%u) in inventory, deleted.", GetName(), item_id);
-                CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `item` = '%u'", item_lowguid);
+                ItemRepository::DropInventoryRow(item_lowguid);
                 item->FSetState(ITEM_REMOVED);
                 item->SaveToDB();                           // it also deletes item object !
                 continue;
@@ -563,7 +563,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
             // not allow have in alive state item limited to another map/zone
             if (IsAlive() && item->IsLimitedToAnotherMapOrZone(GetMapId(), zone))
             {
-                CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `item` = '%u'", item_lowguid);
+                ItemRepository::DropInventoryRow(item_lowguid);
                 item->FSetState(ITEM_REMOVED);
                 item->SaveToDB();                           // it also deletes item object !
                 continue;
@@ -572,7 +572,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
             // "Conjured items disappear if you are logged out for more than 15 minutes"
             if (timediff > 15 * MINUTE && (item->GetProto()->Flags & ITEM_FLAG_CONJURED))
             {
-                CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `item` = '%u'", item_lowguid);
+                ItemRepository::DropInventoryRow(item_lowguid);
                 item->FSetState(ITEM_REMOVED);
                 item->SaveToDB();                           // it also deletes item object !
                 continue;
@@ -676,7 +676,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
             else
             {
                 sLog.outError("Player::_LoadInventory: Player %s has item (GUID: %u Entry: %u) can't be loaded to inventory (Bag GUID: %u Slot: %u) by some reason, will send by mail.", GetName(), item_lowguid, item_id, bag_guid, slot);
-                CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `item` = '%u'", item_lowguid);
+                ItemRepository::DropInventoryRow(item_lowguid);
                 problematicItems.push_back(item);
             }
         }
@@ -716,8 +716,6 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
  */
 void Player::_LoadItemLoot(QueryResult* result)
 {
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `guid`,`itemid`,`amount`,`suffix`,`property` FROM `item_loot` WHERE `guid` = '%u'", GetGUIDLow());
-
     if (result)
     {
         do
@@ -729,7 +727,7 @@ void Player::_LoadItemLoot(QueryResult* result)
 
             if (!item)
             {
-                CharacterDatabase.PExecute("DELETE FROM `item_loot` WHERE `guid` = '%u'", item_guid);
+                ItemRepository::DropLoot(item_guid);
                 sLog.outError("Player::_LoadItemLoot: Player %s has loot for nonexistent item (GUID: %u) in `item_loot`, deleted.", GetName(), item_guid);
                 continue;
             }
@@ -772,8 +770,8 @@ void Player::_LoadMailedItems(QueryResult* result)
         if (!proto)
         {
             sLog.outError("Player %u has unknown item_template (ProtoType) in mailed items(GUID: %u template: %u) in mail (%u), deleted.", GetGUIDLow(), item_guid_low, item_template, mail->messageID);
-            CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `item_guid` = '%u'", item_guid_low);
-            CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid` = '%u'", item_guid_low);
+            MailRepository::DropMailedItem(item_guid_low);
+            ItemRepository::DeleteUnknownItem(item_guid_low);
             continue;
         }
 
@@ -782,7 +780,7 @@ void Player::_LoadMailedItems(QueryResult* result)
         if (!item->LoadFromDB(item_guid_low, fields, GetObjectGuid()))
         {
             sLog.outError("Player::_LoadMailedItems - Item in mail (%u) doesn't exist !!!! - item guid: %u, deleted from mail", mail->messageID, item_guid_low);
-            CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `item_guid` = '%u'", item_guid_low);
+            MailRepository::DropMailedItem(item_guid_low);
             item->FSetState(ITEM_REMOVED);
             item->SaveToDB();                               // it also deletes item object !
             continue;
@@ -1007,7 +1005,6 @@ void Player::_LoadQuestStatus(QueryResult* result)
     uint32 slot = 0;
 
     ////                                                       0        1         2           3           4        5            6            7            8            9             10            11            12            13            14
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `quest`, `status`, `rewarded`, `explored`, `timer`, `mobcount1`, `mobcount2`, `mobcount3`, `mobcount4`, `itemcount1`, `itemcount2`, `itemcount3`, `itemcount4`, `itemcount5`, `itemcount6` FROM `character_queststatus` WHERE `guid` = '%u'", GetGUIDLow());
 
     if (result)
     {
@@ -1099,7 +1096,6 @@ void Player::_LoadDailyQuestStatus(QueryResult* result)
         SetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx, 0);
     }
 
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `quest` FROM `character_queststatus_daily` WHERE `guid` = '%u'", GetGUIDLow());
 
     if (result)
     {
@@ -1143,8 +1139,6 @@ void Player::_LoadDailyQuestStatus(QueryResult* result)
  */
 void Player::_LoadSpells(QueryResult* result)
 {
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `spell`,`active`,`disabled` FROM `character_spell` WHERE `guid` = '%u'",GetGUIDLow());
-
     if (result)
     {
         do
@@ -1158,7 +1152,7 @@ void Player::_LoadSpells(QueryResult* result)
             {
                 sLog.outError("Player::_LoadSpells: %s has talent spell %u in character_spell, removing it.",
                               GetGuidStr().c_str(), spell_id);
-                CharacterDatabase.PExecute("DELETE FROM `character_spell` WHERE `spell` = '%u'", spell_id);
+                CharacterSaveRepository::DeleteSpellOfEveryCharacter(spell_id);
                 continue;
             }
 
@@ -1172,7 +1166,6 @@ void Player::_LoadSpells(QueryResult* result)
 
 void Player::_LoadTalents(QueryResult* result)
 {
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT talent_id, current_rank, spec FROM character_talent WHERE guid = '%u'",GetGUIDLow());
     if (result)
     {
         // Decoupling D4c: TalentMgr::LoadRow validates one row, issues its DELETE when it fails,
@@ -1200,7 +1193,6 @@ void Player::_LoadTalents(QueryResult* result)
  */
 void Player::_LoadGroup(QueryResult* result)
 {
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `groupId` FROM `group_member` WHERE `memberGuid`='%u'", GetGUIDLow());
     if (result)
     {
         uint32 groupId = (*result)[0].GetUInt32();
@@ -1234,7 +1226,6 @@ void Player::_LoadBoundInstances(QueryResult* result)
 
     Group* group = GetGroup();
 
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `id`, `permanent`, `map`, `difficulty`, `resettime` FROM `character_instance` LEFT JOIN `instance` ON `instance` = `id` WHERE `guid` = '%u'", GUID_LOPART(m_guid));
     if (result)
     {
         do
@@ -1254,14 +1245,14 @@ void Player::_LoadBoundInstances(QueryResult* result)
             if (!mapEntry || !mapEntry->IsDungeon())
             {
                 sLog.outError("_LoadBoundInstances: player %s(%d) has bind to nonexistent or not dungeon map %d", GetName(), GetGUIDLow(), mapId);
-                CharacterDatabase.PExecute("DELETE FROM `character_instance` WHERE `guid` = '%u' AND `instance` = '%u'", GetGUIDLow(), instanceId);
+                InstanceBindRepository::DeleteBind(GetGUIDLow(), instanceId);
                 continue;
             }
 
             if (difficulty >= MAX_DIFFICULTY)
             {
                 sLog.outError("_LoadBoundInstances: player %s(%d) has bind to nonexistent difficulty %d instance for map %u", GetName(), GetGUIDLow(), difficulty, mapId);
-                CharacterDatabase.PExecute("DELETE FROM `character_instance` WHERE `guid` = '%u' AND `instance` = '%u'", GetGUIDLow(), instanceId);
+                InstanceBindRepository::DeleteBind(GetGUIDLow(), instanceId);
                 continue;
             }
 
@@ -1269,7 +1260,7 @@ void Player::_LoadBoundInstances(QueryResult* result)
             if (!mapDiff)
             {
                 sLog.outError("_LoadBoundInstances: player %s(%d) has bind to nonexistent difficulty %d instance for map %u", GetName(), GetGUIDLow(), difficulty, mapId);
-                CharacterDatabase.PExecute("DELETE FROM `character_instance` WHERE `guid` = '%u' AND `instance` = '%u'", GetGUIDLow(), instanceId);
+                InstanceBindRepository::DeleteBind(GetGUIDLow(), instanceId);
                 continue;
             }
 
@@ -1277,8 +1268,7 @@ void Player::_LoadBoundInstances(QueryResult* result)
             {
                 sLog.outError("_LoadBoundInstances: %s is in group (Id: %d) but has a non-permanent character bind to map %d,%d,%d",
                               GetGuidStr().c_str(), group->GetId(), mapId, instanceId, difficulty);
-                CharacterDatabase.PExecute("DELETE FROM `character_instance` WHERE `guid` = '%u' AND `instance` = '%u'",
-                                           GetGUIDLow(), instanceId);
+                InstanceBindRepository::DeleteBind(GetGUIDLow(), instanceId);
                 continue;
             }
 
@@ -1343,8 +1333,7 @@ void Player::UnbindInstance(BoundInstancesMap::iterator& itr, Difficulty difficu
     if (itr != m_boundInstances[difficulty].end())
     {
         if (!unload)
-            CharacterDatabase.PExecute("DELETE FROM `character_instance` WHERE `guid` = '%u' AND `instance` = '%u'",
-                                       GetGUIDLow(), itr->second.state->GetInstanceId());
+            InstanceBindRepository::DeleteBind(GetGUIDLow(), itr->second.state->GetInstanceId());
 
         sCalendarMgr.SendCalendarRaidLockoutRemove(this, itr->second.state);
 
@@ -1371,14 +1360,12 @@ InstancePlayerBind* Player::BindToInstance(DungeonPersistentState* state, bool p
             // update the state when the group kills a boss
             if (permanent != bind.perm || state != bind.state)
                 if (!load)
-                    CharacterDatabase.PExecute("UPDATE `character_instance` SET `instance` = '%u', `permanent` = '%u' WHERE `guid` = '%u' AND `instance` = '%u'",
-                                               state->GetInstanceId(), permanent, GetGUIDLow(), bind.state->GetInstanceId());
+                    InstanceBindRepository::UpdateBind(state->GetInstanceId(), permanent, GetGUIDLow(), bind.state->GetInstanceId());
         }
         else
         {
             if (!load)
-                CharacterDatabase.PExecute("INSERT INTO `character_instance` (`guid`, `instance`, `permanent`) VALUES ('%u', '%u', '%u')",
-                                           GetGUIDLow(), state->GetInstanceId(), permanent);
+                InstanceBindRepository::InsertBind(GetGUIDLow(), state->GetInstanceId(), permanent);
         }
 
         if (bind.state != state)
@@ -1576,13 +1563,13 @@ void Player::ConvertInstancesToGroup(Player* player, Group* group, ObjectGuid pl
     // if the player's not online we don't know what binds it has
     if (!player || !group || has_binds)
     {
-        CharacterDatabase.PExecute("INSERT INTO `group_instance` SELECT `guid`, `instance`, `permanent` FROM `character_instance` WHERE `guid` = '%u'", player_lowguid);
+        InstanceBindRepository::CopyBindsToGroup(player_lowguid);
     }
 
     // the following should not get executed when changing leaders
     if (!player || has_solo)
     {
-        CharacterDatabase.PExecute("DELETE FROM `character_instance` WHERE `guid` = '%u' AND `permanent` = 0", player_lowguid);
+        InstanceBindRepository::DeleteTemporaryBinds(player_lowguid);
     }
 }
 
@@ -1602,7 +1589,6 @@ bool Player::_LoadHomeBind(QueryResult* result)
     }
 
     bool ok = false;
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT `map`,`zone`,`position_x`,`position_y`,`position_z` FROM `character_homebind` WHERE `guid` = '%u'", GUID_LOPART(playerGuid));
     if (result)
     {
         Field* fields = result->Fetch();
@@ -1623,7 +1609,7 @@ bool Player::_LoadHomeBind(QueryResult* result)
         }
         else
         {
-            CharacterDatabase.PExecute("DELETE FROM `character_homebind` WHERE `guid` = '%u'", GetGUIDLow());
+            CharacterSaveRepository::DeleteHomebind(GetGUIDLow());
         }
     }
 
@@ -1635,7 +1621,7 @@ bool Player::_LoadHomeBind(QueryResult* result)
         m_homebindY = info->positionY;
         m_homebindZ = info->positionZ;
 
-        CharacterDatabase.PExecute("INSERT INTO `character_homebind` (`guid`,`map`,`zone`,`position_x`,`position_y`,`position_z`) VALUES ('%u', '%u', '%u', '%f', '%f', '%f')", GetGUIDLow(), m_homebindMapId, (uint32)m_homebindAreaId, m_homebindX, m_homebindY, m_homebindZ);
+        CharacterSaveRepository::InsertHomebind(GetGUIDLow(), m_homebindMapId, (uint32)m_homebindAreaId, m_homebindX, m_homebindY, m_homebindZ);
     }
 
     DEBUG_LOG("Setting player home position: mapid is: %u, zoneid is %u, X is %f, Y is %f, Z is %f",

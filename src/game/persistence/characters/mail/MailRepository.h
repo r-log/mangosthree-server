@@ -84,6 +84,9 @@ namespace MailRepository
     /// Deletes a mail its receiver deleted: its row, then its item rows.
     void DeleteDeletedMail(uint32 mailId);
 
+    /// Deletes the item row of a mailed item the receiver's load drops.
+    void DropMailedItem(uint32 itemGuid);
+
     /// Gives a mailed item's instance row to the mail's receiver.
     void SetMailedItemOwner(uint32 itemGuid, uint32 receiverGuid);
 

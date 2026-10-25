@@ -217,6 +217,18 @@ namespace CharacterSaveRepository
     void InsertSpell(uint32 guid, uint32 spell, uint8 active, uint8 disabled);
     void DeleteSpell(uint32 guid, uint32 spell);
 
+    /// Deletes every character's row of a spell the load or a learn refuses.
+    void DeleteSpellOfEveryCharacter(uint32 spell);
+
+    /// Deletes a skill row the load finds empty.
+    void DeleteInvalidSkill(uint32 guid, uint32 skill);
+
+    /// Each writes a character's home bind: the load deletes an invalid one and inserts the
+    /// starting one, and a new bind point updates it.
+    void DeleteHomebind(uint32 guid);
+    void InsertHomebind(uint32 guid, uint32 map, uint32 area, float x, float y, float z);
+    void UpdateHomebind(uint32 guid, uint32 map, uint32 area, float x, float y, float z);
+
     /// Writes a character's stats over the old ones.
     void ReplaceStats(uint32 guid, CharacterStatsSaveRow const& row);
 
