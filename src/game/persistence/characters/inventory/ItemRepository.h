@@ -44,8 +44,8 @@ struct ItemLootRow
 };
 
 /// The items' saved rows (`item_instance`, `character_gifts`, `item_loot`, and an item's
-/// `character_inventory` row). The gift read is asynchronous and the start-up's highest guid
-/// synchronous; every write is queued on the character database, and one called inside
+/// `character_inventory` row). The gift read is asynchronous, and the start-up's highest guid and
+/// a GM's item list reads synchronous; every write is queued on the character database, and one called inside
 /// CharacterTransaction joins it.
 namespace ItemRepository
 {
@@ -113,6 +113,30 @@ namespace ItemRepository
     /// Deletes the inventory, mail item, auction and guild bank rows of the item guids from the first
     /// unused one up, in one transaction, at start-up.
     void DeleteRowsOfMissingItems(uint32 firstUnusedGuid);
+
+    /// Selects how many inventory rows hold an item entry, for a GM's item list.
+    QueryResult* QueryInventoryCountOf(uint32 itemId);
+
+    /// Selects up to count inventory rows holding an item entry, with their bag, owner and account.
+    QueryResult* QueryInventoryHoldersOf(uint32 itemId, uint32 count);
+
+    /// Selects how many mailed items are of an item entry.
+    QueryResult* QueryMailCountOf(uint32 itemId);
+
+    /// Selects up to count mailed items of an item entry, with their sender and receiver.
+    QueryResult* QueryMailHoldersOf(uint32 itemId, uint32 count);
+
+    /// Selects how many auctions are of an item entry.
+    QueryResult* QueryAuctionCountOf(uint32 itemId);
+
+    /// Selects up to count auctions of an item entry, with their owner.
+    QueryResult* QueryAuctionHoldersOf(uint32 itemId, uint32 count);
+
+    /// Selects how many guild bank items are of an item entry.
+    QueryResult* QueryGuildBankCountOf(uint32 itemId);
+
+    /// Selects up to count guild bank items of an item entry, with their guild.
+    QueryResult* QueryGuildBankHoldersOf(uint32 itemId, uint32 count);
 }
 
 #endif

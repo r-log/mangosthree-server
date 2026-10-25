@@ -31,7 +31,8 @@
 class QueryResult;
 
 /// The item data on the world database: `ObjectMgr`'s item loads and the hotfix list at startup and
-/// on a reload, each run synchronously for a loader that keeps its loop.
+/// on a reload, each run synchronously for a loader that keeps its loop, and a GM's item look-up by
+/// name, the name escaped first.
 namespace ItemDataRepository
 {
     /// Selects every item's localised name and description (`locales_item`).
@@ -48,6 +49,9 @@ namespace ItemDataRepository
 
     /// Selects every hotfix entry with its date (`hotfix_data`).
     QueryResult* QueryHotfixes();
+
+    /// Selects an item template's entry by its name, the name escaped first.
+    QueryResult* QueryItemEntryByName(std::string itemName);
 }
 
 #endif

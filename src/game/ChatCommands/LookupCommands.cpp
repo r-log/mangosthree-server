@@ -47,6 +47,8 @@
 #include "SQLStorages.h"
 #include "Util.h"
 #include "WorldSession.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/login/AccountRepository.h"
 
 /**
  * @brief Handler for LookupPlayerSearchCommand command.
@@ -85,7 +87,7 @@ bool ChatHandler::LookupPlayerSearchCommand(QueryResult* result, uint32* limit)
         std::string acc_name = fields[1].GetCppString();
 
         ///- Get the characters for account id
-        QueryResult* chars = CharacterDatabase.PQuery("SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u", acc_id);
+        QueryResult* chars = CharacterRepository::QueryAccountCharacterList(acc_id);
         if (chars)
         {
             if (chars->GetRowCount())
@@ -597,9 +599,7 @@ bool ChatHandler::HandleLookupAccountEmailCommand(char* args)
     }
 
     std::string email = emailStr;
-    LoginDatabase.escape_string(email);
-    //                                                 0   1         2        3        4
-    QueryResult* result = LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
+    QueryResult* result = AccountRepository::QueryAccountsByEmail(email);
 
     return ShowAccountListHelper(result, &limit);
 }
@@ -625,10 +625,8 @@ bool ChatHandler::HandleLookupAccountIpCommand(char* args)
     }
 
     std::string ip = ipStr;
-    LoginDatabase.escape_string(ip);
 
-    //                                                 0   1         2        3        4
-    QueryResult* result = LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `last_ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), ip.c_str());
+    QueryResult* result = AccountRepository::QueryAccountsByLastIp(ip);
 
     return ShowAccountListHelper(result, &limit);
 }
@@ -658,10 +656,7 @@ bool ChatHandler::HandleLookupAccountNameCommand(char* args)
     {
         return false;
     }
-
-    LoginDatabase.escape_string(account);
-    //                                                  0     1           2          3          4
-    QueryResult* result = LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), account.c_str());
+    QueryResult* result = AccountRepository::QueryAccountsByName(account);
 
     return ShowAccountListHelper(result, &limit);
 }
@@ -754,9 +749,8 @@ bool ChatHandler::HandleLookupPlayerIpCommand(char* args)
     }
 
     std::string ip = ipStr;
-    LoginDatabase.escape_string(ip);
 
-    QueryResult* result = LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `last_ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), ip.c_str());
+    QueryResult* result = AccountRepository::QueryAccountIdsByLastIp(ip);
 
     return LookupPlayerSearchCommand(result, &limit);
 }
@@ -787,9 +781,7 @@ bool ChatHandler::HandleLookupPlayerAccountCommand(char* args)
         return false;
     }
 
-    LoginDatabase.escape_string(account);
-
-    QueryResult* result = LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), account.c_str());
+    QueryResult* result = AccountRepository::QueryAccountIdsByName(account);
 
     return LookupPlayerSearchCommand(result, &limit);
 }
@@ -815,9 +807,8 @@ bool ChatHandler::HandleLookupPlayerEmailCommand(char* args)
     }
 
     std::string email = emailStr;
-    LoginDatabase.escape_string(email);
 
-    QueryResult* result = LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
+    QueryResult* result = AccountRepository::QueryAccountIdsByEmail(email);
 
     return LookupPlayerSearchCommand(result, &limit);
 }

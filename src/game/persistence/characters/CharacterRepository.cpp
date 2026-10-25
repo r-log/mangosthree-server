@@ -308,4 +308,50 @@ namespace CharacterRepository
     {
         return CharacterDatabase.PQuery("SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u", accountId);
     }
+
+    void SetCustomizeFlag(uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '8' WHERE `guid` = '%u'", guid);
+    }
+
+    void SetRenameFlag(uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '1' WHERE `guid` = '%u'", guid);
+    }
+
+    void AddAtLoginFlags(uint32 flags, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE `guid` = '%u'", flags, guid);
+    }
+
+    void AddAtLoginFlagsToEveryCharacter(uint32 flags)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE (`at_login` & '%u') = '0'", flags, flags);
+    }
+
+    QueryResult* QueryDeletedCharacter(uint32 guid)
+    {
+        return CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u", guid);
+    }
+
+    QueryResult* QueryDeletedCharactersNamed(char const* name)
+    {
+        return CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name);
+    }
+
+    QueryResult* QueryDeletedCharacters()
+    {
+        return CharacterDatabase.Query("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL");
+    }
+
+    void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `name`='%s', `account`='%u', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = %u",
+                                   name, accountId, guid);
+    }
+
+    void SetLevel(uint32 level, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `level` = '%u', `xp` = 0 WHERE `guid` = '%u'", level, guid);
+    }
 }

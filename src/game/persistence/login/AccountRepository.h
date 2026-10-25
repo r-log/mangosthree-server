@@ -125,6 +125,25 @@ namespace AccountRepository
 
     /// Ends an account's mute.
     void ClearMuteTime(uint32 accountId);
+
+    /// Selects the accounts whose email contains a text, the text escaped first, for a GM's lookup.
+    QueryResult* QueryAccountsByEmail(std::string email);
+
+    /// Selects the accounts whose last address contains a text, the text escaped first.
+    QueryResult* QueryAccountsByLastIp(std::string ip);
+
+    /// Selects the accounts whose name contains a text, the text escaped first.
+    QueryResult* QueryAccountsByName(std::string account);
+
+    /// Selects the ids and names of the accounts whose last address contains a text, the text escaped
+    /// first.
+    QueryResult* QueryAccountIdsByLastIp(std::string ip);
+
+    /// Selects the ids and names of the accounts whose name contains a text, the text escaped first.
+    QueryResult* QueryAccountIdsByName(std::string account);
+
+    /// Selects the ids and names of the accounts whose email contains a text, the text escaped first.
+    QueryResult* QueryAccountIdsByEmail(std::string email);
 }
 
 #endif

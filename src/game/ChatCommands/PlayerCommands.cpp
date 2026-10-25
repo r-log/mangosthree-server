@@ -47,6 +47,7 @@
 #include "AccountMgr.h"
 #include "SQLStorages.h"
 #include "WorldSession.h"
+#include "persistence/characters/CharacterRepository.h"
 
 
  /**********************************************************************
@@ -86,14 +87,14 @@ bool ChatHandler::HandleCharacterCustomizeCommand(char* args)
     {
         PSendSysMessage(LANG_CUSTOMIZE_PLAYER, GetNameLink(target).c_str());
         target->SetAtLoginFlag(AT_LOGIN_CUSTOMIZE);
-        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '8' WHERE `guid` = '%u'", target->GetGUIDLow());
+        CharacterRepository::SetCustomizeFlag(target->GetGUIDLow());
     }
     else
     {
         std::string oldNameLink = playerLink(target_name);
 
         PSendSysMessage(LANG_CUSTOMIZE_PLAYER_GUID, oldNameLink.c_str(), target_guid.GetCounter());
-        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '8' WHERE `guid` = '%u'", target_guid.GetCounter());
+        CharacterRepository::SetCustomizeFlag(target_guid.GetCounter());
     }
 
     return true;
@@ -260,7 +261,7 @@ bool ChatHandler::HandleCharacterRenameCommand(char* args)
 
         PSendSysMessage(LANG_RENAME_PLAYER, GetNameLink(target).c_str());
         target->SetAtLoginFlag(AT_LOGIN_RENAME);
-        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '1' WHERE `guid` = '%u'", target->GetGUIDLow());
+        CharacterRepository::SetRenameFlag(target->GetGUIDLow());
     }
     else
     {
@@ -273,7 +274,7 @@ bool ChatHandler::HandleCharacterRenameCommand(char* args)
         std::string oldNameLink = playerLink(target_name);
 
         PSendSysMessage(LANG_RENAME_PLAYER_GUID, oldNameLink.c_str(), target_guid.GetCounter());
-        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '1' WHERE `guid` = '%u'", target_guid.GetCounter());
+        CharacterRepository::SetRenameFlag(target_guid.GetCounter());
     }
 
     return true;
@@ -325,7 +326,7 @@ bool ChatHandler::GetDeletedCharacterInfoList(DeletedInfoList& foundList, std::s
         // search by GUID
         if (isNumeric(searchString))
         {
-            resultChar = CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u", uint32(atoi(searchString.c_str())));
+            resultChar = CharacterRepository::QueryDeletedCharacter(uint32(atoi(searchString.c_str())));
         }
         // search by name
         else
@@ -335,12 +336,12 @@ bool ChatHandler::GetDeletedCharacterInfoList(DeletedInfoList& foundList, std::s
                 return false;
             }
 
-            resultChar = CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), searchString.c_str());
+            resultChar = CharacterRepository::QueryDeletedCharactersNamed(searchString.c_str());
         }
     }
     else
     {
-        resultChar = CharacterDatabase.Query("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL");
+        resultChar = CharacterRepository::QueryDeletedCharacters();
     }
 
     if (resultChar)
@@ -473,8 +474,7 @@ void ChatHandler::HandleCharacterDeletedRestoreHelper(DeletedInfo const& delInfo
         return;
     }
 
-    CharacterDatabase.PExecute("UPDATE `characters` SET `name`='%s', `account`='%u', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = %u",
-                               delInfo.name.c_str(), delInfo.accountId, delInfo.lowguid);
+    CharacterRepository::RestoreDeletedCharacter(delInfo.name.c_str(), delInfo.accountId, delInfo.lowguid);
 
     // Decoupling D7c: the restore puts the name and the account back on a row the soft
     // delete had emptied, which is the inverse of what Player::DeleteFromDB's case 1 did.
@@ -688,7 +688,7 @@ void ChatHandler::HandleCharacterLevel(Player* player, ObjectGuid player_guid, u
     else
     {
         // update level and XP at level, all other will be updated at loading
-        CharacterDatabase.PExecute("UPDATE `characters` SET `level` = '%u', `xp` = 0 WHERE `guid` = '%u'", newlevel, player_guid.GetCounter());
+        CharacterRepository::SetLevel(newlevel, player_guid.GetCounter());
 
         // Decoupling D7c: the offline half of `.character level` writes the level itself,
         // so it is a setter in its own right.

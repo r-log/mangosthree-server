@@ -46,6 +46,8 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
+#include "persistence/characters/inventory/ItemRepository.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 static uint32 ReputationRankStrIndex[MAX_REPUTATION_RANK] =
 {
@@ -232,19 +234,14 @@ bool ChatHandler::HandleListItemCommand(char* args)
 
     // inventory case
     uint32 inv_count = 0;
-    result = CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `character_inventory` WHERE `item_template`='%u'", item_id);
+    result = ItemRepository::QueryInventoryCountOf(item_id);
     if (result)
     {
         inv_count = (*result)[0].GetUInt32();
         delete result;
     }
 
-    result = CharacterDatabase.PQuery(
-                 //          0        1             2             3        4                  5
-                 "SELECT `ci`.`item`, `cibag`.`slot` AS bag, `ci`.`slot`, `ci`.`guid`, `characters`.`account`,`characters`.`name` "
-                 "FROM `character_inventory` AS `ci` LEFT JOIN `character_inventory` AS cibag ON (`cibag`.`item`=`ci`.`bag`),`characters` "
-                 "WHERE `ci`.`item_template`='%u' AND `ci`.`guid` = `characters`.`guid` LIMIT %u ",
-                 item_id, uint32(count));
+    result = ItemRepository::QueryInventoryHoldersOf(item_id, uint32(count));
 
     if (result)
     {
@@ -297,7 +294,7 @@ bool ChatHandler::HandleListItemCommand(char* args)
 
     // mail case
     uint32 mail_count = 0;
-    result = CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `mail_items` WHERE `item_template`='%u'", item_id);
+    result = ItemRepository::QueryMailCountOf(item_id);
     if (result)
     {
         mail_count = (*result)[0].GetUInt32();
@@ -306,12 +303,7 @@ bool ChatHandler::HandleListItemCommand(char* args)
 
     if (count > 0)
     {
-        result = CharacterDatabase.PQuery(
-                     //          0                     1            2              3               4            5               6
-                     "SELECT `mail_items`.`item_guid`, `mail`.`sender`, `mail`.`receiver`, `char_s`.`account`, `char_s`.`name`, `char_r`.`account`, `char_r`.`name` "
-                     "FROM `mail`,`mail_items`,`characters` as char_s,`characters` as char_r "
-                     "WHERE `mail_items`.`item_template`='%u' AND `char_s`.`guid` = `mail`.`sender` AND `char_r`.`guid` = `mail`.`receiver` AND `mail`.`id`=`mail_items`.`mail_id` LIMIT %u",
-                     item_id, uint32(count));
+        result = ItemRepository::QueryMailHoldersOf(item_id, uint32(count));
     }
     else
     {
@@ -354,7 +346,7 @@ bool ChatHandler::HandleListItemCommand(char* args)
 
     // auction case
     uint32 auc_count = 0;
-    result = CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `auction` WHERE `item_template`='%u'", item_id);
+    result = ItemRepository::QueryAuctionCountOf(item_id);
     if (result)
     {
         auc_count = (*result)[0].GetUInt32();
@@ -363,11 +355,7 @@ bool ChatHandler::HandleListItemCommand(char* args)
 
     if (count > 0)
     {
-        result = CharacterDatabase.PQuery(
-                     //           0                      1                       2                   3
-                     "SELECT  `auction`.`itemguid`, `auction`.`itemowner`, `characters`.`account`, `characters`.`name` "
-                     "FROM `auction`,`characters` WHERE `auction`.`item_template`='%u' AND `characters`.`guid` = `auction`.`itemowner` LIMIT %u",
-                     item_id, uint32(count));
+        result = ItemRepository::QueryAuctionHoldersOf(item_id, uint32(count));
     }
     else
     {
@@ -395,18 +383,14 @@ bool ChatHandler::HandleListItemCommand(char* args)
 
     // guild bank case
     uint32 guild_count = 0;
-    result = CharacterDatabase.PQuery("SELECT COUNT(`item_entry`) FROM `guild_bank_item` WHERE `item_entry`='%u'", item_id);
+    result = ItemRepository::QueryGuildBankCountOf(item_id);
     if (result)
     {
         guild_count = (*result)[0].GetUInt32();
         delete result;
     }
 
-    result = CharacterDatabase.PQuery(
-                 //      0             1           2
-                 "SELECT gi.item_guid, gi.guildid, guild.name "
-                 "FROM guild_bank_item AS gi, guild WHERE gi.item_entry='%u' AND gi.guildid = guild.guildid LIMIT %u ",
-                 item_id, uint32(count));
+    result = ItemRepository::QueryGuildBankHoldersOf(item_id, uint32(count));
 
     if (result)
     {
@@ -533,7 +517,7 @@ bool ChatHandler::HandleListObjectCommand(char* args)
     QueryResult* result;
 
     uint32 obj_count = 0;
-    result = WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `gameobject` WHERE `id`='%u'", go_id);
+    result = SpawnRepository::QueryGameObjectCountOf(go_id);
     if (result)
     {
         obj_count = (*result)[0].GetUInt32();
@@ -543,12 +527,10 @@ bool ChatHandler::HandleListObjectCommand(char* args)
     if (m_session)
     {
         Player* pl = m_session->GetPlayer();
-        result = WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
-                                      pl->Where().X(), pl->Where().Y(), pl->Where().Z(), go_id, uint32(count));
+        result = SpawnRepository::QueryGameObjectsNear(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), go_id, uint32(count));
     }
     else
-        result = WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `gameobject` WHERE `id` = '%u' LIMIT %u",
-                                      go_id, uint32(count));
+        result = SpawnRepository::QueryGameObjectsOf(go_id, uint32(count));
 
     if (result)
     {
@@ -618,7 +600,7 @@ bool ChatHandler::HandleListCreatureCommand(char* args)
     QueryResult* result;
 
     uint32 cr_count = 0;
-    result = WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `creature` WHERE `id`='%u'", cr_id);
+    result = SpawnRepository::QueryCreatureCountOf(cr_id);
     if (result)
     {
         cr_count = (*result)[0].GetUInt32();
@@ -628,12 +610,10 @@ bool ChatHandler::HandleListCreatureCommand(char* args)
     if (m_session)
     {
         Player* pl = m_session->GetPlayer();
-        result = WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `creature` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
-                                      pl->Where().X(), pl->Where().Y(), pl->Where().Z(), cr_id, uint32(count));
+        result = SpawnRepository::QueryCreaturesNear(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), cr_id, uint32(count));
     }
     else
-        result = WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '%u' LIMIT %u",
-                                      cr_id, uint32(count));
+        result = SpawnRepository::QueryCreaturesOf(cr_id, uint32(count));
 
     if (result)
     {

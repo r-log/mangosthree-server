@@ -33,6 +33,7 @@
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "WorldSession.h"
+#include "persistence/world/items/ItemDataRepository.h"
 
 /**
  * @file PlayerStateCommands.cpp
@@ -649,8 +650,7 @@ bool ChatHandler::HandleAddItemCommand(char* args)
     if (!ExtractUInt32(&cId, itemId))                       // [name] manual form
     {
         std::string itemName = cId;
-        WorldDatabase.escape_string(itemName);
-        QueryResult* result = WorldDatabase.PQuery("SELECT `entry` FROM `item_template` WHERE `name` = '%s'", itemName.c_str());
+        QueryResult* result = ItemDataRepository::QueryItemEntryByName(itemName);
         if (!result)
         {
             PSendSysMessage(LANG_COMMAND_COULDNOTFIND, cId);

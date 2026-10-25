@@ -31,8 +31,11 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
 #include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 #include "persistence/login/AccountRepository.h"
 #include "persistence/login/BanRepository.h"
+#include "persistence/world/items/ItemDataRepository.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 #include <string>
 #include <vector>
@@ -139,5 +142,92 @@ TEST(AccountRepository_CommandWrites)
         "UPDATE `account` SET `gmlevel` = '-1' WHERE `id` = '42'",
         "UPDATE `account` SET `mutetime` = 1700000000 WHERE `id` = '42'",
         "UPDATE `account` SET `mutetime` = '0' WHERE `id` = '42'",
+    }, __LINE__);
+}
+// The GM list, lookup and player commands' reads run on the calling thread on their databases, the
+// lookups' texts escaped first and matched anywhere in the column.
+TEST(CommandRepository_ListAndLookupReads)
+{
+    Db chars(CharacterDatabase);
+    Db world(WorldDatabase);
+    Db login(LoginDatabase);
+    delete ItemRepository::QueryInventoryCountOf(5);
+    delete ItemRepository::QueryInventoryHoldersOf(5, 10);
+    delete ItemRepository::QueryMailCountOf(5);
+    delete ItemRepository::QueryMailHoldersOf(5, 10);
+    delete ItemRepository::QueryAuctionCountOf(5);
+    delete ItemRepository::QueryAuctionHoldersOf(5, 10);
+    delete ItemRepository::QueryGuildBankCountOf(5);
+    delete ItemRepository::QueryGuildBankHoldersOf(5, 10);
+    delete CharacterRepository::QueryDeletedCharacter(42);
+    delete CharacterRepository::QueryDeletedCharactersNamed("Ann");
+    delete CharacterRepository::QueryDeletedCharacters();
+    delete SpawnRepository::QueryGameObjectCountOf(1234);
+    delete SpawnRepository::QueryGameObjectsNear(1.5f, -2.25f, 3.0f, 1234, 10);
+    delete SpawnRepository::QueryGameObjectsOf(1234, 10);
+    delete SpawnRepository::QueryCreatureCountOf(1234);
+    delete SpawnRepository::QueryCreaturesNear(1.5f, -2.25f, 3.0f, 1234, 10);
+    delete SpawnRepository::QueryCreaturesOf(1234, 10);
+    delete ItemDataRepository::QueryItemEntryByName("Hearthstone");
+    delete AccountRepository::QueryAccountsByEmail("ann@x");
+    delete AccountRepository::QueryAccountsByLastIp("10.0");
+    delete AccountRepository::QueryAccountsByName("BOB");
+    delete AccountRepository::QueryAccountIdsByLastIp("10.0");
+    delete AccountRepository::QueryAccountIdsByName("BOB");
+    delete AccountRepository::QueryAccountIdsByEmail("ann@x");
+    CheckLines(chars.query.executed, {
+        "SELECT COUNT(`item_template`) FROM `character_inventory` WHERE `item_template`='5'",
+        "SELECT `ci`.`item`, `cibag`.`slot` AS bag, `ci`.`slot`, `ci`.`guid`, `characters`.`account`,`characters`.`name` FROM `character_inventory` AS `ci` LEFT JOIN `character_inventory` AS cibag ON (`cibag`.`item`=`ci`.`bag`),`characters` WHERE `ci`.`item_template`='5' AND `ci`.`guid` = `characters`.`guid` LIMIT 10 ",
+        "SELECT COUNT(`item_template`) FROM `mail_items` WHERE `item_template`='5'",
+        "SELECT `mail_items`.`item_guid`, `mail`.`sender`, `mail`.`receiver`, `char_s`.`account`, `char_s`.`name`, `char_r`.`account`, `char_r`.`name` FROM `mail`,`mail_items`,`characters` as char_s,`characters` as char_r WHERE `mail_items`.`item_template`='5' AND `char_s`.`guid` = `mail`.`sender` AND `char_r`.`guid` = `mail`.`receiver` AND `mail`.`id`=`mail_items`.`mail_id` LIMIT 10",
+        "SELECT COUNT(`item_template`) FROM `auction` WHERE `item_template`='5'",
+        "SELECT  `auction`.`itemguid`, `auction`.`itemowner`, `characters`.`account`, `characters`.`name` FROM `auction`,`characters` WHERE `auction`.`item_template`='5' AND `characters`.`guid` = `auction`.`itemowner` LIMIT 10",
+        "SELECT COUNT(`item_entry`) FROM `guild_bank_item` WHERE `item_entry`='5'",
+        "SELECT gi.item_guid, gi.guildid, guild.name FROM guild_bank_item AS gi, guild WHERE gi.item_entry='5' AND gi.guildid = guild.guildid LIMIT 10 ",
+        "SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = 42",
+        "SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` LIKE CONCAT( '%' , 'Ann' , '%' )",
+        "SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL",
+    }, __LINE__);
+    CheckLines(world.query.executed, {
+        "SELECT COUNT(`guid`) FROM `gameobject` WHERE `id`='1234'",
+        "SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '1.500000', 2) + POW(`position_y` - '-2.250000', 2) + POW(`position_z` - '3.000000', 2)) AS order_ FROM `gameobject` WHERE `id` = '1234' ORDER BY `order_` ASC LIMIT 10",
+        "SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `gameobject` WHERE `id` = '1234' LIMIT 10",
+        "SELECT COUNT(`guid`) FROM `creature` WHERE `id`='1234'",
+        "SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '1.500000', 2) + POW(`position_y` - '-2.250000', 2) + POW(`position_z` - '3.000000', 2)) AS order_ FROM `creature` WHERE `id` = '1234' ORDER BY `order_` ASC LIMIT 10",
+        "SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '1234' LIMIT 10",
+        "SELECT `entry` FROM `item_template` WHERE `name` = 'Hearthstone'",
+    }, __LINE__);
+    CheckLines(login.query.executed, {
+        "SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `email` LIKE CONCAT( '%' , 'ann@x' , '%' )",
+        "SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `last_ip` LIKE CONCAT( '%' , '10.0' , '%' )",
+        "SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `username` LIKE CONCAT( '%' , 'BOB' , '%' )",
+        "SELECT `id`,`username` FROM `account` WHERE `last_ip` LIKE CONCAT( '%' , '10.0' , '%' )",
+        "SELECT `id`,`username` FROM `account` WHERE `username` LIKE CONCAT( '%' , 'BOB' , '%' )",
+        "SELECT `id`,`username` FROM `account` WHERE `email` LIKE CONCAT( '%' , 'ann@x' , '%' )",
+    }, __LINE__);
+}
+
+// The player commands' writes are queued in order; the restored name is written as handed.
+TEST(CharacterRepository_CommandWrites)
+{
+    Db chars(CharacterDatabase);
+    {
+        TickGuard::Scope scope;
+        CharacterRepository::SetCustomizeFlag(42);
+        CharacterRepository::SetRenameFlag(42);
+        CharacterRepository::AddAtLoginFlags(6, 42);
+        CharacterRepository::AddAtLoginFlagsToEveryCharacter(2);
+        CharacterRepository::RestoreDeletedCharacter("Ann", 7, 42);
+        CharacterRepository::SetLevel(80, 42);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(6));
+    }
+    CheckLines(chars.Take(), {
+        "UPDATE `characters` SET `at_login` = `at_login` | '8' WHERE `guid` = '42'",
+        "UPDATE `characters` SET `at_login` = `at_login` | '1' WHERE `guid` = '42'",
+        "UPDATE `characters` SET `at_login` = `at_login` | '6' WHERE `guid` = '42'",
+        "UPDATE `characters` SET `at_login` = `at_login` | '2' WHERE (`at_login` & '2') = '0'",
+        "UPDATE `characters` SET `name`='Ann', `account`='7', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = 42",
+        "UPDATE `characters` SET `level` = '80', `xp` = 0 WHERE `guid` = '42'",
     }, __LINE__);
 }

@@ -77,8 +77,8 @@ struct GameObjectSpawnRow
 };
 
 /// The creature and game object spawns on the world database (`creature`, `gameobject` and the
-/// tables keyed on a spawn), as a GM saves and deletes them. The start-up reads run
-/// synchronously; every write is queued and written to the SQL log.
+/// tables keyed on a spawn), as a GM saves and deletes them. The start-up reads and a GM's spawn
+/// lists run synchronously; every write is queued and written to the SQL log.
 namespace SpawnRepository
 {
     /// Writes a creature spawn's row over the old one, in one transaction.
@@ -111,6 +111,24 @@ namespace SpawnRepository
 
     /// Selects up to two spawn guids of a creature entry on a map.
     QueryResult* QueryCreatureGuidsOnMap(uint32 entry, uint32 mapId);
+
+    /// Selects how many game object spawns are of an entry, for a GM's list.
+    QueryResult* QueryGameObjectCountOf(uint32 entry);
+
+    /// Selects up to count game object spawns of an entry, nearest a position first.
+    QueryResult* QueryGameObjectsNear(float x, float y, float z, uint32 entry, uint32 count);
+
+    /// Selects up to count game object spawns of an entry.
+    QueryResult* QueryGameObjectsOf(uint32 entry, uint32 count);
+
+    /// Selects how many creature spawns are of an entry, for a GM's list.
+    QueryResult* QueryCreatureCountOf(uint32 entry);
+
+    /// Selects up to count creature spawns of an entry, nearest a position first.
+    QueryResult* QueryCreaturesNear(float x, float y, float z, uint32 entry, uint32 count);
+
+    /// Selects up to count creature spawns of an entry.
+    QueryResult* QueryCreaturesOf(uint32 entry, uint32 count);
 }
 
 #endif

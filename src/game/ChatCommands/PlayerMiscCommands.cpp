@@ -46,6 +46,7 @@
 #include "Player.h"
 #include "World.h"
 #include "WorldSession.h"
+#include "persistence/characters/CharacterRepository.h"
 
 /**
  * @brief Handler for HandleBankCommand command.
@@ -141,7 +142,7 @@ bool ChatHandler::HandleResetSpecsCommand(char* args)
     else if (target_guid)
     {
         uint32 at_flags = AT_LOGIN_RESET_TALENTS | AT_LOGIN_RESET_PET_TALENTS;
-        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE `guid` = '%u'", at_flags, target_guid.GetCounter());
+        CharacterRepository::AddAtLoginFlags(at_flags, target_guid.GetCounter());
         std::string nameLink = playerLink(target_name);
         PSendSysMessage(LANG_RESET_TALENTS_OFFLINE, nameLink.c_str());
         return true;
@@ -299,7 +300,7 @@ bool ChatHandler::HandleResetSpellsCommand(char* args)
     }
     else
     {
-        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE `guid` = '%u'", uint32(AT_LOGIN_RESET_SPELLS), target_guid.GetCounter());
+        CharacterRepository::AddAtLoginFlags(uint32(AT_LOGIN_RESET_SPELLS), target_guid.GetCounter());
         PSendSysMessage(LANG_RESET_SPELLS_OFFLINE, target_name.c_str());
     }
 
@@ -411,7 +412,7 @@ bool ChatHandler::HandleResetAllCommand(char* args)
         return false;
     }
 
-    CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE (`at_login` & '%u') = '0'", atLogin, atLogin);
+    CharacterRepository::AddAtLoginFlagsToEveryCharacter(atLogin);
     sPlayerRegistry.ForEach([&atLogin](Player* plr)
     {
         plr->SetAtLoginFlag(atLogin);

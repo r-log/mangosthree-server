@@ -162,4 +162,38 @@ namespace SpawnRepository
     {
         return WorldDatabase.PQuery("SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2", entry, mapId);
     }
+
+    QueryResult* QueryGameObjectCountOf(uint32 entry)
+    {
+        return WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `gameobject` WHERE `id`='%u'", entry);
+    }
+
+    QueryResult* QueryGameObjectsNear(float x, float y, float z, uint32 entry, uint32 count)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
+                                    x, y, z, entry, count);
+    }
+
+    QueryResult* QueryGameObjectsOf(uint32 entry, uint32 count)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `gameobject` WHERE `id` = '%u' LIMIT %u",
+                                    entry, count);
+    }
+
+    QueryResult* QueryCreatureCountOf(uint32 entry)
+    {
+        return WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `creature` WHERE `id`='%u'", entry);
+    }
+
+    QueryResult* QueryCreaturesNear(float x, float y, float z, uint32 entry, uint32 count)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `creature` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
+                                    x, y, z, entry, count);
+    }
+
+    QueryResult* QueryCreaturesOf(uint32 entry, uint32 count)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '%u' LIMIT %u",
+                                    entry, count);
+    }
 }
