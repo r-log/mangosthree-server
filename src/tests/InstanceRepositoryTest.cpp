@@ -24,8 +24,8 @@
  */
 
 /// The instances' repository on the global CharacterDatabase backed by fakes: the queued writes in
-/// order with their values substituted; the startup reads and direct writes on the calling thread's
-/// connection; the cleanup's select-then-delete driven by a canned answer.
+/// order with their values substituted; the startup reads on the query connection and the direct
+/// writes on the async connection; the cleanup's select-then-delete driven by a canned answer.
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
@@ -127,7 +127,8 @@ TEST(InstanceRepository_Writes)
     }, __LINE__);
 }
 
-// The startup reads and the direct writes run on the calling thread, in call order.
+// The startup reads run on the query connection and the direct writes on the async connection,
+// both on the calling thread, each in call order; nothing is queued.
 TEST(InstanceRepository_StartupReadsAndDirectWrites)
 {
     Db db;
@@ -145,21 +146,23 @@ TEST(InstanceRepository_StartupReadsAndDirectWrites)
     InstanceRepository::SetInstanceResetNowUnquoted(1700000700, 34, 1);
     delete InstanceRepository::QueryInstanceIds();
     CheckLines(db.query.executed, {
-        "DELETE FROM `creature_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())",
         "SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `creature_respawn` LEFT JOIN `instance` ON `instance` = `id`",
-        "DELETE FROM `gameobject_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())",
         "SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `gameobject_respawn` LEFT JOIN `instance` ON `instance` = `id`",
         "SELECT `id`, `map`, `difficulty`, `resettime` FROM `instance` WHERE `resettime` > 0",
         "SELECT MAX(`respawntime`), `instance` FROM `creature_respawn` WHERE `instance` > 0 GROUP BY `instance`",
-        "UPDATE `instance` SET `resettime` = '1700000400' WHERE `id` = '5'",
         "SELECT `mapid`, `difficulty`, `resettime` FROM `instance_reset`",
+        "SELECT `id` FROM `instance`",
+    }, __LINE__);
+    CheckLines(db.async.executed, {
+        "DELETE FROM `creature_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())",
+        "DELETE FROM `gameobject_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())",
+        "UPDATE `instance` SET `resettime` = '1700000400' WHERE `id` = '5'",
         "DELETE FROM `instance_reset` WHERE `mapid` = '33' AND `difficulty` = '9'",
         "UPDATE `instance_reset` SET `resettime` = '1700000500' WHERE `mapid` = '33' AND `difficulty` = '1'",
         "INSERT INTO `instance_reset` VALUES ('34','1','1700000600')",
         "UPDATE `instance_reset` SET `resettime` = '1700000700' WHERE mapid = '34' AND difficulty= '1'",
-        "SELECT `id` FROM `instance`",
     }, __LINE__);
-    CHECK_EQ(db.async.executed.size(), size_t(0));
+    CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(0));
 }
 
 // The cleanup selects the rows it removes on the calling thread, then queues one DELETE per row,
