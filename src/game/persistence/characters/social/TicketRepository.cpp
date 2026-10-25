@@ -149,4 +149,15 @@ namespace TicketRepository
         insert.addString(content);
         insert.Execute();
     }
+
+    void InsertWhisper(uint32 toGuid, uint32 fromGuid, std::string const& message, uint32 ticketId)
+    {
+        static SqlStatementID wlog;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(wlog, "INSERT INTO `character_whispers` (`to_guid`, `from_guid`, `message`, `regarding_ticket_id`) VALUES (?, ?, ?, ?)");
+        stmt.addUInt32(toGuid);
+        stmt.addUInt32(fromGuid);
+        stmt.addString(message);
+        stmt.addUInt32(ticketId);
+        stmt.Execute();
+    }
 }

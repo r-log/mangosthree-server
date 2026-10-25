@@ -23,19 +23,23 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The character save's repository, and the inventory, mail and daily quest writes the save calls,
-/// on the global CharacterDatabase backed by fakes: every write in order with its values
-/// substituted as the server would send them to MySQL.
+/// The character save's repository, the inventory, mail and daily quest writes the save calls, and
+/// the load's fixes, instance binds and small character writes, on the global CharacterDatabase
+/// backed by fakes: every write in order with its values substituted as the server would send them
+/// to MySQL.
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
+#include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterSaveRepository.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 #include "persistence/characters/mail/MailRepository.h"
+#include "persistence/characters/maps/InstanceBindRepository.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
+#include "persistence/characters/social/TicketRepository.h"
 
 #include <string>
 #include <vector>
@@ -264,5 +268,63 @@ TEST(CharacterSaveRepository_InventoryMailAndDailies)
         "DELETE FROM `character_queststatus_daily` WHERE `guid` = '42'",
         "INSERT INTO `character_queststatus_daily` (`guid`,`quest`) VALUES ('42', '11')",
         "INSERT INTO `character_queststatus_daily` (`guid`,`quest`) VALUES ('42', '12')",
+    }, __LINE__);
+}
+
+// The load's fixes, the instance binds, the home bind and the character's own small writes, each
+// one queued statement with its values substituted; the offline position is read on the calling
+// thread.
+TEST(CharacterSaveRepository_LoadFixesBindsAndSmallWrites)
+{
+    Db db;
+    delete CharacterRepository::QueryPosition(42);
+    CheckLines(db.query.executed, {
+        "SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '42'",
+    }, __LINE__);
+    {
+        TickGuard::Scope scope;
+        ItemRepository::DropInventoryRow(77);
+        ItemRepository::DeleteUnknownItem(77);
+        ItemRepository::DropLoot(78);
+        MailRepository::DropMailedItem(79);
+        CharacterSaveRepository::DeleteSpellOfEveryCharacter(133);
+        CharacterSaveRepository::DeleteInvalidSkill(42, 164);
+        CharacterSaveRepository::DeleteHomebind(42);
+        CharacterSaveRepository::InsertHomebind(42, 0, 12, 1.5f, -2.25f, 3.0f);
+        CharacterSaveRepository::UpdateHomebind(42, 1, 14, 4.0f, 5.5f, 6.0f);
+        InstanceBindRepository::InsertBind(42, 7, true);
+        InstanceBindRepository::UpdateBind(8, false, 42, 7);
+        InstanceBindRepository::DeleteBind(42, 8);
+        InstanceBindRepository::CopyBindsToGroup(42);
+        InstanceBindRepository::DeleteTemporaryBinds(42);
+        CharacterRepository::SetAtLoginFlag(1, 42);
+        CharacterRepository::ClearAtLoginFlag(8, 42);
+        CharacterRepository::SetZone(12, 42);
+        CharacterRepository::SetPhaseMap(42, 654);
+        CharacterRepository::SetAppearance(1, 0x04030201, 5, 42);
+        TicketRepository::InsertWhisper(43, 42, "hello", 3);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CheckLines(db.Take(), {
+        "DELETE FROM `character_inventory` WHERE `item` = '77'",
+        "DELETE FROM `item_instance` WHERE `guid` = '77'",
+        "DELETE FROM `item_loot` WHERE `guid` = '78'",
+        "DELETE FROM `mail_items` WHERE `item_guid` = '79'",
+        "DELETE FROM `character_spell` WHERE `spell` = '133'",
+        "DELETE FROM `character_skills` WHERE `guid` = '42' AND `skill` = '164' ",
+        "DELETE FROM `character_homebind` WHERE `guid` = '42'",
+        "INSERT INTO `character_homebind` (`guid`,`map`,`zone`,`position_x`,`position_y`,`position_z`) VALUES ('42', '0', '12', '1.500000', '-2.250000', '3.000000')",
+        "UPDATE `character_homebind` SET `map` = '1', `zone` = '14', `position_x` = '4.000000', `position_y` = '5.500000', `position_z` = '6.000000' WHERE `guid` = '42'",
+        "INSERT INTO `character_instance` (`guid`, `instance`, `permanent`) VALUES ('42', '7', '1')",
+        "UPDATE `character_instance` SET `instance` = '8', `permanent` = '0' WHERE `guid` = '42' AND `instance` = '7'",
+        "DELETE FROM `character_instance` WHERE `guid` = '42' AND `instance` = '8'",
+        "INSERT INTO `group_instance` SELECT `guid`, `instance`, `permanent` FROM `character_instance` WHERE `guid` = '42'",
+        "DELETE FROM `character_instance` WHERE `guid` = '42' AND `permanent` = 0",
+        "UPDATE `characters` SET `at_login` = `at_login` | '1' WHERE `guid` ='42'",
+        "UPDATE `characters` set `at_login` = `at_login` & ~ 8 WHERE `guid` ='42'",
+        "UPDATE `characters` SET `zone`='12' WHERE `guid`='42'",
+        "REPLACE INTO `character_phase_data` (`guid`, `map`) VALUES (42, 654)",
+        "UPDATE `characters` SET `gender` = '1', `playerBytes` = '67305985', `playerBytes2` = '5' WHERE `guid` = '42'",
+        "INSERT INTO `character_whispers` (`to_guid`, `from_guid`, `message`, `regarding_ticket_id`) VALUES ('43', '42', 'hello', '3')",
     }, __LINE__);
 }

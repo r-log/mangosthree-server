@@ -42,6 +42,7 @@
 #include "Vehicle.h"
 #include "CharacterCache.h"
 #include "DisableMgr.h"
+#include "persistence/characters/CharacterRepository.h"
 
 #include <cmath>
 
@@ -152,7 +153,7 @@ uint32 Player::GetZoneIdFromDB(ObjectGuid guid)
 
     if (zone > 0)
     {
-        CharacterDatabase.PExecute("UPDATE `characters` SET `zone`='%u' WHERE `guid`='%u'", zone, guid.GetCounter());
+        CharacterRepository::SetZone(zone, guid.GetCounter());
         sCharacterCache.UpdateZone(guid, zone);
     }
 

@@ -126,6 +126,22 @@ namespace CharacterRepository
     /// Selects how many characters an account has on this realm.
     QueryResult* QueryAccountCharacterCount(uint32 accountId);
 
+    /// Selects an offline character's position, map and flight path, synchronously.
+    QueryResult* QueryPosition(uint32 guid);
+
+    /// Each sets or clears one of a character's at_login flags.
+    void SetAtLoginFlag(uint32 flag, uint32 guid);
+    void ClearAtLoginFlag(uint32 flag, uint32 guid);
+
+    /// Sets a character's zone.
+    void SetZone(uint32 zone, uint32 guid);
+
+    /// Writes the map a new character's phase data names over the old row.
+    void SetPhaseMap(uint32 guid, uint32 map);
+
+    /// Sets a character's gender and appearance bytes, as a customize does.
+    void SetAppearance(uint32 gender, uint32 playerBytes, uint32 playerBytes2, uint32 guid);
+
     /// Asks for the account's characters, ordered by guid, with each one's pet in currentPetSlot
     /// and guild, and its genitive name when declinedNames is set.
     void QueryEnum(uint32 accountId, uint32 currentPetSlot, bool declinedNames, CharacterReadCallback callback);

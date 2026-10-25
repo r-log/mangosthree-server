@@ -45,6 +45,8 @@ set(CONVERTED_FILES
     src/game/persistence/characters/CharacterDeleteRepository.cpp
     src/game/persistence/characters/CharacterSaveRepository.h
     src/game/persistence/characters/CharacterSaveRepository.cpp
+    src/game/persistence/characters/maps/InstanceBindRepository.h
+    src/game/persistence/characters/maps/InstanceBindRepository.cpp
     src/game/persistence/characters/account/AccountDataRepository.h
     src/game/persistence/characters/account/AccountDataRepository.cpp
     src/game/persistence/login/RealmRepository.h
@@ -223,7 +225,8 @@ set(ALLOW_AccountRepository_cpp
 
 set(ALLOW_CharacterRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accountId)\;"
-    "return CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", accountId)\;")
+    "return CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", accountId)\;"
+    "return CharacterDatabase.PQuery(\"SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '%u'\", guid)\;")
 
 set(ALLOW_AccountCommands_cpp
     "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u\", realmID)\;"

@@ -47,6 +47,7 @@
 #include "SQLStorages.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
+#include "persistence/characters/CharacterSaveRepository.h"
 
 #include <cmath>
 
@@ -69,7 +70,7 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
         if (!IsInWorld() && !learning)                      // spell load case
         {
             sLog.outError("Player::addSpell: nonexistent in SpellStore spell #%u request, deleting for all characters in `character_spell`.", spell_id);
-            CharacterDatabase.PExecute("DELETE FROM `character_spell` WHERE `spell` = '%u'", spell_id);
+            CharacterSaveRepository::DeleteSpellOfEveryCharacter(spell_id);
         }
         else
         {
@@ -85,7 +86,7 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
         if (!IsInWorld() && !learning)                      // spell load case
         {
             sLog.outError("Player::addSpell: Broken spell #%u learning not allowed, deleting for all characters in `character_spell`.", spell_id);
-            CharacterDatabase.PExecute("DELETE FROM `character_spell` WHERE `spell` = '%u'", spell_id);
+            CharacterSaveRepository::DeleteSpellOfEveryCharacter(spell_id);
         }
         else
         {

@@ -54,6 +54,16 @@ namespace ItemRepository
         CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid` = '%u'", itemGuid);
     }
 
+    void DropInventoryRow(uint32 itemGuid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `item` = '%u'", itemGuid);
+    }
+
+    void DropLoot(uint32 itemGuid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `item_loot` WHERE `guid` = '%u'", itemGuid);
+    }
+
     void InsertInstance(uint32 itemGuid, uint32 ownerGuid, std::string const& data, std::string const& text)
     {
         static SqlStatementID insItem;
