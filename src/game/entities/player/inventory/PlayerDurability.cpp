@@ -35,7 +35,6 @@
 #include "GuildMgr.h"
 #include "Pet.h"
 #include "Util.h"
-#include "BattleGround/BattleGroundAV.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"
 #include "DBCStores.h"

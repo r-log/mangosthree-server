@@ -48,7 +48,6 @@
 #include "BattleGround/BattleGroundEY.h"
 #include "BattleGround/BattleGroundWS.h"
 #include "Language.h"
-#include "SocialMgr.h"
 #include "Util.h"
 #include "ScriptMgr.h"
 #include "GridNotifiersImpl.h"

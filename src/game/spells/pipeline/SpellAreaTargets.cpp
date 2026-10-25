@@ -48,7 +48,6 @@
 #include <queue>
 #include "spells/pipeline/Spell.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldSession.h"
 #include "GridNotifiersImpl.h"
 #include "Log.h"
 #include "ObjectMgr.h"

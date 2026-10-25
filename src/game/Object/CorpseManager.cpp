@@ -26,7 +26,6 @@
 #include "Utilities/Errors.h"
 #include "CorpseManager.h"
 
-#include "CellImpl.h"
 #include "Corpse.h"
 #include "GridNotifiers.h"
 #include "Log.h"

@@ -25,7 +25,6 @@
 
 #include "spells/handlers/SpellTargetingHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Creature.h"
 #include "WorldHandlers/GridNotifiers.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/pipeline/SpellTargetDistanceOrder.h"

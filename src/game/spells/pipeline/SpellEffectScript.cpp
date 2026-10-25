@@ -30,7 +30,6 @@
 #include <cstdlib>
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "World.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Unit.h"
@@ -39,7 +38,6 @@
 #include "Group.h"
 #include "SharedDefines.h"
 #include "Creature.h"
-#include "BattleGround/BattleGroundEY.h"
 #include "Language.h"
 #include "Util.h"
 #include "TemporarySummon.h"

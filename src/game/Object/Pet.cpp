@@ -27,13 +27,11 @@
 #include <algorithm>
 #include <string>
 #include "Pet.h"
-#include "TransportMap.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "WorldPacket.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
-#include "Formulas.h"
 #include "Unit.h"
 #include "Util.h"
 #include "WorldSession.h"

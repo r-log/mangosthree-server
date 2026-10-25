@@ -47,7 +47,6 @@
 #include "Utilities/MathDefines.h"
 #include "spells/pipeline/Spell.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldSession.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Log.h"

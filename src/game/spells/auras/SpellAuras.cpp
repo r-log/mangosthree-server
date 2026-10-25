@@ -55,7 +55,6 @@
 #include <ctime>
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "Opcodes.h"
 #include "Log.h"
 #include "data/GameConfig.h"

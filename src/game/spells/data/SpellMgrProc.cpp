@@ -31,7 +31,6 @@
 #include <set>
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuraDefines.h"
-#include "Unit.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "ProgressBar.h"

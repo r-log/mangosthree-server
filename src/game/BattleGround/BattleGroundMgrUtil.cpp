@@ -25,7 +25,6 @@
 
 #include "Platform/Define.h"
 #include "SharedDefines.h"
-#include "Player.h"
 #include "BattleGroundMgr.h"
 #include "BattleGroundAV.h"
 #include "BattleGroundAB.h"

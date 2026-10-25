@@ -33,8 +33,6 @@
 #include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
-#include "Channel.h"
-#include "MapPersistentStateMgr.h"
 #include "InstanceData.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"

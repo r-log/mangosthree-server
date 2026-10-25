@@ -42,7 +42,7 @@
 #include "Log.h"
 #include "CellImpl.h"
 #include "GridNotifiers.h"
-#include "GridNotifiersImpl.h"
+#include "CreatureAI.h"
 #include "ObjectPosSelector.h"
 #include "TemporarySummon.h"
 #include "movement/packet_builder.h"

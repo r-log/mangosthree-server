@@ -40,7 +40,6 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "QuestDef.h"

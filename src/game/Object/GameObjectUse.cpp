@@ -42,7 +42,6 @@
 #include "LootMgr.h"
 #include "GridNotifiersImpl.h"
 #include "BattleGround/BattleGround.h"
-#include "BattleGround/BattleGroundAV.h"
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "Util.h"
 #include "ScriptMgr.h"

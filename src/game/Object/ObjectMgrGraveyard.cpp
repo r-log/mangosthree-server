@@ -36,7 +36,6 @@
 #include "Log.h"
 #include "ObjectGuid.h"
 #include "World.h"
-#include "Group.h"
 #include "ProgressBar.h"
 #include "Language.h"
 #include "PoolManager.h"

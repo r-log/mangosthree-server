@@ -47,7 +47,6 @@
 #include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
-#include "Group.h"
 #include "ProgressBar.h"
 #include "Language.h"
 #include "PoolManager.h"

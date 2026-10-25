@@ -24,7 +24,6 @@
  */
 
 #include <string>
-#include "Object.h"
 #include "AchievementMgr.h"
 #include "Player.h"
 #include "BattleGround.h"
@@ -32,7 +31,6 @@
 #include "Language.h"
 #include "ArenaTeam.h"
 #include "data/GameConfig.h"
-#include "Group.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "Mail.h"

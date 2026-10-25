@@ -35,7 +35,6 @@
 #include "SQLStorages.h"
 #include "Log.h"
 #include "ObjectGuid.h"
-#include "Group.h"
 #include "ProgressBar.h"
 #include "Language.h"
 #include "PoolManager.h"

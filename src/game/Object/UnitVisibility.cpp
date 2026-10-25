@@ -32,7 +32,6 @@
 #include "QuestDef.h"
 #include "Player.h"
 #include "Creature.h"
-#include "Group.h"
 #include "spells/auras/SpellAuras.h"
 #include "TemporarySummon.h"
 #include "Pet.h"

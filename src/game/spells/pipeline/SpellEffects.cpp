@@ -30,7 +30,6 @@
 #include "spells/pipeline/Spell.h"
 #include "Group.h"
 #include "SharedDefines.h"
-#include "BattleGround/BattleGroundEY.h"
 #include "Language.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
