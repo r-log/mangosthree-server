@@ -174,4 +174,19 @@ namespace ItemRepository
         stmt.addUInt32(itemGuid);
         stmt.Execute();
     }
+
+    QueryResult* QueryHighestGuid()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`guid`) FROM `item_instance`");
+    }
+
+    void DeleteRowsOfMissingItems(uint32 firstUnusedGuid)
+    {
+        CharacterDatabase.BeginTransaction();
+        CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `item` >= '%u'", firstUnusedGuid);
+        CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `item_guid` >= '%u'", firstUnusedGuid);
+        CharacterDatabase.PExecute("DELETE FROM `auction` WHERE `itemguid` >= '%u'", firstUnusedGuid);
+        CharacterDatabase.PExecute("DELETE FROM `guild_bank_item` WHERE `item_guid` >= '%u'", firstUnusedGuid);
+        CharacterDatabase.CommitTransaction();
+    }
 }

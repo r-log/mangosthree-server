@@ -115,8 +115,8 @@ typedef std::function<void(QueryResult*)> CharacterReadCallback;
 typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallback;
 
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
-/// login, the logout and the account manager use them. The account manager's two reads run on the
-/// thread that calls it, synchronously; every other read is asynchronous, and every write is queued
+/// login, the logout and the account manager use them. The account manager's two reads and the
+/// start-up's highest guid run on the thread that calls them, synchronously; every other read is asynchronous, and every write is queued
 /// on the character database; a write called inside CharacterTransaction joins it.
 namespace CharacterRepository
 {
@@ -190,6 +190,9 @@ namespace CharacterRepository
 
     /// Sets the character-screen slot of one of the account's characters.
     void SetSlot(uint8 slot, uint32 guid, uint32 accountId);
+
+    /// Selects the highest character guid, at start-up.
+    QueryResult* QueryHighestGuid();
 }
 
 #endif

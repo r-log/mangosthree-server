@@ -165,4 +165,9 @@ namespace ArenaTeamRepository
         }
         CharacterDatabase.CommitTransaction();
     }
+
+    QueryResult* QueryHighestId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`arenateamid`) FROM `arena_team`");
+    }
 }

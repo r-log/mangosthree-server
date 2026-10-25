@@ -55,4 +55,19 @@ namespace CorpseRepository
         SqlStatement stmt = CharacterDatabase.CreateStatement(id, "DELETE FROM `corpse` WHERE `player` = ? AND `corpse_type` <> '0'");
         stmt.PExecute(player);
     }
+
+    QueryResult* QueryHighestGuid()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`guid`) FROM `corpse`");
+    }
+
+    QueryResult* QueryCorpses()
+    {
+        //                                     0            1       2                  3                  4                  5                   6
+        return CharacterDatabase.Query("SELECT `corpse`.`guid`, `player`, `corpse`.`position_x`, `corpse`.`position_y`, `corpse`.`position_z`, `corpse`.`orientation`, `corpse`.`map`, "
+                                       //   7     8             9           10           11        12      13       14             15              16                17         18
+                                       "`time`, `corpse_type`, `instance`, `phaseMask`, `gender`, `race`, `class`, `playerBytes`, `playerBytes2`, `equipmentCache`, `guildId`, `playerFlags` FROM `corpse` "
+                                       "JOIN `characters` ON `player` = `characters`.`guid` "
+                                       "LEFT JOIN `guild_member` ON `player`=`guild_member`.`guid` WHERE `corpse_type` <> 0");
+    }
 }

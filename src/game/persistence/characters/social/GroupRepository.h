@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+class QueryResult;
+
 /// The number of target icons a saved group row holds.
 enum
 {
@@ -50,8 +52,9 @@ struct GroupRow
     uint32 raidDifficulty = 0;
 };
 
-/// The groups' saved rows (`groups`, `group_member`, `group_instance`). Every write is queued on the
-/// character database; a write called inside CharacterTransaction joins that transaction.
+/// The groups' saved rows (`groups`, `group_member`, `group_instance`). The start-up reads run
+/// synchronously; every write is queued on the character database, and a write called inside
+/// CharacterTransaction joins that transaction.
 namespace GroupRepository
 {
     /// Deletes any group and member rows left under the group's id, then inserts its row.
@@ -100,6 +103,18 @@ namespace GroupRepository
 
     /// Deletes the leader's bind of an instance.
     void DeleteBind(uint32 leaderGuid, uint32 instanceId);
+
+    /// Selects every group's id, as the start-up renumbering reads them, synchronously.
+    QueryResult* QueryGroupIds();
+
+    /// Deletes a group row the start-up renumbering cannot use and its members, in one transaction.
+    void DeleteInvalidGroup(uint32 groupId);
+
+    /// Renumbers a group's row and its members, in one transaction.
+    void RenumberGroup(uint32 newId, uint32 oldId);
+
+    /// Selects the highest group id, at start-up.
+    QueryResult* QueryHighestId();
 }
 
 #endif

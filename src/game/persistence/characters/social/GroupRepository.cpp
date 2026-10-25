@@ -153,4 +153,30 @@ namespace GroupRepository
         CharacterDatabase.PExecute("DELETE FROM `group_instance` WHERE `leaderGuid` = '%u' AND `instance` = '%u'",
                                    leaderGuid, instanceId);
     }
+
+    QueryResult* QueryGroupIds()
+    {
+        return CharacterDatabase.Query("SELECT `groupId` FROM `groups`");
+    }
+
+    void DeleteInvalidGroup(uint32 groupId)
+    {
+        CharacterDatabase.BeginTransaction();
+        CharacterDatabase.PExecute("DELETE FROM `groups` WHERE `groupId` = '%u'", groupId);
+        CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `groupId` = '%u'", groupId);
+        CharacterDatabase.CommitTransaction();
+    }
+
+    void RenumberGroup(uint32 newId, uint32 oldId)
+    {
+        CharacterDatabase.BeginTransaction();
+        CharacterDatabase.PExecute("UPDATE `groups` SET `groupId` = '%u' WHERE `groupId` = '%u'", newId, oldId);
+        CharacterDatabase.PExecute("UPDATE `group_member` SET `groupId` = '%u' WHERE `groupId` = '%u'", newId, oldId);
+        CharacterDatabase.CommitTransaction();
+    }
+
+    QueryResult* QueryHighestId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`groupId`) FROM `groups`");
+    }
 }

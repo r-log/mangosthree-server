@@ -44,8 +44,9 @@ struct ItemLootRow
 };
 
 /// The items' saved rows (`item_instance`, `character_gifts`, `item_loot`, and an item's
-/// `character_inventory` row). The gift read is asynchronous; every write is queued on the
-/// character database, and one called inside CharacterTransaction joins it.
+/// `character_inventory` row). The gift read is asynchronous and the start-up's highest guid
+/// synchronous; every write is queued on the character database, and one called inside
+/// CharacterTransaction joins it.
 namespace ItemRepository
 {
     /// Asks for a wrapped item's gift row: the item's entry and flags before it was wrapped. The
@@ -105,6 +106,13 @@ namespace ItemRepository
     /// Each writes the inventory row that holds an item: its owner, bag, slot and template.
     void InsertInventoryRow(uint32 ownerGuid, uint32 bagGuid, uint8 slot, uint32 itemGuid, uint32 itemEntry);
     void UpdateInventoryRow(uint32 ownerGuid, uint32 bagGuid, uint8 slot, uint32 itemGuid, uint32 itemEntry);
+
+    /// Selects the highest item guid, at start-up.
+    QueryResult* QueryHighestGuid();
+
+    /// Deletes the inventory, mail item, auction and guild bank rows of the item guids from the first
+    /// unused one up, in one transaction, at start-up.
+    void DeleteRowsOfMissingItems(uint32 firstUnusedGuid);
 }
 
 #endif

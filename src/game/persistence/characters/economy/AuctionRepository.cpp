@@ -90,4 +90,9 @@ namespace AuctionRepository
     {
         CharacterDatabase.PExecute("UPDATE `auction` SET `buyguid` = '%u', `lastbid` = '" UI64FMTD "' WHERE `id` = '%u'", bidder, bid, auctionId);
     }
+
+    QueryResult* QueryHighestId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`id`) FROM `auction`");
+    }
 }

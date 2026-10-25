@@ -1,0 +1,197 @@
+/**
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * MaNGOS is a full featured server for World of Warcraft, supporting
+ * the following clients: 1.12.x, 2.4.3, 3.3.5a, 4.3.4a and 5.4.8
+ *
+ * Copyright (C) 2005-2026 MaNGOS <https://www.getmangos.eu>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * World of Warcraft, and all World of Warcraft or Warcraft art, images,
+ * and lore are copyrighted by Blizzard Entertainment, Inc.
+ */
+
+/// The repositories' start-up work for ObjectMgr on the global databases backed by fakes: the
+/// expired-mail holder and writes queued in order, the group renumbering and the missing items'
+/// rows each one queued transaction, and the highest-id and corpse reads on the calling thread.
+
+#include "TestHarness.h"
+#include "FakeDatabase.h"
+#include "Database/DatabaseEnv.h"
+#include "Database/TickGuard.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/CharacterSaveRepository.h"
+#include "persistence/characters/economy/AuctionRepository.h"
+#include "persistence/characters/inventory/ItemRepository.h"
+#include "persistence/characters/mail/MailRepository.h"
+#include "persistence/characters/maps/CorpseRepository.h"
+#include "persistence/characters/maps/InstanceRepository.h"
+#include "persistence/characters/pets/PetRepository.h"
+#include "persistence/characters/social/ArenaTeamRepository.h"
+#include "persistence/characters/social/GroupRepository.h"
+#include "persistence/characters/social/GuildRepository.h"
+#include "persistence/world/spawns/SpawnRepository.h"
+
+#include <string>
+#include <vector>
+
+namespace
+{
+    /// The fakes on one of the global databases, asynchronous writes on.
+    struct Db
+    {
+        Database& database;
+        FakeConnection query;
+        FakeConnection async;
+        SqlResultQueue results;
+        AttachedFakes attached;
+
+        explicit Db(Database& db) : database(db), query(db), async(db),
+            attached(db, &query, &async, &results, /*asyncWrites*/ true)
+        {
+            TickGuard::ResetViolations();
+        }
+
+        std::vector<std::string> Take()
+        {
+            database.ExecuteQueuedForTest();
+            return async.executed;
+        }
+    };
+
+    void CheckLines(std::vector<std::string> const& got, std::vector<std::string> const& want, int line)
+    {
+        if (got == want)
+        {
+            return;
+        }
+        std::string text = "lines differ (case line " + std::to_string(line) + "): got [";
+        for (size_t i = 0; i < got.size(); ++i)
+        {
+            text += (i ? " | " : "") + got[i];
+        }
+        text += "] want [";
+        for (size_t i = 0; i < want.size(); ++i)
+        {
+            text += (i ? " | " : "") + want[i];
+        }
+        testing::ReportFailure(__FILE__, line, text + "]");
+    }
+}
+
+// The expired-mail run: the start-up delete, the holder's two reads, then one returned mail's and one
+// dropped mail's writes, in order; the holder's callback runs on the world thread.
+TEST(MailRepository_ExpiredMail)
+{
+    Db db(CharacterDatabase);
+    int answered = 0;
+    {
+        TickGuard::Scope scope;
+        MailRepository::DeleteEmptyExpiredMails(1700000000);
+        MailRepository::QueueExpiredMailReads(1700000000, [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; });
+        MailRepository::DeleteExpiredMailItem(5);
+        MailRepository::ReturnExpiredMail(42, 43, 1702592000, 1700000000, 2, 9);
+        MailRepository::SetReturnedItemReceiver(43, 6);
+        MailRepository::SetReturnedItemOwner(43, 6);
+        MailRepository::DeleteMailRow(10);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(db.query.executed.size(), size_t(0));
+        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(7));
+    }
+    CheckLines(db.Take(), {
+        "DELETE FROM `mail` WHERE `expire_time` < '1700000000' AND `has_items` = '0' AND `body` = ''",
+        "SELECT `id`,`messageType`,`sender`,`receiver`,`has_items`,`expire_time`,`cod`,`checked`,`mailTemplateId` FROM `mail` WHERE `expire_time` < '1700000000' ORDER BY `id`",
+        "SELECT `mail_items`.`item_guid`,`mail_items`.`item_template`,`mail_items`.`mail_id` FROM `mail_items` JOIN `mail` ON `mail_items`.`mail_id` = `mail`.`id` WHERE `mail`.`expire_time` < '1700000000' AND `mail`.`has_items` <> 0 ORDER BY `mail_items`.`mail_id`, `mail_items`.`item_guid`",
+        "DELETE FROM `item_instance` WHERE `guid` = '5'",
+        "UPDATE `mail` SET `sender` = '42', `receiver` = '43', `expire_time` = '1702592000', `deliver_time` = '1700000000', `cod` = '0', `checked` = '2' WHERE `id` = '9'",
+        "UPDATE `mail_items` SET `receiver` = 43 WHERE `item_guid` = '6'",
+        "UPDATE `item_instance` SET `owner_guid` = 43 WHERE `guid` = '6'",
+        "DELETE FROM `mail` WHERE `id` = '10'",
+    }, __LINE__);
+    CHECK_EQ(answered, 0);
+    CharacterDatabase.ProcessResultQueue();
+    CHECK_EQ(answered, 1);
+}
+
+// The start-up renumbering's delete and renumber are one transaction each, and so is the delete of
+// the rows naming item guids past the highest one.
+TEST(GroupRepository_StartupTransactions)
+{
+    Db db(CharacterDatabase);
+    {
+        TickGuard::Scope scope;
+        GroupRepository::DeleteInvalidGroup(0);
+        GroupRepository::RenumberGroup(1, 4);
+        ItemRepository::DeleteRowsOfMissingItems(100);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(3));
+    }
+    CheckLines(db.Take(), {
+        "DELETE FROM `groups` WHERE `groupId` = '0'",
+        "DELETE FROM `group_member` WHERE `groupId` = '0'",
+        "UPDATE `groups` SET `groupId` = '1' WHERE `groupId` = '4'",
+        "UPDATE `group_member` SET `groupId` = '1' WHERE `groupId` = '4'",
+        "DELETE FROM `character_inventory` WHERE `item` >= '100'",
+        "DELETE FROM `mail_items` WHERE `item_guid` >= '100'",
+        "DELETE FROM `auction` WHERE `itemguid` >= '100'",
+        "DELETE FROM `guild_bank_item` WHERE `item_guid` >= '100'",
+    }, __LINE__);
+}
+
+// The highest-id reads, the group ids and the corpses run on the calling thread, in call order.
+TEST(StartupRepository_Reads)
+{
+    Db chars(CharacterDatabase);
+    Db world(WorldDatabase);
+    delete GroupRepository::QueryGroupIds();
+    delete CharacterRepository::QueryHighestGuid();
+    delete SpawnRepository::QueryHighestCreatureGuid();
+    delete ItemRepository::QueryHighestGuid();
+    delete InstanceRepository::QueryHighestId();
+    delete SpawnRepository::QueryHighestGameObjectGuid();
+    delete AuctionRepository::QueryHighestId();
+    delete MailRepository::QueryHighestId();
+    delete CorpseRepository::QueryHighestGuid();
+    delete ArenaTeamRepository::QueryHighestId();
+    delete CharacterSaveRepository::QueryHighestEquipmentSetId();
+    delete GuildRepository::QueryHighestId();
+    delete GroupRepository::QueryHighestId();
+    delete PetRepository::QueryHighestId();
+    delete CorpseRepository::QueryCorpses();
+    CheckLines(chars.query.executed, {
+        "SELECT `groupId` FROM `groups`",
+        "SELECT MAX(`guid`) FROM `characters`",
+        "SELECT MAX(`guid`) FROM `item_instance`",
+        "SELECT MAX(`id`) FROM `instance`",
+        "SELECT MAX(`id`) FROM `auction`",
+        "SELECT MAX(`id`) FROM `mail`",
+        "SELECT MAX(`guid`) FROM `corpse`",
+        "SELECT MAX(`arenateamid`) FROM `arena_team`",
+        "SELECT MAX(`setguid`) FROM `character_equipmentsets`",
+        "SELECT MAX(`guildid`) FROM `guild`",
+        "SELECT MAX(`groupId`) FROM `groups`",
+        "SELECT MAX(`id`) FROM `character_pet`",
+        "SELECT `corpse`.`guid`, `player`, `corpse`.`position_x`, `corpse`.`position_y`, `corpse`.`position_z`, `corpse`.`orientation`, `corpse`.`map`, "
+        "`time`, `corpse_type`, `instance`, `phaseMask`, `gender`, `race`, `class`, `playerBytes`, `playerBytes2`, `equipmentCache`, `guildId`, `playerFlags` FROM `corpse` "
+        "JOIN `characters` ON `player` = `characters`.`guid` "
+        "LEFT JOIN `guild_member` ON `player`=`guild_member`.`guid` WHERE `corpse_type` <> 0",
+    }, __LINE__);
+    CheckLines(world.query.executed, {
+        "SELECT MAX(`guid`) FROM `creature`",
+        "SELECT MAX(`guid`) FROM `gameobject`",
+    }, __LINE__);
+    CHECK_EQ(chars.async.executed.size(), size_t(0));
+    CHECK_EQ(world.async.executed.size(), size_t(0));
+}
