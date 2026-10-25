@@ -68,6 +68,7 @@ set(SRC_GRP_TESTS
     PetRepositoryTest.cpp
     GroupRepositoryTest.cpp
     ItemRepositoryTest.cpp
+    MailRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

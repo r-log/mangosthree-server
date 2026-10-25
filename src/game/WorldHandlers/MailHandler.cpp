@@ -47,6 +47,8 @@
 #include "WorldSession.h"
 #include "Opcodes.h"
 #include "Chat.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/mail/MailRepository.h"
 
 /**
  * @brief Verifies that the player can legally access the requested mailbox.
@@ -280,14 +282,13 @@ void WorldSession::QueueSendMailboxCountRead(uint32 accountId, proto::SessionId 
     // again out of it, so a deferred send copies it once (at the parse) instead of four times.
     // `mutable` is what makes the second move a move: a lambda's operator() is const by
     // default, and std::move on a const member yields a const rvalue, which copies.
-    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, request = std::move(request)](QueryResult* result) mutable
-                                  {
-                                      WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult>(result),
-                                                                           accountId, sessionId, playerGuid,
-                                                                           std::move(request));
-                                  },
-                                  "SELECT COUNT(*) FROM `mail` WHERE `receiver` = '%u'",
-                                  receiverLow);
+    MailRepository::QueryMailboxCount(receiverLow,
+                                      [accountId, sessionId, playerGuid, request = std::move(request)](QueryResult* result) mutable
+                                      {
+                                          WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult>(result),
+                                                                               accountId, sessionId, playerGuid,
+                                                                               std::move(request));
+                                      });
 }
 
 /**
@@ -506,12 +507,12 @@ void WorldSession::ProcessSendMail(MailSendRequest const& request, uint8 offline
                 }
 
                 pl->MoveItemFromInventory(items[i]->GetBagSlot(), item->GetSlot(), true);
-                CharacterDatabase.BeginTransaction();
+                CharacterTransaction::Begin();
                 item->DeleteFromInventoryDB();              // deletes item from character's inventory
                 item->SaveToDB();                           // recursive and not have transaction guard into self, item not in inventory and can be save standalone
                 // owner in data will set at mail receive and item extracting
-                CharacterDatabase.PExecute("UPDATE `item_instance` SET `owner_guid` = '%u' WHERE `guid`='%u'", rc.GetCounter(), item->GetGUIDLow());
-                CharacterDatabase.CommitTransaction();
+                MailRepository::SetMailedItemOwner(item->GetGUIDLow(), rc.GetCounter());
+                CharacterTransaction::Commit();
 
                 draft.AddItem(item);
             }
@@ -536,9 +537,9 @@ void WorldSession::ProcessSendMail(MailSendRequest const& request, uint8 offline
     .SetCOD(COD)
     .SendMailTo(MailReceiver(receive, rc), pl, body.empty() ? MAIL_CHECK_MASK_COPIED : MAIL_CHECK_MASK_HAS_BODY, deliver_delay);
 
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
     pl->SaveInventoryAndGoldToDB();
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 }
 
 /**
@@ -647,11 +648,7 @@ void WorldSession::HandleMailReturnToSender(WorldPacket& recv_data)
 
     // we can return mail now
     // so firstly delete the old one
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `id` = '%u'", mailId);
-    // needed?
-    CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `mail_id` = '%u'", mailId);
-    CharacterDatabase.CommitTransaction();
+    MailRepository::DeleteMail(mailId);
     pl->RemoveMail(mailId);
 
     // send back only to existing players and simple drop for other cases
@@ -785,10 +782,10 @@ void WorldSession::HandleMailTakeItem(WorldPacket& recv_data)
         uint32 count = it->GetCount();                      // save counts before store and possible merge with deleting
         pl->MoveItemToInventory(dest, it, true);
 
-        CharacterDatabase.BeginTransaction();
+        CharacterTransaction::Begin();
         pl->SaveInventoryAndGoldToDB();
         pl->_SaveMail();
-        CharacterDatabase.CommitTransaction();
+        CharacterTransaction::Commit();
 
         pl->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_OK, 0, itemId, count);
     }
@@ -831,10 +828,10 @@ void WorldSession::HandleMailTakeMoney(WorldPacket& recv_data)
     pl->m_mailsUpdated = true;
 
     // save money and mail to prevent cheating
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
     pl->SaveGoldToDB();
     pl->_SaveMail();
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 }
 
 /**

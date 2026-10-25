@@ -52,6 +52,8 @@
 #include "ObjectMgr.h"
 #include "Item.h"
 #include "Player.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/mail/MailRepository.h"
 #include "data/GameConfig.h"
 #include "Calendar.h"
 #include "AuctionHouseMgr.h"
@@ -182,7 +184,7 @@ void MailDraft::deleteIncludedItems(bool inDB /**= false*/)
 
         if (inDB)
         {
-            CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid`='%u'", item->GetGUIDLow());
+            MailRepository::DeleteDroppedItem(item->GetGUIDLow());
         }
 
         delete item;
@@ -248,15 +250,15 @@ void MailDraft::SendReturnToSender(uint32 sender_acc, ObjectGuid sender_guid, Ob
         needItemDelay = sender_acc != rc_account;
 
         // set owner to new receiver (to prevent delete item with sender char deleting)
-        CharacterDatabase.BeginTransaction();
+        CharacterTransaction::Begin();
         for (MailItemMap::iterator mailItemIter = m_items.begin(); mailItemIter != m_items.end(); ++mailItemIter)
         {
             Item* item = mailItemIter->second;
             item->SaveToDB();                               // item not in inventory and can be save standalone
             // owner in data will set at mail receive and item extracting
-            CharacterDatabase.PExecute("UPDATE `item_instance` SET `owner_guid` = '%u' WHERE `guid`='%u'", receiver_guid.GetCounter(), item->GetGUIDLow());
+            MailRepository::SetMailedItemOwner(item->GetGUIDLow(), receiver_guid.GetCounter());
         }
-        CharacterDatabase.CommitTransaction();
+        CharacterTransaction::Commit();
     }
 
     // If theres is an item, there is a one hour delivery delay.
@@ -318,45 +320,33 @@ void MailDraft::SendMailTo(MailReceiver const& receiver, MailSender const& sende
 
     time_t expire_time = deliver_time + expire_delay;
 
-    // Add to DB
-    //
-    // Decoupling D7g (C5): the subject and the body are BOUND, not escaped. The two
-    // escape_string calls that stood here each took query connection zero's lock on the
-    // calling thread, and SendMailTo is reached from inside the tick by everything that
-    // posts a mail -- CMSG_SEND_MAIL, quest rewards, auction results, the mass mailer, the
-    // calendar and a dozen GM commands. Fixing it here fixes all of them at once; the
-    // binding (and, on the plain-statement fallback, the escaping) happens on the delay
-    // thread inside SqlPreparedRequest::ExecuteLocked. The statement joins the transaction
-    // opened below exactly as the PExecute it replaces did.
-    CharacterDatabase.BeginTransaction();
+    // Add to DB: the subject and the body are bound, so the binding (and, on the plain-statement
+    // fallback, the escaping) happens on the delay thread, not here in the tick.
+    MailRow row;
+    row.id             = mailId;
+    row.messageType    = uint32(sender.GetMailMessageType());
+    row.stationery     = uint32(sender.GetStationery());
+    row.mailTemplateId = uint32(GetMailTemplateId());
+    row.sender         = sender.GetSenderId();
+    row.receiver       = receiver.GetPlayerGuid().GetCounter();
+    row.subject        = GetSubject();
+    row.body           = GetBody();
+    row.hasItems       = has_items ? 1 : 0;
+    row.expireTime     = uint64(expire_time);
+    row.deliverTime    = uint64(deliver_time);
+    row.money          = m_money;
+    row.cod            = m_COD;
+    row.checked        = uint32(checked);
 
-    static SqlStatementID insMail;
-    SqlStatement insert = CharacterDatabase.CreateStatement(insMail,
-                          "INSERT INTO `mail` (`id`,`messageType`,`stationery`,`mailTemplateId`,`sender`,`receiver`,`subject`,`body`,`has_items`,`expire_time`,`deliver_time`,`money`,`cod`,`checked`) "
-                          "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-    insert.addUInt32(mailId);
-    insert.addUInt32(uint32(sender.GetMailMessageType()));
-    insert.addUInt32(uint32(sender.GetStationery()));
-    insert.addUInt32(uint32(GetMailTemplateId()));
-    insert.addUInt32(sender.GetSenderId());
-    insert.addUInt32(receiver.GetPlayerGuid().GetCounter());
-    insert.addString(GetSubject());
-    insert.addString(GetBody());
-    insert.addUInt32(has_items ? 1 : 0);
-    insert.addUInt64(uint64(expire_time));
-    insert.addUInt64(uint64(deliver_time));
-    insert.addUInt64(m_money);
-    insert.addUInt64(m_COD);
-    insert.addUInt32(uint32(checked));
-    insert.Execute();
+    CharacterTransaction::Begin();
+    MailRepository::InsertMail(row);
 
     for (MailItemMap::const_iterator mailItemIter = m_items.begin(); mailItemIter != m_items.end(); ++mailItemIter)
     {
         Item* item = mailItemIter->second;
-        CharacterDatabase.PExecute("INSERT INTO `mail_items` (`mail_id`,`item_guid`,`item_template`,`receiver`) VALUES ('%u', '%u', '%u','%u')",
-                                   mailId, item->GetGUIDLow(), item->GetEntry(), receiver.GetPlayerGuid().GetCounter());
+        MailRepository::InsertMailItem(mailId, item->GetGUIDLow(), item->GetEntry(), receiver.GetPlayerGuid().GetCounter());
     }
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 
     // For online receiver update in game mail status and data
     if (pReceiver)
@@ -422,8 +412,8 @@ void Mail::prepareTemplateItems(Player* receiver)
     // can be empty
     mailLoot.FillLoot(mailTemplateId, LootTemplates_Mail, receiver, true, true);
 
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("UPDATE `mail` SET `has_items` = 1 WHERE `id` = %u", messageID);
+    CharacterTransaction::Begin();
+    MailRepository::SetHasItems(messageID);
 
     uint32 max_slot = mailLoot.GetMaxSlotInLootFor(receiver);
     for (uint32 i = 0; items.size() < MAX_MAIL_ITEMS && i < max_slot; ++i)
@@ -438,13 +428,12 @@ void Mail::prepareTemplateItems(Player* receiver)
 
                 receiver->AddMItem(item);
 
-                CharacterDatabase.PExecute("INSERT INTO `mail_items` (`mail_id`,`item_guid`,`item_template`,`receiver`) VALUES ('%u', '%u', '%u','%u')",
-                                           messageID, item->GetGUIDLow(), item->GetEntry(), receiver->GetGUIDLow());
+                MailRepository::InsertMailItem(messageID, item->GetGUIDLow(), item->GetEntry(), receiver->GetGUIDLow());
             }
         }
     }
 
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 }
 
 /*! @} */
