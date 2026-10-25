@@ -246,6 +246,9 @@ namespace CharacterRepository
     /// Asks how many characters hold a guid in a range, for the harness's guid block check; answers false
     /// when the database refuses to queue it.
     bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(QueryResult*)> callback);
+
+    /// Marks every character offline, at start-up and shutdown.
+    void SetEveryCharacterOffline();
 }
 
 #endif

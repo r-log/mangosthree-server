@@ -127,6 +127,10 @@ namespace GroupRepository
 
     /// Selects every group instance bind with its instance and group, ordered by leader, at start-up.
     QueryResult* QueryInstanceBinds();
+
+    /// Gives every group whose leader left it a member as its leader, assistants first, at start-up
+    /// and shutdown.
+    void RepairLeaders();
 }
 
 #endif

@@ -378,4 +378,9 @@ namespace CharacterRepository
                                              "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
                                              first, last);
     }
+
+    void SetEveryCharacterOffline()
+    {
+        CharacterDatabase.Execute("UPDATE `characters` SET `online` = 0 WHERE `online` <> 0");
+    }
 }

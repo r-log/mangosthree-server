@@ -28,8 +28,6 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
-
 /// The three databases' delay threads and result queues, as the world loop and the server's start-up
 /// and shutdown drive them, one database at a time.
 namespace DatabaseLifecycle
@@ -42,6 +40,39 @@ namespace DatabaseLifecycle
 
     /// The login database's.
     void ProcessLoginResults();
+
+    /// Each stops one database's delay thread, waits for it and runs what it still had queued.
+    void HaltLoginDelayThread();
+
+    /// The character database's.
+    void HaltCharacterDelayThread();
+
+    /// The world database's.
+    void HaltWorldDelayThread();
+
+    /// Each lets one database queue asynchronous transactions, once the world is loaded.
+    void AllowCharacterAsyncTransactions();
+
+    /// The world database's.
+    void AllowWorldAsyncTransactions();
+
+    /// The login database's.
+    void AllowLoginAsyncTransactions();
+
+    /// Each stops one database from queueing new asynchronous reads, as the shutdown begins.
+    void BeginLoginShutdown();
+
+    /// The world database's.
+    void BeginWorldShutdown();
+
+    /// The character database's.
+    void BeginCharacterShutdown();
+
+    /// Registers the world thread with the world database's client library.
+    void StartWorldThread();
+
+    /// Unregisters the world thread from the world database's client library.
+    void EndWorldThread();
 }
 
 #endif

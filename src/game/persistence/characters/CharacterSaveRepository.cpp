@@ -434,4 +434,9 @@ namespace CharacterSaveRepository
     {
         return CharacterDatabase.Query("SELECT MAX(`setguid`) FROM `character_equipmentsets`");
     }
+
+    void DeleteEveryBattlegroundData()
+    {
+        CharacterDatabase.Execute("DELETE FROM `character_battleground_data`");
+    }
 }

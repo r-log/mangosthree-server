@@ -207,4 +207,13 @@ namespace GroupRepository
                                        " `groups`.`groupId`, `instance`.`encountersMask` "
                                        "FROM `group_instance` LEFT JOIN `instance` ON `instance` = `id` LEFT JOIN `groups` ON `groups`.`leaderGUID` = `group_instance`.`leaderGUID` ORDER BY `leaderGuid`");
     }
+
+    void RepairLeaders()
+    {
+        CharacterDatabase.Execute(
+            "UPDATE `groups` SET `leaderGuid` = (SELECT `memberGuid` FROM `group_member` "
+            "WHERE `group_member`.`groupId` = `groups`.`groupId` ORDER BY `assistant` DESC LIMIT 1) "
+            "WHERE `leaderGuid` NOT IN (SELECT `memberGuid` FROM `group_member` "
+            "WHERE `group_member`.`groupId` = `groups`.`groupId`)");
+    }
 }

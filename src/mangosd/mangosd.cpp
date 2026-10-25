@@ -76,6 +76,7 @@ int m_ServiceStatus = -1;
 
 #else
 #include "PosixDaemon.h"
+#include "persistence/login/RealmRepository.h"
 #endif
 
 
@@ -351,9 +352,7 @@ int main(int argc, char** argv)
     unhook_signals();
 
     ///- Set server offline in realmlist
-    LoginDatabase.DirectPExecute(
-        "UPDATE `realmlist` SET `realmflags` = `realmflags` | %u WHERE `id` = '%u'",
-        REALM_FLAG_OFFLINE, realmID);
+    RealmRepository::AddFlags(REALM_FLAG_OFFLINE, realmID);
 
     // Master has already kicked the players, stopped every service, cleared the
     // online flags and halted the database delay threads. What is left here is

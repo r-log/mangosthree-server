@@ -56,6 +56,12 @@ extern int m_ServiceStatus;
 #include <string>
 #include <thread>
 #include <vector>
+#include "persistence/DatabaseLifecycle.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/CharacterSaveRepository.h"
+#include "persistence/characters/social/GroupRepository.h"
+#include "persistence/login/AccountRepository.h"
+#include "persistence/login/RealmRepository.h"
 
 /// Shortest interval between two world ticks, in milliseconds.
 #ifndef WORLD_SLEEP_CONST
@@ -145,24 +151,24 @@ bool Master::StartDatabases()
     if (!OpenDatabase(WorldDatabase, "World", "WorldDatabaseInfo",
                       "WorldDatabaseConnections", DATABASE_WORLD))
     {
-        WorldDatabase.HaltDelayThread();
+        DatabaseLifecycle::HaltWorldDelayThread();
         return false;
     }
 
     if (!OpenDatabase(CharacterDatabase, "Character", "CharacterDatabaseInfo",
                       "CharacterDatabaseConnections", DATABASE_CHARACTER))
     {
-        CharacterDatabase.HaltDelayThread();
-        WorldDatabase.HaltDelayThread();
+        DatabaseLifecycle::HaltCharacterDelayThread();
+        DatabaseLifecycle::HaltWorldDelayThread();
         return false;
     }
 
     if (!OpenDatabase(LoginDatabase, "Login", "LoginDatabaseInfo",
                       "LoginDatabaseConnections", DATABASE_REALMD))
     {
-        LoginDatabase.HaltDelayThread();
-        CharacterDatabase.HaltDelayThread();
-        WorldDatabase.HaltDelayThread();
+        DatabaseLifecycle::HaltLoginDelayThread();
+        DatabaseLifecycle::HaltCharacterDelayThread();
+        DatabaseLifecycle::HaltWorldDelayThread();
         return false;
     }
 
@@ -180,28 +186,22 @@ bool Master::StartDatabases()
 
 void Master::StopDatabases()
 {
-    LoginDatabase.HaltDelayThread();
-    CharacterDatabase.HaltDelayThread();
-    WorldDatabase.HaltDelayThread();
+    DatabaseLifecycle::HaltLoginDelayThread();
+    DatabaseLifecycle::HaltCharacterDelayThread();
+    DatabaseLifecycle::HaltWorldDelayThread();
 }
 
 void Master::ClearOnlineAccounts()
 {
     // Reset the online flags for this realm only: another realm sharing the same
     // login database may be up, and its sessions are none of our business.
-    LoginDatabase.PExecute(
-        "UPDATE `account` SET `active_realm_id` = 0 WHERE `active_realm_id` = '%u'",
-        realmID);
+    AccountRepository::ClearActiveRealm(realmID);
 
-    CharacterDatabase.Execute("UPDATE `characters` SET `online` = 0 WHERE `online` <> 0");
+    CharacterRepository::SetEveryCharacterOffline();
 
-    CharacterDatabase.Execute("DELETE FROM `character_battleground_data`");
+    CharacterSaveRepository::DeleteEveryBattlegroundData();
 
-    CharacterDatabase.Execute(
-        "UPDATE `groups` SET `leaderGuid` = (SELECT `memberGuid` FROM `group_member` "
-        "WHERE `group_member`.`groupId` = `groups`.`groupId` ORDER BY `assistant` DESC LIMIT 1) "
-        "WHERE `leaderGuid` NOT IN (SELECT `memberGuid` FROM `group_member` "
-        "WHERE `group_member`.`groupId` = `groups`.`groupId`)");
+    GroupRepository::RepairLeaders();
 }
 
 void Master::StartServices()
@@ -406,18 +406,14 @@ int Master::Run()
             ? recommendedOrNew : uint8(REALM_FLAG_NONE);
 
     std::string builds = Version::GetAcceptedClientBuildsStr();
-    LoginDatabase.escape_string(builds);
-    LoginDatabase.DirectPExecute(
-        "UPDATE `realmlist` SET `realmflags` = %u, `population` = 0, "
-        "`realmbuilds` = '%s' WHERE `id` = '%u'",
-        realmStatus, builds.c_str(), realmID);
+    RealmRepository::PublishFlagsAndBuilds(realmStatus, builds, realmID);
 
     // Async transactions are forbidden during start-up; enable them only now
     // that the world is fully loaded.
-    WorldDatabase.ThreadStart();
-    CharacterDatabase.AllowAsyncTransactions();
-    WorldDatabase.AllowAsyncTransactions();
-    LoginDatabase.AllowAsyncTransactions();
+    DatabaseLifecycle::StartWorldThread();
+    DatabaseLifecycle::AllowCharacterAsyncTransactions();
+    DatabaseLifecycle::AllowWorldAsyncTransactions();
+    DatabaseLifecycle::AllowLoginAsyncTransactions();
 
     if (!sWorldNetwork.Start(uint16(sWorld.getConfig(CONFIG_UINT32_PORT_WORLD)),
                              uint16(sConfig.GetIntDefault("WorldServerStreamPort", DEFAULT_WORLDSERVER_STREAM_PORT)),
@@ -461,9 +457,9 @@ int Master::Run()
     // answer false without queueing, so the drain at the end of this sequence is the last
     // one that can ever be needed. Execute()/PExecute() and the transactions are NOT
     // refused -- the save below is built on them, and they carry no callback to lose.
-    LoginDatabase.BeginShutdown();
-    WorldDatabase.BeginShutdown();
-    CharacterDatabase.BeginShutdown();
+    DatabaseLifecycle::BeginLoginShutdown();
+    DatabaseLifecycle::BeginWorldShutdown();
+    DatabaseLifecycle::BeginCharacterShutdown();
 
     // Then the sessions are kicked and saved, exactly as before.
     ShutdownWorld();
@@ -480,11 +476,11 @@ int Master::Run()
     // deleted with the databases. One final pass, here, on the world thread, so no async
     // callback is discarded. Safe to be the last one, because BeginShutdown() closed the
     // door on anything new being queued behind it.
-    LoginDatabase.ProcessResultQueue();
-    WorldDatabase.ProcessResultQueue();
-    CharacterDatabase.ProcessResultQueue();
+    DatabaseLifecycle::ProcessLoginResults();
+    DatabaseLifecycle::ProcessWorldResults();
+    DatabaseLifecycle::ProcessCharacterResults();
 
-    WorldDatabase.ThreadEnd();
+    DatabaseLifecycle::EndWorldThread();
 
     sLog.outString("Halting process...");
     return World::GetExitCode();

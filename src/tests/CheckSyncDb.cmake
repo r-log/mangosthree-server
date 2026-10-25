@@ -602,6 +602,11 @@ set(ALLOW_DbVersionRepository_cpp
 set(ALLOW_BroadcastDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`\")\;")
 
+set(ALLOW_RealmRepository_cpp
+    "LoginDatabase.escape_string(builds)\;"
+    "LoginDatabase.DirectPExecute(\"UPDATE `realmlist` SET `realmflags` = %u, `population` = 0, \""
+    "LoginDatabase.DirectPExecute(\"UPDATE `realmlist` SET `realmflags` = `realmflags` | %u WHERE `id` = '%u'\",")
+
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 
 set(ADMIN_SCOPE_RE "TickGuard::AdminScope[ \t]+[A-Za-z_][A-Za-z_0-9]*[ \t]*\\(")

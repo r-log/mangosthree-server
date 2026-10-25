@@ -28,7 +28,10 @@
 
 #include "Platform/Define.h"
 
-/// The realm list and the realm's uptime rows on the login database (`realmlist`, `uptime`). Every
+#include <string>
+
+/// The realm list and the realm's uptime rows on the login database (`realmlist`, `uptime`). The
+/// start-up's and shutdown's realm flag writes are direct, the builds escaped first; every other
 /// write is queued.
 namespace RealmRepository
 {
@@ -46,6 +49,13 @@ namespace RealmRepository
 
     /// Writes the lowest security level the realm admits.
     void SetAllowedSecurityLevel(uint32 level, uint32 realmId);
+
+    /// Publishes the realm's flags and the client builds it accepts, the builds escaped first, written
+    /// directly at start-up.
+    void PublishFlagsAndBuilds(uint8 flags, std::string builds, uint32 realmId);
+
+    /// Adds flags to the realm's flags, written directly, as the shutdown marks the realm offline.
+    void AddFlags(uint32 flags, uint32 realmId);
 }
 
 #endif

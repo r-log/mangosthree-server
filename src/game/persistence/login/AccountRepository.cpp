@@ -259,4 +259,11 @@ namespace AccountRepository
         LoginDatabase.PExecute("INSERT INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)", count, accountId, realmId);
         LoginDatabase.CommitTransaction();
     }
+
+    void ClearActiveRealm(uint32 realmId)
+    {
+        LoginDatabase.PExecute(
+            "UPDATE `account` SET `active_realm_id` = 0 WHERE `active_realm_id` = '%u'",
+            realmId);
+    }
 }

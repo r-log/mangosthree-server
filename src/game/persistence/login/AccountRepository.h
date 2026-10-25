@@ -153,6 +153,9 @@ namespace AccountRepository
 
     /// Rewrites an account's character count on a realm, in one transaction.
     void ReplaceRealmCharacterCount(uint32 accountId, uint32 realmId, uint32 count);
+
+    /// Clears the active realm of every account playing on a realm, at start-up and shutdown.
+    void ClearActiveRealm(uint32 realmId);
 }
 
 #endif

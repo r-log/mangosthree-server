@@ -42,4 +42,59 @@ namespace DatabaseLifecycle
     {
         LoginDatabase.ProcessResultQueue();
     }
+
+    void HaltLoginDelayThread()
+    {
+        LoginDatabase.HaltDelayThread();
+    }
+
+    void HaltCharacterDelayThread()
+    {
+        CharacterDatabase.HaltDelayThread();
+    }
+
+    void HaltWorldDelayThread()
+    {
+        WorldDatabase.HaltDelayThread();
+    }
+
+    void AllowCharacterAsyncTransactions()
+    {
+        CharacterDatabase.AllowAsyncTransactions();
+    }
+
+    void AllowWorldAsyncTransactions()
+    {
+        WorldDatabase.AllowAsyncTransactions();
+    }
+
+    void AllowLoginAsyncTransactions()
+    {
+        LoginDatabase.AllowAsyncTransactions();
+    }
+
+    void BeginLoginShutdown()
+    {
+        LoginDatabase.BeginShutdown();
+    }
+
+    void BeginWorldShutdown()
+    {
+        WorldDatabase.BeginShutdown();
+    }
+
+    void BeginCharacterShutdown()
+    {
+        CharacterDatabase.BeginShutdown();
+    }
+
+    void StartWorldThread()
+    {
+        WorldDatabase.ThreadStart();
+    }
+
+    void EndWorldThread()
+    {
+        WorldDatabase.ThreadEnd();
+    }
 }

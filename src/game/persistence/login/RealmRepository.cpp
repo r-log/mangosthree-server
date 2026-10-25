@@ -57,4 +57,18 @@ namespace RealmRepository
         LoginDatabase.PExecute("UPDATE `realmlist` SET `allowedSecurityLevel` = '%u' WHERE `id` = '%u'",
                                level, realmId);
     }
+
+    void PublishFlagsAndBuilds(uint8 flags, std::string builds, uint32 realmId)
+    {
+        LoginDatabase.escape_string(builds);
+        LoginDatabase.DirectPExecute("UPDATE `realmlist` SET `realmflags` = %u, `population` = 0, "
+                                     "`realmbuilds` = '%s' WHERE `id` = '%u'",
+                                     flags, builds.c_str(), realmId);
+    }
+
+    void AddFlags(uint32 flags, uint32 realmId)
+    {
+        LoginDatabase.DirectPExecute("UPDATE `realmlist` SET `realmflags` = `realmflags` | %u WHERE `id` = '%u'",
+                                     flags, realmId);
+    }
 }
