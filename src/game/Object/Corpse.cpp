@@ -32,6 +32,8 @@
 #include "Database/DatabaseEnv.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/maps/CorpseRepository.h"
 
 /**
  * @brief Creates a corpse object of the specified type.
@@ -144,24 +146,23 @@ void Corpse::SaveToDB()
     MANGOS_ASSERT(GetType() != CORPSE_BONES);
 
     // prevent DB data inconsistence problems and duplicates
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
     DeleteFromDB();
 
-    std::ostringstream ss;
-    ss  << "INSERT INTO `corpse` (`guid`,`player`,`position_x`,`position_y`,`position_z`,`orientation`,`map`,`time`,`corpse_type`,`instance`,`phaseMask`) VALUES ("
-        << GetGUIDLow() << ", "
-        << GetOwnerGuid().GetCounter() << ", "
-        << Where().X() << ", "
-        << Where().Y() << ", "
-        << Where().Z() << ", "
-        << Where().Facing() << ", "
-        << GetMapId() << ", "
-        << uint64(m_time) << ", "
-        << uint32(GetType()) << ", "
-        << int(GetInstanceId()) << ", "
-        << uint32(GetPhaseMask()) << ")";           // prevent out of range error
-    CharacterDatabase.Execute(ss.str().c_str());
-    CharacterDatabase.CommitTransaction();
+    CorpseRow row;
+    row.guid = GetGUIDLow();
+    row.player = GetOwnerGuid().GetCounter();
+    row.x = Where().X();
+    row.y = Where().Y();
+    row.z = Where().Z();
+    row.o = Where().Facing();
+    row.map = GetMapId();
+    row.time = uint64(m_time);
+    row.type = uint32(GetType());
+    row.instance = int(GetInstanceId());
+    row.phaseMask = uint32(GetPhaseMask());                 // prevent out of range error
+    CorpseRepository::Insert(row);
+    CharacterTransaction::Commit();
 }
 
 /**
@@ -190,10 +191,7 @@ void Corpse::DeleteFromDB()
     MANGOS_ASSERT(GetType() != CORPSE_BONES);
 
     // all corpses (not bones)
-    static SqlStatementID id;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(id, "DELETE FROM `corpse` WHERE `player` = ? AND `corpse_type` <> '0'");
-    stmt.PExecute(GetOwnerGuid().GetCounter());
+    CorpseRepository::DeleteOfPlayer(GetOwnerGuid().GetCounter());
 }
 
 /**
@@ -205,10 +203,9 @@ void Corpse::DeleteFromDB()
  */
 bool Corpse::LoadFromDB(uint32 lowguid, Field* fields)
 {
-    ////                                                    0            1       2                  3                  4                  5                   6
-    // QueryResult *result = CharacterDatabase.Query("SELECT corpse.guid, player, corpse.position_x, corpse.position_y, corpse.position_z, corpse.orientation, corpse.map,"
-    ////   7     8            9         10         11      12    13     14           15            16              17       18
-    //    "time, corpse_type, instance, phaseMask, gender, race, class, playerBytes, playerBytes2, equipmentCache, guildId, playerFlags FROM corpse"
+    // fields: 0 guid, 1 player, 2-5 position and orientation, 6 map, 7 time, 8 corpse_type, 9 instance,
+    // 10 phaseMask, 11 gender, 12 race, 13 class, 14 playerBytes, 15 playerBytes2, 16 equipmentCache,
+    // 17 guildId, 18 playerFlags
     uint32 playerLowGuid = fields[1].GetUInt32();
     float positionX     = fields[2].GetFloat();
     float positionY     = fields[3].GetFloat();

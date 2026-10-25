@@ -112,6 +112,9 @@ source_group("Persistence\\Login" FILES ${SRC_GRP_PERSISTENCE_LOGIN})
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_ACHIEVEMENTS persistence/world/achievements/*.cpp persistence/world/achievements/*.h)
 source_group("Persistence\\World\\Achievements" FILES ${SRC_GRP_PERSISTENCE_WORLD_ACHIEVEMENTS})
 
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_SPAWNS persistence/world/spawns/*.cpp persistence/world/spawns/*.h)
+source_group("Persistence\\World\\Spawns" FILES ${SRC_GRP_PERSISTENCE_WORLD_SPAWNS})
+
 file(GLOB SRC_GRP_REFERENCES References/*.cpp References/*.h)
 source_group("References" FILES ${SRC_GRP_REFERENCES})
 
@@ -210,6 +213,7 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_CHARACTERS_TALENTS}
     ${SRC_GRP_PERSISTENCE_LOGIN}
     ${SRC_GRP_PERSISTENCE_WORLD_ACHIEVEMENTS}
+    ${SRC_GRP_PERSISTENCE_WORLD_SPAWNS}
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}

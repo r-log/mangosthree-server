@@ -54,6 +54,7 @@
 #include <memory>
 #include "PlayerRegistry.h"
 #include "ObjectLookup.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 enum
 {
@@ -409,29 +410,24 @@ void GameObject::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask)
     data.spawnMask = spawnMask;
 
     // updated in DB
-    std::ostringstream ss;
-    ss << "INSERT INTO `gameobject` VALUES ( "
-       << GetGUIDLow() << ", "
-       << GetEntry() << ", "
-       << mapid << ", "
-       << uint32(spawnMask) << ","                         // cast to prevent save as symbol
-       << uint32(GetPhaseMask()) << ","                    // prevent out of range error
-       << Where().X() << ", "
-       << Where().Y() << ", "
-       << Where().Z() << ", "
-       << Where().Facing() << ", "
-       << m_worldRotation.x << ", "
-       << m_worldRotation.y << ", "
-       << m_worldRotation.z << ", "
-       << m_worldRotation.w << ", "
-       << m_respawnDelayTime << ", "
-       << uint32(GetGoAnimProgress()) << ", "
-       << uint32(GetGoState()) << ")";
-
-    WorldDatabase.BeginTransaction();
-    WorldDatabase.PExecuteLog("DELETE FROM `gameobject` WHERE `guid` = '%u'", GetGUIDLow());
-    WorldDatabase.PExecuteLog("%s", ss.str().c_str());
-    WorldDatabase.CommitTransaction();
+    GameObjectSpawnRow row;
+    row.guid = GetGUIDLow();
+    row.entry = GetEntry();
+    row.map = mapid;
+    row.spawnMask = uint32(spawnMask);                      // cast to prevent save as symbol
+    row.phaseMask = uint32(GetPhaseMask());                 // prevent out of range error
+    row.x = Where().X();
+    row.y = Where().Y();
+    row.z = Where().Z();
+    row.o = Where().Facing();
+    row.rotationX = m_worldRotation.x;
+    row.rotationY = m_worldRotation.y;
+    row.rotationZ = m_worldRotation.z;
+    row.rotationW = m_worldRotation.w;
+    row.respawnDelay = m_respawnDelayTime;
+    row.animProgress = uint32(GetGoAnimProgress());
+    row.goState = uint32(GetGoState());
+    SpawnRepository::ReplaceGameObject(row);
 }
 
 /**
@@ -531,9 +527,7 @@ void GameObject::DeleteFromDB()
     sMapPersistentStateMgr.DoForAllStatesWithMapId(GetMapId(), worker);
 
     sObjectMgr.DeleteGOData(GetGUIDLow());
-    WorldDatabase.PExecuteLog("DELETE FROM `gameobject` WHERE `guid` = '%u'", GetGUIDLow());
-    WorldDatabase.PExecuteLog("DELETE FROM `game_event_gameobject` WHERE `guid` = '%u'", GetGUIDLow());
-    WorldDatabase.PExecuteLog("DELETE FROM `gameobject_battleground` WHERE `guid` = '%u'", GetGUIDLow());
+    SpawnRepository::DeleteGameObject(GetGUIDLow());
 }
 
 GameObjectInfo const* GameObject::GetGOInfo() const
