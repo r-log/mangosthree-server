@@ -53,6 +53,7 @@
 #include "Chat.h"
 
 #include "Policies/Singleton.h"
+#include "persistence/characters/achievements/AchievementRepository.h"
 
 
 namespace MaNGOS
@@ -157,20 +158,11 @@ void AchievementMgr::ResetAchievementCriteria(AchievementCriteriaTypes type, uin
 
 void AchievementMgr::DeleteFromDB(ObjectGuid guid)
 {
-    uint32 lowguid = guid.GetCounter();
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `character_achievement` WHERE `guid` = %u", lowguid);
-    CharacterDatabase.PExecute("DELETE FROM `character_achievement_progress` WHERE `guid` = %u", lowguid);
-    CharacterDatabase.CommitTransaction();
+    AchievementRepository::DeleteAllOf(guid.GetCounter());
 }
 
 void AchievementMgr::SaveToDB()
 {
-    static SqlStatementID delComplAchievements ;
-    static SqlStatementID insComplAchievements ;
-    static SqlStatementID delProgress ;
-    static SqlStatementID insProgress ;
-
     if (!m_completedAchievements.empty())
     {
         // delete existing achievements in the loop
@@ -184,11 +176,7 @@ void AchievementMgr::SaveToDB()
             /// mark as saved in db
             iter->second.changed = false;
 
-            SqlStatement stmt = CharacterDatabase.CreateStatement(delComplAchievements, "DELETE FROM `character_achievement` WHERE `guid` = ? AND `achievement` = ?");
-            stmt.PExecute(GetPlayer()->GetGUIDLow(), iter->first);
-
-            stmt = CharacterDatabase.CreateStatement(insComplAchievements, "INSERT INTO `character_achievement` (`guid`, `achievement`, `date`) VALUES (?, ?, ?)");
-            stmt.PExecute(GetPlayer()->GetGUIDLow(), iter->first, uint64(iter->second.date));
+            AchievementRepository::ReplaceCompleted(GetPlayer()->GetGUIDLow(), iter->first, uint64(iter->second.date));
         }
     }
 
@@ -206,8 +194,7 @@ void AchievementMgr::SaveToDB()
             iter->second.changed = false;
 
             // new/changed record data
-            SqlStatement stmt = CharacterDatabase.CreateStatement(delProgress, "DELETE FROM `character_achievement_progress` WHERE `guid` = ? AND `criteria` = ?");
-            stmt.PExecute(GetPlayer()->GetGUIDLow(), iter->first);
+            AchievementRepository::DeleteProgress(GetPlayer()->GetGUIDLow(), iter->first);
 
             bool needSave = iter->second.counter != 0;
             if (!needSave)
@@ -218,8 +205,7 @@ void AchievementMgr::SaveToDB()
 
             if (needSave)
             {
-                stmt = CharacterDatabase.CreateStatement(insProgress, "INSERT INTO `character_achievement_progress` (`guid`, `criteria`, `counter`, `date`) VALUES (?, ?, ?, ?)");
-                stmt.PExecute(GetPlayer()->GetGUIDLow(), iter->first, iter->second.counter, uint64(iter->second.date));
+                AchievementRepository::InsertProgress(GetPlayer()->GetGUIDLow(), iter->first, iter->second.counter, uint64(iter->second.date));
             }
         }
     }
@@ -267,7 +253,7 @@ void AchievementMgr::LoadFromDB(QueryResult* achievementResult, QueryResult* cri
             {
                 // we will remove nonexistent criteria for all characters
                 sLog.outError("Nonexistent achievement criteria %u data removed from table `character_achievement_progress`.", id);
-                CharacterDatabase.PExecute("DELETE FROM `character_achievement_progress` WHERE `criteria` = %u", id);
+                AchievementRepository::DeleteCriteriaOfEveryCharacter(id);
                 continue;
             }
 
@@ -2208,8 +2194,7 @@ void AchievementMgr::IncompletedAchievement(AchievementEntry const* achievement)
     m_player->SendDirectMessage(&data);
 
     if (!itr->second.changed)                               // complete state saved
-        CharacterDatabase.PExecute("DELETE FROM `character_achievement` WHERE `guid` = %u AND `achievement` = %u",
-                                   GetPlayer()->GetGUIDLow(), achievement->ID);
+        AchievementRepository::DeleteCompleted(GetPlayer()->GetGUIDLow(), achievement->ID);
 
     m_completedAchievements.erase(achievement->ID);
 

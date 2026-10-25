@@ -194,13 +194,19 @@ state_row(achievement
             CompletedAchievementMap)
 
 state_allow(achievement src/game/WorldHandlers/AchievementMgr.cpp
-    WHY "the owner: builds its packets, loads, saves and deletes the rows"
+    WHY "the owner: builds its packets, and its load's log line names the progress table"
     NAMES SMSG_ACHIEVEMENT_EARNED SMSG_CRITERIA_UPDATE SMSG_RESPOND_INSPECT_ACHIEVEMENTS
           SMSG_ALL_ACHIEVEMENT_DATA SMSG_SERVER_FIRST_ACHIEVEMENT SMSG_CRITERIA_DELETED
-          SMSG_ACHIEVEMENT_DELETED character_achievement character_achievement_progress)
+          SMSG_ACHIEVEMENT_DELETED character_achievement_progress)
 state_allow(achievement src/game/WorldHandlers/AchievementMgr.h
     WHY "realm-wide cleanup: AchievementGlobalMgr::CleanupOrphanedCriteriaProgress's doc comment, in the owner's header"
     NAMES character_achievement_progress)
+state_allow(achievement src/game/persistence/characters/achievements/AchievementRepository.cpp
+    WHY "the owner's repository: the rows it saves and deletes, and the realm-wide start-up reads and cleanup"
+    NAMES character_achievement character_achievement_progress)
+state_allow(achievement src/tests/AchievementRepositoryTest.cpp
+    WHY "unit test that observes the repository's statements through a fake connection (checks the statements, runs nothing itself)"
+    NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/game/persistence/characters/CharacterDeleteRepository.cpp
     WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
     NAMES character_achievement character_achievement_progress)
