@@ -37,4 +37,9 @@ namespace CharacterTransaction
     {
         CharacterDatabase.CommitTransaction();
     }
+
+    void Rollback()
+    {
+        CharacterDatabase.RollbackTransaction();
+    }
 }

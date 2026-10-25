@@ -44,6 +44,7 @@
 #include "SocialMgr.h"
 #include "Calendar.h"
 #include "PlayerRegistry.h"
+#include "persistence/characters/CharacterTransaction.h"
 
 void WorldSession::HandleGuildQueryOpcode(WorldPacket& recvPacket)
 {
@@ -1245,13 +1246,13 @@ void WorldSession::HandleGuildBankDepositMoney(WorldPacket& recv_data)
         return;
     }
 
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
 
     pGuild->SetBankMoney(pGuild->GetGuildBankMoney() + money);
     GetPlayer()->ModifyMoney(-int64(money));
     GetPlayer()->SaveGoldToDB();
 
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 
     // logging money
     if (_player->GetSession()->GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
@@ -1308,18 +1309,18 @@ void WorldSession::HandleGuildBankWithdrawMoney(WorldPacket& recv_data)
         return;
     }
 
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
 
     if (!pGuild->MemberMoneyWithdraw(money, GetPlayer()->GetGUIDLow()))
     {
-        CharacterDatabase.RollbackTransaction();
+        CharacterTransaction::Rollback();
         return;
     }
 
     GetPlayer()->ModifyMoney(money);
     GetPlayer()->SaveGoldToDB();
 
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 
     // Log
     pGuild->LogBankEvent(GUILD_BANK_LOG_WITHDRAW_MONEY, uint8(0), GetPlayer()->GetGUIDLow(), money);

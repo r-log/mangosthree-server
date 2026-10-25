@@ -33,6 +33,8 @@ set(CONVERTED_FILES
     src/game/persistence/characters/economy/AuctionRepository.cpp
     src/game/persistence/login/AccountRepository.h
     src/game/persistence/login/AccountRepository.cpp
+    src/game/persistence/characters/social/GuildRepository.h
+    src/game/persistence/characters/social/GuildRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
@@ -133,8 +135,12 @@ set(ALLOW_ObjectMgr_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data\")\;")
 
-set(ALLOW_Guild_cpp
-    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, GUILD_EVENTLOG_MAX_RECORDS)\;")
+set(ALLOW_GuildRepository_cpp
+    "return CharacterDatabase.Query(\"SELECT `guild`.`guildid`,`guild`.`name`,`leaderguid`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,\""
+    "return CharacterDatabase.Query(\"SELECT `guildid`,`rid`,`rname`,`rights`,`BankMoneyPerDay` FROM `guild_rank` ORDER BY `guildid` ASC, `rid` ASC\")\;"
+    "return CharacterDatabase.Query(\"SELECT `guildid`,`guild_member`.`guid`,`rank`,`pnote`,`offnote`,`BankResetTimeMoney`,`BankRemMoney`,\""
+    "return CharacterDatabase.Query(\"SELECT `guildid`,`TabId`,`rid`,`gbright`,`SlotPerDay` FROM `guild_bank_right` ORDER BY `guildid` ASC, `TabId` ASC\")\;"
+    "return CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", guildId, maxRecords)\;")
 
 set(ALLOW_CalendarRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `eventId`, `creatorGuid`, `guildId`, `type`, `flags`, `dungeonId`, `eventTime`, `title`, `description` FROM `calendar_events` ORDER BY `eventId`\")\;"

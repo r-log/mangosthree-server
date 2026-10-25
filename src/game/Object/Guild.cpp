@@ -41,6 +41,8 @@
 #include "Calendar.h"
 #include "CharacterCache.h"
 #include "PlayerRegistry.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/social/GuildRepository.h"
 
 /**
  * @brief Refreshes cached member information from a player object.
@@ -72,13 +74,7 @@ void MemberSlot::SetPNOTE(std::string pnote)
 {
     Pnote = pnote;
 
-    // Decoupling D7f (C5): bound, not escaped. Database::escape_string takes query
-    // connection zero's lock on the world thread; a prepared statement carries the note
-    // as a parameter and does whatever escaping is needed on the delay thread.
-    static SqlStatementID updPnote;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(updPnote,
-                        "UPDATE `guild_member` SET `pnote` = ? WHERE `guid` = ?");
-    stmt.PExecute(pnote.c_str(), guid.GetCounter());
+    GuildRepository::SetMemberPublicNote(guid.GetCounter(), pnote);
 }
 
 /**
@@ -90,11 +86,7 @@ void MemberSlot::SetOFFNOTE(std::string offnote)
 {
     OFFnote = offnote;
 
-    // Decoupling D7f (C5): bound, not escaped -- see MemberSlot::SetPNOTE above.
-    static SqlStatementID updOffnote;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(updOffnote,
-                        "UPDATE `guild_member` SET `offnote` = ? WHERE `guid` = ?");
-    stmt.PExecute(offnote.c_str(), guid.GetCounter());
+    GuildRepository::SetMemberOfficerNote(guid.GetCounter(), offnote);
 }
 
 /**
@@ -113,7 +105,7 @@ void MemberSlot::ChangeRank(uint32 newRank)
         player->SetRank(newRank);
     }
 
-    CharacterDatabase.PExecute("UPDATE `guild_member` SET `rank`='%u' WHERE `guid`='%u'", newRank, guid.GetCounter());
+    GuildRepository::SetMemberRank(guid.GetCounter(), newRank);
 
     // Decoupling D7c: Player::GetRankFromDB reads the cached rank, so it moves here.
     sCharacterCache.UpdateGuildRank(guid, newRank);
@@ -187,40 +179,29 @@ bool Guild::Create(Player* leader, std::string gname)
 
     DEBUG_LOG("GUILD: creating guild %s to leader: %s", gname.c_str(), m_LeaderGuid.GetString().c_str());
 
-    CharacterDatabase.BeginTransaction();
-    // CharacterDatabase.PExecute("DELETE FROM `guild` WHERE `guildid`='%u'", Id); - MAX(guildid)+1 not exist
-    CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guildid`='%u'", m_Id);
+    // The new guild's row, after a DELETE of any member rows left under its id, in one
+    // transaction; the name, info and MOTD are bound.
+    GuildRow row;
+    row.id              = m_Id;
+    row.name            = gname;
+    row.leaderGuid      = m_LeaderGuid.GetCounter();
+    row.info            = GINFO;
+    row.motd            = MOTD;
+    row.createDate      = uint64(m_CreatedDate);
+    row.emblemStyle     = m_EmblemStyle;
+    row.emblemColor     = m_EmblemColor;
+    row.borderStyle     = m_BorderStyle;
+    row.borderColor     = m_BorderColor;
+    row.backgroundColor = m_BackgroundColor;
+    row.bankMoney       = m_GuildBankMoney;
+    GuildRepository::Create(row);
 
-    // Decoupling D7c: this DELETE is not the no-op the comment above it suggests. The id is
-    // new to the `guild` table, but `guild_member` can hold rows for a guild id that never
-    // had (or no longer has) a `guild` row, and Guild::LoadMembersFromDB only sweeps the
-    // orphans it walks past -- any whose id is above the highest real guild is still there
-    // when GenerateGuildId() hands that id out. The cache indexed those rows at load, so it
-    // has to forget them here, or their characters would read as members of this new guild.
+    // That DELETE is not a no-op: `guild_member` can hold rows for a guild id that never had
+    // (or no longer has) a `guild` row, and Guild::LoadMembersFromDB only sweeps the orphans it
+    // walks past, so rows above the highest real guild are still there when GenerateGuildId()
+    // hands that id out. The cache indexed those rows at load, so it forgets them here, or their
+    // characters would read as members of this new guild.
     sCharacterCache.ClearGuild(m_Id);
-
-    // Decoupling D7f (C5): the guild name, its info text and its MOTD are bound, not
-    // escaped -- the three escape_string calls that used to stand here each took query
-    // connection zero's lock on the world thread. The statement joins the transaction
-    // opened above exactly as the PExecute it replaces did.
-    static SqlStatementID insGuild;
-    SqlStatement insert = CharacterDatabase.CreateStatement(insGuild,
-                          "INSERT INTO `guild` (`guildid`,`name`,`leaderguid`,`info`,`motd`,`createdate`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,`BackgroundColor`,`BankMoney`) "
-                          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)");
-    insert.addUInt32(m_Id);
-    insert.addString(gname);
-    insert.addUInt32(m_LeaderGuid.GetCounter());
-    insert.addString(GINFO);
-    insert.addString(MOTD);
-    insert.addUInt64(uint64(m_CreatedDate));
-    insert.addUInt32(m_EmblemStyle);
-    insert.addUInt32(m_EmblemColor);
-    insert.addUInt32(m_BorderStyle);
-    insert.addUInt32(m_BorderColor);
-    insert.addUInt32(m_BackgroundColor);
-    insert.addUInt64(m_GuildBankMoney);
-    insert.Execute();
-    CharacterDatabase.CommitTransaction();
 
     CreateDefaultGuildRanks(lSession->GetSessionDbLocaleIndex());
 
@@ -234,8 +215,8 @@ bool Guild::Create(Player* leader, std::string gname)
  */
 void Guild::CreateDefaultGuildRanks(int locale_idx)
 {
-    CharacterDatabase.PExecute("DELETE FROM `guild_rank` WHERE `guildid`='%u'", m_Id);
-    CharacterDatabase.PExecute("DELETE FROM `guild_bank_right` WHERE `guildid` = '%u'", m_Id);
+    GuildRepository::DeleteRanks(m_Id);
+    GuildRepository::DeleteBankRights(m_Id);
 
     CreateRank(sObjectMgr.GetMangosString(LANG_GUILD_MASTER, locale_idx),   GR_RIGHT_ALL);
     CreateRank(sObjectMgr.GetMangosString(LANG_GUILD_OFFICER, locale_idx),  GR_RIGHT_ALL);
@@ -332,16 +313,7 @@ bool Guild::AddMember(ObjectGuid plGuid, uint32 plRank)
     }
     members[lowguid] = newmember;
 
-    // Decoupling D7f (C5): the two notes are bound, not escaped.
-    static SqlStatementID insMember;
-    SqlStatement insert = CharacterDatabase.CreateStatement(insMember,
-                          "INSERT INTO `guild_member` (`guildid`,`guid`,`rank`,`pnote`,`offnote`) VALUES (?,?,?,?,?)");
-    insert.addUInt32(m_Id);
-    insert.addUInt32(lowguid);
-    insert.addUInt32(newmember.RankId);
-    insert.addString(newmember.Pnote);
-    insert.addString(newmember.OFFnote);
-    insert.Execute();
+    GuildRepository::InsertMember(m_Id, lowguid, newmember.RankId, newmember.Pnote, newmember.OFFnote);
 
     // Decoupling D7c: the guild id and the rank that Player::GetGuildIdFromDB and
     // Player::GetRankFromDB answer with are the ones this row just got.
@@ -370,11 +342,7 @@ void Guild::SetMOTD(std::string motd)
 {
     MOTD = motd;
 
-    // Decoupling D7f (C5): bound, not escaped.
-    static SqlStatementID updMotd;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(updMotd,
-                        "UPDATE `guild` SET `motd` = ? WHERE `guildid` = ?");
-    stmt.PExecute(motd.c_str(), m_Id);
+    GuildRepository::SetMotd(m_Id, motd);
 }
 
 /**
@@ -386,11 +354,7 @@ void Guild::SetGINFO(std::string ginfo)
 {
     GINFO = ginfo;
 
-    // Decoupling D7f (C5): bound, not escaped.
-    static SqlStatementID updGinfo;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(updGinfo,
-                        "UPDATE `guild` SET `info` = ? WHERE `guildid` = ?");
-    stmt.PExecute(ginfo.c_str(), m_Id);
+    GuildRepository::SetInfo(m_Id, ginfo);
 }
 
 /**
@@ -511,7 +475,7 @@ bool Guild::LoadRanksFromDB(QueryResult* guildRanksResult)
         {
             // there is in table guild_rank record which doesn't have guildid in guild table, report error
             sLog.outErrorDb("Guild %u does not exist but it has a record in guild_rank table, deleting it!", guildId);
-            CharacterDatabase.PExecute("DELETE FROM `guild_rank` WHERE `guildid` = '%u'", guildId);
+            GuildRepository::DeleteOrphanRanks(guildId);
             continue;
         }
 
@@ -551,23 +515,13 @@ bool Guild::LoadRanksFromDB(QueryResult* guildRanksResult)
     if (broken_ranks)
     {
         sLog.outError("Guild %u has broken `guild_rank` data, repairing...", m_Id);
-        CharacterDatabase.BeginTransaction();
-        CharacterDatabase.PExecute("DELETE FROM `guild_rank` WHERE `guildid`='%u'", m_Id);
-        // Decoupling D7f (C5): bound, not escaped. This repair runs at start-up only
-        // (GuildMgr::LoadGuilds), but the statement is the same shape as Guild::CreateRank's
-        // and there is no reason for the one path to keep an escape the other has lost.
-        static SqlStatementID insRank;
+        CharacterTransaction::Begin();
+        GuildRepository::DeleteRanks(m_Id);
         for (size_t i = 0; i < m_Ranks.size(); ++i)
         {
-            SqlStatement insert = CharacterDatabase.CreateStatement(insRank,
-                                  "INSERT INTO `guild_rank` (`guildid`,`rid`,`rname`,`rights`) VALUES (?,?,?,?)");
-            insert.addUInt32(m_Id);
-            insert.addUInt32(uint32(i));
-            insert.addString(m_Ranks[i].Name);
-            insert.addUInt32(m_Ranks[i].Rights);
-            insert.Execute();
+            GuildRepository::InsertRank(m_Id, uint32(i), m_Ranks[i].Name, m_Ranks[i].Rights);
         }
-        CharacterDatabase.CommitTransaction();
+        CharacterTransaction::Commit();
     }
 
     return true;
@@ -599,9 +553,9 @@ bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
         {
             // there is in table guild_member record which doesn't have guildid in guild table, report error
             sLog.outErrorDb("Guild %u does not exist but it has a record in guild_member table, deleting it!", guildId);
-            CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guildid` = '%u'", guildId);
-            // Decoupling D7c: the cache is loaded before the guilds are, so it still holds
-            // the memberships this startup repair is deleting.
+            GuildRepository::DeleteOrphanMembers(guildId);
+            // The cache is loaded before the guilds are, so it still holds the memberships
+            // this startup repair is deleting.
             sCharacterCache.ClearGuild(guildId);
             continue;
         }
@@ -643,7 +597,7 @@ bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
         if (newmember.Level < 1 || newmember.Level > STRONG_MAX_LEVEL) // can be at broken `data` field
         {
             sLog.outError("%s has a broken data in field `characters`.`data`, deleting him from guild!", newmember.guid.GetString().c_str());
-            CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guid` = '%u'", lowguid);
+            GuildRepository::DeleteMember(lowguid);
             sCharacterCache.UpdateGuild(newmember.guid, 0);      // decoupling D7c
             continue;
         }
@@ -657,7 +611,7 @@ bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
         if (!((1 << (newmember.Class - 1)) & CLASSMASK_ALL_PLAYABLE)) // can be at broken `class` field
         {
             sLog.outError("%s has a broken data in field `characters`.`class`, deleting him from guild!", newmember.guid.GetString().c_str());
-            CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guid` = '%u'", lowguid);
+            GuildRepository::DeleteMember(lowguid);
             sCharacterCache.UpdateGuild(newmember.guid, 0);      // decoupling D7c
             continue;
         }
@@ -692,7 +646,7 @@ void Guild::SetLeader(ObjectGuid guid)
     m_LeaderGuid = guid;
     slot->ChangeRank(GR_GUILDMASTER);
 
-    CharacterDatabase.PExecute("UPDATE `guild` SET `leaderguid`='%u' WHERE `guildid`='%u'", guid.GetCounter(), m_Id);
+    GuildRepository::SetLeader(m_Id, guid.GetCounter());
 }
 
 /**
@@ -761,10 +715,10 @@ bool Guild::DelMember(ObjectGuid guid, bool isDisbanding)
         player->SetRank(0);
     }
 
-    CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guid` = '%u'", lowguid);
+    GuildRepository::DeleteMember(lowguid);
 
-    // Decoupling D7c: no row, no guild -- and Guild::Disband reaches here for every member,
-    // so a disband clears them all through this one call.
+    // No row, no guild -- and Guild::Disband reaches here for every member, so a disband
+    // clears them all through this one call.
     sCharacterCache.UpdateGuild(guid, 0);
 
     if (!isDisbanding)
@@ -986,19 +940,14 @@ void Guild::Disband()
         DelMember(ObjectGuid(HIGHGUID_PLAYER, itr->first), true);
     }
 
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `guild` WHERE `guildid` = '%u'", m_Id);
-    CharacterDatabase.PExecute("DELETE FROM `guild_rank` WHERE `guildid` = '%u'", m_Id);
-    CharacterDatabase.PExecute("DELETE FROM `guild_bank_tab` WHERE `guildid` = '%u'", m_Id);
+    CharacterTransaction::Begin();
+    GuildRepository::DeleteGuildRanksAndTabs(m_Id);
 
     // Free bank tab used memory and delete items stored in them
     DeleteGuildBankItems(true);
 
-    CharacterDatabase.PExecute("DELETE FROM `guild_bank_item` WHERE `guildid` = '%u'", m_Id);
-    CharacterDatabase.PExecute("DELETE FROM `guild_bank_right` WHERE `guildid` = '%u'", m_Id);
-    CharacterDatabase.PExecute("DELETE FROM `guild_bank_eventlog` WHERE `guildid` = '%u'", m_Id);
-    CharacterDatabase.PExecute("DELETE FROM `guild_eventlog` WHERE `guildid` = '%u'", m_Id);
-    CharacterDatabase.CommitTransaction();
+    GuildRepository::DeleteBankAndLogs(m_Id);
+    CharacterTransaction::Commit();
 
     sGuildMgr.RemoveGuild(m_Id);
 }
@@ -1214,7 +1163,7 @@ void Guild::SetEmblem(uint32 emblemStyle, uint32 emblemColor, uint32 borderStyle
     m_BorderColor = borderColor;
     m_BackgroundColor = backgroundColor;
 
-    CharacterDatabase.PExecute("UPDATE `guild` SET `EmblemStyle`=%u, `EmblemColor`=%u, `BorderStyle`=%u, `BorderColor`=%u, `BackgroundColor`=%u WHERE `guildid` = %u", m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor, m_BackgroundColor, m_Id);
+    GuildRepository::SetEmblem(m_Id, m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor, m_BackgroundColor);
 }
 
 /**
@@ -1271,8 +1220,7 @@ void Guild::DisplayGuildEventLog(WorldSession* session)
  */
 void Guild::LoadGuildEventLogFromDB()
 {
-    //                                                     0        1          2            3            4        5
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u", m_Id, GUILD_EVENTLOG_MAX_RECORDS);
+    QueryResult* result = GuildRepository::QueryEventLog(m_Id, GUILD_EVENTLOG_MAX_RECORDS);
     if (!result)
     {
         return;
@@ -1334,9 +1282,8 @@ void Guild::LogGuildEvent(uint8 EventType, ObjectGuid playerGuid1, ObjectGuid pl
     // Add event to list
     m_GuildEventLog.push_back(NewEvent);
     // Save event to DB
-    CharacterDatabase.PExecute("DELETE FROM `guild_eventlog` WHERE `guildid`='%u' AND `LogGuid`='%u'", m_Id, m_GuildEventLogNextGuid);
-    CharacterDatabase.PExecute("INSERT INTO `guild_eventlog` (`guildid`, `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp`) VALUES ('%u','%u','%u','%u','%u','%u','" UI64FMTD "')",
-                               m_Id, m_GuildEventLogNextGuid, uint32(NewEvent.EventType), NewEvent.PlayerGuid1, NewEvent.PlayerGuid2, uint32(NewEvent.NewRank), NewEvent.TimeStamp);
+    GuildRepository::DeleteEventLogEntry(m_Id, m_GuildEventLogNextGuid);
+    GuildRepository::InsertEventLogEntry(m_Id, m_GuildEventLogNextGuid, uint32(NewEvent.EventType), NewEvent.PlayerGuid1, NewEvent.PlayerGuid2, uint32(NewEvent.NewRank), NewEvent.TimeStamp);
 }
 
 
