@@ -43,4 +43,47 @@ namespace MapDataRepository
         //                                 0     1                   2                   3                    4                   5                   6                    7                 8                 9                  10                  11                  12
         return WorldDatabase.Query("SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`");
     }
+
+    QueryResult* QueryTeles()
+    {
+        return WorldDatabase.Query("SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, `name` FROM `game_tele`");
+    }
+
+    bool InsertTele(uint32 id, float x, float y, float z, float orientation, uint32 mapId, std::string const& name)
+    {
+        std::string safeName(name);
+        WorldDatabase.escape_string(safeName);
+
+        return WorldDatabase.PExecuteLog("INSERT INTO `game_tele` "
+                                         "(`id`,`position_x`,`position_y`,`position_z`,`orientation`,`map`,`name`) "
+                                         "VALUES (%u,%f,%f,%f,%f,%u,'%s')",
+                                         id, x, y, z,
+                                         orientation, mapId, safeName.c_str());
+    }
+
+    void DeleteTele(char const* name)
+    {
+        WorldDatabase.PExecuteLog("DELETE FROM `game_tele` WHERE `name` = '%s'", name);
+    }
+
+    QueryResult* QueryGraveyardZones()
+    {
+        return WorldDatabase.Query("SELECT `id`,`ghost_zone`,`faction` FROM `game_graveyard_zone`");
+    }
+
+    void InsertGraveyardZone(uint32 id, uint32 zoneId, uint32 team)
+    {
+        WorldDatabase.PExecuteLog("INSERT INTO `game_graveyard_zone` (`id`,`ghost_zone`,`faction`) VALUES ('%u', '%u','%u')", id, zoneId, team);
+    }
+
+    QueryResult* QueryAreaTriggerTeleports()
+    {
+        //                                  0     1                 2                3                 4             5              6                      7                             8             9                    10                   11                   12
+        return WorldDatabase.Query("SELECT `id`, `required_level`, `required_item`, `required_item2`, `heroic_key`, `heroic_key2`, `required_quest_done`, `required_quest_done_heroic`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `areatrigger_teleport`");
+    }
+
+    QueryResult* QueryTavernAreaTriggers()
+    {
+        return WorldDatabase.Query("SELECT `id` FROM `areatrigger_tavern`");
+    }
 }

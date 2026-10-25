@@ -47,6 +47,7 @@
 #include "DisableMgr.h"
 
 #include <limits>
+#include "persistence/world/reputation/ReputationDataRepository.h"
 
 /**
  * @brief Loads faction-specific reputation reward rate multipliers.
@@ -56,7 +57,7 @@ void ObjectMgr::LoadReputationRewardRate()
     m_RepRewardRateMap.clear();                             // for reload case
 
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `faction`, `quest_rate`, `creature_rate`, `spell_rate` FROM `reputation_reward_rate`");
+    QueryResult* result = ReputationDataRepository::QueryRewardRates();
 
     if (!result)
     {
@@ -127,11 +128,7 @@ void ObjectMgr::LoadReputationOnKill()
 {
     uint32 count = 0;
 
-    //                                                0            1                     2
-    QueryResult* result = WorldDatabase.Query("SELECT `creature_id`, `RewOnKillRepFaction1`, `RewOnKillRepFaction2`,"
-                          //   3             4             5                   6             7             8                   9
-                          "`IsTeamAward1`, `MaxStanding1`, `RewOnKillRepValue1`, `IsTeamAward2`, `MaxStanding2`, `RewOnKillRepValue2`, `TeamDependent` "
-                          "FROM `creature_onkill_reputation`");
+    QueryResult* result = ReputationDataRepository::QueryOnKillReputations();
 
     if (!result)
     {
@@ -208,7 +205,7 @@ void ObjectMgr::LoadReputationSpilloverTemplate()
     m_RepSpilloverTemplateMap.clear();                      // for reload case
 
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `faction`, `faction1`, `rate_1`, `rank_1`, `faction2`, `rate_2`, `rank_2`, `faction3`, `rate_3`, `rank_3`, `faction4`, `rate_4`, `rank_4`, `faction5`, `rate_5`, `rank_5` FROM `reputation_spillover_template`");
+    QueryResult* result = ReputationDataRepository::QuerySpillovers();
 
     if (!result)
     {

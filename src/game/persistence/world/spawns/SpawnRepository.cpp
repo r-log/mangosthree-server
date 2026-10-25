@@ -118,4 +118,38 @@ namespace SpawnRepository
     {
         return WorldDatabase.Query("SELECT MAX(`guid`) FROM `gameobject`");
     }
+
+    QueryResult* QueryCreatureSpawns()
+    {
+        //                                 0                       1   2    3
+        return WorldDatabase.Query("SELECT `creature`.`guid`, `creature`.`id`, `map`, `modelid`,"
+                                   //   4             5           6           7           8            9              10         11
+                                   "`equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `currentwaypoint`,"
+                                   //   12        13         14            15              16           17           18
+                                   "`curhealth`, `curmana`, `DeathState`, `MovementType`, `spawnMask`, `phaseMask`, `event`,"
+                                   //                19                                     20
+                                   "`pool_creature`.`pool_entry`, `pool_creature_template`.`pool_entry` "
+                                   "FROM `creature` "
+                                   "LEFT OUTER JOIN `game_event_creature` ON `creature`.`guid` = `game_event_creature`.`guid` "
+                                   "LEFT OUTER JOIN `pool_creature` ON `creature`.`guid` = `pool_creature`.`guid` "
+                                   "LEFT OUTER JOIN `pool_creature_template` ON `creature`.`id` = `pool_creature_template`.`id`");
+    }
+
+    QueryResult* QueryGameObjectSpawns()
+    {
+        //                                               0                    1                  2                   3
+        return WorldDatabase.Query("SELECT `gameobject`.`guid`, `gameobject`.`id`, `gameobject`.`map`, `gameobject`.`position_x`, "
+            //                                   4                          5                          6                           7
+               "`gameobject`.`position_y`, `gameobject`.`position_z`, `gameobject`.`orientation`, `gameobject`.`rotation0`, "
+            //                                   8                         9                         10                        11
+               "`gameobject`.`rotation1`, `gameobject`.`rotation2`, `gameobject`.`rotation3`, `gameobject`.`spawntimesecs`, "
+            //                                   12                           13                    14                        15
+               "`gameobject`.`animprogress`, `gameobject`.`state`, `gameobject`.`spawnMask`, `gameobject`.`phaseMask`, "
+            //                                             16                          17                                       18
+               "`game_event_gameobject`.`event`, `pool_gameobject`.`pool_entry`, `pool_gameobject_template`.`pool_entry` "
+               "FROM `gameobject` "
+               "LEFT OUTER JOIN `game_event_gameobject` ON `gameobject`.`guid` = `game_event_gameobject`.`guid` "
+               "LEFT OUTER JOIN `pool_gameobject` ON `gameobject`.`guid` = `pool_gameobject`.`guid` "
+               "LEFT OUTER JOIN `pool_gameobject_template` ON `gameobject`.`id` = `pool_gameobject_template`.`id`");
+    }
 }

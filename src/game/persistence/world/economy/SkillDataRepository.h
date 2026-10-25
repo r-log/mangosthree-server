@@ -39,6 +39,9 @@ namespace SkillDataRepository
 
     /// Selects every extra item chance (`skill_extra_item_template`).
     QueryResult* QueryExtraItems();
+
+    /// Selects every fishing zone's base skill level (`skill_fishing_base_level`).
+    QueryResult* QueryFishingBaseLevels();
 }
 
 #endif

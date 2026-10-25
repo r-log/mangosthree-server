@@ -77,7 +77,7 @@ struct GameObjectSpawnRow
 };
 
 /// The creature and game object spawns on the world database (`creature`, `gameobject` and the
-/// tables keyed on a spawn), as a GM saves and deletes them. The start-up's highest guid reads run
+/// tables keyed on a spawn), as a GM saves and deletes them. The start-up reads run
 /// synchronously; every write is queued and written to the SQL log.
 namespace SpawnRepository
 {
@@ -99,6 +99,12 @@ namespace SpawnRepository
 
     /// Selects the highest game object spawn guid, at start-up.
     QueryResult* QueryHighestGameObjectGuid();
+
+    /// Selects every creature spawn with its addon and event data, at start-up.
+    QueryResult* QueryCreatureSpawns();
+
+    /// Selects every game object spawn with its event data, at start-up.
+    QueryResult* QueryGameObjectSpawns();
 }
 
 #endif

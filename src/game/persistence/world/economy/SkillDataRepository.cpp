@@ -39,4 +39,9 @@ namespace SkillDataRepository
         //                                  0        1                       2                       3
         return WorldDatabase.Query("SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`");
     }
+
+    QueryResult* QueryFishingBaseLevels()
+    {
+        return WorldDatabase.Query("SELECT `entry`,`skill` FROM `skill_fishing_base_level`");
+    }
 }

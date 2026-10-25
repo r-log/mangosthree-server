@@ -49,6 +49,8 @@
 #include "DisableMgr.h"
 
 #include <limits>
+#include "persistence/world/creatures/CreatureDataRepository.h"
+#include "persistence/world/players/PlayerDataRepository.h"
 
 /**
  * @brief Loads pet base stats for each supported level.
@@ -59,8 +61,7 @@ void ObjectMgr::LoadPetLevelInfo()
 
     // Loading levels data
     {
-        //                                                 0               1      2   3     4    5    6    7     8    9
-        QueryResult* result  = WorldDatabase.Query("SELECT `creature_entry`, `level`, `hp`, `mana`, `str`, `agi`, `sta`, `inte`, `spi`, `armor` FROM `pet_levelstats`");
+        QueryResult* result  = CreatureDataRepository::QueryPetLevelStats();
 
 
         if (!result)
@@ -191,8 +192,7 @@ void ObjectMgr::LoadPlayerInfo()
 {
     // Load playercreate
     {
-        //                                                 0       1        2      3       4             5             6             7              8
-        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`, `phaseMap` FROM `playercreateinfo`");
+        QueryResult* result = PlayerDataRepository::QueryCreateInfo();
 
         uint32 count = 0;
 
@@ -276,8 +276,7 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Load playercreate items
     {
-        //                                                0     1      2       3
-        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `itemid`, `amount` FROM `playercreateinfo_item`");
+        QueryResult* result = PlayerDataRepository::QueryCreateItems();
 
         uint32 count = 0;
 
@@ -349,8 +348,7 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Load playercreate spells
     {
-        //                                                0     1      2
-        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `Spell` FROM `playercreateinfo_spell`");
+        QueryResult* result = PlayerDataRepository::QueryCreateSpells();
 
         uint32 count = 0;
 
@@ -411,8 +409,7 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Load playercreate actions
     {
-        //                                                0     1      2       3       4
-        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `button`, `action`, `type` FROM `playercreateinfo_action`");
+        QueryResult* result = PlayerDataRepository::QueryCreateActions();
 
         uint32 count = 0;
 
@@ -475,8 +472,7 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Loading levels data (class/race dependent)
     {
-        //                                                 0     1      2      3    4    5    6    7
-        QueryResult* result  = WorldDatabase.Query("SELECT `race`, `class`, `level`, `str`, `agi`, `sta`, `inte`, `spi` FROM `player_levelstats`");
+        QueryResult* result  = PlayerDataRepository::QueryLevelStats();
 
         uint32 count = 0;
 
@@ -625,8 +621,7 @@ void ObjectMgr::LoadPlayerInfo()
             mPlayerXPperLevel[level] = 0;
         }
 
-        //                                                 0    1
-        QueryResult* result  = WorldDatabase.Query("SELECT `lvl`, `xp_for_next_level` FROM `player_xp_for_level`");
+        QueryResult* result  = PlayerDataRepository::QueryXpForLevel();
 
         uint32 count = 0;
 

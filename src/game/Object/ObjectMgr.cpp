@@ -82,6 +82,12 @@
 #include "persistence/characters/social/GroupRepository.h"
 #include "persistence/characters/social/GuildRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
+#include "persistence/world/creatures/CreatureDataRepository.h"
+#include "persistence/world/items/ItemDataRepository.h"
+#include "persistence/world/maps/MapDataRepository.h"
+#include "persistence/world/npcs/NpcDataRepository.h"
+#include "persistence/world/players/PlayerDataRepository.h"
+#include "persistence/world/quests/QuestDataRepository.h"
 
 
 // Temporary startup accumulator for LivingWorld observability (written during LoadActiveEntities(NULL) only)
@@ -834,7 +840,7 @@ void ObjectMgr::LoadQuestAreaTriggers()
 {
     mQuestAreaTriggerMap.clear();                           // need for reload case
 
-    QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d", QA_AREATRIGGER);
+    QueryResult* result = QuestDataRepository::QueryActorQuestRelations(QA_AREATRIGGER);
 
     uint32 count = 0;
 
@@ -900,7 +906,7 @@ void ObjectMgr::LoadTavernAreaTriggers()
 {
     mTavernAreaTriggerSet.clear();                          // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `id` FROM `areatrigger_tavern`");
+    QueryResult* result = MapDataRepository::QueryTavernAreaTriggers();
 
     uint32 count = 0;
 
@@ -1103,7 +1109,7 @@ void ObjectMgr::SetHighestGuids()
 void ObjectMgr::LoadExplorationBaseXP()
 {
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `level`,`basexp` FROM `exploration_basexp`");
+    QueryResult* result = PlayerDataRepository::QueryExplorationXp();
 
     if (!result)
     {
@@ -1155,7 +1161,7 @@ uint32 ObjectMgr::GetXPForLevel(uint32 level) const
 void ObjectMgr::LoadPetNames()
 {
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `word`,`entry`,`half` FROM `pet_name_generation`");
+    QueryResult* result = CreatureDataRepository::QueryPetNameParts();
 
     if (!result)
     {
@@ -1292,8 +1298,7 @@ void ObjectMgr::LoadPointsOfInterest()
 
     uint32 count = 0;
 
-    //                                                0      1  2  3      4     5
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`");
+    QueryResult* result = NpcDataRepository::QueryPointsOfInterest();
 
     if (!result)
     {
@@ -1344,8 +1349,7 @@ void ObjectMgr::LoadQuestPOI()
 
     uint32 count = 0;
 
-    //                                                0        1      2         3      4          5        6     7
-    QueryResult* result = WorldDatabase.Query("SELECT `questId`, `poiId`, `objIndex`, `mapId`, `mapAreaId`, `floorId`, `unk3`, `unk4` FROM `quest_poi`");
+    QueryResult* result = QuestDataRepository::QueryQuestPois();
 
     if (!result)
     {
@@ -1384,7 +1388,7 @@ void ObjectMgr::LoadQuestPOI()
 
     delete result;
 
-    QueryResult* points = WorldDatabase.Query("SELECT `questId`, `poiId`, `x`, `y` FROM `quest_poi_points`");
+    QueryResult* points = QuestDataRepository::QueryQuestPoiPoints();
 
     if (points)
     {
@@ -2904,7 +2908,7 @@ void ObjectMgr::LoadMailLevelRewards()
     m_mailLevelRewards.Clear();                             // for reload case
 
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`");
+    QueryResult* result = PlayerDataRepository::QueryLevelRewardMails();
 
     if (!result)
     {
@@ -3116,7 +3120,7 @@ void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint8 type, uint32 maxc
     VendorItemData& vList = m_mCacheVendorItemMap[entry];
     vList.AddItem(item, type, maxcount, incrtime, extendedcost, 0);
 
-    WorldDatabase.PExecuteLog("INSERT INTO `npc_vendor` (`entry`,`item`,`maxcount`,`incrtime`,`extendedcost`) VALUES('%u','%i','%u','%u','%u')", entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item, maxcount, incrtime, extendedcost);
+    NpcDataRepository::InsertVendorItem(entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item, maxcount, incrtime, extendedcost);
 }
 
 void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 extendedcost)
@@ -3125,7 +3129,7 @@ void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32
     uint8 type = VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item;
     vList.AddItem(item, type, maxcount, incrtime, extendedcost, 0);
 
-    WorldDatabase.PExecuteLog("INSERT INTO `npc_vendor` (`entry`,`item`,`maxcount`,`incrtime`,`extendedcost`) VALUES('%u','%i','%u','%u','%u')", entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item, maxcount, incrtime, extendedcost);
+    NpcDataRepository::InsertVendorItem(entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item, maxcount, incrtime, extendedcost);
 }
 
 /**
@@ -3148,7 +3152,7 @@ bool ObjectMgr::RemoveVendorItem(uint32 entry, uint32 item, uint8 type)
         return false;
     }
 
-    WorldDatabase.PExecuteLog("DELETE FROM `npc_vendor` WHERE `entry`='%u' AND `item`='%i'", entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item);
+    NpcDataRepository::DeleteVendorItem(entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item);
     return true;
 }
 
@@ -3823,7 +3827,7 @@ void ObjectMgr::LoadHotfixData()
     uint32 count = 0;
     m_hotfixData.clear();
 
-    QueryResult* result = WorldDatabase.Query("SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data");
+    QueryResult* result = ItemDataRepository::QueryHotfixes();
     if (!result)
     {
         BarGoLink bar(1);

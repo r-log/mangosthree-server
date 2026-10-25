@@ -48,6 +48,7 @@
 #include "DisableMgr.h"
 
 #include <limits>
+#include "persistence/world/maps/MapDataRepository.h"
 
 /**
  * @brief Loads graveyard to zone links from the database.
@@ -56,7 +57,7 @@ void ObjectMgr::LoadGraveyardZones()
 {
     mGraveYardMap.clear();                                  // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `id`,`ghost_zone`,`faction` FROM `game_graveyard_zone`");
+    QueryResult* result = MapDataRepository::QueryGraveyardZones();
 
     uint32 count = 0;
 
@@ -295,7 +296,7 @@ bool ObjectMgr::AddGraveYardLink(uint32 id, uint32 zoneId, Team team, bool inDB)
     // add link to DB
     if (inDB)
     {
-        WorldDatabase.PExecuteLog("INSERT INTO `game_graveyard_zone` (`id`,`ghost_zone`,`faction`) VALUES ('%u', '%u','%u')", id, zoneId, uint32(team));
+        MapDataRepository::InsertGraveyardZone(id, zoneId, uint32(team));
     }
 
     return true;

@@ -38,6 +38,7 @@
 #include "SQLStorages.h"
 #include "ScriptMgr.h"
 #include "GossipDef.h"
+#include "persistence/world/npcs/NpcDataRepository.h"
 
 /**
  * @brief Loads gossip menu headers and validates linked texts, scripts, and conditions.
@@ -47,10 +48,7 @@
 void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
 {
     m_mGossipMenusMap.clear();
-    //                                                0      1        2
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `text_id`, `script_id`, "
-                          //   3
-                          "`condition_id` FROM `gossip_menu`");
+    QueryResult* result = NpcDataRepository::QueryGossipMenus();
 
     if (!result)
     {
@@ -164,11 +162,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
 {
     m_mGossipMenuItemsMap.clear();
 
-    QueryResult* result = WorldDatabase.Query(
-                              "SELECT `menu_id`, `id`, `option_icon`, `option_text`, `option_id`, `npc_option_npcflag`, "
-                              "`action_menu_id`, `action_poi_id`, `action_script_id`, `box_coded`, `box_money`, `box_text`, "
-                              "`condition_id` "
-                              "FROM `gossip_menu_option` ORDER BY `menu_id`, `id`");
+    QueryResult* result = NpcDataRepository::QueryGossipMenuOptions();
 
     if (!result)
     {

@@ -118,14 +118,35 @@ source_group("Persistence\\World\\Achievements" FILES ${SRC_GRP_PERSISTENCE_WORL
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_AI persistence/world/ai/*.cpp persistence/world/ai/*.h)
 source_group("Persistence\\World\\AI" FILES ${SRC_GRP_PERSISTENCE_WORLD_AI})
 
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_CREATURES persistence/world/creatures/*.cpp persistence/world/creatures/*.h)
+source_group("Persistence\\World\\Creatures" FILES ${SRC_GRP_PERSISTENCE_WORLD_CREATURES})
+
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_ECONOMY persistence/world/economy/*.cpp persistence/world/economy/*.h)
 source_group("Persistence\\World\\Economy" FILES ${SRC_GRP_PERSISTENCE_WORLD_ECONOMY})
+
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_ITEMS persistence/world/items/*.cpp persistence/world/items/*.h)
+source_group("Persistence\\World\\Items" FILES ${SRC_GRP_PERSISTENCE_WORLD_ITEMS})
+
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_LOCALES persistence/world/locales/*.cpp persistence/world/locales/*.h)
+source_group("Persistence\\World\\Locales" FILES ${SRC_GRP_PERSISTENCE_WORLD_LOCALES})
 
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_MAPS persistence/world/maps/*.cpp persistence/world/maps/*.h)
 source_group("Persistence\\World\\Maps" FILES ${SRC_GRP_PERSISTENCE_WORLD_MAPS})
 
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_NPCS persistence/world/npcs/*.cpp persistence/world/npcs/*.h)
+source_group("Persistence\\World\\NPCs" FILES ${SRC_GRP_PERSISTENCE_WORLD_NPCS})
+
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_PLAYERS persistence/world/players/*.cpp persistence/world/players/*.h)
+source_group("Persistence\\World\\Players" FILES ${SRC_GRP_PERSISTENCE_WORLD_PLAYERS})
+
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_PVP persistence/world/pvp/*.cpp persistence/world/pvp/*.h)
 source_group("Persistence\\World\\Pvp" FILES ${SRC_GRP_PERSISTENCE_WORLD_PVP})
+
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_QUESTS persistence/world/quests/*.cpp persistence/world/quests/*.h)
+source_group("Persistence\\World\\Quests" FILES ${SRC_GRP_PERSISTENCE_WORLD_QUESTS})
+
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_REPUTATION persistence/world/reputation/*.cpp persistence/world/reputation/*.h)
+source_group("Persistence\\World\\Reputation" FILES ${SRC_GRP_PERSISTENCE_WORLD_REPUTATION})
 
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_SPAWNS persistence/world/spawns/*.cpp persistence/world/spawns/*.h)
 source_group("Persistence\\World\\Spawns" FILES ${SRC_GRP_PERSISTENCE_WORLD_SPAWNS})
@@ -233,9 +254,16 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_LOGIN}
     ${SRC_GRP_PERSISTENCE_WORLD_ACHIEVEMENTS}
     ${SRC_GRP_PERSISTENCE_WORLD_AI}
+    ${SRC_GRP_PERSISTENCE_WORLD_CREATURES}
     ${SRC_GRP_PERSISTENCE_WORLD_ECONOMY}
+    ${SRC_GRP_PERSISTENCE_WORLD_ITEMS}
+    ${SRC_GRP_PERSISTENCE_WORLD_LOCALES}
     ${SRC_GRP_PERSISTENCE_WORLD_MAPS}
+    ${SRC_GRP_PERSISTENCE_WORLD_NPCS}
+    ${SRC_GRP_PERSISTENCE_WORLD_PLAYERS}
     ${SRC_GRP_PERSISTENCE_WORLD_PVP}
+    ${SRC_GRP_PERSISTENCE_WORLD_QUESTS}
+    ${SRC_GRP_PERSISTENCE_WORLD_REPUTATION}
     ${SRC_GRP_PERSISTENCE_WORLD_SPAWNS}
     ${SRC_GRP_PERSISTENCE_WORLD_SPELLS}
     ${SRC_GRP_REFERENCES}

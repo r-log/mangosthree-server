@@ -69,6 +69,40 @@ set(CONVERTED_FILES
     src/game/persistence/characters/pvp/BattleGroundStatsRepository.cpp
     src/game/persistence/characters/SavedVariablesRepository.h
     src/game/persistence/characters/SavedVariablesRepository.cpp
+    src/game/persistence/world/creatures/CreatureDataRepository.h
+    src/game/persistence/world/creatures/CreatureDataRepository.cpp
+    src/game/persistence/world/items/ItemDataRepository.h
+    src/game/persistence/world/items/ItemDataRepository.cpp
+    src/game/persistence/world/locales/LocaleDataRepository.h
+    src/game/persistence/world/locales/LocaleDataRepository.cpp
+    src/game/persistence/world/maps/DungeonDataRepository.h
+    src/game/persistence/world/maps/DungeonDataRepository.cpp
+    src/game/persistence/world/npcs/NpcDataRepository.h
+    src/game/persistence/world/npcs/NpcDataRepository.cpp
+    src/game/persistence/world/players/PlayerDataRepository.h
+    src/game/persistence/world/players/PlayerDataRepository.cpp
+    src/game/persistence/world/quests/QuestDataRepository.h
+    src/game/persistence/world/quests/QuestDataRepository.cpp
+    src/game/persistence/world/reputation/ReputationDataRepository.h
+    src/game/persistence/world/reputation/ReputationDataRepository.cpp
+    src/game/Object/ObjectMgrAreaTrigger.cpp
+    src/game/Object/ObjectMgrCreatures.cpp
+    src/game/Object/ObjectMgrDungeonFinder.cpp
+    src/game/Object/ObjectMgrGameObjects.cpp
+    src/game/Object/ObjectMgrGameTele.cpp
+    src/game/Object/ObjectMgrGossipMenu.cpp
+    src/game/Object/ObjectMgrGraveyard.cpp
+    src/game/Object/ObjectMgrInstanceData.cpp
+    src/game/Object/ObjectMgrItems.cpp
+    src/game/Object/ObjectMgrLocales.cpp
+    src/game/Object/ObjectMgrNameCheck.cpp
+    src/game/Object/ObjectMgrPlayerInfo.cpp
+    src/game/Object/ObjectMgrQuestRelations.cpp
+    src/game/Object/ObjectMgrQuests.cpp
+    src/game/Object/ObjectMgrReputation.cpp
+    src/game/Object/ObjectMgrSpellData.cpp
+    src/game/Object/ObjectMgrText.cpp
+    src/game/Object/ObjectMgrTrainerVendor.cpp
     src/game/Object/CharacterCache.cpp
     src/game/persistence/world/spells/SpellDataRepository.h
     src/game/persistence/world/spells/SpellDataRepository.cpp
@@ -170,17 +204,6 @@ set(ADMIN_SCOPE_FILES
     src/game/WorldHandlers/Chat.cpp
     src/tests/TickGuardTest.cpp)
 
-set(ALLOW_ObjectMgr_cpp
-    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d\", QA_AREATRIGGER)\;"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `id` FROM `areatrigger_tavern`\")\;"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `level`,`basexp` FROM `exploration_basexp`\")\;"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `word`,`entry`,`half` FROM `pet_name_generation`\")\;"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`\")\;"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `questId`, `poiId`, `objIndex`, `mapId`, `mapAreaId`, `floorId`, `unk3`, `unk4` FROM `quest_poi`\")\;"
-    "QueryResult* points = WorldDatabase.Query(\"SELECT `questId`, `poiId`, `x`, `y` FROM `quest_poi_points`\")\;"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`\")\;"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data\")\;")
-
 set(ALLOW_GuildRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `guild`.`guildid`,`guild`.`name`,`leaderguid`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,\""
     "return CharacterDatabase.Query(\"SELECT `guildid`,`rid`,`rname`,`rights`,`BankMoneyPerDay` FROM `guild_rank` ORDER BY `guildid` ASC, `rid` ASC\")\;"
@@ -249,12 +272,18 @@ set(ALLOW_LootDataRepository_cpp
 
 set(ALLOW_SkillDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`\")\;"
-    "return WorldDatabase.Query(\"SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`\")\;")
+    "return WorldDatabase.Query(\"SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`,`skill` FROM `skill_fishing_base_level`\")\;")
 
 set(ALLOW_MapDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `entry`, `name`, `period` FROM `transports`\")\;"
     "return WorldDatabase.Query(\"SELECT `gameobject`.`guid`,`gameobject`.`id`,`transports`.`name` FROM `gameobject`,`transports` WHERE `gameobject`.`id` = `transports`.`entry`\")\;"
-    "return WorldDatabase.Query(\"SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`\")\;")
+    "return WorldDatabase.Query(\"SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`\")\;"
+    "return WorldDatabase.Query(\"SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, `name` FROM `game_tele`\")\;"
+    "WorldDatabase.escape_string(safeName)\;"
+    "return WorldDatabase.Query(\"SELECT `id`,`ghost_zone`,`faction` FROM `game_graveyard_zone`\")\;"
+    "return WorldDatabase.Query(\"SELECT `id`, `required_level`, `required_item`, `required_item2`, `heroic_key`, `heroic_key2`, `required_quest_done`, `required_quest_done_heroic`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `areatrigger_teleport`\")\;"
+    "return WorldDatabase.Query(\"SELECT `id` FROM `areatrigger_tavern`\")\;")
 
 set(ALLOW_BattleGroundDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`\")\;"
@@ -334,7 +363,9 @@ set(ALLOW_CharacterSaveRepository_cpp
 
 set(ALLOW_SpawnRepository_cpp
     "return WorldDatabase.Query(\"SELECT MAX(`guid`) FROM `creature`\")\;"
-    "return WorldDatabase.Query(\"SELECT MAX(`guid`) FROM `gameobject`\")\;")
+    "return WorldDatabase.Query(\"SELECT MAX(`guid`) FROM `gameobject`\")\;"
+    "return WorldDatabase.Query(\"SELECT `creature`.`guid`, `creature`.`id`, `map`, `modelid`,\""
+    "return WorldDatabase.Query(\"SELECT `gameobject`.`guid`, `gameobject`.`id`, `gameobject`.`map`, `gameobject`.`position_x`, \"")
 
 set(ALLOW_CorpseRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `corpse`\")\;"
@@ -345,6 +376,67 @@ set(ALLOW_ArenaTeamRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `arena_team`.`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,\""
     "return CharacterDatabase.Query(\"SELECT `arenateamid`,`member`.`guid`,`played_week`,`wons_week`,`played_season`,`wons_season`,`personal_rating`,`name`,`class` \""
     "return CharacterDatabase.Query(\"SELECT `arena_team_member`.`guid`, `arena_team_member`.`arenateamid`, `arena_team`.`type` \"")
+
+set(ALLOW_CreatureDataRepository_cpp
+    "return WorldDatabase.Query(queryStr.c_str())\;"
+    "return WorldDatabase.Query(\"SELECT `modelid`, `racemask`, `creature_entry`, `modelid_racial` FROM `creature_model_race`\")\;"
+    "return WorldDatabase.Query(\"SELECT `word`,`entry`,`half` FROM `pet_name_generation`\")\;"
+    "return WorldDatabase.Query(\"SELECT `creature_entry`, `level`, `hp`, `mana`, `str`, `agi`, `sta`, `inte`, `spi`, `armor` FROM `pet_levelstats`\")\;")
+
+set(ALLOW_ItemDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `entry`,\""
+    "return WorldDatabase.Query(\"SELECT `entry`,`item` FROM `item_convert`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`,`item` FROM `item_expire_convert`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`,`type`,`targetEntry` FROM `item_required_target`\")\;"
+    "return WorldDatabase.Query(\"SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data\")\;")
+
+set(ALLOW_LocaleDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `entry`,\""
+    "return WorldDatabase.Query(\"SELECT `menu_id`,`id`,\""
+    "return WorldDatabase.Query(\"SELECT `entry`,\""
+    "return WorldDatabase.Query(\"SELECT `entry`,\""
+    "return WorldDatabase.Query(\"SELECT `entry`,\""
+    "return WorldDatabase.Query(\"SELECT `entry`,\"")
+
+set(ALLOW_DungeonDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `entry`, `creditType`, `creditEntry`, `lastEncounterDungeon` FROM `instance_encounters`\")\;"
+    "return WorldDatabase.Query(\"SELECT `mapId`, `difficulty`, `min_item_level`, `item`, `item_2`, `alliance_quest`, `horde_quest`, `achievement`, `quest_incomplete_text` FROM `dungeonfinder_requirements`\")\;"
+    "return WorldDatabase.Query(\"SELECT `id`, `level`, `base_xp_reward`, `base_monetary_reward` FROM `dungeonfinder_rewards`\")\;"
+    "return WorldDatabase.Query(\"SELECT `id`, `min_level`, `max_level`, `item_reward`, `item_amount`, `dungeon_type` FROM `dungeonfinder_item_rewards`\")\;"
+    "return WorldDatabase.Query(\"SELECT `dungeonId`, `position_x`, `position_y`, `position_z`, `orientation` FROM `lfg_dungeon_entrances`\")\;")
+
+set(ALLOW_NpcDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `entry`, `text_id`, `script_id`, \""
+    "return WorldDatabase.Query(\"SELECT `menu_id`, `id`, `option_icon`, `option_text`, `option_id`, `npc_option_npcflag`, \""
+    "return WorldDatabase.Query(\"SELECT * FROM `npc_text`\")\;"
+    "return WorldDatabase.PQuery(\"SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel` FROM `%s`\", table)\;"
+    "return WorldDatabase.PQuery(\"SELECT `entry`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `condition_id` FROM `%s`\", table)\;"
+    "return WorldDatabase.Query(\"SELECT `npc_entry`, `spell_id`, `quest_start`, `quest_start_active`, `quest_end`, `cast_flags`, `condition_id` FROM `npc_spellclick_spells`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`\")\;")
+
+set(ALLOW_PlayerDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`, `phaseMap` FROM `playercreateinfo`\")\;"
+    "return WorldDatabase.Query(\"SELECT `race`, `class`, `itemid`, `amount` FROM `playercreateinfo_item`\")\;"
+    "return WorldDatabase.Query(\"SELECT `race`, `class`, `Spell` FROM `playercreateinfo_spell`\")\;"
+    "return WorldDatabase.Query(\"SELECT `race`, `class`, `button`, `action`, `type` FROM `playercreateinfo_action`\")\;"
+    "return WorldDatabase.Query(\"SELECT `race`, `class`, `level`, `str`, `agi`, `sta`, `inte`, `spi` FROM `player_levelstats`\")\;"
+    "return WorldDatabase.Query(\"SELECT `lvl`, `xp_for_next_level` FROM `player_xp_for_level`\")\;"
+    "return WorldDatabase.Query(\"SELECT `level`,`basexp` FROM `exploration_basexp`\")\;"
+    "return WorldDatabase.Query(\"SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`\")\;"
+    "return WorldDatabase.Query(\"SELECT `name` FROM `reserved_name`\")\;")
+
+set(ALLOW_QuestDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `entry`, `Method`, `ZoneOrSort`, `MinLevel`, `QuestLevel`, `Type`, `RequiredClasses`, `RequiredRaces`, `RequiredSkill`, `RequiredSkillValue`,\""
+    "return WorldDatabase.Query(\"SELECT `entry`,\""
+    "return WorldDatabase.PQuery(\"SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d AND `role` = %d\", actor, role)\;"
+    "return WorldDatabase.PQuery(\"SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d\", actor)\;"
+    "return WorldDatabase.Query(\"SELECT `questId`, `poiId`, `objIndex`, `mapId`, `mapAreaId`, `floorId`, `unk3`, `unk4` FROM `quest_poi`\")\;"
+    "return WorldDatabase.Query(\"SELECT `questId`, `poiId`, `x`, `y` FROM `quest_poi_points`\")\;")
+
+set(ALLOW_ReputationDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `faction`, `quest_rate`, `creature_rate`, `spell_rate` FROM `reputation_reward_rate`\")\;"
+    "return WorldDatabase.Query(\"SELECT `creature_id`, `RewOnKillRepFaction1`, `RewOnKillRepFaction2`,\""
+    "return WorldDatabase.Query(\"SELECT `faction`, `faction1`, `rate_1`, `rank_1`, `faction2`, `rate_2`, `rank_2`, `faction3`, `rate_3`, `rank_3`, `faction4`, `rate_4`, `rank_4`, `faction5`, `rate_5`, `rank_5` FROM `reputation_spillover_template`\")\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

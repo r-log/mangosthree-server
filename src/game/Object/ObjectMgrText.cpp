@@ -37,6 +37,7 @@
 #include "SQLStorages.h"
 #include "DBCStores.h"
 #include "Language.h"
+#include "persistence/world/npcs/NpcDataRepository.h"
 
 /**
  * @brief Loads page text records and validates page chains.
@@ -94,7 +95,7 @@ void ObjectMgr::LoadPageTexts()
  */
 void ObjectMgr::LoadGossipText()
 {
-    QueryResult* result = WorldDatabase.Query("SELECT * FROM `npc_text`");
+    QueryResult* result = NpcDataRepository::QueryNpcTexts();
 
     int count = 0;
     if (!result)

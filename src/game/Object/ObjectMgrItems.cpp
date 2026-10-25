@@ -52,6 +52,7 @@
 #include "DisableMgr.h"
 
 #include <limits>
+#include "persistence/world/items/ItemDataRepository.h"
 
 /**
  * @brief Loads localized item names and descriptions.
@@ -60,14 +61,7 @@ void ObjectMgr::LoadItemLocales()
 {
     mItemLocaleMap.clear();                                 // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,"
-                                              "`name_loc1`,`description_loc1`,`name_loc2`,`description_loc2`,"
-                                              "`name_loc3`,`description_loc3`,`name_loc4`,`description_loc4`,"
-                                              "`name_loc5`,`description_loc5`,`name_loc6`,`description_loc6`,"
-                                              "`name_loc7`,`description_loc7`,`name_loc8`,`description_loc8`,"
-                                              "`name_loc9`,`description_loc9`,`name_loc10`,`description_loc10`,"
-                                              "`name_loc11`,`description_loc11`"
-                                              " FROM `locales_item`");
+    QueryResult* result = ItemDataRepository::QueryItemLocales();
     if (!result)
     {
         BarGoLink bar(1);
@@ -802,7 +796,7 @@ void ObjectMgr::LoadItemConverts()
 
     uint32 count = 0;
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,`item` FROM `item_convert`");
+    QueryResult* result = ItemDataRepository::QueryItemConverts();
 
     if (!result)
     {
@@ -867,7 +861,7 @@ void ObjectMgr::LoadItemExpireConverts()
 
     uint32 count = 0;
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,`item` FROM `item_expire_convert`");
+    QueryResult* result = ItemDataRepository::QueryItemExpireConverts();
 
     if (!result)
     {
@@ -932,7 +926,7 @@ void ObjectMgr::LoadItemRequiredTarget()
 
     uint32 count = 0;
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,`type`,`targetEntry` FROM `item_required_target`");
+    QueryResult* result = ItemDataRepository::QueryItemRequiredTargets();
 
     if (!result)
     {
