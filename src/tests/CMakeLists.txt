@@ -81,6 +81,7 @@ set(SRC_GRP_TESTS
     CharacterDeleteRepositoryTest.cpp
     CharacterSaveRepositoryTest.cpp
     AchievementRepositoryTest.cpp
+    SpawnRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

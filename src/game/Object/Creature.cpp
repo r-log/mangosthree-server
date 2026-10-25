@@ -69,6 +69,7 @@
 #include "Policies/Singleton.h"
 #include "PlayerRegistry.h"
 #include "MotionMaster.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 ObjectGuid CreatureData::GetObjectGuid(uint32 lowguid) const
 {
@@ -1640,34 +1641,26 @@ void Creature::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask)
                         ? CREATURE_MOVEMENT_IDLE : GetDefaultMovementType();
 
     // updated in DB
-    WorldDatabase.BeginTransaction();
-
-    WorldDatabase.PExecuteLog("DELETE FROM `creature` WHERE `guid`=%u", GetGUIDLow());
-
-    std::ostringstream ss;
-    ss << "INSERT INTO `creature` VALUES ("
-       << GetGUIDLow() << ","
-       << data.id << ","
-       << data.mapid << ","
-       << uint32(data.spawnMask) << ","                    // cast to prevent save as symbol
-       << uint32(data.phaseMask) << ","                    // prevent out of range error
-       << data.modelid_override << ","
-       << data.equipmentId << ","
-       << data.posX << ","
-       << data.posY << ","
-       << data.posZ << ","
-       << data.orientation << ","
-       << data.spawntimesecs << ","                        // respawn time
-       << (float) data.spawndist << ","                    // spawn distance (float)
-       << data.currentwaypoint << ","                      // currentwaypoint
-       << data.curhealth << ","                            // curhealth
-       << data.curmana << ","                              // curmana
-       << (data.is_dead  ? 1 : 0) << ","                   // is_dead
-       << uint32(data.movementType) << ")";                // default movement generator type, cast to prevent save as symbol
-
-    WorldDatabase.PExecuteLog("%s", ss.str().c_str());
-
-    WorldDatabase.CommitTransaction();
+    CreatureSpawnRow row;
+    row.guid = GetGUIDLow();
+    row.id = data.id;
+    row.map = data.mapid;
+    row.spawnMask = uint32(data.spawnMask);                 // cast to prevent save as symbol
+    row.phaseMask = uint32(data.phaseMask);                 // prevent out of range error
+    row.modelIdOverride = data.modelid_override;
+    row.equipmentId = data.equipmentId;
+    row.x = data.posX;
+    row.y = data.posY;
+    row.z = data.posZ;
+    row.o = data.orientation;
+    row.spawnTimeSecs = data.spawntimesecs;
+    row.spawnDist = data.spawndist;
+    row.currentWaypoint = data.currentwaypoint;
+    row.curHealth = data.curhealth;
+    row.curMana = data.curmana;
+    row.isDead = data.is_dead ? 1 : 0;
+    row.movementType = uint32(data.movementType);           // cast to prevent save as symbol
+    SpawnRepository::ReplaceCreature(row);
 }
 
 /**
@@ -1938,15 +1931,7 @@ void Creature::DeleteFromDB(uint32 lowguid, CreatureData const* data)
 
     sObjectMgr.DeleteCreatureData(lowguid);
 
-    WorldDatabase.BeginTransaction();
-    WorldDatabase.PExecuteLog("DELETE FROM `creature` WHERE `guid`=%u", lowguid);
-    WorldDatabase.PExecuteLog("DELETE FROM `creature_addon` WHERE `guid`=%u", lowguid);
-    WorldDatabase.PExecuteLog("DELETE FROM `creature_movement` WHERE `id`=%u", lowguid);
-    WorldDatabase.PExecuteLog("DELETE FROM `game_event_creature` WHERE `guid`=%u", lowguid);
-    WorldDatabase.PExecuteLog("DELETE FROM `game_event_creature_data` WHERE `guid`=%u", lowguid);
-    WorldDatabase.PExecuteLog("DELETE FROM `creature_battleground` WHERE `guid`=%u", lowguid);
-    WorldDatabase.PExecuteLog("DELETE FROM `creature_linking` WHERE `guid`=%u OR `master_guid`=%u", lowguid, lowguid);
-    WorldDatabase.CommitTransaction();
+    SpawnRepository::DeleteCreature(lowguid);
 }
 
 /**

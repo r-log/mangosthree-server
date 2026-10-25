@@ -51,6 +51,10 @@ set(CONVERTED_FILES
     src/game/persistence/characters/achievements/AchievementRepository.cpp
     src/game/persistence/world/achievements/AchievementDataRepository.h
     src/game/persistence/world/achievements/AchievementDataRepository.cpp
+    src/game/persistence/world/spawns/SpawnRepository.h
+    src/game/persistence/world/spawns/SpawnRepository.cpp
+    src/game/persistence/characters/maps/CorpseRepository.h
+    src/game/persistence/characters/maps/CorpseRepository.cpp
     src/game/persistence/characters/account/AccountDataRepository.h
     src/game/persistence/characters/account/AccountDataRepository.cpp
     src/game/persistence/login/RealmRepository.h
