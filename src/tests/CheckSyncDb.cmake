@@ -63,6 +63,12 @@ set(CONVERTED_FILES
     src/game/persistence/login/RealmRepository.cpp
     src/game/persistence/characters/quests/QuestTrackerRepository.h
     src/game/persistence/characters/quests/QuestTrackerRepository.cpp
+    src/game/persistence/characters/maps/InstanceDataRepository.h
+    src/game/persistence/characters/maps/InstanceDataRepository.cpp
+    src/game/persistence/characters/pvp/BattleGroundStatsRepository.h
+    src/game/persistence/characters/pvp/BattleGroundStatsRepository.cpp
+    src/game/persistence/characters/SavedVariablesRepository.h
+    src/game/persistence/characters/SavedVariablesRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
@@ -184,9 +190,9 @@ set(ALLOW_GuildBankRepository_cpp
 set(ALLOW_Chat_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;")
 
-set(ALLOW_InstanceDataCache_cpp
-    "if (QueryResult* result = CharacterDatabase.Query(\"SELECT `id`, `map`, `data` FROM `instance`\"))"
-    "if (QueryResult* result = CharacterDatabase.Query(\"SELECT `map`, `data` FROM `world`\"))")
+set(ALLOW_InstanceDataRepository_cpp
+    "return CharacterDatabase.Query(\"SELECT `id`, `map`, `data` FROM `instance`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `map`, `data` FROM `world`\")\;")
 
 set(ALLOW_InstanceRepository_cpp
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT %s FROM %s %s\", fields, table, szQueryTail)\;"
@@ -206,9 +212,13 @@ set(ALLOW_InstanceRepository_cpp
     "CharacterDatabase.DirectPExecute(\"DELETE FROM `instance_reset` WHERE `mapid` = '%u' AND `difficulty` = '%u'\", map, difficulty)\;")
 
 set(ALLOW_BattleGroundMgr_cpp
-    "if (QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `pvpstats_battlegrounds`\"))"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`\")\;"
-    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextArenaPointDistributionTime` FROM `saved_variables`\")\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`\")\;")
+
+set(ALLOW_BattleGroundStatsRepository_cpp
+    "return CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `pvpstats_battlegrounds`\")\;")
+
+set(ALLOW_SavedVariablesRepository_cpp
+    "return CharacterDatabase.Query(\"SELECT `NextArenaPointDistributionTime` FROM `saved_variables`\")\;")
 
 set(ALLOW_TicketRepository_cpp
     "if (QueryResult* highest = CharacterDatabase.Query(\"SELECT MAX(`ticket_id`) FROM `character_ticket`\"))"

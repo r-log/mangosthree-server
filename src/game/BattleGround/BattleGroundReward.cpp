@@ -37,6 +37,7 @@
 #include "WorldPacket.h"
 #include "Formulas.h"
 #include "GridNotifiersImpl.h"
+#include "persistence/characters/pvp/BattleGroundStatsRepository.h"
 
 /**
  * @file BattleGroundReward.cpp
@@ -187,19 +188,14 @@ void BattleGround::EndBattleGround(Team winner)
     // store battleground scores
     if (isBattleGround() && sGameConfig.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
     {
-        static SqlStatementID insPvPstatsBattleground;
-
-        SqlStatement stmt = CharacterDatabase.CreateStatement(insPvPstatsBattleground, "INSERT INTO pvpstats_battlegrounds (id, winner_team, bracket_id, type, date) VALUES (?, ?, ?, ?, NOW())");
-
         uint8 battleground_bracket = GetMinLevel() / 10;
         uint8 battleground_type = (uint8)GetTypeID();
 
-        // Decoupling D7i: the next id came from `SELECT MAX(id)` here, on the tick, at the
-        // end of every battleground. It is an in-memory counter now, read once at start-up
+        // The next id is an in-memory counter, read once at start-up
         // (BattleGroundMgr::LoadHighestPvPStatsId) behind this same config test.
         battleground_id = sBattleGroundMgr.GenerateNextPvPStatsId();
 
-        stmt.PExecute(battleground_id, bgScoresWinner, battleground_bracket, battleground_type);
+        BattleGroundStatsRepository::InsertBattleGround(battleground_id, bgScoresWinner, battleground_bracket, battleground_type);
     }
 
     SetWinner(winner);
@@ -320,25 +316,24 @@ void BattleGround::EndBattleGround(Team winner)
         // store battleground score statistics for each player
         if (isBattleGround() && sGameConfig.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
         {
-            static SqlStatementID insPvPstatsPlayer;
             BattleGroundScoreMap::iterator score = m_PlayerScores.find(itr->first);
-            SqlStatement stmt = CharacterDatabase.CreateStatement(insPvPstatsPlayer, "INSERT INTO `pvpstats_players` (`battleground_id`, `character_guid`, `score_killing_blows`, `score_deaths`, `score_honorable_kills`, `score_bonus_honor`, `score_damage_done`, `score_healing_done`, `attr_1`, `attr_2`, `attr_3`, `attr_4`, `attr_5`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-            stmt.addUInt32(battleground_id);
-            stmt.addUInt32(plr->GetGUIDLow());
-            stmt.addUInt32(score->second->GetKillingBlows());
-            stmt.addUInt32(score->second->GetDeaths());
-            stmt.addUInt32(score->second->GetHonorableKills());
-            stmt.addUInt32(score->second->GetBonusHonor());
-            stmt.addUInt32(score->second->GetDamageDone());
-            stmt.addUInt32(score->second->GetHealingDone());
-            stmt.addUInt32(score->second->GetAttr1());
-            stmt.addUInt32(score->second->GetAttr2());
-            stmt.addUInt32(score->second->GetAttr3());
-            stmt.addUInt32(score->second->GetAttr4());
-            stmt.addUInt32(score->second->GetAttr5());
+            BattleGroundPlayerStatsRow row;
+            row.battleGroundId = battleground_id;
+            row.guid = plr->GetGUIDLow();
+            row.killingBlows = score->second->GetKillingBlows();
+            row.deaths = score->second->GetDeaths();
+            row.honorableKills = score->second->GetHonorableKills();
+            row.bonusHonor = score->second->GetBonusHonor();
+            row.damageDone = score->second->GetDamageDone();
+            row.healingDone = score->second->GetHealingDone();
+            row.attr1 = score->second->GetAttr1();
+            row.attr2 = score->second->GetAttr2();
+            row.attr3 = score->second->GetAttr3();
+            row.attr4 = score->second->GetAttr4();
+            row.attr5 = score->second->GetAttr5();
 
-            stmt.Execute();
+            BattleGroundStatsRepository::InsertPlayer(row);
         }
 
         if (team == winner)

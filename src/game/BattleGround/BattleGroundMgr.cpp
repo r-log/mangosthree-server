@@ -69,6 +69,8 @@
 #include "GameEventMgr.h"
 #include "DisableMgr.h"
 #include "GameTime.h"
+#include "persistence/characters/SavedVariablesRepository.h"
+#include "persistence/characters/pvp/BattleGroundStatsRepository.h"
 
 #include "Policies/Singleton.h"
 
@@ -1025,18 +1027,16 @@ uint32 BattleGroundMgr::CreateBattleGround(BattleGroundTypeId bgTypeId, bool IsA
 }
 
 /**
- * @brief Primes the `pvpstats_battlegrounds` id counter once, at start-up (decoupling D7i).
+ * @brief Primes the `pvpstats_battlegrounds` id counter once, at start-up.
  *
- * Also re-run by `.reload config` when the statistics are switched on (fix round 1).
+ * Also re-run by `.reload config` when the statistics are switched on.
  */
 void BattleGroundMgr::LoadHighestPvPStatsId()
 {
     uint64 highest = 0;
 
-    // Decoupling D7i. The old read lived in BattleGround::EndBattleGround, behind exactly
-    // this config test, and a NULL result there left the id at 1 -- so a missing or empty
-    // table answers 0 here and GenerateNextPvPStatsId() hands out 1, as it always did.
-    if (QueryResult* result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `pvpstats_battlegrounds`"))
+    // A missing or empty table answers 0 here, and GenerateNextPvPStatsId() hands out 1.
+    if (QueryResult* result = BattleGroundStatsRepository::QueryHighestId())
     {
         highest = (*result)[0].GetUInt64();
         delete result;
@@ -1181,12 +1181,12 @@ void BattleGroundMgr::InitAutomaticArenaPointDistribution()
     if (sGameConfig.getConfig(CONFIG_BOOL_ARENA_AUTO_DISTRIBUTE_POINTS))
     {
         DEBUG_LOG("Initializing Automatic Arena Point Distribution");
-        QueryResult* result = CharacterDatabase.Query("SELECT `NextArenaPointDistributionTime` FROM `saved_variables`");
+        QueryResult* result = SavedVariablesRepository::QueryNextArenaPointDistribution();
         if (!result)
         {
             DEBUG_LOG("Battleground: Next arena point distribution time not found in SavedVariables, reseting it now.");
             m_NextAutoDistributionTime = time_t(WorldGameTime::Get() + BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY * sGameConfig.getConfig(CONFIG_UINT32_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS));
-            CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextArenaPointDistributionTime`) VALUES ('" UI64FMTD "')", uint64(m_NextAutoDistributionTime));
+            SavedVariablesRepository::InsertNextArenaPointDistribution(uint64(m_NextAutoDistributionTime));
         }
         else
         {

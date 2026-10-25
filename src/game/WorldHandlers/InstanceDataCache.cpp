@@ -27,6 +27,7 @@
 
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
+#include "persistence/characters/maps/InstanceDataRepository.h"
 
 void InstanceDataCache::LoadFromDB()
 {
@@ -35,7 +36,7 @@ void InstanceDataCache::LoadFromDB()
     m_instances.clear();
     m_worlds.clear();
 
-    if (QueryResult* result = CharacterDatabase.Query("SELECT `id`, `map`, `data` FROM `instance`"))
+    if (QueryResult* result = InstanceDataRepository::QueryInstanceData())
     {
         do
         {
@@ -50,7 +51,7 @@ void InstanceDataCache::LoadFromDB()
         delete result;
     }
 
-    if (QueryResult* result = CharacterDatabase.Query("SELECT `map`, `data` FROM `world`"))
+    if (QueryResult* result = InstanceDataRepository::QueryWorldData())
     {
         do
         {
