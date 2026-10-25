@@ -65,6 +65,7 @@ set(SRC_GRP_TESTS
     CapturePointSliderStoreTest.cpp
     PvpBroadcastTest.cpp
     ArenaTeamRepositoryTest.cpp
+    PetRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

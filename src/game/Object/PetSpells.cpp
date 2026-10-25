@@ -23,11 +23,11 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include <sstream>
+#include <vector>
 #include "Pet.h"
 #include "Player.h"
 #include "PlayerPetCache.h"
-#include "Database/DatabaseEnv.h"
+#include "persistence/characters/pets/PetRepository.h"
 #include "Log.h"
 #include "WorldPacket.h"
 #include "ObjectMgr.h"
@@ -43,6 +43,8 @@
  * @brief Pet's spells, auras and talents: the spell, cooldown and aura loads and saves, spell learn and remove, the
  * action bar, talent reset and the autocast toggle.
  */
+
+static_assert(int(PET_AURA_ROW_EFFECTS) == int(MAX_EFFECT_INDEX), "the saved aura row's effects");
 
 /**
  * @brief Loads saved pet spell cooldowns from the database.
@@ -102,11 +104,7 @@ void Pet::_LoadSpellCooldowns(PlayerPetCache const& cache)
  */
 void Pet::_SaveSpellCooldowns(PlayerPetCache& cache)
 {
-    static SqlStatementID delSpellCD ;
-    static SqlStatementID insSpellCD ;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(delSpellCD, "DELETE FROM `pet_spell_cooldown` WHERE `guid` = ?");
-    stmt.PExecute(m_charmInfo->GetPetNumber());
+    PetRepository::DeleteCooldowns(m_charmInfo->GetPetNumber());
 
     time_t curTime = time(NULL);
 
@@ -124,8 +122,7 @@ void Pet::_SaveSpellCooldowns(PlayerPetCache& cache)
         }
         else
         {
-            stmt = CharacterDatabase.CreateStatement(insSpellCD, "INSERT INTO `pet_spell_cooldown` (`guid`,`spell`,`time`) VALUES (?, ?, ?)");
-            stmt.PExecute(m_charmInfo->GetPetNumber(), itr->first, uint64(itr->second));
+            PetRepository::InsertCooldown(m_charmInfo->GetPetNumber(), itr->first, uint64(itr->second));
             saved.push_back(PetCacheCooldown(itr->first, uint64(itr->second)));
             ++itr;
         }
@@ -155,9 +152,6 @@ void Pet::_LoadSpells(PlayerPetCache const& cache)
  */
 void Pet::_SaveSpells(PlayerPetCache& cache)
 {
-    static SqlStatementID delSpell ;
-    static SqlStatementID insSpell ;
-
     // Decoupling D7e: this one is per-spell rather than a wholesale rewrite, because the
     // statements are -- a spell whose state is PETSPELL_UNCHANGED is not written and its row
     // is not touched, so the cache must not be rebuilt from m_spells either (m_spells holds
@@ -178,26 +172,21 @@ void Pet::_SaveSpells(PlayerPetCache& cache)
         {
             case PETSPELL_REMOVED:
             {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(delSpell, "DELETE FROM `pet_spell` WHERE `guid` = ? AND `spell` = ?");
-                stmt.PExecute(petNumber, itr->first);
+                PetRepository::DeleteSpell(petNumber, itr->first);
                 cache.EraseSpell(petNumber, itr->first);
                 m_spells.erase(itr);
             }
             continue;
             case PETSPELL_CHANGED:
             {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(delSpell, "DELETE FROM `pet_spell` WHERE `guid` = ? AND `spell` = ?");
-                stmt.PExecute(petNumber, itr->first);
-
-                stmt = CharacterDatabase.CreateStatement(insSpell, "INSERT INTO `pet_spell` (`guid`,`spell`,`active`) VALUES (?, ?, ?)");
-                stmt.PExecute(petNumber, itr->first, uint32(itr->second.active));
+                PetRepository::DeleteSpell(petNumber, itr->first);
+                PetRepository::InsertSpell(petNumber, itr->first, uint32(itr->second.active));
                 cache.SetSpell(petNumber, itr->first, uint8(itr->second.active));
             }
             break;
             case PETSPELL_NEW:
             {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(insSpell, "INSERT INTO `pet_spell` (`guid`,`spell`,`active`) VALUES (?, ?, ?)");
-                stmt.PExecute(petNumber, itr->first, uint32(itr->second.active));
+                PetRepository::InsertSpell(petNumber, itr->first, uint32(itr->second.active));
                 cache.SetSpell(petNumber, itr->first, uint8(itr->second.active));
             }
             break;
@@ -334,15 +323,11 @@ void Pet::_LoadAuras(uint32 timediff, PlayerPetCache const& cache)
  */
 void Pet::_SaveAuras(PlayerPetCache& cache)
 {
-    static SqlStatementID delAuras ;
-    static SqlStatementID insAuras ;
+    PetRepository::DeleteAuras(m_charmInfo->GetPetNumber());
 
-    SqlStatement stmt = CharacterDatabase.CreateStatement(delAuras, "DELETE FROM `pet_aura` WHERE `guid` = ?");
-    stmt.PExecute(m_charmInfo->GetPetNumber());
-
-    // Decoupling D7e: the DELETE clears this pet's rows whatever follows it, so the cache is
-    // cleared here too and refilled by whichever INSERTs the loop below issues. An early
-    // return therefore leaves the cache with no rows -- which is what the table has.
+    // The DELETE clears this pet's rows whatever follows it, so the cache is cleared here too
+    // and refilled with the rows the loop below saves. An early return therefore leaves the
+    // cache with no rows -- which is what the table has.
     PlayerPetCache::AuraList saved;
 
     SpellAuraHolderMap const& auraHolders = GetSpellAuraHolderMap();
@@ -353,9 +338,7 @@ void Pet::_SaveAuras(PlayerPetCache& cache)
         return;
     }
 
-    stmt = CharacterDatabase.CreateStatement(insAuras, "INSERT INTO `pet_aura` (`guid`, `caster_guid`, `item_guid`, `spell`, `stackcount`, `remaincharges`, "
-            "`basepoints0`, `basepoints1`, `basepoints2`, `periodictime0`, `periodictime1`, `periodictime2`, `maxduration`, `remaintime`, `effIndexMask`) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    std::vector<PetAuraSaveRow> rows;
 
     for (SpellAuraHolderMap::const_iterator itr = auraHolders.begin(); itr != auraHolders.end(); ++itr)
     {
@@ -412,27 +395,21 @@ void Pet::_SaveAuras(PlayerPetCache& cache)
                 continue;
             }
 
-            stmt.addUInt32(m_charmInfo->GetPetNumber());
-            stmt.addUInt64(holder->GetCasterGuid().GetRawValue());
-            stmt.addUInt32(holder->GetCastItemGuid().GetCounter());
-            stmt.addUInt32(holder->GetId());
-            stmt.addUInt32(holder->GetStackAmount());
-            stmt.addUInt8(holder->GetAuraCharges());
-
+            PetAuraSaveRow row;
+            row.casterGuid    = holder->GetCasterGuid().GetRawValue();
+            row.itemGuid      = holder->GetCastItemGuid().GetCounter();
+            row.spell         = holder->GetId();
+            row.stackCount    = holder->GetStackAmount();
+            row.remainCharges = uint8(holder->GetAuraCharges());
             for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
             {
-                stmt.addInt32(damage[i]);
+                row.basePoints[i]   = damage[i];
+                row.periodicTime[i] = periodicTime[i];
             }
-
-            for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
-            {
-                stmt.addUInt32(periodicTime[i]);
-            }
-
-            stmt.addInt32(holder->GetAuraMaxDuration());
-            stmt.addInt32(holder->GetAuraDuration());
-            stmt.addUInt32(effIndexMask);
-            stmt.Execute();
+            row.maxDuration  = holder->GetAuraMaxDuration();
+            row.remainTime   = holder->GetAuraDuration();
+            row.effIndexMask = effIndexMask;
+            rows.push_back(row);
 
             // The same row, in the INSERT's own parameter order.
             PetCacheAura cached;
@@ -440,7 +417,7 @@ void Pet::_SaveAuras(PlayerPetCache& cache)
             cached.itemGuid      = holder->GetCastItemGuid().GetCounter();
             cached.spell         = holder->GetId();
             cached.stackCount    = holder->GetStackAmount();
-            // Through a uint8, as the bind is (`stmt.addUInt8` above): m_procCharges is a
+            // Through a uint8, as the bind is (the row's `remainCharges`): m_procCharges is a
             // uint32 in memory, so the cache must narrow it the way the column does or a
             // reload after a save would read back a different number than a reload after a
             // restart.
@@ -457,6 +434,7 @@ void Pet::_SaveAuras(PlayerPetCache& cache)
         }
     }
 
+    PetRepository::InsertAuras(m_charmInfo->GetPetNumber(), rows);
     cache.SetAuras(m_charmInfo->GetPetNumber(), std::move(saved));
 }
 
@@ -478,7 +456,7 @@ bool Pet::addSpell(uint32 spell_id, ActiveStates active /*= ACT_DECIDE*/, PetSpe
         if (state == PETSPELL_UNCHANGED)                    // spell load case
         {
             sLog.outError("Pet::addSpell: nonexistent in SpellStore spell #%u request, deleting for all pets in `pet_spell`.", spell_id);
-            CharacterDatabase.PExecute("DELETE FROM `pet_spell` WHERE `spell` = '%u'", spell_id);
+            PetRepository::DeleteSpellOfEveryPet(spell_id);
 
             // Decoupling D7e: the statement is global, the cache is one character's. What is
             // reachable from here is this owner's cache, and it is cleared so the same bad
@@ -978,25 +956,6 @@ void Pet::resetTalentsForAllPetsOf(Player* owner, Pet* online_pet /*= NULL*/)
         return;
     }
 
-    bool need_comma = false;
-    std::ostringstream ss;
-    ss << "DELETE FROM `pet_spell` WHERE `guid` IN (";
-
-    for (size_t i = 0; i < petIds.size(); ++i)
-    {
-        if (need_comma)
-        {
-            ss << ",";
-        }
-
-        ss << petIds[i];
-
-        need_comma = true;
-    }
-
-    ss << ") AND `spell` IN (";
-
-    bool need_execute = false;
     std::vector<uint32> talentSpells;
     for (size_t i = 0; i < knownSpells.size(); ++i)
     {
@@ -1007,25 +966,15 @@ void Pet::resetTalentsForAllPetsOf(Player* owner, Pet* online_pet /*= NULL*/)
             continue;
         }
 
-        if (need_execute)
-        {
-            ss << ",";
-        }
-
-        ss << spell;
         talentSpells.push_back(spell);
-
-        need_execute = true;
     }
 
-    if (!need_execute)
+    if (talentSpells.empty())
     {
         return;
     }
 
-    ss << ")";
-
-    CharacterDatabase.Execute(ss.str().c_str());
+    PetRepository::DeleteSpellsOfPets(petIds, talentSpells);
     cache.EraseSpells(petIds, talentSpells);
 }
 
