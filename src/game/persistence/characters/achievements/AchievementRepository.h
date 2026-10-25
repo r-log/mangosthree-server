@@ -30,10 +30,9 @@
 
 class QueryResult;
 
-/// The characters' achievements and criteria progress (`character_achievement`,
-/// `character_achievement_progress`). The two realm-wide reads run at startup, synchronously;
-/// every write is queued on the character database, and one called inside CharacterTransaction
-/// joins it.
+/// The characters' completed achievements and criteria progress. The two realm-wide reads run at
+/// startup, synchronously; every write is queued on the character database, and one called inside
+/// CharacterTransaction joins it.
 namespace AchievementRepository
 {
     /// Selects every achievement some character has completed, once each.
