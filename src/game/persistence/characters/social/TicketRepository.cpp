@@ -114,6 +114,13 @@ namespace TicketRepository
         CharacterDatabase.Execute("DELETE FROM `character_ticket`");
     }
 
+    void DeleteOpenTickets(uint32 guid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `character_ticket` "
+                                   "WHERE `resolved` = 0 AND `guid` = %u",
+                                   guid);
+    }
+
     void InsertSurvey(GMSurveyRow const& row)
     {
         static SqlStatementID insGmSurvey;

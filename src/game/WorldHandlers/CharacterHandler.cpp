@@ -64,6 +64,7 @@
 #include "GameTime.h"
 #include "Timer.h"
 #include "MotionMaster.h"
+#include "persistence/characters/CharacterDeleteRepository.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/pets/PetRepository.h"
 #include "persistence/login/AccountRepository.h"
@@ -78,22 +79,6 @@ enum CinematicsSkipMode
 
 namespace
 {
-    /**
-     * @brief Queue a staged holder on a database, freeing it if the database refuses it.
-     *
-     * DelayQueryHolder() answers false without queueing once the database is shutting down
-     * (decoupling D7a); the holder is the callback's to free, so a refusal is the caller's
-     * to clean up or it leaks both the holder and its staged statements.
-     */
-    void QueueHolder(Database& database, SqlQueryHolder* holder,
-                     std::function<void(QueryResult*, SqlQueryHolder*)> callback)
-    {
-        if (!database.DelayQueryHolder(std::move(callback), holder))
-        {
-            delete holder;                                  // delete all unprocessed queries
-        }
-    }
-
     /// The one-byte SMSG_CHAR_CREATE answer, from wherever the decision was made.
     void SendCharCreateResult(WorldSession* session, uint8 result)
     {
@@ -842,19 +827,14 @@ void WorldSession::QueueCharDeleteReads(uint32 accountId, proto::SessionId sessi
     // nothing: the level comes from the character cache since D7c.
     uint32 charDeleteMethod = Player::DeleteMethodFor(guid, false);
 
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(PLAYER_DELETE_READ_WITH_OWNER_COUNT);
-    holder->SetPQuery(PLAYER_DELETE_READ_OWNER,
-                      "SELECT `account`,`name` FROM `characters` WHERE `guid`='%u'", guid.GetCounter());
-    Player::StageDeleteReads(holder, guid.GetCounter(), charDeleteMethod);
-
-    QueueHolder(CharacterDatabase, holder, [accountId, sessionId, guid, charDeleteMethod]
-                                           (QueryResult* /*result*/, SqlQueryHolder* h)
-                                           {
-                                               WorldSession::HandleCharDeleteCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                                      accountId, sessionId, guid,
-                                                                                      charDeleteMethod);
-                                           });
+    CharacterDeleteRepository::QueueDeleteReads(guid.GetCounter(), charDeleteMethod == 0, true,
+                                                [accountId, sessionId, guid, charDeleteMethod]
+                                                (QueryResult* /*result*/, SqlQueryHolder* h)
+                                                {
+                                                    WorldSession::HandleCharDeleteCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                           accountId, sessionId, guid,
+                                                                                           charDeleteMethod);
+                                                });
 }
 
 /**

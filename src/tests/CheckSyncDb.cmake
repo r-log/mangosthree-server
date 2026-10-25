@@ -41,6 +41,8 @@ set(CONVERTED_FILES
     src/game/persistence/characters/social/PetitionRepository.cpp
     src/game/persistence/characters/CharacterRepository.h
     src/game/persistence/characters/CharacterRepository.cpp
+    src/game/persistence/characters/CharacterDeleteRepository.h
+    src/game/persistence/characters/CharacterDeleteRepository.cpp
     src/game/persistence/characters/account/AccountDataRepository.h
     src/game/persistence/characters/account/AccountDataRepository.cpp
     src/game/persistence/login/RealmRepository.h

@@ -67,9 +67,19 @@ namespace MailRepository
     void DeleteMail(uint32 mailId)
     {
         CharacterDatabase.BeginTransaction();
-        CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `id` = '%u'", mailId);
-        CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `mail_id` = '%u'", mailId);
+        DeleteMailRow(mailId);
+        DeleteMailItems(mailId);
         CharacterDatabase.CommitTransaction();
+    }
+
+    void DeleteMailRow(uint32 mailId)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `id` = '%u'", mailId);
+    }
+
+    void DeleteMailItems(uint32 mailId)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `mail_id` = '%u'", mailId);
     }
 
     void SetMailedItemOwner(uint32 itemGuid, uint32 receiverGuid)

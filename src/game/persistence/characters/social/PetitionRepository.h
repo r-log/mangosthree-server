@@ -118,6 +118,15 @@ namespace PetitionRepository
 
     /// Deletes a petition and its signatures in one transaction.
     void Delete(uint32 petitionGuid);
+
+    /// Asks for the signatures a character has made: each petition's owner and guid.
+    void QuerySignaturesBy(uint32 playerGuid, PetitionReadCallback callback);
+
+    /// Deletes the signatures a character has made.
+    void DeleteSignaturesBy(uint32 playerGuid);
+
+    /// Deletes the petitions a character owns and their signatures, in one transaction.
+    void DeleteOwnedBy(uint32 ownerGuid);
 }
 
 #endif

@@ -49,6 +49,11 @@ namespace ItemRepository
         stmt.PExecute(itemGuid);
     }
 
+    void DeleteUnknownItem(uint32 itemGuid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid` = '%u'", itemGuid);
+    }
+
     void InsertInstance(uint32 itemGuid, uint32 ownerGuid, std::string const& data, std::string const& text)
     {
         static SqlStatementID insItem;

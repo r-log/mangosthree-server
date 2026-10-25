@@ -31,7 +31,7 @@
 #include "Player.h"
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
-#include "Database/SqlOperations.h"                         // SqlQueryHolder: the delete's staged reads (decoupling D7d)
+#include "Database/SqlOperations.h"
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
@@ -77,6 +77,12 @@
 #include "wire/MoverCodec.h"
 #include "MotionMaster.h"
 #include "State.h"
+#include "persistence/characters/CharacterDeleteRepository.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/inventory/ItemRepository.h"
+#include "persistence/characters/mail/MailRepository.h"
+#include "persistence/characters/social/PetitionRepository.h"
+#include "persistence/characters/social/TicketRepository.h"
 
 #include <cmath>
 
@@ -3327,65 +3333,6 @@ uint32 Player::DeleteMethodFor(ObjectGuid playerguid, bool deleteFinally)
 }
 
 /**
- * Stages every read the delete body needs (decoupling D7d, C4).
- *
- * The group and the petition signatures are read for every method; the mail, the pets and
- * the friend list only for method 0, which is the only method that returns mail, unsummons
- * pets and cleans friend lists -- so this stages exactly the statements the synchronous
- * body used to issue, no more.
- *
- * @param holder           a holder already sized to at least PLAYER_DELETE_READ_COUNT
- * @param lowguid          the character's low guid
- * @param charDeleteMethod what DeleteMethodFor() answered
- */
-void Player::StageDeleteReads(SqlQueryHolder* holder, uint32 lowguid, uint32 charDeleteMethod)
-{
-    // the player was uninvited already on logout so just remove from group
-    holder->SetPQuery(PLAYER_DELETE_READ_GROUP,
-                      "SELECT `groupId` FROM `group_member` WHERE `memberGuid`='%u'", lowguid);
-
-    // remove signs from petitions (also remove petitions if owner)
-    holder->SetPQuery(PLAYER_DELETE_READ_PETITION_SIGNS,
-                      "SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'", lowguid);
-
-    if (charDeleteMethod != 0)
-    {
-        return;
-    }
-
-    // return back all mails with COD and Item      0    1             2                3        4         5      6       7
-    holder->SetPQuery(PLAYER_DELETE_READ_COD_MAIL,
-                      "SELECT `id`,`messageType`,`mailTemplateId`,`sender`,`subject`,`body`,`money`,`has_items` FROM `mail` WHERE `receiver`='%u' AND `has_items`<>0 AND `cod`<>0 ORDER BY `id`", lowguid);
-
-    // The items of ALL those mails in one statement, where the old body issued one per mail
-    // inside its loop -- a read whose key it could not know before the mail rows answered.
-    // Both statements are ordered by the mail id, so the loop below walks this result as a
-    // cursor and each mail sees exactly the contiguous run of rows the per-mail query used
-    // to return. `data` and `text` come from `item_instance` and are what Item::LoadFromDB
-    // reads out of fields 0 and 1, so those two indices are unchanged; `mail_id` is appended
-    // as field 4 and is the only new column. `item_guid` is the secondary sort key so the
-    // order the items are put back into the returned mail is the same on every run and on
-    // every server -- the per-mail statement had no ORDER BY at all, which left it to the
-    // storage engine.
-    //                                                 0                        1                          2                         3                              4
-    holder->SetPQuery(PLAYER_DELETE_READ_COD_MAIL_ITEMS,
-                      "SELECT `item_instance`.`data`,`item_instance`.`text`,`mail_items`.`item_guid`,`mail_items`.`item_template`,`mail_items`.`mail_id` "
-                      "FROM `mail_items` JOIN `item_instance` ON `mail_items`.`item_guid` = `item_instance`.`guid` "
-                      "JOIN `mail` ON `mail_items`.`mail_id` = `mail`.`id` "
-                      "WHERE `mail`.`receiver`='%u' AND `mail`.`has_items`<>0 AND `mail`.`cod`<>0 "
-                      "ORDER BY `mail_items`.`mail_id`, `mail_items`.`item_guid`", lowguid);
-
-    // unsummon and delete for pets in world is not required: player deleted from CLI or character list with not loaded pet.
-    // Get guids of character's pets, will deleted in transaction
-    holder->SetPQuery(PLAYER_DELETE_READ_PETS,
-                      "SELECT `id` FROM `character_pet` WHERE `owner` = '%u'", lowguid);
-
-    // delete char from friends list when selected chars is online (non existing - error)
-    holder->SetPQuery(PLAYER_DELETE_READ_FRIENDS,
-                      "SELECT DISTINCT `guid` FROM `character_social` WHERE `friend` = '%u'", lowguid);
-}
-
-/**
  * Deletes a character from the database
  *
  * The way, how the characters will be deleted is decided based on the config option.
@@ -3408,22 +3355,14 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
 {
     uint32 charDeleteMethod = DeleteMethodFor(playerguid, deleteFinally);
 
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(PLAYER_DELETE_READ_COUNT);
-    StageDeleteReads(holder, playerguid.GetCounter(), charDeleteMethod);
-
-    // The holder is the callback's to free, so a refusal is ours: DelayQueryHolder() answers
-    // false without queueing once the database is shutting down (decoupling D7a).
-    if (!CharacterDatabase.DelayQueryHolder([playerguid, accountId, updateRealmChars, charDeleteMethod]
-                                            (QueryResult* /*result*/, SqlQueryHolder* h)
-                                            {
-                                                Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder>(h),
-                                                                               playerguid, accountId,
-                                                                               updateRealmChars, charDeleteMethod);
-                                            }, holder))
-    {
-        delete holder;                                      // delete all unprocessed queries
-    }
+    CharacterDeleteRepository::QueueDeleteReads(playerguid.GetCounter(), charDeleteMethod == 0, false,
+                                                [playerguid, accountId, updateRealmChars, charDeleteMethod]
+                                                (QueryResult* /*result*/, SqlQueryHolder* h)
+                                                {
+                                                    Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                   playerguid, accountId,
+                                                                                   updateRealmChars, charDeleteMethod);
+                                                });
 }
 
 /**
@@ -3448,9 +3387,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
     }
 
     //Make sure to delete unresolved tickets so they don't take up place in the open tickets list
-    CharacterDatabase.PExecute("DELETE FROM `character_ticket` "
-                               "WHERE `resolved` = 0 AND `guid` = %u",
-                               playerguid.GetCounter());
+    TicketRepository::DeleteOpenTickets(playerguid.GetCounter());
 
     // for nonexistent account avoid update realm
     if (accountId == 0)
@@ -3538,14 +3475,14 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
 
                     // we can return mail now
                     // so firstly delete the old one
-                    CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `id` = '%u'", mail_id);
+                    MailRepository::DeleteMailRow(mail_id);
 
                     // mail not from player
                     if (mailType != MAIL_NORMAL)
                     {
                         if (has_items)
                         {
-                            CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `mail_id` = '%u'", mail_id);
+                            MailRepository::DeleteMailItems(mail_id);
                         }
                         continue;
                     }
@@ -3579,7 +3516,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
                             ItemPrototype const* itemProto = ObjectMgr::GetItemPrototype(item_template);
                             if (!itemProto)
                             {
-                                CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid` = '%u'", item_guidlow);
+                                ItemRepository::DeleteUnknownItem(item_guidlow);
                             }
                             else
                             {
@@ -3600,7 +3537,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
                         }
                     }
 
-                    CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `mail_id` = '%u'", mail_id);
+                    MailRepository::DeleteMailItems(mail_id);
 
                     uint32 pl_account = sObjectMgr.GetPlayerAccountIdByGUID(playerguid);
 
@@ -3617,7 +3554,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
             std::unique_ptr<QueryResult> resultFriend(holder->GetResult(PLAYER_DELETE_READ_FRIENDS));
 
             // NOW we can finally clear other DB data related to character
-            CharacterDatabase.BeginTransaction();
+            CharacterTransaction::Begin();
             if (resultPets)
             {
                 do
@@ -3648,40 +3585,8 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
                 while (resultFriend->NextRow());
             }
 
-            CharacterDatabase.PExecute("DELETE FROM `characters` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_account_data` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_declinedname` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_action` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_aura` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_battleground_data` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_gifts` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_homebind` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_instance` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `group_instance` WHERE `leaderGuid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_queststatus` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_queststatus_daily` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_queststatus_weekly` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_reputation` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_skills` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_spell` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_spell_cooldown` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_ticket` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `owner_guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_social` WHERE `guid` = '%u' OR `friend`='%u'", lowguid, lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `receiver` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `receiver` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_pet` WHERE `owner` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_pet_declinedname` WHERE `owner` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_achievement` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_achievement_progress` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_equipmentsets` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `guild_eventlog` WHERE `PlayerGuid1` = '%u' OR `PlayerGuid2` = '%u'", lowguid, lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `guild_bank_eventlog` WHERE `PlayerGuid` = '%u'", lowguid);
-            CharacterDatabase.PExecute("DELETE FROM `character_currencies` WHERE `guid` = '%u'", lowguid);
-            CharacterDatabase.CommitTransaction();
+            CharacterDeleteRepository::DeleteEveryRowOf(lowguid);
+            CharacterTransaction::Commit();
 
             // Decoupling D7c: the row is gone, so the cached character is gone with it.
             sCharacterCache.Remove(playerguid);
@@ -3689,7 +3594,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
         }
         // The character gets unlinked from the account, the name gets freed up and appears as deleted ingame
         case 1:
-            CharacterDatabase.PExecute("UPDATE `characters` SET `deleteInfos_Name`=`name`, `deleteInfos_Account`=`account`, `deleteDate`='" UI64FMTD "', `name`='', `account`=0 WHERE `guid`=%u", uint64(time(NULL)), lowguid);
+            CharacterDeleteRepository::MarkDeleted(lowguid, uint64(time(NULL)));
 
             // Decoupling D7c: the row survives with an empty name and no account, which is
             // what the lookups used to read back off it. The cache says the same.
@@ -3733,14 +3638,13 @@ void Player::DeleteOldCharacters(uint32 keepDays)
 {
     sLog.outString("Player::DeleteOldChars: Deleting all characters which have been deleted %u days before...", keepDays);
 
-    // Decoupling D7d: this runs on the WUPDATE_DELETECHARS timer inside World::Update, so the
-    // guid list is asked for asynchronously and the deletes happen in the continuation.
-    CharacterDatabase.AsyncPQuery([](QueryResult* result)
-                                  {
-                                      Player::DeleteOldCharactersCallback(std::unique_ptr<QueryResult>(result));
-                                  },
-                                  "SELECT `guid`, `deleteInfos_Account` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteDate` < '" UI64FMTD "'",
-                                  uint64(time(NULL) - time_t(keepDays * DAY)));
+    // This runs on the WUPDATE_DELETECHARS timer inside World::Update, so the guid list is asked
+    // for asynchronously and the deletes happen in the continuation.
+    CharacterDeleteRepository::QueryDeletedBefore(uint64(time(NULL) - time_t(keepDays * DAY)),
+                                                  [](QueryResult* result)
+                                                  {
+                                                      Player::DeleteOldCharactersCallback(std::unique_ptr<QueryResult>(result));
+                                                  });
 }
 
 /**
@@ -4507,13 +4411,11 @@ void Player::SendProficiency(ItemClass itemClass, uint32 itemSubclassMask)
  */
 void Player::QueueRemovePetitionsAndSigns(ObjectGuid guid)
 {
-    CharacterDatabase.AsyncPQuery([guid](QueryResult* result)
-                                  {
-                                      std::unique_ptr<QueryResult> signs(result);
-                                      Player::RemovePetitionsAndSigns(guid, signs.get());
-                                  },
-                                  "SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'",
-                                  guid.GetCounter());
+    PetitionRepository::QuerySignaturesBy(guid.GetCounter(), [guid](QueryResult* result)
+                                          {
+                                              std::unique_ptr<QueryResult> signs(result);
+                                              Player::RemovePetitionsAndSigns(guid, signs.get());
+                                          });
 }
 
 /**
@@ -4555,13 +4457,10 @@ void Player::RemovePetitionsAndSigns(ObjectGuid guid, QueryResult* signs)
         // the signature list as it stood when he still had the signature. Queue the DELETE
         // first -- or put it on a connection of its own -- and the owner would be told a
         // count that has already dropped.
-        CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `playerguid` = '%u'", lowguid);
+        PetitionRepository::DeleteSignaturesBy(lowguid);
     }
 
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `petition` WHERE `ownerguid` = '%u'", lowguid);
-    CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `ownerguid` = '%u'", lowguid);
-    CharacterDatabase.CommitTransaction();
+    PetitionRepository::DeleteOwnedBy(lowguid);
 }
 
 /**

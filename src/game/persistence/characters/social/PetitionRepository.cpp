@@ -167,4 +167,24 @@ namespace PetitionRepository
         CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `petitionguid` = '%u'", petitionGuid);
         CharacterDatabase.CommitTransaction();
     }
+
+    void QuerySignaturesBy(uint32 playerGuid, PetitionReadCallback callback)
+    {
+        CharacterDatabase.AsyncPQuery(std::move(callback),
+                                      "SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'",
+                                      playerGuid);
+    }
+
+    void DeleteSignaturesBy(uint32 playerGuid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `playerguid` = '%u'", playerGuid);
+    }
+
+    void DeleteOwnedBy(uint32 ownerGuid)
+    {
+        CharacterDatabase.BeginTransaction();
+        CharacterDatabase.PExecute("DELETE FROM `petition` WHERE `ownerguid` = '%u'", ownerGuid);
+        CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `ownerguid` = '%u'", ownerGuid);
+        CharacterDatabase.CommitTransaction();
+    }
 }

@@ -152,8 +152,8 @@ state_allow(reputation src/tests/PlayerClientPacketsTest.cpp
     WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"
     NAMES SMSG_INITIALIZE_FACTIONS SMSG_SET_FACTION_VISIBLE SMSG_SET_FACTION_STANDING
           SMSG_SET_FORCED_REACTIONS SMSG_SET_FACTION_ATWAR)
-state_allow(reputation src/game/entities/player/Player.cpp
-    WHY "whole-character delete (Player::DeleteFromDB)"
+state_allow(reputation src/game/persistence/characters/CharacterDeleteRepository.cpp
+    WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
     NAMES character_reputation)
 state_allow(reputation src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADREPUTATION), handed to Player::_LoadReputations"
@@ -201,8 +201,8 @@ state_allow(achievement src/game/WorldHandlers/AchievementMgr.cpp
 state_allow(achievement src/game/WorldHandlers/AchievementMgr.h
     WHY "realm-wide cleanup: AchievementGlobalMgr::CleanupOrphanedCriteriaProgress's doc comment, in the owner's header"
     NAMES character_achievement_progress)
-state_allow(achievement src/game/entities/player/Player.cpp
-    WHY "whole-character delete (Player::DeleteFromDB)"
+state_allow(achievement src/game/persistence/characters/CharacterDeleteRepository.cpp
+    WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
     NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECTs (PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS / LOADCRITERIAPROGRESS), handed to AchievementMgr::LoadFromDB"
@@ -268,8 +268,11 @@ state_allow(cooldown src/game/session/packets/spells/CooldownPackets.cpp
     WHY "the session's builders of the owner's two facts: the cooldown event and the clear of every cooldown"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
 state_allow(cooldown src/game/entities/player/Player.cpp
-    WHY "the one-spell clear for the character or its pet (Player::SendClearCooldown), and the whole-character delete (Player::DeleteFromDB)"
-    NAMES SMSG_CLEAR_COOLDOWNS character_spell_cooldown)
+    WHY "the one-spell clear for the character or its pet (Player::SendClearCooldown)"
+    NAMES SMSG_CLEAR_COOLDOWNS)
+state_allow(cooldown src/game/persistence/characters/CharacterDeleteRepository.cpp
+    WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
+    NAMES character_spell_cooldown)
 state_allow(cooldown src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS), handed to the owner's per-row load"
     NAMES character_spell_cooldown)
@@ -334,8 +337,8 @@ state_allow(glyph src/game/persistence/characters/talents/GlyphRepository.cpp
 state_allow(glyph src/game/entities/player/talents/GlyphMgr.h
     WHY "the owner's header: the save states' and the save's doc comments name the table"
     NAMES character_glyphs)
-state_allow(glyph src/game/entities/player/Player.cpp
-    WHY "whole-character delete (Player::DeleteFromDB)"
+state_allow(glyph src/game/persistence/characters/CharacterDeleteRepository.cpp
+    WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
     NAMES character_glyphs)
 state_allow(glyph src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADGLYPHS), handed to the owner's per-row load"
@@ -391,8 +394,8 @@ state_allow(social src/game/persistence/characters/social/SocialRepository.cpp
 state_allow(social src/game/session/packets/entities/SocialPackets.cpp
     WHY "the session's builders of the owner's two facts: the contact list and a contact's change"
     NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS)
-state_allow(social src/game/entities/player/Player.cpp
-    WHY "whole-character delete (Player::DeleteFromDB: the read of who lists the character, and the DELETE)"
+state_allow(social src/game/persistence/characters/CharacterDeleteRepository.cpp
+    WHY "whole-character delete (CharacterDeleteRepository: the read of who lists the character, and the DELETE)"
     NAMES character_social)
 state_allow(social src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADSOCIALLIST), handed to SocialMgr::LoadFromDB's per-row load"
@@ -408,6 +411,9 @@ state_allow(social src/tests/CalendarMailAsyncTest.cpp
     NAMES character_social)
 state_allow(social src/tests/CharacterOpsAsyncTest.cpp
     WHY "unit test that observes the delete's read through a fake connection (checks the statement, runs nothing itself)"
+    NAMES character_social)
+state_allow(social src/tests/CharacterDeleteRepositoryTest.cpp
+    WHY "unit test that observes the delete's staged reads through a fake connection (checks the statements, runs nothing itself)"
     NAMES character_social)
 state_allow(social src/tests/SocialMgrTest.cpp
     WHY "unit test that builds the reported facts with the session's builders and observes the statements through a fake connection (checks each opcode, byte and statement)"
@@ -436,8 +442,8 @@ state_allow(currency src/game/session/packets/entities/CurrencyPackets.cpp
 state_allow(currency src/tests/PlayerClientPacketsTest.cpp
     WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"
     NAMES SMSG_SET_CURRENCY SMSG_SET_CURRENCY_WEEK_LIMIT SMSG_SEND_CURRENCIES SMSG_WEEKLY_RESET_CURRENCIES)
-state_allow(currency src/game/entities/player/Player.cpp
-    WHY "whole-character delete (Player::DeleteFromDB)"
+state_allow(currency src/game/persistence/characters/CharacterDeleteRepository.cpp
+    WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
     NAMES character_currencies)
 state_allow(currency src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADCURRENCIES), handed to the owner's per-row load"
