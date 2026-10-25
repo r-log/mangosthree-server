@@ -171,6 +171,13 @@ namespace CharacterRepository
         stmt.PExecute(guid);
     }
 
+    void SetAccountOffline(uint32 accountId)
+    {
+        static SqlStatementID updChars;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(updChars, "UPDATE `characters` SET `online` = 0 WHERE `account` = ?");
+        stmt.PExecute(accountId);
+    }
+
     void QueryRenameTarget(uint32 guid, uint32 accountId, uint32 renameFlag, CharacterReadCallback callback)
     {
         CharacterDatabase.AsyncPQuery(std::move(callback),

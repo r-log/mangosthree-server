@@ -82,6 +82,9 @@
 #include "zlib.h"
 #include "MotionMaster.h"
 #include "State.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/account/AccountDataRepository.h"
+#include "persistence/login/AccountRepository.h"
 
 #include <chrono>
 #include <mutex>
@@ -734,11 +737,7 @@ void WorldSession::LogoutPlayer(bool Save)
 
         ///- Reset the online field in the account table
         // no point resetting online in character table here as Player::SaveToDB() will set it to 1 since player has not been removed from world at this stage
-        // No SQL injection as AccountID is uint32
-        static SqlStatementID id;
-
-        SqlStatement stmt = LoginDatabase.CreateStatement(id, "UPDATE `account` SET `active_realm_id` = ? WHERE `id` = ?");
-        stmt.PExecute(uint32(0), GetAccountId());
+        AccountRepository::SetActiveRealm(0, GetAccountId());
 
         ///- If the player is in a guild, update the guild roster and broadcast a logout message to other guild members
         if (Guild* guild = sGuildMgr.GetGuildById(_player->GetGuildId()))
@@ -822,11 +821,7 @@ void WorldSession::LogoutPlayer(bool Save)
         SendPacket(&data);
 
         ///- Since each account can only have one online character at any given time, ensure all characters for active account are marked as offline
-        // No SQL injection as AccountId is uint32
-
-        static SqlStatementID updChars;
-        stmt = CharacterDatabase.CreateStatement(updChars, "UPDATE `characters` SET `online` = 0 WHERE `account` = ?");
-        stmt.PExecute(GetAccountId());
+        CharacterRepository::SetAccountOffline(GetAccountId());
 
         DEBUG_LOG("SESSION: Sent SMSG_LOGOUT_COMPLETE Message");
     }
@@ -1160,7 +1155,7 @@ void WorldSession::SendAuthWaitQue(uint32 position)
 void WorldSession::LoadGlobalAccountData()
 {
     LoadAccountData(
-        CharacterDatabase.PQuery("SELECT `type`, `time`, `data` FROM `account_data` WHERE `account` = '%u'", GetAccountId()),
+        AccountDataRepository::QueryGlobal(GetAccountId()),
         GLOBAL_CACHE_MASK
     );
 }
@@ -1209,20 +1204,7 @@ void WorldSession::SetAccountData(AccountDataType type, time_t time_, const std:
 {
     if ((1 << type) & GLOBAL_CACHE_MASK)
     {
-        uint32 acc = GetAccountId();
-
-        static SqlStatementID delId;
-        static SqlStatementID insId;
-
-        CharacterDatabase.BeginTransaction();
-
-        SqlStatement stmt = CharacterDatabase.CreateStatement(delId, "DELETE FROM `account_data` WHERE `account` = ? AND `type` = ?");
-        stmt.PExecute(acc, uint32(type));
-
-        stmt = CharacterDatabase.CreateStatement(insId, "INSERT INTO `account_data` VALUES (?,?,?,?)");
-        stmt.PExecute(acc, uint32(type), uint64(time_), data.c_str());
-
-        CharacterDatabase.CommitTransaction();
+        AccountDataRepository::ReplaceGlobal(GetAccountId(), uint32(type), uint64(time_), data);
     }
     else
     {
@@ -1232,18 +1214,7 @@ void WorldSession::SetAccountData(AccountDataType type, time_t time_, const std:
             return;
         }
 
-        static SqlStatementID delId;
-        static SqlStatementID insId;
-
-        CharacterDatabase.BeginTransaction();
-
-        SqlStatement stmt = CharacterDatabase.CreateStatement(delId, "DELETE FROM `character_account_data` WHERE `guid` = ? AND `type` = ?");
-        stmt.PExecute(m_GUIDLow, uint32(type));
-
-        stmt = CharacterDatabase.CreateStatement(insId, "INSERT INTO `character_account_data` VALUES (?,?,?,?)");
-        stmt.PExecute(m_GUIDLow, uint32(type), uint64(time_), data.c_str());
-
-        CharacterDatabase.CommitTransaction();
+        AccountDataRepository::ReplaceCharacter(m_GUIDLow, uint32(type), uint64(time_), data);
     }
 
     m_accountData[type].Time = time_;
@@ -1276,7 +1247,7 @@ void WorldSession::LoadTutorialsData()
         m_Tutorials[ aX ] = 0;
     }
 
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7` FROM `character_tutorial` WHERE `account` = '%u'", GetAccountId());
+    QueryResult* result = AccountDataRepository::QueryTutorials(GetAccountId());
 
     if (!result)
     {
@@ -1318,37 +1289,15 @@ void WorldSession::SendTutorialsData()
  */
 void WorldSession::SaveTutorialsData()
 {
-    static SqlStatementID updTutorial ;
-    static SqlStatementID insTutorial ;
-
     switch (m_tutorialState)
     {
         case TUTORIALDATA_CHANGED:
-        {
-            SqlStatement stmt = CharacterDatabase.CreateStatement(updTutorial, "UPDATE `character_tutorial` SET `tut0`=?, `tut1`=?, `tut2`=?, `tut3`=?, `tut4`=?, `tut5`=?, `tut6`=?, `tut7`=? WHERE `account` = ?");
-            for (int i = 0; i < 8; ++i)
-            {
-                stmt.addUInt32(m_Tutorials[i]);
-            }
-
-            stmt.addUInt32(GetAccountId());
-            stmt.Execute();
-        }
-        break;
+            AccountDataRepository::UpdateTutorials(GetAccountId(), m_Tutorials);
+            break;
 
         case TUTORIALDATA_NEW:
-        {
-            SqlStatement stmt = CharacterDatabase.CreateStatement(insTutorial, "INSERT INTO `character_tutorial` (`account`,`tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-            stmt.addUInt32(GetAccountId());
-            for (int i = 0; i < 8; ++i)
-            {
-                stmt.addUInt32(m_Tutorials[i]);
-            }
-
-            stmt.Execute();
-        }
-        break;
+            AccountDataRepository::InsertTutorials(GetAccountId(), m_Tutorials);
+            break;
         case TUTORIALDATA_UNCHANGED:
             break;
     }

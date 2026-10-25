@@ -41,6 +41,10 @@ set(CONVERTED_FILES
     src/game/persistence/characters/social/PetitionRepository.cpp
     src/game/persistence/characters/CharacterRepository.h
     src/game/persistence/characters/CharacterRepository.cpp
+    src/game/persistence/characters/account/AccountDataRepository.h
+    src/game/persistence/characters/account/AccountDataRepository.cpp
+    src/game/persistence/login/RealmRepository.h
+    src/game/persistence/login/RealmRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
@@ -195,6 +199,15 @@ set(ALLOW_AuctionRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`\")\;"
     "return CharacterDatabase.Query(\"SELECT COUNT(*) FROM `auction`\")\;"
     "return CharacterDatabase.Query(\"SELECT `id`,`houseid`,`itemguid`,`item_template`,`item_count`,`item_randompropertyid`,`itemowner`,`buyoutprice`,`time`,`moneyTime`,`buyguid`,`lastbid`,`startbid`,`deposit` FROM `auction`\")\;")
+
+set(ALLOW_AccountDataRepository_cpp
+    "return CharacterDatabase.PQuery(\"SELECT `type`, `time`, `data` FROM `account_data` WHERE `account` = '%u'\", accountId)\;"
+    "return CharacterDatabase.PQuery(\"SELECT `tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7` FROM `character_tutorial` WHERE `account` = '%u'\", accountId)\;")
+
+set(ALLOW_AccountRepository_cpp
+    "LoginDatabase.escape_string(safeAccount)\;"
+    "return LoginDatabase.PQuery(\"SELECT \""
+    "return LoginDatabase.PQuery(\"SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 \"")
 
 set(ALLOW_AccountMgr_cpp
     "QueryResult* result = LoginDatabase.PQuery(\"SELECT 1 FROM `account` WHERE `id`='%u'\", accid)\;"

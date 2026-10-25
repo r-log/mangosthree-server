@@ -40,6 +40,7 @@
 #include "SharedDefines.h"
 #include "World.h"
 #include "WorldSession.h"
+#include "persistence/login/AccountRepository.h"
 
 #include <string>
 
@@ -71,21 +72,18 @@ namespace
      * @brief Register the calling thread with the database client library.
      *
      * The protocol layer calls LookupAccount()/Attach() on one of the network
-     * engine's worker threads, and those threads query LoginDatabase. The MySQL
-     * client keeps per-thread state that every such thread has to set up and
-     * tear down, or it corrupts and leaks it -- a failure that shows up far from
-     * its cause and only under load.
+     * engine's worker threads, and those threads query the login database. The
+     * MySQL client keeps per-thread state that every such thread has to set up
+     * and tear down, or it corrupts and leaks it -- a failure that shows up far
+     * from its cause and only under load.
      *
      * The registration lives here rather than in the network engine on purpose:
-     * net must not know a database exists. A function-local thread_local runs the
-     * guard's constructor the first time a given worker thread reaches this code
-     * and its destructor when that thread exits, so the transport stays oblivious
-     * while every thread that touches the database is still accounted for.
+     * net must not know a database exists, so the transport stays oblivious while
+     * every thread that touches the database is still accounted for.
      */
     void EnsureDbThreadRegistered()
     {
-        static thread_local DbThreadGuard guard(&LoginDatabase);
-        (void)guard;
+        AccountRepository::RegisterThread();
     }
 }
 
@@ -116,22 +114,7 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
     // WorldSocket.cpp:1054-1069. `v` (SRP6 verifier) is dropped: the original
     // code fetched it only to print an unused debug line (N and g were computed
     // and never even printed) -- no login decision ever read it.
-    std::string safeAccount = request.account;
-    LoginDatabase.escape_string(safeAccount);
-
-    QueryResult* queryResult =
-        LoginDatabase.PQuery("SELECT "
-                             "`id`, "          // 0
-                             "`gmlevel`, "     // 1
-                             "`sessionkey`, "  // 2
-                             "`last_ip`, "     // 3
-                             "`locked`, "      // 4
-                             "`expansion`, "   // 5
-                             "`mutetime`, "    // 6
-                             "`locale`, "      // 7
-                             "`os` "           // 8
-                             "FROM `account` WHERE `username` = '%s'",
-                             safeAccount.c_str());
+    QueryResult* queryResult = AccountRepository::QueryAuthAccount(request.account);
 
     if (!queryResult)
     {
@@ -183,13 +166,7 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
 
     // ---- Bans ------------------------------------------------------------
     // WorldSocket.cpp:1145-1161 ("re-check account ban, same check as in realmd").
-    QueryResult* banResult =
-        LoginDatabase.PQuery("SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 "
-                             "AND (`unbandate` > UNIX_TIMESTAMP() OR `unbandate` = `bandate`) "
-                             "UNION "
-                             "SELECT 1 FROM `ip_banned` WHERE (`unbandate` = `bandate` OR "
-                             "`unbandate` > UNIX_TIMESTAMP()) AND `ip` = '%s'",
-                             row->id, request.peerAddress.c_str());
+    QueryResult* banResult = AccountRepository::QueryActiveBan(row->id, request.peerAddress);
 
     if (banResult)
     {
@@ -243,10 +220,7 @@ proto::SessionId WorldGateway::Attach(const proto::AuthRequest& request,
     // The proof has already been verified by this point, so recording the
     // address here is recording an authenticated login rather than an attempt.
     // WorldSocket.cpp:1225-1230.
-    static SqlStatementID updAccount;
-    SqlStatement stmt = LoginDatabase.CreateStatement(
-        updAccount, "UPDATE `account` SET `last_ip` = ? WHERE `username` = ?");
-    stmt.PExecute(request.peerAddress.c_str(), request.account.c_str());
+    AccountRepository::SetLastIp(request.peerAddress, request.account);
 
     std::shared_ptr<SessionMailbox> mailbox =
         std::make_shared<SessionMailbox>();

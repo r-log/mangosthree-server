@@ -30,6 +30,51 @@
 
 namespace AccountRepository
 {
+    void RegisterThread()
+    {
+        // A function-local thread_local runs the guard's constructor the first time a thread gets
+        // here and its destructor when that thread exits.
+        static thread_local DbThreadGuard guard(&LoginDatabase);
+        (void)guard;
+    }
+
+    QueryResult* QueryAuthAccount(std::string const& username)
+    {
+        std::string safeAccount = username;
+        LoginDatabase.escape_string(safeAccount);
+
+        return LoginDatabase.PQuery("SELECT "
+                                    "`id`, "          // 0
+                                    "`gmlevel`, "     // 1
+                                    "`sessionkey`, "  // 2
+                                    "`last_ip`, "     // 3
+                                    "`locked`, "      // 4
+                                    "`expansion`, "   // 5
+                                    "`mutetime`, "    // 6
+                                    "`locale`, "      // 7
+                                    "`os` "           // 8
+                                    "FROM `account` WHERE `username` = '%s'",
+                                    safeAccount.c_str());
+    }
+
+    QueryResult* QueryActiveBan(uint32 accountId, std::string const& ip)
+    {
+        return LoginDatabase.PQuery("SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 "
+                                    "AND (`unbandate` > UNIX_TIMESTAMP() OR `unbandate` = `bandate`) "
+                                    "UNION "
+                                    "SELECT 1 FROM `ip_banned` WHERE (`unbandate` = `bandate` OR "
+                                    "`unbandate` > UNIX_TIMESTAMP()) AND `ip` = '%s'",
+                                    accountId, ip.c_str());
+    }
+
+    void SetLastIp(std::string const& ip, std::string const& username)
+    {
+        static SqlStatementID updAccount;
+        SqlStatement stmt = LoginDatabase.CreateStatement(
+            updAccount, "UPDATE `account` SET `last_ip` = ? WHERE `username` = ?");
+        stmt.PExecute(ip.c_str(), username.c_str());
+    }
+
     void QueryGmLevel(uint32 accountId, std::function<void(QueryResult*)> callback)
     {
         LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);

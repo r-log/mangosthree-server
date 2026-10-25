@@ -73,6 +73,9 @@ source_group("Outdoor PvP" FILES ${SRC_GRP_OUTDOOR_PVP})
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS persistence/characters/*.cpp persistence/characters/*.h)
 source_group("Persistence\\Characters" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS})
 
+file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_ACCOUNT persistence/characters/account/*.cpp persistence/characters/account/*.h)
+source_group("Persistence\\Characters\\Account" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_ACCOUNT})
+
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY persistence/characters/economy/*.cpp persistence/characters/economy/*.h)
 source_group("Persistence\\Characters\\Economy" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY})
 
@@ -185,6 +188,7 @@ add_library(game STATIC
     ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
     ${SRC_GRP_PERSISTENCE_CHARACTERS}
+    ${SRC_GRP_PERSISTENCE_CHARACTERS_ACCOUNT}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_MAIL}

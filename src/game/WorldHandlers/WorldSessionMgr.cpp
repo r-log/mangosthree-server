@@ -32,6 +32,7 @@
 #include "Player.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
+#include "persistence/login/RealmRepository.h"
 
 /**
  * @file WorldSessionMgr.cpp
@@ -197,10 +198,7 @@ World::AddSession_(WorldSession* s)
         popu /= pLimit;
         popu *= 2;
 
-        static SqlStatementID id;
-
-        SqlStatement stmt = LoginDatabase.CreateStatement(id, "UPDATE `realmlist` SET `population` = ? WHERE `id` = ?");
-        stmt.PExecute(popu, realmID);
+        RealmRepository::SetPopulation(popu, realmID);
 
         DETAIL_LOG("Server Population (%f).", popu);
     }
