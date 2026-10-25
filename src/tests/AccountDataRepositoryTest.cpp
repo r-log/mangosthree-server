@@ -121,3 +121,17 @@ TEST(AccountDataRepository_Writes)
         "INSERT INTO `character_tutorial` (`account`,`tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7`) VALUES ('18', '1', '2', '3', '4', '5', '6', '7', '8')",
     }, __LINE__);
 }
+
+// An account's delete deletes its tutorial flags.
+TEST(AccountDataRepository_DeleteTutorials)
+{
+    Db db;
+    {
+        TickGuard::Scope scope;
+        AccountDataRepository::DeleteTutorials(17);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CheckLines(db.Take(), {
+        "DELETE FROM `character_tutorial` WHERE `account` = '17'",
+    }, __LINE__);
+}

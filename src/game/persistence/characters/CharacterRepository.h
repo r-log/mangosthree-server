@@ -115,10 +115,17 @@ typedef std::function<void(QueryResult*)> CharacterReadCallback;
 typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallback;
 
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
-/// login and the logout use them. Every read is asynchronous and every write queued on the character
-/// database; a write called inside CharacterTransaction joins it.
+/// login, the logout and the account manager use them. The account manager's two reads run on the
+/// thread that calls it, synchronously; every other read is asynchronous, and every write is queued
+/// on the character database; a write called inside CharacterTransaction joins it.
 namespace CharacterRepository
 {
+    /// Selects the guids of an account's characters.
+    QueryResult* QueryAccountCharacters(uint32 accountId);
+
+    /// Selects how many characters an account has on this realm.
+    QueryResult* QueryAccountCharacterCount(uint32 accountId);
+
     /// Asks for the account's characters, ordered by guid, with each one's pet in currentPetSlot
     /// and guild, and its genitive name when declinedNames is set.
     void QueryEnum(uint32 accountId, uint32 currentPetSlot, bool declinedNames, CharacterReadCallback callback);

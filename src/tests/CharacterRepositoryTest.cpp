@@ -339,3 +339,54 @@ TEST(CharacterRepository_NameAndWhoisReads)
     LoginDatabase.ProcessResultQueue();
     CHECK_EQ(answered, 3);
 }
+
+// The account manager's reads run on the calling thread, the names escaped; its writes are queued,
+// the delete as one transaction, and the password check is answered on the world thread.
+TEST(CharacterRepository_AccountManagerStatements)
+{
+    Db login(LoginDatabase);
+    Db chars(CharacterDatabase);
+    delete AccountRepository::QueryExists(17);
+    delete AccountRepository::QueryIdByName("BOB");
+    delete AccountRepository::QueryGmLevel(17);
+    delete AccountRepository::QueryName(17);
+    delete CharacterRepository::QueryAccountCharacters(17);
+    delete CharacterRepository::QueryAccountCharacterCount(17);
+    CheckLines(login.query.executed, {
+        "SELECT 1 FROM `account` WHERE `id`='17'",
+        "SELECT `id` FROM `account` WHERE `username` = 'BOB'",
+        "SELECT `gmlevel` FROM `account` WHERE `id` = '17'",
+        "SELECT `username` FROM `account` WHERE `id` = '17'",
+    }, __LINE__);
+    CheckLines(chars.query.executed, {
+        "SELECT `guid` FROM `characters` WHERE `account`='17'",
+        "SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '17'",
+    }, __LINE__);
+
+    int answered = 0;
+    {
+        TickGuard::Scope scope;
+        CHECK(AccountRepository::Insert("BOB", "ABCD"));
+        CHECK(AccountRepository::InsertWithExpansion("ANN", "EF01", 3));
+        AccountRepository::LinkNewAccountsToRealms();
+        CHECK(AccountRepository::SetNameAndPasswordHash("ROB", "2345", 17));
+        CHECK(AccountRepository::SetPasswordHash("6789", 17));
+        CHECK(AccountRepository::Delete(18));
+        CHECK(AccountRepository::QueryNameAndPasswordHash(17, [&answered](QueryResult* result) { delete result; ++answered; }));
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(LoginDatabase.GetDelayQueueDepth(), size_t(7));
+    }
+    CheckLines(login.Take(), {
+        "INSERT INTO `account` (`username`,`sha_pass_hash`,`joindate`) VALUES ('BOB','ABCD',NOW())",
+        "INSERT INTO `account`(`username`,`sha_pass_hash`,`joindate`,`expansion`) VALUES('ANN','EF01',NOW(),'3')",
+        "INSERT INTO `realmcharacters` (`realmid`, `acctid`, `numchars`) SELECT `realmlist`.`id`, `account`.`id`, 0 FROM `realmlist`,`account` LEFT JOIN `realmcharacters` ON `acctid`=`account`.`id` WHERE `acctid` IS NULL",
+        "UPDATE `account` SET `v`='0',`s`='0',`username`='ROB',`sha_pass_hash`='2345' WHERE `id`='17'",
+        "UPDATE `account` SET `v`='0', `s`='0', `sha_pass_hash`='6789' WHERE `id`='17'",
+        "DELETE FROM `account` WHERE `id`='18'",
+        "DELETE FROM `realmcharacters` WHERE `acctid`='18'",
+        "SELECT `username`, `sha_pass_hash` FROM `account` WHERE `id`='17'",
+    }, __LINE__);
+    CHECK_EQ(answered, 0);
+    LoginDatabase.ProcessResultQueue();
+    CHECK_EQ(answered, 1);
+}

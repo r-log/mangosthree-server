@@ -59,6 +59,9 @@ namespace AccountDataRepository
 
     /// Inserts an account's first tutorial flags.
     void InsertTutorials(uint32 accountId, uint32 const (&flags)[TUTORIAL_ROW_FLAGS]);
+
+    /// Deletes an account's tutorial flags, as the account's delete does.
+    void DeleteTutorials(uint32 accountId);
 }
 
 #endif
