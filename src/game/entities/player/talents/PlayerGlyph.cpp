@@ -96,7 +96,7 @@ void Player::_LoadGlyphs(QueryResult* result)
         return;
     }
 
-    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADGLYPHS result (CharacterHandler.cpp)
+    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADGLYPHS result (CharacterRepository.cpp)
 
     do
     {

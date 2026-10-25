@@ -263,4 +263,47 @@ namespace PetRepository
         update.Execute();
         CharacterDatabase.CommitTransaction();
     }
+
+    void ReplaceStarterPet(StarterPet pet, uint32 petNumber, uint32 ownerId)
+    {
+        switch (pet)
+        {
+            case STARTER_PET_IMP:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 416, %u, 4449, 0, 0, 1, 0, 0, ' ', 1, 100, 282, 72, 1295721046, 0, 0, '7 2 7 1 7 0 129 3110 1 0 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_WOLF:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42717, %u, 903, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295727347, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_BEAR:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42713, %u, 822, 13481, 1, 1, 0, 0, ' ', 0, 0, 212, 0, 1295727650, 0, 0, '7 2 7 1 7 0 129 2649 129 16827 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_BOAR:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42719, %u, 744, 13481, 1, 1, 0, 0, ' ', 0, 0, 212, 0, 1295727175, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_CAT:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42718, %u, 17090, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295727501, 0, 0, '7 2 7 1 7 0 129 2649 129 16827 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_SPIDER:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 51107, %u, 368, 13481, 1, 1, 0, 0, ' ', 0, 0, 202, 0, 1295727821, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_TALLSTRIDER:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42720, %u, 29057, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295727912, 0, 0, '7 2 7 1 7 0 129 2649 129 16827 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_RAPTOR:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42721, %u, 23518, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295727987, 0, 0, '7 2 7 1 7 0 129 2649 129 50498 129 16827 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_CRAB:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42715, %u, 27692, 13481, 1, 1, 0, 0, ' ', 0, 0, 212, 0, 1295720595, 0, 0, '7 2 7 1 7 0 129 2649 129 16827 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_DRAGONHAWK:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42710, %u, 23515, 13481, 1, 1, 0, 0, ' ', 0, 0, 202, 0, 1295728068, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_MOTH:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42712, %u, 29056, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295728128, 0, 0, '7 2 7 1 7 0 129 2649 129 49966 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+            case STARTER_PET_DOG:
+                CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42722, %u, 30221, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295728219, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", petNumber, ownerId);
+                break;
+        }
+    }
 }

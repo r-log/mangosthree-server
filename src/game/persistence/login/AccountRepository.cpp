@@ -34,4 +34,17 @@ namespace AccountRepository
     {
         LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);
     }
+
+    void SetActiveRealm(uint32 realmId, uint32 accountId)
+    {
+        static SqlStatementID updAccount;
+        SqlStatement stmt = LoginDatabase.CreateStatement(updAccount, "UPDATE `account` SET `active_realm_id` = ? WHERE `id` = ?");
+        stmt.PExecute(realmId, accountId);
+    }
+
+    void SetRealmCharacterCount(uint32 accountId, uint32 realmId, uint8 count)
+    {
+        LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`= '%u' AND `realmid`= '%u'", accountId, realmId);
+        LoginDatabase.PExecute("INSERT INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)",  count, accountId, realmId);
+    }
 }

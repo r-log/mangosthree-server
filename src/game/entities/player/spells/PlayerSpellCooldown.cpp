@@ -107,7 +107,7 @@ void Player::_LoadSpellCooldowns(QueryResult* result)
 {
     // some cooldowns can be already set at aura loading...
 
-    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS result (CharacterHandler.cpp)
+    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS result (CharacterRepository.cpp)
 
     if (result)
     {

@@ -53,6 +53,7 @@
 #include "SQLStorages.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
+#include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
 #include <cmath>
 
