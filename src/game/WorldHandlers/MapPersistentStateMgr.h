@@ -393,8 +393,6 @@ class MapPersistentStateManager : public MaNGOS::Singleton<MapPersistentStateMan
         void _CleanupExpiredInstancesAtTime(time_t t);
 
         void _ResetSave(PersistentStateMap& holder, PersistentStateMap::iterator& itr);
-        void _DelHelper(DatabaseType& db, const char* fields, const char* table, const char* queryTail, ...);
-
         // used during global instance resets
         bool lock_instLists;
         // fast lookup by instance id for instanceable maps
