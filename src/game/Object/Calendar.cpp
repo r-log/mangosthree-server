@@ -30,6 +30,7 @@
 #include "Mail.h"
 #include "ObjectMgr.h"
 #include "ProgressBar.h"
+#include "persistence/characters/social/CalendarRepository.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -101,7 +102,7 @@ void CalendarEvent::RemoveInviteByItr(CalendarInviteMap::iterator inviteItr)
 
     sCalendarMgr.SendCalendarEventInviteRemove(inviteItr->second, Flags);
 
-    CharacterDatabase.PExecute("DELETE FROM `calendar_invites` WHERE `inviteId` = " UI64FMTD, inviteItr->second->InviteId);
+    CalendarRepository::DeleteInvite(inviteItr->second->InviteId);
 
     delete inviteItr->second;
     m_Invitee.erase(inviteItr);
@@ -373,56 +374,48 @@ CalendarEvent* CalendarMgr::AddEvent(ObjectGuid const& guid, std::string title, 
 }
 
 /**
- * @brief The INSERT behind AddEvent, with the two strings bound (decoupling D7g, C5).
+ * @brief The event's saved row, as the INSERT and the UPDATE write it.
  *
- * The nine values are the nine the PExecute this replaces formatted, in the same order and
- * from the same event; the column list is spelled out rather than left positional, and it is
- * the list CalendarMgr::LoadCalendarsFromDB reads back.
+ * @param event The event as it stands in memory.
+ * @return The row, its two strings to be bound.
+ */
+static CalendarEventRow EventRow(CalendarEvent const& event)
+{
+    CalendarEventRow row;
+    row.eventId     = event.EventId;
+    row.creatorGuid = event.CreatorGuid.GetCounter();
+    row.guildId     = event.GuildId;
+    row.type        = uint32(event.Type);
+    row.flags       = event.Flags;
+    row.dungeonId   = event.DungeonId;
+    row.eventTime   = uint32(event.EventTime);
+    row.title       = event.Title;
+    row.description = event.Description;
+    return row;
+}
+
+/**
+ * @brief The INSERT behind AddEvent, with the two strings bound.
+ *
+ * The column list is the list CalendarMgr::LoadCalendarsFromDB reads back.
  *
  * @param event The event as it was just stored in memory.
  */
 void CalendarMgr::WriteEventToDB(CalendarEvent const& event)
 {
-    static SqlStatementID insEvent;
-    SqlStatement insert = CharacterDatabase.CreateStatement(insEvent,
-                          "INSERT INTO `calendar_events` (`eventId`,`creatorGuid`,`guildId`,`type`,`flags`,`dungeonId`,`eventTime`,`title`,`description`) "
-                          "VALUES(?,?,?,?,?,?,?,?,?)");
-    insert.addUInt64(event.EventId);
-    insert.addUInt32(event.CreatorGuid.GetCounter());
-    insert.addUInt32(event.GuildId);
-    insert.addUInt32(uint32(event.Type));
-    insert.addUInt32(event.Flags);
-    insert.addInt32(event.DungeonId);
-    insert.addUInt32(uint32(event.EventTime));
-    insert.addString(event.Title);
-    insert.addString(event.Description);
-    insert.Execute();
+    CalendarRepository::InsertEvent(EventRow(event));
 }
 
 /**
- * @brief The UPDATE behind CMSG_CALENDAR_UPDATE_EVENT, with the two strings bound (D7g, C5).
+ * @brief The UPDATE behind CMSG_CALENDAR_UPDATE_EVENT, with the two strings bound.
  *
- * The six columns and the key are the six the handler's PExecute set, read off the event the
- * handler has just mutated rather than off the packet -- they are the same values, because
- * every one of them was assigned to the event immediately above the write.
+ * The six columns and the key are read off the event the handler has just changed.
  *
  * @param event The event as it now stands in memory.
  */
 void CalendarMgr::WriteEventUpdateToDB(CalendarEvent const& event)
 {
-    static SqlStatementID updEvent;
-    SqlStatement update = CharacterDatabase.CreateStatement(updEvent,
-                          "UPDATE `calendar_events` SET "
-                          "`type`=?, `flags`=?, `dungeonId`=?, `eventTime`=?, `title`=?, `description`=? "
-                          "WHERE `eventId`=?");
-    update.addUInt32(uint32(event.Type));
-    update.addUInt32(event.Flags);
-    update.addInt32(event.DungeonId);
-    update.addUInt32(uint32(event.EventTime));
-    update.addString(event.Title);
-    update.addString(event.Description);
-    update.addUInt64(event.EventId);
-    update.Execute();
+    CalendarRepository::UpdateEvent(EventRow(event));
 }
 
 // remove event by its id
@@ -445,7 +438,7 @@ void CalendarMgr::RemoveEvent(uint64 eventId, Player* remover)
 
     SendCalendarEventRemovedAlert(&citr->second);
 
-    CharacterDatabase.PExecute("DELETE FROM `calendar_events` WHERE `eventId` = " UI64FMTD, eventId);
+    CalendarRepository::DeleteEvent(eventId);
 
     // explicitly remove all invite and send mail to all invitee
     citr->second.RemoveAllInvite(remover->GetObjectGuid());
@@ -512,14 +505,13 @@ CalendarInvite* CalendarMgr::AddInvite(CalendarEvent* event, ObjectGuid const& s
         return NULL;
     }
 
-    CharacterDatabase.PExecute("INSERT INTO `calendar_invites` VALUES (" UI64FMTD ", " UI64FMTD ", %u, %u, %u, %u, %u)",
-                               invite->InviteId,
-                               event->EventId,
-                               inviteeGuid.GetCounter(),
-                               senderGuid.GetCounter(),
-                               uint32(status),
-                               uint32(statusTime),
-                               uint32(rank));
+    CalendarRepository::InsertInvite(invite->InviteId,
+                                     event->EventId,
+                                     inviteeGuid.GetCounter(),
+                                     senderGuid.GetCounter(),
+                                     uint32(status),
+                                     uint32(statusTime),
+                                     uint32(rank));
 
     return invite;
 }
@@ -704,8 +696,7 @@ void CalendarMgr::LoadCalendarsFromDB()
 
     sLog.outString("Loading Calendar Events...");
 
-    //                                                          0        1            2        3     4      5          6          7      8
-    QueryResult* eventsQuery = CharacterDatabase.Query("SELECT `eventId`, `creatorGuid`, `guildId`, `type`, `flags`, `dungeonId`, `eventTime`, `title`, `description` FROM `calendar_events` ORDER BY `eventId`");
+    QueryResult* eventsQuery = CalendarRepository::QueryEvents();
     if (!eventsQuery)
     {
         BarGoLink bar(1);
@@ -718,22 +709,22 @@ void CalendarMgr::LoadCalendarsFromDB()
         BarGoLink bar(eventsQuery->GetRowCount());
         do
         {
-            Field* field = eventsQuery->Fetch();
+            CalendarEventRow const row = CalendarRepository::ReadEvent(eventsQuery->Fetch());
             bar.step();
 
-            uint64 eventId         = field[0].GetUInt64();
+            uint64 eventId         = row.eventId;
 
             CalendarEvent& newEvent = m_EventStore[eventId];
 
             newEvent.EventId       = eventId;
-            newEvent.CreatorGuid   = ObjectGuid(HIGHGUID_PLAYER, field[1].GetUInt32());
-            newEvent.GuildId       = field[2].GetUInt32();
-            newEvent.Type          = CalendarEventType(field[3].GetUInt8());
-            newEvent.Flags         = field[4].GetUInt32();
-            newEvent.DungeonId     = field[5].GetInt32();
-            newEvent.EventTime     = time_t(field[6].GetUInt32());
-            newEvent.Title         = field[7].GetCppString();
-            newEvent.Description   = field[8].GetCppString();
+            newEvent.CreatorGuid   = ObjectGuid(HIGHGUID_PLAYER, row.creatorGuid);
+            newEvent.GuildId       = row.guildId;
+            newEvent.Type          = CalendarEventType(row.type);
+            newEvent.Flags         = row.flags;
+            newEvent.DungeonId     = row.dungeonId;
+            newEvent.EventTime     = time_t(row.eventTime);
+            newEvent.Title         = row.title;
+            newEvent.Description   = row.description;
 
             m_MaxEventId = std::max(eventId, m_MaxEventId);
         }
@@ -745,8 +736,7 @@ void CalendarMgr::LoadCalendarsFromDB()
     }
 
     sLog.outString("Loading Calendar invites...");
-    //                                                           0         1        2            3           4       5               6
-    QueryResult* invitesQuery = CharacterDatabase.Query("SELECT `inviteId`, `eventId`, `inviteeGuid`, `senderGuid`, `status`, `lastUpdateTime`, `rank` FROM `calendar_invites` ORDER BY `inviteId`");
+    QueryResult* invitesQuery = CalendarRepository::QueryInvites();
     if (!invitesQuery)
     {
         BarGoLink bar(1);
@@ -758,7 +748,7 @@ void CalendarMgr::LoadCalendarsFromDB()
             // delete all events (no event exist without at least one invite)
             m_EventStore.clear();
             m_MaxEventId = 0;
-            CharacterDatabase.DirectExecute("TRUNCATE TABLE calendar_events");
+            CalendarRepository::TruncateEvents();
             sLog.outString(">> calendar_invites table is empty, cleared calendar_events table!");
         }
         else
@@ -775,22 +765,22 @@ void CalendarMgr::LoadCalendarsFromDB()
             BarGoLink bar(invitesQuery->GetRowCount());
             do
             {
-                Field* field = invitesQuery->Fetch();
+                CalendarInviteRow const row = CalendarRepository::ReadInvite(invitesQuery->Fetch());
                 bar.step();
 
-                uint64 inviteId             = field[0].GetUInt64();
-                uint64 eventId              = field[1].GetUInt64();
-                ObjectGuid inviteeGuid      = ObjectGuid(HIGHGUID_PLAYER, field[2].GetUInt32());
-                ObjectGuid senderGuid       = ObjectGuid(HIGHGUID_PLAYER, field[3].GetUInt32());
-                CalendarInviteStatus status = CalendarInviteStatus(field[4].GetUInt8());
-                time_t lastUpdateTime       = time_t(field[5].GetUInt32());
-                CalendarModerationRank rank = CalendarModerationRank(field[6].GetUInt8());
+                uint64 inviteId             = row.inviteId;
+                uint64 eventId              = row.eventId;
+                ObjectGuid inviteeGuid      = ObjectGuid(HIGHGUID_PLAYER, row.inviteeGuid);
+                ObjectGuid senderGuid       = ObjectGuid(HIGHGUID_PLAYER, row.senderGuid);
+                CalendarInviteStatus status = CalendarInviteStatus(row.status);
+                time_t lastUpdateTime       = time_t(row.lastUpdateTime);
+                CalendarModerationRank rank = CalendarModerationRank(row.rank);
 
                 CalendarEvent* event = GetEventById(eventId);
                 if (!event)
                 {
                     // delete invite
-                    CharacterDatabase.PExecute("DELETE FROM `calendar_invites` WHERE `inviteId` = " UI64FMTD, field[0].GetUInt64());
+                    CalendarRepository::DeleteInvite(row.inviteId);
                     ++deletedInvites;
                     continue;
                 }
@@ -807,7 +797,7 @@ void CalendarMgr::LoadCalendarsFromDB()
         else
         {
             // delete all invites (no invites exist without events)
-            CharacterDatabase.DirectExecute("TRUNCATE TABLE calendar_invites");
+            CalendarRepository::TruncateInvites();
             sLog.outString(">> calendar_invites table is cleared! (invites without events found)");
         }
         delete invitesQuery;

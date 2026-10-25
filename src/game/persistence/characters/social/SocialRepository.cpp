@@ -26,6 +26,8 @@
 #include "SocialRepository.h"
 #include "Database/DatabaseEnv.h"
 
+#include <utility>
+
 namespace SocialRepository
 {
     SocialRow ReadRow(Field* fields)
@@ -66,5 +68,11 @@ namespace SocialRepository
         update.addUInt32(ownerGuidLow);
         update.addUInt32(friendGuidLow);
         update.Execute();
+    }
+
+    void QueryFlags(uint32 ownerGuidLow, uint32 friendGuidLow, std::function<void(QueryResult*)> callback)
+    {
+        CharacterDatabase.AsyncPQuery(std::move(callback), "SELECT `flags` FROM `character_social` WHERE `guid` = %u AND `friend` = %u",
+                                      ownerGuidLow, friendGuidLow);
     }
 }
