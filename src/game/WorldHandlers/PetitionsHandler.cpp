@@ -41,6 +41,7 @@
 #include "ObjectMgr.h"
 #include "Log.h"
 #include "Opcodes.h"
+#include "persistence/characters/social/PetitionRepository.h"
 
 /*enum PetitionType // dbc data
 {
@@ -66,14 +67,12 @@ void WorldSession::SendPetitionQueryOpcode(ObjectGuid petitionguid)
     uint32 accountId = GetAccountId();
     proto::SessionId sessionId = GetSessionId();
 
-    CharacterDatabase.AsyncPQuery([accountId, sessionId, petitionguid](QueryResult* result)
-                                  {
-                                      WorldSession::SendPetitionQueryCallback(std::unique_ptr<QueryResult>(result),
-                                                                              accountId, sessionId, petitionguid);
-                                  },
-                                  "SELECT `ownerguid`, `name`, "
-                                  "  (SELECT COUNT(`playerguid`) FROM `petition_sign` WHERE `petition_sign`.`petitionguid` = '%u') AS `signs` "
-                                  "FROM `petition` WHERE `petitionguid` = '%u'", petitionLowGuid, petitionLowGuid);
+    PetitionRepository::QueryDetails(petitionLowGuid,
+                                     [accountId, sessionId, petitionguid](QueryResult* result)
+                                     {
+                                         WorldSession::SendPetitionQueryCallback(std::unique_ptr<QueryResult>(result),
+                                                                                 accountId, sessionId, petitionguid);
+                                     });
 }
 
 /**

@@ -37,6 +37,8 @@ set(CONVERTED_FILES
     src/game/persistence/characters/social/GuildRepository.cpp
     src/game/persistence/characters/social/GuildBankRepository.h
     src/game/persistence/characters/social/GuildBankRepository.cpp
+    src/game/persistence/characters/social/PetitionRepository.h
+    src/game/persistence/characters/social/PetitionRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp

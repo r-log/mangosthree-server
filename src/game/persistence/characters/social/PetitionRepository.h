@@ -1,0 +1,123 @@
+/**
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * MaNGOS is a full featured server for World of Warcraft, supporting
+ * the following clients: 1.12.x, 2.4.3, 3.3.5a, 4.3.4a and 5.4.8
+ *
+ * Copyright (C) 2005-2026 MaNGOS <https://www.getmangos.eu>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * World of Warcraft, and all World of Warcraft or Warcraft art, images,
+ * and lore are copyrighted by Blizzard Entertainment, Inc.
+ */
+
+#ifndef MANGOS_H_PETITIONREPOSITORY
+#define MANGOS_H_PETITIONREPOSITORY
+
+#include <functional>
+#include <string>
+#include <vector>
+#include "Platform/Define.h"
+
+class QueryResult;
+class SqlQueryHolder;
+
+/// The slots of the show-signatures and offer holder: whether the petition exists, and who has
+/// signed it.
+enum PetitionShowSlot
+{
+    PETITION_SHOW_PETITION      = 0,
+    PETITION_SHOW_SIGNATURES    = 1,
+    PETITION_SHOW_SLOT_COUNT    = 2
+};
+
+/// The slots of the sign request's read: the petition row (owner and the current count) and the
+/// account's existing signatures.
+enum PetitionSignReadSlot
+{
+    PETITION_SIGN_READ_PETITION = 0,
+    PETITION_SIGN_READ_ACCOUNT  = 1,
+    PETITION_SIGN_READ_COUNT    = 2
+};
+
+/// The slots of the atomic sign: whether the player had signed before, the conditional insert, and
+/// whether the player has signed after.
+enum PetitionSignedSlot
+{
+    PETITION_SIGNED_BEFORE      = 0,
+    PETITION_SIGNED_INSERT      = 1,
+    PETITION_SIGNED_AFTER       = 2,
+    PETITION_SIGNED_COUNT       = 3
+};
+
+/// The slots of the turn-in holder: the petition row and its signatures.
+enum PetitionTurnInSlot
+{
+    PETITION_TURN_IN_PETITION   = 0,
+    PETITION_TURN_IN_SIGNATURES = 1,
+    PETITION_TURN_IN_COUNT      = 2
+};
+
+/// The callbacks of the asynchronous reads: they run on the world thread with what the reads
+/// returned, which they own.
+typedef std::function<void(QueryResult*)> PetitionReadCallback;
+typedef std::function<void(QueryResult*, SqlQueryHolder*)> PetitionHolderCallback;
+
+/// The guild charters' saved rows (`petition`, `petition_sign`). Every read is asynchronous and
+/// every write queued on the character database. A holder the database refuses (it is shutting
+/// down) is deleted and its callback never runs.
+namespace PetitionRepository
+{
+    /// Asks for the petitions a character owns: their guids.
+    void QueryOwnedPetitions(uint32 ownerGuid, PetitionReadCallback callback);
+
+    /// Asks whether a petition exists.
+    void QueryExists(uint32 petitionGuid, PetitionReadCallback callback);
+
+    /// Asks for a petition's owner.
+    void QueryOwner(uint32 petitionGuid, PetitionReadCallback callback);
+
+    /// Asks for what a petition query answers: owner, name and the number of signatures.
+    void QueryDetails(uint32 petitionGuid, PetitionReadCallback callback);
+
+    /// Asks, in one holder, whether a petition exists and who has signed it.
+    void QueueShowSignatures(uint32 petitionGuid, PetitionHolderCallback callback);
+
+    /// Asks, in one holder, for a petition's owner and count, and for an account's signatures.
+    void QueueSignRead(uint32 petitionGuid, uint32 accountId, PetitionHolderCallback callback);
+
+    /// Signs a petition in one holder: the player's signature before, an insert that adds it only
+    /// when the petition exists, holds fewer than maxSigns and lacks this player, and the
+    /// signature after.
+    void QueueSign(uint32 petitionGuid, uint32 playerGuid, uint32 accountId, uint32 maxSigns, PetitionHolderCallback callback);
+
+    /// Asks, in one holder, for a petition's owner and name and for its signatures.
+    void QueueTurnInRead(uint32 petitionGuid, PetitionHolderCallback callback);
+
+    /// The list a new charter's write deletes: the owner's old petitions, then the new one.
+    std::string GuidList(std::vector<uint32> const& oldPetitions, uint32 petitionGuid);
+
+    /// Writes a new charter in one transaction: the petitions and signatures in guidList deleted,
+    /// then the charter's row, the name bound.
+    void Create(uint32 ownerGuid, uint32 petitionGuid, std::string const& name, std::string const& guidList);
+
+    /// Renames a petition, the name bound.
+    void Rename(uint32 petitionGuid, std::string const& name);
+
+    /// Deletes a petition and its signatures in one transaction.
+    void Delete(uint32 petitionGuid);
+}
+
+#endif
