@@ -25,6 +25,8 @@ set(CONVERTED_FILES
     src/game/persistence/characters/inventory/ItemRepository.cpp
     src/game/persistence/characters/mail/MailRepository.h
     src/game/persistence/characters/mail/MailRepository.cpp
+    src/game/persistence/characters/social/CalendarRepository.h
+    src/game/persistence/characters/social/CalendarRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
@@ -128,9 +130,9 @@ set(ALLOW_ObjectMgr_cpp
 set(ALLOW_Guild_cpp
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, GUILD_EVENTLOG_MAX_RECORDS)\;")
 
-set(ALLOW_Calendar_cpp
-    "QueryResult* eventsQuery = CharacterDatabase.Query(\"SELECT `eventId`, `creatorGuid`, `guildId`, `type`, `flags`, `dungeonId`, `eventTime`, `title`, `description` FROM `calendar_events` ORDER BY `eventId`\")\;"
-    "QueryResult* invitesQuery = CharacterDatabase.Query(\"SELECT `inviteId`, `eventId`, `inviteeGuid`, `senderGuid`, `status`, `lastUpdateTime`, `rank` FROM `calendar_invites` ORDER BY `inviteId`\")\;"
+set(ALLOW_CalendarRepository_cpp
+    "return CharacterDatabase.Query(\"SELECT `eventId`, `creatorGuid`, `guildId`, `type`, `flags`, `dungeonId`, `eventTime`, `title`, `description` FROM `calendar_events` ORDER BY `eventId`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `inviteId`, `eventId`, `inviteeGuid`, `senderGuid`, `status`, `lastUpdateTime`, `rank` FROM `calendar_invites` ORDER BY `inviteId`\")\;"
     "CharacterDatabase.DirectExecute(\"TRUNCATE TABLE calendar_events\")\;"
     "CharacterDatabase.DirectExecute(\"TRUNCATE TABLE calendar_invites\")\;")
 

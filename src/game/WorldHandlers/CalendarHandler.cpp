@@ -42,6 +42,8 @@
 #include "GuildMgr.h"
 #include "ArenaTeam.h"
 #include "PlayerRegistry.h"
+#include "persistence/characters/social/CalendarRepository.h"
+#include "persistence/characters/social/SocialRepository.h"
 
 void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recv_data*/)
 {
@@ -584,13 +586,12 @@ void WorldSession::ResolveCalendarInvitee(CharacterCacheEntry const& cached, Cal
 void WorldSession::QueueCalendarInviteIgnoreRead(uint32 accountId, proto::SessionId sessionId,
                                                  CalendarInviteRequest request)
 {
-    CharacterDatabase.AsyncPQuery([accountId, sessionId, request](QueryResult* result)
-                                  {
-                                      WorldSession::HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResult>(result),
-                                                                                       accountId, sessionId, request);
-                                  },
-                                  "SELECT `flags` FROM `character_social` WHERE `guid` = %u AND `friend` = %u",
-                                  request.inviteeGuid.GetCounter(), request.playerGuid.GetCounter());
+    SocialRepository::QueryFlags(request.inviteeGuid.GetCounter(), request.playerGuid.GetCounter(),
+                                 [accountId, sessionId, request](QueryResult* result)
+                                 {
+                                     WorldSession::HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResult>(result),
+                                                                                      accountId, sessionId, request);
+                                 });
 }
 
 /**
@@ -765,7 +766,7 @@ void WorldSession::HandleCalendarEventRsvp(WorldPacket& recv_data)
             invite->Status = CalendarInviteStatus(status);
             invite->LastUpdateTime = time(NULL);
 
-            CharacterDatabase.PExecute("UPDATE `calendar_invites` SET `status`=%u, `lastUpdateTime`=%u WHERE `inviteId` = " UI64FMTD , status, uint32(invite->LastUpdateTime), invite->InviteId);
+            CalendarRepository::SetInviteReply(invite->InviteId, status, uint32(invite->LastUpdateTime));
             sCalendarMgr.SendCalendarEventStatus(invite);
             sCalendarMgr.SendCalendarClearPendingAction(_player);
         }
@@ -846,7 +847,7 @@ void WorldSession::HandleCalendarEventStatus(WorldPacket& recv_data)
             invite->Status = (CalendarInviteStatus)status;
             invite->LastUpdateTime = time(NULL);            // not sure if we should set response time when moderator changes invite status
 
-            CharacterDatabase.PExecute("UPDATE `calendar_invites` SET `status`=%u, `lastUpdateTime`=%u WHERE `inviteId`=" UI64FMTD, status, uint32(invite->LastUpdateTime), invite->InviteId);
+            CalendarRepository::SetInviteStatus(invite->InviteId, status, uint32(invite->LastUpdateTime));
             sCalendarMgr.SendCalendarEventStatus(invite);
             sCalendarMgr.SendCalendarClearPendingAction(sObjectMgr.GetPlayer(invitee));
         }
@@ -904,7 +905,7 @@ void WorldSession::HandleCalendarEventModeratorStatus(WorldPacket& recv_data)
                 return;
             }
 
-            CharacterDatabase.PExecute("UPDATE `calendar_invites` SET `rank` = %u WHERE `inviteId` = " UI64FMTD, rank, invite->InviteId);
+            CalendarRepository::SetInviteRank(invite->InviteId, rank);
             invite->Rank = CalendarModerationRank(rank);
             sCalendarMgr.SendCalendarEventModeratorStatusAlert(invite);
         }

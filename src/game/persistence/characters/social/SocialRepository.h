@@ -26,10 +26,12 @@
 #ifndef MANGOS_H_SOCIALREPOSITORY
 #define MANGOS_H_SOCIALREPOSITORY
 
+#include <functional>
 #include <string>
 #include "Platform/Define.h"
 
 class Field;
+class QueryResult;
 
 /// One listed character's saved row: its low guid, the flags and the note.
 struct SocialRow
@@ -39,7 +41,8 @@ struct SocialRow
     std::string note;
 };
 
-/// The character's saved friend and ignore list. Every write is queued on the character database.
+/// The character's saved friend and ignore list. Every write is queued on the character database;
+/// the one read of another character's row is asynchronous.
 namespace SocialRepository
 {
     /// Reads one row of the login holder's social result: friend, flags, note.
@@ -59,6 +62,10 @@ namespace SocialRepository
 
     /// Sets the note of the owner's row of the listed character, as a bound parameter.
     void SetNote(uint32 ownerGuidLow, uint32 friendGuidLow, std::string const& note);
+
+    /// Asks for the flags of an owner's row of a listed character, for an owner whose list is not
+    /// loaded; the callback runs on the world thread with the result, which it owns.
+    void QueryFlags(uint32 ownerGuidLow, uint32 friendGuidLow, std::function<void(QueryResult*)> callback);
 }
 
 #endif
