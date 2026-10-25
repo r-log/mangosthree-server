@@ -114,8 +114,8 @@ enum
 typedef std::function<void(QueryResult*)> CharacterReadCallback;
 typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallback;
 
-/// The characters' own rows (`characters`, `character_declinedname`) as the character screen and
-/// the login read them. Every read is asynchronous and every write queued on the character
+/// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
+/// login and the logout use them. Every read is asynchronous and every write queued on the character
 /// database; a write called inside CharacterTransaction joins it.
 namespace CharacterRepository
 {
@@ -143,6 +143,9 @@ namespace CharacterRepository
 
     /// Marks a character online.
     void SetOnline(uint32 guid);
+
+    /// Marks every character of an account offline.
+    void SetAccountOffline(uint32 accountId);
 
     /// Asks for a character's guid and name when it belongs to the account and has renameFlag
     /// set in at_login.

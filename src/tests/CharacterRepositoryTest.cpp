@@ -37,6 +37,7 @@
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
 #include "persistence/login/AccountRepository.h"
+#include "persistence/login/RealmRepository.h"
 
 #include <string>
 #include <vector>
@@ -229,10 +230,11 @@ TEST(CharacterRepository_Writes)
         CharacterRepository::SetSlot(0, 43, 17);
         CharacterTransaction::Commit();
         CharacterRepository::SetOnline(42);
+        CharacterRepository::SetAccountOffline(17);
         CharacterRepository::QueueCustomizeReads(42, held);
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(db.query.executed.size(), size_t(0));
-        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(8));
+        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(9));
     }
     CheckLines(db.Take(), {
         "SELECT `guid`, `name` FROM `characters` WHERE `guid` = 42 AND `account` = 17 AND (`at_login` & 1) = 1",
@@ -245,6 +247,7 @@ TEST(CharacterRepository_Writes)
         "UPDATE `characters` SET `slot` = '3' WHERE `guid` = '42' AND `account` = '17'",
         "UPDATE `characters` SET `slot` = '0' WHERE `guid` = '43' AND `account` = '17'",
         "UPDATE `characters` SET `online` = 1 WHERE `guid` = '42'",
+        "UPDATE `characters` SET `online` = 0 WHERE `account` = '17'",
         "SELECT `at_login` FROM `characters` WHERE `guid` = '42'",
         "SELECT `playerBytes2` FROM `characters` WHERE `guid` = '42'",
     }, __LINE__);
@@ -252,22 +255,42 @@ TEST(CharacterRepository_Writes)
     CHECK_EQ(answered, 2);
 }
 
-// The account's active realm and its character count on a realm, on the login database.
+// The authentication reads on the login database run on the calling thread, the account name
+// escaped and the IP written as it is.
+TEST(CharacterRepository_AuthenticationReads)
+{
+    Db db(LoginDatabase);
+    delete AccountRepository::QueryAuthAccount("bob");
+    delete AccountRepository::QueryActiveBan(17, "127.0.0.1");
+    CheckLines(db.query.executed, {
+        "SELECT `id`, `gmlevel`, `sessionkey`, `last_ip`, `locked`, `expansion`, `mutetime`, `locale`, `os` FROM `account` WHERE `username` = 'bob'",
+        "SELECT 1 FROM `account_banned` WHERE `id` = 17 AND `active` = 1 AND (`unbandate` > UNIX_TIMESTAMP() OR `unbandate` = `bandate`) "
+        "UNION SELECT 1 FROM `ip_banned` WHERE (`unbandate` = `bandate` OR `unbandate` > UNIX_TIMESTAMP()) AND `ip` = '127.0.0.1'",
+    }, __LINE__);
+    CHECK_EQ(db.async.executed.size(), size_t(0));
+}
+
+// The account's last IP, its active realm, its character count on a realm and the realm's
+// population, on the login database.
 TEST(CharacterRepository_AccountWrites)
 {
     Db db(LoginDatabase);
     {
         TickGuard::Scope scope;
+        AccountRepository::SetLastIp("127.0.0.1", "bob");
         AccountRepository::SetActiveRealm(1, 17);
         AccountRepository::SetRealmCharacterCount(17, 1, 4);
         AccountRepository::SetActiveRealm(0, 17);
+        RealmRepository::SetPopulation(0.5f, 1);
         CHECK_EQ(TickGuard::Violations(), 0u);
     }
     CheckLines(db.Take(), {
+        "UPDATE `account` SET `last_ip` = '127.0.0.1' WHERE `username` = 'bob'",
         "UPDATE `account` SET `active_realm_id` = '1' WHERE `id` = '17'",
         "DELETE FROM `realmcharacters` WHERE `acctid`= '17' AND `realmid`= '1'",
         "INSERT INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (4, 17, 1)",
         "UPDATE `account` SET `active_realm_id` = '0' WHERE `id` = '17'",
+        "UPDATE `realmlist` SET `population` = '0.5' WHERE `id` = '1'",
     }, __LINE__);
 }
 

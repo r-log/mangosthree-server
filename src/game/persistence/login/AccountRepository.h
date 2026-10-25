@@ -27,14 +27,30 @@
 #define MANGOS_H_ACCOUNTREPOSITORY
 
 #include <functional>
+#include <string>
 #include "Platform/Define.h"
 
 class QueryResult;
 
-/// The accounts' saved rows on the login database (`account`, `realmcharacters`). Every write is
-/// queued.
+/// The accounts' saved rows on the login database (`account`, `account_banned`, `ip_banned`,
+/// `realmcharacters`). The authentication reads run on the network thread that asks them,
+/// synchronously; every write is queued.
 namespace AccountRepository
 {
+    /// Registers the calling thread with the database client library, once per thread; a thread
+    /// that reads the login database outside the database's own threads calls it first.
+    void RegisterThread();
+
+    /// Selects the account a client authenticates as, by name, the name escaped: id, GM level,
+    /// session key, last IP, the IP lock, expansion, mute time, locale and client OS.
+    QueryResult* QueryAuthAccount(std::string const& username);
+
+    /// Selects a row when the account or the IP has an active ban.
+    QueryResult* QueryActiveBan(uint32 accountId, std::string const& ip);
+
+    /// Records the IP an account last authenticated from, both strings bound.
+    void SetLastIp(std::string const& ip, std::string const& username);
+
     /// Asks, asynchronously, for an account's GM level; the callback runs on the world thread with
     /// the result, which it owns.
     void QueryGmLevel(uint32 accountId, std::function<void(QueryResult*)> callback);
