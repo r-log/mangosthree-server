@@ -35,6 +35,9 @@ namespace CharacterTransaction
 
     /// Commits the transaction Begin opened.
     void Commit();
+
+    /// Drops the transaction Begin opened, and every write queued into it.
+    void Rollback();
 }
 
 #endif

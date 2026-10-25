@@ -25,8 +25,9 @@
 
 #include <string>
 #include "Guild.h"
-#include "Database/DatabaseEnv.h"
 #include "Log.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/social/GuildRepository.h"
 
 /**
  * @file GuildRank.cpp
@@ -56,19 +57,10 @@ void Guild::CreateRank(std::string name_, uint32 rights)
     for (uint32 i = 0; i < uint32(GetPurchasedTabs()); ++i)
     {
         // create bank rights with 0
-        CharacterDatabase.PExecute("INSERT INTO `guild_bank_right` (`guildid`,`TabId`,`rid`) VALUES ('%u','%u','%u')", m_Id, i, new_rank_id);
+        GuildRepository::InsertBankRight(m_Id, i, new_rank_id);
     }
-    // Decoupling D7f (C5): the rank name is bound, not escaped. Guild::Create reaches this
-    // five times through CreateDefaultGuildRanks, inside the tick, and each escape_string
-    // used to take query connection zero's lock there.
-    static SqlStatementID insRank;
-    SqlStatement insert = CharacterDatabase.CreateStatement(insRank,
-                          "INSERT INTO `guild_rank` (`guildid`,`rid`,`rname`,`rights`) VALUES (?,?,?,?)");
-    insert.addUInt32(m_Id);
-    insert.addUInt32(new_rank_id);
-    insert.addString(name_);
-    insert.addUInt32(rights);
-    insert.Execute();
+    // The rank name is bound.
+    GuildRepository::InsertRank(m_Id, new_rank_id, name_, rights);
 }
 
 /**
@@ -100,12 +92,7 @@ void Guild::DelRank(uint32 rankId)
 
     RankList::iterator itr = m_Ranks.erase(m_Ranks.begin() + rankId);
     // delete lowest guild_rank
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `guild_rank` WHERE `rid` ='%u' AND `guildid` ='%u'", rankId, m_Id);
-    CharacterDatabase.PExecute("DELETE FROM `guild_bank_right` WHERE `rid` ='%u' AND `guildid` ='%u'", rankId, m_Id);
-    CharacterDatabase.PExecute("UPDATE `guild_rank` SET `rid` = `rid` - 1 WHERE `rid` > '%u' AND `guildid` ='%u'", rankId, m_Id);
-    CharacterDatabase.PExecute("UPDATE `guild_bank_right` SET `rid` = `rid` - 1 WHERE `rid` > '%u' AND `guildid` ='%u'", rankId, m_Id);
-    CharacterDatabase.CommitTransaction();
+    GuildRepository::DeleteRank(m_Id, rankId);
 }
 
 void Guild::SwitchRank(uint32 rankId, bool up)
@@ -125,19 +112,15 @@ void Guild::SwitchRank(uint32 rankId, bool up)
 
     std::swap(m_Ranks[rankId], m_Ranks[otherRankId]);
 
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
     for (uint32 i = 0; i < uint32(GetPurchasedTabs()); ++i)
     {
-        CharacterDatabase.PExecute("REPLACE INTO guild_bank_right (guildid,TabId,rid,gbright,SlotPerDay) "
-            "VALUES ('%u','%u','%u','%u','%u')", m_Id, i, rankId, m_Ranks[rankId].TabRight[i], m_Ranks[rankId].TabSlotPerDay[i]);
-        CharacterDatabase.PExecute("REPLACE INTO guild_bank_right (guildid,TabId,rid,gbright,SlotPerDay) "
-            "VALUES ('%u','%u','%u','%u','%u')", m_Id, i, otherRankId, m_Ranks[otherRankId].TabRight[i], m_Ranks[otherRankId].TabSlotPerDay[i]);
+        GuildRepository::ReplaceBankRight(m_Id, i, rankId, m_Ranks[rankId].TabRight[i], m_Ranks[rankId].TabSlotPerDay[i]);
+        GuildRepository::ReplaceBankRight(m_Id, i, otherRankId, m_Ranks[otherRankId].TabRight[i], m_Ranks[otherRankId].TabSlotPerDay[i]);
     }
 
-    CharacterDatabase.PExecute("REPLACE INTO guild_rank (guildid,rid,rname,rights,BankMoneyPerDay) "
-        "VALUES ('%u', '%u', '%s', '%u', '%u')", m_Id, rankId, m_Ranks[rankId].Name.c_str(),m_Ranks[rankId].Rights,m_Ranks[rankId].BankMoneyPerDay);
-    CharacterDatabase.PExecute("REPLACE INTO guild_rank (guildid,rid,rname,rights,BankMoneyPerDay) "
-        "VALUES ('%u', '%u', '%s', '%u', '%u')", m_Id, otherRankId, m_Ranks[otherRankId].Name.c_str(),m_Ranks[otherRankId].Rights,m_Ranks[otherRankId].BankMoneyPerDay);
+    GuildRepository::ReplaceRank(m_Id, rankId, m_Ranks[rankId].Name, m_Ranks[rankId].Rights, m_Ranks[rankId].BankMoneyPerDay);
+    GuildRepository::ReplaceRank(m_Id, otherRankId, m_Ranks[otherRankId].Name, m_Ranks[otherRankId].Rights, m_Ranks[otherRankId].BankMoneyPerDay);
 
     for (MemberList::iterator itr = members.begin(); itr != members.end(); ++itr)
         if (itr->second.RankId == rankId)
@@ -149,7 +132,7 @@ void Guild::SwitchRank(uint32 rankId, bool up)
             itr->second.ChangeRank(rankId);
         }
 
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 }
 
 /**
@@ -199,14 +182,7 @@ void Guild::SetRankName(uint32 rankId, std::string name_)
 
     m_Ranks[rankId].Name = name_;
 
-    // Decoupling D7f (C5): bound, not escaped.
-    static SqlStatementID updRankName;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(updRankName,
-                        "UPDATE `guild_rank` SET `rname` = ? WHERE `rid` = ? AND `guildid` = ?");
-    stmt.addString(name_);
-    stmt.addUInt32(rankId);
-    stmt.addUInt32(m_Id);
-    stmt.Execute();
+    GuildRepository::SetRankName(m_Id, rankId, name_);
 }
 
 /**
@@ -224,5 +200,5 @@ void Guild::SetRankRights(uint32 rankId, uint32 rights)
 
     m_Ranks[rankId].Rights = rights;
 
-    CharacterDatabase.PExecute("UPDATE `guild_rank` SET `rights`='%u' WHERE `rid`='%u' AND `guildid`='%u'", rights, rankId, m_Id);
+    GuildRepository::SetRankRights(m_Id, rankId, rights);
 }

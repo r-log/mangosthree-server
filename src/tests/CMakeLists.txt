@@ -72,6 +72,7 @@ set(SRC_GRP_TESTS
     CalendarRepositoryTest.cpp
     TicketRepositoryTest.cpp
     AuctionRepositoryTest.cpp
+    GuildRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp
