@@ -1,0 +1,124 @@
+/**
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * MaNGOS is a full featured server for World of Warcraft, supporting
+ * the following clients: 1.12.x, 2.4.3, 3.3.5a, 4.3.4a and 5.4.8
+ *
+ * Copyright (C) 2005-2026 MaNGOS <https://www.getmangos.eu>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * World of Warcraft, and all World of Warcraft or Warcraft art, images,
+ * and lore are copyrighted by Blizzard Entertainment, Inc.
+ */
+
+#include "ItemRepository.h"
+#include "Database/DatabaseEnv.h"
+
+namespace ItemRepository
+{
+    void DeleteInstance(uint32 itemGuid)
+    {
+        static SqlStatementID delItem;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(delItem, "DELETE FROM `item_instance` WHERE `guid` = ?");
+        stmt.PExecute(itemGuid);
+    }
+
+    void InsertInstance(uint32 itemGuid, uint32 ownerGuid, std::string const& data, std::string const& text)
+    {
+        static SqlStatementID insItem;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(insItem, "INSERT INTO `item_instance` (`guid`,`owner_guid`,`data`,`text`) VALUES (?, ?, ?, ?)");
+        stmt.PExecute(itemGuid, ownerGuid, data.c_str(), text.c_str());
+    }
+
+    void UpdateInstance(uint32 itemGuid, uint32 ownerGuid, std::string const& data, std::string const& text)
+    {
+        static SqlStatementID updInstance;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(updInstance, "UPDATE `item_instance` SET `data` = ?, `owner_guid` = ?, `text` = ? WHERE `guid` = ?");
+        stmt.PExecute(data.c_str(), ownerGuid, text.c_str(), itemGuid);
+    }
+
+    void UpdateInstanceData(uint32 itemGuid, uint32 ownerGuid, std::string const& data)
+    {
+        static SqlStatementID updItem;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(updItem, "UPDATE `item_instance` SET `data` = ?, `owner_guid` = ? WHERE `guid` = ?");
+        stmt.addString(data);
+        stmt.addUInt32(ownerGuid);
+        stmt.addUInt32(itemGuid);
+        stmt.Execute();
+    }
+
+    void SetGiftOwner(uint32 itemGuid, uint32 ownerGuid)
+    {
+        static SqlStatementID updGifts;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(updGifts, "UPDATE `character_gifts` SET `guid` = ? WHERE `item_guid` = ?");
+        stmt.PExecute(ownerGuid, itemGuid);
+    }
+
+    void DeleteGift(uint32 itemGuid)
+    {
+        static SqlStatementID delGifts;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(delGifts, "DELETE FROM `character_gifts` WHERE `item_guid` = ?");
+        stmt.PExecute(itemGuid);
+    }
+
+    void DeleteLoot(uint32 itemGuid)
+    {
+        static SqlStatementID delLoot;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(delLoot, "DELETE FROM `item_loot` WHERE `guid` = ?");
+        stmt.PExecute(itemGuid);
+    }
+
+    void InsertLootMoney(uint32 itemGuid, uint32 ownerGuid, uint32 money)
+    {
+        static SqlStatementID saveGold;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(saveGold, "INSERT INTO `item_loot` (`guid`,`owner_guid`,`itemid`,`amount`,`suffix`,`property`) VALUES (?, ?, 0, ?, 0, 0)");
+        stmt.PExecute(itemGuid, ownerGuid, money);
+    }
+
+    void InsertLootItems(uint32 itemGuid, uint32 ownerGuid, std::vector<ItemLootRow> const& rows)
+    {
+        static SqlStatementID saveLoot;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(saveLoot, "INSERT INTO `item_loot` (`guid`,`owner_guid`,`itemid`,`amount`,`suffix`,`property`) VALUES (?, ?, ?, ?, ?, ?)");
+
+        for (std::vector<ItemLootRow>::const_iterator itr = rows.begin(); itr != rows.end(); ++itr)
+        {
+            stmt.addUInt32(itemGuid);
+            stmt.addUInt32(ownerGuid);
+            stmt.addInt32(itr->itemId);
+            stmt.addUInt8(itr->count);
+            stmt.addUInt32(itr->randomSuffix);
+            stmt.addInt32(itr->randomPropertyId);
+
+            stmt.Execute();
+        }
+    }
+
+    void DeleteLootItem(uint32 itemGuid, uint32 lootItemId)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `item_loot` WHERE `guid` = '%u' AND `itemid` = '%u'", itemGuid, lootItemId);
+    }
+
+    void DeleteLootCurrency(uint32 itemGuid, uint32 currencyId)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `item_loot` WHERE `guid` = '%u' AND `itemid` = '%i'", itemGuid, -int32(currencyId));
+    }
+
+    void DeleteInventoryRow(uint32 itemGuid)
+    {
+        static SqlStatementID delInv;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(delInv, "DELETE FROM `character_inventory` WHERE `item` = ?");
+        stmt.PExecute(itemGuid);
+    }
+}
