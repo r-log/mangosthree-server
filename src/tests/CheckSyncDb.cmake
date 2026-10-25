@@ -18,6 +18,8 @@ set(CONVERTED_FILES
     src/game/persistence/characters/CharacterTransaction.cpp
     src/game/persistence/characters/pets/PetRepository.h
     src/game/persistence/characters/pets/PetRepository.cpp
+    src/game/persistence/characters/social/GroupRepository.h
+    src/game/persistence/characters/social/GroupRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp

@@ -66,9 +66,13 @@
 #include "spells/data/SpellMgr.h"                                       // GetSpellDuration / GetSpellRadius
 #include "DBCStores.h"
 #include "LFGMgr.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/social/GroupRepository.h"
 #include <atomic>
 
 #define LOOT_ROLL_TIMEOUT  (1*MINUTE*IN_MILLISECONDS)
+
+static_assert(int(GROUP_ROW_TARGET_ICONS) == int(TARGET_ICON_COUNT), "the saved group row's target icons");
 
 //===================================================
 //============== Roll ===============================
@@ -205,19 +209,24 @@ bool Group::Create(ObjectGuid guid, const char* name)
         Player::ConvertInstancesToGroup(leader, this, guid);
 
         // store group in database
-        CharacterDatabase.BeginTransaction();
-        CharacterDatabase.PExecute("DELETE FROM `groups` WHERE `groupId` ='%u'", m_Id);
-        CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `groupId` ='%u'", m_Id);
+        GroupRow row;
+        row.id             = m_Id;
+        row.leaderGuid     = m_leaderGuid.GetCounter();
+        row.mainTank       = m_mainTankGuid.GetCounter();
+        row.mainAssistant  = m_mainAssistantGuid.GetCounter();
+        row.lootMethod     = uint32(m_lootMethod);
+        row.looterGuid     = m_masterLooterGuid.GetCounter();
+        row.lootThreshold  = uint32(m_lootThreshold);
+        for (int i = 0; i < TARGET_ICON_COUNT; ++i)
+        {
+            row.targetIcons[i] = m_targetIcons[i].GetRawValue();
+        }
+        row.groupType      = uint8(m_groupType);
+        row.difficulty     = uint32(m_dungeonDifficulty);
+        row.raidDifficulty = uint32(m_raidDifficulty);
 
-        CharacterDatabase.PExecute("INSERT INTO `groups` (`groupId`,`leaderGuid`,`mainTank`,`mainAssistant`,`lootMethod`,`looterGuid`,`lootThreshold`,`icon1`,`icon2`,`icon3`,`icon4`,`icon5`,`icon6`,`icon7`,`icon8`,`groupType`,`difficulty`,`raiddifficulty`) "
-                                   "VALUES ('%u','%u','%u','%u','%u','%u','%u','" UI64FMTD "','" UI64FMTD "','" UI64FMTD "','" UI64FMTD "','" UI64FMTD "','" UI64FMTD "','" UI64FMTD "','" UI64FMTD "','%u','%u','%u')",
-                                   m_Id, m_leaderGuid.GetCounter(), m_mainTankGuid.GetCounter(), m_mainAssistantGuid.GetCounter(), uint32(m_lootMethod),
-                                   m_masterLooterGuid.GetCounter(), uint32(m_lootThreshold),
-                                   m_targetIcons[0].GetRawValue(), m_targetIcons[1].GetRawValue(),
-                                   m_targetIcons[2].GetRawValue(), m_targetIcons[3].GetRawValue(),
-                                   m_targetIcons[4].GetRawValue(), m_targetIcons[5].GetRawValue(),
-                                   m_targetIcons[6].GetRawValue(), m_targetIcons[7].GetRawValue(),
-                                   uint8(m_groupType), uint32(m_dungeonDifficulty), uint32(m_raidDifficulty));
+        CharacterTransaction::Begin();
+        GroupRepository::Store(row);
     }
 
     if (!AddMember(guid, name))
@@ -227,7 +236,7 @@ bool Group::Create(ObjectGuid guid, const char* name)
 
     if (!isBGGroup())
     {
-        CharacterDatabase.CommitTransaction();
+        CharacterTransaction::Commit();
     }
 
     _updateLeaderFlag();
@@ -330,7 +339,7 @@ void Group::ConvertToRaid()
 
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `groups` SET `groupType` = %u WHERE `groupId`='%u'", uint8(m_groupType), m_Id);
+        GroupRepository::SetGroupType(m_Id, uint8(m_groupType));
     }
     SendUpdate();
 
@@ -520,7 +529,7 @@ void Group::SetEveryoneIsAssistant(bool apply)
 
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `groups` SET `groupType` = %u WHERE `groupId`='%u'", uint8(m_groupType), m_Id);
+        GroupRepository::SetGroupType(m_Id, uint8(m_groupType));
     }
 
     SendUpdate();
@@ -549,8 +558,7 @@ void Group::SetLfgRoles(ObjectGuid guid, uint8 roles)
 
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `group_member` SET `roles` = '%u' WHERE `memberGuid`='%u'",
-                                   roles, guid.GetCounter());
+        GroupRepository::SetMemberRoles(guid.GetCounter(), roles);
     }
 
     SendUpdate();
@@ -584,9 +592,7 @@ void Group::ConvertToParty()
 
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `groups` SET `groupType` = %u, `mainTank` = '0', `mainAssistant` = '0' WHERE `groupId`='%u'",
-                                   uint8(m_groupType), m_Id);
-        CharacterDatabase.PExecute("UPDATE `group_member` SET `subgroup` = '0', `assistant` = '0' WHERE `groupId`='%u'", m_Id);
+        GroupRepository::ConvertToParty(m_Id, uint8(m_groupType));
     }
 
     SendUpdate();
@@ -952,10 +958,7 @@ void Group::Disband(bool hideDestroy)
 
     if (!isBGGroup())
     {
-        CharacterDatabase.BeginTransaction();
-        CharacterDatabase.PExecute("DELETE FROM `groups` WHERE `groupId`='%u'", m_Id);
-        CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `groupId`='%u'", m_Id);
-        CharacterDatabase.CommitTransaction();
+        GroupRepository::Disband(m_Id);
         ResetInstances(INSTANCE_RESET_GROUP_DISBAND, false, NULL);
         ResetInstances(INSTANCE_RESET_GROUP_DISBAND, true, NULL);
     }
