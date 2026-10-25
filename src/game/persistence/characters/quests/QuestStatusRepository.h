@@ -89,6 +89,9 @@ namespace QuestStatusRepository
 
     /// Replaces the owner's monthly quests: a DELETE of them all, then an INSERT per quest.
     void SaveMonthly(uint32 ownerGuidLow, std::set<uint32> const& quests);
+
+    /// Replaces the owner's daily quests: a DELETE of them all, then an INSERT per quest, in order.
+    void SaveDaily(uint32 ownerGuidLow, std::vector<uint32> const& quests);
 }
 
 #endif
