@@ -69,6 +69,21 @@ set(CONVERTED_FILES
     src/game/persistence/characters/pvp/BattleGroundStatsRepository.cpp
     src/game/persistence/characters/SavedVariablesRepository.h
     src/game/persistence/characters/SavedVariablesRepository.cpp
+    src/game/persistence/world/events/GameEventDataRepository.h
+    src/game/persistence/world/events/GameEventDataRepository.cpp
+    src/game/persistence/characters/events/GameEventStatusRepository.h
+    src/game/persistence/characters/events/GameEventStatusRepository.cpp
+    src/game/persistence/world/waypoints/WaypointRepository.h
+    src/game/persistence/world/waypoints/WaypointRepository.cpp
+    src/game/persistence/world/pools/PoolDataRepository.h
+    src/game/persistence/world/pools/PoolDataRepository.cpp
+    src/game/persistence/world/DisableDataRepository.h
+    src/game/persistence/world/DisableDataRepository.cpp
+    src/game/WorldHandlers/GameEventMgr.cpp
+    src/game/WorldHandlers/WaypointManager.cpp
+    src/game/WorldHandlers/PoolManager.cpp
+    src/game/WorldHandlers/CreatureLinkingMgr.cpp
+    src/game/WorldHandlers/DisableMgr.cpp
     src/game/persistence/world/creatures/CreatureDataRepository.h
     src/game/persistence/world/creatures/CreatureDataRepository.cpp
     src/game/persistence/world/items/ItemDataRepository.h
@@ -365,7 +380,9 @@ set(ALLOW_SpawnRepository_cpp
     "return WorldDatabase.Query(\"SELECT MAX(`guid`) FROM `creature`\")\;"
     "return WorldDatabase.Query(\"SELECT MAX(`guid`) FROM `gameobject`\")\;"
     "return WorldDatabase.Query(\"SELECT `creature`.`guid`, `creature`.`id`, `map`, `modelid`,\""
-    "return WorldDatabase.Query(\"SELECT `gameobject`.`guid`, `gameobject`.`id`, `gameobject`.`map`, `gameobject`.`position_x`, \"")
+    "return WorldDatabase.Query(\"SELECT `gameobject`.`guid`, `gameobject`.`id`, `gameobject`.`map`, `gameobject`.`position_x`, \""
+    "return WorldDatabase.PQuery(\"SELECT `id`, `map` FROM `creature` WHERE `guid` = '%u'\", guid)\;"
+    "return WorldDatabase.PQuery(\"SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2\", entry, mapId)\;")
 
 set(ALLOW_CorpseRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `corpse`\")\;"
@@ -381,7 +398,9 @@ set(ALLOW_CreatureDataRepository_cpp
     "return WorldDatabase.Query(queryStr.c_str())\;"
     "return WorldDatabase.Query(\"SELECT `modelid`, `racemask`, `creature_entry`, `modelid_racial` FROM `creature_model_race`\")\;"
     "return WorldDatabase.Query(\"SELECT `word`,`entry`,`half` FROM `pet_name_generation`\")\;"
-    "return WorldDatabase.Query(\"SELECT `creature_entry`, `level`, `hp`, `mana`, `str`, `agi`, `sta`, `inte`, `spi`, `armor` FROM `pet_levelstats`\")\;")
+    "return WorldDatabase.Query(\"SELECT `creature_entry`, `level`, `hp`, `mana`, `str`, `agi`, `sta`, `inte`, `spi`, `armor` FROM `pet_levelstats`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `map`, `master_entry`, `flag`, `search_range` FROM `creature_linking_template`\")\;"
+    "return WorldDatabase.Query(\"SELECT `guid`, `master_guid`, `flag` FROM `creature_linking`\")\;")
 
 set(ALLOW_ItemDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `entry`,\""
@@ -437,6 +456,36 @@ set(ALLOW_ReputationDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `faction`, `quest_rate`, `creature_rate`, `spell_rate` FROM `reputation_reward_rate`\")\;"
     "return WorldDatabase.Query(\"SELECT `creature_id`, `RewOnKillRepFaction1`, `RewOnKillRepFaction2`,\""
     "return WorldDatabase.Query(\"SELECT `faction`, `faction1`, `rate_1`, `rank_1`, `faction2`, `rate_2`, `rank_2`, `faction3`, `rate_3`, `rank_3`, `faction4`, `rate_4`, `rank_4`, `faction5`, `rate_5`, `rank_5` FROM `reputation_spillover_template`\")\;")
+
+set(ALLOW_GameEventDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT MAX(`entry`) FROM `game_event`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`,UNIX_TIMESTAMP(`start_time`),UNIX_TIMESTAMP(`end_time`),`occurence`,`length`,`holiday`,`description` FROM `game_event`\")\;"
+    "return WorldDatabase.Query(\"SELECT `creature`.`guid`, `game_event_creature`.`event` \""
+    "return WorldDatabase.Query(\"SELECT `gameobject`.`guid`, `game_event_gameobject`.`event` \""
+    "return WorldDatabase.Query(\"SELECT `creature`.`guid`, `game_event_creature_data`.`event`, `game_event_creature_data`.`modelid`,\""
+    "return WorldDatabase.Query(\"SELECT `quest`, `event` FROM `game_event_quest`\")\;"
+    "return WorldDatabase.Query(\"SELECT `event`, `raceMask`, `quest`, `mailTemplateId`, `senderEntry` FROM `game_event_mail`\")\;")
+
+set(ALLOW_GameEventStatusRepository_cpp
+    "return CharacterDatabase.Query(\"SELECT `event` FROM `game_event_status`\")\;")
+
+set(ALLOW_WaypointRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `id`, COUNT(`point`) FROM `creature_movement` GROUP BY `id`\")\;"
+    "return WorldDatabase.Query(\"SELECT `id`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,\""
+    "return WorldDatabase.Query(\"SELECT `entry`, COUNT(`point`) FROM `creature_movement_template` GROUP BY `entry`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,\"")
+
+set(ALLOW_PoolDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT MAX(`entry`) FROM `pool_template`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `max_limit`, `description` FROM `pool_template`\")\;"
+    "return WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance` FROM `pool_creature`\")\;"
+    "return WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance`, `pool_creature_template`.`id` FROM `pool_creature_template` LEFT JOIN `creature` ON `creature`.`id` = `pool_creature_template`.`id`\")\;"
+    "return WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance` FROM `pool_gameobject`\")\;"
+    "return WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance`, `pool_gameobject_template`.`id` FROM `pool_gameobject_template` LEFT JOIN `gameobject` ON `gameobject`.`id` = `pool_gameobject_template`.`id`\")\;"
+    "return WorldDatabase.Query(\"SELECT `pool_id`, `mother_pool`, `chance` FROM `pool_pool`\")\;")
+
+set(ALLOW_DisableDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `sourceType`, `entry`, `flags`, `data` FROM `disables`\")\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

@@ -45,6 +45,7 @@
 #include "Player.h"
 #include "data/GameConfig.h"
 #include "BattleGroundMgr.h"
+#include "persistence/world/DisableDataRepository.h"
 
 namespace DisableMgr
 {
@@ -117,7 +118,7 @@ void LoadDisables()
 
     m_DisableMap.clear();
 
-    QueryResult* result = WorldDatabase.Query("SELECT `sourceType`, `entry`, `flags`, `data` FROM `disables`");
+    QueryResult* result = DisableDataRepository::QueryDisables();
 
     uint32 total_count = 0;
 

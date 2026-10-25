@@ -82,6 +82,9 @@ source_group("Persistence\\Characters\\Achievements" FILES ${SRC_GRP_PERSISTENCE
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY persistence/characters/economy/*.cpp persistence/characters/economy/*.h)
 source_group("Persistence\\Characters\\Economy" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY})
 
+file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_EVENTS persistence/characters/events/*.cpp persistence/characters/events/*.h)
+source_group("Persistence\\Characters\\Events" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_EVENTS})
+
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY persistence/characters/inventory/*.cpp persistence/characters/inventory/*.h)
 source_group("Persistence\\Characters\\Inventory" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY})
 
@@ -112,6 +115,9 @@ source_group("Persistence\\Characters\\Talents" FILES ${SRC_GRP_PERSISTENCE_CHAR
 file(GLOB SRC_GRP_PERSISTENCE_LOGIN persistence/login/*.cpp persistence/login/*.h)
 source_group("Persistence\\Login" FILES ${SRC_GRP_PERSISTENCE_LOGIN})
 
+file(GLOB SRC_GRP_PERSISTENCE_WORLD persistence/world/*.cpp persistence/world/*.h)
+source_group("Persistence\\World" FILES ${SRC_GRP_PERSISTENCE_WORLD})
+
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_ACHIEVEMENTS persistence/world/achievements/*.cpp persistence/world/achievements/*.h)
 source_group("Persistence\\World\\Achievements" FILES ${SRC_GRP_PERSISTENCE_WORLD_ACHIEVEMENTS})
 
@@ -123,6 +129,9 @@ source_group("Persistence\\World\\Creatures" FILES ${SRC_GRP_PERSISTENCE_WORLD_C
 
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_ECONOMY persistence/world/economy/*.cpp persistence/world/economy/*.h)
 source_group("Persistence\\World\\Economy" FILES ${SRC_GRP_PERSISTENCE_WORLD_ECONOMY})
+
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_EVENTS persistence/world/events/*.cpp persistence/world/events/*.h)
+source_group("Persistence\\World\\Events" FILES ${SRC_GRP_PERSISTENCE_WORLD_EVENTS})
 
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_ITEMS persistence/world/items/*.cpp persistence/world/items/*.h)
 source_group("Persistence\\World\\Items" FILES ${SRC_GRP_PERSISTENCE_WORLD_ITEMS})
@@ -139,6 +148,9 @@ source_group("Persistence\\World\\NPCs" FILES ${SRC_GRP_PERSISTENCE_WORLD_NPCS})
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_PLAYERS persistence/world/players/*.cpp persistence/world/players/*.h)
 source_group("Persistence\\World\\Players" FILES ${SRC_GRP_PERSISTENCE_WORLD_PLAYERS})
 
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_POOLS persistence/world/pools/*.cpp persistence/world/pools/*.h)
+source_group("Persistence\\World\\Pools" FILES ${SRC_GRP_PERSISTENCE_WORLD_POOLS})
+
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_PVP persistence/world/pvp/*.cpp persistence/world/pvp/*.h)
 source_group("Persistence\\World\\Pvp" FILES ${SRC_GRP_PERSISTENCE_WORLD_PVP})
 
@@ -153,6 +165,9 @@ source_group("Persistence\\World\\Spawns" FILES ${SRC_GRP_PERSISTENCE_WORLD_SPAW
 
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_SPELLS persistence/world/spells/*.cpp persistence/world/spells/*.h)
 source_group("Persistence\\World\\Spells" FILES ${SRC_GRP_PERSISTENCE_WORLD_SPELLS})
+
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_WAYPOINTS persistence/world/waypoints/*.cpp persistence/world/waypoints/*.h)
+source_group("Persistence\\World\\Waypoints" FILES ${SRC_GRP_PERSISTENCE_WORLD_WAYPOINTS})
 
 file(GLOB SRC_GRP_REFERENCES References/*.cpp References/*.h)
 source_group("References" FILES ${SRC_GRP_REFERENCES})
@@ -242,6 +257,7 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_CHARACTERS_ACCOUNT}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_ACHIEVEMENTS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY}
+    ${SRC_GRP_PERSISTENCE_CHARACTERS_EVENTS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_MAIL}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_MAPS}
@@ -252,20 +268,24 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_CHARACTERS_SPELLS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_TALENTS}
     ${SRC_GRP_PERSISTENCE_LOGIN}
+    ${SRC_GRP_PERSISTENCE_WORLD}
     ${SRC_GRP_PERSISTENCE_WORLD_ACHIEVEMENTS}
     ${SRC_GRP_PERSISTENCE_WORLD_AI}
     ${SRC_GRP_PERSISTENCE_WORLD_CREATURES}
     ${SRC_GRP_PERSISTENCE_WORLD_ECONOMY}
+    ${SRC_GRP_PERSISTENCE_WORLD_EVENTS}
     ${SRC_GRP_PERSISTENCE_WORLD_ITEMS}
     ${SRC_GRP_PERSISTENCE_WORLD_LOCALES}
     ${SRC_GRP_PERSISTENCE_WORLD_MAPS}
     ${SRC_GRP_PERSISTENCE_WORLD_NPCS}
     ${SRC_GRP_PERSISTENCE_WORLD_PLAYERS}
+    ${SRC_GRP_PERSISTENCE_WORLD_POOLS}
     ${SRC_GRP_PERSISTENCE_WORLD_PVP}
     ${SRC_GRP_PERSISTENCE_WORLD_QUESTS}
     ${SRC_GRP_PERSISTENCE_WORLD_REPUTATION}
     ${SRC_GRP_PERSISTENCE_WORLD_SPAWNS}
     ${SRC_GRP_PERSISTENCE_WORLD_SPELLS}
+    ${SRC_GRP_PERSISTENCE_WORLD_WAYPOINTS}
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}

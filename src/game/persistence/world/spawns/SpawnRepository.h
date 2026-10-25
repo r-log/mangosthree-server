@@ -105,6 +105,12 @@ namespace SpawnRepository
 
     /// Selects every game object spawn with its event data, at start-up.
     QueryResult* QueryGameObjectSpawns();
+
+    /// Selects a creature spawn's entry and map.
+    QueryResult* QueryCreatureEntryAndMap(uint32 guid);
+
+    /// Selects up to two spawn guids of a creature entry on a map.
+    QueryResult* QueryCreatureGuidsOnMap(uint32 entry, uint32 mapId);
 }
 
 #endif
