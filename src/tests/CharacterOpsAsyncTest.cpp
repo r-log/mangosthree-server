@@ -51,6 +51,7 @@
 #include "ObjectGuid.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "persistence/characters/CharacterDeleteRepository.h"
 
 #include <memory>
 #include <string>
@@ -304,7 +305,7 @@ TEST(CharacterOpsAsync_DeleteStagesOnlyTheTwoReadsMethodOneUses)
 
     {
         TickGuard::Scope scope;
-        Player::StageDeleteReads(holder, kCharLow, /*charDeleteMethod*/ 1);
+        CharacterDeleteRepository::StageDeleteReads(holder, kCharLow, /*fullDelete*/ false);
         CHECK_EQ(TickGuard::Violations(), 0u);
     }
 

@@ -90,6 +90,9 @@ namespace TicketRepository
     /// Deletes every ticket.
     void DeleteAll();
 
+    /// Deletes a character's open tickets, as the character's delete does.
+    void DeleteOpenTickets(uint32 guid);
+
     /// Inserts a survey's row, the comment bound.
     void InsertSurvey(GMSurveyRow const& row);
 

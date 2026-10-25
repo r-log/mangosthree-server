@@ -78,6 +78,7 @@ set(SRC_GRP_TESTS
     CharacterRepositoryTest.cpp
     AccountDataRepositoryTest.cpp
     QuestTrackerRepositoryTest.cpp
+    CharacterDeleteRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

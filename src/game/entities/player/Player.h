@@ -134,33 +134,6 @@ typedef std::deque<Mail*> PlayerMails;
 #define PLAYER_EXPLORED_ZONES_SIZE  156
 
 /**
- * @brief The slots of the character-delete holder (decoupling D7d).
- *
- * Player::DeleteFromDB used to issue these reads one by one while the tick waited; they are
- * now staged into a single SqlQueryHolder up front (C4), so the whole body runs in one
- * continuation with the reads it needs already answered. The first two are read for every
- * delete method; the last four only for method 0, which is the only one that returns mail,
- * unsummons pets and cleans friend lists.
- *
- * PLAYER_DELETE_READ_OWNER is the CMSG_CHAR_DELETE handler's own ownership read, appended
- * to the SAME holder so a delete costs one round trip and not two. Nothing else uses it,
- * which is why the count above it stops at PLAYER_DELETE_READ_COUNT.
- */
-enum PlayerDeleteReadSlot
-{
-    PLAYER_DELETE_READ_GROUP                = 0,
-    PLAYER_DELETE_READ_PETITION_SIGNS       = 1,
-    PLAYER_DELETE_READ_COD_MAIL             = 2,
-    PLAYER_DELETE_READ_COD_MAIL_ITEMS       = 3,
-    PLAYER_DELETE_READ_PETS                 = 4,
-    PLAYER_DELETE_READ_FRIENDS              = 5,
-    PLAYER_DELETE_READ_COUNT                = 6,
-
-    PLAYER_DELETE_READ_OWNER                = 6,
-    PLAYER_DELETE_READ_WITH_OWNER_COUNT     = 7
-};
-
-/**
  * @brief Player underwater state enumeration
  *
  * 2^n internal values, they are never sent to the client.
@@ -1965,12 +1938,6 @@ class Player : public Unit
         // `deleteFinally` or the minimum-level rule forces 0. Reads the character cache,
         // not the database (decoupling D7c/D7d), so the staging below can branch on it.
         static uint32 DeleteMethodFor(ObjectGuid playerguid, bool deleteFinally);
-
-        // Stages every read DeleteFromDBFromHolder() needs into `holder`, which must already
-        // be sized to at least PLAYER_DELETE_READ_COUNT. The four method-0 slots are staged
-        // only for method 0, which is the only method that reads them -- exactly the reads
-        // the synchronous body used to issue.
-        static void StageDeleteReads(SqlQueryHolder* holder, uint32 lowguid, uint32 charDeleteMethod);
 
         // Delete a player from the database. Queues its reads and returns (decoupling D7d);
         // the delete itself happens in DeleteFromDBFromHolder() one tick later.

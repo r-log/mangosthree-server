@@ -69,6 +69,11 @@ namespace MailRepository
     /// Deletes a mail's row and its item rows in one transaction.
     void DeleteMail(uint32 mailId);
 
+    /// Each deletes one part of a mail, as a character's delete does when it returns or drops
+    /// the character's COD mails: the mail's row, and its item rows.
+    void DeleteMailRow(uint32 mailId);
+    void DeleteMailItems(uint32 mailId);
+
     /// Gives a mailed item's instance row to the mail's receiver.
     void SetMailedItemOwner(uint32 itemGuid, uint32 receiverGuid);
 
