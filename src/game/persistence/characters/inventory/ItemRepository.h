@@ -26,9 +26,12 @@
 #ifndef MANGOS_H_ITEMREPOSITORY
 #define MANGOS_H_ITEMREPOSITORY
 
+#include <functional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
+
+class QueryResult;
 
 /// One saved loot row of an item: the item id (a currency's negated), its count, random suffix
 /// and random property.
@@ -41,9 +44,18 @@ struct ItemLootRow
 };
 
 /// The items' saved rows (`item_instance`, `character_gifts`, `item_loot`, and an item's
-/// `character_inventory` row). Every write is queued on the character database.
+/// `character_inventory` row). The gift read is asynchronous; every write is queued on the
+/// character database, and one called inside CharacterTransaction joins it.
 namespace ItemRepository
 {
+    /// Asks for a wrapped item's gift row: the item's entry and flags before it was wrapped. The
+    /// callback runs on the world thread with the result, which it owns.
+    void QueryGift(uint32 itemGuid, std::function<void(QueryResult*)> callback);
+
+    /// Inserts a wrapped item's gift row: its owner, the item, and its entry and flags before it
+    /// was wrapped.
+    void InsertGift(uint32 ownerGuid, uint32 itemGuid, uint32 entry, uint32 flags);
+
     /// Deletes an item's instance row.
     void DeleteInstance(uint32 itemGuid);
 

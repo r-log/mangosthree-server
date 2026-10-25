@@ -80,6 +80,11 @@ namespace AccountRepository
         LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);
     }
 
+    bool QueryWhois(uint32 accountId, std::function<void(QueryResult*)> callback)
+    {
+        return LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `username`,`email`,`last_ip` FROM `account` WHERE `id`=%u", accountId);
+    }
+
     void SetActiveRealm(uint32 realmId, uint32 accountId)
     {
         static SqlStatementID updAccount;

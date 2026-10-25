@@ -261,3 +261,21 @@ TEST(PetRepository_RenameIsOneTransaction)
         "UPDATE `character_pet` SET `name` = 'Fang', `renamed` = '1' WHERE `owner` = '7' AND `id` = '43'",
     }, __LINE__);
 }
+
+// A stable swap's two slot writes join the transaction the stable handler opens around them.
+TEST(PetRepository_StableSwapJoinsOneTransaction)
+{
+    Db db;
+    {
+        TickGuard::Scope scope;
+        CharacterTransaction::Begin();
+        PetRepository::SetStableSlot(2, 42, 8);
+        PetRepository::SetStableSlot(5, 42, 7);
+        CharacterTransaction::Commit();
+        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(1));
+    }
+    CheckLines(db.Take(), {
+        "UPDATE `character_pet` SET `slot` = '2' WHERE `owner` = '42' AND `id` = '8'",
+        "UPDATE `character_pet` SET `slot` = '5' WHERE `owner` = '42' AND `id` = '7'",
+    }, __LINE__);
+}

@@ -55,6 +55,11 @@ namespace AccountRepository
     /// the result, which it owns.
     void QueryGmLevel(uint32 accountId, std::function<void(QueryResult*)> callback);
 
+    /// Asks, asynchronously, for what a whois answers: an account's name, email and last IP; the
+    /// callback runs on the world thread with the result, which it owns. Returns false, and never
+    /// runs the callback, when the database is shutting down.
+    bool QueryWhois(uint32 accountId, std::function<void(QueryResult*)> callback);
+
     /// Sets the realm an account is playing on.
     void SetActiveRealm(uint32 realmId, uint32 accountId);
 

@@ -46,6 +46,7 @@
 #include "PlayerRegistry.h"
 #include "ScriptMgr.h"
 #include "Group.h"
+#include "persistence/characters/quests/QuestTrackerRepository.h"
 
 void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recv_data)
 {
@@ -443,14 +444,7 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPacket& recv_data)
             if (sGameConfig.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
             {
                 DEBUG_LOG("QUEST TRACKER: Quest Abandoned.");
-                static SqlStatementID CHAR_UPD_QUEST_TRACK_ABANDON_TIME;
-                // prepare Quest Tracker datas
-                SqlStatement stmt = CharacterDatabase.CreateStatement(CHAR_UPD_QUEST_TRACK_ABANDON_TIME, "UPDATE `quest_tracker` SET `quest_abandon_time` = NOW() WHERE `id` = ? AND `character_guid` = ? ORDER BY `quest_accept_time` DESC LIMIT 1");
-                stmt.addUInt32(quest);
-                stmt.addUInt32(_player->GetGUIDLow());
-
-                // add to Quest Tracker
-                stmt.Execute();
+                QuestTrackerRepository::SetAbandonTime(quest, _player->GetGUIDLow());
             }
         }
 

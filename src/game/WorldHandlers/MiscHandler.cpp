@@ -63,6 +63,8 @@
 #include "Pet.h"
 #include "SocialMgr.h"
 #include "DBCEnums.h"
+#include "persistence/characters/social/TicketRepository.h"
+#include "persistence/login/AccountRepository.h"
 
 void WorldSession::HandleRepopRequestOpcode(WorldPacket& recv_data)
 {
@@ -558,14 +560,8 @@ void WorldSession::HandleBugOpcode(WorldPacket& recv_data)
     DEBUG_LOG("%s", type.c_str());
     DEBUG_LOG("%s", content.c_str());
 
-    // Decoupling D7i: two escapes on the tick, on a packet any player may send, become
-    // two bound parameters (C5).
-    static SqlStatementID insBugReport;
-    SqlStatement insert = CharacterDatabase.CreateStatement(insBugReport,
-                          "INSERT INTO `bugreport` (`type`,`content`) VALUES(?, ?)");
-    insert.addString(type);
-    insert.addString(content);
-    insert.Execute();
+    // Both strings are bound: any player may send this packet.
+    TicketRepository::InsertBugReport(type, content);
 }
 
 /**
@@ -1469,13 +1465,13 @@ void WorldSession::HandleWhoisOpcode(WorldPacket& recv_data)
     // that cannot succeed still never reaches the database (D7b's contract).
     const uint32 requesterAccount = GetAccountId();
     const proto::SessionId requesterSession = GetSessionId();
-    if (!LoginDatabase.AsyncPQuery([requesterAccount, requesterSession, charname](QueryResult* result)
-                                   {
-                                       WorldSession::HandleWhoisCallback(std::unique_ptr<QueryResult>(result), requesterAccount, requesterSession, charname);
-                                   }, "SELECT `username`,`email`,`last_ip` FROM `account` WHERE `id`=%u", accid))
+    if (!AccountRepository::QueryWhois(accid, [requesterAccount, requesterSession, charname](QueryResult* result)
+                                       {
+                                           WorldSession::HandleWhoisCallback(std::unique_ptr<QueryResult>(result), requesterAccount, requesterSession, charname);
+                                       }))
     {
-        // The only way that fails is LoginDatabase::BeginShutdown, which is the same
-        // unknown answer a NULL result is, so it takes the same reply (C4).
+        // The only way that fails is the login database shutting down, which is the same
+        // unknown answer a NULL result is, so it takes the same reply.
         SendNotification(LANG_ACCOUNT_FOR_PLAYER_NOT_FOUND, charname.c_str());
     }
 }

@@ -113,6 +113,9 @@ namespace PetRepository
     /// Moves the owner's pet in a slot to notInSlot.
     void FreeSlot(uint32 ownerId, uint32 slot, uint32 notInSlot);
 
+    /// Puts one of the owner's pets in a stable slot.
+    void SetStableSlot(uint32 slot, uint32 ownerId, uint32 petNumber);
+
     /// Deletes the owner's pets above lastStableSlot, except one pet.
     void DeleteUnslotted(uint32 ownerId, uint32 lastStableSlot, uint32 keepPetNumber);
 

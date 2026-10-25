@@ -39,6 +39,7 @@
 #include "data/GameConfig.h"
 #include "SQLStorages.h"
 #include "WorldSession.h"
+#include "persistence/characters/quests/QuestTrackerRepository.h"
 
 /**
  * @brief Adds a quest to the selected player.
@@ -275,14 +276,7 @@ bool ChatHandler::HandleQuestCompleteCommand(char* args)
     if (sGameConfig.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
     {
         DEBUG_LOG("QUEST TRACKER: Quest Completed by GM.");
-        static SqlStatementID CHAR_UPD_QUEST_TRACK_GM_COMPLETE;
-        // prepare Quest Tracker datas
-        SqlStatement stmt = CharacterDatabase.CreateStatement(CHAR_UPD_QUEST_TRACK_GM_COMPLETE, "UPDATE `quest_tracker` SET `completed_by_gm` = 1 WHERE `id` = ? AND `character_guid` = ? ORDER BY `quest_accept_time` DESC LIMIT 1");
-        stmt.addUInt32(pQuest->GetQuestId());
-        stmt.addUInt32(player->GetGUIDLow());
-
-        // add to Quest Tracker
-        stmt.Execute();
+        QuestTrackerRepository::SetCompletedByGm(pQuest->GetQuestId(), player->GetGUIDLow());
     }
 
     player->CompleteQuest(entry, QUEST_STATUS_FORCE_COMPLETE);

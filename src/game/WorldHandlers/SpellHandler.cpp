@@ -44,6 +44,7 @@
 #include "ScriptMgr.h"
 #include "Totem.h"
 #include "spells/auras/SpellAuras.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 
 /**
  * @brief Handles use-item requests and casts the item's use spell.
@@ -310,13 +311,11 @@ void WorldSession::HandleOpenItemOpcode(WorldPacket& recvPacket)
 void WorldSession::QueueOpenWrappedItemRead(uint32 accountId, proto::SessionId sessionId,
                                             ObjectGuid playerGuid, ObjectGuid itemGuid)
 {
-    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, itemGuid](QueryResult* result)
-                                  {
-                                      WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult>(result),
-                                                                                  accountId, sessionId, playerGuid, itemGuid);
-                                  },
-                                  "SELECT `entry`, `flags` FROM `character_gifts` WHERE `item_guid` = '%u'",
-                                  itemGuid.GetCounter());
+    ItemRepository::QueryGift(itemGuid.GetCounter(), [accountId, sessionId, playerGuid, itemGuid](QueryResult* result)
+                              {
+                                  WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult>(result),
+                                                                              accountId, sessionId, playerGuid, itemGuid);
+                              });
 }
 
 /**
@@ -376,10 +375,7 @@ void WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult> re
         return;
     }
 
-    static SqlStatementID delGifts ;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(delGifts, "DELETE FROM `character_gifts` WHERE `item_guid` = ?");
-    stmt.PExecute(pItem->GetGUIDLow());
+    ItemRepository::DeleteGift(pItem->GetGUIDLow());
 }
 
 /**

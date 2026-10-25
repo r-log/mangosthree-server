@@ -132,4 +132,14 @@ namespace TicketRepository
         insert.addString(row.comment);
         insert.Execute();
     }
+
+    void InsertBugReport(std::string const& type, std::string const& content)
+    {
+        static SqlStatementID insBugReport;
+        SqlStatement insert = CharacterDatabase.CreateStatement(insBugReport,
+                              "INSERT INTO `bugreport` (`type`,`content`) VALUES(?, ?)");
+        insert.addString(type);
+        insert.addString(content);
+        insert.Execute();
+    }
 }

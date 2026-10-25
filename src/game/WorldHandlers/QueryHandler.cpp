@@ -50,6 +50,7 @@
 #include "Pet.h"
 #include "MapManager.h"
 #include "SQLStorages.h"
+#include "persistence/characters/CharacterRepository.h"
 
 /**
  * @brief Sends an in-memory name query response for a player.
@@ -97,23 +98,11 @@ void WorldSession::SendNameQueryOpcodeFromDB(ObjectGuid guid)
 {
     uint32 accountId = GetAccountId();
     proto::SessionId sessionId = GetSessionId();
-    CharacterDatabase.AsyncPQuery([accountId, sessionId](QueryResult* result)
-                                  {
-                                      WorldSession::SendNameQueryOpcodeFromDBCallBack(result, accountId, sessionId);
-                                  },
-                                  !sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) ?
-                                  //   ------- Query Without Declined Names --------
-                                  //       0       1       2       3         4
-                                  "SELECT `guid`, `name`, `race`, `gender`, `class` "
-                                  "FROM `characters` WHERE `guid` = '%u'"
-                                  :
-                                  //   --------- Query With Declined Names ---------
-                                  //                    0       1       2       3         4
-                                  "SELECT `characters`.`guid`, `name`, `race`, `gender`, `class`, "
-                                  //   5        6         7             8               9
-                                  "`genitive`, `dative`, `accusative`, `instrumental`, `prepositional` "
-                                  "FROM `characters` LEFT JOIN `character_declinedname` ON `characters`.`guid` = `character_declinedname`.`guid` WHERE `characters`.`guid` = '%u'",
-                                  guid.GetCounter());
+    CharacterRepository::QueryName(guid.GetCounter(), sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED),
+                                   [accountId, sessionId](QueryResult* result)
+                                   {
+                                       WorldSession::SendNameQueryOpcodeFromDBCallBack(result, accountId, sessionId);
+                                   });
 }
 
 /**

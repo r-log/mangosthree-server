@@ -32,6 +32,8 @@
 #include "Object/ObjectMgr.h"
 #include "entities/player/Player.h"
 #include "Object/Item.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 
 /**
  * @brief Wraps an item using wrapping paper.
@@ -115,8 +117,8 @@ void EnchantHandlers::HandleWrapItem(WorldSession& session, WorldPacket& recv_da
         return;
     }
 
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("INSERT INTO `character_gifts` VALUES ('%u', '%u', '%u', '%u')", item->GetOwnerGuid().GetCounter(), item->GetGUIDLow(), item->GetEntry(), item->GetUInt32Value(ITEM_FIELD_FLAGS));
+    CharacterTransaction::Begin();
+    ItemRepository::InsertGift(item->GetOwnerGuid().GetCounter(), item->GetGUIDLow(), item->GetEntry(), item->GetUInt32Value(ITEM_FIELD_FLAGS));
     item->SetEntry(gift->GetEntry());
 
     switch (item->GetEntry())
@@ -138,7 +140,7 @@ void EnchantHandlers::HandleWrapItem(WorldSession& session, WorldPacket& recv_da
         item->RemoveFromUpdateQueueOf(session.GetPlayer());
         item->SaveToDB();                                   // item gave inventory record unchanged and can be save standalone
     }
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 
     uint32 count = 1;
     session.GetPlayer()->DestroyItemCount(gift, count, true);

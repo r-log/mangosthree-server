@@ -45,6 +45,8 @@ set(CONVERTED_FILES
     src/game/persistence/characters/account/AccountDataRepository.cpp
     src/game/persistence/login/RealmRepository.h
     src/game/persistence/login/RealmRepository.cpp
+    src/game/persistence/characters/quests/QuestTrackerRepository.h
+    src/game/persistence/characters/quests/QuestTrackerRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp

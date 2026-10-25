@@ -49,6 +49,8 @@
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Chat.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/pets/PetRepository.h"
 
 enum StableResultCode
 {
@@ -990,19 +992,15 @@ void WorldSession::HandleStablePet(WorldPacket& recv_data)
         return;
     }
 
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
     if (displacedPetId)
     {
-        CharacterDatabase.PExecute(
-            "UPDATE `character_pet` SET `slot` = '%u' WHERE `owner` = '%u' AND `id` = '%u'",
-            uint32(old_slot), _player->GetGUIDLow(), displacedPetId);
+        PetRepository::SetStableSlot(uint32(old_slot), _player->GetGUIDLow(), displacedPetId);
         petCache.SetSlot(displacedPetId, uint32(old_slot));
     }
-    CharacterDatabase.PExecute(
-        "UPDATE `character_pet` SET `slot` = '%u' WHERE `owner` = '%u' AND `id` = '%u'",
-        uint32(new_slot), _player->GetGUIDLow(), petId);
+    PetRepository::SetStableSlot(uint32(new_slot), _player->GetGUIDLow(), petId);
     petCache.SetSlot(petId, uint32(new_slot));
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 
     // Keep the in-world Pet's m_petSlot in sync so any subsequent
     // SavePetToDB(PET_SAVE_AS_CURRENT) writes the new slot back via
