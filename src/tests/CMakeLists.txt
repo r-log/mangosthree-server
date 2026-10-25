@@ -70,6 +70,7 @@ set(SRC_GRP_TESTS
     ItemRepositoryTest.cpp
     MailRepositoryTest.cpp
     CalendarRepositoryTest.cpp
+    TicketRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp
