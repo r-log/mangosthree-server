@@ -454,6 +454,9 @@ state_allow(currency src/game/persistence/characters/CharacterDeleteRepository.c
 state_allow(currency src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADCURRENCIES), handed to the owner's per-row load"
     NAMES character_currencies)
+state_allow(currency src/tests/RealmRepositoryTest.cpp
+    WHY "unit test that observes the repository's statements through a fake connection (checks the statements, runs nothing itself)"
+    NAMES character_currencies)
 state_allow(currency src/game/Harness/Trace.cpp
     WHY "harness recorder rule table: classifies the packet by opcode (hashes it), builds nothing"
     NAMES SMSG_SET_CURRENCY)
