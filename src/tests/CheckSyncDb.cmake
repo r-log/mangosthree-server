@@ -69,6 +69,21 @@ set(CONVERTED_FILES
     src/game/persistence/characters/pvp/BattleGroundStatsRepository.cpp
     src/game/persistence/characters/SavedVariablesRepository.h
     src/game/persistence/characters/SavedVariablesRepository.cpp
+    src/game/persistence/world/CommandDataRepository.h
+    src/game/persistence/world/CommandDataRepository.cpp
+    src/game/persistence/world/ScriptDataRepository.h
+    src/game/persistence/world/ScriptDataRepository.cpp
+    src/game/persistence/DatabaseStatus.h
+    src/game/persistence/DatabaseStatus.cpp
+    src/game/ChatCommands/CreatureCommands.cpp
+    src/game/ChatCommands/GameObjectCommands.cpp
+    src/game/ChatCommands/TeleportationAndPositionCommands.cpp
+    src/game/ChatCommands/ServerCommands.cpp
+    src/game/ChatCommands/GMCommands.cpp
+    src/game/ChatCommands/WaypointCommands.cpp
+    src/game/WorldHandlers/CommandMgr.cpp
+    src/game/WorldHandlers/ScriptMgrBinding.cpp
+    src/game/WorldHandlers/ScriptMgrDbScripts.cpp
     src/game/ChatCommands/ListCommands.cpp
     src/game/ChatCommands/LookupCommands.cpp
     src/game/ChatCommands/PlayerCommands.cpp
@@ -248,9 +263,6 @@ set(ALLOW_GuildBankRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`\", guildId)\;"
     "return CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", guildId, tabId, maxLogs)\;")
 
-set(ALLOW_Chat_cpp
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;")
-
 set(ALLOW_InstanceDataRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `id`, `map`, `data` FROM `instance`\")\;"
     "return CharacterDatabase.Query(\"SELECT `map`, `data` FROM `world`\")\;")
@@ -366,7 +378,9 @@ set(ALLOW_AccountRepository_cpp
     "LoginDatabase.escape_string(account)\;"
     "return LoginDatabase.PQuery(\"SELECT `id`,`username` FROM `account` WHERE `username` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), account.c_str())\;"
     "LoginDatabase.escape_string(email)\;"
-    "return LoginDatabase.PQuery(\"SELECT `id`,`username` FROM `account` WHERE `email` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), email.c_str())\;")
+    "return LoginDatabase.PQuery(\"SELECT `id`,`username` FROM `account` WHERE `email` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), email.c_str())\;"
+    "return LoginDatabase.PQuery(\"SELECT `username`,`gmlevel`,`last_ip`,`last_login` FROM `account` WHERE `id` = '%u'\", accountId)\;"
+    "return LoginDatabase.Query(\"SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0\")\;")
 
 set(ALLOW_CharacterRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accountId)\;"
@@ -379,7 +393,8 @@ set(ALLOW_CharacterRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u\", accountId)\;"
     "return CharacterDatabase.PQuery(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u\", guid)\;"
     "return CharacterDatabase.PQuery(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), name)\;"
-    "return CharacterDatabase.Query(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL\")\;")
+    "return CharacterDatabase.Query(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL\")\;"
+    "return CharacterDatabase.PQuery(\"SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'\", guid)\;")
 
 set(ALLOW_PetRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `character_pet`\")\;")
@@ -397,7 +412,6 @@ set(ALLOW_ItemRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT COUNT(`item_template`) FROM `mail_items` WHERE `item_template`='%u'\", itemId)\;"
     "return CharacterDatabase.PQuery(\"SELECT COUNT(`item_template`) FROM `auction` WHERE `item_template`='%u'\", itemId)\;"
     "return CharacterDatabase.PQuery(\"SELECT COUNT(`item_entry`) FROM `guild_bank_item` WHERE `item_entry`='%u'\", itemId)\;"
-    "return CharacterDatabase.PQuery("
     "return CharacterDatabase.PQuery(\"SELECT `ci`.`item`, `cibag`.`slot` AS bag, `ci`.`slot`, `ci`.`guid`, `characters`.`account`,`characters`.`name` \""
     "return CharacterDatabase.PQuery(\"SELECT `mail_items`.`item_guid`, `mail`.`sender`, `mail`.`receiver`, `char_s`.`account`, `char_s`.`name`, `char_r`.`account`, `char_r`.`name` \""
     "return CharacterDatabase.PQuery(\"SELECT  `auction`.`itemguid`, `auction`.`itemowner`, `characters`.`account`, `characters`.`name` \""
@@ -421,7 +435,17 @@ set(ALLOW_SpawnRepository_cpp
     "return WorldDatabase.PQuery(\"SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `gameobject` WHERE `id` = '%u' LIMIT %u\","
     "return WorldDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `creature` WHERE `id`='%u'\", entry)\;"
     "return WorldDatabase.PQuery(\"SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `creature` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u\","
-    "return WorldDatabase.PQuery(\"SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '%u' LIMIT %u\",")
+    "return WorldDatabase.PQuery(\"SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '%u' LIMIT %u\","
+    "return WorldDatabase.PQuery(\"SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `map`, \""
+    "return WorldDatabase.PQuery(\"SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `map` = '%i' AND `id` = '%u' ORDER BY order_ ASC LIMIT 1\","
+    "WorldDatabase.escape_string(name)\;"
+    "return WorldDatabase.PQuery(\"SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ \""
+    "return WorldDatabase.PQuery(\"SELECT `gameobject`.`guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, \""
+    "WorldDatabase.escape_string(name)\;"
+    "return WorldDatabase.PQuery(\"SELECT `guid` FROM `creature`, `creature_template` WHERE `creature`.`id` = `creature_template`.`entry` AND `creature_template`.`name` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), name.c_str())\;"
+    "WorldDatabase.escape_string(name)\;"
+    "return WorldDatabase.PQuery(\"SELECT `guid` FROM `gameobject`, `gameobject_template` WHERE `gameobject`.`id` = `gameobject_template`.`entry` AND `gameobject_template`.`name `\" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), name.c_str())\;"
+    "return WorldDatabase.PQuery(\"SELECT COUNT(`id`) FROM `creature` WHERE `id` = %u\", entry)\;")
 
 set(ALLOW_CorpseRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `corpse`\")\;"
@@ -540,6 +564,17 @@ set(ALLOW_BanRepository_cpp
     "LoginDatabase.escape_string(filter)\;"
     "return LoginDatabase.Query(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\""
     "return LoginDatabase.PQuery(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\"")
+
+set(ALLOW_CommandDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;"
+    "return WorldDatabase.Query(\"SELECT \"")
+
+set(ALLOW_ScriptDataRepository_cpp
+    "return WorldDatabase.PQuery(\"SELECT `type`, `bind`, `ScriptName`, `data` FROM `script_binding`\")\;"
+    "return WorldDatabase.Query(\"SELECT DISTINCT(`ScriptName`) FROM `script_binding`\")\;"
+    "return WorldDatabase.PQuery(\"SELECT `id`, `delay`, `command`, `datalong`, `datalong2`, `buddy_entry`, `search_radius`, `data_flags`, `dataint`, `dataint2`, `dataint3`, `dataint4`, `x`, `y`, `z`, `o` FROM `db_scripts` WHERE `script_type` = %d ORDER BY `script_guid` ASC\", type)\;"
+    "return WorldDatabase.PQuery(\"SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`\")\;"
+    "return WorldDatabase.PQuery(\"SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`\")\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

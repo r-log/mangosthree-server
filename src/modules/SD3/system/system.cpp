@@ -29,6 +29,7 @@
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/world/ScriptDataRepository.h"
 
 /**
  * @brief Constructor for SystemMgr.
@@ -84,7 +85,7 @@ void SystemMgr::LoadScriptWaypoints()
     uint64 uiCreatureCount = 0;
 
     // Load Waypoints
-    QueryResult* pResult = WorldDatabase.PQuery("SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`");
+    QueryResult* pResult = ScriptDataRepository::QueryScriptWaypointCounts();
     if (pResult)
     {
         uiCreatureCount = pResult->GetRowCount();
@@ -93,7 +94,7 @@ void SystemMgr::LoadScriptWaypoints()
 
     outstring_log("[SD3]: Loading Script Waypoints for " UI64FMTD " creature(s)...", uiCreatureCount);
 
-    pResult = WorldDatabase.PQuery("SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`");
+    pResult = ScriptDataRepository::QueryScriptWaypoints();
 
     if (pResult)
     {

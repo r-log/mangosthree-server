@@ -30,13 +30,18 @@
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
+#include "persistence/DatabaseStatus.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 #include "persistence/login/AccountRepository.h"
 #include "persistence/login/BanRepository.h"
+#include "persistence/world/CommandDataRepository.h"
+#include "persistence/world/ScriptDataRepository.h"
+#include "persistence/world/creatures/CreatureDataRepository.h"
 #include "persistence/world/items/ItemDataRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -229,5 +234,80 @@ TEST(CharacterRepository_CommandWrites)
         "UPDATE `characters` SET `at_login` = `at_login` | '2' WHERE (`at_login` & '2') = '0'",
         "UPDATE `characters` SET `name`='Ann', `account`='7', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = 42",
         "UPDATE `characters` SET `level` = '80', `xp` = 0 WHERE `guid` = '42'",
+    }, __LINE__);
+}
+// The GM spawn, player info, command table and script reads run on the calling thread on their
+// databases; the nearest game objects belong to no event or to one of the active ones.
+TEST(CommandRepository_SpawnInfoAndScriptReads)
+{
+    Db chars(CharacterDatabase);
+    Db world(WorldDatabase);
+    Db login(LoginDatabase);
+    delete SpawnRepository::QueryGameObjectsInRange(1.5f, -2.25f, 3.0f, 530, 100.0f);
+    delete SpawnRepository::QueryNearestGameObjectNamed(1.5f, -2.25f, 3.0f, 530, "Chest");
+    delete SpawnRepository::QueryNearestGameObjects(1.5f, -2.25f, 3.0f, 530, std::set<uint16>());
+    delete SpawnRepository::QueryNearestGameObjects(1.5f, -2.25f, 3.0f, 530, std::set<uint16>{7, 3});
+    delete SpawnRepository::QueryNearestGameObjectOf(1.5f, -2.25f, 3.0f, 530, 1234);
+    delete SpawnRepository::QueryCreatureGuidsNamed("Ann");
+    delete SpawnRepository::QueryGameObjectGuidsNamed("Ann");
+    delete SpawnRepository::QueryCreatureIdCountOf(1234);
+    delete CommandDataRepository::QueryCommands();
+    delete CommandDataRepository::QueryCommandHelpLocales();
+    delete ScriptDataRepository::QueryScriptBindings();
+    delete ScriptDataRepository::QueryScriptNames();
+    delete ScriptDataRepository::QueryDbScripts(2);
+    delete ScriptDataRepository::QueryScriptWaypointCounts();
+    delete ScriptDataRepository::QueryScriptWaypoints();
+    delete CharacterRepository::QueryPlayerInfo(42);
+    delete AccountRepository::QueryAccountInfo(42);
+    delete AccountRepository::QueryGameMasters();
+    CheckLines(world.query.executed, {
+        "SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '1.500000', 2) + POW(`position_y` - '-2.250000', 2) + POW(`position_z` - '3.000000', 2)) AS order_ FROM `gameobject` WHERE `map`='530' AND (POW(`position_x` - '1.500000', 2) + POW(`position_y` - '-2.250000', 2) + POW(`position_z` - '3.000000', 2)) <= '100.000000' ORDER BY order_",
+        "SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - 1.500000, 2) + POW(`position_y` - -2.250000, 2) + POW(`position_z` - 3.000000, 2)) AS order_ FROM `gameobject`,`gameobject_template` WHERE `gameobject_template`.`entry` = `gameobject`.`id` AND `map` = 530 AND `name` LIKE CONCAT( '%' , 'Chest' , '%' ) ORDER BY order_ ASC LIMIT 1",
+        "SELECT `gameobject`.`guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - 1.500000, 2) + POW(`position_y` - -2.250000, 2) + POW(`position_z` - 3.000000, 2)) AS order_ FROM `gameobject` LEFT OUTER JOIN `game_event_gameobject` on `gameobject`.`guid`=`game_event_gameobject`.`guid` WHERE `map` = '530'  AND (event IS NULL ) ORDER BY order_ ASC LIMIT 10",
+        "SELECT `gameobject`.`guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - 1.500000, 2) + POW(`position_y` - -2.250000, 2) + POW(`position_z` - 3.000000, 2)) AS order_ FROM `gameobject` LEFT OUTER JOIN `game_event_gameobject` on `gameobject`.`guid`=`game_event_gameobject`.`guid` WHERE `map` = '530'  AND (event IS NULL OR event IN (3,7)) ORDER BY order_ ASC LIMIT 10",
+        "SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - '1.500000', 2) + POW(`position_y` - '-2.250000', 2) + POW(`position_z` - '3.000000', 2)) AS order_ FROM `gameobject` WHERE `map` = '530' AND `id` = '1234' ORDER BY order_ ASC LIMIT 1",
+        "SELECT `guid` FROM `creature`, `creature_template` WHERE `creature`.`id` = `creature_template`.`entry` AND `creature_template`.`name` LIKE CONCAT( '%' , 'Ann' , '%' )",
+        "SELECT `guid` FROM `gameobject`, `gameobject_template` WHERE `gameobject`.`id` = `gameobject_template`.`entry` AND `gameobject_template`.`name `LIKE CONCAT( '%' , 'Ann' , '%' )",
+        "SELECT COUNT(`id`) FROM `creature` WHERE `id` = 1234",
+        "SELECT `id`, `command_text`,`security`,`help_text` FROM `command`",
+        "SELECT `id`,`help_text_loc1`,`help_text_loc2`,`help_text_loc3`,`help_text_loc4`,`help_text_loc5`,`help_text_loc6`,`help_text_loc7`,`help_text_loc8` FROM `locales_command` ORDER BY `id` ASC ",
+        "SELECT `type`, `bind`, `ScriptName`, `data` FROM `script_binding`",
+        "SELECT DISTINCT(`ScriptName`) FROM `script_binding`",
+        "SELECT `id`, `delay`, `command`, `datalong`, `datalong2`, `buddy_entry`, `search_radius`, `data_flags`, `dataint`, `dataint2`, `dataint3`, `dataint4`, `x`, `y`, `z`, `o` FROM `db_scripts` WHERE `script_type` = 2 ORDER BY `script_guid` ASC",
+        "SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`",
+        "SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`",
+    }, __LINE__);
+    CheckLines(chars.query.executed, {
+        "SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '42'",
+    }, __LINE__);
+    CheckLines(login.query.executed, {
+        "SELECT `username`,`gmlevel`,`last_ip`,`last_login` FROM `account` WHERE `id` = '42'",
+        "SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0",
+    }, __LINE__);
+}
+
+// A GM's creature edits are queued in order and counted on the world database's delay queue.
+TEST(SpawnRepository_CreatureCommandWrites)
+{
+    Db world(WorldDatabase);
+    {
+        TickGuard::Scope scope;
+        CreatureDataRepository::SetNpcFlags(65, 1234);
+        SpawnRepository::SetCreaturePosition(1.5f, -2.25f, 3.0f, 0.5f, 42);
+        CreatureDataRepository::SetFaction(35, 1234);
+        SpawnRepository::SetCreatureSpawnDistance(5.0f, 1, 42);
+        SpawnRepository::SetCreatureSpawnTime(300, 42);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(DatabaseStatus::WorldQueueDepth(), 5u);
+        CHECK_EQ(DatabaseStatus::LoginQueueDepth(), 0u);
+        CHECK_EQ(DatabaseStatus::CharacterQueueDepth(), 0u);
+    }
+    CheckLines(world.Take(), {
+        "UPDATE `creature_template` SET `NpcFlags` = '65' WHERE `entry` = '1234'",
+        "UPDATE `creature` SET `position_x` = '1.500000', `position_y` = '-2.250000', `position_z` = '3.000000', `orientation` = '0.500000' WHERE `guid` = '42'",
+        "UPDATE `creature_template` SET `FactionAlliance` = '35', `FactionHorde` = '35' WHERE `entry` = '1234'",
+        "UPDATE `creature` SET `spawndist`=5.000000, `MovementType`=1 WHERE `guid`=42",
+        "UPDATE `creature` SET `spawntimesecs`=300 WHERE `guid`=42",
     }, __LINE__);
 }

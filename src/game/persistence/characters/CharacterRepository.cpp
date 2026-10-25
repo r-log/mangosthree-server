@@ -354,4 +354,10 @@ namespace CharacterRepository
     {
         CharacterDatabase.PExecute("UPDATE `characters` SET `level` = '%u', `xp` = 0 WHERE `guid` = '%u'", level, guid);
     }
+
+    QueryResult* QueryPlayerInfo(uint32 guid)
+    {
+        //                                      0          1      2      3
+        return CharacterDatabase.PQuery("SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'", guid);
+    }
 }

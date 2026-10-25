@@ -241,4 +241,14 @@ namespace AccountRepository
         LoginDatabase.escape_string(email);
         return LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
     }
+
+    QueryResult* QueryAccountInfo(uint32 accountId)
+    {
+        return LoginDatabase.PQuery("SELECT `username`,`gmlevel`,`last_ip`,`last_login` FROM `account` WHERE `id` = '%u'", accountId);
+    }
+
+    QueryResult* QueryGameMasters()
+    {
+        return LoginDatabase.Query("SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0");
+    }
 }

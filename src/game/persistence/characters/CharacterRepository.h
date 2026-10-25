@@ -231,6 +231,9 @@ namespace CharacterRepository
 
     /// Sets an offline character's level and clears its experience.
     void SetLevel(uint32 level, uint32 guid);
+
+    /// Selects a character's played time, level, money and account, for a GM's player info.
+    QueryResult* QueryPlayerInfo(uint32 guid);
 }
 
 #endif

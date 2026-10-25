@@ -144,6 +144,12 @@ namespace AccountRepository
 
     /// Selects the ids and names of the accounts whose email contains a text, the text escaped first.
     QueryResult* QueryAccountIdsByEmail(std::string email);
+
+    /// Selects an account's name, GM level, last address and last login, for a GM's player info.
+    QueryResult* QueryAccountInfo(uint32 accountId);
+
+    /// Selects the names and GM levels of the game master accounts.
+    QueryResult* QueryGameMasters();
 }
 
 #endif

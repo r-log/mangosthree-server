@@ -66,6 +66,7 @@
 #include "AuctionHouseBot/AuctionHouseBot.h"
 #include "CommandMgr.h"
 #include "ObjectLookup.h"
+#include "persistence/world/CommandDataRepository.h"
 
 // Supported shift-links (client generated and server side)
 // |color|Hachievement:achievement_id:player_guid_hex:completed_0_1:mm:dd:yy_from_2000:criteriaMask1:criteriaMask2:criteriaMask3:criteriaMask4|h[name]|h|r
@@ -961,7 +962,7 @@ void ChatHandler::LoadCommandTable()
     // check hardcoded part integrity
     handler.CheckIntegrity(commandTable, NULL);
 
-    QueryResult* result = WorldDatabase.Query("SELECT `id`, `command_text`,`security`,`help_text` FROM `command`");
+    QueryResult* result = CommandDataRepository::QueryCommands();
     if (result)
     {
         do

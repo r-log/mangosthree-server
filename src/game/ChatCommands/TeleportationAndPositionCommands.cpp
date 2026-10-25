@@ -46,6 +46,7 @@
 #include "MapPersistentStateMgr.h"
 #include "WorldSession.h"
 #include "MotionMaster.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 #ifdef _DEBUG_VMAPS
 #endif
@@ -1250,8 +1251,7 @@ bool ChatHandler::HandleGoCreatureCommand(char* args)
             else
             {
                 std::string name = pParam1;
-                WorldDatabase.escape_string(name);
-                QueryResult* result = WorldDatabase.PQuery("SELECT `guid` FROM `creature`, `creature_template` WHERE `creature`.`id` = `creature_template`.`entry` AND `creature_template`.`name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
+                QueryResult* result = SpawnRepository::QueryCreatureGuidsNamed(name);
                 if (!result)
                 {
                     SendSysMessage(LANG_COMMAND_GOCREATNOTFOUND);
@@ -1401,8 +1401,7 @@ bool ChatHandler::HandleGoObjectCommand(char* args)
             else
             {
                 std::string name = pParam1;
-                WorldDatabase.escape_string(name);
-                QueryResult* result = WorldDatabase.PQuery("SELECT `guid` FROM `gameobject`, `gameobject_template` WHERE `gameobject`.`id` = `gameobject_template`.`entry` AND `gameobject_template`.`name `" _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
+                QueryResult* result = SpawnRepository::QueryGameObjectGuidsNamed(name);
                 if (!result)
                 {
                     SendSysMessage(LANG_COMMAND_GOOBJNOTFOUND);

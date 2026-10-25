@@ -48,6 +48,7 @@
 #include "ObjectLookup.h"
 #include "ObjectMgr.h"
 #include "WorldSession.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
  /**********************************************************************
      CommandTable : gobjectCommandTable
@@ -419,11 +420,7 @@ bool ChatHandler::HandleGameObjectNearCommand(char* args)
     uint32 count = 0;
 
     Player* pl = m_session->GetPlayer();
-    QueryResult* result = WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `map`, "
-                          "(POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ "
-                          "FROM `gameobject` WHERE `map`='%u' AND (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) <= '%f' ORDER BY order_",
-                          pl->Where().X(), pl->Where().Y(), pl->Where().Z(),
-                          pl->GetMapId(), pl->Where().X(), pl->Where().Y(), pl->Where().Z(), distance * distance);
+    QueryResult* result = SpawnRepository::QueryGameObjectsInRange(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), distance * distance);
 
     if (result)
     {
@@ -480,51 +477,17 @@ bool ChatHandler::HandleGameObjectTargetCommand(char* args)
         uint32 id;
         if (ExtractUInt32(&cId, id))
         {
-            result = WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `map` = '%i' AND `id` = '%u' ORDER BY order_ ASC LIMIT 1",
-                                          pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), id);
+            result = SpawnRepository::QueryNearestGameObjectOf(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), id);
         }
         else
         {
             std::string name = cId;
-            WorldDatabase.escape_string(name);
-            result = WorldDatabase.PQuery(
-                         "SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ "
-                         "FROM `gameobject`,`gameobject_template` WHERE `gameobject_template`.`entry` = `gameobject`.`id` AND `map` = %i AND `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")" ORDER BY order_ ASC LIMIT 1",
-                         pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), name.c_str());
+            result = SpawnRepository::QueryNearestGameObjectNamed(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), name);
         }
     }
     else
     {
-        std::ostringstream eventFilter;
-        eventFilter << " AND (event IS NULL ";
-        bool initString = true;
-
-        for (GameEventMgr::ActiveEvents::const_iterator itr = activeEventsList.begin(); itr != activeEventsList.end(); ++itr)
-        {
-            if (initString)
-            {
-                eventFilter << "OR event IN (" << *itr;
-                initString = false;
-            }
-            else
-            {
-                eventFilter << "," << *itr;
-            }
-        }
-
-        if (!initString)
-        {
-            eventFilter << "))";
-        }
-        else
-        {
-            eventFilter << ")";
-        }
-
-        result = WorldDatabase.PQuery("SELECT `gameobject`.`guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, "
-                                      "(POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ FROM `gameobject` "
-                                      "LEFT OUTER JOIN `game_event_gameobject` on `gameobject`.`guid`=`game_event_gameobject`.`guid` WHERE `map` = '%i' %s ORDER BY order_ ASC LIMIT 10",
-                                      pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), eventFilter.str().c_str());
+        result = SpawnRepository::QueryNearestGameObjects(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), activeEventsList);
     }
 
     if (!result)
