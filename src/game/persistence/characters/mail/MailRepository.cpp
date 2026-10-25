@@ -25,6 +25,7 @@
 
 #include "MailRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
 
 #include <utility>
 
