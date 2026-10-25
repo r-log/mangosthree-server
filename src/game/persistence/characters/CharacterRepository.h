@@ -116,7 +116,7 @@ typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallba
 
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
 /// login, the logout and the account manager use them. The account manager's two reads and the
-/// start-up's highest guid run on the thread that calls them, synchronously; every other read is asynchronous, and every write is queued
+/// start-up's highest guid and cache rows run on the thread that calls them, synchronously; every other read is asynchronous, and every write is queued
 /// on the character database; a write called inside CharacterTransaction joins it.
 namespace CharacterRepository
 {
@@ -193,6 +193,9 @@ namespace CharacterRepository
 
     /// Selects the highest character guid, at start-up.
     QueryResult* QueryHighestGuid();
+
+    /// Selects every character's cached columns, ordered by guid, at start-up.
+    QueryResult* QueryCacheRows();
 }
 
 #endif

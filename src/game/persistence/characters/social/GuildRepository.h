@@ -139,6 +139,9 @@ namespace GuildRepository
 
     /// Selects the highest guild id, at start-up.
     QueryResult* QueryHighestId();
+
+    /// Selects every guild member's guild and rank, at start-up.
+    QueryResult* QueryMemberRanks();
 }
 
 #endif

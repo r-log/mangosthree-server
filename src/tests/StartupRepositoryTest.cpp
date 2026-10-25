@@ -195,3 +195,32 @@ TEST(StartupRepository_Reads)
     CHECK_EQ(chars.async.executed.size(), size_t(0));
     CHECK_EQ(world.async.executed.size(), size_t(0));
 }
+
+// The arena team, group and character cache loads run on the calling thread, in call order; a
+// member row the group load cannot use is deleted through a queued write.
+TEST(StartupRepository_CharacterLoads)
+{
+    Db db(CharacterDatabase);
+    delete ArenaTeamRepository::QueryTeams();
+    delete ArenaTeamRepository::QueryTeamMembers();
+    delete GroupRepository::QueryGroups();
+    delete GroupRepository::QueryMembers();
+    delete GroupRepository::QueryInstanceBinds();
+    delete CharacterRepository::QueryCacheRows();
+    delete GuildRepository::QueryMemberRanks();
+    delete ArenaTeamRepository::QueryMemberTeamTypes();
+    CheckLines(db.query.executed, {
+        "SELECT `arena_team`.`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`, `rating`,`games_week`,`wins_week`,`games_season`,`wins_season`,`rank` FROM `arena_team` LEFT JOIN `arena_team_stats` ON `arena_team`.`arenateamid` = `arena_team_stats`.`arenateamid` ORDER BY `arena_team`.`arenateamid` ASC",
+        "SELECT `arenateamid`,`member`.`guid`,`played_week`,`wons_week`,`played_season`,`wons_season`,`personal_rating`,`name`,`class` FROM `arena_team_member` member LEFT JOIN `characters` chars on member.`guid` = chars.`guid` ORDER BY member.`arenateamid` ASC",
+        "SELECT `mainTank`, `mainAssistant`, `lootMethod`, `looterGuid`, `lootThreshold`, `icon1`, `icon2`, `icon3`, `icon4`, `icon5`, `icon6`, `icon7`, `icon8`, `groupType`, `difficulty`, `raiddifficulty`, `leaderGuid`, `groupId` FROM `groups`",
+        "SELECT `memberGuid`, `assistant`, `subgroup`, `groupId`, `roles` FROM `group_member` ORDER BY `groupId`",
+        "SELECT `group_instance`.`leaderGuid`, `map`, `instance`, `permanent`, `instance`.`difficulty`, `resettime`, (SELECT COUNT(*) FROM `character_instance` WHERE `guid` = `group_instance`.`leaderGuid` AND `instance` = `group_instance`.`instance` AND `permanent` = 1 LIMIT 1),  `groups`.`groupId`, `instance`.`encountersMask` FROM `group_instance` LEFT JOIN `instance` ON `instance` = `id` LEFT JOIN `groups` ON `groups`.`leaderGUID` = `group_instance`.`leaderGUID` ORDER BY `leaderGuid`",
+        "SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`",
+        "SELECT `guid`, `guildid`, `rank` FROM `guild_member`",
+        "SELECT `arena_team_member`.`guid`, `arena_team_member`.`arenateamid`, `arena_team`.`type` FROM `arena_team_member` JOIN `arena_team` ON `arena_team_member`.`arenateamid` = `arena_team`.`arenateamid`",
+    }, __LINE__);
+    GroupRepository::DeleteInvalidMember(42);
+    CheckLines(db.Take(), {
+        "DELETE FROM `group_member` WHERE `memberGuid` = '42'",
+    }, __LINE__);
+}

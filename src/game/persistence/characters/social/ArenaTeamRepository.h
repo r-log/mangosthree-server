@@ -83,8 +83,8 @@ struct ArenaTeamMemberRow
     uint8 playerClass = 0;
 };
 
-/// The arena teams' saved rows. The start-up's highest id runs synchronously; every write is queued
-/// on the character database.
+/// The arena teams' saved rows. The start-up reads run synchronously; every write is queued on the
+/// character database.
 namespace ArenaTeamRepository
 {
     /// Reads one row of the team load: id, name, captain, type, the emblem's five values and the
@@ -130,6 +130,15 @@ namespace ArenaTeamRepository
 
     /// Selects the highest arena team id, at start-up.
     QueryResult* QueryHighestId();
+
+    /// Selects every arena team with its stats, ordered by team id, at start-up.
+    QueryResult* QueryTeams();
+
+    /// Selects every arena team member with its character's name and class, ordered by team id, at start-up.
+    QueryResult* QueryTeamMembers();
+
+    /// Selects every arena team member's team and team type, at start-up.
+    QueryResult* QueryMemberTeamTypes();
 }
 
 #endif

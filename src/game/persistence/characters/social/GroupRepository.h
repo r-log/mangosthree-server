@@ -115,6 +115,18 @@ namespace GroupRepository
 
     /// Selects the highest group id, at start-up.
     QueryResult* QueryHighestId();
+
+    /// Selects every group's row, at start-up.
+    QueryResult* QueryGroups();
+
+    /// Selects every group member, ordered by group id, at start-up.
+    QueryResult* QueryMembers();
+
+    /// Deletes a member row the start-up load cannot use.
+    void DeleteInvalidMember(uint32 memberGuid);
+
+    /// Selects every group instance bind with its instance and group, ordered by leader, at start-up.
+    QueryResult* QueryInstanceBinds();
 }
 
 #endif

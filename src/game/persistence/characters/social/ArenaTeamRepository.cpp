@@ -170,4 +170,27 @@ namespace ArenaTeamRepository
     {
         return CharacterDatabase.Query("SELECT MAX(`arenateamid`) FROM `arena_team`");
     }
+
+    QueryResult* QueryTeams()
+    {
+        //                                      0                          1      2             3      4                 5
+        return CharacterDatabase.Query("SELECT `arena_team`.`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,"
+                                       //   6          7             8              9        10           11          12             13            14
+                                       "`EmblemColor`,`BorderStyle`,`BorderColor`, `rating`,`games_week`,`wins_week`,`games_season`,`wins_season`,`rank` "
+                                       "FROM `arena_team` LEFT JOIN `arena_team_stats` ON `arena_team`.`arenateamid` = `arena_team_stats`.`arenateamid` ORDER BY `arena_team`.`arenateamid` ASC");
+    }
+
+    QueryResult* QueryTeamMembers()
+    {
+        //                                     0                   1      2             3           4               5             6                 7      8
+        return CharacterDatabase.Query("SELECT `arenateamid`,`member`.`guid`,`played_week`,`wons_week`,`played_season`,`wons_season`,`personal_rating`,`name`,`class` "
+                                       "FROM `arena_team_member` member LEFT JOIN `characters` chars on member.`guid` = chars.`guid` ORDER BY member.`arenateamid` ASC");
+    }
+
+    QueryResult* QueryMemberTeamTypes()
+    {
+        //                                                                            0                   1                  2
+        return CharacterDatabase.Query("SELECT `arena_team_member`.`guid`, `arena_team_member`.`arenateamid`, `arena_team`.`type` "
+                                       "FROM `arena_team_member` JOIN `arena_team` ON `arena_team_member`.`arenateamid` = `arena_team`.`arenateamid`");
+    }
 }

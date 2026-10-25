@@ -69,6 +69,7 @@ set(CONVERTED_FILES
     src/game/persistence/characters/pvp/BattleGroundStatsRepository.cpp
     src/game/persistence/characters/SavedVariablesRepository.h
     src/game/persistence/characters/SavedVariablesRepository.cpp
+    src/game/Object/CharacterCache.cpp
     src/game/persistence/world/spells/SpellDataRepository.h
     src/game/persistence/world/spells/SpellDataRepository.cpp
     src/game/persistence/world/ai/CreatureEventAIRepository.h
@@ -186,7 +187,8 @@ set(ALLOW_GuildRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `guildid`,`guild_member`.`guid`,`rank`,`pnote`,`offnote`,`BankResetTimeMoney`,`BankRemMoney`,\""
     "return CharacterDatabase.Query(\"SELECT `guildid`,`TabId`,`rid`,`gbright`,`SlotPerDay` FROM `guild_bank_right` ORDER BY `guildid` ASC, `TabId` ASC\")\;"
     "return CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", guildId, maxRecords)\;"
-    "return CharacterDatabase.Query(\"SELECT MAX(`guildid`) FROM `guild`\")\;")
+    "return CharacterDatabase.Query(\"SELECT MAX(`guildid`) FROM `guild`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `guid`, `guildid`, `rank` FROM `guild_member`\")\;")
 
 set(ALLOW_CalendarRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `eventId`, `creatorGuid`, `guildId`, `type`, `flags`, `dungeonId`, `eventTime`, `title`, `description` FROM `calendar_events` ORDER BY `eventId`\")\;"
@@ -304,7 +306,8 @@ set(ALLOW_CharacterRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accountId)\;"
     "return CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", accountId)\;"
     "return CharacterDatabase.PQuery(\"SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '%u'\", guid)\;"
-    "return CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `characters`\")\;")
+    "return CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `characters`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`\")\;")
 
 set(ALLOW_AccountCommands_cpp
     "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u\", realmID)\;"
@@ -315,7 +318,10 @@ set(ALLOW_PetRepository_cpp
 
 set(ALLOW_GroupRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `groupId` FROM `groups`\")\;"
-    "return CharacterDatabase.Query(\"SELECT MAX(`groupId`) FROM `groups`\")\;")
+    "return CharacterDatabase.Query(\"SELECT MAX(`groupId`) FROM `groups`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `mainTank`, `mainAssistant`, `lootMethod`, `looterGuid`, `lootThreshold`, `icon1`, `icon2`, `icon3`, `icon4`, `icon5`, `icon6`, `icon7`, `icon8`, `groupType`, `difficulty`, `raiddifficulty`, `leaderGuid`, `groupId` FROM `groups`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `memberGuid`, `assistant`, `subgroup`, `groupId`, `roles` FROM `group_member` ORDER BY `groupId`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `group_instance`.`leaderGuid`, `map`, `instance`, `permanent`, `instance`.`difficulty`, `resettime`, \"")
 
 set(ALLOW_ItemRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `item_instance`\")\;")
@@ -335,7 +341,10 @@ set(ALLOW_CorpseRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `corpse`.`guid`, `player`, `corpse`.`position_x`, `corpse`.`position_y`, `corpse`.`position_z`, `corpse`.`orientation`, `corpse`.`map`, \"")
 
 set(ALLOW_ArenaTeamRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT MAX(`arenateamid`) FROM `arena_team`\")\;")
+    "return CharacterDatabase.Query(\"SELECT MAX(`arenateamid`) FROM `arena_team`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `arena_team`.`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,\""
+    "return CharacterDatabase.Query(\"SELECT `arenateamid`,`member`.`guid`,`played_week`,`wons_week`,`played_season`,`wons_season`,`personal_rating`,`name`,`class` \""
+    "return CharacterDatabase.Query(\"SELECT `arena_team_member`.`guid`, `arena_team_member`.`arenateamid`, `arena_team`.`type` \"")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

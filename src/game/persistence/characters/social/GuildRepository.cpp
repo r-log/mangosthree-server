@@ -264,4 +264,10 @@ namespace GuildRepository
     {
         return CharacterDatabase.Query("SELECT MAX(`guildid`) FROM `guild`");
     }
+
+    QueryResult* QueryMemberRanks()
+    {
+        //                                              0       1          2
+        return CharacterDatabase.Query("SELECT `guid`, `guildid`, `rank` FROM `guild_member`");
+    }
 }
