@@ -36,6 +36,7 @@
 
 #include <list>
 #include <vector>
+#include "persistence/world/economy/LootDataRepository.h"
 
 struct EnchStoreItem
 {
@@ -64,7 +65,7 @@ void LoadRandomEnchantmentsTable()
     RandomItemSuffixEnch.clear();                           // for reload case
 
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`");
+    QueryResult* result = LootDataRepository::QueryItemEnchantments();
 
     if (result)
     {

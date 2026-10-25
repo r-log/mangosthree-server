@@ -36,6 +36,7 @@
 #include "ProgressBar.h"
 #include "DBCStores.h"
 #include "SQLStorages.h"
+#include "persistence/world/spells/SpellDataRepository.h"
 
 /**
  * @brief Loads spell area requirement records from the database.
@@ -47,8 +48,7 @@ void SpellMgr::LoadSpellAreas()
 
     uint32 count = 0;
 
-    //                                                0      1     2            3                   4          5             6           7         8       9
-    QueryResult* result = WorldDatabase.Query("SELECT `spell`, `area`, `quest_start`, `quest_start_active`, `quest_end`, `condition_id`, `aura_spell`, `racemask`, `gender`, `autocast` FROM `spell_area`");
+    QueryResult* result = SpellDataRepository::QuerySpellAreas();
 
     if (!result)
     {

@@ -51,6 +51,7 @@
 #include "ProgressBar.h"
 #include "ScriptMgr.h"
 #include "data/GameConfig.h"
+#include "persistence/world/maps/MapDataRepository.h"
 
 /**
  * @brief Loads and initializes all configured global transports.
@@ -58,7 +59,7 @@
 void MapManager::LoadTransports()
 {
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `name`, `period` FROM `transports`");
+    QueryResult* result = MapDataRepository::QueryTransports();
 
     uint32 count = 0;
     uint32 mapped = 0;
@@ -196,7 +197,7 @@ void MapManager::LoadTransports()
     sLog.outString(">> Loaded %u transports, %u with a map of their own", count, mapped);
 
     // check transport data DB integrity
-    result = WorldDatabase.Query("SELECT `gameobject`.`guid`,`gameobject`.`id`,`transports`.`name` FROM `gameobject`,`transports` WHERE `gameobject`.`id` = `transports`.`entry`");
+    result = MapDataRepository::QueryTransportGameObjects();
     if (result)                                             // wrong data found
     {
         do
