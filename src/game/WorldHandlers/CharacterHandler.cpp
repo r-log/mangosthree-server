@@ -64,6 +64,9 @@
 #include "GameTime.h"
 #include "Timer.h"
 #include "MotionMaster.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/pets/PetRepository.h"
+#include "persistence/login/AccountRepository.h"
 
 // config option SkipCinematics supported values
 enum CinematicsSkipMode
@@ -75,26 +78,6 @@ enum CinematicsSkipMode
 
 namespace
 {
-    /// The slot of the create handler's LOGIN-database holder: how many characters this
-    /// account has across every realm (decoupling D7d).
-    enum CharCreateAccountSlot
-    {
-        CHAR_CREATE_ACCOUNT_REALM_CHARS = 0,
-        CHAR_CREATE_ACCOUNT_COUNT       = 1
-    };
-
-    /// The slots of the create handler's CHARACTER-database holder: the realm's character
-    /// count for this account, the account's characters (level, race, class) and the highest
-    /// `character_pet` id. The last one used to be the SAME statement issued twice, once to
-    /// test and once to fetch; it is one statement in one slot now.
-    enum CharCreateRealmSlot
-    {
-        CHAR_CREATE_REALM_CHAR_COUNT    = 0,
-        CHAR_CREATE_REALM_ACCOUNT_CHARS = 1,
-        CHAR_CREATE_REALM_PET_ID        = 2,
-        CHAR_CREATE_REALM_COUNT         = 3
-    };
-
     /**
      * @brief Queue a staged holder on a database, freeing it if the database refuses it.
      *
@@ -211,70 +194,7 @@ class LoginQueryHolder : public SqlQueryHolder
  */
 bool LoginQueryHolder::Initialize()
 {
-    SetSize(MAX_PLAYER_LOGIN_QUERY);
-
-    bool res = true;
-
-    // NOTE: all fields in `characters` must be read to prevent lost character data at next save in case wrong DB structure.
-    // !!! NOTE: including unused `zone`,`online`
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADFROM,            "SELECT `guid`, `account`, `name`, `race`, `class`, `gender`, `level`, `xp`, `money`, `playerBytes`, `playerBytes2`, `playerFlags`,"
-                     "`position_x`, `position_y`, `position_z`, `map`, `orientation`, `taximask`, `cinematic`, `totaltime`, `leveltime`, `rest_bonus`, `logout_time`, `is_logout_resting`, `resettalents_cost`,"
-                     "`resettalents_time`, `primary_trees`, `trans_x`, `trans_y`, `trans_z`, `trans_o`, `transguid`, `extra_flags`, `stable_slots`, `at_login`, `zone`, `online`, `death_expire_time`, `taxi_path`, `dungeon_difficulty`,"
-                     "`totalKills`, `todayKills`, `yesterdayKills`, `chosenTitle`, `watchedFaction`, `drunk`,"
-                     "`health`, `power1`, `power2`, `power3`, `power4`, `power5`, `specCount`, `activeSpec`, `exploredZones`, `equipmentCache`, `knownTitles`, `actionBars`, `slot`, `createdDate` FROM `characters` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADGROUP,           "SELECT `groupId` FROM group_member WHERE `memberGuid` ='%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADBOUNDINSTANCES,  "SELECT `id`, `permanent`, `map`, `difficulty`, `resettime` FROM `character_instance` LEFT JOIN `instance` ON `instance` = `id` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADAURAS,           "SELECT `caster_guid`,`item_guid`,`spell`,`stackcount`,`remaincharges`,`basepoints0`,`basepoints1`,`basepoints2`,`periodictime0`,`periodictime1`,`periodictime2`,`maxduration`,`remaintime`,`effIndexMask` FROM `character_aura` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADSPELLS,          "SELECT `spell`,`active`,`disabled` FROM `character_spell` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADQUESTSTATUS,     "SELECT `quest`,`status`,`rewarded`,`explored`,`timer`,`mobcount1`,`mobcount2`,`mobcount3`,`mobcount4`,`itemcount1`,`itemcount2`,`itemcount3`,`itemcount4`,`itemcount5`,`itemcount6` FROM `character_queststatus` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADDAILYQUESTSTATUS, "SELECT `quest` FROM `character_queststatus_daily` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADWEEKLYQUESTSTATUS, "SELECT `quest` FROM `character_queststatus_weekly` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADMONTHLYQUESTSTATUS, "SELECT `quest` FROM `character_queststatus_monthly` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADREPUTATION,      "SELECT `faction`,`standing`,`flags` FROM `character_reputation` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADINVENTORY,       "SELECT `data`,`text`,`bag`,`slot`,`item`,`item_template` FROM `character_inventory` JOIN `item_instance` ON `character_inventory`.`item` = `item_instance`.`guid` WHERE `character_inventory`.`guid` = '%u' ORDER BY `bag`,`slot`", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADITEMLOOT,        "SELECT `guid`,`itemid`,`amount`,`suffix`,`property` FROM `item_loot` WHERE `owner_guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADACTIONS,         "SELECT `spec`,`button`,`action`,`type` FROM `character_action` WHERE `guid` = '%u' ORDER BY `button`", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADSOCIALLIST,      "SELECT `friend`,`flags`,`note` FROM `character_social` WHERE `guid` = '%u' LIMIT 255", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADHOMEBIND,        "SELECT `map`,`zone`,`position_x`,`position_y`,`position_z` FROM `character_homebind` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS,  "SELECT `spell`,`item`,`time` FROM `character_spell_cooldown` WHERE `guid` = '%u'", m_guid.GetCounter());
-    if (sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED))
-    {
-        res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADDECLINEDNAMES,   "SELECT `genitive`, `dative`, `accusative`, `instrumental`, `prepositional` FROM `character_declinedname` WHERE `guid` = '%u'", m_guid.GetCounter());
-    }
-    // in other case still be dummy query
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADGUILD,           "SELECT `guildid`,`rank` FROM `guild_member` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADARENAINFO,       "SELECT `arenateamid`, `played_week`, `played_season`, `wons_season`, `personal_rating` FROM `arena_team_member` WHERE `guid`='%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS,    "SELECT `achievement`, `date` FROM `character_achievement` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADCRITERIAPROGRESS, "SELECT `criteria`, `counter`, `date` FROM `character_achievement_progress` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADEQUIPMENTSETS,   "SELECT `setguid`, `setindex`, `name`, `iconname`, `ignore_mask`, `item0`, `item1`, `item2`, `item3`, `item4`, `item5`, `item6`, `item7`, `item8`, `item9`, `item10`, `item11`, `item12`, `item13`, `item14`, `item15`, `item16`, `item17`, `item18` FROM `character_equipmentsets` WHERE `guid` = '%u' ORDER BY setindex", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADBGDATA,          "SELECT `instance_id`, `team`, `join_x`, `join_y`, `join_z`, `join_o`, `join_map`, `taxi_start`, `taxi_end`, `mount_spell` FROM `character_battleground_data` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADACCOUNTDATA,     "SELECT `type`, `time`, `data` FROM `character_account_data` WHERE `guid`='%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADTALENTS,         "SELECT `talent_id`, `current_rank`, `spec` FROM `character_talent` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADSKILLS,          "SELECT `skill`, `value`, `max` FROM `character_skills` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADGLYPHS,          "SELECT `spec`, `slot`, `glyph` FROM `character_glyphs` WHERE `guid`='%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADMAILS,           "SELECT `id`,`messageType`,`sender`,`receiver`,`subject`,`body`,`expire_time`,`deliver_time`,`money`,`cod`,`checked`,`stationery`,`mailTemplateId`,`has_items` FROM `mail` WHERE `receiver` = '%u' ORDER BY `id` DESC", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADMAILEDITEMS,     "SELECT `data`, `text`, `mail_id`, `item_guid`, `item_template` FROM `mail_items` JOIN `item_instance` ON `item_guid` = `guid` WHERE `receiver` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADCURRENCIES,      "SELECT `id`, `totalCount`, `weekCount`, `seasonCount`, `flags` FROM `character_currencies` WHERE `guid` = '%u'", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADCUFPROFILES,     "SELECT `id`, `name`, `frameHeight`, `frameWidth`, `sortBy`, `healthText`, `boolOptions`, `topPoint`, `bottomPoint`, `leftPoint`, `topOffset`, `bottomOffset`, `leftOffset` FROM `character_cuf_profiles` WHERE `guid` = '%u'", m_guid.GetCounter());
-
-    // Decoupling D7e: the five pet tables. `character_pet` and `character_pet_declinedname`
-    // carry an `owner` column and are read directly; `pet_aura`, `pet_spell` and
-    // `pet_spell_cooldown` are keyed on the PET id, so they reach the character through
-    // `character_pet`.
-    //
-    // Every one of them is ordered, and the order is the point: the per-pet statements these
-    // replace read one pet at a time through each table's PRIMARY KEY, so the rows came back
-    // in key order. Ordering by (guid, key) here gives each pet's run the same order it had,
-    // which is what makes _LoadSpells / _LoadAuras / _LoadSpellCooldowns see what they saw.
-    // `character_pet` had no ORDER BY at all and was answered by an index scan on `owner`,
-    // which walks the primary key -- `ORDER BY id` says so out loud.
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETS,            "SELECT `id`, `entry`, `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType` FROM `character_pet` WHERE `owner` = '%u' ORDER BY `id`", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETAURAS,        "SELECT `pet_aura`.`guid`, `pet_aura`.`caster_guid`, `pet_aura`.`item_guid`, `pet_aura`.`spell`, `pet_aura`.`stackcount`, `pet_aura`.`remaincharges`, `pet_aura`.`basepoints0`, `pet_aura`.`basepoints1`, `pet_aura`.`basepoints2`, `pet_aura`.`periodictime0`, `pet_aura`.`periodictime1`, `pet_aura`.`periodictime2`, `pet_aura`.`maxduration`, `pet_aura`.`remaintime`, `pet_aura`.`effIndexMask` FROM `pet_aura` JOIN `character_pet` ON `pet_aura`.`guid` = `character_pet`.`id` WHERE `character_pet`.`owner` = '%u' ORDER BY `pet_aura`.`guid`, `pet_aura`.`caster_guid`, `pet_aura`.`item_guid`, `pet_aura`.`spell`", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETSPELLS,       "SELECT `pet_spell`.`guid`, `pet_spell`.`spell`, `pet_spell`.`active` FROM `pet_spell` JOIN `character_pet` ON `pet_spell`.`guid` = `character_pet`.`id` WHERE `character_pet`.`owner` = '%u' ORDER BY `pet_spell`.`guid`, `pet_spell`.`spell`", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETSPELLCOOLDOWNS, "SELECT `pet_spell_cooldown`.`guid`, `pet_spell_cooldown`.`spell`, `pet_spell_cooldown`.`time` FROM `pet_spell_cooldown` JOIN `character_pet` ON `pet_spell_cooldown`.`guid` = `character_pet`.`id` WHERE `character_pet`.`owner` = '%u' ORDER BY `pet_spell_cooldown`.`guid`, `pet_spell_cooldown`.`spell`", m_guid.GetCounter());
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETDECLINEDNAMES, "SELECT `id`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional` FROM `character_pet_declinedname` WHERE `owner` = '%u' ORDER BY `id`", m_guid.GetCounter());
-
-    return res;
+    return CharacterRepository::StageLoginReads(this, m_guid.GetCounter(), sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED));
 }
 
 // The callbacks find their session again by account id and session id: a session can be gone,
@@ -355,34 +275,11 @@ void WorldSession::HandleCharEnumOpcode(WorldPacket & /*recv_data*/)
     /// get all the data necessary for loading all characters (along with their pets) on the account
     uint32 accountId = GetAccountId();
     proto::SessionId sessionId = GetSessionId();
-    CharacterDatabase.AsyncPQuery([accountId, sessionId](QueryResult* result)
-                                  {
-                                      chrHandler.HandleCharEnumCallback(result, accountId, sessionId);
-                                  },
-                                  !sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) ?
-                                  //   ------- Query Without Declined Names --------
-                                  //           0               1                2                3                 4                  5                       6                        7
-                                  "SELECT `characters`.`guid`, `characters`.`name`, `characters`.`race`, `characters`.`class`, `characters`.`gender`, `characters`.`playerBytes`, `characters`.`playerBytes2`, `characters`.`level`, "
-                                  //   8                9               10                     11                     12                     13                    14
-                                  "`characters`.`zone`, `characters`.`map`, `characters`.`position_x`, `characters`.`position_y`, `characters`.`position_z`, `guild_member`.`guildid`, `characters`.`playerFlags`, "
-                                  //             15                          16                       17                         18                    19                             20
-                                  "`characters`.`at_login`, `character_pet`.`entry`, `character_pet`.`modelid`, `character_pet`.`level`, `characters`.`equipmentCache`, `characters`.`slot` "
-                                  "FROM `characters` LEFT JOIN `character_pet` ON `characters`.`guid`=`character_pet`.`owner` AND `character_pet`.`slot`='%u' "
-                                  "LEFT JOIN `guild_member` ON `characters`.`guid` = `guild_member`.`guid` "
-                                  "WHERE `characters`.`account` = '%u' ORDER BY `characters`.`guid`"
-                                  :
-                                  //   --------- Query With Declined Names ---------
-                                  //                    0                    1                    2                    3                     4                      5                           6                            7
-                                  "SELECT `characters`.`guid`, `characters`.`name`, `characters`.`race`, `characters`.`class`, `characters`.`gender`, `characters`.`playerBytes`, `characters`.`playerBytes2`, `characters`.`level`, "
-                                  //             8                    9                   10                         11                         12                           13                      14
-                                  "`characters`.`zone`, `characters`.`map`, `characters`.`position_x`, `characters`.`position_y`, `characters`.`position_z`, `guild_member`.`guildid`, `characters`.`playerFlags`, "
-                                  //             15                          16                       17                         18                    19                             20                               21
-                                  "`characters`.`at_login`, `character_pet`.`entry`, `character_pet`.`modelid`, `character_pet`.`level`, `characters`.`equipmentCache`, `characters`.`slot`, `character_declinedname`.`genitive` "
-                                  "FROM `characters` LEFT JOIN `character_pet` ON `characters`.`guid` = `character_pet`.`owner` AND `character_pet`.`slot`='%u' "
-                                  "LEFT JOIN `character_declinedname` ON `characters`.`guid` = `character_declinedname`.`guid` "
-                                  "LEFT JOIN `guild_member` ON `characters`.`guid` = `guild_member`.`guid` "
-                                  "WHERE `characters`.`account` = '%u' ORDER BY `characters`.`guid`",
-                                  PET_SAVE_AS_CURRENT, GetAccountId());
+    CharacterRepository::QueryEnum(accountId, PET_SAVE_AS_CURRENT, sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED),
+                                   [accountId, sessionId](QueryResult* result)
+                                   {
+                                       chrHandler.HandleCharEnumCallback(result, accountId, sessionId);
+                                   });
 }
 
 /**
@@ -528,16 +425,11 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recv_data)
 void WorldSession::QueueCharCreateAccountRead(uint32 accountId, proto::SessionId sessionId,
                                               CharCreateRequest request)
 {
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(CHAR_CREATE_ACCOUNT_COUNT);
-    holder->SetPQuery(CHAR_CREATE_ACCOUNT_REALM_CHARS,
-                      "SELECT SUM(`numchars`) FROM `realmcharacters` WHERE `acctid` = '%u'", accountId);
-
-    QueueHolder(LoginDatabase, holder, [accountId, sessionId, request](QueryResult* /*result*/, SqlQueryHolder* h)
-                                       {
-                                           WorldSession::HandleCharCreateAccountCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                                         accountId, sessionId, request);
-                                       });
+    CharacterRepository::QueueCreateAccountRead(accountId, [accountId, sessionId, request](QueryResult* /*result*/, SqlQueryHolder* h)
+                                                {
+                                                    WorldSession::HandleCharCreateAccountCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                                  accountId, sessionId, request);
+                                                });
 }
 
 /**
@@ -598,23 +490,13 @@ void WorldSession::QueueCharCreateRealmReads(uint32 accountId, proto::SessionId 
 {
     CinematicsSkipMode skipCinematics = CinematicsSkipMode(sWorld.getConfig(CONFIG_UINT32_SKIP_CINEMATICS));
 
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(CHAR_CREATE_REALM_COUNT);
-
-    holder->SetPQuery(CHAR_CREATE_REALM_CHAR_COUNT,
-                      "SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
-
-    holder->SetPQuery(CHAR_CREATE_REALM_ACCOUNT_CHARS,
-                      "SELECT `level`,`race`,`class` FROM `characters` WHERE `account` = '%u' %s",
-                      accountId, (skipCinematics == CINEMATICS_SKIP_SAME_RACE || request.playerClass == CLASS_DEATH_KNIGHT) ? "" : "LIMIT 1");
-
-    holder->SetQuery(CHAR_CREATE_REALM_PET_ID, "SELECT id FROM character_pet ORDER BY id DESC LIMIT 1");
-
-    QueueHolder(CharacterDatabase, holder, [accountId, sessionId, request](QueryResult* /*result*/, SqlQueryHolder* h)
-                                           {
-                                               WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                                      accountId, sessionId, request);
-                                           });
+    CharacterRepository::QueueCreateRealmReads(accountId,
+                                               skipCinematics == CINEMATICS_SKIP_SAME_RACE || request.playerClass == CLASS_DEATH_KNIGHT,
+                                               [accountId, sessionId, request](QueryResult* /*result*/, SqlQueryHolder* h)
+                                               {
+                                                   WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                          accountId, sessionId, request);
+                                               });
 }
 
 /**
@@ -834,8 +716,7 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
 
     charcount += 1;
 
-    LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`= '%u' AND `realmid`= '%u'", accountId, realmID);
-    LoginDatabase.PExecute("INSERT INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)",  charcount, accountId, realmID);
+    AccountRepository::SetRealmCharacterCount(accountId, realmID, charcount);
     uint32 pet_id = 1;
     {
         std::unique_ptr<QueryResult> resultPetId(holder->GetResult(CHAR_CREATE_REALM_PET_ID));
@@ -850,50 +731,47 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
 
     if (class_ == CLASS_WARLOCK)
     {
-        // Imp
-        CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 416, %u, 4449, 0, 0, 1, 0, 0, ' ', 1, 100, 282, 72, 1295721046, 0, 0, '7 2 7 1 7 0 129 3110 1 0 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
-        //CharacterDatabase.PExecute("UPDATE characters SET currentPetSlot = '100', petSlotUsed = '3452816845' WHERE guid = %u", pNewChar->GetGUIDLow());
+        PetRepository::ReplaceStarterPet(STARTER_PET_IMP, pet_id, pNewChar->GetGUIDLow());
         pNewChar->GetPetMgr().SetTemporaryUnsummonedPetNumber(pet_id);
     }
     if (class_ == CLASS_HUNTER)
     {
         switch(race_)
         {
-        case RACE_HUMAN: // Wolf
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42717, %u, 903, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295727347, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_HUMAN:
+            PetRepository::ReplaceStarterPet(STARTER_PET_WOLF, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_DWARF: // Bear
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42713, %u, 822, 13481, 1, 1, 0, 0, ' ', 0, 0, 212, 0, 1295727650, 0, 0, '7 2 7 1 7 0 129 2649 129 16827 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_DWARF:
+            PetRepository::ReplaceStarterPet(STARTER_PET_BEAR, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_ORC: // Boar
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42719, %u, 744, 13481, 1, 1, 0, 0, ' ', 0, 0, 212, 0, 1295727175, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_ORC:
+            PetRepository::ReplaceStarterPet(STARTER_PET_BOAR, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_NIGHTELF: // Cat
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42718, %u, 17090, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295727501, 0, 0, '7 2 7 1 7 0 129 2649 129 16827 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_NIGHTELF:
+            PetRepository::ReplaceStarterPet(STARTER_PET_CAT, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_UNDEAD: // Spider
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 51107, %u, 368, 13481, 1, 1, 0, 0, ' ', 0, 0, 202, 0, 1295727821, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_UNDEAD:
+            PetRepository::ReplaceStarterPet(STARTER_PET_SPIDER, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_TAUREN: // Tallstrider
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42720, %u, 29057, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295727912, 0, 0, '7 2 7 1 7 0 129 2649 129 16827 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_TAUREN:
+            PetRepository::ReplaceStarterPet(STARTER_PET_TALLSTRIDER, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_TROLL: // Raptor
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42721, %u, 23518, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295727987, 0, 0, '7 2 7 1 7 0 129 2649 129 50498 129 16827 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_TROLL:
+            PetRepository::ReplaceStarterPet(STARTER_PET_RAPTOR, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_GOBLIN: // Crab
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42715, %u, 27692, 13481, 1, 1, 0, 0, ' ', 0, 0, 212, 0, 1295720595, 0, 0, '7 2 7 1 7 0 129 2649 129 16827 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_GOBLIN:
+            PetRepository::ReplaceStarterPet(STARTER_PET_CRAB, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_BLOODELF: // Dragonhawk
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42710, %u, 23515, 13481, 1, 1, 0, 0, ' ', 0, 0, 202, 0, 1295728068, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_BLOODELF:
+            PetRepository::ReplaceStarterPet(STARTER_PET_DRAGONHAWK, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_DRAENEI: // Moth
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42712, %u, 29056, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295728128, 0, 0, '7 2 7 1 7 0 129 2649 129 49966 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_DRAENEI:
+            PetRepository::ReplaceStarterPet(STARTER_PET_MOTH, pet_id, pNewChar->GetGUIDLow());
             break;
-        case RACE_WORGEN: // Dog
-            CharacterDatabase.PExecute("REPLACE INTO character_pet (`id`, `entry`, `owner`, `modelid`, `CreatedBySpell`, `PetType`, `level`, `exp`, `Reactstate`, `name`, `renamed`, `slot`, `curhealth`, `curmana`, `savetime`, `resettalents_cost`, `resettalents_time`, `abdata`) VALUES (%u, 42722, %u, 30221, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295728219, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')", pet_id, pNewChar->GetGUIDLow());
+        case RACE_WORGEN:
+            PetRepository::ReplaceStarterPet(STARTER_PET_DOG, pet_id, pNewChar->GetGUIDLow());
             break;
         }
-        //CharacterDatabase.PExecute("UPDATE characters SET currentPetSlot = '0', petSlotUsed = '1' WHERE guid = %u", pNewChar->GetGUIDLow());
         pNewChar->GetPetMgr().SetTemporaryUnsummonedPetNumber(pet_id);
     }
 
@@ -1098,15 +976,14 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recv_data)
         return;
     }
 
-    // The holder is the callback's to free, so a refusal is ours: DelayQueryHolder() answers
-    // false without queueing once the database is shutting down (decoupling D7a), and nothing
-    // would ever run its queries or its callback. Same unwind as the Initialize() failure
-    // above -- free it and let the login fail rather than leak it and leave the session stuck
-    // in the loading state.
-    if (!CharacterDatabase.DelayQueryHolder([accountId, sessionId](QueryResult* result, SqlQueryHolder* h)
-                                            {
-                                                chrHandler.HandlePlayerLoginCallback(result, h, accountId, sessionId);
-                                            }, holder))
+    // The holder is the callback's to free, so a refusal is ours: QueueLoginReads() answers false
+    // without queueing once the database is shutting down, and nothing would ever run its queries
+    // or its callback. Same unwind as the Initialize() failure above -- free it and let the login
+    // fail rather than leak it and leave the session stuck in the loading state.
+    if (!CharacterRepository::QueueLoginReads(holder, [accountId, sessionId](QueryResult* result, SqlQueryHolder* h)
+                                              {
+                                                  chrHandler.HandlePlayerLoginCallback(result, h, accountId, sessionId);
+                                              }))
     {
         delete holder;                                      // delete all unprocessed queries
         m_playerLoading = false;
@@ -1385,14 +1262,8 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     }
 
     /* Mark player as online in the database */
-    static SqlStatementID updChars;
-    static SqlStatementID updAccount;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(updChars, "UPDATE `characters` SET `online` = 1 WHERE `guid` = ?");
-    stmt.PExecute(pCurrChar->GetGUIDLow());
-
-    stmt = LoginDatabase.CreateStatement(updAccount, "UPDATE `account` SET `active_realm_id` = ? WHERE `id` = ?");
-    stmt.PExecute(realmID, GetAccountId());
+    CharacterRepository::SetOnline(pCurrChar->GetGUIDLow());
+    AccountRepository::SetActiveRealm(realmID, GetAccountId());
 
     /* Sync player's in-game time with server time */
     pCurrChar->SetInGameTime(GameTime::GetGameTimeMS());

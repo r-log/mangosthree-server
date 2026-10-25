@@ -64,6 +64,7 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
+#include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/talents/TalentRepository.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
 

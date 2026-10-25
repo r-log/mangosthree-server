@@ -75,6 +75,7 @@ set(SRC_GRP_TESTS
     GuildRepositoryTest.cpp
     GuildBankRepositoryTest.cpp
     PetitionRepositoryTest.cpp
+    CharacterRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

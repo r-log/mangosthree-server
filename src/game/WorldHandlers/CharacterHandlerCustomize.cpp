@@ -53,6 +53,8 @@
 #include "CharacterCache.h"
 #include "GameTime.h"
 #include "Timer.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/CharacterTransaction.h"
 
 /**
  * @file CharacterHandlerCustomize.cpp
@@ -60,19 +62,10 @@
  * customize, equipment sets, reorder characters, currency flags and load screen.
  */
 
+static_assert(CHARACTER_DECLINED_NAME_ROW_CASES == MAX_DECLINED_NAME_CASES, "a character's saved declined names are its declined names");
+
 namespace
 {
-    /// The slots of the customize handler's holder (decoupling D7d). Both statements are
-    /// keyed on the character guid alone, so neither needs the other's answer: one holder,
-    /// one round trip, where the handler used to block twice -- once for `at_login` and
-    /// once inside Player::Customize for `playerBytes2`.
-    enum CharCustomizeSlot
-    {
-        CHAR_CUSTOMIZE_AT_LOGIN      = 0,
-        CHAR_CUSTOMIZE_PLAYER_BYTES2 = 1,
-        CHAR_CUSTOMIZE_COUNT         = 2
-    };
-
     /// The one-byte SMSG_CHAR_CUSTOMIZE failure answer.
     void SendCharCustomizeResult(WorldSession* session, uint8 result)
     {
@@ -141,13 +134,11 @@ void WorldSession::HandleCharRenameOpcode(WorldPacket& recv_data)
     // is enabled
     uint32 accountId = GetAccountId();
     proto::SessionId sessionId = GetSessionId();
-    CharacterDatabase.AsyncPQuery([accountId, sessionId, newname](QueryResult* result)
-                                  {
-                                      WorldSession::HandleChangePlayerNameOpcodeCallBack(result, accountId, sessionId, newname);
-                                  },
-                                  "SELECT `guid`, `name` FROM `characters` WHERE `guid` = %u AND `account` = %u AND (`at_login` & %u) = %u",
-                                  guid.GetCounter(), GetAccountId(), AT_LOGIN_RENAME, AT_LOGIN_RENAME
-                                 );
+    CharacterRepository::QueryRenameTarget(guid.GetCounter(), accountId, AT_LOGIN_RENAME,
+                                           [accountId, sessionId, newname](QueryResult* result)
+                                           {
+                                               WorldSession::HandleChangePlayerNameOpcodeCallBack(result, accountId, sessionId, newname);
+                                           });
 }
 
 /**
@@ -204,18 +195,12 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uin
         return;
     }
 
-    // C5: the name is bound, not pasted. Whatever the connection has to do with it -- a real
-    // bind, or the escaping the plain fallback does -- happens inside the delay thread's own
-    // operation, never here. (The old statement pasted the UNESCAPED name; only the SELECT
-    // above was given the escaped copy.)
-    static SqlStatementID renameCharacter;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(renameCharacter,
-                        "UPDATE `characters` SET `name` = ?, `at_login` = `at_login` & ~ ? WHERE `guid` = ?");
-
-    CharacterDatabase.BeginTransaction();
-    stmt.PExecute(newname.c_str(), uint32(AT_LOGIN_RENAME), guidLow);
-    CharacterDatabase.PExecute("DELETE FROM `character_declinedname` WHERE `guid` ='%u'", guidLow);
-    CharacterDatabase.CommitTransaction();
+    // The name is bound, not pasted: whatever the connection has to do with it -- a real bind,
+    // or the escaping the plain fallback does -- happens inside the delay thread's own
+    // operation, never here.
+    CharacterTransaction::Begin();
+    CharacterRepository::Rename(guidLow, newname, uint32(AT_LOGIN_RENAME));
+    CharacterTransaction::Commit();
 
     // Decoupling D7c: the name that answers GetPlayerGuidByName / GetPlayerNameByGUID is
     // the one just written, from this moment on.
@@ -298,23 +283,9 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
         return;
     }
 
-    // C5 (decoupling D7d): the five declined forms were escaped here, on the world thread --
-    // five Database::escape_string() calls, each of which takes query connection zero's lock.
-    // They are bound instead, and whatever escaping the connection needs happens inside the
-    // delay thread's own operation.
-    static SqlStatementID insertDeclinedName;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(insertDeclinedName,
-                        "INSERT INTO `character_declinedname` (`guid`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`) VALUES (?,?,?,?,?,?)");
-    stmt.addUInt32(guid.GetCounter());
-    for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-    {
-        stmt.addString(declinedname.name[i]);
-    }
-
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `character_declinedname` WHERE `guid` = '%u'", guid.GetCounter());
-    stmt.Execute();
-    CharacterDatabase.CommitTransaction();
+    // The five declined forms are bound, so whatever escaping the connection needs happens inside
+    // the delay thread's own operation, not on the world thread.
+    CharacterRepository::SetDeclinedNames(guid.GetCounter(), declinedname.name);
 
     WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
     data << uint32(0);                                      // OK
@@ -420,25 +391,12 @@ void WorldSession::HandleCharCustomizeOpcode(WorldPacket& recv_data)
 void WorldSession::QueueCharCustomizeReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid,
                                            CharCustomizeRequest request)
 {
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(CHAR_CUSTOMIZE_COUNT);
-    holder->SetPQuery(CHAR_CUSTOMIZE_AT_LOGIN,
-                      "SELECT `at_login` FROM `characters` WHERE `guid` = '%u'", guid.GetCounter());
-    //                                                       0
-    holder->SetPQuery(CHAR_CUSTOMIZE_PLAYER_BYTES2,
-                      "SELECT `playerBytes2` FROM `characters` WHERE `guid` = '%u'", guid.GetCounter());
-
-    // DelayQueryHolder() answers false without queueing once the database is shutting down
-    // (decoupling D7a), and the holder is the callback's to free -- so free it here instead.
-    if (!CharacterDatabase.DelayQueryHolder([accountId, sessionId, guid, request]
-                                           (QueryResult* /*result*/, SqlQueryHolder* h)
-                                           {
-                                               WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                                         accountId, sessionId, guid, request);
-                                           }, holder))
-    {
-        delete holder;                                      // delete all unprocessed queries
-    }
+    CharacterRepository::QueueCustomizeReads(guid.GetCounter(), [accountId, sessionId, guid, request]
+                                             (QueryResult* /*result*/, SqlQueryHolder* h)
+                                             {
+                                                 WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                           accountId, sessionId, guid, request);
+                                             });
 }
 
 /**
@@ -527,12 +485,8 @@ void WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> h
                           request.hairColor, request.facialHair, resultBytes->Fetch()[0].GetUInt32());
     }
 
-    // C5: the name is bound, not escaped here.
-    static SqlStatementID renameCustomized;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(renameCustomized,
-                        "UPDATE `characters` SET `name` = ?, `at_login` = `at_login` & ~ ? WHERE `guid` = ?");
-    stmt.PExecute(newname.c_str(), uint32(AT_LOGIN_CUSTOMIZE), guid.GetCounter());
-    CharacterDatabase.PExecute("DELETE FROM `character_declinedname` WHERE `guid` ='%u'", guid.GetCounter());
+    // The name is bound, not escaped here.
+    CharacterRepository::Rename(guid.GetCounter(), newname, uint32(AT_LOGIN_CUSTOMIZE));
 
     std::string IP_str = session->GetRemoteAddress();
     sLog.outChar("Account: %d (IP: %s), Character %s customized to: %s", accountId, IP_str.c_str(), guid.GetString().c_str(), newname.c_str());
@@ -710,11 +664,12 @@ void WorldSession::HandleReorderCharactersOpcode(WorldPacket& recv_data)
         recv_data.ReadGuidBytes<2, 7>(guids[i]);
     }
 
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
     for (uint32 i = 0; i < charCount; ++i)
-        CharacterDatabase.PExecute("UPDATE `characters` SET `slot` = '%u' WHERE `guid` = '%u' AND `account` = '%u'",
-        slots[i], guids[i].GetCounter(), GetAccountId());
-    CharacterDatabase.CommitTransaction();
+    {
+        CharacterRepository::SetSlot(slots[i], guids[i].GetCounter(), GetAccountId());
+    }
+    CharacterTransaction::Commit();
 }
 
 void WorldSession::HandleSetCurrencyFlagsOpcode(WorldPacket& recv_data)

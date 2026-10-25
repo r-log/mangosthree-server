@@ -155,7 +155,7 @@ state_allow(reputation src/tests/PlayerClientPacketsTest.cpp
 state_allow(reputation src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB)"
     NAMES character_reputation)
-state_allow(reputation src/game/WorldHandlers/CharacterHandler.cpp
+state_allow(reputation src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADREPUTATION), handed to Player::_LoadReputations"
     NAMES character_reputation)
 state_allow(reputation src/game/Tools/PlayerDump.cpp
@@ -204,7 +204,7 @@ state_allow(achievement src/game/WorldHandlers/AchievementMgr.h
 state_allow(achievement src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB)"
     NAMES character_achievement character_achievement_progress)
-state_allow(achievement src/game/WorldHandlers/CharacterHandler.cpp
+state_allow(achievement src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECTs (PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS / LOADCRITERIAPROGRESS), handed to AchievementMgr::LoadFromDB"
     NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/game/WorldHandlers/AchievementGlobalMgr.cpp
@@ -270,7 +270,7 @@ state_allow(cooldown src/game/session/packets/spells/CooldownPackets.cpp
 state_allow(cooldown src/game/entities/player/Player.cpp
     WHY "the one-spell clear for the character or its pet (Player::SendClearCooldown), and the whole-character delete (Player::DeleteFromDB)"
     NAMES SMSG_CLEAR_COOLDOWNS character_spell_cooldown)
-state_allow(cooldown src/game/WorldHandlers/CharacterHandler.cpp
+state_allow(cooldown src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS), handed to the owner's per-row load"
     NAMES character_spell_cooldown)
 state_allow(cooldown src/game/Tools/PlayerDump.cpp
@@ -337,7 +337,7 @@ state_allow(glyph src/game/entities/player/talents/GlyphMgr.h
 state_allow(glyph src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB)"
     NAMES character_glyphs)
-state_allow(glyph src/game/WorldHandlers/CharacterHandler.cpp
+state_allow(glyph src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADGLYPHS), handed to the owner's per-row load"
     NAMES character_glyphs)
 state_allow(glyph src/game/Tools/PlayerDump.cpp
@@ -394,7 +394,7 @@ state_allow(social src/game/session/packets/entities/SocialPackets.cpp
 state_allow(social src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB: the read of who lists the character, and the DELETE)"
     NAMES character_social)
-state_allow(social src/game/WorldHandlers/CharacterHandler.cpp
+state_allow(social src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADSOCIALLIST), handed to SocialMgr::LoadFromDB's per-row load"
     NAMES character_social)
 state_allow(social src/game/WorldHandlers/CalendarHandler.cpp
@@ -439,7 +439,7 @@ state_allow(currency src/tests/PlayerClientPacketsTest.cpp
 state_allow(currency src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB)"
     NAMES character_currencies)
-state_allow(currency src/game/WorldHandlers/CharacterHandler.cpp
+state_allow(currency src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADCURRENCIES), handed to the owner's per-row load"
     NAMES character_currencies)
 state_allow(currency src/game/WorldHandlers/World.cpp

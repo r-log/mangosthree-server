@@ -31,12 +31,19 @@
 
 class QueryResult;
 
-/// The accounts' saved rows on the login database (`account`).
+/// The accounts' saved rows on the login database (`account`, `realmcharacters`). Every write is
+/// queued.
 namespace AccountRepository
 {
     /// Asks, asynchronously, for an account's GM level; the callback runs on the world thread with
     /// the result, which it owns.
     void QueryGmLevel(uint32 accountId, std::function<void(QueryResult*)> callback);
+
+    /// Sets the realm an account is playing on.
+    void SetActiveRealm(uint32 realmId, uint32 accountId);
+
+    /// Writes the account's character count on a realm over the old one.
+    void SetRealmCharacterCount(uint32 accountId, uint32 realmId, uint8 count);
 }
 
 #endif

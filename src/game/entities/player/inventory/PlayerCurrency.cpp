@@ -127,7 +127,7 @@ void Player::SendCurrencyWeekCap(CurrencyTypesEntry const* currency) const
 
 void Player::_LoadCurrencies(QueryResult* result)
 {
-    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADCURRENCIES result (CharacterHandler.cpp)
+    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADCURRENCIES result (CharacterRepository.cpp)
 
     if (result)
     {

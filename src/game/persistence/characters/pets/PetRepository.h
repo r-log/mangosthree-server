@@ -81,6 +81,23 @@ struct PetDeclinedNameRow
     std::string name[PET_DECLINED_NAME_ROW_CASES];
 };
 
+/// The pets a new warlock or hunter starts with: the warlock's imp, and each race's hunter pet.
+enum StarterPet
+{
+    STARTER_PET_IMP,
+    STARTER_PET_WOLF,
+    STARTER_PET_BEAR,
+    STARTER_PET_BOAR,
+    STARTER_PET_CAT,
+    STARTER_PET_SPIDER,
+    STARTER_PET_TALLSTRIDER,
+    STARTER_PET_RAPTOR,
+    STARTER_PET_CRAB,
+    STARTER_PET_DRAGONHAWK,
+    STARTER_PET_MOTH,
+    STARTER_PET_DOG
+};
+
 /// The pets' saved rows (`character_pet`, `character_pet_declinedname`, `pet_aura`, `pet_spell`,
 /// `pet_spell_cooldown`). Every write is queued on the character database; a write called inside
 /// CharacterTransaction joins that transaction.
@@ -134,6 +151,9 @@ namespace PetRepository
     /// Renames the owner's pet in one transaction: when declined is set, replaces its declined
     /// forms first, then sets the name and marks the pet renamed.
     void Rename(uint32 ownerId, uint32 petNumber, std::string const& name, PetDeclinedNameRow const* declined);
+
+    /// Writes a new character's starter pet row under a pet number.
+    void ReplaceStarterPet(StarterPet pet, uint32 petNumber, uint32 ownerId);
 }
 
 #endif
