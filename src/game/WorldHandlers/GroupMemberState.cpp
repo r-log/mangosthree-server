@@ -30,6 +30,8 @@
 #include "Group.h"
 #include "MapPersistentStateMgr.h"
 #include "Util.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/social/GroupRepository.h"
 
 /**
  * @file GroupMemberState.cpp
@@ -154,8 +156,7 @@ bool Group::_addMember(ObjectGuid guid, const char* name, bool isAssistant, uint
     if (!isBGGroup())
     {
         // insert into group table
-        CharacterDatabase.PExecute("INSERT INTO `group_member` (`groupId`,`memberGuid`,`assistant`,`subgroup`,`roles`) VALUES ('%u','%u','%u','%u','%u')",
-                                   m_Id, member.guid.GetCounter(), ((member.assistant == 1) ? 1 : 0), member.group, member.roles);
+        GroupRepository::InsertMember(m_Id, member.guid.GetCounter(), ((member.assistant == 1) ? 1 : 0), member.group, member.roles);
     }
 
     return true;
@@ -203,7 +204,7 @@ bool Group::_removeMember(ObjectGuid guid)
 
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `memberGuid`='%u'", guid.GetCounter());
+        GroupRepository::DeleteMember(guid.GetCounter());
     }
 
     if (m_leaderGuid == guid)                               // leader was removed
@@ -238,17 +239,14 @@ void Group::_setLeader(ObjectGuid guid)
         uint32 leader_lowguid = m_leaderGuid.GetCounter();
 
         // TODO: set a time limit to have this function run rarely cause it can be slow
-        CharacterDatabase.BeginTransaction();
+        CharacterTransaction::Begin();
 
         // update the group's bound instances when changing leaders
 
         // remove all permanent binds from the group
         // in the DB also remove solo binds that will be replaced with permbinds
         // from the new leader
-        CharacterDatabase.PExecute(
-            "DELETE FROM `group_instance` WHERE `leaderguid`='%u' AND (`permanent` = 1 OR "
-            "`instance` IN (SELECT `instance` FROM `character_instance` WHERE `guid` = '%u')"
-            ")", leader_lowguid, slot_lowguid);
+        GroupRepository::DeleteBindsReplacedByLeader(leader_lowguid, slot_lowguid);
 
         Player* player = sObjectMgr.GetPlayer(slot->guid);
 
@@ -272,8 +270,7 @@ void Group::_setLeader(ObjectGuid guid)
         }
 
         // update the group's solo binds to the new leader
-        CharacterDatabase.PExecute("UPDATE `group_instance` SET `leaderGuid`='%u' WHERE `leaderGuid` = '%u'",
-                                   slot_lowguid, leader_lowguid);
+        GroupRepository::MoveBindsToLeader(leader_lowguid, slot_lowguid);
 
         // copy the permanent binds from the new leader to the group
         // overwriting the solo binds with permanent ones if necessary
@@ -281,8 +278,8 @@ void Group::_setLeader(ObjectGuid guid)
         Player::ConvertInstancesToGroup(player, this, slot->guid);
 
         // update the group leader
-        CharacterDatabase.PExecute("UPDATE `groups` SET `leaderGuid`='%u' WHERE `groupId`='%u'", slot_lowguid, m_Id);
-        CharacterDatabase.CommitTransaction();
+        GroupRepository::SetLeader(m_Id, slot_lowguid);
+        CharacterTransaction::Commit();
     }
 
     m_leaderGuid = slot->guid;
@@ -361,7 +358,7 @@ bool Group::_setMembersGroup(ObjectGuid guid, uint8 group)
 
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `group_member` SET `subgroup`='%u' WHERE `memberGuid`='%u'", group, guid.GetCounter());
+        GroupRepository::SetMemberSubgroup(guid.GetCounter(), group);
     }
 
     return true;
@@ -385,7 +382,7 @@ bool Group::_setAssistantFlag(ObjectGuid guid, const bool& state)
     slot->assistant = state;
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `group_member` SET `assistant`='%u' WHERE `memberGuid`='%u'", (state == true) ? 1 : 0, guid.GetCounter());
+        GroupRepository::SetMemberAssistant(guid.GetCounter(), (state == true) ? 1 : 0);
     }
     return true;
 }
@@ -421,7 +418,7 @@ bool Group::_setMainTank(ObjectGuid guid)
 
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `groups` SET `mainTank`='%u' WHERE `groupId`='%u'", m_mainTankGuid.GetCounter(), m_Id);
+        GroupRepository::SetMainTank(m_Id, m_mainTankGuid.GetCounter());
     }
 
     return true;
@@ -457,8 +454,7 @@ bool Group::_setMainAssistant(ObjectGuid guid)
     m_mainAssistantGuid = guid;
 
     if (!isBGGroup())
-        CharacterDatabase.PExecute("UPDATE `groups` SET `mainAssistant`='%u' WHERE `groupId`='%u'",
-                                   m_mainAssistantGuid.GetCounter(), m_Id);
+        GroupRepository::SetMainAssistant(m_Id, m_mainAssistantGuid.GetCounter());
 
     return true;
 }

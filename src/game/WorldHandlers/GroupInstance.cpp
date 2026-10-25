@@ -37,6 +37,7 @@
 #include "MapPersistentStateMgr.h"
 #include "Util.h"
 #include "LootMgr.h"
+#include "persistence/characters/social/GroupRepository.h"
 
 /**
  * @file GroupInstance.cpp
@@ -248,7 +249,7 @@ void Group::SetDungeonDifficulty(Difficulty difficulty)
     m_dungeonDifficulty = difficulty;
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `groups` SET `difficulty` = %u WHERE `groupId`='%u'", m_dungeonDifficulty, m_Id);
+        GroupRepository::SetDungeonDifficulty(m_Id, m_dungeonDifficulty);
     }
 
     for (GroupReference* itr = GetFirstMember(); itr != NULL; itr = itr->next())
@@ -268,7 +269,7 @@ void Group::SetRaidDifficulty(Difficulty difficulty)
     m_raidDifficulty = difficulty;
     if (!isBGGroup())
     {
-        CharacterDatabase.PExecute("UPDATE `groups` SET `raiddifficulty` = %u WHERE `groupId` = '%u'", m_raidDifficulty, m_Id);
+        GroupRepository::SetRaidDifficulty(m_Id, m_raidDifficulty);
     }
 
     for (GroupReference* itr = GetFirstMember(); itr != NULL; itr = itr->next())
@@ -403,7 +404,7 @@ void Group::ResetInstances(InstanceResetMethod method, bool isRaid, Player* Send
             }
             else
             {
-                CharacterDatabase.PExecute("DELETE FROM `group_instance` WHERE `instance` = '%u'", state->GetInstanceId());
+                GroupRepository::DeleteBindsOfInstance(state->GetInstanceId());
             }
             // i don't know for sure if hash_map iterators
             m_boundInstances[diff].erase(itr);
@@ -491,12 +492,10 @@ InstanceGroupBind* Group::BindToInstance(DungeonPersistentState* state, bool per
             // when a boss is killed or when copying the players's binds to the group
             if (permanent != bind.perm || state != bind.state)
                 if (!load)
-                    CharacterDatabase.PExecute("UPDATE `group_instance` SET `instance` = '%u', `permanent` = '%u' WHERE `leaderGuid` = '%u' AND `instance` = '%u'",
-                                               state->GetInstanceId(), permanent, GetLeaderGuid().GetCounter(), bind.state->GetInstanceId());
+                    GroupRepository::UpdateBind(GetLeaderGuid().GetCounter(), bind.state->GetInstanceId(), state->GetInstanceId(), permanent);
         }
         else if (!load)
-            CharacterDatabase.PExecute("INSERT INTO `group_instance` (`leaderGuid`, `instance`, `permanent`) VALUES ('%u', '%u', '%u')",
-                                       GetLeaderGuid().GetCounter(), state->GetInstanceId(), permanent);
+            GroupRepository::InsertBind(GetLeaderGuid().GetCounter(), state->GetInstanceId(), permanent);
 
         if (bind.state != state)
         {
@@ -532,8 +531,7 @@ void Group::UnbindInstance(uint32 mapid, uint8 difficulty, bool unload)
     if (itr != m_boundInstances[difficulty].end())
     {
         if (!unload)
-            CharacterDatabase.PExecute("DELETE FROM `group_instance` WHERE `leaderGuid` = '%u' AND `instance` = '%u'",
-                                       GetLeaderGuid().GetCounter(), itr->second.state->GetInstanceId());
+            GroupRepository::DeleteBind(GetLeaderGuid().GetCounter(), itr->second.state->GetInstanceId());
         itr->second.state->RemoveGroup(this);               // save can become invalid
         m_boundInstances[difficulty].erase(itr);
     }
