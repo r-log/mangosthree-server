@@ -43,6 +43,16 @@ namespace
 
 namespace CharacterRepository
 {
+    QueryResult* QueryAccountCharacters(uint32 accountId)
+    {
+        return CharacterDatabase.PQuery("SELECT `guid` FROM `characters` WHERE `account`='%u'", accountId);
+    }
+
+    QueryResult* QueryAccountCharacterCount(uint32 accountId)
+    {
+        return CharacterDatabase.PQuery("SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
+    }
+
     void QueryEnum(uint32 accountId, uint32 currentPetSlot, bool declinedNames, CharacterReadCallback callback)
     {
         CharacterDatabase.AsyncPQuery(std::move(callback),

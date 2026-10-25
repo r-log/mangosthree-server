@@ -207,19 +207,19 @@ set(ALLOW_AccountDataRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7` FROM `character_tutorial` WHERE `account` = '%u'\", accountId)\;")
 
 set(ALLOW_AccountRepository_cpp
+    "return LoginDatabase.PQuery(\"SELECT 1 FROM `account` WHERE `id`='%u'\", accountId)\;"
+    "LoginDatabase.escape_string(safe_new_uname)\;"
+    "LoginDatabase.escape_string(safeName)\;"
+    "return LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `username` = '%s'\", safeName.c_str())\;"
+    "return LoginDatabase.PQuery(\"SELECT `gmlevel` FROM `account` WHERE `id` = '%u'\", accountId)\;"
+    "return LoginDatabase.PQuery(\"SELECT `username` FROM `account` WHERE `id` = '%u'\", accountId)\;"
     "LoginDatabase.escape_string(safeAccount)\;"
     "return LoginDatabase.PQuery(\"SELECT \""
     "return LoginDatabase.PQuery(\"SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 \"")
 
-set(ALLOW_AccountMgr_cpp
-    "QueryResult* result = LoginDatabase.PQuery(\"SELECT 1 FROM `account` WHERE `id`='%u'\", accid)\;"
-    "result = CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accid)\;"
-    "LoginDatabase.escape_string(safe_new_uname)\;"
-    "LoginDatabase.escape_string(username)\;"
-    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `username` = '%s'\", username.c_str())\;"
-    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `gmlevel` FROM `account` WHERE `id` = '%u'\", acc_id)\;"
-    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `username` FROM `account` WHERE `id` = '%u'\", acc_id)\;"
-    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", acc_id)\;")
+set(ALLOW_CharacterRepository_cpp
+    "return CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accountId)\;"
+    "return CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", accountId)\;")
 
 set(ALLOW_AccountCommands_cpp
     "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u\", realmID)\;"

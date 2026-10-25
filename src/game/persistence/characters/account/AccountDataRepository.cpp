@@ -96,4 +96,9 @@ namespace AccountDataRepository
 
         stmt.Execute();
     }
+
+    void DeleteTutorials(uint32 accountId)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `character_tutorial` WHERE `account` = '%u'", accountId);
+    }
 }

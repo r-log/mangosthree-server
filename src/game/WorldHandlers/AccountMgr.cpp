@@ -53,16 +53,9 @@
 #include "Policies/Singleton.h"
 #include "Util.h"
 #include "Auth/Sha1.h"
-
-/**
- * @var LoginDatabase
- * @brief External reference to realm authentication database
- *
- * Used for all account-related database operations including
- * account creation, deletion, and password management.
- */
-extern DatabaseType LoginDatabase;
-
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/account/AccountDataRepository.h"
+#include "persistence/login/AccountRepository.h"
 
 /**
  * @brief Construct AccountMgr singleton
@@ -117,11 +110,11 @@ AccountOpResult AccountMgr::CreateAccount(std::string username, std::string pass
         }
     }
 
-    if (!LoginDatabase.PExecute("INSERT INTO `account` (`username`,`sha_pass_hash`,`joindate`) VALUES ('%s','%s',NOW())", username.c_str(), CalculateShaPassHash(username, password).c_str()))
+    if (!AccountRepository::Insert(username, CalculateShaPassHash(username, password)))
     {
         return AOR_DB_INTERNAL_ERROR;                        // unexpected error
     }
-    LoginDatabase.Execute("INSERT INTO `realmcharacters` (`realmid`, `acctid`, `numchars`) SELECT `realmlist`.`id`, `account`.`id`, 0 FROM `realmlist`,`account` LEFT JOIN `realmcharacters` ON `acctid`=`account`.`id` WHERE `acctid` IS NULL");
+    AccountRepository::LinkNewAccountsToRealms();
 
     return AOR_OK;                                          // everything's fine
 }
@@ -153,11 +146,11 @@ AccountOpResult AccountMgr::CreateAccount(std::string username, std::string pass
         return AOR_NAME_ALREADY_EXIST;                       // username does already exist
     }
 
-    if (!LoginDatabase.PExecute("INSERT INTO `account`(`username`,`sha_pass_hash`,`joindate`,`expansion`) VALUES('%s','%s',NOW(),'%u')", username.c_str(), CalculateShaPassHash(username, password).c_str(), expansion))
+    if (!AccountRepository::InsertWithExpansion(username, CalculateShaPassHash(username, password), expansion))
     {
         return AOR_DB_INTERNAL_ERROR;                       // unexpected error
     }
-    LoginDatabase.Execute("INSERT INTO `realmcharacters` (`realmid`, `acctid`, `numchars`) SELECT `realmlist`.`id`, `account`.`id`, 0 FROM `realmlist`,`account` LEFT JOIN `realmcharacters` ON `acctid`=`account`.`id` WHERE `acctid` IS NULL");
+    AccountRepository::LinkNewAccountsToRealms();
 
     return AOR_OK;                                          // everything's fine
 }
@@ -179,7 +172,7 @@ AccountOpResult AccountMgr::CreateAccount(std::string username, std::string pass
  */
 AccountOpResult AccountMgr::DeleteAccount(uint32 accid)
 {
-    QueryResult* result = LoginDatabase.PQuery("SELECT 1 FROM `account` WHERE `id`='%u'", accid);
+    QueryResult* result = AccountRepository::QueryExists(accid);
     if (!result)
     {
         return AOR_NAME_NOT_EXIST;                           // account doesn't exist
@@ -187,7 +180,7 @@ AccountOpResult AccountMgr::DeleteAccount(uint32 accid)
     delete result;
 
     // existing characters list
-    result = CharacterDatabase.PQuery("SELECT `guid` FROM `characters` WHERE `account`='%u'", accid);
+    result = CharacterRepository::QueryAccountCharacters(accid);
     if (result)
     {
         do
@@ -206,17 +199,9 @@ AccountOpResult AccountMgr::DeleteAccount(uint32 accid)
     }
 
     // table realm specific but common for all characters of account for realm
-    CharacterDatabase.PExecute("DELETE FROM `character_tutorial` WHERE `account` = '%u'", accid);
+    AccountDataRepository::DeleteTutorials(accid);
 
-    LoginDatabase.BeginTransaction();
-
-    bool res =
-        LoginDatabase.PExecute("DELETE FROM `account` WHERE `id`='%u'", accid) &&
-        LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`='%u'", accid);
-
-    LoginDatabase.CommitTransaction();
-
-    if (!res)
+    if (!AccountRepository::Delete(accid))
     {
         return AOR_DB_INTERNAL_ERROR;                        // unexpected error;
     }
@@ -238,7 +223,7 @@ AccountOpResult AccountMgr::DeleteAccount(uint32 accid)
  */
 AccountOpResult AccountMgr::ChangeUsername(uint32 accid, std::string new_uname, std::string new_passwd)
 {
-    QueryResult* result = LoginDatabase.PQuery("SELECT 1 FROM `account` WHERE `id`='%u'", accid);
+    QueryResult* result = AccountRepository::QueryExists(accid);
     if (!result)
     {
         return AOR_NAME_NOT_EXIST;                           // account doesn't exist
@@ -258,14 +243,10 @@ AccountOpResult AccountMgr::ChangeUsername(uint32 accid, std::string new_uname, 
     Utf8ToUpperOnlyLatin(new_uname);
     Utf8ToUpperOnlyLatin(new_passwd);
 
-    std::string safe_new_uname = new_uname;
-    LoginDatabase.escape_string(safe_new_uname);
-
-    if (!LoginDatabase.PExecute("UPDATE `account` SET `v`='0',`s`='0',`username`='%s',`sha_pass_hash`='%s' WHERE `id`='%u'", safe_new_uname.c_str(),
-                                CalculateShaPassHash(new_uname, new_passwd).c_str(), accid))
-                                {
-                                    return AOR_DB_INTERNAL_ERROR;                        // unexpected error
-                                }
+    if (!AccountRepository::SetNameAndPasswordHash(new_uname, CalculateShaPassHash(new_uname, new_passwd), accid))
+    {
+        return AOR_DB_INTERNAL_ERROR;                        // unexpected error
+    }
 
     return AOR_OK;
 }
@@ -298,11 +279,10 @@ AccountOpResult AccountMgr::ChangePassword(uint32 accid, std::string new_passwd)
     Utf8ToUpperOnlyLatin(new_passwd);
 
     // also reset s and v to force update at next realmd login
-    if (!LoginDatabase.PExecute("UPDATE `account` SET `v`='0', `s`='0', `sha_pass_hash`='%s' WHERE `id`='%u'",
-                                CalculateShaPassHash(username, new_passwd).c_str(), accid))
-                                {
-                                    return AOR_DB_INTERNAL_ERROR;                        // unexpected error
-                                }
+    if (!AccountRepository::SetPasswordHash(CalculateShaPassHash(username, new_passwd), accid))
+    {
+        return AOR_DB_INTERNAL_ERROR;                        // unexpected error
+    }
 
     return AOR_OK;
 }
@@ -316,8 +296,7 @@ AccountOpResult AccountMgr::ChangePassword(uint32 accid, std::string new_passwd)
  */
 uint32 AccountMgr::GetId(std::string username)
 {
-    LoginDatabase.escape_string(username);
-    QueryResult* result = LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `username` = '%s'", username.c_str());
+    QueryResult* result = AccountRepository::QueryIdByName(username);
     if (!result)
     {
         return 0;
@@ -339,7 +318,7 @@ uint32 AccountMgr::GetId(std::string username)
  */
 AccountTypes AccountMgr::GetSecurity(uint32 acc_id)
 {
-    QueryResult* result = LoginDatabase.PQuery("SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", acc_id);
+    QueryResult* result = AccountRepository::QueryGmLevel(acc_id);
     if (result)
     {
         AccountTypes sec = AccountTypes((*result)[0].GetInt32());
@@ -360,7 +339,7 @@ AccountTypes AccountMgr::GetSecurity(uint32 acc_id)
  */
 bool AccountMgr::GetName(uint32 acc_id, std::string& name)
 {
-    QueryResult* result = LoginDatabase.PQuery("SELECT `username` FROM `account` WHERE `id` = '%u'", acc_id);
+    QueryResult* result = AccountRepository::QueryName(acc_id);
     if (result)
     {
         name = (*result)[0].GetCppString();
@@ -381,7 +360,7 @@ bool AccountMgr::GetName(uint32 acc_id, std::string& name)
 uint32 AccountMgr::GetCharactersCount(uint32 acc_id)
 {
     // check character count
-    QueryResult* result = CharacterDatabase.PQuery("SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", acc_id);
+    QueryResult* result = CharacterRepository::QueryAccountCharacterCount(acc_id);
     if (result)
     {
         Field* fields = result->Fetch();
@@ -419,7 +398,7 @@ uint32 AccountMgr::GetCharactersCount(uint32 acc_id)
 void AccountMgr::QueueChangePasswordChecked(uint32 accid, std::string oldPasswd, std::string newPasswd,
                                             std::function<void(bool, AccountOpResult)> callback)
 {
-    if (!LoginDatabase.AsyncPQuery([accid, oldPasswd, newPasswd, callback](QueryResult* result) mutable
+    if (!AccountRepository::QueryNameAndPasswordHash(accid, [accid, oldPasswd, newPasswd, callback](QueryResult* result) mutable
                                    {
                                        std::unique_ptr<QueryResult> row(result);
                                        if (!row)
@@ -456,18 +435,17 @@ void AccountMgr::QueueChangePasswordChecked(uint32 accid, std::string oldPasswd,
                                        Utf8ToUpperOnlyLatin(newPasswd);
 
                                        // also reset s and v to force update at next realmd login
-                                       if (!LoginDatabase.PExecute("UPDATE `account` SET `v`='0', `s`='0', `sha_pass_hash`='%s' WHERE `id`='%u'",
-                                                                   sAccountMgr.CalculateShaPassHash(storedName, newPasswd).c_str(), accid))
+                                       if (!AccountRepository::SetPasswordHash(sAccountMgr.CalculateShaPassHash(storedName, newPasswd), accid))
                                        {
                                            callback(true, AOR_DB_INTERNAL_ERROR);
                                            return;
                                        }
 
                                        callback(true, AOR_OK);
-                                   }, "SELECT `username`, `sha_pass_hash` FROM `account` WHERE `id`='%u'", accid))
+                                   }))
     {
-        // LoginDatabase::BeginShutdown is the only way that fails, and it is the same
-        // unknown answer a missing row is (C4).
+        // The login database shutting down is the only way that fails, and it is the same
+        // unknown answer a missing row is.
         callback(false, AOR_NAME_NOT_EXIST);
     }
 }

@@ -30,6 +30,75 @@
 
 namespace AccountRepository
 {
+    bool Insert(std::string const& username, std::string const& passHash)
+    {
+        return LoginDatabase.PExecute("INSERT INTO `account` (`username`,`sha_pass_hash`,`joindate`) VALUES ('%s','%s',NOW())", username.c_str(), passHash.c_str());
+    }
+
+    bool InsertWithExpansion(std::string const& username, std::string const& passHash, uint32 expansion)
+    {
+        return LoginDatabase.PExecute("INSERT INTO `account`(`username`,`sha_pass_hash`,`joindate`,`expansion`) VALUES('%s','%s',NOW(),'%u')", username.c_str(), passHash.c_str(), expansion);
+    }
+
+    void LinkNewAccountsToRealms()
+    {
+        LoginDatabase.Execute("INSERT INTO `realmcharacters` (`realmid`, `acctid`, `numchars`) SELECT `realmlist`.`id`, `account`.`id`, 0 FROM `realmlist`,`account` LEFT JOIN `realmcharacters` ON `acctid`=`account`.`id` WHERE `acctid` IS NULL");
+    }
+
+    QueryResult* QueryExists(uint32 accountId)
+    {
+        return LoginDatabase.PQuery("SELECT 1 FROM `account` WHERE `id`='%u'", accountId);
+    }
+
+    bool Delete(uint32 accountId)
+    {
+        LoginDatabase.BeginTransaction();
+
+        bool res =
+            LoginDatabase.PExecute("DELETE FROM `account` WHERE `id`='%u'", accountId) &&
+            LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`='%u'", accountId);
+
+        LoginDatabase.CommitTransaction();
+        return res;
+    }
+
+    bool SetNameAndPasswordHash(std::string const& username, std::string const& passHash, uint32 accountId)
+    {
+        std::string safe_new_uname = username;
+        LoginDatabase.escape_string(safe_new_uname);
+
+        return LoginDatabase.PExecute("UPDATE `account` SET `v`='0',`s`='0',`username`='%s',`sha_pass_hash`='%s' WHERE `id`='%u'", safe_new_uname.c_str(),
+                                      passHash.c_str(), accountId);
+    }
+
+    bool SetPasswordHash(std::string const& passHash, uint32 accountId)
+    {
+        return LoginDatabase.PExecute("UPDATE `account` SET `v`='0', `s`='0', `sha_pass_hash`='%s' WHERE `id`='%u'",
+                                      passHash.c_str(), accountId);
+    }
+
+    QueryResult* QueryIdByName(std::string const& username)
+    {
+        std::string safeName = username;
+        LoginDatabase.escape_string(safeName);
+        return LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `username` = '%s'", safeName.c_str());
+    }
+
+    QueryResult* QueryGmLevel(uint32 accountId)
+    {
+        return LoginDatabase.PQuery("SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);
+    }
+
+    QueryResult* QueryName(uint32 accountId)
+    {
+        return LoginDatabase.PQuery("SELECT `username` FROM `account` WHERE `id` = '%u'", accountId);
+    }
+
+    bool QueryNameAndPasswordHash(uint32 accountId, std::function<void(QueryResult*)> callback)
+    {
+        return LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `username`, `sha_pass_hash` FROM `account` WHERE `id`='%u'", accountId);
+    }
+
     void RegisterThread()
     {
         // A function-local thread_local runs the guard's constructor the first time a thread gets

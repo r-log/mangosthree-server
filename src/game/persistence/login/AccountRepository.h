@@ -33,10 +33,48 @@
 class QueryResult;
 
 /// The accounts' saved rows on the login database (`account`, `account_banned`, `ip_banned`,
-/// `realmcharacters`). The authentication reads run on the network thread that asks them,
-/// synchronously; every write is queued.
+/// `realmcharacters`). The authentication reads run on the network thread that asks them, and the
+/// account manager's reads on the thread that calls it, synchronously; every write is queued, and
+/// one that returns bool answers false when the database refuses it.
 namespace AccountRepository
 {
+    /// Inserts a new account, joined now; the name and the hash are written as they are.
+    bool Insert(std::string const& username, std::string const& passHash);
+
+    /// Inserts a new account with an expansion, joined now; the name and the hash are written as
+    /// they are.
+    bool InsertWithExpansion(std::string const& username, std::string const& passHash, uint32 expansion);
+
+    /// Gives every account without a `realmcharacters` row a row of no characters on every realm.
+    void LinkNewAccountsToRealms();
+
+    /// Selects a row when the account exists.
+    QueryResult* QueryExists(uint32 accountId);
+
+    /// Deletes an account's row and its `realmcharacters` rows, in one transaction; the second
+    /// delete is issued only when the first was queued.
+    bool Delete(uint32 accountId);
+
+    /// Sets an account's name and password hash and clears its SRP6 values, the name escaped.
+    bool SetNameAndPasswordHash(std::string const& username, std::string const& passHash, uint32 accountId);
+
+    /// Sets an account's password hash and clears its SRP6 values.
+    bool SetPasswordHash(std::string const& passHash, uint32 accountId);
+
+    /// Selects an account's id by name, the name escaped.
+    QueryResult* QueryIdByName(std::string const& username);
+
+    /// Selects an account's GM level.
+    QueryResult* QueryGmLevel(uint32 accountId);
+
+    /// Selects an account's name.
+    QueryResult* QueryName(uint32 accountId);
+
+    /// Asks, asynchronously, for an account's name and password hash; the callback runs on the world
+    /// thread with the result, which it owns. Returns false, and never runs the callback, when the
+    /// database is shutting down.
+    bool QueryNameAndPasswordHash(uint32 accountId, std::function<void(QueryResult*)> callback);
+
     /// Registers the calling thread with the database client library, once per thread; a thread
     /// that reads the login database outside the database's own threads calls it first.
     void RegisterThread();
