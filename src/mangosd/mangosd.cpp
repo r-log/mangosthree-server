@@ -62,6 +62,7 @@
 #include "DBCStores.h"
 #include "MassMailMgr.h"
 #include "ScriptMgr.h"
+#include "persistence/login/RealmRepository.h"
 
 
 #ifdef _WIN32
@@ -76,7 +77,6 @@ int m_ServiceStatus = -1;
 
 #else
 #include "PosixDaemon.h"
-#include "persistence/login/RealmRepository.h"
 #endif
 
 
