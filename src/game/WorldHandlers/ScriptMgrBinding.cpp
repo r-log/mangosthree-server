@@ -36,10 +36,10 @@
 #include "ObjectMgr.h"
 #include <DBCStores.h>
 #include "SQLStorages.h"
+#include "persistence/world/ScriptDataRepository.h"
 
 #ifdef ENABLE_SD3
 #include "system/ScriptDevMgr.h"
-#include "persistence/world/ScriptDataRepository.h"
 #endif
 
 // /////////////////////////////////////////////////////////
