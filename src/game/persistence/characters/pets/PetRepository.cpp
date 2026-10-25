@@ -60,6 +60,13 @@ namespace PetRepository
         stmt.PExecute(notInSlot, ownerId, slot);
     }
 
+    void SetStableSlot(uint32 slot, uint32 ownerId, uint32 petNumber)
+    {
+        CharacterDatabase.PExecute(
+            "UPDATE `character_pet` SET `slot` = '%u' WHERE `owner` = '%u' AND `id` = '%u'",
+            slot, ownerId, petNumber);
+    }
+
     void DeleteUnslotted(uint32 ownerId, uint32 lastStableSlot, uint32 keepPetNumber)
     {
         static SqlStatementID del;

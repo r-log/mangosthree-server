@@ -127,3 +127,17 @@ TEST(TicketRepository_Writes)
     }, __LINE__);
     CHECK_EQ(db.query.executed.size(), size_t(0));
 }
+
+// A bug report's type and content are bound.
+TEST(TicketRepository_BugReport)
+{
+    Db db;
+    {
+        TickGuard::Scope scope;
+        TicketRepository::InsertBugReport("Bug", "the door is stuck");
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CheckLines(db.Take(), {
+        "INSERT INTO `bugreport` (`type`,`content`) VALUES('Bug', 'the door is stuck')",
+    }, __LINE__);
+}

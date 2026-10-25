@@ -308,3 +308,34 @@ TEST(CharacterRepository_StarterPets)
         "VALUES (6, 42722, 43, 30221, 13481, 1, 1, 0, 0, ' ', 0, 0, 192, 0, 1295728219, 0, 0, '7 2 7 1 7 0 129 2649 129 17253 1 0 1 0 6 2 6 1 6 0 ')",
     }, __LINE__);
 }
+
+// The name query, with and without the declined names, and the whois read on the login database
+// are queued and answered on the world thread.
+TEST(CharacterRepository_NameAndWhoisReads)
+{
+    Db chars(CharacterDatabase);
+    Db login(LoginDatabase);
+    int answered = 0;
+    CharacterReadCallback read = [&answered](QueryResult* result) { delete result; ++answered; };
+    {
+        TickGuard::Scope scope;
+        CharacterRepository::QueryName(42, false, read);
+        CharacterRepository::QueryName(42, true, read);
+        CHECK(AccountRepository::QueryWhois(17, read));
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(chars.query.executed.size(), size_t(0));
+        CHECK_EQ(login.query.executed.size(), size_t(0));
+    }
+    CheckLines(chars.Take(), {
+        "SELECT `guid`, `name`, `race`, `gender`, `class` FROM `characters` WHERE `guid` = '42'",
+        "SELECT `characters`.`guid`, `name`, `race`, `gender`, `class`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional` "
+        "FROM `characters` LEFT JOIN `character_declinedname` ON `characters`.`guid` = `character_declinedname`.`guid` WHERE `characters`.`guid` = '42'",
+    }, __LINE__);
+    CheckLines(login.Take(), {
+        "SELECT `username`,`email`,`last_ip` FROM `account` WHERE `id`=17",
+    }, __LINE__);
+    CHECK_EQ(answered, 0);
+    CharacterDatabase.ProcessResultQueue();
+    LoginDatabase.ProcessResultQueue();
+    CHECK_EQ(answered, 3);
+}

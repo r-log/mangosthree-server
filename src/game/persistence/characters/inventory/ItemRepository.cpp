@@ -26,8 +26,22 @@
 #include "ItemRepository.h"
 #include "Database/DatabaseEnv.h"
 
+#include <utility>
+
 namespace ItemRepository
 {
+    void QueryGift(uint32 itemGuid, std::function<void(QueryResult*)> callback)
+    {
+        CharacterDatabase.AsyncPQuery(std::move(callback),
+                                      "SELECT `entry`, `flags` FROM `character_gifts` WHERE `item_guid` = '%u'",
+                                      itemGuid);
+    }
+
+    void InsertGift(uint32 ownerGuid, uint32 itemGuid, uint32 entry, uint32 flags)
+    {
+        CharacterDatabase.PExecute("INSERT INTO `character_gifts` VALUES ('%u', '%u', '%u', '%u')", ownerGuid, itemGuid, entry, flags);
+    }
+
     void DeleteInstance(uint32 itemGuid)
     {
         static SqlStatementID delItem;

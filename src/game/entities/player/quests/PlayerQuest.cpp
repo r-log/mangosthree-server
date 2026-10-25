@@ -65,6 +65,7 @@
 #include "DisableMgr.h"
 #include "QuestCompletePacket.h"
 #include "QuestRewardRules.h"
+#include "persistence/characters/quests/QuestTrackerRepository.h"
 
 /*********************************************************/
 /***                    QUEST SYSTEM                   ***/
@@ -809,16 +810,7 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
     {
         DEBUG_LOG("QUEST TRACKER: Quest Added.");
 
-        static SqlStatementID CHAR_INS_QUEST_TRACK;
-        // prepare Quest Tracker datas
-        SqlStatement stmt = CharacterDatabase.CreateStatement(CHAR_INS_QUEST_TRACK, "INSERT INTO `quest_tracker` (`id`, `character_guid`, `quest_accept_time`, `core_hash`, `core_revision`) VALUES (?, ?, NOW(), ?, ?)");
-        stmt.addUInt32(quest_id);
-        stmt.addUInt32(GetGUIDLow());
-        stmt.addString(Version::GetHash());
-        stmt.addString(Version::GetDate());
-
-        // add to Quest Tracker
-        stmt.Execute();
+        QuestTrackerRepository::InsertAccept(quest_id, GetGUIDLow(), Version::GetHash(), Version::GetDate());
     }
 }
 
@@ -852,14 +844,7 @@ void Player::CompleteQuest(uint32 quest_id, QuestStatus status)
     if (sGameConfig.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
     {
         DEBUG_LOG("QUEST TRACKER: Quest Completed.");
-        static SqlStatementID CHAR_UPD_QUEST_TRACK_COMPLETE_TIME;
-        // prepare Quest Tracker datas
-        SqlStatement stmt = CharacterDatabase.CreateStatement(CHAR_UPD_QUEST_TRACK_COMPLETE_TIME, "UPDATE `quest_tracker` SET `quest_complete_time` = NOW() WHERE `id` = ? AND `character_guid` = ? ORDER BY `quest_accept_time` DESC LIMIT 1");
-        stmt.addUInt32(quest_id);
-        stmt.addUInt32(GetGUIDLow());
-
-        // add to Quest Tracker
-        stmt.Execute();
+        QuestTrackerRepository::SetCompleteTime(quest_id, GetGUIDLow());
     }
 }
 

@@ -39,6 +39,7 @@
 #include "entities/player/social/SocialMgr.h"
 #include "Tools/Language.h"
 #include "Server/DBCStores.h"
+#include "persistence/characters/CharacterTransaction.h"
 
 /**
  * @brief Handles the client notification that a trade request was ignored.
@@ -468,10 +469,10 @@ void TradeHandlers::HandleAcceptTrade(WorldSession& session, WorldPacket& recvPa
         trader->m_trade = NULL;
 
         // desynchronized with the other saves here (SaveInventoryAndGoldToDB() not have own transaction guards)
-        CharacterDatabase.BeginTransaction();
+        CharacterTransaction::Begin();
         session.GetPlayer()->SaveInventoryAndGoldToDB();
         trader->SaveInventoryAndGoldToDB();
-        CharacterDatabase.CommitTransaction();
+        CharacterTransaction::Commit();
 
         trader->GetSession()->SendTradeStatus(TRADE_STATUS_TRADE_COMPLETE);
         session.SendTradeStatus(TRADE_STATUS_TRADE_COMPLETE);

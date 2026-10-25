@@ -58,8 +58,9 @@ struct GMTicketRow
     uint32 ticketId = 0;
 };
 
-/// The GM tickets' and surveys' saved rows (`character_ticket`, `gm_surveys`). The three loads run
-/// at startup, synchronously; every write is queued on the character database.
+/// The GM tickets', surveys' and bug reports' saved rows (`character_ticket`, `gm_surveys`,
+/// `bugreport`). The three loads run at startup, synchronously; every write is queued on the
+/// character database.
 namespace TicketRepository
 {
     /// The highest ticket id in the table, 0 when there is none.
@@ -91,6 +92,9 @@ namespace TicketRepository
 
     /// Inserts a survey's row, the comment bound.
     void InsertSurvey(GMSurveyRow const& row);
+
+    /// Inserts a bug report or a suggestion, both strings bound.
+    void InsertBugReport(std::string const& type, std::string const& content);
 }
 
 #endif

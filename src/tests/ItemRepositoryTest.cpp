@@ -31,6 +31,7 @@
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
+#include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 
 #include <string>
@@ -137,4 +138,30 @@ TEST(ItemRepository_LootWrites)
         "DELETE FROM `item_loot` WHERE `guid` = '55' AND `itemid` = '2589'",
         "DELETE FROM `item_loot` WHERE `guid` = '55' AND `itemid` = '-395'",
     }, __LINE__);
+}
+
+// A wrapped item's gift read is queued and answered on the world thread; wrapping inserts the row
+// inside the transaction the wrap opens, and unwrapping deletes it.
+TEST(ItemRepository_GiftRows)
+{
+    Db db;
+    int answered = 0;
+    {
+        TickGuard::Scope scope;
+        ItemRepository::QueryGift(9, [&answered](QueryResult* result) { delete result; ++answered; });
+        CharacterTransaction::Begin();
+        ItemRepository::InsertGift(42, 9, 5043, 8);
+        CharacterTransaction::Commit();
+        ItemRepository::DeleteGift(9);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(3));
+    }
+    CheckLines(db.Take(), {
+        "SELECT `entry`, `flags` FROM `character_gifts` WHERE `item_guid` = '9'",
+        "INSERT INTO `character_gifts` VALUES ('42', '9', '5043', '8')",
+        "DELETE FROM `character_gifts` WHERE `item_guid` = '9'",
+    }, __LINE__);
+    CHECK_EQ(answered, 0);
+    CharacterDatabase.ProcessResultQueue();
+    CHECK_EQ(answered, 1);
 }

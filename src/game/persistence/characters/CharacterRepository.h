@@ -147,6 +147,10 @@ namespace CharacterRepository
     /// Marks every character of an account offline.
     void SetAccountOffline(uint32 accountId);
 
+    /// Asks for what a name query answers: a character's guid, name, race, gender and class, and
+    /// its five declined names when declinedNames is set.
+    void QueryName(uint32 guid, bool declinedNames, CharacterReadCallback callback);
+
     /// Asks for a character's guid and name when it belongs to the account and has renameFlag
     /// set in at_login.
     void QueryRenameTarget(uint32 guid, uint32 accountId, uint32 renameFlag, CharacterReadCallback callback);

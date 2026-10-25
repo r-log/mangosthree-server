@@ -178,6 +178,24 @@ namespace CharacterRepository
         stmt.PExecute(accountId);
     }
 
+    void QueryName(uint32 guid, bool declinedNames, CharacterReadCallback callback)
+    {
+        CharacterDatabase.AsyncPQuery(std::move(callback),
+                                      !declinedNames ?
+                                      //   ------- Query Without Declined Names --------
+                                      //       0       1       2       3         4
+                                      "SELECT `guid`, `name`, `race`, `gender`, `class` "
+                                      "FROM `characters` WHERE `guid` = '%u'"
+                                      :
+                                      //   --------- Query With Declined Names ---------
+                                      //                    0       1       2       3         4
+                                      "SELECT `characters`.`guid`, `name`, `race`, `gender`, `class`, "
+                                      //   5        6         7             8               9
+                                      "`genitive`, `dative`, `accusative`, `instrumental`, `prepositional` "
+                                      "FROM `characters` LEFT JOIN `character_declinedname` ON `characters`.`guid` = `character_declinedname`.`guid` WHERE `characters`.`guid` = '%u'",
+                                      guid);
+    }
+
     void QueryRenameTarget(uint32 guid, uint32 accountId, uint32 renameFlag, CharacterReadCallback callback)
     {
         CharacterDatabase.AsyncPQuery(std::move(callback),
