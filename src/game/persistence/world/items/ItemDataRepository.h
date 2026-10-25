@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+#include <string>
+
 class QueryResult;
 
 /// The item data on the world database: `ObjectMgr`'s item loads and the hotfix list at startup and
