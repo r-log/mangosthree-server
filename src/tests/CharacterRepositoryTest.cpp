@@ -193,7 +193,7 @@ TEST(CharacterRepository_LoginReads)
     CHECK(StartsWith(got[0], "SELECT `guid`, `account`, `name`, `race`, `class`, `gender`, `level`, `xp`, `money`, "));
     CHECK(EndsWith(got[0], "`slot`, `createdDate` FROM `characters` WHERE `guid` = '42'"));
     CHECK_STR(got[1], "SELECT `groupId` FROM group_member WHERE `memberGuid` ='42'");
-    CHECK_STR(got[13], "SELECT `spell`,`item`,`time` FROM `character_spell_cooldown` WHERE `guid` = '42'");
+    CHECK_STR(got[12], "SELECT `map`,`zone`,`position_x`,`position_y`,`position_z` FROM `character_homebind` WHERE `guid` = '42'");
     CHECK_STR(got[14], "SELECT `guildid`,`rank` FROM `guild_member` WHERE `guid` = '42'");
     CHECK_STR(got[MAX_PLAYER_LOGIN_QUERY - 2],
               "SELECT `id`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional` FROM `character_pet_declinedname` WHERE `owner` = '42' ORDER BY `id`");
