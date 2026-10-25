@@ -87,6 +87,7 @@
 
 #include <iostream>
 #include <sstream>
+#include "persistence/world/DbVersionRepository.h"
 
 /**
  * @file WorldConfig.cpp
@@ -732,7 +733,7 @@ void World::LoadConfigSettings(bool reload)
  */
 void World::LoadDBVersion()
 {
-    QueryResult* result = WorldDatabase.Query("SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1");
+    QueryResult* result = DbVersionRepository::QueryVersion();
     if (result)
     {
         Field* fields = result->Fetch();

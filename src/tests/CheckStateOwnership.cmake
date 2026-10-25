@@ -437,7 +437,7 @@ state_row(currency
     TYPES   CurrencyMgr)
 
 state_allow(currency src/game/persistence/characters/inventory/CurrencyRepository.cpp
-    WHY "the owner's repository: reads a login row (its columns in a comment) and writes the rows the owner hands it, and the invalid-row DELETE"
+    WHY "the owner's repository: reads a login row (its columns in a comment) and writes the rows the owner hands it, the invalid-row DELETE and the realm-wide weekly reset's UPDATE"
     NAMES character_currencies)
 state_allow(currency src/game/entities/player/inventory/CurrencyMgr.h
     WHY "the owner's header: the flags' doc comment names the table"
@@ -453,9 +453,6 @@ state_allow(currency src/game/persistence/characters/CharacterDeleteRepository.c
     NAMES character_currencies)
 state_allow(currency src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADCURRENCIES), handed to the owner's per-row load"
-    NAMES character_currencies)
-state_allow(currency src/game/WorldHandlers/World.cpp
-    WHY "realm-wide weekly reset (World::ResetCurrencyWeekCounts): every character's week count in one UPDATE, then each online character's manager"
     NAMES character_currencies)
 state_allow(currency src/game/Harness/Trace.cpp
     WHY "harness recorder rule table: classifies the packet by opcode (hashes it), builds nothing"

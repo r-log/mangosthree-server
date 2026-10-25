@@ -37,4 +37,69 @@ namespace SavedVariablesRepository
     {
         CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextArenaPointDistributionTime`) VALUES ('" UI64FMTD "')", time);
     }
+
+    QueryResult* QueryNextWeeklyQuestReset()
+    {
+        return CharacterDatabase.Query("SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`");
+    }
+
+    QueryResult* QueryNextDailyQuestReset()
+    {
+        return CharacterDatabase.Query("SELECT `NextDailyQuestResetTime` FROM `saved_variables`");
+    }
+
+    QueryResult* QueryNextMonthlyQuestReset()
+    {
+        return CharacterDatabase.Query("SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`");
+    }
+
+    QueryResult* QueryNextCurrencyReset()
+    {
+        return CharacterDatabase.Query("SELECT `NextCurrenciesResetTime` FROM `saved_variables`");
+    }
+
+    QueryResult* QueryNextRandomBGReset()
+    {
+        return CharacterDatabase.Query("SELECT `NextRandomBGResetTime` FROM `saved_variables`");
+    }
+
+    void InsertNextWeeklyQuestReset(uint64 time)
+    {
+        CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextWeeklyQuestResetTime`) VALUES ('" UI64FMTD "')", time);
+    }
+
+    void InsertNextDailyQuestReset(uint64 time)
+    {
+        CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextDailyQuestResetTime`) VALUES ('" UI64FMTD "')", time);
+    }
+
+    void InsertNextCurrencyReset(uint64 time)
+    {
+        CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextCurrenciesResetTime`) VALUES ('" UI64FMTD "')", time);
+    }
+
+    void InsertNextRandomBGReset(uint64 time)
+    {
+        CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextRandomBGResetTime`) VALUES ('" UI64FMTD "')", time);
+    }
+
+    void SetNextMonthlyQuestReset(uint64 time)
+    {
+        CharacterDatabase.PExecute("UPDATE `saved_variables` SET `NextMonthlyQuestResetTime` = '" UI64FMTD "'", time);
+    }
+
+    void SetNextDailyQuestReset(uint64 time)
+    {
+        CharacterDatabase.PExecute("UPDATE `saved_variables` SET `NextDailyQuestResetTime` = '" UI64FMTD "'", time);
+    }
+
+    void SetNextWeeklyQuestReset(uint64 time)
+    {
+        CharacterDatabase.PExecute("UPDATE `saved_variables` SET `NextWeeklyQuestResetTime` = '" UI64FMTD "'", time);
+    }
+
+    void SetNextCurrencyReset(uint64 time)
+    {
+        CharacterDatabase.PExecute("UPDATE saved_variables SET `NextCurrenciesResetTime` = '" UI64FMTD "'", time);
+    }
 }

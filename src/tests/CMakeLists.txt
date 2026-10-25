@@ -87,6 +87,7 @@ set(SRC_GRP_TESTS
     WorldDataRepositoryTest.cpp
     StartupRepositoryTest.cpp
     CommandRepositoryTest.cpp
+    RealmRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

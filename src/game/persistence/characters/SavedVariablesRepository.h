@@ -30,7 +30,7 @@
 
 class QueryResult;
 
-/// The realm's saved variables (`saved_variables`). The startup read runs synchronously; every
+/// The realm's saved variables (`saved_variables`). The startup reads run synchronously; every
 /// write is queued on the character database.
 namespace SavedVariablesRepository
 {
@@ -39,6 +39,45 @@ namespace SavedVariablesRepository
 
     /// Inserts the next automatic arena point distribution time.
     void InsertNextArenaPointDistribution(uint64 time);
+
+    /// Each selects one of the next reset times, at start-up.
+    QueryResult* QueryNextWeeklyQuestReset();
+
+    /// The daily quests'.
+    QueryResult* QueryNextDailyQuestReset();
+
+    /// The monthly quests'.
+    QueryResult* QueryNextMonthlyQuestReset();
+
+    /// The currencies'.
+    QueryResult* QueryNextCurrencyReset();
+
+    /// The random battleground's.
+    QueryResult* QueryNextRandomBGReset();
+
+    /// Each inserts one of the next reset times when there is none.
+    void InsertNextWeeklyQuestReset(uint64 time);
+
+    /// The daily quests'.
+    void InsertNextDailyQuestReset(uint64 time);
+
+    /// The currencies'.
+    void InsertNextCurrencyReset(uint64 time);
+
+    /// The random battleground's.
+    void InsertNextRandomBGReset(uint64 time);
+
+    /// Each writes one of the next reset times over the saved row.
+    void SetNextMonthlyQuestReset(uint64 time);
+
+    /// The daily quests'.
+    void SetNextDailyQuestReset(uint64 time);
+
+    /// The weekly quests'.
+    void SetNextWeeklyQuestReset(uint64 time);
+
+    /// The currencies'.
+    void SetNextCurrencyReset(uint64 time);
 }
 
 #endif

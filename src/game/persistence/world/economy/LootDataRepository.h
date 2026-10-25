@@ -40,6 +40,9 @@ namespace LootDataRepository
 
     /// Selects every random item enchantment (`item_enchantment_template`).
     QueryResult* QueryItemEnchantments();
+
+    /// Selects every item any loot table drops, for the auction house bot's filter.
+    QueryResult* QueryLootItemEntries();
 }
 
 #endif

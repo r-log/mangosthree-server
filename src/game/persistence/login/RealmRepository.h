@@ -28,11 +28,24 @@
 
 #include "Platform/Define.h"
 
-/// The realm list on the login database (`realmlist`). Every write is queued.
+/// The realm list and the realm's uptime rows on the login database (`realmlist`, `uptime`). Every
+/// write is queued.
 namespace RealmRepository
 {
     /// Sets the population the realm list shows for a realm.
     void SetPopulation(float population, uint32 realmId);
+
+    /// Writes the realm's type and time zone into the realm list, at start-up.
+    void SetTypeAndZone(uint32 type, uint32 zone, uint32 realmId);
+
+    /// Inserts the realm's uptime row for this start.
+    void InsertUptime(uint32 realmId, uint64 startTime, char const* startString);
+
+    /// Writes the realm's uptime and peak player count for this start.
+    void SetUptime(uint32 uptime, uint32 maxPlayers, uint32 realmId, uint64 startTime);
+
+    /// Writes the lowest security level the realm admits.
+    void SetAllowedSecurityLevel(uint32 level, uint32 realmId);
 }
 
 #endif

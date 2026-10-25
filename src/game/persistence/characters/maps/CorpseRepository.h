@@ -62,6 +62,9 @@ namespace CorpseRepository
 
     /// Selects every corpse that is not bones with its player's appearance and guild, at start-up.
     QueryResult* QueryCorpses();
+
+    /// Deletes the bones and the corpses older than a number of seconds, at start-up.
+    void DeleteBonesAndOldCorpses(uint32 maxAge);
 }
 
 #endif

@@ -80,4 +80,9 @@ namespace NpcDataRepository
         //                                 0      1  2  3      4     5
         return WorldDatabase.Query("SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`");
     }
+
+    QueryResult* QueryVendorItemEntries()
+    {
+        return WorldDatabase.Query("SELECT DISTINCT `item` FROM `npc_vendor`");
+    }
 }

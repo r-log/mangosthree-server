@@ -69,6 +69,15 @@ set(CONVERTED_FILES
     src/game/persistence/characters/pvp/BattleGroundStatsRepository.cpp
     src/game/persistence/characters/SavedVariablesRepository.h
     src/game/persistence/characters/SavedVariablesRepository.cpp
+    src/game/persistence/DatabaseLifecycle.h
+    src/game/persistence/DatabaseLifecycle.cpp
+    src/game/persistence/world/DbVersionRepository.h
+    src/game/persistence/world/DbVersionRepository.cpp
+    src/game/persistence/world/BroadcastDataRepository.h
+    src/game/persistence/world/BroadcastDataRepository.cpp
+    src/game/WorldHandlers/World.cpp
+    src/game/WorldHandlers/WorldConfig.cpp
+    src/game/AuctionHouseBot/AuctionHouseBot.cpp
     src/game/persistence/world/CommandDataRepository.h
     src/game/persistence/world/CommandDataRepository.cpp
     src/game/persistence/world/ScriptDataRepository.h
@@ -304,7 +313,8 @@ set(ALLOW_CreatureEventAIRepository_cpp
 
 set(ALLOW_LootDataRepository_cpp
     "return WorldDatabase.PQuery(\"SELECT `entry`, `item`, `ChanceOrQuestChance`, `groupid`, `mincountOrRef`, `maxcount`, `condition_id` FROM `%s`\", table)\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`\")\;")
+    "return WorldDatabase.Query(\"SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`\")\;"
+    "return WorldDatabase.PQuery(\"SELECT `item` FROM `creature_loot_template` UNION \"")
 
 set(ALLOW_SkillDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`\")\;"
@@ -330,7 +340,12 @@ set(ALLOW_BattleGroundStatsRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `pvpstats_battlegrounds`\")\;")
 
 set(ALLOW_SavedVariablesRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT `NextArenaPointDistributionTime` FROM `saved_variables`\")\;")
+    "return CharacterDatabase.Query(\"SELECT `NextArenaPointDistributionTime` FROM `saved_variables`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `NextDailyQuestResetTime` FROM `saved_variables`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `NextCurrenciesResetTime` FROM `saved_variables`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `NextRandomBGResetTime` FROM `saved_variables`\")\;")
 
 set(ALLOW_TicketRepository_cpp
     "if (QueryResult* highest = CharacterDatabase.Query(\"SELECT MAX(`ticket_id`) FROM `character_ticket`\"))"
@@ -394,7 +409,8 @@ set(ALLOW_CharacterRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u\", guid)\;"
     "return CharacterDatabase.PQuery(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), name)\;"
     "return CharacterDatabase.Query(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL\")\;"
-    "return CharacterDatabase.PQuery(\"SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'\", guid)\;")
+    "return CharacterDatabase.PQuery(\"SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'\", guid)\;"
+    "return CharacterDatabase.PQuery(\"SELECT `account` FROM `characters` WHERE `name` = '%s'\", name.c_str())\;")
 
 set(ALLOW_PetRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `character_pet`\")\;")
@@ -496,7 +512,8 @@ set(ALLOW_NpcDataRepository_cpp
     "return WorldDatabase.PQuery(\"SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel` FROM `%s`\", table)\;"
     "return WorldDatabase.PQuery(\"SELECT `entry`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `condition_id` FROM `%s`\", table)\;"
     "return WorldDatabase.Query(\"SELECT `npc_entry`, `spell_id`, `quest_start`, `quest_start_active`, `quest_end`, `cast_flags`, `condition_id` FROM `npc_spellclick_spells`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`\")\;")
+    "return WorldDatabase.Query(\"SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`\")\;"
+    "return WorldDatabase.Query(\"SELECT DISTINCT `item` FROM `npc_vendor`\")\;")
 
 set(ALLOW_PlayerDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`, `phaseMap` FROM `playercreateinfo`\")\;"
@@ -563,7 +580,10 @@ set(ALLOW_BanRepository_cpp
     "return LoginDatabase.PQuery(\"SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`\""
     "LoginDatabase.escape_string(filter)\;"
     "return LoginDatabase.Query(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\""
-    "return LoginDatabase.PQuery(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\"")
+    "return LoginDatabase.PQuery(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\""
+    "LoginDatabase.escape_string(text)\;"
+    "return LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `last_ip` = '%s'\", ip.c_str())\;"
+    "return LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `username` = '%s'\", name.c_str())\;")
 
 set(ALLOW_CommandDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;"
@@ -575,6 +595,12 @@ set(ALLOW_ScriptDataRepository_cpp
     "return WorldDatabase.PQuery(\"SELECT `id`, `delay`, `command`, `datalong`, `datalong2`, `buddy_entry`, `search_radius`, `data_flags`, `dataint`, `dataint2`, `dataint3`, `dataint4`, `x`, `y`, `z`, `o` FROM `db_scripts` WHERE `script_type` = %d ORDER BY `script_guid` ASC\", type)\;"
     "return WorldDatabase.PQuery(\"SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`\")\;"
     "return WorldDatabase.PQuery(\"SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`\")\;")
+
+set(ALLOW_DbVersionRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1\")\;")
+
+set(ALLOW_BroadcastDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`\")\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

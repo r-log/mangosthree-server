@@ -84,4 +84,41 @@ namespace BanRepository
                                     " WHERE `account`.`id` = `account_banned`.`id` AND `active` = 1 AND `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")" GROUP BY `account`.`id`",
                                     filter.c_str());
     }
+
+    void EscapeString(std::string& text)
+    {
+        LoginDatabase.escape_string(text);
+    }
+
+    QueryResult* QueryAccountsOnIp(std::string const& ip)
+    {
+        return LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `last_ip` = '%s'", ip.c_str());
+    }
+
+    void InsertIpBan(std::string const& ip, uint32 duration, std::string const& author, std::string const& reason)
+    {
+        LoginDatabase.PExecute("INSERT INTO `ip_banned` VALUES ('%s',UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+%u,'%s','%s')", ip.c_str(), duration, author.c_str(), reason.c_str());
+    }
+
+    QueryResult* QueryAccountIdNamed(std::string const& name)
+    {
+        return LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `username` = '%s'", name.c_str());
+    }
+
+    void InsertAccountBan(uint32 accountId, uint32 duration, std::string const& author, std::string const& reason)
+    {
+        LoginDatabase.PExecute("INSERT INTO `account_banned` VALUES ('%u', UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+%u, '%s', '%s', '1')",
+                               accountId, duration, author.c_str(), reason.c_str());
+    }
+
+    void DeleteIpBan(std::string ip)
+    {
+        LoginDatabase.escape_string(ip);
+        LoginDatabase.PExecute("DELETE FROM `ip_banned` WHERE `ip` = '%s'", ip.c_str());
+    }
+
+    void DeactivateAccountBans(uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account_banned` SET `active` = '0' WHERE `id` = '%u'", accountId);
+    }
 }

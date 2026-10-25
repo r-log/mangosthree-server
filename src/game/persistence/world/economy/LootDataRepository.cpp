@@ -38,4 +38,18 @@ namespace LootDataRepository
     {
         return WorldDatabase.Query("SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`");
     }
+
+    QueryResult* QueryLootItemEntries()
+    {
+        return WorldDatabase.PQuery("SELECT `item` FROM `creature_loot_template` UNION "
+                                    "SELECT `item` FROM `disenchant_loot_template` UNION "
+                                    "SELECT `item` FROM `fishing_loot_template` UNION "
+                                    "SELECT `item` FROM `gameobject_loot_template` UNION "
+                                    "SELECT `item` FROM `item_loot_template` UNION "
+                                    "SELECT `item` FROM `milling_loot_template` UNION "
+                                    "SELECT `item` FROM `pickpocketing_loot_template` UNION "
+                                    "SELECT `item` FROM `prospecting_loot_template` UNION "
+                                    "SELECT `item` FROM `skinning_loot_template` UNION "
+                                    "SELECT `item` FROM `spell_loot_template`");
+    }
 }

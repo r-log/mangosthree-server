@@ -121,6 +121,16 @@
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "wire/MovementCapture.h"
+#include "persistence/DatabaseLifecycle.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/SavedVariablesRepository.h"
+#include "persistence/characters/inventory/CurrencyRepository.h"
+#include "persistence/characters/maps/CorpseRepository.h"
+#include "persistence/characters/quests/QuestStatusRepository.h"
+#include "persistence/login/AccountRepository.h"
+#include "persistence/login/BanRepository.h"
+#include "persistence/login/RealmRepository.h"
+#include "persistence/world/BroadcastDataRepository.h"
 
 
 
@@ -257,10 +267,10 @@ void World::SetInitialWorldSettings()
     // not send custom type REALM_FFA_PVP to realm list
     uint32 server_type = IsFFAPvPRealm() ? uint32(REALM_TYPE_PVP) : getConfig(CONFIG_UINT32_GAME_TYPE);
     uint32 realm_zone = getConfig(CONFIG_UINT32_REALM_ZONE);
-    LoginDatabase.PExecute("UPDATE `realmlist` SET `icon` = %u, `timezone` = %u WHERE `id` = '%u'", server_type, realm_zone, realmID);
+    RealmRepository::SetTypeAndZone(server_type, realm_zone, realmID);
 
     ///- Remove the bones (they should not exist in DB though) and old corpses after a restart
-    CharacterDatabase.PExecute("DELETE FROM `corpse` WHERE `corpse_type` = '0' OR `time` < (UNIX_TIMESTAMP()-'%u')", 3 * DAY);
+    CorpseRepository::DeleteBonesAndOldCorpses(3 * DAY);
 
     ///- Load the DBC files
     sLog.outString("Initialize DBC data stores...");
@@ -708,8 +718,7 @@ void World::SetInitialWorldSettings()
     sprintf(isoDate, "%04d-%02d-%02d %02d:%02d:%02d",
             local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
 
-    LoginDatabase.PExecute("INSERT INTO `uptime` (`realmid`, `starttime`, `startstring`, `uptime`) VALUES('%u', " UI64FMTD ", '%s', 0)",
-                           realmID, uint64(m_startTime), isoDate);
+    RealmRepository::InsertUptime(realmID, uint64(m_startTime), isoDate);
 
     m_timers[WUPDATE_AUCTIONS].SetInterval(MINUTE * IN_MILLISECONDS);
     m_timers[WUPDATE_UPTIME].SetInterval(getConfig(CONFIG_UINT32_UPTIME_UPDATE) * MINUTE * IN_MILLISECONDS);
@@ -787,7 +796,7 @@ void World::SetInitialWorldSettings()
     sMapMgr.LoadTransports();
 
     sLog.outString("Deleting expired bans...");
-    LoginDatabase.Execute("DELETE FROM `ip_banned` WHERE `unbandate`<=UNIX_TIMESTAMP() AND `unbandate`<>`bandate`");
+    BanRepository::DeleteExpiredIpBans();
     sLog.outString();
 
     sLog.outString("Calculate next daily quest and dungeon reset time...");
@@ -1075,7 +1084,7 @@ void World::Update(uint32 diff)
         uint32 maxClientsNum = GetMaxActiveSessionCount();
 
         m_timers[WUPDATE_UPTIME].Reset();
-        LoginDatabase.PExecute("UPDATE `uptime` SET `uptime` = %u, `maxplayers` = %u WHERE `realmid` = %u AND `starttime` = " UI64FMTD, tmpDiff, maxClientsNum, realmID, uint64(m_startTime));
+        RealmRepository::SetUptime(tmpDiff, maxClientsNum, realmID, uint64(m_startTime));
     }
 
     /// <li> Handle all other objects
@@ -1372,10 +1381,10 @@ void World::KickAllLess(AccountTypes sec)
 /// Ban an account or ban an IP address, duration_secs if it is positive used, otherwise permban
 BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_secs, std::string reason, const std::string& author)
 {
-    LoginDatabase.escape_string(nameOrIP);
-    LoginDatabase.escape_string(reason);
+    BanRepository::EscapeString(nameOrIP);
+    BanRepository::EscapeString(reason);
     std::string safe_author = author;
-    LoginDatabase.escape_string(safe_author);
+    BanRepository::EscapeString(safe_author);
 
     QueryResult* resultAccounts = NULL;                     // used for kicking
 
@@ -1384,16 +1393,16 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
     {
         case BAN_IP:
             // No SQL injection as strings are escaped
-            resultAccounts = LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `last_ip` = '%s'", nameOrIP.c_str());
-            LoginDatabase.PExecute("INSERT INTO `ip_banned` VALUES ('%s',UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+%u,'%s','%s')", nameOrIP.c_str(), duration_secs, safe_author.c_str(), reason.c_str());
+            resultAccounts = BanRepository::QueryAccountsOnIp(nameOrIP);
+            BanRepository::InsertIpBan(nameOrIP, duration_secs, safe_author, reason);
             break;
         case BAN_ACCOUNT:
             // No SQL injection as string is escaped
-            resultAccounts = LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `username` = '%s'", nameOrIP.c_str());
+            resultAccounts = BanRepository::QueryAccountIdNamed(nameOrIP);
             break;
         case BAN_CHARACTER:
             // No SQL injection as string is escaped
-            resultAccounts = CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` = '%s'", nameOrIP.c_str());
+            resultAccounts = CharacterRepository::QueryAccountOfCharacterNamed(nameOrIP);
             break;
         default:
             return BAN_SYNTAX_ERROR;
@@ -1420,8 +1429,7 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
         if (mode != BAN_IP)
         {
             // No SQL injection as strings are escaped
-            LoginDatabase.PExecute("INSERT INTO `account_banned` VALUES ('%u', UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+%u, '%s', '%s', '1')",
-                                   account, duration_secs, safe_author.c_str(), reason.c_str());
+            BanRepository::InsertAccountBan(account, duration_secs, safe_author, reason);
         }
 
         if (WorldSession* sess = FindSession(account))
@@ -1440,8 +1448,7 @@ bool World::RemoveBanAccount(BanMode mode, std::string nameOrIP)
 {
     if (mode == BAN_IP)
     {
-        LoginDatabase.escape_string(nameOrIP);
-        LoginDatabase.PExecute("DELETE FROM `ip_banned` WHERE `ip` = '%s'", nameOrIP.c_str());
+        BanRepository::DeleteIpBan(nameOrIP);
     }
     else
     {
@@ -1461,7 +1468,7 @@ bool World::RemoveBanAccount(BanMode mode, std::string nameOrIP)
         }
 
         // NO SQL injection as account is uint32
-        LoginDatabase.PExecute("UPDATE `account_banned` SET `active` = '0' WHERE `id` = '%u'", account);
+        BanRepository::DeactivateAccountBans(account);
     }
     return true;
 }
@@ -1651,9 +1658,9 @@ void World::InitResultQueue()
 void World::UpdateResultQueue()
 {
     // process async result queues
-    CharacterDatabase.ProcessResultQueue();
-    WorldDatabase.ProcessResultQueue();
-    LoginDatabase.ProcessResultQueue();
+    DatabaseLifecycle::ProcessCharacterResults();
+    DatabaseLifecycle::ProcessWorldResults();
+    DatabaseLifecycle::ProcessLoginResults();
 }
 
 /**
@@ -1663,11 +1670,10 @@ void World::UpdateResultQueue()
  */
 void World::UpdateRealmCharCount(uint32 accountId)
 {
-    CharacterDatabase.AsyncPQuery([this, accountId](QueryResult* result)
-                                  {
-                                      _UpdateRealmCharCount(result, accountId);
-                                  },
-                                  "SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
+    CharacterRepository::QueryAccountCharacterCountAsync(accountId, [this, accountId](QueryResult* result)
+                                                         {
+                                                             _UpdateRealmCharCount(result, accountId);
+                                                         });
 }
 
 /**
@@ -1684,16 +1690,13 @@ void World::_UpdateRealmCharCount(QueryResult* resultCharCount, uint32 accountId
         uint32 charCount = fields[0].GetUInt32();
         delete resultCharCount;
 
-        LoginDatabase.BeginTransaction();
-        LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`= '%u' AND `realmid` = '%u'", accountId, realmID);
-        LoginDatabase.PExecute("INSERT INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)", charCount, accountId, realmID);
-        LoginDatabase.CommitTransaction();
+        AccountRepository::ReplaceRealmCharacterCount(accountId, realmID, charCount);
     }
 }
 
 void World::InitWeeklyQuestResetTime()
 {
-    QueryResult* result = CharacterDatabase.Query("SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`");
+    QueryResult* result = SavedVariablesRepository::QueryNextWeeklyQuestReset();
     if (!result)
     {
         m_NextWeeklyQuestReset = time_t(time(NULL));        // game time not yet init
@@ -1728,7 +1731,7 @@ void World::InitWeeklyQuestResetTime()
 
     if (!result)
     {
-        CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextWeeklyQuestResetTime`) VALUES ('" UI64FMTD "')", uint64(m_NextWeeklyQuestReset));
+        SavedVariablesRepository::InsertNextWeeklyQuestReset(uint64(m_NextWeeklyQuestReset));
     }
     else
     {
@@ -1738,7 +1741,7 @@ void World::InitWeeklyQuestResetTime()
 
 void World::InitDailyQuestResetTime()
 {
-    QueryResult* result = CharacterDatabase.Query("SELECT `NextDailyQuestResetTime` FROM `saved_variables`");
+    QueryResult* result = SavedVariablesRepository::QueryNextDailyQuestReset();
     if (!result)
     {
         m_NextDailyQuestReset = time_t(time(NULL));         // game time not yet init
@@ -1771,7 +1774,7 @@ void World::InitDailyQuestResetTime()
 
     if (!result)
     {
-        CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextDailyQuestResetTime`) VALUES ('" UI64FMTD "')", uint64(m_NextDailyQuestReset));
+        SavedVariablesRepository::InsertNextDailyQuestReset(uint64(m_NextDailyQuestReset));
     }
     else
     {
@@ -1842,7 +1845,7 @@ void World::SetMonthlyQuestResetTime(bool initialize)
 {
     if (initialize)
     {
-        QueryResult* result = CharacterDatabase.Query("SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`");
+        QueryResult* result = SavedVariablesRepository::QueryNextMonthlyQuestReset();
 
         if (!result)
         {
@@ -1868,12 +1871,12 @@ void World::SetMonthlyQuestResetTime(bool initialize)
     m_NextMonthlyQuestReset = NextMonthlyQuestReset(WorldGameTime::Get(), m_NextMonthlyQuestReset, initialize);
 
     // Row must exist for this to work. Currently row is added by InitDailyQuestResetTime(), called before this function
-    CharacterDatabase.PExecute("UPDATE `saved_variables` SET `NextMonthlyQuestResetTime` = '" UI64FMTD "'", uint64(m_NextMonthlyQuestReset));
+    SavedVariablesRepository::SetNextMonthlyQuestReset(uint64(m_NextMonthlyQuestReset));
 }
 
 void World::InitCurrencyResetTime()
 {
-    QueryResult* result = CharacterDatabase.Query("SELECT `NextCurrenciesResetTime` FROM `saved_variables`");
+    QueryResult* result = SavedVariablesRepository::QueryNextCurrencyReset();
     if (!result)
     {
         m_NextCurrencyReset = time_t(time(NULL));        // game time not yet init
@@ -1912,7 +1915,7 @@ void World::InitCurrencyResetTime()
 
     if (!result)
     {
-        CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextCurrenciesResetTime`) VALUES ('" UI64FMTD "')", uint64(m_NextCurrencyReset));
+        SavedVariablesRepository::InsertNextCurrencyReset(uint64(m_NextCurrencyReset));
     }
     else
     {
@@ -1922,7 +1925,7 @@ void World::InitCurrencyResetTime()
 
 void World::InitRandomBGResetTime()
 {
-    QueryResult * result = CharacterDatabase.Query("SELECT `NextRandomBGResetTime` FROM `saved_variables`");
+    QueryResult * result = SavedVariablesRepository::QueryNextRandomBGReset();
     if (!result)
     {
         m_NextRandomBGReset = time_t(time(NULL));         // game time not yet init
@@ -1954,7 +1957,7 @@ void World::InitRandomBGResetTime()
     m_NextRandomBGReset = m_NextRandomBGReset < curTime ? nextDayResetTime - DAY : nextDayResetTime;
     if (!result)
     {
-        CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextRandomBGResetTime`) VALUES ('" UI64FMTD "')", uint64(m_NextRandomBGReset));
+        SavedVariablesRepository::InsertNextRandomBGReset(uint64(m_NextRandomBGReset));
     }
     else
     {
@@ -1965,7 +1968,7 @@ void World::InitRandomBGResetTime()
 void World::ResetDailyQuests()
 {
     DETAIL_LOG("Daily quests reset for all characters.");
-    CharacterDatabase.Execute("DELETE FROM `character_queststatus_daily`");
+    QuestStatusRepository::DeleteEveryDaily();
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         if (itr->second->GetPlayer())
         {
@@ -1973,7 +1976,7 @@ void World::ResetDailyQuests()
         }
 
     m_NextDailyQuestReset = time_t(m_NextDailyQuestReset + DAY);
-    CharacterDatabase.PExecute("UPDATE `saved_variables` SET `NextDailyQuestResetTime` = '" UI64FMTD "'", uint64(m_NextDailyQuestReset));
+    SavedVariablesRepository::SetNextDailyQuestReset(uint64(m_NextDailyQuestReset));
 
     if (getConfig(CONFIG_BOOL_LFG_ENABLE))
     {
@@ -1984,7 +1987,7 @@ void World::ResetDailyQuests()
 void World::ResetWeeklyQuests()
 {
     DETAIL_LOG("Weekly quests reset for all characters.");
-    CharacterDatabase.Execute("DELETE FROM `character_queststatus_weekly`");
+    QuestStatusRepository::DeleteEveryWeekly();
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         if (itr->second->GetPlayer())
         {
@@ -1992,7 +1995,7 @@ void World::ResetWeeklyQuests()
         }
 
     m_NextWeeklyQuestReset = time_t(m_NextWeeklyQuestReset + WEEK);
-    CharacterDatabase.PExecute("UPDATE `saved_variables` SET `NextWeeklyQuestResetTime` = '" UI64FMTD "'", uint64(m_NextWeeklyQuestReset));
+    SavedVariablesRepository::SetNextWeeklyQuestReset(uint64(m_NextWeeklyQuestReset));
 
     if (getConfig(CONFIG_BOOL_LFG_ENABLE))
     {
@@ -2003,7 +2006,7 @@ void World::ResetWeeklyQuests()
 void World::ResetMonthlyQuests()
 {
     DETAIL_LOG("Monthly quests reset for all characters.");
-    CharacterDatabase.Execute("TRUNCATE character_queststatus_monthly");
+    QuestStatusRepository::TruncateMonthly();
 
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         if (itr->second->GetPlayer())
@@ -2016,7 +2019,7 @@ void World::ResetMonthlyQuests()
 
 void World::ResetCurrencyWeekCounts()
 {
-    CharacterDatabase.Execute("UPDATE `character_currencies` SET `weekCount` = 0");
+    CurrencyRepository::ResetEveryWeekCount();
 
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         if (itr->second->GetPlayer())
@@ -2036,7 +2039,7 @@ void World::ResetCurrencyWeekCounts()
 
     m_NextCurrencyReset = time_t(m_NextCurrencyReset + DAY * sWorld.getConfig(CONFIG_UINT32_CURRENCY_RESET_INTERVAL));
 
-    CharacterDatabase.PExecute("UPDATE saved_variables SET `NextCurrenciesResetTime` = '" UI64FMTD "'", uint64(m_NextCurrencyReset));
+    SavedVariablesRepository::SetNextCurrencyReset(uint64(m_NextCurrencyReset));
 }
 
 /**
@@ -2058,8 +2061,7 @@ void World::SetPlayerLimit(int32 limit, bool needUpdate)
     m_playerLimit = limit;
 
     if (db_update_need)
-        LoginDatabase.PExecute("UPDATE `realmlist` SET `allowedSecurityLevel` = '%u' WHERE `id` = '%u'",
-                               uint32(GetPlayerSecurityLimit()), realmID);
+        RealmRepository::SetAllowedSecurityLevel(uint32(GetPlayerSecurityLimit()), realmID);
 }
 
 /**
@@ -2094,9 +2096,7 @@ void World::LoadBroadcastStrings()
         return;
     }
 
-    std::string queryStr = "SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`";
-
-    QueryResult* result = WorldDatabase.Query(queryStr.c_str());
+    QueryResult* result = BroadcastDataRepository::QueryBroadcasts();
 
     if (!result)
     {

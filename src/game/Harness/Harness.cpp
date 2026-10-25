@@ -44,6 +44,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include "persistence/characters/CharacterRepository.h"
 
 namespace Harness
 {
@@ -284,12 +285,11 @@ namespace Harness
         {
             m_pending = true;
             const uint32 token = ++m_startToken;
-            if (!CharacterDatabase.AsyncPQuery([token](QueryResult* result)
-                                               {
-                                                   sHarness.OnGuidBlockChecked(std::unique_ptr<QueryResult>(result), token);
-                                               },
-                                               "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
-                                               kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1))
+            if (!CharacterRepository::QueryCharacterCountInGuidRange(kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1,
+                                                                     [token](QueryResult* result)
+                                                                     {
+                                                                         sHarness.OnGuidBlockChecked(std::unique_ptr<QueryResult>(result), token);
+                                                                     }))
             {
                 // The database refused to queue it (a shutdown is under way), so no callback
                 // will ever come. That is the unknown answer, which this guard refuses on.

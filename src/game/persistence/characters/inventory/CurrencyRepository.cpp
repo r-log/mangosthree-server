@@ -56,4 +56,9 @@ namespace CurrencyRepository
     {
         CharacterDatabase.PExecute("INSERT INTO `character_currencies` (`guid`, `id`, `totalCount`, `weekCount`, `seasonCount`, `flags`) VALUES ('%u', '%u', '%u', '%u', '%u', '%u')", ownerGuidLow, row.id, row.totalCount, row.weekCount, row.seasonCount, row.flags);
     }
+
+    void ResetEveryWeekCount()
+    {
+        CharacterDatabase.Execute("UPDATE `character_currencies` SET `weekCount` = 0");
+    }
 }

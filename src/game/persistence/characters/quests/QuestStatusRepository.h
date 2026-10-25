@@ -92,6 +92,15 @@ namespace QuestStatusRepository
 
     /// Replaces the owner's daily quests: a DELETE of them all, then an INSERT per quest, in order.
     void SaveDaily(uint32 ownerGuidLow, std::vector<uint32> const& quests);
+
+    /// Deletes every character's daily quests, as the daily reset does.
+    void DeleteEveryDaily();
+
+    /// Deletes every character's weekly quests, as the weekly reset does.
+    void DeleteEveryWeekly();
+
+    /// Empties every character's monthly quests, as the monthly reset does.
+    void TruncateMonthly();
 }
 
 #endif
