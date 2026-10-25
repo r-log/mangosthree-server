@@ -35,6 +35,8 @@ set(CONVERTED_FILES
     src/game/persistence/login/AccountRepository.cpp
     src/game/persistence/characters/social/GuildRepository.h
     src/game/persistence/characters/social/GuildRepository.cpp
+    src/game/persistence/characters/social/GuildBankRepository.h
+    src/game/persistence/characters/social/GuildBankRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
@@ -148,11 +150,10 @@ set(ALLOW_CalendarRepository_cpp
     "CharacterDatabase.DirectExecute(\"TRUNCATE TABLE calendar_events\")\;"
     "CharacterDatabase.DirectExecute(\"TRUNCATE TABLE calendar_invites\")\;")
 
-set(ALLOW_GuildBank_cpp
-    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `TabId`, `TabName`, `TabIcon`, `TabText` FROM `guild_bank_tab` WHERE `guildid`='%u' ORDER BY `TabId`\", m_Id)\;"
-    "result = CharacterDatabase.PQuery(\"SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`\", m_Id)\;"
-    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, tabId, GUILD_BANK_MAX_LOGS)\;"
-    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, GUILD_BANK_MONEY_LOGS_TAB, GUILD_BANK_MAX_LOGS)\;")
+set(ALLOW_GuildBankRepository_cpp
+    "return CharacterDatabase.PQuery(\"SELECT `TabId`, `TabName`, `TabIcon`, `TabText` FROM `guild_bank_tab` WHERE `guildid`='%u' ORDER BY `TabId`\", guildId)\;"
+    "return CharacterDatabase.PQuery(\"SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`\", guildId)\;"
+    "return CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", guildId, tabId, maxLogs)\;")
 
 set(ALLOW_Chat_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;")
