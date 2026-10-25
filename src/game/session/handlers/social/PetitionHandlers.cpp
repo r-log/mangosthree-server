@@ -29,9 +29,10 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <sstream>
+#include <vector>
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
+#include "persistence/characters/social/PetitionRepository.h"
 #include "WorldPacket.h"
 #include "Server/WorldSession.h"
 #include "data/GameConfig.h"
@@ -44,62 +45,6 @@
 
 // Charters ID in item_template
 constexpr uint32 GUILD_CHARTER = 5863;
-
-namespace
-{
-    /// The slots of the show-signatures / offer holder: two reads that need each other's
-    /// answer not at all, so they run back to back in one round trip.
-    enum PetitionShowSlot
-    {
-        PETITION_SHOW_PETITION      = 0,                    // the petition exists at all
-        PETITION_SHOW_SIGNATURES    = 1,                    // who has signed it
-        PETITION_SHOW_SLOT_COUNT    = 2
-    };
-
-    /// The slots of the sign handler's FIRST holder: the petition row (owner and the current
-    /// count) and the account's existing signatures. Independent, so one round trip.
-    enum PetitionSignReadSlot
-    {
-        PETITION_SIGN_READ_PETITION = 0,
-        PETITION_SIGN_READ_ACCOUNT  = 1,
-        PETITION_SIGN_READ_COUNT    = 2
-    };
-
-    /// The slots of the sign handler's SECOND holder -- the atomic sign itself.
-    /// The three statements run back to back on the delay thread under one connection lock:
-    /// what the row looked like before, the conditional insert, what it looks like after.
-    /// Nothing else can interleave, so the answer says which of the two happened.
-    enum PetitionSignedSlot
-    {
-        PETITION_SIGNED_BEFORE      = 0,
-        PETITION_SIGNED_INSERT      = 1,
-        PETITION_SIGNED_AFTER       = 2,
-        PETITION_SIGNED_COUNT       = 3
-    };
-
-    /// The slots of the turn-in holder: the petition row and its signatures.
-    enum PetitionTurnInSlot
-    {
-        PETITION_TURN_IN_PETITION   = 0,
-        PETITION_TURN_IN_SIGNATURES = 1,
-        PETITION_TURN_IN_COUNT      = 2
-    };
-
-    /**
-     * @brief Queue a staged holder, freeing it if the database refuses it.
-     *
-     * DelayQueryHolder() answers false without queueing once the database is shutting down;
-     * the callback that frees the holder then never runs, so the holder is deleted here.
-     */
-    void QueuePetitionHolder(SqlQueryHolder* holder,
-                             std::function<void(QueryResult*, SqlQueryHolder*)> callback)
-    {
-        if (!CharacterDatabase.DelayQueryHolder(std::move(callback), holder))
-        {
-            delete holder;                                  // delete all unprocessed queries
-        }
-    }
-}
 
 /**
  * @brief Handles charter purchase and petition creation.
@@ -218,13 +163,13 @@ void PetitionHandlers::QueuePetitionBuyRead(uint32 accountId, proto::SessionId s
                                             ObjectGuid playerGuid, ObjectGuid npcGuid, std::string name)
 {
     // the buyer's petitions are read here; the continuation deletes them and their signatures
-    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, npcGuid, name](QueryResult* result)
-                                  {
-                                      PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult>(result),
-                                                                              accountId, sessionId, playerGuid,
-                                                                              npcGuid, name);
-                                  },
-                                  "SELECT `petitionguid` FROM `petition` WHERE `ownerguid` = '%u'", playerGuid.GetCounter());
+    PetitionRepository::QueryOwnedPetitions(playerGuid.GetCounter(),
+                                            [accountId, sessionId, playerGuid, npcGuid, name](QueryResult* result)
+                                            {
+                                                PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult>(result),
+                                                                                        accountId, sessionId, playerGuid,
+                                                                                        npcGuid, name);
+                                            });
 }
 
 /**
@@ -310,36 +255,26 @@ void PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> re
     charter->SetState(ITEM_CHANGED, player);
     player->SendNewItem(charter, 1, true, false);
 
-    std::ostringstream ssInvalidPetitionGUIDs;
+    std::vector<uint32> oldPetitions;
 
     if (result)
     {
         do
         {
             Field* fields = result->Fetch();
-            ssInvalidPetitionGUIDs << "'" << fields[0].GetUInt32() << "' , ";
+            oldPetitions.push_back(fields[0].GetUInt32());
         }
         while (result->NextRow());
     }
 
     // delete petitions with the same guid as this one
-    ssInvalidPetitionGUIDs << "'" << charter->GetGUIDLow() << "'";
+    std::string const invalidPetitionGuids = PetitionRepository::GuidList(oldPetitions, charter->GetGUIDLow());
 
-    DEBUG_LOG("Invalid petition GUIDs: %s", ssInvalidPetitionGUIDs.str().c_str());
+    DEBUG_LOG("Invalid petition GUIDs: %s", invalidPetitionGuids.c_str());
 
-    // The name is never escaped on the world thread. It is bound as a parameter, and
-    // whatever the connection has to do with it -- a real bind, or the escaping the plain
-    // fallback does -- happens inside the delay thread's own operation. The two deletes
-    // carry nothing but numbers, so they stay printf statements.
-    static SqlStatementID insertPetition;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(insertPetition,
-                        "INSERT INTO `petition` (`ownerguid`, `petitionguid`, `name`) VALUES (?, ?, ?)");
-
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `petition` WHERE `petitionguid` IN ( %s )",  ssInvalidPetitionGUIDs.str().c_str());
-    CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `petitionguid` IN ( %s )", ssInvalidPetitionGUIDs.str().c_str());
-    stmt.PExecute(player->GetGUIDLow(), charter->GetGUIDLow(), name.c_str());
-    CharacterDatabase.CommitTransaction();
+    // The name is bound, so whatever the connection has to do with it happens on the delay
+    // thread, not here.
+    PetitionRepository::Create(player->GetGUIDLow(), charter->GetGUIDLow(), name, invalidPetitionGuids);
 }
 
 /**
@@ -361,23 +296,17 @@ void PetitionHandlers::HandlePetitionShowSign(WorldSession& session, WorldPacket
 
     // The existence check and the signature list are keyed on the petition guid alone, so
     // neither needs the other's answer: one holder, one round trip, instead of two.
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(PETITION_SHOW_SLOT_COUNT);
-    holder->SetPQuery(PETITION_SHOW_PETITION,
-                      "SELECT 1 FROM `petition` WHERE `petitionguid` = '%u'", petitionguid_low);
-    holder->SetPQuery(PETITION_SHOW_SIGNATURES,
-                      "SELECT `playerguid` FROM `petition_sign` WHERE `petitionguid` = '%u'", petitionguid_low);
-
     uint32 accountId = session.GetAccountId();
     proto::SessionId sessionId = session.GetSessionId();
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
-    QueuePetitionHolder(holder, [accountId, sessionId, playerGuid, petitionguid](QueryResult* /*result*/, SqlQueryHolder* h)
-                                {
-                                    PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                                 accountId, sessionId, playerGuid,
-                                                                                 petitionguid);
-                                });
+    PetitionRepository::QueueShowSignatures(petitionguid_low,
+                                            [accountId, sessionId, playerGuid, petitionguid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                            {
+                                                PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                             accountId, sessionId, playerGuid,
+                                                                                             petitionguid);
+                                            });
 }
 
 /**
@@ -491,13 +420,13 @@ void PetitionHandlers::HandlePetitionRename(WorldSession& session, WorldPacket& 
     proto::SessionId sessionId = session.GetSessionId();
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
-    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, petitionGuid, newname](QueryResult* result)
-                                  {
-                                      PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult>(result),
-                                                                                 accountId, sessionId, playerGuid,
-                                                                                 petitionGuid, newname);
-                                  },
-                                  "SELECT 1 FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
+    PetitionRepository::QueryExists(petitionGuid.GetCounter(),
+                                    [accountId, sessionId, playerGuid, petitionGuid, newname](QueryResult* result)
+                                    {
+                                        PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult>(result),
+                                                                                   accountId, sessionId, playerGuid,
+                                                                                   petitionGuid, newname);
+                                    });
 }
 
 /**
@@ -544,11 +473,8 @@ void PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult>
         return;
     }
 
-    // Bound, not escaped here -- see HandlePetitionBuyCallback.
-    static SqlStatementID renamePetition;
-    SqlStatement stmt = CharacterDatabase.CreateStatement(renamePetition,
-                        "UPDATE `petition` SET `name` = ? WHERE `petitionguid` = ?");
-    stmt.PExecute(newname.c_str(), petitionGuid.GetCounter());
+    // The name is bound.
+    PetitionRepository::Rename(petitionGuid.GetCounter(), newname);
 
     DEBUG_LOG("Petition %s renamed to '%s'", petitionGuid.GetString().c_str(), newname.c_str());
 
@@ -585,27 +511,17 @@ void PetitionHandlers::HandlePetitionSign(WorldSession& session, WorldPacket& re
 
     // The petition row (for the owner and the current count) and this account's existing
     // signatures: neither answer depends on the other, so both go in one holder.
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(PETITION_SIGN_READ_COUNT);
-    holder->SetPQuery(PETITION_SIGN_READ_PETITION,
-                      "SELECT `ownerguid`, "
-                      "  (SELECT COUNT(`playerguid`) FROM `petition_sign` WHERE `petition_sign`.`petitionguid` = '%u') AS `signs` "
-                      "FROM `petition` WHERE `petitionguid` = '%u'", petitionLowGuid, petitionLowGuid);
-    // client doesn't allow to sign petition two times by one character, but not check sign by another character from same account
-    // not allow sign another player from already sign player account
-    holder->SetPQuery(PETITION_SIGN_READ_ACCOUNT,
-                      "SELECT `playerguid`, `petitionguid` FROM `petition_sign` WHERE `player_account` = '%u'", session.GetAccountId());
-
     uint32 accountId = session.GetAccountId();
     proto::SessionId sessionId = session.GetSessionId();
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
-    QueuePetitionHolder(holder, [accountId, sessionId, playerGuid, petitionGuid](QueryResult* /*result*/, SqlQueryHolder* h)
-                                {
-                                    PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                             accountId, sessionId, playerGuid,
-                                                                             petitionGuid);
-                                });
+    PetitionRepository::QueueSignRead(petitionLowGuid, session.GetAccountId(),
+                                      [accountId, sessionId, playerGuid, petitionGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                      {
+                                          PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                   accountId, sessionId, playerGuid,
+                                                                                   petitionGuid);
+                                      });
 }
 
 /**
@@ -720,32 +636,13 @@ void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder
 void PetitionHandlers::QueuePetitionSignHolder(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
                                                ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 maxSigns)
 {
-    uint32 petitionLowGuid = petitionGuid.GetCounter();
-    uint32 playerLowGuid = playerGuid.GetCounter();
-
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(PETITION_SIGNED_COUNT);
-    holder->SetPQuery(PETITION_SIGNED_BEFORE,
-                      "SELECT 1 FROM `petition_sign` WHERE `petitionguid` = '%u' AND `playerguid` = '%u'",
-                      petitionLowGuid, playerLowGuid);
-    holder->SetPQuery(PETITION_SIGNED_INSERT,
-                      "INSERT INTO `petition_sign` (`ownerguid`, `petitionguid`, `playerguid`, `player_account`) "
-                      "SELECT `ownerguid`, `petitionguid`, '%u', '%u' FROM `petition` "
-                      "WHERE `petitionguid` = '%u' "
-                      "AND (SELECT COUNT(*) FROM `petition_sign` WHERE `petitionguid` = '%u') < %u "
-                      "AND NOT EXISTS (SELECT 1 FROM `petition_sign` WHERE `petitionguid` = '%u' AND `playerguid` = '%u')",
-                      playerLowGuid, accountId, petitionLowGuid, petitionLowGuid, maxSigns,
-                      petitionLowGuid, playerLowGuid);
-    holder->SetPQuery(PETITION_SIGNED_AFTER,
-                      "SELECT 1 FROM `petition_sign` WHERE `petitionguid` = '%u' AND `playerguid` = '%u'",
-                      petitionLowGuid, playerLowGuid);
-
-    QueuePetitionHolder(holder, [accountId, sessionId, playerGuid, petitionGuid, ownerGuid](QueryResult* /*result*/, SqlQueryHolder* h)
-                                {
-                                    PetitionHandlers::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                               accountId, sessionId, playerGuid,
-                                                                               petitionGuid, ownerGuid);
-                                });
+    PetitionRepository::QueueSign(petitionGuid.GetCounter(), playerGuid.GetCounter(), accountId, maxSigns,
+                                  [accountId, sessionId, playerGuid, petitionGuid, ownerGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                  {
+                                      PetitionHandlers::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                 accountId, sessionId, playerGuid,
+                                                                                 petitionGuid, ownerGuid);
+                                  });
 }
 
 /**
@@ -847,12 +744,12 @@ void PetitionHandlers::HandlePetitionDecline(WorldSession& session, WorldPacket&
 
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
-    CharacterDatabase.AsyncPQuery([playerGuid](QueryResult* result)
-                                  {
-                                      PetitionHandlers::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult>(result),
-                                                                                  playerGuid);
-                                  },
-                                  "SELECT `ownerguid` FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
+    PetitionRepository::QueryOwner(petitionGuid.GetCounter(),
+                                   [playerGuid](QueryResult* result)
+                                   {
+                                       PetitionHandlers::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult>(result),
+                                                                                   playerGuid);
+                                   });
 }
 
 /**
@@ -909,23 +806,17 @@ void PetitionHandlers::HandleOfferPetition(WorldSession& session, WorldPacket& r
     }
 
     /// The petition's existence and its signatures: independent, so one holder.
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(PETITION_SHOW_SLOT_COUNT);
-    holder->SetPQuery(PETITION_SHOW_PETITION,
-                      "SELECT 1 FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
-    holder->SetPQuery(PETITION_SHOW_SIGNATURES,
-                      "SELECT `playerguid` FROM `petition_sign` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
-
     uint32 accountId = session.GetAccountId();
     proto::SessionId sessionId = session.GetSessionId();
     ObjectGuid ownGuid = session.GetPlayer()->GetObjectGuid();
 
-    QueuePetitionHolder(holder, [accountId, sessionId, ownGuid, petitionGuid, playerGuid](QueryResult* /*result*/, SqlQueryHolder* h)
-                                {
-                                    PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                              accountId, sessionId, ownGuid,
-                                                                              petitionGuid, playerGuid);
-                                });
+    PetitionRepository::QueueShowSignatures(petitionGuid.GetCounter(),
+                                            [accountId, sessionId, ownGuid, petitionGuid, playerGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                            {
+                                                PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                          accountId, sessionId, ownGuid,
+                                                                                          petitionGuid, playerGuid);
+                                            });
 }
 
 /**
@@ -1030,23 +921,17 @@ void PetitionHandlers::HandleTurnInPetition(WorldSession& session, WorldPacket& 
     DEBUG_LOG("Petition %s turned in by %s", petitionGuid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());
 
     /// Collect petition info data: the petition row and its signatures, in one holder.
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(PETITION_TURN_IN_COUNT);
-    holder->SetPQuery(PETITION_TURN_IN_PETITION,
-                      "SELECT `ownerguid`, `name` FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
-    holder->SetPQuery(PETITION_TURN_IN_SIGNATURES,
-                      "SELECT `playerguid` FROM `petition_sign` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
-
     uint32 accountId = session.GetAccountId();
     proto::SessionId sessionId = session.GetSessionId();
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
-    QueuePetitionHolder(holder, [accountId, sessionId, playerGuid, petitionGuid](QueryResult* /*result*/, SqlQueryHolder* h)
-                                {
-                                    PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                               accountId, sessionId, playerGuid,
-                                                                               petitionGuid);
-                                });
+    PetitionRepository::QueueTurnInRead(petitionGuid.GetCounter(),
+                                        [accountId, sessionId, playerGuid, petitionGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                        {
+                                            PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                       accountId, sessionId, playerGuid,
+                                                                                       petitionGuid);
+                                        });
 }
 
 /**
@@ -1159,10 +1044,7 @@ void PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHold
         signatures->NextRow();
     }
 
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
-    CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
-    CharacterDatabase.CommitTransaction();
+    PetitionRepository::Delete(petitionGuid.GetCounter());
 
     // created
     DEBUG_LOG("TURN IN PETITION %s", petitionGuid.GetString().c_str());
