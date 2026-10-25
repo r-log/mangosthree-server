@@ -96,6 +96,10 @@ namespace ItemRepository
 
     /// Deletes the inventory row that holds an item.
     void DeleteInventoryRow(uint32 itemGuid);
+
+    /// Each writes the inventory row that holds an item: its owner, bag, slot and template.
+    void InsertInventoryRow(uint32 ownerGuid, uint32 bagGuid, uint8 slot, uint32 itemGuid, uint32 itemEntry);
+    void UpdateInventoryRow(uint32 ownerGuid, uint32 bagGuid, uint8 slot, uint32 itemGuid, uint32 itemEntry);
 }
 
 #endif

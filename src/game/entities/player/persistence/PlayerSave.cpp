@@ -53,8 +53,34 @@
 #include "Vehicle.h"
 #include "CharacterCache.h"
 #include "DisableMgr.h"
+#include "persistence/characters/CharacterSaveRepository.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/inventory/ItemRepository.h"
+#include "persistence/characters/mail/MailRepository.h"
+#include "persistence/characters/quests/QuestStatusRepository.h"
 
 #include <cmath>
+
+namespace
+{
+    /// An equipment set as its saved row.
+    EquipmentSetSaveRow EquipmentSetRow(EquipmentSet const& eqset, uint32 index)
+    {
+        static_assert(EQUIPMENT_SET_ROW_ITEMS == EQUIPMENT_SLOT_END, "a saved set holds every equipment slot");
+
+        EquipmentSetSaveRow row;
+        row.setGuid = eqset.Guid;
+        row.index = index;
+        row.name = eqset.Name;
+        row.iconName = eqset.IconName;
+        row.ignoreMask = eqset.IgnoreMask;
+        for (int i = 0; i < EQUIPMENT_SLOT_END; ++i)
+        {
+            row.items[i] = eqset.Items[i];
+        }
+        return row;
+    }
+}
 
 /*********************************************************/
 /***                   SAVE SYSTEM                     ***/
@@ -79,47 +105,21 @@ void Player::SaveToDB()
     DEBUG_FILTER_LOG(LOG_FILTER_PLAYER_STATS, "The value of player %s at save: ", m_name.c_str());
     outDebugStatsValues();
 
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
 
-    static SqlStatementID delChar ;
-    static SqlStatementID insChar ;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(delChar, "DELETE FROM `characters` WHERE `guid` = ?");
-    stmt.PExecute(GetGUIDLow());
-
-    SqlStatement uberInsert = CharacterDatabase.CreateStatement(insChar, "INSERT INTO `characters` (`guid`,`account`,`name`,`race`,`class`,`gender`, "
-                              "`level`,`xp`,`money`,`playerBytes`,`playerBytes2`,`playerFlags`,"
-                              "`map`, `dungeon_difficulty`, `position_x`, `position_y`, `position_z`, `orientation`, "
-                              "`taximask`, `online`, `cinematic`, "
-                              "`totaltime`, `leveltime`, `rest_bonus`, `logout_time`, `is_logout_resting`, `resettalents_cost`, `resettalents_time`, `primary_trees`, "
-                              "`trans_x`, `trans_y`, `trans_z`, `trans_o`, `transguid`, `extra_flags`, `stable_slots`, `at_login`, `zone`, "
-                              "`death_expire_time`, `taxi_path`, `totalKills`, "
-                              "`todayKills`, `yesterdayKills`, `chosenTitle`, "
-                              "`watchedFaction`, `drunk`, `health`, `power1`, `power2`, `power3`, "
-                              "`power4`, `power5`, `specCount`, `activeSpec`, `exploredZones`, `equipmentCache`, `knownTitles`, "
-                              "`actionBars`, `slot`,   `deleteInfos_Account`, `deleteInfos_Name`, `deleteDate`, `createdDate`) "
-                              "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
-                              "?, ?, ?, ?, ?, ?, "
-                              "?, ?, ?, "
-                              "?, ?, ?, ?, ?, ?, ?, ?, "
-                              "?, ?, ?, ?, ?, ?, ?, ?, ?, "
-                              "?, ?, ?, "
-                              "?, ?, ?, ?, ?, ?, ?, ?, ?, "
-                              "?, ?, ?, ?, ?, ?, ?, "
-                              "?, ?, null, null, null, ?) ");
-
-    uberInsert.addUInt32(GetGUIDLow());
-    uberInsert.addUInt32(GetSession()->GetAccountId());
-    uberInsert.addString(m_name.c_str());
-    uberInsert.addUInt8(getRace());
-    uberInsert.addUInt8(getClass());
-    uberInsert.addUInt8(getGender());
-    uberInsert.addUInt32(getLevel());
-    uberInsert.addUInt32(GetUInt32Value(PLAYER_XP));
-    uberInsert.addUInt64(GetMoney());
-    uberInsert.addUInt32(GetUInt32Value(PLAYER_BYTES));
-    uberInsert.addUInt32(GetUInt32Value(PLAYER_BYTES_2));
-    uberInsert.addUInt32(GetUInt32Value(PLAYER_FLAGS));
+    CharacterSaveRow row;
+    row.guid = GetGUIDLow();
+    row.account = GetSession()->GetAccountId();
+    row.name = m_name;
+    row.race = getRace();
+    row.playerClass = getClass();
+    row.gender = getGender();
+    row.level = getLevel();
+    row.xp = GetUInt32Value(PLAYER_XP);
+    row.money = GetMoney();
+    row.playerBytes = GetUInt32Value(PLAYER_BYTES);
+    row.playerBytes2 = GetUInt32Value(PLAYER_BYTES_2);
+    row.playerFlags = GetUInt32Value(PLAYER_FLAGS);
 
     if (!IsBeingTeleported())
     {
@@ -156,122 +156,118 @@ void Player::SaveToDB()
             savedO = vessel->Where().Facing();
         }
 
-        uberInsert.addUInt32(savedMap);
-        uberInsert.addUInt32(uint32(GetDungeonDifficulty()));
-        uberInsert.addFloat(finiteAlways(savedX));
-        uberInsert.addFloat(finiteAlways(savedY));
-        uberInsert.addFloat(finiteAlways(savedZ));
-        uberInsert.addFloat(finiteAlways(savedO));
+        row.map = savedMap;
+        row.dungeonDifficulty = uint32(GetDungeonDifficulty());
+        row.positionX = finiteAlways(savedX);
+        row.positionY = finiteAlways(savedY);
+        row.positionZ = finiteAlways(savedZ);
+        row.orientation = finiteAlways(savedO);
     }
     else
     {
-        uberInsert.addUInt32(GetTeleportDest().mapid);
-        uberInsert.addUInt32(uint32(GetDungeonDifficulty()));
-        uberInsert.addFloat(finiteAlways(GetTeleportDest().coord_x));
-        uberInsert.addFloat(finiteAlways(GetTeleportDest().coord_y));
-        uberInsert.addFloat(finiteAlways(GetTeleportDest().coord_z));
-        uberInsert.addFloat(finiteAlways(GetTeleportDest().orientation));
+        row.map = GetTeleportDest().mapid;
+        row.dungeonDifficulty = uint32(GetDungeonDifficulty());
+        row.positionX = finiteAlways(GetTeleportDest().coord_x);
+        row.positionY = finiteAlways(GetTeleportDest().coord_y);
+        row.positionZ = finiteAlways(GetTeleportDest().coord_z);
+        row.orientation = finiteAlways(GetTeleportDest().orientation);
     }
 
     std::ostringstream ss;
     ss << m_taxi;                                   // string with TaxiMaskSize numbers
-    uberInsert.addString(ss);
-
-    uberInsert.addUInt32(IsInWorld() ? 1 : 0);
-
-    uberInsert.addUInt32(m_cinematic);
-
-    uberInsert.addUInt32(m_Played_time[PLAYED_TIME_TOTAL]);
-    uberInsert.addUInt32(m_Played_time[PLAYED_TIME_LEVEL]);
-
-    uberInsert.addFloat(finiteAlways(m_rest_bonus));
-    uberInsert.addUInt64(uint64(time(NULL)));
-    uberInsert.addUInt32(HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING) ? 1 : 0);
-    // save, far from tavern/city
-    // save, but in tavern/city
-    uberInsert.addUInt32(m_talentMgr.ResetCost());
-    uberInsert.addUInt64(uint64(m_talentMgr.ResetTime()));
+    row.taxiMask = ss.str();
     ss.str("");
+
+    row.online = IsInWorld() ? 1 : 0;
+
+    row.cinematic = m_cinematic;
+
+    row.totalTime = m_Played_time[PLAYED_TIME_TOTAL];
+    row.levelTime = m_Played_time[PLAYED_TIME_LEVEL];
+
+    row.restBonus = finiteAlways(m_rest_bonus);
+    row.logoutTime = uint64(time(NULL));
+    row.isLogoutResting = HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING) ? 1 : 0;
+    row.resetTalentsCost = m_talentMgr.ResetCost();
+    row.resetTalentsTime = uint64(m_talentMgr.ResetTime());
     for (int i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
     {
         ss << m_talentMgr.PrimaryTree(i) << " ";
     }
-    uberInsert.addString(ss);
+    row.primaryTrees = ss.str();
+    ss.str("");
 
-    uberInsert.addFloat(finiteAlways(m_movementInfo.GetTransportPos()->x));
-    uberInsert.addFloat(finiteAlways(m_movementInfo.GetTransportPos()->y));
-    uberInsert.addFloat(finiteAlways(m_movementInfo.GetTransportPos()->z));
-    uberInsert.addFloat(finiteAlways(m_movementInfo.GetTransportPos()->o));
-    if (m_transport)
-    {
-        uberInsert.addUInt32(m_transport->GetGUIDLow());
-    }
-    else
-    {
-        uberInsert.addUInt32(0);
-    }
+    row.transX = finiteAlways(m_movementInfo.GetTransportPos()->x);
+    row.transY = finiteAlways(m_movementInfo.GetTransportPos()->y);
+    row.transZ = finiteAlways(m_movementInfo.GetTransportPos()->z);
+    row.transO = finiteAlways(m_movementInfo.GetTransportPos()->o);
+    row.transGuid = m_transport ? m_transport->GetGUIDLow() : 0;
 
-    uberInsert.addUInt32(m_ExtraFlags);
+    row.extraFlags = m_ExtraFlags;
 
-    uberInsert.addUInt32(uint32(m_petMgr.GetStableSlots()));   // to prevent save uint8 as char
+    row.stableSlots = uint32(m_petMgr.GetStableSlots());   // to prevent save uint8 as char
 
-    uberInsert.addUInt32(uint32(m_atLoginFlags));
+    row.atLogin = uint32(m_atLoginFlags);
 
-    uberInsert.addUInt32(IsInWorld() ? GetTerrain()->GetZoneId(Where().X(), Where().Y(), Where().Z()) : GetCachedZoneId());
+    row.zone = IsInWorld() ? GetTerrain()->GetZoneId(Where().X(), Where().Y(), Where().Z()) : GetCachedZoneId();
 
-    uberInsert.addUInt64(uint64(m_deathExpireTime));
+    row.deathExpireTime = uint64(m_deathExpireTime);
 
     ss << m_taxi.SaveTaxiDestinationsToString();       // string
-    uberInsert.addString(ss);
+    row.taxiPath = ss.str();
+    ss.str("");
 
-    uberInsert.addUInt32(GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS));
+    row.totalKills = GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS);
 
-    uberInsert.addUInt16(GetUInt16Value(PLAYER_FIELD_KILLS, 0));
+    row.todayKills = GetUInt16Value(PLAYER_FIELD_KILLS, 0);
 
-    uberInsert.addUInt16(GetUInt16Value(PLAYER_FIELD_KILLS, 1));
+    row.yesterdayKills = GetUInt16Value(PLAYER_FIELD_KILLS, 1);
 
-    uberInsert.addUInt32(GetUInt32Value(PLAYER_CHOSEN_TITLE));
+    row.chosenTitle = GetUInt32Value(PLAYER_CHOSEN_TITLE);
 
     // FIXME: at this moment send to DB as unsigned, including unit32(-1)
-    uberInsert.addUInt32(GetUInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX));
+    row.watchedFaction = GetUInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX);
 
-    uberInsert.addUInt8(GetDrunkValue());
+    row.drunk = uint8(GetDrunkValue());
 
-    uberInsert.addUInt32(GetHealth());
+    row.health = GetHealth();
 
     for (uint32 i = 0; i < MAX_STORED_POWERS; ++i)  // power1 to power5
     {
-        uberInsert.addUInt32(GetPowerByIndex(i));
+        row.power[i] = GetPowerByIndex(i);
     }
 
-    uberInsert.addUInt32(uint32(m_talentMgr.SpecsCount()));
-    uberInsert.addUInt32(uint32(m_talentMgr.ActiveSpec()));
+    row.specCount = uint32(m_talentMgr.SpecsCount());
+    row.activeSpec = uint32(m_talentMgr.ActiveSpec());
 
     for (uint32 i = 0; i < PLAYER_EXPLORED_ZONES_SIZE; ++i) // string
     {
         ss << GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + i) << " ";
     }
-    uberInsert.addString(ss); // exploredZOnes
+    row.exploredZones = ss.str();
+    ss.str("");
 
     for (uint32 i = 0; i < EQUIPMENT_SLOT_END * 2; ++i)     // string
     {
         ss << GetUInt32Value(PLAYER_VISIBLE_ITEM_1_ENTRYID + i) << " ";
     }
-    uberInsert.addString(ss); // EquipmentCache
+    row.equipmentCache = ss.str();
+    ss.str("");
 
     for (uint32 i = 0; i < KNOWN_TITLES_SIZE * 2; ++i)      // string
     {
         ss << GetUInt32Value(PLAYER__FIELD_KNOWN_TITLES + i) << " ";
     }
-    uberInsert.addString(ss);
+    row.knownTitles = ss.str();
+    ss.str("");
 
-    uberInsert.addUInt32(uint32(GetByteValue(PLAYER_FIELD_BYTES, 2))); // actionbars
+    row.actionBars = uint32(GetByteValue(PLAYER_FIELD_BYTES, 2));
 
-    uberInsert.addUInt8(m_slot);
+    row.slot = m_slot;
 
-    uberInsert.addUInt32(GetCreatedDate());
+    row.createdDate = GetCreatedDate();
 
-    uberInsert.Execute();
+    CharacterSaveRepository::ReplaceCharacter(row);
 
     if (m_mailsUpdated)                                     // save mails only when needed
     {
@@ -298,7 +294,7 @@ void Player::SaveToDB()
     _SaveCUFProfiles();
     m_talentMgr.SaveTalents(GetGUIDLow());
 
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 
     // check if stats should only be saved on logout
     // save stats can be out of transaction
@@ -326,10 +322,7 @@ void Player::SaveInventoryAndGoldToDB()
  */
 void Player::SaveGoldToDB()
 {
-    static SqlStatementID updateGold ;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(updateGold, "UPDATE `characters` SET `money` = ? WHERE `guid` = ?");
-    stmt.PExecute(GetMoney(), GetGUIDLow());
+    CharacterSaveRepository::SetMoney(GetMoney(), GetGUIDLow());
 }
 
 /**
@@ -337,10 +330,6 @@ void Player::SaveGoldToDB()
  */
 void Player::_SaveActions()
 {
-    static SqlStatementID insertAction ;
-    static SqlStatementID updateAction ;
-    static SqlStatementID deleteAction ;
-
     for (int i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
     {
         for (ActionButtonList::iterator itr = m_actionButtons[i].begin(); itr != m_actionButtons[i].end();)
@@ -348,41 +337,19 @@ void Player::_SaveActions()
             switch (itr->second.uState)
             {
                 case ACTIONBUTTON_NEW:
-                {
-                    SqlStatement stmt = CharacterDatabase.CreateStatement(insertAction, "INSERT INTO `character_action` (`guid`,`spec`, `button`,`action`,`type`) VALUES (?, ?, ?, ?, ?)");
-                    stmt.addUInt32(GetGUIDLow());
-                    stmt.addUInt32(i);
-                    stmt.addUInt32(uint32(itr->first));
-                    stmt.addUInt32(itr->second.GetAction());
-                    stmt.addUInt32(uint32(itr->second.GetType()));
-                    stmt.Execute();
+                    CharacterSaveRepository::InsertAction(GetGUIDLow(), i, uint32(itr->first), itr->second.GetAction(), uint32(itr->second.GetType()));
                     itr->second.uState = ACTIONBUTTON_UNCHANGED;
                     ++itr;
-                }
-                break;
+                    break;
                 case ACTIONBUTTON_CHANGED:
-                {
-                    SqlStatement stmt = CharacterDatabase.CreateStatement(updateAction, "UPDATE `character_action` SET `action` = ?, `type` = ? WHERE `guid` = ? AND `button` = ? AND `spec` = ?");
-                    stmt.addUInt32(itr->second.GetAction());
-                    stmt.addUInt32(uint32(itr->second.GetType()));
-                    stmt.addUInt32(GetGUIDLow());
-                    stmt.addUInt32(uint32(itr->first));
-                    stmt.addUInt32(i);
-                    stmt.Execute();
+                    CharacterSaveRepository::UpdateAction(GetGUIDLow(), i, uint32(itr->first), itr->second.GetAction(), uint32(itr->second.GetType()));
                     itr->second.uState = ACTIONBUTTON_UNCHANGED;
                     ++itr;
-                }
-                break;
+                    break;
                 case ACTIONBUTTON_DELETED:
-                {
-                    SqlStatement stmt = CharacterDatabase.CreateStatement(deleteAction, "DELETE FROM `character_action` WHERE `guid` = ? AND `button` = ? AND `spec` = ?");
-                    stmt.addUInt32(GetGUIDLow());
-                    stmt.addUInt32(uint32(itr->first));
-                    stmt.addUInt32(i);
-                    stmt.Execute();
+                    CharacterSaveRepository::DeleteAction(GetGUIDLow(), i, uint32(itr->first));
                     m_actionButtons[i].erase(itr++);
-                }
-                break;
+                    break;
                 default:
                     ++itr;
                     break;
@@ -396,23 +363,11 @@ void Player::_SaveActions()
  */
 void Player::_SaveAuras()
 {
-    static SqlStatementID deleteAuras ;
-    static SqlStatementID insertAuras ;
+    static_assert(CHARACTER_AURA_ROW_EFFECTS == MAX_EFFECT_INDEX, "a saved aura holds every effect of its spell");
 
-    SqlStatement stmt = CharacterDatabase.CreateStatement(deleteAuras, "DELETE FROM `character_aura` WHERE `guid` = ?");
-    stmt.PExecute(GetGUIDLow());
+    std::vector<CharacterAuraSaveRow> rows;
 
     SpellAuraHolderMap const& auraHolders = GetSpellAuraHolderMap();
-
-    if (auraHolders.empty())
-    {
-        return;
-    }
-
-    stmt = CharacterDatabase.CreateStatement(insertAuras, "INSERT INTO `character_aura` (`guid`, `caster_guid`, `item_guid`, `spell`, `stackcount`, `remaincharges`, "
-            "`basepoints0`, `basepoints1`, `basepoints2`, `periodictime0`, `periodictime1`, `periodictime2`, `maxduration`, `remaintime`, `effIndexMask`) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
     for (SpellAuraHolderMap::const_iterator itr = auraHolders.begin(); itr != auraHolders.end(); ++itr)
     {
         SpellAuraHolder* holder = itr->second;
@@ -423,15 +378,10 @@ void Player::_SaveAuras()
         if (!holder->IsPassive() && !IsChanneledSpell(holder->GetSpellProto()) &&
            (trackedType == TRACK_AURA_TYPE_NOT_TRACKED || (trackedType == TRACK_AURA_TYPE_SINGLE_TARGET && selfCastHolder)))
         {
-            int32  damage[MAX_EFFECT_INDEX];
-            uint32 periodicTime[MAX_EFFECT_INDEX];
-            uint32 effIndexMask = 0;
+            CharacterAuraSaveRow row;
 
             for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
             {
-                damage[i] = 0;
-                periodicTime[i] = 0;
-
                 if (Aura* aur = holder->GetAuraByEffectIndex(SpellEffectIndex(i)))
                 {
                     // don't save not own area auras
@@ -440,40 +390,29 @@ void Player::_SaveAuras()
                         continue;
                     }
 
-                    damage[i] = aur->GetModifier()->m_amount;
-                    periodicTime[i] = aur->GetModifier()->periodictime;
-                    effIndexMask |= (1 << i);
+                    row.basePoints[i] = aur->GetModifier()->m_amount;
+                    row.periodicTime[i] = aur->GetModifier()->periodictime;
+                    row.effIndexMask |= (1 << i);
                 }
             }
 
-            if (!effIndexMask)
+            if (!row.effIndexMask)
             {
                 continue;
             }
 
-            stmt.addUInt32(GetGUIDLow());
-            stmt.addUInt64(holder->GetCasterGuid().GetRawValue());
-            stmt.addUInt32(holder->GetCastItemGuid().GetCounter());
-            stmt.addUInt32(holder->GetId());
-            stmt.addUInt32(holder->GetStackAmount());
-            stmt.addUInt8(holder->GetAuraCharges());
-
-            for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
-            {
-                stmt.addInt32(damage[i]);
-            }
-
-            for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
-            {
-                stmt.addUInt32(periodicTime[i]);
-            }
-
-            stmt.addInt32(holder->GetAuraMaxDuration());
-            stmt.addInt32(holder->GetAuraDuration());
-            stmt.addUInt32(effIndexMask);
-            stmt.Execute();
+            row.casterGuid = holder->GetCasterGuid().GetRawValue();
+            row.itemGuid = holder->GetCastItemGuid().GetCounter();
+            row.spell = holder->GetId();
+            row.stackCount = holder->GetStackAmount();
+            row.remainCharges = uint8(holder->GetAuraCharges());
+            row.maxDuration = holder->GetAuraMaxDuration();
+            row.remainTime = holder->GetAuraDuration();
+            rows.push_back(row);
         }
     }
+
+    CharacterSaveRepository::ReplaceAuras(GetGUIDLow(), rows);
 }
 
 // Player::_SaveGlyphs moved to GlyphMgr::Save (2026-05-12); thin delegating wrapper lives inline in Player.h.
@@ -488,13 +427,7 @@ void Player::_SaveCUFProfiles()
         return;
     }
 
-    static SqlStatementID delProfiles;
-    static SqlStatementID insProfile;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(delProfiles,
-                        "DELETE FROM `character_cuf_profiles` WHERE `guid` = ?");
-    stmt.PExecute(GetGUIDLow());
-
+    std::vector<CUFProfileSaveRow> rows;
     for (uint8 i = 0; i < MAX_CUF_PROFILES; ++i)
     {
         CUFProfile const* profile = m_cufProfiles[i].get();
@@ -503,26 +436,24 @@ void Player::_SaveCUFProfiles()
             continue;
         }
 
-        stmt = CharacterDatabase.CreateStatement(insProfile,
-               "INSERT INTO `character_cuf_profiles` (`guid`,`id`,`name`,`frameHeight`,`frameWidth`,`sortBy`,"
-               "`healthText`,`boolOptions`,`topPoint`,`bottomPoint`,`leftPoint`,`topOffset`,`bottomOffset`,`leftOffset`) "
-               "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        stmt.addUInt32(GetGUIDLow());
-        stmt.addUInt8(i);
-        stmt.addString(profile->ProfileName);
-        stmt.addUInt16(profile->FrameHeight);
-        stmt.addUInt16(profile->FrameWidth);
-        stmt.addUInt8(profile->SortBy);
-        stmt.addUInt8(profile->HealthText);
-        stmt.addUInt32(uint32(profile->BoolOptions.to_ulong()));
-        stmt.addUInt8(profile->TopPoint);
-        stmt.addUInt8(profile->BottomPoint);
-        stmt.addUInt8(profile->LeftPoint);
-        stmt.addUInt16(profile->TopOffset);
-        stmt.addUInt16(profile->BottomOffset);
-        stmt.addUInt16(profile->LeftOffset);
-        stmt.Execute();
+        CUFProfileSaveRow row;
+        row.id = i;
+        row.name = profile->ProfileName;
+        row.frameHeight = profile->FrameHeight;
+        row.frameWidth = profile->FrameWidth;
+        row.sortBy = profile->SortBy;
+        row.healthText = profile->HealthText;
+        row.boolOptions = uint32(profile->BoolOptions.to_ulong());
+        row.topPoint = profile->TopPoint;
+        row.bottomPoint = profile->BottomPoint;
+        row.leftPoint = profile->LeftPoint;
+        row.topOffset = profile->TopOffset;
+        row.bottomOffset = profile->BottomOffset;
+        row.leftOffset = profile->LeftOffset;
+        rows.push_back(row);
     }
+
+    CharacterSaveRepository::ReplaceCUFProfiles(GetGUIDLow(), rows);
 
     m_cufProfilesChanged = false;
 }
@@ -542,14 +473,8 @@ void Player::_SaveInventory()
             continue;
         }
 
-        static SqlStatementID delInv ;
-        static SqlStatementID delItemInst ;
-
-        SqlStatement stmt = CharacterDatabase.CreateStatement(delInv, "DELETE FROM `character_inventory` WHERE `item` = ?");
-        stmt.PExecute(item->GetGUIDLow());
-
-        stmt = CharacterDatabase.CreateStatement(delItemInst, "DELETE FROM `item_instance` WHERE `guid` = ?");
-        stmt.PExecute(item->GetGUIDLow());
+        ItemRepository::DeleteInventoryRow(item->GetGUIDLow());
+        ItemRepository::DeleteInstance(item->GetGUIDLow());
 
         m_inventoryMgr.Slot(i)->FSetState(ITEM_NEW);
     }
@@ -596,10 +521,6 @@ void Player::_SaveInventory()
         return;
     }
 
-    static SqlStatementID insertInventory ;
-    static SqlStatementID updateInventory ;
-    static SqlStatementID deleteInventory ;
-
     for (size_t i = 0; i < m_itemUpdateQueue.size(); ++i)
     {
         Item* item = m_itemUpdateQueue[i];
@@ -614,33 +535,14 @@ void Player::_SaveInventory()
         switch (item->GetState())
         {
             case ITEM_NEW:
-            {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(insertInventory, "INSERT INTO `character_inventory` (`guid`,`bag`,`slot`,`item`,`item_template`) VALUES (?, ?, ?, ?, ?)");
-                stmt.addUInt32(GetGUIDLow());
-                stmt.addUInt32(bag_guid);
-                stmt.addUInt8(item->GetSlot());
-                stmt.addUInt32(item->GetGUIDLow());
-                stmt.addUInt32(item->GetEntry());
-                stmt.Execute();
-            }
-            break;
+                ItemRepository::InsertInventoryRow(GetGUIDLow(), bag_guid, item->GetSlot(), item->GetGUIDLow(), item->GetEntry());
+                break;
             case ITEM_CHANGED:
-            {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(updateInventory, "UPDATE `character_inventory` SET `guid` = ?, `bag` = ?, `slot` = ?, `item_template` = ? WHERE `item` = ?");
-                stmt.addUInt32(GetGUIDLow());
-                stmt.addUInt32(bag_guid);
-                stmt.addUInt8(item->GetSlot());
-                stmt.addUInt32(item->GetEntry());
-                stmt.addUInt32(item->GetGUIDLow());
-                stmt.Execute();
-            }
-            break;
+                ItemRepository::UpdateInventoryRow(GetGUIDLow(), bag_guid, item->GetSlot(), item->GetGUIDLow(), item->GetEntry());
+                break;
             case ITEM_REMOVED:
-            {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(deleteInventory, "DELETE FROM `character_inventory` WHERE `item` = ?");
-                stmt.PExecute(item->GetGUIDLow());
-            }
-            break;
+                ItemRepository::DeleteInventoryRow(item->GetGUIDLow());
+                break;
             case ITEM_UNCHANGED:
                 break;
         }
@@ -655,37 +557,17 @@ void Player::_SaveInventory()
  */
 void Player::_SaveMail()
 {
-    static SqlStatementID updateMail ;
-    static SqlStatementID deleteMailItems ;
-
-    static SqlStatementID deleteItem ;
-    static SqlStatementID deleteMain ;
-    static SqlStatementID deleteItems ;
-
     for (PlayerMails::iterator itr = m_mail.begin(); itr != m_mail.end(); ++itr)
     {
         Mail* m = (*itr);
         if (m->state == MAIL_STATE_CHANGED)
         {
-            SqlStatement stmt = CharacterDatabase.CreateStatement(updateMail, "UPDATE `mail` SET `has_items` = ?, `expire_time` = ?, `deliver_time` = ?, `money` = ?, `cod` = ?, `checked` = ? WHERE `id` = ?");
-            stmt.addUInt32(m->HasItems() ? 1 : 0);
-            stmt.addUInt64(uint64(m->expire_time));
-            stmt.addUInt64(uint64(m->deliver_time));
-            stmt.addUInt32(m->money);
-            stmt.addUInt32(m->COD);
-            stmt.addUInt32(m->checked);
-            stmt.addUInt32(m->messageID);
-            stmt.Execute();
+            MailRepository::UpdateState(m->messageID, m->HasItems() ? 1 : 0, uint64(m->expire_time), uint64(m->deliver_time),
+                                        uint32(m->money), uint32(m->COD), m->checked);
 
             if (!m->removedItems.empty())
             {
-                stmt = CharacterDatabase.CreateStatement(deleteMailItems, "DELETE FROM `mail_items` WHERE `item_guid` = ?");
-
-                for (std::vector<uint32>::const_iterator itr2 = m->removedItems.begin(); itr2 != m->removedItems.end(); ++itr2)
-                {
-                    stmt.PExecute(*itr2);
-                }
-
+                MailRepository::DeleteTakenItems(m->removedItems);
                 m->removedItems.clear();
             }
             m->state = MAIL_STATE_UNCHANGED;
@@ -694,18 +576,13 @@ void Player::_SaveMail()
         {
             if (m->HasItems())
             {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(deleteItem, "DELETE FROM `item_instance` WHERE `guid` = ?");
                 for (MailItemInfoVec::const_iterator itr2 = m->items.begin(); itr2 != m->items.end(); ++itr2)
                 {
-                    stmt.PExecute(itr2->item_guid);
+                    ItemRepository::DeleteInstance(itr2->item_guid);
                 }
             }
 
-            SqlStatement stmt = CharacterDatabase.CreateStatement(deleteMain, "DELETE FROM `mail` WHERE `id` = ?");
-            stmt.PExecute(m->messageID);
-
-            stmt = CharacterDatabase.CreateStatement(deleteItems, "DELETE FROM `mail_items` WHERE `mail_id` = ?");
-            stmt.PExecute(m->messageID);
+            MailRepository::DeleteDeletedMail(m->messageID);
         }
     }
 
@@ -735,22 +612,15 @@ void Player::_SaveDailyQuestStatus()
         return;
     }
 
-    // we don't need transactions here.
-    static SqlStatementID delQuestStatus ;
-    static SqlStatementID insQuestStatus ;
-
-    SqlStatement stmtDel = CharacterDatabase.CreateStatement(delQuestStatus, "DELETE FROM `character_queststatus_daily` WHERE `guid` = ?");
-    SqlStatement stmtIns = CharacterDatabase.CreateStatement(insQuestStatus, "INSERT INTO `character_queststatus_daily` (`guid`,`quest`) VALUES (?, ?)");
-
-    stmtDel.PExecute(GetGUIDLow());
-
+    std::vector<uint32> quests;
     for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
     {
         if (GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx))
         {
-            stmtIns.PExecute(GetGUIDLow(), GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx));
+            quests.push_back(GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx));
         }
     }
+    QuestStatusRepository::SaveDaily(GetGUIDLow(), quests);
     m_DailyQuestChanged = false;
 }
 
@@ -759,10 +629,6 @@ void Player::_SaveDailyQuestStatus()
  */
 void Player::_SaveSkills()
 {
-    static SqlStatementID delSkills ;
-    static SqlStatementID insSkills ;
-    static SqlStatementID updSkills ;
-
     // we don't need transactions here.
     for (SkillStatusMap::iterator itr = mSkillStatus.begin(); itr != mSkillStatus.end();)
     {
@@ -774,8 +640,7 @@ void Player::_SaveSkills()
 
         if (itr->second.uState == SKILL_DELETED)
         {
-            SqlStatement stmt = CharacterDatabase.CreateStatement(delSkills, "DELETE FROM `character_skills` WHERE `guid` = ? AND `skill` = ?");
-            stmt.PExecute(GetGUIDLow(), itr->first);
+            CharacterSaveRepository::DeleteSkill(GetGUIDLow(), itr->first);
             mSkillStatus.erase(itr++);
             continue;
         }
@@ -789,17 +654,11 @@ void Player::_SaveSkills()
         switch (itr->second.uState)
         {
             case SKILL_NEW:
-            {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(insSkills, "INSERT INTO `character_skills` (`guid`, `skill`, `value`, `max`) VALUES (?, ?, ?, ?)");
-                stmt.PExecute(GetGUIDLow(), itr->first, value, max);
-            }
-            break;
+                CharacterSaveRepository::InsertSkill(GetGUIDLow(), itr->first, value, max);
+                break;
             case SKILL_CHANGED:
-            {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(updSkills, "UPDATE `character_skills` SET `value` = ?, `max` = ? WHERE `guid` = ? AND `skill` = ?");
-                stmt.PExecute(value, max, GetGUIDLow(), itr->first);
-            }
-            break;
+                CharacterSaveRepository::UpdateSkill(GetGUIDLow(), itr->first, value, max);
+                break;
             case SKILL_UNCHANGED:
             case SKILL_DELETED:
                 MANGOS_ASSERT(false);
@@ -816,12 +675,6 @@ void Player::_SaveSkills()
  */
 void Player::_SaveSpells()
 {
-    static SqlStatementID delSpells ;
-    static SqlStatementID insSpells ;
-
-    SqlStatement stmtDel = CharacterDatabase.CreateStatement(delSpells, "DELETE FROM `character_spell` WHERE `guid` = ? and `spell` = ?");
-    SqlStatement stmtIns = CharacterDatabase.CreateStatement(insSpells, "INSERT INTO `character_spell` (`guid`,`spell`,`active`,`disabled`) VALUES (?, ?, ?, ?)");
-
     for (PlayerSpellMap::iterator itr = m_spells.begin(), next = m_spells.begin(); itr != m_spells.end();)
     {
         uint32 talentCosts = GetTalentSpellCost(itr->first);
@@ -830,13 +683,13 @@ void Player::_SaveSpells()
         {
             if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.state == PLAYERSPELL_CHANGED)
             {
-                stmtDel.PExecute(GetGUIDLow(), itr->first);
+                CharacterSaveRepository::DeleteSpell(GetGUIDLow(), itr->first);
             }
 
             // add only changed/new not dependent spells
             if (!itr->second.dependent && (itr->second.state == PLAYERSPELL_NEW || itr->second.state == PLAYERSPELL_CHANGED))
             {
-                stmtIns.PExecute(GetGUIDLow(), itr->first, uint8(itr->second.active ? 1 : 0), uint8(itr->second.disabled ? 1 : 0));
+                CharacterSaveRepository::InsertSpell(GetGUIDLow(), itr->first, uint8(itr->second.active ? 1 : 0), uint8(itr->second.disabled ? 1 : 0));
             }
         }
 
@@ -862,43 +715,36 @@ void Player::_SaveStats()
         return;
     }
 
-    static SqlStatementID delStats ;
-    static SqlStatementID insertStats ;
+    static_assert(CHARACTER_SAVE_ROW_POWERS == MAX_STORED_POWERS, "a saved row holds every stored power");
+    static_assert(CHARACTER_STATS_ROW_STATS == MAX_STATS, "a saved row holds every base stat");
+    static_assert(CHARACTER_STATS_ROW_SCHOOLS == MAX_SPELL_SCHOOL, "a saved row holds every spell school");
 
-    SqlStatement stmt = CharacterDatabase.CreateStatement(delStats, "DELETE FROM `character_stats` WHERE `guid` = ?");
-    stmt.PExecute(GetGUIDLow());
-
-    stmt = CharacterDatabase.CreateStatement(insertStats, "INSERT INTO `character_stats` (`guid`, `maxhealth`, `maxpower1`, `maxpower2`, `maxpower3`, `maxpower4`, `maxpower5`,"
-            "`strength`, `agility`, `stamina`, `intellect`, `spirit`, `armor`, `resHoly`, `resFire`, `resNature`, `resFrost`, `resShadow`, `resArcane`, "
-            "`blockPct`, `dodgePct`, `parryPct`, `critPct`, `rangedCritPct`, `spellCritPct`, `attackPower`, `rangedAttackPower`, `spellPower`) "
-        "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-    stmt.addUInt32(GetGUIDLow());
-    stmt.addUInt32(GetMaxHealth());
+    CharacterStatsSaveRow row;
+    row.maxHealth = GetMaxHealth();
     for (uint32 i = 0; i < MAX_STORED_POWERS; ++i)
     {
-        stmt.addUInt32(GetMaxPowerByIndex(i));
+        row.maxPower[i] = GetMaxPowerByIndex(i);
     }
     for (int i = 0; i < MAX_STATS; ++i)
     {
-        stmt.addFloat(GetStat(Stats(i)));
+        row.stat[i] = GetStat(Stats(i));
     }
     // armor + school resistances
     for (int i = 0; i < MAX_SPELL_SCHOOL; ++i)
     {
-        stmt.addUInt32(GetResistance(SpellSchools(i)));
+        row.resistance[i] = uint32(GetResistance(SpellSchools(i)));
     }
-    stmt.addFloat(GetFloatValue(PLAYER_BLOCK_PERCENTAGE));
-    stmt.addFloat(GetFloatValue(PLAYER_DODGE_PERCENTAGE));
-    stmt.addFloat(GetFloatValue(PLAYER_PARRY_PERCENTAGE));
-    stmt.addFloat(GetFloatValue(PLAYER_CRIT_PERCENTAGE));
-    stmt.addFloat(GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE));
-    stmt.addFloat(GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1));
-    stmt.addUInt32(GetUInt32Value(UNIT_FIELD_ATTACK_POWER));
-    stmt.addUInt32(GetUInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER));
-    stmt.addUInt32(GetBaseSpellPowerBonus());
+    row.blockPct = GetFloatValue(PLAYER_BLOCK_PERCENTAGE);
+    row.dodgePct = GetFloatValue(PLAYER_DODGE_PERCENTAGE);
+    row.parryPct = GetFloatValue(PLAYER_PARRY_PERCENTAGE);
+    row.critPct = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
+    row.rangedCritPct = GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE);
+    row.spellCritPct = GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1);
+    row.attackPower = GetUInt32Value(UNIT_FIELD_ATTACK_POWER);
+    row.rangedAttackPower = GetUInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER);
+    row.spellPower = GetBaseSpellPowerBonus();
 
-    stmt.Execute();
+    CharacterSaveRepository::ReplaceStats(GetGUIDLow(), row);
 }
 
 /**
@@ -914,13 +760,8 @@ void Player::_SaveStats()
  */
 void Player::SavePositionInDB(ObjectGuid guid, uint32 mapid, float x, float y, float z, float o, uint32 zone)
 {
-    std::ostringstream ss;
-    ss << "UPDATE `characters` SET `position_x`='" << x << "',`position_y`='" << y
-       << "',`position_z`='" << z << "',`orientation`='" << o << "',`map`='" << mapid
-       << "',`zone`='" << zone << "',`trans_x`='0',`trans_y`='0',`trans_z`='0',"
-       << "`transguid`='0',`taxi_path`='' WHERE `guid`='" << guid.GetCounter() << "'";
-    DEBUG_LOG("%s", ss.str().c_str());
-    CharacterDatabase.Execute(ss.str().c_str());
+    std::string statement = CharacterSaveRepository::SetPosition(guid.GetCounter(), mapid, x, y, z, o, zone);
+    DEBUG_LOG("%s", statement.c_str());
 
     // Decoupling D7c: this is the one place a `characters` zone is written for a character
     // who is not logged in (a GM teleporting an offline target), so it is a setter too.
@@ -929,10 +770,6 @@ void Player::SavePositionInDB(ObjectGuid guid, uint32 mapid, float x, float y, f
 
 void Player::_SaveEquipmentSets()
 {
-    static SqlStatementID updSets ;
-    static SqlStatementID insSets ;
-    static SqlStatementID delSets ;
-
     for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end();)
     {
         uint32 index = itr->first;
@@ -944,24 +781,7 @@ void Player::_SaveEquipmentSets()
                 break;                                      // nothing do
             case EQUIPMENT_SET_CHANGED:
             {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(updSets, "UPDATE `character_equipmentsets` SET `name`=?, `iconname`=?, `ignore_mask`=?, `item0`=?, `item1`=?, `item2`=?, `item3`=?, `item4`=?, "
-                                    "`item5`=?, `item6`=?, `item7`=?, `item8`=?, `item9`=?, `item10`=?, `item11`=?, `item12`=?, `item13`=?, `item14`=?, "
-                                    "`item15`=?, `item16`=?, `item17`=?, `item18`=? WHERE `guid`=? AND `setguid`=? AND `setindex`=?");
-
-                stmt.addString(eqset.Name);
-                stmt.addString(eqset.IconName);
-                stmt.addUInt32(eqset.IgnoreMask);
-
-                for (int i = 0; i < EQUIPMENT_SLOT_END; ++i)
-                {
-                    stmt.addUInt32(eqset.Items[i]);
-                }
-
-                stmt.addUInt32(GetGUIDLow());
-                stmt.addUInt64(eqset.Guid);
-                stmt.addUInt32(index);
-
-                stmt.Execute();
+                CharacterSaveRepository::UpdateEquipmentSet(GetGUIDLow(), EquipmentSetRow(eqset, index));
 
                 eqset.state = EQUIPMENT_SET_UNCHANGED;
                 ++itr;
@@ -969,20 +789,7 @@ void Player::_SaveEquipmentSets()
             }
             case EQUIPMENT_SET_NEW:
             {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(insSets, "INSERT INTO `character_equipmentsets` VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                stmt.addUInt32(GetGUIDLow());
-                stmt.addUInt64(eqset.Guid);
-                stmt.addUInt32(index);
-                stmt.addString(eqset.Name);
-                stmt.addString(eqset.IconName);
-                stmt.addUInt32(eqset.IgnoreMask);
-
-                for (int i = 0; i < EQUIPMENT_SLOT_END; ++i)
-                {
-                    stmt.addUInt32(eqset.Items[i]);
-                }
-
-                stmt.Execute();
+                CharacterSaveRepository::InsertEquipmentSet(GetGUIDLow(), EquipmentSetRow(eqset, index));
 
                 eqset.state = EQUIPMENT_SET_UNCHANGED;
                 ++itr;
@@ -990,8 +797,7 @@ void Player::_SaveEquipmentSets()
             }
             case EQUIPMENT_SET_DELETED:
             {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(delSets, "DELETE FROM `character_equipmentsets` WHERE `setguid` = ?");
-                stmt.PExecute(eqset.Guid);
+                CharacterSaveRepository::DeleteEquipmentSet(eqset.Guid);
                 m_EquipmentSets.erase(itr++);
                 break;
             }
@@ -1010,30 +816,24 @@ void Player::_SaveBGData()
         return;
     }
 
-    static SqlStatementID delBGData ;
-    static SqlStatementID insBGData ;
-
-    SqlStatement stmt =  CharacterDatabase.CreateStatement(delBGData, "DELETE FROM `character_battleground_data` WHERE `guid` = ?");
-
-    stmt.PExecute(GetGUIDLow());
-
     if (m_bgData.bgInstanceID)
     {
-        stmt = CharacterDatabase.CreateStatement(insBGData, "INSERT INTO `character_battleground_data` VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        /* guid, bgInstanceID, bgTeam, x, y, z, o, map, taxi[0], taxi[1], mountSpell */
-        stmt.addUInt32(GetGUIDLow());
-        stmt.addUInt32(m_bgData.bgInstanceID);
-        stmt.addUInt32(uint32(m_bgData.bgTeam));
-        stmt.addFloat(m_bgData.joinPos.coord_x);
-        stmt.addFloat(m_bgData.joinPos.coord_y);
-        stmt.addFloat(m_bgData.joinPos.coord_z);
-        stmt.addFloat(m_bgData.joinPos.orientation);
-        stmt.addUInt32(m_bgData.joinPos.mapid);
-        stmt.addUInt32(m_bgData.taxiPath[0]);
-        stmt.addUInt32(m_bgData.taxiPath[1]);
-        stmt.addUInt32(m_bgData.mountSpell);
-
-        stmt.Execute();
+        BattlegroundDataSaveRow row;
+        row.instanceId = m_bgData.bgInstanceID;
+        row.team = uint32(m_bgData.bgTeam);
+        row.x = m_bgData.joinPos.coord_x;
+        row.y = m_bgData.joinPos.coord_y;
+        row.z = m_bgData.joinPos.coord_z;
+        row.o = m_bgData.joinPos.orientation;
+        row.map = m_bgData.joinPos.mapid;
+        row.taxiStart = m_bgData.taxiPath[0];
+        row.taxiEnd = m_bgData.taxiPath[1];
+        row.mountSpell = m_bgData.mountSpell;
+        CharacterSaveRepository::ReplaceBattlegroundData(GetGUIDLow(), &row);
+    }
+    else
+    {
+        CharacterSaveRepository::ReplaceBattlegroundData(GetGUIDLow(), NULL);
     }
 
     m_bgData.m_needSave = false;

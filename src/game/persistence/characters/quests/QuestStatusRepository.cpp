@@ -145,4 +145,20 @@ namespace QuestStatusRepository
             stmtIns.PExecute(ownerGuidLow, quest_id);
         }
     }
+
+    void SaveDaily(uint32 ownerGuidLow, std::vector<uint32> const& quests)
+    {
+        static SqlStatementID delQuestStatus ;
+        static SqlStatementID insQuestStatus ;
+
+        SqlStatement stmtDel = CharacterDatabase.CreateStatement(delQuestStatus, "DELETE FROM `character_queststatus_daily` WHERE `guid` = ?");
+        SqlStatement stmtIns = CharacterDatabase.CreateStatement(insQuestStatus, "INSERT INTO `character_queststatus_daily` (`guid`,`quest`) VALUES (?, ?)");
+
+        stmtDel.PExecute(ownerGuidLow);
+
+        for (std::vector<uint32>::const_iterator iter = quests.begin(); iter != quests.end(); ++iter)
+        {
+            stmtIns.PExecute(ownerGuidLow, *iter);
+        }
+    }
 }

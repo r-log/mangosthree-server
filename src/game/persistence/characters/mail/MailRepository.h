@@ -28,6 +28,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 
 class QueryResult;
@@ -73,6 +74,15 @@ namespace MailRepository
     /// the character's COD mails: the mail's row, and its item rows.
     void DeleteMailRow(uint32 mailId);
     void DeleteMailItems(uint32 mailId);
+
+    /// Writes a changed mail's state, as the receiver's save does.
+    void UpdateState(uint32 mailId, uint32 hasItems, uint64 expireTime, uint64 deliverTime, uint32 money, uint32 cod, uint32 checked);
+
+    /// Deletes the item rows of the items taken out of a mail, through one statement.
+    void DeleteTakenItems(std::vector<uint32> const& itemGuids);
+
+    /// Deletes a mail its receiver deleted: its row, then its item rows.
+    void DeleteDeletedMail(uint32 mailId);
 
     /// Gives a mailed item's instance row to the mail's receiver.
     void SetMailedItemOwner(uint32 itemGuid, uint32 receiverGuid);

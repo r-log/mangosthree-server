@@ -82,6 +82,43 @@ namespace MailRepository
         CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `mail_id` = '%u'", mailId);
     }
 
+    void UpdateState(uint32 mailId, uint32 hasItems, uint64 expireTime, uint64 deliverTime, uint32 money, uint32 cod, uint32 checked)
+    {
+        static SqlStatementID updateMail ;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(updateMail, "UPDATE `mail` SET `has_items` = ?, `expire_time` = ?, `deliver_time` = ?, `money` = ?, `cod` = ?, `checked` = ? WHERE `id` = ?");
+        stmt.addUInt32(hasItems);
+        stmt.addUInt64(expireTime);
+        stmt.addUInt64(deliverTime);
+        stmt.addUInt32(money);
+        stmt.addUInt32(cod);
+        stmt.addUInt32(checked);
+        stmt.addUInt32(mailId);
+        stmt.Execute();
+    }
+
+    void DeleteTakenItems(std::vector<uint32> const& itemGuids)
+    {
+        static SqlStatementID deleteMailItems ;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(deleteMailItems, "DELETE FROM `mail_items` WHERE `item_guid` = ?");
+
+        for (std::vector<uint32>::const_iterator itr = itemGuids.begin(); itr != itemGuids.end(); ++itr)
+        {
+            stmt.PExecute(*itr);
+        }
+    }
+
+    void DeleteDeletedMail(uint32 mailId)
+    {
+        static SqlStatementID deleteMain ;
+        static SqlStatementID deleteItems ;
+
+        SqlStatement stmt = CharacterDatabase.CreateStatement(deleteMain, "DELETE FROM `mail` WHERE `id` = ?");
+        stmt.PExecute(mailId);
+
+        stmt = CharacterDatabase.CreateStatement(deleteItems, "DELETE FROM `mail_items` WHERE `mail_id` = ?");
+        stmt.PExecute(mailId);
+    }
+
     void SetMailedItemOwner(uint32 itemGuid, uint32 receiverGuid)
     {
         CharacterDatabase.PExecute("UPDATE `item_instance` SET `owner_guid` = '%u' WHERE `guid`='%u'", receiverGuid, itemGuid);

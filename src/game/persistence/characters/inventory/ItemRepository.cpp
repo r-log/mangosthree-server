@@ -140,4 +140,28 @@ namespace ItemRepository
         SqlStatement stmt = CharacterDatabase.CreateStatement(delInv, "DELETE FROM `character_inventory` WHERE `item` = ?");
         stmt.PExecute(itemGuid);
     }
+
+    void InsertInventoryRow(uint32 ownerGuid, uint32 bagGuid, uint8 slot, uint32 itemGuid, uint32 itemEntry)
+    {
+        static SqlStatementID insertInventory ;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(insertInventory, "INSERT INTO `character_inventory` (`guid`,`bag`,`slot`,`item`,`item_template`) VALUES (?, ?, ?, ?, ?)");
+        stmt.addUInt32(ownerGuid);
+        stmt.addUInt32(bagGuid);
+        stmt.addUInt8(slot);
+        stmt.addUInt32(itemGuid);
+        stmt.addUInt32(itemEntry);
+        stmt.Execute();
+    }
+
+    void UpdateInventoryRow(uint32 ownerGuid, uint32 bagGuid, uint8 slot, uint32 itemGuid, uint32 itemEntry)
+    {
+        static SqlStatementID updateInventory ;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(updateInventory, "UPDATE `character_inventory` SET `guid` = ?, `bag` = ?, `slot` = ?, `item_template` = ? WHERE `item` = ?");
+        stmt.addUInt32(ownerGuid);
+        stmt.addUInt32(bagGuid);
+        stmt.addUInt8(slot);
+        stmt.addUInt32(itemEntry);
+        stmt.addUInt32(itemGuid);
+        stmt.Execute();
+    }
 }
