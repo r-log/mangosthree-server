@@ -23,6 +23,8 @@ set(CONVERTED_FILES
     src/game/Object/ItemPersistence.cpp
     src/game/persistence/characters/inventory/ItemRepository.h
     src/game/persistence/characters/inventory/ItemRepository.cpp
+    src/game/persistence/characters/mail/MailRepository.h
+    src/game/persistence/characters/mail/MailRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp

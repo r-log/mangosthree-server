@@ -55,6 +55,7 @@
 #include "SharedDefines.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "persistence/characters/mail/MailRepository.h"
 
 
 /**
@@ -136,10 +137,10 @@ struct MassMailerQueryHandler
  */
 void MassMailMgr::AddMassMailTask(MailDraft* mailProto, const MailSender& sender, char const* query)
 {
-    CharacterDatabase.AsyncPQuery([mailProto, sender](QueryResult* result)
-                                  {
-                                      massMailerQueryHandler.HandleQueryCallback(result, mailProto, sender);
-                                  }, "%s", query);
+    MailRepository::QueryMassMailReceivers(query, [mailProto, sender](QueryResult* result)
+                                           {
+                                               massMailerQueryHandler.HandleQueryCallback(result, mailProto, sender);
+                                           });
 }
 
 /**
