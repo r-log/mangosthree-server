@@ -341,7 +341,8 @@ TEST(CharacterRepository_NameAndWhoisReads)
 }
 
 // The account manager's reads run on the calling thread, the names escaped; its writes are queued,
-// the delete as one transaction, and the password check is answered on the world thread.
+// the delete as one transaction, and the password check is answered on the world thread. The
+// rename escapes its name on the calling thread, so it runs outside the tick scope.
 TEST(CharacterRepository_AccountManagerStatements)
 {
     Db login(LoginDatabase);
@@ -369,7 +370,11 @@ TEST(CharacterRepository_AccountManagerStatements)
         CHECK(AccountRepository::Insert("BOB", "ABCD"));
         CHECK(AccountRepository::InsertWithExpansion("ANN", "EF01", 3));
         AccountRepository::LinkNewAccountsToRealms();
-        CHECK(AccountRepository::SetNameAndPasswordHash("ROB", "2345", 17));
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CHECK(AccountRepository::SetNameAndPasswordHash("ROB", "2345", 17));
+    {
+        TickGuard::Scope scope;
         CHECK(AccountRepository::SetPasswordHash("6789", 17));
         CHECK(AccountRepository::Delete(18));
         CHECK(AccountRepository::QueryNameAndPasswordHash(17, [&answered](QueryResult* result) { delete result; ++answered; }));
