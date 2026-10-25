@@ -46,7 +46,6 @@
 #include "Platform/Define.h"
 #include "Common/TimeConstants.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldSession.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"

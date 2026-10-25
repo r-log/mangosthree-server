@@ -28,7 +28,6 @@
 #include "WorldPacket.h"
 #include "BattleGround.h"
 #include "Object.h"
-#include "Creature.h"
 #include "GameObject.h"
 #include "Player.h"
 

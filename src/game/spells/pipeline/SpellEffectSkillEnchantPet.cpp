@@ -49,7 +49,6 @@
 #include "Pet.h"
 #include "Creature.h"
 #include "CreatureAI.h"
-#include "BattleGround/BattleGroundEY.h"
 #include "Language.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"

@@ -25,13 +25,11 @@
 
 #include "Unit.h"
 #include "Log.h"
-#include "WorldSession.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "QuestDef.h"
 #include "Creature.h"
-#include "CreatureAI.h"
 #include "TemporarySummon.h"
 #include "Pet.h"
 #include "Util.h"

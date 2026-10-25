@@ -37,7 +37,6 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "BattleGround/BattleGroundAV.h"
 #include "Util.h"
 #include "SQLStorages.h"
 #include "GameObjectAI.h"

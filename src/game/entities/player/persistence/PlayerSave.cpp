@@ -42,7 +42,6 @@
 #include "Pet.h"
 #include "Util.h"
 #include "Transports.h"
-#include "BattleGround/BattleGroundAV.h"
 #include "Chat.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"

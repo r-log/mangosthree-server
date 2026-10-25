@@ -30,7 +30,6 @@
 
 #include "Unit.h"
 #include "Log.h"
-#include "WorldSession.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "QuestDef.h"

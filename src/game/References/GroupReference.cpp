@@ -44,7 +44,6 @@
  * @see Group for the group container
  */
 
-#include "Player.h"
 #include "Group.h"
 #include "GroupReference.h"
 

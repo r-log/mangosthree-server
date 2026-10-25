@@ -38,7 +38,6 @@
 #include "ProgressBar.h"
 #include "SQLStorages.h"
 #include "DBCStores.h"
-#include "GossipDef.h"
 
 /**
  * @brief Loads localized creature names and subnames from the database.

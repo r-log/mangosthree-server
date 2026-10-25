@@ -34,7 +34,6 @@
 #include "SQLStorages.h"
 #include "Chat.h"
 #include "spells/pipeline/Spell.h"
-#include "BattleGround/BattleGroundMgr.h"
 #include "Unit.h"
 #include "spells/handlers/SpellMgrHandlers.h"
 

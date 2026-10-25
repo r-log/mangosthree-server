@@ -60,7 +60,6 @@
 #include "PlayerDump.h"
 #include "CharacterCache.h"
 #include "Database/DatabaseEnv.h"
-#include "SQLStorages.h"
 #include "UpdateFields.h"
 #include "ObjectMgr.h"
 #include "AccountMgr.h"

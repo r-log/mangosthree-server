@@ -33,7 +33,6 @@
 #include "MoveMap.h"
 #include "GridMap.h"
 #include "Creature.h"
-#include "Player.h"
 #include "PathFinder.h"
 #include "Log.h"
 

@@ -31,7 +31,6 @@
 #include "spells/data/SpellMgr.h"
 #include "QuestDef.h"
 #include "spells/pipeline/Spell.h"
-#include "Group.h"
 #include "spells/auras/SpellAuras.h"
 #include "Util.h"
 #include "Totem.h"

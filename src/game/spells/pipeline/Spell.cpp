@@ -48,7 +48,6 @@
 #include "spells/pipeline/Spell.h"
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "GridNotifiersImpl.h"
 #include "Opcodes.h"
 #include "Log.h"

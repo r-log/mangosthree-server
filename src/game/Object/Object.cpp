@@ -45,7 +45,6 @@
 #include "SharedDefines.h"
 #include "Log.h"
 #include "Creature.h"
-#include "Player.h"
 #include "Vehicle.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"

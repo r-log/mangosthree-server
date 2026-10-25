@@ -38,18 +38,18 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 443 include lines go against the table.
+**Today:** 384 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
-| domain -> proto | 133 | `WorldPacket.h` 82, `Opcodes.h` 48 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
-| domain -> session | 121 | `WorldSession.h` 94, `GossipDef.h` 15, `UpdateData.h` 10 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
-| any -> app | 32 | `World.h`: domain 10, scripts 10, session 8, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
+| domain -> proto | 131 | `WorldPacket.h` 80, `Opcodes.h` 48 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
+| domain -> session | 83 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
+| any -> app | 27 | `World.h`: scripts 10, session 8, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
 | domain, data, session -> scripts | 52 | `ScriptMgr.h` 28, `Chat.h` 24 | `Map.cpp`, `MiscHandler.cpp`, `ObjectMgr.cpp` |
-| data -> domain | 77 | `Group.h` 9, `GridNotifiersImpl.h` 8, `MapManager.h` 6, `SpellMgr.h` 6 | `ObjectMgr.cpp`, `ObjectMgr.h`, `ObjectMgrCreatures.cpp` |
-| data -> session | 3 | `GossipDef.h` 2, `NPCHandler.h` 1 | `ObjectMgr.h`, `ObjectMgrGossipMenu.cpp`, `ObjectMgrLocales.cpp` |
+| data -> domain | 65 | `GridNotifiersImpl.h` 8, `MapManager.h` 5, `SpellMgr.h` 5, `Player.h` 4 | `ObjectMgr.cpp`, `ObjectMgr.h`, `ObjectMgrCreatures.cpp` |
+| data -> session | 2 | `GossipDef.h` 1, `NPCHandler.h` 1 | `ObjectMgr.h`, `ObjectMgrGossipMenu.cpp` |
 | motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSplineInit.cpp`, `MoveSpline.cpp`, `WireParity.cpp` |
-| rest | 13 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 8; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
+| rest | 12 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
 
 The domain directories are peers. Include lines that cross between them are allowed, but they cannot spread: they are
 a `CheckLayout` ratchet, keyed per includer directory, includer peer and header. The peer is the coupling unit; the
@@ -62,8 +62,8 @@ is listed per includer file and header and cannot grow, and so is an include aga
 change its includer file in the PR that deletes the old one or removes the include from it, only within the same layer pair and header; a change of
 layer pair or header is a new edge.
 
-**Today:** 932 such lines, the largest being spells -> entities 173, entities -> maps 163, -> pvp 69, -> social 59
-and -> spells 53, spells -> maps 62 and pvp -> entities 59.
+**Today:** 825 such lines, the largest being spells -> entities 170, entities -> maps 150, -> spells 50, -> social 38
+and -> pvp 28, spells -> maps 62 and pvp -> entities 54.
 
 **Which peers may know which (decided 2026-10-02).** The ratchet above keeps the cross lines from growing; it does
 not say which of them are the design and which are debt. This table does. A pair not listed is debt: its ratchet
@@ -375,13 +375,13 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 
 | # | Today, against the target | Closed by |
 |---|---|---|
-| 1 | domain -> proto: 133 lines; 215 `WorldPacket data(` sites in the domain tier; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
-| 2 | domain -> session: 121 lines (`WorldSession.h`, `GossipDef.h`, `UpdateData.h`) | Unit reopen, D11, then when content touches it |
-| 3 | `World.h` included 32 times below app | the configuration interface (#143), when content touches it |
+| 1 | domain -> proto: 131 lines; 215 `WorldPacket data(` sites in the domain tier; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
+| 2 | domain -> session: 83 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
+| 3 | `World.h` included 27 times below app | the configuration interface (#143), when content touches it |
 | 4 | `Chat.h` (24) and `ScriptMgr.h` (28) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
-| 5 | data -> domain: 77 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
+| 5 | data -> domain: 65 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
-| 7 | `PlayerDump` and `CharacterDatabaseCleaner` (8 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
+| 7 | `PlayerDump` and `CharacterDatabaseCleaner` (7 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
 | 8 | 925 database calls outside persistence | #144, when content needs it |
 | 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); none calls the database; all twelve are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, `CurrencyMgr`, `SocialList`, `GlyphMgr`, `TalentMgr` and `QuestStatusMgr`, whose rows their repositories in `persistence/characters/` read and write). **Spells, Today:** `SpellCooldownMgr` calls no database (its rows go through its repository in `persistence/characters/spells/`) and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |

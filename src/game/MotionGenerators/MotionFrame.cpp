@@ -27,8 +27,6 @@
 #include "MotionFrame.h"
 #include "Map.h"
 #include "PathFinder.h"
-#include "Player.h"
-#include "Transports.h"
 #include "TransportMap.h"
 #include "Unit.h"
 #include "Utilities/Util.h"

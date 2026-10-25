@@ -45,7 +45,6 @@
 #include "Transports.h"
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundMgr.h"
-#include "BattleGround/BattleGroundAV.h"
 #include "ArenaTeam.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"

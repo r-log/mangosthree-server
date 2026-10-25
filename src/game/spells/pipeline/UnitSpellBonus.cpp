@@ -28,7 +28,6 @@
 #include "combat/SpellBonus.h"
 #include "combat/WeaponDamage.h"
 #include "Log.h"
-#include "WorldSession.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
