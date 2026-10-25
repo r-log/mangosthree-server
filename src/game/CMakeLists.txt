@@ -73,6 +73,9 @@ source_group("Outdoor PvP" FILES ${SRC_GRP_OUTDOOR_PVP})
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS persistence/characters/*.cpp persistence/characters/*.h)
 source_group("Persistence\\Characters" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS})
 
+file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY persistence/characters/economy/*.cpp persistence/characters/economy/*.h)
+source_group("Persistence\\Characters\\Economy" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY})
+
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY persistence/characters/inventory/*.cpp persistence/characters/inventory/*.h)
 source_group("Persistence\\Characters\\Inventory" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY})
 
@@ -93,6 +96,9 @@ source_group("Persistence\\Characters\\Spells" FILES ${SRC_GRP_PERSISTENCE_CHARA
 
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_TALENTS persistence/characters/talents/*.cpp persistence/characters/talents/*.h)
 source_group("Persistence\\Characters\\Talents" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_TALENTS})
+
+file(GLOB SRC_GRP_PERSISTENCE_LOGIN persistence/login/*.cpp persistence/login/*.h)
+source_group("Persistence\\Login" FILES ${SRC_GRP_PERSISTENCE_LOGIN})
 
 file(GLOB SRC_GRP_REFERENCES References/*.cpp References/*.h)
 source_group("References" FILES ${SRC_GRP_REFERENCES})
@@ -179,6 +185,7 @@ add_library(game STATIC
     ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
     ${SRC_GRP_PERSISTENCE_CHARACTERS}
+    ${SRC_GRP_PERSISTENCE_CHARACTERS_ECONOMY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_INVENTORY}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_MAIL}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_PETS}
@@ -186,6 +193,7 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_SPELLS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_TALENTS}
+    ${SRC_GRP_PERSISTENCE_LOGIN}
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}
