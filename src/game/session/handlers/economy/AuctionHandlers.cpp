@@ -43,6 +43,7 @@
 #include "WorldHandlers/Mail.h"
 #include "Utilities/Util.h"
 #include "WorldHandlers/Chat.h"
+#include "persistence/characters/CharacterTransaction.h"
 
 // void called when player click on auctioneer npc
 void AuctionHandlers::HandleAuctionHello(WorldSession& session, WorldPacket& recv_data)
@@ -453,10 +454,10 @@ void AuctionHandlers::HandleAuctionRemoveItem(WorldSession& session, WorldPacket
     // inform player, that auction is removed
     session.SendAuctionCommandResult(auction, AUCTION_REMOVED, AUCTION_OK);
     // Now remove the auction
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
     auction->DeleteFromDB();
     pl->SaveInventoryAndGoldToDB();
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
     sAuctionMgr.RemoveAItem(auction->itemGuidLow);
     auctionHouse->RemoveAuction(auction->Id);
 

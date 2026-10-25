@@ -29,6 +29,10 @@ set(CONVERTED_FILES
     src/game/persistence/characters/social/CalendarRepository.cpp
     src/game/persistence/characters/social/TicketRepository.h
     src/game/persistence/characters/social/TicketRepository.cpp
+    src/game/persistence/characters/economy/AuctionRepository.h
+    src/game/persistence/characters/economy/AuctionRepository.cpp
+    src/game/persistence/login/AccountRepository.h
+    src/game/persistence/login/AccountRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
@@ -176,10 +180,10 @@ set(ALLOW_TicketRepository_cpp
     "if (QueryResult* next = CharacterDatabase.Query(\"SELECT `AUTO_INCREMENT` FROM `information_schema`.`TABLES` WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'character_ticket'\"))"
     "return CharacterDatabase.Query(\"SELECT `guid`, `ticket_text`, `response_text`, UNIX_TIMESTAMP(`ticket_lastchange`), `ticket_id` FROM `character_ticket` WHERE `resolved` = 0 ORDER BY `ticket_id` ASC\")\;")
 
-set(ALLOW_AuctionHouseMgr_cpp
-    "QueryResult* result = CharacterDatabase.Query(\"SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`\")\;"
-    "QueryResult* result = CharacterDatabase.Query(\"SELECT COUNT(*) FROM `auction`\")\;"
-    "result = CharacterDatabase.Query(\"SELECT `id`,`houseid`,`itemguid`,`item_template`,`item_count`,`item_randompropertyid`,`itemowner`,`buyoutprice`,`time`,`moneyTime`,`buyguid`,`lastbid`,`startbid`,`deposit` FROM `auction`\")\;")
+set(ALLOW_AuctionRepository_cpp
+    "return CharacterDatabase.Query(\"SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`\")\;"
+    "return CharacterDatabase.Query(\"SELECT COUNT(*) FROM `auction`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `id`,`houseid`,`itemguid`,`item_template`,`item_count`,`item_randompropertyid`,`itemowner`,`buyoutprice`,`time`,`moneyTime`,`buyguid`,`lastbid`,`startbid`,`deposit` FROM `auction`\")\;")
 
 set(ALLOW_AccountMgr_cpp
     "QueryResult* result = LoginDatabase.PQuery(\"SELECT 1 FROM `account` WHERE `id`='%u'\", accid)\;"
