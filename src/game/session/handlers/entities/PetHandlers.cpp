@@ -40,6 +40,9 @@
 #include "spells/auras/SpellAuras.h"
 #include "Object/TemporarySummon.h"
 #include "MotionGenerators/MotionMaster.h"
+#include "persistence/characters/pets/PetRepository.h"
+
+static_assert(int(PET_DECLINED_NAME_ROW_CASES) == int(MAX_DECLINED_NAME_CASES), "the saved row's declined forms");
 
 /**
  * @brief Handles pet action bar commands, reactions, and spell casts.
@@ -736,34 +739,23 @@ void PetHandlers::HandlePetRename(WorldSession& session, WorldPacket& recv_data)
         }
     }
 
-    // Both tables this handler writes are in the character's pet cache, so each statement has its
-    // mirror beside it. Every string is a bound parameter, and nothing mutates `name` or `declinedname`,
-    // so the value the statement binds and the value the cache takes are the same object.
+    // Both tables this handler writes are in the character's pet cache, so the cache takes the
+    // same name and declined forms the repository writes.
     PlayerPetCache& petCache = session.GetPlayer()->GetPetCache();
     const uint32 renamedPetNumber = pet->GetCharmInfo()->GetPetNumber();
 
-    CharacterDatabase.BeginTransaction();
+    PetDeclinedNameRow declinedRow;
     if (isdeclined)
     {
-        static SqlStatementID delDeclinedName;
-        SqlStatement remove = CharacterDatabase.CreateStatement(delDeclinedName,
-                              "DELETE FROM `character_pet_declinedname` WHERE `owner` = ? AND `id` = ?");
-        remove.addUInt32(session.GetPlayer()->GetGUIDLow());
-        remove.addUInt32(renamedPetNumber);
-        remove.Execute();
-
-        static SqlStatementID insDeclinedName;
-        SqlStatement insert = CharacterDatabase.CreateStatement(insDeclinedName,
-                              "INSERT INTO `character_pet_declinedname` (`id`, `owner`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`) "
-                              "VALUES (?, ?, ?, ?, ?, ?, ?)");
-        insert.addUInt32(renamedPetNumber);
-        insert.addUInt32(session.GetPlayer()->GetGUIDLow());
         for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
         {
-            insert.addString(declinedname.name[i]);
+            declinedRow.name[i] = declinedname.name[i];
         }
-        insert.Execute();
+    }
+    PetRepository::Rename(session.GetPlayer()->GetGUIDLow(), renamedPetNumber, name, isdeclined ? &declinedRow : NULL);
 
+    if (isdeclined)
+    {
         PetCacheDeclinedName cachedDeclined;
         for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
         {
@@ -772,16 +764,7 @@ void PetHandlers::HandlePetRename(WorldSession& session, WorldPacket& recv_data)
         petCache.SetDeclinedName(renamedPetNumber, cachedDeclined);
     }
 
-    static SqlStatementID updPetName;
-    SqlStatement update = CharacterDatabase.CreateStatement(updPetName,
-                          "UPDATE `character_pet` SET `name` = ?, `renamed` = '1' WHERE `owner` = ? AND `id` = ?");
-    update.addString(name);
-    update.addUInt32(session.GetPlayer()->GetGUIDLow());
-    update.addUInt32(renamedPetNumber);
-    update.Execute();
-
     petCache.SetNameRenamed(renamedPetNumber, name, 1);
-    CharacterDatabase.CommitTransaction();
 
     pet->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, uint32(time(NULL)));
 }

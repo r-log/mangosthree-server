@@ -28,7 +28,8 @@
 #include "Pet.h"
 #include "Player.h"
 #include "PlayerPetCache.h"
-#include "Database/DatabaseEnv.h"
+#include "persistence/characters/CharacterTransaction.h"
+#include "persistence/characters/pets/PetRepository.h"
 #include "Log.h"
 #include "Group.h"
 #include "ObjectMgr.h"
@@ -270,18 +271,7 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     // still expects loading from slot 100 to mean "becomes active."
     if (getPetType() != HUNTER_PET && fields.slot != 0)
     {
-        CharacterDatabase.BeginTransaction();
-
-        static SqlStatementID id_1;
-        static SqlStatementID id_2;
-
-        SqlStatement stmt = CharacterDatabase.CreateStatement(id_1, "UPDATE `character_pet` SET `slot` = ? WHERE `owner` = ? AND `slot` = ? AND `id` <> ?");
-        stmt.PExecute(uint32(PET_SAVE_NOT_IN_SLOT), ownerid, uint32(PET_SAVE_AS_CURRENT), m_charmInfo->GetPetNumber());
-
-        stmt = CharacterDatabase.CreateStatement(id_2, "UPDATE `character_pet` SET `slot` = ? WHERE `owner` = ? AND `id` = ?");
-        stmt.PExecute(uint32(PET_SAVE_AS_CURRENT), ownerid, m_charmInfo->GetPetNumber());
-
-        CharacterDatabase.CommitTransaction();
+        PetRepository::PromoteToCurrent(ownerid, m_charmInfo->GetPetNumber(), uint32(PET_SAVE_AS_CURRENT), uint32(PET_SAVE_NOT_IN_SLOT));
 
         // The cache carries the same two updates, in the same order. `fields` is a copy, so
         // the slot it holds is the one the row had before this block -- which is what the
@@ -535,27 +525,20 @@ void Pet::SavePetToDB(PetSaveMode mode)
         }
 
         // save pet's data as one single transaction
-        CharacterDatabase.BeginTransaction();
+        CharacterTransaction::Begin();
         _SaveSpells(petCache);
         _SaveSpellCooldowns(petCache);
         _SaveAuras(petCache);
 
         uint32 ownerLow = GetOwnerGuid().GetCounter();
         // remove current data
-        static SqlStatementID delPet ;
-        static SqlStatementID insPet ;
-
-        SqlStatement stmt = CharacterDatabase.CreateStatement(delPet, "DELETE FROM `character_pet` WHERE `owner` = ? AND `id` = ?");
-        stmt.PExecute(ownerLow, m_charmInfo->GetPetNumber());
+        PetRepository::DeletePet(ownerLow, m_charmInfo->GetPetNumber());
         petCache.EraseRow(m_charmInfo->GetPetNumber());
 
         // prevent duplicate using slot (except PET_SAVE_NOT_IN_SLOT)
         if (mode <= PET_SAVE_LAST_STABLE_SLOT)
         {
-            static SqlStatementID updPet ;
-
-            stmt = CharacterDatabase.CreateStatement(updPet, "UPDATE `character_pet` SET `slot` = ? WHERE `owner` = ? AND `slot` = ?");
-            stmt.PExecute(uint32(PET_SAVE_NOT_IN_SLOT), ownerLow, uint32(mode));
+            PetRepository::FreeSlot(ownerLow, uint32(mode), uint32(PET_SAVE_NOT_IN_SLOT));
             petCache.MoveSlot(uint32(mode), uint32(PET_SAVE_NOT_IN_SLOT), 0);
         }
 
@@ -585,54 +568,45 @@ void Pet::SavePetToDB(PetSaveMode mode)
         // (after step 10 of the audit ships).
         if (getPetType() == HUNTER_PET && (mode == PET_SAVE_AS_CURRENT || mode > PET_SAVE_LAST_STABLE_SLOT))
         {
-            static SqlStatementID del ;
-
-            stmt = CharacterDatabase.CreateStatement(del, "DELETE FROM `character_pet` WHERE `owner` = ? AND `slot` > ? AND `id` <> ?");
-            stmt.PExecute(ownerLow, uint32(PET_SAVE_LAST_STABLE_SLOT), m_charmInfo->GetPetNumber());
+            PetRepository::DeleteUnslotted(ownerLow, uint32(PET_SAVE_LAST_STABLE_SLOT), m_charmInfo->GetPetNumber());
             petCache.EraseRowsAboveSlot(uint32(PET_SAVE_LAST_STABLE_SLOT), m_charmInfo->GetPetNumber());
         }
 
         // save pet
-        SqlStatement savePet = CharacterDatabase.CreateStatement(insPet, "INSERT INTO `character_pet` "
-        "(`id`, `entry`,  `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType`) "
-             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-        savePet.addUInt32(m_charmInfo->GetPetNumber());
-        savePet.addUInt32(GetEntry());
-        savePet.addUInt32(ownerLow);
-        savePet.addUInt32(GetNativeDisplayId());
-        savePet.addUInt32(getLevel());
-        savePet.addUInt32(GetUInt32Value(UNIT_FIELD_PETEXPERIENCE));
-        savePet.addUInt32(uint32(m_charmInfo->GetReactState()));
-        savePet.addUInt32(uint32(mode));
-        savePet.addString(m_name.c_str());
-        savePet.addUInt32(uint32(HasByteFlag(UNIT_FIELD_BYTES_2, 2, UNIT_CAN_BE_RENAMED) ? 0 : 1));
-        savePet.addUInt32(curhealth);
-        savePet.addUInt32(curpower);
-
         std::ostringstream ss;
         for (uint32 i = ACTION_BAR_INDEX_START; i < ACTION_BAR_INDEX_END; ++i)
         {
             ss << uint32(m_charmInfo->GetActionBarEntry(i)->GetType()) << " "
                << uint32(m_charmInfo->GetActionBarEntry(i)->GetAction()) << " ";
         };
-        // Taken before the bind: SqlStatement::addString(std::ostringstream&) EMPTIES the
-        // stream it is handed (SqlPreparedStatement.h), so ss.str() afterwards is "".
         const std::string abData = ss.str();
-        savePet.addString(ss);
 
         // One reading of the clock, so the row the cache holds and the row the INSERT writes
         // carry the same `savetime` -- which is what the next load's `timediff` is measured
         // from.
         const uint64 saveTime = uint64(time(NULL));
-        savePet.addUInt64(saveTime);
-        savePet.addUInt32(uint32(m_resetTalentsCost));
-        savePet.addUInt64(uint64(m_resetTalentsTime));
-        savePet.addUInt32(GetUInt32Value(UNIT_CREATED_BY_SPELL));
-        savePet.addUInt32(uint32(getPetType()));
 
-        savePet.Execute();
-        CharacterDatabase.CommitTransaction();
+        PetSaveRow saved;
+        saved.id               = m_charmInfo->GetPetNumber();
+        saved.entry            = GetEntry();
+        saved.owner            = ownerLow;
+        saved.modelId          = GetNativeDisplayId();
+        saved.level            = getLevel();
+        saved.exp              = GetUInt32Value(UNIT_FIELD_PETEXPERIENCE);
+        saved.reactState       = uint32(m_charmInfo->GetReactState());
+        saved.slot             = uint32(mode);
+        saved.name             = m_name;
+        saved.renamed          = uint32(HasByteFlag(UNIT_FIELD_BYTES_2, 2, UNIT_CAN_BE_RENAMED) ? 0 : 1);
+        saved.curHealth        = curhealth;
+        saved.curMana          = curpower;
+        saved.abData           = abData;
+        saved.saveTime         = saveTime;
+        saved.resetTalentsCost = uint32(m_resetTalentsCost);
+        saved.resetTalentsTime = uint64(m_resetTalentsTime);
+        saved.createdBySpell   = GetUInt32Value(UNIT_CREATED_BY_SPELL);
+        saved.petType          = uint32(getPetType());
+        PetRepository::InsertPet(saved);
+        CharacterTransaction::Commit();
 
         // The same row, into the cache. Built from the same values in the same order as the
         // INSERT's parameters, so a reviewer can read the two side by side.
@@ -676,34 +650,5 @@ void Pet::SavePetToDB(PetSaveMode mode)
  */
 void Pet::DeleteFromDB(uint32 guidlow, bool separate_transaction)
 {
-    if (separate_transaction)
-    {
-        CharacterDatabase.BeginTransaction();
-    }
-
-    static SqlStatementID delPet ;
-    static SqlStatementID delDeclName ;
-    static SqlStatementID delAuras ;
-    static SqlStatementID delSpells ;
-    static SqlStatementID delSpellCD ;
-
-    SqlStatement stmt = CharacterDatabase.CreateStatement(delPet, "DELETE FROM `character_pet` WHERE `id` = ?");
-    stmt.PExecute(guidlow);
-
-    stmt = CharacterDatabase.CreateStatement(delDeclName, "DELETE FROM `character_pet_declinedname` WHERE `id` = ?");
-    stmt.PExecute(guidlow);
-
-    stmt = CharacterDatabase.CreateStatement(delAuras, "DELETE FROM `pet_aura` WHERE `guid` = ?");
-    stmt.PExecute(guidlow);
-
-    stmt = CharacterDatabase.CreateStatement(delSpells, "DELETE FROM `pet_spell` WHERE `guid` = ?");
-    stmt.PExecute(guidlow);
-
-    stmt = CharacterDatabase.CreateStatement(delSpellCD, "DELETE FROM `pet_spell_cooldown` WHERE `guid` = ?");
-    stmt.PExecute(guidlow);
-
-    if (separate_transaction)
-    {
-        CharacterDatabase.CommitTransaction();
-    }
+    PetRepository::DeleteAllOf(guidlow, separate_transaction);
 }

@@ -14,6 +14,10 @@ set(CONVERTED_FILES
     src/game/entities/player/Player.cpp
     src/game/Object/PetDatabase.cpp
     src/game/Object/PetSpells.cpp
+    src/game/persistence/characters/CharacterTransaction.h
+    src/game/persistence/characters/CharacterTransaction.cpp
+    src/game/persistence/characters/pets/PetRepository.h
+    src/game/persistence/characters/pets/PetRepository.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
