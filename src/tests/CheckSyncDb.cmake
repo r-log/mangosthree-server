@@ -47,6 +47,10 @@ set(CONVERTED_FILES
     src/game/persistence/characters/CharacterSaveRepository.cpp
     src/game/persistence/characters/maps/InstanceBindRepository.h
     src/game/persistence/characters/maps/InstanceBindRepository.cpp
+    src/game/persistence/characters/achievements/AchievementRepository.h
+    src/game/persistence/characters/achievements/AchievementRepository.cpp
+    src/game/persistence/world/achievements/AchievementDataRepository.h
+    src/game/persistence/world/achievements/AchievementDataRepository.cpp
     src/game/persistence/characters/account/AccountDataRepository.h
     src/game/persistence/characters/account/AccountDataRepository.cpp
     src/game/persistence/login/RealmRepository.h
@@ -207,6 +211,15 @@ set(ALLOW_AuctionRepository_cpp
     "return CharacterDatabase.Query(\"SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`\")\;"
     "return CharacterDatabase.Query(\"SELECT COUNT(*) FROM `auction`\")\;"
     "return CharacterDatabase.Query(\"SELECT `id`,`houseid`,`itemguid`,`item_template`,`item_count`,`item_randompropertyid`,`itemowner`,`buyoutprice`,`time`,`moneyTime`,`buyguid`,`lastbid`,`startbid`,`deposit` FROM `auction`\")\;")
+
+set(ALLOW_AchievementRepository_cpp
+    "return CharacterDatabase.Query(\"SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`\")\;"
+    "return CharacterDatabase.Query(\"SELECT DISTINCT `criteria` FROM `character_achievement_progress`\")\;")
+
+set(ALLOW_AchievementDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `criteria_id`, `type`, `value1`, `value2` FROM `achievement_criteria_requirement`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `gender`, `title_A`, `title_H`, `item`, `sender`, `subject`, `text` FROM `achievement_reward`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`,`gender`,\"")
 
 set(ALLOW_AccountDataRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `type`, `time`, `data` FROM `account_data` WHERE `account` = '%u'\", accountId)\;"

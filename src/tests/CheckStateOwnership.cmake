@@ -201,6 +201,12 @@ state_allow(achievement src/game/WorldHandlers/AchievementMgr.cpp
 state_allow(achievement src/game/WorldHandlers/AchievementMgr.h
     WHY "realm-wide cleanup: AchievementGlobalMgr::CleanupOrphanedCriteriaProgress's doc comment, in the owner's header"
     NAMES character_achievement_progress)
+state_allow(achievement src/game/persistence/characters/achievements/AchievementRepository.cpp
+    WHY "the owner's repository: the rows it saves and deletes, and the realm-wide start-up reads and cleanup"
+    NAMES character_achievement character_achievement_progress)
+state_allow(achievement src/tests/AchievementRepositoryTest.cpp
+    WHY "unit test that observes the repository's statements through a fake connection (checks the statements, runs nothing itself)"
+    NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/game/persistence/characters/CharacterDeleteRepository.cpp
     WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
     NAMES character_achievement character_achievement_progress)

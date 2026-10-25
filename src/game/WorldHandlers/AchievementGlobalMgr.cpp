@@ -37,6 +37,8 @@
 #include "ObjectMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "ProgressBar.h"
+#include "persistence/characters/achievements/AchievementRepository.h"
+#include "persistence/world/achievements/AchievementDataRepository.h"
 
 AchievementCriteriaEntryList const& AchievementGlobalMgr::GetAchievementCriteriaByType(AchievementCriteriaTypes type)
 {
@@ -184,7 +186,7 @@ void AchievementGlobalMgr::LoadAchievementCriteriaRequirements()
 {
     m_criteriaRequirementMap.clear();                       // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `criteria_id`, `type`, `value1`, `value2` FROM `achievement_criteria_requirement`");
+    QueryResult* result = AchievementDataRepository::QueryCriteriaRequirements();
 
     if (!result)
     {
@@ -329,7 +331,7 @@ void AchievementGlobalMgr::LoadAchievementCriteriaRequirements()
 
 void AchievementGlobalMgr::LoadCompletedAchievements()
 {
-    QueryResult* result = CharacterDatabase.Query("SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`");
+    QueryResult* result = AchievementRepository::QueryCompletedAchievements();
 
     if (!result)
     {
@@ -352,7 +354,7 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
         {
             // we will remove nonexistent achievement for all characters
             sLog.outError("Nonexistent achievement %u data removed from table `character_achievement`.", achievement_id);
-            CharacterDatabase.PExecute("DELETE FROM `character_achievement` WHERE `achievement` = %u", achievement_id);
+            AchievementRepository::DeleteAchievementOfEveryCharacter(achievement_id);
             continue;
         }
 
@@ -368,7 +370,7 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
 
 void AchievementGlobalMgr::CleanupOrphanedCriteriaProgress()
 {
-    QueryResult* result = CharacterDatabase.Query("SELECT DISTINCT `criteria` FROM `character_achievement_progress`");
+    QueryResult* result = AchievementRepository::QueryProgressCriteria();
 
     if (!result)
     {
@@ -392,7 +394,7 @@ void AchievementGlobalMgr::CleanupOrphanedCriteriaProgress()
         {
             // we will remove nonexistent criteria for all characters
             sLog.outError("Nonexistent achievement criteria %u data removed from table `character_achievement_progress`.", criteria_id);
-            CharacterDatabase.PExecute("DELETE FROM `character_achievement_progress` WHERE `criteria` = %u", criteria_id);
+            AchievementRepository::DeleteCriteriaOfEveryCharacter(criteria_id);
             ++count;
         }
     }
@@ -408,8 +410,7 @@ void AchievementGlobalMgr::LoadRewards()
 {
     m_achievementRewards.clear();                           // need for reload case
 
-    //                                                 0        1         2          3          4       5         6          7
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `gender`, `title_A`, `title_H`, `item`, `sender`, `subject`, `text` FROM `achievement_reward`");
+    QueryResult* result = AchievementDataRepository::QueryRewards();
 
     if (!result)
     {
@@ -550,14 +551,7 @@ void AchievementGlobalMgr::LoadRewardLocales()
 {
     m_achievementRewardLocales.clear();                     // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,`gender`,"
-                                              "`subject_loc1`,`text_loc1`,`subject_loc2`,`text_loc2`,"
-                                              "`subject_loc3`,`text_loc3`,`subject_loc4`,`text_loc4`,"
-                                              "`subject_loc5`,`text_loc5`,`subject_loc6`,`text_loc6`,"
-                                              "`subject_loc7`,`text_loc7`,`subject_loc8`,`text_loc8`,"
-                                              "`subject_loc9`,`text_loc9`,`subject_loc10`,`text_loc10`,"
-                                              "`subject_loc11`,`text_loc11`"
-                                              " FROM `locales_achievement_reward`");
+    QueryResult* result = AchievementDataRepository::QueryRewardLocales();
     if (!result)
     {
         BarGoLink bar(1);
