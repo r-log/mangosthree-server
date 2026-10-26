@@ -242,8 +242,9 @@ TEST(WorldDataRepository_AppReads)
         "SELECT `item` FROM `creature_loot_template` UNION SELECT `item` FROM `disenchant_loot_template` UNION SELECT `item` FROM `fishing_loot_template` UNION SELECT `item` FROM `gameobject_loot_template` UNION SELECT `item` FROM `item_loot_template` UNION SELECT `item` FROM `milling_loot_template` UNION SELECT `item` FROM `pickpocketing_loot_template` UNION SELECT `item` FROM `prospecting_loot_template` UNION SELECT `item` FROM `skinning_loot_template` UNION SELECT `item` FROM `spell_loot_template`",
     }, __LINE__);
 }
+
 // The start-up and shutdown clean-up is queued in order; the realm's flags and builds and the
-// offline flag are written directly, on the calling thread.
+// offline flag are written directly, on the calling thread, before the queued writes run.
 TEST(RealmRepository_StartAndStopWrites)
 {
     Db login(LoginDatabase);
@@ -258,11 +259,10 @@ TEST(RealmRepository_StartAndStopWrites)
     }
     RealmRepository::PublishFlagsAndBuilds(2, "15595", 3);
     RealmRepository::AddFlags(2, 3);
-    CheckLines(login.query.executed, {
+    CHECK_EQ(login.query.executed.size(), size_t(0));
+    CheckLines(login.Take(), {
         "UPDATE `realmlist` SET `realmflags` = 2, `population` = 0, `realmbuilds` = '15595' WHERE `id` = '3'",
         "UPDATE `realmlist` SET `realmflags` = `realmflags` | 2 WHERE `id` = '3'",
-    }, __LINE__);
-    CheckLines(login.Take(), {
         "UPDATE `account` SET `active_realm_id` = 0 WHERE `active_realm_id` = '3'",
     }, __LINE__);
     CheckLines(chars.Take(), {
