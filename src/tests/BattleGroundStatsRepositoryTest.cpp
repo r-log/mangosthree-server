@@ -35,6 +35,7 @@
 #include "persistence/characters/maps/InstanceDataRepository.h"
 #include "persistence/characters/pvp/BattleGroundStatsRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -118,12 +119,13 @@ TEST(BattleGroundStatsRepository_Writes)
     }, __LINE__);
 }
 
-// The startup reads run on the calling thread, in call order.
+// The startup reads run on the calling thread, in call order; the two values answer nothing for no
+// rows.
 TEST(BattleGroundStatsRepository_StartupReads)
 {
     Db db;
-    delete BattleGroundStatsRepository::QueryHighestId();
-    delete SavedVariablesRepository::QueryNextArenaPointDistribution();
+    CHECK(!BattleGroundStatsRepository::QueryHighestId());
+    CHECK(!SavedVariablesRepository::QueryNextArenaPointDistribution());
     delete InstanceDataRepository::QueryInstanceData();
     delete InstanceDataRepository::QueryWorldData();
     CheckLines(db.query.executed, {
@@ -133,6 +135,21 @@ TEST(BattleGroundStatsRepository_StartupReads)
         "SELECT `map`, `data` FROM `world`",
     }, __LINE__);
     CHECK_EQ(db.async.executed.size(), size_t(0));
+}
+
+// The highest battleground id and the next arena point distribution time are each read as a 64-bit
+// value from the first column of the first row.
+TEST(BattleGroundStatsRepository_StartupValues)
+{
+    Db db;
+    db.query.Answer("SELECT MAX(`id`)", FakeRows{FakeRow{"4294967297"}, FakeRow{"5"}});
+    db.query.Answer("SELECT `NextArenaPointDistributionTime`", FakeRows{FakeRow{"4294967298"}});
+    std::optional<uint64> highestId = BattleGroundStatsRepository::QueryHighestId();
+    std::optional<uint64> nextDistribution = SavedVariablesRepository::QueryNextArenaPointDistribution();
+    REQUIRE(highestId);
+    REQUIRE(nextDistribution);
+    CHECK_EQ(*highestId, uint64(4294967297ull));
+    CHECK_EQ(*nextDistribution, uint64(4294967298ull));
 }
 
 // An instance's and a world map's script data saves are queued, the data bound, then a world

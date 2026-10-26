@@ -266,8 +266,8 @@ void SpellMgr::LoadSpellProcEvents()
 {
     mSpellProcEventMap.clear();                             // need for reload case
 
-    QueryResult* result = SpellDataRepository::QueryProcEvents();
-    if (!result)
+    std::vector<SpellProcEventRow> rows = SpellDataRepository::QueryProcEvents();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -278,39 +278,36 @@ void SpellMgr::LoadSpellProcEvents()
 
     SpellRankHelper<SpellProcEventEntry, DoSpellProcEvent, SpellProcEventMap> rankHelper(*this, mSpellProcEventMap);
 
-    BarGoLink bar(result->GetRowCount());
-    do
-    {
-        Field* fields = result->Fetch();
+    static_assert(int(SPELL_PROC_EVENT_ROW_MASKS) == int(MAX_EFFECT_INDEX), "the proc event row's family masks");
 
+    BarGoLink bar(rows.size());
+    for (SpellProcEventRow const& row : rows)
+    {
         bar.step();
 
-        uint32 entry = fields[0].GetUInt32();
+        uint32 entry = row.entry;
 
         SpellProcEventEntry spe;
 
-        spe.schoolMask      = fields[1].GetUInt32();
-        spe.spellFamilyName = fields[2].GetUInt32();
+        spe.schoolMask      = row.schoolMask;
+        spe.spellFamilyName = row.spellFamilyName;
 
         for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
         {
             spe.spellFamilyMask[i] = ClassFamilyMask(
-                                         (uint64)fields[i + 3].GetUInt32() | ((uint64)fields[i + 6].GetUInt32() << 32),
-                                         fields[i + 9].GetUInt32());
+                                         (uint64)row.spellFamilyMaskA[i] | ((uint64)row.spellFamilyMaskB[i] << 32),
+                                         row.spellFamilyMaskC[i]);
         }
-        spe.procFlags       = fields[12].GetUInt32();
-        spe.procEx          = fields[13].GetUInt32();
-        spe.ppmRate         = fields[14].GetFloat();
-        spe.customChance    = fields[15].GetFloat();
-        spe.cooldown        = fields[16].GetUInt32();
+        spe.procFlags       = row.procFlags;
+        spe.procEx          = row.procEx;
+        spe.ppmRate         = row.ppmRate;
+        spe.customChance    = row.customChance;
+        spe.cooldown        = row.cooldown;
 
         rankHelper.RecordRank(spe, entry);
     }
-    while (result->NextRow());
 
     rankHelper.FillHigherRanks();
-
-    delete result;
 
     sLog.outString(">> Loaded %u extra spell proc event conditions +%u custom proc (inc. +%u custom ranks)",  rankHelper.worker.count, rankHelper.worker.customProc, rankHelper.customRank);
     sLog.outString();
@@ -334,8 +331,8 @@ void SpellMgr::LoadSpellProcItemEnchant()
 
     uint32 count = 0;
 
-    QueryResult* result = SpellDataRepository::QueryProcItemEnchants();
-    if (!result)
+    std::vector<SpellProcItemEnchantRow> rows = SpellDataRepository::QueryProcItemEnchants();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -344,16 +341,14 @@ void SpellMgr::LoadSpellProcItemEnchant()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (SpellProcItemEnchantRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         bar.step();
 
-        uint32 entry = fields[0].GetUInt32();
-        float ppmRate = fields[1].GetFloat();
+        uint32 entry = row.entry;
+        float ppmRate = row.ppmRate;
 
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(entry);
 
@@ -380,9 +375,6 @@ void SpellMgr::LoadSpellProcItemEnchant()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u proc item enchant definitions", count);
     sLog.outString();

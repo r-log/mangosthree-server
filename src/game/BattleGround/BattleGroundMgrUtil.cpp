@@ -280,11 +280,11 @@ void BattleGroundMgr::LoadBattleMastersEntry()
 {
     mBattleMastersMap.clear();                              // need for reload case
 
-    QueryResult* result = BattleGroundDataRepository::QueryBattleMasters();
+    std::vector<BattleMasterRow> rows = BattleGroundDataRepository::QueryBattleMasters();
 
     uint32 count = 0;
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -293,17 +293,15 @@ void BattleGroundMgr::LoadBattleMastersEntry()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (BattleMasterRow const& row : rows)
     {
         ++count;
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 entry = fields[0].GetUInt32();
-        uint32 bgTypeId  = fields[1].GetUInt32();
+        uint32 entry = row.entry;
+        uint32 bgTypeId  = row.bgTemplate;
         if (!sBattlemasterListStore.LookupEntry(bgTypeId))
         {
             sLog.outErrorDb("Table `battlemaster_entry` contain entry %u for nonexistent battleground type %u, ignored.", entry, bgTypeId);
@@ -312,9 +310,6 @@ void BattleGroundMgr::LoadBattleMastersEntry()
 
         mBattleMastersMap[entry] = BattleGroundTypeId(bgTypeId);
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u battlemaster entries", count);
     sLog.outString();
@@ -402,8 +397,8 @@ void BattleGroundMgr::LoadBattleEventIndexes()
 
     uint32 count = 0;
 
-    QueryResult* result = BattleGroundDataRepository::QueryEventIndexes();
-    if (!result)
+    std::vector<BattleGroundEventIndexRow> rows = BattleGroundDataRepository::QueryEventIndexes();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -412,30 +407,29 @@ void BattleGroundMgr::LoadBattleEventIndexes()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (BattleGroundEventIndexRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
-        if (fields[2].GetUInt8() == BG_EVENT_NONE || fields[3].GetUInt8() == BG_EVENT_NONE)
+        if (row.event1 == BG_EVENT_NONE || row.event2 == BG_EVENT_NONE)
         {
             continue; // we don't need to add those to the eventmap
         }
 
-        bool gameobject         = (fields[0].GetUInt8() == 1);
-        uint32 dbTableGuidLow   = fields[1].GetUInt32();
-        events.event1           = fields[2].GetUInt8();
-        events.event2           = fields[3].GetUInt8();
-        uint32 map              = fields[4].GetUInt32();
+        bool gameobject         = (row.type == 1);
+        uint32 dbTableGuidLow   = row.guid;
+        events.event1           = row.event1;
+        events.event2           = row.event2;
+        uint32 map              = row.map;
 
-        uint32 desc_map = fields[6].GetUInt32();
-        uint8 desc_event1 = fields[7].GetUInt8();
-        uint8 desc_event2 = fields[8].GetUInt8();
-        const char* description = fields[9].GetString();
+        uint32 desc_map = row.descriptionMap;
+        uint8 desc_event1 = row.descriptionEvent1;
+        uint8 desc_event2 = row.descriptionEvent2;
+        const char* description = (row.description ? row.description->c_str() : NULL);
 
         // checking for NULL - through right outer join this will mean following:
-        if (fields[5].GetUInt32() != dbTableGuidLow)
+        if (row.spawnGuid != dbTableGuidLow)
         {
             sLog.outErrorDb("BattleGroundEvent: %s with nonexistent guid %u for event: map:%u, event1:%u, event2:%u (\"%s\")",
                             (gameobject) ? "gameobject" : "creature", dbTableGuidLow, map, events.event1, events.event2, description);
@@ -471,9 +465,7 @@ void BattleGroundMgr::LoadBattleEventIndexes()
 
         ++count;
     }
-    while (result->NextRow());
 
     sLog.outString(">> Loaded %u battleground eventindexes", count);
     sLog.outString();
-    delete result;
 }

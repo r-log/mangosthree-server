@@ -28,7 +28,7 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <optional>
 
 /// One player's saved score of a battleground, in the order of the INSERT's columns.
 struct BattleGroundPlayerStatsRow
@@ -54,7 +54,7 @@ struct BattleGroundPlayerStatsRow
 namespace BattleGroundStatsRepository
 {
     /// Selects the highest battleground statistics id.
-    QueryResult* QueryHighestId();
+    std::optional<uint64> QueryHighestId();
 
     /// Inserts a finished battleground's row, dated now.
     void InsertBattleGround(uint64 id, uint32 winnerTeam, uint8 bracket, uint8 type);

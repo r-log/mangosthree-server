@@ -25,12 +25,14 @@
 
 #include "BattleGroundStatsRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace BattleGroundStatsRepository
 {
-    QueryResult* QueryHighestId()
+    std::optional<uint64> QueryHighestId()
     {
-        return CharacterDatabase.Query("SELECT MAX(`id`) FROM `pvpstats_battlegrounds`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `pvpstats_battlegrounds`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
     void InsertBattleGround(uint64 id, uint32 winnerTeam, uint8 bracket, uint8 type)

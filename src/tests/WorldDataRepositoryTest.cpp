@@ -94,17 +94,17 @@ namespace
 TEST(WorldDataRepository_StartupReads)
 {
     Db db;
-    delete SpellDataRepository::QueryUsedSpells("spell_check");
-    delete SpellDataRepository::QuerySpellAreas();
-    delete SpellDataRepository::QuerySpellChains();
-    delete SpellDataRepository::QueryLearnSpells();
-    delete SpellDataRepository::QueryTargetPositions();
-    delete SpellDataRepository::QueryBonuses();
-    delete SpellDataRepository::QueryElixirs();
-    delete SpellDataRepository::QueryThreats();
-    delete SpellDataRepository::QueryPetAuras();
-    delete SpellDataRepository::QueryProcEvents();
-    delete SpellDataRepository::QueryProcItemEnchants();
+    SpellDataRepository::QueryUsedSpells("spell_check");
+    SpellDataRepository::QuerySpellAreas();
+    SpellDataRepository::QuerySpellChains();
+    SpellDataRepository::QueryLearnSpells();
+    SpellDataRepository::QueryTargetPositions();
+    SpellDataRepository::QueryBonuses();
+    SpellDataRepository::QueryElixirs();
+    SpellDataRepository::QueryThreats();
+    SpellDataRepository::QueryPetAuras();
+    SpellDataRepository::QueryProcEvents();
+    SpellDataRepository::QueryProcItemEnchants();
     delete CreatureEventAIRepository::QuerySummons();
     delete CreatureEventAIRepository::QueryEvents();
     delete LootDataRepository::QueryLootTemplate("creature_loot_template");
@@ -114,9 +114,9 @@ TEST(WorldDataRepository_StartupReads)
     delete MapDataRepository::QueryTransports();
     delete MapDataRepository::QueryTransportGameObjects();
     delete MapDataRepository::QueryWeather();
-    delete BattleGroundDataRepository::QueryTemplates();
-    delete BattleGroundDataRepository::QueryBattleMasters();
-    delete BattleGroundDataRepository::QueryEventIndexes();
+    BattleGroundDataRepository::QueryTemplates();
+    BattleGroundDataRepository::QueryBattleMasters();
+    BattleGroundDataRepository::QueryEventIndexes();
     CheckLines(db.query.executed, {
         "SELECT `spellid`,`SpellFamilyName`,`SpellFamilyMaskA`,`SpellFamilyMaskB`,`SpellIcon`,`SpellVisual`,`SpellCategory`,`EffectType`,`EffectAura`,`EffectIdx`,`Name`,`Code` FROM `spell_check`",
         "SELECT `spell`, `area`, `quest_start`, `quest_start_active`, `quest_end`, `condition_id`, `aura_spell`, `racemask`, `gender`, `autocast` FROM `spell_area`",

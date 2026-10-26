@@ -1037,10 +1037,9 @@ void BattleGroundMgr::LoadHighestPvPStatsId()
     uint64 highest = 0;
 
     // A missing or empty table answers 0 here, and GenerateNextPvPStatsId() hands out 1.
-    if (QueryResult* result = BattleGroundStatsRepository::QueryHighestId())
+    if (std::optional<uint64> highestId = BattleGroundStatsRepository::QueryHighestId())
     {
-        highest = (*result)[0].GetUInt64();
-        delete result;
+        highest = *highestId;
     }
 
     m_highestPvPStatsId.store(highest);
@@ -1058,9 +1057,9 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
 {
     uint32 count = 0;
 
-    QueryResult* result = BattleGroundDataRepository::QueryTemplates();
+    std::vector<BattleGroundTemplateRow> rows = BattleGroundDataRepository::QueryTemplates();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -1069,14 +1068,13 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (BattleGroundTemplateRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 bgTypeID_ = fields[0].GetUInt32();
+        uint32 bgTypeID_ = row.id;
 
         // can be overwrite by values from DB
         BattlemasterListEntry const* bl = sBattlemasterListStore.LookupEntry(bgTypeID_);
@@ -1094,8 +1092,8 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
         BattleGroundTypeId bgTypeID = BattleGroundTypeId(bgTypeID_);
 
         bool IsArena = (bl->InstanceType == TYPE_ARENA);
-        uint32 MinPlayersPerTeam = fields[1].GetUInt32();
-        uint32 MaxPlayersPerTeam = fields[2].GetUInt32();
+        uint32 MinPlayersPerTeam = row.minPlayersPerTeam;
+        uint32 MaxPlayersPerTeam = row.maxPlayersPerTeam;
 
         // check values from DB
         if (MaxPlayersPerTeam == 0)
@@ -1113,7 +1111,7 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
         float AStartLoc[4];
         float HStartLoc[4];
 
-        uint32 start1 = fields[3].GetUInt32();
+        uint32 start1 = row.allianceStartLoc;
 
         WorldSafeLocsEntry const* start = sWorldSafeLocsStore.LookupEntry(start1);
         if (start)
@@ -1121,14 +1119,14 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
             AStartLoc[0] = start->Loc_0;
             AStartLoc[1] = start->Loc_1;
             AStartLoc[2] = start->Loc_2;
-            AStartLoc[3] = fields[4].GetFloat();
+            AStartLoc[3] = row.allianceStartO;
         }
         else if (bgTypeID == BATTLEGROUND_AA || bgTypeID == BATTLEGROUND_RB)
         {
             AStartLoc[0] = 0;
             AStartLoc[1] = 0;
             AStartLoc[2] = 0;
-            AStartLoc[3] = fields[4].GetFloat();
+            AStartLoc[3] = row.allianceStartO;
         }
         else
         {
@@ -1136,7 +1134,7 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
             continue;
         }
 
-        uint32 start2 = fields[5].GetUInt32();
+        uint32 start2 = row.hordeStartLoc;
 
         start = sWorldSafeLocsStore.LookupEntry(start2);
         if (start)
@@ -1144,14 +1142,14 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
             HStartLoc[0] = start->Loc_0;
             HStartLoc[1] = start->Loc_1;
             HStartLoc[2] = start->Loc_2;
-            HStartLoc[3] = fields[6].GetFloat();
+            HStartLoc[3] = row.hordeStartO;
         }
         else if (bgTypeID == BATTLEGROUND_AA || bgTypeID == BATTLEGROUND_RB)
         {
             HStartLoc[0] = 0;
             HStartLoc[1] = 0;
             HStartLoc[2] = 0;
-            HStartLoc[3] = fields[6].GetFloat();
+            HStartLoc[3] = row.hordeStartO;
         }
         else
         {
@@ -1159,7 +1157,7 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
             continue;
         }
 
-        float startMaxDist = fields[7].GetFloat();
+        float startMaxDist = row.startMaxDist;
         // sLog.outDetail("Creating battleground %s, %u-%u", bl->Name_lang[sWorld.GetDBClang()], MinLvl, MaxLvl);
         if (!CreateBattleGround(bgTypeID, IsArena, MinPlayersPerTeam, MaxPlayersPerTeam, bl->MinLevel, bl->MaxLevel, bl->Name_lang[sGameConfig.GetDefaultDbcLocale()], bl->MapID[0], AStartLoc[0], AStartLoc[1], AStartLoc[2], AStartLoc[3], HStartLoc[0], HStartLoc[1], HStartLoc[2], HStartLoc[3], startMaxDist))
         {
@@ -1168,9 +1166,6 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u battlegrounds", count);
     sLog.outString();
@@ -1181,8 +1176,8 @@ void BattleGroundMgr::InitAutomaticArenaPointDistribution()
     if (sGameConfig.getConfig(CONFIG_BOOL_ARENA_AUTO_DISTRIBUTE_POINTS))
     {
         DEBUG_LOG("Initializing Automatic Arena Point Distribution");
-        QueryResult* result = SavedVariablesRepository::QueryNextArenaPointDistribution();
-        if (!result)
+        std::optional<uint64> nextDistribution = SavedVariablesRepository::QueryNextArenaPointDistribution();
+        if (!nextDistribution)
         {
             DEBUG_LOG("Battleground: Next arena point distribution time not found in SavedVariables, reseting it now.");
             m_NextAutoDistributionTime = time_t(WorldGameTime::Get() + BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY * sGameConfig.getConfig(CONFIG_UINT32_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS));
@@ -1190,8 +1185,7 @@ void BattleGroundMgr::InitAutomaticArenaPointDistribution()
         }
         else
         {
-            m_NextAutoDistributionTime = time_t((*result)[0].GetUInt64());
-            delete result;
+            m_NextAutoDistributionTime = time_t(*nextDistribution);
         }
         DEBUG_LOG("Automatic Arena Point Distribution initialized.");
     }

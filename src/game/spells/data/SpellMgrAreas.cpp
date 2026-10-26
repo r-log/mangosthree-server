@@ -48,9 +48,9 @@ void SpellMgr::LoadSpellAreas()
 
     uint32 count = 0;
 
-    QueryResult* result = SpellDataRepository::QuerySpellAreas();
+    std::vector<SpellAreaRow> rows = SpellDataRepository::QuerySpellAreas();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -59,26 +59,24 @@ void SpellMgr::LoadSpellAreas()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (SpellAreaRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         bar.step();
 
-        uint32 spell = fields[0].GetUInt32();
+        uint32 spell = row.spell;
         SpellArea spellArea;
         spellArea.spellId             = spell;
-        spellArea.areaId              = fields[1].GetUInt32();
-        spellArea.questStart          = fields[2].GetUInt32();
-        spellArea.questStartCanActive = fields[3].GetBool();
-        spellArea.questEnd            = fields[4].GetUInt32();
-        spellArea.conditionId         = fields[5].GetUInt16();
-        spellArea.auraSpell           = fields[6].GetInt32();
-        spellArea.raceMask            = fields[7].GetUInt32();
-        spellArea.gender              = Gender(fields[8].GetUInt8());
-        spellArea.autocast            = fields[9].GetBool();
+        spellArea.areaId              = row.area;
+        spellArea.questStart          = row.questStart;
+        spellArea.questStartCanActive = row.questStartActive;
+        spellArea.questEnd            = row.questEnd;
+        spellArea.conditionId         = row.conditionId;
+        spellArea.auraSpell           = row.auraSpell;
+        spellArea.raceMask            = row.racemask;
+        spellArea.gender              = Gender(row.gender);
+        spellArea.autocast            = row.autocast;
 
         if (!sSpellStore.LookupEntry(spell))
         {
@@ -262,9 +260,6 @@ void SpellMgr::LoadSpellAreas()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u spell area requirements", count);
     sLog.outString();

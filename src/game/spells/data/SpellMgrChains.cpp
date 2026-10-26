@@ -249,8 +249,8 @@ void SpellMgr::LoadSpellChains()
     }
 
     // load custom case
-    QueryResult* result = SpellDataRepository::QuerySpellChains();
-    if (!result)
+    std::vector<SpellChainRow> rows = SpellDataRepository::QuerySpellChains();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -265,19 +265,18 @@ void SpellMgr::LoadSpellChains()
     uint32 new_count = 0;
     uint32 req_count = 0;
 
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(rows.size());
+    for (SpellChainRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
 
-        uint32 spell_id = fields[0].GetUInt32();
+        uint32 spell_id = row.spellId;
 
         SpellChainNode node;
-        node.prev  = fields[1].GetUInt32();
-        node.first = fields[2].GetUInt32();
-        node.rank  = fields[3].GetUInt8();
-        node.req   = fields[4].GetUInt32();
+        node.prev  = row.prevSpell;
+        node.first = row.firstSpell;
+        node.rank  = row.rank;
+        node.req   = row.reqSpell;
 
         if (!sSpellStore.LookupEntry(spell_id))
         {
@@ -422,9 +421,6 @@ void SpellMgr::LoadSpellChains()
 
         ++new_count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     // additional integrity checks
     for (SpellChainMap::const_iterator i = mSpellChains.begin(); i != mSpellChains.end(); ++i)
@@ -571,8 +567,8 @@ void SpellMgr::LoadSpellLearnSpells()
 {
     mSpellLearnSpells.clear();                              // need for reload case
 
-    QueryResult* result = SpellDataRepository::QueryLearnSpells();
-    if (!result)
+    std::vector<LearnSpellRow> rows = SpellDataRepository::QueryLearnSpells();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -585,17 +581,16 @@ void SpellMgr::LoadSpellLearnSpells()
 
     uint32 count = 0;
 
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(rows.size());
+    for (LearnSpellRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
 
-        uint32 spell_id    = fields[0].GetUInt32();
+        uint32 spell_id    = row.entry;
 
         SpellLearnSpellNode node;
-        node.spell      = fields[1].GetUInt32();
-        node.active     = fields[2].GetBool();
+        node.spell      = row.spellID;
+        node.active     = row.active;
         node.autoLearned = false;
 
         if (!sSpellStore.LookupEntry(spell_id))
@@ -620,9 +615,6 @@ void SpellMgr::LoadSpellLearnSpells()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     // search auto-learned spells and add its to map also for use in unlearn spells/talents
     uint32 dbc_count = 0;

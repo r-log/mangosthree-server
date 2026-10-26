@@ -25,70 +25,215 @@
 
 #include "SpellDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace SpellDataRepository
 {
-    QueryResult* QueryUsedSpells(char const* table)
+    static UsedSpellRow ReadUsedSpell(Field* fields)
+    {
+        UsedSpellRow row;
+        row.spellid = fields[0].GetUInt32();
+        row.spellFamilyName = fields[1].GetInt32();
+        row.spellFamilyMaskA = fields[2].GetUInt64();
+        row.spellFamilyMaskB = fields[3].GetUInt32();
+        row.spellIcon = fields[4].GetInt32();
+        row.spellVisual = fields[5].GetInt32();
+        row.spellCategory = fields[6].GetInt32();
+        row.effectType = fields[7].GetInt32();
+        row.effectAura = fields[8].GetInt32();
+        row.effectIdx = fields[9].GetInt32();
+        row.name = fields[10].GetCppString();
+        row.code = fields[11].GetCppString();
+        return row;
+    }
+
+    std::vector<UsedSpellRow> QueryUsedSpells(char const* table)
     {
         //                                   0         1                 2                  3                  4           5             6               7            8            9           10     11
-        return WorldDatabase.PQuery("SELECT `spellid`,`SpellFamilyName`,`SpellFamilyMaskA`,`SpellFamilyMaskB`,`SpellIcon`,`SpellVisual`,`SpellCategory`,`EffectType`,`EffectAura`,`EffectIdx`,`Name`,`Code` FROM `%s`", table);
+        QueryResult* result = WorldDatabase.PQuery("SELECT `spellid`,`SpellFamilyName`,`SpellFamilyMaskA`,`SpellFamilyMaskB`,`SpellIcon`,`SpellVisual`,`SpellCategory`,`EffectType`,`EffectAura`,`EffectIdx`,`Name`,`Code` FROM `%s`", table);
+        return ReadRows<UsedSpellRow>(result, ReadUsedSpell);
     }
 
-    QueryResult* QuerySpellAreas()
+    static SpellAreaRow ReadSpellArea(Field* fields)
+    {
+        SpellAreaRow row;
+        row.spell = fields[0].GetUInt32();
+        row.area = fields[1].GetUInt32();
+        row.questStart = fields[2].GetUInt32();
+        row.questStartActive = fields[3].GetBool();
+        row.questEnd = fields[4].GetUInt32();
+        row.conditionId = fields[5].GetUInt16();
+        row.auraSpell = fields[6].GetInt32();
+        row.racemask = fields[7].GetUInt32();
+        row.gender = fields[8].GetUInt8();
+        row.autocast = fields[9].GetBool();
+        return row;
+    }
+
+    std::vector<SpellAreaRow> QuerySpellAreas()
     {
         //                                 0      1     2            3                   4          5             6           7         8       9
-        return WorldDatabase.Query("SELECT `spell`, `area`, `quest_start`, `quest_start_active`, `quest_end`, `condition_id`, `aura_spell`, `racemask`, `gender`, `autocast` FROM `spell_area`");
+        QueryResult* result = WorldDatabase.Query("SELECT `spell`, `area`, `quest_start`, `quest_start_active`, `quest_end`, `condition_id`, `aura_spell`, `racemask`, `gender`, `autocast` FROM `spell_area`");
+        return ReadRows<SpellAreaRow>(result, ReadSpellArea);
     }
 
-    QueryResult* QuerySpellChains()
+    static SpellChainRow ReadSpellChain(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `spell_id`, `prev_spell`, `first_spell`, `rank`, `req_spell` FROM `spell_chain`");
+        SpellChainRow row;
+        row.spellId = fields[0].GetUInt32();
+        row.prevSpell = fields[1].GetUInt32();
+        row.firstSpell = fields[2].GetUInt32();
+        row.rank = fields[3].GetUInt8();
+        row.reqSpell = fields[4].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryLearnSpells()
+    std::vector<SpellChainRow> QuerySpellChains()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `spell_id`, `prev_spell`, `first_spell`, `rank`, `req_spell` FROM `spell_chain`");
+        return ReadRows<SpellChainRow>(result, ReadSpellChain);
+    }
+
+    static LearnSpellRow ReadLearnSpell(Field* fields)
+    {
+        LearnSpellRow row;
+        row.entry = fields[0].GetUInt32();
+        row.spellID = fields[1].GetUInt32();
+        row.active = fields[2].GetBool();
+        return row;
+    }
+
+    std::vector<LearnSpellRow> QueryLearnSpells()
     {
         //                                 0      1        2
-        return WorldDatabase.Query("SELECT `entry`, `SpellID`, `Active` FROM `spell_learn_spell`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `SpellID`, `Active` FROM `spell_learn_spell`");
+        return ReadRows<LearnSpellRow>(result, ReadLearnSpell);
     }
 
-    QueryResult* QueryTargetPositions()
+    static SpellTargetPositionRow ReadSpellTargetPosition(Field* fields)
+    {
+        SpellTargetPositionRow row;
+        row.id = fields[0].GetUInt32();
+        row.targetMap = fields[1].GetUInt32();
+        row.targetPositionX = fields[2].GetFloat();
+        row.targetPositionY = fields[3].GetFloat();
+        row.targetPositionZ = fields[4].GetFloat();
+        row.targetOrientation = fields[5].GetFloat();
+        return row;
+    }
+
+    std::vector<SpellTargetPositionRow> QueryTargetPositions()
     {
         //                                 0   1           2                  3                  4                  5
-        return WorldDatabase.Query("SELECT `id`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `spell_target_position`");
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `spell_target_position`");
+        return ReadRows<SpellTargetPositionRow>(result, ReadSpellTargetPosition);
     }
 
-    QueryResult* QueryBonuses()
+    static SpellBonusRow ReadSpellBonus(Field* fields)
     {
-        return WorldDatabase.Query("SELECT entry, direct_bonus,         `dot_bonus`, `ap_bonus`, `ap_dot_bonus` FROM `spell_bonus_data`");
+        SpellBonusRow row;
+        row.entry = fields[0].GetUInt32();
+        row.directBonus = fields[1].GetFloat();
+        row.dotBonus = fields[2].GetFloat();
+        row.apBonus = fields[3].GetFloat();
+        row.apDotBonus = fields[4].GetFloat();
+        return row;
     }
 
-    QueryResult* QueryElixirs()
+    std::vector<SpellBonusRow> QueryBonuses()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT entry, direct_bonus,         `dot_bonus`, `ap_bonus`, `ap_dot_bonus` FROM `spell_bonus_data`");
+        return ReadRows<SpellBonusRow>(result, ReadSpellBonus);
+    }
+
+    static SpellElixirRow ReadSpellElixir(Field* fields)
+    {
+        SpellElixirRow row;
+        row.entry = fields[0].GetUInt32();
+        row.mask = fields[1].GetUInt8();
+        return row;
+    }
+
+    std::vector<SpellElixirRow> QueryElixirs()
     {
         //                                 0      1
-        return WorldDatabase.Query("SELECT `entry`, `mask` FROM `spell_elixir`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `mask` FROM `spell_elixir`");
+        return ReadRows<SpellElixirRow>(result, ReadSpellElixir);
     }
 
-    QueryResult* QueryThreats()
+    static SpellThreatRow ReadSpellThreat(Field* fields)
+    {
+        SpellThreatRow row;
+        row.entry = fields[0].GetUInt32();
+        row.threat = fields[1].GetUInt16();
+        row.multiplier = fields[2].GetFloat();
+        row.apBonus = fields[3].GetFloat();
+        return row;
+    }
+
+    std::vector<SpellThreatRow> QueryThreats()
     {
         //                                 0      1       2           3
-        return WorldDatabase.Query("SELECT `entry`, `Threat`, `multiplier`, `ap_bonus` FROM `spell_threat`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `Threat`, `multiplier`, `ap_bonus` FROM `spell_threat`");
+        return ReadRows<SpellThreatRow>(result, ReadSpellThreat);
     }
 
-    QueryResult* QueryPetAuras()
+    static SpellPetAuraRow ReadSpellPetAura(Field* fields)
+    {
+        SpellPetAuraRow row;
+        row.spell = fields[0].GetUInt32();
+        row.effectId = fields[1].GetUInt32();
+        row.pet = fields[2].GetUInt32();
+        row.aura = fields[3].GetUInt32();
+        return row;
+    }
+
+    std::vector<SpellPetAuraRow> QueryPetAuras()
     {
         //                                  0        1           2      3
-        return WorldDatabase.Query("SELECT `spell`, `effectId`, `pet`, `aura` FROM `spell_pet_auras`");
+        QueryResult* result = WorldDatabase.Query("SELECT `spell`, `effectId`, `pet`, `aura` FROM `spell_pet_auras`");
+        return ReadRows<SpellPetAuraRow>(result, ReadSpellPetAura);
     }
 
-    QueryResult* QueryProcEvents()
+    static SpellProcEventRow ReadSpellProcEvent(Field* fields)
+    {
+        SpellProcEventRow row;
+        row.entry = fields[0].GetUInt32();
+        row.schoolMask = fields[1].GetUInt32();
+        row.spellFamilyName = fields[2].GetUInt32();
+        for (int i = 0; i < SPELL_PROC_EVENT_ROW_MASKS; ++i)
+        {
+            row.spellFamilyMaskA[i] = fields[i + 3].GetUInt32();
+            row.spellFamilyMaskB[i] = fields[i + 6].GetUInt32();
+            row.spellFamilyMaskC[i] = fields[i + 9].GetUInt32();
+        }
+        row.procFlags = fields[12].GetUInt32();
+        row.procEx = fields[13].GetUInt32();
+        row.ppmRate = fields[14].GetFloat();
+        row.customChance = fields[15].GetFloat();
+        row.cooldown = fields[16].GetUInt32();
+        return row;
+    }
+
+    std::vector<SpellProcEventRow> QueryProcEvents()
     {
         //                                  0        1             2                  3                    4                    5                    6                    7                    8                    9                    10                   11                   12           13        14         15              16
-        return WorldDatabase.Query("SELECT `entry`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMaskA0`, `SpellFamilyMaskA1`, `SpellFamilyMaskA2`, `SpellFamilyMaskB0`, `SpellFamilyMaskB1`, `SpellFamilyMaskB2`, `SpellFamilyMaskC0`, `SpellFamilyMaskC1`, `SpellFamilyMaskC2`, `procFlags`, `procEx`, `ppmRate`, `CustomChance`, `Cooldown` FROM `spell_proc_event`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMaskA0`, `SpellFamilyMaskA1`, `SpellFamilyMaskA2`, `SpellFamilyMaskB0`, `SpellFamilyMaskB1`, `SpellFamilyMaskB2`, `SpellFamilyMaskC0`, `SpellFamilyMaskC1`, `SpellFamilyMaskC2`, `procFlags`, `procEx`, `ppmRate`, `CustomChance`, `Cooldown` FROM `spell_proc_event`");
+        return ReadRows<SpellProcEventRow>(result, ReadSpellProcEvent);
     }
 
-    QueryResult* QueryProcItemEnchants()
+    static SpellProcItemEnchantRow ReadSpellProcItemEnchant(Field* fields)
+    {
+        SpellProcItemEnchantRow row;
+        row.entry = fields[0].GetUInt32();
+        row.ppmRate = fields[1].GetFloat();
+        return row;
+    }
+
+    std::vector<SpellProcItemEnchantRow> QueryProcItemEnchants()
     {
         //                                 0      1
-        return WorldDatabase.Query("SELECT `entry`, `ppmRate` FROM `spell_proc_item_enchant`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `ppmRate` FROM `spell_proc_item_enchant`");
+        return ReadRows<SpellProcItemEnchantRow>(result, ReadSpellProcItemEnchant);
     }
 }
