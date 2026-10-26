@@ -40,6 +40,7 @@
 #include "AchievementMgr.h"
 #include "DBCStores.h"
 #include "Opcodes.h"
+#include "persistence/characters/social/ReputationRepository.h"
 
 #include <cstdio>
 #include <memory>
@@ -113,7 +114,7 @@ namespace Harness
         /// the reputation list. Create never builds it -- ReputationMgr's only builder is
         /// Initialize, which login calls through Player::_LoadReputations (PlayerLoadFromDB.cpp) -- so
         /// a spawned harness player has an empty list, every SetReputation finds no faction, and a
-        /// reward's reputation is dropped without a packet. _LoadReputations(NULL) is Initialize()
+        /// reward's reputation is dropped without a packet. _LoadReputations with no rows is Initialize()
         /// alone: the load of a character with no reputation rows, which is what a new character's
         /// first login is. Login then sends the whole list (Player::SendInitialPacketsBeforeAddToMap
         /// -> SendInitialReputations), which clears every faction's needSend; without that, the
@@ -123,12 +124,12 @@ namespace Harness
         /// or written. Only the quest family calls it, so every scenario before it keeps the player
         /// it always had.
         ///
-        /// The currencies need no such step (checked for 925): CurrencyMgr::Load(NULL) reads no row
+        /// The currencies need no such step (checked for 925): _LoadCurrencies with no rows reads none
         /// and builds nothing -- ModifyCount creates a currency's entry on its first change -- and
         /// login's only other currency step, SendCurrencies, is a packet that clears no state.
         void LoginReputations(Player* p)
         {
-            p->_LoadReputations(NULL);
+            p->_LoadReputations(std::vector<ReputationRow>());
             p->SendInitialReputations();
         }
 
