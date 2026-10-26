@@ -61,6 +61,9 @@ namespace NpcDataRepository
 
     /// Selects every gossip point of interest (`points_of_interest`).
     QueryResult* QueryPointsOfInterest();
+
+    /// Selects every item a vendor sells, for the auction house bot's filter.
+    QueryResult* QueryVendorItemEntries();
 }
 
 #endif

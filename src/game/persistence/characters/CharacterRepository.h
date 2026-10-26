@@ -234,6 +234,21 @@ namespace CharacterRepository
 
     /// Selects a character's played time, level, money and account, for a GM's player info.
     QueryResult* QueryPlayerInfo(uint32 guid);
+
+    /// Selects the account of a character by its name, the name already escaped through the login
+    /// database, as a ban does.
+    QueryResult* QueryAccountOfCharacterNamed(std::string const& name);
+
+    /// Asks for the number of an account's characters on this realm; the callback runs on the world
+    /// thread with the result, which it owns.
+    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(QueryResult*)> callback);
+
+    /// Asks how many characters hold a guid in a range, for the harness's guid block check; answers false
+    /// when the database refuses to queue it.
+    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(QueryResult*)> callback);
+
+    /// Marks every character offline, at start-up and shutdown.
+    void SetEveryCharacterOffline();
 }
 
 #endif

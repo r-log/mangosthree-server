@@ -28,8 +28,6 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
-
 /// How many writes wait on each database's delay thread, for a GM's database status.
 namespace DatabaseStatus
 {

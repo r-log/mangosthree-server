@@ -54,6 +54,9 @@ namespace CurrencyRepository
 
     /// Inserts the owner's row of `row.id` with the row's counts and flags, queued.
     void Insert(uint32 ownerGuidLow, CurrencyRow const& row);
+
+    /// Clears every character's weekly currency counts, as the currency reset does.
+    void ResetEveryWeekCount();
 }
 
 #endif

@@ -35,4 +35,40 @@ namespace RealmRepository
         SqlStatement stmt = LoginDatabase.CreateStatement(id, "UPDATE `realmlist` SET `population` = ? WHERE `id` = ?");
         stmt.PExecute(population, realmId);
     }
+
+    void SetTypeAndZone(uint32 type, uint32 zone, uint32 realmId)
+    {
+        LoginDatabase.PExecute("UPDATE `realmlist` SET `icon` = %u, `timezone` = %u WHERE `id` = '%u'", type, zone, realmId);
+    }
+
+    void InsertUptime(uint32 realmId, uint64 startTime, char const* startString)
+    {
+        LoginDatabase.PExecute("INSERT INTO `uptime` (`realmid`, `starttime`, `startstring`, `uptime`) VALUES('%u', " UI64FMTD ", '%s', 0)",
+                               realmId, startTime, startString);
+    }
+
+    void SetUptime(uint32 uptime, uint32 maxPlayers, uint32 realmId, uint64 startTime)
+    {
+        LoginDatabase.PExecute("UPDATE `uptime` SET `uptime` = %u, `maxplayers` = %u WHERE `realmid` = %u AND `starttime` = " UI64FMTD, uptime, maxPlayers, realmId, startTime);
+    }
+
+    void SetAllowedSecurityLevel(uint32 level, uint32 realmId)
+    {
+        LoginDatabase.PExecute("UPDATE `realmlist` SET `allowedSecurityLevel` = '%u' WHERE `id` = '%u'",
+                               level, realmId);
+    }
+
+    void PublishFlagsAndBuilds(uint8 flags, std::string builds, uint32 realmId)
+    {
+        LoginDatabase.escape_string(builds);
+        LoginDatabase.DirectPExecute("UPDATE `realmlist` SET `realmflags` = %u, `population` = 0, "
+                                     "`realmbuilds` = '%s' WHERE `id` = '%u'",
+                                     flags, builds.c_str(), realmId);
+    }
+
+    void AddFlags(uint32 flags, uint32 realmId)
+    {
+        LoginDatabase.DirectPExecute("UPDATE `realmlist` SET `realmflags` = `realmflags` | %u WHERE `id` = '%u'",
+                                     flags, realmId);
+    }
 }

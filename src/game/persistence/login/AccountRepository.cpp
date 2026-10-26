@@ -251,4 +251,19 @@ namespace AccountRepository
     {
         return LoginDatabase.Query("SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0");
     }
+
+    void ReplaceRealmCharacterCount(uint32 accountId, uint32 realmId, uint32 count)
+    {
+        LoginDatabase.BeginTransaction();
+        LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`= '%u' AND `realmid` = '%u'", accountId, realmId);
+        LoginDatabase.PExecute("INSERT INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)", count, accountId, realmId);
+        LoginDatabase.CommitTransaction();
+    }
+
+    void ClearActiveRealm(uint32 realmId)
+    {
+        LoginDatabase.PExecute(
+            "UPDATE `account` SET `active_realm_id` = 0 WHERE `active_realm_id` = '%u'",
+            realmId);
+    }
 }

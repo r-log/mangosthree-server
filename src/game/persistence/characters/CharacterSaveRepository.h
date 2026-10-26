@@ -245,6 +245,9 @@ namespace CharacterSaveRepository
 
     /// Selects the highest equipment set guid, at start-up.
     QueryResult* QueryHighestEquipmentSetId();
+
+    /// Deletes every character's battleground return point, at start-up and shutdown.
+    void DeleteEveryBattlegroundData();
 }
 
 #endif

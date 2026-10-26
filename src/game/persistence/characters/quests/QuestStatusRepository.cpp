@@ -161,4 +161,19 @@ namespace QuestStatusRepository
             stmtIns.PExecute(ownerGuidLow, *iter);
         }
     }
+
+    void DeleteEveryDaily()
+    {
+        CharacterDatabase.Execute("DELETE FROM `character_queststatus_daily`");
+    }
+
+    void DeleteEveryWeekly()
+    {
+        CharacterDatabase.Execute("DELETE FROM `character_queststatus_weekly`");
+    }
+
+    void TruncateMonthly()
+    {
+        CharacterDatabase.Execute("TRUNCATE character_queststatus_monthly");
+    }
 }

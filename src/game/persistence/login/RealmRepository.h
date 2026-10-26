@@ -28,11 +28,34 @@
 
 #include "Platform/Define.h"
 
-/// The realm list on the login database (`realmlist`). Every write is queued.
+#include <string>
+
+/// The realm list and the realm's uptime rows on the login database (`realmlist`, `uptime`). The
+/// start-up's and shutdown's realm flag writes are direct, the builds escaped first; every other
+/// write is queued.
 namespace RealmRepository
 {
     /// Sets the population the realm list shows for a realm.
     void SetPopulation(float population, uint32 realmId);
+
+    /// Writes the realm's type and time zone into the realm list, at start-up.
+    void SetTypeAndZone(uint32 type, uint32 zone, uint32 realmId);
+
+    /// Inserts the realm's uptime row for this start.
+    void InsertUptime(uint32 realmId, uint64 startTime, char const* startString);
+
+    /// Writes the realm's uptime and peak player count for this start.
+    void SetUptime(uint32 uptime, uint32 maxPlayers, uint32 realmId, uint64 startTime);
+
+    /// Writes the lowest security level the realm admits.
+    void SetAllowedSecurityLevel(uint32 level, uint32 realmId);
+
+    /// Publishes the realm's flags and the client builds it accepts, the builds escaped first, written
+    /// directly at start-up.
+    void PublishFlagsAndBuilds(uint8 flags, std::string builds, uint32 realmId);
+
+    /// Adds flags to the realm's flags, written directly, as the shutdown marks the realm offline.
+    void AddFlags(uint32 flags, uint32 realmId);
 }
 
 #endif

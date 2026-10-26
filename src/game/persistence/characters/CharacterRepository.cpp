@@ -360,4 +360,27 @@ namespace CharacterRepository
         //                                      0          1      2      3
         return CharacterDatabase.PQuery("SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'", guid);
     }
+
+    QueryResult* QueryAccountOfCharacterNamed(std::string const& name)
+    {
+        return CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` = '%s'", name.c_str());
+    }
+
+    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(QueryResult*)> callback)
+    {
+        CharacterDatabase.AsyncPQuery(std::move(callback),
+                                      "SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
+    }
+
+    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(QueryResult*)> callback)
+    {
+        return CharacterDatabase.AsyncPQuery(std::move(callback),
+                                             "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
+                                             first, last);
+    }
+
+    void SetEveryCharacterOffline()
+    {
+        CharacterDatabase.Execute("UPDATE `characters` SET `online` = 0 WHERE `online` <> 0");
+    }
 }

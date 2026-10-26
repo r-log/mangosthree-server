@@ -70,4 +70,9 @@ namespace CorpseRepository
                                        "JOIN `characters` ON `player` = `characters`.`guid` "
                                        "LEFT JOIN `guild_member` ON `player`=`guild_member`.`guid` WHERE `corpse_type` <> 0");
     }
+
+    void DeleteBonesAndOldCorpses(uint32 maxAge)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `corpse` WHERE `corpse_type` = '0' OR `time` < (UNIX_TIMESTAMP()-'%u')", maxAge);
+    }
 }

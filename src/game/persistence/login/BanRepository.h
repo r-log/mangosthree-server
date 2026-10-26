@@ -33,8 +33,9 @@
 class QueryResult;
 
 /// The account and IP bans on the login database (`account_banned`, `ip_banned`), as a GM's ban commands
-/// read them: every read runs on the calling thread, synchronously, a filter escaped there first; the
-/// expired IP bans' delete is queued.
+/// read them, and the bans set and lifted through the world: every read runs on the calling thread,
+/// synchronously, a filter escaped there first or by the caller through EscapeString; every write is
+/// queued.
 namespace BanRepository
 {
     /// Selects a banned account's name.
@@ -59,6 +60,27 @@ namespace BanRepository
     /// Selects the banned accounts' ids and names, those whose name contains the filter when one is
     /// given; the filter is escaped first.
     QueryResult* QueryActiveAccountBans(std::string filter);
+
+    /// Escapes a text for the login database, as a ban escapes its target, reason and author.
+    void EscapeString(std::string& text);
+
+    /// Selects the accounts last seen on an address, the address already escaped.
+    QueryResult* QueryAccountsOnIp(std::string const& ip);
+
+    /// Inserts an address's ban, the texts already escaped.
+    void InsertIpBan(std::string const& ip, uint32 duration, std::string const& author, std::string const& reason);
+
+    /// Selects an account's id by its name, the name already escaped.
+    QueryResult* QueryAccountIdNamed(std::string const& name);
+
+    /// Inserts an account's active ban, the texts already escaped.
+    void InsertAccountBan(uint32 accountId, uint32 duration, std::string const& author, std::string const& reason);
+
+    /// Deletes an address's bans, the address escaped first.
+    void DeleteIpBan(std::string ip);
+
+    /// Ends an account's bans.
+    void DeactivateAccountBans(uint32 accountId);
 }
 
 #endif
