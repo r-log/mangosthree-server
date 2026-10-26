@@ -46,6 +46,12 @@ namespace CreatureDataRepository
 
     /// Selects every pet's stats per level (`pet_levelstats`).
     QueryResult* QueryPetLevelStats();
+
+    /// Selects every creature linking by entry (`creature_linking_template`).
+    QueryResult* QueryLinkingTemplates();
+
+    /// Selects every creature linking by guid (`creature_linking`).
+    QueryResult* QueryLinkings();
 }
 
 #endif

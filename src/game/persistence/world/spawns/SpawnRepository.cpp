@@ -152,4 +152,14 @@ namespace SpawnRepository
                "LEFT OUTER JOIN `pool_gameobject` ON `gameobject`.`guid` = `pool_gameobject`.`guid` "
                "LEFT OUTER JOIN `pool_gameobject_template` ON `gameobject`.`id` = `pool_gameobject_template`.`id`");
     }
+
+    QueryResult* QueryCreatureEntryAndMap(uint32 guid)
+    {
+        return WorldDatabase.PQuery("SELECT `id`, `map` FROM `creature` WHERE `guid` = '%u'", guid);
+    }
+
+    QueryResult* QueryCreatureGuidsOnMap(uint32 entry, uint32 mapId)
+    {
+        return WorldDatabase.PQuery("SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2", entry, mapId);
+    }
 }

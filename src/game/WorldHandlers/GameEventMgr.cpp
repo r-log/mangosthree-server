@@ -57,6 +57,8 @@
 #include "MassMailMgr.h"
 #include "Policies/Singleton.h"
 #include "WorldPacket.h"
+#include "persistence/characters/events/GameEventStatusRepository.h"
+#include "persistence/world/events/GameEventDataRepository.h"
 
 
 /**
@@ -169,7 +171,7 @@ void GameEventMgr::StopEvent(uint16 event_id, bool overwrite)
 void GameEventMgr::LoadFromDB()
 {
     {
-        QueryResult* result = WorldDatabase.Query("SELECT MAX(`entry`) FROM `game_event`");
+        QueryResult* result = GameEventDataRepository::QueryHighestEventEntry();
         if (!result)
         {
             sLog.outString(">> Table game_event is empty.");
@@ -185,7 +187,7 @@ void GameEventMgr::LoadFromDB()
         mGameEvent.resize(max_event_id + 1);
     }
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,UNIX_TIMESTAMP(`start_time`),UNIX_TIMESTAMP(`end_time`),`occurence`,`length`,`holiday`,`description` FROM `game_event`");
+    QueryResult* result = GameEventDataRepository::QueryEvents();
     if (!result)
     {
         mGameEvent.clear();
@@ -260,9 +262,7 @@ void GameEventMgr::LoadFromDB()
     mGameEventSpawnPoolIds.resize(mGameEvent.size());
 
     mGameEventCreatureGuids.resize(mGameEvent.size() * 2 - 1);
-    //                                   1              2
-    result = WorldDatabase.Query("SELECT `creature`.`guid`, `game_event_creature`.`event` "
-                                 "FROM `creature` JOIN `game_event_creature` ON `creature`.`guid` = `game_event_creature`.`guid`");
+    result = GameEventDataRepository::QueryEventCreatures();
 
     count = 0;
     if (!result)
@@ -339,9 +339,7 @@ void GameEventMgr::LoadFromDB()
     }
 
     mGameEventGameobjectGuids.resize(mGameEvent.size() * 2 - 1);
-    //                                   1                2
-    result = WorldDatabase.Query("SELECT `gameobject`.`guid`, `game_event_gameobject`.`event` "
-                                 "FROM `gameobject` JOIN `game_event_gameobject` ON `gameobject`.`guid`=`game_event_gameobject`.`guid`");
+    result = GameEventDataRepository::QueryEventGameObjects();
 
     count = 0;
     if (!result)
@@ -427,13 +425,7 @@ void GameEventMgr::LoadFromDB()
     }
 
     mGameEventCreatureData.resize(mGameEvent.size());
-    //                                   0              1                             2
-    result = WorldDatabase.Query("SELECT `creature`.`guid`, `game_event_creature_data`.`event`, `game_event_creature_data`.`modelid`,"
-                                 //   3                                      4
-                                 "`game_event_creature_data`.`equipment_id`, `game_event_creature_data`.`entry_id`, "
-                                 //   5                                     6
-                                 "`game_event_creature_data`.`spell_start`, `game_event_creature_data`.`spell_end` "
-                                 "FROM `creature` JOIN `game_event_creature_data` ON `creature`.`guid`=`game_event_creature_data`.`guid`");
+    result = GameEventDataRepository::QueryEventCreatureData();
 
     count = 0;
     if (!result)
@@ -512,7 +504,7 @@ void GameEventMgr::LoadFromDB()
 
     mGameEventQuests.resize(mGameEvent.size());
 
-    result = WorldDatabase.Query("SELECT `quest`, `event` FROM `game_event_quest`");
+    result = GameEventDataRepository::QueryEventQuests();
 
     count = 0;
     if (!result)
@@ -571,7 +563,7 @@ void GameEventMgr::LoadFromDB()
 
     mGameEventMails.resize(mGameEvent.size() * 2 - 1);
 
-    result = WorldDatabase.Query("SELECT `event`, `raceMask`, `quest`, `mailTemplateId`, `senderEntry` FROM `game_event_mail`");
+    result = GameEventDataRepository::QueryEventMails();
 
     count = 0;
     if (!result)
@@ -655,7 +647,7 @@ uint32 GameEventMgr::Initialize()                           // return the next e
 
     ActiveEvents activeAtShutdown;
 
-    if (QueryResult* result = CharacterDatabase.Query("SELECT `event` FROM `game_event_status`"))
+    if (QueryResult* result = GameEventStatusRepository::QueryActiveEvents())
     {
         do
         {
@@ -666,7 +658,7 @@ uint32 GameEventMgr::Initialize()                           // return the next e
         while (result->NextRow());
         delete result;
 
-        CharacterDatabase.Execute("TRUNCATE game_event_status");
+        GameEventStatusRepository::Truncate();
     }
 
     uint32 delay = Update(&activeAtShutdown);
@@ -751,7 +743,7 @@ uint32 GameEventMgr::Update(ActiveEvents const* activeAtShutdown /*= NULL*/)
 void GameEventMgr::UnApplyEvent(uint16 event_id)
 {
     m_ActiveEvents.erase(event_id);
-    CharacterDatabase.PExecute("DELETE FROM `game_event_status` WHERE `event` = %u", event_id);
+    GameEventStatusRepository::DeleteEvent(event_id);
 
     sLog.outString("GameEvent %u \"%s\" removed.", event_id, mGameEvent[event_id].description.c_str());
     // un-spawn positive event tagged objects
@@ -776,7 +768,7 @@ void GameEventMgr::UnApplyEvent(uint16 event_id)
 void GameEventMgr::ApplyNewEvent(uint16 event_id, bool resume)
 {
     m_ActiveEvents.insert(event_id);
-    CharacterDatabase.PExecute("INSERT IGNORE INTO `game_event_status` (`event`) VALUES (%u)", event_id);
+    GameEventStatusRepository::InsertEvent(event_id);
 
     if (sWorld.getConfig(CONFIG_BOOL_EVENT_ANNOUNCE))
     {

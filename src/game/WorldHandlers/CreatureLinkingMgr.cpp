@@ -53,6 +53,8 @@
 #include "Creature.h"
 #include "CreatureAI.h"
 #include "MotionMaster.h"
+#include "persistence/world/creatures/CreatureDataRepository.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 
 #define INVALID_MAP_ID      0xFFFFFFFF
@@ -82,7 +84,7 @@ void CreatureLinkingMgr::LoadFromDB()
 
     // Load `creature_linking_template`
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `map`, `master_entry`, `flag`, `search_range` FROM `creature_linking_template`");
+    QueryResult* result = CreatureDataRepository::QueryLinkingTemplates();
     if (!result)
     {
         BarGoLink bar(1);
@@ -131,7 +133,7 @@ void CreatureLinkingMgr::LoadFromDB()
 
     // Load `creature_linking`
     count = 0;
-    result = WorldDatabase.Query("SELECT `guid`, `master_guid`, `flag` FROM `creature_linking`");
+    result = CreatureDataRepository::QueryLinkings();
     if (!result)
     {
         BarGoLink bar(1);
@@ -251,7 +253,7 @@ bool CreatureLinkingMgr::IsLinkingEntryValid(uint32 slaveEntry, CreatureLinkingI
         // Check for uniqueness of mob whom is followed, on whom spawning is dependend
         if (pTmp->searchRange == 0 && pTmp->linkingFlag & (FLAG_FOLLOW | FLAG_CANT_SPAWN_IF_BOSS_DEAD | FLAG_CANT_SPAWN_IF_BOSS_ALIVE))
         {
-            QueryResult* result = WorldDatabase.PQuery("SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2", pTmp->masterId, pTmp->mapId);
+            QueryResult* result = SpawnRepository::QueryCreatureGuidsOnMap(pTmp->masterId, pTmp->mapId);
             if (!result)
             {
                 sLog.outErrorDb("`creature_linking_template` has FLAG_FOLLOW, but no master, (entry: %u, map: %u, master: %u)", slaveEntry, pTmp->mapId, pTmp->masterId);

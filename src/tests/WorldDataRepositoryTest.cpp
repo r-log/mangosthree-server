@@ -30,21 +30,25 @@
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
+#include "persistence/world/DisableDataRepository.h"
 #include "persistence/world/ai/CreatureEventAIRepository.h"
 #include "persistence/world/creatures/CreatureDataRepository.h"
 #include "persistence/world/economy/LootDataRepository.h"
 #include "persistence/world/economy/SkillDataRepository.h"
+#include "persistence/world/events/GameEventDataRepository.h"
 #include "persistence/world/items/ItemDataRepository.h"
 #include "persistence/world/locales/LocaleDataRepository.h"
 #include "persistence/world/maps/DungeonDataRepository.h"
 #include "persistence/world/maps/MapDataRepository.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 #include "persistence/world/players/PlayerDataRepository.h"
+#include "persistence/world/pools/PoolDataRepository.h"
 #include "persistence/world/pvp/BattleGroundDataRepository.h"
 #include "persistence/world/quests/QuestDataRepository.h"
 #include "persistence/world/reputation/ReputationDataRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 #include "persistence/world/spells/SpellDataRepository.h"
+#include "persistence/world/waypoints/WaypointRepository.h"
 
 #include <string>
 #include <vector>
@@ -278,5 +282,96 @@ TEST(WorldDataRepository_GmWrites)
         "DELETE FROM `npc_vendor` WHERE `entry`='5' AND `item`='7'",
         "DELETE FROM `game_tele` WHERE `name` = 'Shattrath'",
         "INSERT INTO `game_graveyard_zone` (`id`,`ghost_zone`,`faction`) VALUES ('1', '2','469')",
+    }, __LINE__);
+}
+// The game event, waypoint, pool, linking and disable loads read on the calling thread and queue
+// nothing.
+TEST(WorldDataRepository_ManagerReads)
+{
+    Db db;
+    delete GameEventDataRepository::QueryHighestEventEntry();
+    delete GameEventDataRepository::QueryEvents();
+    delete GameEventDataRepository::QueryEventCreatures();
+    delete GameEventDataRepository::QueryEventGameObjects();
+    delete GameEventDataRepository::QueryEventCreatureData();
+    delete GameEventDataRepository::QueryEventQuests();
+    delete GameEventDataRepository::QueryEventMails();
+    delete WaypointRepository::QueryPathPointCounts();
+    delete WaypointRepository::QueryPathPoints();
+    delete WaypointRepository::QueryTemplatePathPointCounts();
+    delete WaypointRepository::QueryTemplatePathPoints();
+    delete SpawnRepository::QueryCreatureEntryAndMap(42);
+    delete SpawnRepository::QueryCreatureGuidsOnMap(1234, 530);
+    delete PoolDataRepository::QueryHighestPoolEntry();
+    delete PoolDataRepository::QueryPools();
+    delete PoolDataRepository::QueryPoolCreatures();
+    delete PoolDataRepository::QueryPoolCreatureTemplates();
+    delete PoolDataRepository::QueryPoolGameObjects();
+    delete PoolDataRepository::QueryPoolGameObjectTemplates();
+    delete PoolDataRepository::QueryPoolPools();
+    delete CreatureDataRepository::QueryLinkingTemplates();
+    delete CreatureDataRepository::QueryLinkings();
+    delete DisableDataRepository::QueryDisables();
+    CheckLines(db.query.executed, {
+        "SELECT MAX(`entry`) FROM `game_event`",
+        "SELECT `entry`,UNIX_TIMESTAMP(`start_time`),UNIX_TIMESTAMP(`end_time`),`occurence`,`length`,`holiday`,`description` FROM `game_event`",
+        "SELECT `creature`.`guid`, `game_event_creature`.`event` FROM `creature` JOIN `game_event_creature` ON `creature`.`guid` = `game_event_creature`.`guid`",
+        "SELECT `gameobject`.`guid`, `game_event_gameobject`.`event` FROM `gameobject` JOIN `game_event_gameobject` ON `gameobject`.`guid`=`game_event_gameobject`.`guid`",
+        "SELECT `creature`.`guid`, `game_event_creature_data`.`event`, `game_event_creature_data`.`modelid`,`game_event_creature_data`.`equipment_id`, `game_event_creature_data`.`entry_id`, `game_event_creature_data`.`spell_start`, `game_event_creature_data`.`spell_end` FROM `creature` JOIN `game_event_creature_data` ON `creature`.`guid`=`game_event_creature_data`.`guid`",
+        "SELECT `quest`, `event` FROM `game_event_quest`",
+        "SELECT `event`, `raceMask`, `quest`, `mailTemplateId`, `senderEntry` FROM `game_event_mail`",
+        "SELECT `id`, COUNT(`point`) FROM `creature_movement` GROUP BY `id`",
+        "SELECT `id`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,`textid1`, `textid2`, `textid3`, `textid4`, `textid5`, `emote`, `spell`, `orientation`, `model1`, `model2` FROM `creature_movement`",
+        "SELECT `entry`, COUNT(`point`) FROM `creature_movement_template` GROUP BY `entry`",
+        "SELECT `entry`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,`textid1`, `textid2`, `textid3`, `textid4`, `textid5`, `emote`, `spell`, `orientation`, `model1`, `model2` FROM `creature_movement_template`",
+        "SELECT `id`, `map` FROM `creature` WHERE `guid` = '42'",
+        "SELECT `guid` FROM `creature` WHERE `id`=1234 AND `map`=530 LIMIT 2",
+        "SELECT MAX(`entry`) FROM `pool_template`",
+        "SELECT `entry`, `max_limit`, `description` FROM `pool_template`",
+        "SELECT `guid`, `pool_entry`, `chance` FROM `pool_creature`",
+        "SELECT `guid`, `pool_entry`, `chance`, `pool_creature_template`.`id` FROM `pool_creature_template` LEFT JOIN `creature` ON `creature`.`id` = `pool_creature_template`.`id`",
+        "SELECT `guid`, `pool_entry`, `chance` FROM `pool_gameobject`",
+        "SELECT `guid`, `pool_entry`, `chance`, `pool_gameobject_template`.`id` FROM `pool_gameobject_template` LEFT JOIN `gameobject` ON `gameobject`.`id` = `pool_gameobject_template`.`id`",
+        "SELECT `pool_id`, `mother_pool`, `chance` FROM `pool_pool`",
+        "SELECT `entry`, `map`, `master_entry`, `flag`, `search_range` FROM `creature_linking_template`",
+        "SELECT `guid`, `master_guid`, `flag` FROM `creature_linking`",
+        "SELECT `sourceType`, `entry`, `flags`, `data` FROM `disables`",
+    }, __LINE__);
+    CHECK_EQ(db.async.executed.size(), size_t(0));
+}
+
+// The waypoint load's coordinate fixes and a GM's path edits are queued in order, the edits naming
+// the table and key column they are handed.
+TEST(WorldDataRepository_WaypointWrites)
+{
+    Db db;
+    TickGuard::ResetViolations();
+    {
+        TickGuard::Scope scope;
+        WaypointRepository::FixPathPoint(1.5f, -2.25f, 3.0f, 42, 7);
+        WaypointRepository::FixTemplatePathPoint(1.5f, -2.25f, 1234, 7);
+        WaypointRepository::ShiftPoint("creature_movement", "id", 42, 6);
+        WaypointRepository::InsertPoint("creature_movement", "id", 42, 3, 1.5f, -2.25f, 3.0f);
+        WaypointRepository::DeletePoint("creature_movement_template", "entry", 1234, 3);
+        WaypointRepository::DeletePath(42);
+        WaypointRepository::SetPointPosition("creature_movement", 1.5f, -2.25f, 3.0f, "id", 42, 3);
+        WaypointRepository::SetPointWaittime("creature_movement", 5000, "id", 42, 3);
+        WaypointRepository::SetPointOrientation("creature_movement", 0.5f, "id", 42, 3);
+        WaypointRepository::SetPointScriptId("creature_movement", 77, "id", 42, 3);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(WorldDatabase.GetDelayQueueDepth(), size_t(10));
+    }
+    WorldDatabase.ExecuteQueuedForTest();
+    CheckLines(db.async.executed, {
+        "UPDATE `creature_movement` SET `position_x` = '1.500000', `position_y` = '-2.250000', `position_z` = '3.000000' WHERE `id` = '42' AND `point` = '7'",
+        "UPDATE `creature_movement_template` SET `position_x` = '1.500000', `position_y` = '-2.250000' WHERE `entry` = 1234 AND `point` = 7",
+        "UPDATE `creature_movement` SET `point`=`point`+1 WHERE `id`=42 AND `point`=6",
+        "INSERT INTO `creature_movement` (`id`,`point`,`position_x`,`position_y`,`position_z`,`orientation`) VALUES (42,3, 1.500000,-2.250000,3.000000, 100)",
+        "DELETE FROM `creature_movement_template` WHERE `entry`=1234 AND `point`=3",
+        "DELETE FROM `creature_movement` WHERE `id`=42",
+        "UPDATE `creature_movement` SET `position_x`=1.500000, `position_y`=-2.250000, `position_z`=3.000000 WHERE `id`=42 AND `point`=3",
+        "UPDATE `creature_movement` SET `waittime`=5000 WHERE `id`=42 AND `point`=3",
+        "UPDATE `creature_movement` SET `orientation`=0.500000 WHERE `id`=42 AND `point`=3",
+        "UPDATE `creature_movement` SET `script_id`=77 WHERE `id`=42 AND `point`=3",
     }, __LINE__);
 }

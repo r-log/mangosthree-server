@@ -34,6 +34,7 @@
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterSaveRepository.h"
 #include "persistence/characters/economy/AuctionRepository.h"
+#include "persistence/characters/events/GameEventStatusRepository.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 #include "persistence/characters/mail/MailRepository.h"
 #include "persistence/characters/maps/CorpseRepository.h"
@@ -222,5 +223,28 @@ TEST(StartupRepository_CharacterLoads)
     GroupRepository::DeleteInvalidMember(42);
     CheckLines(db.Take(), {
         "DELETE FROM `group_member` WHERE `memberGuid` = '42'",
+    }, __LINE__);
+}
+// The start-up read of the events left running runs on the calling thread; the truncate and each
+// event's delete and insert are queued in order.
+TEST(GameEventStatusRepository_ReadAndWrites)
+{
+    Db db(CharacterDatabase);
+    delete GameEventStatusRepository::QueryActiveEvents();
+    CheckLines(db.query.executed, {
+        "SELECT `event` FROM `game_event_status`",
+    }, __LINE__);
+    {
+        TickGuard::Scope scope;
+        GameEventStatusRepository::Truncate();
+        GameEventStatusRepository::DeleteEvent(5);
+        GameEventStatusRepository::InsertEvent(5);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(3));
+    }
+    CheckLines(db.Take(), {
+        "TRUNCATE game_event_status",
+        "DELETE FROM `game_event_status` WHERE `event` = 5",
+        "INSERT IGNORE INTO `game_event_status` (`event`) VALUES (5)",
     }, __LINE__);
 }
