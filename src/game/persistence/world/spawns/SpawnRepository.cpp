@@ -162,4 +162,127 @@ namespace SpawnRepository
     {
         return WorldDatabase.PQuery("SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2", entry, mapId);
     }
+
+    QueryResult* QueryGameObjectCountOf(uint32 entry)
+    {
+        return WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `gameobject` WHERE `id`='%u'", entry);
+    }
+
+    QueryResult* QueryGameObjectsNear(float x, float y, float z, uint32 entry, uint32 count)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
+                                    x, y, z, entry, count);
+    }
+
+    QueryResult* QueryGameObjectsOf(uint32 entry, uint32 count)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `gameobject` WHERE `id` = '%u' LIMIT %u",
+                                    entry, count);
+    }
+
+    QueryResult* QueryCreatureCountOf(uint32 entry)
+    {
+        return WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `creature` WHERE `id`='%u'", entry);
+    }
+
+    QueryResult* QueryCreaturesNear(float x, float y, float z, uint32 entry, uint32 count)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `creature` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
+                                    x, y, z, entry, count);
+    }
+
+    QueryResult* QueryCreaturesOf(uint32 entry, uint32 count)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '%u' LIMIT %u",
+                                    entry, count);
+    }
+
+    void SetCreaturePosition(float x, float y, float z, float o, uint32 guid)
+    {
+        WorldDatabase.PExecuteLog("UPDATE `creature` SET `position_x` = '%f', `position_y` = '%f', `position_z` = '%f', `orientation` = '%f' WHERE `guid` = '%u'", x, y, z, o, guid);
+    }
+
+    void SetCreatureSpawnDistance(float distance, int32 movementType, uint32 guid)
+    {
+        WorldDatabase.PExecuteLog("UPDATE `creature` SET `spawndist`=%f, `MovementType`=%i WHERE `guid`=%u", distance, movementType, guid);
+    }
+
+    void SetCreatureSpawnTime(uint32 seconds, uint32 guid)
+    {
+        WorldDatabase.PExecuteLog("UPDATE `creature` SET `spawntimesecs`=%i WHERE `guid`=%u", seconds, guid);
+    }
+
+    QueryResult* QueryGameObjectsInRange(float x, float y, float z, uint32 mapId, float distanceSquared)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `map`, "
+                                    "(POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ "
+                                    "FROM `gameobject` WHERE `map`='%u' AND (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) <= '%f' ORDER BY order_",
+                                    x, y, z,
+                                    mapId, x, y, z, distanceSquared);
+    }
+
+    QueryResult* QueryNearestGameObjectOf(float x, float y, float z, uint32 mapId, uint32 entry)
+    {
+        return WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `map` = '%i' AND `id` = '%u' ORDER BY order_ ASC LIMIT 1",
+                                    x, y, z, mapId, entry);
+    }
+
+    QueryResult* QueryNearestGameObjectNamed(float x, float y, float z, uint32 mapId, std::string name)
+    {
+        WorldDatabase.escape_string(name);
+        return WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ "
+                                    "FROM `gameobject`,`gameobject_template` WHERE `gameobject_template`.`entry` = `gameobject`.`id` AND `map` = %i AND `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")" ORDER BY order_ ASC LIMIT 1",
+                                    x, y, z, mapId, name.c_str());
+    }
+
+    QueryResult* QueryNearestGameObjects(float x, float y, float z, uint32 mapId, std::set<uint16> const& activeEvents)
+    {
+        std::ostringstream eventFilter;
+        eventFilter << " AND (event IS NULL ";
+        bool initString = true;
+
+        for (std::set<uint16>::const_iterator itr = activeEvents.begin(); itr != activeEvents.end(); ++itr)
+        {
+            if (initString)
+            {
+                eventFilter << "OR event IN (" << *itr;
+                initString = false;
+            }
+            else
+            {
+                eventFilter << "," << *itr;
+            }
+        }
+
+        if (!initString)
+        {
+            eventFilter << "))";
+        }
+        else
+        {
+            eventFilter << ")";
+        }
+
+        return WorldDatabase.PQuery("SELECT `gameobject`.`guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, "
+                                    "(POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ FROM `gameobject` "
+                                    "LEFT OUTER JOIN `game_event_gameobject` on `gameobject`.`guid`=`game_event_gameobject`.`guid` WHERE `map` = '%i' %s ORDER BY order_ ASC LIMIT 10",
+                                    x, y, z, mapId, eventFilter.str().c_str());
+    }
+
+    QueryResult* QueryCreatureGuidsNamed(std::string name)
+    {
+        WorldDatabase.escape_string(name);
+        return WorldDatabase.PQuery("SELECT `guid` FROM `creature`, `creature_template` WHERE `creature`.`id` = `creature_template`.`entry` AND `creature_template`.`name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
+    }
+
+    QueryResult* QueryGameObjectGuidsNamed(std::string name)
+    {
+        WorldDatabase.escape_string(name);
+        return WorldDatabase.PQuery("SELECT `guid` FROM `gameobject`, `gameobject_template` WHERE `gameobject`.`id` = `gameobject_template`.`entry` AND `gameobject_template`.`name `" _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
+    }
+
+    QueryResult* QueryCreatureIdCountOf(uint32 entry)
+    {
+        return WorldDatabase.PQuery("SELECT COUNT(`id`) FROM `creature` WHERE `id` = %u", entry);
+    }
 }

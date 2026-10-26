@@ -41,6 +41,7 @@
 #include "Player.h"
 #include "World.h"
 #include "WorldSession.h"
+#include "persistence/login/AccountRepository.h"
 
 /**
  * @brief Handler for HandleAnnounceCommand command.
@@ -130,7 +131,7 @@ bool ChatHandler::HandleMuteCommand(char* args)
         target->GetSession()->m_muteTime = mutetime;
     }
 
-    LoginDatabase.PExecute("UPDATE `account` SET `mutetime` = " UI64FMTD " WHERE `id` = '%u'", uint64(mutetime), account_id);
+    AccountRepository::SetMuteTime(uint64(mutetime), account_id);
 
     if (target)
     {
@@ -188,7 +189,7 @@ bool ChatHandler::HandleUnmuteCommand(char* args)
         target->GetSession()->m_muteTime = 0;
     }
 
-    LoginDatabase.PExecute("UPDATE `account` SET `mutetime` = '0' WHERE `id` = '%u'", account_id);
+    AccountRepository::ClearMuteTime(account_id);
 
     if (target)
     {

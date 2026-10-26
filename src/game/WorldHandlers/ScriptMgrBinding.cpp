@@ -36,6 +36,7 @@
 #include "ObjectMgr.h"
 #include <DBCStores.h>
 #include "SQLStorages.h"
+#include "persistence/world/ScriptDataRepository.h"
 
 #ifdef ENABLE_SD3
 #include "system/ScriptDevMgr.h"
@@ -52,7 +53,7 @@ void ScriptMgr::LoadScriptBinding()
         m_scriptBind[i].clear();
     }
 
-    QueryResult* result = WorldDatabase.PQuery("SELECT `type`, `bind`, `ScriptName`, `data` FROM `script_binding`");
+    QueryResult* result = ScriptDataRepository::QueryScriptBindings();
     uint32 count = 0;
 
     if (!result)
@@ -195,7 +196,7 @@ bool ScriptMgr::ReloadScriptBinding()
 void ScriptMgr::LoadScriptNames()
 {
     m_scriptNames.push_back("");
-    QueryResult* result = WorldDatabase.Query("SELECT DISTINCT(`ScriptName`) FROM `script_binding`");
+    QueryResult* result = ScriptDataRepository::QueryScriptNames();
 
     if (!result)
     {

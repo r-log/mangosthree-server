@@ -48,6 +48,8 @@
 #include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "State.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/login/AccountRepository.h"
 
 /**
  * @brief Handler for HandlePInfoCommand command.
@@ -98,8 +100,7 @@ bool ChatHandler::HandlePInfoCommand(char* args)
             return false;
         }
 
-        //                                                     0          1      2      3
-        QueryResult* result = CharacterDatabase.PQuery("SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'", target_guid.GetCounter());
+        QueryResult* result = CharacterRepository::QueryPlayerInfo(target_guid.GetCounter());
         if (!result)
         {
             return false;
@@ -118,7 +119,7 @@ bool ChatHandler::HandlePInfoCommand(char* args)
     AccountTypes security = SEC_PLAYER;
     std::string last_login = GetMangosString(LANG_ERROR);
 
-    QueryResult* result = LoginDatabase.PQuery("SELECT `username`,`gmlevel`,`last_ip`,`last_login` FROM `account` WHERE `id` = '%u'", accId);
+    QueryResult* result = AccountRepository::QueryAccountInfo(accId);
     if (result)
     {
         Field* fields = result->Fetch();
@@ -443,7 +444,7 @@ bool ChatHandler::HandleGMListIngameCommand(char* /*args*/)
 bool ChatHandler::HandleGMListFullCommand(char* /*args*/)
 {
     ///- Get the accounts with GM Level >0
-    QueryResult* result = LoginDatabase.Query("SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0");
+    QueryResult* result = AccountRepository::QueryGameMasters();
     if (result)
     {
         SendSysMessage(LANG_GMLIST);

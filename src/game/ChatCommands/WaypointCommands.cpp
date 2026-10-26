@@ -51,6 +51,7 @@
 #include <fstream>
 #include <map>
 #include <typeinfo>
+#include "persistence/world/spawns/SpawnRepository.h"
 
 /// Helper function
 inline Creature* Helper_CreateWaypointFor(Creature* wpOwner, WaypointPathOrigin wpOrigin, int32 pathId, uint32 wpId, WaypointNode const* wpNode, CreatureInfo const* waypointInfo)
@@ -232,7 +233,7 @@ bool ChatHandler::HandleWpAddCommand(char* args)
                 wpDestination = PATH_FROM_ENTRY;                // Default place to store paths
                 if (wpOwner->HasStaticDBSpawnData())
                 {
-                    QueryResult* result = WorldDatabase.PQuery("SELECT COUNT(`id`) FROM `creature` WHERE `id` = %u", wpOwner->GetEntry());
+                    QueryResult* result = SpawnRepository::QueryCreatureIdCountOf(wpOwner->GetEntry());
                     if (result && result->Fetch()[0].GetUInt32() != 1)
                     {
                         wpDestination = PATH_FROM_GUID;

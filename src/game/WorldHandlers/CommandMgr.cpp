@@ -44,6 +44,7 @@
 #include "CommandMgr.h"
 #include "ObjectMgr.h"
 #include "ProgressBar.h"
+#include "persistence/world/CommandDataRepository.h"
 
 class ChatCommand; // Forward declaration
 
@@ -85,18 +86,7 @@ void CommandMgr::LoadCommandHelpLocale()
 
     uint32 count=0;
 
-    QueryResult* result = WorldDatabase.Query("SELECT "
-        "`id`,"
-        "`help_text_loc1`,"
-        "`help_text_loc2`,"
-        "`help_text_loc3`,"
-        "`help_text_loc4`,"
-        "`help_text_loc5`,"
-        "`help_text_loc6`,"
-        "`help_text_loc7`,"
-        "`help_text_loc8`"
-        " FROM `locales_command` ORDER BY `id` ASC "
-    );
+    QueryResult* result = CommandDataRepository::QueryCommandHelpLocales();
 
     if (!result)
     {

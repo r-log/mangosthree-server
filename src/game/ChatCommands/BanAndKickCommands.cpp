@@ -42,6 +42,8 @@
 #include "Util.h"
 #include "ObjectMgr.h"
 #include "WorldSession.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/login/BanRepository.h"
 
 /**
 * @brief Helper function to display ban list information.
@@ -65,7 +67,7 @@ bool ChatHandler::HandleBanListHelper(QueryResult* result)
             Field* fields = result->Fetch();
             uint32 accountid = fields[0].GetUInt32();
 
-            QueryResult* banresult = LoginDatabase.PQuery("SELECT `account`.`username` FROM `account`,`account_banned` WHERE `account_banned`.`id`='%u' AND `account_banned`.`id`=`account`.`id`", accountid);
+            QueryResult* banresult = BanRepository::QueryBannedAccountName(accountid);
             if (banresult)
             {
                 Field* fields2 = banresult->Fetch();
@@ -101,7 +103,7 @@ bool ChatHandler::HandleBanListHelper(QueryResult* result)
             }
 
             // No SQL injection. id is uint32.
-            QueryResult* banInfo = LoginDatabase.PQuery("SELECT `bandate`,`unbandate`,`bannedby`,`banreason` FROM `account_banned` WHERE `id` = %u ORDER BY `unbandate`", account_id);
+            QueryResult* banInfo = BanRepository::QueryAccountBans(account_id);
             if (banInfo)
             {
                 Field* fields2 = banInfo->Fetch();
@@ -285,7 +287,7 @@ bool ChatHandler::HandleBanAccountCommand(char* args)
 */
 bool ChatHandler::HandleBanInfoHelper(uint32 accountid, char const* accountname)
 {
-    QueryResult* result = LoginDatabase.PQuery("SELECT FROM_UNIXTIME(`bandate`), `unbandate`-`bandate`, `active`, `unbandate`,`banreason`,`bannedby` FROM `account_banned` WHERE `id` = '%u' ORDER BY `bandate` ASC", accountid);
+    QueryResult* result = BanRepository::QueryAccountBanHistory(accountid);
     if (!result)
     {
         PSendSysMessage(LANG_BANINFO_NOACCOUNTBAN, accountname);
@@ -340,8 +342,7 @@ bool ChatHandler::HandleBanInfoIPCommand(char* args)
 
     std::string IP = cIP;
 
-    LoginDatabase.escape_string(IP);
-    QueryResult* result = LoginDatabase.PQuery("SELECT `ip`, FROM_UNIXTIME(`bandate`), FROM_UNIXTIME(`unbandate`), `unbandate`-UNIX_TIMESTAMP(), `banreason`,`bannedby`,`unbandate`-`bandate` FROM `ip_banned` WHERE `ip` = '%s'", IP.c_str());
+    QueryResult* result = BanRepository::QueryIpBan(IP);
     if (!result)
     {
         PSendSysMessage(LANG_BANINFO_NOIP);
@@ -418,26 +419,12 @@ bool ChatHandler::HandleBanInfoAccountCommand(char* args)
 */
 bool ChatHandler::HandleBanListIPCommand(char* args)
 {
-    LoginDatabase.Execute("DELETE FROM `ip_banned` WHERE `unbandate`<=UNIX_TIMESTAMP() AND `unbandate`<>`bandate`");
+    BanRepository::DeleteExpiredIpBans();
 
     char* cFilter = ExtractLiteralArg(&args);
     std::string filter = cFilter ? cFilter : "";
-    LoginDatabase.escape_string(filter);
 
-    QueryResult* result;
-
-    if (filter.empty())
-    {
-        result = LoginDatabase.Query("SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`"
-                                     " WHERE (`bandate`=`unbandate` OR `unbandate`>UNIX_TIMESTAMP())"
-                                     " ORDER BY `unbandate`");
-    }
-    else
-    {
-        result = LoginDatabase.PQuery("SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`"
-                                      " WHERE (`bandate`=`unbandate` OR `unbandate`>UNIX_TIMESTAMP()) AND `ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")
-                                      " ORDER BY `unbandate`", filter.c_str());
-    }
+    QueryResult* result = BanRepository::QueryActiveIpBans(filter);
 
     if (!result)
     {
@@ -502,7 +489,7 @@ bool ChatHandler::HandleBanListIPCommand(char* args)
  */
 bool ChatHandler::HandleBanListCharacterCommand(char* args)
 {
-    LoginDatabase.Execute("DELETE FROM `ip_banned` WHERE `unbandate`<=UNIX_TIMESTAMP() AND `unbandate`<>`bandate`");
+    BanRepository::DeleteExpiredIpBans();
 
     char* cFilter = ExtractLiteralArg(&args);
     if (!cFilter)
@@ -511,8 +498,7 @@ bool ChatHandler::HandleBanListCharacterCommand(char* args)
     }
 
     std::string filter = cFilter;
-    LoginDatabase.escape_string(filter);
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), filter.c_str());
+    QueryResult* result = CharacterRepository::QueryAccountsOfCharactersNamed(filter);
     if (!result)
     {
         PSendSysMessage(LANG_BANLIST_NOCHARACTER);
@@ -532,25 +518,12 @@ bool ChatHandler::HandleBanListCharacterCommand(char* args)
  */
 bool ChatHandler::HandleBanListAccountCommand(char* args)
 {
-    LoginDatabase.Execute("DELETE FROM `ip_banned` WHERE `unbandate`<=UNIX_TIMESTAMP() AND `unbandate`<>`bandate`");
+    BanRepository::DeleteExpiredIpBans();
 
     char* cFilter = ExtractLiteralArg(&args);
     std::string filter = cFilter ? cFilter : "";
-    LoginDatabase.escape_string(filter);
 
-    QueryResult* result;
-
-    if (filter.empty())
-    {
-        result = LoginDatabase.Query("SELECT `account`.`id`, `username` FROM `account`, `account_banned`"
-                                     " WHERE `account`.`id` = `account_banned`.`id` AND `active` = 1 GROUP BY `account`.`id`");
-    }
-    else
-    {
-        result = LoginDatabase.PQuery("SELECT `account`.`id`, `username` FROM `account`, `account_banned`"
-                                      " WHERE `account`.`id` = `account_banned`.`id` AND `active` = 1 AND `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")" GROUP BY `account`.`id`",
-                                      filter.c_str());
-    }
+    QueryResult* result = BanRepository::QueryActiveAccountBans(filter);
 
     if (!result)
     {

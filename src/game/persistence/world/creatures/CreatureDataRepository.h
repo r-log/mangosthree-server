@@ -31,7 +31,8 @@
 class QueryResult;
 
 /// The creature data on the world database: `ObjectMgr`'s creature and pet loads at startup and on a
-/// reload, each run synchronously for a loader that keeps its loop.
+/// reload, each run synchronously for a loader that keeps its loop; a GM's template edits are queued
+/// and written to the SQL log.
 namespace CreatureDataRepository
 {
     /// Selects every class's base stats per level, with the health and damage of each expansion up to
@@ -52,6 +53,12 @@ namespace CreatureDataRepository
 
     /// Selects every creature linking by guid (`creature_linking`).
     QueryResult* QueryLinkings();
+
+    /// Writes a GM's new NPC flags of a creature template.
+    void SetNpcFlags(uint32 npcFlags, uint32 entry);
+
+    /// Writes a GM's new faction of a creature template, for both teams.
+    void SetFaction(uint32 factionId, uint32 entry);
 }
 
 #endif

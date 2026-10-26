@@ -189,4 +189,58 @@ namespace ItemRepository
         CharacterDatabase.PExecute("DELETE FROM `guild_bank_item` WHERE `item_guid` >= '%u'", firstUnusedGuid);
         CharacterDatabase.CommitTransaction();
     }
+
+    QueryResult* QueryInventoryCountOf(uint32 itemId)
+    {
+        return CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `character_inventory` WHERE `item_template`='%u'", itemId);
+    }
+
+    QueryResult* QueryInventoryHoldersOf(uint32 itemId, uint32 count)
+    {
+        //                                          0        1             2             3        4                  5
+        return CharacterDatabase.PQuery("SELECT `ci`.`item`, `cibag`.`slot` AS bag, `ci`.`slot`, `ci`.`guid`, `characters`.`account`,`characters`.`name` "
+                                        "FROM `character_inventory` AS `ci` LEFT JOIN `character_inventory` AS cibag ON (`cibag`.`item`=`ci`.`bag`),`characters` "
+                                        "WHERE `ci`.`item_template`='%u' AND `ci`.`guid` = `characters`.`guid` LIMIT %u ",
+                                        itemId, count);
+    }
+
+    QueryResult* QueryMailCountOf(uint32 itemId)
+    {
+        return CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `mail_items` WHERE `item_template`='%u'", itemId);
+    }
+
+    QueryResult* QueryMailHoldersOf(uint32 itemId, uint32 count)
+    {
+        //                                          0                     1            2              3               4            5               6
+        return CharacterDatabase.PQuery("SELECT `mail_items`.`item_guid`, `mail`.`sender`, `mail`.`receiver`, `char_s`.`account`, `char_s`.`name`, `char_r`.`account`, `char_r`.`name` "
+                                        "FROM `mail`,`mail_items`,`characters` as char_s,`characters` as char_r "
+                                        "WHERE `mail_items`.`item_template`='%u' AND `char_s`.`guid` = `mail`.`sender` AND `char_r`.`guid` = `mail`.`receiver` AND `mail`.`id`=`mail_items`.`mail_id` LIMIT %u",
+                                        itemId, count);
+    }
+
+    QueryResult* QueryAuctionCountOf(uint32 itemId)
+    {
+        return CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `auction` WHERE `item_template`='%u'", itemId);
+    }
+
+    QueryResult* QueryAuctionHoldersOf(uint32 itemId, uint32 count)
+    {
+        //                                           0                      1                       2                   3
+        return CharacterDatabase.PQuery("SELECT  `auction`.`itemguid`, `auction`.`itemowner`, `characters`.`account`, `characters`.`name` "
+                                        "FROM `auction`,`characters` WHERE `auction`.`item_template`='%u' AND `characters`.`guid` = `auction`.`itemowner` LIMIT %u",
+                                        itemId, count);
+    }
+
+    QueryResult* QueryGuildBankCountOf(uint32 itemId)
+    {
+        return CharacterDatabase.PQuery("SELECT COUNT(`item_entry`) FROM `guild_bank_item` WHERE `item_entry`='%u'", itemId);
+    }
+
+    QueryResult* QueryGuildBankHoldersOf(uint32 itemId, uint32 count)
+    {
+        //                                      0             1           2
+        return CharacterDatabase.PQuery("SELECT gi.item_guid, gi.guildid, guild.name "
+                                        "FROM guild_bank_item AS gi, guild WHERE gi.item_entry='%u' AND gi.guildid = guild.guildid LIMIT %u ",
+                                        itemId, count);
+    }
 }

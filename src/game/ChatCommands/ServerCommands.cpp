@@ -54,6 +54,7 @@
 #include "GameTime.h"
 #include "Player.h"
 #include "State.h"
+#include "persistence/DatabaseStatus.h"
 
 /**
  * @brief Handler for HandleServerInfoCommand command.
@@ -240,9 +241,9 @@ bool ChatHandler::HandleServerDatabaseCommand(char* /*args*/)
     PSendSysMessage("sync db acquisitions on tick threads: %u", TickGuard::Violations());
     PSendSysMessage("inside administrative commands: %u", TickGuard::AdminViolations());
     PSendSysMessage("delay-thread queue depth: login %u, world %u, character %u",
-                    uint32(LoginDatabase.GetDelayQueueDepth()),
-                    uint32(WorldDatabase.GetDelayQueueDepth()),
-                    uint32(CharacterDatabase.GetDelayQueueDepth()));
+                    DatabaseStatus::LoginQueueDepth(),
+                    DatabaseStatus::WorldQueueDepth(),
+                    DatabaseStatus::CharacterQueueDepth());
     return true;
 }
 

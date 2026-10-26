@@ -70,6 +70,9 @@ source_group("Object" FILES ${SRC_GRP_OBJECT})
 file(GLOB SRC_GRP_OUTDOOR_PVP OutdoorPvP/*.cpp OutdoorPvP/*.h)
 source_group("Outdoor PvP" FILES ${SRC_GRP_OUTDOOR_PVP})
 
+file(GLOB SRC_GRP_PERSISTENCE persistence/*.cpp persistence/*.h)
+source_group("Persistence" FILES ${SRC_GRP_PERSISTENCE})
+
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS persistence/characters/*.cpp persistence/characters/*.h)
 source_group("Persistence\\Characters" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS})
 
@@ -253,6 +256,7 @@ add_library(game STATIC
     ${SRC_GRP_MOVEMENT}
     ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
+    ${SRC_GRP_PERSISTENCE}
     ${SRC_GRP_PERSISTENCE_CHARACTERS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_ACCOUNT}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_ACHIEVEMENTS}

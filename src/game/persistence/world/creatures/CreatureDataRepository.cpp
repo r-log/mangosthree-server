@@ -72,4 +72,14 @@ namespace CreatureDataRepository
     {
         return WorldDatabase.Query("SELECT `guid`, `master_guid`, `flag` FROM `creature_linking`");
     }
+
+    void SetNpcFlags(uint32 npcFlags, uint32 entry)
+    {
+        WorldDatabase.PExecuteLog("UPDATE `creature_template` SET `NpcFlags` = '%u' WHERE `entry` = '%u'", npcFlags, entry);
+    }
+
+    void SetFaction(uint32 factionId, uint32 entry)
+    {
+        WorldDatabase.PExecuteLog("UPDATE `creature_template` SET `FactionAlliance` = '%u', `FactionHorde` = '%u' WHERE `entry` = '%u'", factionId, factionId, entry);
+    }
 }

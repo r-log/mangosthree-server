@@ -166,4 +166,89 @@ namespace AccountRepository
         LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`= '%u' AND `realmid`= '%u'", accountId, realmId);
         LoginDatabase.PExecute("INSERT INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)",  count, accountId, realmId);
     }
+
+    void Lock(uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `locked` = '1' WHERE `id` = '%u'", accountId);
+    }
+
+    void Unlock(uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `locked` = '0' WHERE `id` = '%u'", accountId);
+    }
+
+    QueryResult* QueryActiveOnRealm(uint32 realmId)
+    {
+        //                                  0   1         2        3        4
+        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u", realmId);
+    }
+
+    void SetExpansion(uint32 expansion, uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `expansion` = '%u' WHERE `id` = '%u'", expansion, accountId);
+    }
+
+    void SetGmLevel(int32 gmLevel, uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `gmlevel` = '%i' WHERE `id` = '%u'", gmLevel, accountId);
+    }
+
+    void SetMuteTime(uint64 muteTime, uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `mutetime` = " UI64FMTD " WHERE `id` = '%u'", muteTime, accountId);
+    }
+
+    void ClearMuteTime(uint32 accountId)
+    {
+        LoginDatabase.PExecute("UPDATE `account` SET `mutetime` = '0' WHERE `id` = '%u'", accountId);
+    }
+
+    QueryResult* QueryAccountsByEmail(std::string email)
+    {
+        LoginDatabase.escape_string(email);
+        //                                  0   1         2        3        4
+        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
+    }
+
+    QueryResult* QueryAccountsByLastIp(std::string ip)
+    {
+        LoginDatabase.escape_string(ip);
+        //                                  0   1         2        3        4
+        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `last_ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), ip.c_str());
+    }
+
+    QueryResult* QueryAccountsByName(std::string account)
+    {
+        LoginDatabase.escape_string(account);
+        //                                   0     1           2          3          4
+        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), account.c_str());
+    }
+
+    QueryResult* QueryAccountIdsByLastIp(std::string ip)
+    {
+        LoginDatabase.escape_string(ip);
+        return LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `last_ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), ip.c_str());
+    }
+
+    QueryResult* QueryAccountIdsByName(std::string account)
+    {
+        LoginDatabase.escape_string(account);
+        return LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), account.c_str());
+    }
+
+    QueryResult* QueryAccountIdsByEmail(std::string email)
+    {
+        LoginDatabase.escape_string(email);
+        return LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
+    }
+
+    QueryResult* QueryAccountInfo(uint32 accountId)
+    {
+        return LoginDatabase.PQuery("SELECT `username`,`gmlevel`,`last_ip`,`last_login` FROM `account` WHERE `id` = '%u'", accountId);
+    }
+
+    QueryResult* QueryGameMasters()
+    {
+        return LoginDatabase.Query("SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0");
+    }
 }

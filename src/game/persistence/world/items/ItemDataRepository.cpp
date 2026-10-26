@@ -59,4 +59,10 @@ namespace ItemDataRepository
     {
         return WorldDatabase.Query("SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data");
     }
+
+    QueryResult* QueryItemEntryByName(std::string itemName)
+    {
+        WorldDatabase.escape_string(itemName);
+        return WorldDatabase.PQuery("SELECT `entry` FROM `item_template` WHERE `name` = '%s'", itemName.c_str());
+    }
 }

@@ -38,6 +38,7 @@
 #include "SQLStorages.h"
 #include "WaypointManager.h"
 #include "CreatureAI.h"
+#include "persistence/world/ScriptDataRepository.h"
 
 /**
  * @brief Returns the script chain map for a database script type.
@@ -137,8 +138,7 @@ void ScriptMgr::LoadScripts(DBScriptType type)
 
     m_dbScripts[type].clear();                                 // need for reload support
 
-    //                                                 0   1      2        3         4          5            6              7           8        9         10        11        12 13 14 15
-    QueryResult* result = WorldDatabase.PQuery("SELECT `id`, `delay`, `command`, `datalong`, `datalong2`, `buddy_entry`, `search_radius`, `data_flags`, `dataint`, `dataint2`, `dataint3`, `dataint4`, `x`, `y`, `z`, `o` FROM `db_scripts` WHERE `script_type` = %d ORDER BY `script_guid` ASC", type);
+    QueryResult* result = ScriptDataRepository::QueryDbScripts(type);
 
     uint32 count = 0;
 

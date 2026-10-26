@@ -297,4 +297,67 @@ namespace CharacterRepository
         //                                      0       1         2       3       4        5        6       7      8             9             10
         return CharacterDatabase.Query("SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`");
     }
+
+    QueryResult* QueryAccountsOfCharactersNamed(std::string filter)
+    {
+        LoginDatabase.escape_string(filter);
+        return CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), filter.c_str());
+    }
+
+    QueryResult* QueryAccountCharacterList(uint32 accountId)
+    {
+        return CharacterDatabase.PQuery("SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u", accountId);
+    }
+
+    void SetCustomizeFlag(uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '8' WHERE `guid` = '%u'", guid);
+    }
+
+    void SetRenameFlag(uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '1' WHERE `guid` = '%u'", guid);
+    }
+
+    void AddAtLoginFlags(uint32 flags, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE `guid` = '%u'", flags, guid);
+    }
+
+    void AddAtLoginFlagsToEveryCharacter(uint32 flags)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE (`at_login` & '%u') = '0'", flags, flags);
+    }
+
+    QueryResult* QueryDeletedCharacter(uint32 guid)
+    {
+        return CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u", guid);
+    }
+
+    QueryResult* QueryDeletedCharactersNamed(char const* name)
+    {
+        return CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name);
+    }
+
+    QueryResult* QueryDeletedCharacters()
+    {
+        return CharacterDatabase.Query("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL");
+    }
+
+    void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `name`='%s', `account`='%u', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = %u",
+                                   name, accountId, guid);
+    }
+
+    void SetLevel(uint32 level, uint32 guid)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `level` = '%u', `xp` = 0 WHERE `guid` = '%u'", level, guid);
+    }
+
+    QueryResult* QueryPlayerInfo(uint32 guid)
+    {
+        //                                      0          1      2      3
+        return CharacterDatabase.PQuery("SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'", guid);
+    }
 }

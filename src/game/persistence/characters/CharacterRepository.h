@@ -115,8 +115,9 @@ typedef std::function<void(QueryResult*)> CharacterReadCallback;
 typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallback;
 
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
-/// login, the logout and the account manager use them. The account manager's two reads and the
-/// start-up's highest guid and cache rows run on the thread that calls them, synchronously; every other read is asynchronous, and every write is queued
+/// login, the logout and the account manager use them. The account manager's two reads, the GM
+/// commands' reads and the start-up's highest guid and cache rows run on the thread that calls them,
+/// synchronously; every other read is asynchronous, and every write is queued
 /// on the character database; a write called inside CharacterTransaction joins it.
 namespace CharacterRepository
 {
@@ -196,6 +197,43 @@ namespace CharacterRepository
 
     /// Selects every character's cached columns, ordered by guid, at start-up.
     QueryResult* QueryCacheRows();
+
+    /// Selects the accounts of the characters whose name contains the filter, the filter escaped first
+    /// through the login database, as the character ban list does.
+    QueryResult* QueryAccountsOfCharactersNamed(std::string filter);
+
+    /// Selects an account's characters with their race, class and level, for a GM's character list.
+    QueryResult* QueryAccountCharacterList(uint32 accountId);
+
+    /// Marks a character for a customize at its next login.
+    void SetCustomizeFlag(uint32 guid);
+
+    /// Marks a character for a rename at its next login.
+    void SetRenameFlag(uint32 guid);
+
+    /// Adds at-login flags to a character, as a GM's reset commands do.
+    void AddAtLoginFlags(uint32 flags, uint32 guid);
+
+    /// Adds at-login flags to every character that does not have them yet.
+    void AddAtLoginFlagsToEveryCharacter(uint32 flags);
+
+    /// Selects a deleted character by its guid.
+    QueryResult* QueryDeletedCharacter(uint32 guid);
+
+    /// Selects the deleted characters whose name contains a text, the text written as handed.
+    QueryResult* QueryDeletedCharactersNamed(char const* name);
+
+    /// Selects every deleted character.
+    QueryResult* QueryDeletedCharacters();
+
+    /// Restores a deleted character under a name and account, the name written as handed.
+    void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid);
+
+    /// Sets an offline character's level and clears its experience.
+    void SetLevel(uint32 level, uint32 guid);
+
+    /// Selects a character's played time, level, money and account, for a GM's player info.
+    QueryResult* QueryPlayerInfo(uint32 guid);
 }
 
 #endif

@@ -34,7 +34,8 @@ class QueryResult;
 
 /// The accounts' saved rows on the login database (`account`, `account_banned`, `ip_banned`,
 /// `realmcharacters`). The authentication reads run on the network thread that asks them, and the
-/// account manager's reads on the thread that calls it, synchronously; every write is queued, and
+/// account manager's and the GM commands' reads on the thread that calls them, synchronously; every
+/// write is queued, and
 /// one that returns bool answers false when the database refuses it.
 namespace AccountRepository
 {
@@ -103,6 +104,52 @@ namespace AccountRepository
 
     /// Writes the account's character count on a realm over the old one.
     void SetRealmCharacterCount(uint32 accountId, uint32 realmId, uint8 count);
+
+    /// Locks an account to its last address.
+    void Lock(uint32 accountId);
+
+    /// Unlocks an account from its last address.
+    void Unlock(uint32 accountId);
+
+    /// Selects the accounts playing on a realm, for a GM's online list.
+    QueryResult* QueryActiveOnRealm(uint32 realmId);
+
+    /// Sets an account's expansion.
+    void SetExpansion(uint32 expansion, uint32 accountId);
+
+    /// Sets an account's GM level.
+    void SetGmLevel(int32 gmLevel, uint32 accountId);
+
+    /// Sets the time an account's mute ends.
+    void SetMuteTime(uint64 muteTime, uint32 accountId);
+
+    /// Ends an account's mute.
+    void ClearMuteTime(uint32 accountId);
+
+    /// Selects the accounts whose email contains a text, the text escaped first, for a GM's lookup.
+    QueryResult* QueryAccountsByEmail(std::string email);
+
+    /// Selects the accounts whose last address contains a text, the text escaped first.
+    QueryResult* QueryAccountsByLastIp(std::string ip);
+
+    /// Selects the accounts whose name contains a text, the text escaped first.
+    QueryResult* QueryAccountsByName(std::string account);
+
+    /// Selects the ids and names of the accounts whose last address contains a text, the text escaped
+    /// first.
+    QueryResult* QueryAccountIdsByLastIp(std::string ip);
+
+    /// Selects the ids and names of the accounts whose name contains a text, the text escaped first.
+    QueryResult* QueryAccountIdsByName(std::string account);
+
+    /// Selects the ids and names of the accounts whose email contains a text, the text escaped first.
+    QueryResult* QueryAccountIdsByEmail(std::string email);
+
+    /// Selects an account's name, GM level, last address and last login, for a GM's player info.
+    QueryResult* QueryAccountInfo(uint32 accountId);
+
+    /// Selects the names and GM levels of the game master accounts.
+    QueryResult* QueryGameMasters();
 }
 
 #endif

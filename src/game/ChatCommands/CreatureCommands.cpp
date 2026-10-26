@@ -46,6 +46,8 @@
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
 #include "MotionMaster.h"
+#include "persistence/world/creatures/CreatureDataRepository.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 #ifdef _DEBUG_VMAPS
 #endif
@@ -541,7 +543,7 @@ bool ChatHandler::HandleNpcFlagCommand(char* args)
 
     pCreature->SetUInt32Value(UNIT_NPC_FLAGS, npcFlags);
 
-    WorldDatabase.PExecuteLog("UPDATE `creature_template` SET `NpcFlags` = '%u' WHERE `entry` = '%u'", npcFlags, pCreature->GetEntry());
+    CreatureDataRepository::SetNpcFlags(npcFlags, pCreature->GetEntry());
 
     SendSysMessage(LANG_VALUE_SAVED_REJOIN);
 
@@ -688,7 +690,7 @@ bool ChatHandler::HandleNpcMoveCommand(char* args)
         }
     }
 
-    WorldDatabase.PExecuteLog("UPDATE `creature` SET `position_x` = '%f', `position_y` = '%f', `position_z` = '%f', `orientation` = '%f' WHERE `guid` = '%u'", x, y, z, o, lowguid);
+    SpawnRepository::SetCreaturePosition(x, y, z, o, lowguid);
     PSendSysMessage(LANG_COMMAND_CREATUREMOVED);
     return true;
 }
@@ -889,7 +891,7 @@ bool ChatHandler::HandleNpcFactionIdCommand(char* args)
     }
 
     // and DB
-    WorldDatabase.PExecuteLog("UPDATE `creature_template` SET `FactionAlliance` = '%u', `FactionHorde` = '%u' WHERE `entry` = '%u'", factionId, factionId, pCreature->GetEntry());
+    CreatureDataRepository::SetFaction(factionId, pCreature->GetEntry());
 
     return true;
 }
@@ -941,7 +943,7 @@ bool ChatHandler::HandleNpcSpawnDistCommand(char* args)
         pCreature->Respawn();
     }
 
-    WorldDatabase.PExecuteLog("UPDATE `creature` SET `spawndist`=%f, `MovementType`=%i WHERE `guid`=%u", option, int32(mtype), u_guidlow);
+    SpawnRepository::SetCreatureSpawnDistance(option, int32(mtype), u_guidlow);
     PSendSysMessage(LANG_COMMAND_SPAWNDIST, option);
     return true;
 }
@@ -970,7 +972,7 @@ bool ChatHandler::HandleNpcSpawnTimeCommand(char* args)
 
     uint32 u_guidlow = pCreature->GetGUIDLow();
 
-    WorldDatabase.PExecuteLog("UPDATE `creature` SET `spawntimesecs`=%i WHERE `guid`=%u", stime, u_guidlow);
+    SpawnRepository::SetCreatureSpawnTime(stime, u_guidlow);
     pCreature->SetRespawnDelay(stime);
     PSendSysMessage(LANG_COMMAND_SPAWNTIME, stime);
 
