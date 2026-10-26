@@ -34,6 +34,7 @@
 #include "Database/TickGuard.h"
 #include "persistence/characters/account/AccountDataRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -87,8 +88,8 @@ namespace
 TEST(AccountDataRepository_LoadsAreSynchronous)
 {
     Db db;
-    delete AccountDataRepository::QueryGlobal(17);
-    delete AccountDataRepository::QueryTutorials(17);
+    AccountDataRepository::QueryGlobal(17);
+    AccountDataRepository::QueryTutorials(17);
     CheckLines(db.query.executed, {
         "SELECT `type`, `time`, `data` FROM `account_data` WHERE `account` = '17'",
         "SELECT `tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7` FROM `character_tutorial` WHERE `account` = '17'",
@@ -134,4 +135,45 @@ TEST(AccountDataRepository_DeleteTutorials)
     CheckLines(db.Take(), {
         "DELETE FROM `character_tutorial` WHERE `account` = '17'",
     }, __LINE__);
+}
+
+// Each column of a saved data block of the client lands in its member, and the rows come back in
+// order.
+TEST(AccountDataRepository_Global)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "4294967297", "s1.2"},
+        FakeRow{"2000", "8589934593", "s2.2"},
+    });
+    std::vector<AccountDataRow> rows = AccountDataRepository::QueryGlobal(17);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].type, 1000u);
+    CHECK_EQ(rows[0].time, uint64(4294967297ull));
+    CHECK_STR(rows[0].data, "s1.2");
+    CHECK_EQ(rows[1].type, 2000u);
+}
+
+// Each tutorial flag lands in its member, and no rows answer nothing.
+TEST(AccountDataRepository_Tutorials)
+{
+    {
+        Db db;
+        CHECK(!AccountDataRepository::QueryTutorials(17));
+    }
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003", "1004", "1005", "1006", "1007"},
+        FakeRow{"2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007"},
+    });
+    std::optional<TutorialRow> row = AccountDataRepository::QueryTutorials(17);
+    REQUIRE(row);
+    CHECK_EQ(row->flags[0], 1000u);
+    CHECK_EQ(row->flags[1], 1001u);
+    CHECK_EQ(row->flags[2], 1002u);
+    CHECK_EQ(row->flags[3], 1003u);
+    CHECK_EQ(row->flags[4], 1004u);
+    CHECK_EQ(row->flags[5], 1005u);
+    CHECK_EQ(row->flags[6], 1006u);
+    CHECK_EQ(row->flags[7], 1007u);
 }

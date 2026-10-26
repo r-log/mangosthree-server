@@ -33,7 +33,6 @@
 #include <string>
 #include <map>
 #include <list>
-#include "Database/SqlOperations.h"                         // decoupling D7e: _LoadPetCache reads the login holder
 #include "Player.h"
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
@@ -211,22 +210,18 @@ void Player::_LoadBGData(std::optional<LoginBattlegroundDataRow> const& row)
  */
 bool Player::LoadPositionFromDB(ObjectGuid guid, uint32& mapid, float& x, float& y, float& z, float& o, bool& in_flight)
 {
-    QueryResult* result = CharacterRepository::QueryPosition(guid.GetCounter());
-    if (!result)
+    std::optional<CharacterPositionRow> position = CharacterRepository::QueryPosition(guid.GetCounter());
+    if (!position)
     {
         return false;
     }
 
-    Field* fields = result->Fetch();
-
-    x = fields[0].GetFloat();
-    y = fields[1].GetFloat();
-    z = fields[2].GetFloat();
-    o = fields[3].GetFloat();
-    mapid = fields[4].GetUInt32();
-    in_flight = !fields[5].GetCppString().empty();
-
-    delete result;
+    x = position->positionX;
+    y = position->positionY;
+    z = position->positionZ;
+    o = position->orientation;
+    mapid = position->map;
+    in_flight = !position->taxiPath.empty();
     return true;
 }
 
@@ -805,14 +800,14 @@ void Player::_LoadMails(std::vector<LoginMailRow> const& rows)
 }
 
 /**
- * @brief Fills the per-character pet cache from the login holder (decoupling D7e).
+ * @brief Fills the per-character pet cache from the login holder.
  *
  * Five results, one per table, all of them this character's. `character_pet` first, because
  * the other four are keyed on a pet id and the statements that fetched them joined through it
  * -- so a row in any of them names a pet this character owns, and there are no orphans to
  * guard against here (the ones in the table are never selected).
  *
- * A character with no pets gets five NULL results and an empty cache, which is what every
+ * A character with no pets gets five empty row lists and an empty cache, which is what every
  * lookup used to get from a SELECT that matched nothing.
  */
 void Player::_LoadPetCache(SqlQueryHolder* holder)
@@ -820,117 +815,70 @@ void Player::_LoadPetCache(SqlQueryHolder* holder)
     PlayerPetCache& cache = GetPetCache();
     cache.Clear();
 
-    //          0     1        2        3          4        5      6             7       8       9          10           11         12        13          14                   15                   16                17
-    // SELECT `id`, `entry`, `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType`
-    if (QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETS))
+    for (LoginPetRow const& pet : CharacterRepository::LoginPets(holder))
     {
-        do
-        {
-            Field* fields = result->Fetch();
+        PetCacheRow row;
+        row.id               = pet.id;
+        row.entry            = pet.entry;
+        row.owner            = pet.owner;
+        row.modelId          = pet.modelId;
+        row.level            = pet.level;
+        row.exp              = pet.exp;
+        row.reactState       = pet.reactState;
+        row.slot             = pet.slot;
+        row.name             = pet.name;
+        row.renamed          = pet.renamed;
+        row.curHealth        = pet.curHealth;
+        row.curMana          = pet.curMana;
+        row.abData           = pet.abData;
+        row.saveTime         = pet.saveTime;
+        row.resetTalentsCost = pet.resetTalentsCost;
+        row.resetTalentsTime = pet.resetTalentsTime;
+        row.createdBySpell   = pet.createdBySpell;
+        row.petType          = pet.petType;
 
-            PetCacheRow row;
-            row.id               = fields[0].GetUInt32();
-            row.entry            = fields[1].GetUInt32();
-            row.owner            = fields[2].GetUInt32();
-            row.modelId          = fields[3].GetUInt32();
-            row.level            = fields[4].GetUInt32();
-            row.exp              = fields[5].GetUInt32();
-            row.reactState       = fields[6].GetUInt8();
-            row.slot             = fields[7].GetUInt32();
-            row.name             = fields[8].GetCppString();
-            row.renamed          = fields[9].GetUInt8();
-            row.curHealth        = fields[10].GetUInt32();
-            row.curMana          = fields[11].GetUInt32();
-            row.abData           = fields[12].GetCppString();
-            row.saveTime         = fields[13].GetUInt64();
-            row.resetTalentsCost = fields[14].GetUInt32();
-            row.resetTalentsTime = fields[15].GetUInt64();
-            row.createdBySpell   = fields[16].GetUInt32();
-            row.petType          = fields[17].GetUInt8();
-
-            cache.LoadRow(row);
-        }
-        while (result->NextRow());
-
-        delete result;
+        cache.LoadRow(row);
     }
 
-    //          0       1              2            3        4             5                6               7               8               9                 10                11                12             13            14
-    // SELECT `guid`, `caster_guid`, `item_guid`, `spell`, `stackcount`, `remaincharges`, `basepoints0`, `basepoints1`, `basepoints2`, `periodictime0`, `periodictime1`, `periodictime2`, `maxduration`, `remaintime`, `effIndexMask`
-    if (QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETAURAS))
+    for (LoginPetAuraRow const& row : CharacterRepository::LoginPetAuras(holder))
     {
-        do
+        PetCacheAura aura;
+        aura.casterGuid    = row.casterGuid;
+        aura.itemGuid      = row.itemGuid;
+        aura.spell         = row.spell;
+        aura.stackCount    = row.stackCount;
+        aura.remainCharges = row.remainCharges;
+        for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
         {
-            Field* fields = result->Fetch();
-
-            PetCacheAura aura;
-            aura.casterGuid    = fields[1].GetUInt64();
-            aura.itemGuid      = fields[2].GetUInt32();
-            aura.spell         = fields[3].GetUInt32();
-            aura.stackCount    = fields[4].GetUInt32();
-            aura.remainCharges = fields[5].GetUInt32();
-            for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
-            {
-                aura.basePoints[i]   = fields[i + 6].GetInt32();
-                aura.periodicTime[i] = fields[i + 9].GetUInt32();
-            }
-            aura.maxDuration  = fields[12].GetInt32();
-            aura.remainTime   = fields[13].GetInt32();
-            aura.effIndexMask = fields[14].GetUInt32();
-
-            cache.LoadAura(fields[0].GetUInt32(), aura);
+            aura.basePoints[i]   = row.basePoints[i];
+            aura.periodicTime[i] = row.periodicTime[i];
         }
-        while (result->NextRow());
+        aura.maxDuration  = row.maxDuration;
+        aura.remainTime   = row.remainTime;
+        aura.effIndexMask = row.effIndexMask;
 
-        delete result;
+        cache.LoadAura(row.petId, aura);
     }
 
-    // SELECT `guid`, `spell`, `active`
-    if (QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETSPELLS))
+    for (LoginPetSpellRow const& row : CharacterRepository::LoginPetSpells(holder))
     {
-        do
-        {
-            Field* fields = result->Fetch();
-            cache.LoadSpell(fields[0].GetUInt32(),
-                            PetCacheSpell(fields[1].GetUInt32(), fields[2].GetUInt8()));
-        }
-        while (result->NextRow());
-
-        delete result;
+        cache.LoadSpell(row.petId, PetCacheSpell(row.spell, row.active));
     }
 
-    // SELECT `guid`, `spell`, `time`
-    if (QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETSPELLCOOLDOWNS))
+    for (LoginPetSpellCooldownRow const& row : CharacterRepository::LoginPetSpellCooldowns(holder))
     {
-        do
-        {
-            Field* fields = result->Fetch();
-            cache.LoadCooldown(fields[0].GetUInt32(),
-                               PetCacheCooldown(fields[1].GetUInt32(), fields[2].GetUInt64()));
-        }
-        while (result->NextRow());
-
-        delete result;
+        cache.LoadCooldown(row.petId, PetCacheCooldown(row.spell, row.time));
     }
 
-    // SELECT `id`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`
-    if (QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETDECLINEDNAMES))
+    for (LoginPetDeclinedNameRow const& row : CharacterRepository::LoginPetDeclinedNames(holder))
     {
-        do
+        PetCacheDeclinedName names;
+        for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
         {
-            Field* fields = result->Fetch();
-
-            PetCacheDeclinedName names;
-            for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-            {
-                names.name[i] = fields[i + 1].GetCppString();
-            }
-
-            cache.LoadDeclinedName(fields[0].GetUInt32(), names);
+            names.name[i] = row.name[i];
         }
-        while (result->NextRow());
 
-        delete result;
+        cache.LoadDeclinedName(row.petId, names);
     }
 }
 

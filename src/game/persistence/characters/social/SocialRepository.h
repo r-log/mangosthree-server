@@ -28,10 +28,12 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 
 class Field;
 class QueryResult;
+class SqlQueryHolder;
 
 /// One listed character's saved row: its low guid, the flags and the note.
 struct SocialRow
@@ -47,6 +49,9 @@ namespace SocialRepository
 {
     /// Reads one row of the login holder's social result: friend, flags, note.
     SocialRow ReadRow(Field* fields);
+
+    /// Reads a holder slot's social rows with ReadRow.
+    std::vector<SocialRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
     /// ORs `flag` into the owner's row of the listed character.
     void AddFlag(uint32 ownerGuidLow, uint32 friendGuidLow, uint32 flag);

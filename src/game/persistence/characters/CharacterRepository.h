@@ -254,7 +254,9 @@ enum
     /// The items an equipment set row holds (`item0` to `item18`), one per equipment slot.
     LOGIN_EQUIPMENT_SET_ROW_ITEMS = 19,
     /// The effects an aura row holds base points and a periodic time for.
-    LOGIN_AURA_ROW_EFFECTS = 3
+    LOGIN_AURA_ROW_EFFECTS = 3,
+    /// The powers a character row stores (`power1` to `power5`).
+    LOGIN_CHARACTER_ROW_POWERS = 5
 };
 
 /// The login's declined names (`character_declinedname`), one per case.
@@ -289,6 +291,147 @@ struct LoginAuraRow
     uint32 effIndexMask = 0;
 };
 
+/// The login's `characters` row: the columns the load reads, the stored powers as one array.
+struct LoginCharacterRow
+{
+    uint32 account = 0;
+    std::string name;
+    uint8 race = 0;
+    uint8 classId = 0;
+    uint8 gender = 0;
+    uint8 level = 0;
+    uint32 xp = 0;
+    uint64 money = 0;
+    uint32 playerBytes = 0;
+    uint32 playerBytes2 = 0;
+    uint32 playerFlags = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    uint32 map = 0;
+    float orientation = 0.0f;
+    std::optional<std::string> taximask;
+    uint32 cinematic = 0;
+    uint32 totaltime = 0;
+    uint32 leveltime = 0;
+    float restBonus = 0.0f;
+    uint64 logoutTime = 0;
+    int32 isLogoutResting = 0;
+    uint32 resettalentsCost = 0;
+    uint64 resettalentsTime = 0;
+    std::string primaryTrees;
+    float transX = 0.0f;
+    float transY = 0.0f;
+    float transZ = 0.0f;
+    float transO = 0.0f;
+    uint32 transguid = 0;
+    uint32 extraFlags = 0;
+    uint32 stableSlots = 0;
+    uint32 atLogin = 0;
+    uint64 deathExpireTime = 0;
+    std::string taxiPath;
+    uint32 dungeonDifficulty = 0;
+    uint32 totalKills = 0;
+    uint16 todayKills = 0;
+    uint16 yesterdayKills = 0;
+    uint32 chosenTitle = 0;
+    int32 watchedFaction = 0;
+    uint8 drunk = 0;
+    uint32 health = 0;
+    uint32 power[LOGIN_CHARACTER_ROW_POWERS] = {};
+    uint8 specCount = 0;
+    uint8 activeSpec = 0;
+    std::optional<std::string> exploredZones;
+    std::optional<std::string> knownTitles;
+    uint8 actionBars = 0;
+    uint8 slot = 0;
+    uint32 createdDate = 0;
+};
+
+/// The login's `guild_member` row: the guild and the rank.
+struct LoginGuildRow
+{
+    uint32 guildId = 0;
+    uint32 rank = 0;
+};
+
+/// One completed achievement of the login and its date.
+struct LoginAchievementRow
+{
+    uint32 achievement = 0;
+    uint64 date = 0;
+};
+
+/// One criteria's progress of the login: its counter and date.
+struct LoginCriteriaProgressRow
+{
+    uint32 criteria = 0;
+    uint32 counter = 0;
+    uint64 date = 0;
+};
+
+/// One `character_pet` row of the login.
+struct LoginPetRow
+{
+    uint32 id = 0;
+    uint32 entry = 0;
+    uint32 owner = 0;
+    uint32 modelId = 0;
+    uint32 level = 0;
+    uint32 exp = 0;
+    uint8 reactState = 0;
+    uint32 slot = 0;
+    std::string name;
+    uint8 renamed = 0;
+    uint32 curHealth = 0;
+    uint32 curMana = 0;
+    std::string abData;
+    uint64 saveTime = 0;
+    uint32 resetTalentsCost = 0;
+    uint64 resetTalentsTime = 0;
+    uint32 createdBySpell = 0;
+    uint8 petType = 0;
+};
+
+/// One `pet_aura` row of the login: the pet it belongs to and the aura.
+struct LoginPetAuraRow
+{
+    uint32 petId = 0;
+    uint64 casterGuid = 0;
+    uint32 itemGuid = 0;
+    uint32 spell = 0;
+    uint32 stackCount = 0;
+    uint32 remainCharges = 0;
+    int32 basePoints[LOGIN_AURA_ROW_EFFECTS] = {};
+    uint32 periodicTime[LOGIN_AURA_ROW_EFFECTS] = {};
+    int32 maxDuration = 0;
+    int32 remainTime = 0;
+    uint32 effIndexMask = 0;
+};
+
+/// One `pet_spell` row of the login.
+struct LoginPetSpellRow
+{
+    uint32 petId = 0;
+    uint32 spell = 0;
+    uint8 active = 0;
+};
+
+/// One `pet_spell_cooldown` row of the login.
+struct LoginPetSpellCooldownRow
+{
+    uint32 petId = 0;
+    uint32 spell = 0;
+    uint64 time = 0;
+};
+
+/// One `character_pet_declinedname` row of the login: the pet and its name, one per case.
+struct LoginPetDeclinedNameRow
+{
+    uint32 petId = 0;
+    std::string name[LOGIN_DECLINED_NAME_ROW_CASES];
+};
+
 /// One inventory item of the login: its instance, bag, slot, guid and template.
 struct LoginInventoryRow
 {
@@ -319,6 +462,17 @@ struct LoginItemLootRow
     int32 property = 0;
 };
 
+/// A character's saved position as the position load reads it, with its taxi path.
+struct CharacterPositionRow
+{
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    float orientation = 0.0f;
+    uint32 map = 0;
+    std::string taxiPath;
+};
+
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
 /// login, the logout and the account manager use them. The account manager's two reads, the GM
 /// commands' reads and the start-up's highest guid and cache rows run on the thread that calls them,
@@ -333,7 +487,7 @@ namespace CharacterRepository
     QueryResult* QueryAccountCharacterCount(uint32 accountId);
 
     /// Selects an offline character's position, map and flight path, synchronously.
-    QueryResult* QueryPosition(uint32 guid);
+    std::optional<CharacterPositionRow> QueryPosition(uint32 guid);
 
     /// Each sets or clears one of a character's at_login flags.
     void SetAtLoginFlag(uint32 flag, uint32 guid);
@@ -505,6 +659,33 @@ namespace CharacterRepository
 
     /// Reads the login holder's item loot.
     std::vector<LoginItemLootRow> LoginItemLoot(SqlQueryHolder* holder);
+
+    /// Reads the login holder's character row, none when the character does not exist.
+    std::optional<LoginCharacterRow> LoginCharacter(SqlQueryHolder* holder);
+
+    /// Reads the login holder's guild membership, none when the character is in no guild.
+    std::optional<LoginGuildRow> LoginGuild(SqlQueryHolder* holder);
+
+    /// Reads the login holder's completed achievements.
+    std::vector<LoginAchievementRow> LoginAchievements(SqlQueryHolder* holder);
+
+    /// Reads the login holder's criteria progress.
+    std::vector<LoginCriteriaProgressRow> LoginCriteriaProgress(SqlQueryHolder* holder);
+
+    /// Reads the login holder's pets, ordered by id.
+    std::vector<LoginPetRow> LoginPets(SqlQueryHolder* holder);
+
+    /// Reads the login holder's pet auras, ordered by pet.
+    std::vector<LoginPetAuraRow> LoginPetAuras(SqlQueryHolder* holder);
+
+    /// Reads the login holder's pet spells, ordered by pet and spell.
+    std::vector<LoginPetSpellRow> LoginPetSpells(SqlQueryHolder* holder);
+
+    /// Reads the login holder's pet spell cooldowns, ordered by pet and spell.
+    std::vector<LoginPetSpellCooldownRow> LoginPetSpellCooldowns(SqlQueryHolder* holder);
+
+    /// Reads the login holder's pet declined names, ordered by pet.
+    std::vector<LoginPetDeclinedNameRow> LoginPetDeclinedNames(SqlQueryHolder* holder);
 }
 
 #endif

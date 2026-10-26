@@ -133,6 +133,24 @@ namespace CharacterDeleteRepository
                                       time);
     }
 
+    std::optional<uint32> DeleteGroupId(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_DELETE_READ_GROUP);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    std::vector<uint32> DeletePetIds(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_DELETE_READ_PETS);
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    std::vector<uint32> DeleteFriendGuids(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_DELETE_READ_FRIENDS);
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
     static DeleteCodMailRow ReadDeleteCodMail(Field* fields)
     {
         DeleteCodMailRow row;

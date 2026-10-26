@@ -41,6 +41,8 @@
 
 struct AchievementEntry;
 struct AchievementCriteriaEntry;
+struct LoginAchievementRow;
+struct LoginCriteriaProgressRow;
 
 typedef std::list<AchievementCriteriaEntry const*> AchievementCriteriaEntryList;
 typedef std::list<AchievementEntry const*>         AchievementEntryList;
@@ -273,7 +275,7 @@ class AchievementMgr
 
         void Reset();
         static void DeleteFromDB(ObjectGuid guid);
-        void LoadFromDB(QueryResult* achievementResult, QueryResult* criteriaResult);
+        void LoadFromDB(std::vector<LoginAchievementRow> const& achievementRows, std::vector<LoginCriteriaProgressRow> const& criteriaRows);
         void SaveToDB();
         void ResetAchievementCriteria(AchievementCriteriaTypes type, uint32 miscvalue1 = 0, uint32 miscvalue2 = 0);
         void StartTimedAchievementCriteria(AchievementCriteriaTypes type, uint32 timedRequirementId, time_t startTime = 0);

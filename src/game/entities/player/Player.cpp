@@ -3422,12 +3422,9 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
     LeaveAllArenaTeams(playerguid);
 
     // the player was uninvited already on logout so just remove from group
-    std::unique_ptr<QueryResult> resultGroup(holder->GetResult(PLAYER_DELETE_READ_GROUP));
-    if (resultGroup)
+    if (std::optional<uint32> groupId = CharacterDeleteRepository::DeleteGroupId(holder.get()))
     {
-        uint32 groupId = (*resultGroup)[0].GetUInt32();
-        resultGroup.reset();
-        if (Group* group = sObjectMgr.GetGroupById(groupId))
+        if (Group* group = sObjectMgr.GetGroupById(*groupId))
         {
             RemoveFromGroup(group, playerguid, playerguid, "");
         }
@@ -3543,41 +3540,30 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
 
             // unsummon and delete for pets in world is not required: player deleted from CLI or character list with not loaded pet.
             // Get guids of character's pets, will deleted in transaction
-            std::unique_ptr<QueryResult> resultPets(holder->GetResult(PLAYER_DELETE_READ_PETS));
+            std::vector<uint32> petIds = CharacterDeleteRepository::DeletePetIds(holder.get());
 
             // delete char from friends list when selected chars is online (non existing - error)
-            std::unique_ptr<QueryResult> resultFriend(holder->GetResult(PLAYER_DELETE_READ_FRIENDS));
+            std::vector<uint32> friendGuids = CharacterDeleteRepository::DeleteFriendGuids(holder.get());
 
             // NOW we can finally clear other DB data related to character
             CharacterTransaction::Begin();
-            if (resultPets)
+            for (uint32 petguidlow : petIds)
             {
-                do
-                {
-                    Field* fields3 = resultPets->Fetch();
-                    uint32 petguidlow = fields3[0].GetUInt32();
-                    // do not create separate transaction for pet delete otherwise we will get fatal error!
-                    Pet::DeleteFromDB(petguidlow, false);
-                }
-                while (resultPets->NextRow());
+                // do not create separate transaction for pet delete otherwise we will get fatal error!
+                Pet::DeleteFromDB(petguidlow, false);
             }
 
             // cleanup friends for online players, offline case will cleanup later in code
-            if (resultFriend)
+            for (uint32 friendGuid : friendGuids)
             {
-                do
+                if (Player* sFriend = sPlayerRegistry.Find(ObjectGuid(HIGHGUID_PLAYER, friendGuid)))
                 {
-                    Field* fieldsFriend = resultFriend->Fetch();
-                    if (Player* sFriend = sPlayerRegistry.Find(ObjectGuid(HIGHGUID_PLAYER, fieldsFriend[0].GetUInt32())))
+                    if (sFriend->IsInWorld())
                     {
-                        if (sFriend->IsInWorld())
-                        {
-                            sFriend->GetSocial()->RemoveFromSocialList(playerguid, false);
-                            sSocialMgr.SendFriendStatus(sFriend, FRIEND_REMOVED, playerguid, false);
-                        }
+                        sFriend->GetSocial()->RemoveFromSocialList(playerguid, false);
+                        sSocialMgr.SendFriendStatus(sFriend, FRIEND_REMOVED, playerguid, false);
                     }
                 }
-                while (resultFriend->NextRow());
             }
 
             CharacterDeleteRepository::DeleteEveryRowOf(lowguid);

@@ -277,7 +277,7 @@ TEST(CharacterSaveRepository_InventoryMailAndDailies)
 TEST(CharacterSaveRepository_LoadFixesBindsAndSmallWrites)
 {
     Db db;
-    delete CharacterRepository::QueryPosition(42);
+    CharacterRepository::QueryPosition(42);
     CheckLines(db.query.executed, {
         "SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '42'",
     }, __LINE__);

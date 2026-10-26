@@ -54,9 +54,22 @@ namespace CharacterRepository
         return CharacterDatabase.PQuery("SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
     }
 
-    QueryResult* QueryPosition(uint32 guid)
+    static CharacterPositionRow ReadPosition(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '%u'", guid);
+        CharacterPositionRow row;
+        row.positionX = fields[0].GetFloat();
+        row.positionY = fields[1].GetFloat();
+        row.positionZ = fields[2].GetFloat();
+        row.orientation = fields[3].GetFloat();
+        row.map = fields[4].GetUInt32();
+        row.taxiPath = fields[5].GetCppString();
+        return row;
+    }
+
+    std::optional<CharacterPositionRow> QueryPosition(uint32 guid)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '%u'", guid);
+        return ReadRow<CharacterPositionRow>(result, ReadPosition);
     }
 
     void SetAtLoginFlag(uint32 flag, uint32 guid)
@@ -703,5 +716,227 @@ namespace CharacterRepository
     {
         QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADITEMLOOT);
         return ReadRows<LoginItemLootRow>(result, ReadLoginItemLoot);
+    }
+
+    static LoginCharacterRow ReadLoginCharacter(Field* fields)
+    {
+        LoginCharacterRow row;
+        row.account = fields[1].GetUInt32();
+        row.name = fields[2].GetCppString();
+        row.race = fields[3].GetUInt8();
+        row.classId = fields[4].GetUInt8();
+        row.gender = fields[5].GetUInt8();
+        row.level = fields[6].GetUInt8();
+        row.xp = fields[7].GetUInt32();
+        row.money = fields[8].GetUInt64();
+        row.playerBytes = fields[9].GetUInt32();
+        row.playerBytes2 = fields[10].GetUInt32();
+        row.playerFlags = fields[11].GetUInt32();
+        row.positionX = fields[12].GetFloat();
+        row.positionY = fields[13].GetFloat();
+        row.positionZ = fields[14].GetFloat();
+        row.map = fields[15].GetUInt32();
+        row.orientation = fields[16].GetFloat();
+        if (char const* taximask = fields[17].GetString())
+        {
+            row.taximask = taximask;
+        }
+        row.cinematic = fields[18].GetUInt32();
+        row.totaltime = fields[19].GetUInt32();
+        row.leveltime = fields[20].GetUInt32();
+        row.restBonus = fields[21].GetFloat();
+        row.logoutTime = fields[22].GetUInt64();
+        row.isLogoutResting = fields[23].GetInt32();
+        row.resettalentsCost = fields[24].GetUInt32();
+        row.resettalentsTime = fields[25].GetUInt64();
+        row.primaryTrees = fields[26].GetString();
+        row.transX = fields[27].GetFloat();
+        row.transY = fields[28].GetFloat();
+        row.transZ = fields[29].GetFloat();
+        row.transO = fields[30].GetFloat();
+        row.transguid = fields[31].GetUInt32();
+        row.extraFlags = fields[32].GetUInt32();
+        row.stableSlots = fields[33].GetUInt32();
+        row.atLogin = fields[34].GetUInt32();
+        row.deathExpireTime = fields[37].GetUInt64();
+        row.taxiPath = fields[38].GetCppString();
+        row.dungeonDifficulty = fields[39].GetUInt32();
+        row.totalKills = fields[40].GetUInt32();
+        row.todayKills = fields[41].GetUInt16();
+        row.yesterdayKills = fields[42].GetUInt16();
+        row.chosenTitle = fields[43].GetUInt32();
+        row.watchedFaction = fields[44].GetInt32();
+        row.drunk = fields[45].GetUInt8();
+        row.health = fields[46].GetUInt32();
+        for (int i = 0; i < LOGIN_CHARACTER_ROW_POWERS; ++i)
+        {
+            row.power[i] = fields[47 + i].GetUInt32();
+        }
+        row.specCount = fields[52].GetUInt8();
+        row.activeSpec = fields[53].GetUInt8();
+        if (char const* exploredZones = fields[54].GetString())
+        {
+            row.exploredZones = exploredZones;
+        }
+        if (char const* knownTitles = fields[56].GetString())
+        {
+            row.knownTitles = knownTitles;
+        }
+        row.actionBars = fields[57].GetUInt8();
+        row.slot = fields[58].GetUInt8();
+        row.createdDate = fields[59].GetUInt32();
+        return row;
+    }
+
+    std::optional<LoginCharacterRow> LoginCharacter(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADFROM);
+        return ReadRow<LoginCharacterRow>(result, ReadLoginCharacter);
+    }
+
+    static LoginGuildRow ReadLoginGuild(Field* fields)
+    {
+        LoginGuildRow row;
+        row.guildId = fields[0].GetUInt32();
+        row.rank = fields[1].GetUInt32();
+        return row;
+    }
+
+    std::optional<LoginGuildRow> LoginGuild(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADGUILD);
+        return ReadRow<LoginGuildRow>(result, ReadLoginGuild);
+    }
+
+    static LoginAchievementRow ReadLoginAchievement(Field* fields)
+    {
+        LoginAchievementRow row;
+        row.achievement = fields[0].GetUInt32();
+        row.date = fields[1].GetUInt64();
+        return row;
+    }
+
+    std::vector<LoginAchievementRow> LoginAchievements(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS);
+        return ReadRows<LoginAchievementRow>(result, ReadLoginAchievement);
+    }
+
+    static LoginCriteriaProgressRow ReadLoginCriteriaProgress(Field* fields)
+    {
+        LoginCriteriaProgressRow row;
+        row.criteria = fields[0].GetUInt32();
+        row.counter = fields[1].GetUInt32();
+        row.date = fields[2].GetUInt64();
+        return row;
+    }
+
+    std::vector<LoginCriteriaProgressRow> LoginCriteriaProgress(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADCRITERIAPROGRESS);
+        return ReadRows<LoginCriteriaProgressRow>(result, ReadLoginCriteriaProgress);
+    }
+
+    static LoginPetRow ReadLoginPet(Field* fields)
+    {
+        LoginPetRow row;
+        row.id = fields[0].GetUInt32();
+        row.entry = fields[1].GetUInt32();
+        row.owner = fields[2].GetUInt32();
+        row.modelId = fields[3].GetUInt32();
+        row.level = fields[4].GetUInt32();
+        row.exp = fields[5].GetUInt32();
+        row.reactState = fields[6].GetUInt8();
+        row.slot = fields[7].GetUInt32();
+        row.name = fields[8].GetCppString();
+        row.renamed = fields[9].GetUInt8();
+        row.curHealth = fields[10].GetUInt32();
+        row.curMana = fields[11].GetUInt32();
+        row.abData = fields[12].GetCppString();
+        row.saveTime = fields[13].GetUInt64();
+        row.resetTalentsCost = fields[14].GetUInt32();
+        row.resetTalentsTime = fields[15].GetUInt64();
+        row.createdBySpell = fields[16].GetUInt32();
+        row.petType = fields[17].GetUInt8();
+        return row;
+    }
+
+    std::vector<LoginPetRow> LoginPets(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETS);
+        return ReadRows<LoginPetRow>(result, ReadLoginPet);
+    }
+
+    static LoginPetAuraRow ReadLoginPetAura(Field* fields)
+    {
+        LoginPetAuraRow row;
+        row.petId = fields[0].GetUInt32();
+        row.casterGuid = fields[1].GetUInt64();
+        row.itemGuid = fields[2].GetUInt32();
+        row.spell = fields[3].GetUInt32();
+        row.stackCount = fields[4].GetUInt32();
+        row.remainCharges = fields[5].GetUInt32();
+        for (int i = 0; i < LOGIN_AURA_ROW_EFFECTS; ++i)
+        {
+            row.basePoints[i] = fields[i + 6].GetInt32();
+            row.periodicTime[i] = fields[i + 9].GetUInt32();
+        }
+        row.maxDuration = fields[12].GetInt32();
+        row.remainTime = fields[13].GetInt32();
+        row.effIndexMask = fields[14].GetUInt32();
+        return row;
+    }
+
+    std::vector<LoginPetAuraRow> LoginPetAuras(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETAURAS);
+        return ReadRows<LoginPetAuraRow>(result, ReadLoginPetAura);
+    }
+
+    static LoginPetSpellRow ReadLoginPetSpell(Field* fields)
+    {
+        LoginPetSpellRow row;
+        row.petId = fields[0].GetUInt32();
+        row.spell = fields[1].GetUInt32();
+        row.active = fields[2].GetUInt8();
+        return row;
+    }
+
+    std::vector<LoginPetSpellRow> LoginPetSpells(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETSPELLS);
+        return ReadRows<LoginPetSpellRow>(result, ReadLoginPetSpell);
+    }
+
+    static LoginPetSpellCooldownRow ReadLoginPetSpellCooldown(Field* fields)
+    {
+        LoginPetSpellCooldownRow row;
+        row.petId = fields[0].GetUInt32();
+        row.spell = fields[1].GetUInt32();
+        row.time = fields[2].GetUInt64();
+        return row;
+    }
+
+    std::vector<LoginPetSpellCooldownRow> LoginPetSpellCooldowns(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETSPELLCOOLDOWNS);
+        return ReadRows<LoginPetSpellCooldownRow>(result, ReadLoginPetSpellCooldown);
+    }
+
+    static LoginPetDeclinedNameRow ReadLoginPetDeclinedName(Field* fields)
+    {
+        LoginPetDeclinedNameRow row;
+        row.petId = fields[0].GetUInt32();
+        for (int i = 0; i < LOGIN_DECLINED_NAME_ROW_CASES; ++i)
+        {
+            row.name[i] = fields[i + 1].GetCppString();
+        }
+        return row;
+    }
+
+    std::vector<LoginPetDeclinedNameRow> LoginPetDeclinedNames(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETDECLINEDNAMES);
+        return ReadRows<LoginPetDeclinedNameRow>(result, ReadLoginPetDeclinedName);
     }
 }

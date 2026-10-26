@@ -54,6 +54,7 @@
 
 #include "Policies/Singleton.h"
 #include "persistence/characters/achievements/AchievementRepository.h"
+#include "persistence/characters/CharacterRepository.h"
 
 
 namespace MaNGOS
@@ -211,18 +212,16 @@ void AchievementMgr::SaveToDB()
     }
 }
 
-void AchievementMgr::LoadFromDB(QueryResult* achievementResult, QueryResult* criteriaResult)
+void AchievementMgr::LoadFromDB(std::vector<LoginAchievementRow> const& achievementRows, std::vector<LoginCriteriaProgressRow> const& criteriaRows)
 {
     // Note: this code called before any character data loading so don't must triggering any events req. inventory/etc
     // all like cases must be happens in CheckAllAchievementCriteria called after character data load
 
-    if (achievementResult)
+    if (!achievementRows.empty())
     {
-        do
+        for (LoginAchievementRow const& row : achievementRows)
         {
-            Field* fields = achievementResult->Fetch();
-
-            uint32 achievement_id = fields[0].GetUInt32();
+            uint32 achievement_id = row.achievement;
 
             // don't must happen: cleanup at server startup in sAchievementMgr.LoadCompletedAchievements()
             if (!sAchievementStore.LookupEntry(achievement_id))
@@ -231,22 +230,18 @@ void AchievementMgr::LoadFromDB(QueryResult* achievementResult, QueryResult* cri
             }
 
             CompletedAchievementData& ca = m_completedAchievements[achievement_id];
-            ca.date = time_t(fields[1].GetUInt64());
+            ca.date = time_t(row.date);
             ca.changed = false;
         }
-        while (achievementResult->NextRow());
-        delete achievementResult;
     }
 
-    if (criteriaResult)
+    if (!criteriaRows.empty())
     {
-        do
+        for (LoginCriteriaProgressRow const& row : criteriaRows)
         {
-            Field* fields = criteriaResult->Fetch();
-
-            uint32 id      = fields[0].GetUInt32();
-            uint32 counter = fields[1].GetUInt32();
-            time_t date    = time_t(fields[2].GetUInt64());
+            uint32 id      = row.criteria;
+            uint32 counter = row.counter;
+            time_t date    = time_t(row.date);
 
             AchievementCriteriaEntry const* criteria = sAchievementCriteriaStore.LookupEntry(id);
             if (!criteria)
@@ -292,8 +287,6 @@ void AchievementMgr::LoadFromDB(QueryResult* achievementResult, QueryResult* cri
                 }
             }
         }
-        while (criteriaResult->NextRow());
-        delete criteriaResult;
     }
 }
 

@@ -25,6 +25,8 @@
 
 #include "SocialRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
+#include "Database/SqlOperations.h"
 
 #include <utility>
 
@@ -37,6 +39,12 @@ namespace SocialRepository
         row.flags = fields[1].GetUInt32();
         row.note = fields[2].GetCppString();
         return row;
+    }
+
+    std::vector<SocialRow> ReadHolder(SqlQueryHolder* holder, size_t slot)
+    {
+        QueryResult* result = holder->GetResult(slot);
+        return ReadRows<SocialRow>(result, ReadRow);
     }
 
     void AddFlag(uint32 ownerGuidLow, uint32 friendGuidLow, uint32 flag)
