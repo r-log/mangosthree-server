@@ -136,14 +136,22 @@ namespace MailRepository
         CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid`='%u'", itemGuid);
     }
 
-    void QueryMailboxCount(uint32 receiverGuid, std::function<void(QueryResult*)> callback)
+    void QueryMailboxCount(uint32 receiverGuid, std::function<void(std::optional<uint32>)> callback)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback), "SELECT COUNT(*) FROM `mail` WHERE `receiver` = '%u'", receiverGuid);
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }));
+                                      },
+                                      "SELECT COUNT(*) FROM `mail` WHERE `receiver` = '%u'", receiverGuid);
     }
 
-    void QueryMassMailReceivers(char const* query, std::function<void(QueryResult*)> callback)
+    void QueryMassMailReceivers(char const* query, std::function<void(std::vector<uint32>)> callback)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback), "%s", query);
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }));
+                                      },
+                                      "%s", query);
     }
 
     void DeleteEmptyExpiredMails(uint64 before)
@@ -194,5 +202,41 @@ namespace MailRepository
     {
         QueryResult* result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `mail`");
         return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    static ExpiredMailRow ReadExpiredMail(Field* fields)
+    {
+        ExpiredMailRow row;
+        row.id = fields[0].GetUInt32();
+        row.messageType = fields[1].GetUInt8();
+        row.sender = fields[2].GetUInt32();
+        row.receiver = fields[3].GetUInt32();
+        row.hasItems = fields[4].GetBool();
+        row.expireTime = fields[5].GetUInt64();
+        row.cod = fields[6].GetUInt32();
+        row.checked = fields[7].GetUInt32();
+        row.mailTemplateId = fields[8].GetInt16();
+        return row;
+    }
+
+    std::vector<ExpiredMailRow> ExpiredMails(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(EXPIRED_MAIL_ROWS);
+        return ReadRows<ExpiredMailRow>(result, ReadExpiredMail);
+    }
+
+    static ExpiredMailItemRow ReadExpiredMailItem(Field* fields)
+    {
+        ExpiredMailItemRow row;
+        row.itemGuid = fields[0].GetUInt32();
+        row.itemTemplate = fields[1].GetUInt32();
+        row.mailId = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<ExpiredMailItemRow> ExpiredMailItems(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(EXPIRED_MAIL_ITEMS);
+        return ReadRows<ExpiredMailItemRow>(result, ReadExpiredMailItem);
     }
 }

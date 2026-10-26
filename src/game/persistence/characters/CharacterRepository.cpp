@@ -465,15 +465,21 @@ namespace CharacterRepository
         return CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` = '%s'", name.c_str());
     }
 
-    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(QueryResult*)> callback)
+    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(std::optional<uint32>)> callback)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }));
+                                      },
                                       "SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
     }
 
-    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(QueryResult*)> callback)
+    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(std::optional<uint32>)> callback)
     {
-        return CharacterDatabase.AsyncPQuery(std::move(callback),
+        return CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                             {
+                                                 callback(ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }));
+                                             },
                                              "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
                                              first, last);
     }

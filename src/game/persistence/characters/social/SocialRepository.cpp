@@ -78,9 +78,13 @@ namespace SocialRepository
         update.Execute();
     }
 
-    void QueryFlags(uint32 ownerGuidLow, uint32 friendGuidLow, std::function<void(QueryResult*)> callback)
+    void QueryFlags(uint32 ownerGuidLow, uint32 friendGuidLow, std::function<void(std::optional<uint8>)> callback)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback), "SELECT `flags` FROM `character_social` WHERE `guid` = %u AND `friend` = %u",
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<uint8>(result, [](Field* fields) { return fields[0].GetUInt8(); }));
+                                      },
+                                      "SELECT `flags` FROM `character_social` WHERE `guid` = %u AND `friend` = %u",
                                       ownerGuidLow, friendGuidLow);
     }
 }

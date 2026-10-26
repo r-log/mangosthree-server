@@ -286,9 +286,9 @@ namespace Harness
             m_pending = true;
             const uint32 token = ++m_startToken;
             if (!CharacterRepository::QueryCharacterCountInGuidRange(kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1,
-                                                                     [token](QueryResult* result)
+                                                                     [token](std::optional<uint32> taken)
                                                                      {
-                                                                         sHarness.OnGuidBlockChecked(std::unique_ptr<QueryResult>(result), token);
+                                                                         sHarness.OnGuidBlockChecked(taken, token);
                                                                      }))
             {
                 // The database refused to queue it (a shutdown is under way), so no callback
@@ -310,7 +310,7 @@ namespace Harness
      * The guid-block read's answer. The world thread runs it, from
      * World::UpdateResultQueue, one tick (or a few) after the Start that staged it.
      */
-    void Runner::OnGuidBlockChecked(std::unique_ptr<QueryResult> taken, uint32 token)
+    void Runner::OnGuidBlockChecked(std::optional<uint32> const& taken, uint32 token)
     {
         // C2: the answer is for a queue, not for the runner. A stop, or a Start that
         // refused after this read was staged, makes it stale -- run it and the wrong
@@ -331,9 +331,9 @@ namespace Harness
             return;
         }
 
-        // A guard that fails open is not a guard: a lost connection or a missing table returns
-        // NULL, and reading that as "the block is free" is exactly the case where the answer is
-        // unknown and a real character may be standing in it. Refuse instead.
+        // A guard that fails open is not a guard: a lost connection or a missing table answers
+        // no count, and reading that as "the block is free" is exactly the case where the answer
+        // is unknown and a real character may be standing in it. Refuse instead.
         if (!taken)
         {
             sLog.outString("MVTEST refused: the harness guid block %u..%u could not be checked against `characters` (no result: connection or schema)",
@@ -341,7 +341,7 @@ namespace Harness
             m_queue.clear();
             return;
         }
-        const uint32 rows = taken->Fetch()[0].GetUInt32();
+        const uint32 rows = *taken;
         if (rows)
         {
             sLog.outString("MVTEST refused: %u character(s) occupy the harness guid block %u..%u",

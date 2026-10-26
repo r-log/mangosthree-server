@@ -25,6 +25,7 @@
 
 #include "AccountRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 #include <utility>
 
@@ -149,9 +150,22 @@ namespace AccountRepository
         LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);
     }
 
-    bool QueryWhois(uint32 accountId, std::function<void(QueryResult*)> callback)
+    static WhoisRow ReadWhois(Field* fields)
     {
-        return LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `username`,`email`,`last_ip` FROM `account` WHERE `id`=%u", accountId);
+        WhoisRow row;
+        row.username = fields[0].GetCppString();
+        row.email = fields[1].GetCppString();
+        row.lastIp = fields[2].GetCppString();
+        return row;
+    }
+
+    bool QueryWhois(uint32 accountId, std::function<void(std::optional<WhoisRow>)> callback)
+    {
+        return LoginDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                         {
+                                             callback(ReadRow<WhoisRow>(result, ReadWhois));
+                                         },
+                                         "SELECT `username`,`email`,`last_ip` FROM `account` WHERE `id`=%u", accountId);
     }
 
     void SetActiveRealm(uint32 realmId, uint32 accountId)

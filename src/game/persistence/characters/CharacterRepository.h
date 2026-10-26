@@ -652,12 +652,12 @@ namespace CharacterRepository
     QueryResult* QueryAccountOfCharacterNamed(std::string const& name);
 
     /// Asks for the number of an account's characters on this realm; the callback runs on the world
-    /// thread with the result, which it owns.
-    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(QueryResult*)> callback);
+    /// thread with the count.
+    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(std::optional<uint32>)> callback);
 
     /// Asks how many characters hold a guid in a range, for the harness's guid block check; answers false
     /// when the database refuses to queue it.
-    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(QueryResult*)> callback);
+    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(std::optional<uint32>)> callback);
 
     /// Marks every character offline, at start-up and shutdown.
     void SetEveryCharacterOffline();

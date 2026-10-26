@@ -1670,27 +1670,23 @@ void World::UpdateResultQueue()
  */
 void World::UpdateRealmCharCount(uint32 accountId)
 {
-    CharacterRepository::QueryAccountCharacterCountAsync(accountId, [this, accountId](QueryResult* result)
+    CharacterRepository::QueryAccountCharacterCountAsync(accountId, [this, accountId](std::optional<uint32> charCount)
                                                          {
-                                                             _UpdateRealmCharCount(result, accountId);
+                                                             _UpdateRealmCharCount(charCount, accountId);
                                                          });
 }
 
 /**
  * @brief Stores the updated realm character count for an account.
  *
- * @param resultCharCount The asynchronous query result.
+ * @param charCount The account's number of characters on this realm.
  * @param accountId The account id being updated.
  */
-void World::_UpdateRealmCharCount(QueryResult* resultCharCount, uint32 accountId)
+void World::_UpdateRealmCharCount(std::optional<uint32> const& charCount, uint32 accountId)
 {
-    if (resultCharCount)
+    if (charCount)
     {
-        Field* fields = resultCharCount->Fetch();
-        uint32 charCount = fields[0].GetUInt32();
-        delete resultCharCount;
-
-        AccountRepository::ReplaceRealmCharacterCount(accountId, realmID, charCount);
+        AccountRepository::ReplaceRealmCharacterCount(accountId, realmID, *charCount);
     }
 }
 

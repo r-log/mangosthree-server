@@ -27,6 +27,7 @@
 #define MANGOS_H_SOCIALREPOSITORY
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
@@ -69,8 +70,8 @@ namespace SocialRepository
     void SetNote(uint32 ownerGuidLow, uint32 friendGuidLow, std::string const& note);
 
     /// Asks for the flags of an owner's row of a listed character, for an owner whose list is not
-    /// loaded; the callback runs on the world thread with the result, which it owns.
-    void QueryFlags(uint32 ownerGuidLow, uint32 friendGuidLow, std::function<void(QueryResult*)> callback);
+    /// loaded; the callback runs on the world thread with the flags, none when there is no row.
+    void QueryFlags(uint32 ownerGuidLow, uint32 friendGuidLow, std::function<void(std::optional<uint8>)> callback);
 }
 
 #endif

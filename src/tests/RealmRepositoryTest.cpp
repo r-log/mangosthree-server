@@ -47,6 +47,7 @@
 #include "persistence/world/economy/LootDataRepository.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -212,8 +213,8 @@ TEST(CharacterRepository_AsyncCounts)
     int answered = 0;
     {
         TickGuard::Scope scope;
-        CharacterRepository::QueryAccountCharacterCountAsync(42, [&answered](QueryResult* result) { delete result; ++answered; });
-        CHECK(CharacterRepository::QueryCharacterCountInGuidRange(15728640, 15728647, [&answered](QueryResult* result) { delete result; ++answered; }));
+        CharacterRepository::QueryAccountCharacterCountAsync(42, [&answered](std::optional<uint32> /*count*/) { ++answered; });
+        CHECK(CharacterRepository::QueryCharacterCountInGuidRange(15728640, 15728647, [&answered](std::optional<uint32> /*count*/) { ++answered; }));
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(chars.query.executed.size(), size_t(0));
     }
@@ -270,4 +271,22 @@ TEST(RealmRepository_StartAndStopWrites)
         "DELETE FROM `character_battleground_data`",
         "UPDATE `groups` SET `leaderGuid` = (SELECT `memberGuid` FROM `group_member` WHERE `group_member`.`groupId` = `groups`.`groupId` ORDER BY `assistant` DESC LIMIT 1) WHERE `leaderGuid` NOT IN (SELECT `memberGuid` FROM `group_member` WHERE `group_member`.`groupId` = `groups`.`groupId`)",
     }, __LINE__);
+}
+
+// The realm count and the guid block read each answer their count.
+TEST(RealmRepository_CountValues)
+{
+    Db chars(CharacterDatabase);
+    chars.async.Answer("SELECT COUNT(`guid`)", FakeRows{FakeRow{"1007"}});
+    chars.async.Answer("SELECT COUNT(*) FROM `characters`", FakeRows{FakeRow{"2007"}});
+    std::optional<uint32> realmCount;
+    std::optional<uint32> blockCount;
+    CharacterRepository::QueryAccountCharacterCountAsync(42, [&realmCount](std::optional<uint32> got) { realmCount = got; });
+    CHECK(CharacterRepository::QueryCharacterCountInGuidRange(15728640, 15728647, [&blockCount](std::optional<uint32> got) { blockCount = got; }));
+    chars.Take();
+    CharacterDatabase.ProcessResultQueue();
+    REQUIRE(realmCount);
+    CHECK_EQ(*realmCount, 1007u);
+    REQUIRE(blockCount);
+    CHECK_EQ(*blockCount, 2007u);
 }
