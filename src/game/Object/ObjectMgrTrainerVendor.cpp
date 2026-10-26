@@ -58,9 +58,9 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
 
     std::set<uint32> skip_trainers;
 
-    QueryResult* result = NpcDataRepository::QueryTrainerSpells(tableName);
+    std::vector<TrainerSpellRow> rows = NpcDataRepository::QueryTrainerSpells(tableName);
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -69,19 +69,17 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
     std::set<uint32> talentIds;
 
     uint32 count = 0;
-    do
+    for (TrainerSpellRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 entry  = fields[0].GetUInt32();
-        uint32 spell  = fields[1].GetUInt32();
+        uint32 entry  = row.entry;
+        uint32 spell  = row.spell;
 
         SpellEntry const* spellinfo = sSpellStore.LookupEntry(spell);
         if (!spellinfo)
@@ -140,10 +138,10 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
 
         TrainerSpell& trainerSpell = data.spellList[spell];
         trainerSpell.spell         = spell;
-        trainerSpell.spellCost     = fields[2].GetUInt32();
-        trainerSpell.reqSkill      = fields[3].GetUInt32();
-        trainerSpell.reqSkillValue = fields[4].GetUInt32();
-        trainerSpell.reqLevel      = fields[5].GetUInt32();
+        trainerSpell.spellCost     = row.spellcost;
+        trainerSpell.reqSkill      = row.reqskill;
+        trainerSpell.reqSkillValue = row.reqskillvalue;
+        trainerSpell.reqLevel      = row.reqlevel;
 
         trainerSpell.isProvidedReqLevel = trainerSpell.reqLevel > 0;
 
@@ -214,8 +212,6 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
 
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString(">> Loaded %d trainer %sspells", count, isTemplates ? "template " : "");
     sLog.outString();
@@ -286,8 +282,8 @@ void ObjectMgr::LoadVendors(char const* tableName, bool isTemplates)
 
     std::set<uint32> skip_vendors;
 
-    QueryResult* result = NpcDataRepository::QueryVendorItems(tableName);
-    if (!result)
+    std::vector<VendorItemRow> rows = NpcDataRepository::QueryVendorItems(tableName);
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -298,21 +294,20 @@ void ObjectMgr::LoadVendors(char const* tableName, bool isTemplates)
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
     uint32 count = 0;
-    do
+    for (VendorItemRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
 
-        uint32 entry        = fields[0].GetUInt32();
-        uint32 item_id      = abs(fields[1].GetInt32());
-        uint8  type         = fields[1].GetInt32() > 0 ? VENDOR_ITEM_TYPE_ITEM : VENDOR_ITEM_TYPE_CURRENCY;
-        uint32 maxcount     = fields[2].GetUInt32();
-        uint32 incrtime     = fields[3].GetUInt32();
-        uint32 ExtendedCost = fields[4].GetUInt32();
-        uint16 conditionId  = fields[5].GetUInt16();
+        uint32 entry        = row.entry;
+        uint32 item_id      = abs(row.item);
+        uint8  type         = row.item > 0 ? VENDOR_ITEM_TYPE_ITEM : VENDOR_ITEM_TYPE_CURRENCY;
+        uint32 maxcount     = row.maxcount;
+        uint32 incrtime     = row.incrtime;
+        uint32 ExtendedCost = row.extendedCost;
+        uint16 conditionId  = row.conditionId;
 
         if (!IsVendorItemValid(isTemplates, tableName, entry, item_id, type, maxcount, incrtime, ExtendedCost, conditionId, NULL, &skip_vendors))
         {
@@ -324,8 +319,6 @@ void ObjectMgr::LoadVendors(char const* tableName, bool isTemplates)
         vList.AddItem(item_id, type, maxcount, incrtime, ExtendedCost, conditionId);
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString(">> Loaded %u vendor %sitems", count, isTemplates ? "template " : "");
     sLog.outString();

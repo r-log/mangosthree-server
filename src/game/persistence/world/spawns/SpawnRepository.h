@@ -30,6 +30,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 class QueryResult;
 
@@ -79,6 +80,58 @@ struct GameObjectSpawnRow
     uint32 goState = 0;
 };
 
+/// One creature spawn as the startup load reads it: its `creature` row, its game event, and the
+/// pools of its guid and of its entry.
+struct CreatureSpawnDataRow
+{
+    uint32 guid = 0;
+    uint32 id = 0;
+    uint32 map = 0;
+    uint32 modelid = 0;
+    uint32 equipmentId = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    float orientation = 0.0f;
+    uint32 spawntimesecs = 0;
+    float spawndist = 0.0f;
+    uint32 currentwaypoint = 0;
+    uint32 curhealth = 0;
+    uint32 curmana = 0;
+    bool deathState = false;
+    uint8 movementType = 0;
+    uint8 spawnMask = 0;
+    uint32 phaseMask = 0;
+    int16 gameEvent = 0;
+    int16 guidPoolId = 0;
+    int16 entryPoolId = 0;
+};
+
+/// One game object spawn as the startup load reads it: its `gameobject` row, its game event, and
+/// the pools of its guid and of its entry.
+struct GameObjectSpawnDataRow
+{
+    uint32 guid = 0;
+    uint32 id = 0;
+    uint32 map = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    float orientation = 0.0f;
+    float rotation0 = 0.0f;
+    float rotation1 = 0.0f;
+    float rotation2 = 0.0f;
+    float rotation3 = 0.0f;
+    int32 spawntimesecs = 0;
+    uint32 animprogress = 0;
+    uint32 state = 0;
+    uint8 spawnMask = 0;
+    uint32 phaseMask = 0;
+    int16 gameEvent = 0;
+    int16 guidPoolId = 0;
+    int16 entryPoolId = 0;
+};
+
 /// The creature and game object spawns on the world database (`creature`, `gameobject` and the
 /// tables keyed on a spawn), as a GM saves and deletes them. The start-up reads and a GM's spawn
 /// lists and look-ups run synchronously; every write is queued and written to the SQL log.
@@ -104,10 +157,10 @@ namespace SpawnRepository
     QueryResult* QueryHighestGameObjectGuid();
 
     /// Selects every creature spawn with its addon and event data, at start-up.
-    QueryResult* QueryCreatureSpawns();
+    std::vector<CreatureSpawnDataRow> QueryCreatureSpawns();
 
     /// Selects every game object spawn with its event data, at start-up.
-    QueryResult* QueryGameObjectSpawns();
+    std::vector<GameObjectSpawnDataRow> QueryGameObjectSpawns();
 
     /// Selects a creature spawn's entry and map.
     QueryResult* QueryCreatureEntryAndMap(uint32 guid);

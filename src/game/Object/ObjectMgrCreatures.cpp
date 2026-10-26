@@ -936,9 +936,9 @@ void ObjectMgr::LoadCreatureModelRace()
 {
     m_mCreatureModelRaceMap.clear();                        // can be used for reload
 
-    QueryResult* result = CreatureDataRepository::QueryModelRaces();
+    std::vector<CreatureModelRaceRow> rows = CreatureDataRepository::QueryModelRaces();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -949,24 +949,23 @@ void ObjectMgr::LoadCreatureModelRace()
     }
 
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
     uint32 count = 0;
 
     // model, racemask
     std::map<uint32, uint32> model2raceMask;
 
-    do
+    for (CreatureModelRaceRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
 
         CreatureModelRace raceData;
 
-        raceData.modelid            = fields[0].GetUInt32();
-        raceData.racemask           = fields[1].GetUInt32();
-        raceData.creature_entry     = fields[2].GetUInt32();
-        raceData.modelid_racial     = fields[3].GetUInt32();
+        raceData.modelid            = row.modelid;
+        raceData.racemask           = row.racemask;
+        raceData.creature_entry     = row.creatureEntry;
+        raceData.modelid_racial     = row.modelidRacial;
 
         if (!sCreatureDisplayInfoStore.LookupEntry(raceData.modelid))
         {
@@ -1042,9 +1041,6 @@ void ObjectMgr::LoadCreatureModelRace()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u creature_model_race entries", count);
@@ -1056,9 +1052,9 @@ void ObjectMgr::LoadCreatureModelRace()
 void ObjectMgr::LoadCreatures()
 {
     uint32 count = 0;
-    QueryResult* result = SpawnRepository::QueryCreatureSpawns();
+    std::vector<CreatureSpawnDataRow> rows = SpawnRepository::QueryCreatureSpawns();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -1097,7 +1093,7 @@ void ObjectMgr::LoadCreatures()
     // Map 0 was removed from dbc as of 4.x.x
     spawnMasks[0] = 1 << REGULAR_DIFFICULTY;
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
     const uint32 lwAnchorMask = sGameConfig.getConfig(CONFIG_UINT32_LIVINGWORLD_ANCHOR_MASK);
     uint32 lwWorldBossLeaderCount = 0;
@@ -1105,13 +1101,12 @@ void ObjectMgr::LoadCreatures()
     uint32 lwSettlementDefenderCount = 0;
     uint32 lwAnchorTotal = 0;
 
-    do
+    for (CreatureSpawnDataRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 guid         = fields[ 0].GetUInt32();
-        uint32 entry        = fields[ 1].GetUInt32();
+        uint32 guid         = row.guid;
+        uint32 entry        = row.id;
 
         if (DisableMgr::IsDisabledFor(DISABLE_TYPE_CREATURE_SPAWN, guid))
         {
@@ -1129,25 +1124,25 @@ void ObjectMgr::LoadCreatures()
         CreatureData& data = mCreatureDataMap[guid];
 
         data.id                 = entry;
-        data.mapid              = fields[ 2].GetUInt32();
-        data.modelid_override   = fields[ 3].GetUInt32();
-        data.equipmentId        = fields[ 4].GetUInt32();
-        data.posX               = fields[ 5].GetFloat();
-        data.posY               = fields[ 6].GetFloat();
-        data.posZ               = fields[ 7].GetFloat();
-        data.orientation        = fields[ 8].GetFloat();
-        data.spawntimesecs      = fields[ 9].GetUInt32();
-        data.spawndist          = fields[10].GetFloat();
-        data.currentwaypoint    = fields[11].GetUInt32();
-        data.curhealth          = fields[12].GetUInt32();
-        data.curmana            = fields[13].GetUInt32();
-        data.is_dead            = fields[14].GetBool();
-        data.movementType       = fields[15].GetUInt8();
-        data.spawnMask          = fields[16].GetUInt8();
-        data.phaseMask          = fields[17].GetUInt32();
-        int16 gameEvent         = fields[18].GetInt16();
-        int16 GuidPoolId        = fields[19].GetInt16();
-        int16 EntryPoolId       = fields[20].GetInt16();
+        data.mapid              = row.map;
+        data.modelid_override   = row.modelid;
+        data.equipmentId        = row.equipmentId;
+        data.posX               = row.positionX;
+        data.posY               = row.positionY;
+        data.posZ               = row.positionZ;
+        data.orientation        = row.orientation;
+        data.spawntimesecs      = row.spawntimesecs;
+        data.spawndist          = row.spawndist;
+        data.currentwaypoint    = row.currentwaypoint;
+        data.curhealth          = row.curhealth;
+        data.curmana            = row.curmana;
+        data.is_dead            = row.deathState;
+        data.movementType       = row.movementType;
+        data.spawnMask          = row.spawnMask;
+        data.phaseMask          = row.phaseMask;
+        int16 gameEvent         = row.gameEvent;
+        int16 GuidPoolId        = row.guidPoolId;
+        int16 EntryPoolId       = row.entryPoolId;
 
         MapEntry const* mapEntry = sMapStore.LookupEntry(data.mapid);
         if (!mapEntry)
@@ -1276,9 +1271,6 @@ void ObjectMgr::LoadCreatures()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %zu creatures", mCreatureDataMap.size());
     sLog.outString("[LivingWorld] anchor policy mask=0x%X: world-boss/leaders=%u, flight-masters=%u, settlement-defenders=%u, total-anchors=%u (continent-only; instance spawns excluded)",

@@ -25,31 +25,81 @@
 
 #include "PlayerDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace PlayerDataRepository
 {
-    QueryResult* QueryCreateInfo()
+    static PlayerCreateInfoRow ReadPlayerCreateInfo(Field* fields)
+    {
+        PlayerCreateInfoRow row;
+        row.race = fields[0].GetUInt32();
+        row.classId = fields[1].GetUInt32();
+        row.map = fields[2].GetUInt32();
+        row.zone = fields[3].GetUInt32();
+        row.positionX = fields[4].GetFloat();
+        row.positionY = fields[5].GetFloat();
+        row.positionZ = fields[6].GetFloat();
+        row.orientation = fields[7].GetFloat();
+        row.phaseMap = fields[8].GetUInt16();
+        return row;
+    }
+
+    std::vector<PlayerCreateInfoRow> QueryCreateInfo()
     {
         //                                  0       1        2      3       4             5             6             7              8
-        return WorldDatabase.Query("SELECT `race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`, `phaseMap` FROM `playercreateinfo`");
+        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`, `phaseMap` FROM `playercreateinfo`");
+        return ReadRows<PlayerCreateInfoRow>(result, ReadPlayerCreateInfo);
     }
 
-    QueryResult* QueryCreateItems()
+    static PlayerCreateItemRow ReadPlayerCreateItem(Field* fields)
+    {
+        PlayerCreateItemRow row;
+        row.race = fields[0].GetUInt32();
+        row.classId = fields[1].GetUInt32();
+        row.itemid = fields[2].GetUInt32();
+        row.amount = fields[3].GetUInt32();
+        return row;
+    }
+
+    std::vector<PlayerCreateItemRow> QueryCreateItems()
     {
         //                                 0     1      2       3
-        return WorldDatabase.Query("SELECT `race`, `class`, `itemid`, `amount` FROM `playercreateinfo_item`");
+        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `itemid`, `amount` FROM `playercreateinfo_item`");
+        return ReadRows<PlayerCreateItemRow>(result, ReadPlayerCreateItem);
     }
 
-    QueryResult* QueryCreateSpells()
+    static PlayerCreateSpellRow ReadPlayerCreateSpell(Field* fields)
+    {
+        PlayerCreateSpellRow row;
+        row.race = fields[0].GetUInt32();
+        row.classId = fields[1].GetUInt32();
+        row.spell = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<PlayerCreateSpellRow> QueryCreateSpells()
     {
         //                                 0     1      2
-        return WorldDatabase.Query("SELECT `race`, `class`, `Spell` FROM `playercreateinfo_spell`");
+        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `Spell` FROM `playercreateinfo_spell`");
+        return ReadRows<PlayerCreateSpellRow>(result, ReadPlayerCreateSpell);
     }
 
-    QueryResult* QueryCreateActions()
+    static PlayerCreateActionRow ReadPlayerCreateAction(Field* fields)
+    {
+        PlayerCreateActionRow row;
+        row.race = fields[0].GetUInt32();
+        row.classId = fields[1].GetUInt32();
+        row.button = fields[2].GetUInt8();
+        row.action = fields[3].GetUInt32();
+        row.type = fields[4].GetUInt8();
+        return row;
+    }
+
+    std::vector<PlayerCreateActionRow> QueryCreateActions()
     {
         //                                 0     1      2       3       4
-        return WorldDatabase.Query("SELECT `race`, `class`, `button`, `action`, `type` FROM `playercreateinfo_action`");
+        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `button`, `action`, `type` FROM `playercreateinfo_action`");
+        return ReadRows<PlayerCreateActionRow>(result, ReadPlayerCreateAction);
     }
 
     QueryResult* QueryLevelStats()
@@ -58,20 +108,49 @@ namespace PlayerDataRepository
         return WorldDatabase.Query("SELECT `race`, `class`, `level`, `str`, `agi`, `sta`, `inte`, `spi` FROM `player_levelstats`");
     }
 
-    QueryResult* QueryXpForLevel()
+    static PlayerXpForLevelRow ReadPlayerXpForLevel(Field* fields)
+    {
+        PlayerXpForLevelRow row;
+        row.lvl = fields[0].GetUInt32();
+        row.xpForNextLevel = fields[1].GetUInt32();
+        return row;
+    }
+
+    std::vector<PlayerXpForLevelRow> QueryXpForLevel()
     {
         //                                 0    1
-        return WorldDatabase.Query("SELECT `lvl`, `xp_for_next_level` FROM `player_xp_for_level`");
+        QueryResult* result = WorldDatabase.Query("SELECT `lvl`, `xp_for_next_level` FROM `player_xp_for_level`");
+        return ReadRows<PlayerXpForLevelRow>(result, ReadPlayerXpForLevel);
     }
 
-    QueryResult* QueryExplorationXp()
+    static ExplorationBaseXpRow ReadExplorationBaseXp(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `level`,`basexp` FROM `exploration_basexp`");
+        ExplorationBaseXpRow row;
+        row.level = fields[0].GetUInt32();
+        row.basexp = fields[1].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryLevelRewardMails()
+    std::vector<ExplorationBaseXpRow> QueryExplorationXp()
     {
-        return WorldDatabase.Query("SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`");
+        QueryResult* result = WorldDatabase.Query("SELECT `level`,`basexp` FROM `exploration_basexp`");
+        return ReadRows<ExplorationBaseXpRow>(result, ReadExplorationBaseXp);
+    }
+
+    static LevelRewardMailRow ReadLevelRewardMail(Field* fields)
+    {
+        LevelRewardMailRow row;
+        row.level = fields[0].GetUInt8();
+        row.raceMask = fields[1].GetUInt32();
+        row.mailTemplateId = fields[2].GetUInt32();
+        row.senderEntry = fields[3].GetUInt32();
+        return row;
+    }
+
+    std::vector<LevelRewardMailRow> QueryLevelRewardMails()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`");
+        return ReadRows<LevelRewardMailRow>(result, ReadLevelRewardMail);
     }
 
     QueryResult* QueryReservedNames()

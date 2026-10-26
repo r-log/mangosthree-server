@@ -57,9 +57,9 @@ void ObjectMgr::LoadReputationRewardRate()
     m_RepRewardRateMap.clear();                             // for reload case
 
     uint32 count = 0;
-    QueryResult* result = ReputationDataRepository::QueryRewardRates();
+    std::vector<ReputationRewardRateRow> rows = ReputationDataRepository::QueryRewardRates();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -68,21 +68,19 @@ void ObjectMgr::LoadReputationRewardRate()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (ReputationRewardRateRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 factionId        = fields[0].GetUInt32();
+        uint32 factionId        = row.faction;
 
         RepRewardRate repRate;
 
-        repRate.quest_rate      = fields[1].GetFloat();
-        repRate.creature_rate   = fields[2].GetFloat();
-        repRate.spell_rate      = fields[3].GetFloat();
+        repRate.quest_rate      = row.questRate;
+        repRate.creature_rate   = row.creatureRate;
+        repRate.spell_rate      = row.spellRate;
 
         FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionId);
         if (!factionEntry)
@@ -113,9 +111,6 @@ void ObjectMgr::LoadReputationRewardRate()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u reputation_reward_rate", count);
     sLog.outString();
@@ -128,9 +123,9 @@ void ObjectMgr::LoadReputationOnKill()
 {
     uint32 count = 0;
 
-    QueryResult* result = ReputationDataRepository::QueryOnKillReputations();
+    std::vector<OnKillReputationRow> rows = ReputationDataRepository::QueryOnKillReputations();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -139,25 +134,24 @@ void ObjectMgr::LoadReputationOnKill()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (OnKillReputationRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 creature_id = fields[0].GetUInt32();
+        uint32 creature_id = row.creatureId;
 
         ReputationOnKillEntry repOnKill;
-        repOnKill.repfaction1          = fields[1].GetUInt32();
-        repOnKill.repfaction2          = fields[2].GetUInt32();
-        repOnKill.is_teamaward1        = fields[3].GetBool();
-        repOnKill.reputation_max_cap1  = fields[4].GetUInt32();
-        repOnKill.repvalue1            = fields[5].GetInt32();
-        repOnKill.is_teamaward2        = fields[6].GetBool();
-        repOnKill.reputation_max_cap2  = fields[7].GetUInt32();
-        repOnKill.repvalue2            = fields[8].GetInt32();
-        repOnKill.team_dependent       = fields[9].GetUInt8();
+        repOnKill.repfaction1          = row.rewOnKillRepFaction1;
+        repOnKill.repfaction2          = row.rewOnKillRepFaction2;
+        repOnKill.is_teamaward1        = row.isTeamAward1;
+        repOnKill.reputation_max_cap1  = row.maxStanding1;
+        repOnKill.repvalue1            = row.rewOnKillRepValue1;
+        repOnKill.is_teamaward2        = row.isTeamAward2;
+        repOnKill.reputation_max_cap2  = row.maxStanding2;
+        repOnKill.repvalue2            = row.rewOnKillRepValue2;
+        repOnKill.team_dependent       = row.teamDependent;
 
         if (!GetCreatureTemplate(creature_id))
         {
@@ -189,9 +183,6 @@ void ObjectMgr::LoadReputationOnKill()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u creature award reputation definitions", count);
     sLog.outString();
@@ -205,9 +196,9 @@ void ObjectMgr::LoadReputationSpilloverTemplate()
     m_RepSpilloverTemplateMap.clear();                      // for reload case
 
     uint32 count = 0;
-    QueryResult* result = ReputationDataRepository::QuerySpillovers();
+    std::vector<ReputationSpilloverRow> rows = ReputationDataRepository::QuerySpillovers();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -216,33 +207,31 @@ void ObjectMgr::LoadReputationSpilloverTemplate()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (ReputationSpilloverRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 factionId                = fields[0].GetUInt32();
+        uint32 factionId                = row.faction;
 
         RepSpilloverTemplate repTemplate;
 
-        repTemplate.faction[0]          = fields[1].GetUInt32();
-        repTemplate.faction_rate[0]     = fields[2].GetFloat();
-        repTemplate.faction_rank[0]     = fields[3].GetUInt32();
-        repTemplate.faction[1]          = fields[4].GetUInt32();
-        repTemplate.faction_rate[1]     = fields[5].GetFloat();
-        repTemplate.faction_rank[1]     = fields[6].GetUInt32();
-        repTemplate.faction[2]          = fields[7].GetUInt32();
-        repTemplate.faction_rate[2]     = fields[8].GetFloat();
-        repTemplate.faction_rank[2]     = fields[9].GetUInt32();
-        repTemplate.faction[3]          = fields[10].GetUInt32();
-        repTemplate.faction_rate[3]     = fields[11].GetFloat();
-        repTemplate.faction_rank[3]     = fields[12].GetUInt32();
-        repTemplate.faction[4]          = fields[13].GetUInt32();
-        repTemplate.faction_rate[4]     = fields[14].GetFloat();
-        repTemplate.faction_rank[4]     = fields[15].GetUInt32();
+        repTemplate.faction[0]          = row.faction1;
+        repTemplate.faction_rate[0]     = row.rate1;
+        repTemplate.faction_rank[0]     = row.rank1;
+        repTemplate.faction[1]          = row.faction2;
+        repTemplate.faction_rate[1]     = row.rate2;
+        repTemplate.faction_rank[1]     = row.rank2;
+        repTemplate.faction[2]          = row.faction3;
+        repTemplate.faction_rate[2]     = row.rate3;
+        repTemplate.faction_rank[2]     = row.rank3;
+        repTemplate.faction[3]          = row.faction4;
+        repTemplate.faction_rate[3]     = row.rate4;
+        repTemplate.faction_rank[3]     = row.rank4;
+        repTemplate.faction[4]          = row.faction5;
+        repTemplate.faction_rate[4]     = row.rate5;
+        repTemplate.faction_rank[4]     = row.rank5;
 
         FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionId);
 
@@ -319,9 +308,6 @@ void ObjectMgr::LoadReputationSpilloverTemplate()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u reputation_spillover_template", count);
     sLog.outString();

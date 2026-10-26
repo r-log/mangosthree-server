@@ -25,6 +25,7 @@
 
 #include "MapDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace MapDataRepository
 {
@@ -44,9 +45,23 @@ namespace MapDataRepository
         return WorldDatabase.Query("SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`");
     }
 
-    QueryResult* QueryTeles()
+    static GameTeleRow ReadGameTele(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, `name` FROM `game_tele`");
+        GameTeleRow row;
+        row.id = fields[0].GetUInt32();
+        row.positionX = fields[1].GetFloat();
+        row.positionY = fields[2].GetFloat();
+        row.positionZ = fields[3].GetFloat();
+        row.orientation = fields[4].GetFloat();
+        row.map = fields[5].GetUInt32();
+        row.name = fields[6].GetCppString();
+        return row;
+    }
+
+    std::vector<GameTeleRow> QueryTeles()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, `name` FROM `game_tele`");
+        return ReadRows<GameTeleRow>(result, ReadGameTele);
     }
 
     bool InsertTele(uint32 id, float x, float y, float z, float orientation, uint32 mapId, std::string const& name)
@@ -66,9 +81,19 @@ namespace MapDataRepository
         WorldDatabase.PExecuteLog("DELETE FROM `game_tele` WHERE `name` = '%s'", name);
     }
 
-    QueryResult* QueryGraveyardZones()
+    static GraveyardZoneRow ReadGraveyardZone(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `id`,`ghost_zone`,`faction` FROM `game_graveyard_zone`");
+        GraveyardZoneRow row;
+        row.id = fields[0].GetUInt32();
+        row.ghostZone = fields[1].GetUInt32();
+        row.faction = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<GraveyardZoneRow> QueryGraveyardZones()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `id`,`ghost_zone`,`faction` FROM `game_graveyard_zone`");
+        return ReadRows<GraveyardZoneRow>(result, ReadGraveyardZone);
     }
 
     void InsertGraveyardZone(uint32 id, uint32 zoneId, uint32 team)
@@ -76,14 +101,42 @@ namespace MapDataRepository
         WorldDatabase.PExecuteLog("INSERT INTO `game_graveyard_zone` (`id`,`ghost_zone`,`faction`) VALUES ('%u', '%u','%u')", id, zoneId, team);
     }
 
-    QueryResult* QueryAreaTriggerTeleports()
+    static AreaTriggerTeleportRow ReadAreaTriggerTeleport(Field* fields)
     {
-        //                                  0     1                 2                3                 4             5              6                      7                             8             9                    10                   11                   12
-        return WorldDatabase.Query("SELECT `id`, `required_level`, `required_item`, `required_item2`, `heroic_key`, `heroic_key2`, `required_quest_done`, `required_quest_done_heroic`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `areatrigger_teleport`");
+        AreaTriggerTeleportRow row;
+        row.id = fields[0].GetUInt32();
+        row.requiredLevel = fields[1].GetUInt8();
+        row.requiredItem = fields[2].GetUInt32();
+        row.requiredItem2 = fields[3].GetUInt32();
+        row.heroicKey = fields[4].GetUInt32();
+        row.heroicKey2 = fields[5].GetUInt32();
+        row.requiredQuestDone = fields[6].GetUInt32();
+        row.requiredQuestDoneHeroic = fields[7].GetUInt32();
+        row.targetMap = fields[8].GetUInt32();
+        row.targetPositionX = fields[9].GetFloat();
+        row.targetPositionY = fields[10].GetFloat();
+        row.targetPositionZ = fields[11].GetFloat();
+        row.targetOrientation = fields[12].GetFloat();
+        return row;
     }
 
-    QueryResult* QueryTavernAreaTriggers()
+    std::vector<AreaTriggerTeleportRow> QueryAreaTriggerTeleports()
     {
-        return WorldDatabase.Query("SELECT `id` FROM `areatrigger_tavern`");
+        //                                  0     1                 2                3                 4             5              6                      7                             8             9                    10                   11                   12
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, `required_level`, `required_item`, `required_item2`, `heroic_key`, `heroic_key2`, `required_quest_done`, `required_quest_done_heroic`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `areatrigger_teleport`");
+        return ReadRows<AreaTriggerTeleportRow>(result, ReadAreaTriggerTeleport);
+    }
+
+    static TavernAreaTriggerRow ReadTavernAreaTrigger(Field* fields)
+    {
+        TavernAreaTriggerRow row;
+        row.id = fields[0].GetUInt32();
+        return row;
+    }
+
+    std::vector<TavernAreaTriggerRow> QueryTavernAreaTriggers()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `id` FROM `areatrigger_tavern`");
+        return ReadRows<TavernAreaTriggerRow>(result, ReadTavernAreaTrigger);
     }
 }

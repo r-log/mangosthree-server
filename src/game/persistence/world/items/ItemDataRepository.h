@@ -29,28 +29,58 @@
 #include "Platform/Define.h"
 
 #include <string>
+#include <vector>
 
 class QueryResult;
 
+/// One `item_convert` row.
+struct ItemConvertRow
+{
+    uint32 entry = 0;
+    uint32 item = 0;
+};
+
+/// One `item_expire_convert` row.
+struct ItemExpireConvertRow
+{
+    uint32 entry = 0;
+    uint32 item = 0;
+};
+
+/// One `item_required_target` row.
+struct ItemRequiredTargetRow
+{
+    uint32 entry = 0;
+    uint32 type = 0;
+    uint32 targetEntry = 0;
+};
+
+/// One `hotfix_data` row.
+struct HotfixRow
+{
+    uint32 entry = 0;
+    uint32 type = 0;
+    uint32 timestamp = 0;
+};
+
 /// The item data on the world database: `ObjectMgr`'s item loads and the hotfix list at startup and
-/// on a reload, each run synchronously for a loader that keeps its loop, and a GM's item look-up by
-/// name, the name escaped first.
+/// on a reload, each run synchronously, and a GM's item look-up by name, the name escaped first.
 namespace ItemDataRepository
 {
     /// Selects every item's localised name and description (`locales_item`).
     QueryResult* QueryItemLocales();
 
     /// Selects every item conversion (`item_convert`).
-    QueryResult* QueryItemConverts();
+    std::vector<ItemConvertRow> QueryItemConverts();
 
     /// Selects every expired item's conversion (`item_expire_convert`).
-    QueryResult* QueryItemExpireConverts();
+    std::vector<ItemExpireConvertRow> QueryItemExpireConverts();
 
     /// Selects every item's required spell target (`item_required_target`).
-    QueryResult* QueryItemRequiredTargets();
+    std::vector<ItemRequiredTargetRow> QueryItemRequiredTargets();
 
     /// Selects every hotfix entry with its date (`hotfix_data`).
-    QueryResult* QueryHotfixes();
+    std::vector<HotfixRow> QueryHotfixes();
 
     /// Selects an item template's entry by its name, the name escaped first.
     QueryResult* QueryItemEntryByName(std::string itemName);

@@ -55,9 +55,9 @@ void ObjectMgr::LoadDungeonFinderRequirements()
     uint32 count = 0;
     m_dungeonFinder.ClearRequirements();      // in case of a reload
 
-    QueryResult* result = DungeonDataRepository::QueryDungeonFinderRequirements();
+    std::vector<DungeonFinderRequirementRow> rows = DungeonDataRepository::QueryDungeonFinderRequirements();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -68,24 +68,23 @@ void ObjectMgr::LoadDungeonFinderRequirements()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (DungeonFinderRequirementRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 mapId          = fields[0].GetUInt32();
-        uint32 difficulty     = fields[1].GetUInt32();
+        uint32 mapId          = row.mapId;
+        uint32 difficulty     = row.difficulty;
         uint32 dungeonKey     = MAKE_PAIR32(mapId, difficulty); // for unique key
 
-        uint32 minItemLevel   = fields[2].GetUInt32();
-        uint32 item           = fields[3].GetUInt32();
-        uint32 item2          = fields[4].GetUInt32();
-        uint32 allianceQuest  = fields[5].GetUInt32();
-        uint32 hordeQuest     = fields[6].GetUInt32();
-        uint32 achievement    = fields[7].GetUInt32();
-        const char* questText = fields[8].GetString();
+        uint32 minItemLevel   = row.minItemLevel;
+        uint32 item           = row.item;
+        uint32 item2          = row.item2;
+        uint32 allianceQuest  = row.allianceQuest;
+        uint32 hordeQuest     = row.hordeQuest;
+        uint32 achievement    = row.achievement;
+        const char* questText = (row.questIncompleteText ? row.questIncompleteText->c_str() : NULL);
 
         // check that items, quests, & achievements are real
         if (item)
@@ -148,9 +147,6 @@ void ObjectMgr::LoadDungeonFinderRequirements()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u Dungeon Finder Requirements", count);
@@ -161,9 +157,9 @@ void ObjectMgr::LoadDungeonFinderRewards()
     uint32 count = 0;
     m_dungeonFinder.ClearRewards();      // in case of a reload
 
-    QueryResult* result = DungeonDataRepository::QueryDungeonFinderRewards();
+    std::vector<DungeonFinderRewardRow> rows = DungeonDataRepository::QueryDungeonFinderRewards();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -174,25 +170,21 @@ void ObjectMgr::LoadDungeonFinderRewards()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (DungeonFinderRewardRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 level     = fields[1].GetUInt32();
-        uint32 baseXP    = fields[2].GetUInt32();
-        int32 baseMoney  = fields[3].GetInt32();
+        uint32 level     = row.level;
+        uint32 baseXP    = row.baseXpReward;
+        int32 baseMoney  = row.baseMonetaryReward;
 
         DungeonFinderRewards reward(baseXP, baseMoney);
         m_dungeonFinder.SetRewards(level, reward);
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u Dungeon Finder Rewards", count);
@@ -203,9 +195,9 @@ void ObjectMgr::LoadDungeonFinderItems()
     uint32 count = 0;
     m_dungeonFinder.ClearItems();   // in case of reload
 
-    QueryResult* result = DungeonDataRepository::QueryDungeonFinderItemRewards();
+    std::vector<DungeonFinderItemRewardRow> rows = DungeonDataRepository::QueryDungeonFinderItemRewards();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -216,28 +208,24 @@ void ObjectMgr::LoadDungeonFinderItems()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (DungeonFinderItemRewardRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 id          = fields[0].GetUInt32();
-        uint32 minLevel    = fields[1].GetUInt32();
-        uint32 maxLevel    = fields[2].GetUInt32();
-        uint32 itemReward  = fields[3].GetInt32();
-        uint32 itemAmount  = fields[4].GetUInt32();
-        uint32 dungeonType = fields[5].GetUInt32();
+        uint32 id          = row.id;
+        uint32 minLevel    = row.minLevel;
+        uint32 maxLevel    = row.maxLevel;
+        uint32 itemReward  = row.itemReward;
+        uint32 itemAmount  = row.itemAmount;
+        uint32 dungeonType = row.dungeonType;
 
         DungeonFinderItems rewardItems(minLevel, maxLevel, itemReward, itemAmount, dungeonType);
         m_dungeonFinder.SetItems(id, rewardItems);
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u Dungeon Finder Items", count);
@@ -248,9 +236,9 @@ void ObjectMgr::LoadLfgDungeonEntrances()
     uint32 count = 0;
     m_lfgDungeonEntrances.Clear();     // in case of a reload
 
-    QueryResult* result = DungeonDataRepository::QueryDungeonEntrances();
+    std::vector<DungeonEntranceRow> rows = DungeonDataRepository::QueryDungeonEntrances();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -259,14 +247,13 @@ void ObjectMgr::LoadLfgDungeonEntrances()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (DungeonEntranceRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 dungeonId = fields[0].GetUInt32();
+        uint32 dungeonId = row.dungeonId;
         if (!sLfgDungeonsStore.LookupEntry(dungeonId))
         {
             sLog.outString();
@@ -275,17 +262,14 @@ void ObjectMgr::LoadLfgDungeonEntrances()
         }
 
         LfgDungeonEntrance entrance;
-        entrance.x = fields[1].GetFloat();
-        entrance.y = fields[2].GetFloat();
-        entrance.z = fields[3].GetFloat();
-        entrance.o = fields[4].GetFloat();
+        entrance.x = row.positionX;
+        entrance.y = row.positionY;
+        entrance.z = row.positionZ;
+        entrance.o = row.orientation;
         m_lfgDungeonEntrances.Set(dungeonId, entrance);
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u LFG dungeon entrance overrides", count);

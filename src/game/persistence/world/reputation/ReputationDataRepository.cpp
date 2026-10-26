@@ -25,25 +25,77 @@
 
 #include "ReputationDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace ReputationDataRepository
 {
-    QueryResult* QueryRewardRates()
+    static ReputationRewardRateRow ReadReputationRewardRate(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `faction`, `quest_rate`, `creature_rate`, `spell_rate` FROM `reputation_reward_rate`");
+        ReputationRewardRateRow row;
+        row.faction = fields[0].GetUInt32();
+        row.questRate = fields[1].GetFloat();
+        row.creatureRate = fields[2].GetFloat();
+        row.spellRate = fields[3].GetFloat();
+        return row;
     }
 
-    QueryResult* QueryOnKillReputations()
+    std::vector<ReputationRewardRateRow> QueryRewardRates()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `faction`, `quest_rate`, `creature_rate`, `spell_rate` FROM `reputation_reward_rate`");
+        return ReadRows<ReputationRewardRateRow>(result, ReadReputationRewardRate);
+    }
+
+    static OnKillReputationRow ReadOnKillReputation(Field* fields)
+    {
+        OnKillReputationRow row;
+        row.creatureId = fields[0].GetUInt32();
+        row.rewOnKillRepFaction1 = fields[1].GetUInt32();
+        row.rewOnKillRepFaction2 = fields[2].GetUInt32();
+        row.isTeamAward1 = fields[3].GetBool();
+        row.maxStanding1 = fields[4].GetUInt32();
+        row.rewOnKillRepValue1 = fields[5].GetInt32();
+        row.isTeamAward2 = fields[6].GetBool();
+        row.maxStanding2 = fields[7].GetUInt32();
+        row.rewOnKillRepValue2 = fields[8].GetInt32();
+        row.teamDependent = fields[9].GetUInt8();
+        return row;
+    }
+
+    std::vector<OnKillReputationRow> QueryOnKillReputations()
     {
         //                                 0            1                     2
-        return WorldDatabase.Query("SELECT `creature_id`, `RewOnKillRepFaction1`, `RewOnKillRepFaction2`,"
+        QueryResult* result = WorldDatabase.Query("SELECT `creature_id`, `RewOnKillRepFaction1`, `RewOnKillRepFaction2`,"
                                    //   3             4             5                   6             7             8                   9
                                    "`IsTeamAward1`, `MaxStanding1`, `RewOnKillRepValue1`, `IsTeamAward2`, `MaxStanding2`, `RewOnKillRepValue2`, `TeamDependent` "
                                    "FROM `creature_onkill_reputation`");
+        return ReadRows<OnKillReputationRow>(result, ReadOnKillReputation);
     }
 
-    QueryResult* QuerySpillovers()
+    static ReputationSpilloverRow ReadReputationSpillover(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `faction`, `faction1`, `rate_1`, `rank_1`, `faction2`, `rate_2`, `rank_2`, `faction3`, `rate_3`, `rank_3`, `faction4`, `rate_4`, `rank_4`, `faction5`, `rate_5`, `rank_5` FROM `reputation_spillover_template`");
+        ReputationSpilloverRow row;
+        row.faction = fields[0].GetUInt32();
+        row.faction1 = fields[1].GetUInt32();
+        row.rate1 = fields[2].GetFloat();
+        row.rank1 = fields[3].GetUInt32();
+        row.faction2 = fields[4].GetUInt32();
+        row.rate2 = fields[5].GetFloat();
+        row.rank2 = fields[6].GetUInt32();
+        row.faction3 = fields[7].GetUInt32();
+        row.rate3 = fields[8].GetFloat();
+        row.rank3 = fields[9].GetUInt32();
+        row.faction4 = fields[10].GetUInt32();
+        row.rate4 = fields[11].GetFloat();
+        row.rank4 = fields[12].GetUInt32();
+        row.faction5 = fields[13].GetUInt32();
+        row.rate5 = fields[14].GetFloat();
+        row.rank5 = fields[15].GetUInt32();
+        return row;
+    }
+
+    std::vector<ReputationSpilloverRow> QuerySpillovers()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `faction`, `faction1`, `rate_1`, `rank_1`, `faction2`, `rate_2`, `rank_2`, `faction3`, `rate_3`, `rank_3`, `faction4`, `rate_4`, `rank_4`, `faction5`, `rate_5`, `rank_5` FROM `reputation_spillover_template`");
+        return ReadRows<ReputationSpilloverRow>(result, ReadReputationSpillover);
     }
 }

@@ -25,6 +25,7 @@
 
 #include "CreatureDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 #include <sstream>
 #include <string>
@@ -47,14 +48,35 @@ namespace CreatureDataRepository
         return WorldDatabase.Query(queryStr.c_str());
     }
 
-    QueryResult* QueryModelRaces()
+    static CreatureModelRaceRow ReadCreatureModelRace(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `modelid`, `racemask`, `creature_entry`, `modelid_racial` FROM `creature_model_race`");
+        CreatureModelRaceRow row;
+        row.modelid = fields[0].GetUInt32();
+        row.racemask = fields[1].GetUInt32();
+        row.creatureEntry = fields[2].GetUInt32();
+        row.modelidRacial = fields[3].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryPetNameParts()
+    std::vector<CreatureModelRaceRow> QueryModelRaces()
     {
-        return WorldDatabase.Query("SELECT `word`,`entry`,`half` FROM `pet_name_generation`");
+        QueryResult* result = WorldDatabase.Query("SELECT `modelid`, `racemask`, `creature_entry`, `modelid_racial` FROM `creature_model_race`");
+        return ReadRows<CreatureModelRaceRow>(result, ReadCreatureModelRace);
+    }
+
+    static PetNamePartRow ReadPetNamePart(Field* fields)
+    {
+        PetNamePartRow row;
+        row.word = fields[0].GetCppString();
+        row.entry = fields[1].GetUInt32();
+        row.half = fields[2].GetBool();
+        return row;
+    }
+
+    std::vector<PetNamePartRow> QueryPetNameParts()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `word`,`entry`,`half` FROM `pet_name_generation`");
+        return ReadRows<PetNamePartRow>(result, ReadPetNamePart);
     }
 
     QueryResult* QueryPetLevelStats()

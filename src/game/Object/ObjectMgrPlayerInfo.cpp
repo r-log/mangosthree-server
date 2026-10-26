@@ -192,11 +192,11 @@ void ObjectMgr::LoadPlayerInfo()
 {
     // Load playercreate
     {
-        QueryResult* result = PlayerDataRepository::QueryCreateInfo();
+        std::vector<PlayerCreateInfoRow> rows = PlayerDataRepository::QueryCreateInfo();
 
         uint32 count = 0;
 
-        if (!result)
+        if (rows.empty())
         {
             BarGoLink bar(1);
 
@@ -207,21 +207,19 @@ void ObjectMgr::LoadPlayerInfo()
             exit(1);
         }
 
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
 
-        do
+        for (PlayerCreateInfoRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
-            uint32 current_race  = fields[0].GetUInt32();
-            uint32 current_class = fields[1].GetUInt32();
-            uint32 mapId         = fields[2].GetUInt32();
-            uint32 areaId        = fields[3].GetUInt32();
-            float  positionX     = fields[4].GetFloat();
-            float  positionY     = fields[5].GetFloat();
-            float  positionZ     = fields[6].GetFloat();
-            float  orientation   = fields[7].GetFloat();
-            uint16 phaseMap      = fields[8].GetUInt16();
+            uint32 current_race  = row.race;
+            uint32 current_class = row.classId;
+            uint32 mapId         = row.map;
+            uint32 areaId        = row.zone;
+            float  positionX     = row.positionX;
+            float  positionY     = row.positionY;
+            float  positionZ     = row.positionZ;
+            float  orientation   = row.orientation;
+            uint16 phaseMap      = row.phaseMap;
 
             ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(current_race);
             if (!rEntry || !((1 << (current_race - 1)) & RACEMASK_ALL_PLAYABLE))
@@ -266,9 +264,6 @@ void ObjectMgr::LoadPlayerInfo()
             bar.step();
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u player create definitions", count);
@@ -276,11 +271,11 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Load playercreate items
     {
-        QueryResult* result = PlayerDataRepository::QueryCreateItems();
+        std::vector<PlayerCreateItemRow> rows = PlayerDataRepository::QueryCreateItems();
 
         uint32 count = 0;
 
-        if (!result)
+        if (rows.empty())
         {
             BarGoLink bar(1);
 
@@ -291,14 +286,12 @@ void ObjectMgr::LoadPlayerInfo()
         }
         else
         {
-            BarGoLink bar(result->GetRowCount());
+            BarGoLink bar(rows.size());
 
-            do
+            for (PlayerCreateItemRow const& row : rows)
             {
-                Field* fields = result->Fetch();
-
-                uint32 current_race = fields[0].GetUInt32();
-                uint32 current_class = fields[1].GetUInt32();
+                uint32 current_race = row.race;
+                uint32 current_class = row.classId;
 
                 ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(current_race);
                 if (!rEntry || !((1 << (current_race - 1)) & RACEMASK_ALL_PLAYABLE))
@@ -316,7 +309,7 @@ void ObjectMgr::LoadPlayerInfo()
 
                 PlayerInfo* pInfo = &playerInfo[current_race][current_class];
 
-                uint32 item_id = fields[2].GetUInt32();
+                uint32 item_id = row.itemid;
 
                 if (!GetItemPrototype(item_id))
                 {
@@ -324,7 +317,7 @@ void ObjectMgr::LoadPlayerInfo()
                     continue;
                 }
 
-                uint32 amount  = fields[3].GetUInt32();
+                uint32 amount  = row.amount;
 
                 if (!amount)
                 {
@@ -337,9 +330,6 @@ void ObjectMgr::LoadPlayerInfo()
                 bar.step();
                 ++count;
             }
-            while (result->NextRow());
-
-            delete result;
 
             sLog.outString();
             sLog.outString(">> Loaded %u custom player create items", count);
@@ -348,11 +338,11 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Load playercreate spells
     {
-        QueryResult* result = PlayerDataRepository::QueryCreateSpells();
+        std::vector<PlayerCreateSpellRow> rows = PlayerDataRepository::QueryCreateSpells();
 
         uint32 count = 0;
 
-        if (!result)
+        if (rows.empty())
         {
             BarGoLink bar(1);
 
@@ -362,14 +352,12 @@ void ObjectMgr::LoadPlayerInfo()
         }
         else
         {
-            BarGoLink bar(result->GetRowCount());
+            BarGoLink bar(rows.size());
 
-            do
+            for (PlayerCreateSpellRow const& row : rows)
             {
-                Field* fields = result->Fetch();
-
-                uint32 current_race = fields[0].GetUInt32();
-                uint32 current_class = fields[1].GetUInt32();
+                uint32 current_race = row.race;
+                uint32 current_class = row.classId;
 
                 ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(current_race);
                 if (!rEntry || !((1 << (current_race - 1)) & RACEMASK_ALL_PLAYABLE))
@@ -385,7 +373,7 @@ void ObjectMgr::LoadPlayerInfo()
                     continue;
                 }
 
-                uint32 spell_id = fields[2].GetUInt32();
+                uint32 spell_id = row.spell;
                 if (!sSpellStore.LookupEntry(spell_id))
                 {
                     sLog.outErrorDb("Non existing spell %u in `playercreateinfo_spell` table, ignoring.", spell_id);
@@ -398,9 +386,6 @@ void ObjectMgr::LoadPlayerInfo()
                 bar.step();
                 ++count;
             }
-            while (result->NextRow());
-
-            delete result;
 
             sLog.outString();
             sLog.outString(">> Loaded %u player create spells", count);
@@ -409,11 +394,11 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Load playercreate actions
     {
-        QueryResult* result = PlayerDataRepository::QueryCreateActions();
+        std::vector<PlayerCreateActionRow> rows = PlayerDataRepository::QueryCreateActions();
 
         uint32 count = 0;
 
-        if (!result)
+        if (rows.empty())
         {
             BarGoLink bar(1);
 
@@ -423,14 +408,12 @@ void ObjectMgr::LoadPlayerInfo()
         }
         else
         {
-            BarGoLink bar(result->GetRowCount());
+            BarGoLink bar(rows.size());
 
-            do
+            for (PlayerCreateActionRow const& row : rows)
             {
-                Field* fields = result->Fetch();
-
-                uint32 current_race = fields[0].GetUInt32();
-                uint32 current_class = fields[1].GetUInt32();
+                uint32 current_race = row.race;
+                uint32 current_class = row.classId;
 
                 ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(current_race);
                 if (!rEntry || !((1 << (current_race - 1)) & RACEMASK_ALL_PLAYABLE))
@@ -446,9 +429,9 @@ void ObjectMgr::LoadPlayerInfo()
                     continue;
                 }
 
-                uint8 action_button  = fields[2].GetUInt8();
-                uint32 action = fields[3].GetUInt32();
-                uint8 action_type = fields[4].GetUInt8();
+                uint8 action_button  = row.button;
+                uint32 action = row.action;
+                uint8 action_type = row.type;
 
                 if (!Player::IsActionButtonDataValid(action_button, action, action_type, NULL))
                 {
@@ -461,9 +444,6 @@ void ObjectMgr::LoadPlayerInfo()
                 bar.step();
                 ++count;
             }
-            while (result->NextRow());
-
-            delete result;
 
             sLog.outString();
             sLog.outString(">> Loaded %u player create actions", count);
@@ -621,11 +601,11 @@ void ObjectMgr::LoadPlayerInfo()
             mPlayerXPperLevel[level] = 0;
         }
 
-        QueryResult* result  = PlayerDataRepository::QueryXpForLevel();
+        std::vector<PlayerXpForLevelRow> rows = PlayerDataRepository::QueryXpForLevel();
 
         uint32 count = 0;
 
-        if (!result)
+        if (rows.empty())
         {
             BarGoLink bar(1);
 
@@ -636,14 +616,12 @@ void ObjectMgr::LoadPlayerInfo()
             exit(1);
         }
 
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
 
-        do
+        for (PlayerXpForLevelRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
-            uint32 current_level = fields[0].GetUInt32();
-            uint32 current_xp    = fields[1].GetUInt32();
+            uint32 current_level = row.lvl;
+            uint32 current_xp    = row.xpForNextLevel;
 
             if (current_level >= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
             {
@@ -663,9 +641,6 @@ void ObjectMgr::LoadPlayerInfo()
             bar.step();
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u xp for level definitions", count);

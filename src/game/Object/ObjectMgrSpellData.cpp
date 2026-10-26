@@ -42,9 +42,9 @@ void ObjectMgr::LoadNPCSpellClickSpells()
     uint32 count = 0;
 
     mSpellClickInfoMap.clear();
-    QueryResult* result = NpcDataRepository::QuerySpellClickSpells();
+    std::vector<SpellClickSpellRow> rows = NpcDataRepository::QuerySpellClickSpells();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -55,21 +55,20 @@ void ObjectMgr::LoadNPCSpellClickSpells()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (SpellClickSpellRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
         SpellClickInfo info;
-        uint32 npc_entry         = fields[0].GetUInt32();
-        info.spellId             = fields[1].GetUInt32();
-        info.questStart          = fields[2].GetUInt32();
-        info.questStartCanActive = fields[3].GetBool();
-        info.questEnd            = fields[4].GetUInt32();
-        info.castFlags           = fields[5].GetUInt8();
-        info.conditionId         = fields[6].GetUInt16();
+        uint32 npc_entry         = row.npcEntry;
+        info.spellId             = row.spellId;
+        info.questStart          = row.questStart;
+        info.questStartCanActive = row.questStartActive;
+        info.questEnd            = row.questEnd;
+        info.castFlags           = row.castFlags;
+        info.conditionId         = row.conditionId;
 
         CreatureInfo const* cInfo = GetCreatureTemplate(npc_entry);
         if (!cInfo)
@@ -118,9 +117,6 @@ void ObjectMgr::LoadNPCSpellClickSpells()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u spellclick definitions", count);
@@ -134,9 +130,9 @@ void ObjectMgr::LoadFishingBaseSkillLevel()
     m_fishingBaseSkill.Clear();                             // for reload case
 
     uint32 count = 0;
-    QueryResult* result = SkillDataRepository::QueryFishingBaseLevels();
+    std::vector<FishingBaseLevelRow> rows = SkillDataRepository::QueryFishingBaseLevels();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -145,15 +141,14 @@ void ObjectMgr::LoadFishingBaseSkillLevel()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (FishingBaseLevelRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-        uint32 entry  = fields[0].GetUInt32();
-        int32 skill   = fields[1].GetInt32();
+        uint32 entry  = row.entry;
+        int32 skill   = row.skill;
 
         AreaTableEntry const* fArea = GetAreaEntryByAreaID(entry);
         if (!fArea)
@@ -165,9 +160,6 @@ void ObjectMgr::LoadFishingBaseSkillLevel()
         m_fishingBaseSkill.Set(entry, skill);
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u areas for fishing base skill level", count);
     sLog.outString();

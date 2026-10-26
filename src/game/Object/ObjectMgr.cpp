@@ -840,11 +840,11 @@ void ObjectMgr::LoadQuestAreaTriggers()
 {
     mQuestAreaTriggerMap.clear();                           // need for reload case
 
-    QueryResult* result = QuestDataRepository::QueryActorQuestRelations(QA_AREATRIGGER);
+    std::vector<QuestRelationRow> rows = QuestDataRepository::QueryActorQuestRelations(QA_AREATRIGGER);
 
     uint32 count = 0;
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -853,17 +853,15 @@ void ObjectMgr::LoadQuestAreaTriggers()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (QuestRelationRow const& row : rows)
     {
         ++count;
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 trigger_ID = fields[0].GetUInt32();
-        uint32 quest_ID   = fields[1].GetUInt32();
+        uint32 trigger_ID = row.entry;
+        uint32 quest_ID   = row.quest;
 
         AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(trigger_ID);
         if (!atEntry)
@@ -891,9 +889,6 @@ void ObjectMgr::LoadQuestAreaTriggers()
 
         mQuestAreaTriggerMap[trigger_ID] = quest_ID;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u quest trigger points", count);
     sLog.outString();
@@ -906,11 +901,11 @@ void ObjectMgr::LoadTavernAreaTriggers()
 {
     mTavernAreaTriggerSet.clear();                          // need for reload case
 
-    QueryResult* result = MapDataRepository::QueryTavernAreaTriggers();
+    std::vector<TavernAreaTriggerRow> rows = MapDataRepository::QueryTavernAreaTriggers();
 
     uint32 count = 0;
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -919,16 +914,14 @@ void ObjectMgr::LoadTavernAreaTriggers()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (TavernAreaTriggerRow const& row : rows)
     {
         ++count;
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 Trigger_ID      = fields[0].GetUInt32();
+        uint32 Trigger_ID      = row.id;
 
         AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(Trigger_ID);
         if (!atEntry)
@@ -939,9 +932,6 @@ void ObjectMgr::LoadTavernAreaTriggers()
 
         mTavernAreaTriggerSet.insert(Trigger_ID);
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u tavern triggers", count);
     sLog.outString();
@@ -1109,9 +1099,9 @@ void ObjectMgr::SetHighestGuids()
 void ObjectMgr::LoadExplorationBaseXP()
 {
     uint32 count = 0;
-    QueryResult* result = PlayerDataRepository::QueryExplorationXp();
+    std::vector<ExplorationBaseXpRow> rows = PlayerDataRepository::QueryExplorationXp();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -1120,21 +1110,17 @@ void ObjectMgr::LoadExplorationBaseXP()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (ExplorationBaseXpRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-        uint32 level  = fields[0].GetUInt32();
-        uint32 basexp = fields[1].GetUInt32();
+        uint32 level  = row.level;
+        uint32 basexp = row.basexp;
         m_explorationBaseXp.Set(level, basexp);
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u BaseXP definitions", count);
     sLog.outString();
@@ -1161,9 +1147,9 @@ uint32 ObjectMgr::GetXPForLevel(uint32 level) const
 void ObjectMgr::LoadPetNames()
 {
     uint32 count = 0;
-    QueryResult* result = CreatureDataRepository::QueryPetNameParts();
+    std::vector<PetNamePartRow> rows = CreatureDataRepository::QueryPetNameParts();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -1172,16 +1158,15 @@ void ObjectMgr::LoadPetNames()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (PetNamePartRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-        std::string word = fields[0].GetString();
-        uint32 entry     = fields[1].GetUInt32();
-        bool   half      = fields[2].GetBool();
+        std::string word = row.word.c_str();
+        uint32 entry     = row.entry;
+        bool   half      = row.half;
         if (half)
         {
             PetHalfName1[entry].push_back(word);
@@ -1192,8 +1177,6 @@ void ObjectMgr::LoadPetNames()
         }
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString(">> Loaded %u pet name parts", count);
     sLog.outString();
@@ -1298,9 +1281,9 @@ void ObjectMgr::LoadPointsOfInterest()
 
     uint32 count = 0;
 
-    QueryResult* result = NpcDataRepository::QueryPointsOfInterest();
+    std::vector<PointOfInterestRow> rows = NpcDataRepository::QueryPointsOfInterest();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -1309,22 +1292,21 @@ void ObjectMgr::LoadPointsOfInterest()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (PointOfInterestRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 point_id = fields[0].GetUInt32();
+        uint32 point_id = row.entry;
 
         PointOfInterest POI;
-        POI.x                    = fields[1].GetFloat();
-        POI.y                    = fields[2].GetFloat();
-        POI.icon                 = fields[3].GetUInt32();
-        POI.flags                = fields[4].GetUInt32();
-        POI.data                 = fields[5].GetUInt32();
-        POI.icon_name            = fields[6].GetCppString();
+        POI.x                    = row.x;
+        POI.y                    = row.y;
+        POI.icon                 = row.icon;
+        POI.flags                = row.flags;
+        POI.data                 = row.data;
+        POI.icon_name            = row.iconName;
 
         if (!MaNGOS::IsValidMapCoord(POI.x, POI.y))
         {
@@ -1336,9 +1318,6 @@ void ObjectMgr::LoadPointsOfInterest()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u Points of Interest definitions", count);
 }
@@ -2908,9 +2887,9 @@ void ObjectMgr::LoadMailLevelRewards()
     m_mailLevelRewards.Clear();                             // for reload case
 
     uint32 count = 0;
-    QueryResult* result = PlayerDataRepository::QueryLevelRewardMails();
+    std::vector<LevelRewardMailRow> rows = PlayerDataRepository::QueryLevelRewardMails();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -2921,18 +2900,16 @@ void ObjectMgr::LoadMailLevelRewards()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (LevelRewardMailRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint8 level           = fields[0].GetUInt8();
-        uint32 raceMask       = fields[1].GetUInt32();
-        uint32 mailTemplateId = fields[2].GetUInt32();
-        uint32 senderEntry    = fields[3].GetUInt32();
+        uint8 level           = row.level;
+        uint32 raceMask       = row.raceMask;
+        uint32 mailTemplateId = row.mailTemplateId;
+        uint32 senderEntry    = row.senderEntry;
 
         if (level > MAX_LEVEL)
         {
@@ -2962,8 +2939,6 @@ void ObjectMgr::LoadMailLevelRewards()
 
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u level dependent mail rewards,", count);
@@ -3827,8 +3802,8 @@ void ObjectMgr::LoadHotfixData()
     uint32 count = 0;
     m_hotfixData.clear();
 
-    QueryResult* result = ItemDataRepository::QueryHotfixes();
-    if (!result)
+    std::vector<HotfixRow> rows = ItemDataRepository::QueryHotfixes();
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -3838,20 +3813,15 @@ void ObjectMgr::LoadHotfixData()
         return;
     }
 
-    do
+    for (HotfixRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         HotfixInfo info;
-        info.Entry      = fields[0].GetUInt32();
-        info.Type       = fields[1].GetUInt32();
-        info.Timestamp  = fields[2].GetUInt32();
+        info.Entry      = row.entry;
+        info.Type       = row.type;
+        info.Timestamp  = row.timestamp;
         m_hotfixData.push_back(info);
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u hotfix info entries.", count);

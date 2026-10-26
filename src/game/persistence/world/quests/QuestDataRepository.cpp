@@ -25,6 +25,7 @@
 
 #include "QuestDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace QuestDataRepository
 {
@@ -106,14 +107,24 @@ namespace QuestDataRepository
                                   );
     }
 
-    QueryResult* QueryQuestRelations(int actor, int role)
+    static QuestRelationRow ReadQuestRelation(Field* fields)
     {
-        return WorldDatabase.PQuery("SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d AND `role` = %d", actor, role);
+        QuestRelationRow row;
+        row.entry = fields[0].GetUInt32();
+        row.quest = fields[1].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryActorQuestRelations(int actor)
+    std::vector<QuestRelationRow> QueryQuestRelations(int actor, int role)
     {
-        return WorldDatabase.PQuery("SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d", actor);
+        QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d AND `role` = %d", actor, role);
+        return ReadRows<QuestRelationRow>(result, ReadQuestRelation);
+    }
+
+    std::vector<QuestRelationRow> QueryActorQuestRelations(int actor)
+    {
+        QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d", actor);
+        return ReadRows<QuestRelationRow>(result, ReadQuestRelation);
     }
 
     QueryResult* QueryQuestPois()

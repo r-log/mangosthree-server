@@ -25,6 +25,7 @@
 
 #include "ItemDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace ItemDataRepository
 {
@@ -40,24 +41,62 @@ namespace ItemDataRepository
                                    " FROM `locales_item`");
     }
 
-    QueryResult* QueryItemConverts()
+    static ItemConvertRow ReadItemConvert(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`,`item` FROM `item_convert`");
+        ItemConvertRow row;
+        row.entry = fields[0].GetUInt32();
+        row.item = fields[1].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryItemExpireConverts()
+    std::vector<ItemConvertRow> QueryItemConverts()
     {
-        return WorldDatabase.Query("SELECT `entry`,`item` FROM `item_expire_convert`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`,`item` FROM `item_convert`");
+        return ReadRows<ItemConvertRow>(result, ReadItemConvert);
     }
 
-    QueryResult* QueryItemRequiredTargets()
+    static ItemExpireConvertRow ReadItemExpireConvert(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`,`type`,`targetEntry` FROM `item_required_target`");
+        ItemExpireConvertRow row;
+        row.entry = fields[0].GetUInt32();
+        row.item = fields[1].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryHotfixes()
+    std::vector<ItemExpireConvertRow> QueryItemExpireConverts()
     {
-        return WorldDatabase.Query("SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`,`item` FROM `item_expire_convert`");
+        return ReadRows<ItemExpireConvertRow>(result, ReadItemExpireConvert);
+    }
+
+    static ItemRequiredTargetRow ReadItemRequiredTarget(Field* fields)
+    {
+        ItemRequiredTargetRow row;
+        row.entry = fields[0].GetUInt32();
+        row.type = fields[1].GetUInt32();
+        row.targetEntry = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<ItemRequiredTargetRow> QueryItemRequiredTargets()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`,`type`,`targetEntry` FROM `item_required_target`");
+        return ReadRows<ItemRequiredTargetRow>(result, ReadItemRequiredTarget);
+    }
+
+    static HotfixRow ReadHotfix(Field* fields)
+    {
+        HotfixRow row;
+        row.entry = fields[0].GetUInt32();
+        row.type = fields[1].GetUInt32();
+        row.timestamp = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<HotfixRow> QueryHotfixes()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data");
+        return ReadRows<HotfixRow>(result, ReadHotfix);
     }
 
     QueryResult* QueryItemEntryByName(std::string itemName)

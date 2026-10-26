@@ -49,9 +49,9 @@ void ObjectMgr::LoadGameObjects()
 {
     uint32 count = 0;
 
-    QueryResult* result = SpawnRepository::QueryGameObjectSpawns();
+    std::vector<GameObjectSpawnDataRow> rows = SpawnRepository::QueryGameObjectSpawns();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -72,15 +72,14 @@ void ObjectMgr::LoadGameObjects()
     // Map 0 was removed from dbc as of 4.x.x
     spawnMasks[0] = 1 << REGULAR_DIFFICULTY;
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (GameObjectSpawnDataRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 guid         = fields[ 0].GetUInt32();
-        uint32 entry        = fields[ 1].GetUInt32();
+        uint32 guid         = row.guid;
+        uint32 entry        = row.id;
 
         if (DisableMgr::IsDisabledFor(DISABLE_TYPE_GAMEOBJECT_SPAWN, guid))
         {
@@ -117,23 +116,23 @@ void ObjectMgr::LoadGameObjects()
         GameObjectData& data = mGameObjectDataMap[guid];
 
         data.id             = entry;
-        data.mapid          = fields[ 2].GetUInt32();
-        data.posX           = fields[ 3].GetFloat();
-        data.posY           = fields[ 4].GetFloat();
-        data.posZ           = fields[ 5].GetFloat();
-        data.orientation    = fields[ 6].GetFloat();
-        data.rotation.x     = fields[ 7].GetFloat();
-        data.rotation.y     = fields[ 8].GetFloat();
-        data.rotation.z     = fields[ 9].GetFloat();
-        data.rotation.w     = fields[10].GetFloat();
-        data.spawntimesecs  = fields[11].GetInt32();
-        data.animprogress   = fields[12].GetUInt32();
-        uint32 go_state     = fields[13].GetUInt32();
-        data.spawnMask      = fields[14].GetUInt8();
-        data.phaseMask      = fields[15].GetUInt32();
-        int16 gameEvent     = fields[16].GetInt16();
-        int16 GuidPoolId    = fields[17].GetInt16();
-        int16 EntryPoolId   = fields[18].GetInt16();
+        data.mapid          = row.map;
+        data.posX           = row.positionX;
+        data.posY           = row.positionY;
+        data.posZ           = row.positionZ;
+        data.orientation    = row.orientation;
+        data.rotation.x     = row.rotation0;
+        data.rotation.y     = row.rotation1;
+        data.rotation.z     = row.rotation2;
+        data.rotation.w     = row.rotation3;
+        data.spawntimesecs  = row.spawntimesecs;
+        data.animprogress   = row.animprogress;
+        uint32 go_state     = row.state;
+        data.spawnMask      = row.spawnMask;
+        data.phaseMask      = row.phaseMask;
+        int16 gameEvent     = row.gameEvent;
+        int16 GuidPoolId    = row.guidPoolId;
+        int16 EntryPoolId   = row.entryPoolId;
 
         MapEntry const* mapEntry = sMapStore.LookupEntry(data.mapid);
         if (!mapEntry)
@@ -205,9 +204,6 @@ void ObjectMgr::LoadGameObjects()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %zu gameobjects", mGameObjectDataMap.size());

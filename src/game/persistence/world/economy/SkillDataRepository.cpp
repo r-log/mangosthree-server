@@ -25,6 +25,7 @@
 
 #include "SkillDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace SkillDataRepository
 {
@@ -40,8 +41,17 @@ namespace SkillDataRepository
         return WorldDatabase.Query("SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`");
     }
 
-    QueryResult* QueryFishingBaseLevels()
+    static FishingBaseLevelRow ReadFishingBaseLevel(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`,`skill` FROM `skill_fishing_base_level`");
+        FishingBaseLevelRow row;
+        row.entry = fields[0].GetUInt32();
+        row.skill = fields[1].GetInt32();
+        return row;
+    }
+
+    std::vector<FishingBaseLevelRow> QueryFishingBaseLevels()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`,`skill` FROM `skill_fishing_base_level`");
+        return ReadRows<FishingBaseLevelRow>(result, ReadFishingBaseLevel);
     }
 }

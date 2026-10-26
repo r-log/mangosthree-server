@@ -270,9 +270,9 @@ void ObjectMgr::LoadInstanceEncounters()
 {
     m_DungeonEncounters.clear();         // need for reload case
 
-    QueryResult* result = DungeonDataRepository::QueryInstanceEncounters();
+    std::vector<InstanceEncounterRow> rows = DungeonDataRepository::QueryInstanceEncounters();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -283,14 +283,13 @@ void ObjectMgr::LoadInstanceEncounters()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (InstanceEncounterRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 entry = fields[0].GetUInt32();
+        uint32 entry = row.entry;
         DungeonEncounterEntry const* dungeonEncounter = sDungeonEncounterStore.LookupEntry(entry);
 
         if (!dungeonEncounter)
@@ -299,8 +298,8 @@ void ObjectMgr::LoadInstanceEncounters()
             continue;
         }
 
-        uint8 creditType = fields[1].GetUInt8();
-        uint32 creditEntry = fields[2].GetUInt32();
+        uint8 creditType = row.creditType;
+        uint32 creditEntry = row.creditEntry;
         switch (creditType)
         {
             case ENCOUNTER_CREDIT_KILL_CREATURE:
@@ -327,13 +326,10 @@ void ObjectMgr::LoadInstanceEncounters()
                 sLog.outErrorDb("Table `instance_encounters` has an invalid credit type (%u) for encounter %u (%s), skipped!", creditType, entry, dungeonEncounter->Name_lang[0]);
                 continue;
         }
-        uint32 lastEncounterDungeon = fields[3].GetUInt32();
+        uint32 lastEncounterDungeon = row.lastEncounterDungeon;
 
         m_DungeonEncounters.insert(DungeonEncounterMap::value_type(creditEntry, new DungeonEncounter(dungeonEncounter, EncounterCreditType(creditType), creditEntry, lastEncounterDungeon)));
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %zu Instance Encounters", m_DungeonEncounters.size());

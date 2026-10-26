@@ -29,12 +29,57 @@
 #include "Platform/Define.h"
 
 #include <string>
+#include <vector>
 
 class QueryResult;
 
-/// The map data on the world database: the transports, the weather, the GM teleports, the graveyards
-/// and the area triggers. The loads run at startup and on a reload, synchronously, for loaders that
-/// keep their loops; a GM's teleport and graveyard writes are queued and written to the SQL log.
+/// One `game_tele` row.
+struct GameTeleRow
+{
+    uint32 id = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    float orientation = 0.0f;
+    uint32 map = 0;
+    std::string name;
+};
+
+/// One `game_graveyard_zone` row.
+struct GraveyardZoneRow
+{
+    uint32 id = 0;
+    uint32 ghostZone = 0;
+    uint32 faction = 0;
+};
+
+/// One `areatrigger_teleport` row.
+struct AreaTriggerTeleportRow
+{
+    uint32 id = 0;
+    uint8 requiredLevel = 0;
+    uint32 requiredItem = 0;
+    uint32 requiredItem2 = 0;
+    uint32 heroicKey = 0;
+    uint32 heroicKey2 = 0;
+    uint32 requiredQuestDone = 0;
+    uint32 requiredQuestDoneHeroic = 0;
+    uint32 targetMap = 0;
+    float targetPositionX = 0.0f;
+    float targetPositionY = 0.0f;
+    float targetPositionZ = 0.0f;
+    float targetOrientation = 0.0f;
+};
+
+/// One `areatrigger_tavern` row.
+struct TavernAreaTriggerRow
+{
+    uint32 id = 0;
+};
+
+/// The map data on the world database: the transports, the weather, the GM teleports, the
+/// graveyards and the area triggers. The loads run at startup and on a reload, synchronously; a
+/// GM's teleport and graveyard writes are queued and written to the SQL log.
 namespace MapDataRepository
 {
     /// Selects every transport (`transports`).
@@ -47,7 +92,7 @@ namespace MapDataRepository
     QueryResult* QueryWeather();
 
     /// Selects every GM teleport location (`game_tele`).
-    QueryResult* QueryTeles();
+    std::vector<GameTeleRow> QueryTeles();
 
     /// Inserts a GM teleport location, the name escaped on the calling thread.
     bool InsertTele(uint32 id, float x, float y, float z, float orientation, uint32 mapId, std::string const& name);
@@ -56,16 +101,16 @@ namespace MapDataRepository
     void DeleteTele(char const* name);
 
     /// Selects every graveyard's zone and faction (`game_graveyard_zone`).
-    QueryResult* QueryGraveyardZones();
+    std::vector<GraveyardZoneRow> QueryGraveyardZones();
 
     /// Inserts a graveyard's link to a zone for a faction.
     void InsertGraveyardZone(uint32 id, uint32 zoneId, uint32 team);
 
     /// Selects every area trigger teleport (`areatrigger_teleport`).
-    QueryResult* QueryAreaTriggerTeleports();
+    std::vector<AreaTriggerTeleportRow> QueryAreaTriggerTeleports();
 
     /// Selects every tavern area trigger (`areatrigger_tavern`).
-    QueryResult* QueryTavernAreaTriggers();
+    std::vector<TavernAreaTriggerRow> QueryTavernAreaTriggers();
 }
 
 #endif

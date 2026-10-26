@@ -796,9 +796,9 @@ void ObjectMgr::LoadItemConverts()
 
     uint32 count = 0;
 
-    QueryResult* result = ItemDataRepository::QueryItemConverts();
+    std::vector<ItemConvertRow> rows = ItemDataRepository::QueryItemConverts();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -809,15 +809,14 @@ void ObjectMgr::LoadItemConverts()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (ItemConvertRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 itemEntry    = fields[0].GetUInt32();
-        uint32 itemTargetId = fields[1].GetUInt32();
+        uint32 itemEntry    = row.entry;
+        uint32 itemTargetId = row.item;
 
         ItemPrototype const* pItemEntryProto = sItemStorage.LookupEntry<ItemPrototype>(itemEntry);
         if (!pItemEntryProto)
@@ -847,9 +846,6 @@ void ObjectMgr::LoadItemConverts()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u Item converts", count);
@@ -861,9 +857,9 @@ void ObjectMgr::LoadItemExpireConverts()
 
     uint32 count = 0;
 
-    QueryResult* result = ItemDataRepository::QueryItemExpireConverts();
+    std::vector<ItemExpireConvertRow> rows = ItemDataRepository::QueryItemExpireConverts();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -874,15 +870,14 @@ void ObjectMgr::LoadItemExpireConverts()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (ItemExpireConvertRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 itemEntry    = fields[0].GetUInt32();
-        uint32 itemTargetId = fields[1].GetUInt32();
+        uint32 itemEntry    = row.entry;
+        uint32 itemTargetId = row.item;
 
         ItemPrototype const* pItemEntryProto = sItemStorage.LookupEntry<ItemPrototype>(itemEntry);
         if (!pItemEntryProto)
@@ -909,9 +904,6 @@ void ObjectMgr::LoadItemExpireConverts()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u Item expire converts", count);
@@ -926,9 +918,9 @@ void ObjectMgr::LoadItemRequiredTarget()
 
     uint32 count = 0;
 
-    QueryResult* result = ItemDataRepository::QueryItemRequiredTargets();
+    std::vector<ItemRequiredTargetRow> rows = ItemDataRepository::QueryItemRequiredTargets();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -937,16 +929,15 @@ void ObjectMgr::LoadItemRequiredTarget()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (ItemRequiredTargetRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 uiItemId      = fields[0].GetUInt32();
-        uint32 uiType        = fields[1].GetUInt32();
-        uint32 uiTargetEntry = fields[2].GetUInt32();
+        uint32 uiItemId      = row.entry;
+        uint32 uiType        = row.type;
+        uint32 uiTargetEntry = row.targetEntry;
 
         ItemPrototype const* pItemProto = sItemStorage.LookupEntry<ItemPrototype>(uiItemId);
 
@@ -1023,9 +1014,6 @@ void ObjectMgr::LoadItemRequiredTarget()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u Item required targets", count);
     sLog.outString();

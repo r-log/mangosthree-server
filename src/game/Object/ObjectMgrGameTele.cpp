@@ -46,9 +46,9 @@ void ObjectMgr::LoadGameTele()
     m_GameTeleMap.clear();                                  // for reload case
 
     uint32 count = 0;
-    QueryResult* result = MapDataRepository::QueryTeles();
+    std::vector<GameTeleRow> rows = MapDataRepository::QueryTeles();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -57,24 +57,22 @@ void ObjectMgr::LoadGameTele()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (GameTeleRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 id         = fields[0].GetUInt32();
+        uint32 id         = row.id;
 
         GameTele gt;
 
-        gt.position_x     = fields[1].GetFloat();
-        gt.position_y     = fields[2].GetFloat();
-        gt.position_z     = fields[3].GetFloat();
-        gt.orientation    = fields[4].GetFloat();
-        gt.mapId          = fields[5].GetUInt32();
-        gt.name           = fields[6].GetCppString();
+        gt.position_x     = row.positionX;
+        gt.position_y     = row.positionY;
+        gt.position_z     = row.positionZ;
+        gt.orientation    = row.orientation;
+        gt.mapId          = row.map;
+        gt.name           = row.name;
 
         if (!MapManager::IsValidMapCoord(gt.mapId, gt.position_x, gt.position_y, gt.position_z, gt.orientation))
         {
@@ -94,8 +92,6 @@ void ObjectMgr::LoadGameTele()
 
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString(">> Loaded %u GameTeleports", count);
     sLog.outString();

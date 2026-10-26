@@ -25,6 +25,7 @@
 
 #include "SpawnRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 #include <sstream>
 
@@ -119,10 +120,37 @@ namespace SpawnRepository
         return WorldDatabase.Query("SELECT MAX(`guid`) FROM `gameobject`");
     }
 
-    QueryResult* QueryCreatureSpawns()
+    static CreatureSpawnDataRow ReadCreatureSpawnData(Field* fields)
+    {
+        CreatureSpawnDataRow row;
+        row.guid = fields[0].GetUInt32();
+        row.id = fields[1].GetUInt32();
+        row.map = fields[2].GetUInt32();
+        row.modelid = fields[3].GetUInt32();
+        row.equipmentId = fields[4].GetUInt32();
+        row.positionX = fields[5].GetFloat();
+        row.positionY = fields[6].GetFloat();
+        row.positionZ = fields[7].GetFloat();
+        row.orientation = fields[8].GetFloat();
+        row.spawntimesecs = fields[9].GetUInt32();
+        row.spawndist = fields[10].GetFloat();
+        row.currentwaypoint = fields[11].GetUInt32();
+        row.curhealth = fields[12].GetUInt32();
+        row.curmana = fields[13].GetUInt32();
+        row.deathState = fields[14].GetBool();
+        row.movementType = fields[15].GetUInt8();
+        row.spawnMask = fields[16].GetUInt8();
+        row.phaseMask = fields[17].GetUInt32();
+        row.gameEvent = fields[18].GetInt16();
+        row.guidPoolId = fields[19].GetInt16();
+        row.entryPoolId = fields[20].GetInt16();
+        return row;
+    }
+
+    std::vector<CreatureSpawnDataRow> QueryCreatureSpawns()
     {
         //                                 0                       1   2    3
-        return WorldDatabase.Query("SELECT `creature`.`guid`, `creature`.`id`, `map`, `modelid`,"
+        QueryResult* result = WorldDatabase.Query("SELECT `creature`.`guid`, `creature`.`id`, `map`, `modelid`,"
                                    //   4             5           6           7           8            9              10         11
                                    "`equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `currentwaypoint`,"
                                    //   12        13         14            15              16           17           18
@@ -133,12 +161,38 @@ namespace SpawnRepository
                                    "LEFT OUTER JOIN `game_event_creature` ON `creature`.`guid` = `game_event_creature`.`guid` "
                                    "LEFT OUTER JOIN `pool_creature` ON `creature`.`guid` = `pool_creature`.`guid` "
                                    "LEFT OUTER JOIN `pool_creature_template` ON `creature`.`id` = `pool_creature_template`.`id`");
+        return ReadRows<CreatureSpawnDataRow>(result, ReadCreatureSpawnData);
     }
 
-    QueryResult* QueryGameObjectSpawns()
+    static GameObjectSpawnDataRow ReadGameObjectSpawnData(Field* fields)
+    {
+        GameObjectSpawnDataRow row;
+        row.guid = fields[0].GetUInt32();
+        row.id = fields[1].GetUInt32();
+        row.map = fields[2].GetUInt32();
+        row.positionX = fields[3].GetFloat();
+        row.positionY = fields[4].GetFloat();
+        row.positionZ = fields[5].GetFloat();
+        row.orientation = fields[6].GetFloat();
+        row.rotation0 = fields[7].GetFloat();
+        row.rotation1 = fields[8].GetFloat();
+        row.rotation2 = fields[9].GetFloat();
+        row.rotation3 = fields[10].GetFloat();
+        row.spawntimesecs = fields[11].GetInt32();
+        row.animprogress = fields[12].GetUInt32();
+        row.state = fields[13].GetUInt32();
+        row.spawnMask = fields[14].GetUInt8();
+        row.phaseMask = fields[15].GetUInt32();
+        row.gameEvent = fields[16].GetInt16();
+        row.guidPoolId = fields[17].GetInt16();
+        row.entryPoolId = fields[18].GetInt16();
+        return row;
+    }
+
+    std::vector<GameObjectSpawnDataRow> QueryGameObjectSpawns()
     {
         //                                               0                    1                  2                   3
-        return WorldDatabase.Query("SELECT `gameobject`.`guid`, `gameobject`.`id`, `gameobject`.`map`, `gameobject`.`position_x`, "
+        QueryResult* result = WorldDatabase.Query("SELECT `gameobject`.`guid`, `gameobject`.`id`, `gameobject`.`map`, `gameobject`.`position_x`, "
             //                                   4                          5                          6                           7
                "`gameobject`.`position_y`, `gameobject`.`position_z`, `gameobject`.`orientation`, `gameobject`.`rotation0`, "
             //                                   8                         9                         10                        11
@@ -151,6 +205,7 @@ namespace SpawnRepository
                "LEFT OUTER JOIN `game_event_gameobject` ON `gameobject`.`guid` = `game_event_gameobject`.`guid` "
                "LEFT OUTER JOIN `pool_gameobject` ON `gameobject`.`guid` = `pool_gameobject`.`guid` "
                "LEFT OUTER JOIN `pool_gameobject_template` ON `gameobject`.`id` = `pool_gameobject_template`.`id`");
+        return ReadRows<GameObjectSpawnDataRow>(result, ReadGameObjectSpawnData);
     }
 
     QueryResult* QueryCreatureEntryAndMap(uint32 guid)

@@ -48,9 +48,9 @@
 void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
 {
     m_mGossipMenusMap.clear();
-    QueryResult* result = NpcDataRepository::QueryGossipMenus();
+    std::vector<GossipMenuRow> rows = NpcDataRepository::QueryGossipMenus();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -59,23 +59,21 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
     uint32 count = 0;
 
-    do
+    for (GossipMenuRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
         GossipMenus gMenu;
 
-        gMenu.entry             = fields[0].GetUInt32();
-        gMenu.text_id           = fields[1].GetUInt32();
-        gMenu.script_id         = fields[2].GetUInt32();
+        gMenu.entry             = row.entry;
+        gMenu.text_id           = row.textId;
+        gMenu.script_id         = row.scriptId;
 
-        gMenu.conditionId       = fields[3].GetUInt16();
+        gMenu.conditionId       = row.conditionId;
 
         if (!GetGossipText(gMenu.text_id))
         {
@@ -116,9 +114,6 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     // post loading tests
     for (uint32 i = 1; i < sCreatureStorage.GetMaxEntry(); ++i)
@@ -162,9 +157,9 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
 {
     m_mGossipMenuItemsMap.clear();
 
-    QueryResult* result = NpcDataRepository::QueryGossipMenuOptions();
+    std::vector<GossipMenuOptionRow> rows = NpcDataRepository::QueryGossipMenuOptions();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -191,7 +186,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
     }
 
     // loading
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
     uint32 count = 0;
 
@@ -211,28 +206,26 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
                 }
             }
 
-    do
+    for (GossipMenuOptionRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
         GossipMenuItems gMenuItem;
 
-        gMenuItem.menu_id               = fields[0].GetUInt32();
-        gMenuItem.id                    = fields[1].GetUInt32();
-        gMenuItem.option_icon           = fields[2].GetUInt8();
-        gMenuItem.option_text           = fields[3].GetCppString();
-        gMenuItem.option_id             = fields[4].GetUInt32();
-        gMenuItem.npc_option_npcflag    = fields[5].GetUInt32();
-        gMenuItem.action_menu_id        = fields[6].GetInt32();
-        gMenuItem.action_poi_id         = fields[7].GetUInt32();
-        gMenuItem.action_script_id      = fields[8].GetUInt32();
-        gMenuItem.box_coded             = fields[9].GetUInt8() != 0;
-        gMenuItem.box_money             = fields[10].GetUInt32();
-        gMenuItem.box_text              = fields[11].GetCppString();
+        gMenuItem.menu_id               = row.menuId;
+        gMenuItem.id                    = row.id;
+        gMenuItem.option_icon           = row.optionIcon;
+        gMenuItem.option_text           = row.optionText;
+        gMenuItem.option_id             = row.optionId;
+        gMenuItem.npc_option_npcflag    = row.npcOptionNpcflag;
+        gMenuItem.action_menu_id        = row.actionMenuId;
+        gMenuItem.action_poi_id         = row.actionPoiId;
+        gMenuItem.action_script_id      = row.actionScriptId;
+        gMenuItem.box_coded             = row.boxCoded != 0;
+        gMenuItem.box_money             = row.boxMoney;
+        gMenuItem.box_text              = row.boxText;
 
-        gMenuItem.conditionId           = fields[12].GetUInt16();
+        gMenuItem.conditionId           = row.conditionId;
 
         if (gMenuItem.menu_id)                              // == 0 id is special and not have menu_id data
         {
@@ -334,9 +327,6 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     if (!sLog.HasLogFilter(LOG_FILTER_DB_STRICTED_CHECK))
     {
