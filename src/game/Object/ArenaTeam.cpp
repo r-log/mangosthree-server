@@ -254,15 +254,8 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
     return true;
 }
 
-bool ArenaTeam::LoadArenaTeamFromDB(QueryResult* arenaTeamDataResult)
+bool ArenaTeam::LoadArenaTeamFromDB(ArenaTeamRow const& row)
 {
-    if (!arenaTeamDataResult)
-    {
-        return false;
-    }
-
-    ArenaTeamRow row = ArenaTeamRepository::ReadTeam(arenaTeamDataResult->Fetch());
-
     m_TeamId             = row.id;
     m_Name               = row.name;
     m_CaptainGuid        = ObjectGuid(HIGHGUID_PLAYER, row.captainGuid);
@@ -289,24 +282,18 @@ bool ArenaTeam::LoadArenaTeamFromDB(QueryResult* arenaTeamDataResult)
     return true;
 }
 
-bool ArenaTeam::LoadMembersFromDB(QueryResult* arenaTeamMembersResult)
+bool ArenaTeam::LoadMembersFromDB(std::vector<ArenaTeamMemberRow> const& memberRows, size_t& next)
 {
-    if (!arenaTeamMembersResult)
+    if (memberRows.empty())
     {
         return false;
     }
 
     bool captainPresentInTeam = false;
 
-    do
+    for (; next < memberRows.size(); ++next)
     {
-        Field* fields = arenaTeamMembersResult->Fetch();
-        // prevent crash if db records are broken, when all members in result are already processed and current team hasn't got any members
-        if (!fields)
-        {
-            break;
-        }
-        ArenaTeamMemberRow row = ArenaTeamRepository::ReadMember(fields);
+        ArenaTeamMemberRow const& row = memberRows[next];
         uint32 arenaTeamId        = row.teamId;
         if (arenaTeamId < m_TeamId)
         {
@@ -354,7 +341,6 @@ bool ArenaTeam::LoadMembersFromDB(QueryResult* arenaTeamMembersResult)
 
         m_members.push_back(newmember);
     }
-    while (arenaTeamMembersResult->NextRow());
 
     if (Empty() || !captainPresentInTeam)
     {

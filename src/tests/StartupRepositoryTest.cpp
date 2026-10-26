@@ -252,8 +252,8 @@ TEST(StartupRepository_HighestIds)
 TEST(StartupRepository_CharacterLoads)
 {
     Db db(CharacterDatabase);
-    delete ArenaTeamRepository::QueryTeams();
-    delete ArenaTeamRepository::QueryTeamMembers();
+    ArenaTeamRepository::QueryTeams();
+    ArenaTeamRepository::QueryTeamMembers();
     GroupRepository::QueryGroups();
     GroupRepository::QueryMembers();
     GroupRepository::QueryInstanceBinds();

@@ -41,6 +41,10 @@
 #include "SharedDefines.h"
 
 class Item;
+struct GuildDataRow;
+struct GuildRankRow;
+struct GuildMemberDataRow;
+struct GuildBankRightRow;
 
 #define GUILD_RANK_NONE         0xFF
 
@@ -382,10 +386,10 @@ class Guild
         uint32 GetMemberSize() const { return members.size(); }
         uint32 GetAccountsNumber();
 
-        bool LoadGuildFromDB(QueryResult* guildDataResult);
+        bool LoadGuildFromDB(GuildDataRow const& row);
         bool CheckGuildStructure();
-        bool LoadRanksFromDB(QueryResult* guildRanksResult);
-        bool LoadMembersFromDB(QueryResult* guildMembersResult);
+        bool LoadRanksFromDB(std::vector<GuildRankRow> const& rankRows, size_t& next);
+        bool LoadMembersFromDB(std::vector<GuildMemberDataRow> const& memberRows, size_t& next);
 
         void BroadcastToGuild(WorldSession* session, const std::string& msg, uint32 language = LANG_UNIVERSAL);
         void BroadcastAddonToGuild(WorldSession* session, const std::string& msg, const std::string& prefix);
@@ -505,7 +509,7 @@ class Guild
         uint32 GetBankMoneyPerDay(uint32 rankId);
         uint32 GetBankSlotPerDay(uint32 rankId, uint8 TabId);
         // rights per day
-        bool   LoadBankRightsFromDB(QueryResult* guildBankTabRightsResult);
+        bool   LoadBankRightsFromDB(std::vector<GuildBankRightRow> const& rightRows, size_t& next);
         // Guild Bank Event Logs
         void   LoadGuildBankEventLogFromDB();
         void   DisplayGuildBankLogs(WorldSession* session, uint8 TabId);

@@ -60,6 +60,8 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "persistence/characters/social/ArenaTeamRepository.h"
+#include "persistence/characters/social/GuildRepository.h"
 
 #include <memory>
 #include <sstream>
@@ -386,13 +388,16 @@ TEST(CalendarMailAsync_ArenaAddMemberTakesAnOfflineMemberFromTheCacheAndQueuesTh
 
     AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
 
-    // LoadArenaTeamFromDB's fifteen columns: the team, its emblem and its stats.
+    // The team's row: its id, name, captain, type and rating.
     ArenaTeam team;
     {
-        FakeQueryResult row(FakeRows{FakeRow{"5", "Aldors", "7777", "2", "0", "0", "0", "0", "0",
-                                             "1500", "0", "0", "0", "0", "0"}});
-        row.NextRow();                                      // as MySQLConnection::Query() does
-        REQUIRE(team.LoadArenaTeamFromDB(&row));
+        ArenaTeamRow row;
+        row.id = 5;
+        row.name = "Aldors";
+        row.captainGuid = 7777;
+        row.type = 2;
+        row.stats.rating = 1500;
+        REQUIRE(team.LoadArenaTeamFromDB(row));
     }
     REQUIRE(team.GetId() == kArenaTeamId);
 
@@ -445,10 +450,13 @@ TEST(CalendarMailAsync_ArenaAddMemberRefusesAMemberTheCacheDoesNotKnowAndWritesN
 
     ArenaTeam team;
     {
-        FakeQueryResult row(FakeRows{FakeRow{"5", "Aldors", "7777", "2", "0", "0", "0", "0", "0",
-                                             "1500", "0", "0", "0", "0", "0"}});
-        row.NextRow();
-        REQUIRE(team.LoadArenaTeamFromDB(&row));
+        ArenaTeamRow row;
+        row.id = 5;
+        row.name = "Aldors";
+        row.captainGuid = 7777;
+        row.type = 2;
+        row.stats.rating = 1500;
+        REQUIRE(team.LoadArenaTeamFromDB(row));
     }
 
     {
@@ -484,14 +492,17 @@ TEST(CalendarMailAsync_TheGuildBankTabNameIconAndTextAreBoundNotEscaped)
 
     AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
 
-    // LoadGuildFromDB's thirteen columns, the last of which is the purchased tab count: one
-    // tab, so the two setters below have something to write to.
+    // The guild's row with one purchased bank tab, so the two setters below have something to
+    // write to.
     Guild guild;
     {
-        FakeQueryResult row(FakeRows{FakeRow{"7", "Aldors", "1", "0", "0", "0", "0", "0",
-                                             "", "No message set.", "0", "0", "1"}});
-        row.NextRow();
-        REQUIRE(guild.LoadGuildFromDB(&row));
+        GuildDataRow row;
+        row.guildId = 7;
+        row.name = "Aldors";
+        row.leaderGuid = 1;
+        row.motd = "No message set.";
+        row.purchasedTabs = 1;
+        REQUIRE(guild.LoadGuildFromDB(row));
     }
     REQUIRE(guild.GetPurchasedTabs() == 1);
 

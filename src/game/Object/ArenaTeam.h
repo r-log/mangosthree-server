@@ -30,10 +30,12 @@
 #include <string>
 #include <map>
 #include <list>
+#include <vector>
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
 
-class QueryResult;
+struct ArenaTeamRow;
+struct ArenaTeamMemberRow;
 class WorldPacket;
 class WorldSession;
 class Player;
@@ -189,8 +191,8 @@ class ArenaTeam
 
         bool IsFighting() const;
 
-        bool LoadArenaTeamFromDB(QueryResult* arenaTeamDataResult);
-        bool LoadMembersFromDB(QueryResult* arenaTeamMembersResult);
+        bool LoadArenaTeamFromDB(ArenaTeamRow const& row);
+        bool LoadMembersFromDB(std::vector<ArenaTeamMemberRow> const& memberRows, size_t& next);
         void LoadStatsFromDB(uint32 ArenaTeamId);
 
         void SaveToDB();

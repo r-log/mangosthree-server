@@ -253,10 +253,10 @@ set(ADMIN_SCOPE_FILES
     src/tests/TickGuardTest.cpp)
 
 set(ALLOW_GuildRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT `guild`.`guildid`,`guild`.`name`,`leaderguid`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,\""
-    "return CharacterDatabase.Query(\"SELECT `guildid`,`rid`,`rname`,`rights`,`BankMoneyPerDay` FROM `guild_rank` ORDER BY `guildid` ASC, `rid` ASC\")\;"
-    "return CharacterDatabase.Query(\"SELECT `guildid`,`guild_member`.`guid`,`rank`,`pnote`,`offnote`,`BankResetTimeMoney`,`BankRemMoney`,\""
-    "return CharacterDatabase.Query(\"SELECT `guildid`,`TabId`,`rid`,`gbright`,`SlotPerDay` FROM `guild_bank_right` ORDER BY `guildid` ASC, `TabId` ASC\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guild`.`guildid`,`guild`.`name`,`leaderguid`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,\""
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guildid`,`rid`,`rname`,`rights`,`BankMoneyPerDay` FROM `guild_rank` ORDER BY `guildid` ASC, `rid` ASC\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guildid`,`guild_member`.`guid`,`rank`,`pnote`,`offnote`,`BankResetTimeMoney`,`BankRemMoney`,\""
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guildid`,`TabId`,`rid`,`gbright`,`SlotPerDay` FROM `guild_bank_right` ORDER BY `guildid` ASC, `TabId` ASC\")\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", guildId, maxRecords)\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`guildid`) FROM `guild`\")\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `guildid`, `rank` FROM `guild_member`\")\;")
@@ -469,8 +469,8 @@ set(ALLOW_CorpseRepository_cpp
 
 set(ALLOW_ArenaTeamRepository_cpp
     "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`arenateamid`) FROM `arena_team`\")\;"
-    "return CharacterDatabase.Query(\"SELECT `arena_team`.`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,\""
-    "return CharacterDatabase.Query(\"SELECT `arenateamid`,`member`.`guid`,`played_week`,`wons_week`,`played_season`,`wons_season`,`personal_rating`,`name`,`class` \""
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `arena_team`.`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,\""
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `arenateamid`,`member`.`guid`,`played_week`,`wons_week`,`played_season`,`wons_season`,`personal_rating`,`name`,`class` \""
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `arena_team_member`.`guid`, `arena_team_member`.`arenateamid`, `arena_team`.`type` \"")
 
 set(ALLOW_CreatureDataRepository_cpp

@@ -53,6 +53,7 @@
 #include "Player.h"
 #include "Utilities/ProgressBar.h"
 #include "WorldPacket.h"
+#include "persistence/characters/social/GuildRepository.h"
 
 #include <cstring>
 #include <memory>
@@ -141,14 +142,15 @@ namespace
     }
 
     /// A guild with an id and nothing else, entered through the production loader so no
-    /// Player is needed. The columns are LoadGuildFromDB's: guildid, name, leaderguid,
-    /// the five emblem fields, info, motd, createdate, BankMoney, purchased tabs.
+    /// Player is needed.
     void LoadBareGuild(Guild& guild)
     {
-        FakeQueryResult row(FakeRows{FakeRow{"7", "Aldors", "1", "0", "0", "0", "0", "0",
-                                             "", "No message set.", "0", "0", "0"}});
-        row.NextRow();                                      // as MySQLConnection::Query() does
-        REQUIRE(guild.LoadGuildFromDB(&row));
+        GuildDataRow row;
+        row.guildId = 7;
+        row.name = "Aldors";
+        row.leaderGuid = 1;
+        row.motd = "No message set.";
+        REQUIRE(guild.LoadGuildFromDB(row));
         REQUIRE(guild.GetId() == kGuildId);
     }
 }

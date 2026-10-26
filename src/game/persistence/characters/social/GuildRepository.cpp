@@ -29,30 +29,99 @@
 
 namespace GuildRepository
 {
-    QueryResult* QueryGuilds()
+    static GuildDataRow ReadGuildData(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `guild`.`guildid`,`guild`.`name`,`leaderguid`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,"
-                                       "`BackgroundColor`,`info`,`motd`,`createdate`,`BankMoney`,(SELECT COUNT(`guild_bank_tab`.`guildid`) FROM `guild_bank_tab` WHERE `guild_bank_tab`.`guildid` = `guild`.`guildid`) "
-                                       "FROM `guild` ORDER BY `guildid` ASC");
+        GuildDataRow row;
+        row.guildId = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.leaderGuid = fields[2].GetUInt32();
+        row.emblemStyle = fields[3].GetUInt32();
+        row.emblemColor = fields[4].GetUInt32();
+        row.borderStyle = fields[5].GetUInt32();
+        row.borderColor = fields[6].GetUInt32();
+        row.backgroundColor = fields[7].GetUInt32();
+        row.info = fields[8].GetCppString();
+        row.motd = fields[9].GetCppString();
+        row.createDate = fields[10].GetUInt64();
+        row.bankMoney = fields[11].GetUInt64();
+        row.purchasedTabs = fields[12].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryRanks()
+    std::vector<GuildDataRow> QueryGuilds()
     {
-        return CharacterDatabase.Query("SELECT `guildid`,`rid`,`rname`,`rights`,`BankMoneyPerDay` FROM `guild_rank` ORDER BY `guildid` ASC, `rid` ASC");
+        QueryResult* result = CharacterDatabase.Query("SELECT `guild`.`guildid`,`guild`.`name`,`leaderguid`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,"
+                                                      "`BackgroundColor`,`info`,`motd`,`createdate`,`BankMoney`,(SELECT COUNT(`guild_bank_tab`.`guildid`) FROM `guild_bank_tab` WHERE `guild_bank_tab`.`guildid` = `guild`.`guildid`) "
+                                                      "FROM `guild` ORDER BY `guildid` ASC");
+        return ReadRows<GuildDataRow>(result, ReadGuildData);
     }
 
-    QueryResult* QueryMembers()
+    static GuildRankRow ReadGuildRank(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `guildid`,`guild_member`.`guid`,`rank`,`pnote`,`offnote`,`BankResetTimeMoney`,`BankRemMoney`,"
-                                       "`BankResetTimeTab0`,`BankRemSlotsTab0`,`BankResetTimeTab1`,`BankRemSlotsTab1`,`BankResetTimeTab2`,`BankRemSlotsTab2`,"
-                                       "`BankResetTimeTab3`,`BankRemSlotsTab3`,`BankResetTimeTab4`,`BankRemSlotsTab4`,`BankResetTimeTab5`,`BankRemSlotsTab5`,"
-                                       "characters.name, characters.level, characters.class, characters.zone, characters.logout_time, characters.account "
-                                       "FROM guild_member LEFT JOIN characters ON characters.guid = guild_member.guid ORDER BY guildid ASC");
+        GuildRankRow row;
+        row.guildId = fields[0].GetUInt32();
+        row.rankId = fields[1].GetUInt32();
+        row.name = fields[2].GetCppString();
+        row.rights = fields[3].GetUInt32();
+        row.bankMoneyPerDay = fields[4].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryBankRights()
+    std::vector<GuildRankRow> QueryRanks()
     {
-        return CharacterDatabase.Query("SELECT `guildid`,`TabId`,`rid`,`gbright`,`SlotPerDay` FROM `guild_bank_right` ORDER BY `guildid` ASC, `TabId` ASC");
+        QueryResult* result = CharacterDatabase.Query("SELECT `guildid`,`rid`,`rname`,`rights`,`BankMoneyPerDay` FROM `guild_rank` ORDER BY `guildid` ASC, `rid` ASC");
+        return ReadRows<GuildRankRow>(result, ReadGuildRank);
+    }
+
+    static GuildMemberDataRow ReadGuildMemberData(Field* fields)
+    {
+        GuildMemberDataRow row;
+        row.guildId = fields[0].GetUInt32();
+        row.guid = fields[1].GetUInt32();
+        row.rank = fields[2].GetUInt32();
+        row.pnote = fields[3].GetCppString();
+        row.offnote = fields[4].GetCppString();
+        row.bankResetTimeMoney = fields[5].GetUInt32();
+        row.bankRemMoney = fields[6].GetUInt32();
+        for (int i = 0; i < GUILD_MEMBER_DATA_ROW_TABS; ++i)
+        {
+            row.bankResetTimeTab[i] = fields[7 + (2 * i)].GetUInt32();
+            row.bankRemSlotsTab[i] = fields[8 + (2 * i)].GetUInt32();
+        }
+        row.name = fields[19].GetCppString();
+        row.level = fields[20].GetUInt8();
+        row.classId = fields[21].GetUInt8();
+        row.zone = fields[22].GetUInt32();
+        row.logoutTime = fields[23].GetUInt64();
+        row.account = fields[24].GetInt32();
+        return row;
+    }
+
+    std::vector<GuildMemberDataRow> QueryMembers()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `guildid`,`guild_member`.`guid`,`rank`,`pnote`,`offnote`,`BankResetTimeMoney`,`BankRemMoney`,"
+                                                      "`BankResetTimeTab0`,`BankRemSlotsTab0`,`BankResetTimeTab1`,`BankRemSlotsTab1`,`BankResetTimeTab2`,`BankRemSlotsTab2`,"
+                                                      "`BankResetTimeTab3`,`BankRemSlotsTab3`,`BankResetTimeTab4`,`BankRemSlotsTab4`,`BankResetTimeTab5`,`BankRemSlotsTab5`,"
+                                                      "characters.name, characters.level, characters.class, characters.zone, characters.logout_time, characters.account "
+                                                      "FROM guild_member LEFT JOIN characters ON characters.guid = guild_member.guid ORDER BY guildid ASC");
+        return ReadRows<GuildMemberDataRow>(result, ReadGuildMemberData);
+    }
+
+    static GuildBankRightRow ReadGuildBankRight(Field* fields)
+    {
+        GuildBankRightRow row;
+        row.guildId = fields[0].GetUInt32();
+        row.tabId = fields[1].GetUInt8();
+        row.rankId = fields[2].GetUInt32();
+        row.rights = fields[3].GetUInt16();
+        row.slotPerDay = fields[4].GetUInt16();
+        return row;
+    }
+
+    std::vector<GuildBankRightRow> QueryBankRights()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `guildid`,`TabId`,`rid`,`gbright`,`SlotPerDay` FROM `guild_bank_right` ORDER BY `guildid` ASC, `TabId` ASC");
+        return ReadRows<GuildBankRightRow>(result, ReadGuildBankRight);
     }
 
     static GuildEventLogRow ReadGuildEventLog(Field* fields)

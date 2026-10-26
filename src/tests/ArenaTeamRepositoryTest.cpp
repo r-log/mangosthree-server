@@ -85,10 +85,15 @@ namespace
 
 TEST(ArenaTeamRepository_ReadsTheTeamAndTheMemberRows)
 {
-    FakeQueryResult teams(FakeRows{FakeRow{"5", "Aldors", "7777", "2", "11", "12", "13", "14", "15",
-                                           "1500", "21", "22", "23", "24", "25"}});
-    REQUIRE(teams.NextRow());
-    ArenaTeamRow team = ArenaTeamRepository::ReadTeam(teams.Fetch());
+    std::vector<ArenaTeamRow> teams;
+    {
+        Db db;
+        db.query.Answer("SELECT", FakeRows{FakeRow{"5", "Aldors", "7777", "2", "11", "12", "13", "14", "15",
+                                                   "1500", "21", "22", "23", "24", "25"}});
+        teams = ArenaTeamRepository::QueryTeams();
+    }
+    REQUIRE(teams.size() == 1);
+    ArenaTeamRow const& team = teams[0];
     CHECK_EQ(team.id, 5u);
     CHECK_STR(team.name, "Aldors");
     CHECK_EQ(team.captainGuid, 7777u);
@@ -105,9 +110,14 @@ TEST(ArenaTeamRepository_ReadsTheTeamAndTheMemberRows)
     CHECK_EQ(team.stats.winsSeason, 24u);
     CHECK_EQ(team.stats.rank, 25u);
 
-    FakeQueryResult members(FakeRows{FakeRow{"5", "42", "3", "2", "30", "20", "1600", "Kael", "8"}});
-    REQUIRE(members.NextRow());
-    ArenaTeamMemberRow member = ArenaTeamRepository::ReadMember(members.Fetch());
+    std::vector<ArenaTeamMemberRow> members;
+    {
+        Db db;
+        db.query.Answer("SELECT", FakeRows{FakeRow{"5", "42", "3", "2", "30", "20", "1600", "Kael", "8"}});
+        members = ArenaTeamRepository::QueryTeamMembers();
+    }
+    REQUIRE(members.size() == 1);
+    ArenaTeamMemberRow const& member = members[0];
     CHECK_EQ(member.teamId, 5u);
     CHECK_EQ(member.stats.guid, 42u);
     CHECK_EQ(member.stats.gamesWeek, 3u);
