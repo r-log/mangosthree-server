@@ -55,6 +55,8 @@ set(CONVERTED_FILES
     src/game/persistence/world/spawns/SpawnRepository.cpp
     src/game/persistence/characters/maps/CorpseRepository.h
     src/game/persistence/characters/maps/CorpseRepository.cpp
+    src/game/persistence/characters/maps/InstanceRepository.h
+    src/game/persistence/characters/maps/InstanceRepository.cpp
     src/game/persistence/characters/account/AccountDataRepository.h
     src/game/persistence/characters/account/AccountDataRepository.cpp
     src/game/persistence/login/RealmRepository.h
@@ -186,20 +188,22 @@ set(ALLOW_InstanceDataCache_cpp
     "if (QueryResult* result = CharacterDatabase.Query(\"SELECT `id`, `map`, `data` FROM `instance`\"))"
     "if (QueryResult* result = CharacterDatabase.Query(\"SELECT `map`, `data` FROM `world`\"))")
 
-set(ALLOW_MapPersistentStateMgr_cpp
-    "QueryResult* result = CharacterDatabase.Query(\"SELECT `id`, `map`, `difficulty`, `resettime` FROM `instance` WHERE `resettime` > 0\")\;"
-    "result = CharacterDatabase.Query(\"SELECT MAX(`respawntime`), `instance` FROM `creature_respawn` WHERE `instance` > 0 GROUP BY `instance`\")\;"
-    "CharacterDatabase.DirectPExecute(\"UPDATE `instance` SET `resettime` = '\" UI64FMTD \"' WHERE `id` = '%u'\", uint64(resettime), instance)\;"
-    "result = CharacterDatabase.Query(\"SELECT `mapid`, `difficulty`, `resettime` FROM `instance_reset`\")\;"
-    "CharacterDatabase.DirectPExecute(\"DELETE FROM `instance_reset` WHERE `mapid` = '%u' AND `difficulty` = '%u'\", mapid, difficulty)\;"
-    "CharacterDatabase.DirectPExecute(\"UPDATE `instance_reset` SET `resettime` = '\" UI64FMTD \"' WHERE `mapid` = '%u' AND `difficulty` = '%u'\", newresettime, mapid, difficulty)\;"
-    "CharacterDatabase.DirectPExecute(\"INSERT INTO `instance_reset` VALUES ('%u','%u','\" UI64FMTD \"')\", mapid, difficulty, (uint64)t)\;"
-    "CharacterDatabase.DirectPExecute(\"UPDATE `instance_reset` SET `resettime` = '\" UI64FMTD \"' WHERE mapid = '%u' AND difficulty= '%u'\", (uint64)t, mapid, difficulty)\;"
-    "QueryResult* result = CharacterDatabase.Query(\"SELECT `id` FROM `instance`\")\;"
+set(ALLOW_InstanceRepository_cpp
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT %s FROM %s %s\", fields, table, szQueryTail)\;"
+    "CharacterDatabase.escape_string(fieldValue)\;"
     "CharacterDatabase.DirectExecute(\"DELETE FROM `creature_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())\")\;"
-    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `creature_respawn` LEFT JOIN `instance` ON `instance` = `id`\")\;"
     "CharacterDatabase.DirectExecute(\"DELETE FROM `gameobject_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())\")\;"
-    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `gameobject_respawn` LEFT JOIN `instance` ON `instance` = `id`\")\;")
+    "return CharacterDatabase.Query(\"SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `creature_respawn` LEFT JOIN `instance` ON `instance` = `id`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `gameobject_respawn` LEFT JOIN `instance` ON `instance` = `id`\")\;"
+    "CharacterDatabase.DirectPExecute(\"UPDATE `instance` SET `resettime` = '\" UI64FMTD \"' WHERE `id` = '%u'\", resetTime, instanceId)\;"
+    "return CharacterDatabase.Query(\"SELECT `id`, `map`, `difficulty`, `resettime` FROM `instance` WHERE `resettime` > 0\")\;"
+    "return CharacterDatabase.Query(\"SELECT MAX(`respawntime`), `instance` FROM `creature_respawn` WHERE `instance` > 0 GROUP BY `instance`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `id` FROM `instance`\")\;"
+    "return CharacterDatabase.Query(\"SELECT `mapid`, `difficulty`, `resettime` FROM `instance_reset`\")\;"
+    "CharacterDatabase.DirectPExecute(\"UPDATE `instance_reset` SET `resettime` = '\" UI64FMTD \"' WHERE `mapid` = '%u' AND `difficulty` = '%u'\", resetTime, map, difficulty)\;"
+    "CharacterDatabase.DirectPExecute(\"UPDATE `instance_reset` SET `resettime` = '\" UI64FMTD \"' WHERE mapid = '%u' AND difficulty= '%u'\", resetTime, map, difficulty)\;"
+    "CharacterDatabase.DirectPExecute(\"INSERT INTO `instance_reset` VALUES ('%u','%u','\" UI64FMTD \"')\", map, difficulty, resetTime)\;"
+    "CharacterDatabase.DirectPExecute(\"DELETE FROM `instance_reset` WHERE `mapid` = '%u' AND `difficulty` = '%u'\", map, difficulty)\;")
 
 set(ALLOW_BattleGroundMgr_cpp
     "if (QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `pvpstats_battlegrounds`\"))"
