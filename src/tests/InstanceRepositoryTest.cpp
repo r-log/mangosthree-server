@@ -133,18 +133,18 @@ TEST(InstanceRepository_StartupReadsAndDirectWrites)
 {
     Db db;
     InstanceRepository::DeleteExpiredCreatureRespawnsNow();
-    delete InstanceRepository::QueryCreatureRespawns();
+    InstanceRepository::QueryCreatureRespawns();
     InstanceRepository::DeleteExpiredGameObjectRespawnsNow();
-    delete InstanceRepository::QueryGameObjectRespawns();
-    delete InstanceRepository::QueryInstancesWithResetTime();
-    delete InstanceRepository::QueryLatestCreatureRespawns();
+    InstanceRepository::QueryGameObjectRespawns();
+    InstanceRepository::QueryInstancesWithResetTime();
+    InstanceRepository::QueryLatestCreatureRespawns();
     InstanceRepository::SetResetTimeNow(1700000400, 5);
-    delete InstanceRepository::QueryInstanceResets();
+    InstanceRepository::QueryInstanceResets();
     InstanceRepository::DeleteInstanceResetNow(33, 9);
     InstanceRepository::SetInstanceResetNow(1700000500, 33, 1);
     InstanceRepository::InsertInstanceResetNow(34, 1, 1700000600);
     InstanceRepository::SetInstanceResetNowUnquoted(1700000700, 34, 1);
-    delete InstanceRepository::QueryInstanceIds();
+    InstanceRepository::QueryInstanceIds();
     CheckLines(db.query.executed, {
         "SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `creature_respawn` LEFT JOIN `instance` ON `instance` = `id`",
         "SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `gameobject_respawn` LEFT JOIN `instance` ON `instance` = `id`",
@@ -190,4 +190,111 @@ TEST(InstanceRepository_CleanupDeletesWhatItSelects)
         "DELETE FROM `gameobject_respawn` WHERE `instance` <> 0 AND `instance` NOT IN (SELECT `id` FROM `instance`)",
         "DELETE FROM instance WHERE id = '9' AND map = '33' AND instance.difficulty = '1'",
     }, __LINE__);
+}
+
+// Each column of a creature respawn time (`creature_respawn`), with its instance's map, difficulty,
+// reset time and encounters when it is in one lands in its member, and the rows come back in order.
+TEST(InstanceRepository_CreatureRespawns)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "4294967297", "1002", "1003", "104", "4294967301", "1006"},
+        FakeRow{"2000", "8589934593", "2002", "2003", "204", "8589934597", "2006"},
+    });
+    std::vector<CreatureRespawnRow> rows = InstanceRepository::QueryCreatureRespawns();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].respawntime, uint64(4294967297ull));
+    CHECK_EQ(rows[0].map, 1002u);
+    CHECK_EQ(rows[0].instance, 1003u);
+    CHECK_EQ(rows[0].difficulty, uint8(104));
+    CHECK_EQ(rows[0].resettime, uint64(4294967301ull));
+    CHECK_EQ(rows[0].encountersMask, 1006u);
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a game object respawn time (`gameobject_respawn`), with its instance's map,
+// difficulty, reset time and encounters when it is in one lands in its member, and the rows come
+// back in order.
+TEST(InstanceRepository_GameObjectRespawns)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "4294967297", "1002", "1003", "104", "4294967301", "1006"},
+        FakeRow{"2000", "8589934593", "2002", "2003", "204", "8589934597", "2006"},
+    });
+    std::vector<GameObjectRespawnRow> rows = InstanceRepository::QueryGameObjectRespawns();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].respawntime, uint64(4294967297ull));
+    CHECK_EQ(rows[0].map, 1002u);
+    CHECK_EQ(rows[0].instance, 1003u);
+    CHECK_EQ(rows[0].difficulty, uint8(104));
+    CHECK_EQ(rows[0].resettime, uint64(4294967301ull));
+    CHECK_EQ(rows[0].encountersMask, 1006u);
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a instance with its map, difficulty and reset time (`instance`) lands in its
+// member, and the rows come back in order.
+TEST(InstanceRepository_InstancesWithResetTime)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "4294967299"},
+        FakeRow{"2000", "2001", "2002", "8589934595"},
+    });
+    std::vector<InstanceResetTimeRow> rows = InstanceRepository::QueryInstancesWithResetTime();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_EQ(rows[0].map, 1001u);
+    CHECK_EQ(rows[0].difficulty, 1002u);
+    CHECK_EQ(rows[0].resettime, uint64(4294967299ull));
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of a instance's latest creature respawn time lands in its member, and the rows come
+// back in order.
+TEST(InstanceRepository_LatestCreatureRespawns)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"4294967296", "1001"},
+        FakeRow{"8589934592", "2001"},
+    });
+    std::vector<LatestCreatureRespawnRow> rows = InstanceRepository::QueryLatestCreatureRespawns();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].latestRespawnTime, uint64(4294967296ull));
+    CHECK_EQ(rows[0].instance, 1001u);
+    CHECK_EQ(rows[1].latestRespawnTime, uint64(8589934592ull));
+}
+
+// Each column of a `instance` row lands in its member, and the rows come back in order.
+TEST(InstanceRepository_InstanceIds)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"},
+        FakeRow{"2000"},
+    });
+    std::vector<InstanceIdRow> rows = InstanceRepository::QueryInstanceIds();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of a `instance_reset` row lands in its member, and the rows come back in order.
+TEST(InstanceRepository_InstanceResets)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "4294967298"},
+        FakeRow{"2000", "2001", "8589934594"},
+    });
+    std::vector<InstanceResetRow> rows = InstanceRepository::QueryInstanceResets();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].mapid, 1000u);
+    CHECK_EQ(rows[0].difficulty, 1001u);
+    CHECK_EQ(rows[0].resettime, uint64(4294967298ull));
+    CHECK_EQ(rows[1].mapid, 2000u);
 }

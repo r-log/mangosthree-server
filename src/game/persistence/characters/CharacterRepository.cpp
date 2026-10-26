@@ -294,10 +294,28 @@ namespace CharacterRepository
         return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryCacheRows()
+    static CharacterCacheRow ReadCharacterCache(Field* fields)
+    {
+        CharacterCacheRow row;
+        row.guid = fields[0].GetUInt32();
+        row.account = fields[1].GetUInt32();
+        row.name = fields[2].GetCppString();
+        row.race = fields[3].GetUInt8();
+        row.classId = fields[4].GetUInt8();
+        row.level = fields[5].GetUInt8();
+        row.zone = fields[6].GetUInt32();
+        row.map = fields[7].GetUInt32();
+        row.positionX = fields[8].GetFloat();
+        row.positionY = fields[9].GetFloat();
+        row.positionZ = fields[10].GetFloat();
+        return row;
+    }
+
+    std::vector<CharacterCacheRow> QueryCacheRows()
     {
         //                                      0       1         2       3       4        5        6       7      8             9             10
-        return CharacterDatabase.Query("SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`");
+        return ReadRows<CharacterCacheRow>(result, ReadCharacterCache);
     }
 
     QueryResult* QueryAccountsOfCharactersNamed(std::string filter)

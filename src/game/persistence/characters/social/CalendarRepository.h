@@ -27,10 +27,8 @@
 #define MANGOS_H_CALENDARREPOSITORY
 
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
-
-class Field;
-class QueryResult;
 
 /// A calendar event's saved row.
 struct CalendarEventRow
@@ -64,16 +62,10 @@ namespace CalendarRepository
 {
     /// Selects every event, ordered by id: id, creator, guild, type, flags, dungeon, time, title,
     /// description.
-    QueryResult* QueryEvents();
-
-    /// Reads one row of the event load.
-    CalendarEventRow ReadEvent(Field* fields);
+    std::vector<CalendarEventRow> QueryEvents();
 
     /// Selects every invite, ordered by id: id, event, invitee, sender, status, last update, rank.
-    QueryResult* QueryInvites();
-
-    /// Reads one row of the invite load.
-    CalendarInviteRow ReadInvite(Field* fields);
+    std::vector<CalendarInviteRow> QueryInvites();
 
     /// Each empties one of the two tables, at startup.
     void TruncateEvents();

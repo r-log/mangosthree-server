@@ -156,7 +156,7 @@ TEST(StartupRepository_Reads)
 {
     Db chars(CharacterDatabase);
     Db world(WorldDatabase);
-    delete GroupRepository::QueryGroupIds();
+    GroupRepository::QueryGroupIds();
     CharacterRepository::QueryHighestGuid();
     SpawnRepository::QueryHighestCreatureGuid();
     ItemRepository::QueryHighestGuid();
@@ -170,7 +170,7 @@ TEST(StartupRepository_Reads)
     GuildRepository::QueryHighestId();
     GroupRepository::QueryHighestId();
     PetRepository::QueryHighestId();
-    delete CorpseRepository::QueryCorpses();
+    CorpseRepository::QueryCorpses();
     CheckLines(chars.query.executed, {
         "SELECT `groupId` FROM `groups`",
         "SELECT MAX(`guid`) FROM `characters`",
@@ -254,12 +254,12 @@ TEST(StartupRepository_CharacterLoads)
     Db db(CharacterDatabase);
     delete ArenaTeamRepository::QueryTeams();
     delete ArenaTeamRepository::QueryTeamMembers();
-    delete GroupRepository::QueryGroups();
-    delete GroupRepository::QueryMembers();
-    delete GroupRepository::QueryInstanceBinds();
-    delete CharacterRepository::QueryCacheRows();
-    delete GuildRepository::QueryMemberRanks();
-    delete ArenaTeamRepository::QueryMemberTeamTypes();
+    GroupRepository::QueryGroups();
+    GroupRepository::QueryMembers();
+    GroupRepository::QueryInstanceBinds();
+    CharacterRepository::QueryCacheRows();
+    GuildRepository::QueryMemberRanks();
+    ArenaTeamRepository::QueryMemberTeamTypes();
     CheckLines(db.query.executed, {
         "SELECT `arena_team`.`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`, `rating`,`games_week`,`wins_week`,`games_season`,`wins_season`,`rank` FROM `arena_team` LEFT JOIN `arena_team_stats` ON `arena_team`.`arenateamid` = `arena_team_stats`.`arenateamid` ORDER BY `arena_team`.`arenateamid` ASC",
         "SELECT `arenateamid`,`member`.`guid`,`played_week`,`wons_week`,`played_season`,`wons_season`,`personal_rating`,`name`,`class` FROM `arena_team_member` member LEFT JOIN `characters` chars on member.`guid` = chars.`guid` ORDER BY member.`arenateamid` ASC",

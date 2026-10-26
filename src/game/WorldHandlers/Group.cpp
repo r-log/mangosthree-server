@@ -70,6 +70,8 @@
 #include "persistence/characters/social/GroupRepository.h"
 #include <atomic>
 
+static_assert(int(GROUP_DATA_ROW_ICONS) == int(TARGET_ICON_COUNT), "a group row holds every target icon");
+
 #define LOOT_ROLL_TIMEOUT  (1*MINUTE*IN_MILLISECONDS)
 
 static_assert(int(GROUP_ROW_TARGET_ICONS) == int(TARGET_ICON_COUNT), "the saved group row's target icons");
@@ -250,13 +252,10 @@ bool Group::Create(ObjectGuid guid, const char* name)
  * @param fields The database fields containing group metadata.
  * @return true if the group data was loaded successfully; otherwise false.
  */
-bool Group::LoadGroupFromDB(Field* fields)
+bool Group::LoadGroupFromDB(GroupDataRow const& row)
 {
-    //                                           0           1                2             3             4                5        6        7        8        9        10       11       12       13           14            15                16            17
-    // result = CharacterDatabase.Query("SELECT `mainTank`, `mainAssistant`, `lootMethod`, `looterGuid`, `lootThreshold`, `icon1`, `icon2`, `icon3`, `icon4`, `icon5`, `icon6`, `icon7`, `icon8`, `groupType`, `difficulty`, `raiddifficulty`, `leaderGuid`, `groupId` FROM `groups`");
-
-    m_Id = fields[17].GetUInt32();
-    m_leaderGuid = ObjectGuid(HIGHGUID_PLAYER, fields[16].GetUInt32());
+    m_Id = row.groupId;
+    m_leaderGuid = ObjectGuid(HIGHGUID_PLAYER, row.leaderGuid);
 
     // group leader not exist
     if (!sObjectMgr.GetPlayerNameByGUID(m_leaderGuid, m_leaderName))
@@ -264,36 +263,36 @@ bool Group::LoadGroupFromDB(Field* fields)
         return false;
     }
 
-    m_groupType  = GroupType(fields[13].GetUInt8());
+    m_groupType  = GroupType(row.groupType);
 
     if (m_groupType & GROUPTYPE_RAID)
     {
         _initRaidSubGroupsCounter();
     }
 
-    uint32 diff = fields[14].GetUInt8();
+    uint32 diff = row.difficulty;
     if (diff >= MAX_DUNGEON_DIFFICULTY)
     {
         diff = DUNGEON_DIFFICULTY_NORMAL;
     }
     m_dungeonDifficulty = Difficulty(diff);
 
-    uint32 r_diff = fields[15].GetUInt8();
+    uint32 r_diff = row.raidDifficulty;
     if (r_diff >= MAX_RAID_DIFFICULTY)
     {
         r_diff = RAID_DIFFICULTY_10MAN_NORMAL;
     }
     m_raidDifficulty = Difficulty(r_diff);
 
-    m_mainTankGuid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-    m_mainAssistantGuid = ObjectGuid(HIGHGUID_PLAYER, fields[1].GetUInt32());
-    m_lootMethod = LootMethod(fields[2].GetUInt8());
-    m_looterGuid = ObjectGuid(HIGHGUID_PLAYER, fields[3].GetUInt32());
-    m_lootThreshold = ItemQualities(fields[4].GetUInt16());
+    m_mainTankGuid = ObjectGuid(HIGHGUID_PLAYER, row.mainTank);
+    m_mainAssistantGuid = ObjectGuid(HIGHGUID_PLAYER, row.mainAssistant);
+    m_lootMethod = LootMethod(row.lootMethod);
+    m_looterGuid = ObjectGuid(HIGHGUID_PLAYER, row.looterGuid);
+    m_lootThreshold = ItemQualities(row.lootThreshold);
 
     for (int i = 0; i < TARGET_ICON_COUNT; ++i)
     {
-        m_targetIcons[i] = ObjectGuid(fields[5 + i].GetUInt64());
+        m_targetIcons[i] = ObjectGuid(row.icons[i]);
     }
 
     return true;

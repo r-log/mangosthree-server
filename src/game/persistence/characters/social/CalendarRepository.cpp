@@ -25,15 +25,11 @@
 
 #include "CalendarRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace CalendarRepository
 {
-    QueryResult* QueryEvents()
-    {
-        return CharacterDatabase.Query("SELECT `eventId`, `creatorGuid`, `guildId`, `type`, `flags`, `dungeonId`, `eventTime`, `title`, `description` FROM `calendar_events` ORDER BY `eventId`");
-    }
-
-    CalendarEventRow ReadEvent(Field* fields)
+    static CalendarEventRow ReadEvent(Field* fields)
     {
         CalendarEventRow row;
         row.eventId     = fields[0].GetUInt64();
@@ -48,12 +44,13 @@ namespace CalendarRepository
         return row;
     }
 
-    QueryResult* QueryInvites()
+    std::vector<CalendarEventRow> QueryEvents()
     {
-        return CharacterDatabase.Query("SELECT `inviteId`, `eventId`, `inviteeGuid`, `senderGuid`, `status`, `lastUpdateTime`, `rank` FROM `calendar_invites` ORDER BY `inviteId`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `eventId`, `creatorGuid`, `guildId`, `type`, `flags`, `dungeonId`, `eventTime`, `title`, `description` FROM `calendar_events` ORDER BY `eventId`");
+        return ReadRows<CalendarEventRow>(result, ReadEvent);
     }
 
-    CalendarInviteRow ReadInvite(Field* fields)
+    static CalendarInviteRow ReadInvite(Field* fields)
     {
         CalendarInviteRow row;
         row.inviteId       = fields[0].GetUInt64();
@@ -64,6 +61,12 @@ namespace CalendarRepository
         row.lastUpdateTime = fields[5].GetUInt32();
         row.rank           = fields[6].GetUInt8();
         return row;
+    }
+
+    std::vector<CalendarInviteRow> QueryInvites()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `inviteId`, `eventId`, `inviteeGuid`, `senderGuid`, `status`, `lastUpdateTime`, `rank` FROM `calendar_invites` ORDER BY `inviteId`");
+        return ReadRows<CalendarInviteRow>(result, ReadInvite);
     }
 
     void TruncateEvents()

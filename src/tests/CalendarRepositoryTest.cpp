@@ -84,9 +84,14 @@ namespace
 
 TEST(CalendarRepository_ReadsTheEventAndTheInviteRows)
 {
-    FakeQueryResult events(FakeRows{FakeRow{"31", "7", "0", "2", "64", "-1", "1700000000", "Raid night", "Bring flasks"}});
-    REQUIRE(events.NextRow());
-    CalendarEventRow event = CalendarRepository::ReadEvent(events.Fetch());
+    std::vector<CalendarEventRow> events;
+    {
+        Db db;
+        db.query.Answer("SELECT", FakeRows{FakeRow{"31", "7", "0", "2", "64", "-1", "1700000000", "Raid night", "Bring flasks"}});
+        events = CalendarRepository::QueryEvents();
+    }
+    REQUIRE(events.size() == 1);
+    CalendarEventRow const& event = events[0];
     CHECK(event.eventId == 31u);
     CHECK_EQ(event.creatorGuid, 7u);
     CHECK_EQ(event.guildId, 0u);
@@ -97,9 +102,14 @@ TEST(CalendarRepository_ReadsTheEventAndTheInviteRows)
     CHECK_STR(event.title, "Raid night");
     CHECK_STR(event.description, "Bring flasks");
 
-    FakeQueryResult invites(FakeRows{FakeRow{"90", "31", "42", "7", "1", "1699990000", "2"}});
-    REQUIRE(invites.NextRow());
-    CalendarInviteRow invite = CalendarRepository::ReadInvite(invites.Fetch());
+    std::vector<CalendarInviteRow> invites;
+    {
+        Db db;
+        db.query.Answer("SELECT", FakeRows{FakeRow{"90", "31", "42", "7", "1", "1699990000", "2"}});
+        invites = CalendarRepository::QueryInvites();
+    }
+    REQUIRE(invites.size() == 1);
+    CalendarInviteRow const& invite = invites[0];
     CHECK(invite.inviteId == 90u);
     CHECK(invite.eventId == 31u);
     CHECK_EQ(invite.inviteeGuid, 42u);

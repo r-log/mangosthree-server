@@ -56,6 +56,8 @@
 #include "GridDefines.h"
 #include "LootMgr.h"
 
+struct CorpseDataRow;
+
 /// @brief Corpse type enumeration.
 ///
 /// Indicates what state the corpse is in and under what resurrection rules.
@@ -101,7 +103,7 @@ class Corpse : public WorldObject
         bool Create(uint32 guidlow, Player* owner);
 
         void SaveToDB();
-        bool LoadFromDB(uint32 guid, Field* fields);
+        bool LoadFromDB(uint32 guid, CorpseDataRow const& row);
 
         void DeleteBonesFromWorld();
         void DeleteFromDB();

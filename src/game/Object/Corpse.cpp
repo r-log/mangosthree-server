@@ -201,22 +201,19 @@ void Corpse::DeleteFromDB()
  * @param fields The database fields containing corpse data.
  * @return true if the corpse was loaded successfully; otherwise, false.
  */
-bool Corpse::LoadFromDB(uint32 lowguid, Field* fields)
+bool Corpse::LoadFromDB(uint32 lowguid, CorpseDataRow const& row)
 {
-    // fields: 0 guid, 1 player, 2-5 position and orientation, 6 map, 7 time, 8 corpse_type, 9 instance,
-    // 10 phaseMask, 11 gender, 12 race, 13 class, 14 playerBytes, 15 playerBytes2, 16 equipmentCache,
-    // 17 guildId, 18 playerFlags
-    uint32 playerLowGuid = fields[1].GetUInt32();
-    float positionX     = fields[2].GetFloat();
-    float positionY     = fields[3].GetFloat();
-    float positionZ     = fields[4].GetFloat();
-    float orientation   = fields[5].GetFloat();
-    uint32 mapid        = fields[6].GetUInt32();
+    uint32 playerLowGuid = row.player;
+    float positionX     = row.positionX;
+    float positionY     = row.positionY;
+    float positionZ     = row.positionZ;
+    float orientation   = row.orientation;
+    uint32 mapid        = row.map;
 
     Object::_Create(lowguid, 0, HIGHGUID_CORPSE);
 
-    m_time = time_t(fields[7].GetUInt64());
-    m_type = CorpseType(fields[8].GetUInt32());
+    m_time = time_t(row.time);
+    m_type = CorpseType(row.corpseType);
 
     if (m_type >= MAX_CORPSE_TYPE)
     {
@@ -224,15 +221,15 @@ bool Corpse::LoadFromDB(uint32 lowguid, Field* fields)
         return false;
     }
 
-    uint32 instanceid   = fields[9].GetUInt32();
-    uint32 phaseMask    = fields[10].GetUInt32();
-    uint8 gender        = fields[11].GetUInt8();
-    uint8 race          = fields[12].GetUInt8();
-    uint8 _class        = fields[13].GetUInt8();
-    uint32 playerBytes  = fields[14].GetUInt32();
-    uint32 playerBytes2 = fields[15].GetUInt32();
-    uint32 guildId      = fields[17].GetUInt32();
-    uint32 playerFlags  = fields[18].GetUInt32();
+    uint32 instanceid   = row.instance;
+    uint32 phaseMask    = row.phaseMask;
+    uint8 gender        = row.gender;
+    uint8 race          = row.race;
+    uint8 _class        = row.classId;
+    uint32 playerBytes  = row.playerBytes;
+    uint32 playerBytes2 = row.playerBytes2;
+    uint32 guildId      = row.guildId;
+    uint32 playerFlags  = row.playerFlags;
 
     ObjectGuid guid = ObjectGuid(HIGHGUID_CORPSE, lowguid);
     ObjectGuid playerGuid = ObjectGuid(HIGHGUID_PLAYER, playerLowGuid);
@@ -252,7 +249,7 @@ bool Corpse::LoadFromDB(uint32 lowguid, Field* fields)
     SetUInt32Value(CORPSE_FIELD_DISPLAY_ID, gender == GENDER_FEMALE ? info->displayId_f : info->displayId_m);
 
     // Load equipment
-    Tokens data = StrSplit(fields[16].GetCppString(), " ");
+    Tokens data = StrSplit(row.equipmentCache, " ");
     for (uint8 slot = 0; slot < EQUIPMENT_SLOT_END; ++slot)
     {
         uint32 visualbase = slot * 2;

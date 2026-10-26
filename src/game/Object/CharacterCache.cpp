@@ -251,24 +251,22 @@ void CharacterCache::LoadFromDB()
     // key). The name index below keeps the FIRST row it sees for a name, so the rows have
     // to arrive in guid order for "first" to mean what the old answer meant. `guid` is the
     // primary key, so this is an index scan, not a sort.
-    QueryResult* result = CharacterRepository::QueryCacheRows();
-    if (result)
+    std::vector<CharacterCacheRow> cacheRows = CharacterRepository::QueryCacheRows();
+    if (!cacheRows.empty())
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(cacheRows.size());
+        for (CharacterCacheRow const& row : cacheRows)
         {
             bar.step();
 
-            Field* fields = result->Fetch();
-
             std::shared_ptr<CharacterCacheEntry> entry = std::make_shared<CharacterCacheEntry>();
-            entry->guid        = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-            entry->accountId   = fields[1].GetUInt32();
-            entry->name        = fields[2].GetCppString();
-            entry->race        = fields[3].GetUInt8();
-            entry->playerClass = fields[4].GetUInt8();
-            entry->level       = fields[5].GetUInt8();
-            entry->zoneId      = fields[6].GetUInt32();
+            entry->guid        = ObjectGuid(HIGHGUID_PLAYER, row.guid);
+            entry->accountId   = row.account;
+            entry->name        = row.name;
+            entry->race        = row.race;
+            entry->playerClass = row.classId;
+            entry->level       = row.level;
+            entry->zoneId      = row.zone;
 
             if (!entry->zoneId)
             {
@@ -276,10 +274,10 @@ void CharacterCache::LoadFromDB()
                 // recomputes the zone from it when the stored one is zero. Kept for those
                 // rows alone, and dropped as soon as one is repaired.
                 Position where;
-                where.mapId = fields[7].GetUInt32();
-                where.x     = fields[8].GetFloat();
-                where.y     = fields[9].GetFloat();
-                where.z     = fields[10].GetFloat();
+                where.mapId = row.map;
+                where.x     = row.positionX;
+                where.y     = row.positionY;
+                where.z     = row.positionZ;
                 m_zoneless[entry->guid] = where;
             }
 
@@ -295,9 +293,6 @@ void CharacterCache::LoadFromDB()
             m_entries[entry->guid] = entry;
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
     }
     else
     {
@@ -306,56 +301,46 @@ void CharacterCache::LoadFromDB()
     }
 
     uint32 guildMembers = 0;
-    result = GuildRepository::QueryMemberRanks();
-    if (result)
+    std::vector<GuildMemberRankRow> memberRanks = GuildRepository::QueryMemberRanks();
+    if (!memberRanks.empty())
     {
-        do
+        for (GuildMemberRankRow const& rowRow : memberRanks)
         {
-            Field* fields = result->Fetch();
-
-            const ObjectGuid guid(HIGHGUID_PLAYER, fields[0].GetUInt32());
+            const ObjectGuid guid(HIGHGUID_PLAYER, rowRow.guid);
             EntryMap::const_iterator itr = m_entries.find(guid);
             if (itr == m_entries.end())
             {
                 continue;                                   // a guild row with no character
             }
 
-            itr->second->guildId   = fields[1].GetUInt32();
-            itr->second->guildRank = fields[2].GetUInt32();
+            itr->second->guildId   = rowRow.guildid;
+            itr->second->guildRank = rowRow.rank;
             ++guildMembers;
         }
-        while (result->NextRow());
-
-        delete result;
     }
 
     uint32 arenaMembers = 0;
-    result = ArenaTeamRepository::QueryMemberTeamTypes();
-    if (result)
+    std::vector<ArenaTeamMemberTypeRow> memberTeamTypes = ArenaTeamRepository::QueryMemberTeamTypes();
+    if (!memberTeamTypes.empty())
     {
-        do
+        for (ArenaTeamMemberTypeRow const& row : memberTeamTypes)
         {
-            Field* fields = result->Fetch();
-
-            const ObjectGuid guid(HIGHGUID_PLAYER, fields[0].GetUInt32());
+            const ObjectGuid guid(HIGHGUID_PLAYER, row.guid);
             EntryMap::const_iterator itr = m_entries.find(guid);
             if (itr == m_entries.end())
             {
                 continue;                                   // an arena row with no character
             }
 
-            const uint8 slot = ArenaTeam::GetSlotByType(ArenaType(fields[2].GetUInt32()));
+            const uint8 slot = ArenaTeam::GetSlotByType(ArenaType(row.type));
             if (slot >= CHARACTER_CACHE_ARENA_SLOTS)
             {
                 continue;                                   // GetSlotByType has already logged it
             }
 
-            itr->second->arenaTeamId[slot] = fields[1].GetUInt32();
+            itr->second->arenaTeamId[slot] = row.arenateamid;
             ++arenaMembers;
         }
-        while (result->NextRow());
-
-        delete result;
     }
 
     sLog.outString(">> Loaded %u characters into the character cache (%u guild, %u arena memberships)",

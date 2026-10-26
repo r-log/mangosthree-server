@@ -27,10 +27,8 @@
 #define MANGOS_H_TICKETREPOSITORY
 
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
-
-class Field;
-class QueryResult;
 
 /// The number of answers a saved GM survey holds.
 enum
@@ -70,10 +68,7 @@ namespace TicketRepository
     uint32 ReadAutoIncrementNext();
 
     /// Selects every open ticket, ordered by id: owner, text, response, last change, id.
-    QueryResult* QueryOpenTickets();
-
-    /// Reads one row of the open ticket load.
-    GMTicketRow ReadTicket(Field* fields);
+    std::vector<GMTicketRow> QueryOpenTickets();
 
     /// Inserts a new ticket's row with its id, the text bound.
     void Insert(uint32 ticketId, uint32 guid, char const* text);

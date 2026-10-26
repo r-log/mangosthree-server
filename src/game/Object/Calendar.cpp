@@ -696,8 +696,8 @@ void CalendarMgr::LoadCalendarsFromDB()
 
     sLog.outString("Loading Calendar Events...");
 
-    QueryResult* eventsQuery = CalendarRepository::QueryEvents();
-    if (!eventsQuery)
+    std::vector<CalendarEventRow> events = CalendarRepository::QueryEvents();
+    if (events.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -706,10 +706,9 @@ void CalendarMgr::LoadCalendarsFromDB()
     }
     else
     {
-        BarGoLink bar(eventsQuery->GetRowCount());
-        do
+        BarGoLink bar(events.size());
+        for (CalendarEventRow const& row : events)
         {
-            CalendarEventRow const row = CalendarRepository::ReadEvent(eventsQuery->Fetch());
             bar.step();
 
             uint64 eventId         = row.eventId;
@@ -728,16 +727,14 @@ void CalendarMgr::LoadCalendarsFromDB()
 
             m_MaxEventId = std::max(eventId, m_MaxEventId);
         }
-        while (eventsQuery->NextRow());
 
         sLog.outString();
-        sLog.outString(">> Loaded %u events!", uint32(eventsQuery->GetRowCount()));
-        delete eventsQuery;
+        sLog.outString(">> Loaded %u events!", uint32(events.size()));
     }
 
     sLog.outString("Loading Calendar invites...");
-    QueryResult* invitesQuery = CalendarRepository::QueryInvites();
-    if (!invitesQuery)
+    std::vector<CalendarInviteRow> invites = CalendarRepository::QueryInvites();
+    if (invites.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -762,10 +759,9 @@ void CalendarMgr::LoadCalendarsFromDB()
         {
             uint64 totalInvites = 0;
             uint32 deletedInvites = 0;
-            BarGoLink bar(invitesQuery->GetRowCount());
-            do
+            BarGoLink bar(invites.size());
+            for (CalendarInviteRow const& row : invites)
             {
-                CalendarInviteRow const row = CalendarRepository::ReadInvite(invitesQuery->Fetch());
                 bar.step();
 
                 uint64 inviteId             = row.inviteId;
@@ -790,7 +786,6 @@ void CalendarMgr::LoadCalendarsFromDB()
                 ++totalInvites;
                 m_MaxInviteId = std::max(inviteId, m_MaxInviteId);
             }
-            while (invitesQuery->NextRow());
             sLog.outString();
             sLog.outString(">> Loaded " UI64FMTD " invites! %s", totalInvites, (deletedInvites != 0) ? "(deleted some invites without corresponding event!)" : "");
         }
@@ -800,7 +795,6 @@ void CalendarMgr::LoadCalendarsFromDB()
             CalendarRepository::TruncateInvites();
             sLog.outString(">> calendar_invites table is cleared! (invites without events found)");
         }
-        delete invitesQuery;
     }
     sLog.outString();
 }

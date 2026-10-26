@@ -28,6 +28,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 
 class QueryResult;
@@ -47,6 +48,25 @@ struct GuildRow
     uint32 borderColor = 0;
     uint32 backgroundColor = 0;
     uint64 bankMoney = 0;
+};
+
+/// One `guild_eventlog` row.
+struct GuildEventLogRow
+{
+    uint32 logGuid = 0;
+    uint8 eventType = 0;
+    uint32 playerGuid1 = 0;
+    uint32 playerGuid2 = 0;
+    uint8 newRank = 0;
+    uint64 timeStamp = 0;
+};
+
+/// One `guild_member` row.
+struct GuildMemberRankRow
+{
+    uint32 guid = 0;
+    uint32 guildid = 0;
+    uint32 rank = 0;
 };
 
 /// The guilds' saved rows (`guild`, `guild_member`, `guild_rank`, `guild_bank_right`, `guild_eventlog`,
@@ -70,7 +90,7 @@ namespace GuildRepository
     QueryResult* QueryBankRights();
 
     /// Selects a guild's latest events, newest first: log guid, type, the two players, rank, time.
-    QueryResult* QueryEventLog(uint32 guildId, uint32 maxRecords);
+    std::vector<GuildEventLogRow> QueryEventLog(uint32 guildId, uint32 maxRecords);
 
     /// Each deletes the event log rows above the configured count, at startup.
     void TrimEventLog(uint32 count);
@@ -142,7 +162,7 @@ namespace GuildRepository
     std::optional<uint32> QueryHighestId();
 
     /// Selects every guild member's guild and rank, at start-up.
-    QueryResult* QueryMemberRanks();
+    std::vector<GuildMemberRankRow> QueryMemberRanks();
 }
 
 #endif

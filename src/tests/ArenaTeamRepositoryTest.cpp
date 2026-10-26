@@ -223,3 +223,20 @@ TEST(ArenaTeamRepository_DisbandAndSaveAreTransactions)
     }, __LINE__);
     CHECK_EQ(db.query.executed.size(), size_t(0));
 }
+
+// Each column of a arena team member (`arena_team_member`), with its team's type lands in its
+// member, and the rows come back in order.
+TEST(ArenaTeamRepository_MemberTeamTypes)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002"},
+        FakeRow{"2000", "2001", "2002"},
+    });
+    std::vector<ArenaTeamMemberTypeRow> rows = ArenaTeamRepository::QueryMemberTeamTypes();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].arenateamid, 1001u);
+    CHECK_EQ(rows[0].type, 1002u);
+    CHECK_EQ(rows[1].guid, 2000u);
+}

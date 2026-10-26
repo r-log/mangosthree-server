@@ -34,17 +34,13 @@ namespace AuctionRepository
         return CharacterDatabase.Query("SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`");
     }
 
-    QueryResult* QueryAuctionCount()
+    std::optional<uint32> QueryAuctionCount()
     {
-        return CharacterDatabase.Query("SELECT COUNT(*) FROM `auction`");
+        QueryResult* result = CharacterDatabase.Query("SELECT COUNT(*) FROM `auction`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryAuctions()
-    {
-        return CharacterDatabase.Query("SELECT `id`,`houseid`,`itemguid`,`item_template`,`item_count`,`item_randompropertyid`,`itemowner`,`buyoutprice`,`time`,`moneyTime`,`buyguid`,`lastbid`,`startbid`,`deposit` FROM `auction`");
-    }
-
-    AuctionRow ReadAuction(Field* fields)
+    static AuctionRow ReadAuction(Field* fields)
     {
         AuctionRow row;
         row.id                   = fields[0].GetUInt32();
@@ -62,6 +58,12 @@ namespace AuctionRepository
         row.startBid             = fields[12].GetUInt64();
         row.deposit              = fields[13].GetUInt64();
         return row;
+    }
+
+    std::vector<AuctionRow> QueryAuctions()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `id`,`houseid`,`itemguid`,`item_template`,`item_count`,`item_randompropertyid`,`itemowner`,`buyoutprice`,`time`,`moneyTime`,`buyguid`,`lastbid`,`startbid`,`deposit` FROM `auction`");
+        return ReadRows<AuctionRow>(result, ReadAuction);
     }
 
     void SetItemData(uint32 itemGuid, uint32 itemTemplate, uint32 itemCount, int32 itemRandomPropertyId)

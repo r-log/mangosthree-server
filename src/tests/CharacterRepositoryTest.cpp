@@ -395,3 +395,29 @@ TEST(CharacterRepository_AccountManagerStatements)
     LoginDatabase.ProcessResultQueue();
     CHECK_EQ(answered, 1);
 }
+
+// Each column of a `characters` row lands in its member, and the rows come back in order.
+TEST(CharacterRepository_CacheRows)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "s1.2", "103", "104", "105", "1006", "1007", "1008.5", "1009.5",
+            "1010.5"},
+        FakeRow{"2000", "2001", "s2.2", "203", "204", "205", "2006", "2007", "2008.5", "2009.5",
+            "2010.5"},
+    });
+    std::vector<CharacterCacheRow> rows = CharacterRepository::QueryCacheRows();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].account, 1001u);
+    CHECK_STR(rows[0].name, "s1.2");
+    CHECK_EQ(rows[0].race, uint8(103));
+    CHECK_EQ(rows[0].classId, uint8(104));
+    CHECK_EQ(rows[0].level, uint8(105));
+    CHECK_EQ(rows[0].zone, 1006u);
+    CHECK_EQ(rows[0].map, 1007u);
+    CHECK_EQ(rows[0].positionX, 1008.5f);
+    CHECK_EQ(rows[0].positionY, 1009.5f);
+    CHECK_EQ(rows[0].positionZ, 1010.5f);
+    CHECK_EQ(rows[1].guid, 2000u);
+}

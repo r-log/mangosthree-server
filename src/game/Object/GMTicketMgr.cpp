@@ -195,9 +195,9 @@ void GMTicketMgr::LoadGMTickets()
 
     m_highestTicketId = std::max(highestRow, autoIncrementNext ? autoIncrementNext - 1 : 0u);
 
-    QueryResult* result = TicketRepository::QueryOpenTickets();
+    std::vector<GMTicketRow> tickets = TicketRepository::QueryOpenTickets();
 
-    if (!result)
+    if (tickets.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -206,13 +206,11 @@ void GMTicketMgr::LoadGMTickets()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(tickets.size());
 
-    do
+    for (GMTicketRow const& row : tickets)
     {
         bar.step();
-
-        GMTicketRow const row = TicketRepository::ReadTicket(result->Fetch());
 
         uint32 guidlow = row.guid;
         if (!guidlow)
@@ -226,8 +224,6 @@ void GMTicketMgr::LoadGMTickets()
         ticket.Init(guid, row.text, row.responseText, time_t(row.lastChange), row.ticketId);
         m_GMTicketIdMap[ticket.GetId()] = &ticket;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString(">> Loaded %zu GM tickets", GetTicketCount());
     sLog.outString();

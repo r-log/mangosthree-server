@@ -148,3 +148,40 @@ TEST(GuildBankRepository_SingleWrites)
         "UPDATE `guild_bank_eventlog` SET `TabId`='100' WHERE `guildid`='3' AND `TabId`='1' AND `LogGuid`='8'",
     }, __LINE__);
 }
+
+// Each column of a `guild_bank_tab` row lands in its member, and the rows come back in order.
+TEST(GuildBankRepository_Tabs)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"100", "s1.1", "s1.2", "s1.3"},
+        FakeRow{"200", "s2.1", "s2.2", "s2.3"},
+    });
+    std::vector<GuildBankTabRow> rows = GuildBankRepository::QueryTabs(1);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].tabId, uint8(100));
+    CHECK_STR(rows[0].tabName, "s1.1");
+    CHECK_STR(rows[0].tabIcon, "s1.2");
+    CHECK_STR(rows[0].tabText, "s1.3");
+    CHECK_EQ(rows[1].tabId, uint8(200));
+}
+
+// Each column of a `guild_bank_eventlog` row lands in its member, and the rows come back in order.
+TEST(GuildBankRepository_EventLog)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "101", "1002", "1003", "104", "105", "4294967302"},
+        FakeRow{"2000", "201", "2002", "2003", "204", "205", "8589934598"},
+    });
+    std::vector<GuildBankEventLogRow> rows = GuildBankRepository::QueryEventLog(1, 1, 1);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].logGuid, 1000u);
+    CHECK_EQ(rows[0].eventType, uint8(101));
+    CHECK_EQ(rows[0].playerGuid, 1002u);
+    CHECK_EQ(rows[0].itemOrMoney, 1003u);
+    CHECK_EQ(rows[0].itemStackCount, uint8(104));
+    CHECK_EQ(rows[0].destTabId, uint8(105));
+    CHECK_EQ(rows[0].timeStamp, uint64(4294967302ull));
+    CHECK_EQ(rows[1].logGuid, 2000u);
+}

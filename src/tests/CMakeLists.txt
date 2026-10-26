@@ -112,6 +112,7 @@ set(SRC_GRP_TESTS
     GameEventDataRepositoryTest.cpp
     PoolDataRepositoryTest.cpp
     WaypointRepositoryTest.cpp
+    CorpseRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

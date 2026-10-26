@@ -25,6 +25,7 @@
 
 #include "TicketRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace TicketRepository
 {
@@ -50,12 +51,7 @@ namespace TicketRepository
         return autoIncrementNext;
     }
 
-    QueryResult* QueryOpenTickets()
-    {
-        return CharacterDatabase.Query("SELECT `guid`, `ticket_text`, `response_text`, UNIX_TIMESTAMP(`ticket_lastchange`), `ticket_id` FROM `character_ticket` WHERE `resolved` = 0 ORDER BY `ticket_id` ASC");
-    }
-
-    GMTicketRow ReadTicket(Field* fields)
+    static GMTicketRow ReadTicket(Field* fields)
     {
         GMTicketRow row;
         row.guid         = fields[0].GetUInt32();
@@ -64,6 +60,12 @@ namespace TicketRepository
         row.lastChange   = fields[3].GetUInt64();
         row.ticketId     = fields[4].GetUInt32();
         return row;
+    }
+
+    std::vector<GMTicketRow> QueryOpenTickets()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `ticket_text`, `response_text`, UNIX_TIMESTAMP(`ticket_lastchange`), `ticket_id` FROM `character_ticket` WHERE `resolved` = 0 ORDER BY `ticket_id` ASC");
+        return ReadRows<GMTicketRow>(result, ReadTicket);
     }
 
     void Insert(uint32 ticketId, uint32 guid, char const* text)

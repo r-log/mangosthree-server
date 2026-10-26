@@ -155,9 +155,17 @@ namespace GroupRepository
                                    leaderGuid, instanceId);
     }
 
-    QueryResult* QueryGroupIds()
+    static GroupIdRow ReadGroupId(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `groupId` FROM `groups`");
+        GroupIdRow row;
+        row.groupId = fields[0].GetUInt32();
+        return row;
+    }
+
+    std::vector<GroupIdRow> QueryGroupIds()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `groupId` FROM `groups`");
+        return ReadRows<GroupIdRow>(result, ReadGroupId);
     }
 
     void DeleteInvalidGroup(uint32 groupId)
@@ -182,16 +190,49 @@ namespace GroupRepository
         return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryGroups()
+    static GroupDataRow ReadGroupData(Field* fields)
     {
-        //                                      0           1                2             3             4                5        6        7        8        9        10       11       12       13           14            15                16            17
-        return CharacterDatabase.Query("SELECT `mainTank`, `mainAssistant`, `lootMethod`, `looterGuid`, `lootThreshold`, `icon1`, `icon2`, `icon3`, `icon4`, `icon5`, `icon6`, `icon7`, `icon8`, `groupType`, `difficulty`, `raiddifficulty`, `leaderGuid`, `groupId` FROM `groups`");
+        GroupDataRow row;
+        row.mainTank = fields[0].GetUInt32();
+        row.mainAssistant = fields[1].GetUInt32();
+        row.lootMethod = fields[2].GetUInt8();
+        row.looterGuid = fields[3].GetUInt32();
+        row.lootThreshold = fields[4].GetUInt16();
+        for (int i = 0; i < GROUP_DATA_ROW_ICONS; ++i)
+        {
+            row.icons[i] = fields[5 + i].GetUInt64();
+        }
+        row.groupType = fields[13].GetUInt8();
+        row.difficulty = fields[14].GetUInt8();
+        row.raidDifficulty = fields[15].GetUInt8();
+        row.leaderGuid = fields[16].GetUInt32();
+        row.groupId = fields[17].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryMembers()
+    std::vector<GroupDataRow> QueryGroups()
+    {
+        //                                      0           1                2             3             4                5        6        7        8        9        10       11       12       13           14            15                16            17
+        QueryResult* result = CharacterDatabase.Query("SELECT `mainTank`, `mainAssistant`, `lootMethod`, `looterGuid`, `lootThreshold`, `icon1`, `icon2`, `icon3`, `icon4`, `icon5`, `icon6`, `icon7`, `icon8`, `groupType`, `difficulty`, `raiddifficulty`, `leaderGuid`, `groupId` FROM `groups`");
+        return ReadRows<GroupDataRow>(result, ReadGroupData);
+    }
+
+    static GroupMemberRow ReadGroupMember(Field* fields)
+    {
+        GroupMemberRow row;
+        row.memberGuid = fields[0].GetUInt32();
+        row.assistant = fields[1].GetBool();
+        row.subgroup = fields[2].GetUInt8();
+        row.groupId = fields[3].GetUInt32();
+        row.roles = fields[4].GetUInt8();
+        return row;
+    }
+
+    std::vector<GroupMemberRow> QueryMembers()
     {
         //                                     0             1            2           3          4
-        return CharacterDatabase.Query("SELECT `memberGuid`, `assistant`, `subgroup`, `groupId`, `roles` FROM `group_member` ORDER BY `groupId`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `memberGuid`, `assistant`, `subgroup`, `groupId`, `roles` FROM `group_member` ORDER BY `groupId`");
+        return ReadRows<GroupMemberRow>(result, ReadGroupMember);
     }
 
     void DeleteInvalidMember(uint32 memberGuid)
@@ -199,15 +240,31 @@ namespace GroupRepository
         CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `memberGuid` = '%u'", memberGuid);
     }
 
-    QueryResult* QueryInstanceBinds()
+    static GroupInstanceBindRow ReadGroupInstanceBind(Field* fields)
+    {
+        GroupInstanceBindRow row;
+        row.leaderGuid = fields[0].GetUInt32();
+        row.map = fields[1].GetUInt32();
+        row.instance = fields[2].GetUInt32();
+        row.permanent = fields[3].GetBool();
+        row.difficulty = fields[4].GetUInt8();
+        row.resettime = fields[5].GetUInt64();
+        row.leaderPermanentBindCount = fields[6].GetUInt32();
+        row.groupId = fields[7].GetUInt32();
+        row.encountersMask = fields[8].GetUInt32();
+        return row;
+    }
+
+    std::vector<GroupInstanceBindRow> QueryInstanceBinds()
     {
         //                                                       0             1      2           3                       4             5
-        return CharacterDatabase.Query("SELECT `group_instance`.`leaderGuid`, `map`, `instance`, `permanent`, `instance`.`difficulty`, `resettime`, "
-                                       // 6
-                                       "(SELECT COUNT(*) FROM `character_instance` WHERE `guid` = `group_instance`.`leaderGuid` AND `instance` = `group_instance`.`instance` AND `permanent` = 1 LIMIT 1), "
-                                       // 7                              8
-                                       " `groups`.`groupId`, `instance`.`encountersMask` "
-                                       "FROM `group_instance` LEFT JOIN `instance` ON `instance` = `id` LEFT JOIN `groups` ON `groups`.`leaderGUID` = `group_instance`.`leaderGUID` ORDER BY `leaderGuid`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `group_instance`.`leaderGuid`, `map`, `instance`, `permanent`, `instance`.`difficulty`, `resettime`, "
+                                                      // 6
+                                                      "(SELECT COUNT(*) FROM `character_instance` WHERE `guid` = `group_instance`.`leaderGuid` AND `instance` = `group_instance`.`instance` AND `permanent` = 1 LIMIT 1), "
+                                                      // 7                              8
+                                                      " `groups`.`groupId`, `instance`.`encountersMask` "
+                                                      "FROM `group_instance` LEFT JOIN `instance` ON `instance` = `id` LEFT JOIN `groups` ON `groups`.`leaderGUID` = `group_instance`.`leaderGUID` ORDER BY `leaderGuid`");
+        return ReadRows<GroupInstanceBindRow>(result, ReadGroupInstanceBind);
     }
 
     void RepairLeaders()

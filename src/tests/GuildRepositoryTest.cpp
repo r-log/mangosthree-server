@@ -210,3 +210,38 @@ TEST(GuildRepository_Transactions)
     }
     CheckLines(db.Take(), {}, __LINE__);
 }
+
+// Each column of a `guild_eventlog` row lands in its member, and the rows come back in order.
+TEST(GuildRepository_EventLog)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "101", "1002", "1003", "104", "4294967301"},
+        FakeRow{"2000", "201", "2002", "2003", "204", "8589934597"},
+    });
+    std::vector<GuildEventLogRow> rows = GuildRepository::QueryEventLog(1, 1);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].logGuid, 1000u);
+    CHECK_EQ(rows[0].eventType, uint8(101));
+    CHECK_EQ(rows[0].playerGuid1, 1002u);
+    CHECK_EQ(rows[0].playerGuid2, 1003u);
+    CHECK_EQ(rows[0].newRank, uint8(104));
+    CHECK_EQ(rows[0].timeStamp, uint64(4294967301ull));
+    CHECK_EQ(rows[1].logGuid, 2000u);
+}
+
+// Each column of a `guild_member` row lands in its member, and the rows come back in order.
+TEST(GuildRepository_MemberRanks)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002"},
+        FakeRow{"2000", "2001", "2002"},
+    });
+    std::vector<GuildMemberRankRow> rows = GuildRepository::QueryMemberRanks();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].guildid, 1001u);
+    CHECK_EQ(rows[0].rank, 1002u);
+    CHECK_EQ(rows[1].guid, 2000u);
+}

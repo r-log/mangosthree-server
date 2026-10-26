@@ -63,14 +63,40 @@ namespace CorpseRepository
         return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryCorpses()
+    static CorpseDataRow ReadCorpseData(Field* fields)
+    {
+        CorpseDataRow row;
+        row.guid = fields[0].GetUInt32();
+        row.player = fields[1].GetUInt32();
+        row.positionX = fields[2].GetFloat();
+        row.positionY = fields[3].GetFloat();
+        row.positionZ = fields[4].GetFloat();
+        row.orientation = fields[5].GetFloat();
+        row.map = fields[6].GetUInt32();
+        row.time = fields[7].GetUInt64();
+        row.corpseType = fields[8].GetUInt32();
+        row.instance = fields[9].GetUInt32();
+        row.phaseMask = fields[10].GetUInt32();
+        row.gender = fields[11].GetUInt8();
+        row.race = fields[12].GetUInt8();
+        row.classId = fields[13].GetUInt8();
+        row.playerBytes = fields[14].GetUInt32();
+        row.playerBytes2 = fields[15].GetUInt32();
+        row.equipmentCache = fields[16].GetCppString();
+        row.guildId = fields[17].GetUInt32();
+        row.playerFlags = fields[18].GetUInt32();
+        return row;
+    }
+
+    std::vector<CorpseDataRow> QueryCorpses()
     {
         //                                     0            1       2                  3                  4                  5                   6
-        return CharacterDatabase.Query("SELECT `corpse`.`guid`, `player`, `corpse`.`position_x`, `corpse`.`position_y`, `corpse`.`position_z`, `corpse`.`orientation`, `corpse`.`map`, "
-                                       //   7     8             9           10           11        12      13       14             15              16                17         18
-                                       "`time`, `corpse_type`, `instance`, `phaseMask`, `gender`, `race`, `class`, `playerBytes`, `playerBytes2`, `equipmentCache`, `guildId`, `playerFlags` FROM `corpse` "
-                                       "JOIN `characters` ON `player` = `characters`.`guid` "
-                                       "LEFT JOIN `guild_member` ON `player`=`guild_member`.`guid` WHERE `corpse_type` <> 0");
+        QueryResult* result = CharacterDatabase.Query("SELECT `corpse`.`guid`, `player`, `corpse`.`position_x`, `corpse`.`position_y`, `corpse`.`position_z`, `corpse`.`orientation`, `corpse`.`map`, "
+                                                      //   7     8             9           10           11        12      13       14             15              16                17         18
+                                                      "`time`, `corpse_type`, `instance`, `phaseMask`, `gender`, `race`, `class`, `playerBytes`, `playerBytes2`, `equipmentCache`, `guildId`, `playerFlags` FROM `corpse` "
+                                                      "JOIN `characters` ON `player` = `characters`.`guid` "
+                                                      "LEFT JOIN `guild_member` ON `player`=`guild_member`.`guid` WHERE `corpse_type` <> 0");
+        return ReadRows<CorpseDataRow>(result, ReadCorpseData);
     }
 
     void DeleteBonesAndOldCorpses(uint32 maxAge)

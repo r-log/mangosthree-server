@@ -29,8 +29,7 @@
 #include "Platform/Define.h"
 
 #include <optional>
-
-class QueryResult;
+#include <vector>
 
 /// The number of target icons a saved group row holds.
 enum
@@ -52,6 +51,59 @@ struct GroupRow
     uint32 groupType = 0;
     uint32 difficulty = 0;
     uint32 raidDifficulty = 0;
+};
+
+/// One `groups` row.
+struct GroupIdRow
+{
+    uint32 groupId = 0;
+};
+
+/// One `group_member` row.
+struct GroupMemberRow
+{
+    uint32 memberGuid = 0;
+    bool assistant = false;
+    uint8 subgroup = 0;
+    uint32 groupId = 0;
+    uint8 roles = 0;
+};
+
+/// One group instance bind (`group_instance`), with its instance and group, and how many permanent
+/// binds the leader holds to the instance.
+struct GroupInstanceBindRow
+{
+    uint32 leaderGuid = 0;
+    uint32 map = 0;
+    uint32 instance = 0;
+    bool permanent = false;
+    uint8 difficulty = 0;
+    uint64 resettime = 0;
+    uint32 leaderPermanentBindCount = 0;
+    uint32 groupId = 0;
+    uint32 encountersMask = 0;
+};
+
+enum
+{
+    /// The target icons a group row holds (`icon1` to `icon8`).
+    GROUP_DATA_ROW_ICONS = 8
+};
+
+/// One `groups` row as the group load reads it.
+struct GroupDataRow
+{
+    uint32 mainTank = 0;
+    uint32 mainAssistant = 0;
+    uint8 lootMethod = 0;
+    uint32 looterGuid = 0;
+    uint16 lootThreshold = 0;
+    uint64 icons[GROUP_DATA_ROW_ICONS] = {};
+    uint8 groupType = 0;
+    uint8 difficulty = 0;
+    uint8 raidDifficulty = 0;
+    uint32 leaderGuid = 0;
+    uint32 groupId = 0;
 };
 
 /// The groups' saved rows (`groups`, `group_member`, `group_instance`). The start-up reads run
@@ -107,7 +159,7 @@ namespace GroupRepository
     void DeleteBind(uint32 leaderGuid, uint32 instanceId);
 
     /// Selects every group's id, as the start-up renumbering reads them, synchronously.
-    QueryResult* QueryGroupIds();
+    std::vector<GroupIdRow> QueryGroupIds();
 
     /// Deletes a group row the start-up renumbering cannot use and its members, in one transaction.
     void DeleteInvalidGroup(uint32 groupId);
@@ -119,16 +171,16 @@ namespace GroupRepository
     std::optional<uint32> QueryHighestId();
 
     /// Selects every group's row, at start-up.
-    QueryResult* QueryGroups();
+    std::vector<GroupDataRow> QueryGroups();
 
     /// Selects every group member, ordered by group id, at start-up.
-    QueryResult* QueryMembers();
+    std::vector<GroupMemberRow> QueryMembers();
 
     /// Deletes a member row the start-up load cannot use.
     void DeleteInvalidMember(uint32 memberGuid);
 
     /// Selects every group instance bind with its instance and group, ordered by leader, at start-up.
-    QueryResult* QueryInstanceBinds();
+    std::vector<GroupInstanceBindRow> QueryInstanceBinds();
 
     /// Gives every group whose leader left it a member as its leader, assistants first, at start-up
     /// and shutdown.
