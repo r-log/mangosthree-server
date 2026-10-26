@@ -245,3 +245,115 @@ TEST(GuildRepository_MemberRanks)
     CHECK_EQ(rows[0].rank, 1002u);
     CHECK_EQ(rows[1].guid, 2000u);
 }
+
+// Each column of a guild as the startup load reads it lands in its member, and the rows come back
+// in order.
+TEST(GuildRepository_Guilds)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "1002", "1003", "1004", "1005", "1006", "1007", "s1.8", "s1.9",
+            "4294967306", "4294967307", "1012"},
+        FakeRow{"2000", "s2.1", "2002", "2003", "2004", "2005", "2006", "2007", "s2.8", "s2.9",
+            "8589934602", "8589934603", "2012"},
+    });
+    std::vector<GuildDataRow> rows = GuildRepository::QueryGuilds();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guildId, 1000u);
+    CHECK_STR(rows[0].name, "s1.1");
+    CHECK_EQ(rows[0].leaderGuid, 1002u);
+    CHECK_EQ(rows[0].emblemStyle, 1003u);
+    CHECK_EQ(rows[0].emblemColor, 1004u);
+    CHECK_EQ(rows[0].borderStyle, 1005u);
+    CHECK_EQ(rows[0].borderColor, 1006u);
+    CHECK_EQ(rows[0].backgroundColor, 1007u);
+    CHECK_STR(rows[0].info, "s1.8");
+    CHECK_STR(rows[0].motd, "s1.9");
+    CHECK_EQ(rows[0].createDate, uint64(4294967306ull));
+    CHECK_EQ(rows[0].bankMoney, uint64(4294967307ull));
+    CHECK_EQ(rows[0].purchasedTabs, 1012u);
+    CHECK_EQ(rows[1].guildId, 2000u);
+}
+
+// Each column of a `guild_rank` row lands in its member, and the rows come back in order.
+TEST(GuildRepository_Ranks)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "s1.2", "1003", "1004"},
+        FakeRow{"2000", "2001", "s2.2", "2003", "2004"},
+    });
+    std::vector<GuildRankRow> rows = GuildRepository::QueryRanks();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guildId, 1000u);
+    CHECK_EQ(rows[0].rankId, 1001u);
+    CHECK_STR(rows[0].name, "s1.2");
+    CHECK_EQ(rows[0].rights, 1003u);
+    CHECK_EQ(rows[0].bankMoneyPerDay, 1004u);
+    CHECK_EQ(rows[1].guildId, 2000u);
+}
+
+// Each column of a guild member as the startup load reads it lands in its member, and the rows come
+// back in order.
+TEST(GuildRepository_Members)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "s1.3", "s1.4", "1005", "1006", "1007", "1008", "1009",
+            "1010", "1011", "1012", "1013", "1014", "1015", "1016", "1017", "1018", "1019",
+            "1020", "1021", "1022", "4294967319", "-1024"},
+        FakeRow{"2000", "2001", "2002", "s2.3", "s2.4", "2005", "2006", "2007", "2008", "2009",
+            "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019",
+            "2020", "2021", "2022", "8589934615", "-2024"},
+    });
+    std::vector<GuildMemberDataRow> rows = GuildRepository::QueryMembers();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guildId, 1000u);
+    CHECK_EQ(rows[0].guid, 1001u);
+    CHECK_EQ(rows[0].rank, 1002u);
+    CHECK_STR(rows[0].pnote, "s1.3");
+    CHECK_STR(rows[0].offnote, "s1.4");
+    CHECK_EQ(rows[0].bankResetTimeMoney, 1005u);
+    CHECK_EQ(rows[0].bankRemMoney, 1006u);
+    CHECK_EQ(rows[0].bankResetTimeTab[0], 1007u);
+    CHECK_EQ(rows[0].bankRemSlotsTab[0], 1008u);
+    CHECK_EQ(rows[0].bankResetTimeTab[1], 1009u);
+    CHECK_EQ(rows[0].bankRemSlotsTab[1], 1010u);
+    CHECK_EQ(rows[0].bankResetTimeTab[2], 1011u);
+    CHECK_EQ(rows[0].bankRemSlotsTab[2], 1012u);
+    CHECK_EQ(rows[0].bankResetTimeTab[3], 1013u);
+    CHECK_EQ(rows[0].bankRemSlotsTab[3], 1014u);
+    CHECK_EQ(rows[0].bankResetTimeTab[4], 1015u);
+    CHECK_EQ(rows[0].bankRemSlotsTab[4], 1016u);
+    CHECK_EQ(rows[0].bankResetTimeTab[5], 1017u);
+    CHECK_EQ(rows[0].bankRemSlotsTab[5], 1018u);
+    CHECK_EQ(rows[0].bankResetTimeTab[6], 1019u);
+    CHECK_STR(rows[0].name, "1019");
+    CHECK_EQ(rows[0].bankRemSlotsTab[6], 1020u);
+    CHECK_EQ(rows[0].level, uint8(252));
+    CHECK_EQ(rows[0].bankResetTimeTab[7], 1021u);
+    CHECK_EQ(rows[0].classId, uint8(253));
+    CHECK_EQ(rows[0].bankRemSlotsTab[7], 1022u);
+    CHECK_EQ(rows[0].zone, 1022u);
+    CHECK_EQ(rows[0].logoutTime, uint64(4294967319ull));
+    CHECK_EQ(rows[0].account, -1024);
+    CHECK_EQ(rows[1].guildId, 2000u);
+}
+
+// Each column of a `guild_bank_right` row lands in its member, and the rows come back in order.
+TEST(GuildRepository_BankRights)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "101", "1002", "10003", "10004"},
+        FakeRow{"2000", "201", "2002", "20003", "20004"},
+    });
+    std::vector<GuildBankRightRow> rows = GuildRepository::QueryBankRights();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guildId, 1000u);
+    CHECK_EQ(rows[0].tabId, uint8(101));
+    CHECK_EQ(rows[0].rankId, 1002u);
+    CHECK_EQ(rows[0].rights, uint16(10003));
+    CHECK_EQ(rows[0].slotPerDay, uint16(10004));
+    CHECK_EQ(rows[1].guildId, 2000u);
+}

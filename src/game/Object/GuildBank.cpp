@@ -38,6 +38,7 @@
 #include "Log.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/social/GuildBankRepository.h"
+#include "persistence/characters/social/GuildRepository.h"
 
 /**
  * @file GuildBank.cpp
@@ -615,22 +616,17 @@ uint32 Guild::GetBankSlotPerDay(uint32 rankId, uint8 TabId)
 // *************************************************
 // Rights per day related
 
-bool Guild::LoadBankRightsFromDB(QueryResult* guildBankTabRightsResult)
+bool Guild::LoadBankRightsFromDB(std::vector<GuildBankRightRow> const& rightRows, size_t& next)
 {
-    if (!guildBankTabRightsResult)
+    if (rightRows.empty())
     {
         return true;
     }
 
-    do
+    for (; next < rightRows.size(); ++next)
     {
-        Field* fields      = guildBankTabRightsResult->Fetch();
-        // prevent crash when all rights in result are already processed
-        if (!fields)
-        {
-            break;
-        }
-        uint32 guildId     = fields[0].GetUInt32();
+        GuildBankRightRow const& row = rightRows[next];
+        uint32 guildId     = row.guildId;
         if (guildId < m_Id)
         {
             // there is in table guild_bank_right record which doesn't have guildid in guild table, report error
@@ -642,14 +638,13 @@ bool Guild::LoadBankRightsFromDB(QueryResult* guildBankTabRightsResult)
         if (guildId > m_Id)
             // we loaded all ranks for this guild bank already, break cycle
             break;
-        uint8 TabId        = fields[1].GetUInt8();
-        uint32 rankId      = fields[2].GetUInt32();
-        uint16 right       = fields[3].GetUInt16();
-        uint16 SlotPerDay  = fields[4].GetUInt16();
+        uint8 TabId        = row.tabId;
+        uint32 rankId      = row.rankId;
+        uint16 right       = row.rights;
+        uint16 SlotPerDay  = row.slotPerDay;
 
         SetBankRightsAndSlots(rankId, TabId, right, SlotPerDay, false);
     }
-    while (guildBankTabRightsResult->NextRow());
 
     return true;
 }

@@ -44,6 +44,8 @@
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/social/GuildRepository.h"
 
+static_assert(int(GUILD_MEMBER_DATA_ROW_TABS) == int(GUILD_BANK_MAX_TABS), "a guild member row holds every bank tab");
+
 /**
  * @brief Refreshes cached member information from a player object.
  *
@@ -360,32 +362,25 @@ void Guild::SetGINFO(std::string ginfo)
 /**
  * @brief Loads core guild data from the database.
  *
- * @param guildDataResult The query result containing guild header data.
+ * @param row The guild's row.
  * @return true if loading succeeded; otherwise, false.
  */
-bool Guild::LoadGuildFromDB(QueryResult* guildDataResult)
+bool Guild::LoadGuildFromDB(GuildDataRow const& row)
 {
-    if (!guildDataResult)
-    {
-        return false;
-    }
+    m_Id              = row.guildId;
+    m_Name            = row.name;
+    m_LeaderGuid      = ObjectGuid(HIGHGUID_PLAYER, row.leaderGuid);
+    m_EmblemStyle     = row.emblemStyle;
+    m_EmblemColor     = row.emblemColor;
+    m_BorderStyle     = row.borderStyle;
+    m_BorderColor     = row.borderColor;
+    m_BackgroundColor = row.backgroundColor;
+    GINFO             = row.info;
+    MOTD              = row.motd;
+    m_CreatedDate     = time_t(row.createDate);
+    m_GuildBankMoney  = row.bankMoney;
 
-    Field* fields = guildDataResult->Fetch();
-
-    m_Id              = fields[0].GetUInt32();
-    m_Name            = fields[1].GetCppString();
-    m_LeaderGuid      = ObjectGuid(HIGHGUID_PLAYER, fields[2].GetUInt32());
-    m_EmblemStyle     = fields[3].GetUInt32();
-    m_EmblemColor     = fields[4].GetUInt32();
-    m_BorderStyle     = fields[5].GetUInt32();
-    m_BorderColor     = fields[6].GetUInt32();
-    m_BackgroundColor = fields[7].GetUInt32();
-    GINFO             = fields[8].GetCppString();
-    MOTD              = fields[9].GetCppString();
-    m_CreatedDate     = time_t(fields[10].GetUInt64());
-    m_GuildBankMoney  = fields[11].GetUInt64();
-
-    uint32 purchasedTabs   = fields[12].GetUInt32();
+    uint32 purchasedTabs   = row.purchasedTabs;
 
     if (purchasedTabs > GUILD_BANK_MAX_TABS)
     {
@@ -441,19 +436,19 @@ bool Guild::CheckGuildStructure()
 /**
  * @brief Loads guild ranks from the database.
  *
- * @param guildRanksResult The query result containing rank data.
+ * @param rankRows Every guild's rank rows, ordered by guild.
+ * @param next The first of them this guild has not read; left at the next guild's first.
  * @return true if rank loading completed successfully; otherwise, false.
  */
-bool Guild::LoadRanksFromDB(QueryResult* guildRanksResult)
+bool Guild::LoadRanksFromDB(std::vector<GuildRankRow> const& rankRows, size_t& next)
 {
-    if (!guildRanksResult)
+    if (rankRows.empty())
     {
         sLog.outError("Guild %u has broken `guild_rank` data, creating new...", m_Id);
         CreateDefaultGuildRanks(0);
         return true;
     }
 
-    Field* fields;
     bool broken_ranks = false;
 
     // GUILD RANKS are sequence starting from 0 = GUILD_MASTER (ALL PRIVILEGES) to max 9 (lowest privileges)
@@ -461,16 +456,10 @@ bool Guild::LoadRanksFromDB(QueryResult* guildRanksResult)
     // between ranks in sequence can not be gaps - so 0,1,2,4 can not be
     // min ranks count is 5 and max is 10.
 
-    do
+    for (; next < rankRows.size(); ++next)
     {
-        fields = guildRanksResult->Fetch();
-        // condition that would be true when all ranks in QueryResult will be processed and guild without ranks is being processed
-        if (!fields)
-        {
-            break;
-        }
-
-        uint32 guildId       = fields[0].GetUInt32();
+        GuildRankRow const& row = rankRows[next];
+        uint32 guildId       = row.guildId;
         if (guildId < m_Id)
         {
             // there is in table guild_rank record which doesn't have guildid in guild table, report error
@@ -484,10 +473,10 @@ bool Guild::LoadRanksFromDB(QueryResult* guildRanksResult)
             break;
         }
 
-        uint32 rankID        = fields[1].GetUInt32();
-        std::string rankName = fields[2].GetCppString();
-        uint32 rankRights    = fields[3].GetUInt32();
-        uint32 rankMoney     = fields[4].GetUInt32();
+        uint32 rankID        = row.rankId;
+        std::string rankName = row.name;
+        uint32 rankRights    = row.rights;
+        uint32 rankMoney     = row.bankMoneyPerDay;
 
         if (rankID != m_Ranks.size())                       // guild_rank.ids are sequence 0,1,2,3..
         {
@@ -502,7 +491,6 @@ bool Guild::LoadRanksFromDB(QueryResult* guildRanksResult)
 
         AddRank(rankName, rankRights, rankMoney);
     }
-    while (guildRanksResult->NextRow());
 
     if (m_Ranks.size() < GUILD_RANKS_MIN_COUNT)             // if too few ranks, renew them
     {
@@ -530,25 +518,21 @@ bool Guild::LoadRanksFromDB(QueryResult* guildRanksResult)
 /**
  * @brief Loads guild members from the database.
  *
- * @param guildMembersResult The query result containing member data.
+ * @param memberRows Every guild's member rows, ordered by guild.
+ * @param next The first of them this guild has not read; left at the next guild's first.
  * @return true if at least one valid member was loaded; otherwise, false.
  */
-bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
+bool Guild::LoadMembersFromDB(std::vector<GuildMemberDataRow> const& memberRows, size_t& next)
 {
-    if (!guildMembersResult)
+    if (memberRows.empty())
     {
         return false;
     }
 
-    do
+    for (; next < memberRows.size(); ++next)
     {
-        Field* fields = guildMembersResult->Fetch();
-        // this condition will be true when all rows in QueryResult are processed and new guild without members is going to be loaded - prevent crash
-        if (!fields)
-        {
-            break;
-        }
-        uint32 guildId       = fields[0].GetUInt32();
+        GuildMemberDataRow const& row = memberRows[next];
+        uint32 guildId       = row.guildId;
         if (guildId < m_Id)
         {
             // there is in table guild_member record which doesn't have guildid in guild table, report error
@@ -567,31 +551,31 @@ bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
         }
 
         MemberSlot newmember;
-        uint32 lowguid = fields[1].GetUInt32();
+        uint32 lowguid = row.guid;
         newmember.guid = ObjectGuid(HIGHGUID_PLAYER, lowguid);
-        newmember.RankId = fields[2].GetUInt32();
+        newmember.RankId = row.rank;
         // don't allow member to have not existing rank!
         if (newmember.RankId >= m_Ranks.size())
         {
             newmember.RankId = GetLowestRank();
         }
 
-        newmember.Pnote                 = fields[3].GetCppString();
-        newmember.OFFnote               = fields[4].GetCppString();
-        newmember.BankResetTimeMoney    = fields[5].GetUInt32();
-        newmember.BankRemMoney          = fields[6].GetUInt32();
+        newmember.Pnote                 = row.pnote;
+        newmember.OFFnote               = row.offnote;
+        newmember.BankResetTimeMoney    = row.bankResetTimeMoney;
+        newmember.BankRemMoney          = row.bankRemMoney;
         for (int i = 0; i < GUILD_BANK_MAX_TABS; ++i)
         {
-            newmember.BankResetTimeTab[i] = fields[7+(2*i)].GetUInt32();
-            newmember.BankRemSlotsTab[i]  = fields[8+(2*i)].GetUInt32();
+            newmember.BankResetTimeTab[i] = row.bankResetTimeTab[i];
+            newmember.BankRemSlotsTab[i]  = row.bankRemSlotsTab[i];
         }
 
-        newmember.Name                  = fields[19].GetCppString();
-        newmember.Level                 = fields[20].GetUInt8();
-        newmember.Class                 = fields[21].GetUInt8();
-        newmember.ZoneId                = fields[22].GetUInt32();
-        newmember.LogoutTime            = fields[23].GetUInt64();
-        newmember.accountId             = fields[24].GetInt32();
+        newmember.Name                  = row.name;
+        newmember.Level                 = row.level;
+        newmember.Class                 = row.classId;
+        newmember.ZoneId                = row.zone;
+        newmember.LogoutTime            = row.logoutTime;
+        newmember.accountId             = row.account;
 
         // this code will remove not existing character guids from guild
         if (newmember.Level < 1 || newmember.Level > STRONG_MAX_LEVEL) // can be at broken `data` field
@@ -618,7 +602,6 @@ bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
 
         members[lowguid]      = newmember;
     }
-    while (guildMembersResult->NextRow());
 
     if (members.empty())
     {

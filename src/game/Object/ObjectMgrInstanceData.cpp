@@ -56,9 +56,9 @@ void ObjectMgr::LoadArenaTeams()
 {
     uint32 count = 0;
 
-    QueryResult* result = ArenaTeamRepository::QueryTeams();
+    std::vector<ArenaTeamRow> teams = ArenaTeamRepository::QueryTeams();
 
-    if (!result)
+    if (teams.empty())
     {
         BarGoLink bar(1);
 
@@ -70,18 +70,19 @@ void ObjectMgr::LoadArenaTeams()
     }
 
     // load arena_team members
-    QueryResult* arenaTeamMembersResult = ArenaTeamRepository::QueryTeamMembers();
+    std::vector<ArenaTeamMemberRow> members = ArenaTeamRepository::QueryTeamMembers();
+    size_t nextMember = 0;
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(teams.size());
 
-    do
+    for (ArenaTeamRow const& row : teams)
     {
         bar.step();
         ++count;
 
         ArenaTeam* newArenaTeam = new ArenaTeam;
-        if (!newArenaTeam->LoadArenaTeamFromDB(result) ||
-                !newArenaTeam->LoadMembersFromDB(arenaTeamMembersResult))
+        if (!newArenaTeam->LoadArenaTeamFromDB(row) ||
+                !newArenaTeam->LoadMembersFromDB(members, nextMember))
         {
             newArenaTeam->Disband(NULL);
             delete newArenaTeam;
@@ -89,10 +90,6 @@ void ObjectMgr::LoadArenaTeams()
         }
         AddArenaTeam(newArenaTeam);
     }
-    while (result->NextRow());
-
-    delete result;
-    delete arenaTeamMembersResult;
 
     sLog.outString();
     sLog.outString(">> Loaded %u arenateam definitions", count);

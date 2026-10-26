@@ -223,9 +223,9 @@ void GuildMgr::LoadGuilds()
 {
     uint32 count = 0;
 
-    QueryResult* result = GuildRepository::QueryGuilds();
+    std::vector<GuildDataRow> guilds = GuildRepository::QueryGuilds();
 
-    if (!result)
+    if (guilds.empty())
     {
         BarGoLink bar(1);
 
@@ -237,28 +237,29 @@ void GuildMgr::LoadGuilds()
     }
 
     // load guild ranks
-    QueryResult* guildRanksResult   = GuildRepository::QueryRanks();
+    std::vector<GuildRankRow> ranks = GuildRepository::QueryRanks();
+    size_t nextRank = 0;
 
     // load guild members
-    QueryResult* guildMembersResult = GuildRepository::QueryMembers();
+    std::vector<GuildMemberDataRow> members = GuildRepository::QueryMembers();
+    size_t nextMember = 0;
 
     // load guild bank tab rights
-    QueryResult* guildBankTabRightsResult = GuildRepository::QueryBankRights();
+    std::vector<GuildBankRightRow> bankRights = GuildRepository::QueryBankRights();
+    size_t nextBankRight = 0;
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(guilds.size());
 
-    do
+    for (GuildDataRow const& row : guilds)
     {
-        // Field *fields = result->Fetch();
-
         bar.step();
         ++count;
 
         Guild* newGuild = new Guild;
-        if (!newGuild->LoadGuildFromDB(result) ||
-                !newGuild->LoadRanksFromDB(guildRanksResult) ||
-                !newGuild->LoadMembersFromDB(guildMembersResult) ||
-                !newGuild->LoadBankRightsFromDB(guildBankTabRightsResult) ||
+        if (!newGuild->LoadGuildFromDB(row) ||
+                !newGuild->LoadRanksFromDB(ranks, nextRank) ||
+                !newGuild->LoadMembersFromDB(members, nextMember) ||
+                !newGuild->LoadBankRightsFromDB(bankRights, nextBankRight) ||
                 !newGuild->CheckGuildStructure()
            )
         {
@@ -272,12 +273,6 @@ void GuildMgr::LoadGuilds()
         newGuild->LoadGuildBankFromDB();
         AddGuild(newGuild);
     }
-    while (result->NextRow());
-
-    delete result;
-    delete guildRanksResult;
-    delete guildMembersResult;
-    delete guildBankTabRightsResult;
 
     // delete unused LogGuid records in guild_eventlog and guild_bank_eventlog table
     // you can comment these lines if you don't plan to change CONFIG_UINT32_GUILD_EVENT_LOG_COUNT and CONFIG_UINT32_GUILD_BANK_EVENT_LOG_COUNT

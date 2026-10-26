@@ -31,8 +31,6 @@
 #include <vector>
 #include "Platform/Define.h"
 
-class QueryResult;
-
 /// A new guild's saved row, in the order of the INSERT's columns.
 struct GuildRow
 {
@@ -69,6 +67,73 @@ struct GuildMemberRankRow
     uint32 rank = 0;
 };
 
+/// One guild as the startup load reads it: its `guild` row and how many bank tabs it has bought.
+struct GuildDataRow
+{
+    uint32 guildId = 0;
+    std::string name;
+    uint32 leaderGuid = 0;
+    uint32 emblemStyle = 0;
+    uint32 emblemColor = 0;
+    uint32 borderStyle = 0;
+    uint32 borderColor = 0;
+    uint32 backgroundColor = 0;
+    std::string info;
+    std::string motd;
+    uint64 createDate = 0;
+    uint64 bankMoney = 0;
+    uint32 purchasedTabs = 0;
+};
+
+/// One `guild_rank` row.
+struct GuildRankRow
+{
+    uint32 guildId = 0;
+    uint32 rankId = 0;
+    std::string name;
+    uint32 rights = 0;
+    uint32 bankMoneyPerDay = 0;
+};
+
+enum
+{
+    /// The bank tabs a guild member row holds a reset time and remaining slots for. The table has
+    /// columns for six; the last two tabs read the four columns after them (the name, level,
+    /// class and zone) as numbers.
+    GUILD_MEMBER_DATA_ROW_TABS = 8
+};
+
+/// One guild member as the startup load reads it: its `guild_member` row and its character's
+/// name, level, class, zone, logout time and account (empty or 0 when the character is gone).
+struct GuildMemberDataRow
+{
+    uint32 guildId = 0;
+    uint32 guid = 0;
+    uint32 rank = 0;
+    std::string pnote;
+    std::string offnote;
+    uint32 bankResetTimeMoney = 0;
+    uint32 bankRemMoney = 0;
+    uint32 bankResetTimeTab[GUILD_MEMBER_DATA_ROW_TABS] = {};
+    uint32 bankRemSlotsTab[GUILD_MEMBER_DATA_ROW_TABS] = {};
+    std::string name;
+    uint8 level = 0;
+    uint8 classId = 0;
+    uint32 zone = 0;
+    uint64 logoutTime = 0;
+    int32 account = 0;
+};
+
+/// One `guild_bank_right` row.
+struct GuildBankRightRow
+{
+    uint32 guildId = 0;
+    uint8 tabId = 0;
+    uint32 rankId = 0;
+    uint16 rights = 0;
+    uint16 slotPerDay = 0;
+};
+
 /// The guilds' saved rows (`guild`, `guild_member`, `guild_rank`, `guild_bank_right`, `guild_eventlog`,
 /// and the bank tables a disband deletes). The loads and the highest id run at startup, synchronously; every write is
 /// queued on the character database, and one called inside CharacterTransaction joins it.
@@ -76,18 +141,18 @@ namespace GuildRepository
 {
     /// Selects every guild, ordered by id: id, name, leader, the emblem's five values, info, motd,
     /// creation date, bank money and the number of bank tabs.
-    QueryResult* QueryGuilds();
+    std::vector<GuildDataRow> QueryGuilds();
 
     /// Selects every rank, ordered by guild and rank: guild, rank, name, rights, money per day.
-    QueryResult* QueryRanks();
+    std::vector<GuildRankRow> QueryRanks();
 
     /// Selects every member, ordered by guild: guild, guid, rank, the two notes, the bank money reset
     /// and remainder, each tab's reset and remaining slots, and the character's name, level, class,
     /// zone, logout time and account.
-    QueryResult* QueryMembers();
+    std::vector<GuildMemberDataRow> QueryMembers();
 
     /// Selects every bank tab right, ordered by guild and tab: guild, tab, rank, right, slots per day.
-    QueryResult* QueryBankRights();
+    std::vector<GuildBankRightRow> QueryBankRights();
 
     /// Selects a guild's latest events, newest first: log guid, type, the two players, rank, time.
     std::vector<GuildEventLogRow> QueryEventLog(uint32 guildId, uint32 maxRecords);

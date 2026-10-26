@@ -31,9 +31,6 @@
 #include <vector>
 #include "Platform/Define.h"
 
-class QueryResult;
-
-class Field;
 
 /// An arena team's saved stats: its rating, this week's and this season's games and wins, and
 /// its rank.
@@ -96,13 +93,6 @@ struct ArenaTeamMemberTypeRow
 /// character database.
 namespace ArenaTeamRepository
 {
-    /// Reads one row of the team load: id, name, captain, type, the emblem's five values and the
-    /// stats' six.
-    ArenaTeamRow ReadTeam(Field* fields);
-
-    /// Reads one row of the member load: team, guid, the four game counts, personal rating, name,
-    /// class.
-    ArenaTeamMemberRow ReadMember(Field* fields);
 
     /// Writes a new team in one transaction: a DELETE of any member rows left under its id, the
     /// team row with its name bound, then its stats row.
@@ -141,10 +131,10 @@ namespace ArenaTeamRepository
     std::optional<uint32> QueryHighestId();
 
     /// Selects every arena team with its stats, ordered by team id, at start-up.
-    QueryResult* QueryTeams();
+    std::vector<ArenaTeamRow> QueryTeams();
 
     /// Selects every arena team member with its character's name and class, ordered by team id, at start-up.
-    QueryResult* QueryTeamMembers();
+    std::vector<ArenaTeamMemberRow> QueryTeamMembers();
 
     /// Selects every arena team member's team and team type, at start-up.
     std::vector<ArenaTeamMemberTypeRow> QueryMemberTeamTypes();
