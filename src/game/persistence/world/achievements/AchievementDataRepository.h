@@ -26,7 +26,49 @@
 #ifndef MANGOS_H_ACHIEVEMENTDATAREPOSITORY
 #define MANGOS_H_ACHIEVEMENTDATAREPOSITORY
 
-class QueryResult;
+#include "Platform/Define.h"
+
+#include <string>
+#include <vector>
+
+/// One `achievement_criteria_requirement` row.
+struct AchievementCriteriaRequirementRow
+{
+    uint32 criteriaId = 0;
+    uint32 type = 0;
+    uint32 value1 = 0;
+    uint32 value2 = 0;
+};
+
+/// One `achievement_reward` row.
+struct AchievementRewardRow
+{
+    uint32 entry = 0;
+    uint8 gender = 0;
+    uint32 titleA = 0;
+    uint32 titleH = 0;
+    uint32 item = 0;
+    uint32 sender = 0;
+    std::string subject;
+    std::string text;
+};
+
+enum
+{
+    /// The locales an achievement reward locale row holds its texts for: every locale after the
+    /// default one (`loc1` to `loc11`).
+    ACHIEVEMENT_REWARD_LOCALE_ROW_LOCALES = 11
+};
+
+/// One `locales_achievement_reward` row: a reward mail's subject and text in each locale, for a
+/// gender.
+struct AchievementRewardLocaleRow
+{
+    uint32 entry = 0;
+    uint8 gender = 0;
+    std::string subject[ACHIEVEMENT_REWARD_LOCALE_ROW_LOCALES];
+    std::string text[ACHIEVEMENT_REWARD_LOCALE_ROW_LOCALES];
+};
 
 /// The achievement data on the world database (`achievement_criteria_requirement`,
 /// `achievement_reward`, `locales_achievement_reward`), read at startup and on a reload,
@@ -34,14 +76,14 @@ class QueryResult;
 namespace AchievementDataRepository
 {
     /// Selects every extra criteria requirement: criteria, type and two values.
-    QueryResult* QueryCriteriaRequirements();
+    std::vector<AchievementCriteriaRequirementRow> QueryCriteriaRequirements();
 
     /// Selects every achievement reward: achievement, gender, the two titles, item, sender, mail
     /// subject and text.
-    QueryResult* QueryRewards();
+    std::vector<AchievementRewardRow> QueryRewards();
 
     /// Selects every reward's localised mail subject and text, by achievement and gender.
-    QueryResult* QueryRewardLocales();
+    std::vector<AchievementRewardLocaleRow> QueryRewardLocales();
 }
 
 #endif

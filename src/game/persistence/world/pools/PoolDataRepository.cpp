@@ -25,45 +25,109 @@
 
 #include "PoolDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace PoolDataRepository
 {
-    QueryResult* QueryHighestPoolEntry()
+    std::optional<uint16> QueryHighestPoolEntry()
     {
-        return WorldDatabase.Query("SELECT MAX(`entry`) FROM `pool_template`");
+        QueryResult* result = WorldDatabase.Query("SELECT MAX(`entry`) FROM `pool_template`");
+        return ReadRow<uint16>(result, [](Field* fields) { return fields[0].GetUInt16(); });
     }
 
-    QueryResult* QueryPools()
+    static PoolTemplateRow ReadPoolTemplate(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`, `max_limit`, `description` FROM `pool_template`");
+        PoolTemplateRow row;
+        row.entry = fields[0].GetUInt16();
+        row.maxLimit = fields[1].GetUInt32();
+        row.description = fields[2].GetCppString();
+        return row;
     }
 
-    QueryResult* QueryPoolCreatures()
+    std::vector<PoolTemplateRow> QueryPools()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `max_limit`, `description` FROM `pool_template`");
+        return ReadRows<PoolTemplateRow>(result, ReadPoolTemplate);
+    }
+
+    static PoolCreatureRow ReadPoolCreature(Field* fields)
+    {
+        PoolCreatureRow row;
+        row.guid = fields[0].GetUInt32();
+        row.poolEntry = fields[1].GetUInt16();
+        row.chance = fields[2].GetFloat();
+        return row;
+    }
+
+    std::vector<PoolCreatureRow> QueryPoolCreatures()
     {
         //                                 1     2           3
-        return WorldDatabase.Query("SELECT `guid`, `pool_entry`, `chance` FROM `pool_creature`");
+        QueryResult* result = WorldDatabase.Query("SELECT `guid`, `pool_entry`, `chance` FROM `pool_creature`");
+        return ReadRows<PoolCreatureRow>(result, ReadPoolCreature);
     }
 
-    QueryResult* QueryPoolCreatureTemplates()
+    static PoolCreatureTemplateRow ReadPoolCreatureTemplate(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `guid`, `pool_entry`, `chance`, `pool_creature_template`.`id` FROM `pool_creature_template` LEFT JOIN `creature` ON `creature`.`id` = `pool_creature_template`.`id`");
+        PoolCreatureTemplateRow row;
+        row.guid = fields[0].GetUInt32();
+        row.poolEntry = fields[1].GetUInt16();
+        row.chance = fields[2].GetFloat();
+        row.id = fields[3].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryPoolGameObjects()
+    std::vector<PoolCreatureTemplateRow> QueryPoolCreatureTemplates()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `guid`, `pool_entry`, `chance`, `pool_creature_template`.`id` FROM `pool_creature_template` LEFT JOIN `creature` ON `creature`.`id` = `pool_creature_template`.`id`");
+        return ReadRows<PoolCreatureTemplateRow>(result, ReadPoolCreatureTemplate);
+    }
+
+    static PoolGameObjectRow ReadPoolGameObject(Field* fields)
+    {
+        PoolGameObjectRow row;
+        row.guid = fields[0].GetUInt32();
+        row.poolEntry = fields[1].GetUInt16();
+        row.chance = fields[2].GetFloat();
+        return row;
+    }
+
+    std::vector<PoolGameObjectRow> QueryPoolGameObjects()
     {
         //                                 1     2           3
-        return WorldDatabase.Query("SELECT `guid`, `pool_entry`, `chance` FROM `pool_gameobject`");
+        QueryResult* result = WorldDatabase.Query("SELECT `guid`, `pool_entry`, `chance` FROM `pool_gameobject`");
+        return ReadRows<PoolGameObjectRow>(result, ReadPoolGameObject);
     }
 
-    QueryResult* QueryPoolGameObjectTemplates()
+    static PoolGameObjectTemplateRow ReadPoolGameObjectTemplate(Field* fields)
+    {
+        PoolGameObjectTemplateRow row;
+        row.guid = fields[0].GetUInt32();
+        row.poolEntry = fields[1].GetUInt16();
+        row.chance = fields[2].GetFloat();
+        row.id = fields[3].GetUInt32();
+        return row;
+    }
+
+    std::vector<PoolGameObjectTemplateRow> QueryPoolGameObjectTemplates()
     {
         //                                 1     2           3
-        return WorldDatabase.Query("SELECT `guid`, `pool_entry`, `chance`, `pool_gameobject_template`.`id` FROM `pool_gameobject_template` LEFT JOIN `gameobject` ON `gameobject`.`id` = `pool_gameobject_template`.`id`");
+        QueryResult* result = WorldDatabase.Query("SELECT `guid`, `pool_entry`, `chance`, `pool_gameobject_template`.`id` FROM `pool_gameobject_template` LEFT JOIN `gameobject` ON `gameobject`.`id` = `pool_gameobject_template`.`id`");
+        return ReadRows<PoolGameObjectTemplateRow>(result, ReadPoolGameObjectTemplate);
     }
 
-    QueryResult* QueryPoolPools()
+    static PoolPoolRow ReadPoolPool(Field* fields)
+    {
+        PoolPoolRow row;
+        row.poolId = fields[0].GetUInt16();
+        row.motherPool = fields[1].GetUInt16();
+        row.chance = fields[2].GetFloat();
+        return row;
+    }
+
+    std::vector<PoolPoolRow> QueryPoolPools()
     {
         //                                 1        2            3
-        return WorldDatabase.Query("SELECT `pool_id`, `mother_pool`, `chance` FROM `pool_pool`");
+        QueryResult* result = WorldDatabase.Query("SELECT `pool_id`, `mother_pool`, `chance` FROM `pool_pool`");
+        return ReadRows<PoolPoolRow>(result, ReadPoolPool);
     }
 }

@@ -53,10 +53,10 @@ void ScriptMgr::LoadScriptBinding()
         m_scriptBind[i].clear();
     }
 
-    QueryResult* result = ScriptDataRepository::QueryScriptBindings();
+    std::vector<ScriptBindingRow> rows = ScriptDataRepository::QueryScriptBindings();
     uint32 count = 0;
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -68,18 +68,16 @@ void ScriptMgr::LoadScriptBinding()
     std::set<uint32> eventIds;                              // Store possible event ids, for checking
     CollectPossibleEventIds(eventIds);
 
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(rows.size());
+    for (ScriptBindingRow const& row : rows)
     {
         ++count;
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint8 type = fields[0].GetUInt8();
-        int32 id = fields[1].GetInt32();
-        const char* scriptName = fields[2].GetString();
-        uint8 data = fields[3].GetUInt8();
+        uint8 type = row.type;
+        int32 id = row.bind;
+        const char* scriptName = row.scriptName.c_str();
+        uint8 data = row.data;
 
         if (type >= SCRIPTED_MAX_TYPE)
         {
@@ -154,9 +152,7 @@ void ScriptMgr::LoadScriptBinding()
 
         m_scriptBind[type][id] = scriptId;
     }
-    while (result->NextRow());
 
-    delete result;
     sLog.outString("Of the total %u script bindings, loaded succesfully:", count);
     for (uint8 i = 0; i < SCRIPTED_MAX_TYPE; ++i)
     {
@@ -196,9 +192,9 @@ bool ScriptMgr::ReloadScriptBinding()
 void ScriptMgr::LoadScriptNames()
 {
     m_scriptNames.push_back("");
-    QueryResult* result = ScriptDataRepository::QueryScriptNames();
+    std::vector<ScriptNameRow> rows = ScriptDataRepository::QueryScriptNames();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -207,17 +203,15 @@ void ScriptMgr::LoadScriptNames()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
     uint32 count = 0;
 
-    do
+    for (ScriptNameRow const& row : rows)
     {
         bar.step();
-        m_scriptNames.push_back((*result)[0].GetString());
+        m_scriptNames.push_back((row.scriptName ? row.scriptName->c_str() : NULL));
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     std::sort(m_scriptNames.begin(), m_scriptNames.end());
 

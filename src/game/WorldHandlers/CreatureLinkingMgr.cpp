@@ -84,8 +84,8 @@ void CreatureLinkingMgr::LoadFromDB()
 
     // Load `creature_linking_template`
     uint32 count = 0;
-    QueryResult* result = CreatureDataRepository::QueryLinkingTemplates();
-    if (!result)
+    std::vector<CreatureLinkingTemplateRow> linkingTemplates = CreatureDataRepository::QueryLinkingTemplates();
+    if (linkingTemplates.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -95,19 +95,18 @@ void CreatureLinkingMgr::LoadFromDB()
     }
     else
     {
-        BarGoLink bar((int)result->GetRowCount());
-        do
+        BarGoLink bar((int)linkingTemplates.size());
+        for (CreatureLinkingTemplateRow const& row : linkingTemplates)
         {
             bar.step();
 
-            Field* fields = result->Fetch();
             CreatureLinkingInfo tmp;
 
-            uint32 entry            = fields[0].GetUInt32();
-            tmp.mapId               = fields[1].GetUInt32();
-            tmp.masterId            = fields[2].GetUInt32();
-            tmp.linkingFlag         = fields[3].GetUInt16();
-            tmp.searchRange         = fields[4].GetUInt16();
+            uint32 entry            = row.entry;
+            tmp.mapId               = row.map;
+            tmp.masterId            = row.masterEntry;
+            tmp.linkingFlag         = row.flag;
+            tmp.searchRange         = row.searchRange;
             tmp.masterDBGuid        = 0;                        // Will be initialized for unique mobs in IsLinkingEntryValid (only for spawning dependend)
 
             if (!IsLinkingEntryValid(entry, &tmp, true))
@@ -123,18 +122,15 @@ void CreatureLinkingMgr::LoadFromDB()
             // Store master_entry
             m_eventTriggers.insert(tmp.masterId);
         }
-        while (result->NextRow());
 
         sLog.outString();
         sLog.outString(">> Loaded creature linking for %u creature-entries", count);
-
-        delete result;
     }
 
     // Load `creature_linking`
     count = 0;
-    result = CreatureDataRepository::QueryLinkings();
-    if (!result)
+    std::vector<CreatureLinkingRow> linkings = CreatureDataRepository::QueryLinkings();
+    if (linkings.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -145,18 +141,17 @@ void CreatureLinkingMgr::LoadFromDB()
         return;
     }
 
-    BarGoLink guidBar((int)result->GetRowCount());
-    do
+    BarGoLink guidBar((int)linkings.size());
+    for (CreatureLinkingRow const& row : linkings)
     {
         guidBar.step();
 
-        Field* fields = result->Fetch();
         CreatureLinkingInfo tmp;
 
-        uint32 guid             = fields[0].GetUInt32();
+        uint32 guid             = row.guid;
         tmp.mapId               = INVALID_MAP_ID;           // some invalid value, this marks the guid-linking
-        tmp.masterId            = fields[1].GetUInt32();
-        tmp.linkingFlag         = fields[2].GetUInt16();
+        tmp.masterId            = row.masterGuid;
+        tmp.linkingFlag         = row.flag;
         tmp.masterDBGuid        = tmp.masterId;
         tmp.searchRange         = 0;
 
@@ -173,12 +168,9 @@ void CreatureLinkingMgr::LoadFromDB()
         // Store master_guid
         m_eventGuidTriggers.insert(tmp.masterId);
     }
-    while (result->NextRow());
 
     sLog.outString();
     sLog.outString(">> Loaded creature linking for %u creature-Guids", count);
-
-    delete result;
 }
 
 /** This function is used to check if a DB-Entry is valid
@@ -253,23 +245,20 @@ bool CreatureLinkingMgr::IsLinkingEntryValid(uint32 slaveEntry, CreatureLinkingI
         // Check for uniqueness of mob whom is followed, on whom spawning is dependend
         if (pTmp->searchRange == 0 && pTmp->linkingFlag & (FLAG_FOLLOW | FLAG_CANT_SPAWN_IF_BOSS_DEAD | FLAG_CANT_SPAWN_IF_BOSS_ALIVE))
         {
-            QueryResult* result = SpawnRepository::QueryCreatureGuidsOnMap(pTmp->masterId, pTmp->mapId);
-            if (!result)
+            std::vector<uint32> masterGuids = SpawnRepository::QueryCreatureGuidsOnMap(pTmp->masterId, pTmp->mapId);
+            if (masterGuids.empty())
             {
                 sLog.outErrorDb("`creature_linking_template` has FLAG_FOLLOW, but no master, (entry: %u, map: %u, master: %u)", slaveEntry, pTmp->mapId, pTmp->masterId);
                 return false;
             }
 
-            if (result->GetRowCount() > 1)
+            if (masterGuids.size() > 1)
             {
                 sLog.outErrorDb("`creature_linking_template` has FLAG_FOLLOW, but non unique master, (entry: %u, map: %u, master: %u)", slaveEntry, pTmp->mapId, pTmp->masterId);
-                delete result;
                 return false;
             }
 
-            Field* fields = result->Fetch();
-            pTmp->masterDBGuid = fields[0].GetUInt32();
-            delete result;
+            pTmp->masterDBGuid = masterGuids[0];
         }
     }
 

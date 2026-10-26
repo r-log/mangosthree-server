@@ -30,8 +30,6 @@
 
 #include <vector>
 
-class QueryResult;
-
 /// One `skill_fishing_base_level` row.
 struct FishingBaseLevelRow
 {
@@ -39,15 +37,33 @@ struct FishingBaseLevelRow
     int32 skill = 0;
 };
 
+/// One `skill_discovery_template` row.
+struct SkillDiscoveryRow
+{
+    uint32 spellId = 0;
+    int32 reqSpell = 0;
+    int32 reqSkillValue = 0;
+    float chance = 0.0f;
+};
+
+/// One `skill_extra_item_template` row.
+struct SkillExtraItemRow
+{
+    uint32 spellId = 0;
+    uint32 requiredSpecialization = 0;
+    float additionalCreateChance = 0.0f;
+    uint8 additionalMaxNum = 0;
+};
+
 /// The tradeskill data on the world database: the discovery and extra item loads at startup and on
 /// a reload, each run synchronously.
 namespace SkillDataRepository
 {
     /// Selects every recipe discovery (`skill_discovery_template`).
-    QueryResult* QueryDiscoveries();
+    std::vector<SkillDiscoveryRow> QueryDiscoveries();
 
     /// Selects every extra item chance (`skill_extra_item_template`).
-    QueryResult* QueryExtraItems();
+    std::vector<SkillExtraItemRow> QueryExtraItems();
 
     /// Selects every fishing zone's base skill level (`skill_fishing_base_level`).
     std::vector<FishingBaseLevelRow> QueryFishingBaseLevels();

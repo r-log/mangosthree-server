@@ -733,18 +733,15 @@ void World::LoadConfigSettings(bool reload)
  */
 void World::LoadDBVersion()
 {
-    QueryResult* result = DbVersionRepository::QueryVersion();
-    if (result)
+    std::optional<DbVersionRow> row = DbVersionRepository::QueryVersion();
+    if (row)
     {
-        Field* fields = result->Fetch();
-
-        uint32 version = fields[0].GetUInt32();
-        uint32 structure = fields[1].GetUInt32();
-        uint32 content = fields[2].GetUInt32();
+        uint32 version = row->version;
+        uint32 structure = row->structure;
+        uint32 content = row->content;
 
         // will be overwrite by config values if different and non-0
-        setConfig(CONFIG_UINT32_CLIENTCACHE_VERSION, fields[2].GetUInt32());
-        delete result;
+        setConfig(CONFIG_UINT32_CLIENTCACHE_VERSION, row->content);
 
         std::stringstream ss;
         ss << "Version: " << version << ", Structure: " << structure << ", Content: " << content;

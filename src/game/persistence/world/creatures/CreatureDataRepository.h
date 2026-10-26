@@ -31,8 +31,6 @@
 #include <string>
 #include <vector>
 
-class QueryResult;
-
 /// One `creature_model_race` row.
 struct CreatureModelRaceRow
 {
@@ -81,6 +79,24 @@ struct PetLevelStatsRow
     uint16 armor = 0;
 };
 
+/// One `creature_linking_template` row.
+struct CreatureLinkingTemplateRow
+{
+    uint32 entry = 0;
+    uint32 map = 0;
+    uint32 masterEntry = 0;
+    uint16 flag = 0;
+    uint16 searchRange = 0;
+};
+
+/// One `creature_linking` row.
+struct CreatureLinkingRow
+{
+    uint32 guid = 0;
+    uint32 masterGuid = 0;
+    uint16 flag = 0;
+};
+
 /// The creature data on the world database: `ObjectMgr`'s creature and pet loads at startup and on
 /// a reload, each run synchronously; a GM's template edits are queued and written to the SQL log.
 namespace CreatureDataRepository
@@ -99,10 +115,10 @@ namespace CreatureDataRepository
     std::vector<PetLevelStatsRow> QueryPetLevelStats();
 
     /// Selects every creature linking by entry (`creature_linking_template`).
-    QueryResult* QueryLinkingTemplates();
+    std::vector<CreatureLinkingTemplateRow> QueryLinkingTemplates();
 
     /// Selects every creature linking by guid (`creature_linking`).
-    QueryResult* QueryLinkings();
+    std::vector<CreatureLinkingRow> QueryLinkings();
 
     /// Writes a GM's new NPC flags of a creature template.
     void SetNpcFlags(uint32 npcFlags, uint32 entry);

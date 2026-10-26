@@ -28,33 +28,85 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <optional>
+#include <string>
+#include <vector>
+
+/// One `pool_template` row.
+struct PoolTemplateRow
+{
+    uint16 entry = 0;
+    uint32 maxLimit = 0;
+    std::string description;
+};
+
+/// One `pool_creature` row.
+struct PoolCreatureRow
+{
+    uint32 guid = 0;
+    uint16 poolEntry = 0;
+    float chance = 0.0f;
+};
+
+/// One creature template's pool (`pool_creature_template`), with the guid of each of its spawns.
+struct PoolCreatureTemplateRow
+{
+    uint32 guid = 0;
+    uint16 poolEntry = 0;
+    float chance = 0.0f;
+    uint32 id = 0;
+};
+
+/// One `pool_gameobject` row.
+struct PoolGameObjectRow
+{
+    uint32 guid = 0;
+    uint16 poolEntry = 0;
+    float chance = 0.0f;
+};
+
+/// One game object template's pool (`pool_gameobject_template`), with the guid of each of its
+/// spawns.
+struct PoolGameObjectTemplateRow
+{
+    uint32 guid = 0;
+    uint16 poolEntry = 0;
+    float chance = 0.0f;
+    uint32 id = 0;
+};
+
+/// One `pool_pool` row.
+struct PoolPoolRow
+{
+    uint16 poolId = 0;
+    uint16 motherPool = 0;
+    float chance = 0.0f;
+};
 
 /// The spawn pools on the world database (`pool_template` and the creature, game object and pool
-/// members): `PoolManager`'s loads at startup, each run synchronously for a loader that keeps its
-/// loop.
+/// members): `PoolManager`'s loads at startup, each run synchronously and read into rows.
 namespace PoolDataRepository
 {
     /// Selects the highest pool entry.
-    QueryResult* QueryHighestPoolEntry();
+    std::optional<uint16> QueryHighestPoolEntry();
 
     /// Selects every pool (`pool_template`).
-    QueryResult* QueryPools();
+    std::vector<PoolTemplateRow> QueryPools();
 
     /// Selects every creature spawn of a pool (`pool_creature`).
-    QueryResult* QueryPoolCreatures();
+    std::vector<PoolCreatureRow> QueryPoolCreatures();
 
     /// Selects every creature spawn of a pooled creature entry (`pool_creature_template`).
-    QueryResult* QueryPoolCreatureTemplates();
+    std::vector<PoolCreatureTemplateRow> QueryPoolCreatureTemplates();
 
     /// Selects every game object spawn of a pool (`pool_gameobject`).
-    QueryResult* QueryPoolGameObjects();
+    std::vector<PoolGameObjectRow> QueryPoolGameObjects();
 
     /// Selects every game object spawn of a pooled game object entry (`pool_gameobject_template`).
-    QueryResult* QueryPoolGameObjectTemplates();
+    std::vector<PoolGameObjectTemplateRow> QueryPoolGameObjectTemplates();
 
     /// Selects every pool of a pool (`pool_pool`).
-    QueryResult* QueryPoolPools();
+    std::vector<PoolPoolRow> QueryPoolPools();
 }
 
 #endif

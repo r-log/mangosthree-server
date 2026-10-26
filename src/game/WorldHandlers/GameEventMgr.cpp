@@ -171,24 +171,21 @@ void GameEventMgr::StopEvent(uint16 event_id, bool overwrite)
 void GameEventMgr::LoadFromDB()
 {
     {
-        QueryResult* result = GameEventDataRepository::QueryHighestEventEntry();
-        if (!result)
+        std::optional<uint16> highestEntry = GameEventDataRepository::QueryHighestEventEntry();
+        if (!highestEntry)
         {
             sLog.outString(">> Table game_event is empty.");
             sLog.outString();
             return;
         }
 
-        Field* fields = result->Fetch();
-
-        uint32 max_event_id = fields[0].GetUInt16();
-        delete result;
+        uint32 max_event_id = *highestEntry;
 
         mGameEvent.resize(max_event_id + 1);
     }
 
-    QueryResult* result = GameEventDataRepository::QueryEvents();
-    if (!result)
+    std::vector<GameEventRow> events = GameEventDataRepository::QueryEvents();
+    if (events.empty())
     {
         mGameEvent.clear();
         sLog.outString(">> Table game_event is empty!");
@@ -199,15 +196,14 @@ void GameEventMgr::LoadFromDB()
     uint32 count = 0;
 
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(events.size());
+        for (GameEventRow const& row : events)
         {
             ++count;
-            Field* fields = result->Fetch();
 
             bar.step();
 
-            uint16 event_id = fields[0].GetUInt16();
+            uint16 event_id = row.entry;
             if (event_id == 0)
             {
                 sLog.outErrorDb("`game_event` game event id (%i) is reserved and can't be used.", event_id);
@@ -215,13 +211,13 @@ void GameEventMgr::LoadFromDB()
             }
 
             GameEventData& pGameEvent = mGameEvent[event_id];
-            uint64 starttime        = fields[1].GetUInt64();
+            uint64 starttime        = row.startTime;
             pGameEvent.start        = time_t(starttime);
-            uint64 endtime          = fields[2].GetUInt64();
+            uint64 endtime          = row.endTime;
             pGameEvent.end          = time_t(endtime);
-            pGameEvent.occurence    = fields[3].GetUInt32();
-            pGameEvent.length       = fields[4].GetUInt32();
-            pGameEvent.holiday_id   = HolidayIds(fields[5].GetUInt32());
+            pGameEvent.occurence    = row.occurence;
+            pGameEvent.length       = row.length;
+            pGameEvent.holiday_id   = HolidayIds(row.holiday);
 
             if (pGameEvent.length == 0)                     // length>0 is validity check
             {
@@ -245,10 +241,8 @@ void GameEventMgr::LoadFromDB()
                 }
             }
 
-            pGameEvent.description  = fields[6].GetCppString();
+            pGameEvent.description  = row.description;
         }
-        while (result->NextRow());
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u game events", count);
@@ -262,10 +256,10 @@ void GameEventMgr::LoadFromDB()
     mGameEventSpawnPoolIds.resize(mGameEvent.size());
 
     mGameEventCreatureGuids.resize(mGameEvent.size() * 2 - 1);
-    result = GameEventDataRepository::QueryEventCreatures();
+    std::vector<GameEventCreatureRow> eventCreatures = GameEventDataRepository::QueryEventCreatures();
 
     count = 0;
-    if (!result)
+    if (eventCreatures.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -275,15 +269,13 @@ void GameEventMgr::LoadFromDB()
     }
     else
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(eventCreatures.size());
+        for (GameEventCreatureRow const& row : eventCreatures)
         {
-            Field* fields = result->Fetch();
-
             bar.step();
 
-            uint32 guid    = fields[0].GetUInt32();
-            int16 event_id = fields[1].GetInt16();
+            uint32 guid    = row.guid;
+            int16 event_id = row.event;
 
             if (event_id == 0)
             {
@@ -331,18 +323,16 @@ void GameEventMgr::LoadFromDB()
             GuidList& crelist = mGameEventCreatureGuids[internal_event_id];
             crelist.push_back(guid);
         }
-        while (result->NextRow());
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u creatures in game events", count);
     }
 
     mGameEventGameobjectGuids.resize(mGameEvent.size() * 2 - 1);
-    result = GameEventDataRepository::QueryEventGameObjects();
+    std::vector<GameEventGameObjectRow> eventGameObjects = GameEventDataRepository::QueryEventGameObjects();
 
     count = 0;
-    if (!result)
+    if (eventGameObjects.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -352,15 +342,13 @@ void GameEventMgr::LoadFromDB()
     }
     else
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(eventGameObjects.size());
+        for (GameEventGameObjectRow const& row : eventGameObjects)
         {
-            Field* fields = result->Fetch();
-
             bar.step();
 
-            uint32 guid    = fields[0].GetUInt32();
-            int16 event_id = fields[1].GetInt16();
+            uint32 guid    = row.guid;
+            int16 event_id = row.event;
 
             if (event_id == 0)
             {
@@ -408,8 +396,6 @@ void GameEventMgr::LoadFromDB()
             GuidList& golist = mGameEventGameobjectGuids[internal_event_id];
             golist.push_back(guid);
         }
-        while (result->NextRow());
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u gameobjects in game events", count);
@@ -425,10 +411,10 @@ void GameEventMgr::LoadFromDB()
     }
 
     mGameEventCreatureData.resize(mGameEvent.size());
-    result = GameEventDataRepository::QueryEventCreatureData();
+    std::vector<GameEventCreatureDataRow> eventCreatureData = GameEventDataRepository::QueryEventCreatureData();
 
     count = 0;
-    if (!result)
+    if (eventCreatureData.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -438,14 +424,12 @@ void GameEventMgr::LoadFromDB()
     }
     else
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(eventCreatureData.size());
+        for (GameEventCreatureDataRow const& row : eventCreatureData)
         {
-            Field* fields = result->Fetch();
-
             bar.step();
-            uint32 guid     = fields[0].GetUInt32();
-            uint16 event_id = fields[1].GetUInt16();
+            uint32 guid     = row.guid;
+            uint16 event_id = row.event;
 
             if (event_id == 0)
             {
@@ -462,11 +446,11 @@ void GameEventMgr::LoadFromDB()
             ++count;
             GameEventCreatureDataList& equiplist = mGameEventCreatureData[event_id];
             GameEventCreatureData newData;
-            newData.modelid = fields[2].GetUInt32();
-            newData.equipment_id = fields[3].GetUInt32();
-            newData.entry_id = fields[4].GetUInt32();
-            newData.spell_id_start = fields[5].GetUInt32();
-            newData.spell_id_end = fields[6].GetUInt32();
+            newData.modelid = row.modelid;
+            newData.equipment_id = row.equipmentId;
+            newData.entry_id = row.entryId;
+            newData.spell_id_start = row.spellStart;
+            newData.spell_id_end = row.spellEnd;
 
             if (newData.equipment_id && !sObjectMgr.GetEquipmentInfo(newData.equipment_id))
             {
@@ -495,8 +479,6 @@ void GameEventMgr::LoadFromDB()
             equiplist.push_back(GameEventCreatureDataPair(guid, newData));
             mGameEventCreatureDataPerGuid.insert(GameEventCreatureDataPerGuidMap::value_type(guid, event_id));
         }
-        while (result->NextRow());
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u creature reactions at game events", count);
@@ -504,10 +486,10 @@ void GameEventMgr::LoadFromDB()
 
     mGameEventQuests.resize(mGameEvent.size());
 
-    result = GameEventDataRepository::QueryEventQuests();
+    std::vector<GameEventQuestRow> eventQuests = GameEventDataRepository::QueryEventQuests();
 
     count = 0;
-    if (!result)
+    if (eventQuests.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -517,14 +499,12 @@ void GameEventMgr::LoadFromDB()
     }
     else
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(eventQuests.size());
+        for (GameEventQuestRow const& row : eventQuests)
         {
-            Field* fields = result->Fetch();
-
             bar.step();
-            uint32 quest    = fields[0].GetUInt32();
-            uint16 event_id = fields[1].GetUInt16();
+            uint32 quest    = row.quest;
+            uint16 event_id = row.event;
 
             if (event_id == 0)
             {
@@ -554,8 +534,6 @@ void GameEventMgr::LoadFromDB()
             QuestList& questlist = mGameEventQuests[event_id];
             questlist.push_back(quest);
         }
-        while (result->NextRow());
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u quest additions in game events", count);
@@ -563,10 +541,10 @@ void GameEventMgr::LoadFromDB()
 
     mGameEventMails.resize(mGameEvent.size() * 2 - 1);
 
-    result = GameEventDataRepository::QueryEventMails();
+    std::vector<GameEventMailRow> eventMails = GameEventDataRepository::QueryEventMails();
 
     count = 0;
-    if (!result)
+    if (eventMails.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -576,19 +554,17 @@ void GameEventMgr::LoadFromDB()
     }
     else
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(eventMails.size());
+        for (GameEventMailRow const& row : eventMails)
         {
-            Field* fields = result->Fetch();
-
             bar.step();
-            uint16 event_id = fields[0].GetUInt16();
+            uint16 event_id = row.event;
 
             GameEventMail mail;
-            mail.raceMask       = fields[1].GetUInt32();
-            mail.questId        = fields[2].GetUInt32();
-            mail.mailTemplateId = fields[3].GetUInt32();
-            mail.senderEntry    = fields[4].GetUInt32();
+            mail.raceMask       = row.raceMask;
+            mail.questId        = row.quest;
+            mail.mailTemplateId = row.mailTemplateId;
+            mail.senderEntry    = row.senderEntry;
 
             if (event_id == 0)
             {
@@ -633,8 +609,6 @@ void GameEventMgr::LoadFromDB()
             MailList& maillist = mGameEventMails[internal_event_id];
             maillist.push_back(mail);
         }
-        while (result->NextRow());
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u start/end game event mails", count);
@@ -647,16 +621,13 @@ uint32 GameEventMgr::Initialize()                           // return the next e
 
     ActiveEvents activeAtShutdown;
 
-    if (QueryResult* result = GameEventStatusRepository::QueryActiveEvents())
+    std::vector<uint16> activeEvents = GameEventStatusRepository::QueryActiveEvents();
+    if (!activeEvents.empty())
     {
-        do
+        for (uint16 event_id : activeEvents)
         {
-            Field* fields = result->Fetch();
-            uint16 event_id = fields[0].GetUInt16();
             activeAtShutdown.insert(event_id);
         }
-        while (result->NextRow());
-        delete result;
 
         GameEventStatusRepository::Truncate();
     }

@@ -119,14 +119,36 @@ namespace CreatureDataRepository
         return ReadRows<PetLevelStatsRow>(result, ReadPetLevelStats);
     }
 
-    QueryResult* QueryLinkingTemplates()
+    static CreatureLinkingTemplateRow ReadCreatureLinkingTemplate(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`, `map`, `master_entry`, `flag`, `search_range` FROM `creature_linking_template`");
+        CreatureLinkingTemplateRow row;
+        row.entry = fields[0].GetUInt32();
+        row.map = fields[1].GetUInt32();
+        row.masterEntry = fields[2].GetUInt32();
+        row.flag = fields[3].GetUInt16();
+        row.searchRange = fields[4].GetUInt16();
+        return row;
     }
 
-    QueryResult* QueryLinkings()
+    std::vector<CreatureLinkingTemplateRow> QueryLinkingTemplates()
     {
-        return WorldDatabase.Query("SELECT `guid`, `master_guid`, `flag` FROM `creature_linking`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `map`, `master_entry`, `flag`, `search_range` FROM `creature_linking_template`");
+        return ReadRows<CreatureLinkingTemplateRow>(result, ReadCreatureLinkingTemplate);
+    }
+
+    static CreatureLinkingRow ReadCreatureLinking(Field* fields)
+    {
+        CreatureLinkingRow row;
+        row.guid = fields[0].GetUInt32();
+        row.masterGuid = fields[1].GetUInt32();
+        row.flag = fields[2].GetUInt16();
+        return row;
+    }
+
+    std::vector<CreatureLinkingRow> QueryLinkings()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `guid`, `master_guid`, `flag` FROM `creature_linking`");
+        return ReadRows<CreatureLinkingRow>(result, ReadCreatureLinking);
     }
 
     void SetNpcFlags(uint32 npcFlags, uint32 entry)

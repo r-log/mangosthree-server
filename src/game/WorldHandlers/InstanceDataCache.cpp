@@ -36,33 +36,23 @@ void InstanceDataCache::LoadFromDB()
     m_instances.clear();
     m_worlds.clear();
 
-    if (QueryResult* result = InstanceDataRepository::QueryInstanceData())
+    std::vector<InstanceDataRow> instances = InstanceDataRepository::QueryInstanceData();
+    for (InstanceDataRow const& instance : instances)
     {
-        do
-        {
-            Field* fields = result->Fetch();
-            CachedRow row;
-            row.mapId = fields[1].GetUInt32();
-            row.isNull = fields[2].GetString() == NULL;
-            row.value = fields[2].GetCppString();
-            m_instances[fields[0].GetUInt32()] = row;
-        }
-        while (result->NextRow());
-        delete result;
+        CachedRow row;
+        row.mapId = instance.map;
+        row.isNull = !instance.data;
+        row.value = instance.data.value_or(std::string());
+        m_instances[instance.id] = row;
     }
 
-    if (QueryResult* result = InstanceDataRepository::QueryWorldData())
+    std::vector<WorldMapDataRow> worlds = InstanceDataRepository::QueryWorldData();
+    for (WorldMapDataRow const& world : worlds)
     {
-        do
-        {
-            Field* fields = result->Fetch();
-            CachedRow row;
-            row.isNull = fields[1].GetString() == NULL;
-            row.value = fields[1].GetCppString();
-            m_worlds[fields[0].GetUInt32()] = row;
-        }
-        while (result->NextRow());
-        delete result;
+        CachedRow row;
+        row.isNull = !world.data;
+        row.value = world.data.value_or(std::string());
+        m_worlds[world.map] = row;
     }
 
     sLog.outString(">> Loaded script data for %zu instance(s) and %zu world map(s)",

@@ -253,9 +253,9 @@ TEST(CommandRepository_SpawnInfoAndScriptReads)
     delete SpawnRepository::QueryCreatureIdCountOf(1234);
     delete CommandDataRepository::QueryCommands();
     delete CommandDataRepository::QueryCommandHelpLocales();
-    delete ScriptDataRepository::QueryScriptBindings();
-    delete ScriptDataRepository::QueryScriptNames();
-    delete ScriptDataRepository::QueryDbScripts(2);
+    ScriptDataRepository::QueryScriptBindings();
+    ScriptDataRepository::QueryScriptNames();
+    ScriptDataRepository::QueryDbScripts(2);
     delete ScriptDataRepository::QueryScriptWaypointCounts();
     delete ScriptDataRepository::QueryScriptWaypoints();
     delete CharacterRepository::QueryPlayerInfo(42);

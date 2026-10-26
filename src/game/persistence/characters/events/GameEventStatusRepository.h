@@ -28,14 +28,14 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <vector>
 
 /// The game events left running at shutdown (`game_event_status`): the start-up read runs
 /// synchronously; every write is queued on the character database.
 namespace GameEventStatusRepository
 {
     /// Selects every game event left running at shutdown.
-    QueryResult* QueryActiveEvents();
+    std::vector<uint16> QueryActiveEvents();
 
     /// Deletes every saved running event.
     void Truncate();

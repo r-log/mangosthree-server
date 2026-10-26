@@ -25,11 +25,22 @@
 
 #include "DbVersionRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace DbVersionRepository
 {
-    QueryResult* QueryVersion()
+    static DbVersionRow ReadDbVersion(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1");
+        DbVersionRow row;
+        row.version = fields[0].GetUInt32();
+        row.structure = fields[1].GetUInt32();
+        row.content = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::optional<DbVersionRow> QueryVersion()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1");
+        return ReadRow<DbVersionRow>(result, ReadDbVersion);
     }
 }

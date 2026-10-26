@@ -28,14 +28,23 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <vector>
+
+/// One `disables` row.
+struct DisableRow
+{
+    uint32 sourceType = 0;
+    uint32 entry = 0;
+    uint8 flags = 0;
+    uint32 data = 0;
+};
 
 /// The disabled spells, quests, maps and other entries on the world database (`disables`): the load
-/// at startup and on a reload runs synchronously, for a loader that keeps its loop.
+/// at startup and on a reload runs synchronously and is read into rows.
 namespace DisableDataRepository
 {
     /// Selects every disabled entry (`disables`).
-    QueryResult* QueryDisables();
+    std::vector<DisableRow> QueryDisables();
 }
 
 #endif

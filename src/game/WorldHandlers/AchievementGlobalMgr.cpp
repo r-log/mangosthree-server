@@ -40,6 +40,8 @@
 #include "persistence/characters/achievements/AchievementRepository.h"
 #include "persistence/world/achievements/AchievementDataRepository.h"
 
+static_assert(int(ACHIEVEMENT_REWARD_LOCALE_ROW_LOCALES) == int(MAX_LOCALE) - 1, "an achievement reward locale row holds its texts for every locale but the default one");
+
 AchievementCriteriaEntryList const& AchievementGlobalMgr::GetAchievementCriteriaByType(AchievementCriteriaTypes type)
 {
     return m_AchievementCriteriasByType[type];
@@ -186,9 +188,9 @@ void AchievementGlobalMgr::LoadAchievementCriteriaRequirements()
 {
     m_criteriaRequirementMap.clear();                       // need for reload case
 
-    QueryResult* result = AchievementDataRepository::QueryCriteriaRequirements();
+    std::vector<AchievementCriteriaRequirementRow> rows = AchievementDataRepository::QueryCriteriaRequirements();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -200,12 +202,11 @@ void AchievementGlobalMgr::LoadAchievementCriteriaRequirements()
 
     uint32 count = 0;
     uint32 disabled_count = 0;
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(rows.size());
+    for (AchievementCriteriaRequirementRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
-        uint32 criteria_id = fields[0].GetUInt32();
+        uint32 criteria_id = row.criteriaId;
 
         AchievementCriteriaEntry const* criteria = sAchievementCriteriaStore.LookupEntry(criteria_id);
 
@@ -215,7 +216,7 @@ void AchievementGlobalMgr::LoadAchievementCriteriaRequirements()
             continue;
         }
 
-        AchievementCriteriaRequirement data(fields[1].GetUInt32(), fields[2].GetUInt32(), fields[3].GetUInt32());
+        AchievementCriteriaRequirement data(row.type, row.value1, row.value2);
 
         if (!data.IsValid(criteria))
         {
@@ -241,9 +242,6 @@ void AchievementGlobalMgr::LoadAchievementCriteriaRequirements()
         // counting requirements
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     // post loading checks
     for (uint32 entryId = 0; entryId < sAchievementCriteriaStore.GetNumRows(); ++entryId)
@@ -331,9 +329,9 @@ void AchievementGlobalMgr::LoadAchievementCriteriaRequirements()
 
 void AchievementGlobalMgr::LoadCompletedAchievements()
 {
-    QueryResult* result = AchievementRepository::QueryCompletedAchievements();
+    std::vector<CompletedAchievementRow> rows = AchievementRepository::QueryCompletedAchievements();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -343,13 +341,12 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(rows.size());
+    for (CompletedAchievementRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
 
-        uint32 achievement_id = fields[0].GetUInt32();
+        uint32 achievement_id = row.achievement;
         if (!sAchievementStore.LookupEntry(achievement_id))
         {
             // we will remove nonexistent achievement for all characters
@@ -360,9 +357,6 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
 
         m_allCompletedAchievements.insert(achievement_id);
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %zu realm completed achievements.", m_allCompletedAchievements.size());
@@ -370,9 +364,9 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
 
 void AchievementGlobalMgr::CleanupOrphanedCriteriaProgress()
 {
-    QueryResult* result = AchievementRepository::QueryProgressCriteria();
+    std::vector<AchievementCriteriaProgressRow> rows = AchievementRepository::QueryProgressCriteria();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -383,13 +377,12 @@ void AchievementGlobalMgr::CleanupOrphanedCriteriaProgress()
     }
 
     uint32 count = 0;
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(rows.size());
+    for (AchievementCriteriaProgressRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
 
-        uint32 criteria_id = fields[0].GetUInt32();
+        uint32 criteria_id = row.criteria;
         if (!sAchievementCriteriaStore.LookupEntry(criteria_id))
         {
             // we will remove nonexistent criteria for all characters
@@ -398,9 +391,6 @@ void AchievementGlobalMgr::CleanupOrphanedCriteriaProgress()
             ++count;
         }
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Removed %u orphaned criteria data from table `character_achievement_progress`.", count);
@@ -410,9 +400,9 @@ void AchievementGlobalMgr::LoadRewards()
 {
     m_achievementRewards.clear();                           // need for reload case
 
-    QueryResult* result = AchievementDataRepository::QueryRewards();
+    std::vector<AchievementRewardRow> rows = AchievementDataRepository::QueryRewards();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -424,14 +414,13 @@ void AchievementGlobalMgr::LoadRewards()
     }
 
     uint32 count = 0;
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (AchievementRewardRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-        uint32 entry = fields[0].GetUInt32();
+        uint32 entry = row.entry;
         if (!sAchievementStore.LookupEntry(entry))
         {
             sLog.outErrorDb("Table `achievement_reward` has wrong achievement (Entry: %u), ignore", entry);
@@ -439,13 +428,13 @@ void AchievementGlobalMgr::LoadRewards()
         }
 
         AchievementReward reward;
-        reward.gender     = Gender(fields[1].GetUInt8());
-        reward.titleId[0] = fields[2].GetUInt32();
-        reward.titleId[1] = fields[3].GetUInt32();
-        reward.itemId     = fields[4].GetUInt32();
-        reward.sender     = fields[5].GetUInt32();
-        reward.subject    = fields[6].GetCppString();
-        reward.text       = fields[7].GetCppString();
+        reward.gender     = Gender(row.gender);
+        reward.titleId[0] = row.titleA;
+        reward.titleId[1] = row.titleH;
+        reward.itemId     = row.item;
+        reward.sender     = row.sender;
+        reward.subject    = row.subject;
+        reward.text       = row.text;
 
         if (reward.gender >= MAX_GENDER)
         {
@@ -539,9 +528,6 @@ void AchievementGlobalMgr::LoadRewards()
         m_achievementRewards.insert(AchievementRewardsMap::value_type(entry, reward));
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u achievement rewards", count);
@@ -551,8 +537,8 @@ void AchievementGlobalMgr::LoadRewardLocales()
 {
     m_achievementRewardLocales.clear();                     // need for reload case
 
-    QueryResult* result = AchievementDataRepository::QueryRewardLocales();
-    if (!result)
+    std::vector<AchievementRewardLocaleRow> rows = AchievementDataRepository::QueryRewardLocales();
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -563,14 +549,13 @@ void AchievementGlobalMgr::LoadRewardLocales()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (AchievementRewardLocaleRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 entry = fields[0].GetUInt32();
+        uint32 entry = row.entry;
 
         if (m_achievementRewards.find(entry) == m_achievementRewards.end())
         {
@@ -580,7 +565,7 @@ void AchievementGlobalMgr::LoadRewardLocales()
 
         AchievementRewardLocale data;
 
-        data.gender = Gender(fields[1].GetUInt8());
+        data.gender = Gender(row.gender);
 
         if (data.gender >= MAX_GENDER)
         {
@@ -607,7 +592,7 @@ void AchievementGlobalMgr::LoadRewardLocales()
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
-            std::string str = fields[2 + 2 * (i - 1)].GetCppString();
+            std::string str = row.subject[i - 1];
             if (!str.empty())
             {
                 int idx = sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i));
@@ -621,7 +606,7 @@ void AchievementGlobalMgr::LoadRewardLocales()
                     data.subject[idx] = str;
                 }
             }
-            str = fields[2 + 2 * (i - 1) + 1].GetCppString();
+            str = row.text[i - 1];
             if (!str.empty())
             {
                 int idx = sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i));
@@ -639,9 +624,6 @@ void AchievementGlobalMgr::LoadRewardLocales()
 
         m_achievementRewardLocales.insert(AchievementRewardLocalesMap::value_type(entry, data));
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %zu achievement reward locale strings", m_achievementRewardLocales.size());

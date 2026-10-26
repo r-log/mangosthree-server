@@ -105,15 +105,15 @@ TEST(WorldDataRepository_StartupReads)
     SpellDataRepository::QueryPetAuras();
     SpellDataRepository::QueryProcEvents();
     SpellDataRepository::QueryProcItemEnchants();
-    delete CreatureEventAIRepository::QuerySummons();
-    delete CreatureEventAIRepository::QueryEvents();
-    delete LootDataRepository::QueryLootTemplate("creature_loot_template");
-    delete LootDataRepository::QueryItemEnchantments();
-    delete SkillDataRepository::QueryDiscoveries();
-    delete SkillDataRepository::QueryExtraItems();
-    delete MapDataRepository::QueryTransports();
-    delete MapDataRepository::QueryTransportGameObjects();
-    delete MapDataRepository::QueryWeather();
+    CreatureEventAIRepository::QuerySummons();
+    CreatureEventAIRepository::QueryEvents();
+    LootDataRepository::QueryLootTemplate("creature_loot_template");
+    LootDataRepository::QueryItemEnchantments();
+    SkillDataRepository::QueryDiscoveries();
+    SkillDataRepository::QueryExtraItems();
+    MapDataRepository::QueryTransports();
+    MapDataRepository::QueryTransportGameObjects();
+    MapDataRepository::QueryWeather();
     BattleGroundDataRepository::QueryTemplates();
     BattleGroundDataRepository::QueryBattleMasters();
     BattleGroundDataRepository::QueryEventIndexes();
@@ -289,29 +289,29 @@ TEST(WorldDataRepository_GmWrites)
 TEST(WorldDataRepository_ManagerReads)
 {
     Db db;
-    delete GameEventDataRepository::QueryHighestEventEntry();
-    delete GameEventDataRepository::QueryEvents();
-    delete GameEventDataRepository::QueryEventCreatures();
-    delete GameEventDataRepository::QueryEventGameObjects();
-    delete GameEventDataRepository::QueryEventCreatureData();
-    delete GameEventDataRepository::QueryEventQuests();
-    delete GameEventDataRepository::QueryEventMails();
-    delete WaypointRepository::QueryPathPointCounts();
-    delete WaypointRepository::QueryPathPoints();
-    delete WaypointRepository::QueryTemplatePathPointCounts();
-    delete WaypointRepository::QueryTemplatePathPoints();
-    delete SpawnRepository::QueryCreatureEntryAndMap(42);
-    delete SpawnRepository::QueryCreatureGuidsOnMap(1234, 530);
-    delete PoolDataRepository::QueryHighestPoolEntry();
-    delete PoolDataRepository::QueryPools();
-    delete PoolDataRepository::QueryPoolCreatures();
-    delete PoolDataRepository::QueryPoolCreatureTemplates();
-    delete PoolDataRepository::QueryPoolGameObjects();
-    delete PoolDataRepository::QueryPoolGameObjectTemplates();
-    delete PoolDataRepository::QueryPoolPools();
-    delete CreatureDataRepository::QueryLinkingTemplates();
-    delete CreatureDataRepository::QueryLinkings();
-    delete DisableDataRepository::QueryDisables();
+    GameEventDataRepository::QueryHighestEventEntry();
+    GameEventDataRepository::QueryEvents();
+    GameEventDataRepository::QueryEventCreatures();
+    GameEventDataRepository::QueryEventGameObjects();
+    GameEventDataRepository::QueryEventCreatureData();
+    GameEventDataRepository::QueryEventQuests();
+    GameEventDataRepository::QueryEventMails();
+    WaypointRepository::QueryPathPointCounts();
+    WaypointRepository::QueryPathPoints();
+    WaypointRepository::QueryTemplatePathPointCounts();
+    WaypointRepository::QueryTemplatePathPoints();
+    SpawnRepository::QueryCreatureEntryAndMap(42);
+    SpawnRepository::QueryCreatureGuidsOnMap(1234, 530);
+    PoolDataRepository::QueryHighestPoolEntry();
+    PoolDataRepository::QueryPools();
+    PoolDataRepository::QueryPoolCreatures();
+    PoolDataRepository::QueryPoolCreatureTemplates();
+    PoolDataRepository::QueryPoolGameObjects();
+    PoolDataRepository::QueryPoolGameObjectTemplates();
+    PoolDataRepository::QueryPoolPools();
+    CreatureDataRepository::QueryLinkingTemplates();
+    CreatureDataRepository::QueryLinkings();
+    DisableDataRepository::QueryDisables();
     CheckLines(db.query.executed, {
         "SELECT MAX(`entry`) FROM `game_event`",
         "SELECT `entry`,UNIX_TIMESTAMP(`start_time`),UNIX_TIMESTAMP(`end_time`),`occurence`,`length`,`holiday`,`description` FROM `game_event`",

@@ -63,29 +63,28 @@ void LoadSkillDiscoveryTable()
 
     uint32 count = 0;
 
-    QueryResult* result = SkillDataRepository::QueryDiscoveries();
+    std::vector<SkillDiscoveryRow> rows = SkillDataRepository::QueryDiscoveries();
 
-    if (!result)
+    if (rows.empty())
     {
         sLog.outString();
         sLog.outString(">> Loaded 0 skill discovery definitions. DB table `skill_discovery_template` is empty.");
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
     std::ostringstream ssNonDiscoverableEntries;
     std::set<uint32> reportedReqSpells;
 
-    do
+    for (SkillDiscoveryRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 spellId         = fields[0].GetUInt32();
-        int32  reqSkillOrSpell = fields[1].GetInt32();
-        uint32 reqSkillValue   = fields[2].GetInt32();
-        float  chance          = fields[3].GetFloat();
+        uint32 spellId         = row.spellId;
+        int32  reqSkillOrSpell = row.reqSpell;
+        uint32 reqSkillValue   = row.reqSkillValue;
+        float  chance          = row.chance;
 
         if (chance <= 0)                                    // chance
         {
@@ -147,9 +146,6 @@ void LoadSkillDiscoveryTable()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u skill discovery definitions", count);

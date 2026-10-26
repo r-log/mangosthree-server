@@ -25,20 +25,53 @@
 
 #include "WaypointRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace WaypointRepository
 {
-    QueryResult* QueryPathPointCounts()
+    static PathPointCountRow ReadPathPointCount(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `id`, COUNT(`point`) FROM `creature_movement` GROUP BY `id`");
+        PathPointCountRow row;
+        row.id = fields[0].GetUInt32();
+        row.count = fields[1].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryPathPoints()
+    std::vector<PathPointCountRow> QueryPathPointCounts()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, COUNT(`point`) FROM `creature_movement` GROUP BY `id`");
+        return ReadRows<PathPointCountRow>(result, ReadPathPointCount);
+    }
+
+    static PathPointRow ReadPathPoint(Field* fields)
+    {
+        PathPointRow row;
+        row.id = fields[0].GetUInt32();
+        row.point = fields[1].GetUInt32();
+        row.positionX = fields[2].GetFloat();
+        row.positionY = fields[3].GetFloat();
+        row.positionZ = fields[4].GetFloat();
+        row.waittime = fields[5].GetUInt32();
+        row.scriptId = fields[6].GetUInt32();
+        for (int i = 0; i < WAYPOINT_ROW_TEXTS; ++i)
+        {
+            row.textid[i] = fields[7 + i].GetInt32();
+        }
+        row.emote = fields[12].GetUInt32();
+        row.spell = fields[13].GetUInt32();
+        row.orientation = fields[14].GetFloat();
+        row.model1 = fields[15].GetUInt32();
+        row.model2 = fields[16].GetUInt32();
+        return row;
+    }
+
+    std::vector<PathPointRow> QueryPathPoints()
     {
         //                                 0   1      2           3           4           5         6
-        return WorldDatabase.Query("SELECT `id`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,"
-                                   //   7        8        9        10       11       12     13     14           15      16
-                                   "`textid1`, `textid2`, `textid3`, `textid4`, `textid5`, `emote`, `spell`, `orientation`, `model1`, `model2` FROM `creature_movement`");
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,"
+                                                  //   7        8        9        10       11       12     13     14           15      16
+                                                  "`textid1`, `textid2`, `textid3`, `textid4`, `textid5`, `emote`, `spell`, `orientation`, `model1`, `model2` FROM `creature_movement`");
+        return ReadRows<PathPointRow>(result, ReadPathPoint);
     }
 
     void FixPathPoint(float x, float y, float z, uint32 id, uint32 point)
@@ -46,17 +79,49 @@ namespace WaypointRepository
         WorldDatabase.PExecute("UPDATE `creature_movement` SET `position_x` = '%f', `position_y` = '%f', `position_z` = '%f' WHERE `id` = '%u' AND `point` = '%u'", x, y, z, id, point);
     }
 
-    QueryResult* QueryTemplatePathPointCounts()
+    static TemplatePathPointCountRow ReadTemplatePathPointCount(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`, COUNT(`point`) FROM `creature_movement_template` GROUP BY `entry`");
+        TemplatePathPointCountRow row;
+        row.entry = fields[0].GetUInt32();
+        row.count = fields[1].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryTemplatePathPoints()
+    std::vector<TemplatePathPointCountRow> QueryTemplatePathPointCounts()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, COUNT(`point`) FROM `creature_movement_template` GROUP BY `entry`");
+        return ReadRows<TemplatePathPointCountRow>(result, ReadTemplatePathPointCount);
+    }
+
+    static TemplatePathPointRow ReadTemplatePathPoint(Field* fields)
+    {
+        TemplatePathPointRow row;
+        row.entry = fields[0].GetUInt32();
+        row.point = fields[1].GetUInt32();
+        row.positionX = fields[2].GetFloat();
+        row.positionY = fields[3].GetFloat();
+        row.positionZ = fields[4].GetFloat();
+        row.waittime = fields[5].GetUInt32();
+        row.scriptId = fields[6].GetUInt32();
+        for (int i = 0; i < WAYPOINT_ROW_TEXTS; ++i)
+        {
+            row.textid[i] = fields[7 + i].GetUInt32();
+        }
+        row.emote = fields[12].GetUInt32();
+        row.spell = fields[13].GetUInt32();
+        row.orientation = fields[14].GetFloat();
+        row.model1 = fields[15].GetUInt32();
+        row.model2 = fields[16].GetUInt32();
+        return row;
+    }
+
+    std::vector<TemplatePathPointRow> QueryTemplatePathPoints()
     {
         //                                 0      1      2           3           4           5         6
-        return WorldDatabase.Query("SELECT `entry`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,"
-                                   //   7        8        9        10       11       12     13     14           15      16
-                                   "`textid1`, `textid2`, `textid3`, `textid4`, `textid5`, `emote`, `spell`, `orientation`, `model1`, `model2` FROM `creature_movement_template`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,"
+                                                  //   7        8        9        10       11       12     13     14           15      16
+                                                  "`textid1`, `textid2`, `textid3`, `textid4`, `textid5`, `emote`, `spell`, `orientation`, `model1`, `model2` FROM `creature_movement_template`");
+        return ReadRows<TemplatePathPointRow>(result, ReadTemplatePathPoint);
     }
 
     void FixTemplatePathPoint(float x, float y, uint32 entry, uint32 point)

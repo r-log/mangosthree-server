@@ -59,12 +59,12 @@
 void MapManager::LoadTransports()
 {
 
-    QueryResult* result = MapDataRepository::QueryTransports();
+    std::vector<TransportRow> transports = MapDataRepository::QueryTransports();
 
     uint32 count = 0;
     uint32 mapped = 0;
 
-    if (!result)
+    if (transports.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -74,19 +74,17 @@ void MapManager::LoadTransports()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(transports.size());
 
-    do
+    for (TransportRow const& row : transports)
     {
         bar.step();
 
         Transport* t = new Transport;
 
-        Field* fields = result->Fetch();
-
-        uint32 entry = fields[0].GetUInt32();
-        std::string name = fields[1].GetCppString();
-        t->m_period = fields[2].GetUInt32();
+        uint32 entry = row.entry;
+        std::string name = row.name;
+        t->m_period = row.period;
 
         const GameObjectInfo* goinfo = ObjectMgr::GetGameObjectInfo(entry);
 
@@ -190,28 +188,21 @@ void MapManager::LoadTransports()
         // t->GetMap()->Add<GameObject>((GameObject *)t);
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u transports, %u with a map of their own", count, mapped);
 
     // check transport data DB integrity
-    result = MapDataRepository::QueryTransportGameObjects();
-    if (result)                                             // wrong data found
+    std::vector<TransportGameObjectRow> transportGameObjects = MapDataRepository::QueryTransportGameObjects();
+    if (!transportGameObjects.empty())                                             // wrong data found
     {
-        do
+        for (TransportGameObjectRow const& row : transportGameObjects)
         {
-            Field* fields = result->Fetch();
-
-            uint32 guid  = fields[0].GetUInt32();
-            uint32 entry = fields[1].GetUInt32();
-            std::string name = fields[2].GetCppString();
+            uint32 guid  = row.guid;
+            uint32 entry = row.id;
+            std::string name = row.name;
             sLog.outErrorDb("Transport %u '%s' have record (GUID: %u) in `gameobject`. Transports DON'T must have any records in `gameobject` or its behavior will be unpredictable/bugged.", entry, name.c_str(), guid);
         }
-        while (result->NextRow());
-
-        delete result;
     }
 }
 

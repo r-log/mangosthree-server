@@ -29,20 +29,54 @@
 
 namespace MapDataRepository
 {
-    QueryResult* QueryTransports()
+    static TransportRow ReadTransport(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`, `name`, `period` FROM `transports`");
+        TransportRow row;
+        row.entry = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.period = fields[2].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryTransportGameObjects()
+    std::vector<TransportRow> QueryTransports()
     {
-        return WorldDatabase.Query("SELECT `gameobject`.`guid`,`gameobject`.`id`,`transports`.`name` FROM `gameobject`,`transports` WHERE `gameobject`.`id` = `transports`.`entry`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `name`, `period` FROM `transports`");
+        return ReadRows<TransportRow>(result, ReadTransport);
     }
 
-    QueryResult* QueryWeather()
+    static TransportGameObjectRow ReadTransportGameObject(Field* fields)
+    {
+        TransportGameObjectRow row;
+        row.guid = fields[0].GetUInt32();
+        row.id = fields[1].GetUInt32();
+        row.name = fields[2].GetCppString();
+        return row;
+    }
+
+    std::vector<TransportGameObjectRow> QueryTransportGameObjects()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `gameobject`.`guid`,`gameobject`.`id`,`transports`.`name` FROM `gameobject`,`transports` WHERE `gameobject`.`id` = `transports`.`entry`");
+        return ReadRows<TransportGameObjectRow>(result, ReadTransportGameObject);
+    }
+
+    static WeatherRow ReadWeather(Field* fields)
+    {
+        WeatherRow row;
+        row.zone = fields[0].GetUInt32();
+        for (int season = 0; season < WEATHER_ROW_SEASONS; ++season)
+        {
+            row.rainChance[season] = fields[season * WEATHER_ROW_CHANCES + 1].GetUInt32();
+            row.snowChance[season] = fields[season * WEATHER_ROW_CHANCES + 2].GetUInt32();
+            row.stormChance[season] = fields[season * WEATHER_ROW_CHANCES + 3].GetUInt32();
+        }
+        return row;
+    }
+
+    std::vector<WeatherRow> QueryWeather()
     {
         //                                 0     1                   2                   3                    4                   5                   6                    7                 8                 9                  10                  11                  12
-        return WorldDatabase.Query("SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`");
+        QueryResult* result = WorldDatabase.Query("SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`");
+        return ReadRows<WeatherRow>(result, ReadWeather);
     }
 
     static GameTeleRow ReadGameTele(Field* fields)

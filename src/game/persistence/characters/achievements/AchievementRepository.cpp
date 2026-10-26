@@ -25,17 +25,34 @@
 
 #include "AchievementRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace AchievementRepository
 {
-    QueryResult* QueryCompletedAchievements()
+    static CompletedAchievementRow ReadCompletedAchievement(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`");
+        CompletedAchievementRow row;
+        row.achievement = fields[0].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryProgressCriteria()
+    std::vector<CompletedAchievementRow> QueryCompletedAchievements()
     {
-        return CharacterDatabase.Query("SELECT DISTINCT `criteria` FROM `character_achievement_progress`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`");
+        return ReadRows<CompletedAchievementRow>(result, ReadCompletedAchievement);
+    }
+
+    static AchievementCriteriaProgressRow ReadAchievementCriteriaProgress(Field* fields)
+    {
+        AchievementCriteriaProgressRow row;
+        row.criteria = fields[0].GetUInt32();
+        return row;
+    }
+
+    std::vector<AchievementCriteriaProgressRow> QueryProgressCriteria()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT DISTINCT `criteria` FROM `character_achievement_progress`");
+        return ReadRows<AchievementCriteriaProgressRow>(result, ReadAchievementCriteriaProgress);
     }
 
     void DeleteAllOf(uint32 guid)

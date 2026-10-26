@@ -28,7 +28,19 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <vector>
+
+/// One achievement some character has completed.
+struct CompletedAchievementRow
+{
+    uint32 achievement = 0;
+};
+
+/// One criteria some character has progress in.
+struct AchievementCriteriaProgressRow
+{
+    uint32 criteria = 0;
+};
 
 /// The characters' completed achievements and criteria progress. The two realm-wide reads run at
 /// startup, synchronously; every write is queued on the character database, and one called inside
@@ -36,10 +48,10 @@ class QueryResult;
 namespace AchievementRepository
 {
     /// Selects every achievement some character has completed, once each.
-    QueryResult* QueryCompletedAchievements();
+    std::vector<CompletedAchievementRow> QueryCompletedAchievements();
 
     /// Selects every criteria some character has progress in, once each.
-    QueryResult* QueryProgressCriteria();
+    std::vector<AchievementCriteriaProgressRow> QueryProgressCriteria();
 
     /// Deletes a character's achievements and criteria progress, in one transaction.
     void DeleteAllOf(uint32 guid);

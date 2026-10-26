@@ -210,14 +210,24 @@ namespace SpawnRepository
         return ReadRows<GameObjectSpawnDataRow>(result, ReadGameObjectSpawnData);
     }
 
-    QueryResult* QueryCreatureEntryAndMap(uint32 guid)
+    static CreatureEntryAndMapRow ReadCreatureEntryAndMap(Field* fields)
     {
-        return WorldDatabase.PQuery("SELECT `id`, `map` FROM `creature` WHERE `guid` = '%u'", guid);
+        CreatureEntryAndMapRow row;
+        row.id = fields[0].GetUInt32();
+        row.map = fields[1].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryCreatureGuidsOnMap(uint32 entry, uint32 mapId)
+    std::optional<CreatureEntryAndMapRow> QueryCreatureEntryAndMap(uint32 guid)
     {
-        return WorldDatabase.PQuery("SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2", entry, mapId);
+        QueryResult* result = WorldDatabase.PQuery("SELECT `id`, `map` FROM `creature` WHERE `guid` = '%u'", guid);
+        return ReadRow<CreatureEntryAndMapRow>(result, ReadCreatureEntryAndMap);
+    }
+
+    std::vector<uint32> QueryCreatureGuidsOnMap(uint32 entry, uint32 mapId)
+    {
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2", entry, mapId);
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     QueryResult* QueryGameObjectCountOf(uint32 entry)

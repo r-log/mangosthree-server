@@ -34,6 +34,8 @@
 #include "persistence/world/spawns/SpawnRepository.h"
 #include "persistence/world/waypoints/WaypointRepository.h"
 
+static_assert(int(WAYPOINT_ROW_TEXTS) == int(MAX_WAYPOINT_TEXT), "a waypoint row holds every text");
+
 
 /**
  * If the emote, spell, model1, or model2 variables are not 0, then the function returns false.
@@ -102,9 +104,9 @@ void WaypointManager::Load()
     // creature_movement
     // /////////////////////////////////////////////////////
 
-    QueryResult* result = WaypointRepository::QueryPathPointCounts();
+    std::vector<PathPointCountRow> pathPointCounts = WaypointRepository::QueryPathPointCounts();
 
-    if (!result)
+    if (pathPointCounts.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -113,34 +115,28 @@ void WaypointManager::Load()
     }
     else
     {
-        total_paths = (uint32)result->GetRowCount();
+        total_paths = (uint32)pathPointCounts.size();
 
-        do                                                  // Count expected amount of nodes
+        for (PathPointCountRow const& row : pathPointCounts)       // Count expected amount of nodes
         {
-            Field* fields   = result->Fetch();
-
-            // uint32 id    = fields[0].GetUInt32();
-            uint32 count    = fields[1].GetUInt32();
+            uint32 count    = row.count;
 
             total_nodes += count;
         }
-        while (result->NextRow());
-        delete result;
 
-        result = WaypointRepository::QueryPathPoints();
+        std::vector<PathPointRow> pathPoints = WaypointRepository::QueryPathPoints();
 
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(pathPoints.size());
 
         // error after load, we check if creature guid corresponding to the path id has proper MovementType
         std::set<uint32> creatureNoMoveType;
 
-        do
+        for (PathPointRow const& row : pathPoints)
         {
             bar.step();
-            Field* fields = result->Fetch();
 
-            uint32 id           = fields[0].GetUInt32();
-            uint32 point        = fields[1].GetUInt32();
+            uint32 id           = row.id;
+            uint32 point        = row.point;
 
             const CreatureData* cData = sObjectMgr.GetCreatureData(id);
 
@@ -158,20 +154,20 @@ void WaypointManager::Load()
             WaypointPath& path  = m_pathMap[id];
             WaypointNode& node  = path[point];
 
-            node.x              = fields[2].GetFloat();
-            node.y              = fields[3].GetFloat();
-            node.z              = fields[4].GetFloat();
-            node.orientation    = fields[14].GetFloat();
-            node.delay          = fields[5].GetUInt32();
-            node.script_id      = fields[6].GetUInt32();
+            node.x              = row.positionX;
+            node.y              = row.positionY;
+            node.z              = row.positionZ;
+            node.orientation    = row.orientation;
+            node.delay          = row.waittime;
+            node.script_id      = row.scriptId;
 
             // prevent using invalid coordinates
             if (!MaNGOS::IsValidMapCoord(node.x, node.y, node.z, node.orientation))
             {
-                QueryResult* result1 = SpawnRepository::QueryCreatureEntryAndMap(id);
-                if (result1)
+                std::optional<CreatureEntryAndMapRow> spawn = SpawnRepository::QueryCreatureEntryAndMap(id);
+                if (spawn)
                     sLog.outErrorDb("Creature (guidlow %d, entry %d) have invalid coordinates in his waypoint %d (X: %f, Y: %f).",
-                                    id, result1->Fetch()[0].GetUInt32(), point, node.x, node.y);
+                                    id, spawn->id, point, node.x, node.y);
                 else
                     sLog.outErrorDb("Waypoint path %d, have invalid coordinates in his waypoint %d (X: %f, Y: %f).",
                                     id, point, node.x, node.y);
@@ -179,12 +175,11 @@ void WaypointManager::Load()
                 MaNGOS::NormalizeMapCoord(node.x);
                 MaNGOS::NormalizeMapCoord(node.y);
 
-                if (result1)
+                if (spawn)
                 {
-                    const auto wpFloor = sTerrainMgr.LoadTerrain(result1->Fetch()[1].GetUInt32())
+                    const auto wpFloor = sTerrainMgr.LoadTerrain(spawn->map)
                                             ->StaticFloor(node.x, node.y, node.z);
                     node.z = wpFloor ? *wpFloor : node.z;
-                    delete result1;
                 }
 
                 WaypointRepository::FixPathPoint(node.x, node.y, node.z, id, point);
@@ -204,14 +199,14 @@ void WaypointManager::Load()
             // WaypointBehavior can be dropped in time. Script_id added may 2010 and can handle all the below behavior.
 
             WaypointBehavior be;
-            be.model1           = fields[15].GetUInt32();
-            be.model2           = fields[16].GetUInt32();
-            be.emote            = fields[12].GetUInt32();
-            be.spell            = fields[13].GetUInt32();
+            be.model1           = row.model1;
+            be.model2           = row.model2;
+            be.emote            = row.emote;
+            be.spell            = row.spell;
 
             for (int i = 0; i < MAX_WAYPOINT_TEXT; ++i)
             {
-                be.textid[i]    = fields[7 + i].GetInt32();
+                be.textid[i]    = row.textid[i];
 
                 if (be.textid[i])
                 {
@@ -248,7 +243,6 @@ void WaypointManager::Load()
                 node.behavior = NULL;
             }
         }
-        while (result->NextRow());
 
         if (!creatureNoMoveType.empty())
         {
@@ -268,17 +262,15 @@ void WaypointManager::Load()
 
         sLog.outString(">> Loaded %u paths, %u nodes and %u behaviors from waypoints", total_paths, total_nodes, total_behaviors);
         sLog.outString();
-
-        delete result;
     }
 
     // /////////////////////////////////////////////////////
     // creature_movement_template
     // /////////////////////////////////////////////////////
 
-    result = WaypointRepository::QueryTemplatePathPointCounts();
+    std::vector<TemplatePathPointCountRow> templatePathPointCounts = WaypointRepository::QueryTemplatePathPointCounts();
 
-    if (!result)
+    if (templatePathPointCounts.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -289,31 +281,25 @@ void WaypointManager::Load()
     {
         total_nodes = 0;
         total_behaviors = 0;
-        total_paths = (uint32)result->GetRowCount();
+        total_paths = (uint32)templatePathPointCounts.size();
 
-        do                                                  // Count expected amount of nodes
+        for (TemplatePathPointCountRow const& row : templatePathPointCounts)       // Count expected amount of nodes
         {
-            Field* fields = result->Fetch();
-
-            // uint32 entry = fields[0].GetUInt32();
-            uint32 count    = fields[1].GetUInt32();
+            uint32 count    = row.count;
 
             total_nodes += count;
         }
-        while (result->NextRow());
-        delete result;
 
-        result = WaypointRepository::QueryTemplatePathPoints();
+        std::vector<TemplatePathPointRow> templatePathPoints = WaypointRepository::QueryTemplatePathPoints();
 
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(templatePathPoints.size());
 
-        do
+        for (TemplatePathPointRow const& row : templatePathPoints)
         {
             bar.step();
-            Field* fields = result->Fetch();
 
-            uint32 entry        = fields[0].GetUInt32();
-            uint32 point        = fields[1].GetUInt32();
+            uint32 entry        = row.entry;
+            uint32 point        = row.point;
 
             const CreatureInfo* cInfo = ObjectMgr::GetCreatureTemplate(entry);
 
@@ -326,12 +312,12 @@ void WaypointManager::Load()
             WaypointPath& path  = m_pathTemplateMap[entry << 8];
             WaypointNode& node  = path[point];
 
-            node.x              = fields[2].GetFloat();
-            node.y              = fields[3].GetFloat();
-            node.z              = fields[4].GetFloat();
-            node.orientation    = fields[14].GetFloat();
-            node.delay          = fields[5].GetUInt32();
-            node.script_id      = fields[6].GetUInt32();
+            node.x              = row.positionX;
+            node.y              = row.positionY;
+            node.z              = row.positionZ;
+            node.orientation    = row.orientation;
+            node.delay          = row.waittime;
+            node.script_id      = row.scriptId;
 
             // prevent using invalid coordinates
             if (!MaNGOS::IsValidMapCoord(node.x, node.y, node.z, node.orientation))
@@ -360,14 +346,14 @@ void WaypointManager::Load()
             }
 
             WaypointBehavior be;
-            be.model1           = fields[15].GetUInt32();
-            be.model2           = fields[16].GetUInt32();
-            be.emote            = fields[12].GetUInt32();
-            be.spell            = fields[13].GetUInt32();
+            be.model1           = row.model1;
+            be.model2           = row.model2;
+            be.emote            = row.emote;
+            be.spell            = row.spell;
 
             for (int i = 0; i < MAX_WAYPOINT_TEXT; ++i)
             {
-                be.textid[i]    = fields[7 + i].GetUInt32();
+                be.textid[i]    = row.textid[i];
 
                 if (be.textid[i])
                 {
@@ -404,9 +390,6 @@ void WaypointManager::Load()
                 node.behavior   = NULL;
             }
         }
-        while (result->NextRow());
-
-        delete result;
 
         sLog.outString(">> Loaded %u path templates with %u nodes and %u behaviors from waypoint templates", total_paths, total_nodes, total_behaviors);
         sLog.outString();

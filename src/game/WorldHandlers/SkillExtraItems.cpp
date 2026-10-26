@@ -64,18 +64,17 @@ void LoadSkillExtraItemTable()
 
     SkillExtraItemStore.clear();                            // need for reload
 
-    QueryResult* result = SkillDataRepository::QueryExtraItems();
+    std::vector<SkillExtraItemRow> rows = SkillDataRepository::QueryExtraItems();
 
-    if (result)
+    if (!rows.empty())
     {
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
 
-        do
+        for (SkillExtraItemRow const& row : rows)
         {
-            Field* fields = result->Fetch();
             bar.step();
 
-            uint32 spellId = fields[0].GetUInt32();
+            uint32 spellId = row.spellId;
 
             if (!sSpellStore.LookupEntry(spellId))
             {
@@ -83,21 +82,21 @@ void LoadSkillExtraItemTable()
                 continue;
             }
 
-            uint32 requiredSpecialization = fields[1].GetUInt32();
+            uint32 requiredSpecialization = row.requiredSpecialization;
             if (!sSpellStore.LookupEntry(requiredSpecialization))
             {
                 sLog.outError("Skill specialization %u have nonexistent required specialization spell id %u in `skill_extra_item_template`!", spellId, requiredSpecialization);
                 continue;
             }
 
-            float additionalCreateChance = fields[2].GetFloat();
+            float additionalCreateChance = row.additionalCreateChance;
             if (additionalCreateChance <= 0.0f)
             {
                 sLog.outError("Skill specialization %u has too low additional create chance in `skill_extra_item_template`!", spellId);
                 continue;
             }
 
-            uint8 additionalMaxNum = fields[3].GetUInt8();
+            uint8 additionalMaxNum = row.additionalMaxNum;
             if (!additionalMaxNum)
             {
                 sLog.outError("Skill specialization %u has 0 max number of extra items in `skill_extra_item_template`!", spellId);
@@ -112,9 +111,6 @@ void LoadSkillExtraItemTable()
 
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u spell specialization definitions", count);

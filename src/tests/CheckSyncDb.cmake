@@ -273,8 +273,8 @@ set(ALLOW_GuildBankRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", guildId, tabId, maxLogs)\;")
 
 set(ALLOW_InstanceDataRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT `id`, `map`, `data` FROM `instance`\")\;"
-    "return CharacterDatabase.Query(\"SELECT `map`, `data` FROM `world`\")\;")
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `id`, `map`, `data` FROM `instance`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `map`, `data` FROM `world`\")\;")
 
 set(ALLOW_InstanceRepository_cpp
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT %s FROM %s %s\", fields, table, szQueryTail)\;"
@@ -308,23 +308,23 @@ set(ALLOW_SpellDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `ppmRate` FROM `spell_proc_item_enchant`\")\;")
 
 set(ALLOW_CreatureEventAIRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs` FROM `creature_ai_summons`\")\;"
-    "return WorldDatabase.Query(\"SELECT `id`, `creature_id`, `event_type`, `event_inverse_phase_mask`, `event_chance`, `event_flags`, \"")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs` FROM `creature_ai_summons`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `creature_id`, `event_type`, `event_inverse_phase_mask`, `event_chance`, `event_flags`, \"")
 
 set(ALLOW_LootDataRepository_cpp
-    "return WorldDatabase.PQuery(\"SELECT `entry`, `item`, `ChanceOrQuestChance`, `groupid`, `mincountOrRef`, `maxcount`, `condition_id` FROM `%s`\", table)\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`\")\;"
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `item`, `ChanceOrQuestChance`, `groupid`, `mincountOrRef`, `maxcount`, `condition_id` FROM `%s`\", table)\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`\")\;"
     "return WorldDatabase.PQuery(\"SELECT `item` FROM `creature_loot_template` UNION \"")
 
 set(ALLOW_SkillDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`\")\;"
-    "return WorldDatabase.Query(\"SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,`skill` FROM `skill_fishing_base_level`\")\;")
 
 set(ALLOW_MapDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `entry`, `name`, `period` FROM `transports`\")\;"
-    "return WorldDatabase.Query(\"SELECT `gameobject`.`guid`,`gameobject`.`id`,`transports`.`name` FROM `gameobject`,`transports` WHERE `gameobject`.`id` = `transports`.`entry`\")\;"
-    "return WorldDatabase.Query(\"SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `name`, `period` FROM `transports`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `gameobject`.`guid`,`gameobject`.`id`,`transports`.`name` FROM `gameobject`,`transports` WHERE `gameobject`.`id` = `transports`.`entry`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, `name` FROM `game_tele`\")\;"
     "WorldDatabase.escape_string(safeName)\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `id`,`ghost_zone`,`faction` FROM `game_graveyard_zone`\")\;"
@@ -359,13 +359,13 @@ set(ALLOW_AuctionRepository_cpp
     "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `auction`\")\;")
 
 set(ALLOW_AchievementRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`\")\;"
-    "return CharacterDatabase.Query(\"SELECT DISTINCT `criteria` FROM `character_achievement_progress`\")\;")
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT DISTINCT `criteria` FROM `character_achievement_progress`\")\;")
 
 set(ALLOW_AchievementDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `criteria_id`, `type`, `value1`, `value2` FROM `achievement_criteria_requirement`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `gender`, `title_A`, `title_H`, `item`, `sender`, `subject`, `text` FROM `achievement_reward`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`,`gender`,\"")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `criteria_id`, `type`, `value1`, `value2` FROM `achievement_criteria_requirement`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `gender`, `title_A`, `title_H`, `item`, `sender`, `subject`, `text` FROM `achievement_reward`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,`gender`,\"")
 
 set(ALLOW_AccountDataRepository_cpp
     "return CharacterDatabase.PQuery(\"SELECT `type`, `time`, `data` FROM `account_data` WHERE `account` = '%u'\", accountId)\;"
@@ -444,8 +444,8 @@ set(ALLOW_SpawnRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT MAX(`guid`) FROM `gameobject`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `creature`.`guid`, `creature`.`id`, `map`, `modelid`,\""
     "QueryResult* result = WorldDatabase.Query(\"SELECT `gameobject`.`guid`, `gameobject`.`id`, `gameobject`.`map`, `gameobject`.`position_x`, \""
-    "return WorldDatabase.PQuery(\"SELECT `id`, `map` FROM `creature` WHERE `guid` = '%u'\", guid)\;"
-    "return WorldDatabase.PQuery(\"SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2\", entry, mapId)\;"
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `id`, `map` FROM `creature` WHERE `guid` = '%u'\", guid)\;"
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `guid` FROM `creature` WHERE `id`=%u AND `map`=%u LIMIT 2\", entry, mapId)\;"
     "return WorldDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `gameobject` WHERE `id`='%u'\", entry)\;"
     "return WorldDatabase.PQuery(\"SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u\","
     "return WorldDatabase.PQuery(\"SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `gameobject` WHERE `id` = '%u' LIMIT %u\","
@@ -478,8 +478,8 @@ set(ALLOW_CreatureDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `modelid`, `racemask`, `creature_entry`, `modelid_racial` FROM `creature_model_race`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `word`,`entry`,`half` FROM `pet_name_generation`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `creature_entry`, `level`, `hp`, `mana`, `str`, `agi`, `sta`, `inte`, `spi`, `armor` FROM `pet_levelstats`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `map`, `master_entry`, `flag`, `search_range` FROM `creature_linking_template`\")\;"
-    "return WorldDatabase.Query(\"SELECT `guid`, `master_guid`, `flag` FROM `creature_linking`\")\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `map`, `master_entry`, `flag`, `search_range` FROM `creature_linking_template`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `guid`, `master_guid`, `flag` FROM `creature_linking`\")\;")
 
 set(ALLOW_ItemDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,\""
@@ -540,34 +540,34 @@ set(ALLOW_ReputationDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `faction`, `faction1`, `rate_1`, `rank_1`, `faction2`, `rate_2`, `rank_2`, `faction3`, `rate_3`, `rank_3`, `faction4`, `rate_4`, `rank_4`, `faction5`, `rate_5`, `rank_5` FROM `reputation_spillover_template`\")\;")
 
 set(ALLOW_GameEventDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT MAX(`entry`) FROM `game_event`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`,UNIX_TIMESTAMP(`start_time`),UNIX_TIMESTAMP(`end_time`),`occurence`,`length`,`holiday`,`description` FROM `game_event`\")\;"
-    "return WorldDatabase.Query(\"SELECT `creature`.`guid`, `game_event_creature`.`event` \""
-    "return WorldDatabase.Query(\"SELECT `gameobject`.`guid`, `game_event_gameobject`.`event` \""
-    "return WorldDatabase.Query(\"SELECT `creature`.`guid`, `game_event_creature_data`.`event`, `game_event_creature_data`.`modelid`,\""
-    "return WorldDatabase.Query(\"SELECT `quest`, `event` FROM `game_event_quest`\")\;"
-    "return WorldDatabase.Query(\"SELECT `event`, `raceMask`, `quest`, `mailTemplateId`, `senderEntry` FROM `game_event_mail`\")\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT MAX(`entry`) FROM `game_event`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,UNIX_TIMESTAMP(`start_time`),UNIX_TIMESTAMP(`end_time`),`occurence`,`length`,`holiday`,`description` FROM `game_event`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `creature`.`guid`, `game_event_creature`.`event` \""
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `gameobject`.`guid`, `game_event_gameobject`.`event` \""
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `creature`.`guid`, `game_event_creature_data`.`event`, `game_event_creature_data`.`modelid`,\""
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `quest`, `event` FROM `game_event_quest`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `event`, `raceMask`, `quest`, `mailTemplateId`, `senderEntry` FROM `game_event_mail`\")\;")
 
 set(ALLOW_GameEventStatusRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT `event` FROM `game_event_status`\")\;")
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `event` FROM `game_event_status`\")\;")
 
 set(ALLOW_WaypointRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `id`, COUNT(`point`) FROM `creature_movement` GROUP BY `id`\")\;"
-    "return WorldDatabase.Query(\"SELECT `id`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,\""
-    "return WorldDatabase.Query(\"SELECT `entry`, COUNT(`point`) FROM `creature_movement_template` GROUP BY `entry`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,\"")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, COUNT(`point`) FROM `creature_movement` GROUP BY `id`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,\""
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, COUNT(`point`) FROM `creature_movement_template` GROUP BY `entry`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `point`, `position_x`, `position_y`, `position_z`, `waittime`, `script_id`,\"")
 
 set(ALLOW_PoolDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT MAX(`entry`) FROM `pool_template`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `max_limit`, `description` FROM `pool_template`\")\;"
-    "return WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance` FROM `pool_creature`\")\;"
-    "return WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance`, `pool_creature_template`.`id` FROM `pool_creature_template` LEFT JOIN `creature` ON `creature`.`id` = `pool_creature_template`.`id`\")\;"
-    "return WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance` FROM `pool_gameobject`\")\;"
-    "return WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance`, `pool_gameobject_template`.`id` FROM `pool_gameobject_template` LEFT JOIN `gameobject` ON `gameobject`.`id` = `pool_gameobject_template`.`id`\")\;"
-    "return WorldDatabase.Query(\"SELECT `pool_id`, `mother_pool`, `chance` FROM `pool_pool`\")\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT MAX(`entry`) FROM `pool_template`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `max_limit`, `description` FROM `pool_template`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance` FROM `pool_creature`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance`, `pool_creature_template`.`id` FROM `pool_creature_template` LEFT JOIN `creature` ON `creature`.`id` = `pool_creature_template`.`id`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance` FROM `pool_gameobject`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `guid`, `pool_entry`, `chance`, `pool_gameobject_template`.`id` FROM `pool_gameobject_template` LEFT JOIN `gameobject` ON `gameobject`.`id` = `pool_gameobject_template`.`id`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `pool_id`, `mother_pool`, `chance` FROM `pool_pool`\")\;")
 
 set(ALLOW_DisableDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `sourceType`, `entry`, `flags`, `data` FROM `disables`\")\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `sourceType`, `entry`, `flags`, `data` FROM `disables`\")\;")
 
 set(ALLOW_BanRepository_cpp
     "return LoginDatabase.PQuery(\"SELECT `account`.`username` FROM `account`,`account_banned` WHERE `account_banned`.`id`='%u' AND `account_banned`.`id`=`account`.`id`\", accountId)\;"
@@ -590,14 +590,14 @@ set(ALLOW_CommandDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT \"")
 
 set(ALLOW_ScriptDataRepository_cpp
-    "return WorldDatabase.PQuery(\"SELECT `type`, `bind`, `ScriptName`, `data` FROM `script_binding`\")\;"
-    "return WorldDatabase.Query(\"SELECT DISTINCT(`ScriptName`) FROM `script_binding`\")\;"
-    "return WorldDatabase.PQuery(\"SELECT `id`, `delay`, `command`, `datalong`, `datalong2`, `buddy_entry`, `search_radius`, `data_flags`, `dataint`, `dataint2`, `dataint3`, `dataint4`, `x`, `y`, `z`, `o` FROM `db_scripts` WHERE `script_type` = %d ORDER BY `script_guid` ASC\", type)\;"
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `type`, `bind`, `ScriptName`, `data` FROM `script_binding`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT DISTINCT(`ScriptName`) FROM `script_binding`\")\;"
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `id`, `delay`, `command`, `datalong`, `datalong2`, `buddy_entry`, `search_radius`, `data_flags`, `dataint`, `dataint2`, `dataint3`, `dataint4`, `x`, `y`, `z`, `o` FROM `db_scripts` WHERE `script_type` = %d ORDER BY `script_guid` ASC\", type)\;"
     "return WorldDatabase.PQuery(\"SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`\")\;"
     "return WorldDatabase.PQuery(\"SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`\")\;")
 
 set(ALLOW_DbVersionRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1\")\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1\")\;")
 
 set(ALLOW_BroadcastDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`\")\;")

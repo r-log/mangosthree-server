@@ -132,3 +132,38 @@ TEST(CreatureDataRepository_PetLevelStats)
     CHECK_EQ(rows[0].armor, uint16(10009));
     CHECK_EQ(rows[1].creatureEntry, 2000u);
 }
+
+// Each column of a `creature_linking_template` row lands in its member, and the rows come back in
+// order.
+TEST(CreatureDataRepository_LinkingTemplates)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "10003", "10004"},
+        FakeRow{"2000", "2001", "2002", "20003", "20004"},
+    });
+    std::vector<CreatureLinkingTemplateRow> rows = CreatureDataRepository::QueryLinkingTemplates();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].entry, 1000u);
+    CHECK_EQ(rows[0].map, 1001u);
+    CHECK_EQ(rows[0].masterEntry, 1002u);
+    CHECK_EQ(rows[0].flag, uint16(10003));
+    CHECK_EQ(rows[0].searchRange, uint16(10004));
+    CHECK_EQ(rows[1].entry, 2000u);
+}
+
+// Each column of a `creature_linking` row lands in its member, and the rows come back in order.
+TEST(CreatureDataRepository_Linkings)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "10002"},
+        FakeRow{"2000", "2001", "20002"},
+    });
+    std::vector<CreatureLinkingRow> rows = CreatureDataRepository::QueryLinkings();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].masterGuid, 1001u);
+    CHECK_EQ(rows[0].flag, uint16(10002));
+    CHECK_EQ(rows[1].guid, 2000u);
+}

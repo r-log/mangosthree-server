@@ -126,3 +126,64 @@ TEST(MapDataRepository_TavernAreaTriggers)
     CHECK_EQ(rows[0].id, 1000u);
     CHECK_EQ(rows[1].id, 2000u);
 }
+
+// Each column of a `transports` row lands in its member, and the rows come back in order.
+TEST(MapDataRepository_Transports)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "1002"},
+        FakeRow{"2000", "s2.1", "2002"},
+    });
+    std::vector<TransportRow> rows = MapDataRepository::QueryTransports();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].entry, 1000u);
+    CHECK_STR(rows[0].name, "s1.1");
+    CHECK_EQ(rows[0].period, 1002u);
+    CHECK_EQ(rows[1].entry, 2000u);
+}
+
+// Each column of a transport game object spawn, with its transport's name lands in its member, and
+// the rows come back in order.
+TEST(MapDataRepository_TransportGameObjects)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "s1.2"},
+        FakeRow{"2000", "2001", "s2.2"},
+    });
+    std::vector<TransportGameObjectRow> rows = MapDataRepository::QueryTransportGameObjects();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].id, 1001u);
+    CHECK_STR(rows[0].name, "s1.2");
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a `game_weather` row lands in its member, and the rows come back in order.
+TEST(MapDataRepository_Weather)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009",
+            "1010", "1011", "1012"},
+        FakeRow{"2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009",
+            "2010", "2011", "2012"},
+    });
+    std::vector<WeatherRow> rows = MapDataRepository::QueryWeather();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].zone, 1000u);
+    CHECK_EQ(rows[0].rainChance[0], 1001u);
+    CHECK_EQ(rows[0].snowChance[0], 1002u);
+    CHECK_EQ(rows[0].stormChance[0], 1003u);
+    CHECK_EQ(rows[0].rainChance[1], 1004u);
+    CHECK_EQ(rows[0].snowChance[1], 1005u);
+    CHECK_EQ(rows[0].stormChance[1], 1006u);
+    CHECK_EQ(rows[0].rainChance[2], 1007u);
+    CHECK_EQ(rows[0].snowChance[2], 1008u);
+    CHECK_EQ(rows[0].stormChance[2], 1009u);
+    CHECK_EQ(rows[0].rainChance[3], 1010u);
+    CHECK_EQ(rows[0].snowChance[3], 1011u);
+    CHECK_EQ(rows[0].stormChance[3], 1012u);
+    CHECK_EQ(rows[1].zone, 2000u);
+}

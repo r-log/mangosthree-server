@@ -280,7 +280,7 @@ TEST(StartupRepository_CharacterLoads)
 TEST(GameEventStatusRepository_ReadAndWrites)
 {
     Db db(CharacterDatabase);
-    delete GameEventStatusRepository::QueryActiveEvents();
+    GameEventStatusRepository::QueryActiveEvents();
     CheckLines(db.query.executed, {
         "SELECT `event` FROM `game_event_status`",
     }, __LINE__);

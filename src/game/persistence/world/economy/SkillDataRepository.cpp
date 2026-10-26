@@ -29,16 +29,38 @@
 
 namespace SkillDataRepository
 {
-    QueryResult* QueryDiscoveries()
+    static SkillDiscoveryRow ReadSkillDiscovery(Field* fields)
     {
-        //                                  0          1           2                3
-        return WorldDatabase.Query("SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`");
+        SkillDiscoveryRow row;
+        row.spellId = fields[0].GetUInt32();
+        row.reqSpell = fields[1].GetInt32();
+        row.reqSkillValue = fields[2].GetInt32();
+        row.chance = fields[3].GetFloat();
+        return row;
     }
 
-    QueryResult* QueryExtraItems()
+    std::vector<SkillDiscoveryRow> QueryDiscoveries()
+    {
+        //                                  0          1           2                3
+        QueryResult* result = WorldDatabase.Query("SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`");
+        return ReadRows<SkillDiscoveryRow>(result, ReadSkillDiscovery);
+    }
+
+    static SkillExtraItemRow ReadSkillExtraItem(Field* fields)
+    {
+        SkillExtraItemRow row;
+        row.spellId = fields[0].GetUInt32();
+        row.requiredSpecialization = fields[1].GetUInt32();
+        row.additionalCreateChance = fields[2].GetFloat();
+        row.additionalMaxNum = fields[3].GetUInt8();
+        return row;
+    }
+
+    std::vector<SkillExtraItemRow> QueryExtraItems()
     {
         //                                  0        1                       2                       3
-        return WorldDatabase.Query("SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`");
+        QueryResult* result = WorldDatabase.Query("SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`");
+        return ReadRows<SkillExtraItemRow>(result, ReadSkillExtraItem);
     }
 
     static FishingBaseLevelRow ReadFishingBaseLevel(Field* fields)

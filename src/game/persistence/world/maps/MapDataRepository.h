@@ -77,19 +77,52 @@ struct TavernAreaTriggerRow
     uint32 id = 0;
 };
 
+/// One `transports` row.
+struct TransportRow
+{
+    uint32 entry = 0;
+    std::string name;
+    uint32 period = 0;
+};
+
+/// One transport game object spawn, with its transport's name.
+struct TransportGameObjectRow
+{
+    uint32 guid = 0;
+    uint32 id = 0;
+    std::string name;
+};
+
+enum
+{
+    /// The seasons a weather row holds chances for (spring, summer, fall, winter).
+    WEATHER_ROW_SEASONS = 4,
+    /// The chances each season of a weather row holds (rain, snow, storm).
+    WEATHER_ROW_CHANCES = 3
+};
+
+/// One `game_weather` row: a zone's rain, snow and storm chances in each season.
+struct WeatherRow
+{
+    uint32 zone = 0;
+    uint32 rainChance[WEATHER_ROW_SEASONS] = {};
+    uint32 snowChance[WEATHER_ROW_SEASONS] = {};
+    uint32 stormChance[WEATHER_ROW_SEASONS] = {};
+};
+
 /// The map data on the world database: the transports, the weather, the GM teleports, the
 /// graveyards and the area triggers. The loads run at startup and on a reload, synchronously; a
 /// GM's teleport and graveyard writes are queued and written to the SQL log.
 namespace MapDataRepository
 {
     /// Selects every transport (`transports`).
-    QueryResult* QueryTransports();
+    std::vector<TransportRow> QueryTransports();
 
     /// Selects every game object spawn of a transport, for the integrity check.
-    QueryResult* QueryTransportGameObjects();
+    std::vector<TransportGameObjectRow> QueryTransportGameObjects();
 
     /// Selects every zone's weather chances (`game_weather`).
-    QueryResult* QueryWeather();
+    std::vector<WeatherRow> QueryWeather();
 
     /// Selects every GM teleport location (`game_tele`).
     std::vector<GameTeleRow> QueryTeles();

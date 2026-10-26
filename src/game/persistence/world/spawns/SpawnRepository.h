@@ -133,6 +133,13 @@ struct GameObjectSpawnDataRow
     int16 entryPoolId = 0;
 };
 
+/// A creature spawn's entry and map.
+struct CreatureEntryAndMapRow
+{
+    uint32 id = 0;
+    uint32 map = 0;
+};
+
 /// The creature and game object spawns on the world database (`creature`, `gameobject` and the
 /// tables keyed on a spawn), as a GM saves and deletes them. The start-up reads and a GM's spawn
 /// lists and look-ups run synchronously; every write is queued and written to the SQL log.
@@ -164,10 +171,10 @@ namespace SpawnRepository
     std::vector<GameObjectSpawnDataRow> QueryGameObjectSpawns();
 
     /// Selects a creature spawn's entry and map.
-    QueryResult* QueryCreatureEntryAndMap(uint32 guid);
+    std::optional<CreatureEntryAndMapRow> QueryCreatureEntryAndMap(uint32 guid);
 
     /// Selects up to two spawn guids of a creature entry on a map.
-    QueryResult* QueryCreatureGuidsOnMap(uint32 entry, uint32 mapId);
+    std::vector<uint32> QueryCreatureGuidsOnMap(uint32 entry, uint32 mapId);
 
     /// Selects how many game object spawns are of an entry, for a GM's list.
     QueryResult* QueryGameObjectCountOf(uint32 entry);

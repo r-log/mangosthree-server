@@ -25,12 +25,14 @@
 
 #include "GameEventStatusRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace GameEventStatusRepository
 {
-    QueryResult* QueryActiveEvents()
+    std::vector<uint16> QueryActiveEvents()
     {
-        return CharacterDatabase.Query("SELECT `event` FROM `game_event_status`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `event` FROM `game_event_status`");
+        return ReadRows<uint16>(result, [](Field* fields) { return fields[0].GetUInt16(); });
     }
 
     void Truncate()

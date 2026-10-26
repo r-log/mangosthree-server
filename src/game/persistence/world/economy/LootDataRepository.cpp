@@ -25,18 +25,43 @@
 
 #include "LootDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace LootDataRepository
 {
-    QueryResult* QueryLootTemplate(char const* table)
+    static LootTemplateRow ReadLootTemplate(Field* fields)
     {
-        //                                  0      1     2                    3        4              5         6
-        return WorldDatabase.PQuery("SELECT `entry`, `item`, `ChanceOrQuestChance`, `groupid`, `mincountOrRef`, `maxcount`, `condition_id` FROM `%s`", table);
+        LootTemplateRow row;
+        row.entry = fields[0].GetUInt32();
+        row.item = fields[1].GetInt32();
+        row.chanceOrQuestChance = fields[2].GetFloat();
+        row.groupid = fields[3].GetUInt8();
+        row.mincountOrRef = fields[4].GetInt32();
+        row.maxcount = fields[5].GetUInt32();
+        row.conditionId = fields[6].GetUInt16();
+        return row;
     }
 
-    QueryResult* QueryItemEnchantments()
+    std::vector<LootTemplateRow> QueryLootTemplate(char const* table)
     {
-        return WorldDatabase.Query("SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`");
+        //                                  0      1     2                    3        4              5         6
+        QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `item`, `ChanceOrQuestChance`, `groupid`, `mincountOrRef`, `maxcount`, `condition_id` FROM `%s`", table);
+        return ReadRows<LootTemplateRow>(result, ReadLootTemplate);
+    }
+
+    static ItemEnchantmentRow ReadItemEnchantment(Field* fields)
+    {
+        ItemEnchantmentRow row;
+        row.entry = fields[0].GetInt32();
+        row.ench = fields[1].GetUInt32();
+        row.chance = fields[2].GetFloat();
+        return row;
+    }
+
+    std::vector<ItemEnchantmentRow> QueryItemEnchantments()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`");
+        return ReadRows<ItemEnchantmentRow>(result, ReadItemEnchantment);
     }
 
     QueryResult* QueryLootItemEntries()
