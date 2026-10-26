@@ -35,6 +35,7 @@
 #include "DBCStores.h"
 #include "SQLStorages.h"
 #include "PlayerRegistry.h"
+#include "persistence/world/economy/LootDataRepository.h"
 
 static eConfigFloatValues const qualityToRate[MAX_ITEM_QUALITY] =
 {
@@ -114,8 +115,7 @@ void LootStore::LoadLootTable()
 
     sLog.outString("%s :", GetName());
 
-    //                                                 0      1     2                    3        4              5         6
-    QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `item`, `ChanceOrQuestChance`, `groupid`, `mincountOrRef`, `maxcount`, `condition_id` FROM `%s`", GetName());
+    QueryResult* result = LootDataRepository::QueryLootTemplate(GetName());
 
     if (result)
     {

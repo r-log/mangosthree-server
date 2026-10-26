@@ -35,6 +35,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
+#include "persistence/world/spells/SpellDataRepository.h"
 
 typedef std::unordered_map<uint32, uint32> AbilitySpellPrevMap;
 
@@ -248,7 +249,7 @@ void SpellMgr::LoadSpellChains()
     }
 
     // load custom case
-    QueryResult* result = WorldDatabase.Query("SELECT `spell_id`, `prev_spell`, `first_spell`, `rank`, `req_spell` FROM `spell_chain`");
+    QueryResult* result = SpellDataRepository::QuerySpellChains();
     if (!result)
     {
         BarGoLink bar(1);
@@ -570,8 +571,7 @@ void SpellMgr::LoadSpellLearnSpells()
 {
     mSpellLearnSpells.clear();                              // need for reload case
 
-    //                                                0      1        2
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `SpellID`, `Active` FROM `spell_learn_spell`");
+    QueryResult* result = SpellDataRepository::QueryLearnSpells();
     if (!result)
     {
         BarGoLink bar(1);

@@ -69,6 +69,32 @@ set(CONVERTED_FILES
     src/game/persistence/characters/pvp/BattleGroundStatsRepository.cpp
     src/game/persistence/characters/SavedVariablesRepository.h
     src/game/persistence/characters/SavedVariablesRepository.cpp
+    src/game/persistence/world/spells/SpellDataRepository.h
+    src/game/persistence/world/spells/SpellDataRepository.cpp
+    src/game/persistence/world/ai/CreatureEventAIRepository.h
+    src/game/persistence/world/ai/CreatureEventAIRepository.cpp
+    src/game/persistence/world/economy/LootDataRepository.h
+    src/game/persistence/world/economy/LootDataRepository.cpp
+    src/game/persistence/world/economy/SkillDataRepository.h
+    src/game/persistence/world/economy/SkillDataRepository.cpp
+    src/game/persistence/world/maps/MapDataRepository.h
+    src/game/persistence/world/maps/MapDataRepository.cpp
+    src/game/persistence/world/pvp/BattleGroundDataRepository.h
+    src/game/persistence/world/pvp/BattleGroundDataRepository.cpp
+    src/game/spells/data/SpellMgr.cpp
+    src/game/spells/data/SpellMgrAreas.cpp
+    src/game/spells/data/SpellMgrChains.cpp
+    src/game/spells/data/SpellMgrData.cpp
+    src/game/spells/data/SpellMgrPet.cpp
+    src/game/spells/data/SpellMgrProc.cpp
+    src/game/Object/CreatureEventAIMgr.cpp
+    src/game/Object/LootMgr.cpp
+    src/game/Object/ItemEnchantmentMgr.cpp
+    src/game/WorldHandlers/SkillDiscovery.cpp
+    src/game/WorldHandlers/SkillExtraItems.cpp
+    src/game/WorldHandlers/Transports.cpp
+    src/game/WorldHandlers/Weather.cpp
+    src/game/BattleGround/BattleGroundMgrUtil.cpp
     src/game/WorldHandlers/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
@@ -211,8 +237,40 @@ set(ALLOW_InstanceRepository_cpp
     "CharacterDatabase.DirectPExecute(\"INSERT INTO `instance_reset` VALUES ('%u','%u','\" UI64FMTD \"')\", map, difficulty, resetTime)\;"
     "CharacterDatabase.DirectPExecute(\"DELETE FROM `instance_reset` WHERE `mapid` = '%u' AND `difficulty` = '%u'\", map, difficulty)\;")
 
-set(ALLOW_BattleGroundMgr_cpp
-    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`\")\;")
+set(ALLOW_SpellDataRepository_cpp
+    "return WorldDatabase.PQuery(\"SELECT `spellid`,`SpellFamilyName`,`SpellFamilyMaskA`,`SpellFamilyMaskB`,`SpellIcon`,`SpellVisual`,`SpellCategory`,`EffectType`,`EffectAura`,`EffectIdx`,`Name`,`Code` FROM `%s`\", table)\;"
+    "return WorldDatabase.Query(\"SELECT `spell`, `area`, `quest_start`, `quest_start_active`, `quest_end`, `condition_id`, `aura_spell`, `racemask`, `gender`, `autocast` FROM `spell_area`\")\;"
+    "return WorldDatabase.Query(\"SELECT `spell_id`, `prev_spell`, `first_spell`, `rank`, `req_spell` FROM `spell_chain`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `SpellID`, `Active` FROM `spell_learn_spell`\")\;"
+    "return WorldDatabase.Query(\"SELECT `id`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `spell_target_position`\")\;"
+    "return WorldDatabase.Query(\"SELECT entry, direct_bonus,         `dot_bonus`, `ap_bonus`, `ap_dot_bonus` FROM `spell_bonus_data`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `mask` FROM `spell_elixir`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `Threat`, `multiplier`, `ap_bonus` FROM `spell_threat`\")\;"
+    "return WorldDatabase.Query(\"SELECT `spell`, `effectId`, `pet`, `aura` FROM `spell_pet_auras`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMaskA0`, `SpellFamilyMaskA1`, `SpellFamilyMaskA2`, `SpellFamilyMaskB0`, `SpellFamilyMaskB1`, `SpellFamilyMaskB2`, `SpellFamilyMaskC0`, `SpellFamilyMaskC1`, `SpellFamilyMaskC2`, `procFlags`, `procEx`, `ppmRate`, `CustomChance`, `Cooldown` FROM `spell_proc_event`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `ppmRate` FROM `spell_proc_item_enchant`\")\;")
+
+set(ALLOW_CreatureEventAIRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs` FROM `creature_ai_summons`\")\;"
+    "return WorldDatabase.Query(\"SELECT `id`, `creature_id`, `event_type`, `event_inverse_phase_mask`, `event_chance`, `event_flags`, \"")
+
+set(ALLOW_LootDataRepository_cpp
+    "return WorldDatabase.PQuery(\"SELECT `entry`, `item`, `ChanceOrQuestChance`, `groupid`, `mincountOrRef`, `maxcount`, `condition_id` FROM `%s`\", table)\;"
+    "return WorldDatabase.Query(\"SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`\")\;")
+
+set(ALLOW_SkillDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`\")\;"
+    "return WorldDatabase.Query(\"SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`\")\;")
+
+set(ALLOW_MapDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `entry`, `name`, `period` FROM `transports`\")\;"
+    "return WorldDatabase.Query(\"SELECT `gameobject`.`guid`,`gameobject`.`id`,`transports`.`name` FROM `gameobject`,`transports` WHERE `gameobject`.`id` = `transports`.`entry`\")\;"
+    "return WorldDatabase.Query(\"SELECT `zone`, `spring_rain_chance`, `spring_snow_chance`, `spring_storm_chance`, `summer_rain_chance`, `summer_snow_chance`, `summer_storm_chance`, `fall_rain_chance`, `fall_snow_chance`, `fall_storm_chance`, `winter_rain_chance`, `winter_snow_chance`, `winter_storm_chance` FROM `game_weather`\")\;")
+
+set(ALLOW_BattleGroundDataRepository_cpp
+    "return WorldDatabase.Query(\"SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`\")\;"
+    "return WorldDatabase.Query(\"SELECT `entry`,`bg_template` FROM `battlemaster_entry`\")\;"
+    "return WorldDatabase.Query(\"SELECT `data`.`typ`, `data`.`guid1`, `data`.`ev1` AS `ev1`, `data`.`ev2` AS ev2, `data`.`map` AS m, `data`.`guid2`, `description`.`map`, \"")
 
 set(ALLOW_BattleGroundStatsRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `pvpstats_battlegrounds`\")\;")

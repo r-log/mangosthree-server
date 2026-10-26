@@ -37,6 +37,7 @@
 #include "ProgressBar.h"
 #include "DBCStores.h"
 #include "SQLStorages.h"
+#include "persistence/world/spells/SpellDataRepository.h"
 
 /**
  * @brief Loads spell pet aura mappings from the database.
@@ -47,8 +48,7 @@ void SpellMgr::LoadSpellPetAuras()
 
     uint32 count = 0;
 
-    //                                                 0        1           2      3
-    QueryResult* result = WorldDatabase.Query("SELECT `spell`, `effectId`, `pet`, `aura` FROM `spell_pet_auras`");
+    QueryResult* result = SpellDataRepository::QueryPetAuras();
     if (!result)
     {
         BarGoLink bar(1);

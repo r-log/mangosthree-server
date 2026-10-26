@@ -687,7 +687,6 @@ class BattleGroundMgr
         uint32 GetPrematureFinishTime() const;
 
         void InitAutomaticArenaPointDistribution();
-       // void DistributeArenaPoints();   // there does not appear to be a way to do this in Three
         void ToggleArenaTesting();
 
         /**

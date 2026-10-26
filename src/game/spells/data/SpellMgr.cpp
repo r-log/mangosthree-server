@@ -36,6 +36,7 @@
 #include "spells/pipeline/Spell.h"
 #include "Unit.h"
 #include "spells/handlers/SpellMgrHandlers.h"
+#include "persistence/world/spells/SpellDataRepository.h"
 
 /**
  * @brief Checks whether a skill line is a primary profession.
@@ -3174,8 +3175,7 @@ void SpellMgr::CheckUsedSpells(char const* table)
     uint32 countSpells = 0;
     uint32 countMasks = 0;
 
-    //                                                  0         1                 2                  3                  4           5             6               7            8            9           10     11
-    QueryResult* result = WorldDatabase.PQuery("SELECT `spellid`,`SpellFamilyName`,`SpellFamilyMaskA`,`SpellFamilyMaskB`,`SpellIcon`,`SpellVisual`,`SpellCategory`,`EffectType`,`EffectAura`,`EffectIdx`,`Name`,`Code` FROM `%s`", table);
+    QueryResult* result = SpellDataRepository::QueryUsedSpells(table);
 
     if (!result)
     {

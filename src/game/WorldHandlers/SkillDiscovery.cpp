@@ -36,6 +36,7 @@
 #include "Player.h"
 #include "DBCStores.h"
 #include <map>
+#include "persistence/world/economy/SkillDataRepository.h"
 
 struct SkillDiscoveryEntry
 {
@@ -62,8 +63,7 @@ void LoadSkillDiscoveryTable()
 
     uint32 count = 0;
 
-    //                                                 0          1           2                3
-    QueryResult* result = WorldDatabase.Query("SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`");
+    QueryResult* result = SkillDataRepository::QueryDiscoveries();
 
     if (!result)
     {

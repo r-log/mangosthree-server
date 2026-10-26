@@ -84,6 +84,7 @@ set(SRC_GRP_TESTS
     SpawnRepositoryTest.cpp
     InstanceRepositoryTest.cpp
     BattleGroundStatsRepositoryTest.cpp
+    WorldDataRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

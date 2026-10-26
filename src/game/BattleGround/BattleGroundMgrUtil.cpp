@@ -45,6 +45,7 @@
 #include "GameEventMgr.h"
 #include "DisableMgr.h"
 #include "GameTime.h"
+#include "persistence/world/pvp/BattleGroundDataRepository.h"
 
 #include "Policies/Singleton.h"
 
@@ -279,7 +280,7 @@ void BattleGroundMgr::LoadBattleMastersEntry()
 {
     mBattleMastersMap.clear();                              // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,`bg_template` FROM `battlemaster_entry`");
+    QueryResult* result = BattleGroundDataRepository::QueryBattleMasters();
 
     uint32 count = 0;
 
@@ -401,38 +402,7 @@ void BattleGroundMgr::LoadBattleEventIndexes()
 
     uint32 count = 0;
 
-    QueryResult* result =
-        //                           0         1           2                3                4              5           6
-        WorldDatabase.Query("SELECT `data`.`typ`, `data`.`guid1`, `data`.`ev1` AS `ev1`, `data`.`ev2` AS ev2, `data`.`map` AS m, `data`.`guid2`, `description`.`map`, "
-                            //                              7                  8                   9
-                            "`description`.`event1`, `description`.`event2`, `description`.`description` "
-                            "FROM "
-                            "(SELECT '1' AS typ, `a`.`guid` AS `guid1`, `a`.`event1` AS ev1, `a`.`event2` AS ev2, `b`.`map` AS map, `b`.`guid` AS guid2 "
-                            "FROM `gameobject_battleground` AS a "
-                            "LEFT OUTER JOIN `gameobject` AS b ON `a`.`guid` = `b`.`guid` "
-                            "UNION "
-                            "SELECT '2' AS typ, `a`.`guid` AS guid1, `a`.`event1` AS ev1, `a`.`event2` AS ev2, `b`.`map` AS map, `b`.`guid` AS guid2 "
-                            "FROM `creature_battleground` AS a "
-                            "LEFT OUTER JOIN `creature` AS b ON `a`.`guid` = `b`.`guid` "
-                            ") data "
-                            "RIGHT OUTER JOIN `battleground_events` AS `description` ON `data`.`map` = `description`.`map` "
-                            "AND `data`.`ev1` = `description`.`event1` AND `data`.`ev2` = `description`.`event2` "
-                            // full outer join doesn't work in mysql :-/ so just UNION-select the same again and add a left outer join
-                            "UNION "
-                            "SELECT `data`.`typ`, `data`.`guid1`, `data`.`ev1`, `data`.`ev2`, `data`.`map`, `data`.`guid2`, `description`.`map`, "
-                            "`description`.`event1`, `description`.`event2`, `description`.`description` "
-                            "FROM "
-                            "(SELECT '1' AS typ, `a`.`guid` AS guid1, `a`.`event1` AS ev1, `a`.`event2` AS ev2, `b`.`map` AS map, `b`.`guid` AS guid2 "
-                            "FROM `gameobject_battleground` AS a "
-                            "LEFT OUTER JOIN `gameobject` AS b ON `a`.`guid` = `b`.`guid` "
-                            "UNION "
-                            "SELECT '2' AS typ, `a`.`guid` AS guid1, `a`.`event1` AS ev1, `a`.`event2` AS ev2, `b`.`map` AS map, `b`.`guid` AS guid2 "
-                            "FROM `creature_battleground` AS a "
-                            "LEFT OUTER JOIN `creature` AS b ON `a`.`guid` = `b`.`guid` "
-                            ") data "
-                            "LEFT OUTER JOIN `battleground_events` AS `description` ON `data`.`map` = `description`.`map` "
-                            "AND `data`.`ev1` = `description`.`event1` AND `data`.`ev2` = `description`.`event2` "
-                            "ORDER BY `m`, `ev1`, `ev2`");
+    QueryResult* result = BattleGroundDataRepository::QueryEventIndexes();
     if (!result)
     {
         BarGoLink bar(1);

@@ -37,6 +37,7 @@
 #include "ProgressBar.h"
 #include "DBCStores.h"
 #include "SQLStorages.h"
+#include "persistence/world/spells/SpellDataRepository.h"
 
 template <typename EntryType, typename WorkerType, typename StorageType>
 struct SpellRankHelper
@@ -110,8 +111,7 @@ void SpellMgr::LoadSpellTargetPositions()
 
     uint32 count = 0;
 
-    //                                                0   1           2                  3                  4                  5
-    QueryResult* result = WorldDatabase.Query("SELECT `id`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `spell_target_position`");
+    QueryResult* result = SpellDataRepository::QueryTargetPositions();
     if (!result)
     {
         BarGoLink bar(1);
@@ -206,8 +206,7 @@ void SpellMgr::LoadSpellBonuses()
 {
     mSpellBonusMap.clear();                             // need for reload case
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT entry, direct_bonus, \
-        `dot_bonus`, `ap_bonus`, `ap_dot_bonus` FROM `spell_bonus_data`");
+    QueryResult* result = SpellDataRepository::QueryBonuses();
     if (!result)
     {
         BarGoLink bar(1);
@@ -394,8 +393,7 @@ void SpellMgr::LoadSpellElixirs()
 
     uint32 count = 0;
 
-    //                                                0      1
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `mask` FROM `spell_elixir`");
+    QueryResult* result = SpellDataRepository::QueryElixirs();
     if (!result)
     {
         BarGoLink bar(1);
@@ -504,8 +502,7 @@ void SpellMgr::LoadSpellThreats()
 {
     mSpellThreatMap.clear();                                // need for reload case
 
-    //                                                0      1       2           3
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `Threat`, `multiplier`, `ap_bonus` FROM `spell_threat`");
+    QueryResult* result = SpellDataRepository::QueryThreats();
     if (!result)
     {
         BarGoLink bar(1);

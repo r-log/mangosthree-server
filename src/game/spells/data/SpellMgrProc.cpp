@@ -35,6 +35,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
+#include "persistence/world/spells/SpellDataRepository.h"
 
 template <typename EntryType, typename WorkerType, typename StorageType>
 struct SpellRankHelper
@@ -265,8 +266,7 @@ void SpellMgr::LoadSpellProcEvents()
 {
     mSpellProcEventMap.clear();                             // need for reload case
 
-    //                                                 0        1             2                  3                    4                    5                    6                    7                    8                    9                    10                   11                   12           13        14         15              16
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMaskA0`, `SpellFamilyMaskA1`, `SpellFamilyMaskA2`, `SpellFamilyMaskB0`, `SpellFamilyMaskB1`, `SpellFamilyMaskB2`, `SpellFamilyMaskC0`, `SpellFamilyMaskC1`, `SpellFamilyMaskC2`, `procFlags`, `procEx`, `ppmRate`, `CustomChance`, `Cooldown` FROM `spell_proc_event`");
+    QueryResult* result = SpellDataRepository::QueryProcEvents();
     if (!result)
     {
         BarGoLink bar(1);
@@ -334,8 +334,7 @@ void SpellMgr::LoadSpellProcItemEnchant()
 
     uint32 count = 0;
 
-    //                                                0      1
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `ppmRate` FROM `spell_proc_item_enchant`");
+    QueryResult* result = SpellDataRepository::QueryProcItemEnchants();
     if (!result)
     {
         BarGoLink bar(1);

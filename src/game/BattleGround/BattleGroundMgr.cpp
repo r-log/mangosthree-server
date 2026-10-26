@@ -71,6 +71,7 @@
 #include "GameTime.h"
 #include "persistence/characters/SavedVariablesRepository.h"
 #include "persistence/characters/pvp/BattleGroundStatsRepository.h"
+#include "persistence/world/pvp/BattleGroundDataRepository.h"
 
 #include "Policies/Singleton.h"
 
@@ -1057,8 +1058,7 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
 {
     uint32 count = 0;
 
-    //                                                 0     1                   2                   3                  4                5               6              7
-    QueryResult* result = WorldDatabase.Query("SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`");
+    QueryResult* result = BattleGroundDataRepository::QueryTemplates();
 
     if (!result)
     {
@@ -1196,60 +1196,6 @@ void BattleGroundMgr::InitAutomaticArenaPointDistribution()
         DEBUG_LOG("Automatic Arena Point Distribution initialized.");
     }
 }
-
-/*
- *  there does not appear to be a way to do this in Three
-void BattleGroundMgr::DistributeArenaPoints()
-{
-    // used to distribute arena points based on last week's stats
-    sWorld.SendWorldText(LANG_DIST_ARENA_POINTS_START);
-
-    sWorld.SendWorldText(LANG_DIST_ARENA_POINTS_ONLINE_START);
-
-    // temporary structure for storing maximum points to add values for all players
-    std::map<uint32, uint32> PlayerPoints;
-
-    // at first update all points for all team members
-    for (ObjectMgr::ArenaTeamMap::iterator team_itr = sObjectMgr.GetArenaTeamMapBegin(); team_itr != sObjectMgr.GetArenaTeamMapEnd(); ++team_itr)
-    {
-        if (ArenaTeam* at = team_itr->second)
-        {
-            at->UpdateArenaPointsHelper(PlayerPoints);
-        }
-    }
-
-    // cycle that gives points to all players
-    for (std::map<uint32, uint32>::iterator plr_itr = PlayerPoints.begin(); plr_itr != PlayerPoints.end(); ++plr_itr)
-    {
-        // update to database
-        CharacterDatabase.PExecute("UPDATE `characters` SET `arenaPoints` = `arenaPoints` + '%u' WHERE `guid` = '%u'", plr_itr->second, plr_itr->first);
-        // add points if player is online
-        if (Player* pl = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, plr_itr->first)))
-        {
-            pl->ModifyArenaPoints(plr_itr->second);
-        }
-    }
-
-    PlayerPoints.clear();
-
-    sWorld.SendWorldText(LANG_DIST_ARENA_POINTS_ONLINE_END);
-
-    sWorld.SendWorldText(LANG_DIST_ARENA_POINTS_TEAM_START);
-    for (ObjectMgr::ArenaTeamMap::iterator titr = sObjectMgr.GetArenaTeamMapBegin(); titr != sObjectMgr.GetArenaTeamMapEnd(); ++titr)
-    {
-        if (ArenaTeam* at = titr->second)
-        {
-            at->FinishWeek();                              // set played this week etc values to 0 in memory, too
-            at->SaveToDB();                                // save changes
-            at->NotifyStatsChanged();                      // notify the players of the changes
-        }
-    }
-
-    sWorld.SendWorldText(LANG_DIST_ARENA_POINTS_TEAM_END);
-
-    sWorld.SendWorldText(LANG_DIST_ARENA_POINTS_END);
-}
-*/
 
 /**
  * @brief Builds the battleground instance list packet for a player.

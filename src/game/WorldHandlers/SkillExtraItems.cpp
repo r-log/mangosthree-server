@@ -29,6 +29,7 @@
 #include "DBCStores.h"
 
 #include <map>
+#include "persistence/world/economy/SkillDataRepository.h"
 
 // some type definitions
 // no use putting them in the header file, they're only used in this .cpp
@@ -63,8 +64,7 @@ void LoadSkillExtraItemTable()
 
     SkillExtraItemStore.clear();                            // need for reload
 
-    //                                                 0        1                       2                       3
-    QueryResult* result = WorldDatabase.Query("SELECT `spellId`, `requiredSpecialization`, `additionalCreateChance`, `additionalMaxNum` FROM `skill_extra_item_template`");
+    QueryResult* result = SkillDataRepository::QueryExtraItems();
 
     if (result)
     {
