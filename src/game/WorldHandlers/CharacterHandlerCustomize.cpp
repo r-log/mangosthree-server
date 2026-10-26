@@ -386,7 +386,7 @@ void WorldSession::QueueCharCustomizeReads(uint32 accountId, proto::SessionId se
                                            CharCustomizeRequest request)
 {
     CharacterRepository::QueueCustomizeReads(guid.GetCounter(), [accountId, sessionId, guid, request]
-                                             (QueryResult* /*result*/, SqlQueryHolder* h)
+                                             (SqlQueryHolder* h)
                                              {
                                                  WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                            accountId, sessionId, guid, request);

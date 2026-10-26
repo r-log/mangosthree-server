@@ -101,7 +101,7 @@ TEST(MailRepository_ExpiredMail)
     {
         TickGuard::Scope scope;
         MailRepository::DeleteEmptyExpiredMails(1700000000);
-        MailRepository::QueueExpiredMailReads(1700000000, [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; });
+        MailRepository::QueueExpiredMailReads(1700000000, [&answered](SqlQueryHolder* holder) { delete holder; ++answered; });
         MailRepository::DeleteExpiredMailItem(5);
         MailRepository::ReturnExpiredMail(42, 43, 1702592000, 1700000000, 2, 9);
         MailRepository::SetReturnedItemReceiver(43, 6);

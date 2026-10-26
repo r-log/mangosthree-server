@@ -197,7 +197,7 @@ class CharacterHandler
             }
             session->HandleCharEnum(rows);
         }
-        void HandlePlayerLoginCallback(QueryResult * /*dummy*/, SqlQueryHolder* holder, uint32 accountId, proto::SessionId sessionId)
+        void HandlePlayerLoginCallback(SqlQueryHolder* holder, uint32 accountId, proto::SessionId sessionId)
         {
             if (!holder)
             {
@@ -409,7 +409,7 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recv_data)
 void WorldSession::QueueCharCreateAccountRead(uint32 accountId, proto::SessionId sessionId,
                                               CharCreateRequest request)
 {
-    CharacterRepository::QueueCreateAccountRead(accountId, [accountId, sessionId, request](QueryResult* /*result*/, SqlQueryHolder* h)
+    CharacterRepository::QueueCreateAccountRead(accountId, [accountId, sessionId, request](SqlQueryHolder* h)
                                                 {
                                                     WorldSession::HandleCharCreateAccountCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                                   accountId, sessionId, request);
@@ -475,7 +475,7 @@ void WorldSession::QueueCharCreateRealmReads(uint32 accountId, proto::SessionId 
 
     CharacterRepository::QueueCreateRealmReads(accountId,
                                                skipCinematics == CINEMATICS_SKIP_SAME_RACE || request.playerClass == CLASS_DEATH_KNIGHT,
-                                               [accountId, sessionId, request](QueryResult* /*result*/, SqlQueryHolder* h)
+                                               [accountId, sessionId, request](SqlQueryHolder* h)
                                                {
                                                    WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                           accountId, sessionId, request);
@@ -827,7 +827,7 @@ void WorldSession::QueueCharDeleteReads(uint32 accountId, proto::SessionId sessi
 
     CharacterDeleteRepository::QueueDeleteReads(guid.GetCounter(), charDeleteMethod == 0, true,
                                                 [accountId, sessionId, guid, charDeleteMethod]
-                                                (QueryResult* /*result*/, SqlQueryHolder* h)
+                                                (SqlQueryHolder* h)
                                                 {
                                                     WorldSession::HandleCharDeleteCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                            accountId, sessionId, guid,
@@ -956,9 +956,9 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recv_data)
     // without queueing once the database is shutting down, and nothing would ever run its queries
     // or its callback. Same unwind as the Initialize() failure above -- free it and let the login
     // fail rather than leak it and leave the session stuck in the loading state.
-    if (!CharacterRepository::QueueLoginReads(holder, [accountId, sessionId](QueryResult* result, SqlQueryHolder* h)
+    if (!CharacterRepository::QueueLoginReads(holder, [accountId, sessionId](SqlQueryHolder* h)
                                               {
-                                                  chrHandler.HandlePlayerLoginCallback(result, h, accountId, sessionId);
+                                                  chrHandler.HandlePlayerLoginCallback(h, accountId, sessionId);
                                               }))
     {
         delete holder;                                      // delete all unprocessed queries

@@ -98,7 +98,7 @@ TEST(PetitionRepository_ReadsAreAsynchronous)
 {
     Db db;
     int answered = 0;
-    PetitionHolderCallback held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    PetitionHolderCallback held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     {
         TickGuard::Scope scope;
         PetitionRepository::QueryOwnedPetitions(42, [&answered](std::vector<uint32> /*petitions*/) { ++answered; });

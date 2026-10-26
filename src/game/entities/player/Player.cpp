@@ -3351,7 +3351,7 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
 
     CharacterDeleteRepository::QueueDeleteReads(playerguid.GetCounter(), charDeleteMethod == 0, false,
                                                 [playerguid, accountId, updateRealmChars, charDeleteMethod]
-                                                (QueryResult* /*result*/, SqlQueryHolder* h)
+                                                (SqlQueryHolder* h)
                                                 {
                                                     Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder>(h),
                                                                                    playerguid, accountId,

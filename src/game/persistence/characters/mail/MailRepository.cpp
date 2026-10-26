@@ -159,7 +159,7 @@ namespace MailRepository
         CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `expire_time` < '" UI64FMTD "' AND `has_items` = '0' AND `body` = ''", before);
     }
 
-    void QueueExpiredMailReads(uint64 before, std::function<void(QueryResult*, SqlQueryHolder*)> callback)
+    void QueueExpiredMailReads(uint64 before, std::function<void(SqlQueryHolder*)> callback)
     {
         SqlQueryHolder* holder = new SqlQueryHolder;
         holder->SetSize(EXPIRED_MAIL_COUNT);
@@ -171,7 +171,11 @@ namespace MailRepository
                           "WHERE `mail`.`expire_time` < '" UI64FMTD "' AND `mail`.`has_items` <> 0 "
                           "ORDER BY `mail_items`.`mail_id`, `mail_items`.`item_guid`", before);
 
-        if (!CharacterDatabase.DelayQueryHolder(std::move(callback), holder))
+        if (!CharacterDatabase.DelayQueryHolder([callback = std::move(callback)](QueryResult* /*result*/, SqlQueryHolder* answered)
+                                                {
+                                                    callback(answered);
+                                                },
+                                                holder))
         {
             delete holder;                                  // the database is shutting down
         }

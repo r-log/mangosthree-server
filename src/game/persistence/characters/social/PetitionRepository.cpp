@@ -36,7 +36,11 @@ namespace
     /// Queues a staged holder, deleting it if the database refuses it.
     void QueueHolder(SqlQueryHolder* holder, PetitionHolderCallback callback)
     {
-        if (!CharacterDatabase.DelayQueryHolder(std::move(callback), holder))
+        if (!CharacterDatabase.DelayQueryHolder([callback = std::move(callback)](QueryResult* /*result*/, SqlQueryHolder* answered)
+                                                {
+                                                    callback(answered);
+                                                },
+                                                holder))
         {
             delete holder;                                  // delete all unprocessed queries
         }
