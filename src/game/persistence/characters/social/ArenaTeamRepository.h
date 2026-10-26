@@ -30,6 +30,8 @@
 #include <vector>
 #include "Platform/Define.h"
 
+class QueryResult;
+
 class Field;
 
 /// An arena team's saved stats: its rating, this week's and this season's games and wins, and
@@ -81,7 +83,8 @@ struct ArenaTeamMemberRow
     uint8 playerClass = 0;
 };
 
-/// The arena teams' saved rows. Every write is queued on the character database.
+/// The arena teams' saved rows. The start-up reads run synchronously; every write is queued on the
+/// character database.
 namespace ArenaTeamRepository
 {
     /// Reads one row of the team load: id, name, captain, type, the emblem's five values and the
@@ -124,6 +127,18 @@ namespace ArenaTeamRepository
 
     /// Writes the team's stats and then each member's in one transaction.
     void SaveStats(uint32 teamId, ArenaTeamStatsRow const& stats, std::vector<ArenaTeamMemberStatsRow> const& members);
+
+    /// Selects the highest arena team id, at start-up.
+    QueryResult* QueryHighestId();
+
+    /// Selects every arena team with its stats, ordered by team id, at start-up.
+    QueryResult* QueryTeams();
+
+    /// Selects every arena team member with its character's name and class, ordered by team id, at start-up.
+    QueryResult* QueryTeamMembers();
+
+    /// Selects every arena team member's team and team type, at start-up.
+    QueryResult* QueryMemberTeamTypes();
 }
 
 #endif

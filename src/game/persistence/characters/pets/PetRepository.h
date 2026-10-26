@@ -30,6 +30,8 @@
 #include <vector>
 #include "Platform/Define.h"
 
+class QueryResult;
+
 /// The number of effects a saved pet aura holds, and of declined forms a pet name has.
 enum
 {
@@ -99,8 +101,9 @@ enum StarterPet
 };
 
 /// The pets' saved rows (`character_pet`, `character_pet_declinedname`, `pet_aura`, `pet_spell`,
-/// `pet_spell_cooldown`). Every write is queued on the character database; a write called inside
-/// CharacterTransaction joins that transaction.
+/// `pet_spell_cooldown`). The start-up's highest pet number runs synchronously; every write is
+/// queued on the character database, and a write called inside CharacterTransaction joins that
+/// transaction.
 namespace PetRepository
 {
     /// Moves the owner's other pet in currentSlot to notInSlot, then puts this pet in currentSlot,
@@ -157,6 +160,9 @@ namespace PetRepository
 
     /// Writes a new character's starter pet row under a pet number.
     void ReplaceStarterPet(StarterPet pet, uint32 petNumber, uint32 ownerId);
+
+    /// Selects the highest pet number, at start-up.
+    QueryResult* QueryHighestId();
 }
 
 #endif

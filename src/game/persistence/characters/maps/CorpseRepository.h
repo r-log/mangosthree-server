@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+class QueryResult;
+
 /// A corpse's saved row, in the order of the INSERT's columns, each value of the type it is
 /// written as.
 struct CorpseRow
@@ -45,8 +47,8 @@ struct CorpseRow
     uint32 phaseMask = 0;
 };
 
-/// The players' corpses (`corpse`). Every write is queued on the character database, and one
-/// called inside CharacterTransaction joins it.
+/// The players' corpses (`corpse`). The start-up reads run synchronously; every write is queued on
+/// the character database, and one called inside CharacterTransaction joins it.
 namespace CorpseRepository
 {
     /// Inserts a corpse's row.
@@ -54,6 +56,12 @@ namespace CorpseRepository
 
     /// Deletes a player's corpses that are not bones.
     void DeleteOfPlayer(uint32 player);
+
+    /// Selects the highest corpse guid, at start-up.
+    QueryResult* QueryHighestGuid();
+
+    /// Selects every corpse that is not bones with its player's appearance and guild, at start-up.
+    QueryResult* QueryCorpses();
 }
 
 #endif

@@ -50,7 +50,7 @@ struct AuctionRow
     uint64 deposit = 0;
 };
 
-/// The auctions' saved rows (`auction`). The three loads run at startup, synchronously; every write
+/// The auctions' saved rows (`auction`). The three loads and the highest id run at startup, synchronously; every write
 /// is queued on the character database, and one called inside CharacterTransaction joins it.
 namespace AuctionRepository
 {
@@ -82,6 +82,9 @@ namespace AuctionRepository
 
     /// Records a new bid.
     void SetBid(uint32 auctionId, uint32 bidder, uint64 bid);
+
+    /// Selects the highest auction id, at start-up.
+    QueryResult* QueryHighestId();
 }
 
 #endif

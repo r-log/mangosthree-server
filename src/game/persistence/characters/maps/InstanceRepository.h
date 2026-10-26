@@ -105,6 +105,9 @@ namespace InstanceRepository
 
     /// Deletes the instances whose reset time has passed, one by one.
     void DeleteExpiredInstances(uint64 time);
+
+    /// Selects the highest instance id, at start-up.
+    QueryResult* QueryHighestId();
 }
 
 #endif

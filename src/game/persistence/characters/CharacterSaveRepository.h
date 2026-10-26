@@ -30,6 +30,8 @@
 #include <vector>
 #include "Platform/Define.h"
 
+class QueryResult;
+
 /// The sizes of the saved rows' arrays: the stored powers, an aura's effects, the base stats, the
 /// spell schools (armor first) and an equipment set's items.
 enum
@@ -182,8 +184,9 @@ struct BattlegroundDataSaveRow
 
 /// A character's save (`characters` and the tables it saves on its own: `character_action`,
 /// `character_aura`, `character_cuf_profiles`, `character_skills`, `character_spell`,
-/// `character_stats`, `character_equipmentsets`, `character_battleground_data`). Every write is
-/// queued on the character database, and one called inside CharacterTransaction joins it.
+/// `character_stats`, `character_equipmentsets`, `character_battleground_data`). The start-up's
+/// highest equipment set read runs synchronously; every write is queued on the character database,
+/// and one called inside CharacterTransaction joins it.
 namespace CharacterSaveRepository
 {
     /// Writes a character's row over the old one: a DELETE, then the INSERT, the name and the
@@ -239,6 +242,9 @@ namespace CharacterSaveRepository
 
     /// Deletes a character's battleground return point, then inserts the one handed, if any.
     void ReplaceBattlegroundData(uint32 guid, BattlegroundDataSaveRow const* row);
+
+    /// Selects the highest equipment set guid, at start-up.
+    QueryResult* QueryHighestEquipmentSetId();
 }
 
 #endif

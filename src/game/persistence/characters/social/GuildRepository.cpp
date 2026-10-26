@@ -259,4 +259,15 @@ namespace GuildRepository
         CharacterDatabase.PExecute("INSERT INTO `guild_eventlog` (`guildid`, `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp`) VALUES ('%u','%u','%u','%u','%u','%u','" UI64FMTD "')",
                                    guildId, logGuid, eventType, playerGuid1, playerGuid2, newRank, timeStamp);
     }
+
+    QueryResult* QueryHighestId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`guildid`) FROM `guild`");
+    }
+
+    QueryResult* QueryMemberRanks()
+    {
+        //                                              0       1          2
+        return CharacterDatabase.Query("SELECT `guid`, `guildid`, `rank` FROM `guild_member`");
+    }
 }

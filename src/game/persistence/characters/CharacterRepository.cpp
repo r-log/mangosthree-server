@@ -286,4 +286,15 @@ namespace CharacterRepository
         CharacterDatabase.PExecute("UPDATE `characters` SET `slot` = '%u' WHERE `guid` = '%u' AND `account` = '%u'",
                                    slot, guid, accountId);
     }
+
+    QueryResult* QueryHighestGuid()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`guid`) FROM `characters`");
+    }
+
+    QueryResult* QueryCacheRows()
+    {
+        //                                      0       1         2       3       4        5        6       7      8             9             10
+        return CharacterDatabase.Query("SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`");
+    }
 }

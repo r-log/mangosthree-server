@@ -70,6 +70,18 @@
 #include <set>
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/CharacterSaveRepository.h"
+#include "persistence/characters/economy/AuctionRepository.h"
+#include "persistence/characters/inventory/ItemRepository.h"
+#include "persistence/characters/mail/MailRepository.h"
+#include "persistence/characters/maps/CorpseRepository.h"
+#include "persistence/characters/maps/InstanceRepository.h"
+#include "persistence/characters/pets/PetRepository.h"
+#include "persistence/characters/social/ArenaTeamRepository.h"
+#include "persistence/characters/social/GroupRepository.h"
+#include "persistence/characters/social/GuildRepository.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 
 // Temporary startup accumulator for LivingWorld observability (written during LoadActiveEntities(NULL) only)
@@ -653,19 +665,6 @@ GossipText const* ObjectMgr::GetGossipText(uint32 Text_ID) const
     return NULL;
 }
 
-
-namespace
-{
-    /// The slots of the expired-mail holder: two reads over the same `expire_time` cut-off, run back to back on
-    /// the delay thread under one connection lock, so no other statement on that connection runs between them.
-    enum ExpiredMailSlot
-    {
-        EXPIRED_MAIL_ROWS   = 0,
-        EXPIRED_MAIL_ITEMS  = 1,
-        EXPIRED_MAIL_COUNT  = 2
-    };
-}
-
 // not very fast function but it is called only once a day, or on starting-up
 /// @param serverUp true if the server is already running, false when the server is started
 void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
@@ -679,30 +678,17 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
     // delete all old mails without item and without body immediately, if starting server
     if (!serverUp)
     {
-        CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `expire_time` < '" UI64FMTD "' AND `has_items` = '0' AND `body` = ''", (uint64)basetime);
+        MailRepository::DeleteEmptyExpiredMails((uint64)basetime);
     }
 
     // Runs at start-up and on the daily mail timer inside World::Update, so both reads are staged here and the expired
     // mails' returns and deletes happen in the callback. Slot 1 reads the expired mails' items in one join ordered by
     // `mail_id`; the callback walks it as a cursor beside the mail rows, since both results ascend in that key.
-    SqlQueryHolder* holder = new SqlQueryHolder;
-    holder->SetSize(EXPIRED_MAIL_COUNT);
-    //                                       0     1              2         3           4            5              6      7          8
-    holder->SetPQuery(EXPIRED_MAIL_ROWS, "SELECT `id`,`messageType`,`sender`,`receiver`,`has_items`,`expire_time`,`cod`,`checked`,`mailTemplateId` FROM `mail` WHERE `expire_time` < '" UI64FMTD "' ORDER BY `id`", (uint64)basetime);
-    //                                        0                        1                            2
-    holder->SetPQuery(EXPIRED_MAIL_ITEMS, "SELECT `mail_items`.`item_guid`,`mail_items`.`item_template`,`mail_items`.`mail_id` "
-                      "FROM `mail_items` JOIN `mail` ON `mail_items`.`mail_id` = `mail`.`id` "
-                      "WHERE `mail`.`expire_time` < '" UI64FMTD "' AND `mail`.`has_items` <> 0 "
-                      "ORDER BY `mail_items`.`mail_id`, `mail_items`.`item_guid`", (uint64)basetime);
-
-    if (!CharacterDatabase.DelayQueryHolder([basetime, serverUp](QueryResult* /*result*/, SqlQueryHolder* h)
-                                            {
-                                                ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                                          basetime, serverUp);
-                                            }, holder))
-    {
-        delete holder;                                      // the database is shutting down
-    }
+    MailRepository::QueueExpiredMailReads((uint64)basetime, [basetime, serverUp](QueryResult* /*result*/, SqlQueryHolder* h)
+                                          {
+                                              ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                        basetime, serverUp);
+                                          });
 }
 
 /**
@@ -810,19 +796,19 @@ void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> h
                 // mail open and then not returned
                 for (MailItemInfoVec::iterator itr2 = m->items.begin(); itr2 != m->items.end(); ++itr2)
                 {
-                    CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid` = '%u'", itr2->item_guid);
+                    MailRepository::DeleteExpiredMailItem(itr2->item_guid);
                 }
             }
             else
             {
                 // mail will be returned:
-                CharacterDatabase.PExecute("UPDATE `mail` SET `sender` = '%u', `receiver` = '%u', `expire_time` = '" UI64FMTD "', `deliver_time` = '" UI64FMTD "', `cod` = '0', `checked` = '%u' WHERE `id` = '%u'",
-                                           m->receiverGuid.GetCounter(), m->sender, (uint64)(basetime + 30 * DAY), (uint64)basetime, MAIL_CHECK_MASK_RETURNED, m->messageID);
+                MailRepository::ReturnExpiredMail(m->receiverGuid.GetCounter(), m->sender, (uint64)(basetime + 30 * DAY), (uint64)basetime,
+                                                  MAIL_CHECK_MASK_RETURNED, m->messageID);
                 for (MailItemInfoVec::iterator itr2 = m->items.begin(); itr2 != m->items.end(); ++itr2)
                 {
                     // update receiver in mail items for its proper delivery, and in instance_item for avoid lost item at sender delete
-                    CharacterDatabase.PExecute("UPDATE `mail_items` SET `receiver` = %u WHERE `item_guid` = '%u'", m->sender, itr2->item_guid);
-                    CharacterDatabase.PExecute("UPDATE `item_instance` SET `owner_guid` = %u WHERE `guid` = '%u'", m->sender, itr2->item_guid);
+                    MailRepository::SetReturnedItemReceiver(m->sender, itr2->item_guid);
+                    MailRepository::SetReturnedItemOwner(m->sender, itr2->item_guid);
                 }
                 delete m;
                 continue;
@@ -831,7 +817,7 @@ void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> h
 
         // deletemail = true;
         // delmails << m->messageID << ", ";
-        CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `id` = '%u'", m->messageID);
+        MailRepository::DeleteMailRow(m->messageID);
         delete m;
         ++count;
     }
@@ -968,7 +954,7 @@ void ObjectMgr::PackGroupIds()
     // all valid ids are in the instance table
     // any associations to ids not in this table are assumed to be
     // cleaned already in CleanupInstances
-    QueryResult* result = CharacterDatabase.Query("SELECT `groupId` FROM `groups`");
+    QueryResult* result = GroupRepository::QueryGroupIds();
     if (result)
     {
         do
@@ -979,10 +965,7 @@ void ObjectMgr::PackGroupIds()
 
             if (id == 0)
             {
-                CharacterDatabase.BeginTransaction();
-                CharacterDatabase.PExecute("DELETE FROM `groups` WHERE `groupId` = '%u'", id);
-                CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `groupId` = '%u'", id);
-                CharacterDatabase.CommitTransaction();
+                GroupRepository::DeleteInvalidGroup(id);
                 continue;
             }
 
@@ -1002,10 +985,7 @@ void ObjectMgr::PackGroupIds()
         if (*i != groupId)
         {
             // remap group id
-            CharacterDatabase.BeginTransaction();
-            CharacterDatabase.PExecute("UPDATE `groups` SET `groupId` = '%u' WHERE `groupId` = '%u'", groupId, *i);
-            CharacterDatabase.PExecute("UPDATE `group_member` SET `groupId` = '%u' WHERE `groupId` = '%u'", groupId, *i);
-            CharacterDatabase.CommitTransaction();
+            GroupRepository::RenumberGroup(groupId, *i);
         }
 
         ++groupId;
@@ -1021,28 +1001,28 @@ void ObjectMgr::PackGroupIds()
  */
 void ObjectMgr::SetHighestGuids()
 {
-    QueryResult* result = CharacterDatabase.Query("SELECT MAX(`guid`) FROM `characters`");
+    QueryResult* result = CharacterRepository::QueryHighestGuid();
     if (result)
     {
         m_CharGuids.Set((*result)[0].GetUInt32() + 1);
         delete result;
     }
 
-    result = WorldDatabase.Query("SELECT MAX(`guid`) FROM `creature`");
+    result = SpawnRepository::QueryHighestCreatureGuid();
     if (result)
     {
         m_FirstTemporaryCreatureGuid = (*result)[0].GetUInt32() + 1;
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`guid`) FROM `item_instance`");
+    result = ItemRepository::QueryHighestGuid();
     if (result)
     {
         m_ItemGuids.Set((*result)[0].GetUInt32() + 1);
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `instance`");
+    result = InstanceRepository::QueryHighestId();
     if (result)
     {
         m_InstanceGuids.Set((*result)[0].GetUInt32() + 1);
@@ -1050,63 +1030,58 @@ void ObjectMgr::SetHighestGuids()
     }
 
     // Cleanup other tables from nonexistent guids (>=m_hiItemGuid)
-    CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("DELETE FROM `character_inventory` WHERE `item` >= '%u'", m_ItemGuids.GetNextAfterMaxUsed());
-    CharacterDatabase.PExecute("DELETE FROM `mail_items` WHERE `item_guid` >= '%u'", m_ItemGuids.GetNextAfterMaxUsed());
-    CharacterDatabase.PExecute("DELETE FROM `auction` WHERE `itemguid` >= '%u'", m_ItemGuids.GetNextAfterMaxUsed());
-    CharacterDatabase.PExecute("DELETE FROM `guild_bank_item` WHERE `item_guid` >= '%u'", m_ItemGuids.GetNextAfterMaxUsed());
-    CharacterDatabase.CommitTransaction();
+    ItemRepository::DeleteRowsOfMissingItems(m_ItemGuids.GetNextAfterMaxUsed());
 
-    result = WorldDatabase.Query("SELECT MAX(`guid`) FROM `gameobject`");
+    result = SpawnRepository::QueryHighestGameObjectGuid();
     if (result)
     {
         m_FirstTemporaryGameObjectGuid = (*result)[0].GetUInt32() + 1;
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `auction`");
+    result = AuctionRepository::QueryHighestId();
     if (result)
     {
         m_AuctionIds.Set((*result)[0].GetUInt32() + 1);
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `mail`");
+    result = MailRepository::QueryHighestId();
     if (result)
     {
         m_MailIds.Set((*result)[0].GetUInt32() + 1);
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`guid`) FROM `corpse`");
+    result = CorpseRepository::QueryHighestGuid();
     if (result)
     {
         m_CorpseGuids.Set((*result)[0].GetUInt32() + 1);
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`arenateamid`) FROM `arena_team`");
+    result = ArenaTeamRepository::QueryHighestId();
     if (result)
     {
         m_ArenaTeamIds.Set((*result)[0].GetUInt32() + 1);
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`setguid`) FROM `character_equipmentsets`");
+    result = CharacterSaveRepository::QueryHighestEquipmentSetId();
     if (result)
     {
         m_EquipmentSetIds.Set((*result)[0].GetUInt64() + 1);
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`guildid`) FROM `guild`");
+    result = GuildRepository::QueryHighestId();
     if (result)
     {
         m_GuildIds.Set((*result)[0].GetUInt32() + 1);
         delete result;
     }
 
-    result = CharacterDatabase.Query("SELECT MAX(`groupId`) FROM `groups`");
+    result = GroupRepository::QueryHighestId();
     if (result)
     {
         m_GroupGuids.Set((*result)[0].GetUInt32() + 1);
@@ -1223,7 +1198,7 @@ void ObjectMgr::LoadPetNames()
  */
 void ObjectMgr::LoadPetNumber()
 {
-    QueryResult* result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `character_pet`");
+    QueryResult* result = PetRepository::QueryHighestId();
     if (result)
     {
         Field* fields = result->Fetch();
@@ -1269,12 +1244,7 @@ std::string ObjectMgr::GeneratePetName(uint32 entry)
 void ObjectMgr::LoadCorpses()
 {
     uint32 count = 0;
-    //                                                    0            1       2                  3                  4                  5                   6
-    QueryResult* result = CharacterDatabase.Query("SELECT `corpse`.`guid`, `player`, `corpse`.`position_x`, `corpse`.`position_y`, `corpse`.`position_z`, `corpse`.`orientation`, `corpse`.`map`, "
-                          //   7     8             9           10           11        12      13       14             15              16                17         18
-                          "`time`, `corpse_type`, `instance`, `phaseMask`, `gender`, `race`, `class`, `playerBytes`, `playerBytes2`, `equipmentCache`, `guildId`, `playerFlags` FROM `corpse` "
-                          "JOIN `characters` ON `player` = `characters`.`guid` "
-                          "LEFT JOIN `guild_member` ON `player`=`guild_member`.`guid` WHERE `corpse_type` <> 0");
+    QueryResult* result = CorpseRepository::QueryCorpses();
 
     if (!result)
     {

@@ -32,6 +32,16 @@
 #include "Platform/Define.h"
 
 class QueryResult;
+class SqlQueryHolder;
+
+/// The slots of the expired-mail holder: two reads over the same `expire_time` cut-off, run back to back on
+/// the delay thread under one connection lock, so no other statement on that connection runs between them.
+enum ExpiredMailSlot
+{
+    EXPIRED_MAIL_ROWS   = 0,
+    EXPIRED_MAIL_ITEMS  = 1,
+    EXPIRED_MAIL_COUNT  = 2
+};
 
 /// A mail's saved row, in the order of the INSERT's columns.
 struct MailRow
@@ -54,8 +64,9 @@ struct MailRow
 
 /// The mails' saved rows (`mail`, `mail_items`) and the item instance writes of the mail flow.
 /// Every write is queued on the character database; a write called inside CharacterTransaction
-/// joins that transaction. The two reads are asynchronous: the callback runs on the world thread
-/// with the result, which it owns.
+/// joins that transaction. The mailbox, mass mail and expired-mail reads are asynchronous: the
+/// callback runs on the world thread with the result, which it owns. The start-up's highest id
+/// runs synchronously.
 namespace MailRepository
 {
     /// Inserts a mail's row, the subject and body bound.
@@ -98,6 +109,27 @@ namespace MailRepository
 
     /// Runs a mass mail's receiver query, whose first column is each receiver's guid.
     void QueryMassMailReceivers(char const* query, std::function<void(QueryResult*)> callback);
+
+    /// Deletes the mails expired before a time that hold no item and no body, at start-up.
+    void DeleteEmptyExpiredMails(uint64 before);
+
+    /// Queues the expired-mail holder: the mails expired before a time, then their items, both
+    /// ordered by mail id, in the slots of ExpiredMailSlot. The callback runs on the world thread.
+    void QueueExpiredMailReads(uint64 before, std::function<void(QueryResult*, SqlQueryHolder*)> callback);
+
+    /// Deletes the instance row of an item an expired mail drops.
+    void DeleteExpiredMailItem(uint32 itemGuid);
+
+    /// Returns an expired mail to its sender: the new sender and receiver, expiry and delivery
+    /// times and check mask.
+    void ReturnExpiredMail(uint32 sender, uint32 receiver, uint64 expireTime, uint64 deliverTime, uint32 checked, uint32 mailId);
+
+    /// Gives a returned mail's item row and item instance row to the mail's new receiver.
+    void SetReturnedItemReceiver(uint32 receiver, uint32 itemGuid);
+    void SetReturnedItemOwner(uint32 owner, uint32 itemGuid);
+
+    /// Selects the highest mail id, at start-up.
+    QueryResult* QueryHighestId();
 }
 
 #endif

@@ -36,6 +36,8 @@
 #include "DBCStores.h"
 #include "ArenaTeam.h"
 #include "Group.h"
+#include "persistence/characters/social/ArenaTeamRepository.h"
+#include "persistence/characters/social/GroupRepository.h"
 
 /**
  * @brief Gets instance template data by map id.
@@ -53,11 +55,7 @@ void ObjectMgr::LoadArenaTeams()
 {
     uint32 count = 0;
 
-    //                                                     0                          1      2             3      4                 5
-    QueryResult* result = CharacterDatabase.Query("SELECT `arena_team`.`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,"
-                          //   6          7             8              9        10           11          12             13            14
-                          "`EmblemColor`,`BorderStyle`,`BorderColor`, `rating`,`games_week`,`wins_week`,`games_season`,`wins_season`,`rank` "
-                          "FROM `arena_team` LEFT JOIN `arena_team_stats` ON `arena_team`.`arenateamid` = `arena_team_stats`.`arenateamid` ORDER BY `arena_team`.`arenateamid` ASC");
+    QueryResult* result = ArenaTeamRepository::QueryTeams();
 
     if (!result)
     {
@@ -71,10 +69,7 @@ void ObjectMgr::LoadArenaTeams()
     }
 
     // load arena_team members
-    QueryResult* arenaTeamMembersResult = CharacterDatabase.Query(
-            //          0                   1      2             3           4               5             6                 7      8
-            "SELECT `arenateamid`,`member`.`guid`,`played_week`,`wons_week`,`played_season`,`wons_season`,`personal_rating`,`name`,`class` "
-            "FROM `arena_team_member` member LEFT JOIN `characters` chars on member.`guid` = chars.`guid` ORDER BY member.`arenateamid` ASC");
+    QueryResult* arenaTeamMembersResult = ArenaTeamRepository::QueryTeamMembers();
 
     BarGoLink bar(result->GetRowCount());
 
@@ -109,8 +104,7 @@ void ObjectMgr::LoadGroups()
 {
     // -- loading groups --
     uint32 count = 0;
-    //                                                     0           1                2             3             4                5        6        7        8        9        10       11       12       13           14            15                16            17
-    QueryResult* result = CharacterDatabase.Query("SELECT `mainTank`, `mainAssistant`, `lootMethod`, `looterGuid`, `lootThreshold`, `icon1`, `icon2`, `icon3`, `icon4`, `icon5`, `icon6`, `icon7`, `icon8`, `groupType`, `difficulty`, `raiddifficulty`, `leaderGuid`, `groupId` FROM `groups`");
+    QueryResult* result = GroupRepository::QueryGroups();
 
     if (!result)
     {
@@ -146,8 +140,7 @@ void ObjectMgr::LoadGroups()
 
     // -- loading members --
     count = 0;
-    //                                       0             1            2           3          4
-    result = CharacterDatabase.Query("SELECT `memberGuid`, `assistant`, `subgroup`, `groupId`, `roles` FROM `group_member` ORDER BY `groupId`");
+    result = GroupRepository::QueryMembers();
     if (!result)
     {
         BarGoLink bar2(1);
@@ -177,7 +170,7 @@ void ObjectMgr::LoadGroups()
                 {
                     sLog.outErrorDb("Incorrect entry in group_member table : no group with Id %d for member %s!",
                                     groupId, memberGuid.GetString().c_str());
-                    CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `memberGuid` = '%u'", memberGuidlow);
+                    GroupRepository::DeleteInvalidMember(memberGuidlow);
                     continue;
                 }
             }
@@ -186,7 +179,7 @@ void ObjectMgr::LoadGroups()
             {
                 sLog.outErrorDb("Incorrect entry in group_member table : member %s can not be added to group (Id: %u)!",
                                 memberGuid.GetString().c_str(), groupId);
-                CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `memberGuid` = '%u'", memberGuidlow);
+                GroupRepository::DeleteInvalidMember(memberGuidlow);
             }
         }
         while (result->NextRow());
@@ -211,15 +204,7 @@ void ObjectMgr::LoadGroups()
 
     // -- loading instances --
     count = 0;
-    result = CharacterDatabase.Query(
-                 //                        0             1      2           3                       4             5
-                 "SELECT `group_instance`.`leaderGuid`, `map`, `instance`, `permanent`, `instance`.`difficulty`, `resettime`, "
-                 // 6
-                 "(SELECT COUNT(*) FROM `character_instance` WHERE `guid` = `group_instance`.`leaderGuid` AND `instance` = `group_instance`.`instance` AND `permanent` = 1 LIMIT 1), "
-                 // 7                              8
-                 " `groups`.`groupId`, `instance`.`encountersMask` "
-                 "FROM `group_instance` LEFT JOIN `instance` ON `instance` = `id` LEFT JOIN `groups` ON `groups`.`leaderGUID` = `group_instance`.`leaderGUID` ORDER BY `leaderGuid`"
-             );
+    result = GroupRepository::QueryInstanceBinds();
 
     if (!result)
     {

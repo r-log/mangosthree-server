@@ -313,4 +313,9 @@ namespace PetRepository
                 break;
         }
     }
+
+    QueryResult* QueryHighestId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`id`) FROM `character_pet`");
+    }
 }

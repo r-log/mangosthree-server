@@ -108,4 +108,14 @@ namespace SpawnRepository
         WorldDatabase.PExecuteLog("DELETE FROM `game_event_gameobject` WHERE `guid` = '%u'", guid);
         WorldDatabase.PExecuteLog("DELETE FROM `gameobject_battleground` WHERE `guid` = '%u'", guid);
     }
+
+    QueryResult* QueryHighestCreatureGuid()
+    {
+        return WorldDatabase.Query("SELECT MAX(`guid`) FROM `creature`");
+    }
+
+    QueryResult* QueryHighestGameObjectGuid()
+    {
+        return WorldDatabase.Query("SELECT MAX(`guid`) FROM `gameobject`");
+    }
 }

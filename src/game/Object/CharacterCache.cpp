@@ -31,6 +31,9 @@
 #include "Player.h"
 #include "ProgressBar.h"
 #include "Util.h"
+#include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/social/ArenaTeamRepository.h"
+#include "persistence/characters/social/GuildRepository.h"
 
 static_assert(CHARACTER_CACHE_ARENA_SLOTS == MAX_ARENA_SLOT,
               "the cache's arena slot count has to be the game's");
@@ -248,8 +251,7 @@ void CharacterCache::LoadFromDB()
     // key). The name index below keeps the FIRST row it sees for a name, so the rows have
     // to arrive in guid order for "first" to mean what the old answer meant. `guid` is the
     // primary key, so this is an index scan, not a sort.
-    //                                                     0       1         2       3       4        5        6       7      8             9             10
-    QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`");
+    QueryResult* result = CharacterRepository::QueryCacheRows();
     if (result)
     {
         BarGoLink bar(result->GetRowCount());
@@ -304,8 +306,7 @@ void CharacterCache::LoadFromDB()
     }
 
     uint32 guildMembers = 0;
-    //                                                0       1          2
-    result = CharacterDatabase.Query("SELECT `guid`, `guildid`, `rank` FROM `guild_member`");
+    result = GuildRepository::QueryMemberRanks();
     if (result)
     {
         do
@@ -329,9 +330,7 @@ void CharacterCache::LoadFromDB()
     }
 
     uint32 arenaMembers = 0;
-    //                                                                              0                   1                  2
-    result = CharacterDatabase.Query("SELECT `arena_team_member`.`guid`, `arena_team_member`.`arenateamid`, `arena_team`.`type` "
-                                     "FROM `arena_team_member` JOIN `arena_team` ON `arena_team_member`.`arenateamid` = `arena_team`.`arenateamid`");
+    result = ArenaTeamRepository::QueryMemberTeamTypes();
     if (result)
     {
         do

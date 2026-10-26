@@ -49,7 +49,7 @@ struct GuildRow
 };
 
 /// The guilds' saved rows (`guild`, `guild_member`, `guild_rank`, `guild_bank_right`, `guild_eventlog`,
-/// and the bank tables a disband deletes). The loads run at startup, synchronously; every write is
+/// and the bank tables a disband deletes). The loads and the highest id run at startup, synchronously; every write is
 /// queued on the character database, and one called inside CharacterTransaction joins it.
 namespace GuildRepository
 {
@@ -136,6 +136,12 @@ namespace GuildRepository
     /// Replaces the event log row under a log guid with a new event.
     void DeleteEventLogEntry(uint32 guildId, uint32 logGuid);
     void InsertEventLogEntry(uint32 guildId, uint32 logGuid, uint32 eventType, uint32 playerGuid1, uint32 playerGuid2, uint32 newRank, uint64 timeStamp);
+
+    /// Selects the highest guild id, at start-up.
+    QueryResult* QueryHighestId();
+
+    /// Selects every guild member's guild and rank, at start-up.
+    QueryResult* QueryMemberRanks();
 }
 
 #endif

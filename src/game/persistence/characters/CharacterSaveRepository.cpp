@@ -429,4 +429,9 @@ namespace CharacterSaveRepository
             stmt.Execute();
         }
     }
+
+    QueryResult* QueryHighestEquipmentSetId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`setguid`) FROM `character_equipmentsets`");
+    }
 }

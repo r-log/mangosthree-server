@@ -281,4 +281,9 @@ namespace InstanceRepository
     {
         DeleteSelected("id, map, instance.difficulty", "instance", "LEFT JOIN instance_reset ON mapid = map AND instance.difficulty =  instance_reset.difficulty WHERE (instance.resettime < '" UI64FMTD "' AND instance.resettime > '0') OR (NOT instance_reset.resettime IS NULL AND instance_reset.resettime < '" UI64FMTD "')", time, time);
     }
+
+    QueryResult* QueryHighestId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`id`) FROM `instance`");
+    }
 }

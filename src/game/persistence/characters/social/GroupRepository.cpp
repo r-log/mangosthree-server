@@ -153,4 +153,58 @@ namespace GroupRepository
         CharacterDatabase.PExecute("DELETE FROM `group_instance` WHERE `leaderGuid` = '%u' AND `instance` = '%u'",
                                    leaderGuid, instanceId);
     }
+
+    QueryResult* QueryGroupIds()
+    {
+        return CharacterDatabase.Query("SELECT `groupId` FROM `groups`");
+    }
+
+    void DeleteInvalidGroup(uint32 groupId)
+    {
+        CharacterDatabase.BeginTransaction();
+        CharacterDatabase.PExecute("DELETE FROM `groups` WHERE `groupId` = '%u'", groupId);
+        CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `groupId` = '%u'", groupId);
+        CharacterDatabase.CommitTransaction();
+    }
+
+    void RenumberGroup(uint32 newId, uint32 oldId)
+    {
+        CharacterDatabase.BeginTransaction();
+        CharacterDatabase.PExecute("UPDATE `groups` SET `groupId` = '%u' WHERE `groupId` = '%u'", newId, oldId);
+        CharacterDatabase.PExecute("UPDATE `group_member` SET `groupId` = '%u' WHERE `groupId` = '%u'", newId, oldId);
+        CharacterDatabase.CommitTransaction();
+    }
+
+    QueryResult* QueryHighestId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`groupId`) FROM `groups`");
+    }
+
+    QueryResult* QueryGroups()
+    {
+        //                                      0           1                2             3             4                5        6        7        8        9        10       11       12       13           14            15                16            17
+        return CharacterDatabase.Query("SELECT `mainTank`, `mainAssistant`, `lootMethod`, `looterGuid`, `lootThreshold`, `icon1`, `icon2`, `icon3`, `icon4`, `icon5`, `icon6`, `icon7`, `icon8`, `groupType`, `difficulty`, `raiddifficulty`, `leaderGuid`, `groupId` FROM `groups`");
+    }
+
+    QueryResult* QueryMembers()
+    {
+        //                                     0             1            2           3          4
+        return CharacterDatabase.Query("SELECT `memberGuid`, `assistant`, `subgroup`, `groupId`, `roles` FROM `group_member` ORDER BY `groupId`");
+    }
+
+    void DeleteInvalidMember(uint32 memberGuid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `group_member` WHERE `memberGuid` = '%u'", memberGuid);
+    }
+
+    QueryResult* QueryInstanceBinds()
+    {
+        //                                                       0             1      2           3                       4             5
+        return CharacterDatabase.Query("SELECT `group_instance`.`leaderGuid`, `map`, `instance`, `permanent`, `instance`.`difficulty`, `resettime`, "
+                                       // 6
+                                       "(SELECT COUNT(*) FROM `character_instance` WHERE `guid` = `group_instance`.`leaderGuid` AND `instance` = `group_instance`.`instance` AND `permanent` = 1 LIMIT 1), "
+                                       // 7                              8
+                                       " `groups`.`groupId`, `instance`.`encountersMask` "
+                                       "FROM `group_instance` LEFT JOIN `instance` ON `instance` = `id` LEFT JOIN `groups` ON `groups`.`leaderGUID` = `group_instance`.`leaderGUID` ORDER BY `leaderGuid`");
+    }
 }

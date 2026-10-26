@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+class QueryResult;
+
 /// A creature spawn's saved row, in the order of the INSERT's columns, each value of the type it
 /// is written as.
 struct CreatureSpawnRow
@@ -75,8 +77,8 @@ struct GameObjectSpawnRow
 };
 
 /// The creature and game object spawns on the world database (`creature`, `gameobject` and the
-/// tables keyed on a spawn), as a GM saves and deletes them. Every write is queued and written to
-/// the SQL log.
+/// tables keyed on a spawn), as a GM saves and deletes them. The start-up's highest guid reads run
+/// synchronously; every write is queued and written to the SQL log.
 namespace SpawnRepository
 {
     /// Writes a creature spawn's row over the old one, in one transaction.
@@ -91,6 +93,12 @@ namespace SpawnRepository
 
     /// Deletes a game object spawn and its game event and battleground rows.
     void DeleteGameObject(uint32 guid);
+
+    /// Selects the highest creature spawn guid, at start-up.
+    QueryResult* QueryHighestCreatureGuid();
+
+    /// Selects the highest game object spawn guid, at start-up.
+    QueryResult* QueryHighestGameObjectGuid();
 }
 
 #endif

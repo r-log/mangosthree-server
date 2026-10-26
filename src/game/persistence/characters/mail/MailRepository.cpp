@@ -25,6 +25,7 @@
 
 #include "MailRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
 
 #include <utility>
 
@@ -142,5 +143,54 @@ namespace MailRepository
     void QueryMassMailReceivers(char const* query, std::function<void(QueryResult*)> callback)
     {
         CharacterDatabase.AsyncPQuery(std::move(callback), "%s", query);
+    }
+
+    void DeleteEmptyExpiredMails(uint64 before)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `expire_time` < '" UI64FMTD "' AND `has_items` = '0' AND `body` = ''", before);
+    }
+
+    void QueueExpiredMailReads(uint64 before, std::function<void(QueryResult*, SqlQueryHolder*)> callback)
+    {
+        SqlQueryHolder* holder = new SqlQueryHolder;
+        holder->SetSize(EXPIRED_MAIL_COUNT);
+        //                                       0     1              2         3           4            5              6      7          8
+        holder->SetPQuery(EXPIRED_MAIL_ROWS, "SELECT `id`,`messageType`,`sender`,`receiver`,`has_items`,`expire_time`,`cod`,`checked`,`mailTemplateId` FROM `mail` WHERE `expire_time` < '" UI64FMTD "' ORDER BY `id`", before);
+        //                                        0                        1                            2
+        holder->SetPQuery(EXPIRED_MAIL_ITEMS, "SELECT `mail_items`.`item_guid`,`mail_items`.`item_template`,`mail_items`.`mail_id` "
+                          "FROM `mail_items` JOIN `mail` ON `mail_items`.`mail_id` = `mail`.`id` "
+                          "WHERE `mail`.`expire_time` < '" UI64FMTD "' AND `mail`.`has_items` <> 0 "
+                          "ORDER BY `mail_items`.`mail_id`, `mail_items`.`item_guid`", before);
+
+        if (!CharacterDatabase.DelayQueryHolder(std::move(callback), holder))
+        {
+            delete holder;                                  // the database is shutting down
+        }
+    }
+
+    void DeleteExpiredMailItem(uint32 itemGuid)
+    {
+        CharacterDatabase.PExecute("DELETE FROM `item_instance` WHERE `guid` = '%u'", itemGuid);
+    }
+
+    void ReturnExpiredMail(uint32 sender, uint32 receiver, uint64 expireTime, uint64 deliverTime, uint32 checked, uint32 mailId)
+    {
+        CharacterDatabase.PExecute("UPDATE `mail` SET `sender` = '%u', `receiver` = '%u', `expire_time` = '" UI64FMTD "', `deliver_time` = '" UI64FMTD "', `cod` = '0', `checked` = '%u' WHERE `id` = '%u'",
+                                   sender, receiver, expireTime, deliverTime, checked, mailId);
+    }
+
+    void SetReturnedItemReceiver(uint32 receiver, uint32 itemGuid)
+    {
+        CharacterDatabase.PExecute("UPDATE `mail_items` SET `receiver` = %u WHERE `item_guid` = '%u'", receiver, itemGuid);
+    }
+
+    void SetReturnedItemOwner(uint32 owner, uint32 itemGuid)
+    {
+        CharacterDatabase.PExecute("UPDATE `item_instance` SET `owner_guid` = %u WHERE `guid` = '%u'", owner, itemGuid);
+    }
+
+    QueryResult* QueryHighestId()
+    {
+        return CharacterDatabase.Query("SELECT MAX(`id`) FROM `mail`");
     }
 }
