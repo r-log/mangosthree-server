@@ -80,6 +80,7 @@
 #include "Weather.h"
 #include "LivingWorldCellEnvelope.h"
 #include "MotionMaster.h"
+#include "persistence/characters/maps/InstanceDataRepository.h"
 
 /**
  * @brief Map destructor
@@ -2296,7 +2297,7 @@ void Map::CreateInstanceData(bool load)
             // for non-instanceable map always add data to table if not found, later code expected that for map in `word` exist always after load
             if (!Instanceable())
             {
-                CharacterDatabase.PExecute("INSERT INTO `world` VALUES ('%u', '')", GetId());
+                InstanceDataRepository::InsertEmptyWorldData(GetId());
                 sInstanceDataCache.SetWorld(GetId(), "");   // the cache invariant: beside the write
             }
         }

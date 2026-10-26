@@ -94,6 +94,9 @@ source_group("Persistence\\Characters\\Maps" FILES ${SRC_GRP_PERSISTENCE_CHARACT
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_PETS persistence/characters/pets/*.cpp persistence/characters/pets/*.h)
 source_group("Persistence\\Characters\\Pets" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_PETS})
 
+file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_PVP persistence/characters/pvp/*.cpp persistence/characters/pvp/*.h)
+source_group("Persistence\\Characters\\Pvp" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_PVP})
+
 file(GLOB SRC_GRP_PERSISTENCE_CHARACTERS_QUESTS persistence/characters/quests/*.cpp persistence/characters/quests/*.h)
 source_group("Persistence\\Characters\\Quests" FILES ${SRC_GRP_PERSISTENCE_CHARACTERS_QUESTS})
 
@@ -207,6 +210,7 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_CHARACTERS_MAIL}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_MAPS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_PETS}
+    ${SRC_GRP_PERSISTENCE_CHARACTERS_PVP}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_QUESTS}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_SOCIAL}
     ${SRC_GRP_PERSISTENCE_CHARACTERS_SPELLS}

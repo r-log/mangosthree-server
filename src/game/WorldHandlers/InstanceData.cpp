@@ -44,11 +44,11 @@
 #include <string>
 #include "InstanceData.h"
 #include "InstanceDataCache.h"
-#include "Database/DatabaseEnv.h"
 #include "Map.h"
 #include "Log.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"                                        ///< SMSG_INSTANCE_ENCOUNTER
+#include "persistence/characters/maps/InstanceDataRepository.h"
 
 /**
  * @brief Save instance state to database
@@ -75,31 +75,21 @@ void InstanceData::SaveToDB() const
         return;
     }
 
-    // Decoupling D7i: the escape is a bound parameter (C5), and the write tells
-    // InstanceDataCache beside itself -- the same string, unescaped, because that is what
-    // the table ends up holding once the server's own parser has undone the escaping. The
-    // mirror is an UPDATE too: it changes an existing entry and creates none (fix round 1).
+    // The data is a bound parameter, and the write tells InstanceDataCache beside itself: the
+    // same string, unescaped, because that is what the table holds once the server's own parser
+    // has undone the escaping. The mirror is an update too: it changes an existing entry and
+    // creates none.
     const std::string data = Save();
 
     if (instance->Instanceable())
     {
-        static SqlStatementID updInstanceData;
-        SqlStatement update = CharacterDatabase.CreateStatement(updInstanceData,
-                              "UPDATE `instance` SET `data` = ? WHERE `id` = ?");
-        update.addString(data);
-        update.addUInt32(instance->GetInstanceId());
-        update.Execute();
+        InstanceDataRepository::SetInstanceData(data, instance->GetInstanceId());
 
         sInstanceDataCache.UpdateInstance(instance->GetInstanceId(), data);
     }
     else
     {
-        static SqlStatementID updWorldData;
-        SqlStatement update = CharacterDatabase.CreateStatement(updWorldData,
-                              "UPDATE `world` SET `data` = ? WHERE `map` = ?");
-        update.addString(data);
-        update.addUInt32(instance->GetId());
-        update.Execute();
+        InstanceDataRepository::SetWorldData(data, instance->GetId());
 
         sInstanceDataCache.UpdateWorld(instance->GetId(), data);
     }
