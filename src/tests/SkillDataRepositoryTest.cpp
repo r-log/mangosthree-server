@@ -64,3 +64,39 @@ TEST(SkillDataRepository_FishingBaseLevels)
     CHECK_EQ(rows[0].skill, -1001);
     CHECK_EQ(rows[1].entry, 2000u);
 }
+
+// Each column of a `skill_discovery_template` row lands in its member, and the rows come back in
+// order.
+TEST(SkillDataRepository_Discoveries)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "-1001", "-1002", "1003.5"},
+        FakeRow{"2000", "-2001", "-2002", "2003.5"},
+    });
+    std::vector<SkillDiscoveryRow> rows = SkillDataRepository::QueryDiscoveries();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].spellId, 1000u);
+    CHECK_EQ(rows[0].reqSpell, -1001);
+    CHECK_EQ(rows[0].reqSkillValue, -1002);
+    CHECK_EQ(rows[0].chance, 1003.5f);
+    CHECK_EQ(rows[1].spellId, 2000u);
+}
+
+// Each column of a `skill_extra_item_template` row lands in its member, and the rows come back in
+// order.
+TEST(SkillDataRepository_ExtraItems)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002.5", "103"},
+        FakeRow{"2000", "2001", "2002.5", "203"},
+    });
+    std::vector<SkillExtraItemRow> rows = SkillDataRepository::QueryExtraItems();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].spellId, 1000u);
+    CHECK_EQ(rows[0].requiredSpecialization, 1001u);
+    CHECK_EQ(rows[0].additionalCreateChance, 1002.5f);
+    CHECK_EQ(rows[0].additionalMaxNum, uint8(103));
+    CHECK_EQ(rows[1].spellId, 2000u);
+}

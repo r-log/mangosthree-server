@@ -25,17 +25,43 @@
 
 #include "InstanceDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace InstanceDataRepository
 {
-    QueryResult* QueryInstanceData()
+    static InstanceDataRow ReadInstanceData(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `id`, `map`, `data` FROM `instance`");
+        InstanceDataRow row;
+        row.id = fields[0].GetUInt32();
+        row.map = fields[1].GetUInt32();
+        if (char const* text = fields[2].GetString())
+        {
+            row.data = text;
+        }
+        return row;
     }
 
-    QueryResult* QueryWorldData()
+    std::vector<InstanceDataRow> QueryInstanceData()
     {
-        return CharacterDatabase.Query("SELECT `map`, `data` FROM `world`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `id`, `map`, `data` FROM `instance`");
+        return ReadRows<InstanceDataRow>(result, ReadInstanceData);
+    }
+
+    static WorldMapDataRow ReadWorldMapData(Field* fields)
+    {
+        WorldMapDataRow row;
+        row.map = fields[0].GetUInt32();
+        if (char const* text = fields[1].GetString())
+        {
+            row.data = text;
+        }
+        return row;
+    }
+
+    std::vector<WorldMapDataRow> QueryWorldData()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `map`, `data` FROM `world`");
+        return ReadRows<WorldMapDataRow>(result, ReadWorldMapData);
     }
 
     void SetInstanceData(std::string const& data, uint32 instanceId)

@@ -65,20 +65,19 @@ void LoadRandomEnchantmentsTable()
     RandomItemSuffixEnch.clear();                           // for reload case
 
     uint32 count = 0;
-    QueryResult* result = LootDataRepository::QueryItemEnchantments();
+    std::vector<ItemEnchantmentRow> rows = LootDataRepository::QueryItemEnchantments();
 
-    if (result)
+    if (!rows.empty())
     {
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
 
-        do
+        for (ItemEnchantmentRow const& row : rows)
         {
-            Field* fields = result->Fetch();
             bar.step();
 
-            int32 entry = fields[0].GetInt32();
-            uint32 ench = fields[1].GetUInt32();
-            float chance = fields[2].GetFloat();
+            int32 entry = row.entry;
+            uint32 ench = row.ench;
+            float chance = row.chance;
 
             if (chance > 0.000001f && chance <= 100.0f)
             {
@@ -100,9 +99,6 @@ void LoadRandomEnchantmentsTable()
 
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
 
         sLog.outString(">> Loaded %u Item Enchantment definitions", count);
     }

@@ -25,29 +25,70 @@
 
 #include "AchievementDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace AchievementDataRepository
 {
-    QueryResult* QueryCriteriaRequirements()
+    static AchievementCriteriaRequirementRow ReadAchievementCriteriaRequirement(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `criteria_id`, `type`, `value1`, `value2` FROM `achievement_criteria_requirement`");
+        AchievementCriteriaRequirementRow row;
+        row.criteriaId = fields[0].GetUInt32();
+        row.type = fields[1].GetUInt32();
+        row.value1 = fields[2].GetUInt32();
+        row.value2 = fields[3].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryRewards()
+    std::vector<AchievementCriteriaRequirementRow> QueryCriteriaRequirements()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `criteria_id`, `type`, `value1`, `value2` FROM `achievement_criteria_requirement`");
+        return ReadRows<AchievementCriteriaRequirementRow>(result, ReadAchievementCriteriaRequirement);
+    }
+
+    static AchievementRewardRow ReadAchievementReward(Field* fields)
+    {
+        AchievementRewardRow row;
+        row.entry = fields[0].GetUInt32();
+        row.gender = fields[1].GetUInt8();
+        row.titleA = fields[2].GetUInt32();
+        row.titleH = fields[3].GetUInt32();
+        row.item = fields[4].GetUInt32();
+        row.sender = fields[5].GetUInt32();
+        row.subject = fields[6].GetCppString();
+        row.text = fields[7].GetCppString();
+        return row;
+    }
+
+    std::vector<AchievementRewardRow> QueryRewards()
     {
         //                                0        1         2          3          4       5         6          7
-        return WorldDatabase.Query("SELECT `entry`, `gender`, `title_A`, `title_H`, `item`, `sender`, `subject`, `text` FROM `achievement_reward`");
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `gender`, `title_A`, `title_H`, `item`, `sender`, `subject`, `text` FROM `achievement_reward`");
+        return ReadRows<AchievementRewardRow>(result, ReadAchievementReward);
     }
 
-    QueryResult* QueryRewardLocales()
+    static AchievementRewardLocaleRow ReadAchievementRewardLocale(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`,`gender`,"
-                                   "`subject_loc1`,`text_loc1`,`subject_loc2`,`text_loc2`,"
-                                   "`subject_loc3`,`text_loc3`,`subject_loc4`,`text_loc4`,"
-                                   "`subject_loc5`,`text_loc5`,`subject_loc6`,`text_loc6`,"
-                                   "`subject_loc7`,`text_loc7`,`subject_loc8`,`text_loc8`,"
-                                   "`subject_loc9`,`text_loc9`,`subject_loc10`,`text_loc10`,"
-                                   "`subject_loc11`,`text_loc11`"
-                                   " FROM `locales_achievement_reward`");
+        AchievementRewardLocaleRow row;
+        row.entry = fields[0].GetUInt32();
+        row.gender = fields[1].GetUInt8();
+        for (int i = 0; i < ACHIEVEMENT_REWARD_LOCALE_ROW_LOCALES; ++i)
+        {
+            row.subject[i] = fields[2 + 2 * i].GetCppString();
+            row.text[i] = fields[3 + 2 * i].GetCppString();
+        }
+        return row;
+    }
+
+    std::vector<AchievementRewardLocaleRow> QueryRewardLocales()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`,`gender`,"
+                                                  "`subject_loc1`,`text_loc1`,`subject_loc2`,`text_loc2`,"
+                                                  "`subject_loc3`,`text_loc3`,`subject_loc4`,`text_loc4`,"
+                                                  "`subject_loc5`,`text_loc5`,`subject_loc6`,`text_loc6`,"
+                                                  "`subject_loc7`,`text_loc7`,`subject_loc8`,`text_loc8`,"
+                                                  "`subject_loc9`,`text_loc9`,`subject_loc10`,`text_loc10`,"
+                                                  "`subject_loc11`,`text_loc11`"
+                                                  " FROM `locales_achievement_reward`");
+        return ReadRows<AchievementRewardLocaleRow>(result, ReadAchievementRewardLocale);
     }
 }

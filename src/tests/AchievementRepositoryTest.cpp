@@ -89,11 +89,11 @@ TEST(AchievementRepository_StartupReads)
 {
     Db chars(CharacterDatabase);
     Db world(WorldDatabase);
-    delete AchievementRepository::QueryCompletedAchievements();
-    delete AchievementRepository::QueryProgressCriteria();
-    delete AchievementDataRepository::QueryCriteriaRequirements();
-    delete AchievementDataRepository::QueryRewards();
-    delete AchievementDataRepository::QueryRewardLocales();
+    AchievementRepository::QueryCompletedAchievements();
+    AchievementRepository::QueryProgressCriteria();
+    AchievementDataRepository::QueryCriteriaRequirements();
+    AchievementDataRepository::QueryRewards();
+    AchievementDataRepository::QueryRewardLocales();
     CheckLines(chars.query.executed, {
         "SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`",
         "SELECT DISTINCT `criteria` FROM `character_achievement_progress`",
@@ -139,4 +139,34 @@ TEST(AchievementRepository_Writes)
         "DELETE FROM `character_achievement` WHERE `achievement` = 8",
         "DELETE FROM `character_achievement_progress` WHERE `criteria` = 101",
     }, __LINE__);
+}
+
+// Each column of an achievement some character has completed lands in its member, and the rows come
+// back in order.
+TEST(AchievementRepository_CompletedAchievements)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"},
+        FakeRow{"2000"},
+    });
+    std::vector<CompletedAchievementRow> rows = AchievementRepository::QueryCompletedAchievements();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].achievement, 1000u);
+    CHECK_EQ(rows[1].achievement, 2000u);
+}
+
+// Each column of a criteria some character has progress in lands in its member, and the rows come
+// back in order.
+TEST(AchievementRepository_ProgressCriteria)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"},
+        FakeRow{"2000"},
+    });
+    std::vector<AchievementCriteriaProgressRow> rows = AchievementRepository::QueryProgressCriteria();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].criteria, 1000u);
+    CHECK_EQ(rows[1].criteria, 2000u);
 }

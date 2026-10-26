@@ -101,6 +101,17 @@ set(SRC_GRP_TESTS
     QuestDataRepositoryTest.cpp
     ReputationDataRepositoryTest.cpp
     LocaleDataRepositoryTest.cpp
+    GameEventStatusRepositoryTest.cpp
+    InstanceDataRepositoryTest.cpp
+    DbVersionRepositoryTest.cpp
+    DisableDataRepositoryTest.cpp
+    ScriptDataRepositoryTest.cpp
+    AchievementDataRepositoryTest.cpp
+    CreatureEventAIRepositoryTest.cpp
+    LootDataRepositoryTest.cpp
+    GameEventDataRepositoryTest.cpp
+    PoolDataRepositoryTest.cpp
+    WaypointRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

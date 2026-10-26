@@ -35,6 +35,7 @@
 #include "persistence/characters/maps/CorpseRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -248,4 +249,33 @@ TEST(SpawnRepository_GameObjectSpawns)
     CHECK_EQ(rows[0].guidPoolId, int16(-1017));
     CHECK_EQ(rows[0].entryPoolId, int16(-1018));
     CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of A creature spawn's entry and map lands in its member, and no rows answer nothing.
+TEST(SpawnRepository_CreatureEntryAndMap)
+{
+    {
+        Db db(WorldDatabase);
+        CHECK(!SpawnRepository::QueryCreatureEntryAndMap(42));
+    }
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001"},
+        FakeRow{"2000", "2001"},
+    });
+    std::optional<CreatureEntryAndMapRow> row = SpawnRepository::QueryCreatureEntryAndMap(42);
+    REQUIRE(row);
+    CHECK_EQ(row->id, 1000u);
+    CHECK_EQ(row->map, 1001u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(SpawnRepository_CreatureGuidsOnMap)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{FakeRow{"1000"}, FakeRow{"2000"}});
+    std::vector<uint32> values = SpawnRepository::QueryCreatureGuidsOnMap(1234, 530);
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
 }

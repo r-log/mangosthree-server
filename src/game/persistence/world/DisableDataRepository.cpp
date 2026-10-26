@@ -25,11 +25,23 @@
 
 #include "DisableDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace DisableDataRepository
 {
-    QueryResult* QueryDisables()
+    static DisableRow ReadDisable(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `sourceType`, `entry`, `flags`, `data` FROM `disables`");
+        DisableRow row;
+        row.sourceType = fields[0].GetUInt32();
+        row.entry = fields[1].GetUInt32();
+        row.flags = fields[2].GetUInt8();
+        row.data = fields[3].GetUInt32();
+        return row;
+    }
+
+    std::vector<DisableRow> QueryDisables()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `sourceType`, `entry`, `flags`, `data` FROM `disables`");
+        return ReadRows<DisableRow>(result, ReadDisable);
     }
 }

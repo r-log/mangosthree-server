@@ -28,13 +28,21 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <optional>
+
+/// One `db_version` row.
+struct DbVersionRow
+{
+    uint32 version = 0;
+    uint32 structure = 0;
+    uint32 content = 0;
+};
 
 /// The world database's version row (`db_version`), read once at startup, synchronously.
 namespace DbVersionRepository
 {
     /// Selects the newest world database version.
-    QueryResult* QueryVersion();
+    std::optional<DbVersionRow> QueryVersion();
 }
 
 #endif

@@ -126,8 +126,8 @@ TEST(BattleGroundStatsRepository_StartupReads)
     Db db;
     CHECK(!BattleGroundStatsRepository::QueryHighestId());
     CHECK(!SavedVariablesRepository::QueryNextArenaPointDistribution());
-    delete InstanceDataRepository::QueryInstanceData();
-    delete InstanceDataRepository::QueryWorldData();
+    InstanceDataRepository::QueryInstanceData();
+    InstanceDataRepository::QueryWorldData();
     CheckLines(db.query.executed, {
         "SELECT MAX(`id`) FROM `pvpstats_battlegrounds`",
         "SELECT `NextArenaPointDistributionTime` FROM `saved_variables`",

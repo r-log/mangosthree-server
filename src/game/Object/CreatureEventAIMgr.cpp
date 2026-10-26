@@ -42,6 +42,8 @@
 #include "data/GameConfig.h"
 #include "persistence/world/ai/CreatureEventAIRepository.h"
 
+static_assert(int(CREATURE_AI_EVENT_ROW_ACTIONS) == int(MAX_ACTIONS), "a creature AI event row holds every action");
+
 
 // -------------------
 /**
@@ -125,25 +127,24 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Summons(bool check_entry_use)
     m_CreatureEventAI_Summon_Map.clear();
 
     // Gather additional data for EventAI
-    QueryResult* result = CreatureEventAIRepository::QuerySummons();
-    if (result)
+    std::vector<CreatureAISummonRow> rows = CreatureEventAIRepository::QuerySummons();
+    if (!rows.empty())
     {
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
         uint32 Count = 0;
 
-        do
+        for (CreatureAISummonRow const& row : rows)
         {
             bar.step();
-            Field* fields = result->Fetch();
 
             CreatureEventAI_Summon temp;
 
-            temp.id             = fields[0].GetUInt32();
-            temp.position_x     = fields[1].GetFloat();
-            temp.position_y     = fields[2].GetFloat();
-            temp.position_z     = fields[3].GetFloat();
-            temp.orientation    = fields[4].GetFloat();
-            temp.SpawnTimeSecs  = fields[5].GetUInt32();
+            temp.id             = row.id;
+            temp.position_x     = row.positionX;
+            temp.position_y     = row.positionY;
+            temp.position_z     = row.positionZ;
+            temp.orientation    = row.orientation;
+            temp.SpawnTimeSecs  = row.spawntimesecs;
 
             if (!MaNGOS::IsValidMapCoord(temp.position_x, temp.position_y, temp.position_z, temp.orientation))
             {
@@ -155,9 +156,6 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Summons(bool check_entry_use)
             m_CreatureEventAI_Summon_Map[temp.id] = temp;
             ++Count;
         }
-        while (result->NextRow());
-
-        delete result;
 
         if (check_entry_use)
         {
@@ -310,25 +308,24 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
     std::set<int32> usedTextIds;
 
     // Gather event data
-    QueryResult* result = CreatureEventAIRepository::QueryEvents();
-    if (result)
+    std::vector<CreatureAIEventRow> rows = CreatureEventAIRepository::QueryEvents();
+    if (!rows.empty())
     {
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
         uint32 Count = 0;
 
-        do
+        for (CreatureAIEventRow const& row : rows)
         {
             bar.step();
-            Field* fields = result->Fetch();
 
             CreatureEventAI_Event temp;
-            temp.event_id = EventAI_Type(fields[0].GetUInt32());
+            temp.event_id = EventAI_Type(row.id);
             uint32 i = temp.event_id;
 
-            temp.creature_id = fields[1].GetUInt32();
+            temp.creature_id = row.creatureId;
             uint32 creature_id = temp.creature_id;
 
-            uint32 e_type = fields[2].GetUInt32();
+            uint32 e_type = row.eventType;
             // Report any errors in event
             if (e_type >= EVENT_T_END)
             {
@@ -337,13 +334,13 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
             }
             temp.event_type = EventAI_Type(e_type);
 
-            temp.event_inverse_phase_mask = fields[3].GetUInt32();
-            temp.event_chance = fields[4].GetUInt8();
-            temp.event_flags  = fields[5].GetUInt8();
-            temp.raw.param1 = fields[6].GetUInt32();
-            temp.raw.param2 = fields[7].GetUInt32();
-            temp.raw.param3 = fields[8].GetUInt32();
-            temp.raw.param4 = fields[9].GetUInt32();
+            temp.event_inverse_phase_mask = row.eventInversePhaseMask;
+            temp.event_chance = row.eventChance;
+            temp.event_flags  = row.eventFlags;
+            temp.raw.param1 = row.eventParam1;
+            temp.raw.param2 = row.eventParam2;
+            temp.raw.param3 = row.eventParam3;
+            temp.raw.param4 = row.eventParam4;
 
             // Creature does not exist in database
             if (!sCreatureStorage.LookupEntry<CreatureInfo>(temp.creature_id))
@@ -616,7 +613,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
 
             for (uint32 j = 0; j < MAX_ACTIONS; ++j)
             {
-                uint16 action_type = fields[10 + (j * 4)].GetUInt16();
+                uint16 action_type = row.actions[j].type;
                 if (action_type >= ACTION_T_END)
                 {
                     sLog.outErrorEventAI("Event %u Action %u has incorrect action type (%u), replace by ACTION_T_NONE.", i, j + 1, action_type);
@@ -627,9 +624,9 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                 CreatureEventAI_Action& action = temp.action[j];
 
                 action.type = EventAI_ActionType(action_type);
-                action.raw.param1 = fields[11 + (j * 4)].GetUInt32();
-                action.raw.param2 = fields[12 + (j * 4)].GetUInt32();
-                action.raw.param3 = fields[13 + (j * 4)].GetUInt32();
+                action.raw.param1 = row.actions[j].param1;
+                action.raw.param2 = row.actions[j].param2;
+                action.raw.param3 = row.actions[j].param3;
 
                 // Report any errors in actions
                 switch (action.type)
@@ -1107,9 +1104,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
             m_CreatureEventAI_Event_Map[creature_id].push_back(temp);
             ++Count;
         }
-        while (result->NextRow());
 
-        delete result;
         m_usedTextsAmount = usedTextIds.size();
 
         // post check

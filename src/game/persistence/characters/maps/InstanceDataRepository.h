@@ -28,9 +28,24 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
 #include <string>
+#include <vector>
 
-class QueryResult;
+/// One `instance` row: an instance's script data, none when the column is NULL.
+struct InstanceDataRow
+{
+    uint32 id = 0;
+    uint32 map = 0;
+    std::optional<std::string> data;
+};
+
+/// One `world` row: a world map's script data, none when the column is NULL.
+struct WorldMapDataRow
+{
+    uint32 map = 0;
+    std::optional<std::string> data;
+};
 
 /// The instance scripts' saved data: an instance's in `instance`.`data`, a world map's in
 /// `world`.`data`. The startup reads run synchronously; every write is queued on the character
@@ -38,10 +53,10 @@ class QueryResult;
 namespace InstanceDataRepository
 {
     /// Selects every instance's id, map and script data.
-    QueryResult* QueryInstanceData();
+    std::vector<InstanceDataRow> QueryInstanceData();
 
     /// Selects every world map's script data.
-    QueryResult* QueryWorldData();
+    std::vector<WorldMapDataRow> QueryWorldData();
 
     /// Saves an instance's script data, the data a bound parameter.
     void SetInstanceData(std::string const& data, uint32 instanceId);

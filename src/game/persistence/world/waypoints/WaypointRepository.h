@@ -28,28 +28,84 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <vector>
 
-/// The creature waypoints on the world database (`creature_movement`, `creature_movement_template`):
-/// the loads run at startup and on a reload, synchronously, for loaders that keep their loops, and the
-/// load's coordinate fixes are queued; a GM's path edits name the table and key column they edit,
-/// and are queued and written to the SQL log.
+enum
+{
+    /// The texts a waypoint row holds (`textid1` to `textid5`).
+    WAYPOINT_ROW_TEXTS = 5
+};
+
+/// The number of points of one creature's path (`creature_movement`).
+struct PathPointCountRow
+{
+    uint32 id = 0;
+    uint32 count = 0;
+};
+
+/// One `creature_movement` row: a point of a creature's path.
+struct PathPointRow
+{
+    uint32 id = 0;
+    uint32 point = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    uint32 waittime = 0;
+    uint32 scriptId = 0;
+    int32 textid[WAYPOINT_ROW_TEXTS] = {};
+    uint32 emote = 0;
+    uint32 spell = 0;
+    float orientation = 0.0f;
+    uint32 model1 = 0;
+    uint32 model2 = 0;
+};
+
+/// The number of points of one creature template's path (`creature_movement_template`).
+struct TemplatePathPointCountRow
+{
+    uint32 entry = 0;
+    uint32 count = 0;
+};
+
+/// One `creature_movement_template` row: a point of a creature template's path.
+struct TemplatePathPointRow
+{
+    uint32 entry = 0;
+    uint32 point = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    uint32 waittime = 0;
+    uint32 scriptId = 0;
+    uint32 textid[WAYPOINT_ROW_TEXTS] = {};
+    uint32 emote = 0;
+    uint32 spell = 0;
+    float orientation = 0.0f;
+    uint32 model1 = 0;
+    uint32 model2 = 0;
+};
+
+/// The creature waypoints on the world database (`creature_movement`,
+/// `creature_movement_template`): the loads run at startup and on a reload, synchronously, into
+/// rows, and the load's coordinate fixes are queued; a GM's path edits name the table and key
+/// column they edit, and are queued and written to the SQL log.
 namespace WaypointRepository
 {
     /// Selects every guid path's point count.
-    QueryResult* QueryPathPointCounts();
+    std::vector<PathPointCountRow> QueryPathPointCounts();
 
     /// Selects every point of every guid path.
-    QueryResult* QueryPathPoints();
+    std::vector<PathPointRow> QueryPathPoints();
 
     /// Writes a guid path point's corrected position.
     void FixPathPoint(float x, float y, float z, uint32 id, uint32 point);
 
     /// Selects every template path's point count.
-    QueryResult* QueryTemplatePathPointCounts();
+    std::vector<TemplatePathPointCountRow> QueryTemplatePathPointCounts();
 
     /// Selects every point of every template path.
-    QueryResult* QueryTemplatePathPoints();
+    std::vector<TemplatePathPointRow> QueryTemplatePathPoints();
 
     /// Writes a template path point's corrected position.
     void FixTemplatePathPoint(float x, float y, uint32 entry, uint32 point);

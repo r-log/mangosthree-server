@@ -138,11 +138,11 @@ void ScriptMgr::LoadScripts(DBScriptType type)
 
     m_dbScripts[type].clear();                                 // need for reload support
 
-    QueryResult* result = ScriptDataRepository::QueryDbScripts(type);
+    std::vector<DbScriptRow> rows = ScriptDataRepository::QueryDbScripts(type);
 
     uint32 count = 0;
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -151,31 +151,29 @@ void ScriptMgr::LoadScripts(DBScriptType type)
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (DbScriptRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
         ScriptInfo tmp;
-        tmp.id           = fields[0].GetUInt32();
-        tmp.delay        = fields[1].GetUInt32();
-        tmp.command      = fields[2].GetUInt32();
-        tmp.raw.data[0]  = fields[3].GetUInt32();
-        tmp.raw.data[1]  = fields[4].GetUInt32();
-        tmp.buddyEntry   = fields[5].GetUInt32();
-        tmp.searchRadiusOrGuid = fields[6].GetUInt32();
-        tmp.data_flags   = fields[7].GetUInt8();
-        tmp.textId[0]    = fields[8].GetInt32();
-        tmp.textId[1]    = fields[9].GetInt32();
-        tmp.textId[2]    = fields[10].GetInt32();
-        tmp.textId[3]    = fields[11].GetInt32();
-        tmp.x            = fields[12].GetFloat();
-        tmp.y            = fields[13].GetFloat();
-        tmp.z            = fields[14].GetFloat();
-        tmp.o            = fields[15].GetFloat();
+        tmp.id           = row.id;
+        tmp.delay        = row.delay;
+        tmp.command      = row.command;
+        tmp.raw.data[0]  = row.datalong;
+        tmp.raw.data[1]  = row.datalong2;
+        tmp.buddyEntry   = row.buddyEntry;
+        tmp.searchRadiusOrGuid = row.searchRadius;
+        tmp.data_flags   = row.dataFlags;
+        tmp.textId[0]    = row.dataint;
+        tmp.textId[1]    = row.dataint2;
+        tmp.textId[2]    = row.dataint3;
+        tmp.textId[3]    = row.dataint4;
+        tmp.x            = row.x;
+        tmp.y            = row.y;
+        tmp.z            = row.z;
+        tmp.o            = row.o;
 
         // generic command args check
         if (tmp.buddyEntry && !(tmp.data_flags & SCRIPT_FLAG_BUDDY_BY_GUID))
@@ -808,9 +806,6 @@ void ScriptMgr::LoadScripts(DBScriptType type)
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u script definitions from `db_scripts [type = %d]` table", count, type);
     sLog.outString();

@@ -118,31 +118,30 @@ void LoadDisables()
 
     m_DisableMap.clear();
 
-    QueryResult* result = DisableDataRepository::QueryDisables();
+    std::vector<DisableRow> rows = DisableDataRepository::QueryDisables();
 
     uint32 total_count = 0;
 
-    if (!result)
+    if (rows.empty())
     {
         sLog.outString(">> Loaded 0 disables. DB table `disables` is empty!");
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (DisableRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-        DisableType type = DisableType(fields[0].GetUInt32());
+        DisableType type = DisableType(row.sourceType);
         if (type >= MAX_DISABLE_TYPES)
         {
             sLog.outErrorDb("Invalid type %u specified in `disables` table, skipped.", type);
             continue;
         }
 
-        uint32 entry = fields[1].GetUInt32();
-        uint8 flags = fields[2].GetUInt8();
-        uint32 data0 = fields[3].GetUInt32();
+        uint32 entry = row.entry;
+        uint8 flags = row.flags;
+        uint32 data0 = row.data;
 
         DisableData* data;
         if (m_DisableMap[type].find(entry) != m_DisableMap[type].end())
@@ -321,8 +320,6 @@ void LoadDisables()
         m_DisableMap[type].insert(DisableTypeMap::value_type(entry, *data));
         ++total_count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString(">> Loaded %u disables", total_count);
 }

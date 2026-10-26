@@ -28,21 +28,61 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
+#include <string>
+#include <vector>
+
 class QueryResult;
 
+/// One `script_binding` row.
+struct ScriptBindingRow
+{
+    uint8 type = 0;
+    int32 bind = 0;
+    std::string scriptName;
+    uint8 data = 0;
+};
+
+/// One `script_binding` row.
+struct ScriptNameRow
+{
+    std::optional<std::string> scriptName;
+};
+
+/// One `db_scripts` row.
+struct DbScriptRow
+{
+    uint32 id = 0;
+    uint32 delay = 0;
+    uint32 command = 0;
+    uint32 datalong = 0;
+    uint32 datalong2 = 0;
+    uint32 buddyEntry = 0;
+    uint32 searchRadius = 0;
+    uint8 dataFlags = 0;
+    int32 dataint = 0;
+    int32 dataint2 = 0;
+    int32 dataint3 = 0;
+    int32 dataint4 = 0;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float o = 0.0f;
+};
+
 /// The script data on the world database (`script_binding`, `db_scripts`, `script_waypoint`): the
-/// script manager's and the script library's loads at startup and on a reload, each run synchronously
-/// for a loader that keeps its loop.
+/// script manager's and the script library's loads at startup and on a reload, each run
+/// synchronously.
 namespace ScriptDataRepository
 {
     /// Selects every script binding (`script_binding`).
-    QueryResult* QueryScriptBindings();
+    std::vector<ScriptBindingRow> QueryScriptBindings();
 
     /// Selects every script name a binding names.
-    QueryResult* QueryScriptNames();
+    std::vector<ScriptNameRow> QueryScriptNames();
 
     /// Selects every database script step of one script type, in order.
-    QueryResult* QueryDbScripts(int type);
+    std::vector<DbScriptRow> QueryDbScripts(int type);
 
     /// Selects the number of script waypoints of every creature entry.
     QueryResult* QueryScriptWaypointCounts();

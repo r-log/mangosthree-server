@@ -859,8 +859,8 @@ struct PoolMapChecker
  */
 void PoolManager::LoadFromDB()
 {
-    QueryResult* result = PoolDataRepository::QueryHighestPoolEntry();
-    if (!result)
+    std::optional<uint16> highestEntry = PoolDataRepository::QueryHighestPoolEntry();
+    if (!highestEntry)
     {
         sLog.outString(">> Table pool_template is empty.");
         sLog.outString();
@@ -868,15 +868,13 @@ void PoolManager::LoadFromDB()
     }
     else
     {
-        Field* fields = result->Fetch();
-        max_pool_id = fields[0].GetUInt16();
-        delete result;
+        max_pool_id = *highestEntry;
     }
 
     mPoolTemplate.resize(max_pool_id + 1);
 
-    result = PoolDataRepository::QueryPools();
-    if (!result)
+    std::vector<PoolTemplateRow> pools = PoolDataRepository::QueryPools();
+    if (pools.empty())
     {
         mPoolTemplate.clear();
         sLog.outString(">> Table pool_template is empty:");
@@ -886,26 +884,23 @@ void PoolManager::LoadFromDB()
 
     uint32 count = 0;
 
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(pools.size());
+    for (PoolTemplateRow const& row : pools)
     {
         ++count;
-        Field* fields = result->Fetch();
 
         bar.step();
 
-        uint16 pool_id = fields[0].GetUInt16();
+        uint16 pool_id = row.entry;
 
         PoolTemplateData& pPoolTemplate = mPoolTemplate[pool_id];
-        pPoolTemplate.MaxLimit    = fields[1].GetUInt32();
-        pPoolTemplate.description = fields[2].GetCppString();
+        pPoolTemplate.MaxLimit    = row.maxLimit;
+        pPoolTemplate.description = row.description;
         pPoolTemplate.AutoSpawn = true;          // will update and later data loading
     }
-    while (result->NextRow());
 
     sLog.outString();
     sLog.outString(">> Loaded %u objects pools", count);
-    delete result;
 
     PoolMapChecker mapChecker(mPoolTemplate);
 
@@ -913,10 +908,10 @@ void PoolManager::LoadFromDB()
 
     mPoolCreatureGroups.resize(max_pool_id + 1);
     mCreatureSearchMap.clear();
-    result = PoolDataRepository::QueryPoolCreatures();
+    std::vector<PoolCreatureRow> poolCreatures = PoolDataRepository::QueryPoolCreatures();
 
     count = 0;
-    if (!result)
+    if (poolCreatures.empty())
     {
         BarGoLink bar2(1);
         bar2.step();
@@ -926,16 +921,14 @@ void PoolManager::LoadFromDB()
     }
     else
     {
-        BarGoLink bar2(result->GetRowCount());
-        do
+        BarGoLink bar2(poolCreatures.size());
+        for (PoolCreatureRow const& row : poolCreatures)
         {
-            Field* fields = result->Fetch();
-
             bar2.step();
 
-            uint32 guid    = fields[0].GetUInt32();
-            uint16 pool_id = fields[1].GetUInt16();
-            float chance   = fields[2].GetFloat();
+            uint32 guid    = row.guid;
+            uint16 pool_id = row.poolEntry;
+            float chance   = row.chance;
 
             CreatureData const* data = sObjectMgr.GetCreatureData(guid);
             if (!data)
@@ -970,16 +963,14 @@ void PoolManager::LoadFromDB()
             SearchPair p(guid, pool_id);
             mCreatureSearchMap.insert(p);
         }
-        while (result->NextRow());
         sLog.outString();
         sLog.outString(">> Loaded %u creatures in pools from `pool_creature`", count);
-        delete result;
     }
 
-    result = PoolDataRepository::QueryPoolCreatureTemplates();
+    std::vector<PoolCreatureTemplateRow> poolCreatureTemplates = PoolDataRepository::QueryPoolCreatureTemplates();
 
     count = 0;
-    if (!result)
+    if (poolCreatureTemplates.empty())
     {
         BarGoLink bar2(1);
         bar2.step();
@@ -989,17 +980,15 @@ void PoolManager::LoadFromDB()
     }
     else
     {
-        BarGoLink bar2(result->GetRowCount());
-        do
+        BarGoLink bar2(poolCreatureTemplates.size());
+        for (PoolCreatureTemplateRow const& row : poolCreatureTemplates)
         {
-            Field* fields = result->Fetch();
-
             bar2.step();
 
-            uint32 guid    = fields[0].GetUInt32();
-            uint16 pool_id = fields[1].GetUInt16();
-            float chance   = fields[2].GetFloat();
-            uint16 entry_id = fields[3].GetUInt32();        // for errors output only
+            uint32 guid    = row.guid;
+            uint16 pool_id = row.poolEntry;
+            float chance   = row.chance;
+            uint16 entry_id = row.id;        // for errors output only
 
             CreatureData const* data = sObjectMgr.GetCreatureData(guid);
             if (!data)
@@ -1044,20 +1033,18 @@ void PoolManager::LoadFromDB()
             SearchPair p(guid, pool_id);
             mCreatureSearchMap.insert(p);
         }
-        while (result->NextRow());
         sLog.outString();
         sLog.outString(">> Loaded %u creatures in pools from `pool_creature_template`", count);
-        delete result;
     }
 
     // Gameobjects (guids and entries)
 
     mPoolGameobjectGroups.resize(max_pool_id + 1);
     mGameobjectSearchMap.clear();
-    result = PoolDataRepository::QueryPoolGameObjects();
+    std::vector<PoolGameObjectRow> poolGameObjects = PoolDataRepository::QueryPoolGameObjects();
 
     count = 0;
-    if (!result)
+    if (poolGameObjects.empty())
     {
         BarGoLink bar2(1);
         bar2.step();
@@ -1067,16 +1054,14 @@ void PoolManager::LoadFromDB()
     }
     else
     {
-        BarGoLink bar2(result->GetRowCount());
-        do
+        BarGoLink bar2(poolGameObjects.size());
+        for (PoolGameObjectRow const& row : poolGameObjects)
         {
-            Field* fields = result->Fetch();
-
             bar2.step();
 
-            uint32 guid    = fields[0].GetUInt32();
-            uint16 pool_id = fields[1].GetUInt16();
-            float chance   = fields[2].GetFloat();
+            uint32 guid    = row.guid;
+            uint16 pool_id = row.poolEntry;
+            float chance   = row.chance;
 
             GameObjectData const* data = sObjectMgr.GetGOData(guid);
             if (!data)
@@ -1120,16 +1105,14 @@ void PoolManager::LoadFromDB()
             SearchPair p(guid, pool_id);
             mGameobjectSearchMap.insert(p);
         }
-        while (result->NextRow());
         sLog.outString();
         sLog.outString(">> Loaded %u gameobject in pools from `pool_gameobject`", count);
-        delete result;
     }
 
-    result = PoolDataRepository::QueryPoolGameObjectTemplates();
+    std::vector<PoolGameObjectTemplateRow> poolGameObjectTemplates = PoolDataRepository::QueryPoolGameObjectTemplates();
 
     count = 0;
-    if (!result)
+    if (poolGameObjectTemplates.empty())
     {
         BarGoLink bar2(1);
         bar2.step();
@@ -1139,17 +1122,15 @@ void PoolManager::LoadFromDB()
     }
     else
     {
-        BarGoLink bar2(result->GetRowCount());
-        do
+        BarGoLink bar2(poolGameObjectTemplates.size());
+        for (PoolGameObjectTemplateRow const& row : poolGameObjectTemplates)
         {
-            Field* fields = result->Fetch();
-
             bar2.step();
 
-            uint32 guid    = fields[0].GetUInt32();
-            uint16 pool_id = fields[1].GetUInt16();
-            float chance   = fields[2].GetFloat();
-            uint16 entry_id = fields[3].GetUInt32();        // for errors output only
+            uint32 guid    = row.guid;
+            uint16 pool_id = row.poolEntry;
+            float chance   = row.chance;
+            uint16 entry_id = row.id;        // for errors output only
 
             GameObjectData const* data = sObjectMgr.GetGOData(guid);
             if (!data)
@@ -1203,18 +1184,16 @@ void PoolManager::LoadFromDB()
             SearchPair p(guid, pool_id);
             mGameobjectSearchMap.insert(p);
         }
-        while (result->NextRow());
         sLog.outString();
         sLog.outString(">> Loaded %u gameobject in pools from `pool_gameobject_template`", count);
-        delete result;
     }
 
     // Pool of pools
     mPoolPoolGroups.resize(max_pool_id + 1);
-    result = PoolDataRepository::QueryPoolPools();
+    std::vector<PoolPoolRow> poolPools = PoolDataRepository::QueryPoolPools();
 
     count = 0;
-    if (!result)
+    if (poolPools.empty())
     {
         BarGoLink bar2(1);
         bar2.step();
@@ -1224,16 +1203,14 @@ void PoolManager::LoadFromDB()
     }
     else
     {
-        BarGoLink bar2(result->GetRowCount());
-        do
+        BarGoLink bar2(poolPools.size());
+        for (PoolPoolRow const& row : poolPools)
         {
-            Field* fields = result->Fetch();
-
             bar2.step();
 
-            uint16 child_pool_id  = fields[0].GetUInt16();
-            uint16 mother_pool_id = fields[1].GetUInt16();
-            float chance          = fields[2].GetFloat();
+            uint16 child_pool_id  = row.poolId;
+            uint16 mother_pool_id = row.motherPool;
+            float chance          = row.chance;
 
             if (mother_pool_id > max_pool_id)
             {
@@ -1270,7 +1247,6 @@ void PoolManager::LoadFromDB()
             // update top independent pool flag
             mPoolTemplate[child_pool_id].AutoSpawn = false;
         }
-        while (result->NextRow());
 
         // Now check for circular reference
         for (uint16 i = 0; i < max_pool_id; ++i)
@@ -1312,7 +1288,6 @@ void PoolManager::LoadFromDB()
 
         sLog.outString();
         sLog.outString(">> Loaded %u pools in mother pools", count);
-        delete result;
     }
 
     // check chances integrity

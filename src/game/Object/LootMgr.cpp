@@ -115,25 +115,24 @@ void LootStore::LoadLootTable()
 
     sLog.outString("%s :", GetName());
 
-    QueryResult* result = LootDataRepository::QueryLootTemplate(GetName());
+    std::vector<LootTemplateRow> rows = LootDataRepository::QueryLootTemplate(GetName());
 
-    if (result)
+    if (!rows.empty())
     {
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
 
-        do
+        for (LootTemplateRow const& row : rows)
         {
-            Field* fields = result->Fetch();
             bar.step();
 
-            uint32 entry               = fields[0].GetUInt32();
-            uint32 item                = abs(fields[1].GetInt32());
-            uint8 type                 = fields[1].GetInt32() >= 0 ? LOOT_ITEM_TYPE_ITEM : LOOT_ITEM_TYPE_CURRENCY;
-            float  chanceOrQuestChance = fields[2].GetFloat();
-            uint8  group               = fields[3].GetUInt8();
-            int32  mincountOrRef       = fields[4].GetInt32();
-            uint32 maxcount            = fields[5].GetUInt32();
-            uint16 conditionId         = fields[6].GetUInt16();
+            uint32 entry               = row.entry;
+            uint32 item                = abs(row.item);
+            uint8 type                 = row.item >= 0 ? LOOT_ITEM_TYPE_ITEM : LOOT_ITEM_TYPE_CURRENCY;
+            float  chanceOrQuestChance = row.chanceOrQuestChance;
+            uint8  group               = row.groupid;
+            int32  mincountOrRef       = row.mincountOrRef;
+            uint32 maxcount            = row.maxcount;
+            uint16 conditionId         = row.conditionId;
 
             if (type == LOOT_ITEM_TYPE_ITEM && maxcount > std::numeric_limits<uint8>::max())
             {
@@ -183,9 +182,6 @@ void LootStore::LoadLootTable()
             tab->second->AddEntry(storeitem);
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
 
         Verify();                                           // Checks validity of the loot store
 

@@ -40,6 +40,9 @@
 #include "Database/DatabaseEnv.h"
 #include "persistence/world/maps/MapDataRepository.h"
 
+static_assert(int(WEATHER_ROW_SEASONS) == int(WEATHER_SEASONS), "a weather row holds every season");
+static_assert(int(WEATHER_ROW_CHANCES) == int(MAX_WEATHER_TYPE) - 1, "a weather row holds a chance for every weather but the fine one");
+
 /// Create the Weather object
 Weather::Weather(uint32 zone, WeatherZoneChances const* weatherChances) :
     m_zone(zone),
@@ -457,9 +460,9 @@ void WeatherMgr::LoadWeatherZoneChances()
 {
     uint32 count = 0;
 
-    QueryResult* result = MapDataRepository::QueryWeather();
+    std::vector<WeatherRow> rows = MapDataRepository::QueryWeather();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -468,22 +471,21 @@ void WeatherMgr::LoadWeatherZoneChances()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (WeatherRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 zone_id = fields[0].GetUInt32();
+        uint32 zone_id = row.zone;
 
         WeatherZoneChances& wzc = mWeatherZoneMap[zone_id];
 
         for (int season = 0; season < WEATHER_SEASONS; ++season)
         {
-            wzc.data[season].rainChance = fields[season * (MAX_WEATHER_TYPE - 1) + 1].GetUInt32();
-            wzc.data[season].snowChance = fields[season * (MAX_WEATHER_TYPE - 1) + 2].GetUInt32();
-            wzc.data[season].stormChance = fields[season * (MAX_WEATHER_TYPE - 1) + 3].GetUInt32();
+            wzc.data[season].rainChance = row.rainChance[season];
+            wzc.data[season].snowChance = row.snowChance[season];
+            wzc.data[season].stormChance = row.stormChance[season];
 
             if (wzc.data[season].rainChance > 100)
             {
@@ -505,9 +507,7 @@ void WeatherMgr::LoadWeatherZoneChances()
         }
 
         ++count;
-    } while (result->NextRow());
-
-    delete result;
+    }
 
     sLog.outString(">> Loaded %u weather definitions", count);
     sLog.outString();

@@ -231,7 +231,7 @@ TEST(CharacterRepository_AsyncCounts)
 TEST(WorldDataRepository_AppReads)
 {
     Db world(WorldDatabase);
-    delete DbVersionRepository::QueryVersion();
+    DbVersionRepository::QueryVersion();
     delete BroadcastDataRepository::QueryBroadcasts();
     delete NpcDataRepository::QueryVendorItemEntries();
     delete LootDataRepository::QueryLootItemEntries();
