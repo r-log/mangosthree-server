@@ -27,9 +27,11 @@
 #define MANGOS_H_SPELLCOOLDOWNREPOSITORY
 
 #include <ctime>
+#include <vector>
 #include "Platform/Define.h"
 
 class Field;
+class SqlQueryHolder;
 
 /// One saved spell cooldown: the spell, the item that started it and the time it ends.
 struct SpellCooldownRow
@@ -44,6 +46,9 @@ namespace SpellCooldownRepository
 {
     /// Reads one row of the login holder's cooldown result: spell, item, time.
     SpellCooldownRow ReadRow(Field* fields);
+
+    /// Reads a holder slot's rows, its columns in ReadRow's order.
+    std::vector<SpellCooldownRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
     /// Deletes every saved cooldown of the owner, queued.
     void DeleteAll(uint32 ownerGuidLow);

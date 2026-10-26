@@ -25,6 +25,8 @@
 
 #include "GlyphRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
+#include "persistence/RowReader.h"
 
 namespace GlyphRepository
 {
@@ -38,6 +40,11 @@ namespace GlyphRepository
         row.slot = fields[1].GetUInt8();
         row.glyph = fields[2].GetUInt32();
         return row;
+    }
+
+    std::vector<GlyphRow> ReadHolder(SqlQueryHolder* holder, size_t slot)
+    {
+        return ReadRows<GlyphRow>(holder->GetResult(slot), ReadRow);
     }
 
     void DeleteEveryRowOfGlyph(uint32 glyph)

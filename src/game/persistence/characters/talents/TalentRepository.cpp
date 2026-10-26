@@ -25,6 +25,8 @@
 
 #include "TalentRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
+#include "persistence/RowReader.h"
 
 namespace TalentRepository
 {
@@ -35,6 +37,11 @@ namespace TalentRepository
         row.rank = fields[1].GetUInt32();
         row.spec = fields[2].GetUInt32();
         return row;
+    }
+
+    std::vector<TalentRow> ReadHolder(SqlQueryHolder* holder, size_t slot)
+    {
+        return ReadRows<TalentRow>(holder->GetResult(slot), ReadRow);
     }
 
     void DeleteEveryRowOfTalent(uint32 talent)

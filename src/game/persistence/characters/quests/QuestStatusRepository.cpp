@@ -25,6 +25,8 @@
 
 #include "QuestStatusRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
+#include "persistence/RowReader.h"
 
 namespace QuestStatusRepository
 {
@@ -47,6 +49,11 @@ namespace QuestStatusRepository
         return row;
     }
 
+    std::vector<QuestStatusRow> ReadHolder(SqlQueryHolder* holder, size_t slot)
+    {
+        return ReadRows<QuestStatusRow>(holder->GetResult(slot), ReadRow);
+    }
+
     std::vector<uint32> ReadQuestIds(QueryResult* result)
     {
         std::vector<uint32> quests;
@@ -62,6 +69,11 @@ namespace QuestStatusRepository
             delete result;
         }
         return quests;
+    }
+
+    std::vector<uint32> ReadHolderQuestIds(SqlQueryHolder* holder, size_t slot)
+    {
+        return ReadQuestIds(holder->GetResult(slot));
     }
 
     void Insert(uint32 ownerGuidLow, QuestStatusSaveRow const& row)

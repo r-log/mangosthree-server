@@ -25,6 +25,8 @@
 
 #include "SpellCooldownRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
+#include "persistence/RowReader.h"
 
 namespace SpellCooldownRepository
 {
@@ -35,6 +37,11 @@ namespace SpellCooldownRepository
         row.item  = fields[1].GetUInt32();
         row.end   = (time_t)fields[2].GetUInt64();
         return row;
+    }
+
+    std::vector<SpellCooldownRow> ReadHolder(SqlQueryHolder* holder, size_t slot)
+    {
+        return ReadRows<SpellCooldownRow>(holder->GetResult(slot), ReadRow);
     }
 
     void DeleteAll(uint32 ownerGuidLow)

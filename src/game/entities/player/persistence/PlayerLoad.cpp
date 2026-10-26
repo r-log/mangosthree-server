@@ -72,6 +72,10 @@
 #include "persistence/characters/talents/TalentRepository.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
 
+static_assert(int(LOGIN_DECLINED_NAME_ROW_CASES) == int(MAX_DECLINED_NAME_CASES), "a declined name row holds every case");
+static_assert(int(LOGIN_EQUIPMENT_SET_ROW_ITEMS) == int(EQUIPMENT_SLOT_END), "an equipment set row holds every equipment slot");
+static_assert(int(LOGIN_AURA_ROW_EFFECTS) == int(MAX_EFFECT_INDEX), "an aura row holds every effect");
+
 // corpse reclaim times -- file-local in Player.cpp; mirrored here so
 // LoadFromDB can clamp m_deathExpireTime.
 #define DEATH_EXPIRE_STEP (5*MINUTE)
@@ -81,9 +85,9 @@
 /***                   LOAD SYSTEM                     ***/
 /*********************************************************/
 
-void Player::_LoadDeclinedNames(QueryResult* result)
+void Player::_LoadDeclinedNames(std::optional<LoginDeclinedNameRow> const& row)
 {
-    if (!result)
+    if (!row)
     {
         return;
     }
@@ -91,33 +95,28 @@ void Player::_LoadDeclinedNames(QueryResult* result)
     delete m_declinedname;
     m_declinedname = new DeclinedName;
 
-    Field* fields = result->Fetch();
     for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
     {
-        m_declinedname->name[i] = fields[i].GetCppString();
+        m_declinedname->name[i] = row->name[i];
     }
-
-    delete result;
 }
 
-void Player::_LoadArenaTeamInfo(QueryResult* result)
+void Player::_LoadArenaTeamInfo(std::vector<LoginArenaTeamInfoRow> const& rows)
 {
     // arenateamid, played_week, played_season, personal_rating
     memset((void*)&m_uint32Values[PLAYER_FIELD_ARENA_TEAM_INFO_1_1], 0, sizeof(uint32) * MAX_ARENA_SLOT * ARENA_TEAM_END);
-    if (!result)
+    if (rows.empty())
     {
         return;
     }
 
-    do
+    for (LoginArenaTeamInfoRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
-        uint32 arenateamid     = fields[0].GetUInt32();
-        uint32 played_week     = fields[1].GetUInt32();
-        uint32 played_season   = fields[2].GetUInt32();
-        uint32 wons_season     = fields[3].GetUInt32();
-        uint32 personal_rating = fields[4].GetUInt32();
+        uint32 arenateamid     = row.arenateamid;
+        uint32 played_week     = row.playedWeek;
+        uint32 played_season   = row.playedSeason;
+        uint32 wons_season     = row.wonsSeason;
+        uint32 personal_rating = row.personalRating;
 
         ArenaTeam* aTeam = sObjectMgr.GetArenaTeamById(arenateamid);
         if (!aTeam)
@@ -135,34 +134,30 @@ void Player::_LoadArenaTeamInfo(QueryResult* result)
         SetArenaTeamInfoField(arenaSlot, ARENA_TEAM_WINS_SEASON, wons_season);
         SetArenaTeamInfoField(arenaSlot, ARENA_TEAM_PERSONAL_RATING, personal_rating);
     }
-    while (result->NextRow());
-    delete result;
 }
 
-void Player::_LoadEquipmentSets(QueryResult* result)
+void Player::_LoadEquipmentSets(std::vector<LoginEquipmentSetRow> const& rows)
 {
-    if (!result)
+    if (rows.empty())
     {
         return;
     }
 
     uint32 count = 0;
-    do
+    for (LoginEquipmentSetRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         EquipmentSet eqSet;
 
-        eqSet.Guid          = fields[0].GetUInt64();
-        uint32 index        = fields[1].GetUInt32();
-        eqSet.Name          = fields[2].GetCppString();
-        eqSet.IconName      = fields[3].GetCppString();
-        eqSet.IgnoreMask    = fields[4].GetUInt32();
+        eqSet.Guid          = row.setGuid;
+        uint32 index        = row.setIndex;
+        eqSet.Name          = row.name;
+        eqSet.IconName      = row.iconName;
+        eqSet.IgnoreMask    = row.ignoreMask;
         eqSet.state         = EQUIPMENT_SET_UNCHANGED;
 
         for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
         {
-            eqSet.Items[i] = fields[5 + i].GetUInt32();
+            eqSet.Items[i] = row.items[i];
         }
 
         m_EquipmentSets[index] = eqSet;
@@ -174,37 +169,32 @@ void Player::_LoadEquipmentSets(QueryResult* result)
             break;
         }
     }
-    while (result->NextRow());
-    delete result;
 }
 
 /**
  * @brief Loads battleground return and participation data from the database.
  *
- * @param result The query result containing battleground data.
+ * @param row The battleground data.
  */
-void Player::_LoadBGData(QueryResult* result)
+void Player::_LoadBGData(std::optional<LoginBattlegroundDataRow> const& row)
 {
-    if (!result)
+    if (!row)
     {
         return;
     }
 
     // Expecting only one row
-    Field* fields = result->Fetch();
     /* bgInstanceID, bgTeam, x, y, z, o, map, taxi[0], taxi[1], mountSpell */
-    m_bgData.bgInstanceID = fields[0].GetUInt32();
-    m_bgData.bgTeam       = Team(fields[1].GetUInt32());
-    m_bgData.joinPos      = WorldLocation(fields[6].GetUInt32(),    // Map
-                                          fields[2].GetFloat(),     // X
-                                          fields[3].GetFloat(),     // Y
-                                          fields[4].GetFloat(),     // Z
-                                          fields[5].GetFloat());    // Orientation
-    m_bgData.taxiPath[0]  = fields[7].GetUInt32();
-    m_bgData.taxiPath[1]  = fields[8].GetUInt32();
-    m_bgData.mountSpell   = fields[9].GetUInt32();
-
-    delete result;
+    m_bgData.bgInstanceID = row->instanceId;
+    m_bgData.bgTeam       = Team(row->team);
+    m_bgData.joinPos      = WorldLocation(row->joinMap,    // Map
+                                          row->joinX,     // X
+                                          row->joinY,     // Y
+                                          row->joinZ,     // Z
+                                          row->joinO);    // Orientation
+    m_bgData.taxiPath[0]  = row->taxiStart;
+    m_bgData.taxiPath[1]  = row->taxiEnd;
+    m_bgData.mountSpell   = row->mountSpell;
 }
 
 /**
@@ -272,9 +262,9 @@ void Player::_LoadIntoDataField(const char* data, uint32 startOffset, uint32 cou
 /**
  * @brief Loads action bar bindings from the database.
  *
- * @param result The query result containing action bindings.
+ * @param rows The action bindings.
  */
-void Player::_LoadActions(QueryResult* result)
+void Player::_LoadActions(std::vector<LoginActionRow> const& rows)
 {
     for (int i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
     {
@@ -282,16 +272,14 @@ void Player::_LoadActions(QueryResult* result)
     }
 
 
-    if (result)
+    if (!rows.empty())
     {
-        do
+        for (LoginActionRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
-            uint8 spec = fields[0].GetUInt8();
-            uint8 button = fields[1].GetUInt8();
-            uint32 action = fields[2].GetUInt32();
-            uint8 type = fields[3].GetUInt8();
+            uint8 spec = row.spec;
+            uint8 button = row.button;
+            uint32 action = row.action;
+            uint8 type = row.type;
 
             if (ActionButton* ab = addActionButton(spec, button, action, type))
             {
@@ -305,45 +293,41 @@ void Player::_LoadActions(QueryResult* result)
                 m_actionButtons[spec][button].uState = ACTIONBUTTON_DELETED;
             }
         }
-        while (result->NextRow());
-
-        delete result;
     }
 }
 
 /**
  * @brief Loads saved auras from the database and restores their remaining durations.
  *
- * @param result The query result containing aura data.
+ * @param rows The aura rows.
  * @param timediff The elapsed offline time used to age aura durations.
  */
-void Player::_LoadAuras(QueryResult* result, uint32 timediff)
+void Player::_LoadAuras(std::vector<LoginAuraRow> const& rows, uint32 timediff)
 {
     // RemoveAllAuras(); -- some spells casted before aura load, for example in LoadSkills, aura list explicitly cleaned early
 
 
-    if (result)
+    if (!rows.empty())
     {
-        do
+        for (LoginAuraRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-            ObjectGuid caster_guid = ObjectGuid(fields[0].GetUInt64());
-            uint32 item_lowguid = fields[1].GetUInt32();
-            uint32 spellid = fields[2].GetUInt32();
-            uint32 stackcount = fields[3].GetUInt32();
-            uint32 remaincharges = fields[4].GetUInt32();
+            ObjectGuid caster_guid = ObjectGuid(row.casterGuid);
+            uint32 item_lowguid = row.itemGuid;
+            uint32 spellid = row.spell;
+            uint32 stackcount = row.stackCount;
+            uint32 remaincharges = row.remainCharges;
             int32  damage[MAX_EFFECT_INDEX];
             uint32 periodicTime[MAX_EFFECT_INDEX];
 
             for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
             {
-                damage[i] = fields[i + 5].GetInt32();
-                periodicTime[i] = fields[i + 8].GetUInt32();
+                damage[i] = row.basePoints[i];
+                periodicTime[i] = row.periodicTime[i];
             }
 
-            int32 maxduration = fields[11].GetInt32();
-            int32 remaintime = fields[12].GetInt32();
-            uint32 effIndexMask = fields[13].GetUInt32();
+            int32 maxduration = row.maxDuration;
+            int32 remaintime = row.remainTime;
+            uint32 effIndexMask = row.effIndexMask;
 
             SpellEntry const* spellproto = sSpellStore.LookupEntry(spellid);
             if (!spellproto)
@@ -425,8 +409,6 @@ void Player::_LoadAuras(QueryResult* result, uint32 timediff)
                 delete holder;
             }
         }
-        while (result->NextRow());
-        delete result;
     }
 
     if (getClass() == CLASS_WARRIOR && !HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
@@ -443,18 +425,16 @@ void Player::_LoadAuras(QueryResult* result, uint32 timediff)
  * \arg \c result
  *   Rows from `character_cuf_profiles`; may be NULL when none are stored.
  */
-void Player::_LoadCUFProfiles(QueryResult* result)
+void Player::_LoadCUFProfiles(std::vector<LoginCufProfileRow> const& rows)
 {
-    if (!result)
+    if (rows.empty())
     {
         return;
     }
 
-    do
+    for (LoginCufProfileRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
-        uint8 id = fields[0].GetUInt8();
+        uint8 id = row.id;
         if (id >= MAX_CUF_PROFILES)
         {
             sLog.outError("Player::_LoadCUFProfiles: %s has a profile with invalid id %u, max is %u",
@@ -463,24 +443,21 @@ void Player::_LoadCUFProfiles(QueryResult* result)
         }
 
         std::unique_ptr<CUFProfile> profile(new CUFProfile());
-        profile->ProfileName  = fields[1].GetCppString();
-        profile->FrameHeight  = fields[2].GetUInt16();
-        profile->FrameWidth   = fields[3].GetUInt16();
-        profile->SortBy       = fields[4].GetUInt8();
-        profile->HealthText   = fields[5].GetUInt8();
-        profile->BoolOptions  = std::bitset<CUF_BOOL_OPTIONS_COUNT>(fields[6].GetUInt32());
-        profile->TopPoint     = fields[7].GetUInt8();
-        profile->BottomPoint  = fields[8].GetUInt8();
-        profile->LeftPoint    = fields[9].GetUInt8();
-        profile->TopOffset    = fields[10].GetUInt16();
-        profile->BottomOffset = fields[11].GetUInt16();
-        profile->LeftOffset   = fields[12].GetUInt16();
+        profile->ProfileName  = row.name;
+        profile->FrameHeight  = row.frameHeight;
+        profile->FrameWidth   = row.frameWidth;
+        profile->SortBy       = row.sortBy;
+        profile->HealthText   = row.healthText;
+        profile->BoolOptions  = std::bitset<CUF_BOOL_OPTIONS_COUNT>(row.boolOptions);
+        profile->TopPoint     = row.topPoint;
+        profile->BottomPoint  = row.bottomPoint;
+        profile->LeftPoint    = row.leftPoint;
+        profile->TopOffset    = row.topOffset;
+        profile->BottomOffset = row.bottomOffset;
+        profile->LeftOffset   = row.leftOffset;
 
         m_cufProfiles[id] = std::move(profile);
     }
-    while (result->NextRow());
-
-    delete result;
 
     // straight from the DB, so nothing to write back yet
     m_cufProfilesChanged = false;
@@ -796,36 +773,33 @@ void Player::_LoadMailedItems(QueryResult* result)
 /**
  * @brief Loads the player's mailbox headers from the database.
  *
- * @param result The query result containing mail records.
+ * @param rows The mail records.
  */
-void Player::_LoadMails(QueryResult* result)
+void Player::_LoadMails(std::vector<LoginMailRow> const& rows)
 {
     m_mail.clear();
-    //        0  1           2      3        4       5    6           7            8     9   10      11         12             13
-    //"SELECT id,messageType,sender,receiver,subject,body,expire_time,deliver_time,money,cod,checked,stationery,mailTemplateId,has_items FROM mail WHERE receiver = '%u' ORDER BY id DESC", GetGUIDLow()
-    if (!result)
+    if (rows.empty())
     {
         return;
     }
 
-    do
+    for (LoginMailRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         Mail* m = new Mail;
-        m->messageID = fields[0].GetUInt32();
-        m->messageType = fields[1].GetUInt8();
-        m->sender = fields[2].GetUInt32();
-        m->receiverGuid = ObjectGuid(HIGHGUID_PLAYER, fields[3].GetUInt32());
-        m->subject = fields[4].GetCppString();
-        m->body = fields[5].GetCppString();
-        m->expire_time = (time_t)fields[6].GetUInt64();
-        m->deliver_time = (time_t)fields[7].GetUInt64();
-        m->money = fields[8].GetUInt32();
-        m->COD = fields[9].GetUInt32();
-        m->checked = fields[10].GetUInt32();
-        m->stationery = fields[11].GetUInt8();
-        m->mailTemplateId = fields[12].GetInt16();
-        m->has_items = fields[13].GetBool();                // true, if mail have items or mail have template and items generated (maybe none)
+        m->messageID = row.id;
+        m->messageType = row.messageType;
+        m->sender = row.sender;
+        m->receiverGuid = ObjectGuid(HIGHGUID_PLAYER, row.receiver);
+        m->subject = row.subject;
+        m->body = row.body;
+        m->expire_time = (time_t)row.expireTime;
+        m->deliver_time = (time_t)row.deliverTime;
+        m->money = row.money;
+        m->COD = row.cod;
+        m->checked = row.checked;
+        m->stationery = row.stationery;
+        m->mailTemplateId = row.mailTemplateId;
+        m->has_items = row.hasItems;                // true, if mail have items or mail have template and items generated (maybe none)
 
         if (m->mailTemplateId && !sMailTemplateStore.LookupEntry(m->mailTemplateId))
         {
@@ -842,8 +816,6 @@ void Player::_LoadMails(QueryResult* result)
             m->prepareTemplateItems(this);
         }
     }
-    while (result->NextRow());
-    delete result;
 }
 
 /**
@@ -996,9 +968,9 @@ void Player::LoadPet()
 /**
  * @brief Loads quest status records and rebuilds the in-memory quest log state.
  *
- * @param result The query result containing quest status rows.
+ * @param rows The quest status rows.
  */
-void Player::_LoadQuestStatus(QueryResult* result)
+void Player::_LoadQuestStatus(std::vector<QuestStatusRow> const& rows)
 {
     m_questStatusMgr.ClearStatus();
 
@@ -1006,15 +978,15 @@ void Player::_LoadQuestStatus(QueryResult* result)
 
     ////                                                       0        1         2           3           4        5            6            7            8            9             10            11            12            13            14
 
-    if (result)
+    if (!rows.empty())
     {
-        do
+        for (QuestStatusRow const& statusRow : rows)
         {
             // Decoupling D4a: the manager fills THIS row, and it is applied below before the
             // next row is read. Applying a rewarded row casts spells, and a quest-complete
             // effect reaches AreaExploredOrEventHappens, which reads and writes a later row --
             // so the load must stay one pass, row by row, as it always was.
-            QuestRowResult row = m_questStatusMgr.FillRow(QuestStatusRepository::ReadRow(result->Fetch()), WorldGameTime::Get(), GetName(), ObjectMgr::QuestTemplateLookup());
+            QuestRowResult row = m_questStatusMgr.FillRow(statusRow, WorldGameTime::Get(), GetName(), ObjectMgr::QuestTemplateLookup());
             if (row.accepted)
             {
                 uint32 quest_id = row.questId;
@@ -1077,9 +1049,7 @@ void Player::_LoadQuestStatus(QueryResult* result)
                 DEBUG_LOG("Quest status is {%u} for quest {%u} for player (GUID: %u)", questStatusData.m_status, quest_id, GetGUIDLow());
             }
         }
-        while (result->NextRow());
 
-        delete result;
     }
 
     // clear quest log tail
@@ -1089,7 +1059,7 @@ void Player::_LoadQuestStatus(QueryResult* result)
     }
 }
 
-void Player::_LoadDailyQuestStatus(QueryResult* result)
+void Player::_LoadDailyQuestStatus(std::vector<LoginDailyQuestStatusRow> const& rows)
 {
     for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
     {
@@ -1097,11 +1067,11 @@ void Player::_LoadDailyQuestStatus(QueryResult* result)
     }
 
 
-    if (result)
+    if (!rows.empty())
     {
         uint32 quest_daily_idx = 0;
 
-        do
+        for (LoginDailyQuestStatusRow const& row : rows)
         {
             if (quest_daily_idx >= PLAYER_MAX_DAILY_QUESTS) // max amount with exist data in query
             {
@@ -1109,9 +1079,7 @@ void Player::_LoadDailyQuestStatus(QueryResult* result)
                 break;
             }
 
-            Field* fields = result->Fetch();
-
-            uint32 quest_id = fields[0].GetUInt32();
+            uint32 quest_id = row.quest;
 
             Quest const* pQuest = sObjectMgr.GetQuestTemplate(quest_id);
             if (!pQuest)
@@ -1124,9 +1092,6 @@ void Player::_LoadDailyQuestStatus(QueryResult* result)
 
             DEBUG_LOG("Daily quest {%u} cooldown for player (GUID: %u)", quest_id, GetGUIDLow());
         }
-        while (result->NextRow());
-
-        delete result;
     }
 
     m_DailyQuestChanged = false;
@@ -1135,17 +1100,15 @@ void Player::_LoadDailyQuestStatus(QueryResult* result)
 /**
  * @brief Loads known spells from the database.
  *
- * @param result The query result containing learned spell rows.
+ * @param rows The learned spell rows.
  */
-void Player::_LoadSpells(QueryResult* result)
+void Player::_LoadSpells(std::vector<LoginSpellRow> const& rows)
 {
-    if (result)
+    if (!rows.empty())
     {
-        do
+        for (LoginSpellRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
-            uint32 spell_id = fields[0].GetUInt32();
+            uint32 spell_id = row.spell;
 
             // skip talents & drop unneeded data
             if (GetTalentSpellPos(spell_id))
@@ -1156,17 +1119,14 @@ void Player::_LoadSpells(QueryResult* result)
                 continue;
             }
 
-            addSpell(spell_id, fields[1].GetBool(), false, false, fields[2].GetBool());
+            addSpell(spell_id, row.active, false, false, row.disabled);
         }
-        while (result->NextRow());
-
-        delete result;
     }
 }
 
-void Player::_LoadTalents(QueryResult* result)
+void Player::_LoadTalents(std::vector<TalentRow> const& rows)
 {
-    if (result)
+    if (!rows.empty())
     {
         // Decoupling D4c: TalentMgr::LoadRow validates one row, issues its DELETE when it fails,
         // stores an inactive-spec row, and calls this back for an active-spec row at the exact
@@ -1176,12 +1136,10 @@ void Player::_LoadTalents(QueryResult* result)
             addSpell(spellId, true, false, false, false);
         };
 
-        do
+        for (TalentRow const& row : rows)
         {
-            m_talentMgr.LoadRow(TalentRepository::ReadRow(result->Fetch()), GetGUIDLow(), getClassMask(), m_talentMgr.SpecsCount(), m_talentMgr.ActiveSpec(), onActiveSpell);
+            m_talentMgr.LoadRow(row, GetGUIDLow(), getClassMask(), m_talentMgr.SpecsCount(), m_talentMgr.ActiveSpec(), onActiveSpell);
         }
-        while (result->NextRow());
-        delete result;
     }
     UpdateGroupLeaderFlag();
 }
@@ -1189,14 +1147,13 @@ void Player::_LoadTalents(QueryResult* result)
 /**
  * @brief Loads the player's current group membership from the database.
  *
- * @param result The query result containing the group identifier.
+ * @param memberGroupId The group identifier.
  */
-void Player::_LoadGroup(QueryResult* result)
+void Player::_LoadGroup(std::optional<uint32> const& memberGroupId)
 {
-    if (result)
+    if (memberGroupId)
     {
-        uint32 groupId = (*result)[0].GetUInt32();
-        delete result;
+        uint32 groupId = *memberGroupId;
 
         if (Group* group = sObjectMgr.GetGroupById(groupId))
         {
@@ -1215,9 +1172,9 @@ void Player::_LoadGroup(QueryResult* result)
 /**
  * @brief Loads the player's saved dungeon and raid instance bindings.
  *
- * @param result The query result containing character instance bind rows.
+ * @param rows The character instance bind rows.
  */
-void Player::_LoadBoundInstances(QueryResult* result)
+void Player::_LoadBoundInstances(std::vector<LoginBoundInstanceRow> const& rows)
 {
     for (uint8 i = 0; i < MAX_DIFFICULTY; ++i)
     {
@@ -1226,17 +1183,16 @@ void Player::_LoadBoundInstances(QueryResult* result)
 
     Group* group = GetGroup();
 
-    if (result)
+    if (!rows.empty())
     {
-        do
+        for (LoginBoundInstanceRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-            bool perm = fields[1].GetBool();
-            uint32 mapId = fields[2].GetUInt32();
-            uint32 instanceId = fields[0].GetUInt32();
-            uint8 difficulty = fields[3].GetUInt8();
+            bool perm = row.permanent;
+            uint32 mapId = row.map;
+            uint32 instanceId = row.id;
+            uint8 difficulty = row.difficulty;
 
-            time_t resetTime = (time_t)fields[4].GetUInt64();
+            time_t resetTime = (time_t)row.resettime;
             // the resettime for normal instances is only saved when the InstanceSave is unloaded
             // so the value read from the DB may be wrong here but only if the InstanceSave is loaded
             // and in that case it is not used
@@ -1279,8 +1235,6 @@ void Player::_LoadBoundInstances(QueryResult* result)
                 BindToInstance(state, perm, true);
             }
         }
-        while (result->NextRow());
-        delete result;
     }
 }
 
@@ -1576,10 +1530,10 @@ void Player::ConvertInstancesToGroup(Player* player, Group* group, ObjectGuid pl
 /**
  * @brief Loads and validates the player's home bind location.
  *
- * @param result The query result containing home bind data.
+ * @param row The home bind data.
  * @return True if a valid home bind was loaded or defaulted successfully; otherwise, false.
  */
-bool Player::_LoadHomeBind(QueryResult* result)
+bool Player::_LoadHomeBind(std::optional<LoginHomeBindRow> const& row)
 {
     PlayerInfo const* info = sObjectMgr.GetPlayerInfo(getRace(), getClass());
     if (!info)
@@ -1589,15 +1543,13 @@ bool Player::_LoadHomeBind(QueryResult* result)
     }
 
     bool ok = false;
-    if (result)
+    if (row)
     {
-        Field* fields = result->Fetch();
-        m_homebindMapId = fields[0].GetUInt32();
-        m_homebindAreaId = fields[1].GetUInt16();
-        m_homebindX = fields[2].GetFloat();
-        m_homebindY = fields[3].GetFloat();
-        m_homebindZ = fields[4].GetFloat();
-        delete result;
+        m_homebindMapId = row->map;
+        m_homebindAreaId = row->zone;
+        m_homebindX = row->positionX;
+        m_homebindY = row->positionY;
+        m_homebindZ = row->positionZ;
 
         MapEntry const* bindMapEntry = sMapStore.LookupEntry(m_homebindMapId);
 

@@ -89,16 +89,14 @@ void Player::ApplyGlyphs(bool apply)
     }
 }
 
-void Player::_LoadGlyphs(QueryResult* result)
+void Player::_LoadGlyphs(std::vector<GlyphRow> const& rows)
 {
-    if (!result)
+    if (rows.empty())
     {
         return;
     }
 
-    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADGLYPHS result (CharacterRepository.cpp)
-
-    do
+    for (GlyphRow const& row : rows)
     {
         GlyphMgr::RowInputs inputs;
         inputs.ownerGuidLow = GetGUIDLow();
@@ -107,9 +105,7 @@ void Player::_LoadGlyphs(QueryResult* result)
         {
             return GetGlyphSlot(slot);
         };
-        m_glyphMgr.LoadRow(GlyphRepository::ReadRow(result->Fetch()), inputs);
+        m_glyphMgr.LoadRow(row, inputs);
     }
-    while (result->NextRow());
 
-    delete result;
 }

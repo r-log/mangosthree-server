@@ -159,24 +159,22 @@ void Player::SetFactionAtWar(RepListID repListID, bool on)
 /**
  * @brief Builds the reputation list, then loads the saved rows over it, a row at a time.
  *
- * @param result The login holder's reputation rows (faction, standing, flags), deleted here;
- *               NULL for none: the list is built and nothing else happens.
+ * @param rows The login holder's reputation rows (faction, standing, flags); for none the list is
+ *             built and nothing else happens.
  */
-void Player::_LoadReputations(QueryResult* result)
+void Player::_LoadReputations(std::vector<ReputationRow> const& rows)
 {
     // Set initial reputations (so everything is nifty before DB data load)
     m_reputationMgr.Initialize();
 
-    if (result)
+    if (!rows.empty())
     {
         ReputationMgr::FlagNotify notify = ReputationNotify(this, m_clientCallbacks);
-        do
+        for (ReputationRow const& row : rows)
         {
-            m_reputationMgr.LoadRow(ReputationRepository::ReadRow(result->Fetch()), notify);
+            m_reputationMgr.LoadRow(row, notify);
         }
-        while (result->NextRow());
 
-        delete result;
     }
 }
 

@@ -132,6 +132,162 @@ struct CharacterCacheRow
     float positionZ = 0.0f;
 };
 
+/// One `character_skills` row of the login.
+struct LoginSkillRow
+{
+    uint16 skill = 0;
+    uint16 value = 0;
+    uint16 max = 0;
+};
+
+/// One `character_homebind` row of the login.
+struct LoginHomeBindRow
+{
+    uint32 map = 0;
+    uint16 zone = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+};
+
+/// One `arena_team_member` row of the login.
+struct LoginArenaTeamInfoRow
+{
+    uint32 arenateamid = 0;
+    uint32 playedWeek = 0;
+    uint32 playedSeason = 0;
+    uint32 wonsSeason = 0;
+    uint32 personalRating = 0;
+};
+
+/// One instance bind of the login (`character_instance`), with its instance's map, difficulty and
+/// reset time.
+struct LoginBoundInstanceRow
+{
+    uint32 id = 0;
+    bool permanent = false;
+    uint32 map = 0;
+    uint8 difficulty = 0;
+    uint64 resettime = 0;
+};
+
+/// One `character_battleground_data` row of the login.
+struct LoginBattlegroundDataRow
+{
+    uint32 instanceId = 0;
+    uint32 team = 0;
+    float joinX = 0.0f;
+    float joinY = 0.0f;
+    float joinZ = 0.0f;
+    float joinO = 0.0f;
+    uint32 joinMap = 0;
+    uint32 taxiStart = 0;
+    uint32 taxiEnd = 0;
+    uint32 mountSpell = 0;
+};
+
+/// One `mail` row of the login.
+struct LoginMailRow
+{
+    uint32 id = 0;
+    uint8 messageType = 0;
+    uint32 sender = 0;
+    uint32 receiver = 0;
+    std::string subject;
+    std::string body;
+    uint64 expireTime = 0;
+    uint64 deliverTime = 0;
+    uint32 money = 0;
+    uint32 cod = 0;
+    uint32 checked = 0;
+    uint8 stationery = 0;
+    int16 mailTemplateId = 0;
+    bool hasItems = false;
+};
+
+/// One `character_cuf_profiles` row of the login.
+struct LoginCufProfileRow
+{
+    uint8 id = 0;
+    std::string name;
+    uint16 frameHeight = 0;
+    uint16 frameWidth = 0;
+    uint8 sortBy = 0;
+    uint8 healthText = 0;
+    uint32 boolOptions = 0;
+    uint8 topPoint = 0;
+    uint8 bottomPoint = 0;
+    uint8 leftPoint = 0;
+    uint16 topOffset = 0;
+    uint16 bottomOffset = 0;
+    uint16 leftOffset = 0;
+};
+
+/// One `character_spell` row of the login.
+struct LoginSpellRow
+{
+    uint32 spell = 0;
+    bool active = false;
+    bool disabled = false;
+};
+
+/// One `character_queststatus_daily` row of the login.
+struct LoginDailyQuestStatusRow
+{
+    uint32 quest = 0;
+};
+
+/// One `character_action` row of the login.
+struct LoginActionRow
+{
+    uint8 spec = 0;
+    uint8 button = 0;
+    uint32 action = 0;
+    uint8 type = 0;
+};
+
+enum
+{
+    /// The declined name cases a declined name row holds (genitive to prepositional).
+    LOGIN_DECLINED_NAME_ROW_CASES = 5,
+    /// The items an equipment set row holds (`item0` to `item18`), one per equipment slot.
+    LOGIN_EQUIPMENT_SET_ROW_ITEMS = 19,
+    /// The effects an aura row holds base points and a periodic time for.
+    LOGIN_AURA_ROW_EFFECTS = 3
+};
+
+/// The login's declined names (`character_declinedname`), one per case.
+struct LoginDeclinedNameRow
+{
+    std::string name[LOGIN_DECLINED_NAME_ROW_CASES];
+};
+
+/// One `character_equipmentsets` row of the login.
+struct LoginEquipmentSetRow
+{
+    uint64 setGuid = 0;
+    uint32 setIndex = 0;
+    std::string name;
+    std::string iconName;
+    uint32 ignoreMask = 0;
+    uint32 items[LOGIN_EQUIPMENT_SET_ROW_ITEMS] = {};
+};
+
+/// One `character_aura` row of the login.
+struct LoginAuraRow
+{
+    uint64 casterGuid = 0;
+    uint32 itemGuid = 0;
+    uint32 spell = 0;
+    uint32 stackCount = 0;
+    uint32 remainCharges = 0;
+    int32 basePoints[LOGIN_AURA_ROW_EFFECTS] = {};
+    uint32 periodicTime[LOGIN_AURA_ROW_EFFECTS] = {};
+    int32 maxDuration = 0;
+    int32 remainTime = 0;
+    uint32 effIndexMask = 0;
+};
+
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
 /// login, the logout and the account manager use them. The account manager's two reads, the GM
 /// commands' reads and the start-up's highest guid and cache rows run on the thread that calls them,
@@ -267,6 +423,48 @@ namespace CharacterRepository
 
     /// Marks every character offline, at start-up and shutdown.
     void SetEveryCharacterOffline();
+
+    /// Reads the login holder's skills.
+    std::vector<LoginSkillRow> LoginSkills(SqlQueryHolder* holder);
+
+    /// Reads the login holder's group id.
+    std::optional<uint32> LoginGroup(SqlQueryHolder* holder);
+
+    /// Reads the login holder's home bind.
+    std::optional<LoginHomeBindRow> LoginHomeBind(SqlQueryHolder* holder);
+
+    /// Reads the login holder's arena team info.
+    std::vector<LoginArenaTeamInfoRow> LoginArenaTeamInfo(SqlQueryHolder* holder);
+
+    /// Reads the login holder's bound instances.
+    std::vector<LoginBoundInstanceRow> LoginBoundInstances(SqlQueryHolder* holder);
+
+    /// Reads the login holder's b g data.
+    std::optional<LoginBattlegroundDataRow> LoginBGData(SqlQueryHolder* holder);
+
+    /// Reads the login holder's mails.
+    std::vector<LoginMailRow> LoginMails(SqlQueryHolder* holder);
+
+    /// Reads the login holder's c u f profiles.
+    std::vector<LoginCufProfileRow> LoginCUFProfiles(SqlQueryHolder* holder);
+
+    /// Reads the login holder's spells.
+    std::vector<LoginSpellRow> LoginSpells(SqlQueryHolder* holder);
+
+    /// Reads the login holder's daily quest status.
+    std::vector<LoginDailyQuestStatusRow> LoginDailyQuestStatus(SqlQueryHolder* holder);
+
+    /// Reads the login holder's actions.
+    std::vector<LoginActionRow> LoginActions(SqlQueryHolder* holder);
+
+    /// Reads the login holder's declined names.
+    std::optional<LoginDeclinedNameRow> LoginDeclinedNames(SqlQueryHolder* holder);
+
+    /// Reads the login holder's equipment sets.
+    std::vector<LoginEquipmentSetRow> LoginEquipmentSets(SqlQueryHolder* holder);
+
+    /// Reads the login holder's auras.
+    std::vector<LoginAuraRow> LoginAuras(SqlQueryHolder* holder);
 }
 
 #endif

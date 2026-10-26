@@ -30,6 +30,7 @@
 #include "Platform/Define.h"
 
 class Field;
+class SqlQueryHolder;
 
 /// One saved talent: the talent id, the rank index learned and the spec.
 struct TalentRow
@@ -55,6 +56,9 @@ namespace TalentRepository
 {
     /// Reads one row of the login holder's talent result: talent_id, current_rank, spec.
     TalentRow ReadRow(Field* fields);
+
+    /// Reads a holder slot's rows, its columns in ReadRow's order.
+    std::vector<TalentRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
     /// Deletes every character's rows of the talent `talent`, not only one character's.
     void DeleteEveryRowOfTalent(uint32 talent);

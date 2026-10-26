@@ -403,4 +403,255 @@ namespace CharacterRepository
     {
         CharacterDatabase.Execute("UPDATE `characters` SET `online` = 0 WHERE `online` <> 0");
     }
+
+    static LoginSkillRow ReadLoginSkill(Field* fields)
+    {
+        LoginSkillRow row;
+        row.skill = fields[0].GetUInt16();
+        row.value = fields[1].GetUInt16();
+        row.max = fields[2].GetUInt16();
+        return row;
+    }
+
+    std::vector<LoginSkillRow> LoginSkills(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADSKILLS);
+        return ReadRows<LoginSkillRow>(result, ReadLoginSkill);
+    }
+
+    std::optional<uint32> LoginGroup(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADGROUP);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    static LoginHomeBindRow ReadLoginHomeBind(Field* fields)
+    {
+        LoginHomeBindRow row;
+        row.map = fields[0].GetUInt32();
+        row.zone = fields[1].GetUInt16();
+        row.positionX = fields[2].GetFloat();
+        row.positionY = fields[3].GetFloat();
+        row.positionZ = fields[4].GetFloat();
+        return row;
+    }
+
+    std::optional<LoginHomeBindRow> LoginHomeBind(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADHOMEBIND);
+        return ReadRow<LoginHomeBindRow>(result, ReadLoginHomeBind);
+    }
+
+    static LoginArenaTeamInfoRow ReadLoginArenaTeamInfo(Field* fields)
+    {
+        LoginArenaTeamInfoRow row;
+        row.arenateamid = fields[0].GetUInt32();
+        row.playedWeek = fields[1].GetUInt32();
+        row.playedSeason = fields[2].GetUInt32();
+        row.wonsSeason = fields[3].GetUInt32();
+        row.personalRating = fields[4].GetUInt32();
+        return row;
+    }
+
+    std::vector<LoginArenaTeamInfoRow> LoginArenaTeamInfo(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADARENAINFO);
+        return ReadRows<LoginArenaTeamInfoRow>(result, ReadLoginArenaTeamInfo);
+    }
+
+    static LoginBoundInstanceRow ReadLoginBoundInstance(Field* fields)
+    {
+        LoginBoundInstanceRow row;
+        row.id = fields[0].GetUInt32();
+        row.permanent = fields[1].GetBool();
+        row.map = fields[2].GetUInt32();
+        row.difficulty = fields[3].GetUInt8();
+        row.resettime = fields[4].GetUInt64();
+        return row;
+    }
+
+    std::vector<LoginBoundInstanceRow> LoginBoundInstances(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADBOUNDINSTANCES);
+        return ReadRows<LoginBoundInstanceRow>(result, ReadLoginBoundInstance);
+    }
+
+    static LoginBattlegroundDataRow ReadLoginBattlegroundData(Field* fields)
+    {
+        LoginBattlegroundDataRow row;
+        row.instanceId = fields[0].GetUInt32();
+        row.team = fields[1].GetUInt32();
+        row.joinX = fields[2].GetFloat();
+        row.joinY = fields[3].GetFloat();
+        row.joinZ = fields[4].GetFloat();
+        row.joinO = fields[5].GetFloat();
+        row.joinMap = fields[6].GetUInt32();
+        row.taxiStart = fields[7].GetUInt32();
+        row.taxiEnd = fields[8].GetUInt32();
+        row.mountSpell = fields[9].GetUInt32();
+        return row;
+    }
+
+    std::optional<LoginBattlegroundDataRow> LoginBGData(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADBGDATA);
+        return ReadRow<LoginBattlegroundDataRow>(result, ReadLoginBattlegroundData);
+    }
+
+    static LoginMailRow ReadLoginMail(Field* fields)
+    {
+        LoginMailRow row;
+        row.id = fields[0].GetUInt32();
+        row.messageType = fields[1].GetUInt8();
+        row.sender = fields[2].GetUInt32();
+        row.receiver = fields[3].GetUInt32();
+        row.subject = fields[4].GetCppString();
+        row.body = fields[5].GetCppString();
+        row.expireTime = fields[6].GetUInt64();
+        row.deliverTime = fields[7].GetUInt64();
+        row.money = fields[8].GetUInt32();
+        row.cod = fields[9].GetUInt32();
+        row.checked = fields[10].GetUInt32();
+        row.stationery = fields[11].GetUInt8();
+        row.mailTemplateId = fields[12].GetInt16();
+        row.hasItems = fields[13].GetBool();
+        return row;
+    }
+
+    std::vector<LoginMailRow> LoginMails(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADMAILS);
+        return ReadRows<LoginMailRow>(result, ReadLoginMail);
+    }
+
+    static LoginCufProfileRow ReadLoginCufProfile(Field* fields)
+    {
+        LoginCufProfileRow row;
+        row.id = fields[0].GetUInt8();
+        row.name = fields[1].GetCppString();
+        row.frameHeight = fields[2].GetUInt16();
+        row.frameWidth = fields[3].GetUInt16();
+        row.sortBy = fields[4].GetUInt8();
+        row.healthText = fields[5].GetUInt8();
+        row.boolOptions = fields[6].GetUInt32();
+        row.topPoint = fields[7].GetUInt8();
+        row.bottomPoint = fields[8].GetUInt8();
+        row.leftPoint = fields[9].GetUInt8();
+        row.topOffset = fields[10].GetUInt16();
+        row.bottomOffset = fields[11].GetUInt16();
+        row.leftOffset = fields[12].GetUInt16();
+        return row;
+    }
+
+    std::vector<LoginCufProfileRow> LoginCUFProfiles(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADCUFPROFILES);
+        return ReadRows<LoginCufProfileRow>(result, ReadLoginCufProfile);
+    }
+
+    static LoginSpellRow ReadLoginSpell(Field* fields)
+    {
+        LoginSpellRow row;
+        row.spell = fields[0].GetUInt32();
+        row.active = fields[1].GetBool();
+        row.disabled = fields[2].GetBool();
+        return row;
+    }
+
+    std::vector<LoginSpellRow> LoginSpells(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADSPELLS);
+        return ReadRows<LoginSpellRow>(result, ReadLoginSpell);
+    }
+
+    static LoginDailyQuestStatusRow ReadLoginDailyQuestStatus(Field* fields)
+    {
+        LoginDailyQuestStatusRow row;
+        row.quest = fields[0].GetUInt32();
+        return row;
+    }
+
+    std::vector<LoginDailyQuestStatusRow> LoginDailyQuestStatus(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADDAILYQUESTSTATUS);
+        return ReadRows<LoginDailyQuestStatusRow>(result, ReadLoginDailyQuestStatus);
+    }
+
+    static LoginActionRow ReadLoginAction(Field* fields)
+    {
+        LoginActionRow row;
+        row.spec = fields[0].GetUInt8();
+        row.button = fields[1].GetUInt8();
+        row.action = fields[2].GetUInt32();
+        row.type = fields[3].GetUInt8();
+        return row;
+    }
+
+    std::vector<LoginActionRow> LoginActions(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADACTIONS);
+        return ReadRows<LoginActionRow>(result, ReadLoginAction);
+    }
+
+    static LoginDeclinedNameRow ReadLoginDeclinedName(Field* fields)
+    {
+        LoginDeclinedNameRow row;
+        for (int i = 0; i < LOGIN_DECLINED_NAME_ROW_CASES; ++i)
+        {
+            row.name[i] = fields[i].GetCppString();
+        }
+        return row;
+    }
+
+    std::optional<LoginDeclinedNameRow> LoginDeclinedNames(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADDECLINEDNAMES);
+        return ReadRow<LoginDeclinedNameRow>(result, ReadLoginDeclinedName);
+    }
+
+    static LoginEquipmentSetRow ReadLoginEquipmentSet(Field* fields)
+    {
+        LoginEquipmentSetRow row;
+        row.setGuid = fields[0].GetUInt64();
+        row.setIndex = fields[1].GetUInt32();
+        row.name = fields[2].GetCppString();
+        row.iconName = fields[3].GetCppString();
+        row.ignoreMask = fields[4].GetUInt32();
+        for (int i = 0; i < LOGIN_EQUIPMENT_SET_ROW_ITEMS; ++i)
+        {
+            row.items[i] = fields[5 + i].GetUInt32();
+        }
+        return row;
+    }
+
+    std::vector<LoginEquipmentSetRow> LoginEquipmentSets(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADEQUIPMENTSETS);
+        return ReadRows<LoginEquipmentSetRow>(result, ReadLoginEquipmentSet);
+    }
+
+    static LoginAuraRow ReadLoginAura(Field* fields)
+    {
+        LoginAuraRow row;
+        row.casterGuid = fields[0].GetUInt64();
+        row.itemGuid = fields[1].GetUInt32();
+        row.spell = fields[2].GetUInt32();
+        row.stackCount = fields[3].GetUInt32();
+        row.remainCharges = fields[4].GetUInt32();
+        for (int i = 0; i < LOGIN_AURA_ROW_EFFECTS; ++i)
+        {
+            row.basePoints[i] = fields[i + 5].GetInt32();
+            row.periodicTime[i] = fields[i + 8].GetUInt32();
+        }
+        row.maxDuration = fields[11].GetInt32();
+        row.remainTime = fields[12].GetInt32();
+        row.effIndexMask = fields[13].GetUInt32();
+        return row;
+    }
+
+    std::vector<LoginAuraRow> LoginAuras(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADAURAS);
+        return ReadRows<LoginAuraRow>(result, ReadLoginAura);
+    }
 }

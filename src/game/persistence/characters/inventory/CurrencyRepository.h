@@ -28,7 +28,10 @@
 
 #include "Platform/Define.h"
 
+#include <vector>
+
 class Field;
+class SqlQueryHolder;
 
 /// One currency's saved row: the currency id, the total, week and season counts and the flags.
 struct CurrencyRow
@@ -45,6 +48,9 @@ namespace CurrencyRepository
 {
     /// Reads one row of the login holder's currency result: id, total, week, season, flags.
     CurrencyRow ReadRow(Field* fields);
+
+    /// Reads a holder slot's rows, its columns in ReadRow's order.
+    std::vector<CurrencyRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
     /// Deletes every character's row of the currency `currencyId`, not only one character's, queued.
     void DeleteEveryRowOf(uint32 currencyId);
