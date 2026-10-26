@@ -117,6 +117,9 @@ struct QuestStatusRow;
 struct LoginDeclinedNameRow;
 struct LoginEquipmentSetRow;
 struct LoginAuraRow;
+struct LoginInventoryRow;
+struct LoginMailedItemRow;
+struct LoginItemLootRow;
 class Channel;
 class DynamicObject;
 class Creature;
@@ -3840,16 +3843,16 @@ class Player : public Unit
         void _LoadBoundInstances(std::vector<LoginBoundInstanceRow> const& rows);
 
         // Load player inventory from the database
-        void _LoadInventory(QueryResult* result, uint32 timediff);
+        void _LoadInventory(std::vector<LoginInventoryRow> const& rows, uint32 timediff);
 
         // Load item loot from the database
-        void _LoadItemLoot(QueryResult* result);
+        void _LoadItemLoot(std::vector<LoginItemLootRow> const& rows);
 
         // Load player mails from the database
         void _LoadMails(std::vector<LoginMailRow> const& rows);
 
         // Load mailed items from the database
-        void _LoadMailedItems(QueryResult* result);
+        void _LoadMailedItems(std::vector<LoginMailedItemRow> const& rows);
 
         // Load quest status from the database
         void _LoadQuestStatus(std::vector<QuestStatusRow> const& rows);

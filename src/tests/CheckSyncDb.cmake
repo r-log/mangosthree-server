@@ -269,7 +269,7 @@ set(ALLOW_CalendarRepository_cpp
 
 set(ALLOW_GuildBankRepository_cpp
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `TabId`, `TabName`, `TabIcon`, `TabText` FROM `guild_bank_tab` WHERE `guildid`='%u' ORDER BY `TabId`\", guildId)\;"
-    "return CharacterDatabase.PQuery(\"SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`\", guildId)\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`\", guildId)\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", guildId, tabId, maxLogs)\;")
 
 set(ALLOW_InstanceDataRepository_cpp
@@ -353,7 +353,7 @@ set(ALLOW_TicketRepository_cpp
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `ticket_text`, `response_text`, UNIX_TIMESTAMP(`ticket_lastchange`), `ticket_id` FROM `character_ticket` WHERE `resolved` = 0 ORDER BY `ticket_id` ASC\")\;")
 
 set(ALLOW_AuctionRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`\")\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT COUNT(*) FROM `auction`\")\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `id`,`houseid`,`itemguid`,`item_template`,`item_count`,`item_randompropertyid`,`itemowner`,`buyoutprice`,`time`,`moneyTime`,`buyguid`,`lastbid`,`startbid`,`deposit` FROM `auction`\")\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `auction`\")\;")

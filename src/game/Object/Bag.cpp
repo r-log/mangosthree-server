@@ -28,6 +28,7 @@
 #include "ObjectMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "UpdateData.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 
 /**
  * @brief Creates an empty bag item instance.
@@ -139,13 +140,13 @@ void Bag::SaveToDB()
  * Clears slot state so contained items can be rebuilt from character inventory data.
  *
  * @param guidLow The low part of the bag GUID.
- * @param fields The database field array containing the bag data.
+ * @param instance The bag's saved values and text.
  * @param ownerGuid The owner GUID for the bag.
  * @return true if the bag loaded successfully; otherwise, false.
  */
-bool Bag::LoadFromDB(uint32 guidLow, Field* fields, ObjectGuid ownerGuid)
+bool Bag::LoadFromDB(uint32 guidLow, ItemInstanceRow const& instance, ObjectGuid ownerGuid)
 {
-    if (!Item::LoadFromDB(guidLow, fields, ownerGuid))
+    if (!Item::LoadFromDB(guidLow, instance, ownerGuid))
     {
         return false;
     }

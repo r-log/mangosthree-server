@@ -654,4 +654,54 @@ namespace CharacterRepository
         QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADAURAS);
         return ReadRows<LoginAuraRow>(result, ReadLoginAura);
     }
+
+    static LoginInventoryRow ReadLoginInventory(Field* fields)
+    {
+        LoginInventoryRow row;
+        row.instance = ItemRepository::ReadInstance(fields);
+        row.bag = fields[2].GetUInt32();
+        row.slot = fields[3].GetUInt8();
+        row.item = fields[4].GetUInt32();
+        row.itemTemplate = fields[5].GetUInt32();
+        return row;
+    }
+
+    std::vector<LoginInventoryRow> LoginInventory(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADINVENTORY);
+        return ReadRows<LoginInventoryRow>(result, ReadLoginInventory);
+    }
+
+    static LoginMailedItemRow ReadLoginMailedItem(Field* fields)
+    {
+        LoginMailedItemRow row;
+        row.instance = ItemRepository::ReadInstance(fields);
+        row.mailId = fields[2].GetUInt32();
+        row.itemGuid = fields[3].GetUInt32();
+        row.itemTemplate = fields[4].GetUInt32();
+        return row;
+    }
+
+    std::vector<LoginMailedItemRow> LoginMailedItems(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADMAILEDITEMS);
+        return ReadRows<LoginMailedItemRow>(result, ReadLoginMailedItem);
+    }
+
+    static LoginItemLootRow ReadLoginItemLoot(Field* fields)
+    {
+        LoginItemLootRow row;
+        row.itemGuid = fields[0].GetUInt32();
+        row.itemId = fields[1].GetInt32();
+        row.amount = fields[2].GetUInt32();
+        row.suffix = fields[3].GetUInt32();
+        row.property = fields[4].GetInt32();
+        return row;
+    }
+
+    std::vector<LoginItemLootRow> LoginItemLoot(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADITEMLOOT);
+        return ReadRows<LoginItemLootRow>(result, ReadLoginItemLoot);
+    }
 }

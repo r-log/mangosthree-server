@@ -28,6 +28,7 @@
 #include "ObjectGuid.h"
 #include "Database/DatabaseEnv.h"
 #include "SQLStorages.h"
+#include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 #include <vector>
 
@@ -258,26 +259,26 @@ void Item::SaveToDB()
 }
 
 /**
- * @brief Loads an item instance from database fields.
+ * @brief Loads an item instance from its saved row.
  *
  * @param guidLow The low GUID of the item.
- * @param fields The database row fields.
+ * @param instance The item's saved values and text.
  * @param ownerGuid The expected owner GUID.
  * @return true if the item loaded successfully; otherwise, false.
  */
-bool Item::LoadFromDB(uint32 guidLow, Field* fields, ObjectGuid ownerGuid)
+bool Item::LoadFromDB(uint32 guidLow, ItemInstanceRow const& instance, ObjectGuid ownerGuid)
 {
     // create item before any checks for store correct guid
     // and allow use "FSetState(ITEM_REMOVED); SaveToDB();" for deleting item from DB
     Object::_Create(guidLow, 0, HIGHGUID_ITEM);
 
-    if (!LoadValues(fields[0].GetString()))
+    if (!LoadValues(instance.data ? instance.data->c_str() : NULL))
     {
         sLog.outError("Item #%d have broken data in `data` field. Can't be loaded.", guidLow);
         return false;
     }
 
-    SetText(fields[1].GetCppString());
+    SetText(instance.text);
 
     bool need_save = false;                                 // need explicit save data at load fixes
 
@@ -368,15 +369,15 @@ bool Item::LoadFromDB(uint32 guidLow, Field* fields, ObjectGuid ownerGuid)
 /**
  * @brief Loads persisted item loot data from the database.
  *
- * @param fields The loot database row fields.
+ * @param row The saved loot row.
  */
-void Item::LoadLootFromDB(Field* fields)
+void Item::LoadLootFromDB(LoginItemLootRow const& row)
 {
-    uint32 item_id     = abs(fields[1].GetInt32());
-    uint8  type        = fields[1].GetInt32() >= 0 ? LOOT_ITEM_TYPE_ITEM : LOOT_ITEM_TYPE_CURRENCY;
-    uint32 item_amount = fields[2].GetUInt32();
-    uint32 item_suffix = fields[3].GetUInt32();
-    int32  item_propid = fields[4].GetInt32();
+    uint32 item_id     = abs(row.itemId);
+    uint8  type        = row.itemId >= 0 ? LOOT_ITEM_TYPE_ITEM : LOOT_ITEM_TYPE_CURRENCY;
+    uint32 item_amount = row.amount;
+    uint32 item_suffix = row.suffix;
+    int32  item_propid = row.property;
 
     // money value special case
     if (item_id == 0)

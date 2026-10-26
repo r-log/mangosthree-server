@@ -27,7 +27,10 @@
 #define MANGOS_H_CHARACTERDELETEREPOSITORY
 
 #include <functional>
+#include <string>
+#include <vector>
 #include "Platform/Define.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 
 class QueryResult;
 class SqlQueryHolder;
@@ -54,10 +57,33 @@ enum PlayerDeleteReadSlot
     PLAYER_DELETE_READ_WITH_OWNER_COUNT     = 7
 };
 
+/// One COD mail with items the delete returns: its id, type, template, sender, subject, body,
+/// money and whether it has items.
+struct DeleteCodMailRow
+{
+    uint32 id = 0;
+    uint16 messageType = 0;
+    uint16 mailTemplateId = 0;
+    uint32 sender = 0;
+    std::string subject;
+    std::string body;
+    uint32 money = 0;
+    bool hasItems = false;
+};
+
+/// One item of a COD mail the delete returns: its instance, guid, template and mail.
+struct DeleteCodMailItemRow
+{
+    ItemInstanceRow instance;
+    uint32 itemGuid = 0;
+    uint32 itemTemplate = 0;
+    uint32 mailId = 0;
+};
+
 /// A character's delete as the database sees it: the reads the delete needs, every row it deletes,
 /// the soft delete that keeps the row, and the purge of soft-deleted characters. Every read is
-/// asynchronous; every write is queued on the character database, and one called inside
-/// CharacterTransaction joins it.
+/// asynchronous, and the answered COD mail slots are read into rows; every write is queued on the
+/// character database, and one called inside CharacterTransaction joins it.
 namespace CharacterDeleteRepository
 {
     /// Stages the delete's reads into a holder sized to at least PLAYER_DELETE_READ_COUNT: the
@@ -81,6 +107,12 @@ namespace CharacterDeleteRepository
 
     /// Asks for the soft-deleted characters deleted before a time: guid and the account they had.
     void QueryDeletedBefore(uint64 time, std::function<void(QueryResult*)> callback);
+
+    /// Reads the delete holder's COD mails, ordered by id.
+    std::vector<DeleteCodMailRow> DeleteCodMails(SqlQueryHolder* holder);
+
+    /// Reads the delete holder's COD mail items, ordered by mail.
+    std::vector<DeleteCodMailItemRow> DeleteCodMailItems(SqlQueryHolder* holder);
 }
 
 #endif

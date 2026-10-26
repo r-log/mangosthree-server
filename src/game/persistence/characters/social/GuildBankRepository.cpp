@@ -45,9 +45,21 @@ namespace GuildBankRepository
         return ReadRows<GuildBankTabRow>(result, ReadGuildBankTab);
     }
 
-    QueryResult* QueryItems(uint32 guildId)
+    static GuildBankItemRow ReadGuildBankItem(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`", guildId);
+        GuildBankItemRow row;
+        row.instance = ItemRepository::ReadInstance(fields);
+        row.tabId = fields[2].GetUInt8();
+        row.slotId = fields[3].GetUInt8();
+        row.itemGuid = fields[4].GetUInt32();
+        row.itemEntry = fields[5].GetUInt32();
+        return row;
+    }
+
+    std::vector<GuildBankItemRow> QueryItems(uint32 guildId)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`", guildId);
+        return ReadRows<GuildBankItemRow>(result, ReadGuildBankItem);
     }
 
     static GuildBankEventLogRow ReadGuildBankEventLog(Field* fields)

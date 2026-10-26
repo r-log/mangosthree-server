@@ -27,6 +27,7 @@
 #define MANGOS_H_AUCTIONREPOSITORY
 
 #include "Platform/Define.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 
 #include <optional>
 #include <vector>
@@ -52,13 +53,20 @@ struct AuctionRow
     uint64 deposit = 0;
 };
 
+/// One auction's item as the load reads it: its instance, guid and template.
+struct AuctionItemRow
+{
+    ItemInstanceRow instance;
+    uint32 itemGuid = 0;
+    uint32 itemTemplate = 0;
+};
+
 /// The auctions' saved rows (`auction`). The three loads and the highest id run at startup, synchronously; every write
 /// is queued on the character database, and one called inside CharacterTransaction joins it.
 namespace AuctionRepository
 {
-    /// Selects every auctioned item's values and text with its guid and template, for
-    /// Item::LoadFromDB (the values first).
-    QueryResult* QueryAuctionItems();
+    /// Selects every auctioned item's saved values and text with its guid and template.
+    std::vector<AuctionItemRow> QueryAuctionItems();
 
     /// Selects the number of auctions.
     std::optional<uint32> QueryAuctionCount();

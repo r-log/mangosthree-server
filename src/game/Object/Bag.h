@@ -64,7 +64,7 @@ class Bag : public Item
         // overwrite virtual Item::SaveToDB
         void SaveToDB() override;
         // overwrite virtual Item::LoadFromDB
-        bool LoadFromDB(uint32 guidLow, Field* fields, ObjectGuid ownerGuid = ObjectGuid()) override;
+        bool LoadFromDB(uint32 guidLow, ItemInstanceRow const& instance, ObjectGuid ownerGuid = ObjectGuid()) override;
         // overwrite virtual Item::DeleteFromDB
         void DeleteFromDB() override;
 

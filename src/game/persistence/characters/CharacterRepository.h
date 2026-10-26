@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 
 class QueryResult;
 class SqlQueryHolder;
@@ -288,6 +289,36 @@ struct LoginAuraRow
     uint32 effIndexMask = 0;
 };
 
+/// One inventory item of the login: its instance, bag, slot, guid and template.
+struct LoginInventoryRow
+{
+    ItemInstanceRow instance;
+    uint32 bag = 0;
+    uint8 slot = 0;
+    uint32 item = 0;
+    uint32 itemTemplate = 0;
+};
+
+/// One mailed item of the login: its instance, mail, guid and template.
+struct LoginMailedItemRow
+{
+    ItemInstanceRow instance;
+    uint32 mailId = 0;
+    uint32 itemGuid = 0;
+    uint32 itemTemplate = 0;
+};
+
+/// One `item_loot` row of the login: the item it belongs to, and an item id (a currency id when
+/// negative, the money when 0) with its amount, random suffix and random property.
+struct LoginItemLootRow
+{
+    uint32 itemGuid = 0;
+    int32 itemId = 0;
+    uint32 amount = 0;
+    uint32 suffix = 0;
+    int32 property = 0;
+};
+
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
 /// login, the logout and the account manager use them. The account manager's two reads, the GM
 /// commands' reads and the start-up's highest guid and cache rows run on the thread that calls them,
@@ -465,6 +496,15 @@ namespace CharacterRepository
 
     /// Reads the login holder's auras.
     std::vector<LoginAuraRow> LoginAuras(SqlQueryHolder* holder);
+
+    /// Reads the login holder's inventory items.
+    std::vector<LoginInventoryRow> LoginInventory(SqlQueryHolder* holder);
+
+    /// Reads the login holder's mailed items.
+    std::vector<LoginMailedItemRow> LoginMailedItems(SqlQueryHolder* holder);
+
+    /// Reads the login holder's item loot.
+    std::vector<LoginItemLootRow> LoginItemLoot(SqlQueryHolder* holder);
 }
 
 #endif

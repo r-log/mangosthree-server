@@ -163,3 +163,22 @@ TEST(AuctionRepository_AuctionCount)
     REQUIRE(value);
     CHECK_EQ(*value, 1007u);
 }
+
+// Each column of an auction's item as the load reads it lands in its member, and the rows come back
+// in order.
+TEST(AuctionRepository_AuctionItems)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.0", "s1.1", "1002", "1003"},
+        FakeRow{"s2.0", "s2.1", "2002", "2003"},
+    });
+    std::vector<AuctionItemRow> rows = AuctionRepository::QueryAuctionItems();
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].instance.data);
+    CHECK_STR(*rows[0].instance.data, "s1.0");
+    CHECK_STR(rows[0].instance.text, "s1.1");
+    CHECK_EQ(rows[0].itemGuid, 1002u);
+    CHECK_EQ(rows[0].itemTemplate, 1003u);
+    CHECK_STR(rows[1].instance.text, "s2.1");
+}

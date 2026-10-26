@@ -513,3 +513,65 @@ TEST(SpellCooldownRepository_ReadHolder)
     CHECK_EQ(rows[0].end, time_t(uint64(4294967298ull)));
     CHECK_EQ(rows[1].spell, 2000u);
 }
+
+// Each column of an inventory item of the login lands in its member, and the rows come back in
+// order.
+TEST(CharacterRepository_LoginInventory)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADINVENTORY, CannedResult(FakeRows{
+        FakeRow{"s1.0", "s1.1", "1002", "103", "1004", "1005"},
+        FakeRow{"s2.0", "s2.1", "2002", "203", "2004", "2005"},
+    }));
+    std::vector<LoginInventoryRow> rows = CharacterRepository::LoginInventory(&holder);
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].instance.data);
+    CHECK_STR(*rows[0].instance.data, "s1.0");
+    CHECK_STR(rows[0].instance.text, "s1.1");
+    CHECK_EQ(rows[0].bag, 1002u);
+    CHECK_EQ(rows[0].slot, uint8(103));
+    CHECK_EQ(rows[0].item, 1004u);
+    CHECK_EQ(rows[0].itemTemplate, 1005u);
+    CHECK_STR(rows[1].instance.text, "s2.1");
+}
+
+// Each column of a mailed item of the login lands in its member, and the rows come back in order.
+TEST(CharacterRepository_LoginMailedItems)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADMAILEDITEMS, CannedResult(FakeRows{
+        FakeRow{"s1.0", "s1.1", "1002", "1003", "1004"},
+        FakeRow{"s2.0", "s2.1", "2002", "2003", "2004"},
+    }));
+    std::vector<LoginMailedItemRow> rows = CharacterRepository::LoginMailedItems(&holder);
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].instance.data);
+    CHECK_STR(*rows[0].instance.data, "s1.0");
+    CHECK_STR(rows[0].instance.text, "s1.1");
+    CHECK_EQ(rows[0].mailId, 1002u);
+    CHECK_EQ(rows[0].itemGuid, 1003u);
+    CHECK_EQ(rows[0].itemTemplate, 1004u);
+    CHECK_STR(rows[1].instance.text, "s2.1");
+}
+
+// Each column of an `item_loot` row of the login lands in its member, and the rows come back in
+// order.
+TEST(CharacterRepository_LoginItemLoot)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADITEMLOOT, CannedResult(FakeRows{
+        FakeRow{"1000", "-1001", "1002", "1003", "-1004"},
+        FakeRow{"2000", "-2001", "2002", "2003", "-2004"},
+    }));
+    std::vector<LoginItemLootRow> rows = CharacterRepository::LoginItemLoot(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].itemGuid, 1000u);
+    CHECK_EQ(rows[0].itemId, -1001);
+    CHECK_EQ(rows[0].amount, 1002u);
+    CHECK_EQ(rows[0].suffix, 1003u);
+    CHECK_EQ(rows[0].property, -1004);
+    CHECK_EQ(rows[1].itemGuid, 2000u);
+}
