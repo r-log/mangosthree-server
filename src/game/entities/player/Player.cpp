@@ -5954,23 +5954,19 @@ void Player::learnSpellHighRank(uint32 spellid)
 /**
  * @brief Loads skill values from the database and initializes related rewards.
  *
- * @param result The query result containing saved skill rows.
+ * @param rows The saved skill rows.
  */
-void Player::_LoadSkills(QueryResult* result)
+void Player::_LoadSkills(std::vector<LoginSkillRow> const& rows)
 {
-    //                                                           0      1      2
-
     uint32 count = 0;
     uint8 professionCount = 0;
-    if (result)
+    if (!rows.empty())
     {
-        do
+        for (LoginSkillRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
-            uint16 skill    = fields[0].GetUInt16();
-            uint16 value    = fields[1].GetUInt16();
-            uint16 max      = fields[2].GetUInt16();
+            uint16 skill    = row.skill;
+            uint16 value    = row.value;
+            uint16 max      = row.max;
 
             SkillLineEntry const* pSkill = sSkillLineStore.LookupEntry(skill);
             if (!pSkill)
@@ -6038,8 +6034,6 @@ void Player::_LoadSkills(QueryResult* result)
                 break;
             }
         }
-        while (result->NextRow());
-        delete result;
     }
 
     for (; count < PLAYER_MAX_SKILLS; ++count)

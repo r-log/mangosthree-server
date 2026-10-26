@@ -98,6 +98,25 @@
 #include<vector>
 
 struct Mail;
+struct LoginSkillRow;
+struct LoginHomeBindRow;
+struct LoginArenaTeamInfoRow;
+struct LoginBoundInstanceRow;
+struct LoginBattlegroundDataRow;
+struct LoginMailRow;
+struct LoginCufProfileRow;
+struct LoginSpellRow;
+struct LoginDailyQuestStatusRow;
+struct LoginActionRow;
+struct GlyphRow;
+struct CurrencyRow;
+struct TalentRow;
+struct ReputationRow;
+struct SpellCooldownRow;
+struct QuestStatusRow;
+struct LoginDeclinedNameRow;
+struct LoginEquipmentSetRow;
+struct LoginAuraRow;
 class Channel;
 class DynamicObject;
 class Creature;
@@ -113,6 +132,7 @@ class Item;
 struct AreaTrigger;
 
 #include <memory>
+#include <optional>
 #include "Cell.h"
 
 // Decoupling D3: named by pointer or reference only. The .cpp files that use them include them.
@@ -2329,7 +2349,7 @@ class Player : public Unit
         }
 
         // Load spell cooldowns from the database
-        void _LoadSpellCooldowns(QueryResult* result);
+        void _LoadSpellCooldowns(std::vector<SpellCooldownRow> const& rows);
 
         // Decoupling D7e: fill the per-character pet cache from the login holder's five
         // pet results. Called from LoadFromDB; nothing else fills the cache.
@@ -3000,7 +3020,7 @@ class Player : public Unit
         // Public, unlike the other _Load* members: the harness's LoginReputations
         // (Harness/ScenariosQuest.cpp, a free function, not a friend) builds a spawned character's
         // list with it; login calls it from LoadFromDB.
-        void _LoadReputations(QueryResult* result);
+        void _LoadReputations(std::vector<ReputationRow> const& rows);
 
         // Reward reputation for killing a unit
         void RewardReputation(Unit* pVictim, float rate);
@@ -3811,13 +3831,13 @@ class Player : public Unit
         /*********************************************************/
 
         // Load player actions from the database
-        void _LoadActions(QueryResult* result);
+        void _LoadActions(std::vector<LoginActionRow> const& rows);
 
         // Load player auras from the database
-        void _LoadAuras(QueryResult* result, uint32 timediff);
+        void _LoadAuras(std::vector<LoginAuraRow> const& rows, uint32 timediff);
 
         // Load bound instances from the database
-        void _LoadBoundInstances(QueryResult* result);
+        void _LoadBoundInstances(std::vector<LoginBoundInstanceRow> const& rows);
 
         // Load player inventory from the database
         void _LoadInventory(QueryResult* result, uint32 timediff);
@@ -3826,36 +3846,36 @@ class Player : public Unit
         void _LoadItemLoot(QueryResult* result);
 
         // Load player mails from the database
-        void _LoadMails(QueryResult* result);
+        void _LoadMails(std::vector<LoginMailRow> const& rows);
 
         // Load mailed items from the database
         void _LoadMailedItems(QueryResult* result);
 
         // Load quest status from the database
-        void _LoadQuestStatus(QueryResult* result);
+        void _LoadQuestStatus(std::vector<QuestStatusRow> const& rows);
 
         // Load daily quest status from the database
-        void _LoadDailyQuestStatus(QueryResult* result);
-        void _LoadGroup(QueryResult* result);
+        void _LoadDailyQuestStatus(std::vector<LoginDailyQuestStatusRow> const& rows);
+        void _LoadGroup(std::optional<uint32> const& memberGroupId);
 
         // Load player skills from the database
-        void _LoadSkills(QueryResult* result);
+        void _LoadSkills(std::vector<LoginSkillRow> const& rows);
 
         // Load player spells from the database
-        void _LoadSpells(QueryResult* result);
-        void _LoadTalents(QueryResult* result);
+        void _LoadSpells(std::vector<LoginSpellRow> const& rows);
+        void _LoadTalents(std::vector<TalentRow> const& rows);
         void _LoadFriendList(QueryResult* result);
-        bool _LoadHomeBind(QueryResult* result);
+        bool _LoadHomeBind(std::optional<LoginHomeBindRow> const& row);
 
         // Load declined names from the database
-        void _LoadDeclinedNames(QueryResult* result);
+        void _LoadDeclinedNames(std::optional<LoginDeclinedNameRow> const& row);
 
         // Load arena team information from the database
-        void _LoadArenaTeamInfo(QueryResult* result);
-        void _LoadEquipmentSets(QueryResult* result);
-        void _LoadBGData(QueryResult* result);
-        void _LoadGlyphs(QueryResult* result);
-        void _LoadCUFProfiles(QueryResult* result);
+        void _LoadArenaTeamInfo(std::vector<LoginArenaTeamInfoRow> const& rows);
+        void _LoadEquipmentSets(std::vector<LoginEquipmentSetRow> const& rows);
+        void _LoadBGData(std::optional<LoginBattlegroundDataRow> const& row);
+        void _LoadGlyphs(std::vector<GlyphRow> const& rows);
+        void _LoadCUFProfiles(std::vector<LoginCufProfileRow> const& rows);
         void _LoadIntoDataField(const char* data, uint32 startOffset, uint32 count);
 
         /*********************************************************/
@@ -3913,7 +3933,7 @@ class Player : public Unit
         /***                CURRENCY SYSTEM                    ***/
         /*********************************************************/
         CurrencyMgr m_currencyMgr;   // the currency map and its rules (extracted 2026-05-12; no owner pointer since decoupling D4k)
-        void _LoadCurrencies(QueryResult* result);
+        void _LoadCurrencies(std::vector<CurrencyRow> const& rows);
         void _SaveCurrencies() { m_currencyMgr.Save(GetGUIDLow()); }
 
 

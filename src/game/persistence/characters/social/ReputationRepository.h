@@ -30,6 +30,7 @@
 #include "Platform/Define.h"
 
 class Field;
+class SqlQueryHolder;
 
 /// One faction's saved reputation row: the faction id, the standing relative to the base and the
 /// flags.
@@ -45,6 +46,9 @@ namespace ReputationRepository
 {
     /// Reads one row of the login holder's reputation result: `faction`, `standing`, `flags`.
     ReputationRow ReadRow(Field* fields);
+
+    /// Reads a holder slot's rows, its columns in ReadRow's order.
+    std::vector<ReputationRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
     /// Replaces the saved row of each faction in `rows`, in order: a DELETE of the owner's row of
     /// that faction, then an INSERT of the new one, both queued on the character database.

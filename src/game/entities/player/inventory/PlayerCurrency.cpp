@@ -125,18 +125,15 @@ void Player::SendCurrencyWeekCap(CurrencyTypesEntry const* currency) const
     m_currencyMgr.SendWeekCap(currency, ReadCurrencyInputs(this), m_clientCallbacks.currencyWeekCap);
 }
 
-void Player::_LoadCurrencies(QueryResult* result)
+void Player::_LoadCurrencies(std::vector<CurrencyRow> const& rows)
 {
-    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADCURRENCIES result (CharacterRepository.cpp)
-
-    if (result)
+    if (!rows.empty())
     {
         uint32 conquestWeekCap = sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP);
 
-        do
+        for (CurrencyRow const& row : rows)
         {
-            m_currencyMgr.LoadRow(CurrencyRepository::ReadRow(result->Fetch()), conquestWeekCap, GetObjectGuid());
+            m_currencyMgr.LoadRow(row, conquestWeekCap, GetObjectGuid());
         }
-        while (result->NextRow());
     }
 }

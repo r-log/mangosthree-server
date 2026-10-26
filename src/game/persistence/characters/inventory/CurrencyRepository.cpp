@@ -25,6 +25,8 @@
 
 #include "CurrencyRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
+#include "persistence/RowReader.h"
 
 namespace CurrencyRepository
 {
@@ -40,6 +42,11 @@ namespace CurrencyRepository
         row.seasonCount = fields[3].GetUInt32();
         row.flags       = fields[4].GetUInt8();
         return row;
+    }
+
+    std::vector<CurrencyRow> ReadHolder(SqlQueryHolder* holder, size_t slot)
+    {
+        return ReadRows<CurrencyRow>(holder->GetResult(slot), ReadRow);
     }
 
     void DeleteEveryRowOf(uint32 currencyId)

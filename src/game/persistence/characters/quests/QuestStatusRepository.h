@@ -31,6 +31,7 @@
 #include "Platform/Define.h"
 
 class Field;
+class SqlQueryHolder;
 class QueryResult;
 
 /// The objective counts a saved quest status row holds: four creature or game object counts and
@@ -74,9 +75,15 @@ namespace QuestStatusRepository
     /// explored, timer, mobcount1..4, itemcount1..6.
     QuestStatusRow ReadRow(Field* fields);
 
+    /// Reads a holder slot's rows, its columns in ReadRow's order.
+    std::vector<QuestStatusRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
+
     /// Reads the quest id of every row of the login holder's weekly or monthly result, in order,
     /// and deletes the result; none for no result.
     std::vector<uint32> ReadQuestIds(QueryResult* result);
+
+    /// Reads a holder slot's quest ids, as ReadQuestIds does.
+    std::vector<uint32> ReadHolderQuestIds(SqlQueryHolder* holder, size_t slot);
 
     /// Inserts the owner's row of a new quest status.
     void Insert(uint32 ownerGuidLow, QuestStatusSaveRow const& row);

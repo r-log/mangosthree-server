@@ -28,7 +28,10 @@
 
 #include "Platform/Define.h"
 
+#include <vector>
+
 class Field;
+class SqlQueryHolder;
 
 /// One saved glyph: the spec and slot it sits in and the glyph property id.
 struct GlyphRow
@@ -43,6 +46,9 @@ namespace GlyphRepository
 {
     /// Reads one row of the login holder's glyph result: spec, slot, glyph.
     GlyphRow ReadRow(Field* fields);
+
+    /// Reads a holder slot's rows, its columns in ReadRow's order.
+    std::vector<GlyphRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
     /// Deletes every character's rows of the glyph `glyph`, not only one character's.
     void DeleteEveryRowOfGlyph(uint32 glyph);

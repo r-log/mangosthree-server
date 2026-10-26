@@ -25,6 +25,8 @@
 
 #include "ReputationRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
+#include "persistence/RowReader.h"
 
 namespace ReputationRepository
 {
@@ -35,6 +37,11 @@ namespace ReputationRepository
         row.standing = int32(fields[1].GetUInt32());
         row.flags = fields[2].GetUInt32();
         return row;
+    }
+
+    std::vector<ReputationRow> ReadHolder(SqlQueryHolder* holder, size_t slot)
+    {
+        return ReadRows<ReputationRow>(holder->GetResult(slot), ReadRow);
     }
 
     void Save(uint32 ownerGuidLow, std::vector<ReputationRow> const& rows)

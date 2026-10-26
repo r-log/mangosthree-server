@@ -55,6 +55,11 @@
 #include "DisableMgr.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
+#include "persistence/characters/talents/GlyphRepository.h"
+#include "persistence/characters/inventory/CurrencyRepository.h"
+#include "persistence/characters/talents/TalentRepository.h"
+#include "persistence/characters/social/ReputationRepository.h"
+#include "persistence/characters/spells/SpellCooldownRepository.h"
 #include <cmath>
 
 /**
@@ -196,7 +201,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     SetCharm(NULL);
 
     // load home bind and check in same time class/race pair, it used later for restore broken positions
-    if (!_LoadHomeBind(holder->GetResult(PLAYER_LOGIN_QUERY_LOADHOMEBIND)))
+    if (!_LoadHomeBind(CharacterRepository::LoginHomeBind(holder)))
     {
         delete result;
         return false;
@@ -216,9 +221,9 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     }
     SetDungeonDifficulty(Difficulty(difficulty));           // may be changed in _LoadGroup
 
-    _LoadGroup(holder->GetResult(PLAYER_LOGIN_QUERY_LOADGROUP));
+    _LoadGroup(CharacterRepository::LoginGroup(holder));
 
-    _LoadArenaTeamInfo(holder->GetResult(PLAYER_LOGIN_QUERY_LOADARENAINFO));
+    _LoadArenaTeamInfo(CharacterRepository::LoginArenaTeamInfo(holder));
 
     // check arena teams integrity
     for (uint32 arena_slot = 0; arena_slot < MAX_ARENA_SLOT; ++arena_slot)
@@ -246,7 +251,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     SetUInt16Value(PLAYER_FIELD_KILLS, 0, fields[41].GetUInt16()); // today
     SetUInt16Value(PLAYER_FIELD_KILLS, 1, fields[42].GetUInt16()); // yesterday
 
-    _LoadBoundInstances(holder->GetResult(PLAYER_LOGIN_QUERY_LOADBOUNDINSTANCES));
+    _LoadBoundInstances(CharacterRepository::LoginBoundInstances(holder));
 
     if (!IsPlaceable(*this))
     {
@@ -259,7 +264,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         m_movementInfo.ClearTransportData();
     }
 
-    _LoadBGData(holder->GetResult(PLAYER_LOGIN_QUERY_LOADBGDATA));
+    _LoadBGData(CharacterRepository::LoginBGData(holder));
 
     if (m_bgData.bgInstanceID)                              // saved in BattleGround
     {
@@ -535,19 +540,19 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     }
 
     // load skills after InitStatsForLevel because it triggering aura apply also
-    _LoadSkills(holder->GetResult(PLAYER_LOGIN_QUERY_LOADSKILLS));
+    _LoadSkills(CharacterRepository::LoginSkills(holder));
 
     // apply original stats mods before spell loading or item equipment that call before equip _RemoveStatsMods()
 
     // Mail
-    _LoadMails(holder->GetResult(PLAYER_LOGIN_QUERY_LOADMAILS));
+    _LoadMails(CharacterRepository::LoginMails(holder));
     _LoadMailedItems(holder->GetResult(PLAYER_LOGIN_QUERY_LOADMAILEDITEMS));
     UpdateNextMailTimeAndUnreads();
 
-    _LoadGlyphs(holder->GetResult(PLAYER_LOGIN_QUERY_LOADGLYPHS));
-    _LoadCUFProfiles(holder->GetResult(PLAYER_LOGIN_QUERY_LOADCUFPROFILES));
+    _LoadGlyphs(GlyphRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADGLYPHS));
+    _LoadCUFProfiles(CharacterRepository::LoginCUFProfiles(holder));
 
-    _LoadAuras(holder->GetResult(PLAYER_LOGIN_QUERY_LOADAURAS), time_diff);
+    _LoadAuras(CharacterRepository::LoginAuras(holder), time_diff);
     ApplyGlyphs(true);
 
     // add ghost flag (must be after aura load: PLAYER_FLAGS_GHOST set in aura)
@@ -556,23 +561,23 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         m_deathState = DEAD;
     }
 
-    _LoadCurrencies(holder->GetResult(PLAYER_LOGIN_QUERY_LOADCURRENCIES));
-    _LoadSpells(holder->GetResult(PLAYER_LOGIN_QUERY_LOADSPELLS));
+    _LoadCurrencies(CurrencyRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADCURRENCIES));
+    _LoadSpells(CharacterRepository::LoginSpells(holder));
 
     // after spell load, learn rewarded spell if need also
-    _LoadQuestStatus(holder->GetResult(PLAYER_LOGIN_QUERY_LOADQUESTSTATUS));
-    _LoadDailyQuestStatus(holder->GetResult(PLAYER_LOGIN_QUERY_LOADDAILYQUESTSTATUS));
-    m_questStatusMgr.LoadWeekly(QuestStatusRepository::ReadQuestIds(holder->GetResult(PLAYER_LOGIN_QUERY_LOADWEEKLYQUESTSTATUS)), GetGUIDLow(), ObjectMgr::QuestTemplateLookup());
-    m_questStatusMgr.LoadMonthly(QuestStatusRepository::ReadQuestIds(holder->GetResult(PLAYER_LOGIN_QUERY_LOADMONTHLYQUESTSTATUS)), GetGUIDLow(), ObjectMgr::QuestTemplateLookup());
+    _LoadQuestStatus(QuestStatusRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADQUESTSTATUS));
+    _LoadDailyQuestStatus(CharacterRepository::LoginDailyQuestStatus(holder));
+    m_questStatusMgr.LoadWeekly(QuestStatusRepository::ReadHolderQuestIds(holder, PLAYER_LOGIN_QUERY_LOADWEEKLYQUESTSTATUS), GetGUIDLow(), ObjectMgr::QuestTemplateLookup());
+    m_questStatusMgr.LoadMonthly(QuestStatusRepository::ReadHolderQuestIds(holder, PLAYER_LOGIN_QUERY_LOADMONTHLYQUESTSTATUS), GetGUIDLow(), ObjectMgr::QuestTemplateLookup());
 
-    _LoadTalents(holder->GetResult(PLAYER_LOGIN_QUERY_LOADTALENTS));
+    _LoadTalents(TalentRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADTALENTS));
 
     // after spell and quest load
     InitTalentForLevel();
     learnDefaultSpells();
 
     // must be before inventory (some items required reputation check)
-    _LoadReputations(holder->GetResult(PLAYER_LOGIN_QUERY_LOADREPUTATION));
+    _LoadReputations(ReputationRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADREPUTATION));
 
     _LoadInventory(holder->GetResult(PLAYER_LOGIN_QUERY_LOADINVENTORY), time_diff);
     _LoadItemLoot(holder->GetResult(PLAYER_LOGIN_QUERY_LOADITEMLOOT));
@@ -580,7 +585,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     // update items with duration and realtime
     UpdateItemDuration(time_diff, true);
 
-    _LoadActions(holder->GetResult(PLAYER_LOGIN_QUERY_LOADACTIONS));
+    _LoadActions(CharacterRepository::LoginActions(holder));
 
     m_social = sSocialMgr.LoadFromDB(holder->GetResult(PLAYER_LOGIN_QUERY_LOADSOCIALLIST), GetObjectGuid());
 
@@ -648,7 +653,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     // has to be called after last Relocate() in Player::LoadFromDB
     SetFallInformation(0, Where().Z());
 
-    _LoadSpellCooldowns(holder->GetResult(PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS));
+    _LoadSpellCooldowns(SpellCooldownRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS));
 
     // Spell code allow apply any auras to dead character in load time in aura/spell/item loading
     // Do now before stats re-calculation cleanup for ghost state unexpected auras
@@ -748,11 +753,11 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         }
     }
 
-    _LoadDeclinedNames(holder->GetResult(PLAYER_LOGIN_QUERY_LOADDECLINEDNAMES));
+    _LoadDeclinedNames(CharacterRepository::LoginDeclinedNames(holder));
 
     m_achievementMgr->CheckAllAchievementCriteria();
 
-    _LoadEquipmentSets(holder->GetResult(PLAYER_LOGIN_QUERY_LOADEQUIPMENTSETS));
+    _LoadEquipmentSets(CharacterRepository::LoginEquipmentSets(holder));
 
     return true;
 }

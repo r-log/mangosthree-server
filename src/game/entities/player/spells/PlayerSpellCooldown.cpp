@@ -103,23 +103,19 @@ void Player::RemoveArenaSpellCooldowns()
     m_spellCooldownMgr.RemoveArenaSpellCooldowns(ClearCooldownSink(this));
 }
 
-void Player::_LoadSpellCooldowns(QueryResult* result)
+void Player::_LoadSpellCooldowns(std::vector<SpellCooldownRow> const& rows)
 {
     // some cooldowns can be already set at aura loading...
 
-    // the rows are the login holder's PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS result (CharacterRepository.cpp)
-
-    if (result)
+    if (!rows.empty())
     {
         time_t curTime = time(NULL);
 
-        do
+        for (SpellCooldownRow const& row : rows)
         {
-            m_spellCooldownMgr.LoadRow(SpellCooldownRepository::ReadRow(result->Fetch()), curTime, GetGUIDLow());
+            m_spellCooldownMgr.LoadRow(row, curTime, GetGUIDLow());
         }
-        while (result->NextRow());
 
-        delete result;
     }
 }
 

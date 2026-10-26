@@ -113,6 +113,7 @@ set(SRC_GRP_TESTS
     PoolDataRepositoryTest.cpp
     WaypointRepositoryTest.cpp
     CorpseRepositoryTest.cpp
+    LoginHolderTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp
