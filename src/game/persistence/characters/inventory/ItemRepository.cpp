@@ -214,57 +214,109 @@ namespace ItemRepository
         CharacterDatabase.CommitTransaction();
     }
 
-    QueryResult* QueryInventoryCountOf(uint32 itemId)
+    std::optional<uint32> QueryInventoryCountOf(uint32 itemId)
     {
-        return CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `character_inventory` WHERE `item_template`='%u'", itemId);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `character_inventory` WHERE `item_template`='%u'", itemId);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryInventoryHoldersOf(uint32 itemId, uint32 count)
+    static ItemInventoryHolderRow ReadInventoryHolder(Field* fields)
+    {
+        ItemInventoryHolderRow row;
+        row.itemGuid = fields[0].GetUInt32();
+        row.bag = fields[1].GetUInt32();
+        row.slot = fields[2].GetUInt32();
+        row.ownerGuid = fields[3].GetUInt32();
+        row.ownerAccount = fields[4].GetUInt32();
+        row.ownerName = fields[5].GetCppString();
+        return row;
+    }
+
+    std::vector<ItemInventoryHolderRow> QueryInventoryHoldersOf(uint32 itemId, uint32 count)
     {
         //                                          0        1             2             3        4                  5
-        return CharacterDatabase.PQuery("SELECT `ci`.`item`, `cibag`.`slot` AS bag, `ci`.`slot`, `ci`.`guid`, `characters`.`account`,`characters`.`name` "
-                                        "FROM `character_inventory` AS `ci` LEFT JOIN `character_inventory` AS cibag ON (`cibag`.`item`=`ci`.`bag`),`characters` "
-                                        "WHERE `ci`.`item_template`='%u' AND `ci`.`guid` = `characters`.`guid` LIMIT %u ",
-                                        itemId, count);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `ci`.`item`, `cibag`.`slot` AS bag, `ci`.`slot`, `ci`.`guid`, `characters`.`account`,`characters`.`name` "
+                                                       "FROM `character_inventory` AS `ci` LEFT JOIN `character_inventory` AS cibag ON (`cibag`.`item`=`ci`.`bag`),`characters` "
+                                                       "WHERE `ci`.`item_template`='%u' AND `ci`.`guid` = `characters`.`guid` LIMIT %u ",
+                                                       itemId, count);
+        return ReadRows<ItemInventoryHolderRow>(result, ReadInventoryHolder);
     }
 
-    QueryResult* QueryMailCountOf(uint32 itemId)
+    std::optional<uint32> QueryMailCountOf(uint32 itemId)
     {
-        return CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `mail_items` WHERE `item_template`='%u'", itemId);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `mail_items` WHERE `item_template`='%u'", itemId);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryMailHoldersOf(uint32 itemId, uint32 count)
+    static ItemMailHolderRow ReadMailHolder(Field* fields)
+    {
+        ItemMailHolderRow row;
+        row.itemGuid = fields[0].GetUInt32();
+        row.sender = fields[1].GetUInt32();
+        row.receiver = fields[2].GetUInt32();
+        row.senderAccount = fields[3].GetUInt32();
+        row.senderName = fields[4].GetCppString();
+        row.receiverAccount = fields[5].GetUInt32();
+        row.receiverName = fields[6].GetCppString();
+        return row;
+    }
+
+    std::vector<ItemMailHolderRow> QueryMailHoldersOf(uint32 itemId, uint32 count)
     {
         //                                          0                     1            2              3               4            5               6
-        return CharacterDatabase.PQuery("SELECT `mail_items`.`item_guid`, `mail`.`sender`, `mail`.`receiver`, `char_s`.`account`, `char_s`.`name`, `char_r`.`account`, `char_r`.`name` "
-                                        "FROM `mail`,`mail_items`,`characters` as char_s,`characters` as char_r "
-                                        "WHERE `mail_items`.`item_template`='%u' AND `char_s`.`guid` = `mail`.`sender` AND `char_r`.`guid` = `mail`.`receiver` AND `mail`.`id`=`mail_items`.`mail_id` LIMIT %u",
-                                        itemId, count);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `mail_items`.`item_guid`, `mail`.`sender`, `mail`.`receiver`, `char_s`.`account`, `char_s`.`name`, `char_r`.`account`, `char_r`.`name` "
+                                                       "FROM `mail`,`mail_items`,`characters` as char_s,`characters` as char_r "
+                                                       "WHERE `mail_items`.`item_template`='%u' AND `char_s`.`guid` = `mail`.`sender` AND `char_r`.`guid` = `mail`.`receiver` AND `mail`.`id`=`mail_items`.`mail_id` LIMIT %u",
+                                                       itemId, count);
+        return ReadRows<ItemMailHolderRow>(result, ReadMailHolder);
     }
 
-    QueryResult* QueryAuctionCountOf(uint32 itemId)
+    std::optional<uint32> QueryAuctionCountOf(uint32 itemId)
     {
-        return CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `auction` WHERE `item_template`='%u'", itemId);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT COUNT(`item_template`) FROM `auction` WHERE `item_template`='%u'", itemId);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryAuctionHoldersOf(uint32 itemId, uint32 count)
+    static ItemAuctionHolderRow ReadAuctionHolder(Field* fields)
+    {
+        ItemAuctionHolderRow row;
+        row.itemGuid = fields[0].GetUInt32();
+        row.ownerGuid = fields[1].GetUInt32();
+        row.ownerAccount = fields[2].GetUInt32();
+        row.ownerName = fields[3].GetCppString();
+        return row;
+    }
+
+    std::vector<ItemAuctionHolderRow> QueryAuctionHoldersOf(uint32 itemId, uint32 count)
     {
         //                                           0                      1                       2                   3
-        return CharacterDatabase.PQuery("SELECT  `auction`.`itemguid`, `auction`.`itemowner`, `characters`.`account`, `characters`.`name` "
-                                        "FROM `auction`,`characters` WHERE `auction`.`item_template`='%u' AND `characters`.`guid` = `auction`.`itemowner` LIMIT %u",
-                                        itemId, count);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT  `auction`.`itemguid`, `auction`.`itemowner`, `characters`.`account`, `characters`.`name` "
+                                                       "FROM `auction`,`characters` WHERE `auction`.`item_template`='%u' AND `characters`.`guid` = `auction`.`itemowner` LIMIT %u",
+                                                       itemId, count);
+        return ReadRows<ItemAuctionHolderRow>(result, ReadAuctionHolder);
     }
 
-    QueryResult* QueryGuildBankCountOf(uint32 itemId)
+    std::optional<uint32> QueryGuildBankCountOf(uint32 itemId)
     {
-        return CharacterDatabase.PQuery("SELECT COUNT(`item_entry`) FROM `guild_bank_item` WHERE `item_entry`='%u'", itemId);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT COUNT(`item_entry`) FROM `guild_bank_item` WHERE `item_entry`='%u'", itemId);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryGuildBankHoldersOf(uint32 itemId, uint32 count)
+    static ItemGuildBankHolderRow ReadGuildBankHolder(Field* fields)
+    {
+        ItemGuildBankHolderRow row;
+        row.itemGuid = fields[0].GetUInt32();
+        row.guildId = fields[1].GetUInt32();
+        row.guildName = fields[2].GetCppString();
+        return row;
+    }
+
+    std::vector<ItemGuildBankHolderRow> QueryGuildBankHoldersOf(uint32 itemId, uint32 count)
     {
         //                                      0             1           2
-        return CharacterDatabase.PQuery("SELECT gi.item_guid, gi.guildid, guild.name "
-                                        "FROM guild_bank_item AS gi, guild WHERE gi.item_entry='%u' AND gi.guildid = guild.guildid LIMIT %u ",
-                                        itemId, count);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT gi.item_guid, gi.guildid, guild.name "
+                                                       "FROM guild_bank_item AS gi, guild WHERE gi.item_entry='%u' AND gi.guildid = guild.guildid LIMIT %u ",
+                                                       itemId, count);
+        return ReadRows<ItemGuildBankHolderRow>(result, ReadGuildBankHolder);
     }
 }

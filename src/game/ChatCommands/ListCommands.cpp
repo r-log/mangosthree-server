@@ -46,6 +46,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
+#include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
@@ -230,30 +231,25 @@ bool ChatHandler::HandleListItemCommand(char* args)
         return false;
     }
 
-    QueryResult* result;
-
     // inventory case
     uint32 inv_count = 0;
-    result = ItemRepository::QueryInventoryCountOf(item_id);
-    if (result)
+    if (std::optional<uint32> invCount = ItemRepository::QueryInventoryCountOf(item_id))
     {
-        inv_count = (*result)[0].GetUInt32();
-        delete result;
+        inv_count = *invCount;
     }
 
-    result = ItemRepository::QueryInventoryHoldersOf(item_id, uint32(count));
+    std::vector<ItemInventoryHolderRow> invHolders = ItemRepository::QueryInventoryHoldersOf(item_id, uint32(count));
 
-    if (result)
+    if (!invHolders.empty())
     {
-        do
+        for (ItemInventoryHolderRow const& row : invHolders)
         {
-            Field* fields = result->Fetch();
-            uint32 item_guid = fields[0].GetUInt32();
-            uint32 item_bag = fields[1].GetUInt32();
-            uint32 item_slot = fields[2].GetUInt32();
-            uint32 owner_guid = fields[3].GetUInt32();
-            uint32 owner_acc = fields[4].GetUInt32();
-            std::string owner_name = fields[5].GetCppString();
+            uint32 item_guid = row.itemGuid;
+            uint32 item_bag = row.bag;
+            uint32 item_slot = row.slot;
+            uint32 owner_guid = row.ownerGuid;
+            uint32 owner_acc = row.ownerAccount;
+            std::string owner_name = row.ownerName;
 
             char const* item_pos = 0;
             if (InventoryMgr::IsEquipmentPos(item_bag, item_slot))
@@ -276,11 +272,8 @@ bool ChatHandler::HandleListItemCommand(char* args)
             PSendSysMessage(LANG_ITEMLIST_SLOT,
                             item_guid, owner_name.c_str(), owner_guid, owner_acc, item_pos);
         }
-        while (result->NextRow());
 
-        uint32 res_count = uint32(result->GetRowCount());
-
-        delete result;
+        uint32 res_count = uint32(invHolders.size());
 
         if (count > res_count)
         {
@@ -294,45 +287,36 @@ bool ChatHandler::HandleListItemCommand(char* args)
 
     // mail case
     uint32 mail_count = 0;
-    result = ItemRepository::QueryMailCountOf(item_id);
-    if (result)
+    if (std::optional<uint32> mailCount = ItemRepository::QueryMailCountOf(item_id))
     {
-        mail_count = (*result)[0].GetUInt32();
-        delete result;
+        mail_count = *mailCount;
     }
 
+    std::vector<ItemMailHolderRow> mailHolders;
     if (count > 0)
     {
-        result = ItemRepository::QueryMailHoldersOf(item_id, uint32(count));
-    }
-    else
-    {
-        result = NULL;
+        mailHolders = ItemRepository::QueryMailHoldersOf(item_id, uint32(count));
     }
 
-    if (result)
+    if (!mailHolders.empty())
     {
-        do
+        for (ItemMailHolderRow const& row : mailHolders)
         {
-            Field* fields = result->Fetch();
-            uint32 item_guid = fields[0].GetUInt32();
-            uint32 item_s = fields[1].GetUInt32();
-            uint32 item_r = fields[2].GetUInt32();
-            uint32 item_s_acc = fields[3].GetUInt32();
-            std::string item_s_name = fields[4].GetCppString();
-            uint32 item_r_acc = fields[5].GetUInt32();
-            std::string item_r_name = fields[6].GetCppString();
+            uint32 item_guid = row.itemGuid;
+            uint32 item_s = row.sender;
+            uint32 item_r = row.receiver;
+            uint32 item_s_acc = row.senderAccount;
+            std::string item_s_name = row.senderName;
+            uint32 item_r_acc = row.receiverAccount;
+            std::string item_r_name = row.receiverName;
 
             char const* item_pos = "[in mail]";
 
             PSendSysMessage(LANG_ITEMLIST_MAIL,
                             item_guid, item_s_name.c_str(), item_s, item_s_acc, item_r_name.c_str(), item_r, item_r_acc, item_pos);
         }
-        while (result->NextRow());
 
-        uint32 res_count = uint32(result->GetRowCount());
-
-        delete result;
+        uint32 res_count = uint32(mailHolders.size());
 
         if (count > res_count)
         {
@@ -346,70 +330,55 @@ bool ChatHandler::HandleListItemCommand(char* args)
 
     // auction case
     uint32 auc_count = 0;
-    result = ItemRepository::QueryAuctionCountOf(item_id);
-    if (result)
+    if (std::optional<uint32> aucCount = ItemRepository::QueryAuctionCountOf(item_id))
     {
-        auc_count = (*result)[0].GetUInt32();
-        delete result;
+        auc_count = *aucCount;
     }
 
+    std::vector<ItemAuctionHolderRow> aucHolders;
     if (count > 0)
     {
-        result = ItemRepository::QueryAuctionHoldersOf(item_id, uint32(count));
-    }
-    else
-    {
-        result = NULL;
+        aucHolders = ItemRepository::QueryAuctionHoldersOf(item_id, uint32(count));
     }
 
-    if (result)
+    if (!aucHolders.empty())
     {
-        do
+        for (ItemAuctionHolderRow const& row : aucHolders)
         {
-            Field* fields = result->Fetch();
-            uint32 item_guid = fields[0].GetUInt32();
-            uint32 owner = fields[1].GetUInt32();
-            uint32 owner_acc = fields[2].GetUInt32();
-            std::string owner_name = fields[3].GetCppString();
+            uint32 item_guid = row.itemGuid;
+            uint32 owner = row.ownerGuid;
+            uint32 owner_acc = row.ownerAccount;
+            std::string owner_name = row.ownerName;
 
             char const* item_pos = "[in auction]";
 
             PSendSysMessage(LANG_ITEMLIST_AUCTION, item_guid, owner_name.c_str(), owner, owner_acc, item_pos);
         }
-        while (result->NextRow());
-
-        delete result;
     }
 
     // guild bank case
     uint32 guild_count = 0;
-    result = ItemRepository::QueryGuildBankCountOf(item_id);
-    if (result)
+    if (std::optional<uint32> guildCount = ItemRepository::QueryGuildBankCountOf(item_id))
     {
-        guild_count = (*result)[0].GetUInt32();
-        delete result;
+        guild_count = *guildCount;
     }
 
-    result = ItemRepository::QueryGuildBankHoldersOf(item_id, uint32(count));
+    std::vector<ItemGuildBankHolderRow> guildHolders = ItemRepository::QueryGuildBankHoldersOf(item_id, uint32(count));
 
-    if (result)
+    if (!guildHolders.empty())
     {
-        do
+        for (ItemGuildBankHolderRow const& row : guildHolders)
         {
-            Field* fields = result->Fetch();
-            uint32 item_guid = fields[0].GetUInt32();
-            uint32 guild_guid = fields[1].GetUInt32();
-            std::string guild_name = fields[2].GetCppString();
+            uint32 item_guid = row.itemGuid;
+            uint32 guild_guid = row.guildId;
+            std::string guild_name = row.guildName;
 
             char const* item_pos = "[in guild bank]";
 
             PSendSysMessage(LANG_ITEMLIST_GUILD, item_guid, guild_name.c_str(), guild_guid, item_pos);
         }
-        while (result->NextRow());
 
-        uint32 res_count = uint32(result->GetRowCount());
-
-        delete result;
+        uint32 res_count = uint32(guildHolders.size());
 
         if (count > res_count)
         {
@@ -514,34 +483,30 @@ bool ChatHandler::HandleListObjectCommand(char* args)
         return false;
     }
 
-    QueryResult* result;
-
     uint32 obj_count = 0;
-    result = SpawnRepository::QueryGameObjectCountOf(go_id);
-    if (result)
+    if (std::optional<uint32> spawnCount = SpawnRepository::QueryGameObjectCountOf(go_id))
     {
-        obj_count = (*result)[0].GetUInt32();
-        delete result;
+        obj_count = *spawnCount;
     }
 
+    std::vector<SpawnListRow> spawns;
     if (m_session)
     {
         Player* pl = m_session->GetPlayer();
-        result = SpawnRepository::QueryGameObjectsNear(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), go_id, uint32(count));
+        spawns = SpawnRepository::QueryGameObjectsNear(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), go_id, uint32(count));
     }
     else
-        result = SpawnRepository::QueryGameObjectsOf(go_id, uint32(count));
+        spawns = SpawnRepository::QueryGameObjectsOf(go_id, uint32(count));
 
-    if (result)
+    if (!spawns.empty())
     {
-        do
+        for (SpawnListRow const& row : spawns)
         {
-            Field* fields = result->Fetch();
-            uint32 guid = fields[0].GetUInt32();
-            float x = fields[1].GetFloat();
-            float y = fields[2].GetFloat();
-            float z = fields[3].GetFloat();
-            int mapid = fields[4].GetUInt16();
+            uint32 guid = row.guid;
+            float x = row.positionX;
+            float y = row.positionY;
+            float z = row.positionZ;
+            int mapid = row.map;
 
             if (m_session)
             {
@@ -552,9 +517,6 @@ bool ChatHandler::HandleListObjectCommand(char* args)
                 PSendSysMessage(LANG_GO_LIST_CONSOLE, guid, PrepareStringNpcOrGoSpawnInformation<GameObject>(guid).c_str(), gInfo->name, x, y, z, mapid);
             }
         }
-        while (result->NextRow());
-
-        delete result;
     }
 
     PSendSysMessage(LANG_COMMAND_LISTOBJMESSAGE, go_id, obj_count);
@@ -597,34 +559,30 @@ bool ChatHandler::HandleListCreatureCommand(char* args)
         return false;
     }
 
-    QueryResult* result;
-
     uint32 cr_count = 0;
-    result = SpawnRepository::QueryCreatureCountOf(cr_id);
-    if (result)
+    if (std::optional<uint32> spawnCount = SpawnRepository::QueryCreatureCountOf(cr_id))
     {
-        cr_count = (*result)[0].GetUInt32();
-        delete result;
+        cr_count = *spawnCount;
     }
 
+    std::vector<SpawnListRow> spawns;
     if (m_session)
     {
         Player* pl = m_session->GetPlayer();
-        result = SpawnRepository::QueryCreaturesNear(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), cr_id, uint32(count));
+        spawns = SpawnRepository::QueryCreaturesNear(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), cr_id, uint32(count));
     }
     else
-        result = SpawnRepository::QueryCreaturesOf(cr_id, uint32(count));
+        spawns = SpawnRepository::QueryCreaturesOf(cr_id, uint32(count));
 
-    if (result)
+    if (!spawns.empty())
     {
-        do
+        for (SpawnListRow const& row : spawns)
         {
-            Field* fields = result->Fetch();
-            uint32 guid = fields[0].GetUInt32();
-            float x = fields[1].GetFloat();
-            float y = fields[2].GetFloat();
-            float z = fields[3].GetFloat();
-            int mapid = fields[4].GetUInt16();
+            uint32 guid = row.guid;
+            float x = row.positionX;
+            float y = row.positionY;
+            float z = row.positionZ;
+            int mapid = row.map;
 
             if (m_session)
             {
@@ -635,9 +593,6 @@ bool ChatHandler::HandleListCreatureCommand(char* args)
                 PSendSysMessage(LANG_CREATURE_LIST_CONSOLE, guid, PrepareStringNpcOrGoSpawnInformation<Creature>(guid).c_str(), cInfo->Name, x, y, z, mapid);
             }
         }
-        while (result->NextRow());
-
-        delete result;
     }
 
     PSendSysMessage(LANG_COMMAND_LISTCREATUREMESSAGE, cr_id, cr_count);
@@ -755,9 +710,9 @@ void ChatHandler::ShowCurrencyListHelper(Player* target, CurrencyTypesEntry cons
     SendSysMessage(ss.str().c_str());
 }
 
-bool ChatHandler::ShowPlayerListHelper(QueryResult* result, uint32* limit, bool title, bool error)
+bool ChatHandler::ShowPlayerListHelper(std::vector<AccountCharacterListRow> const& rows, uint32* limit, bool title, bool error)
 {
-    if (!result)
+    if (rows.empty())
     {
         if (error)
         {
@@ -774,10 +729,10 @@ bool ChatHandler::ShowPlayerListHelper(QueryResult* result, uint32* limit, bool 
         SendSysMessage(LANG_CHARACTERS_LIST_BAR);
     }
 
-    if (result)
+    if (!rows.empty())
     {
         ///- Circle through them. Display username and GM level
-        do
+        for (AccountCharacterListRow const& row : rows)
         {
             // check limit
             if (limit)
@@ -789,12 +744,11 @@ bool ChatHandler::ShowPlayerListHelper(QueryResult* result, uint32* limit, bool 
                 --* limit;
             }
 
-            Field* fields = result->Fetch();
-            uint32 guid = fields[0].GetUInt32();
-            std::string name = fields[1].GetCppString();
-            uint8 race = fields[2].GetUInt8();
-            uint8 class_ = fields[3].GetUInt8();
-            uint32 level = fields[4].GetUInt32();
+            uint32 guid = row.guid;
+            std::string name = row.name;
+            uint8 race = row.race;
+            uint8 class_ = row.classId;
+            uint32 level = row.level;
 
             ChrRacesEntry const* raceEntry = sChrRacesStore.LookupEntry(race);
             ChrClassesEntry const* classEntry = sChrClassesStore.LookupEntry(class_);
@@ -810,9 +764,7 @@ bool ChatHandler::ShowPlayerListHelper(QueryResult* result, uint32* limit, bool 
             {
                 PSendSysMessage(LANG_CHARACTERS_LIST_LINE_CHAT, guid, name.c_str(), name.c_str(), race_name, class_name, level);
             }
-        } while (result->NextRow());
-
-        delete result;
+        }
     }
 
     if (!m_session)

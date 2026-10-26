@@ -191,10 +191,22 @@ namespace AccountRepository
         LoginDatabase.PExecute("UPDATE `account` SET `locked` = '0' WHERE `id` = '%u'", accountId);
     }
 
-    QueryResult* QueryActiveOnRealm(uint32 realmId)
+    static AccountListRow ReadAccountListRow(Field* fields)
+    {
+        AccountListRow row;
+        row.id = fields[0].GetUInt32();
+        row.username = fields[1].GetString();
+        row.lastIp = fields[2].GetString();
+        row.gmLevel = fields[3].GetUInt32();
+        row.expansion = fields[4].GetUInt32();
+        return row;
+    }
+
+    std::vector<AccountListRow> QueryActiveOnRealm(uint32 realmId)
     {
         //                                  0   1         2        3        4
-        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u", realmId);
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u", realmId);
+        return ReadRows<AccountListRow>(result, ReadAccountListRow);
     }
 
     void SetExpansion(uint32 expansion, uint32 accountId)
@@ -217,43 +229,57 @@ namespace AccountRepository
         LoginDatabase.PExecute("UPDATE `account` SET `mutetime` = '0' WHERE `id` = '%u'", accountId);
     }
 
-    QueryResult* QueryAccountsByEmail(std::string email)
+    std::vector<AccountListRow> QueryAccountsByEmail(std::string email)
     {
         LoginDatabase.escape_string(email);
         //                                  0   1         2        3        4
-        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
+        return ReadRows<AccountListRow>(result, ReadAccountListRow);
     }
 
-    QueryResult* QueryAccountsByLastIp(std::string ip)
+    std::vector<AccountListRow> QueryAccountsByLastIp(std::string ip)
     {
         LoginDatabase.escape_string(ip);
         //                                  0   1         2        3        4
-        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `last_ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), ip.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `last_ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), ip.c_str());
+        return ReadRows<AccountListRow>(result, ReadAccountListRow);
     }
 
-    QueryResult* QueryAccountsByName(std::string account)
+    std::vector<AccountListRow> QueryAccountsByName(std::string account)
     {
         LoginDatabase.escape_string(account);
         //                                   0     1           2          3          4
-        return LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), account.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), account.c_str());
+        return ReadRows<AccountListRow>(result, ReadAccountListRow);
     }
 
-    QueryResult* QueryAccountIdsByLastIp(std::string ip)
+    static AccountSearchRow ReadAccountSearchRow(Field* fields)
+    {
+        AccountSearchRow row;
+        row.id = fields[0].GetUInt32();
+        row.username = fields[1].GetCppString();
+        return row;
+    }
+
+    std::vector<AccountSearchRow> QueryAccountIdsByLastIp(std::string ip)
     {
         LoginDatabase.escape_string(ip);
-        return LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `last_ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), ip.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `last_ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), ip.c_str());
+        return ReadRows<AccountSearchRow>(result, ReadAccountSearchRow);
     }
 
-    QueryResult* QueryAccountIdsByName(std::string account)
+    std::vector<AccountSearchRow> QueryAccountIdsByName(std::string account)
     {
         LoginDatabase.escape_string(account);
-        return LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), account.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), account.c_str());
+        return ReadRows<AccountSearchRow>(result, ReadAccountSearchRow);
     }
 
-    QueryResult* QueryAccountIdsByEmail(std::string email)
+    std::vector<AccountSearchRow> QueryAccountIdsByEmail(std::string email)
     {
         LoginDatabase.escape_string(email);
-        return LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id`,`username` FROM `account` WHERE `email` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), email.c_str());
+        return ReadRows<AccountSearchRow>(result, ReadAccountSearchRow);
     }
 
     QueryResult* QueryAccountInfo(uint32 accountId)

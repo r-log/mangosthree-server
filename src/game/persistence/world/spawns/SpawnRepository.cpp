@@ -230,38 +230,55 @@ namespace SpawnRepository
         return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryGameObjectCountOf(uint32 entry)
+    std::optional<uint32> QueryGameObjectCountOf(uint32 entry)
     {
-        return WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `gameobject` WHERE `id`='%u'", entry);
+        QueryResult* result = WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `gameobject` WHERE `id`='%u'", entry);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryGameObjectsNear(float x, float y, float z, uint32 entry, uint32 count)
+    static SpawnListRow ReadSpawnListRow(Field* fields)
     {
-        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
-                                    x, y, z, entry, count);
+        SpawnListRow row;
+        row.guid = fields[0].GetUInt32();
+        row.positionX = fields[1].GetFloat();
+        row.positionY = fields[2].GetFloat();
+        row.positionZ = fields[3].GetFloat();
+        row.map = fields[4].GetUInt16();
+        return row;
     }
 
-    QueryResult* QueryGameObjectsOf(uint32 entry, uint32 count)
+    std::vector<SpawnListRow> QueryGameObjectsNear(float x, float y, float z, uint32 entry, uint32 count)
     {
-        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `gameobject` WHERE `id` = '%u' LIMIT %u",
-                                    entry, count);
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
+                                                   x, y, z, entry, count);
+        return ReadRows<SpawnListRow>(result, ReadSpawnListRow);
     }
 
-    QueryResult* QueryCreatureCountOf(uint32 entry)
+    std::vector<SpawnListRow> QueryGameObjectsOf(uint32 entry, uint32 count)
     {
-        return WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `creature` WHERE `id`='%u'", entry);
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `gameobject` WHERE `id` = '%u' LIMIT %u",
+                                                   entry, count);
+        return ReadRows<SpawnListRow>(result, ReadSpawnListRow);
     }
 
-    QueryResult* QueryCreaturesNear(float x, float y, float z, uint32 entry, uint32 count)
+    std::optional<uint32> QueryCreatureCountOf(uint32 entry)
     {
-        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `creature` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
-                                    x, y, z, entry, count);
+        QueryResult* result = WorldDatabase.PQuery("SELECT COUNT(`guid`) FROM `creature` WHERE `id`='%u'", entry);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryCreaturesOf(uint32 entry, uint32 count)
+    std::vector<SpawnListRow> QueryCreaturesNear(float x, float y, float z, uint32 entry, uint32 count)
     {
-        return WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '%u' LIMIT %u",
-                                    entry, count);
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `creature` WHERE `id` = '%u' ORDER BY `order_` ASC LIMIT %u",
+                                                   x, y, z, entry, count);
+        return ReadRows<SpawnListRow>(result, ReadSpawnListRow);
+    }
+
+    std::vector<SpawnListRow> QueryCreaturesOf(uint32 entry, uint32 count)
+    {
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '%u' LIMIT %u",
+                                                   entry, count);
+        return ReadRows<SpawnListRow>(result, ReadSpawnListRow);
     }
 
     void SetCreaturePosition(float x, float y, float z, float o, uint32 guid)

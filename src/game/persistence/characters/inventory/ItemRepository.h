@@ -60,6 +60,47 @@ struct GiftRow
     uint32 flags = 0;
 };
 
+/// An inventory holding an item entry, for a GM's item list: the item, its bag and slot, and the
+/// owner's guid, account and name.
+struct ItemInventoryHolderRow
+{
+    uint32 itemGuid = 0;
+    uint32 bag = 0;
+    uint32 slot = 0;
+    uint32 ownerGuid = 0;
+    uint32 ownerAccount = 0;
+    std::string ownerName;
+};
+
+/// A mail holding an item entry: the item, the sender and receiver, and their accounts and names.
+struct ItemMailHolderRow
+{
+    uint32 itemGuid = 0;
+    uint32 sender = 0;
+    uint32 receiver = 0;
+    uint32 senderAccount = 0;
+    std::string senderName;
+    uint32 receiverAccount = 0;
+    std::string receiverName;
+};
+
+/// An auction holding an item entry: the item and the owner's guid, account and name.
+struct ItemAuctionHolderRow
+{
+    uint32 itemGuid = 0;
+    uint32 ownerGuid = 0;
+    uint32 ownerAccount = 0;
+    std::string ownerName;
+};
+
+/// A guild bank holding an item entry: the item and the guild's id and name.
+struct ItemGuildBankHolderRow
+{
+    uint32 itemGuid = 0;
+    uint32 guildId = 0;
+    std::string guildName;
+};
+
 /// The items' saved rows (`item_instance`, `character_gifts`, `item_loot`, and an item's
 /// `character_inventory` row). The gift read is asynchronous, and the start-up's highest guid and
 /// a GM's item list reads synchronous; every write is queued on the character database, and one called inside
@@ -135,28 +176,28 @@ namespace ItemRepository
     void DeleteRowsOfMissingItems(uint32 firstUnusedGuid);
 
     /// Selects how many inventory rows hold an item entry, for a GM's item list.
-    QueryResult* QueryInventoryCountOf(uint32 itemId);
+    std::optional<uint32> QueryInventoryCountOf(uint32 itemId);
 
     /// Selects up to count inventory rows holding an item entry, with their bag, owner and account.
-    QueryResult* QueryInventoryHoldersOf(uint32 itemId, uint32 count);
+    std::vector<ItemInventoryHolderRow> QueryInventoryHoldersOf(uint32 itemId, uint32 count);
 
     /// Selects how many mailed items are of an item entry.
-    QueryResult* QueryMailCountOf(uint32 itemId);
+    std::optional<uint32> QueryMailCountOf(uint32 itemId);
 
     /// Selects up to count mailed items of an item entry, with their sender and receiver.
-    QueryResult* QueryMailHoldersOf(uint32 itemId, uint32 count);
+    std::vector<ItemMailHolderRow> QueryMailHoldersOf(uint32 itemId, uint32 count);
 
     /// Selects how many auctions are of an item entry.
-    QueryResult* QueryAuctionCountOf(uint32 itemId);
+    std::optional<uint32> QueryAuctionCountOf(uint32 itemId);
 
     /// Selects up to count auctions of an item entry, with their owner.
-    QueryResult* QueryAuctionHoldersOf(uint32 itemId, uint32 count);
+    std::vector<ItemAuctionHolderRow> QueryAuctionHoldersOf(uint32 itemId, uint32 count);
 
     /// Selects how many guild bank items are of an item entry.
-    QueryResult* QueryGuildBankCountOf(uint32 itemId);
+    std::optional<uint32> QueryGuildBankCountOf(uint32 itemId);
 
     /// Selects up to count guild bank items of an item entry, with their guild.
-    QueryResult* QueryGuildBankHoldersOf(uint32 itemId, uint32 count);
+    std::vector<ItemGuildBankHolderRow> QueryGuildBankHoldersOf(uint32 itemId, uint32 count);
 }
 
 #endif

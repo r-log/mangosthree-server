@@ -411,9 +411,21 @@ namespace CharacterRepository
         return CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), filter.c_str());
     }
 
-    QueryResult* QueryAccountCharacterList(uint32 accountId)
+    static AccountCharacterListRow ReadAccountCharacterListRow(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u", accountId);
+        AccountCharacterListRow row;
+        row.guid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.race = fields[2].GetUInt8();
+        row.classId = fields[3].GetUInt8();
+        row.level = fields[4].GetUInt32();
+        return row;
+    }
+
+    std::vector<AccountCharacterListRow> QueryAccountCharacterList(uint32 accountId)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u", accountId);
+        return ReadRows<AccountCharacterListRow>(result, ReadAccountCharacterListRow);
     }
 
     void SetCustomizeFlag(uint32 guid)
