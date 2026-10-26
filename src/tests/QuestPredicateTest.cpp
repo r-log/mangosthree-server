@@ -36,16 +36,16 @@
 /// INVALIDREASON_DONT_HAVE_REQ is 0 and is a failure, so every case below checks `satisfied`
 /// and, on a failure, the reason -- including the zero reason on every path that yields it.
 ///
-/// The templates are real `Quest` objects, built by `Quest(Field*)` from 168-column
-/// FakeQueryResult rows (as in QuestStatusMgrTest.cpp); `prevQuests` and `prevChainQuests`,
+/// The templates are real `Quest` objects, built from `QuestTemplateRow`s (as in
+/// QuestStatusMgrTest.cpp); `prevQuests` and `prevChainQuests`,
 /// which ObjectMgr::LoadQuests derives after the rows are read, are set by hand. The
 /// exclusive groups are a local multimap. The MANGOS_ASSERT on a group with no members (a
 /// data error the loader rules out) is fatal and is not driven here.
 
 #include "TestHarness.h"
-#include "FakeDatabase.h"
 #include "QuestDef.h"
 #include "QuestStatusMgr.h"
+#include "persistence/world/quests/QuestDataRepository.h"
 
 #include <map>
 #include <memory>
@@ -55,15 +55,6 @@
 
 namespace
 {
-    // Column indices of `quest_template` as Quest(Field*) reads them.
-    const size_t kQuestColumns = 168;
-    const size_t kColQuestFlags = 18;
-    const size_t kColSpecialFlags = 19;
-    const size_t kColPrevQuestId = 25;
-    const size_t kColNextQuestId = 26;
-    const size_t kColExclusiveGroup = 27;
-    const size_t kColNextQuestInChain = 28;
-
     struct QuestSpec
     {
         uint32 id;
@@ -106,17 +97,15 @@ namespace
             /// Mutable, so a case can fill the derived prevQuests/prevChainQuests.
             Quest& Add(QuestSpec const& spec)
             {
-                FakeRow row(kQuestColumns, "0");
-                row[0] = std::to_string(spec.id);
-                row[kColQuestFlags] = std::to_string(spec.questFlags);
-                row[kColSpecialFlags] = std::to_string(spec.specialFlags);
-                row[kColPrevQuestId] = std::to_string(spec.prevQuestId);
-                row[kColNextQuestId] = std::to_string(spec.nextQuestId);
-                row[kColExclusiveGroup] = std::to_string(spec.exclusiveGroup);
-                row[kColNextQuestInChain] = std::to_string(spec.nextQuestInChain);
-                FakeQueryResult result(FakeRows{row});
-                result.NextRow();
-                m_quests[spec.id].reset(new Quest(result.Fetch()));
+                QuestTemplateRow row;
+                row.entry = spec.id;
+                row.questFlags = uint16(spec.questFlags);
+                row.specialFlags = uint16(spec.specialFlags);
+                row.prevQuestId = spec.prevQuestId;
+                row.nextQuestId = spec.nextQuestId;
+                row.exclusiveGroup = spec.exclusiveGroup;
+                row.nextQuestInChain = spec.nextQuestInChain;
+                m_quests[spec.id].reset(new Quest(row));
                 return *m_quests[spec.id];
             }
 
