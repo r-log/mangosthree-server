@@ -135,9 +135,9 @@ void WorldSession::HandleCharRenameOpcode(WorldPacket& recv_data)
     uint32 accountId = GetAccountId();
     proto::SessionId sessionId = GetSessionId();
     CharacterRepository::QueryRenameTarget(guid.GetCounter(), accountId, AT_LOGIN_RENAME,
-                                           [accountId, sessionId, newname](QueryResult* result)
+                                           [accountId, sessionId, newname](std::optional<RenameTargetRow> row)
                                            {
-                                               WorldSession::HandleChangePlayerNameOpcodeCallBack(result, accountId, sessionId, newname);
+                                               WorldSession::HandleChangePlayerNameOpcodeCallBack(row, accountId, sessionId, newname);
                                            });
 }
 
@@ -148,25 +148,21 @@ void WorldSession::HandleCharRenameOpcode(WorldPacket& recv_data)
  * the request and this answer is a NEW session on the same account, and it would have been
  * handed a rename it never asked for. FindRequesterSession() compares the session id too (C1).
  *
- * @param result The rename validation query result.
+ * @param row The character the rename may rename, none when it may not.
  * @param accountId The session account id.
  * @param sessionId The session the request arrived on.
  * @param newname The requested new character name.
  */
-void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uint32 accountId,
+void WorldSession::HandleChangePlayerNameOpcodeCallBack(std::optional<RenameTargetRow> const& row, uint32 accountId,
                                                         proto::SessionId sessionId, std::string newname)
 {
     WorldSession* session = FindRequesterSession(accountId, sessionId);
     if (!session)
     {
-        if (result)
-        {
-            delete result;
-        }
         return;
     }
 
-    if (!result)
+    if (!row)
     {
         WorldPacket data(SMSG_CHAR_RENAME, 1);
         data << uint8(CHAR_CREATE_ERROR);
@@ -174,11 +170,9 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uin
         return;
     }
 
-    uint32 guidLow = result->Fetch()[0].GetUInt32();
+    uint32 guidLow = row->guid;
     ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, guidLow);
-    std::string oldname = result->Fetch()[1].GetCppString();
-
-    delete result;
+    std::string oldname = row->name;
 
     // C3, and it is not optional. The handler checked the name against the cache in the tick
     // the request arrived in; this runs a tick later, and in between the name can have been
@@ -425,16 +419,14 @@ void WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> h
 
     std::string newname = request.newname;
 
-    std::unique_ptr<QueryResult> result(holder->GetResult(CHAR_CUSTOMIZE_AT_LOGIN));
-    if (!result)
+    std::optional<uint32> atLogin = CharacterRepository::CustomizeAtLogin(holder.get());
+    if (!atLogin)
     {
         SendCharCustomizeResult(session, CHAR_CREATE_ERROR);
         return;
     }
 
-    Field* fields = result->Fetch();
-    uint32 at_loginFlags = fields[0].GetUInt32();
-    result.reset();
+    uint32 at_loginFlags = *atLogin;
 
     if (!(at_loginFlags & AT_LOGIN_CUSTOMIZE))
     {
@@ -478,11 +470,10 @@ void WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> h
     // Player::Customize used to read `playerBytes2` itself; the value comes out of this
     // holder now. No row means no such character, which is what made the old call return
     // without writing -- the same thing skipping it does.
-    std::unique_ptr<QueryResult> resultBytes(holder->GetResult(CHAR_CUSTOMIZE_PLAYER_BYTES2));
-    if (resultBytes)
+    if (std::optional<uint32> playerBytes2 = CharacterRepository::CustomizePlayerBytes2(holder.get()))
     {
         Player::Customize(guid, request.gender, request.skin, request.face, request.hairStyle,
-                          request.hairColor, request.facialHair, resultBytes->Fetch()[0].GetUInt32());
+                          request.hairColor, request.facialHair, *playerBytes2);
     }
 
     // The name is bound, not escaped here.

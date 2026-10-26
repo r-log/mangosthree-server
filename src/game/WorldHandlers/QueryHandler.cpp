@@ -99,22 +99,22 @@ void WorldSession::SendNameQueryOpcodeFromDB(ObjectGuid guid)
     uint32 accountId = GetAccountId();
     proto::SessionId sessionId = GetSessionId();
     CharacterRepository::QueryName(guid.GetCounter(), sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED),
-                                   [accountId, sessionId](QueryResult* result)
+                                   [accountId, sessionId](std::optional<CharacterNameRow> row)
                                    {
-                                       WorldSession::SendNameQueryOpcodeFromDBCallBack(result, accountId, sessionId);
+                                       WorldSession::SendNameQueryOpcodeFromDBCallBack(row, accountId, sessionId);
                                    });
 }
 
 /**
  * @brief Completes an asynchronous player name query from the database.
  *
- * @param result The database result.
+ * @param row The queried character, none when it does not exist.
  * @param accountId The requesting account id.
  * @param sessionId The session the request arrived on.
  */
-void WorldSession::SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32 accountId, proto::SessionId sessionId)
+void WorldSession::SendNameQueryOpcodeFromDBCallBack(std::optional<CharacterNameRow> const& row, uint32 accountId, proto::SessionId sessionId)
 {
-    if (!result)
+    if (!row)
     {
         return;
     }
@@ -122,13 +122,11 @@ void WorldSession::SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32
     WorldSession* session = WorldSession::FindRequesterSession(accountId, sessionId);
     if (!session)
     {
-        delete result;
         return;
     }
 
-    Field* fields = result->Fetch();
-    uint32 lowguid      = fields[0].GetUInt32();
-    std::string name = fields[1].GetCppString();
+    uint32 lowguid      = row->guid;
+    std::string name = row->name;
     uint8 pRace = 0, pGender = 0, pClass = 0;
     if (name.empty())
     {
@@ -136,9 +134,9 @@ void WorldSession::SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32
     }
     else
     {
-        pRace        = fields[2].GetUInt8();
-        pGender      = fields[3].GetUInt8();
-        pClass       = fields[4].GetUInt8();
+        pRace        = row->race;
+        pGender      = row->gender;
+        pClass       = row->classId;
     }
 
     // guess size
@@ -151,13 +149,13 @@ void WorldSession::SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32
     data << uint8(pGender);                                 // gender
     data << uint8(pClass);                                  // class
 
-    // if the first declined name field (5) is empty, the rest must be too
-    if (sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) && !fields[5].GetCppString().empty())
+    // if the first declined name is empty, the rest must be too
+    if (sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) && !row->declinedNames[0].empty())
     {
         data << uint8(1);                                   // is declined
-        for (int i = 5; i < MAX_DECLINED_NAME_CASES + 5; ++i)
+        for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
         {
-            data << fields[i].GetCppString();
+            data << row->declinedNames[i];
         }
     }
     else
@@ -166,7 +164,6 @@ void WorldSession::SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32
     }
 
     session->SendPacket(&data);
-    delete result;
 }
 
 /**

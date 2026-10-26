@@ -1427,24 +1427,16 @@ void Player::SetDeathState(DeathState s)
 /**
  * @brief Builds character-enumeration data for the character selection screen.
  *
- * @param result The database row for the character.
+ * @param row The character's list row.
  * @param data The packet being populated.
  * @param buffer Secondary byte buffer for trailing variable-length fields.
  * @return true if the enum data was built successfully; otherwise, false.
  */
-bool Player::BuildEnumData(QueryResult* result, ByteBuffer* data, ByteBuffer* buffer)
+bool Player::BuildEnumData(CharacterEnumRow const& row, ByteBuffer* data, ByteBuffer* buffer)
 {
-    //             0               1                2                3                 4                  5                       6                        7
-    //    "SELECT characters.guid, characters.name, characters.race, characters.class, characters.gender, characters.playerBytes, characters.playerBytes2, characters.level, "
-    //     8                9               10                     11                     12                     13                    14
-    //    "characters.zone, characters.map, characters.position_x, characters.position_y, characters.position_z, guild_member.guildid, characters.playerFlags, "
-    //    15                    16                   17                     18                   19                         20               21
-    //    "characters.at_login, character_pet.entry, character_pet.modelid, character_pet.level, characters.equipmentCache, characters.slot, character_declinedname.genitive "
-
-    Field* fields = result->Fetch();
-    ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-    uint8 pRace = fields[2].GetUInt8();
-    uint8 pClass = fields[3].GetUInt8();
+    ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, row.guid);
+    uint8 pRace = row.race;
+    uint8 pClass = row.classId;
 
     PlayerInfo const* info = sObjectMgr.GetPlayerInfo(pRace, pClass);
     if (!info)
@@ -1453,14 +1445,14 @@ bool Player::BuildEnumData(QueryResult* result, ByteBuffer* data, ByteBuffer* bu
         return false;
     }
 
-    ObjectGuid guildGuid = ObjectGuid(HIGHGUID_GUILD, fields[13].GetUInt32());
-    std::string name = fields[1].GetCppString();
-    uint8 gender = fields[4].GetUInt8();
-    uint32 playerBytes = fields[5].GetUInt32();
-    uint8 level = fields[7].GetUInt8();
-    uint32 playerFlags = fields[14].GetUInt32();
-    uint32 atLoginFlags = fields[15].GetUInt32();
-    uint32 zone = fields[8].GetUInt32();
+    ObjectGuid guildGuid = ObjectGuid(HIGHGUID_GUILD, row.guildId);
+    std::string name = row.name;
+    uint8 gender = row.gender;
+    uint32 playerBytes = row.playerBytes;
+    uint8 level = row.level;
+    uint32 playerFlags = row.playerFlags;
+    uint32 atLoginFlags = row.atLogin;
+    uint32 zone = row.zone;
     uint32 petDisplayId = 0;
     uint32 petLevel   = 0;
     uint32 petFamily  = 0;
@@ -1480,14 +1472,14 @@ bool Player::BuildEnumData(QueryResult* result, ByteBuffer* data, ByteBuffer* bu
     data->WriteGuidMask<0>(guildGuid);
 
     // show pet at selection character in character list only for non-ghost character
-    if (result && !(playerFlags & PLAYER_FLAGS_GHOST) && (pClass == CLASS_WARLOCK || pClass == CLASS_HUNTER || pClass == CLASS_DEATH_KNIGHT))
+    if (!(playerFlags & PLAYER_FLAGS_GHOST) && (pClass == CLASS_WARLOCK || pClass == CLASS_HUNTER || pClass == CLASS_DEATH_KNIGHT))
     {
-        uint32 entry = fields[16].GetUInt32();
+        uint32 entry = row.petEntry;
         CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
         if (cInfo)
         {
-            petDisplayId = fields[17].GetUInt32();
-            petLevel     = fields[18].GetUInt32();
+            petDisplayId = row.petModelId;
+            petLevel     = row.petLevel;
             petFamily    = cInfo->Family;
         }
     }
@@ -1510,7 +1502,7 @@ bool Player::BuildEnumData(QueryResult* result, ByteBuffer* data, ByteBuffer* bu
     }
     if (sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED))
     {
-        if (!fields[21].GetCppString().empty())
+        if (!row.genitive.empty())
         {
             char_flags |= CHARACTER_FLAG_DECLINED;
         }
@@ -1522,7 +1514,7 @@ bool Player::BuildEnumData(QueryResult* result, ByteBuffer* data, ByteBuffer* bu
 
     *buffer << uint8(pClass);                                // class
 
-    Tokens tdata = StrSplit(fields[19].GetCppString(), " ");
+    Tokens tdata = StrSplit(row.equipmentCache, " ");
     for (uint8 slot = 0; slot < EQUIPMENT_SLOT_END; ++slot)
     {
         uint32 visualbase = slot * 2;                       // entry, perm ench., temp ench.
@@ -1568,24 +1560,24 @@ bool Player::BuildEnumData(QueryResult* result, ByteBuffer* data, ByteBuffer* bu
 
     *buffer << uint32(petFamily);                           // Pet DisplayID
     buffer->WriteGuidBytes<2>(guildGuid);
-    *buffer << uint8(fields[20].GetUInt8());                // char order id
+    *buffer << uint8(row.slot);                // char order id
     *buffer << uint8((playerBytes >> 16) & 0xFF);           // Hair style
     buffer->WriteGuidBytes<3>(guildGuid);
     *buffer << uint32(petDisplayId);                        // Pet DisplayID
     *buffer << uint32(char_flags);                          // character flags
     *buffer << uint8((playerBytes >> 24) & 0xFF);           // Hair color
     buffer->WriteGuidBytes<4>(guid);
-    *buffer << uint32(fields[9].GetUInt32());               // map
+    *buffer << uint32(row.map);               // map
     buffer->WriteGuidBytes<5>(guildGuid);
-    *buffer << fields[12].GetFloat();                       // z
+    *buffer << row.positionZ;                       // z
     buffer->WriteGuidBytes<6>(guildGuid);
     *buffer << uint32(petLevel);                            // pet level
     buffer->WriteGuidBytes<3>(guid);
-    *buffer << fields[11].GetFloat();                       // y
+    *buffer << row.positionY;                       // y
     // character customize flags
     *buffer << uint32(atLoginFlags & AT_LOGIN_CUSTOMIZE ? CHAR_CUSTOMIZE_FLAG_CUSTOMIZE : CHAR_CUSTOMIZE_FLAG_NONE);
 
-    uint32 playerBytes2 = fields[6].GetUInt32();
+    uint32 playerBytes2 = row.playerBytes2;
     *buffer << uint8(playerBytes2 & 0xFF);                  // facial hair
     buffer->WriteGuidBytes<7>(guid);
     *buffer << uint8(gender);                               // Gender
@@ -1595,7 +1587,7 @@ bool Player::BuildEnumData(QueryResult* result, ByteBuffer* data, ByteBuffer* bu
     buffer->WriteGuidBytes<0, 2>(guid);
     buffer->WriteGuidBytes<1, 7>(guildGuid);
 
-    *buffer << fields[10].GetFloat();                       // x
+    *buffer << row.positionX;                       // x
     *buffer << uint8(playerBytes & 0xFF);                   // skin
     *buffer << uint8(pRace);                                // Race
     *buffer << uint8(level);                                // Level
@@ -3622,9 +3614,9 @@ void Player::DeleteOldCharacters(uint32 keepDays)
     // This runs on the WUPDATE_DELETECHARS timer inside World::Update, so the guid list is asked
     // for asynchronously and the deletes happen in the continuation.
     CharacterDeleteRepository::QueryDeletedBefore(uint64(time(NULL) - time_t(keepDays * DAY)),
-                                                  [](QueryResult* result)
+                                                  [](std::vector<DeletedCharacterRow> rows)
                                                   {
-                                                      Player::DeleteOldCharactersCallback(std::unique_ptr<QueryResult>(result));
+                                                      Player::DeleteOldCharactersCallback(rows);
                                                   });
 }
 
@@ -3637,20 +3629,18 @@ void Player::DeleteOldCharacters(uint32 keepDays)
  * for no fewer round trips, because a holder's statements run back to back on the same delay
  * thread either way. The N holders are queued in row order, so the deletes keep it.
  *
- * @param result the characters whose keep-days have expired
+ * @param rows the characters whose keep-days have expired
  */
-void Player::DeleteOldCharactersCallback(std::unique_ptr<QueryResult> result)
+void Player::DeleteOldCharactersCallback(std::vector<DeletedCharacterRow> const& rows)
 {
-    if (result)
+    if (!rows.empty())
     {
-        sLog.outString("Player::DeleteOldChars: Found %u character(s) to delete", uint32(result->GetRowCount()));
-        do
+        sLog.outString("Player::DeleteOldChars: Found %u character(s) to delete", uint32(rows.size()));
+        for (DeletedCharacterRow const& row : rows)
         {
-            Field* charFields = result->Fetch();
-            ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, charFields[0].GetUInt32());
-            Player::DeleteFromDB(guid, charFields[1].GetUInt32(), true, true);
+            ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, row.guid);
+            Player::DeleteFromDB(guid, row.account, true, true);
         }
-        while (result->NextRow());
     }
     sLog.outString();
 }

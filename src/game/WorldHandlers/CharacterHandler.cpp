@@ -188,15 +188,14 @@ bool LoginQueryHolder::Initialize()
 class CharacterHandler
 {
     public:
-        void HandleCharEnumCallback(QueryResult* result, uint32 account, proto::SessionId sessionId)
+        void HandleCharEnumCallback(std::vector<CharacterEnumRow> const& rows, uint32 account, proto::SessionId sessionId)
         {
             WorldSession* session = WorldSession::FindRequesterSession(account, sessionId);
             if (!session)
             {
-                delete result;
                 return;
             }
-            session->HandleCharEnum(result);
+            session->HandleCharEnum(rows);
         }
         void HandlePlayerLoginCallback(QueryResult * /*dummy*/, SqlQueryHolder* holder, uint32 accountId, proto::SessionId sessionId)
         {
@@ -218,9 +217,9 @@ class CharacterHandler
 /**
  * @brief Builds and sends the character enumeration list for the session account.
  *
- * @param result The query result containing character records.
+ * @param rows The account's characters.
  */
-void WorldSession::HandleCharEnum(QueryResult* result)
+void WorldSession::HandleCharEnum(std::vector<CharacterEnumRow> const& rows)
 {
     WorldPacket data(SMSG_CHAR_ENUM, 270);
 
@@ -228,21 +227,20 @@ void WorldSession::HandleCharEnum(QueryResult* result)
 
     data.WriteBits(0, 23);
     data.WriteBit(1);
-    data.WriteBits(result ? result->GetRowCount() : 0, 17);
+    data.WriteBits(rows.size(), 17);
 
-    if (result)
+    if (!rows.empty())
     {
-        do
+        for (CharacterEnumRow const& row : rows)
         {
-            sLog.outDetail("Loading char guid %u from account %u.", (*result)[0].GetUInt32(), GetAccountId());
+            sLog.outDetail("Loading char guid %u from account %u.", row.guid, GetAccountId());
 
-            if (!Player::BuildEnumData(result, &data, &buffer))
+            if (!Player::BuildEnumData(row, &data, &buffer))
             {
                 sLog.outError("Building enum data for SMSG_CHAR_ENUM has failed, aborting");
                 return;
             }
         }
-        while (result->NextRow());
 
         data.FlushBits();
         data.append(buffer);
@@ -262,9 +260,9 @@ void WorldSession::HandleCharEnumOpcode(WorldPacket & /*recv_data*/)
     uint32 accountId = GetAccountId();
     proto::SessionId sessionId = GetSessionId();
     CharacterRepository::QueryEnum(accountId, PET_SAVE_AS_CURRENT, sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED),
-                                   [accountId, sessionId](QueryResult* result)
+                                   [accountId, sessionId](std::vector<CharacterEnumRow> rows)
                                    {
-                                       chrHandler.HandleCharEnumCallback(result, accountId, sessionId);
+                                       chrHandler.HandleCharEnumCallback(rows, accountId, sessionId);
                                    });
 }
 
@@ -435,11 +433,10 @@ void WorldSession::HandleCharCreateAccountCallback(std::unique_ptr<SqlQueryHolde
         return;
     }
 
-    std::unique_ptr<QueryResult> resultacct(holder->GetResult(CHAR_CREATE_ACCOUNT_REALM_CHARS));
-    if (resultacct)
+    std::optional<uint32> accountCharCount = CharacterRepository::CreateAccountCharacterCount(holder.get());
+    if (accountCharCount)
     {
-        Field* fields = resultacct->Fetch();
-        uint32 acctcharcount = fields[0].GetUInt32();
+        uint32 acctcharcount = *accountCharCount;
 
         if (acctcharcount >= sWorld.getConfig(CONFIG_UINT32_CHARACTERS_PER_ACCOUNT))
         {
@@ -519,12 +516,11 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
     uint8 race_ = request.race;
     uint8 class_ = request.playerClass;
 
-    std::unique_ptr<QueryResult> result(holder->GetResult(CHAR_CREATE_REALM_CHAR_COUNT));
+    std::optional<uint8> realmCharCount = CharacterRepository::CreateRealmCharacterCount(holder.get());
     uint8 charcount = 0;
-    if (result)
+    if (realmCharCount)
     {
-        Field* fields = result->Fetch();
-        charcount = fields[0].GetUInt8();
+        charcount = *realmCharCount;
 
         if (charcount >= sWorld.getConfig(CONFIG_UINT32_CHARACTERS_PER_REALM))
         {
@@ -559,17 +555,18 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
 
     if (!AllowTwoSideAccounts || skipCinematics == CINEMATICS_SKIP_SAME_RACE || class_ == CLASS_DEATH_KNIGHT)
     {
-        std::unique_ptr<QueryResult> result2(holder->GetResult(CHAR_CREATE_REALM_ACCOUNT_CHARS));
-        if (result2)
+        std::vector<CreateAccountCharacterRow> accountChars = CharacterRepository::CreateAccountCharacters(holder.get());
+        if (!accountChars.empty())
         {
             Team team_ = Player::TeamForRace(race_);
 
-            Field* field = result2->Fetch();
-            uint8 acc_race  = field[1].GetUInt32();
+            size_t next = 0;
+            CreateAccountCharacterRow const* accountChar = &accountChars[next];
+            uint8 acc_race  = accountChar->race;
 
             if (session->GetSecurity() == SEC_PLAYER && class_ == CLASS_DEATH_KNIGHT)
             {
-                uint8 acc_class = field[2].GetUInt32();
+                uint8 acc_class = accountChar->classId;
                 if (acc_class == CLASS_DEATH_KNIGHT)
                 {
                     if (heroic_free_slots > 0)
@@ -586,7 +583,7 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
 
                 if (!have_req_level_for_heroic)
                 {
-                    uint32 acc_level = field[0].GetUInt32();
+                    uint32 acc_level = accountChar->level;
                     if (acc_level >= req_level_for_heroic)
                     {
                         have_req_level_for_heroic = true;
@@ -609,13 +606,13 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
             // TODO: check if cinematic already shown? (already logged in?; cinematic field)
             while ((skipCinematics == CINEMATICS_SKIP_SAME_RACE && !have_same_race) || class_ == CLASS_DEATH_KNIGHT)
             {
-                if (!result2->NextRow())
+                if (++next >= accountChars.size())
                 {
                     break;
                 }
 
-                field = result2->Fetch();
-                acc_race = field[1].GetUInt32();
+                accountChar = &accountChars[next];
+                acc_race = accountChar->race;
 
                 if (!have_same_race)
                 {
@@ -624,7 +621,7 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
 
                 if (session->GetSecurity() == SEC_PLAYER && class_ == CLASS_DEATH_KNIGHT)
                 {
-                    uint8 acc_class = field[2].GetUInt32();
+                    uint8 acc_class = accountChar->classId;
                     if (acc_class == CLASS_DEATH_KNIGHT)
                     {
                         if (heroic_free_slots > 0)
@@ -641,7 +638,7 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
 
                     if (!have_req_level_for_heroic)
                     {
-                        uint32 acc_level = field[0].GetUInt32();
+                        uint32 acc_level = accountChar->level;
                         if (acc_level >= req_level_for_heroic)
                         {
                             have_req_level_for_heroic = true;
@@ -705,10 +702,10 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
     AccountRepository::SetRealmCharacterCount(accountId, realmID, charcount);
     uint32 pet_id = 1;
     {
-        std::unique_ptr<QueryResult> resultPetId(holder->GetResult(CHAR_CREATE_REALM_PET_ID));
-        if (resultPetId)
+        std::optional<uint32> highestPetId = CharacterRepository::CreateHighestPetId(holder.get());
+        if (highestPetId)
         {
-            pet_id = resultPetId->Fetch()[0].GetUInt32();
+            pet_id = *highestPetId;
             pet_id += 1;
         }
         //else
@@ -894,12 +891,10 @@ void WorldSession::HandleCharDeleteCallback(std::unique_ptr<SqlQueryHolder> hold
     uint32 rowAccountId = 0;
     std::string name;
 
-    std::unique_ptr<QueryResult> result(holder->GetResult(PLAYER_DELETE_READ_OWNER));
-    if (result)
+    if (std::optional<DeleteOwnerRow> owner = CharacterDeleteRepository::DeleteOwner(holder.get()))
     {
-        Field* fields = result->Fetch();
-        rowAccountId = fields[0].GetUInt32();
-        name = fields[1].GetCppString();
+        rowAccountId = owner->account;
+        name = owner->name;
     }
 
     // prevent deleting other players' characters using cheating tools

@@ -126,11 +126,36 @@ namespace CharacterDeleteRepository
         CharacterDatabase.PExecute("UPDATE `characters` SET `deleteInfos_Name`=`name`, `deleteInfos_Account`=`account`, `deleteDate`='" UI64FMTD "', `name`='', `account`=0 WHERE `guid`=%u", deleteTime, guid);
     }
 
-    void QueryDeletedBefore(uint64 time, std::function<void(QueryResult*)> callback)
+    static DeletedCharacterRow ReadDeletedCharacter(Field* fields)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        DeletedCharacterRow row;
+        row.guid = fields[0].GetUInt32();
+        row.account = fields[1].GetUInt32();
+        return row;
+    }
+
+    void QueryDeletedBefore(uint64 time, std::function<void(std::vector<DeletedCharacterRow>)> callback)
+    {
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRows<DeletedCharacterRow>(result, ReadDeletedCharacter));
+                                      },
                                       "SELECT `guid`, `deleteInfos_Account` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteDate` < '" UI64FMTD "'",
                                       time);
+    }
+
+    static DeleteOwnerRow ReadDeleteOwner(Field* fields)
+    {
+        DeleteOwnerRow row;
+        row.account = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        return row;
+    }
+
+    std::optional<DeleteOwnerRow> DeleteOwner(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_DELETE_READ_OWNER);
+        return ReadRow<DeleteOwnerRow>(result, ReadDeleteOwner);
     }
 
     std::optional<uint32> DeleteGroupId(SqlQueryHolder* holder)

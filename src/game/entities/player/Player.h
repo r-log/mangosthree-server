@@ -120,6 +120,8 @@ struct LoginAuraRow;
 struct LoginInventoryRow;
 struct LoginMailedItemRow;
 struct LoginItemLootRow;
+struct CharacterEnumRow;
+struct DeletedCharacterRow;
 class Channel;
 class DynamicObject;
 class Creature;
@@ -1003,7 +1005,7 @@ class Player : public Unit
 
         void Update(uint32 update_diff, uint32 time) override; // Update the player
 
-        static bool BuildEnumData(QueryResult* result, ByteBuffer* data, ByteBuffer* buffer);
+        static bool BuildEnumData(CharacterEnumRow const& row, ByteBuffer* data, ByteBuffer* buffer);
 
         void SetInWater(bool apply); // Set the player in water
 
@@ -1979,7 +1981,7 @@ class Player : public Unit
         static void DeleteOldCharacters(uint32 keepDays);
 
         // The guid list DeleteOldCharacters() asked for, one DeleteFromDB() per row.
-        static void DeleteOldCharactersCallback(std::unique_ptr<QueryResult> result);
+        static void DeleteOldCharactersCallback(std::vector<DeletedCharacterRow> const& rows);
 
         bool m_mailsUpdated; // Indicates if mails have been updated
 

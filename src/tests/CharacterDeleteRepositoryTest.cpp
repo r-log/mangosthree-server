@@ -171,7 +171,7 @@ TEST(CharacterDeleteRepository_SoftDeletePurgeAndHelpers)
         PetitionRepository::DeleteSignaturesBy(42);
         PetitionRepository::DeleteOwnedBy(42);
         CharacterDeleteRepository::MarkDeleted(43, 1700000000);
-        CharacterDeleteRepository::QueryDeletedBefore(1690000000, read);
+        CharacterDeleteRepository::QueryDeletedBefore(1690000000, [&answered](std::vector<DeletedCharacterRow> /*rows*/) { ++answered; });
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(db.query.executed.size(), size_t(0));
         CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(9));
@@ -282,4 +282,19 @@ TEST(CharacterDeleteRepository_DeleteFriendGuids)
     REQUIRE(values.size() == 2);
     CHECK_EQ(values[0], 1000u);
     CHECK_EQ(values[1], 2000u);
+}
+
+// Each soft-deleted character the purge reads lands in its row, in order.
+TEST(CharacterDeleteRepository_DeletedBeforeRows)
+{
+    Db db;
+    db.async.Answer("SELECT", FakeRows{FakeRow{"1000", "1001"}, FakeRow{"2000", "2001"}});
+    std::vector<DeletedCharacterRow> rows;
+    CharacterDeleteRepository::QueryDeletedBefore(1690000000, [&rows](std::vector<DeletedCharacterRow> got) { rows = got; });
+    db.Take();
+    CharacterDatabase.ProcessResultQueue();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].account, 1001u);
+    CHECK_EQ(rows[1].guid, 2000u);
 }

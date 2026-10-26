@@ -58,6 +58,21 @@ enum PlayerDeleteReadSlot
     PLAYER_DELETE_READ_WITH_OWNER_COUNT     = 7
 };
 
+/// The character a delete request names, as the request's ownership read finds it: its account
+/// and name.
+struct DeleteOwnerRow
+{
+    uint32 account = 0;
+    std::string name;
+};
+
+/// One soft-deleted character the purge removes: its guid and the account it had.
+struct DeletedCharacterRow
+{
+    uint32 guid = 0;
+    uint32 account = 0;
+};
+
 /// One COD mail with items the delete returns: its id, type, template, sender, subject, body,
 /// money and whether it has items.
 struct DeleteCodMailRow
@@ -83,7 +98,7 @@ struct DeleteCodMailItemRow
 
 /// A character's delete as the database sees it: the reads the delete needs, every row it deletes,
 /// the soft delete that keeps the row, and the purge of soft-deleted characters. Every read is
-/// asynchronous, and the answered group, pet, friend and COD mail slots are read into values and
+/// asynchronous, and the answered owner, group, pet, friend and COD mail slots are read into values and
 /// rows; every write is queued on the character database, and one called inside
 /// CharacterTransaction joins it.
 namespace CharacterDeleteRepository
@@ -108,7 +123,10 @@ namespace CharacterDeleteRepository
     void MarkDeleted(uint32 guid, uint64 deleteTime);
 
     /// Asks for the soft-deleted characters deleted before a time: guid and the account they had.
-    void QueryDeletedBefore(uint64 time, std::function<void(QueryResult*)> callback);
+    void QueryDeletedBefore(uint64 time, std::function<void(std::vector<DeletedCharacterRow>)> callback);
+
+    /// Reads the delete request's ownership read: the character's account and name.
+    std::optional<DeleteOwnerRow> DeleteOwner(SqlQueryHolder* holder);
 
     /// Reads the delete holder's group id, none when the character is in no group.
     std::optional<uint32> DeleteGroupId(SqlQueryHolder* holder);
