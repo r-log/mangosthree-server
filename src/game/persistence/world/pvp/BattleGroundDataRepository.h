@@ -70,7 +70,7 @@ struct BattleGroundEventIndexRow
 };
 
 /// The battleground data on the world database: `BattleGroundMgr`'s loads at startup, the event
-/// indexes on a reload too, each run synchronously for a loader that keeps its loop.
+/// indexes on a reload too, each run synchronously and read into rows.
 namespace BattleGroundDataRepository
 {
     /// Selects every battleground template (`battleground_template`).

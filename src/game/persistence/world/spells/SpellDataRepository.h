@@ -157,7 +157,7 @@ struct SpellProcItemEnchantRow
 };
 
 /// The spell data on the world database: `SpellMgr`'s loads at startup, on a reload and for the
-/// debug check of a spell table, each run synchronously for a loader that keeps its loop.
+/// debug check of a spell table, each run synchronously and read into rows.
 namespace SpellDataRepository
 {
     /// Selects every row of a table of spell references the checks validate.
