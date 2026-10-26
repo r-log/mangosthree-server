@@ -31,6 +31,17 @@
 
 namespace ItemRepository
 {
+    ItemInstanceRow ReadInstance(Field* fields)
+    {
+        ItemInstanceRow row;
+        if (char const* data = fields[0].GetString())
+        {
+            row.data = data;
+        }
+        row.text = fields[1].GetCppString();
+        return row;
+    }
+
     void QueryGift(uint32 itemGuid, std::function<void(QueryResult*)> callback)
     {
         CharacterDatabase.AsyncPQuery(std::move(callback),

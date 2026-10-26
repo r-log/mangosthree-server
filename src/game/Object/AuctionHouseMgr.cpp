@@ -398,10 +398,9 @@ void AuctionHouseMgr::SendAuctionExpiredMail(AuctionEntry* auction)
  */
 void AuctionHouseMgr::LoadAuctionItems()
 {
-    // data needs to be at first place for Item::LoadFromDB: data, text, item guid, template
-    QueryResult* result = AuctionRepository::QueryAuctionItems();
+    std::vector<AuctionItemRow> rows = AuctionRepository::QueryAuctionItems();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -410,18 +409,16 @@ void AuctionHouseMgr::LoadAuctionItems()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
     uint32 count = 0;
 
-    Field* fields;
-    do
+    for (AuctionItemRow const& row : rows)
     {
         bar.step();
 
-        fields = result->Fetch();
-        uint32 item_guid        = fields[2].GetUInt32();
-        uint32 item_template    = fields[3].GetUInt32();
+        uint32 item_guid        = row.itemGuid;
+        uint32 item_template    = row.itemTemplate;
 
         ItemPrototype const* proto = ObjectMgr::GetItemPrototype(item_template);
 
@@ -433,7 +430,7 @@ void AuctionHouseMgr::LoadAuctionItems()
 
         Item* item = NewItemOrBag(proto);
 
-        if (!item->LoadFromDB(item_guid, fields))
+        if (!item->LoadFromDB(item_guid, row.instance))
         {
             delete item;
             continue;
@@ -442,8 +439,6 @@ void AuctionHouseMgr::LoadAuctionItems()
 
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u auction items", count);

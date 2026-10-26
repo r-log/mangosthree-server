@@ -45,6 +45,14 @@
 
 namespace
 {
+    /// A canned result as a connection hands it out: on its first row.
+    QueryResult* CannedResult(FakeRows rows)
+    {
+        FakeQueryResult* result = new FakeQueryResult(std::move(rows));
+        result->NextRow();
+        return result;
+    }
+
     /// The fakes on the global character database, asynchronous writes on.
     struct Db
     {
@@ -182,4 +190,48 @@ TEST(CharacterDeleteRepository_SoftDeletePurgeAndHelpers)
     CHECK_EQ(answered, 0);
     CharacterDatabase.ProcessResultQueue();
     CHECK_EQ(answered, 2);
+}
+
+// Each column of a COD mail with items the delete returns lands in its member, and the rows come
+// back in order.
+TEST(CharacterDeleteRepository_DeleteCodMails)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(PLAYER_DELETE_READ_WITH_OWNER_COUNT);
+    holder.SetResult(PLAYER_DELETE_READ_COD_MAIL, CannedResult(FakeRows{
+        FakeRow{"1000", "10001", "10002", "1003", "s1.4", "s1.5", "1006", "1"},
+        FakeRow{"2000", "20001", "20002", "2003", "s2.4", "s2.5", "2006", "1"},
+    }));
+    std::vector<DeleteCodMailRow> rows = CharacterDeleteRepository::DeleteCodMails(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_EQ(rows[0].messageType, uint16(10001));
+    CHECK_EQ(rows[0].mailTemplateId, uint16(10002));
+    CHECK_EQ(rows[0].sender, 1003u);
+    CHECK_STR(rows[0].subject, "s1.4");
+    CHECK_STR(rows[0].body, "s1.5");
+    CHECK_EQ(rows[0].money, 1006u);
+    CHECK_EQ(rows[0].hasItems, true);
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of an item of a COD mail the delete returns lands in its member, and the rows come
+// back in order.
+TEST(CharacterDeleteRepository_DeleteCodMailItems)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(PLAYER_DELETE_READ_WITH_OWNER_COUNT);
+    holder.SetResult(PLAYER_DELETE_READ_COD_MAIL_ITEMS, CannedResult(FakeRows{
+        FakeRow{"s1.0", "s1.1", "1002", "1003", "1004"},
+        FakeRow{"s2.0", "s2.1", "2002", "2003", "2004"},
+    }));
+    std::vector<DeleteCodMailItemRow> rows = CharacterDeleteRepository::DeleteCodMailItems(&holder);
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].instance.data);
+    CHECK_STR(*rows[0].instance.data, "s1.0");
+    CHECK_STR(rows[0].instance.text, "s1.1");
+    CHECK_EQ(rows[0].itemGuid, 1002u);
+    CHECK_EQ(rows[0].itemTemplate, 1003u);
+    CHECK_EQ(rows[0].mailId, 1004u);
+    CHECK_STR(rows[1].instance.text, "s2.1");
 }

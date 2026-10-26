@@ -185,3 +185,24 @@ TEST(GuildBankRepository_EventLog)
     CHECK_EQ(rows[0].timeStamp, uint64(4294967302ull));
     CHECK_EQ(rows[1].logGuid, 2000u);
 }
+
+// Each column of a guild bank item as the load reads it lands in its member, and the rows come back
+// in order.
+TEST(GuildBankRepository_Items)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.0", "s1.1", "102", "103", "1004", "1005"},
+        FakeRow{"s2.0", "s2.1", "202", "203", "2004", "2005"},
+    });
+    std::vector<GuildBankItemRow> rows = GuildBankRepository::QueryItems(1);
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].instance.data);
+    CHECK_STR(*rows[0].instance.data, "s1.0");
+    CHECK_STR(rows[0].instance.text, "s1.1");
+    CHECK_EQ(rows[0].tabId, uint8(102));
+    CHECK_EQ(rows[0].slotId, uint8(103));
+    CHECK_EQ(rows[0].itemGuid, 1004u);
+    CHECK_EQ(rows[0].itemEntry, 1005u);
+    CHECK_STR(rows[1].instance.text, "s2.1");
+}

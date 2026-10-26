@@ -25,6 +25,7 @@
 
 #include "CharacterDeleteRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 #include "Database/SqlOperations.h"
 
 #include <utility>
@@ -49,8 +50,7 @@ namespace CharacterDeleteRepository
                           "SELECT `id`,`messageType`,`mailTemplateId`,`sender`,`subject`,`body`,`money`,`has_items` FROM `mail` WHERE `receiver`='%u' AND `has_items`<>0 AND `cod`<>0 ORDER BY `id`", guid);
 
         // The items of all those mails in one statement, ordered by mail and then by item, so the
-        // delete walks it as a cursor beside the mails: `data` and `text` are fields 0 and 1, where
-        // Item::LoadFromDB reads them, and the mail id is field 4.
+        // delete walks it as a cursor beside the mails.
         //                                                 0                        1                          2                         3                              4
         holder->SetPQuery(PLAYER_DELETE_READ_COD_MAIL_ITEMS,
                           "SELECT `item_instance`.`data`,`item_instance`.`text`,`mail_items`.`item_guid`,`mail_items`.`item_template`,`mail_items`.`mail_id` "
@@ -131,5 +131,41 @@ namespace CharacterDeleteRepository
         CharacterDatabase.AsyncPQuery(std::move(callback),
                                       "SELECT `guid`, `deleteInfos_Account` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteDate` < '" UI64FMTD "'",
                                       time);
+    }
+
+    static DeleteCodMailRow ReadDeleteCodMail(Field* fields)
+    {
+        DeleteCodMailRow row;
+        row.id = fields[0].GetUInt32();
+        row.messageType = fields[1].GetUInt16();
+        row.mailTemplateId = fields[2].GetUInt16();
+        row.sender = fields[3].GetUInt32();
+        row.subject = fields[4].GetCppString();
+        row.body = fields[5].GetCppString();
+        row.money = fields[6].GetUInt32();
+        row.hasItems = fields[7].GetBool();
+        return row;
+    }
+
+    std::vector<DeleteCodMailRow> DeleteCodMails(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_DELETE_READ_COD_MAIL);
+        return ReadRows<DeleteCodMailRow>(result, ReadDeleteCodMail);
+    }
+
+    static DeleteCodMailItemRow ReadDeleteCodMailItem(Field* fields)
+    {
+        DeleteCodMailItemRow row;
+        row.instance = ItemRepository::ReadInstance(fields);
+        row.itemGuid = fields[2].GetUInt32();
+        row.itemTemplate = fields[3].GetUInt32();
+        row.mailId = fields[4].GetUInt32();
+        return row;
+    }
+
+    std::vector<DeleteCodMailItemRow> DeleteCodMailItems(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PLAYER_DELETE_READ_COD_MAIL_ITEMS);
+        return ReadRows<DeleteCodMailItemRow>(result, ReadDeleteCodMailItem);
     }
 }

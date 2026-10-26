@@ -62,8 +62,8 @@
 
 struct SpellEntry;
 class Bag;
-class Field;
-class QueryResult;
+struct ItemInstanceRow;
+struct LoginItemLootRow;
 class Unit;
 
 /// @brief Item set effect structure.
@@ -248,10 +248,10 @@ class Item : public Object
         bool IsBindedNotWith(Player const* player) const;
         bool IsBoundByEnchant() const;
         virtual void SaveToDB();
-        virtual bool LoadFromDB(uint32 guidLow, Field* fields, ObjectGuid ownerGuid = ObjectGuid());
+        virtual bool LoadFromDB(uint32 guidLow, ItemInstanceRow const& instance, ObjectGuid ownerGuid = ObjectGuid());
         virtual void DeleteFromDB();
         void DeleteFromInventoryDB();
-        void LoadLootFromDB(Field* fields);
+        void LoadLootFromDB(LoginItemLootRow const& row);
 
         Bag* ToBag() { if (IsBag()) return reinterpret_cast<Bag*>(this); else return NULL; }
         const Bag* ToBag() const { if (IsBag()) return reinterpret_cast<const Bag*>(this); else return NULL; }

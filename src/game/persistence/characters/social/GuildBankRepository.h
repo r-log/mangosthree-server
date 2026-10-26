@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
+#include "persistence/characters/inventory/ItemRepository.h"
 
 class QueryResult;
 
@@ -53,6 +54,16 @@ struct GuildBankEventLogRow
     uint64 timeStamp = 0;
 };
 
+/// One guild bank item as the load reads it: its instance, tab, slot, guid and entry.
+struct GuildBankItemRow
+{
+    ItemInstanceRow instance;
+    uint8 tabId = 0;
+    uint8 slotId = 0;
+    uint32 itemGuid = 0;
+    uint32 itemEntry = 0;
+};
+
 /// The guild banks' saved rows (`guild_bank_tab`, `guild_bank_item`, `guild_bank_right`,
 /// `guild_bank_eventlog`, and the bank columns of `guild` and `guild_member`). The loads run at
 /// startup, synchronously; every write is queued on the character database, and one called inside
@@ -62,9 +73,9 @@ namespace GuildBankRepository
     /// Selects a guild's bank tabs, ordered by tab: tab, name, icon, text.
     std::vector<GuildBankTabRow> QueryTabs(uint32 guildId);
 
-    /// Selects a guild's bank items with their values and text, ordered by tab, for
-    /// Item::LoadFromDB (the values first): values, text, tab, slot, item guid, entry.
-    QueryResult* QueryItems(uint32 guildId);
+    /// Selects a guild's bank items, ordered by tab: their saved values and text, tab, slot, item
+    /// guid and entry.
+    std::vector<GuildBankItemRow> QueryItems(uint32 guildId);
 
     /// Selects a bank tab's latest events, newest first: log guid, type, player, item or money,
     /// stack count, destination tab, time.

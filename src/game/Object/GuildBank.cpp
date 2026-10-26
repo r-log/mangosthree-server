@@ -334,20 +334,18 @@ void Guild::LoadGuildBankFromDB()
         m_TabListMap[tabId] = NewTab;
     }
 
-    // data needs to be at first place for Item::LoadFromDB: data, text, tab, slot, item guid, entry
-    QueryResult* result = GuildBankRepository::QueryItems(m_Id);
-    if (!result)
+    std::vector<GuildBankItemRow> items = GuildBankRepository::QueryItems(m_Id);
+    if (items.empty())
     {
         return;
     }
 
-    do
+    for (GuildBankItemRow const& row : items)
     {
-        Field* fields = result->Fetch();
-        uint8 TabId = fields[2].GetUInt8();
-        uint8 SlotId = fields[3].GetUInt8();
-        uint32 ItemGuid = fields[4].GetUInt32();
-        uint32 ItemEntry = fields[5].GetUInt32();
+        uint8 TabId = row.tabId;
+        uint8 SlotId = row.slotId;
+        uint32 ItemGuid = row.itemGuid;
+        uint32 ItemEntry = row.itemEntry;
 
         if (TabId >= GetPurchasedTabs())
         {
@@ -370,7 +368,7 @@ void Guild::LoadGuildBankFromDB()
         }
 
         Item* pItem = NewItemOrBag(proto);
-        if (!pItem->LoadFromDB(ItemGuid, fields))
+        if (!pItem->LoadFromDB(ItemGuid, row.instance))
         {
             GuildBankRepository::DeleteItem(m_Id, uint32(TabId), uint32(SlotId));
             sLog.outError("Item GUID %u not found in item_instance, deleting from Guild Bank!", ItemGuid);
@@ -381,9 +379,6 @@ void Guild::LoadGuildBankFromDB()
         pItem->AddToWorld();
         m_TabListMap[TabId]->Slots[SlotId] = pItem;
     }
-    while (result->NextRow());
-
-    delete result;
 }
 
 // *************************************************

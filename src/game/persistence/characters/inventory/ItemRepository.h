@@ -32,6 +32,7 @@
 #include <vector>
 #include "Platform/Define.h"
 
+class Field;
 class QueryResult;
 
 /// One saved loot row of an item: the item id (a currency's negated), its count, random suffix
@@ -44,12 +45,23 @@ struct ItemLootRow
     int32 randomPropertyId = 0;
 };
 
+/// An item's saved instance as its load reads it: its update fields (`data`, none when NULL) and
+/// its text.
+struct ItemInstanceRow
+{
+    std::optional<std::string> data;
+    std::string text;
+};
+
 /// The items' saved rows (`item_instance`, `character_gifts`, `item_loot`, and an item's
 /// `character_inventory` row). The gift read is asynchronous, and the start-up's highest guid and
 /// a GM's item list reads synchronous; every write is queued on the character database, and one called inside
 /// CharacterTransaction joins it.
 namespace ItemRepository
 {
+    /// Reads an item instance's two columns, the data and the text, from the first two of a row.
+    ItemInstanceRow ReadInstance(Field* fields);
+
     /// Asks for a wrapped item's gift row: the item's entry and flags before it was wrapped. The
     /// callback runs on the world thread with the result, which it owns.
     void QueryGift(uint32 itemGuid, std::function<void(QueryResult*)> callback);

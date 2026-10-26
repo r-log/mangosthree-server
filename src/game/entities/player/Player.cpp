@@ -3448,31 +3448,29 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
         {
             // return back all mails with COD and Item, and the items of all of them: staged
             // together, walked in lockstep (see StageDeleteReads).
-            std::unique_ptr<QueryResult> resultMail(holder->GetResult(PLAYER_DELETE_READ_COD_MAIL));
-            std::unique_ptr<QueryResult> resultItems(holder->GetResult(PLAYER_DELETE_READ_COD_MAIL_ITEMS));
-            bool haveItemRow = (resultItems != NULL);
-            if (resultMail)
+            std::vector<DeleteCodMailRow> mails = CharacterDeleteRepository::DeleteCodMails(holder.get());
+            std::vector<DeleteCodMailItemRow> mailItems = CharacterDeleteRepository::DeleteCodMailItems(holder.get());
+            size_t nextItem = 0;
+            if (!mails.empty())
             {
-                do
+                for (DeleteCodMailRow const& mail : mails)
                 {
-                    Field* fields = resultMail->Fetch();
-
-                    uint32 mail_id       = fields[0].GetUInt32();
-                    uint16 mailType      = fields[1].GetUInt16();
-                    uint16 mailTemplateId = fields[2].GetUInt16();
-                    uint32 sender        = fields[3].GetUInt32();
-                    std::string subject  = fields[4].GetCppString();
-                    std::string body     = fields[5].GetCppString();
-                    uint64 money         = fields[6].GetUInt32();
-                    bool has_items       = fields[7].GetBool();
+                    uint32 mail_id       = mail.id;
+                    uint16 mailType      = mail.messageType;
+                    uint16 mailTemplateId = mail.mailTemplateId;
+                    uint32 sender        = mail.sender;
+                    std::string subject  = mail.subject;
+                    std::string body     = mail.body;
+                    uint64 money         = mail.money;
+                    bool has_items       = mail.hasItems;
 
                     // Both results are ordered by the mail id, so anything still under the
                     // cursor from a mail that did not consume its rows (a non-normal mail's
                     // items are deleted, not returned) belongs to an EARLIER mail: step over
                     // it, and the run that is left is exactly this mail's.
-                    while (haveItemRow && resultItems->Fetch()[4].GetUInt32() < mail_id)
+                    while (nextItem < mailItems.size() && mailItems[nextItem].mailId < mail_id)
                     {
-                        haveItemRow = resultItems->NextRow();
+                        ++nextItem;
                     }
 
                     // we can return mail now
@@ -3501,19 +3499,16 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
 
                     if (has_items)
                     {
-                        // data needs to be at first place for Item::LoadFromDB
-                        //                       0      1      2           3            4
-                        // (`data`,`text`,`item_guid`,`item_template`,`mail_id`)
-                        while (haveItemRow)
+                        while (nextItem < mailItems.size())
                         {
-                            Field* fields2 = resultItems->Fetch();
-                            if (fields2[4].GetUInt32() != mail_id)
+                            DeleteCodMailItemRow const& mailItem = mailItems[nextItem];
+                            if (mailItem.mailId != mail_id)
                             {
                                 break;                      // the next mail's rows
                             }
 
-                            uint32 item_guidlow = fields2[2].GetUInt32();
-                            uint32 item_template = fields2[3].GetUInt32();
+                            uint32 item_guidlow = mailItem.itemGuid;
+                            uint32 item_template = mailItem.itemTemplate;
 
                             ItemPrototype const* itemProto = ObjectMgr::GetItemPrototype(item_template);
                             if (!itemProto)
@@ -3523,7 +3518,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
                             else
                             {
                                 Item* pItem = NewItemOrBag(itemProto);
-                                if (!pItem->LoadFromDB(item_guidlow, fields2, playerguid))
+                                if (!pItem->LoadFromDB(item_guidlow, mailItem.instance, playerguid))
                                 {
                                     pItem->FSetState(ITEM_REMOVED);
                                     pItem->SaveToDB();      // it also deletes item object !
@@ -3534,8 +3529,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
                                 }
                             }
 
-                            // LAST: NextRow() overwrites the row `fields2` points into.
-                            haveItemRow = resultItems->NextRow();
+                            ++nextItem;
                         }
                     }
 
@@ -3545,7 +3539,6 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
 
                     draft.SetMoney(money).SendReturnToSender(pl_account, playerguid, ObjectGuid(HIGHGUID_PLAYER, sender));
                 }
-                while (resultMail->NextRow());
             }
 
             // unsummon and delete for pets in world is not required: player deleted from CLI or character list with not loaded pet.

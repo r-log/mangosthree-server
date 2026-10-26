@@ -546,7 +546,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     // Mail
     _LoadMails(CharacterRepository::LoginMails(holder));
-    _LoadMailedItems(holder->GetResult(PLAYER_LOGIN_QUERY_LOADMAILEDITEMS));
+    _LoadMailedItems(CharacterRepository::LoginMailedItems(holder));
     UpdateNextMailTimeAndUnreads();
 
     _LoadGlyphs(GlyphRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADGLYPHS));
@@ -579,8 +579,8 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     // must be before inventory (some items required reputation check)
     _LoadReputations(ReputationRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADREPUTATION));
 
-    _LoadInventory(holder->GetResult(PLAYER_LOGIN_QUERY_LOADINVENTORY), time_diff);
-    _LoadItemLoot(holder->GetResult(PLAYER_LOGIN_QUERY_LOADITEMLOOT));
+    _LoadInventory(CharacterRepository::LoginInventory(holder), time_diff);
+    _LoadItemLoot(CharacterRepository::LoginItemLoot(holder));
 
     // update items with duration and realtime
     UpdateItemDuration(time_diff, true);

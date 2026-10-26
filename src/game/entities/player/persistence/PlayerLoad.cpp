@@ -489,10 +489,10 @@ void Player::LoadCorpse()
 /**
  * @brief Loads inventory, bank, and equipped items from the database.
  *
- * @param result The query result containing item inventory rows.
+ * @param rows The inventory rows, ordered by bag.
  * @param timediff The elapsed offline time used for time-sensitive item checks.
  */
-void Player::_LoadInventory(QueryResult* result, uint32 timediff)
+void Player::_LoadInventory(std::vector<LoginInventoryRow> const& rows, uint32 timediff)
 {
     std::map<uint32, Bag*> bagMap;                          // fast guid lookup for bags
     // NOTE: the "order by `bag`" is important because it makes sure
@@ -502,19 +502,18 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
 
     uint32 zone = GetTerrain()->GetZoneId(Where().X(), Where().Y(), Where().Z());
 
-    if (result)
+    if (!rows.empty())
     {
         std::list<Item*> problematicItems;
 
         // prevent items from being added to the queue when stored
         m_itemUpdateQueueBlocked = true;
-        do
+        for (LoginInventoryRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-            uint32 bag_guid  = fields[2].GetUInt32();
-            uint8  slot      = fields[3].GetUInt8();
-            uint32 item_lowguid = fields[4].GetUInt32();
-            uint32 item_id   = fields[5].GetUInt32();
+            uint32 bag_guid  = row.bag;
+            uint8  slot      = row.slot;
+            uint32 item_lowguid = row.item;
+            uint32 item_id   = row.itemTemplate;
 
             ItemPrototype const* proto = ObjectMgr::GetItemPrototype(item_id);
 
@@ -528,7 +527,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
 
             Item* item = NewItemOrBag(proto);
 
-            if (!item->LoadFromDB(item_lowguid, fields, GetObjectGuid()))
+            if (!item->LoadFromDB(item_lowguid, row.instance, GetObjectGuid()))
             {
                 sLog.outError("Player::_LoadInventory: Player %s has broken item (id: #%u) in inventory, deleted.", GetName(), item_id);
                 ItemRepository::DropInventoryRow(item_lowguid);
@@ -657,9 +656,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
                 problematicItems.push_back(item);
             }
         }
-        while (result->NextRow());
 
-        delete result;
         m_itemUpdateQueueBlocked = false;
 
         // send by mail problematic items
@@ -689,16 +686,15 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
 /**
  * @brief Loads persisted item loot contents for the player's items.
  *
- * @param result The query result containing saved item loot rows.
+ * @param rows The saved item loot rows.
  */
-void Player::_LoadItemLoot(QueryResult* result)
+void Player::_LoadItemLoot(std::vector<LoginItemLootRow> const& rows)
 {
-    if (result)
+    if (!rows.empty())
     {
-        do
+        for (LoginItemLootRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-            uint32 item_guid   = fields[0].GetUInt32();
+            uint32 item_guid   = row.itemGuid;
 
             Item* item = m_inventoryMgr.GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, item_guid));
 
@@ -709,31 +705,24 @@ void Player::_LoadItemLoot(QueryResult* result)
                 continue;
             }
 
-            item->LoadLootFromDB(fields);
+            item->LoadLootFromDB(row);
         }
-        while (result->NextRow());
-
-        delete result;
     }
 }
 
 // load mailed item which should receive current player
-void Player::_LoadMailedItems(QueryResult* result)
+void Player::_LoadMailedItems(std::vector<LoginMailedItemRow> const& rows)
 {
-    // data needs to be at first place for Item::LoadFromDB
-    //         0     1     2        3          4
-    // "SELECT data, text, mail_id, item_guid, item_template FROM mail_items JOIN item_instance ON item_guid = guid WHERE receiver = '%u'", GUID_LOPART(m_guid)
-    if (!result)
+    if (rows.empty())
     {
         return;
     }
 
-    do
+    for (LoginMailedItemRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-        uint32 mail_id       = fields[2].GetUInt32();
-        uint32 item_guid_low = fields[3].GetUInt32();
-        uint32 item_template = fields[4].GetUInt32();
+        uint32 mail_id       = row.mailId;
+        uint32 item_guid_low = row.itemGuid;
+        uint32 item_template = row.itemTemplate;
 
         Mail* mail = GetMail(mail_id);
         if (!mail)
@@ -754,7 +743,7 @@ void Player::_LoadMailedItems(QueryResult* result)
 
         Item* item = NewItemOrBag(proto);
 
-        if (!item->LoadFromDB(item_guid_low, fields, GetObjectGuid()))
+        if (!item->LoadFromDB(item_guid_low, row.instance, GetObjectGuid()))
         {
             sLog.outError("Player::_LoadMailedItems - Item in mail (%u) doesn't exist !!!! - item guid: %u, deleted from mail", mail->messageID, item_guid_low);
             MailRepository::DropMailedItem(item_guid_low);
@@ -765,9 +754,6 @@ void Player::_LoadMailedItems(QueryResult* result)
 
         AddMItem(item);
     }
-    while (result->NextRow());
-
-    delete result;
 }
 
 /**

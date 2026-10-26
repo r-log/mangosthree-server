@@ -29,9 +29,19 @@
 
 namespace AuctionRepository
 {
-    QueryResult* QueryAuctionItems()
+    static AuctionItemRow ReadAuctionItem(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`");
+        AuctionItemRow row;
+        row.instance = ItemRepository::ReadInstance(fields);
+        row.itemGuid = fields[2].GetUInt32();
+        row.itemTemplate = fields[3].GetUInt32();
+        return row;
+    }
+
+    std::vector<AuctionItemRow> QueryAuctionItems()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`");
+        return ReadRows<AuctionItemRow>(result, ReadAuctionItem);
     }
 
     std::optional<uint32> QueryAuctionCount()
