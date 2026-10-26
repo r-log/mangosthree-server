@@ -564,10 +564,10 @@ struct DeletedCharacterInfoRow
 namespace CharacterRepository
 {
     /// Selects the guids of an account's characters.
-    QueryResult* QueryAccountCharacters(uint32 accountId);
+    std::vector<uint32> QueryAccountCharacters(uint32 accountId);
 
     /// Selects how many characters an account has on this realm.
-    QueryResult* QueryAccountCharacterCount(uint32 accountId);
+    std::optional<uint32> QueryAccountCharacterCount(uint32 accountId);
 
     /// Selects an offline character's position, map and flight path, synchronously.
     std::optional<CharacterPositionRow> QueryPosition(uint32 guid);
@@ -679,7 +679,7 @@ namespace CharacterRepository
 
     /// Selects the account of a character by its name, the name already escaped through the login
     /// database, as a ban does.
-    QueryResult* QueryAccountOfCharacterNamed(std::string const& name);
+    std::vector<uint32> QueryAccountOfCharacterNamed(std::string const& name);
 
     /// Asks for the number of an account's characters on this realm; the callback runs on the world
     /// thread with the count.

@@ -341,11 +341,11 @@ set(ALLOW_BattleGroundStatsRepository_cpp
 
 set(ALLOW_SavedVariablesRepository_cpp
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextArenaPointDistributionTime` FROM `saved_variables`\")\;"
-    "return CharacterDatabase.Query(\"SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`\")\;"
-    "return CharacterDatabase.Query(\"SELECT `NextDailyQuestResetTime` FROM `saved_variables`\")\;"
-    "return CharacterDatabase.Query(\"SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`\")\;"
-    "return CharacterDatabase.Query(\"SELECT `NextCurrenciesResetTime` FROM `saved_variables`\")\;"
-    "return CharacterDatabase.Query(\"SELECT `NextRandomBGResetTime` FROM `saved_variables`\")\;")
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextDailyQuestResetTime` FROM `saved_variables`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextCurrenciesResetTime` FROM `saved_variables`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextRandomBGResetTime` FROM `saved_variables`\")\;")
 
 set(ALLOW_TicketRepository_cpp
     "if (QueryResult* highest = CharacterDatabase.Query(\"SELECT MAX(`ticket_id`) FROM `character_ticket`\"))"
@@ -372,15 +372,15 @@ set(ALLOW_AccountDataRepository_cpp
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7` FROM `character_tutorial` WHERE `account` = '%u'\", accountId)\;")
 
 set(ALLOW_AccountRepository_cpp
-    "return LoginDatabase.PQuery(\"SELECT 1 FROM `account` WHERE `id`='%u'\", accountId)\;"
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT 1 FROM `account` WHERE `id`='%u'\", accountId)\;"
     "LoginDatabase.escape_string(safe_new_uname)\;"
     "LoginDatabase.escape_string(safeName)\;"
-    "return LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `username` = '%s'\", safeName.c_str())\;"
-    "return LoginDatabase.PQuery(\"SELECT `gmlevel` FROM `account` WHERE `id` = '%u'\", accountId)\;"
-    "return LoginDatabase.PQuery(\"SELECT `username` FROM `account` WHERE `id` = '%u'\", accountId)\;"
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `username` = '%s'\", safeName.c_str())\;"
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `gmlevel` FROM `account` WHERE `id` = '%u'\", accountId)\;"
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `username` FROM `account` WHERE `id` = '%u'\", accountId)\;"
     "LoginDatabase.escape_string(safeAccount)\;"
-    "return LoginDatabase.PQuery(\"SELECT \""
-    "return LoginDatabase.PQuery(\"SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 \""
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT \""
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 \""
     "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u\", realmId)\;"
     "LoginDatabase.escape_string(email)\;"
     "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `email` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), email.c_str())\;"
@@ -398,8 +398,8 @@ set(ALLOW_AccountRepository_cpp
     "QueryResult* result = LoginDatabase.Query(\"SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0\")\;")
 
 set(ALLOW_CharacterRepository_cpp
-    "return CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accountId)\;"
-    "return CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", accountId)\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accountId)\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", accountId)\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `position_x`,`position_y`,`position_z`,`orientation`,`map`,`taxi_path` FROM `characters` WHERE `guid` = '%u'\", guid)\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `characters`\")\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `account`, `name`, `race`, `class`, `level`, `zone`, `map`, `position_x`, `position_y`, `position_z` FROM `characters` ORDER BY `guid`\")\;"
@@ -410,7 +410,7 @@ set(ALLOW_CharacterRepository_cpp
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), name)\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL\")\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'\", guid)\;"
-    "return CharacterDatabase.PQuery(\"SELECT `account` FROM `characters` WHERE `name` = '%s'\", name.c_str())\;")
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `account` FROM `characters` WHERE `name` = '%s'\", name.c_str())\;")
 
 set(ALLOW_PetRepository_cpp
     "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `character_pet`\")\;")
@@ -582,12 +582,12 @@ set(ALLOW_BanRepository_cpp
     "return ReadRows<BanListAccountRow>(LoginDatabase.Query(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\""
     "return ReadRows<BanListAccountRow>(LoginDatabase.PQuery(\"SELECT `account`.`id`, `username` FROM `account`, `account_banned`\""
     "LoginDatabase.escape_string(text)\;"
-    "return LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `last_ip` = '%s'\", ip.c_str())\;"
-    "return LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `username` = '%s'\", name.c_str())\;")
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `last_ip` = '%s'\", ip.c_str())\;"
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `username` = '%s'\", name.c_str())\;")
 
 set(ALLOW_CommandDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;"
-    "return WorldDatabase.Query(\"SELECT \"")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT \"")
 
 set(ALLOW_ScriptDataRepository_cpp
     "QueryResult* result = WorldDatabase.PQuery(\"SELECT `type`, `bind`, `ScriptName`, `data` FROM `script_binding`\")\;"
@@ -600,7 +600,7 @@ set(ALLOW_DbVersionRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1\")\;")
 
 set(ALLOW_BroadcastDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`\")\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`\")\;")
 
 set(ALLOW_RealmRepository_cpp
     "LoginDatabase.escape_string(builds)\;"

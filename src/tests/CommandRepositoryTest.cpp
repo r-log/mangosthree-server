@@ -252,8 +252,8 @@ TEST(CommandRepository_SpawnInfoAndScriptReads)
     SpawnRepository::QueryCreatureGuidsNamed("Ann");
     SpawnRepository::QueryGameObjectGuidsNamed("Ann");
     SpawnRepository::QueryCreatureIdCountOf(1234);
-    delete CommandDataRepository::QueryCommands();
-    delete CommandDataRepository::QueryCommandHelpLocales();
+    CommandDataRepository::QueryCommands();
+    CommandDataRepository::QueryCommandHelpLocales();
     ScriptDataRepository::QueryScriptBindings();
     ScriptDataRepository::QueryScriptNames();
     ScriptDataRepository::QueryDbScripts(2);
@@ -1075,4 +1075,43 @@ TEST(BanRepository_ActiveAccountBans)
         CHECK_STR(*rows[0].username, "s1.1");
         CHECK_EQ(rows[1].accountId, 2000u);
     }
+}
+
+// Each column of a `command` row lands in its member, and the rows come back in order.
+TEST(CommandDataRepository_Commands)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "10002", "s1.3"},
+        FakeRow{"2000", "s2.1", "20002", "s2.3"},
+    });
+    std::vector<CommandRow> rows = CommandDataRepository::QueryCommands();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].commandText, "s1.1");
+    CHECK_EQ(rows[0].security, uint16(10002));
+    CHECK_STR(rows[0].helpText, "s1.3");
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of a `locales_command` row lands in its member, and the rows come back in order.
+TEST(CommandDataRepository_CommandHelpLocales)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "s1.2", "s1.3", "s1.4", "s1.5", "s1.6", "s1.7", "s1.8"},
+        FakeRow{"2000", "s2.1", "s2.2", "s2.3", "s2.4", "s2.5", "s2.6", "s2.7", "s2.8"},
+    });
+    std::vector<CommandHelpLocaleRow> rows = CommandDataRepository::QueryCommandHelpLocales();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].helpText[0], "s1.1");
+    CHECK_STR(rows[0].helpText[1], "s1.2");
+    CHECK_STR(rows[0].helpText[2], "s1.3");
+    CHECK_STR(rows[0].helpText[3], "s1.4");
+    CHECK_STR(rows[0].helpText[4], "s1.5");
+    CHECK_STR(rows[0].helpText[5], "s1.6");
+    CHECK_STR(rows[0].helpText[6], "s1.7");
+    CHECK_STR(rows[0].helpText[7], "s1.8");
+    CHECK_EQ(rows[1].id, 2000u);
 }

@@ -124,13 +124,13 @@ namespace BanRepository
     void EscapeString(std::string& text);
 
     /// Selects the accounts last seen on an address, the address already escaped.
-    QueryResult* QueryAccountsOnIp(std::string const& ip);
+    std::vector<uint32> QueryAccountsOnIp(std::string const& ip);
 
     /// Inserts an address's ban, the texts already escaped.
     void InsertIpBan(std::string const& ip, uint32 duration, std::string const& author, std::string const& reason);
 
     /// Selects an account's id by its name, the name already escaped.
-    QueryResult* QueryAccountIdNamed(std::string const& name);
+    std::vector<uint32> QueryAccountIdNamed(std::string const& name);
 
     /// Inserts an account's active ban, the texts already escaped.
     void InsertAccountBan(uint32 accountId, uint32 duration, std::string const& author, std::string const& reason);

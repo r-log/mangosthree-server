@@ -1386,29 +1386,29 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
     std::string safe_author = author;
     BanRepository::EscapeString(safe_author);
 
-    QueryResult* resultAccounts = NULL;                     // used for kicking
+    std::vector<uint32> accounts;                           // used for kicking
 
     ///- Update the database with ban information
     switch (mode)
     {
         case BAN_IP:
             // No SQL injection as strings are escaped
-            resultAccounts = BanRepository::QueryAccountsOnIp(nameOrIP);
+            accounts = BanRepository::QueryAccountsOnIp(nameOrIP);
             BanRepository::InsertIpBan(nameOrIP, duration_secs, safe_author, reason);
             break;
         case BAN_ACCOUNT:
             // No SQL injection as string is escaped
-            resultAccounts = BanRepository::QueryAccountIdNamed(nameOrIP);
+            accounts = BanRepository::QueryAccountIdNamed(nameOrIP);
             break;
         case BAN_CHARACTER:
             // No SQL injection as string is escaped
-            resultAccounts = CharacterRepository::QueryAccountOfCharacterNamed(nameOrIP);
+            accounts = CharacterRepository::QueryAccountOfCharacterNamed(nameOrIP);
             break;
         default:
             return BAN_SYNTAX_ERROR;
     }
 
-    if (!resultAccounts)
+    if (accounts.empty())
     {
         if (mode == BAN_IP)
         {
@@ -1421,10 +1421,8 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
     }
 
     ///- Disconnect all affected players (for IP it can be several)
-    do
+    for (uint32 account : accounts)
     {
-        Field* fieldsAccount = resultAccounts->Fetch();
-        uint32 account = fieldsAccount->GetUInt32();
 
         if (mode != BAN_IP)
         {
@@ -1437,9 +1435,8 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
             {
                 sess->KickPlayer();
             }
-    } while (resultAccounts->NextRow());
+    }
 
-    delete resultAccounts;
     return BAN_SUCCESS;
 }
 
@@ -1692,14 +1689,14 @@ void World::_UpdateRealmCharCount(std::optional<uint32> const& charCount, uint32
 
 void World::InitWeeklyQuestResetTime()
 {
-    QueryResult* result = SavedVariablesRepository::QueryNextWeeklyQuestReset();
-    if (!result)
+    std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextWeeklyQuestReset();
+    if (!nextReset)
     {
         m_NextWeeklyQuestReset = time_t(time(NULL));        // game time not yet init
     }
     else
     {
-        m_NextWeeklyQuestReset = time_t((*result)[0].GetUInt64());
+        m_NextWeeklyQuestReset = time_t(*nextReset);
     }
 
     // generate time by config
@@ -1725,26 +1722,22 @@ void World::InitWeeklyQuestResetTime()
     // normalize reset time
     m_NextWeeklyQuestReset = m_NextWeeklyQuestReset < curTime ? nextWeekResetTime - WEEK : nextWeekResetTime;
 
-    if (!result)
+    if (!nextReset)
     {
         SavedVariablesRepository::InsertNextWeeklyQuestReset(uint64(m_NextWeeklyQuestReset));
-    }
-    else
-    {
-        delete result;
     }
 }
 
 void World::InitDailyQuestResetTime()
 {
-    QueryResult* result = SavedVariablesRepository::QueryNextDailyQuestReset();
-    if (!result)
+    std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextDailyQuestReset();
+    if (!nextReset)
     {
         m_NextDailyQuestReset = time_t(time(NULL));         // game time not yet init
     }
     else
     {
-        m_NextDailyQuestReset = time_t((*result)[0].GetUInt64());
+        m_NextDailyQuestReset = time_t(*nextReset);
     }
 
     // generate time by config
@@ -1768,13 +1761,9 @@ void World::InitDailyQuestResetTime()
     // normalize reset time
     m_NextDailyQuestReset = m_NextDailyQuestReset < curTime ? nextDayResetTime - DAY : nextDayResetTime;
 
-    if (!result)
+    if (!nextReset)
     {
         SavedVariablesRepository::InsertNextDailyQuestReset(uint64(m_NextDailyQuestReset));
-    }
-    else
-    {
-        delete result;
     }
 }
 
@@ -1841,15 +1830,15 @@ void World::SetMonthlyQuestResetTime(bool initialize)
 {
     if (initialize)
     {
-        QueryResult* result = SavedVariablesRepository::QueryNextMonthlyQuestReset();
+        std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextMonthlyQuestReset();
 
-        if (!result)
+        if (!nextReset)
         {
             m_NextMonthlyQuestReset = WorldGameTime::Get();
         }
         else
         {
-            const time_t stored = time_t((*result)[0].GetUInt64());
+            const time_t stored = time_t(*nextReset);
             m_NextMonthlyQuestReset = MonthlyQuestResetOnLocalMidnight(stored);
             if (m_NextMonthlyQuestReset != stored)
             {
@@ -1859,8 +1848,6 @@ void World::SetMonthlyQuestResetTime(bool initialize)
                     TimeToTimestampStr(m_NextMonthlyQuestReset).c_str(), uint64(m_NextMonthlyQuestReset));
             }
         }
-
-        delete result;
     }
 
     // computed from the world game time, the clock Update compares the reset against
@@ -1872,14 +1859,14 @@ void World::SetMonthlyQuestResetTime(bool initialize)
 
 void World::InitCurrencyResetTime()
 {
-    QueryResult* result = SavedVariablesRepository::QueryNextCurrencyReset();
-    if (!result)
+    std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextCurrencyReset();
+    if (!nextReset)
     {
         m_NextCurrencyReset = time_t(time(NULL));        // game time not yet init
     }
     else
     {
-        m_NextCurrencyReset = time_t((*result)[0].GetUInt64());
+        m_NextCurrencyReset = time_t(*nextReset);
     }
 
     // re-init case or not exists
@@ -1909,26 +1896,22 @@ void World::InitCurrencyResetTime()
         m_NextCurrencyReset = m_NextCurrencyReset < curTime ? nextWeekResetTime - getConfig(CONFIG_UINT32_CURRENCY_RESET_INTERVAL) * DAY : nextWeekResetTime;
     }
 
-    if (!result)
+    if (!nextReset)
     {
         SavedVariablesRepository::InsertNextCurrencyReset(uint64(m_NextCurrencyReset));
-    }
-    else
-    {
-        delete result;
     }
 }
 
 void World::InitRandomBGResetTime()
 {
-    QueryResult * result = SavedVariablesRepository::QueryNextRandomBGReset();
-    if (!result)
+    std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextRandomBGReset();
+    if (!nextReset)
     {
         m_NextRandomBGReset = time_t(time(NULL));         // game time not yet init
     }
     else
     {
-        m_NextRandomBGReset = time_t((*result)[0].GetUInt64());
+        m_NextRandomBGReset = time_t(*nextReset);
     }
 
     // generate time by config
@@ -1951,13 +1934,9 @@ void World::InitRandomBGResetTime()
 
     // normalize reset time
     m_NextRandomBGReset = m_NextRandomBGReset < curTime ? nextDayResetTime - DAY : nextDayResetTime;
-    if (!result)
+    if (!nextReset)
     {
         SavedVariablesRepository::InsertNextRandomBGReset(uint64(m_NextRandomBGReset));
-    }
-    else
-    {
-        delete result;
     }
 }
 
@@ -2092,9 +2071,9 @@ void World::LoadBroadcastStrings()
         return;
     }
 
-    QueryResult* result = BroadcastDataRepository::QueryBroadcasts();
+    std::vector<BroadcastRow> rows = BroadcastDataRepository::QueryBroadcasts();
 
-    if (!result)
+    if (rows.empty())
     {
         m_broadcastEnable = false;
         sLog.outErrorDb("DB table `autobroadcast` is empty.");
@@ -2104,15 +2083,14 @@ void World::LoadBroadcastStrings()
 
     m_broadcastList.clear();
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
     m_broadcastWeight = 0;
 
-    do
+    for (BroadcastRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 ratio = fields[2].GetUInt32();
+        uint32 ratio = row.ratio;
         if (ratio == 0)
         {
             continue;
@@ -2121,12 +2099,11 @@ void World::LoadBroadcastStrings()
         m_broadcastWeight += ratio;
 
         BroadcastString bs;
-        bs.text = fields[1].GetString();
+        bs.text = row.content ? row.content->c_str() : NULL;
         bs.freq = m_broadcastWeight;
         m_broadcastList.push_back(bs);
-    } while (result->NextRow());
+    }
 
-    delete result;
     if (m_broadcastWeight == 0)
     {
         sLog.outString(">> Loaded 0 broadcast strings.");

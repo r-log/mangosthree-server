@@ -141,9 +141,9 @@ TEST(BanRepository_BanReads)
     std::string text = "BOB";
     BanRepository::EscapeString(text);
     CHECK_STR(text.c_str(), "BOB");
-    delete BanRepository::QueryAccountsOnIp("10.0.0.1");
-    delete BanRepository::QueryAccountIdNamed(text);
-    delete CharacterRepository::QueryAccountOfCharacterNamed("Ann");
+    BanRepository::QueryAccountsOnIp("10.0.0.1");
+    BanRepository::QueryAccountIdNamed(text);
+    CharacterRepository::QueryAccountOfCharacterNamed("Ann");
     CheckLines(login.query.executed, {
         "SELECT `id` FROM `account` WHERE `last_ip` = '10.0.0.1'",
         "SELECT `id` FROM `account` WHERE `username` = 'BOB'",
@@ -158,11 +158,11 @@ TEST(BanRepository_BanReads)
 TEST(SavedVariablesRepository_ResetTimes)
 {
     Db chars(CharacterDatabase);
-    delete SavedVariablesRepository::QueryNextWeeklyQuestReset();
-    delete SavedVariablesRepository::QueryNextDailyQuestReset();
-    delete SavedVariablesRepository::QueryNextMonthlyQuestReset();
-    delete SavedVariablesRepository::QueryNextCurrencyReset();
-    delete SavedVariablesRepository::QueryNextRandomBGReset();
+    SavedVariablesRepository::QueryNextWeeklyQuestReset();
+    SavedVariablesRepository::QueryNextDailyQuestReset();
+    SavedVariablesRepository::QueryNextMonthlyQuestReset();
+    SavedVariablesRepository::QueryNextCurrencyReset();
+    SavedVariablesRepository::QueryNextRandomBGReset();
     CheckLines(chars.query.executed, {
         "SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`",
         "SELECT `NextDailyQuestResetTime` FROM `saved_variables`",
@@ -233,7 +233,7 @@ TEST(WorldDataRepository_AppReads)
 {
     Db world(WorldDatabase);
     DbVersionRepository::QueryVersion();
-    delete BroadcastDataRepository::QueryBroadcasts();
+    BroadcastDataRepository::QueryBroadcasts();
     delete NpcDataRepository::QueryVendorItemEntries();
     delete LootDataRepository::QueryLootItemEntries();
     CheckLines(world.query.executed, {
@@ -289,4 +289,144 @@ TEST(RealmRepository_CountValues)
     CHECK_EQ(*realmCount, 1007u);
     REQUIRE(blockCount);
     CHECK_EQ(*blockCount, 2007u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(BanRepository_AccountsOnIp)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = BanRepository::QueryAccountsOnIp("10.0.0.1");
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(BanRepository_AccountIdNamed)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = BanRepository::QueryAccountIdNamed("BOB");
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(CharacterRepository_AccountOfCharacterNamed)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = CharacterRepository::QueryAccountOfCharacterNamed("Ann");
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SavedVariablesRepository_NextWeeklyQuestReset)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint64> value = SavedVariablesRepository::QueryNextWeeklyQuestReset();
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"4294967303"}, FakeRow{"8589934599"},
+    });
+    std::optional<uint64> value = SavedVariablesRepository::QueryNextWeeklyQuestReset();
+    REQUIRE(value);
+    CHECK_EQ(*value, uint64(4294967303ull));
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SavedVariablesRepository_NextDailyQuestReset)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint64> value = SavedVariablesRepository::QueryNextDailyQuestReset();
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"4294967303"}, FakeRow{"8589934599"},
+    });
+    std::optional<uint64> value = SavedVariablesRepository::QueryNextDailyQuestReset();
+    REQUIRE(value);
+    CHECK_EQ(*value, uint64(4294967303ull));
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SavedVariablesRepository_NextMonthlyQuestReset)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint64> value = SavedVariablesRepository::QueryNextMonthlyQuestReset();
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"4294967303"}, FakeRow{"8589934599"},
+    });
+    std::optional<uint64> value = SavedVariablesRepository::QueryNextMonthlyQuestReset();
+    REQUIRE(value);
+    CHECK_EQ(*value, uint64(4294967303ull));
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SavedVariablesRepository_NextCurrencyReset)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint64> value = SavedVariablesRepository::QueryNextCurrencyReset();
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"4294967303"}, FakeRow{"8589934599"},
+    });
+    std::optional<uint64> value = SavedVariablesRepository::QueryNextCurrencyReset();
+    REQUIRE(value);
+    CHECK_EQ(*value, uint64(4294967303ull));
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SavedVariablesRepository_NextRandomBGReset)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint64> value = SavedVariablesRepository::QueryNextRandomBGReset();
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"4294967303"}, FakeRow{"8589934599"},
+    });
+    std::optional<uint64> value = SavedVariablesRepository::QueryNextRandomBGReset();
+    REQUIRE(value);
+    CHECK_EQ(*value, uint64(4294967303ull));
+}
+
+// Each column of an `autobroadcast` row lands in its member, and the rows come back in order.
+TEST(BroadcastDataRepository_Broadcasts)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"0", "s1.1", "1002"},
+        FakeRow{"0", "s2.1", "2002"},
+    });
+    std::vector<BroadcastRow> rows = BroadcastDataRepository::QueryBroadcasts();
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].content);
+    CHECK_STR(*rows[0].content, "s1.1");
+    CHECK_EQ(rows[0].ratio, 1002u);
+    CHECK_EQ(rows[1].ratio, 2002u);
 }

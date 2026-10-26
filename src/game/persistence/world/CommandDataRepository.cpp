@@ -25,17 +25,40 @@
 
 #include "CommandDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace CommandDataRepository
 {
-    QueryResult* QueryCommands()
+    static CommandRow ReadCommand(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `id`, `command_text`,`security`,`help_text` FROM `command`");
+        CommandRow row;
+        row.id = fields[0].GetUInt32();
+        row.commandText = fields[1].GetCppString();
+        row.security = fields[2].GetUInt16();
+        row.helpText = fields[3].GetCppString();
+        return row;
     }
 
-    QueryResult* QueryCommandHelpLocales()
+    std::vector<CommandRow> QueryCommands()
     {
-        return WorldDatabase.Query("SELECT "
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, `command_text`,`security`,`help_text` FROM `command`");
+        return ReadRows<CommandRow>(result, ReadCommand);
+    }
+
+    static CommandHelpLocaleRow ReadCommandHelpLocale(Field* fields)
+    {
+        CommandHelpLocaleRow row;
+        row.id = fields[0].GetUInt32();
+        for (int i = 0; i < COMMAND_HELP_ROW_LOCALES; ++i)
+        {
+            row.helpText[i] = fields[i + 1].GetCppString();
+        }
+        return row;
+    }
+
+    std::vector<CommandHelpLocaleRow> QueryCommandHelpLocales()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT "
             "`id`,"
             "`help_text_loc1`,"
             "`help_text_loc2`,"
@@ -47,5 +70,6 @@ namespace CommandDataRepository
             "`help_text_loc8`"
             " FROM `locales_command` ORDER BY `id` ASC "
             );
+        return ReadRows<CommandHelpLocaleRow>(result, ReadCommandHelpLocale);
     }
 }

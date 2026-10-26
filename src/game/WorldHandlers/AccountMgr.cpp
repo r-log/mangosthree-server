@@ -172,30 +172,20 @@ AccountOpResult AccountMgr::CreateAccount(std::string username, std::string pass
  */
 AccountOpResult AccountMgr::DeleteAccount(uint32 accid)
 {
-    QueryResult* result = AccountRepository::QueryExists(accid);
-    if (!result)
+    if (!AccountRepository::QueryExists(accid))
     {
         return AOR_NAME_NOT_EXIST;                           // account doesn't exist
     }
-    delete result;
 
     // existing characters list
-    result = CharacterRepository::QueryAccountCharacters(accid);
-    if (result)
+    std::vector<uint32> characters = CharacterRepository::QueryAccountCharacters(accid);
+    for (uint32 guidlo : characters)
     {
-        do
-        {
-            Field* fields = result->Fetch();
-            uint32 guidlo = fields[0].GetUInt32();
-            ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, guidlo);
+        ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, guidlo);
 
-            // kick if player currently
-            sPlayerRegistry.Kick(guid);
-            Player::DeleteFromDB(guid, accid, false);       // no need to update realm characters
-        }
-        while (result->NextRow());
-
-        delete result;
+        // kick if player currently
+        sPlayerRegistry.Kick(guid);
+        Player::DeleteFromDB(guid, accid, false);           // no need to update realm characters
     }
 
     // table realm specific but common for all characters of account for realm
@@ -223,12 +213,10 @@ AccountOpResult AccountMgr::DeleteAccount(uint32 accid)
  */
 AccountOpResult AccountMgr::ChangeUsername(uint32 accid, std::string new_uname, std::string new_passwd)
 {
-    QueryResult* result = AccountRepository::QueryExists(accid);
-    if (!result)
+    if (!AccountRepository::QueryExists(accid))
     {
         return AOR_NAME_NOT_EXIST;                           // account doesn't exist
     }
-    delete result;
 
     if (utf8length(new_uname) > MAX_ACCOUNT_STR)
     {
@@ -296,15 +284,14 @@ AccountOpResult AccountMgr::ChangePassword(uint32 accid, std::string new_passwd)
  */
 uint32 AccountMgr::GetId(std::string username)
 {
-    QueryResult* result = AccountRepository::QueryIdByName(username);
-    if (!result)
+    std::optional<uint32> accountId = AccountRepository::QueryIdByName(username);
+    if (!accountId)
     {
         return 0;
     }
     else
     {
-        uint32 id = (*result)[0].GetUInt32();
-        delete result;
+        uint32 id = *accountId;
         return id;
     }
 }
@@ -318,11 +305,9 @@ uint32 AccountMgr::GetId(std::string username)
  */
 AccountTypes AccountMgr::GetSecurity(uint32 acc_id)
 {
-    QueryResult* result = AccountRepository::QueryGmLevel(acc_id);
-    if (result)
+    if (std::optional<int32> gmLevel = AccountRepository::QueryGmLevel(acc_id))
     {
-        AccountTypes sec = AccountTypes((*result)[0].GetInt32());
-        delete result;
+        AccountTypes sec = AccountTypes(*gmLevel);
         return sec;
     }
 
@@ -339,11 +324,10 @@ AccountTypes AccountMgr::GetSecurity(uint32 acc_id)
  */
 bool AccountMgr::GetName(uint32 acc_id, std::string& name)
 {
-    QueryResult* result = AccountRepository::QueryName(acc_id);
-    if (result)
+    std::optional<std::string> accountName = AccountRepository::QueryName(acc_id);
+    if (accountName)
     {
-        name = (*result)[0].GetCppString();
-        delete result;
+        name = *accountName;
         return true;
     }
 
@@ -360,12 +344,9 @@ bool AccountMgr::GetName(uint32 acc_id, std::string& name)
 uint32 AccountMgr::GetCharactersCount(uint32 acc_id)
 {
     // check character count
-    QueryResult* result = CharacterRepository::QueryAccountCharacterCount(acc_id);
-    if (result)
+    if (std::optional<uint32> count = CharacterRepository::QueryAccountCharacterCount(acc_id))
     {
-        Field* fields = result->Fetch();
-        uint32 charcount = fields[0].GetUInt32();
-        delete result;
+        uint32 charcount = *count;
         return charcount;
     }
     else
@@ -398,9 +379,8 @@ uint32 AccountMgr::GetCharactersCount(uint32 acc_id)
 void AccountMgr::QueueChangePasswordChecked(uint32 accid, std::string oldPasswd, std::string newPasswd,
                                             std::function<void(bool, AccountOpResult)> callback)
 {
-    if (!AccountRepository::QueryNameAndPasswordHash(accid, [accid, oldPasswd, newPasswd, callback](QueryResult* result) mutable
+    if (!AccountRepository::QueryNameAndPasswordHash(accid, [accid, oldPasswd, newPasswd, callback](std::optional<AccountPasswordRow> row) mutable
                                    {
-                                       std::unique_ptr<QueryResult> row(result);
                                        if (!row)
                                        {
                                            // GetName() found no account: CheckPassword answered false,
@@ -411,8 +391,8 @@ void AccountMgr::QueueChangePasswordChecked(uint32 accid, std::string oldPasswd,
 
                                        // ChangePassword hashed the name EXACTLY as GetName returned it,
                                        // while CheckPassword upper-cased its own copy first. Both are kept.
-                                       std::string storedName = (*row)[0].GetCppString();
-                                       std::string storedHash = (*row)[1].GetCppString();
+                                       std::string storedName = row->username;
+                                       std::string storedHash = row->shaPassHash;
 
                                        std::string checkName = storedName;
                                        Utf8ToUpperOnlyLatin(oldPasswd);

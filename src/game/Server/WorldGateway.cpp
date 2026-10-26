@@ -114,44 +114,40 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
     // WorldSocket.cpp:1054-1069. `v` (SRP6 verifier) is dropped: the original
     // code fetched it only to print an unused debug line (N and g were computed
     // and never even printed) -- no login decision ever read it.
-    QueryResult* queryResult = AccountRepository::QueryAuthAccount(request.account);
+    std::optional<AuthAccountRow> account = AccountRepository::QueryAuthAccount(request.account);
 
-    if (!queryResult)
+    if (!account)
     {
         result.status = proto::AuthStatus::UnknownAccount;
         return result;
     }
 
-    const Field* fields = queryResult->Fetch();
-
     std::shared_ptr<AccountRow> row = std::make_shared<AccountRow>();
 
-    row->id = fields[0].GetUInt32();
+    row->id = account->id;
 
     // Clamp rather than trust: a bad gmlevel in the database must not hand out
     // more authority than the server has levels for. WorldSocket.cpp:1125-1128.
-    uint32 security = fields[1].GetUInt16();
+    uint32 security = account->gmLevel;
     if (security > SEC_ADMINISTRATOR)
     {
         security = SEC_ADMINISTRATOR;
     }
     row->security = AccountTypes(security);
 
-    row->sessionKey.SetHexStr(fields[2].GetString());
+    row->sessionKey.SetHexStr(account->sessionKey ? account->sessionKey->c_str() : NULL);
 
-    const std::string lastIp = fields[3].GetString();
-    const bool        locked = fields[4].GetUInt8() == 1;
+    const std::string lastIp = account->lastIp;
+    const bool        locked = account->locked == 1;
 
     row->expansion = uint8(std::min<uint32>(sWorld.getConfig(CONFIG_UINT32_EXPANSION),
-                                            fields[5].GetUInt8()));
-    row->muteTime  = time_t(fields[6].GetUInt64());
+                                            account->expansion));
+    row->muteTime  = time_t(account->muteTime);
 
-    const uint8 rawLocale = fields[7].GetUInt8();
+    const uint8 rawLocale = account->locale;
     row->locale = rawLocale >= MAX_LOCALE ? LOCALE_enUS : LocaleConstant(rawLocale);
 
-    const std::string clientOs = fields[8].GetString();
-
-    delete queryResult;
+    const std::string clientOs = account->os ? account->os->c_str() : NULL;
 
     // ---- IP lock -------------------------------------------------------------
     // WorldSocket.cpp:1107-1121 ("re-check ip locking, same check as in realmd").
@@ -166,11 +162,8 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
 
     // ---- Bans ------------------------------------------------------------
     // WorldSocket.cpp:1145-1161 ("re-check account ban, same check as in realmd").
-    QueryResult* banResult = AccountRepository::QueryActiveBan(row->id, request.peerAddress);
-
-    if (banResult)
+    if (AccountRepository::QueryActiveBan(row->id, request.peerAddress))
     {
-        delete banResult;
         sLog.outError("WorldGateway: banned account '%s' tried to connect from %s",
                       request.account.c_str(), request.peerAddress.c_str());
         result.status = proto::AuthStatus::Banned;

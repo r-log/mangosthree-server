@@ -3870,7 +3870,6 @@ class Player : public Unit
         // Load player spells from the database
         void _LoadSpells(std::vector<LoginSpellRow> const& rows);
         void _LoadTalents(std::vector<TalentRow> const& rows);
-        void _LoadFriendList(QueryResult* result);
         bool _LoadHomeBind(std::optional<LoginHomeBindRow> const& row);
 
         // Load declined names from the database

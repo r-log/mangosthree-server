@@ -40,29 +40,34 @@ namespace SavedVariablesRepository
         CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextArenaPointDistributionTime`) VALUES ('" UI64FMTD "')", time);
     }
 
-    QueryResult* QueryNextWeeklyQuestReset()
+    std::optional<uint64> QueryNextWeeklyQuestReset()
     {
-        return CharacterDatabase.Query("SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
-    QueryResult* QueryNextDailyQuestReset()
+    std::optional<uint64> QueryNextDailyQuestReset()
     {
-        return CharacterDatabase.Query("SELECT `NextDailyQuestResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextDailyQuestResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
-    QueryResult* QueryNextMonthlyQuestReset()
+    std::optional<uint64> QueryNextMonthlyQuestReset()
     {
-        return CharacterDatabase.Query("SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
-    QueryResult* QueryNextCurrencyReset()
+    std::optional<uint64> QueryNextCurrencyReset()
     {
-        return CharacterDatabase.Query("SELECT `NextCurrenciesResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextCurrenciesResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
-    QueryResult* QueryNextRandomBGReset()
+    std::optional<uint64> QueryNextRandomBGReset()
     {
-        return CharacterDatabase.Query("SELECT `NextRandomBGResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextRandomBGResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
     void InsertNextWeeklyQuestReset(uint64 time)
