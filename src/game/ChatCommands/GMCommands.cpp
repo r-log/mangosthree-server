@@ -100,18 +100,16 @@ bool ChatHandler::HandlePInfoCommand(char* args)
             return false;
         }
 
-        QueryResult* result = CharacterRepository::QueryPlayerInfo(target_guid.GetCounter());
-        if (!result)
+        std::optional<CharacterPlayerInfoRow> info = CharacterRepository::QueryPlayerInfo(target_guid.GetCounter());
+        if (!info)
         {
             return false;
         }
 
-        Field* fields = result->Fetch();
-        total_player_time = fields[0].GetUInt32();
-        level = fields[1].GetUInt32();
-        money = fields[2].GetUInt32();
-        accId = fields[3].GetUInt32();
-        delete result;
+        total_player_time = info->totaltime;
+        level = info->level;
+        money = info->money;
+        accId = info->account;
     }
 
     std::string username = GetMangosString(LANG_ERROR);
@@ -119,25 +117,22 @@ bool ChatHandler::HandlePInfoCommand(char* args)
     AccountTypes security = SEC_PLAYER;
     std::string last_login = GetMangosString(LANG_ERROR);
 
-    QueryResult* result = AccountRepository::QueryAccountInfo(accId);
-    if (result)
+    std::optional<AccountInfoRow> account = AccountRepository::QueryAccountInfo(accId);
+    if (account)
     {
-        Field* fields = result->Fetch();
-        username = fields[0].GetCppString();
-        security = (AccountTypes)fields[1].GetUInt32();
+        username = account->username;
+        security = (AccountTypes)account->gmLevel;
 
         if (GetAccessLevel() >= security)
         {
-            last_ip = fields[2].GetCppString();
-            last_login = fields[3].GetCppString();
+            last_ip = account->lastIp;
+            last_login = account->lastLogin;
         }
         else
         {
             last_ip = "-";
             last_login = "-";
         }
-
-        delete result;
     }
 
     std::string nameLink = playerLink(target_name);
@@ -444,8 +439,8 @@ bool ChatHandler::HandleGMListIngameCommand(char* /*args*/)
 bool ChatHandler::HandleGMListFullCommand(char* /*args*/)
 {
     ///- Get the accounts with GM Level >0
-    QueryResult* result = AccountRepository::QueryGameMasters();
-    if (result)
+    std::vector<GameMasterRow> gameMasters = AccountRepository::QueryGameMasters();
+    if (!gameMasters.empty())
     {
         SendSysMessage(LANG_GMLIST);
         SendSysMessage("========================");
@@ -453,15 +448,12 @@ bool ChatHandler::HandleGMListFullCommand(char* /*args*/)
         SendSysMessage("========================");
 
         ///- Circle through them. Display username and GM level
-        do
+        for (GameMasterRow const& gm : gameMasters)
         {
-            Field* fields = result->Fetch();
-            PSendSysMessage("|%15s|%6s|", fields[0].GetString(), fields[1].GetString());
+            PSendSysMessage("|%15s|%6s|", gm.username.c_str(), gm.gmLevel.c_str());
         }
-        while (result->NextRow());
 
         PSendSysMessage("========================");
-        delete result;
     }
     else
     {

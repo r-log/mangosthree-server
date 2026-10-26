@@ -52,30 +52,25 @@
 * For chat output, shows usernames of banned accounts. For console output, shows
 * detailed ban information including dates, duration, and ban reasons.
 *
-* @param result Query result containing ban information.
+* @param rows The banned accounts, with their names when the list read them.
 * @returns True if ban list was displayed successfully, false otherwise.
 */
-bool ChatHandler::HandleBanListHelper(QueryResult* result)
+bool ChatHandler::HandleBanListHelper(std::vector<BanListAccountRow> const& rows)
 {
     PSendSysMessage(LANG_BANLIST_MATCHINGACCOUNT);
 
     // Chat short output
     if (m_session)
     {
-        do
+        for (BanListAccountRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-            uint32 accountid = fields[0].GetUInt32();
+            uint32 accountid = row.accountId;
 
-            QueryResult* banresult = BanRepository::QueryBannedAccountName(accountid);
-            if (banresult)
+            if (std::optional<BannedAccountNameRow> banned = BanRepository::QueryBannedAccountName(accountid))
             {
-                Field* fields2 = banresult->Fetch();
-                PSendSysMessage("%s", fields2[0].GetString());
-                delete banresult;
+                PSendSysMessage("%s", (banned->username ? banned->username->c_str() : NULL));
             }
         }
-        while (result->NextRow());
     }
     // Console wide output
     else
@@ -83,18 +78,17 @@ bool ChatHandler::HandleBanListHelper(QueryResult* result)
         SendSysMessage(LANG_BANLIST_ACCOUNTS);
         SendSysMessage("===============================================================================");
         SendSysMessage(LANG_BANLIST_ACCOUNTS_HEADER);
-        do
+        for (BanListAccountRow const& row : rows)
         {
             SendSysMessage("-------------------------------------------------------------------------------");
-            Field* fields = result->Fetch();
-            uint32 account_id = fields[0].GetUInt32();
+            uint32 account_id = row.accountId;
 
             std::string account_name;
 
             // "account" case, name can be get in same query
-            if (result->GetFieldCount() > 1)
+            if (row.username)
             {
-                account_name = fields[1].GetCppString();
+                account_name = *row.username;
             }
             // "character" case, name need extract from another DB
             else
@@ -103,43 +97,38 @@ bool ChatHandler::HandleBanListHelper(QueryResult* result)
             }
 
             // No SQL injection. id is uint32.
-            QueryResult* banInfo = BanRepository::QueryAccountBans(account_id);
-            if (banInfo)
+            std::vector<AccountBanRow> banInfo = BanRepository::QueryAccountBans(account_id);
+            if (!banInfo.empty())
             {
-                Field* fields2 = banInfo->Fetch();
-                do
+                for (AccountBanRow const& ban : banInfo)
                 {
-                    time_t timeBan = fields2[0].GetUInt64();
+                    time_t timeBan = ban.banDate;
                     tm tmBan;
                     tmBan = safe_localtime(timeBan);
 
-                    if (fields2[0].GetUInt64() == fields2[1].GetUInt64())
+                    if (ban.banDate == ban.unbanDate)
                     {
                         PSendSysMessage("|%-15.15s|%02d-%02d-%02d %02d:%02d|   permanent  |%-15.15s|%-15.15s|",
                                         account_name.c_str(), tmBan.tm_year % 100, tmBan.tm_mon + 1, tmBan.tm_mday, tmBan.tm_hour, tmBan.tm_min,
-                                        fields2[2].GetString(), fields2[3].GetString());
+                                        ban.bannedBy.c_str(), ban.banReason.c_str());
                     }
                     else
                     {
-                        time_t timeUnban = fields2[1].GetUInt64();
+                        time_t timeUnban = ban.unbanDate;
                         tm tmUnban;
                         tmUnban = safe_localtime(timeUnban);
 
                         PSendSysMessage("|%-15.15s|%02d-%02d-%02d %02d:%02d|%02d-%02d-%02d %02d:%02d|%-15.15s|%-15.15s|",
                                         account_name.c_str(), tmBan.tm_year % 100, tmBan.tm_mon + 1, tmBan.tm_mday, tmBan.tm_hour, tmBan.tm_min,
                                         tmUnban.tm_year % 100, tmUnban.tm_mon + 1, tmUnban.tm_mday, tmUnban.tm_hour, tmUnban.tm_min,
-                                        fields2[2].GetString(), fields2[3].GetString());
+                                        ban.bannedBy.c_str(), ban.banReason.c_str());
                     }
                 }
-                while (banInfo->NextRow());
-                delete banInfo;
             }
         }
-        while (result->NextRow());
         SendSysMessage("===============================================================================");
     }
 
-    delete result;
     return true;
 }
 
@@ -287,32 +276,28 @@ bool ChatHandler::HandleBanAccountCommand(char* args)
 */
 bool ChatHandler::HandleBanInfoHelper(uint32 accountid, char const* accountname)
 {
-    QueryResult* result = BanRepository::QueryAccountBanHistory(accountid);
-    if (!result)
+    std::vector<AccountBanHistoryRow> history = BanRepository::QueryAccountBanHistory(accountid);
+    if (history.empty())
     {
         PSendSysMessage(LANG_BANINFO_NOACCOUNTBAN, accountname);
         return true;
     }
 
     PSendSysMessage(LANG_BANINFO_BANHISTORY, accountname);
-    do
+    for (AccountBanHistoryRow const& ban : history)
     {
-        Field* fields = result->Fetch();
-
-        time_t unbandate = time_t(fields[3].GetUInt64());
+        time_t unbandate = time_t(ban.unbanDate);
         bool active = false;
-        if (fields[2].GetBool() && (fields[1].GetUInt64() == (uint64)0 || unbandate >= time(NULL)))
+        if (ban.active && (ban.duration == (uint64)0 || unbandate >= time(NULL)))
         {
             active = true;
         }
-        bool permanent = (fields[1].GetUInt64() == (uint64)0);
-        std::string bantime = permanent ? GetMangosString(LANG_BANINFO_INFINITE) : secsToTimeString(fields[1].GetUInt64(), TimeFormat::ShortText);
+        bool permanent = (ban.duration == (uint64)0);
+        std::string bantime = permanent ? GetMangosString(LANG_BANINFO_INFINITE) : secsToTimeString(ban.duration, TimeFormat::ShortText);
         PSendSysMessage(LANG_BANINFO_HISTORYENTRY,
-                        fields[0].GetString(), bantime.c_str(), active ? GetMangosString(LANG_BANINFO_YES) : GetMangosString(LANG_BANINFO_NO), fields[4].GetString(), fields[5].GetString());
+                        (ban.banDate ? ban.banDate->c_str() : NULL), bantime.c_str(), active ? GetMangosString(LANG_BANINFO_YES) : GetMangosString(LANG_BANINFO_NO), ban.banReason.c_str(), ban.bannedBy.c_str());
     }
-    while (result->NextRow());
 
-    delete result;
     return true;
 }
 
@@ -342,19 +327,17 @@ bool ChatHandler::HandleBanInfoIPCommand(char* args)
 
     std::string IP = cIP;
 
-    QueryResult* result = BanRepository::QueryIpBan(IP);
-    if (!result)
+    std::optional<IpBanRow> ban = BanRepository::QueryIpBan(IP);
+    if (!ban)
     {
         PSendSysMessage(LANG_BANINFO_NOIP);
         return true;
     }
 
-    Field* fields = result->Fetch();
-    bool permanent = !fields[6].GetUInt64();
+    bool permanent = !ban->duration;
     PSendSysMessage(LANG_BANINFO_IPENTRY,
-                    fields[0].GetString(), fields[1].GetString(), permanent ? GetMangosString(LANG_BANINFO_NEVER) : fields[2].GetString(),
-                    permanent ? GetMangosString(LANG_BANINFO_INFINITE) : secsToTimeString(fields[3].GetUInt64(), TimeFormat::ShortText).c_str(), fields[4].GetString(), fields[5].GetString());
-    delete result;
+                    ban->ip.c_str(), (ban->banDate ? ban->banDate->c_str() : NULL), permanent ? GetMangosString(LANG_BANINFO_NEVER) : (ban->unbanDate ? ban->unbanDate->c_str() : NULL),
+                    permanent ? GetMangosString(LANG_BANINFO_INFINITE) : secsToTimeString(ban->remaining, TimeFormat::ShortText).c_str(), ban->banReason.c_str(), ban->bannedBy.c_str());
     return true;
 }
 
@@ -424,9 +407,9 @@ bool ChatHandler::HandleBanListIPCommand(char* args)
     char* cFilter = ExtractLiteralArg(&args);
     std::string filter = cFilter ? cFilter : "";
 
-    QueryResult* result = BanRepository::QueryActiveIpBans(filter);
+    std::vector<ActiveIpBanRow> bans = BanRepository::QueryActiveIpBans(filter);
 
-    if (!result)
+    if (bans.empty())
     {
         PSendSysMessage(LANG_BANLIST_NOIP);
         return true;
@@ -436,12 +419,10 @@ bool ChatHandler::HandleBanListIPCommand(char* args)
     // Chat short output
     if (m_session)
     {
-        do
+        for (ActiveIpBanRow const& ban : bans)
         {
-            Field* fields = result->Fetch();
-            PSendSysMessage("%s", fields[0].GetString());
+            PSendSysMessage("%s", ban.ip.c_str());
         }
-        while (result->NextRow());
     }
     // Console wide output
     else
@@ -449,33 +430,30 @@ bool ChatHandler::HandleBanListIPCommand(char* args)
         SendSysMessage(LANG_BANLIST_IPS);
         SendSysMessage("===============================================================================");
         SendSysMessage(LANG_BANLIST_IPS_HEADER);
-        do
+        for (ActiveIpBanRow const& ban : bans)
         {
             SendSysMessage("-------------------------------------------------------------------------------");
-            Field* fields = result->Fetch();
-            time_t t_ban = fields[1].GetUInt64();
+            time_t t_ban = ban.banDate;
             tm* aTm_ban = localtime(&t_ban);
-            if (fields[1].GetUInt64() == fields[2].GetUInt64())
+            if (ban.banDate == ban.unbanDate)
             {
                 PSendSysMessage("|%-15.15s|%02d-%02d-%02d %02d:%02d|   permanent  |%-15.15s|%-15.15s|",
-                                fields[0].GetString(), aTm_ban->tm_year % 100, aTm_ban->tm_mon + 1, aTm_ban->tm_mday, aTm_ban->tm_hour, aTm_ban->tm_min,
-                                fields[3].GetString(), fields[4].GetString());
+                                ban.ip.c_str(), aTm_ban->tm_year % 100, aTm_ban->tm_mon + 1, aTm_ban->tm_mday, aTm_ban->tm_hour, aTm_ban->tm_min,
+                                ban.bannedBy.c_str(), ban.banReason.c_str());
             }
             else
             {
-                time_t t_unban = fields[2].GetUInt64();
+                time_t t_unban = ban.unbanDate;
                 tm* aTm_unban = localtime(&t_unban);
                 PSendSysMessage("|%-15.15s|%02d-%02d-%02d %02d:%02d|%02d-%02d-%02d %02d:%02d|%-15.15s|%-15.15s|",
-                                fields[0].GetString(), aTm_ban->tm_year % 100, aTm_ban->tm_mon + 1, aTm_ban->tm_mday, aTm_ban->tm_hour, aTm_ban->tm_min,
+                                ban.ip.c_str(), aTm_ban->tm_year % 100, aTm_ban->tm_mon + 1, aTm_ban->tm_mday, aTm_ban->tm_hour, aTm_ban->tm_min,
                                 aTm_unban->tm_year % 100, aTm_unban->tm_mon + 1, aTm_unban->tm_mday, aTm_unban->tm_hour, aTm_unban->tm_min,
-                                fields[3].GetString(), fields[4].GetString());
+                                ban.bannedBy.c_str(), ban.banReason.c_str());
             }
         }
-        while (result->NextRow());
         SendSysMessage("===============================================================================");
     }
 
-    delete result;
     return true;
 }
 
@@ -498,14 +476,21 @@ bool ChatHandler::HandleBanListCharacterCommand(char* args)
     }
 
     std::string filter = cFilter;
-    QueryResult* result = CharacterRepository::QueryAccountsOfCharactersNamed(filter);
-    if (!result)
+    std::vector<uint32> accounts = CharacterRepository::QueryAccountsOfCharactersNamed(filter);
+    if (accounts.empty())
     {
         PSendSysMessage(LANG_BANLIST_NOCHARACTER);
         return true;
     }
 
-    return HandleBanListHelper(result);
+    std::vector<BanListAccountRow> rows;
+    for (uint32 accountId : accounts)
+    {
+        BanListAccountRow row;
+        row.accountId = accountId;
+        rows.push_back(row);
+    }
+    return HandleBanListHelper(rows);
 }
 
 /**
@@ -523,15 +508,15 @@ bool ChatHandler::HandleBanListAccountCommand(char* args)
     char* cFilter = ExtractLiteralArg(&args);
     std::string filter = cFilter ? cFilter : "";
 
-    QueryResult* result = BanRepository::QueryActiveAccountBans(filter);
+    std::vector<BanListAccountRow> rows = BanRepository::QueryActiveAccountBans(filter);
 
-    if (!result)
+    if (rows.empty())
     {
         PSendSysMessage(LANG_BANLIST_NOACCOUNT);
         return true;
     }
 
-    return HandleBanListHelper(result);
+    return HandleBanListHelper(rows);
 }
 
 /**

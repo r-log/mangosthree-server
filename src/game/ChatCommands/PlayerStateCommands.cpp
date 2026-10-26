@@ -650,15 +650,14 @@ bool ChatHandler::HandleAddItemCommand(char* args)
     if (!ExtractUInt32(&cId, itemId))                       // [name] manual form
     {
         std::string itemName = cId;
-        QueryResult* result = ItemDataRepository::QueryItemEntryByName(itemName);
-        if (!result)
+        std::optional<uint16> entry = ItemDataRepository::QueryItemEntryByName(itemName);
+        if (!entry)
         {
             PSendSysMessage(LANG_COMMAND_COULDNOTFIND, cId);
             SetSentErrorMessage(true);
             return false;
         }
-        itemId = result->Fetch()->GetUInt16();
-        delete result;
+        itemId = *entry;
     }
 
     int32 count;

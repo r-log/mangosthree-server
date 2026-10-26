@@ -25,28 +25,87 @@
 
 #include "BanRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace BanRepository
 {
-    QueryResult* QueryBannedAccountName(uint32 accountId)
+    static BannedAccountNameRow ReadBannedAccountName(Field* fields)
     {
-        return LoginDatabase.PQuery("SELECT `account`.`username` FROM `account`,`account_banned` WHERE `account_banned`.`id`='%u' AND `account_banned`.`id`=`account`.`id`", accountId);
+        BannedAccountNameRow row;
+        if (char const* username = fields[0].GetString())
+        {
+            row.username = username;
+        }
+        return row;
     }
 
-    QueryResult* QueryAccountBans(uint32 accountId)
+    std::optional<BannedAccountNameRow> QueryBannedAccountName(uint32 accountId)
     {
-        return LoginDatabase.PQuery("SELECT `bandate`,`unbandate`,`bannedby`,`banreason` FROM `account_banned` WHERE `id` = %u ORDER BY `unbandate`", accountId);
+        QueryResult* result = LoginDatabase.PQuery("SELECT `account`.`username` FROM `account`,`account_banned` WHERE `account_banned`.`id`='%u' AND `account_banned`.`id`=`account`.`id`", accountId);
+        return ReadRow<BannedAccountNameRow>(result, ReadBannedAccountName);
     }
 
-    QueryResult* QueryAccountBanHistory(uint32 accountId)
+    static AccountBanRow ReadAccountBan(Field* fields)
     {
-        return LoginDatabase.PQuery("SELECT FROM_UNIXTIME(`bandate`), `unbandate`-`bandate`, `active`, `unbandate`,`banreason`,`bannedby` FROM `account_banned` WHERE `id` = '%u' ORDER BY `bandate` ASC", accountId);
+        AccountBanRow row;
+        row.banDate = fields[0].GetUInt64();
+        row.unbanDate = fields[1].GetUInt64();
+        row.bannedBy = fields[2].GetString();
+        row.banReason = fields[3].GetString();
+        return row;
     }
 
-    QueryResult* QueryIpBan(std::string ip)
+    std::vector<AccountBanRow> QueryAccountBans(uint32 accountId)
+    {
+        QueryResult* result = LoginDatabase.PQuery("SELECT `bandate`,`unbandate`,`bannedby`,`banreason` FROM `account_banned` WHERE `id` = %u ORDER BY `unbandate`", accountId);
+        return ReadRows<AccountBanRow>(result, ReadAccountBan);
+    }
+
+    static AccountBanHistoryRow ReadAccountBanHistory(Field* fields)
+    {
+        AccountBanHistoryRow row;
+        if (char const* banDate = fields[0].GetString())
+        {
+            row.banDate = banDate;
+        }
+        row.duration = fields[1].GetUInt64();
+        row.active = fields[2].GetBool();
+        row.unbanDate = fields[3].GetUInt64();
+        row.banReason = fields[4].GetString();
+        row.bannedBy = fields[5].GetString();
+        return row;
+    }
+
+    std::vector<AccountBanHistoryRow> QueryAccountBanHistory(uint32 accountId)
+    {
+        QueryResult* result = LoginDatabase.PQuery("SELECT FROM_UNIXTIME(`bandate`), `unbandate`-`bandate`, `active`, `unbandate`,`banreason`,`bannedby` FROM `account_banned` WHERE `id` = '%u' ORDER BY `bandate` ASC", accountId);
+        return ReadRows<AccountBanHistoryRow>(result, ReadAccountBanHistory);
+    }
+
+    static IpBanRow ReadIpBan(Field* fields)
+    {
+        IpBanRow row;
+        row.ip = fields[0].GetString();
+        if (char const* banDate = fields[1].GetString())
+        {
+            row.banDate = banDate;
+        }
+        if (char const* unbanDate = fields[2].GetString())
+        {
+            row.unbanDate = unbanDate;
+        }
+        row.remaining = fields[3].GetUInt64();
+        row.banReason = fields[4].GetString();
+        row.bannedBy = fields[5].GetString();
+        row.duration = fields[6].GetUInt64();
+        return row;
+    }
+
+    std::optional<IpBanRow> QueryIpBan(std::string ip)
     {
         LoginDatabase.escape_string(ip);
-        return LoginDatabase.PQuery("SELECT `ip`, FROM_UNIXTIME(`bandate`), FROM_UNIXTIME(`unbandate`), `unbandate`-UNIX_TIMESTAMP(), `banreason`,`bannedby`,`unbandate`-`bandate` FROM `ip_banned` WHERE `ip` = '%s'", ip.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `ip`, FROM_UNIXTIME(`bandate`), FROM_UNIXTIME(`unbandate`), `unbandate`-UNIX_TIMESTAMP(), `banreason`,`bannedby`,`unbandate`-`bandate` FROM `ip_banned` WHERE `ip` = '%s'", ip.c_str());
+        return ReadRow<IpBanRow>(result, ReadIpBan);
     }
 
     void DeleteExpiredIpBans()
@@ -54,35 +113,54 @@ namespace BanRepository
         LoginDatabase.Execute("DELETE FROM `ip_banned` WHERE `unbandate`<=UNIX_TIMESTAMP() AND `unbandate`<>`bandate`");
     }
 
-    QueryResult* QueryActiveIpBans(std::string filter)
+    static ActiveIpBanRow ReadActiveIpBan(Field* fields)
     {
-        LoginDatabase.escape_string(filter);
-
-        if (filter.empty())
-        {
-            return LoginDatabase.Query("SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`"
-                                       " WHERE (`bandate`=`unbandate` OR `unbandate`>UNIX_TIMESTAMP())"
-                                       " ORDER BY `unbandate`");
-        }
-
-        return LoginDatabase.PQuery("SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`"
-                                    " WHERE (`bandate`=`unbandate` OR `unbandate`>UNIX_TIMESTAMP()) AND `ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")
-                                    " ORDER BY `unbandate`", filter.c_str());
+        ActiveIpBanRow row;
+        row.ip = fields[0].GetString();
+        row.banDate = fields[1].GetUInt64();
+        row.unbanDate = fields[2].GetUInt64();
+        row.bannedBy = fields[3].GetString();
+        row.banReason = fields[4].GetString();
+        return row;
     }
 
-    QueryResult* QueryActiveAccountBans(std::string filter)
+    std::vector<ActiveIpBanRow> QueryActiveIpBans(std::string filter)
     {
         LoginDatabase.escape_string(filter);
 
         if (filter.empty())
         {
-            return LoginDatabase.Query("SELECT `account`.`id`, `username` FROM `account`, `account_banned`"
-                                       " WHERE `account`.`id` = `account_banned`.`id` AND `active` = 1 GROUP BY `account`.`id`");
+            return ReadRows<ActiveIpBanRow>(LoginDatabase.Query("SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`"
+                                       " WHERE (`bandate`=`unbandate` OR `unbandate`>UNIX_TIMESTAMP())"
+                                       " ORDER BY `unbandate`"), ReadActiveIpBan);
         }
 
-        return LoginDatabase.PQuery("SELECT `account`.`id`, `username` FROM `account`, `account_banned`"
+        return ReadRows<ActiveIpBanRow>(LoginDatabase.PQuery("SELECT `ip`,`bandate`,`unbandate`,`bannedby`,`banreason` FROM `ip_banned`"
+                                    " WHERE (`bandate`=`unbandate` OR `unbandate`>UNIX_TIMESTAMP()) AND `ip` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")
+                                    " ORDER BY `unbandate`", filter.c_str()), ReadActiveIpBan);
+    }
+
+    static BanListAccountRow ReadActiveAccountBan(Field* fields)
+    {
+        BanListAccountRow row;
+        row.accountId = fields[0].GetUInt32();
+        row.username = fields[1].GetCppString();
+        return row;
+    }
+
+    std::vector<BanListAccountRow> QueryActiveAccountBans(std::string filter)
+    {
+        LoginDatabase.escape_string(filter);
+
+        if (filter.empty())
+        {
+            return ReadRows<BanListAccountRow>(LoginDatabase.Query("SELECT `account`.`id`, `username` FROM `account`, `account_banned`"
+                                       " WHERE `account`.`id` = `account_banned`.`id` AND `active` = 1 GROUP BY `account`.`id`"), ReadActiveAccountBan);
+        }
+
+        return ReadRows<BanListAccountRow>(LoginDatabase.PQuery("SELECT `account`.`id`, `username` FROM `account`, `account_banned`"
                                     " WHERE `account`.`id` = `account_banned`.`id` AND `active` = 1 AND `username` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")" GROUP BY `account`.`id`",
-                                    filter.c_str());
+                                    filter.c_str()), ReadActiveAccountBan);
     }
 
     void EscapeString(std::string& text)
