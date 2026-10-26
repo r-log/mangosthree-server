@@ -128,16 +128,44 @@ namespace InstanceRepository
         CharacterDatabase.DirectExecute("DELETE FROM `gameobject_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())");
     }
 
-    QueryResult* QueryCreatureRespawns()
+    static CreatureRespawnRow ReadCreatureRespawn(Field* fields)
     {
-        //                                    0       1              2      3           4             5            6
-        return CharacterDatabase.Query("SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `creature_respawn` LEFT JOIN `instance` ON `instance` = `id`");
+        CreatureRespawnRow row;
+        row.guid = fields[0].GetUInt32();
+        row.respawntime = fields[1].GetUInt64();
+        row.map = fields[2].GetUInt32();
+        row.instance = fields[3].GetUInt32();
+        row.difficulty = fields[4].GetUInt8();
+        row.resettime = fields[5].GetUInt64();
+        row.encountersMask = fields[6].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryGameObjectRespawns()
+    std::vector<CreatureRespawnRow> QueryCreatureRespawns()
     {
         //                                    0       1              2      3           4             5            6
-        return CharacterDatabase.Query("SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `gameobject_respawn` LEFT JOIN `instance` ON `instance` = `id`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `creature_respawn` LEFT JOIN `instance` ON `instance` = `id`");
+        return ReadRows<CreatureRespawnRow>(result, ReadCreatureRespawn);
+    }
+
+    static GameObjectRespawnRow ReadGameObjectRespawn(Field* fields)
+    {
+        GameObjectRespawnRow row;
+        row.guid = fields[0].GetUInt32();
+        row.respawntime = fields[1].GetUInt64();
+        row.map = fields[2].GetUInt32();
+        row.instance = fields[3].GetUInt32();
+        row.difficulty = fields[4].GetUInt8();
+        row.resettime = fields[5].GetUInt64();
+        row.encountersMask = fields[6].GetUInt32();
+        return row;
+    }
+
+    std::vector<GameObjectRespawnRow> QueryGameObjectRespawns()
+    {
+        //                                    0       1              2      3           4             5            6
+        QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `gameobject_respawn` LEFT JOIN `instance` ON `instance` = `id`");
+        return ReadRows<GameObjectRespawnRow>(result, ReadGameObjectRespawn);
     }
 
     void InsertInstance(uint32 instanceId, uint32 map, uint64 resetTime, uint32 difficulty, uint32 encountersMask, std::string const& data)
@@ -190,19 +218,47 @@ namespace InstanceRepository
         CharacterDatabase.CommitTransaction();
     }
 
-    QueryResult* QueryInstancesWithResetTime()
+    static InstanceResetTimeRow ReadInstanceResetTime(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `id`, `map`, `difficulty`, `resettime` FROM `instance` WHERE `resettime` > 0");
+        InstanceResetTimeRow row;
+        row.id = fields[0].GetUInt32();
+        row.map = fields[1].GetUInt32();
+        row.difficulty = fields[2].GetUInt32();
+        row.resettime = fields[3].GetUInt64();
+        return row;
     }
 
-    QueryResult* QueryLatestCreatureRespawns()
+    std::vector<InstanceResetTimeRow> QueryInstancesWithResetTime()
     {
-        return CharacterDatabase.Query("SELECT MAX(`respawntime`), `instance` FROM `creature_respawn` WHERE `instance` > 0 GROUP BY `instance`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `id`, `map`, `difficulty`, `resettime` FROM `instance` WHERE `resettime` > 0");
+        return ReadRows<InstanceResetTimeRow>(result, ReadInstanceResetTime);
     }
 
-    QueryResult* QueryInstanceIds()
+    static LatestCreatureRespawnRow ReadLatestCreatureRespawn(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `id` FROM `instance`");
+        LatestCreatureRespawnRow row;
+        row.latestRespawnTime = fields[0].GetUInt64();
+        row.instance = fields[1].GetUInt32();
+        return row;
+    }
+
+    std::vector<LatestCreatureRespawnRow> QueryLatestCreatureRespawns()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`respawntime`), `instance` FROM `creature_respawn` WHERE `instance` > 0 GROUP BY `instance`");
+        return ReadRows<LatestCreatureRespawnRow>(result, ReadLatestCreatureRespawn);
+    }
+
+    static InstanceIdRow ReadInstanceId(Field* fields)
+    {
+        InstanceIdRow row;
+        row.id = fields[0].GetUInt32();
+        return row;
+    }
+
+    std::vector<InstanceIdRow> QueryInstanceIds()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `id` FROM `instance`");
+        return ReadRows<InstanceIdRow>(result, ReadInstanceId);
     }
 
     void RenumberInstance(uint32 newId, uint32 oldId)
@@ -217,9 +273,19 @@ namespace InstanceRepository
         CharacterDatabase.CommitTransaction();
     }
 
-    QueryResult* QueryInstanceResets()
+    static InstanceResetRow ReadInstanceReset(Field* fields)
     {
-        return CharacterDatabase.Query("SELECT `mapid`, `difficulty`, `resettime` FROM `instance_reset`");
+        InstanceResetRow row;
+        row.mapid = fields[0].GetUInt32();
+        row.difficulty = fields[1].GetUInt32();
+        row.resettime = fields[2].GetUInt64();
+        return row;
+    }
+
+    std::vector<InstanceResetRow> QueryInstanceResets()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `mapid`, `difficulty`, `resettime` FROM `instance_reset`");
+        return ReadRows<InstanceResetRow>(result, ReadInstanceReset);
     }
 
     void SetInstanceReset(uint64 resetTime, uint32 map, uint32 difficulty)

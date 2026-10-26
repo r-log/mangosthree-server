@@ -29,6 +29,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 
 class QueryResult;
@@ -115,6 +116,22 @@ enum
 typedef std::function<void(QueryResult*)> CharacterReadCallback;
 typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallback;
 
+/// One `characters` row.
+struct CharacterCacheRow
+{
+    uint32 guid = 0;
+    uint32 account = 0;
+    std::string name;
+    uint8 race = 0;
+    uint8 classId = 0;
+    uint8 level = 0;
+    uint32 zone = 0;
+    uint32 map = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+};
+
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
 /// login, the logout and the account manager use them. The account manager's two reads, the GM
 /// commands' reads and the start-up's highest guid and cache rows run on the thread that calls them,
@@ -197,7 +214,7 @@ namespace CharacterRepository
     std::optional<uint32> QueryHighestGuid();
 
     /// Selects every character's cached columns, ordered by guid, at start-up.
-    QueryResult* QueryCacheRows();
+    std::vector<CharacterCacheRow> QueryCacheRows();
 
     /// Selects the accounts of the characters whose name contains the filter, the filter escaped first
     /// through the login database, as the character ban list does.

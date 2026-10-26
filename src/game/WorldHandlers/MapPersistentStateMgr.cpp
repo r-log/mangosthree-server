@@ -502,16 +502,16 @@ void DungeonResetScheduler::LoadResetTimes()
     typedef std::map<uint32, ResetTimeMapDiffType> InstResetTimeMapDiffType;
     InstResetTimeMapDiffType instResetTime;
 
-    QueryResult* result = InstanceRepository::QueryInstancesWithResetTime();
-    if (result)
+    std::vector<InstanceResetTimeRow> rows = InstanceRepository::QueryInstancesWithResetTime();
+    if (!rows.empty())
     {
-        do
+        for (InstanceResetTimeRow const& rowRow : rows)
         {
-            if (time_t resettime = time_t((*result)[3].GetUInt64()))
+            if (time_t resettime = time_t(rowRow.resettime))
             {
-                uint32 id = (*result)[0].GetUInt32();
-                uint32 mapid = (*result)[1].GetUInt32();
-                uint32 difficulty = (*result)[2].GetUInt32();
+                uint32 id = rowRow.id;
+                uint32 mapid = rowRow.map;
+                uint32 difficulty = rowRow.difficulty;
 
                 MapEntry const* mapEntry = sMapStore.LookupEntry(mapid);
 
@@ -524,19 +524,15 @@ void DungeonResetScheduler::LoadResetTimes()
                 instResetTime[id] = ResetTimeMapDiffType(MAKE_PAIR32(mapid, difficulty), resettime);
             }
         }
-        while (result->NextRow());
-        delete result;
 
         // update reset time for normal instances with the max creature respawn time + X hours
-        result = InstanceRepository::QueryLatestCreatureRespawns();
-        if (result)
+        std::vector<LatestCreatureRespawnRow> latestCreatureRespawns = InstanceRepository::QueryLatestCreatureRespawns();
+        if (!latestCreatureRespawns.empty())
         {
-            do
+            for (LatestCreatureRespawnRow const& row : latestCreatureRespawns)
             {
-                Field* fields = result->Fetch();
-
-                time_t resettime    = time_t(fields[0].GetUInt64() + 2 * HOUR);
-                uint32 instance     = fields[1].GetUInt32();
+                time_t resettime    = time_t(row.latestRespawnTime + 2 * HOUR);
+                uint32 instance     = row.instance;
 
                 InstResetTimeMapDiffType::iterator itr = instResetTime.find(instance);
                 if (itr != instResetTime.end() && itr->second.second != resettime)
@@ -545,8 +541,6 @@ void DungeonResetScheduler::LoadResetTimes()
                     itr->second.second = resettime;
                 }
             }
-            while (result->NextRow());
-            delete result;
         }
 
         // schedule the reset times
@@ -559,16 +553,14 @@ void DungeonResetScheduler::LoadResetTimes()
 
     // load the global respawn times for raid/heroic instances
     uint32 diff = sGameConfig.getConfig(CONFIG_UINT32_INSTANCE_RESET_TIME_HOUR) * HOUR;
-    result = InstanceRepository::QueryInstanceResets();
-    if (result)
+    std::vector<InstanceResetRow> instanceResets = InstanceRepository::QueryInstanceResets();
+    if (!instanceResets.empty())
     {
-        do
+        for (InstanceResetRow const& row : instanceResets)
         {
-            Field* fields = result->Fetch();
-
-            uint32 mapid            = fields[0].GetUInt32();
-            Difficulty difficulty   = Difficulty(fields[1].GetUInt32());
-            uint64 oldresettime     = fields[2].GetUInt64();
+            uint32 mapid            = row.mapid;
+            Difficulty difficulty   = Difficulty(row.difficulty);
+            uint64 oldresettime     = row.resettime;
 
             MapEntry const* mapEntry = sMapStore.LookupEntry(mapid);
 
@@ -588,8 +580,6 @@ void DungeonResetScheduler::LoadResetTimes()
 
             SetResetTimeFor(mapid, difficulty, newresettime);
         }
-        while (result->NextRow());
-        delete result;
     }
 
     // clean expired instances, references to them will be deleted in CleanupInstances
@@ -1008,16 +998,13 @@ void MapPersistentStateManager::PackInstances()
     // all valid ids are in the instance table
     // any associations to ids not in this table are assumed to be
     // cleaned already in CleanupInstances
-    QueryResult* result = InstanceRepository::QueryInstanceIds();
-    if (result)
+    std::vector<InstanceIdRow> rows = InstanceRepository::QueryInstanceIds();
+    if (!rows.empty())
     {
-        do
+        for (InstanceIdRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-            InstanceSet.insert(fields[0].GetUInt32());
+            InstanceSet.insert(row.id);
         }
-        while (result->NextRow());
-        delete result;
     }
 
     BarGoLink bar(InstanceSet.size() + 1);
@@ -1240,8 +1227,8 @@ void MapPersistentStateManager::LoadCreatureRespawnTimes()
 
     uint32 count = 0;
 
-    QueryResult* result = InstanceRepository::QueryCreatureRespawns();
-    if (!result)
+    std::vector<CreatureRespawnRow> rows = InstanceRepository::QueryCreatureRespawns();
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -1252,20 +1239,19 @@ void MapPersistentStateManager::LoadCreatureRespawnTimes()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (CreatureRespawnRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 loguid               = fields[0].GetUInt32();
-        uint64 respawn_time         = fields[1].GetUInt64();
-        uint32 mapId                = fields[2].GetUInt32();
-        uint32 instanceId           = fields[3].GetUInt32();
-        uint8 difficulty            = fields[4].GetUInt8();
-        time_t resetTime            = (time_t)fields[5].GetUInt64();
-        uint32 completedEncounters  = fields[6].GetUInt32();
+        uint32 loguid               = row.guid;
+        uint64 respawn_time         = row.respawntime;
+        uint32 mapId                = row.map;
+        uint32 instanceId           = row.instance;
+        uint8 difficulty            = row.difficulty;
+        time_t resetTime            = (time_t)row.resettime;
+        uint32 completedEncounters  = row.encountersMask;
 
         CreatureData const* data = sObjectMgr.GetCreatureData(loguid);
         if (!data)
@@ -1309,9 +1295,6 @@ void MapPersistentStateManager::LoadCreatureRespawnTimes()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u creature respawn times", count);
     sLog.outString();
@@ -1327,9 +1310,9 @@ void MapPersistentStateManager::LoadGameobjectRespawnTimes()
 
     uint32 count = 0;
 
-    QueryResult* result = InstanceRepository::QueryGameObjectRespawns();
+    std::vector<GameObjectRespawnRow> rows = InstanceRepository::QueryGameObjectRespawns();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -1340,20 +1323,19 @@ void MapPersistentStateManager::LoadGameobjectRespawnTimes()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (GameObjectRespawnRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 loguid               = fields[0].GetUInt32();
-        uint64 respawn_time         = fields[1].GetUInt64();
-        uint32 mapId                = fields[2].GetUInt32();
-        uint32 instanceId           = fields[3].GetUInt32();
-        uint8 difficulty            = fields[4].GetUInt8();
-        time_t resetTime            = (time_t)fields[5].GetUInt64();
-        uint32 completedEncounters  = fields[6].GetUInt32();
+        uint32 loguid               = row.guid;
+        uint64 respawn_time         = row.respawntime;
+        uint32 mapId                = row.map;
+        uint32 instanceId           = row.instance;
+        uint8 difficulty            = row.difficulty;
+        time_t resetTime            = (time_t)row.resettime;
+        uint32 completedEncounters  = row.encountersMask;
 
         GameObjectData const* data = sObjectMgr.GetGOData(loguid);
         if (!data)
@@ -1397,9 +1379,6 @@ void MapPersistentStateManager::LoadGameobjectRespawnTimes()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u gameobject respawn times", count);
     sLog.outString();

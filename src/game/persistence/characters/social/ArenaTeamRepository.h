@@ -84,6 +84,14 @@ struct ArenaTeamMemberRow
     uint8 playerClass = 0;
 };
 
+/// One arena team member (`arena_team_member`), with its team's type.
+struct ArenaTeamMemberTypeRow
+{
+    uint32 guid = 0;
+    uint32 arenateamid = 0;
+    uint32 type = 0;
+};
+
 /// The arena teams' saved rows. The start-up reads run synchronously; every write is queued on the
 /// character database.
 namespace ArenaTeamRepository
@@ -139,7 +147,7 @@ namespace ArenaTeamRepository
     QueryResult* QueryTeamMembers();
 
     /// Selects every arena team member's team and team type, at start-up.
-    QueryResult* QueryMemberTeamTypes();
+    std::vector<ArenaTeamMemberTypeRow> QueryMemberTeamTypes();
 }
 
 #endif

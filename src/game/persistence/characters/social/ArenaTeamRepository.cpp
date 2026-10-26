@@ -189,10 +189,20 @@ namespace ArenaTeamRepository
                                        "FROM `arena_team_member` member LEFT JOIN `characters` chars on member.`guid` = chars.`guid` ORDER BY member.`arenateamid` ASC");
     }
 
-    QueryResult* QueryMemberTeamTypes()
+    static ArenaTeamMemberTypeRow ReadArenaTeamMemberType(Field* fields)
+    {
+        ArenaTeamMemberTypeRow row;
+        row.guid = fields[0].GetUInt32();
+        row.arenateamid = fields[1].GetUInt32();
+        row.type = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<ArenaTeamMemberTypeRow> QueryMemberTeamTypes()
     {
         //                                                                            0                   1                  2
-        return CharacterDatabase.Query("SELECT `arena_team_member`.`guid`, `arena_team_member`.`arenateamid`, `arena_team`.`type` "
-                                       "FROM `arena_team_member` JOIN `arena_team` ON `arena_team_member`.`arenateamid` = `arena_team`.`arenateamid`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `arena_team_member`.`guid`, `arena_team_member`.`arenateamid`, `arena_team`.`type` "
+                                                      "FROM `arena_team_member` JOIN `arena_team` ON `arena_team_member`.`arenateamid` = `arena_team`.`arenateamid`");
+        return ReadRows<ArenaTeamMemberTypeRow>(result, ReadArenaTeamMemberType);
     }
 }

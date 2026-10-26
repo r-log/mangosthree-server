@@ -29,8 +29,8 @@
 #include "Platform/Define.h"
 
 #include <optional>
+#include <vector>
 
-class Field;
 class QueryResult;
 
 /// An auction's saved row, in the order of the INSERT's columns.
@@ -61,14 +61,11 @@ namespace AuctionRepository
     QueryResult* QueryAuctionItems();
 
     /// Selects the number of auctions.
-    QueryResult* QueryAuctionCount();
+    std::optional<uint32> QueryAuctionCount();
 
     /// Selects every auction: id, house, item guid, template, count, random property, owner,
     /// buyout, expire time, money time, bidder, bid, start bid, deposit.
-    QueryResult* QueryAuctions();
-
-    /// Reads one row of the auction load.
-    AuctionRow ReadAuction(Field* fields);
+    std::vector<AuctionRow> QueryAuctions();
 
     /// Sets an auction's item template, count and random property from its item, by item guid.
     void SetItemData(uint32 itemGuid, uint32 itemTemplate, uint32 itemCount, int32 itemRandomPropertyId);

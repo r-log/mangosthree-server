@@ -192,3 +192,95 @@ TEST(GroupRepository_SingleWrites)
         "DELETE FROM `group_instance` WHERE `leaderGuid` = '8' AND `instance` = '302'",
     }, __LINE__);
 }
+
+// Each column of a `groups` row lands in its member, and the rows come back in order.
+TEST(GroupRepository_GroupIds)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"},
+        FakeRow{"2000"},
+    });
+    std::vector<GroupIdRow> rows = GroupRepository::QueryGroupIds();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].groupId, 1000u);
+    CHECK_EQ(rows[1].groupId, 2000u);
+}
+
+// Each column of a `groups` row as the group load reads it lands in its member, and the rows come
+// back in order.
+TEST(GroupRepository_Groups)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "102", "1003", "10004", "4294967301", "4294967302", "4294967303",
+            "4294967304", "4294967305", "4294967306", "4294967307", "4294967308", "113", "114",
+            "115", "1016", "1017"},
+        FakeRow{"2000", "2001", "202", "2003", "20004", "8589934597", "8589934598", "8589934599",
+            "8589934600", "8589934601", "8589934602", "8589934603", "8589934604", "213", "214",
+            "215", "2016", "2017"},
+    });
+    std::vector<GroupDataRow> rows = GroupRepository::QueryGroups();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].mainTank, 1000u);
+    CHECK_EQ(rows[0].mainAssistant, 1001u);
+    CHECK_EQ(rows[0].lootMethod, uint8(102));
+    CHECK_EQ(rows[0].looterGuid, 1003u);
+    CHECK_EQ(rows[0].lootThreshold, uint16(10004));
+    CHECK_EQ(rows[0].icons[0], uint64(4294967301ull));
+    CHECK_EQ(rows[0].icons[1], uint64(4294967302ull));
+    CHECK_EQ(rows[0].icons[2], uint64(4294967303ull));
+    CHECK_EQ(rows[0].icons[3], uint64(4294967304ull));
+    CHECK_EQ(rows[0].icons[4], uint64(4294967305ull));
+    CHECK_EQ(rows[0].icons[5], uint64(4294967306ull));
+    CHECK_EQ(rows[0].icons[6], uint64(4294967307ull));
+    CHECK_EQ(rows[0].icons[7], uint64(4294967308ull));
+    CHECK_EQ(rows[0].groupType, uint8(113));
+    CHECK_EQ(rows[0].difficulty, uint8(114));
+    CHECK_EQ(rows[0].raidDifficulty, uint8(115));
+    CHECK_EQ(rows[0].leaderGuid, 1016u);
+    CHECK_EQ(rows[0].groupId, 1017u);
+    CHECK_EQ(rows[1].mainTank, 2000u);
+}
+
+// Each column of a `group_member` row lands in its member, and the rows come back in order.
+TEST(GroupRepository_Members)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1", "102", "1003", "104"},
+        FakeRow{"2000", "1", "202", "2003", "204"},
+    });
+    std::vector<GroupMemberRow> rows = GroupRepository::QueryMembers();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].memberGuid, 1000u);
+    CHECK_EQ(rows[0].assistant, true);
+    CHECK_EQ(rows[0].subgroup, uint8(102));
+    CHECK_EQ(rows[0].groupId, 1003u);
+    CHECK_EQ(rows[0].roles, uint8(104));
+    CHECK_EQ(rows[1].memberGuid, 2000u);
+}
+
+// Each column of a group instance bind (`group_instance`), with its instance and group, and how
+// many permanent binds the leader holds to the instance lands in its member, and the rows come back
+// in order.
+TEST(GroupRepository_InstanceBinds)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1", "104", "4294967301", "1006", "1007", "1008"},
+        FakeRow{"2000", "2001", "2002", "1", "204", "8589934597", "2006", "2007", "2008"},
+    });
+    std::vector<GroupInstanceBindRow> rows = GroupRepository::QueryInstanceBinds();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].leaderGuid, 1000u);
+    CHECK_EQ(rows[0].map, 1001u);
+    CHECK_EQ(rows[0].instance, 1002u);
+    CHECK_EQ(rows[0].permanent, true);
+    CHECK_EQ(rows[0].difficulty, uint8(104));
+    CHECK_EQ(rows[0].resettime, uint64(4294967301ull));
+    CHECK_EQ(rows[0].leaderPermanentBindCount, 1006u);
+    CHECK_EQ(rows[0].groupId, 1007u);
+    CHECK_EQ(rows[0].encountersMask, 1008u);
+    CHECK_EQ(rows[1].leaderGuid, 2000u);
+}

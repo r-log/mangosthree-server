@@ -25,12 +25,24 @@
 
 #include "GuildBankRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace GuildBankRepository
 {
-    QueryResult* QueryTabs(uint32 guildId)
+    static GuildBankTabRow ReadGuildBankTab(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `TabId`, `TabName`, `TabIcon`, `TabText` FROM `guild_bank_tab` WHERE `guildid`='%u' ORDER BY `TabId`", guildId);
+        GuildBankTabRow row;
+        row.tabId = fields[0].GetUInt8();
+        row.tabName = fields[1].GetCppString();
+        row.tabIcon = fields[2].GetCppString();
+        row.tabText = fields[3].GetCppString();
+        return row;
+    }
+
+    std::vector<GuildBankTabRow> QueryTabs(uint32 guildId)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `TabId`, `TabName`, `TabIcon`, `TabText` FROM `guild_bank_tab` WHERE `guildid`='%u' ORDER BY `TabId`", guildId);
+        return ReadRows<GuildBankTabRow>(result, ReadGuildBankTab);
     }
 
     QueryResult* QueryItems(uint32 guildId)
@@ -38,9 +50,23 @@ namespace GuildBankRepository
         return CharacterDatabase.PQuery("SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`", guildId);
     }
 
-    QueryResult* QueryEventLog(uint32 guildId, uint32 tabId, uint32 maxLogs)
+    static GuildBankEventLogRow ReadGuildBankEventLog(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u", guildId, tabId, maxLogs);
+        GuildBankEventLogRow row;
+        row.logGuid = fields[0].GetUInt32();
+        row.eventType = fields[1].GetUInt8();
+        row.playerGuid = fields[2].GetUInt32();
+        row.itemOrMoney = fields[3].GetUInt32();
+        row.itemStackCount = fields[4].GetUInt8();
+        row.destTabId = fields[5].GetUInt8();
+        row.timeStamp = fields[6].GetUInt64();
+        return row;
+    }
+
+    std::vector<GuildBankEventLogRow> QueryEventLog(uint32 guildId, uint32 tabId, uint32 maxLogs)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u", guildId, tabId, maxLogs);
+        return ReadRows<GuildBankEventLogRow>(result, ReadGuildBankEventLog);
     }
 
     void CreateTab(uint32 guildId, uint32 tabId)

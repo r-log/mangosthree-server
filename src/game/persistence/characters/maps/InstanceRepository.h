@@ -28,9 +28,64 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 
-class QueryResult;
+/// One creature respawn time (`creature_respawn`), with its instance's map, difficulty, reset time
+/// and encounters when it is in one.
+struct CreatureRespawnRow
+{
+    uint32 guid = 0;
+    uint64 respawntime = 0;
+    uint32 map = 0;
+    uint32 instance = 0;
+    uint8 difficulty = 0;
+    uint64 resettime = 0;
+    uint32 encountersMask = 0;
+};
+
+/// One game object respawn time (`gameobject_respawn`), with its instance's map, difficulty, reset
+/// time and encounters when it is in one.
+struct GameObjectRespawnRow
+{
+    uint32 guid = 0;
+    uint64 respawntime = 0;
+    uint32 map = 0;
+    uint32 instance = 0;
+    uint8 difficulty = 0;
+    uint64 resettime = 0;
+    uint32 encountersMask = 0;
+};
+
+/// One instance's latest creature respawn time.
+struct LatestCreatureRespawnRow
+{
+    uint64 latestRespawnTime = 0;
+    uint32 instance = 0;
+};
+
+/// One `instance` row.
+struct InstanceIdRow
+{
+    uint32 id = 0;
+};
+
+/// One `instance_reset` row.
+struct InstanceResetRow
+{
+    uint32 mapid = 0;
+    uint32 difficulty = 0;
+    uint64 resettime = 0;
+};
+
+/// One instance with its map, difficulty and reset time (`instance`).
+struct InstanceResetTimeRow
+{
+    uint32 id = 0;
+    uint32 map = 0;
+    uint32 difficulty = 0;
+    uint64 resettime = 0;
+};
 
 /// The instances' saved rows (`instance`, `instance_reset`, `creature_respawn`,
 /// `gameobject_respawn`, and the binds an instance's delete and renumbering touch). The startup
@@ -52,8 +107,8 @@ namespace InstanceRepository
 
     /// Each selects every saved respawn time with its instance: guid, respawn time, map, instance,
     /// difficulty, reset time and the encounters mask.
-    QueryResult* QueryCreatureRespawns();
-    QueryResult* QueryGameObjectRespawns();
+    std::vector<CreatureRespawnRow> QueryCreatureRespawns();
+    std::vector<GameObjectRespawnRow> QueryGameObjectRespawns();
 
     /// Inserts a new instance's row, the data bound.
     void InsertInstance(uint32 instanceId, uint32 map, uint64 resetTime, uint32 difficulty, uint32 encountersMask, std::string const& data);
@@ -72,19 +127,19 @@ namespace InstanceRepository
     void DeleteInstancesOfMap(uint32 map);
 
     /// Selects every instance with a reset time: id, map, difficulty, reset time.
-    QueryResult* QueryInstancesWithResetTime();
+    std::vector<InstanceResetTimeRow> QueryInstancesWithResetTime();
 
     /// Selects every instance's latest creature respawn time: the time, the instance.
-    QueryResult* QueryLatestCreatureRespawns();
+    std::vector<LatestCreatureRespawnRow> QueryLatestCreatureRespawns();
 
     /// Selects every instance's id.
-    QueryResult* QueryInstanceIds();
+    std::vector<InstanceIdRow> QueryInstanceIds();
 
     /// Gives an instance a new id in every table that names it, in one transaction.
     void RenumberInstance(uint32 newId, uint32 oldId);
 
     /// Selects every map's global reset time: map, difficulty, reset time.
-    QueryResult* QueryInstanceResets();
+    std::vector<InstanceResetRow> QueryInstanceResets();
 
     /// Each writes a map's global reset time; the Now ones write it directly. The two spellings of
     /// the update are both kept.

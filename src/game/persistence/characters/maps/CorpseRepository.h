@@ -29,8 +29,8 @@
 #include "Platform/Define.h"
 
 #include <optional>
-
-class QueryResult;
+#include <string>
+#include <vector>
 
 /// A corpse's saved row, in the order of the INSERT's columns, each value of the type it is
 /// written as.
@@ -49,6 +49,31 @@ struct CorpseRow
     uint32 phaseMask = 0;
 };
 
+/// One corpse as the startup load reads it: its `corpse` row, its owner's appearance and flags, and
+/// the owner's guild when there is one.
+struct CorpseDataRow
+{
+    uint32 guid = 0;
+    uint32 player = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    float orientation = 0.0f;
+    uint32 map = 0;
+    uint64 time = 0;
+    uint32 corpseType = 0;
+    uint32 instance = 0;
+    uint32 phaseMask = 0;
+    uint8 gender = 0;
+    uint8 race = 0;
+    uint8 classId = 0;
+    uint32 playerBytes = 0;
+    uint32 playerBytes2 = 0;
+    std::string equipmentCache;
+    uint32 guildId = 0;
+    uint32 playerFlags = 0;
+};
+
 /// The players' corpses (`corpse`). The start-up reads run synchronously; every write is queued on
 /// the character database, and one called inside CharacterTransaction joins it.
 namespace CorpseRepository
@@ -63,7 +88,7 @@ namespace CorpseRepository
     std::optional<uint32> QueryHighestGuid();
 
     /// Selects every corpse that is not bones with its player's appearance and guild, at start-up.
-    QueryResult* QueryCorpses();
+    std::vector<CorpseDataRow> QueryCorpses();
 
     /// Deletes the bones and the corpses older than a number of seconds, at start-up.
     void DeleteBonesAndOldCorpses(uint32 maxAge);

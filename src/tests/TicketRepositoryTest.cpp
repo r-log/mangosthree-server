@@ -84,9 +84,11 @@ namespace
 
 TEST(TicketRepository_ReadsAnOpenTicketRow)
 {
-    FakeQueryResult tickets(FakeRows{FakeRow{"7", "Stuck in a wall", "On my way", "1700000000", "12"}});
-    REQUIRE(tickets.NextRow());
-    GMTicketRow row = TicketRepository::ReadTicket(tickets.Fetch());
+    Db db;
+    db.query.Answer("SELECT", FakeRows{FakeRow{"7", "Stuck in a wall", "On my way", "1700000000", "12"}});
+    std::vector<GMTicketRow> rows = TicketRepository::QueryOpenTickets();
+    REQUIRE(rows.size() == 1);
+    GMTicketRow const& row = rows[0];
     CHECK_EQ(row.guid, 7u);
     CHECK_STR(row.text, "Stuck in a wall");
     CHECK_STR(row.responseText, "On my way");

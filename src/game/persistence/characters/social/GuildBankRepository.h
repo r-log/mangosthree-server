@@ -27,9 +27,31 @@
 #define MANGOS_H_GUILDBANKREPOSITORY
 
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 
 class QueryResult;
+
+/// One `guild_bank_tab` row.
+struct GuildBankTabRow
+{
+    uint8 tabId = 0;
+    std::string tabName;
+    std::string tabIcon;
+    std::string tabText;
+};
+
+/// One `guild_bank_eventlog` row.
+struct GuildBankEventLogRow
+{
+    uint32 logGuid = 0;
+    uint8 eventType = 0;
+    uint32 playerGuid = 0;
+    uint32 itemOrMoney = 0;
+    uint8 itemStackCount = 0;
+    uint8 destTabId = 0;
+    uint64 timeStamp = 0;
+};
 
 /// The guild banks' saved rows (`guild_bank_tab`, `guild_bank_item`, `guild_bank_right`,
 /// `guild_bank_eventlog`, and the bank columns of `guild` and `guild_member`). The loads run at
@@ -38,7 +60,7 @@ class QueryResult;
 namespace GuildBankRepository
 {
     /// Selects a guild's bank tabs, ordered by tab: tab, name, icon, text.
-    QueryResult* QueryTabs(uint32 guildId);
+    std::vector<GuildBankTabRow> QueryTabs(uint32 guildId);
 
     /// Selects a guild's bank items with their values and text, ordered by tab, for
     /// Item::LoadFromDB (the values first): values, text, tab, slot, item guid, entry.
@@ -46,7 +68,7 @@ namespace GuildBankRepository
 
     /// Selects a bank tab's latest events, newest first: log guid, type, player, item or money,
     /// stack count, destination tab, time.
-    QueryResult* QueryEventLog(uint32 guildId, uint32 tabId, uint32 maxLogs);
+    std::vector<GuildBankEventLogRow> QueryEventLog(uint32 guildId, uint32 tabId, uint32 maxLogs);
 
     /// Writes a newly bought tab's row in one transaction, over any row left under its id.
     void CreateTab(uint32 guildId, uint32 tabId);

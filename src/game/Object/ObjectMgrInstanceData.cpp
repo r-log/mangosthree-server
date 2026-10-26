@@ -105,9 +105,9 @@ void ObjectMgr::LoadGroups()
 {
     // -- loading groups --
     uint32 count = 0;
-    QueryResult* result = GroupRepository::QueryGroups();
+    std::vector<GroupDataRow> groups = GroupRepository::QueryGroups();
 
-    if (!result)
+    if (groups.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -116,15 +116,14 @@ void ObjectMgr::LoadGroups()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(groups.size());
 
-    do
+    for (GroupDataRow const& row : groups)
     {
         bar.step();
-        Field* fields = result->Fetch();
         ++count;
         Group* group = new Group;
-        if (!group->LoadGroupFromDB(fields))
+        if (!group->LoadGroupFromDB(row))
         {
             group->Disband();
             delete group;
@@ -132,17 +131,14 @@ void ObjectMgr::LoadGroups()
         }
         AddGroup(group);
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u group definitions", count);
     sLog.outString();
 
     // -- loading members --
     count = 0;
-    result = GroupRepository::QueryMembers();
-    if (!result)
+    std::vector<GroupMemberRow> members = GroupRepository::QueryMembers();
+    if (members.empty())
     {
         BarGoLink bar2(1);
         bar2.step();
@@ -151,19 +147,18 @@ void ObjectMgr::LoadGroups()
     {
         Group* group = NULL;                                // used as cached pointer for avoid relookup group for each member
 
-        BarGoLink bar2(result->GetRowCount());
-        do
+        BarGoLink bar2(members.size());
+        for (GroupMemberRow const& row : members)
         {
             bar2.step();
-            Field* fields = result->Fetch();
             ++count;
 
-            uint32 memberGuidlow = fields[0].GetUInt32();
+            uint32 memberGuidlow = row.memberGuid;
             ObjectGuid memberGuid = ObjectGuid(HIGHGUID_PLAYER, memberGuidlow);
-            bool   assistent     = fields[1].GetBool();
-            uint8  subgroup      = fields[2].GetUInt8();
-            uint32 groupId       = fields[3].GetUInt32();
-            uint8  roles         = fields[4].GetUInt8();
+            bool   assistent     = row.assistant;
+            uint8  subgroup      = row.subgroup;
+            uint32 groupId       = row.groupId;
+            uint8  roles         = row.roles;
             if (!group || group->GetId() != groupId)
             {
                 group = GetGroupById(groupId);
@@ -183,8 +178,6 @@ void ObjectMgr::LoadGroups()
                 GroupRepository::DeleteInvalidMember(memberGuidlow);
             }
         }
-        while (result->NextRow());
-        delete result;
     }
 
     // clean groups
@@ -205,9 +198,9 @@ void ObjectMgr::LoadGroups()
 
     // -- loading instances --
     count = 0;
-    result = GroupRepository::QueryInstanceBinds();
+    std::vector<GroupInstanceBindRow> instanceBinds = GroupRepository::QueryInstanceBinds();
 
-    if (!result)
+    if (instanceBinds.empty())
     {
         BarGoLink bar2(1);
         bar2.step();
@@ -216,17 +209,16 @@ void ObjectMgr::LoadGroups()
     {
         Group* group = NULL;                                // used as cached pointer for avoid relookup group for each member
 
-        BarGoLink bar2(result->GetRowCount());
-        do
+        BarGoLink bar2(instanceBinds.size());
+        for (GroupInstanceBindRow const& row : instanceBinds)
         {
             bar2.step();
-            Field* fields = result->Fetch();
             ++count;
 
-            uint32 leaderGuidLow = fields[0].GetUInt32();
-            uint32 mapId = fields[1].GetUInt32();
-            Difficulty diff = (Difficulty)fields[4].GetUInt8();
-            uint32 groupId = fields[7].GetUInt32();
+            uint32 leaderGuidLow = row.leaderGuid;
+            uint32 mapId = row.map;
+            Difficulty diff = (Difficulty)row.difficulty;
+            uint32 groupId = row.groupId;
 
             if (!group || group->GetId() != groupId)
             {
@@ -252,11 +244,9 @@ void ObjectMgr::LoadGroups()
                 diff = REGULAR_DIFFICULTY;                  // default for both difficaly types
             }
 
-            DungeonPersistentState* state = (DungeonPersistentState*)sMapPersistentStateMgr.AddPersistentState(mapEntry, fields[2].GetUInt32(), Difficulty(diff), (time_t)fields[5].GetUInt64(), (fields[6].GetUInt32() == 0), true, true, fields[8].GetUInt32());
-            group->BindToInstance(state, fields[3].GetBool(), true);
+            DungeonPersistentState* state = (DungeonPersistentState*)sMapPersistentStateMgr.AddPersistentState(mapEntry, row.instance, Difficulty(diff), (time_t)row.resettime, (row.leaderPermanentBindCount == 0), true, true, row.encountersMask);
+            group->BindToInstance(state, row.permanent, true);
         }
-        while (result->NextRow());
-        delete result;
     }
 
     sLog.outString(">> Loaded %u group-instance binds total", count);

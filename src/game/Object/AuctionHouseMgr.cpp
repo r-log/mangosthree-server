@@ -454,8 +454,8 @@ void AuctionHouseMgr::LoadAuctionItems()
  */
 void AuctionHouseMgr::LoadAuctions()
 {
-    QueryResult* result = AuctionRepository::QueryAuctionCount();
-    if (!result)
+    std::optional<uint32> auctionCount = AuctionRepository::QueryAuctionCount();
+    if (!auctionCount)
     {
         BarGoLink bar(1);
         bar.step();
@@ -464,9 +464,7 @@ void AuctionHouseMgr::LoadAuctions()
         return;
     }
 
-    Field* fields = result->Fetch();
-    uint32 AuctionCount = fields[0].GetUInt32();
-    delete result;
+    uint32 AuctionCount = *auctionCount;
 
     if (!AuctionCount)
     {
@@ -477,8 +475,8 @@ void AuctionHouseMgr::LoadAuctions()
         return;
     }
 
-    result = AuctionRepository::QueryAuctions();
-    if (!result)
+    std::vector<AuctionRow> auctions = AuctionRepository::QueryAuctions();
+    if (auctions.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -492,10 +490,8 @@ void AuctionHouseMgr::LoadAuctions()
     typedef std::map<uint32, std::wstring> PlayerNames;
     PlayerNames playerNames;                                // caching for load time
 
-    do
+    for (AuctionRow const& row : auctions)
     {
-        AuctionRow const row = AuctionRepository::ReadAuction(result->Fetch());
-
         bar.step();
 
         AuctionEntry* auction = new AuctionEntry;
@@ -595,8 +591,6 @@ void AuctionHouseMgr::LoadAuctions()
 
         GetAuctionsMap(auction->auctionHouseEntry)->AddAuction(auction);
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u auctions", AuctionCount);

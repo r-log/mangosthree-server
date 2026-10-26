@@ -308,17 +308,16 @@ uint32 Guild::GetBankRights(uint32 rankId, uint8 TabId) const
 // This load should be called on startup only
 void Guild::LoadGuildBankFromDB()
 {
-    QueryResult* result = GuildBankRepository::QueryTabs(m_Id);
-    if (!result)
+    std::vector<GuildBankTabRow> tabs = GuildBankRepository::QueryTabs(m_Id);
+    if (tabs.empty())
     {
         m_TabListMap.clear();
         return;
     }
 
-    do
+    for (GuildBankTabRow const& row : tabs)
     {
-        Field* fields = result->Fetch();
-        uint8 tabId = fields[0].GetUInt8();
+        uint8 tabId = row.tabId;
         if (tabId >= GetPurchasedTabs())
         {
             sLog.outError("Table `guild_bank_tab` have not purchased tab %u for guild %u, skipped", tabId, m_Id);
@@ -327,18 +326,15 @@ void Guild::LoadGuildBankFromDB()
 
         GuildBankTab* NewTab = new GuildBankTab;
 
-        NewTab->Name = fields[1].GetCppString();
-        NewTab->Icon = fields[2].GetCppString();
-        NewTab->Text = fields[3].GetCppString();
+        NewTab->Name = row.tabName;
+        NewTab->Icon = row.tabIcon;
+        NewTab->Text = row.tabText;
 
         m_TabListMap[tabId] = NewTab;
     }
-    while (result->NextRow());
-
-    delete result;
 
     // data needs to be at first place for Item::LoadFromDB: data, text, tab, slot, item guid, entry
-    result = GuildBankRepository::QueryItems(m_Id);
+    QueryResult* result = GuildBankRepository::QueryItems(m_Id);
     if (!result)
     {
         return;
@@ -669,29 +665,27 @@ void Guild::LoadGuildBankEventLogFromDB()
     // cycle through all purchased guild bank item tabs
     for (uint32 tabId = 0; tabId < uint32(GetPurchasedTabs()); ++tabId)
     {
-        QueryResult* result = GuildBankRepository::QueryEventLog(m_Id, tabId, GUILD_BANK_MAX_LOGS);
-        if (!result)
+        std::vector<GuildBankEventLogRow> rows = GuildBankRepository::QueryEventLog(m_Id, tabId, GUILD_BANK_MAX_LOGS);
+        if (rows.empty())
         {
             continue;
         }
 
         bool isNextLogGuidSet = false;
-        do
+        for (GuildBankEventLogRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
             GuildBankEventLogEntry NewEvent;
-            NewEvent.EventType = fields[1].GetUInt8();
-            NewEvent.PlayerGuid = fields[2].GetUInt32();
-            NewEvent.ItemOrMoney = fields[3].GetUInt32();
-            NewEvent.ItemStackCount = fields[4].GetUInt8();
-            NewEvent.DestTabId = fields[5].GetUInt8();
-            NewEvent.TimeStamp = fields[6].GetUInt64();
+            NewEvent.EventType = row.eventType;
+            NewEvent.PlayerGuid = row.playerGuid;
+            NewEvent.ItemOrMoney = row.itemOrMoney;
+            NewEvent.ItemStackCount = row.itemStackCount;
+            NewEvent.DestTabId = row.destTabId;
+            NewEvent.TimeStamp = row.timeStamp;
 
             // if newEvent is moneyEvent, move it to moneyEventTab in DB and report error
             if (NewEvent.isMoneyEvent())
             {
-                uint32 logGuid = fields[0].GetUInt32();
+                uint32 logGuid = row.logGuid;
                 GuildBankRepository::MoveEventToMoneyTab(m_Id, tabId, logGuid, GUILD_BANK_MONEY_LOGS_TAB);
                 sLog.outError("GuildBankEventLog ERROR: MoneyEvent LogGuid %u for Guild %u had incorrectly set its TabId to %u, correcting it to %u TabId", logGuid, m_Id, tabId, GUILD_BANK_MONEY_LOGS_TAB);
                 continue;
@@ -703,51 +697,46 @@ void Guild::LoadGuildBankEventLogFromDB()
 
             if (!isNextLogGuidSet)
             {
-                m_GuildBankEventLogNextGuid_Item[tabId] = fields[0].GetUInt32();
+                m_GuildBankEventLogNextGuid_Item[tabId] = row.logGuid;
                 // we don't have to do m_GuildBankEventLogNextGuid_Item[tabId] %= configCount; - it will be done when creating new record
                 isNextLogGuidSet = true;
             }
         }
-        while (result->NextRow());
-        delete result;
     }
 
     // special handle for guild bank money log
-    QueryResult* result = GuildBankRepository::QueryEventLog(m_Id, GUILD_BANK_MONEY_LOGS_TAB, GUILD_BANK_MAX_LOGS);
-    if (!result)
+    std::vector<GuildBankEventLogRow> rows = GuildBankRepository::QueryEventLog(m_Id, GUILD_BANK_MONEY_LOGS_TAB, GUILD_BANK_MAX_LOGS);
+    if (rows.empty())
     {
         return;
     }
 
     bool isNextMoneyLogGuidSet = false;
-    do
+    for (GuildBankEventLogRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         if (!isNextMoneyLogGuidSet)
         {
-            m_GuildBankEventLogNextGuid_Money = fields[0].GetUInt32();
+            m_GuildBankEventLogNextGuid_Money = row.logGuid;
             // we don't have to do m_GuildBankEventLogNextGuid_Money %= configCount; - it will be done when creating new record
             isNextMoneyLogGuidSet = true;
         }
         GuildBankEventLogEntry NewEvent;
 
-        NewEvent.EventType = fields[1].GetUInt8();
-        NewEvent.PlayerGuid = fields[2].GetUInt32();
-        NewEvent.ItemOrMoney = fields[3].GetUInt32();
-        NewEvent.ItemStackCount = fields[4].GetUInt8();
-        NewEvent.DestTabId = fields[5].GetUInt8();
-        NewEvent.TimeStamp = fields[6].GetUInt64();
+        NewEvent.EventType = row.eventType;
+        NewEvent.PlayerGuid = row.playerGuid;
+        NewEvent.ItemOrMoney = row.itemOrMoney;
+        NewEvent.ItemStackCount = row.itemStackCount;
+        NewEvent.DestTabId = row.destTabId;
+        NewEvent.TimeStamp = row.timeStamp;
 
         // if newEvent is not moneyEvent, then report error
         if (!NewEvent.isMoneyEvent())
-            sLog.outError("GuildBankEventLog ERROR: MoneyEvent LogGuid %u for Guild %u is not MoneyEvent - ignoring...", fields[0].GetUInt32(), m_Id);
+            sLog.outError("GuildBankEventLog ERROR: MoneyEvent LogGuid %u for Guild %u is not MoneyEvent - ignoring...", row.logGuid, m_Id);
         else
             // add event to list
             // events are ordered from oldest (in beginning) to latest (in the end)
             m_GuildBankEventLog_Money.push_front(NewEvent);
     }
-    while (result->NextRow());
-    delete result;
 }
 
 void Guild::DisplayGuildBankLogs(WorldSession* session, uint8 TabId)

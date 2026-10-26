@@ -950,14 +950,12 @@ void ObjectMgr::PackGroupIds()
     // all valid ids are in the instance table
     // any associations to ids not in this table are assumed to be
     // cleaned already in CleanupInstances
-    QueryResult* result = GroupRepository::QueryGroupIds();
-    if (result)
+    std::vector<GroupIdRow> rows = GroupRepository::QueryGroupIds();
+    if (!rows.empty())
     {
-        do
+        for (GroupIdRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
-            uint32 id = fields[0].GetUInt32();
+            uint32 id = row.groupId;
 
             if (id == 0)
             {
@@ -967,8 +965,6 @@ void ObjectMgr::PackGroupIds()
 
             groupIds.insert(id);
         }
-        while (result->NextRow());
-        delete result;
     }
 
     BarGoLink bar(groupIds.size() + 1);
@@ -1206,9 +1202,9 @@ std::string ObjectMgr::GeneratePetName(uint32 entry)
 void ObjectMgr::LoadCorpses()
 {
     uint32 count = 0;
-    QueryResult* result = CorpseRepository::QueryCorpses();
+    std::vector<CorpseDataRow> rows = CorpseRepository::QueryCorpses();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -1217,18 +1213,16 @@ void ObjectMgr::LoadCorpses()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (CorpseDataRow const& row : rows)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 guid = fields[0].GetUInt32();
+        uint32 guid = row.guid;
 
         Corpse* corpse = new Corpse;
-        if (!corpse->LoadFromDB(guid, fields))
+        if (!corpse->LoadFromDB(guid, row))
         {
             delete corpse;
             continue;
@@ -1238,8 +1232,6 @@ void ObjectMgr::LoadCorpses()
 
         ++count;
     }
-    while (result->NextRow());
-    delete result;
 
     sLog.outString(">> Loaded %u corpses", count);
     sLog.outString();

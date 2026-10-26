@@ -1220,39 +1220,36 @@ void Guild::DisplayGuildEventLog(WorldSession* session)
  */
 void Guild::LoadGuildEventLogFromDB()
 {
-    QueryResult* result = GuildRepository::QueryEventLog(m_Id, GUILD_EVENTLOG_MAX_RECORDS);
-    if (!result)
+    std::vector<GuildEventLogRow> rows = GuildRepository::QueryEventLog(m_Id, GUILD_EVENTLOG_MAX_RECORDS);
+    if (rows.empty())
     {
         return;
     }
     bool isNextLogGuidSet = false;
     // uint32 configCount = sGameConfig.getConfig(CONFIG_UINT32_GUILD_EVENT_LOG_COUNT);
     // First event in list will be the oldest and the latest event is last event in list
-    do
+    for (GuildEventLogRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         if (!isNextLogGuidSet)
         {
-            m_GuildEventLogNextGuid = fields[0].GetUInt32();
+            m_GuildEventLogNextGuid = row.logGuid;
             isNextLogGuidSet = true;
         }
         // Fill entry
         GuildEventLogEntry NewEvent;
-        NewEvent.EventType = fields[1].GetUInt8();
-        NewEvent.PlayerGuid1 = fields[2].GetUInt32();
-        NewEvent.PlayerGuid2 = fields[3].GetUInt32();
-        NewEvent.NewRank = fields[4].GetUInt8();
-        NewEvent.TimeStamp = fields[5].GetUInt64();
+        NewEvent.EventType = row.eventType;
+        NewEvent.PlayerGuid1 = row.playerGuid1;
+        NewEvent.PlayerGuid2 = row.playerGuid2;
+        NewEvent.NewRank = row.newRank;
+        NewEvent.TimeStamp = row.timeStamp;
 
-        // There can be a problem if more events have same TimeStamp the ORDER can be broken when fields[0].GetUInt32() == configCount, but
+        // There can be a problem if more events have same TimeStamp the ORDER can be broken when row.logGuid == configCount, but
         // events with same timestamp can appear when there is lag, and we naively suppose that mangos isn't laggy
         // but if problem appears, player will see set of guild events that have same timestamp in bad order
 
         // Add entry to list
         m_GuildEventLog.push_front(NewEvent);
     }
-    while (result->NextRow());
-    delete result;
 }
 
 /**

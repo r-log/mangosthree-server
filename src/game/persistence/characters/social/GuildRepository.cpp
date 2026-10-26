@@ -55,9 +55,22 @@ namespace GuildRepository
         return CharacterDatabase.Query("SELECT `guildid`,`TabId`,`rid`,`gbright`,`SlotPerDay` FROM `guild_bank_right` ORDER BY `guildid` ASC, `TabId` ASC");
     }
 
-    QueryResult* QueryEventLog(uint32 guildId, uint32 maxRecords)
+    static GuildEventLogRow ReadGuildEventLog(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u", guildId, maxRecords);
+        GuildEventLogRow row;
+        row.logGuid = fields[0].GetUInt32();
+        row.eventType = fields[1].GetUInt8();
+        row.playerGuid1 = fields[2].GetUInt32();
+        row.playerGuid2 = fields[3].GetUInt32();
+        row.newRank = fields[4].GetUInt8();
+        row.timeStamp = fields[5].GetUInt64();
+        return row;
+    }
+
+    std::vector<GuildEventLogRow> QueryEventLog(uint32 guildId, uint32 maxRecords)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u", guildId, maxRecords);
+        return ReadRows<GuildEventLogRow>(result, ReadGuildEventLog);
     }
 
     void TrimEventLog(uint32 count)
@@ -267,9 +280,19 @@ namespace GuildRepository
         return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryMemberRanks()
+    static GuildMemberRankRow ReadGuildMemberRank(Field* fields)
+    {
+        GuildMemberRankRow row;
+        row.guid = fields[0].GetUInt32();
+        row.guildid = fields[1].GetUInt32();
+        row.rank = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<GuildMemberRankRow> QueryMemberRanks()
     {
         //                                              0       1          2
-        return CharacterDatabase.Query("SELECT `guid`, `guildid`, `rank` FROM `guild_member`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `guildid`, `rank` FROM `guild_member`");
+        return ReadRows<GuildMemberRankRow>(result, ReadGuildMemberRank);
     }
 }

@@ -35,6 +35,7 @@
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/economy/AuctionRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -86,10 +87,12 @@ namespace
 
 TEST(AuctionRepository_ReadsAnAuctionRow)
 {
-    FakeQueryResult auctions(FakeRows{FakeRow{"5", "2", "55", "2589", "20", "-12", "7", "15000", "1700000000",
-                                              "0", "42", "12000", "10000", "300"}});
-    REQUIRE(auctions.NextRow());
-    AuctionRow row = AuctionRepository::ReadAuction(auctions.Fetch());
+    Db db;
+    db.query.Answer("SELECT", FakeRows{FakeRow{"5", "2", "55", "2589", "20", "-12", "7", "15000", "1700000000",
+                                               "0", "42", "12000", "10000", "300"}});
+    std::vector<AuctionRow> rows = AuctionRepository::QueryAuctions();
+    REQUIRE(rows.size() == 1);
+    AuctionRow const& row = rows[0];
     CHECK_EQ(row.id, 5u);
     CHECK_EQ(row.houseId, 2u);
     CHECK_EQ(row.itemGuid, 55u);
@@ -144,4 +147,19 @@ TEST(AuctionRepository_Writes)
         "DELETE FROM `auction` WHERE `id` = '5'",
     }, __LINE__);
     CHECK_EQ(db.query.executed.size(), size_t(0));
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(AuctionRepository_AuctionCount)
+{
+    {
+        Db db;
+        std::optional<uint32> value = AuctionRepository::QueryAuctionCount();
+        CHECK(!value);
+    }
+    Db db;
+    db.query.Answer("SELECT", FakeRows{FakeRow{"1007"}, FakeRow{"2007"}});
+    std::optional<uint32> value = AuctionRepository::QueryAuctionCount();
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
 }
