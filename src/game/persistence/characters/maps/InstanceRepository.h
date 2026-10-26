@@ -26,6 +26,7 @@
 #ifndef MANGOS_H_INSTANCEREPOSITORY
 #define MANGOS_H_INSTANCEREPOSITORY
 
+#include <optional>
 #include <string>
 #include "Platform/Define.h"
 
@@ -107,7 +108,7 @@ namespace InstanceRepository
     void DeleteExpiredInstances(uint64 time);
 
     /// Selects the highest instance id, at start-up.
-    QueryResult* QueryHighestId();
+    std::optional<uint32> QueryHighestId();
 }
 
 #endif

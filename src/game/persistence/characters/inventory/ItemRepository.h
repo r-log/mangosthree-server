@@ -27,6 +27,7 @@
 #define MANGOS_H_ITEMREPOSITORY
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
@@ -108,7 +109,7 @@ namespace ItemRepository
     void UpdateInventoryRow(uint32 ownerGuid, uint32 bagGuid, uint8 slot, uint32 itemGuid, uint32 itemEntry);
 
     /// Selects the highest item guid, at start-up.
-    QueryResult* QueryHighestGuid();
+    std::optional<uint32> QueryHighestGuid();
 
     /// Deletes the inventory, mail item, auction and guild bank rows of the item guids from the first
     /// unused one up, in one transaction, at start-up.

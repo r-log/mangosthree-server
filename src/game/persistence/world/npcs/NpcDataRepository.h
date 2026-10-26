@@ -106,6 +106,32 @@ struct PointOfInterestRow
     std::string iconName;
 };
 
+enum
+{
+    /// The options of an NPC text.
+    NPC_TEXT_ROW_OPTIONS = 8,
+    /// The emotes of an NPC text option, each a delay and an emote.
+    NPC_TEXT_ROW_EMOTES = 3
+};
+
+/// One option of an NPC text: its two texts, its language and probability, and its emotes.
+struct NpcTextOptionRow
+{
+    std::string text0;
+    std::string text1;
+    uint32 language = 0;
+    float probability = 0.0f;
+    uint32 emoteDelay[NPC_TEXT_ROW_EMOTES] = {};
+    uint32 emote[NPC_TEXT_ROW_EMOTES] = {};
+};
+
+/// One `npc_text` row: every column in the table's order, the text's id and then its options.
+struct NpcTextRow
+{
+    uint32 id = 0;
+    NpcTextOptionRow options[NPC_TEXT_ROW_OPTIONS];
+};
+
 /// The NPC data on the world database: `ObjectMgr`'s gossip, text, trainer, vendor, spell click and
 /// point of interest loads at startup and on a reload, each run synchronously; a GM's vendor item
 /// writes are queued and written to the SQL log.
@@ -118,7 +144,7 @@ namespace NpcDataRepository
     std::vector<GossipMenuOptionRow> QueryGossipMenuOptions();
 
     /// Selects every NPC text (`npc_text`).
-    QueryResult* QueryNpcTexts();
+    std::vector<NpcTextRow> QueryNpcTexts();
 
     /// Selects every row of a trainer spell table.
     std::vector<TrainerSpellRow> QueryTrainerSpells(char const* table);

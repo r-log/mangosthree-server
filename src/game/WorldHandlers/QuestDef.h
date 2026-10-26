@@ -34,7 +34,7 @@ class Player;
 
 class ObjectMgr;
 
-class Field;
+struct QuestTemplateRow;
 
 #define MAX_QUEST_LOG_SIZE 25
 
@@ -226,7 +226,7 @@ class Quest
 {
         friend class ObjectMgr;
     public:
-        Quest(Field* questRecord);
+        Quest(QuestTemplateRow const& row);
         uint32 XPValue(Player* pPlayer) const;
 
         uint32 GetQuestFlags() const { return m_QuestFlags; }

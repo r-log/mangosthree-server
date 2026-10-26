@@ -52,6 +52,9 @@
 #include "persistence/world/creatures/CreatureDataRepository.h"
 #include "persistence/world/players/PlayerDataRepository.h"
 
+static_assert(int(PLAYER_LEVEL_STATS_ROW_STATS) == int(MAX_STATS), "a player level stats row holds every stat");
+static_assert(int(PET_LEVEL_STATS_ROW_STATS) == int(MAX_STATS), "a pet level stats row holds every stat");
+
 /**
  * @brief Loads pet base stats for each supported level.
  */
@@ -61,10 +64,10 @@ void ObjectMgr::LoadPetLevelInfo()
 
     // Loading levels data
     {
-        QueryResult* result  = CreatureDataRepository::QueryPetLevelStats();
+        std::vector<PetLevelStatsRow> rows = CreatureDataRepository::QueryPetLevelStats();
 
 
-        if (!result)
+        if (rows.empty())
         {
             BarGoLink bar(1);
             bar.step();
@@ -74,20 +77,18 @@ void ObjectMgr::LoadPetLevelInfo()
             return;
         }
 
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
 
-        do
+        for (PetLevelStatsRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
-            uint32 creature_id = fields[0].GetUInt32();
+            uint32 creature_id = row.creatureEntry;
             if (!sCreatureStorage.LookupEntry<CreatureInfo>(creature_id))
             {
                 sLog.outErrorDb("Wrong creature id %u in `pet_levelstats` table, ignoring.", creature_id);
                 continue;
             }
 
-            uint32 current_level = fields[1].GetUInt32();
+            uint32 current_level = row.level;
             if (current_level > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
             {
                 if (current_level > STRONG_MAX_LEVEL)       // hardcoded level maximum
@@ -117,21 +118,18 @@ void ObjectMgr::LoadPetLevelInfo()
             // data for level 1 stored in [0] array element, ...
             PetLevelInfo* pLevelInfo = &pInfoMapEntry[current_level - 1];
 
-            pLevelInfo->health = fields[2].GetUInt16();
-            pLevelInfo->mana   = fields[3].GetUInt16();
-            pLevelInfo->armor  = fields[9].GetUInt16();
+            pLevelInfo->health = row.hp;
+            pLevelInfo->mana   = row.mana;
+            pLevelInfo->armor  = row.armor;
 
             for (int i = 0; i < MAX_STATS; ++i)
             {
-                pLevelInfo->stats[i] = fields[i + 4].GetUInt16();
+                pLevelInfo->stats[i] = row.stats[i];
             }
 
             bar.step();
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
     }
 
     // Fill gaps and check integrity
@@ -452,11 +450,11 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Loading levels data (class/race dependent)
     {
-        QueryResult* result  = PlayerDataRepository::QueryLevelStats();
+        std::vector<PlayerLevelStatsRow> rows = PlayerDataRepository::QueryLevelStats();
 
         uint32 count = 0;
 
-        if (!result)
+        if (rows.empty())
         {
             BarGoLink bar(1);
 
@@ -467,14 +465,12 @@ void ObjectMgr::LoadPlayerInfo()
             exit(1);
         }
 
-        BarGoLink bar(result->GetRowCount());
+        BarGoLink bar(rows.size());
 
-        do
+        for (PlayerLevelStatsRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-
-            uint32 current_race = fields[0].GetUInt32();
-            uint32 current_class = fields[1].GetUInt32();
+            uint32 current_race = row.race;
+            uint32 current_class = row.classId;
 
             ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(current_race);
             if (!rEntry || !((1 << (current_race - 1)) & RACEMASK_ALL_PLAYABLE))
@@ -490,7 +486,7 @@ void ObjectMgr::LoadPlayerInfo()
                 continue;
             }
 
-            uint32 current_level = fields[2].GetUInt32();
+            uint32 current_level = row.level;
             if (current_level > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
             {
                 if (current_level > STRONG_MAX_LEVEL)       // hardcoded level maximum
@@ -516,15 +512,12 @@ void ObjectMgr::LoadPlayerInfo()
 
             for (int i = 0; i < MAX_STATS; ++i)
             {
-                pLevelInfo->stats[i] = fields[i + 3].GetUInt8();
+                pLevelInfo->stats[i] = row.stats[i];
             }
 
             bar.step();
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
 
         sLog.outString();
         sLog.outString(">> Loaded %u level stats definitions", count);

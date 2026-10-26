@@ -81,3 +81,54 @@ TEST(CreatureDataRepository_PetNameParts)
     CHECK_EQ(rows[0].half, true);
     CHECK_STR(rows[1].word, "s2.0");
 }
+
+// Each column of a `creature_template_classlevelstats` row lands in its member, and the rows come
+// back in order.
+TEST(CreatureDataRepository_ClassLevelStats)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003.5", "1004.5", "1005", "1006", "1007.5", "1008",
+            "1009.5"},
+        FakeRow{"2000", "2001", "2002", "2003.5", "2004.5", "2005", "2006", "2007.5", "2008",
+            "2009.5"},
+    });
+    std::vector<ClassLevelStatsRow> rows = CreatureDataRepository::QueryClassLevelStats(1);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].classId, 1000u);
+    CHECK_EQ(rows[0].level, 1001u);
+    CHECK_EQ(rows[0].baseMana, 1002u);
+    CHECK_EQ(rows[0].baseMeleeAttackPower, 1003.5f);
+    CHECK_EQ(rows[0].baseRangedAttackPower, 1004.5f);
+    CHECK_EQ(rows[0].baseArmor, 1005u);
+    CHECK_EQ(rows[0].baseHealth[0], 1006u);
+    CHECK_EQ(rows[0].baseDamage[0], 1007.5f);
+    CHECK_EQ(rows[0].baseHealth[1], 1008u);
+    CHECK_EQ(rows[0].baseDamage[1], 1009.5f);
+    CHECK_EQ(rows[1].classId, 2000u);
+}
+
+// Each column of a `pet_levelstats` row lands in its member, and the rows come back in order.
+TEST(CreatureDataRepository_PetLevelStats)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "10002", "10003", "10004", "10005", "10006", "10007", "10008",
+            "10009"},
+        FakeRow{"2000", "2001", "20002", "20003", "20004", "20005", "20006", "20007", "20008",
+            "20009"},
+    });
+    std::vector<PetLevelStatsRow> rows = CreatureDataRepository::QueryPetLevelStats();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].creatureEntry, 1000u);
+    CHECK_EQ(rows[0].level, 1001u);
+    CHECK_EQ(rows[0].hp, uint16(10002));
+    CHECK_EQ(rows[0].mana, uint16(10003));
+    CHECK_EQ(rows[0].stats[0], uint16(10004));
+    CHECK_EQ(rows[0].stats[1], uint16(10005));
+    CHECK_EQ(rows[0].stats[2], uint16(10006));
+    CHECK_EQ(rows[0].stats[3], uint16(10007));
+    CHECK_EQ(rows[0].stats[4], uint16(10008));
+    CHECK_EQ(rows[0].armor, uint16(10009));
+    CHECK_EQ(rows[1].creatureEntry, 2000u);
+}

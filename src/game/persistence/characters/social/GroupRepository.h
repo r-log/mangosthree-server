@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
+
 class QueryResult;
 
 /// The number of target icons a saved group row holds.
@@ -114,7 +116,7 @@ namespace GroupRepository
     void RenumberGroup(uint32 newId, uint32 oldId);
 
     /// Selects the highest group id, at start-up.
-    QueryResult* QueryHighestId();
+    std::optional<uint32> QueryHighestId();
 
     /// Selects every group's row, at start-up.
     QueryResult* QueryGroups();

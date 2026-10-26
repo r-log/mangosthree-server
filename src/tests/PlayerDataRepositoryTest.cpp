@@ -171,3 +171,35 @@ TEST(PlayerDataRepository_LevelRewardMails)
     CHECK_EQ(rows[0].senderEntry, 1003u);
     CHECK_EQ(rows[1].level, uint8(200));
 }
+
+// Each column of a `player_levelstats` row lands in its member, and the rows come back in order.
+TEST(PlayerDataRepository_LevelStats)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "103", "104", "105", "106", "107"},
+        FakeRow{"2000", "2001", "2002", "203", "204", "205", "206", "207"},
+    });
+    std::vector<PlayerLevelStatsRow> rows = PlayerDataRepository::QueryLevelStats();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].race, 1000u);
+    CHECK_EQ(rows[0].classId, 1001u);
+    CHECK_EQ(rows[0].level, 1002u);
+    CHECK_EQ(rows[0].stats[0], uint8(103));
+    CHECK_EQ(rows[0].stats[1], uint8(104));
+    CHECK_EQ(rows[0].stats[2], uint8(105));
+    CHECK_EQ(rows[0].stats[3], uint8(106));
+    CHECK_EQ(rows[0].stats[4], uint8(107));
+    CHECK_EQ(rows[1].race, 2000u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(PlayerDataRepository_ReservedNames)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{FakeRow{"s1.0"}, FakeRow{"s2.0"}});
+    std::vector<std::string> values = PlayerDataRepository::QueryReservedNames();
+    REQUIRE(values.size() == 2);
+    CHECK_STR(values[0], "s1.0");
+    CHECK_STR(values[1], "s2.0");
+}

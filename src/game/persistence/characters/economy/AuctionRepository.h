@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
+
 class Field;
 class QueryResult;
 
@@ -84,7 +86,7 @@ namespace AuctionRepository
     void SetBid(uint32 auctionId, uint32 bidder, uint64 bid);
 
     /// Selects the highest auction id, at start-up.
-    QueryResult* QueryHighestId();
+    std::optional<uint32> QueryHighestId();
 }
 
 #endif

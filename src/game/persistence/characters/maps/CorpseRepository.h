@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
+
 class QueryResult;
 
 /// A corpse's saved row, in the order of the INSERT's columns, each value of the type it is
@@ -58,7 +60,7 @@ namespace CorpseRepository
     void DeleteOfPlayer(uint32 player);
 
     /// Selects the highest corpse guid, at start-up.
-    QueryResult* QueryHighestGuid();
+    std::optional<uint32> QueryHighestGuid();
 
     /// Selects every corpse that is not bones with its player's appearance and guild, at start-up.
     QueryResult* QueryCorpses();

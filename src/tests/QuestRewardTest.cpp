@@ -47,8 +47,8 @@
 ///   - `RewOrReqMoney < 0 && money < uint64(-RewOrReqMoney)` -> false:
 ///     QuestRewardRules::CanPayRequiredMoney.
 ///
-/// The templates are real `Quest` objects built by `Quest(Field*)` from 168-column
-/// FakeQueryResult rows, as in QuestStatusMgrTest.cpp; ObjectMgr's store is never touched.
+/// The templates are real `Quest` objects built from `QuestTemplateRow`s, as in
+/// QuestStatusMgrTest.cpp; ObjectMgr's store is never touched.
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
@@ -56,6 +56,7 @@
 #include "QuestStatusMgr.h"
 #include "QuestRewardRules.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
+#include "persistence/world/quests/QuestDataRepository.h"
 
 #include <map>
 #include <memory>
@@ -65,16 +66,6 @@ namespace
 {
     const time_t kNow = time_t(1700000000);
     const char* const kOwner = "Tester";
-
-    // Column indices of `quest_template` as Quest(Field*) reads them.
-    const size_t kQuestColumns = 168;
-    const size_t kColMethod = 1;
-    const size_t kColQuestFlags = 18;
-    const size_t kColSpecialFlags = 19;
-    const size_t kColRewChoiceItemId = 89;
-    const size_t kColRewChoiceItemCount = 95;
-    const size_t kColRewItemId = 101;
-    const size_t kColRewItemCount = 105;
 
     struct Choice
     {
@@ -88,24 +79,22 @@ namespace
                                      std::initializer_list<Choice> choices = {},
                                      std::initializer_list<Choice> fixed = {})
     {
-        FakeRow row(kQuestColumns, "0");
-        row[0] = std::to_string(id);
-        row[kColMethod] = std::to_string(method);
-        row[kColQuestFlags] = std::to_string(questFlags);
-        row[kColSpecialFlags] = std::to_string(specialFlags);
+        QuestTemplateRow row;
+        row.entry = id;
+        row.method = method;
+        row.questFlags = uint16(questFlags);
+        row.specialFlags = uint16(specialFlags);
         for (Choice const& c : choices)
         {
-            row[kColRewChoiceItemId + c.slot] = std::to_string(c.itemId);
-            row[kColRewChoiceItemCount + c.slot] = std::to_string(c.count);
+            row.rewChoiceItemId[c.slot] = c.itemId;
+            row.rewChoiceItemCount[c.slot] = c.count;
         }
         for (Choice const& c : fixed)
         {
-            row[kColRewItemId + c.slot] = std::to_string(c.itemId);
-            row[kColRewItemCount + c.slot] = std::to_string(c.count);
+            row.rewItemId[c.slot] = c.itemId;
+            row.rewItemCount[c.slot] = c.count;
         }
-        FakeQueryResult result(FakeRows{row});
-        result.NextRow();
-        return std::unique_ptr<Quest>(new Quest(result.Fetch()));
+        return std::unique_ptr<Quest>(new Quest(row));
     }
 
     /// The templates the status tests look up. 999 is deliberately absent.

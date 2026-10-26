@@ -25,6 +25,7 @@
 
 #include "PetRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 #include <sstream>
 
@@ -314,8 +315,9 @@ namespace PetRepository
         }
     }
 
-    QueryResult* QueryHighestId()
+    std::optional<uint32> QueryHighestId()
     {
-        return CharacterDatabase.Query("SELECT MAX(`id`) FROM `character_pet`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `character_pet`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 }

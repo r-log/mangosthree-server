@@ -25,6 +25,7 @@
 
 #include "AuctionRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace AuctionRepository
 {
@@ -91,8 +92,9 @@ namespace AuctionRepository
         CharacterDatabase.PExecute("UPDATE `auction` SET `buyguid` = '%u', `lastbid` = '" UI64FMTD "' WHERE `id` = '%u'", bidder, bid, auctionId);
     }
 
-    QueryResult* QueryHighestId()
+    std::optional<uint32> QueryHighestId()
     {
-        return CharacterDatabase.Query("SELECT MAX(`id`) FROM `auction`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `auction`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 }

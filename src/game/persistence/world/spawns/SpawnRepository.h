@@ -28,6 +28,7 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -151,10 +152,10 @@ namespace SpawnRepository
     void DeleteGameObject(uint32 guid);
 
     /// Selects the highest creature spawn guid, at start-up.
-    QueryResult* QueryHighestCreatureGuid();
+    std::optional<uint32> QueryHighestCreatureGuid();
 
     /// Selects the highest game object spawn guid, at start-up.
-    QueryResult* QueryHighestGameObjectGuid();
+    std::optional<uint32> QueryHighestGameObjectGuid();
 
     /// Selects every creature spawn with its addon and event data, at start-up.
     std::vector<CreatureSpawnDataRow> QueryCreatureSpawns();

@@ -588,9 +588,9 @@ void ObjectMgr::LoadCreatureClassLvlStats()
     // initialize data array
     memset(&m_creatureClassLvlStats, 0, sizeof(m_creatureClassLvlStats));
 
-    QueryResult* result = CreatureDataRepository::QueryClassLevelStats(MAX_EXPANSION);
+    std::vector<ClassLevelStatsRow> rows = CreatureDataRepository::QueryClassLevelStats(MAX_EXPANSION);
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -599,16 +599,15 @@ void ObjectMgr::LoadCreatureClassLvlStats()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
     uint32 DataCount = 0;
 
-    do
+    for (ClassLevelStatsRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 creatureClass               = fields[0].GetUInt32();
-        uint32 creatureLevel               = fields[1].GetUInt32();
+        uint32 creatureClass               = row.classId;
+        uint32 creatureLevel               = row.level;
 
         if (creatureLevel == 0 || creatureLevel > DEFAULT_MAX_CREATURE_LEVEL)
         {
@@ -622,10 +621,10 @@ void ObjectMgr::LoadCreatureClassLvlStats()
             continue;
         }
 
-        uint32  baseMana                   = fields[2].GetUInt32();
-        float   baseMeleeAttackPower       = fields[3].GetFloat();
-        float   baseRangedAttackPower      = fields[4].GetFloat();
-        uint32  baseArmor                  = fields[5].GetUInt32();
+        uint32  baseMana                   = row.baseMana;
+        float   baseMeleeAttackPower       = row.baseMeleeAttackPower;
+        float   baseRangedAttackPower      = row.baseRangedAttackPower;
+        uint32  baseArmor                  = row.baseArmor;
 
         for (uint8 i = 0; i <= MAX_EXPANSION; ++i)
         {
@@ -635,14 +634,11 @@ void ObjectMgr::LoadCreatureClassLvlStats()
             cCLS.BaseRangedAttackPower      = baseRangedAttackPower;
             cCLS.BaseArmor                  = baseArmor;
 
-            cCLS.BaseHealth = fields[6 + (i * 2)].GetUInt32();
-            cCLS.BaseDamage = fields[7 + (i * 2)].GetFloat();
+            cCLS.BaseHealth = row.baseHealth[i];
+            cCLS.BaseDamage = row.baseDamage[i];
         }
         ++DataCount;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Found %u creature stats definitions.", DataCount);
     sLog.outString();

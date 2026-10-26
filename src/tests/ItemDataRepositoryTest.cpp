@@ -110,3 +110,43 @@ TEST(ItemDataRepository_Hotfixes)
     CHECK_EQ(rows[0].timestamp, 1002u);
     CHECK_EQ(rows[1].entry, 2000u);
 }
+
+// Each column of a `locales_item` row lands in its member, and the rows come back in order.
+TEST(ItemDataRepository_ItemLocales)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "s1.2", "s1.3", "s1.4", "s1.5", "s1.6", "s1.7", "s1.8", "s1.9",
+            "s1.10", "s1.11", "s1.12", "s1.13", "s1.14", "s1.15", "s1.16", "s1.17", "s1.18",
+            "s1.19", "s1.20", "s1.21", "s1.22"},
+        FakeRow{"2000", "s2.1", "s2.2", "s2.3", "s2.4", "s2.5", "s2.6", "s2.7", "s2.8", "s2.9",
+            "s2.10", "s2.11", "s2.12", "s2.13", "s2.14", "s2.15", "s2.16", "s2.17", "s2.18",
+            "s2.19", "s2.20", "s2.21", "s2.22"},
+    });
+    std::vector<ItemLocaleRow> rows = ItemDataRepository::QueryItemLocales();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].entry, 1000u);
+    CHECK_STR(rows[0].name[0], "s1.1");
+    CHECK_STR(rows[0].description[0], "s1.2");
+    CHECK_STR(rows[0].name[1], "s1.3");
+    CHECK_STR(rows[0].description[1], "s1.4");
+    CHECK_STR(rows[0].name[2], "s1.5");
+    CHECK_STR(rows[0].description[2], "s1.6");
+    CHECK_STR(rows[0].name[3], "s1.7");
+    CHECK_STR(rows[0].description[3], "s1.8");
+    CHECK_STR(rows[0].name[4], "s1.9");
+    CHECK_STR(rows[0].description[4], "s1.10");
+    CHECK_STR(rows[0].name[5], "s1.11");
+    CHECK_STR(rows[0].description[5], "s1.12");
+    CHECK_STR(rows[0].name[6], "s1.13");
+    CHECK_STR(rows[0].description[6], "s1.14");
+    CHECK_STR(rows[0].name[7], "s1.15");
+    CHECK_STR(rows[0].description[7], "s1.16");
+    CHECK_STR(rows[0].name[8], "s1.17");
+    CHECK_STR(rows[0].description[8], "s1.18");
+    CHECK_STR(rows[0].name[9], "s1.19");
+    CHECK_STR(rows[0].description[9], "s1.20");
+    CHECK_STR(rows[0].name[10], "s1.21");
+    CHECK_STR(rows[0].description[10], "s1.22");
+    CHECK_EQ(rows[1].entry, 2000u);
+}

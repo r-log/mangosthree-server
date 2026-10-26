@@ -31,9 +31,9 @@
 /// lookup, the game time and the character's guid and name as parameters, so every case here
 /// builds one from nothing.
 ///
-/// The quest templates are real `Quest` objects, built by `Quest(Field*)` from a 168-column
-/// FakeQueryResult row -- the constructor reads only its row, no global -- and handed out by
-/// a lookup over a local map; ObjectMgr's template store is never touched.
+/// The quest templates are real `Quest` objects, built from a `QuestTemplateRow` -- the
+/// constructor reads only its row, no global -- and handed out by a lookup over a local map;
+/// ObjectMgr's template store is never touched.
 ///
 /// The save cases run the statements through the GLOBAL CharacterDatabase with D7a's fakes
 /// attached and asynchronous writes on, inside a TickGuard::Scope: the statements are queued,
@@ -47,6 +47,7 @@
 #include "QuestDef.h"
 #include "QuestStatusMgr.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
+#include "persistence/world/quests/QuestDataRepository.h"
 
 #include <map>
 #include <memory>
@@ -57,12 +58,6 @@ namespace
     const time_t kNow = time_t(1700000000);
     const uint32 kGuid = 42;
     const char* const kOwner = "Tester";
-
-    // Column indices of `quest_template` as Quest(Field*) reads them.
-    const size_t kQuestColumns = 168;
-    const size_t kColQuestFlags = 18;
-    const size_t kColSpecialFlags = 19;
-    const size_t kColReqCreatureOrGOId = 68;
 
     struct QuestSpec
     {
@@ -108,14 +103,12 @@ namespace
         private:
             void Add(QuestSpec const& spec)
             {
-                FakeRow row(kQuestColumns, "0");
-                row[0] = std::to_string(spec.id);
-                row[kColQuestFlags] = std::to_string(spec.questFlags);
-                row[kColSpecialFlags] = std::to_string(spec.specialFlags);
-                row[kColReqCreatureOrGOId + 1] = std::to_string(spec.reqCreature1);
-                FakeQueryResult result(FakeRows{row});
-                result.NextRow();
-                m_quests[spec.id].reset(new Quest(result.Fetch()));
+                QuestTemplateRow row;
+                row.entry = spec.id;
+                row.questFlags = uint16(spec.questFlags);
+                row.specialFlags = uint16(spec.specialFlags);
+                row.reqCreatureOrGOId[1] = spec.reqCreature1;
+                m_quests[spec.id].reset(new Quest(row));
             }
 
             std::map<uint32, std::unique_ptr<Quest> > m_quests;

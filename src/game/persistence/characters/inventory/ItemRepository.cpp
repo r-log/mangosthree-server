@@ -25,6 +25,7 @@
 
 #include "ItemRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 #include <utility>
 
@@ -175,9 +176,10 @@ namespace ItemRepository
         stmt.Execute();
     }
 
-    QueryResult* QueryHighestGuid()
+    std::optional<uint32> QueryHighestGuid()
     {
-        return CharacterDatabase.Query("SELECT MAX(`guid`) FROM `item_instance`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`guid`) FROM `item_instance`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     void DeleteRowsOfMissingItems(uint32 firstUnusedGuid)

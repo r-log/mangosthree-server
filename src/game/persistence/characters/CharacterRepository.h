@@ -27,6 +27,7 @@
 #define MANGOS_H_CHARACTERREPOSITORY
 
 #include <functional>
+#include <optional>
 #include <string>
 #include "Platform/Define.h"
 
@@ -193,7 +194,7 @@ namespace CharacterRepository
     void SetSlot(uint8 slot, uint32 guid, uint32 accountId);
 
     /// Selects the highest character guid, at start-up.
-    QueryResult* QueryHighestGuid();
+    std::optional<uint32> QueryHighestGuid();
 
     /// Selects every character's cached columns, ordered by guid, at start-up.
     QueryResult* QueryCacheRows();

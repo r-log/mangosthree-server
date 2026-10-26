@@ -43,8 +43,8 @@ namespace NpcDataRepository
     {
         //                                 0      1        2
         QueryResult* result = WorldDatabase.Query("SELECT `entry`, `text_id`, `script_id`, "
-                                   //   3
-                                   "`condition_id` FROM `gossip_menu`");
+                                                  //   3
+                                                  "`condition_id` FROM `gossip_menu`");
         return ReadRows<GossipMenuRow>(result, ReadGossipMenu);
     }
 
@@ -70,15 +70,37 @@ namespace NpcDataRepository
     std::vector<GossipMenuOptionRow> QueryGossipMenuOptions()
     {
         QueryResult* result = WorldDatabase.Query("SELECT `menu_id`, `id`, `option_icon`, `option_text`, `option_id`, `npc_option_npcflag`, "
-                                   "`action_menu_id`, `action_poi_id`, `action_script_id`, `box_coded`, `box_money`, `box_text`, "
-                                   "`condition_id` "
-                                   "FROM `gossip_menu_option` ORDER BY `menu_id`, `id`");
+                                                  "`action_menu_id`, `action_poi_id`, `action_script_id`, `box_coded`, `box_money`, `box_text`, "
+                                                  "`condition_id` "
+                                                  "FROM `gossip_menu_option` ORDER BY `menu_id`, `id`");
         return ReadRows<GossipMenuOptionRow>(result, ReadGossipMenuOption);
     }
 
-    QueryResult* QueryNpcTexts()
+    static NpcTextRow ReadNpcText(Field* fields)
     {
-        return WorldDatabase.Query("SELECT * FROM `npc_text`");
+        NpcTextRow row;
+        int column = 0;
+        row.id = fields[column++].GetUInt32();
+        for (int i = 0; i < NPC_TEXT_ROW_OPTIONS; ++i)
+        {
+            NpcTextOptionRow& option = row.options[i];
+            option.text0 = fields[column++].GetCppString();
+            option.text1 = fields[column++].GetCppString();
+            option.language = fields[column++].GetUInt32();
+            option.probability = fields[column++].GetFloat();
+            for (int j = 0; j < NPC_TEXT_ROW_EMOTES; ++j)
+            {
+                option.emoteDelay[j] = fields[column++].GetUInt32();
+                option.emote[j] = fields[column++].GetUInt32();
+            }
+        }
+        return row;
+    }
+
+    std::vector<NpcTextRow> QueryNpcTexts()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT * FROM `npc_text`");
+        return ReadRows<NpcTextRow>(result, ReadNpcText);
     }
 
     static TrainerSpellRow ReadTrainerSpell(Field* fields)

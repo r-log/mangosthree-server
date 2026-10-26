@@ -26,11 +26,10 @@
 #ifndef MANGOS_H_CHARACTERSAVEREPOSITORY
 #define MANGOS_H_CHARACTERSAVEREPOSITORY
 
+#include <optional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
-
-class QueryResult;
 
 /// The sizes of the saved rows' arrays: the stored powers, an aura's effects, the base stats, the
 /// spell schools (armor first) and an equipment set's items.
@@ -244,7 +243,7 @@ namespace CharacterSaveRepository
     void ReplaceBattlegroundData(uint32 guid, BattlegroundDataSaveRow const* row);
 
     /// Selects the highest equipment set guid, at start-up.
-    QueryResult* QueryHighestEquipmentSetId();
+    std::optional<uint64> QueryHighestEquipmentSetId();
 
     /// Deletes every character's battleground return point, at start-up and shutdown.
     void DeleteEveryBattlegroundData();
