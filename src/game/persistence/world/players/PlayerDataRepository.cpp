@@ -102,10 +102,24 @@ namespace PlayerDataRepository
         return ReadRows<PlayerCreateActionRow>(result, ReadPlayerCreateAction);
     }
 
-    QueryResult* QueryLevelStats()
+    static PlayerLevelStatsRow ReadPlayerLevelStats(Field* fields)
+    {
+        PlayerLevelStatsRow row;
+        row.race = fields[0].GetUInt32();
+        row.classId = fields[1].GetUInt32();
+        row.level = fields[2].GetUInt32();
+        for (int i = 0; i < PLAYER_LEVEL_STATS_ROW_STATS; ++i)
+        {
+            row.stats[i] = fields[i + 3].GetUInt8();
+        }
+        return row;
+    }
+
+    std::vector<PlayerLevelStatsRow> QueryLevelStats()
     {
         //                                 0     1      2      3    4    5    6    7
-        return WorldDatabase.Query("SELECT `race`, `class`, `level`, `str`, `agi`, `sta`, `inte`, `spi` FROM `player_levelstats`");
+        QueryResult* result = WorldDatabase.Query("SELECT `race`, `class`, `level`, `str`, `agi`, `sta`, `inte`, `spi` FROM `player_levelstats`");
+        return ReadRows<PlayerLevelStatsRow>(result, ReadPlayerLevelStats);
     }
 
     static PlayerXpForLevelRow ReadPlayerXpForLevel(Field* fields)
@@ -153,8 +167,10 @@ namespace PlayerDataRepository
         return ReadRows<LevelRewardMailRow>(result, ReadLevelRewardMail);
     }
 
-    QueryResult* QueryReservedNames()
+
+    std::vector<std::string> QueryReservedNames()
     {
-        return WorldDatabase.Query("SELECT `name` FROM `reserved_name`");
+        QueryResult* result = WorldDatabase.Query("SELECT `name` FROM `reserved_name`");
+        return ReadRows<std::string>(result, [](Field* fields) { return fields[0].GetCppString(); });
     }
 }

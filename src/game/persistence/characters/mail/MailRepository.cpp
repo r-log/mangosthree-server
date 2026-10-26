@@ -25,6 +25,7 @@
 
 #include "MailRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 #include "Database/SqlOperations.h"
 
 #include <utility>
@@ -189,8 +190,9 @@ namespace MailRepository
         CharacterDatabase.PExecute("UPDATE `item_instance` SET `owner_guid` = %u WHERE `guid` = '%u'", owner, itemGuid);
     }
 
-    QueryResult* QueryHighestId()
+    std::optional<uint32> QueryHighestId()
     {
-        return CharacterDatabase.Query("SELECT MAX(`id`) FROM `mail`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `mail`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 }

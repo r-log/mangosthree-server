@@ -25,6 +25,7 @@
 
 #include "GuildRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace GuildRepository
 {
@@ -260,9 +261,10 @@ namespace GuildRepository
                                    guildId, logGuid, eventType, playerGuid1, playerGuid2, newRank, timeStamp);
     }
 
-    QueryResult* QueryHighestId()
+    std::optional<uint32> QueryHighestId()
     {
-        return CharacterDatabase.Query("SELECT MAX(`guildid`) FROM `guild`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`guildid`) FROM `guild`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     QueryResult* QueryMemberRanks()

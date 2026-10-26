@@ -26,6 +26,7 @@
 #ifndef MANGOS_H_ARENATEAMREPOSITORY
 #define MANGOS_H_ARENATEAMREPOSITORY
 
+#include <optional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
@@ -129,7 +130,7 @@ namespace ArenaTeamRepository
     void SaveStats(uint32 teamId, ArenaTeamStatsRow const& stats, std::vector<ArenaTeamMemberStatsRow> const& members);
 
     /// Selects the highest arena team id, at start-up.
-    QueryResult* QueryHighestId();
+    std::optional<uint32> QueryHighestId();
 
     /// Selects every arena team with its stats, ordered by team id, at start-up.
     QueryResult* QueryTeams();

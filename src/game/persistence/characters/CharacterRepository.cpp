@@ -25,6 +25,7 @@
 
 #include "CharacterRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 #include "Database/SqlOperations.h"
 
 #include <utility>
@@ -287,9 +288,10 @@ namespace CharacterRepository
                                    slot, guid, accountId);
     }
 
-    QueryResult* QueryHighestGuid()
+    std::optional<uint32> QueryHighestGuid()
     {
-        return CharacterDatabase.Query("SELECT MAX(`guid`) FROM `characters`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`guid`) FROM `characters`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     QueryResult* QueryCacheRows()

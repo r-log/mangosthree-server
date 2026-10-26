@@ -25,6 +25,7 @@
 
 #include "CorpseRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 #include <sstream>
 
@@ -56,9 +57,10 @@ namespace CorpseRepository
         stmt.PExecute(player);
     }
 
-    QueryResult* QueryHighestGuid()
+    std::optional<uint32> QueryHighestGuid()
     {
-        return CharacterDatabase.Query("SELECT MAX(`guid`) FROM `corpse`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`guid`) FROM `corpse`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     QueryResult* QueryCorpses()

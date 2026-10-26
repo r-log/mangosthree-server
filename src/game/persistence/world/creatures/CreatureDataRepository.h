@@ -50,13 +50,44 @@ struct PetNamePartRow
     bool half = false;
 };
 
+/// One `creature_template_classlevelstats` row: a class's base stats at a level, with the base
+/// health and damage of each expansion the read asks for, from the first.
+struct ClassLevelStatsRow
+{
+    uint32 classId = 0;
+    uint32 level = 0;
+    uint32 baseMana = 0;
+    float baseMeleeAttackPower = 0.0f;
+    float baseRangedAttackPower = 0.0f;
+    uint32 baseArmor = 0;
+    std::vector<uint32> baseHealth;
+    std::vector<float> baseDamage;
+};
+
+enum
+{
+    /// The stats a pet level stats row holds (`str`, `agi`, `sta`, `inte`, `spi`).
+    PET_LEVEL_STATS_ROW_STATS = 5
+};
+
+/// One `pet_levelstats` row: a pet's base stats at a level.
+struct PetLevelStatsRow
+{
+    uint32 creatureEntry = 0;
+    uint32 level = 0;
+    uint16 hp = 0;
+    uint16 mana = 0;
+    uint16 stats[PET_LEVEL_STATS_ROW_STATS] = {};
+    uint16 armor = 0;
+};
+
 /// The creature data on the world database: `ObjectMgr`'s creature and pet loads at startup and on
 /// a reload, each run synchronously; a GM's template edits are queued and written to the SQL log.
 namespace CreatureDataRepository
 {
     /// Selects every class's base stats per level, with the health and damage of each expansion up to
     /// maxExpansion, ordered by class and level.
-    QueryResult* QueryClassLevelStats(int maxExpansion);
+    std::vector<ClassLevelStatsRow> QueryClassLevelStats(int maxExpansion);
 
     /// Selects every race-specific creature model (`creature_model_race`).
     std::vector<CreatureModelRaceRow> QueryModelRaces();
@@ -65,7 +96,7 @@ namespace CreatureDataRepository
     std::vector<PetNamePartRow> QueryPetNameParts();
 
     /// Selects every pet's stats per level (`pet_levelstats`).
-    QueryResult* QueryPetLevelStats();
+    std::vector<PetLevelStatsRow> QueryPetLevelStats();
 
     /// Selects every creature linking by entry (`creature_linking_template`).
     QueryResult* QueryLinkingTemplates();

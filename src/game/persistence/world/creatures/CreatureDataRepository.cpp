@@ -32,7 +32,24 @@
 
 namespace CreatureDataRepository
 {
-    QueryResult* QueryClassLevelStats(int maxExpansion)
+    static ClassLevelStatsRow ReadClassLevelStats(Field* fields, int maxExpansion)
+    {
+        ClassLevelStatsRow row;
+        row.classId = fields[0].GetUInt32();
+        row.level = fields[1].GetUInt32();
+        row.baseMana = fields[2].GetUInt32();
+        row.baseMeleeAttackPower = fields[3].GetFloat();
+        row.baseRangedAttackPower = fields[4].GetFloat();
+        row.baseArmor = fields[5].GetUInt32();
+        for (int i = 0; i <= maxExpansion; ++i)
+        {
+            row.baseHealth.push_back(fields[6 + (i * 2)].GetUInt32());
+            row.baseDamage.push_back(fields[7 + (i * 2)].GetFloat());
+        }
+        return row;
+    }
+
+    std::vector<ClassLevelStatsRow> QueryClassLevelStats(int maxExpansion)
     {
         std::string queryStr = "SELECT `Class`, `Level`, `BaseMana`, `BaseMeleeAttackPower`, `BaseRangedAttackPower`, `BaseArmor`";
 
@@ -45,7 +62,8 @@ namespace CreatureDataRepository
 
         queryStr.append(" FROM `creature_template_classlevelstats` ORDER BY `Class`, `Level`");
 
-        return WorldDatabase.Query(queryStr.c_str());
+        QueryResult* result = WorldDatabase.Query(queryStr.c_str());
+        return ReadRows<ClassLevelStatsRow>(result, [maxExpansion](Field* fields) { return ReadClassLevelStats(fields, maxExpansion); });
     }
 
     static CreatureModelRaceRow ReadCreatureModelRace(Field* fields)
@@ -79,10 +97,26 @@ namespace CreatureDataRepository
         return ReadRows<PetNamePartRow>(result, ReadPetNamePart);
     }
 
-    QueryResult* QueryPetLevelStats()
+    static PetLevelStatsRow ReadPetLevelStats(Field* fields)
+    {
+        PetLevelStatsRow row;
+        row.creatureEntry = fields[0].GetUInt32();
+        row.level = fields[1].GetUInt32();
+        row.hp = fields[2].GetUInt16();
+        row.mana = fields[3].GetUInt16();
+        for (int i = 0; i < PET_LEVEL_STATS_ROW_STATS; ++i)
+        {
+            row.stats[i] = fields[i + 4].GetUInt16();
+        }
+        row.armor = fields[9].GetUInt16();
+        return row;
+    }
+
+    std::vector<PetLevelStatsRow> QueryPetLevelStats()
     {
         //                                 0               1      2   3     4    5    6    7     8    9
-        return WorldDatabase.Query("SELECT `creature_entry`, `level`, `hp`, `mana`, `str`, `agi`, `sta`, `inte`, `spi`, `armor` FROM `pet_levelstats`");
+        QueryResult* result = WorldDatabase.Query("SELECT `creature_entry`, `level`, `hp`, `mana`, `str`, `agi`, `sta`, `inte`, `spi`, `armor` FROM `pet_levelstats`");
+        return ReadRows<PetLevelStatsRow>(result, ReadPetLevelStats);
     }
 
     QueryResult* QueryLinkingTemplates()

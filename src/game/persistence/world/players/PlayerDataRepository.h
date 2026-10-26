@@ -28,6 +28,7 @@
 
 #include "Platform/Define.h"
 
+#include <string>
 #include <vector>
 
 class QueryResult;
@@ -96,9 +97,24 @@ struct LevelRewardMailRow
     uint32 senderEntry = 0;
 };
 
+enum
+{
+    /// The stats a player level stats row holds (`str`, `agi`, `sta`, `inte`, `spi`).
+    PLAYER_LEVEL_STATS_ROW_STATS = 5
+};
+
+/// One `player_levelstats` row: a race and class's base stats at a level.
+struct PlayerLevelStatsRow
+{
+    uint32 race = 0;
+    uint32 classId = 0;
+    uint32 level = 0;
+    uint8 stats[PLAYER_LEVEL_STATS_ROW_STATS] = {};
+};
+
 /// The player data on the world database: `ObjectMgr`'s loads of what a new character gets, the
 /// level stats and experience, the level-up mails and the reserved names, at startup and on a
-/// reload, each run synchronously.
+/// reload, each run synchronously and read into rows.
 namespace PlayerDataRepository
 {
     /// Selects every race and class's start position (`playercreateinfo`).
@@ -114,7 +130,7 @@ namespace PlayerDataRepository
     std::vector<PlayerCreateActionRow> QueryCreateActions();
 
     /// Selects every race and class's stats per level (`player_levelstats`).
-    QueryResult* QueryLevelStats();
+    std::vector<PlayerLevelStatsRow> QueryLevelStats();
 
     /// Selects the experience each level needs (`player_xp_for_level`).
     std::vector<PlayerXpForLevelRow> QueryXpForLevel();
@@ -126,7 +142,7 @@ namespace PlayerDataRepository
     std::vector<LevelRewardMailRow> QueryLevelRewardMails();
 
     /// Selects every reserved character name (`reserved_name`).
-    QueryResult* QueryReservedNames();
+    std::vector<std::string> QueryReservedNames();
 }
 
 #endif

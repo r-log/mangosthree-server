@@ -65,9 +65,9 @@ namespace ReputationDataRepository
     {
         //                                 0            1                     2
         QueryResult* result = WorldDatabase.Query("SELECT `creature_id`, `RewOnKillRepFaction1`, `RewOnKillRepFaction2`,"
-                                   //   3             4             5                   6             7             8                   9
-                                   "`IsTeamAward1`, `MaxStanding1`, `RewOnKillRepValue1`, `IsTeamAward2`, `MaxStanding2`, `RewOnKillRepValue2`, `TeamDependent` "
-                                   "FROM `creature_onkill_reputation`");
+                                                  //   3             4             5                   6             7             8                   9
+                                                  "`IsTeamAward1`, `MaxStanding1`, `RewOnKillRepValue1`, `IsTeamAward2`, `MaxStanding2`, `RewOnKillRepValue2`, `TeamDependent` "
+                                                  "FROM `creature_onkill_reputation`");
         return ReadRows<OnKillReputationRow>(result, ReadOnKillReputation);
     }
 

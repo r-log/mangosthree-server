@@ -26,6 +26,7 @@
 #ifndef MANGOS_H_GUILDREPOSITORY
 #define MANGOS_H_GUILDREPOSITORY
 
+#include <optional>
 #include <string>
 #include "Platform/Define.h"
 
@@ -138,7 +139,7 @@ namespace GuildRepository
     void InsertEventLogEntry(uint32 guildId, uint32 logGuid, uint32 eventType, uint32 playerGuid1, uint32 playerGuid2, uint32 newRank, uint64 timeStamp);
 
     /// Selects the highest guild id, at start-up.
-    QueryResult* QueryHighestId();
+    std::optional<uint32> QueryHighestId();
 
     /// Selects every guild member's guild and rank, at start-up.
     QueryResult* QueryMemberRanks();

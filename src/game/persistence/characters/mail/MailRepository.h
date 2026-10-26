@@ -27,6 +27,7 @@
 #define MANGOS_H_MAILREPOSITORY
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
@@ -129,7 +130,7 @@ namespace MailRepository
     void SetReturnedItemOwner(uint32 owner, uint32 itemGuid);
 
     /// Selects the highest mail id, at start-up.
-    QueryResult* QueryHighestId();
+    std::optional<uint32> QueryHighestId();
 }
 
 #endif

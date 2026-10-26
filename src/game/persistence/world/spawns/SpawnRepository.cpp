@@ -110,14 +110,16 @@ namespace SpawnRepository
         WorldDatabase.PExecuteLog("DELETE FROM `gameobject_battleground` WHERE `guid` = '%u'", guid);
     }
 
-    QueryResult* QueryHighestCreatureGuid()
+    std::optional<uint32> QueryHighestCreatureGuid()
     {
-        return WorldDatabase.Query("SELECT MAX(`guid`) FROM `creature`");
+        QueryResult* result = WorldDatabase.Query("SELECT MAX(`guid`) FROM `creature`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryHighestGameObjectGuid()
+    std::optional<uint32> QueryHighestGameObjectGuid()
     {
-        return WorldDatabase.Query("SELECT MAX(`guid`) FROM `gameobject`");
+        QueryResult* result = WorldDatabase.Query("SELECT MAX(`guid`) FROM `gameobject`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     static CreatureSpawnDataRow ReadCreatureSpawnData(Field* fields)
@@ -151,16 +153,16 @@ namespace SpawnRepository
     {
         //                                 0                       1   2    3
         QueryResult* result = WorldDatabase.Query("SELECT `creature`.`guid`, `creature`.`id`, `map`, `modelid`,"
-                                   //   4             5           6           7           8            9              10         11
-                                   "`equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `currentwaypoint`,"
-                                   //   12        13         14            15              16           17           18
-                                   "`curhealth`, `curmana`, `DeathState`, `MovementType`, `spawnMask`, `phaseMask`, `event`,"
-                                   //                19                                     20
-                                   "`pool_creature`.`pool_entry`, `pool_creature_template`.`pool_entry` "
-                                   "FROM `creature` "
-                                   "LEFT OUTER JOIN `game_event_creature` ON `creature`.`guid` = `game_event_creature`.`guid` "
-                                   "LEFT OUTER JOIN `pool_creature` ON `creature`.`guid` = `pool_creature`.`guid` "
-                                   "LEFT OUTER JOIN `pool_creature_template` ON `creature`.`id` = `pool_creature_template`.`id`");
+                                                  //   4             5           6           7           8            9              10         11
+                                                  "`equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `currentwaypoint`,"
+                                                  //   12        13         14            15              16           17           18
+                                                  "`curhealth`, `curmana`, `DeathState`, `MovementType`, `spawnMask`, `phaseMask`, `event`,"
+                                                  //                19                                     20
+                                                  "`pool_creature`.`pool_entry`, `pool_creature_template`.`pool_entry` "
+                                                  "FROM `creature` "
+                                                  "LEFT OUTER JOIN `game_event_creature` ON `creature`.`guid` = `game_event_creature`.`guid` "
+                                                  "LEFT OUTER JOIN `pool_creature` ON `creature`.`guid` = `pool_creature`.`guid` "
+                                                  "LEFT OUTER JOIN `pool_creature_template` ON `creature`.`id` = `pool_creature_template`.`id`");
         return ReadRows<CreatureSpawnDataRow>(result, ReadCreatureSpawnData);
     }
 

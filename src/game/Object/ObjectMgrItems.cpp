@@ -54,6 +54,8 @@
 #include <limits>
 #include "persistence/world/items/ItemDataRepository.h"
 
+static_assert(int(ITEM_LOCALE_ROW_LOCALES) == int(MAX_LOCALE) - 1, "an item locale row holds a text for every locale but the default one");
+
 /**
  * @brief Loads localized item names and descriptions.
  */
@@ -61,8 +63,8 @@ void ObjectMgr::LoadItemLocales()
 {
     mItemLocaleMap.clear();                                 // need for reload case
 
-    QueryResult* result = ItemDataRepository::QueryItemLocales();
-    if (!result)
+    std::vector<ItemLocaleRow> rows = ItemDataRepository::QueryItemLocales();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -70,14 +72,13 @@ void ObjectMgr::LoadItemLocales()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (ItemLocaleRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 entry = fields[0].GetUInt32();
+        uint32 entry = row.entry;
 
         if (!GetItemPrototype(entry))
         {
@@ -89,7 +90,7 @@ void ObjectMgr::LoadItemLocales()
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
-            std::string str = fields[1 + 2 * (i - 1)].GetCppString();
+            std::string str = row.name[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -104,7 +105,7 @@ void ObjectMgr::LoadItemLocales()
                 }
             }
 
-            str = fields[1 + 2 * (i - 1) + 1].GetCppString();
+            str = row.description[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -120,9 +121,6 @@ void ObjectMgr::LoadItemLocales()
             }
         }
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %zu Item locale strings", mItemLocaleMap.size());
     sLog.outString();

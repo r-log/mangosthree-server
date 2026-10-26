@@ -29,16 +29,29 @@
 
 namespace ItemDataRepository
 {
-    QueryResult* QueryItemLocales()
+    static ItemLocaleRow ReadItemLocale(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`,"
-                                   "`name_loc1`,`description_loc1`,`name_loc2`,`description_loc2`,"
-                                   "`name_loc3`,`description_loc3`,`name_loc4`,`description_loc4`,"
-                                   "`name_loc5`,`description_loc5`,`name_loc6`,`description_loc6`,"
-                                   "`name_loc7`,`description_loc7`,`name_loc8`,`description_loc8`,"
-                                   "`name_loc9`,`description_loc9`,`name_loc10`,`description_loc10`,"
-                                   "`name_loc11`,`description_loc11`"
-                                   " FROM `locales_item`");
+        ItemLocaleRow row;
+        row.entry = fields[0].GetUInt32();
+        for (int i = 0; i < ITEM_LOCALE_ROW_LOCALES; ++i)
+        {
+            row.name[i] = fields[1 + 2 * i].GetCppString();
+            row.description[i] = fields[2 + 2 * i].GetCppString();
+        }
+        return row;
+    }
+
+    std::vector<ItemLocaleRow> QueryItemLocales()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`,"
+                                                  "`name_loc1`,`description_loc1`,`name_loc2`,`description_loc2`,"
+                                                  "`name_loc3`,`description_loc3`,`name_loc4`,`description_loc4`,"
+                                                  "`name_loc5`,`description_loc5`,`name_loc6`,`description_loc6`,"
+                                                  "`name_loc7`,`description_loc7`,`name_loc8`,`description_loc8`,"
+                                                  "`name_loc9`,`description_loc9`,`name_loc10`,`description_loc10`,"
+                                                  "`name_loc11`,`description_loc11`"
+                                                  " FROM `locales_item`");
+        return ReadRows<ItemLocaleRow>(result, ReadItemLocale);
     }
 
     static ItemConvertRow ReadItemConvert(Field* fields)

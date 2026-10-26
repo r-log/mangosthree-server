@@ -157,19 +157,19 @@ TEST(StartupRepository_Reads)
     Db chars(CharacterDatabase);
     Db world(WorldDatabase);
     delete GroupRepository::QueryGroupIds();
-    delete CharacterRepository::QueryHighestGuid();
-    delete SpawnRepository::QueryHighestCreatureGuid();
-    delete ItemRepository::QueryHighestGuid();
-    delete InstanceRepository::QueryHighestId();
-    delete SpawnRepository::QueryHighestGameObjectGuid();
-    delete AuctionRepository::QueryHighestId();
-    delete MailRepository::QueryHighestId();
-    delete CorpseRepository::QueryHighestGuid();
-    delete ArenaTeamRepository::QueryHighestId();
-    delete CharacterSaveRepository::QueryHighestEquipmentSetId();
-    delete GuildRepository::QueryHighestId();
-    delete GroupRepository::QueryHighestId();
-    delete PetRepository::QueryHighestId();
+    CharacterRepository::QueryHighestGuid();
+    SpawnRepository::QueryHighestCreatureGuid();
+    ItemRepository::QueryHighestGuid();
+    InstanceRepository::QueryHighestId();
+    SpawnRepository::QueryHighestGameObjectGuid();
+    AuctionRepository::QueryHighestId();
+    MailRepository::QueryHighestId();
+    CorpseRepository::QueryHighestGuid();
+    ArenaTeamRepository::QueryHighestId();
+    CharacterSaveRepository::QueryHighestEquipmentSetId();
+    GuildRepository::QueryHighestId();
+    GroupRepository::QueryHighestId();
+    PetRepository::QueryHighestId();
     delete CorpseRepository::QueryCorpses();
     CheckLines(chars.query.executed, {
         "SELECT `groupId` FROM `groups`",
@@ -195,6 +195,56 @@ TEST(StartupRepository_Reads)
     }, __LINE__);
     CHECK_EQ(chars.async.executed.size(), size_t(0));
     CHECK_EQ(world.async.executed.size(), size_t(0));
+}
+
+// Each highest-id read answers the first column of its first row, and nothing for no rows.
+TEST(StartupRepository_HighestIds)
+{
+    {
+        Db chars(CharacterDatabase);
+        Db world(WorldDatabase);
+        CHECK(!CharacterRepository::QueryHighestGuid());
+        CHECK(!SpawnRepository::QueryHighestCreatureGuid());
+        CHECK(!ItemRepository::QueryHighestGuid());
+        CHECK(!InstanceRepository::QueryHighestId());
+        CHECK(!SpawnRepository::QueryHighestGameObjectGuid());
+        CHECK(!AuctionRepository::QueryHighestId());
+        CHECK(!MailRepository::QueryHighestId());
+        CHECK(!CorpseRepository::QueryHighestGuid());
+        CHECK(!ArenaTeamRepository::QueryHighestId());
+        CHECK(!CharacterSaveRepository::QueryHighestEquipmentSetId());
+        CHECK(!GuildRepository::QueryHighestId());
+        CHECK(!GroupRepository::QueryHighestId());
+        CHECK(!PetRepository::QueryHighestId());
+    }
+    Db chars(CharacterDatabase);
+    Db world(WorldDatabase);
+    chars.query.Answer("SELECT MAX(`guid`) FROM `characters`", FakeRows{FakeRow{"101"}});
+    world.query.Answer("SELECT MAX(`guid`) FROM `creature`", FakeRows{FakeRow{"102"}});
+    chars.query.Answer("SELECT MAX(`guid`) FROM `item_instance`", FakeRows{FakeRow{"103"}});
+    chars.query.Answer("SELECT MAX(`id`) FROM `instance`", FakeRows{FakeRow{"104"}});
+    world.query.Answer("SELECT MAX(`guid`) FROM `gameobject`", FakeRows{FakeRow{"105"}});
+    chars.query.Answer("SELECT MAX(`id`) FROM `auction`", FakeRows{FakeRow{"106"}});
+    chars.query.Answer("SELECT MAX(`id`) FROM `mail`", FakeRows{FakeRow{"107"}});
+    chars.query.Answer("SELECT MAX(`guid`) FROM `corpse`", FakeRows{FakeRow{"108"}});
+    chars.query.Answer("SELECT MAX(`arenateamid`) FROM `arena_team`", FakeRows{FakeRow{"109"}});
+    chars.query.Answer("SELECT MAX(`setguid`) FROM `character_equipmentsets`", FakeRows{FakeRow{"4294967297"}});
+    chars.query.Answer("SELECT MAX(`guildid`) FROM `guild`", FakeRows{FakeRow{"110"}});
+    chars.query.Answer("SELECT MAX(`groupId`) FROM `groups`", FakeRows{FakeRow{"111"}});
+    chars.query.Answer("SELECT MAX(`id`) FROM `character_pet`", FakeRows{FakeRow{"112"}});
+    CHECK_EQ(CharacterRepository::QueryHighestGuid().value_or(0), 101u);
+    CHECK_EQ(SpawnRepository::QueryHighestCreatureGuid().value_or(0), 102u);
+    CHECK_EQ(ItemRepository::QueryHighestGuid().value_or(0), 103u);
+    CHECK_EQ(InstanceRepository::QueryHighestId().value_or(0), 104u);
+    CHECK_EQ(SpawnRepository::QueryHighestGameObjectGuid().value_or(0), 105u);
+    CHECK_EQ(AuctionRepository::QueryHighestId().value_or(0), 106u);
+    CHECK_EQ(MailRepository::QueryHighestId().value_or(0), 107u);
+    CHECK_EQ(CorpseRepository::QueryHighestGuid().value_or(0), 108u);
+    CHECK_EQ(ArenaTeamRepository::QueryHighestId().value_or(0), 109u);
+    CHECK_EQ(CharacterSaveRepository::QueryHighestEquipmentSetId().value_or(0), uint64(4294967297ull));
+    CHECK_EQ(GuildRepository::QueryHighestId().value_or(0), 110u);
+    CHECK_EQ(GroupRepository::QueryHighestId().value_or(0), 111u);
+    CHECK_EQ(PetRepository::QueryHighestId().value_or(0), 112u);
 }
 
 // The arena team, group and character cache loads run on the calling thread, in call order; a

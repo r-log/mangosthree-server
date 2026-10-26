@@ -30,6 +30,7 @@
 
 #include <sstream>
 #include <set>
+#include <type_traits>
 #include "ObjectMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
@@ -38,6 +39,9 @@
 #include "DBCStores.h"
 #include "Language.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
+
+static_assert(int(NPC_TEXT_ROW_OPTIONS) == int(MAX_GOSSIP_TEXT_OPTIONS), "an NPC text row holds every option");
+static_assert(int(NPC_TEXT_ROW_EMOTES) == int(std::extent<decltype(GossipTextOption::Emotes)>::value), "an NPC text option row holds every emote");
 
 /**
  * @brief Loads page text records and validates page chains.
@@ -95,10 +99,10 @@ void ObjectMgr::LoadPageTexts()
  */
 void ObjectMgr::LoadGossipText()
 {
-    QueryResult* result = NpcDataRepository::QueryNpcTexts();
+    std::vector<NpcTextRow> rows = NpcDataRepository::QueryNpcTexts();
 
     int count = 0;
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -108,18 +112,15 @@ void ObjectMgr::LoadGossipText()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (NpcTextRow const& row : rows)
     {
         ++count;
-        int cic = 0;
-
-        Field* fields = result->Fetch();
 
         bar.step();
 
-        uint32 Text_ID    = fields[cic++].GetUInt32();
+        uint32 Text_ID    = row.id;
         if (!Text_ID)
         {
             sLog.outErrorDb("Table `npc_text` has record wit reserved id 0, ignore.");
@@ -130,22 +131,20 @@ void ObjectMgr::LoadGossipText()
 
         for (int i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; ++i)
         {
-            gText.Options[i].Text_0           = fields[cic++].GetCppString();
-            gText.Options[i].Text_1           = fields[cic++].GetCppString();
+            gText.Options[i].Text_0           = row.options[i].text0;
+            gText.Options[i].Text_1           = row.options[i].text1;
 
-            gText.Options[i].Language         = fields[cic++].GetUInt32();
-            gText.Options[i].Probability      = fields[cic++].GetFloat();
+            gText.Options[i].Language         = row.options[i].language;
+            gText.Options[i].Probability      = row.options[i].probability;
 
             for (int j = 0; j < 3; ++j)
             {
-                gText.Options[i].Emotes[j]._Delay  = fields[cic++].GetUInt32();
-                gText.Options[i].Emotes[j]._Emote  = fields[cic++].GetUInt32();
+                gText.Options[i].Emotes[j]._Delay  = row.options[i].emoteDelay[j];
+                gText.Options[i].Emotes[j]._Emote  = row.options[i].emote[j];
             }
         }
     }
-    while (result->NextRow());
 
     sLog.outString(">> Loaded %u npc texts", count);
     sLog.outString();
-    delete result;
 }

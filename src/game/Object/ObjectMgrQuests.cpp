@@ -55,6 +55,9 @@
 #include <type_traits>
 #include "persistence/world/quests/QuestDataRepository.h"
 
+static_assert(int(QUEST_LOCALE_ROW_LOCALES) == int(MAX_LOCALE) - 1, "a quest locale row holds its texts for every locale but the default one");
+static_assert(int(QUEST_LOCALE_ROW_OBJECTIVES) == int(QUEST_OBJECTIVES_COUNT), "a quest locale row holds every objective text");
+
 /**
  * @brief GetQuestTemplate as the lookup QuestStatusMgr takes (decoupling D4a).
  *
@@ -102,8 +105,8 @@ void ObjectMgr::LoadQuests()
 
     m_ExclusiveQuestGroups.clear();
 
-    QueryResult* result = QuestDataRepository::QueryQuests();
-    if (!result)
+    std::vector<QuestTemplateRow> rows = QuestDataRepository::QueryQuests();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -117,18 +120,14 @@ void ObjectMgr::LoadQuests()
     // create multimap previous quest for each existing quest
     // some quests can have many previous maps set by NextQuestId in previous quest
     // for example set of race quests can lead to single not race specific quest
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(rows.size());
+    for (QuestTemplateRow const& row : rows)
     {
         bar.step();
-        Field* fields = result->Fetch();
 
-        Quest* newQuest = new Quest(fields);
+        Quest* newQuest = new Quest(row);
         mQuestTemplates[newQuest->GetQuestId()] = newQuest;
     }
-    while (result->NextRow());
-
-    delete result;
 
     // Post processing
 
@@ -914,9 +913,9 @@ void ObjectMgr::LoadQuestLocales()
 {
     mQuestLocaleMap.clear();                                // need for reload case
 
-    QueryResult* result = QuestDataRepository::QueryQuestLocales();
+    std::vector<QuestLocaleRow> rows = QuestDataRepository::QueryQuestLocales();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -924,14 +923,13 @@ void ObjectMgr::LoadQuestLocales()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (QuestLocaleRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 entry = fields[0].GetUInt32();
+        uint32 entry = row.entry;
 
         if (!GetQuestTemplate(entry))
         {
@@ -943,7 +941,7 @@ void ObjectMgr::LoadQuestLocales()
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
-            std::string str = fields[1 + 15 * (i - 1)].GetCppString();
+            std::string str = row.title[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -957,7 +955,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.Title[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 1].GetCppString();
+            str = row.details[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -971,7 +969,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.Details[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 2].GetCppString();
+            str = row.objectives[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -985,7 +983,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.Objectives[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 3].GetCppString();
+            str = row.offerRewardText[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -999,7 +997,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.OfferRewardText[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 4].GetCppString();
+            str = row.requestItemsText[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1013,7 +1011,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.RequestItemsText[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 5].GetCppString();
+            str = row.endText[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1027,7 +1025,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.EndText[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 6].GetCppString();
+            str = row.completedText[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1043,7 +1041,7 @@ void ObjectMgr::LoadQuestLocales()
             }
             for (int k = 0; k < 4; ++k)
             {
-                str = fields[1 + 15 * (i - 1) + 7 + k].GetCppString();
+                str = row.objectiveText[i - 1][k];
                 if (!str.empty())
                 {
                     int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1058,7 +1056,7 @@ void ObjectMgr::LoadQuestLocales()
                     }
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 11].GetCppString();
+            str = row.portraitGiverName[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1072,7 +1070,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.PortraitGiverName[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 12].GetCppString();
+            str = row.portraitGiverText[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1086,7 +1084,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.PortraitGiverText[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 13].GetCppString();
+            str = row.portraitTurnInName[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1100,7 +1098,7 @@ void ObjectMgr::LoadQuestLocales()
                     data.PortraitTurnInName[idx] = str;
                 }
             }
-            str = fields[1 + 15 * (i - 1) + 14].GetCppString();
+            str = row.portraitTurnInText[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1116,9 +1114,6 @@ void ObjectMgr::LoadQuestLocales()
             }
         }
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %zu Quest locale strings", mQuestLocaleMap.size());

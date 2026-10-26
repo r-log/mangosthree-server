@@ -46,11 +46,11 @@ void ObjectMgr::LoadReservedPlayersNames()
 {
     m_ReservedNames.clear();                                // need for reload case
 
-    QueryResult* result = PlayerDataRepository::QueryReservedNames();
+    std::vector<std::string> names = PlayerDataRepository::QueryReservedNames();
 
     uint32 count = 0;
 
-    if (!result)
+    if (names.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -59,14 +59,11 @@ void ObjectMgr::LoadReservedPlayersNames()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(names.size());
 
-    Field* fields;
-    do
+    for (std::string const& name : names)
     {
         bar.step();
-        fields = result->Fetch();
-        std::string name = fields[0].GetCppString();
 
         std::wstring wstr;
         if (!Utf8toWStr(name, wstr))
@@ -80,9 +77,6 @@ void ObjectMgr::LoadReservedPlayersNames()
         m_ReservedNames.insert(wstr);
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u reserved player names", count);
     sLog.outString();

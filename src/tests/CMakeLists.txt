@@ -100,6 +100,7 @@ set(SRC_GRP_TESTS
     PlayerDataRepositoryTest.cpp
     QuestDataRepositoryTest.cpp
     ReputationDataRepositoryTest.cpp
+    LocaleDataRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

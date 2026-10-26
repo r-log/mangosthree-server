@@ -25,6 +25,7 @@
 
 #include "CharacterSaveRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 #include <sstream>
 
@@ -430,9 +431,10 @@ namespace CharacterSaveRepository
         }
     }
 
-    QueryResult* QueryHighestEquipmentSetId()
+    std::optional<uint64> QueryHighestEquipmentSetId()
     {
-        return CharacterDatabase.Query("SELECT MAX(`setguid`) FROM `character_equipmentsets`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`setguid`) FROM `character_equipmentsets`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
     void DeleteEveryBattlegroundData()

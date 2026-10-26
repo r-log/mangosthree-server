@@ -26,11 +26,10 @@
 #ifndef MANGOS_H_PETREPOSITORY
 #define MANGOS_H_PETREPOSITORY
 
+#include <optional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
-
-class QueryResult;
 
 /// The number of effects a saved pet aura holds, and of declined forms a pet name has.
 enum
@@ -162,7 +161,7 @@ namespace PetRepository
     void ReplaceStarterPet(StarterPet pet, uint32 petNumber, uint32 ownerId);
 
     /// Selects the highest pet number, at start-up.
-    QueryResult* QueryHighestId();
+    std::optional<uint32> QueryHighestId();
 }
 
 #endif

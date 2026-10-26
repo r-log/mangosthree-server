@@ -33,6 +33,21 @@
 
 class QueryResult;
 
+enum
+{
+    /// The locales an item locale row holds a text for: every locale after the default one (`loc1` to
+    /// `loc11`).
+    ITEM_LOCALE_ROW_LOCALES = 11
+};
+
+/// One `locales_item` row: an item's name and description in each locale.
+struct ItemLocaleRow
+{
+    uint32 entry = 0;
+    std::string name[ITEM_LOCALE_ROW_LOCALES];
+    std::string description[ITEM_LOCALE_ROW_LOCALES];
+};
+
 /// One `item_convert` row.
 struct ItemConvertRow
 {
@@ -68,7 +83,7 @@ struct HotfixRow
 namespace ItemDataRepository
 {
     /// Selects every item's localised name and description (`locales_item`).
-    QueryResult* QueryItemLocales();
+    std::vector<ItemLocaleRow> QueryItemLocales();
 
     /// Selects every item conversion (`item_convert`).
     std::vector<ItemConvertRow> QueryItemConverts();

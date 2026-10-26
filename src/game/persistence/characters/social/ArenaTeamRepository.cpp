@@ -25,6 +25,7 @@
 
 #include "ArenaTeamRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace ArenaTeamRepository
 {
@@ -166,9 +167,10 @@ namespace ArenaTeamRepository
         CharacterDatabase.CommitTransaction();
     }
 
-    QueryResult* QueryHighestId()
+    std::optional<uint32> QueryHighestId()
     {
-        return CharacterDatabase.Query("SELECT MAX(`arenateamid`) FROM `arena_team`");
+        QueryResult* result = CharacterDatabase.Query("SELECT MAX(`arenateamid`) FROM `arena_team`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     QueryResult* QueryTeams()

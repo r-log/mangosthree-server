@@ -997,91 +997,67 @@ void ObjectMgr::PackGroupIds()
  */
 void ObjectMgr::SetHighestGuids()
 {
-    QueryResult* result = CharacterRepository::QueryHighestGuid();
-    if (result)
+    if (std::optional<uint32> highest = CharacterRepository::QueryHighestGuid())
     {
-        m_CharGuids.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_CharGuids.Set(*highest + 1);
     }
 
-    result = SpawnRepository::QueryHighestCreatureGuid();
-    if (result)
+    if (std::optional<uint32> highest = SpawnRepository::QueryHighestCreatureGuid())
     {
-        m_FirstTemporaryCreatureGuid = (*result)[0].GetUInt32() + 1;
-        delete result;
+        m_FirstTemporaryCreatureGuid = *highest + 1;
     }
 
-    result = ItemRepository::QueryHighestGuid();
-    if (result)
+    if (std::optional<uint32> highest = ItemRepository::QueryHighestGuid())
     {
-        m_ItemGuids.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_ItemGuids.Set(*highest + 1);
     }
 
-    result = InstanceRepository::QueryHighestId();
-    if (result)
+    if (std::optional<uint32> highest = InstanceRepository::QueryHighestId())
     {
-        m_InstanceGuids.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_InstanceGuids.Set(*highest + 1);
     }
 
     // Cleanup other tables from nonexistent guids (>=m_hiItemGuid)
     ItemRepository::DeleteRowsOfMissingItems(m_ItemGuids.GetNextAfterMaxUsed());
 
-    result = SpawnRepository::QueryHighestGameObjectGuid();
-    if (result)
+    if (std::optional<uint32> highest = SpawnRepository::QueryHighestGameObjectGuid())
     {
-        m_FirstTemporaryGameObjectGuid = (*result)[0].GetUInt32() + 1;
-        delete result;
+        m_FirstTemporaryGameObjectGuid = *highest + 1;
     }
 
-    result = AuctionRepository::QueryHighestId();
-    if (result)
+    if (std::optional<uint32> highest = AuctionRepository::QueryHighestId())
     {
-        m_AuctionIds.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_AuctionIds.Set(*highest + 1);
     }
 
-    result = MailRepository::QueryHighestId();
-    if (result)
+    if (std::optional<uint32> highest = MailRepository::QueryHighestId())
     {
-        m_MailIds.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_MailIds.Set(*highest + 1);
     }
 
-    result = CorpseRepository::QueryHighestGuid();
-    if (result)
+    if (std::optional<uint32> highest = CorpseRepository::QueryHighestGuid())
     {
-        m_CorpseGuids.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_CorpseGuids.Set(*highest + 1);
     }
 
-    result = ArenaTeamRepository::QueryHighestId();
-    if (result)
+    if (std::optional<uint32> highest = ArenaTeamRepository::QueryHighestId())
     {
-        m_ArenaTeamIds.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_ArenaTeamIds.Set(*highest + 1);
     }
 
-    result = CharacterSaveRepository::QueryHighestEquipmentSetId();
-    if (result)
+    if (std::optional<uint64> highest = CharacterSaveRepository::QueryHighestEquipmentSetId())
     {
-        m_EquipmentSetIds.Set((*result)[0].GetUInt64() + 1);
-        delete result;
+        m_EquipmentSetIds.Set(*highest + 1);
     }
 
-    result = GuildRepository::QueryHighestId();
-    if (result)
+    if (std::optional<uint32> highest = GuildRepository::QueryHighestId())
     {
-        m_GuildIds.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_GuildIds.Set(*highest + 1);
     }
 
-    result = GroupRepository::QueryHighestId();
-    if (result)
+    if (std::optional<uint32> highest = GroupRepository::QueryHighestId())
     {
-        m_GroupGuids.Set((*result)[0].GetUInt32() + 1);
-        delete result;
+        m_GroupGuids.Set(*highest + 1);
     }
 
     // setup reserved ranges for static guids spawn
@@ -1187,12 +1163,9 @@ void ObjectMgr::LoadPetNames()
  */
 void ObjectMgr::LoadPetNumber()
 {
-    QueryResult* result = PetRepository::QueryHighestId();
-    if (result)
+    if (std::optional<uint32> highest = PetRepository::QueryHighestId())
     {
-        Field* fields = result->Fetch();
-        m_PetNumbers.Set(fields[0].GetUInt32() + 1);
-        delete result;
+        m_PetNumbers.Set(*highest + 1);
     }
 
     BarGoLink bar(1);
@@ -1328,9 +1301,9 @@ void ObjectMgr::LoadQuestPOI()
 
     uint32 count = 0;
 
-    QueryResult* result = QuestDataRepository::QueryQuestPois();
+    std::vector<QuestPoiRow> rows = QuestDataRepository::QueryQuestPois();
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -1341,21 +1314,20 @@ void ObjectMgr::LoadQuestPOI()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (QuestPoiRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 questId          = fields[0].GetUInt32();
-        uint32 poiId            = fields[1].GetUInt32();
-        int32  objIndex         = fields[2].GetInt32();
-        uint32 mapId            = fields[3].GetUInt32();
-        uint32 mapAreaId        = fields[4].GetUInt32();
-        uint32 floorId          = fields[5].GetUInt32();
-        uint32 unk3             = fields[6].GetUInt32();
-        uint32 unk4             = fields[7].GetUInt32();
+        uint32 questId          = row.questId;
+        uint32 poiId            = row.poiId;
+        int32  objIndex         = row.objIndex;
+        uint32 mapId            = row.mapId;
+        uint32 mapAreaId        = row.mapAreaId;
+        uint32 floorId          = row.floorId;
+        uint32 unk3             = row.unk3;
+        uint32 unk4             = row.unk4;
 
         QuestPOI POI(poiId, objIndex, mapId, mapAreaId, floorId, unk3, unk4);
 
@@ -1363,40 +1335,29 @@ void ObjectMgr::LoadQuestPOI()
 
         ++count;
     }
-    while (result->NextRow());
 
-    delete result;
+    std::vector<QuestPoiPointRow> points = QuestDataRepository::QueryQuestPoiPoints();
 
-    QueryResult* points = QuestDataRepository::QueryQuestPoiPoints();
-
-    if (points)
+    for (QuestPoiPointRow const& pointRow : points)
     {
-        do
+        uint32 questId      = pointRow.questId;
+        uint32 poiId        = pointRow.poiId;
+        int32  x            = pointRow.x;
+        int32  y            = pointRow.y;
+
+        QuestPOIVector& vect = m_questPoi.Edit(questId);
+
+        for (QuestPOIVector::iterator itr = vect.begin(); itr != vect.end(); ++itr)
         {
-            Field* pointFields  = points->Fetch();
-
-            uint32 questId      = pointFields[0].GetUInt32();
-            uint32 poiId        = pointFields[1].GetUInt32();
-            int32  x            = pointFields[2].GetInt32();
-            int32  y            = pointFields[3].GetInt32();
-
-            QuestPOIVector& vect = m_questPoi.Edit(questId);
-
-            for (QuestPOIVector::iterator itr = vect.begin(); itr != vect.end(); ++itr)
+            if (itr->PoiId != poiId)
             {
-                if (itr->PoiId != poiId)
-                {
-                    continue;
-                }
-
-                QuestPOIPoint point(x, y);
-                itr->points.push_back(point);
-                break;
+                continue;
             }
-        }
-        while (points->NextRow());
 
-        delete points;
+            QuestPOIPoint point(x, y);
+            itr->points.push_back(point);
+            break;
+        }
     }
 
     sLog.outString();
