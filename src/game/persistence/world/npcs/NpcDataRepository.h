@@ -28,27 +28,103 @@
 
 #include "Platform/Define.h"
 
+#include <string>
+#include <vector>
+
 class QueryResult;
 
+/// One `gossip_menu` row.
+struct GossipMenuRow
+{
+    uint32 entry = 0;
+    uint32 textId = 0;
+    uint32 scriptId = 0;
+    uint16 conditionId = 0;
+};
+
+/// One `gossip_menu_option` row.
+struct GossipMenuOptionRow
+{
+    uint32 menuId = 0;
+    uint32 id = 0;
+    uint8 optionIcon = 0;
+    std::string optionText;
+    uint32 optionId = 0;
+    uint32 npcOptionNpcflag = 0;
+    int32 actionMenuId = 0;
+    uint32 actionPoiId = 0;
+    uint32 actionScriptId = 0;
+    uint8 boxCoded = 0;
+    uint32 boxMoney = 0;
+    std::string boxText;
+    uint16 conditionId = 0;
+};
+
+/// One row of a trainer spell table (`npc_trainer` or `npc_trainer_template`).
+struct TrainerSpellRow
+{
+    uint32 entry = 0;
+    uint32 spell = 0;
+    uint32 spellcost = 0;
+    uint32 reqskill = 0;
+    uint32 reqskillvalue = 0;
+    uint32 reqlevel = 0;
+};
+
+/// One row of a vendor item table (`npc_vendor` or `npc_vendor_template`).
+struct VendorItemRow
+{
+    uint32 entry = 0;
+    int32 item = 0;
+    uint32 maxcount = 0;
+    uint32 incrtime = 0;
+    uint32 extendedCost = 0;
+    uint16 conditionId = 0;
+};
+
+/// One `npc_spellclick_spells` row.
+struct SpellClickSpellRow
+{
+    uint32 npcEntry = 0;
+    uint32 spellId = 0;
+    uint32 questStart = 0;
+    bool questStartActive = false;
+    uint32 questEnd = 0;
+    uint8 castFlags = 0;
+    uint16 conditionId = 0;
+};
+
+/// One `points_of_interest` row.
+struct PointOfInterestRow
+{
+    uint32 entry = 0;
+    float x = 0.0f;
+    float y = 0.0f;
+    uint32 icon = 0;
+    uint32 flags = 0;
+    uint32 data = 0;
+    std::string iconName;
+};
+
 /// The NPC data on the world database: `ObjectMgr`'s gossip, text, trainer, vendor, spell click and
-/// point of interest loads at startup and on a reload, each run synchronously for a loader that
-/// keeps its loop; a GM's vendor item writes are queued and written to the SQL log.
+/// point of interest loads at startup and on a reload, each run synchronously; a GM's vendor item
+/// writes are queued and written to the SQL log.
 namespace NpcDataRepository
 {
     /// Selects every gossip menu (`gossip_menu`).
-    QueryResult* QueryGossipMenus();
+    std::vector<GossipMenuRow> QueryGossipMenus();
 
     /// Selects every gossip menu option, ordered by menu and id (`gossip_menu_option`).
-    QueryResult* QueryGossipMenuOptions();
+    std::vector<GossipMenuOptionRow> QueryGossipMenuOptions();
 
     /// Selects every NPC text (`npc_text`).
     QueryResult* QueryNpcTexts();
 
     /// Selects every row of a trainer spell table.
-    QueryResult* QueryTrainerSpells(char const* table);
+    std::vector<TrainerSpellRow> QueryTrainerSpells(char const* table);
 
     /// Selects every row of a vendor item table.
-    QueryResult* QueryVendorItems(char const* table);
+    std::vector<VendorItemRow> QueryVendorItems(char const* table);
 
     /// Inserts a vendor's item, a currency's entry negated by the caller.
     void InsertVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 extendedcost);
@@ -57,10 +133,10 @@ namespace NpcDataRepository
     void DeleteVendorItem(uint32 entry, uint32 item);
 
     /// Selects every spell an NPC casts when clicked (`npc_spellclick_spells`).
-    QueryResult* QuerySpellClickSpells();
+    std::vector<SpellClickSpellRow> QuerySpellClickSpells();
 
     /// Selects every gossip point of interest (`points_of_interest`).
-    QueryResult* QueryPointsOfInterest();
+    std::vector<PointOfInterestRow> QueryPointsOfInterest();
 
     /// Selects every item a vendor sells, for the auction house bot's filter.
     QueryResult* QueryVendorItemEntries();

@@ -91,6 +91,15 @@ set(SRC_GRP_TESTS
     RowReaderTest.cpp
     SpellDataRepositoryTest.cpp
     BattleGroundDataRepositoryTest.cpp
+    CreatureDataRepositoryTest.cpp
+    SkillDataRepositoryTest.cpp
+    ItemDataRepositoryTest.cpp
+    DungeonDataRepositoryTest.cpp
+    MapDataRepositoryTest.cpp
+    NpcDataRepositoryTest.cpp
+    PlayerDataRepositoryTest.cpp
+    QuestDataRepositoryTest.cpp
+    ReputationDataRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

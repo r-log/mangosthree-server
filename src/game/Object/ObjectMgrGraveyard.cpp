@@ -57,11 +57,11 @@ void ObjectMgr::LoadGraveyardZones()
 {
     mGraveYardMap.clear();                                  // need for reload case
 
-    QueryResult* result = MapDataRepository::QueryGraveyardZones();
+    std::vector<GraveyardZoneRow> rows = MapDataRepository::QueryGraveyardZones();
 
     uint32 count = 0;
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -70,18 +70,16 @@ void ObjectMgr::LoadGraveyardZones()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (GraveyardZoneRow const& row : rows)
     {
         ++count;
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 safeLocId = fields[0].GetUInt32();
-        uint32 zoneId = fields[1].GetUInt32();
-        uint32 team   = fields[2].GetUInt32();
+        uint32 safeLocId = row.id;
+        uint32 zoneId = row.ghostZone;
+        uint32 team   = row.faction;
 
         WorldSafeLocsEntry const* entry = sWorldSafeLocsStore.LookupEntry(safeLocId);
         if (!entry)
@@ -114,9 +112,6 @@ void ObjectMgr::LoadGraveyardZones()
             sLog.outErrorDb("Table `game_graveyard_zone` has a duplicate record for Graveyard (ID: %u) and Zone (ID: %u), skipped.", safeLocId, zoneId);
         }
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u graveyard-zone links", count);
     sLog.outString();

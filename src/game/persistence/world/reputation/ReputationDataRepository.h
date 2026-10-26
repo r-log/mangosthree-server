@@ -28,21 +28,65 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <vector>
+
+/// One `reputation_reward_rate` row.
+struct ReputationRewardRateRow
+{
+    uint32 faction = 0;
+    float questRate = 0.0f;
+    float creatureRate = 0.0f;
+    float spellRate = 0.0f;
+};
+
+/// One `creature_onkill_reputation` row.
+struct OnKillReputationRow
+{
+    uint32 creatureId = 0;
+    uint32 rewOnKillRepFaction1 = 0;
+    uint32 rewOnKillRepFaction2 = 0;
+    bool isTeamAward1 = false;
+    uint32 maxStanding1 = 0;
+    int32 rewOnKillRepValue1 = 0;
+    bool isTeamAward2 = false;
+    uint32 maxStanding2 = 0;
+    int32 rewOnKillRepValue2 = 0;
+    uint8 teamDependent = 0;
+};
+
+/// One `reputation_spillover_template` row.
+struct ReputationSpilloverRow
+{
+    uint32 faction = 0;
+    uint32 faction1 = 0;
+    float rate1 = 0.0f;
+    uint32 rank1 = 0;
+    uint32 faction2 = 0;
+    float rate2 = 0.0f;
+    uint32 rank2 = 0;
+    uint32 faction3 = 0;
+    float rate3 = 0.0f;
+    uint32 rank3 = 0;
+    uint32 faction4 = 0;
+    float rate4 = 0.0f;
+    uint32 rank4 = 0;
+    uint32 faction5 = 0;
+    float rate5 = 0.0f;
+    uint32 rank5 = 0;
+};
 
 /// The reputation data on the world database: `ObjectMgr`'s reputation reward, kill reputation and
-/// spillover loads at startup and on a reload, each run synchronously for a loader that keeps its
-/// loop.
+/// spillover loads at startup and on a reload, each run synchronously and read into rows.
 namespace ReputationDataRepository
 {
     /// Selects every faction's reputation reward rates (`reputation_reward_rate`).
-    QueryResult* QueryRewardRates();
+    std::vector<ReputationRewardRateRow> QueryRewardRates();
 
     /// Selects every creature's kill reputation (`creature_onkill_reputation`).
-    QueryResult* QueryOnKillReputations();
+    std::vector<OnKillReputationRow> QueryOnKillReputations();
 
     /// Selects every faction's reputation spillover (`reputation_spillover_template`).
-    QueryResult* QuerySpillovers();
+    std::vector<ReputationSpilloverRow> QuerySpillovers();
 }
 
 #endif

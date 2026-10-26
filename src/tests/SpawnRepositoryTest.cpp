@@ -173,3 +173,79 @@ TEST(SpawnRepository_Corpse)
         "VALUES (7, 42, 1.5, 2, -3.5, 0.25, 530, 1700000000, 1, 0, 1)",
     }, __LINE__);
 }
+
+// Each column of a creature spawn as the startup load reads it lands in its member, and the rows
+// come back in order.
+TEST(SpawnRepository_CreatureSpawns)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003", "1004", "1005.5", "1006.5", "1007.5", "1008.5",
+            "1009", "1010.5", "1011", "1012", "1013", "1", "115", "116", "1017", "-1018",
+            "-1019", "-1020"},
+        FakeRow{"2000", "2001", "2002", "2003", "2004", "2005.5", "2006.5", "2007.5", "2008.5",
+            "2009", "2010.5", "2011", "2012", "2013", "1", "215", "216", "2017", "-2018",
+            "-2019", "-2020"},
+    });
+    std::vector<CreatureSpawnDataRow> rows = SpawnRepository::QueryCreatureSpawns();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].id, 1001u);
+    CHECK_EQ(rows[0].map, 1002u);
+    CHECK_EQ(rows[0].modelid, 1003u);
+    CHECK_EQ(rows[0].equipmentId, 1004u);
+    CHECK_EQ(rows[0].positionX, 1005.5f);
+    CHECK_EQ(rows[0].positionY, 1006.5f);
+    CHECK_EQ(rows[0].positionZ, 1007.5f);
+    CHECK_EQ(rows[0].orientation, 1008.5f);
+    CHECK_EQ(rows[0].spawntimesecs, 1009u);
+    CHECK_EQ(rows[0].spawndist, 1010.5f);
+    CHECK_EQ(rows[0].currentwaypoint, 1011u);
+    CHECK_EQ(rows[0].curhealth, 1012u);
+    CHECK_EQ(rows[0].curmana, 1013u);
+    CHECK_EQ(rows[0].deathState, true);
+    CHECK_EQ(rows[0].movementType, uint8(115));
+    CHECK_EQ(rows[0].spawnMask, uint8(116));
+    CHECK_EQ(rows[0].phaseMask, 1017u);
+    CHECK_EQ(rows[0].gameEvent, int16(-1018));
+    CHECK_EQ(rows[0].guidPoolId, int16(-1019));
+    CHECK_EQ(rows[0].entryPoolId, int16(-1020));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a game object spawn as the startup load reads it lands in its member, and the rows
+// come back in order.
+TEST(SpawnRepository_GameObjectSpawns)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003.5", "1004.5", "1005.5", "1006.5", "1007.5", "1008.5",
+            "1009.5", "1010.5", "-1011", "1012", "1013", "114", "1015", "-1016", "-1017",
+            "-1018"},
+        FakeRow{"2000", "2001", "2002", "2003.5", "2004.5", "2005.5", "2006.5", "2007.5", "2008.5",
+            "2009.5", "2010.5", "-2011", "2012", "2013", "214", "2015", "-2016", "-2017",
+            "-2018"},
+    });
+    std::vector<GameObjectSpawnDataRow> rows = SpawnRepository::QueryGameObjectSpawns();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].id, 1001u);
+    CHECK_EQ(rows[0].map, 1002u);
+    CHECK_EQ(rows[0].positionX, 1003.5f);
+    CHECK_EQ(rows[0].positionY, 1004.5f);
+    CHECK_EQ(rows[0].positionZ, 1005.5f);
+    CHECK_EQ(rows[0].orientation, 1006.5f);
+    CHECK_EQ(rows[0].rotation0, 1007.5f);
+    CHECK_EQ(rows[0].rotation1, 1008.5f);
+    CHECK_EQ(rows[0].rotation2, 1009.5f);
+    CHECK_EQ(rows[0].rotation3, 1010.5f);
+    CHECK_EQ(rows[0].spawntimesecs, -1011);
+    CHECK_EQ(rows[0].animprogress, 1012u);
+    CHECK_EQ(rows[0].state, 1013u);
+    CHECK_EQ(rows[0].spawnMask, uint8(114));
+    CHECK_EQ(rows[0].phaseMask, 1015u);
+    CHECK_EQ(rows[0].gameEvent, int16(-1016));
+    CHECK_EQ(rows[0].guidPoolId, int16(-1017));
+    CHECK_EQ(rows[0].entryPoolId, int16(-1018));
+    CHECK_EQ(rows[1].guid, 2000u);
+}

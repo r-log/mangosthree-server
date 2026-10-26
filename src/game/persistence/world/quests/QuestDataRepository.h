@@ -28,11 +28,19 @@
 
 #include "Platform/Define.h"
 
+#include <vector>
+
 class QueryResult;
 
+/// One `quest_relations` row.
+struct QuestRelationRow
+{
+    uint32 entry = 0;
+    uint32 quest = 0;
+};
+
 /// The quest data on the world database: `ObjectMgr`'s quest, quest relation and quest point of
-/// interest loads at startup and on a reload, each run synchronously for a loader that keeps its
-/// loop.
+/// interest loads at startup and on a reload, each run synchronously.
 namespace QuestDataRepository
 {
     /// Selects every quest (`quest_template`).
@@ -42,10 +50,10 @@ namespace QuestDataRepository
     QueryResult* QueryQuestLocales();
 
     /// Selects the quest relations of one actor and role.
-    QueryResult* QueryQuestRelations(int actor, int role);
+    std::vector<QuestRelationRow> QueryQuestRelations(int actor, int role);
 
     /// Selects every quest relation of one actor, whatever its role.
-    QueryResult* QueryActorQuestRelations(int actor);
+    std::vector<QuestRelationRow> QueryActorQuestRelations(int actor);
 
     /// Selects every quest point of interest (`quest_poi`).
     QueryResult* QueryQuestPois();

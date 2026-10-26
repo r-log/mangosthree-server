@@ -46,8 +46,8 @@ void ObjectMgr::LoadAreaTriggerTeleports()
 
     uint32 count = 0;
 
-    QueryResult* result = MapDataRepository::QueryAreaTriggerTeleports();
-    if (!result)
+    std::vector<AreaTriggerTeleportRow> rows = MapDataRepository::QueryAreaTriggerTeleports();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -56,32 +56,30 @@ void ObjectMgr::LoadAreaTriggerTeleports()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (AreaTriggerTeleportRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         bar.step();
 
         ++count;
 
-        uint32 Trigger_ID = fields[0].GetUInt32();
+        uint32 Trigger_ID = row.id;
 
         AreaTrigger at;
 
-        at.requiredLevel        = fields[1].GetUInt8();
-        at.requiredItem         = fields[2].GetUInt32();
-        at.requiredItem2        = fields[3].GetUInt32();
-        at.heroicKey            = fields[4].GetUInt32();
-        at.heroicKey2           = fields[5].GetUInt32();
-        at.requiredQuest        = fields[6].GetUInt32();
-        at.requiredQuestHeroic  = fields[7].GetUInt32();
-        at.target_mapId         = fields[8].GetUInt32();
-        at.target_X             = fields[9].GetFloat();
-        at.target_Y             = fields[10].GetFloat();
-        at.target_Z             = fields[11].GetFloat();
-        at.target_Orientation   = fields[12].GetFloat();
+        at.requiredLevel        = row.requiredLevel;
+        at.requiredItem         = row.requiredItem;
+        at.requiredItem2        = row.requiredItem2;
+        at.heroicKey            = row.heroicKey;
+        at.heroicKey2           = row.heroicKey2;
+        at.requiredQuest        = row.requiredQuestDone;
+        at.requiredQuestHeroic  = row.requiredQuestDoneHeroic;
+        at.target_mapId         = row.targetMap;
+        at.target_X             = row.targetPositionX;
+        at.target_Y             = row.targetPositionY;
+        at.target_Z             = row.targetPositionZ;
+        at.target_Orientation   = row.targetOrientation;
 
         AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(Trigger_ID);
         if (!atEntry)
@@ -165,9 +163,6 @@ void ObjectMgr::LoadAreaTriggerTeleports()
 
         mAreaTriggers[Trigger_ID] = at;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u area trigger teleport definitions", count);
     sLog.outString();

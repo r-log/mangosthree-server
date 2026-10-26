@@ -25,35 +25,101 @@
 
 #include "DungeonDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace DungeonDataRepository
 {
-    QueryResult* QueryInstanceEncounters()
+    static InstanceEncounterRow ReadInstanceEncounter(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`, `creditType`, `creditEntry`, `lastEncounterDungeon` FROM `instance_encounters`");
+        InstanceEncounterRow row;
+        row.entry = fields[0].GetUInt32();
+        row.creditType = fields[1].GetUInt8();
+        row.creditEntry = fields[2].GetUInt32();
+        row.lastEncounterDungeon = fields[3].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryDungeonFinderRequirements()
+    std::vector<InstanceEncounterRow> QueryInstanceEncounters()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `creditType`, `creditEntry`, `lastEncounterDungeon` FROM `instance_encounters`");
+        return ReadRows<InstanceEncounterRow>(result, ReadInstanceEncounter);
+    }
+
+    static DungeonFinderRequirementRow ReadDungeonFinderRequirement(Field* fields)
+    {
+        DungeonFinderRequirementRow row;
+        row.mapId = fields[0].GetUInt32();
+        row.difficulty = fields[1].GetUInt32();
+        row.minItemLevel = fields[2].GetUInt32();
+        row.item = fields[3].GetUInt32();
+        row.item2 = fields[4].GetUInt32();
+        row.allianceQuest = fields[5].GetUInt32();
+        row.hordeQuest = fields[6].GetUInt32();
+        row.achievement = fields[7].GetUInt32();
+        if (char const* text = fields[8].GetString())
+        {
+            row.questIncompleteText = text;
+        }
+        return row;
+    }
+
+    std::vector<DungeonFinderRequirementRow> QueryDungeonFinderRequirements()
     {
         //                                 0      1           2               3     4       5               6            7            8
-        return WorldDatabase.Query("SELECT `mapId`, `difficulty`, `min_item_level`, `item`, `item_2`, `alliance_quest`, `horde_quest`, `achievement`, `quest_incomplete_text` FROM `dungeonfinder_requirements`");
+        QueryResult* result = WorldDatabase.Query("SELECT `mapId`, `difficulty`, `min_item_level`, `item`, `item_2`, `alliance_quest`, `horde_quest`, `achievement`, `quest_incomplete_text` FROM `dungeonfinder_requirements`");
+        return ReadRows<DungeonFinderRequirementRow>(result, ReadDungeonFinderRequirement);
     }
 
-    QueryResult* QueryDungeonFinderRewards()
+    static DungeonFinderRewardRow ReadDungeonFinderReward(Field* fields)
+    {
+        DungeonFinderRewardRow row;
+        row.level = fields[1].GetUInt32();
+        row.baseXpReward = fields[2].GetUInt32();
+        row.baseMonetaryReward = fields[3].GetInt32();
+        return row;
+    }
+
+    std::vector<DungeonFinderRewardRow> QueryDungeonFinderRewards()
     {
         //                                  0     1        2                 3
-        return WorldDatabase.Query("SELECT `id`, `level`, `base_xp_reward`, `base_monetary_reward` FROM `dungeonfinder_rewards`");
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, `level`, `base_xp_reward`, `base_monetary_reward` FROM `dungeonfinder_rewards`");
+        return ReadRows<DungeonFinderRewardRow>(result, ReadDungeonFinderReward);
     }
 
-    QueryResult* QueryDungeonFinderItemRewards()
+    static DungeonFinderItemRewardRow ReadDungeonFinderItemReward(Field* fields)
+    {
+        DungeonFinderItemRewardRow row;
+        row.id = fields[0].GetUInt32();
+        row.minLevel = fields[1].GetUInt32();
+        row.maxLevel = fields[2].GetUInt32();
+        row.itemReward = fields[3].GetInt32();
+        row.itemAmount = fields[4].GetUInt32();
+        row.dungeonType = fields[5].GetUInt32();
+        return row;
+    }
+
+    std::vector<DungeonFinderItemRewardRow> QueryDungeonFinderItemRewards()
     {
         //                                  0     1            2            3              4              5
-        return WorldDatabase.Query("SELECT `id`, `min_level`, `max_level`, `item_reward`, `item_amount`, `dungeon_type` FROM `dungeonfinder_item_rewards`");
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, `min_level`, `max_level`, `item_reward`, `item_amount`, `dungeon_type` FROM `dungeonfinder_item_rewards`");
+        return ReadRows<DungeonFinderItemRewardRow>(result, ReadDungeonFinderItemReward);
     }
 
-    QueryResult* QueryDungeonEntrances()
+    static DungeonEntranceRow ReadDungeonEntrance(Field* fields)
+    {
+        DungeonEntranceRow row;
+        row.dungeonId = fields[0].GetUInt32();
+        row.positionX = fields[1].GetFloat();
+        row.positionY = fields[2].GetFloat();
+        row.positionZ = fields[3].GetFloat();
+        row.orientation = fields[4].GetFloat();
+        return row;
+    }
+
+    std::vector<DungeonEntranceRow> QueryDungeonEntrances()
     {
         //                                  0            1             2             3             4
-        return WorldDatabase.Query("SELECT `dungeonId`, `position_x`, `position_y`, `position_z`, `orientation` FROM `lfg_dungeon_entrances`");
+        QueryResult* result = WorldDatabase.Query("SELECT `dungeonId`, `position_x`, `position_y`, `position_z`, `orientation` FROM `lfg_dungeon_entrances`");
+        return ReadRows<DungeonEntranceRow>(result, ReadDungeonEntrance);
     }
 }

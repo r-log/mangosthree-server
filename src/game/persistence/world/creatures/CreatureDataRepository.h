@@ -28,11 +28,30 @@
 
 #include "Platform/Define.h"
 
+#include <string>
+#include <vector>
+
 class QueryResult;
 
-/// The creature data on the world database: `ObjectMgr`'s creature and pet loads at startup and on a
-/// reload, each run synchronously for a loader that keeps its loop; a GM's template edits are queued
-/// and written to the SQL log.
+/// One `creature_model_race` row.
+struct CreatureModelRaceRow
+{
+    uint32 modelid = 0;
+    uint32 racemask = 0;
+    uint32 creatureEntry = 0;
+    uint32 modelidRacial = 0;
+};
+
+/// One `pet_name_generation` row.
+struct PetNamePartRow
+{
+    std::string word;
+    uint32 entry = 0;
+    bool half = false;
+};
+
+/// The creature data on the world database: `ObjectMgr`'s creature and pet loads at startup and on
+/// a reload, each run synchronously; a GM's template edits are queued and written to the SQL log.
 namespace CreatureDataRepository
 {
     /// Selects every class's base stats per level, with the health and damage of each expansion up to
@@ -40,10 +59,10 @@ namespace CreatureDataRepository
     QueryResult* QueryClassLevelStats(int maxExpansion);
 
     /// Selects every race-specific creature model (`creature_model_race`).
-    QueryResult* QueryModelRaces();
+    std::vector<CreatureModelRaceRow> QueryModelRaces();
 
     /// Selects every half of the generated pet names (`pet_name_generation`).
-    QueryResult* QueryPetNameParts();
+    std::vector<PetNamePartRow> QueryPetNameParts();
 
     /// Selects every pet's stats per level (`pet_levelstats`).
     QueryResult* QueryPetLevelStats();

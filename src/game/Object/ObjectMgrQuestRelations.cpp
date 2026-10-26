@@ -48,9 +48,9 @@ void ObjectMgr::LoadQuestRelationsHelper(QuestRelationsMap& map, QuestActor acto
 
     uint32 count = 0;
 
-    QueryResult* result = QuestDataRepository::QueryQuestRelations(actor, role);
+    std::vector<QuestRelationRow> rows = QuestDataRepository::QueryQuestRelations(actor, role);
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -61,15 +61,14 @@ void ObjectMgr::LoadQuestRelationsHelper(QuestRelationsMap& map, QuestActor acto
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (QuestRelationRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 id    = fields[0].GetUInt32();
-        uint32 quest = fields[1].GetUInt32();
+        uint32 id    = row.entry;
+        uint32 quest = row.quest;
 
         if (mQuestTemplates.find(quest) == mQuestTemplates.end())
         {
@@ -81,9 +80,6 @@ void ObjectMgr::LoadQuestRelationsHelper(QuestRelationsMap& map, QuestActor acto
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Loaded %u %s quest %s from `quest_relations`", count, (actor == 1) ? "gameobject" : "creature", (role == 1) ? "takers" : "givers");

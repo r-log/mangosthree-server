@@ -28,10 +28,19 @@
 
 #include "Platform/Define.h"
 
+#include <vector>
+
 class QueryResult;
 
-/// The tradeskill data on the world database: the discovery and extra item loads at startup and on a
-/// reload, each run synchronously for a loader that keeps its loop.
+/// One `skill_fishing_base_level` row.
+struct FishingBaseLevelRow
+{
+    uint32 entry = 0;
+    int32 skill = 0;
+};
+
+/// The tradeskill data on the world database: the discovery and extra item loads at startup and on
+/// a reload, each run synchronously.
 namespace SkillDataRepository
 {
     /// Selects every recipe discovery (`skill_discovery_template`).
@@ -41,7 +50,7 @@ namespace SkillDataRepository
     QueryResult* QueryExtraItems();
 
     /// Selects every fishing zone's base skill level (`skill_fishing_base_level`).
-    QueryResult* QueryFishingBaseLevels();
+    std::vector<FishingBaseLevelRow> QueryFishingBaseLevels();
 }
 
 #endif
