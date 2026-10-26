@@ -82,7 +82,7 @@ namespace SocialRepository
     {
         CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
                                       {
-                                          callback(ReadRow<uint8>(result, [](Field* fields) { return fields[0].GetUInt8(); }));
+                                          callback(::ReadRow<uint8>(result, [](Field* fields) { return fields[0].GetUInt8(); }));
                                       },
                                       "SELECT `flags` FROM `character_social` WHERE `guid` = %u AND `friend` = %u",
                                       ownerGuidLow, friendGuidLow);

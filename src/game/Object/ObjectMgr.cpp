@@ -820,7 +820,6 @@ void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> h
         delete m;
         ++count;
     }
-    while (result->NextRow());
 
     sLog.outString(">> Loaded %u mails", count);
     sLog.outString();
