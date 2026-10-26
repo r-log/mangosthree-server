@@ -66,6 +66,7 @@
 #include "MotionMaster.h"
 #include "persistence/characters/CharacterDeleteRepository.h"
 #include "persistence/characters/CharacterRepository.h"
+#include "persistence/characters/account/AccountDataRepository.h"
 #include "persistence/characters/pets/PetRepository.h"
 #include "persistence/login/AccountRepository.h"
 
@@ -1017,7 +1018,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     SendPacket(&data);
 
     // load player specific part before send times
-    LoadAccountData(holder->GetResult(PLAYER_LOGIN_QUERY_LOADACCOUNTDATA), PER_CHARACTER_CACHE_MASK);
+    LoadAccountData(AccountDataRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADACCOUNTDATA), PER_CHARACTER_CACHE_MASK);
     SendAccountDataTimes(PER_CHARACTER_CACHE_MASK);
 
     data.Initialize(SMSG_FEATURE_SYSTEM_STATUS, 34);        // added in 2.2.0
@@ -1087,17 +1088,13 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
         DEBUG_LOG("WORLD: Sent motd (SMSG_MOTD)");
     }
 
-    // (the login holder's PLAYER_LOGIN_QUERY_LOADGUILD slot is this character's guild_member row)
-    QueryResult* resultGuild = holder->GetResult(PLAYER_LOGIN_QUERY_LOADGUILD);
+    std::optional<LoginGuildRow> guildRow = CharacterRepository::LoginGuild(holder);
 
-    if (resultGuild)
+    if (guildRow)
     {
         /* We're in a guild, so set the player's guild data to represent that */
-        Field* fields = resultGuild->Fetch();
-        pCurrChar->SetInGuild(fields[0].GetUInt32());
-        pCurrChar->SetRank(fields[1].GetUInt32());
-        /* Avoid dangling pointers */
-        delete resultGuild;
+        pCurrChar->SetInGuild(guildRow->guildId);
+        pCurrChar->SetRank(guildRow->rank);
     }
     /* Player thinks they have a guild, but it isn't in the database. Clear that information */
     else if (pCurrChar->GetGuildId())

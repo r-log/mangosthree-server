@@ -25,12 +25,30 @@
 
 #include "AccountDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
+#include "Database/SqlOperations.h"
 
 namespace AccountDataRepository
 {
-    QueryResult* QueryGlobal(uint32 accountId)
+    static AccountDataRow ReadAccountData(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `type`, `time`, `data` FROM `account_data` WHERE `account` = '%u'", accountId);
+        AccountDataRow row;
+        row.type = fields[0].GetUInt32();
+        row.time = fields[1].GetUInt64();
+        row.data = fields[2].GetCppString();
+        return row;
+    }
+
+    std::vector<AccountDataRow> QueryGlobal(uint32 accountId)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `type`, `time`, `data` FROM `account_data` WHERE `account` = '%u'", accountId);
+        return ReadRows<AccountDataRow>(result, ReadAccountData);
+    }
+
+    std::vector<AccountDataRow> ReadHolder(SqlQueryHolder* holder, size_t slot)
+    {
+        QueryResult* result = holder->GetResult(slot);
+        return ReadRows<AccountDataRow>(result, ReadAccountData);
     }
 
     void ReplaceGlobal(uint32 accountId, uint32 type, uint64 time, std::string const& data)
@@ -65,9 +83,20 @@ namespace AccountDataRepository
         CharacterDatabase.CommitTransaction();
     }
 
-    QueryResult* QueryTutorials(uint32 accountId)
+    static TutorialRow ReadTutorials(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7` FROM `character_tutorial` WHERE `account` = '%u'", accountId);
+        TutorialRow row;
+        for (int i = 0; i < TUTORIAL_ROW_FLAGS; ++i)
+        {
+            row.flags[i] = fields[i].GetUInt32();
+        }
+        return row;
+    }
+
+    std::optional<TutorialRow> QueryTutorials(uint32 accountId)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `tut0`,`tut1`,`tut2`,`tut3`,`tut4`,`tut5`,`tut6`,`tut7` FROM `character_tutorial` WHERE `account` = '%u'", accountId);
+        return ReadRow<TutorialRow>(result, ReadTutorials);
     }
 
     void UpdateTutorials(uint32 accountId, uint32 const (&flags)[TUTORIAL_ROW_FLAGS])

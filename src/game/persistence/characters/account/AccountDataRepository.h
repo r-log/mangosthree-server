@@ -26,15 +26,32 @@
 #ifndef MANGOS_H_ACCOUNTDATAREPOSITORY
 #define MANGOS_H_ACCOUNTDATAREPOSITORY
 
+#include <optional>
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 
 class QueryResult;
+class SqlQueryHolder;
 
 /// The number of tutorial flag words an account saves.
 enum
 {
     TUTORIAL_ROW_FLAGS = 8
+};
+
+/// One saved data block of the client: its type, time and data.
+struct AccountDataRow
+{
+    uint32 type = 0;
+    uint64 time = 0;
+    std::string data;
+};
+
+/// An account's tutorial flags, the eight words in order.
+struct TutorialRow
+{
+    uint32 flags[TUTORIAL_ROW_FLAGS] = {};
 };
 
 /// The client's saved settings (`account_data`, `character_account_data`, `character_tutorial`).
@@ -43,7 +60,10 @@ enum
 namespace AccountDataRepository
 {
     /// Selects an account's own data blocks: type, time, data.
-    QueryResult* QueryGlobal(uint32 accountId);
+    std::vector<AccountDataRow> QueryGlobal(uint32 accountId);
+
+    /// Reads a holder slot's data blocks: type, time, data.
+    std::vector<AccountDataRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
     /// Writes an account's data block of a type over the old one, in one transaction.
     void ReplaceGlobal(uint32 accountId, uint32 type, uint64 time, std::string const& data);
@@ -52,7 +72,7 @@ namespace AccountDataRepository
     void ReplaceCharacter(uint32 guid, uint32 type, uint64 time, std::string const& data);
 
     /// Selects an account's tutorial flags, the eight words in order.
-    QueryResult* QueryTutorials(uint32 accountId);
+    std::optional<TutorialRow> QueryTutorials(uint32 accountId);
 
     /// Updates an account's tutorial flags.
     void UpdateTutorials(uint32 accountId, uint32 const (&flags)[TUTORIAL_ROW_FLAGS]);

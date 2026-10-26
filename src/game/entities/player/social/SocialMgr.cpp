@@ -227,16 +227,16 @@ void SocialMgr::BroadcastToFriendListers(Player* player, FriendStatusFact const&
 /**
  * @brief Loads a player's social list from database rows.
  *
- * @param result The query result containing social entries.
+ * @param rows The social rows.
  * @param guid The player GUID owning the social data.
  * @return The loaded player social record.
  */
-PlayerSocial* SocialMgr::LoadFromDB(QueryResult* result, ObjectGuid guid)
+PlayerSocial* SocialMgr::LoadFromDB(std::vector<SocialRow> const& rows, ObjectGuid guid)
 {
     PlayerSocial* social = &m_socialMap[guid.GetCounter()];
     social->SetPlayerGuid(guid);
 
-    if (!result)
+    if (rows.empty())
     {
         return social;
     }
@@ -244,13 +244,9 @@ PlayerSocial* SocialMgr::LoadFromDB(QueryResult* result, ObjectGuid guid)
     // used to speed up check below. Using GetNumberOfSocialsWithFlag will cause unneeded iteration
     uint32 friendCounter = 0, ignoreCounter = 0;
 
-    do
+    for (SocialRow const& row : rows)
     {
-        Field* fields  = result->Fetch();
-
-        social->LoadRow(SocialRepository::ReadRow(fields), friendCounter, ignoreCounter);
+        social->LoadRow(row, friendCounter, ignoreCounter);
     }
-    while (result->NextRow());
-    delete result;
     return social;
 }

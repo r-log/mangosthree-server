@@ -60,6 +60,7 @@ struct AuctionEntry;
 struct AuctionHouseEntry;
 struct DeclinedName;
 struct CharacterCacheEntry;
+struct AccountDataRow;
 
 class ObjectGuid;
 class Creature;
@@ -531,7 +532,7 @@ class WorldSession
         void SendAccountDataTimes(uint32 mask);
         void SendLoadCUFProfiles();                         ///< raid-frame profiles; client blocks its raid UI until this arrives
         void LoadGlobalAccountData();
-        void LoadAccountData(QueryResult* result, uint32 mask);
+        void LoadAccountData(std::vector<AccountDataRow> const& rows, uint32 mask);
         void LoadTutorialsData();
         void SendTutorialsData();
         void SaveTutorialsData();

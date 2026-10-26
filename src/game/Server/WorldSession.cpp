@@ -1160,7 +1160,7 @@ void WorldSession::LoadGlobalAccountData()
     );
 }
 
-void WorldSession::LoadAccountData(QueryResult* result, uint32 mask)
+void WorldSession::LoadAccountData(std::vector<AccountDataRow> const& rows, uint32 mask)
 {
     for (uint32 i = 0; i < NUM_ACCOUNT_DATA_TYPES; ++i)
         if (mask & (1 << i))
@@ -1168,16 +1168,9 @@ void WorldSession::LoadAccountData(QueryResult* result, uint32 mask)
             m_accountData[i] = AccountData();
         }
 
-    if (!result)
+    for (AccountDataRow const& row : rows)
     {
-        return;
-    }
-
-    do
-    {
-        Field* fields = result->Fetch();
-
-        uint32 type = fields[0].GetUInt32();
+        uint32 type = row.type;
         if (type >= NUM_ACCOUNT_DATA_TYPES)
         {
             sLog.outError("Table `%s` have invalid account data type (%u), ignore.",
@@ -1192,12 +1185,9 @@ void WorldSession::LoadAccountData(QueryResult* result, uint32 mask)
             continue;
         }
 
-        m_accountData[type].Time = time_t(fields[1].GetUInt64());
-        m_accountData[type].Data = fields[2].GetCppString();
+        m_accountData[type].Time = time_t(row.time);
+        m_accountData[type].Data = row.data;
     }
-    while (result->NextRow());
-
-    delete result;
 }
 
 void WorldSession::SetAccountData(AccountDataType type, time_t time_, const std::string& data)
@@ -1247,26 +1237,18 @@ void WorldSession::LoadTutorialsData()
         m_Tutorials[ aX ] = 0;
     }
 
-    QueryResult* result = AccountDataRepository::QueryTutorials(GetAccountId());
+    std::optional<TutorialRow> tutorials = AccountDataRepository::QueryTutorials(GetAccountId());
 
-    if (!result)
+    if (!tutorials)
     {
         m_tutorialState = TUTORIALDATA_NEW;
         return;
     }
 
-    do
+    for (int iI = 0; iI < 8; ++iI)
     {
-        Field* fields = result->Fetch();
-
-        for (int iI = 0; iI < 8; ++iI)
-        {
-            m_Tutorials[iI] = fields[iI].GetUInt32();
-        }
+        m_Tutorials[iI] = tutorials->flags[iI];
     }
-    while (result->NextRow());
-
-    delete result;
 
     m_tutorialState = TUTORIALDATA_UNCHANGED;
 }

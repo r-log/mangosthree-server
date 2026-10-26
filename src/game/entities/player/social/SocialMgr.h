@@ -28,12 +28,14 @@
 
 #include <string>
 #include <map>
+#include <vector>
 #include "Policies/Singleton.h"
 #include "Database/DatabaseEnv.h"
 #include "ObjectGuid.h"
 #include "SocialList.h"                                     // PlayerSocial, FriendInfo, the enums and the facts
 
 class Player;
+struct SocialRow;
 
 typedef std::map<uint32, PlayerSocial> SocialMap;
 
@@ -65,7 +67,7 @@ class SocialMgr
         void SendFriendStatus(Player* player, FriendsResult result, ObjectGuid friend_guid, bool broadcast);
         void BroadcastToFriendListers(Player* player, FriendStatusFact const& fact);
         // Loading
-        PlayerSocial* LoadFromDB(QueryResult* result, ObjectGuid guid);
+        PlayerSocial* LoadFromDB(std::vector<SocialRow> const& rows, ObjectGuid guid);
     private:
         SocialMap m_socialMap;
 };

@@ -59,6 +59,7 @@
 #include "persistence/characters/inventory/CurrencyRepository.h"
 #include "persistence/characters/talents/TalentRepository.h"
 #include "persistence/characters/social/ReputationRepository.h"
+#include "persistence/characters/social/SocialRepository.h"
 #include "persistence/characters/spells/SpellCooldownRepository.h"
 #include <cmath>
 
@@ -70,6 +71,8 @@
 #define DEATH_EXPIRE_STEP (5*MINUTE)
 #define MAX_DEATH_COUNT 3
 
+static_assert(int(LOGIN_CHARACTER_ROW_POWERS) == int(MAX_STORED_POWERS), "a character row holds every stored power");
+
 /**
  * @brief Loads the player's persisted state from the database and initializes runtime data.
  *
@@ -79,31 +82,15 @@
  */
 bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 {
+    std::optional<LoginCharacterRow> character = CharacterRepository::LoginCharacter(holder);
 
-    //         0      1         2      3      4       5        6       7    8       9             10             11
-    // SELECT `guid`,`account`,`name`,`race`,`class`,`gender`,`level`,`xp`,`money`,`playerBytes`,`playerBytes2`,`playerFlags`,
-    //  12           13           14           15    16                   17            18         19       20          21          22          23            24                  25           26
-    // `position_x`,`position_y`,`position_z`,`map`,`dungeon_difficulty`,`orientation`,`taximask`,`online`,`cinematic`,`totaltime`,`leveltime`,`logout_time`,`is_logout_resting`,`rest_bonus`,`resettalents_cost`,
-    //  27                  28              29        30        31        32        33          34            35             36         37     38                  39
-    // `resettalents_time`,`primary_trees`,`trans_x`,`trans_y`,`trans_z`,`trans_o`,`transguid`,`extra_flags`,`stable_slots`,`at_login`,`zone`,`death_expire_time`,`taxi_path`,
-    //  40           41           42               43            44               45
-    // `totalKills`,`todayKills`,`yesterdayKills`,`chosenTitle`,`watchedFaction`,`drunk`,
-    //  46       47       48       49       50       51       52          53           54              55               56            57           58     59                    60                 61           62
-    // `health`,`power1`,`power2`,`power3`,`power4`,`power5`,`specCount`,`activeSpec`,`exploredZones`,`equipmentCache`,`knownTitles`,`actionBars`,`slot`,`deleteInfos_Account`,`deleteInfos_Name`,`deleteDate`,`createdDate`
-
-
-
-    QueryResult *result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADFROM);
-
-    if (!result)
+    if (!character)
     {
         sLog.outError("%s not found in table `characters`, can't load. ", guid.GetString().c_str());
         return false;
     }
 
-    Field* fields = result->Fetch();
-
-    uint32 dbAccountId = fields[1].GetUInt32();
+    uint32 dbAccountId = character->account;
 
     // check if the character's account in the db and the logged in account match.
     // player should be able to load/delete character only with correct account!
@@ -111,7 +98,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     {
         sLog.outError("%s loading from wrong account (is: %u, should be: %u)",
                       guid.GetString().c_str(), GetSession()->GetAccountId(), dbAccountId);
-        delete result;
         return false;
     }
 
@@ -123,13 +109,12 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     // database. Nothing inside LoadFromDB reads it; the position is for the reader.
     _LoadPetCache(holder);
 
-    m_name = fields[2].GetCppString();
+    m_name = character->name;
 
     // check name limitations
     if (ObjectMgr::CheckPlayerName(m_name) != CHAR_NAME_SUCCESS ||
             (GetSession()->GetSecurity() == SEC_PLAYER && sObjectMgr.IsReservedName(m_name)))
     {
-        delete result;
         CharacterRepository::SetAtLoginFlag(uint32(AT_LOGIN_RENAME), guid.GetCounter());
         return false;
     }
@@ -138,20 +123,20 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     SetGuidValue(OBJECT_FIELD_GUID, guid);
 
     // overwrite some data fields
-    SetByteValue(UNIT_FIELD_BYTES_0, 0, fields[3].GetUInt8()); // race
-    SetByteValue(UNIT_FIELD_BYTES_0, 1, fields[4].GetUInt8()); // class
+    SetByteValue(UNIT_FIELD_BYTES_0, 0, character->race); // race
+    SetByteValue(UNIT_FIELD_BYTES_0, 1, character->classId); // class
 
     // Decoupling D4k: the reputation manager's owner facts, fixed from here on
     m_reputationMgr.SetOwnerFacts(getRaceMask(), getClassMask(), GetName());
 
-    uint8 gender = fields[5].GetUInt8() & 0x01;
+    uint8 gender = character->gender & 0x01;
     SetByteValue(UNIT_FIELD_BYTES_0, 2, gender);            // gender
 
-    SetUInt32Value(UNIT_FIELD_LEVEL, fields[6].GetUInt8());
-    SetUInt32Value(PLAYER_XP, fields[7].GetUInt32());
+    SetUInt32Value(UNIT_FIELD_LEVEL, character->level);
+    SetUInt32Value(PLAYER_XP, character->xp);
 
-    _LoadIntoDataField(fields[54].GetString(), PLAYER_EXPLORED_ZONES_1, PLAYER_EXPLORED_ZONES_SIZE);
-    _LoadIntoDataField(fields[56].GetString(), PLAYER__FIELD_KNOWN_TITLES, KNOWN_TITLES_SIZE*2);
+    _LoadIntoDataField(character->exploredZones ? character->exploredZones->c_str() : NULL, PLAYER_EXPLORED_ZONES_1, PLAYER_EXPLORED_ZONES_SIZE);
+    _LoadIntoDataField(character->knownTitles ? character->knownTitles->c_str() : NULL, PLAYER__FIELD_KNOWN_TITLES, KNOWN_TITLES_SIZE*2);
 
     InitDisplayIds();                                       // model, scale and model data
 
@@ -159,28 +144,28 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     // just load criteria/achievement data, safe call before any load, and need, because some spell/item/quest loading
     // can triggering achievement criteria update that will be lost if this call will later
-    m_achievementMgr->LoadFromDB(holder->GetResult(PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS), holder->GetResult(PLAYER_LOGIN_QUERY_LOADCRITERIAPROGRESS));
+    m_achievementMgr->LoadFromDB(CharacterRepository::LoginAchievements(holder), CharacterRepository::LoginCriteriaProgress(holder));
 
-    uint64 money = fields[8].GetUInt64();
+    uint64 money = character->money;
     if (money > MAX_MONEY_AMOUNT)
     {
         money = MAX_MONEY_AMOUNT;
     }
     SetMoney(money);
 
-    SetUInt32Value(PLAYER_BYTES, fields[9].GetUInt32());
-    SetUInt32Value(PLAYER_BYTES_2, fields[10].GetUInt32());
+    SetUInt32Value(PLAYER_BYTES, character->playerBytes);
+    SetUInt32Value(PLAYER_BYTES_2, character->playerBytes2);
 
     SetByteValue(PLAYER_BYTES_3, 0, gender);
-    SetByteValue(PLAYER_BYTES_3, 1, fields[45].GetUInt8());
+    SetByteValue(PLAYER_BYTES_3, 1, character->drunk);
 
-    SetUInt32Value(PLAYER_FLAGS, fields[11].GetUInt32());
-    SetInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX, fields[44].GetInt32());
+    SetUInt32Value(PLAYER_FLAGS, character->playerFlags);
+    SetInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX, character->watchedFaction);
 
     // Action bars state
-    SetByteValue(PLAYER_FIELD_BYTES, 2, fields[57].GetUInt8());
+    SetByteValue(PLAYER_FIELD_BYTES, 2, character->actionBars);
 
-    m_slot = fields[58].GetUInt8();
+    m_slot = character->slot;
 
     // cleanup inventory related item value fields (its will be filled correctly in _LoadInventory)
     for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
@@ -203,18 +188,17 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     // load home bind and check in same time class/race pair, it used later for restore broken positions
     if (!_LoadHomeBind(CharacterRepository::LoginHomeBind(holder)))
     {
-        delete result;
         return false;
     }
 
     InitPrimaryProfessions();                               // to max set before any spell loaded
 
     // init saved position, and fix it later if problematic
-    uint32 transGUID = fields[31].GetUInt32();
-    Place().MoveTo(fields[12].GetFloat(), fields[13].GetFloat(), fields[14].GetFloat(), fields[16].GetFloat());
-    SetLocationMapId(fields[15].GetUInt32());
+    uint32 transGUID = character->transguid;
+    Place().MoveTo(character->positionX, character->positionY, character->positionZ, character->orientation);
+    SetLocationMapId(character->map);
 
-    uint32 difficulty = fields[39].GetUInt32();
+    uint32 difficulty = character->dungeonDifficulty;
     if (difficulty >= MAX_DUNGEON_DIFFICULTY || getLevel() < LEVELREQUIREMENT_HEROIC)
     {
         difficulty = DUNGEON_DIFFICULTY_NORMAL;
@@ -247,9 +231,9 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         }
     }
 
-    SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, fields[40].GetUInt32());
-    SetUInt16Value(PLAYER_FIELD_KILLS, 0, fields[41].GetUInt16()); // today
-    SetUInt16Value(PLAYER_FIELD_KILLS, 1, fields[42].GetUInt16()); // yesterday
+    SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, character->totalKills);
+    SetUInt16Value(PLAYER_FIELD_KILLS, 0, character->todayKills); // today
+    SetUInt16Value(PLAYER_FIELD_KILLS, 1, character->yesterdayKills); // yesterday
 
     _LoadBoundInstances(CharacterRepository::LoginBoundInstances(holder));
 
@@ -324,7 +308,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     if (transGUID != 0)
     {
-        m_movementInfo.SetTransportData(ObjectGuid(HIGHGUID_MO_TRANSPORT, transGUID), fields[27].GetFloat(), fields[28].GetFloat(), fields[29].GetFloat(), fields[30].GetFloat(), 0, -1);
+        m_movementInfo.SetTransportData(ObjectGuid(HIGHGUID_MO_TRANSPORT, transGUID), character->transX, character->transY, character->transZ, character->transO, 0, -1);
 
         if (!MaNGOS::IsValidMapCoord(
                     Where().X() + m_movementInfo.GetTransportPos()->x, Where().Y() + m_movementInfo.GetTransportPos()->y,
@@ -424,7 +408,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     SaveRecallPosition();
 
     time_t now = time(NULL);
-    time_t logoutTime = time_t(fields[22].GetUInt64());
+    time_t logoutTime = time_t(character->logoutTime);
 
     // since last logout (in seconds)
     uint32 time_diff = uint32(now - logoutTime);
@@ -439,12 +423,12 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     SetDrunkValue(newDrunkValue);
 
-    m_cinematic = fields[18].GetUInt32();
-    m_Played_time[PLAYED_TIME_TOTAL] = fields[19].GetUInt32();
-    m_Played_time[PLAYED_TIME_LEVEL] = fields[20].GetUInt32();
+    m_cinematic = character->cinematic;
+    m_Played_time[PLAYED_TIME_TOTAL] = character->totaltime;
+    m_Played_time[PLAYED_TIME_LEVEL] = character->leveltime;
 
-    m_talentMgr.SetResetCost(fields[24].GetUInt32());
-    m_talentMgr.SetResetTime(time_t(fields[25].GetUInt64()));
+    m_talentMgr.SetResetCost(character->resettalentsCost);
+    m_talentMgr.SetResetTime(time_t(character->resettalentsTime));
 
     // reserve some flags
     uint32 old_safe_flags = GetUInt32Value(PLAYER_FLAGS) & (PLAYER_FLAGS_HIDE_CLOAK | PLAYER_FLAGS_HIDE_HELM);
@@ -454,26 +438,26 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         SetUInt32Value(PLAYER_FLAGS, 0 | old_safe_flags);
     }
 
-    m_taxi.LoadTaxiMask(fields[17].GetString());            // must be before InitTaxiNodesForLevel
+    m_taxi.LoadTaxiMask(character->taximask ? character->taximask->c_str() : NULL); // must be before InitTaxiNodesForLevel
 
-    uint32 extraflags = fields[32].GetUInt32();
+    uint32 extraflags = character->extraFlags;
 
-    m_petMgr.LoadStableSlotsFromField(fields[33].GetUInt32());
+    m_petMgr.LoadStableSlotsFromField(character->stableSlots);
 
-    m_atLoginFlags = fields[34].GetUInt32();
+    m_atLoginFlags = character->atLogin;
 
     // Honor system
     // Update Honor kills data
     m_honorMgr.SetLastKillUpdate(logoutTime);
     UpdateHonorKills();
 
-    m_deathExpireTime = (time_t)fields[37].GetUInt64();
+    m_deathExpireTime = (time_t)character->deathExpireTime;
     if (m_deathExpireTime > now + MAX_DEATH_COUNT * DEATH_EXPIRE_STEP)
     {
         m_deathExpireTime = now + MAX_DEATH_COUNT * DEATH_EXPIRE_STEP - 1;
     }
 
-    std::string taxi_nodes = fields[38].GetCppString();
+    std::string taxi_nodes = character->taxiPath;
 
     // clear channel spell data (if saved at channel spell casting)
     SetChannelObjectGuid(ObjectGuid());
@@ -503,10 +487,10 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     SetGuidValue(PLAYER_DUEL_ARBITER, ObjectGuid());
     SetUInt32Value(PLAYER_DUEL_TEAM, 0);
 
-    m_talentMgr.SetSpecsCount(fields[52].GetUInt8());
-    m_talentMgr.SetActiveSpec(fields[53].GetUInt8());
+    m_talentMgr.SetSpecsCount(character->specCount);
+    m_talentMgr.SetActiveSpec(character->activeSpec);
 
-    Tokens talentTrees = StrSplit(fields[26].GetString(), " ");
+    Tokens talentTrees = StrSplit(character->primaryTrees, " ");
     for (uint8 i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
     {
         if (i >= talentTrees.size())
@@ -532,11 +516,11 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     InitRunes();
 
     // rest bonus can only be calculated after InitStatsForLevel()
-    m_rest_bonus = fields[21].GetFloat();
+    m_rest_bonus = character->restBonus;
 
     if (time_diff > 0)
     {
-        SetRestBonus(GetRestBonus() + ComputeRest(time_diff, true, (fields[23].GetInt32() > 0)));
+        SetRestBonus(GetRestBonus() + ComputeRest(time_diff, true, (character->isLogoutResting > 0)));
     }
 
     // load skills after InitStatsForLevel because it triggering aura apply also
@@ -587,11 +571,11 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     _LoadActions(CharacterRepository::LoginActions(holder));
 
-    m_social = sSocialMgr.LoadFromDB(holder->GetResult(PLAYER_LOGIN_QUERY_LOADSOCIALLIST), GetObjectGuid());
+    m_social = sSocialMgr.LoadFromDB(SocialRepository::ReadHolder(holder, PLAYER_LOGIN_QUERY_LOADSOCIALLIST), GetObjectGuid());
 
     // check PLAYER_CHOSEN_TITLE compatibility with PLAYER__FIELD_KNOWN_TITLES
     // note: PLAYER__FIELD_KNOWN_TITLES updated at quest status loaded
-    uint32 curTitle = fields[43].GetUInt32();
+    uint32 curTitle = character->chosenTitle;
     if (curTitle && !HasTitle(curTitle))
     {
         curTitle = 0;
@@ -667,22 +651,19 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     UpdateAllStats();
 
     // restore remembered power/health values (but not more max values)
-    uint32 savedhealth = fields[46].GetUInt32();
+    uint32 savedhealth = character->health;
     SetHealth(savedhealth > GetMaxHealth() ? GetMaxHealth() : savedhealth);
     for (uint32 i = 0; i < MAX_STORED_POWERS; ++i)
     {
-        uint32 savedpower = fields[47 + i].GetUInt32();
+        uint32 savedpower = character->power[i];
         SetPowerByIndex(i, std::min(savedpower, GetMaxPowerByIndex(i)));
     }
 
-    uint32 createdDate = fields[59].GetUInt32();
+    uint32 createdDate = character->createdDate;
     SetCreatedDate(createdDate);
 
     DEBUG_FILTER_LOG(LOG_FILTER_PLAYER_STATS, "The value of player %s after load item and aura is: ", m_name.c_str());
     outDebugStatsValues();
-
-    // all fields read
-    delete result;
 
     // GM state
     if (GetSession()->GetSecurity() > SEC_PLAYER)

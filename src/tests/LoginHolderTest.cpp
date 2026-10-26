@@ -36,6 +36,8 @@
 #include "persistence/characters/social/ReputationRepository.h"
 #include "persistence/characters/quests/QuestStatusRepository.h"
 #include "persistence/characters/spells/SpellCooldownRepository.h"
+#include "persistence/characters/social/SocialRepository.h"
+#include "persistence/characters/account/AccountDataRepository.h"
 
 #include <optional>
 #include <vector>
@@ -574,4 +576,308 @@ TEST(CharacterRepository_LoginItemLoot)
     CHECK_EQ(rows[0].suffix, 1003u);
     CHECK_EQ(rows[0].property, -1004);
     CHECK_EQ(rows[1].itemGuid, 2000u);
+}
+
+// Each column of the login's `characters` row lands in its member, and no rows answer nothing.
+TEST(CharacterRepository_LoginCharacter)
+{
+    {
+        SqlQueryHolder holder;
+        holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+        CHECK(!CharacterRepository::LoginCharacter(&holder));
+    }
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADFROM, CannedResult(FakeRows{
+        FakeRow{"0", "1001", "s1.2", "103", "104", "105", "106", "1007", "4294967304", "1009",
+            "1010", "1011", "1012.5", "1013.5", "1014.5", "1015", "1016.5", "s1.17", "1018",
+            "1019", "1020", "1021.5", "4294967318", "-1023", "1024", "4294967321", "s1.26",
+            "1027.5", "1028.5", "1029.5", "1030.5", "1031", "1032", "1033", "1034", "0", "0",
+            "4294967333", "s1.38", "1039", "1040", "10041", "10042", "1043", "-1044", "145",
+            "1046", "1047", "1048", "1049", "1050", "1051", "152", "153", "s1.54", "0", "s1.56",
+            "157", "158", "1059"},
+        FakeRow{"0", "2001", "s2.2", "203", "204", "205", "206", "2007", "8589934600", "2009",
+            "2010", "2011", "2012.5", "2013.5", "2014.5", "2015", "2016.5", "s2.17", "2018",
+            "2019", "2020", "2021.5", "8589934614", "-2023", "2024", "8589934617", "s2.26",
+            "2027.5", "2028.5", "2029.5", "2030.5", "2031", "2032", "2033", "2034", "0", "0",
+            "8589934629", "s2.38", "2039", "2040", "20041", "20042", "2043", "-2044", "245",
+            "2046", "2047", "2048", "2049", "2050", "2051", "252", "253", "s2.54", "0", "s2.56",
+            "1", "2", "2059"},
+    }));
+    std::optional<LoginCharacterRow> row = CharacterRepository::LoginCharacter(&holder);
+    REQUIRE(row);
+    CHECK_EQ(row->account, 1001u);
+    CHECK_STR(row->name, "s1.2");
+    CHECK_EQ(row->race, uint8(103));
+    CHECK_EQ(row->classId, uint8(104));
+    CHECK_EQ(row->gender, uint8(105));
+    CHECK_EQ(row->level, uint8(106));
+    CHECK_EQ(row->xp, 1007u);
+    CHECK_EQ(row->money, uint64(4294967304ull));
+    CHECK_EQ(row->playerBytes, 1009u);
+    CHECK_EQ(row->playerBytes2, 1010u);
+    CHECK_EQ(row->playerFlags, 1011u);
+    CHECK_EQ(row->positionX, 1012.5f);
+    CHECK_EQ(row->positionY, 1013.5f);
+    CHECK_EQ(row->positionZ, 1014.5f);
+    CHECK_EQ(row->map, 1015u);
+    CHECK_EQ(row->orientation, 1016.5f);
+    REQUIRE(row->taximask);
+    CHECK_STR(*row->taximask, "s1.17");
+    CHECK_EQ(row->cinematic, 1018u);
+    CHECK_EQ(row->totaltime, 1019u);
+    CHECK_EQ(row->leveltime, 1020u);
+    CHECK_EQ(row->restBonus, 1021.5f);
+    CHECK_EQ(row->logoutTime, uint64(4294967318ull));
+    CHECK_EQ(row->isLogoutResting, -1023);
+    CHECK_EQ(row->resettalentsCost, 1024u);
+    CHECK_EQ(row->resettalentsTime, uint64(4294967321ull));
+    CHECK_STR(row->primaryTrees, "s1.26");
+    CHECK_EQ(row->transX, 1027.5f);
+    CHECK_EQ(row->transY, 1028.5f);
+    CHECK_EQ(row->transZ, 1029.5f);
+    CHECK_EQ(row->transO, 1030.5f);
+    CHECK_EQ(row->transguid, 1031u);
+    CHECK_EQ(row->extraFlags, 1032u);
+    CHECK_EQ(row->stableSlots, 1033u);
+    CHECK_EQ(row->atLogin, 1034u);
+    CHECK_EQ(row->deathExpireTime, uint64(4294967333ull));
+    CHECK_STR(row->taxiPath, "s1.38");
+    CHECK_EQ(row->dungeonDifficulty, 1039u);
+    CHECK_EQ(row->totalKills, 1040u);
+    CHECK_EQ(row->todayKills, uint16(10041));
+    CHECK_EQ(row->yesterdayKills, uint16(10042));
+    CHECK_EQ(row->chosenTitle, 1043u);
+    CHECK_EQ(row->watchedFaction, -1044);
+    CHECK_EQ(row->drunk, uint8(145));
+    CHECK_EQ(row->health, 1046u);
+    CHECK_EQ(row->power[0], 1047u);
+    CHECK_EQ(row->power[1], 1048u);
+    CHECK_EQ(row->power[2], 1049u);
+    CHECK_EQ(row->power[3], 1050u);
+    CHECK_EQ(row->power[4], 1051u);
+    CHECK_EQ(row->specCount, uint8(152));
+    CHECK_EQ(row->activeSpec, uint8(153));
+    REQUIRE(row->exploredZones);
+    CHECK_STR(*row->exploredZones, "s1.54");
+    REQUIRE(row->knownTitles);
+    CHECK_STR(*row->knownTitles, "s1.56");
+    CHECK_EQ(row->actionBars, uint8(157));
+    CHECK_EQ(row->slot, uint8(158));
+    CHECK_EQ(row->createdDate, 1059u);
+}
+
+// Each column of a completed achievement of the login lands in its member, and the rows come back
+// in order.
+TEST(CharacterRepository_LoginAchievements)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS, CannedResult(FakeRows{
+        FakeRow{"1000", "4294967297"},
+        FakeRow{"2000", "8589934593"},
+    }));
+    std::vector<LoginAchievementRow> rows = CharacterRepository::LoginAchievements(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].achievement, 1000u);
+    CHECK_EQ(rows[0].date, uint64(4294967297ull));
+    CHECK_EQ(rows[1].achievement, 2000u);
+}
+
+// Each column of a criteria's progress of the login lands in its member, and the rows come back in
+// order.
+TEST(CharacterRepository_LoginCriteriaProgress)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADCRITERIAPROGRESS, CannedResult(FakeRows{
+        FakeRow{"1000", "1001", "4294967298"},
+        FakeRow{"2000", "2001", "8589934594"},
+    }));
+    std::vector<LoginCriteriaProgressRow> rows = CharacterRepository::LoginCriteriaProgress(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].criteria, 1000u);
+    CHECK_EQ(rows[0].counter, 1001u);
+    CHECK_EQ(rows[0].date, uint64(4294967298ull));
+    CHECK_EQ(rows[1].criteria, 2000u);
+}
+
+// Each column of a `character_pet` row of the login lands in its member, and the rows come back in
+// order.
+TEST(CharacterRepository_LoginPets)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADPETS, CannedResult(FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003", "1004", "1005", "106", "1007", "s1.8", "109",
+            "1010", "1011", "s1.12", "4294967309", "1014", "4294967311", "1016", "117"},
+        FakeRow{"2000", "2001", "2002", "2003", "2004", "2005", "206", "2007", "s2.8", "209",
+            "2010", "2011", "s2.12", "8589934605", "2014", "8589934607", "2016", "217"},
+    }));
+    std::vector<LoginPetRow> rows = CharacterRepository::LoginPets(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_EQ(rows[0].entry, 1001u);
+    CHECK_EQ(rows[0].owner, 1002u);
+    CHECK_EQ(rows[0].modelId, 1003u);
+    CHECK_EQ(rows[0].level, 1004u);
+    CHECK_EQ(rows[0].exp, 1005u);
+    CHECK_EQ(rows[0].reactState, uint8(106));
+    CHECK_EQ(rows[0].slot, 1007u);
+    CHECK_STR(rows[0].name, "s1.8");
+    CHECK_EQ(rows[0].renamed, uint8(109));
+    CHECK_EQ(rows[0].curHealth, 1010u);
+    CHECK_EQ(rows[0].curMana, 1011u);
+    CHECK_STR(rows[0].abData, "s1.12");
+    CHECK_EQ(rows[0].saveTime, uint64(4294967309ull));
+    CHECK_EQ(rows[0].resetTalentsCost, 1014u);
+    CHECK_EQ(rows[0].resetTalentsTime, uint64(4294967311ull));
+    CHECK_EQ(rows[0].createdBySpell, 1016u);
+    CHECK_EQ(rows[0].petType, uint8(117));
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of a `pet_aura` row of the login lands in its member, and the rows come back in
+// order.
+TEST(CharacterRepository_LoginPetAuras)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADPETAURAS, CannedResult(FakeRows{
+        FakeRow{"1000", "4294967297", "1002", "1003", "1004", "1005", "-1006", "-1007", "-1008",
+            "1009", "1010", "1011", "-1012", "-1013", "1014"},
+        FakeRow{"2000", "8589934593", "2002", "2003", "2004", "2005", "-2006", "-2007", "-2008",
+            "2009", "2010", "2011", "-2012", "-2013", "2014"},
+    }));
+    std::vector<LoginPetAuraRow> rows = CharacterRepository::LoginPetAuras(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].petId, 1000u);
+    CHECK_EQ(rows[0].casterGuid, uint64(4294967297ull));
+    CHECK_EQ(rows[0].itemGuid, 1002u);
+    CHECK_EQ(rows[0].spell, 1003u);
+    CHECK_EQ(rows[0].stackCount, 1004u);
+    CHECK_EQ(rows[0].remainCharges, 1005u);
+    CHECK_EQ(rows[0].basePoints[0], -1006);
+    CHECK_EQ(rows[0].basePoints[1], -1007);
+    CHECK_EQ(rows[0].basePoints[2], -1008);
+    CHECK_EQ(rows[0].periodicTime[0], 1009u);
+    CHECK_EQ(rows[0].periodicTime[1], 1010u);
+    CHECK_EQ(rows[0].periodicTime[2], 1011u);
+    CHECK_EQ(rows[0].maxDuration, -1012);
+    CHECK_EQ(rows[0].remainTime, -1013);
+    CHECK_EQ(rows[0].effIndexMask, 1014u);
+    CHECK_EQ(rows[1].petId, 2000u);
+}
+
+// Each column of a `pet_spell` row of the login lands in its member, and the rows come back in
+// order.
+TEST(CharacterRepository_LoginPetSpells)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADPETSPELLS, CannedResult(FakeRows{
+        FakeRow{"1000", "1001", "102"},
+        FakeRow{"2000", "2001", "202"},
+    }));
+    std::vector<LoginPetSpellRow> rows = CharacterRepository::LoginPetSpells(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].petId, 1000u);
+    CHECK_EQ(rows[0].spell, 1001u);
+    CHECK_EQ(rows[0].active, uint8(102));
+    CHECK_EQ(rows[1].petId, 2000u);
+}
+
+// Each column of a `pet_spell_cooldown` row of the login lands in its member, and the rows come
+// back in order.
+TEST(CharacterRepository_LoginPetSpellCooldowns)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADPETSPELLCOOLDOWNS, CannedResult(FakeRows{
+        FakeRow{"1000", "1001", "4294967298"},
+        FakeRow{"2000", "2001", "8589934594"},
+    }));
+    std::vector<LoginPetSpellCooldownRow> rows = CharacterRepository::LoginPetSpellCooldowns(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].petId, 1000u);
+    CHECK_EQ(rows[0].spell, 1001u);
+    CHECK_EQ(rows[0].time, uint64(4294967298ull));
+    CHECK_EQ(rows[1].petId, 2000u);
+}
+
+// Each column of a `character_pet_declinedname` row of the login lands in its member, and the rows
+// come back in order.
+TEST(CharacterRepository_LoginPetDeclinedNames)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADPETDECLINEDNAMES, CannedResult(FakeRows{
+        FakeRow{"1000", "s1.1", "s1.2", "s1.3", "s1.4", "s1.5"},
+        FakeRow{"2000", "s2.1", "s2.2", "s2.3", "s2.4", "s2.5"},
+    }));
+    std::vector<LoginPetDeclinedNameRow> rows = CharacterRepository::LoginPetDeclinedNames(&holder);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].petId, 1000u);
+    CHECK_STR(rows[0].name[0], "s1.1");
+    CHECK_STR(rows[0].name[1], "s1.2");
+    CHECK_STR(rows[0].name[2], "s1.3");
+    CHECK_STR(rows[0].name[3], "s1.4");
+    CHECK_STR(rows[0].name[4], "s1.5");
+    CHECK_EQ(rows[1].petId, 2000u);
+}
+
+// Each column of a listed character's saved row lands in its member, and the rows come back in
+// order.
+TEST(SocialRepository_ReadHolder)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(1);
+    holder.SetResult(0, CannedResult(FakeRows{
+        FakeRow{"1000", "1001", "s1.2"},
+        FakeRow{"2000", "2001", "s2.2"},
+    }));
+    std::vector<SocialRow> rows = SocialRepository::ReadHolder(&holder, 0);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].friendGuid, 1000u);
+    CHECK_EQ(rows[0].flags, 1001u);
+    CHECK_STR(rows[0].note, "s1.2");
+    CHECK_EQ(rows[1].friendGuid, 2000u);
+}
+
+// Each column of the login's `guild_member` row lands in its member, and no rows answer nothing.
+TEST(CharacterRepository_LoginGuild)
+{
+    {
+        SqlQueryHolder holder;
+        holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+        CHECK(!CharacterRepository::LoginGuild(&holder));
+    }
+    SqlQueryHolder holder;
+    holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
+    holder.SetResult(PLAYER_LOGIN_QUERY_LOADGUILD, CannedResult(FakeRows{
+        FakeRow{"1000", "1001"},
+        FakeRow{"2000", "2001"},
+    }));
+    std::optional<LoginGuildRow> row = CharacterRepository::LoginGuild(&holder);
+    REQUIRE(row);
+    CHECK_EQ(row->guildId, 1000u);
+    CHECK_EQ(row->rank, 1001u);
+}
+
+// Each column of a saved data block of the client lands in its member, and the rows come back in
+// order.
+TEST(AccountDataRepository_ReadHolder)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(1);
+    holder.SetResult(0, CannedResult(FakeRows{
+        FakeRow{"1000", "4294967297", "s1.2"},
+        FakeRow{"2000", "8589934593", "s2.2"},
+    }));
+    std::vector<AccountDataRow> rows = AccountDataRepository::ReadHolder(&holder, 0);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].type, 1000u);
+    CHECK_EQ(rows[0].time, uint64(4294967297ull));
+    CHECK_STR(rows[0].data, "s1.2");
+    CHECK_EQ(rows[1].type, 2000u);
 }

@@ -39,6 +39,7 @@
 #include "persistence/login/AccountRepository.h"
 #include "persistence/login/RealmRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -420,4 +421,26 @@ TEST(CharacterRepository_CacheRows)
     CHECK_EQ(rows[0].positionY, 1009.5f);
     CHECK_EQ(rows[0].positionZ, 1010.5f);
     CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a character's saved position lands in its member, and no rows answer nothing.
+TEST(CharacterRepository_Position)
+{
+    {
+        Db db(CharacterDatabase);
+        CHECK(!CharacterRepository::QueryPosition(42));
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000.5", "1001.5", "1002.5", "1003.5", "1004", "s1.5"},
+        FakeRow{"2000.5", "2001.5", "2002.5", "2003.5", "2004", "s2.5"},
+    });
+    std::optional<CharacterPositionRow> row = CharacterRepository::QueryPosition(42);
+    REQUIRE(row);
+    CHECK_EQ(row->positionX, 1000.5f);
+    CHECK_EQ(row->positionY, 1001.5f);
+    CHECK_EQ(row->positionZ, 1002.5f);
+    CHECK_EQ(row->orientation, 1003.5f);
+    CHECK_EQ(row->map, 1004u);
+    CHECK_STR(row->taxiPath, "s1.5");
 }

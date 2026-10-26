@@ -40,6 +40,7 @@
 #include "persistence/characters/social/PetitionRepository.h"
 #include "persistence/characters/social/TicketRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -234,4 +235,51 @@ TEST(CharacterDeleteRepository_DeleteCodMailItems)
     CHECK_EQ(rows[0].itemTemplate, 1003u);
     CHECK_EQ(rows[0].mailId, 1004u);
     CHECK_STR(rows[1].instance.text, "s2.1");
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(CharacterDeleteRepository_DeleteGroupId)
+{
+    {
+        SqlQueryHolder holder;
+        holder.SetSize(PLAYER_DELETE_READ_WITH_OWNER_COUNT);
+        std::optional<uint32> value = CharacterDeleteRepository::DeleteGroupId(&holder);
+        CHECK(!value);
+    }
+    SqlQueryHolder holder;
+    holder.SetSize(PLAYER_DELETE_READ_WITH_OWNER_COUNT);
+    holder.SetResult(PLAYER_DELETE_READ_GROUP, CannedResult(FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    }));
+    std::optional<uint32> value = CharacterDeleteRepository::DeleteGroupId(&holder);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(CharacterDeleteRepository_DeletePetIds)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(PLAYER_DELETE_READ_WITH_OWNER_COUNT);
+    holder.SetResult(PLAYER_DELETE_READ_PETS, CannedResult(FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    }));
+    std::vector<uint32> values = CharacterDeleteRepository::DeletePetIds(&holder);
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(CharacterDeleteRepository_DeleteFriendGuids)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(PLAYER_DELETE_READ_WITH_OWNER_COUNT);
+    holder.SetResult(PLAYER_DELETE_READ_FRIENDS, CannedResult(FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    }));
+    std::vector<uint32> values = CharacterDeleteRepository::DeleteFriendGuids(&holder);
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
 }

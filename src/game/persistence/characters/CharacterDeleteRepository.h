@@ -27,6 +27,7 @@
 #define MANGOS_H_CHARACTERDELETEREPOSITORY
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
@@ -82,8 +83,9 @@ struct DeleteCodMailItemRow
 
 /// A character's delete as the database sees it: the reads the delete needs, every row it deletes,
 /// the soft delete that keeps the row, and the purge of soft-deleted characters. Every read is
-/// asynchronous, and the answered COD mail slots are read into rows; every write is queued on the
-/// character database, and one called inside CharacterTransaction joins it.
+/// asynchronous, and the answered group, pet, friend and COD mail slots are read into values and
+/// rows; every write is queued on the character database, and one called inside
+/// CharacterTransaction joins it.
 namespace CharacterDeleteRepository
 {
     /// Stages the delete's reads into a holder sized to at least PLAYER_DELETE_READ_COUNT: the
@@ -107,6 +109,15 @@ namespace CharacterDeleteRepository
 
     /// Asks for the soft-deleted characters deleted before a time: guid and the account they had.
     void QueryDeletedBefore(uint64 time, std::function<void(QueryResult*)> callback);
+
+    /// Reads the delete holder's group id, none when the character is in no group.
+    std::optional<uint32> DeleteGroupId(SqlQueryHolder* holder);
+
+    /// Reads the delete holder's pet ids.
+    std::vector<uint32> DeletePetIds(SqlQueryHolder* holder);
+
+    /// Reads the delete holder's guids of the characters that list the character.
+    std::vector<uint32> DeleteFriendGuids(SqlQueryHolder* holder);
 
     /// Reads the delete holder's COD mails, ordered by id.
     std::vector<DeleteCodMailRow> DeleteCodMails(SqlQueryHolder* holder);
