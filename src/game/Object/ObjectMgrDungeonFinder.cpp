@@ -48,14 +48,14 @@
 #include "DisableMgr.h"
 
 #include <limits>
+#include "persistence/world/maps/DungeonDataRepository.h"
 
 void ObjectMgr::LoadDungeonFinderRequirements()
 {
     uint32 count = 0;
     m_dungeonFinder.ClearRequirements();      // in case of a reload
 
-    //                                                0      1           2               3     4       5               6            7            8
-    QueryResult* result = WorldDatabase.Query("SELECT `mapId`, `difficulty`, `min_item_level`, `item`, `item_2`, `alliance_quest`, `horde_quest`, `achievement`, `quest_incomplete_text` FROM `dungeonfinder_requirements`");
+    QueryResult* result = DungeonDataRepository::QueryDungeonFinderRequirements();
 
     if (!result)
     {
@@ -161,8 +161,7 @@ void ObjectMgr::LoadDungeonFinderRewards()
     uint32 count = 0;
     m_dungeonFinder.ClearRewards();      // in case of a reload
 
-    //                                                 0     1        2                 3
-    QueryResult* result = WorldDatabase.Query("SELECT `id`, `level`, `base_xp_reward`, `base_monetary_reward` FROM `dungeonfinder_rewards`");
+    QueryResult* result = DungeonDataRepository::QueryDungeonFinderRewards();
 
     if (!result)
     {
@@ -204,8 +203,7 @@ void ObjectMgr::LoadDungeonFinderItems()
     uint32 count = 0;
     m_dungeonFinder.ClearItems();   // in case of reload
 
-    //                                                 0     1            2            3              4              5
-    QueryResult* result = WorldDatabase.Query("SELECT `id`, `min_level`, `max_level`, `item_reward`, `item_amount`, `dungeon_type` FROM `dungeonfinder_item_rewards`");
+    QueryResult* result = DungeonDataRepository::QueryDungeonFinderItemRewards();
 
     if (!result)
     {
@@ -250,8 +248,7 @@ void ObjectMgr::LoadLfgDungeonEntrances()
     uint32 count = 0;
     m_lfgDungeonEntrances.Clear();     // in case of a reload
 
-    //                                                 0            1             2             3             4
-    QueryResult* result = WorldDatabase.Query("SELECT `dungeonId`, `position_x`, `position_y`, `position_z`, `orientation` FROM `lfg_dungeon_entrances`");
+    QueryResult* result = DungeonDataRepository::QueryDungeonEntrances();
 
     if (!result)
     {

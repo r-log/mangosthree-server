@@ -38,6 +38,7 @@
 #include "Group.h"
 #include "persistence/characters/social/ArenaTeamRepository.h"
 #include "persistence/characters/social/GroupRepository.h"
+#include "persistence/world/maps/DungeonDataRepository.h"
 
 /**
  * @brief Gets instance template data by map id.
@@ -269,7 +270,7 @@ void ObjectMgr::LoadInstanceEncounters()
 {
     m_DungeonEncounters.clear();         // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`, `creditType`, `creditEntry`, `lastEncounterDungeon` FROM `instance_encounters`");
+    QueryResult* result = DungeonDataRepository::QueryInstanceEncounters();
 
     if (!result)
     {

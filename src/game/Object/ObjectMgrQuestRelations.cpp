@@ -33,6 +33,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "SQLStorages.h"
+#include "persistence/world/quests/QuestDataRepository.h"
 
 /**
  * @brief Loads quest relation mappings for a specific actor and role.
@@ -47,7 +48,7 @@ void ObjectMgr::LoadQuestRelationsHelper(QuestRelationsMap& map, QuestActor acto
 
     uint32 count = 0;
 
-    QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d AND `role` = %d", actor, role);
+    QueryResult* result = QuestDataRepository::QueryQuestRelations(actor, role);
 
     if (!result)
     {

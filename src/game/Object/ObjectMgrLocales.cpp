@@ -38,6 +38,7 @@
 #include "ProgressBar.h"
 #include "SQLStorages.h"
 #include "DBCStores.h"
+#include "persistence/world/locales/LocaleDataRepository.h"
 
 /**
  * @brief Loads localized creature names and subnames from the database.
@@ -46,14 +47,7 @@ void ObjectMgr::LoadCreatureLocales()
 {
     mCreatureLocaleMap.clear();                             // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,"
-                                              "`name_loc1`,`subname_loc1`,`name_loc2`,`subname_loc2`,"
-                                              "`name_loc3`,`subname_loc3`,`name_loc4`,`subname_loc4`,"
-                                              "`name_loc5`,`subname_loc5`,`name_loc6`,`subname_loc6`,"
-                                              "`name_loc7`,`subname_loc7`,`name_loc8`,`subname_loc8`,"
-                                              "`name_loc9`,`subname_loc9`,`name_loc10`,`subname_loc10`,"
-                                              "`name_loc11`,`subname_loc11`"
-                                              " FROM `locales_creature`");
+    QueryResult* result = LocaleDataRepository::QueryCreatureLocales();
     if (!result)
     {
         BarGoLink bar(1);
@@ -126,14 +120,7 @@ void ObjectMgr::LoadGossipMenuItemsLocales()
 {
     mGossipMenuItemsLocaleMap.clear();                      // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `menu_id`,`id`,"
-                                              "`option_text_loc1`,`box_text_loc1`,`option_text_loc2`,`box_text_loc2`,"
-                                              "`option_text_loc3`,`box_text_loc3`,`option_text_loc4`,`box_text_loc4`,"
-                                              "`option_text_loc5`,`box_text_loc5`,`option_text_loc6`,`box_text_loc6`,"
-                                              "`option_text_loc7`,`box_text_loc7`,`option_text_loc8`,`box_text_loc8`,"
-                                              "`option_text_loc9`,`box_text_loc9`,`option_text_loc10`,`box_text_loc10`,"
-                                              "`option_text_loc11`,`box_text_loc11` "
-                                              "FROM `locales_gossip_menu_option`");
+    QueryResult* result = LocaleDataRepository::QueryGossipMenuOptionLocales();
 
     if (!result)
     {
@@ -226,11 +213,7 @@ void ObjectMgr::LoadPointOfInterestLocales()
 {
     mPointOfInterestLocaleMap.clear();                      // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,"
-                                                "`icon_name_loc1`,`icon_name_loc2`,`icon_name_loc3`,`icon_name_loc4`,"
-                                                "`icon_name_loc5`,`icon_name_loc6`,`icon_name_loc7`,`icon_name_loc8`,"
-                                                "`icon_name_loc9`,`icon_name_loc10`,`icon_name_loc11`"
-                                                " FROM `locales_points_of_interest`");
+    QueryResult* result = LocaleDataRepository::QueryPointOfInterestLocales();
 
     if (!result)
     {
@@ -292,11 +275,7 @@ void ObjectMgr::LoadPageTextLocales()
 {
     mPageTextLocaleMap.clear();                             // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,"
-                                              "`text_loc1`,`text_loc2`,`text_loc3`,`text_loc4`,"
-                                              "`text_loc5`,`text_loc6`,`text_loc7`,`text_loc8`,"
-                                              "`text_loc9`,`text_loc10`,`text_loc11`"
-                                              " FROM `locales_page_text`");
+    QueryResult* result = LocaleDataRepository::QueryPageTextLocales();
     if (!result)
     {
         BarGoLink bar(1);
@@ -357,19 +336,7 @@ void ObjectMgr::LoadGossipTextLocales()
 {
     mNpcTextLocaleMap.clear();                              // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,"
-                                              "`Text0_0_loc1`,`Text0_1_loc1`,`Text1_0_loc1`,`Text1_1_loc1`,`Text2_0_loc1`,`Text2_1_loc1`,`Text3_0_loc1`,`Text3_1_loc1`,`Text4_0_loc1`,`Text4_1_loc1`,`Text5_0_loc1`,`Text5_1_loc1`,`Text6_0_loc1`,`Text6_1_loc1`,`Text7_0_loc1`,`Text7_1_loc1`,"
-                                              "`Text0_0_loc2`,`Text0_1_loc2`,`Text1_0_loc2`,`Text1_1_loc2`,`Text2_0_loc2`,`Text2_1_loc2`,`Text3_0_loc2`,`Text3_1_loc2`,`Text4_0_loc2`,`Text4_1_loc2`,`Text5_0_loc2`,`Text5_1_loc2`,`Text6_0_loc2`,`Text6_1_loc2`,`Text7_0_loc2`,`Text7_1_loc2`,"
-                                              "`Text0_0_loc3`,`Text0_1_loc3`,`Text1_0_loc3`,`Text1_1_loc3`,`Text2_0_loc3`,`Text2_1_loc3`,`Text3_0_loc3`,`Text3_1_loc3`,`Text4_0_loc3`,`Text4_1_loc3`,`Text5_0_loc3`,`Text5_1_loc3`,`Text6_0_loc3`,`Text6_1_loc3`,`Text7_0_loc3`,`Text7_1_loc3`,"
-                                              "`Text0_0_loc4`,`Text0_1_loc4`,`Text1_0_loc4`,`Text1_1_loc4`,`Text2_0_loc4`,`Text2_1_loc4`,`Text3_0_loc4`,`Text3_1_loc4`,`Text4_0_loc4`,`Text4_1_loc4`,`Text5_0_loc4`,`Text5_1_loc4`,`Text6_0_loc4`,`Text6_1_loc4`,`Text7_0_loc4`,`Text7_1_loc4`,"
-                                              "`Text0_0_loc5`,`Text0_1_loc5`,`Text1_0_loc5`,`Text1_1_loc5`,`Text2_0_loc5`,`Text2_1_loc5`,`Text3_0_loc5`,`Text3_1_loc5`,`Text4_0_loc5`,`Text4_1_loc5`,`Text5_0_loc5`,`Text5_1_loc5`,`Text6_0_loc5`,`Text6_1_loc5`,`Text7_0_loc5`,`Text7_1_loc5`,"
-                                              "`Text0_0_loc6`,`Text0_1_loc6`,`Text1_0_loc6`,`Text1_1_loc6`,`Text2_0_loc6`,`Text2_1_loc6`,`Text3_0_loc6`,`Text3_1_loc6`,`Text4_0_loc6`,`Text4_1_loc6`,`Text5_0_loc6`,`Text5_1_loc6`,`Text6_0_loc6`,`Text6_1_loc6`,`Text7_0_loc6`,`Text7_1_loc6`,"
-                                              "`Text0_0_loc7`,`Text0_1_loc7`,`Text1_0_loc7`,`Text1_1_loc7`,`Text2_0_loc7`,`Text2_1_loc7`,`Text3_0_loc7`,`Text3_1_loc7`,`Text4_0_loc7`,`Text4_1_loc7`,`Text5_0_loc7`,`Text5_1_loc7`,`Text6_0_loc7`,`Text6_1_loc7`,`Text7_0_loc7`,`Text7_1_loc7`, "
-                                              "`Text0_0_loc8`,`Text0_1_loc8`,`Text1_0_loc8`,`Text1_1_loc8`,`Text2_0_loc8`,`Text2_1_loc8`,`Text3_0_loc8`,`Text3_1_loc8`,`Text4_0_loc8`,`Text4_1_loc8`,`Text5_0_loc8`,`Text5_1_loc8`,`Text6_0_loc8`,`Text6_1_loc8`,`Text7_0_loc8`,`Text7_1_loc8`,"
-                                              "`Text0_0_loc9`,`Text0_1_loc9`,`Text1_0_loc9`,`Text1_1_loc9`,`Text2_0_loc9`,`Text2_1_loc9`,`Text3_0_loc9`,`Text3_1_loc9`,`Text4_0_loc9`,`Text4_1_loc9`,`Text5_0_loc9`,`Text5_1_loc9`,`Text6_0_loc9`,`Text6_1_loc9`,`Text7_0_loc9`,`Text7_1_loc9`,"
-                                              "`Text0_0_loc10`,`Text0_1_loc10`,`Text1_0_loc10`,`Text1_1_loc10`,`Text2_0_loc10`,`Text2_1_loc10`,`Text3_0_loc10`,`Text3_1_loc10`,`Text4_0_loc10`,`Text4_1_loc10`,`Text5_0_loc10`,`Text5_1_loc10`,`Text6_0_loc10`,`Text6_1_loc10`,`Text7_0_loc10`,`Text7_1_loc10`,"
-                                              "`Text0_0_loc11`,`Text0_1_loc11`,`Text1_0_loc11`,`Text1_1_loc11`,`Text2_0_loc11`,`Text2_1_loc11`,`Text3_0_loc11`,`Text3_1_loc11`,`Text4_0_loc11`,`Text4_1_loc11`,`Text5_0_loc11`,`Text5_1_loc11`,`Text6_0_loc11`,`Text6_1_loc11`,`Text7_0_loc11`,`Text7_1_loc11` "
-                                              " FROM `locales_npc_text`");
+    QueryResult* result = LocaleDataRepository::QueryNpcTextLocales();
     if (!result)
     {
         BarGoLink bar(1);
@@ -445,17 +412,7 @@ void ObjectMgr::LoadGameObjectLocales()
 {
     mGameObjectLocaleMap.clear();                           // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,"
-                                              "`name_loc1`,`name_loc2`,`name_loc3`,`name_loc4`,"
-                                              "`name_loc5`,`name_loc6`,`name_loc7`,`name_loc8`,"
-                                              "`name_loc9`,`name_loc10`,`name_loc11`,"
-                                              "`castbarcaption_loc1`,`castbarcaption_loc2`,"
-                                              "`castbarcaption_loc3`,`castbarcaption_loc4`,"
-                                              "`castbarcaption_loc5`,`castbarcaption_loc6`,"
-                                              "`castbarcaption_loc7`,`castbarcaption_loc8`,"
-                                              "`castbarcaption_loc9`,`castbarcaption_loc10`,"
-                                              "`castbarcaption_loc11`"
-                                              " FROM `locales_gameobject`");
+    QueryResult* result = LocaleDataRepository::QueryGameObjectLocales();
     if (!result)
     {
         BarGoLink bar(1);

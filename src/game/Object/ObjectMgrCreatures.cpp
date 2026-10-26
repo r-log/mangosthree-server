@@ -59,6 +59,8 @@
 #include "DisableMgr.h"
 
 #include <limits>
+#include "persistence/world/creatures/CreatureDataRepository.h"
+#include "persistence/world/spawns/SpawnRepository.h"
 
 // The SQL loader of LoadCreatureTemplates, its only user, local to this file.
 struct SQLCreatureLoader : public SQLStorageLoaderBase<SQLCreatureLoader, SQLStorage>
@@ -586,18 +588,7 @@ void ObjectMgr::LoadCreatureClassLvlStats()
     // initialize data array
     memset(&m_creatureClassLvlStats, 0, sizeof(m_creatureClassLvlStats));
 
-    std::string queryStr = "SELECT `Class`, `Level`, `BaseMana`, `BaseMeleeAttackPower`, `BaseRangedAttackPower`, `BaseArmor`";
-
-    for (int i = 0; i <= MAX_EXPANSION; i++)
-    {
-        std::ostringstream str;
-        str << ", `BaseHealthExp" << i << "`, `BaseDamageExp" << i << "`";
-        queryStr.append(str.str().c_str());
-    }
-
-    queryStr.append(" FROM `creature_template_classlevelstats` ORDER BY `Class`, `Level`");
-
-    QueryResult* result = WorldDatabase.Query(queryStr.c_str());
+    QueryResult* result = CreatureDataRepository::QueryClassLevelStats(MAX_EXPANSION);
 
     if (!result)
     {
@@ -945,7 +936,7 @@ void ObjectMgr::LoadCreatureModelRace()
 {
     m_mCreatureModelRaceMap.clear();                        // can be used for reload
 
-    QueryResult* result = WorldDatabase.Query("SELECT `modelid`, `racemask`, `creature_entry`, `modelid_racial` FROM `creature_model_race`");
+    QueryResult* result = CreatureDataRepository::QueryModelRaces();
 
     if (!result)
     {
@@ -1065,18 +1056,7 @@ void ObjectMgr::LoadCreatureModelRace()
 void ObjectMgr::LoadCreatures()
 {
     uint32 count = 0;
-    //                                                0                       1   2    3
-    QueryResult* result = WorldDatabase.Query("SELECT `creature`.`guid`, `creature`.`id`, `map`, `modelid`,"
-                          //   4             5           6           7           8            9              10         11
-                          "`equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `currentwaypoint`,"
-                          //   12        13         14            15              16           17           18
-                          "`curhealth`, `curmana`, `DeathState`, `MovementType`, `spawnMask`, `phaseMask`, `event`,"
-                          //                19                                     20
-                          "`pool_creature`.`pool_entry`, `pool_creature_template`.`pool_entry` "
-                          "FROM `creature` "
-                          "LEFT OUTER JOIN `game_event_creature` ON `creature`.`guid` = `game_event_creature`.`guid` "
-                          "LEFT OUTER JOIN `pool_creature` ON `creature`.`guid` = `pool_creature`.`guid` "
-                          "LEFT OUTER JOIN `pool_creature_template` ON `creature`.`id` = `pool_creature_template`.`id`");
+    QueryResult* result = SpawnRepository::QueryCreatureSpawns();
 
     if (!result)
     {

@@ -36,6 +36,7 @@
 #include "MapManager.h"
 #include "ProgressBar.h"
 #include "Util.h"
+#include "persistence/world/maps/MapDataRepository.h"
 
 /**
  * @brief Loads saved game teleport locations.
@@ -45,7 +46,7 @@ void ObjectMgr::LoadGameTele()
     m_GameTeleMap.clear();                                  // for reload case
 
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, `name` FROM `game_tele`");
+    QueryResult* result = MapDataRepository::QueryTeles();
 
     if (!result)
     {
@@ -160,14 +161,9 @@ bool ObjectMgr::AddGameTele(GameTele& tele)
     wstrToLower(tele.wnameLow);
 
     m_GameTeleMap[new_id] = tele;
-    std::string safeName(tele.name);
-    WorldDatabase.escape_string(safeName);
 
-    return WorldDatabase.PExecuteLog("INSERT INTO `game_tele` "
-                                     "(`id`,`position_x`,`position_y`,`position_z`,`orientation`,`map`,`name`) "
-                                     "VALUES (%u,%f,%f,%f,%f,%u,'%s')",
-                                     new_id, tele.position_x, tele.position_y, tele.position_z,
-                                     tele.orientation, tele.mapId, safeName.c_str());
+    return MapDataRepository::InsertTele(new_id, tele.position_x, tele.position_y, tele.position_z,
+                                         tele.orientation, tele.mapId, tele.name);
 }
 
 /**
@@ -192,7 +188,7 @@ bool ObjectMgr::DeleteGameTele(const std::string& name)
     {
         if (itr->second.wnameLow == wname)
         {
-            WorldDatabase.PExecuteLog("DELETE FROM `game_tele` WHERE `name` = '%s'", itr->second.name.c_str());
+            MapDataRepository::DeleteTele(itr->second.name.c_str());
             m_GameTeleMap.erase(itr);
             return true;
         }

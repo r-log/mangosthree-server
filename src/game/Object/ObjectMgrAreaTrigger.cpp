@@ -35,6 +35,7 @@
 #include "DBCStores.h"
 #include "Log.h"
 #include "ProgressBar.h"
+#include "persistence/world/maps/MapDataRepository.h"
 
 /**
  * @brief Loads area trigger teleport destinations and access requirements.
@@ -45,8 +46,7 @@ void ObjectMgr::LoadAreaTriggerTeleports()
 
     uint32 count = 0;
 
-    //                                                 0     1                 2                3                 4             5              6                      7                             8             9                    10                   11                   12
-    QueryResult* result = WorldDatabase.Query("SELECT `id`, `required_level`, `required_item`, `required_item2`, `heroic_key`, `heroic_key2`, `required_quest_done`, `required_quest_done_heroic`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `areatrigger_teleport`");
+    QueryResult* result = MapDataRepository::QueryAreaTriggerTeleports();
     if (!result)
     {
         BarGoLink bar(1);

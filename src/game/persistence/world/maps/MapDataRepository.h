@@ -28,10 +28,13 @@
 
 #include "Platform/Define.h"
 
+#include <string>
+
 class QueryResult;
 
-/// The transport and weather data on the world database: the loads at startup, each run
-/// synchronously for a loader that keeps its loop.
+/// The map data on the world database: the transports, the weather, the GM teleports, the graveyards
+/// and the area triggers. The loads run at startup and on a reload, synchronously, for loaders that
+/// keep their loops; a GM's teleport and graveyard writes are queued and written to the SQL log.
 namespace MapDataRepository
 {
     /// Selects every transport (`transports`).
@@ -42,6 +45,27 @@ namespace MapDataRepository
 
     /// Selects every zone's weather chances (`game_weather`).
     QueryResult* QueryWeather();
+
+    /// Selects every GM teleport location (`game_tele`).
+    QueryResult* QueryTeles();
+
+    /// Inserts a GM teleport location, the name escaped on the calling thread.
+    bool InsertTele(uint32 id, float x, float y, float z, float orientation, uint32 mapId, std::string const& name);
+
+    /// Deletes a GM teleport location by its name.
+    void DeleteTele(char const* name);
+
+    /// Selects every graveyard's zone and faction (`game_graveyard_zone`).
+    QueryResult* QueryGraveyardZones();
+
+    /// Inserts a graveyard's link to a zone for a faction.
+    void InsertGraveyardZone(uint32 id, uint32 zoneId, uint32 team);
+
+    /// Selects every area trigger teleport (`areatrigger_teleport`).
+    QueryResult* QueryAreaTriggerTeleports();
+
+    /// Selects every tavern area trigger (`areatrigger_tavern`).
+    QueryResult* QueryTavernAreaTriggers();
 }
 
 #endif

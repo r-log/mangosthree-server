@@ -37,6 +37,7 @@
 #include "ProgressBar.h"
 #include "Util.h"
 #include "data/GameConfig.h"
+#include "persistence/world/players/PlayerDataRepository.h"
 
 /**
  * @brief Loads the list of reserved player names.
@@ -45,7 +46,7 @@ void ObjectMgr::LoadReservedPlayersNames()
 {
     m_ReservedNames.clear();                                // need for reload case
 
-    QueryResult* result = WorldDatabase.Query("SELECT `name` FROM `reserved_name`");
+    QueryResult* result = PlayerDataRepository::QueryReservedNames();
 
     uint32 count = 0;
 

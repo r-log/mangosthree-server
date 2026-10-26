@@ -34,14 +34,15 @@
 #include "ProgressBar.h"
 #include "SQLStorages.h"
 #include "DBCStores.h"
+#include "persistence/world/economy/SkillDataRepository.h"
+#include "persistence/world/npcs/NpcDataRepository.h"
 
 void ObjectMgr::LoadNPCSpellClickSpells()
 {
     uint32 count = 0;
 
     mSpellClickInfoMap.clear();
-    //                                                 0            1           2              3                     4            5             6
-    QueryResult* result = WorldDatabase.Query("SELECT `npc_entry`, `spell_id`, `quest_start`, `quest_start_active`, `quest_end`, `cast_flags`, `condition_id` FROM `npc_spellclick_spells`");
+    QueryResult* result = NpcDataRepository::QuerySpellClickSpells();
 
     if (!result)
     {
@@ -133,7 +134,7 @@ void ObjectMgr::LoadFishingBaseSkillLevel()
     m_fishingBaseSkill.Clear();                             // for reload case
 
     uint32 count = 0;
-    QueryResult* result = WorldDatabase.Query("SELECT `entry`,`skill` FROM `skill_fishing_base_level`");
+    QueryResult* result = SkillDataRepository::QueryFishingBaseLevels();
 
     if (!result)
     {

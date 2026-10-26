@@ -37,6 +37,7 @@
 #include "DBCStores.h"
 #include "SQLStorages.h"
 #include "spells/data/SpellMgr.h"
+#include "persistence/world/npcs/NpcDataRepository.h"
 
 /**
  * @brief Loads trainer spell data from a database table.
@@ -57,7 +58,7 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
 
     std::set<uint32> skip_trainers;
 
-    QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel` FROM `%s`", tableName);
+    QueryResult* result = NpcDataRepository::QueryTrainerSpells(tableName);
 
     if (!result)
     {
@@ -285,7 +286,7 @@ void ObjectMgr::LoadVendors(char const* tableName, bool isTemplates)
 
     std::set<uint32> skip_vendors;
 
-    QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `condition_id` FROM `%s`", tableName);
+    QueryResult* result = NpcDataRepository::QueryVendorItems(tableName);
     if (!result)
     {
         BarGoLink bar(1);
