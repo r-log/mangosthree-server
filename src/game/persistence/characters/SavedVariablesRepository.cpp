@@ -25,12 +25,14 @@
 
 #include "SavedVariablesRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace SavedVariablesRepository
 {
-    QueryResult* QueryNextArenaPointDistribution()
+    std::optional<uint64> QueryNextArenaPointDistribution()
     {
-        return CharacterDatabase.Query("SELECT `NextArenaPointDistributionTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextArenaPointDistributionTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
     void InsertNextArenaPointDistribution(uint64 time)

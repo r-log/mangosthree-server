@@ -25,24 +25,68 @@
 
 #include "BattleGroundDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace BattleGroundDataRepository
 {
-    QueryResult* QueryTemplates()
+    static BattleGroundTemplateRow ReadBattleGroundTemplate(Field* fields)
+    {
+        BattleGroundTemplateRow row;
+        row.id = fields[0].GetUInt32();
+        row.minPlayersPerTeam = fields[1].GetUInt32();
+        row.maxPlayersPerTeam = fields[2].GetUInt32();
+        row.allianceStartLoc = fields[3].GetUInt32();
+        row.allianceStartO = fields[4].GetFloat();
+        row.hordeStartLoc = fields[5].GetUInt32();
+        row.hordeStartO = fields[6].GetFloat();
+        row.startMaxDist = fields[7].GetFloat();
+        return row;
+    }
+
+    std::vector<BattleGroundTemplateRow> QueryTemplates()
     {
         //                                  0     1                   2                   3                  4                5               6              7
-        return WorldDatabase.Query("SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`");
+        QueryResult* result = WorldDatabase.Query("SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`");
+        return ReadRows<BattleGroundTemplateRow>(result, ReadBattleGroundTemplate);
     }
 
-    QueryResult* QueryBattleMasters()
+    static BattleMasterRow ReadBattleMaster(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `entry`,`bg_template` FROM `battlemaster_entry`");
+        BattleMasterRow row;
+        row.entry = fields[0].GetUInt32();
+        row.bgTemplate = fields[1].GetUInt32();
+        return row;
     }
 
-    QueryResult* QueryEventIndexes()
+    std::vector<BattleMasterRow> QueryBattleMasters()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `entry`,`bg_template` FROM `battlemaster_entry`");
+        return ReadRows<BattleMasterRow>(result, ReadBattleMaster);
+    }
+
+    static BattleGroundEventIndexRow ReadBattleGroundEventIndex(Field* fields)
+    {
+        BattleGroundEventIndexRow row;
+        row.type = fields[0].GetUInt8();
+        row.guid = fields[1].GetUInt32();
+        row.event1 = fields[2].GetUInt8();
+        row.event2 = fields[3].GetUInt8();
+        row.map = fields[4].GetUInt32();
+        row.spawnGuid = fields[5].GetUInt32();
+        row.descriptionMap = fields[6].GetUInt32();
+        row.descriptionEvent1 = fields[7].GetUInt8();
+        row.descriptionEvent2 = fields[8].GetUInt8();
+        if (char const* text = fields[9].GetString())
+        {
+            row.description = text;
+        }
+        return row;
+    }
+
+    std::vector<BattleGroundEventIndexRow> QueryEventIndexes()
     {
         //                                  0         1           2                3                4              5           6
-        return WorldDatabase.Query("SELECT `data`.`typ`, `data`.`guid1`, `data`.`ev1` AS `ev1`, `data`.`ev2` AS ev2, `data`.`map` AS m, `data`.`guid2`, `description`.`map`, "
+        QueryResult* result = WorldDatabase.Query("SELECT `data`.`typ`, `data`.`guid1`, `data`.`ev1` AS `ev1`, `data`.`ev2` AS ev2, `data`.`map` AS m, `data`.`guid2`, `description`.`map`, "
                                    //                              7                  8                   9
                                    "`description`.`event1`, `description`.`event2`, `description`.`description` "
                                    "FROM "
@@ -72,5 +116,6 @@ namespace BattleGroundDataRepository
                                    "LEFT OUTER JOIN `battleground_events` AS `description` ON `data`.`map` = `description`.`map` "
                                    "AND `data`.`ev1` = `description`.`event1` AND `data`.`ev2` = `description`.`event2` "
                                    "ORDER BY `m`, `ev1`, `ev2`");
+        return ReadRows<BattleGroundEventIndexRow>(result, ReadBattleGroundEventIndex);
     }
 }

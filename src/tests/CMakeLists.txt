@@ -88,6 +88,9 @@ set(SRC_GRP_TESTS
     StartupRepositoryTest.cpp
     CommandRepositoryTest.cpp
     RealmRepositoryTest.cpp
+    RowReaderTest.cpp
+    SpellDataRepositoryTest.cpp
+    BattleGroundDataRepositoryTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

@@ -28,21 +28,60 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <optional>
+#include <string>
+#include <vector>
+
+/// One `battleground_template` row.
+struct BattleGroundTemplateRow
+{
+    uint32 id = 0;
+    uint32 minPlayersPerTeam = 0;
+    uint32 maxPlayersPerTeam = 0;
+    uint32 allianceStartLoc = 0;
+    float allianceStartO = 0.0f;
+    uint32 hordeStartLoc = 0;
+    float hordeStartO = 0.0f;
+    float startMaxDist = 0.0f;
+};
+
+/// One `battlemaster_entry` row.
+struct BattleMasterRow
+{
+    uint32 entry = 0;
+    uint32 bgTemplate = 0;
+};
+
+/// One battleground event of a spawn: the spawn's kind (1 a game object, 2 a creature), guid and
+/// events, its map and guid when the spawn exists, and the event's map, events and description when
+/// `battleground_events` lists it.
+struct BattleGroundEventIndexRow
+{
+    uint8 type = 0;
+    uint32 guid = 0;
+    uint8 event1 = 0;
+    uint8 event2 = 0;
+    uint32 map = 0;
+    uint32 spawnGuid = 0;
+    uint32 descriptionMap = 0;
+    uint8 descriptionEvent1 = 0;
+    uint8 descriptionEvent2 = 0;
+    std::optional<std::string> description;
+};
 
 /// The battleground data on the world database: `BattleGroundMgr`'s loads at startup, the event
-/// indexes on a reload too, each run synchronously for a loader that keeps its loop.
+/// indexes on a reload too, each run synchronously and read into rows.
 namespace BattleGroundDataRepository
 {
     /// Selects every battleground template (`battleground_template`).
-    QueryResult* QueryTemplates();
+    std::vector<BattleGroundTemplateRow> QueryTemplates();
 
     /// Selects every battle master's battleground (`battlemaster_entry`).
-    QueryResult* QueryBattleMasters();
+    std::vector<BattleMasterRow> QueryBattleMasters();
 
     /// Selects the battleground event indexes of the creature and game object spawns, with the
     /// events that have no spawn.
-    QueryResult* QueryEventIndexes();
+    std::vector<BattleGroundEventIndexRow> QueryEventIndexes();
 }
 
 #endif

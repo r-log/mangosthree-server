@@ -295,17 +295,17 @@ set(ALLOW_InstanceRepository_cpp
     "return CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `instance`\")\;")
 
 set(ALLOW_SpellDataRepository_cpp
-    "return WorldDatabase.PQuery(\"SELECT `spellid`,`SpellFamilyName`,`SpellFamilyMaskA`,`SpellFamilyMaskB`,`SpellIcon`,`SpellVisual`,`SpellCategory`,`EffectType`,`EffectAura`,`EffectIdx`,`Name`,`Code` FROM `%s`\", table)\;"
-    "return WorldDatabase.Query(\"SELECT `spell`, `area`, `quest_start`, `quest_start_active`, `quest_end`, `condition_id`, `aura_spell`, `racemask`, `gender`, `autocast` FROM `spell_area`\")\;"
-    "return WorldDatabase.Query(\"SELECT `spell_id`, `prev_spell`, `first_spell`, `rank`, `req_spell` FROM `spell_chain`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `SpellID`, `Active` FROM `spell_learn_spell`\")\;"
-    "return WorldDatabase.Query(\"SELECT `id`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `spell_target_position`\")\;"
-    "return WorldDatabase.Query(\"SELECT entry, direct_bonus,         `dot_bonus`, `ap_bonus`, `ap_dot_bonus` FROM `spell_bonus_data`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `mask` FROM `spell_elixir`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `Threat`, `multiplier`, `ap_bonus` FROM `spell_threat`\")\;"
-    "return WorldDatabase.Query(\"SELECT `spell`, `effectId`, `pet`, `aura` FROM `spell_pet_auras`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMaskA0`, `SpellFamilyMaskA1`, `SpellFamilyMaskA2`, `SpellFamilyMaskB0`, `SpellFamilyMaskB1`, `SpellFamilyMaskB2`, `SpellFamilyMaskC0`, `SpellFamilyMaskC1`, `SpellFamilyMaskC2`, `procFlags`, `procEx`, `ppmRate`, `CustomChance`, `Cooldown` FROM `spell_proc_event`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`, `ppmRate` FROM `spell_proc_item_enchant`\")\;")
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `spellid`,`SpellFamilyName`,`SpellFamilyMaskA`,`SpellFamilyMaskB`,`SpellIcon`,`SpellVisual`,`SpellCategory`,`EffectType`,`EffectAura`,`EffectIdx`,`Name`,`Code` FROM `%s`\", table)\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `spell`, `area`, `quest_start`, `quest_start_active`, `quest_end`, `condition_id`, `aura_spell`, `racemask`, `gender`, `autocast` FROM `spell_area`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `spell_id`, `prev_spell`, `first_spell`, `rank`, `req_spell` FROM `spell_chain`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `SpellID`, `Active` FROM `spell_learn_spell`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation` FROM `spell_target_position`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT entry, direct_bonus,         `dot_bonus`, `ap_bonus`, `ap_dot_bonus` FROM `spell_bonus_data`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `mask` FROM `spell_elixir`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `Threat`, `multiplier`, `ap_bonus` FROM `spell_threat`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `spell`, `effectId`, `pet`, `aura` FROM `spell_pet_auras`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMaskA0`, `SpellFamilyMaskA1`, `SpellFamilyMaskA2`, `SpellFamilyMaskB0`, `SpellFamilyMaskB1`, `SpellFamilyMaskB2`, `SpellFamilyMaskC0`, `SpellFamilyMaskC1`, `SpellFamilyMaskC2`, `procFlags`, `procEx`, `ppmRate`, `CustomChance`, `Cooldown` FROM `spell_proc_event`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `ppmRate` FROM `spell_proc_item_enchant`\")\;")
 
 set(ALLOW_CreatureEventAIRepository_cpp
     "return WorldDatabase.Query(\"SELECT `id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs` FROM `creature_ai_summons`\")\;"
@@ -332,15 +332,15 @@ set(ALLOW_MapDataRepository_cpp
     "return WorldDatabase.Query(\"SELECT `id` FROM `areatrigger_tavern`\")\;")
 
 set(ALLOW_BattleGroundDataRepository_cpp
-    "return WorldDatabase.Query(\"SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`\")\;"
-    "return WorldDatabase.Query(\"SELECT `entry`,`bg_template` FROM `battlemaster_entry`\")\;"
-    "return WorldDatabase.Query(\"SELECT `data`.`typ`, `data`.`guid1`, `data`.`ev1` AS `ev1`, `data`.`ev2` AS ev2, `data`.`map` AS m, `data`.`guid2`, `description`.`map`, \"")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,`bg_template` FROM `battlemaster_entry`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `data`.`typ`, `data`.`guid1`, `data`.`ev1` AS `ev1`, `data`.`ev2` AS ev2, `data`.`map` AS m, `data`.`guid2`, `description`.`map`, \"")
 
 set(ALLOW_BattleGroundStatsRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `pvpstats_battlegrounds`\")\;")
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `pvpstats_battlegrounds`\")\;")
 
 set(ALLOW_SavedVariablesRepository_cpp
-    "return CharacterDatabase.Query(\"SELECT `NextArenaPointDistributionTime` FROM `saved_variables`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextArenaPointDistributionTime` FROM `saved_variables`\")\;"
     "return CharacterDatabase.Query(\"SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`\")\;"
     "return CharacterDatabase.Query(\"SELECT `NextDailyQuestResetTime` FROM `saved_variables`\")\;"
     "return CharacterDatabase.Query(\"SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`\")\;"

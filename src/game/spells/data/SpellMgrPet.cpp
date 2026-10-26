@@ -48,8 +48,8 @@ void SpellMgr::LoadSpellPetAuras()
 
     uint32 count = 0;
 
-    QueryResult* result = SpellDataRepository::QueryPetAuras();
-    if (!result)
+    std::vector<SpellPetAuraRow> rows = SpellDataRepository::QueryPetAuras();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -58,18 +58,16 @@ void SpellMgr::LoadSpellPetAuras()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (SpellPetAuraRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         bar.step();
 
-        uint32 spell = fields[0].GetUInt32();
-        SpellEffectIndex eff = SpellEffectIndex(fields[1].GetUInt32());
-        uint32 pet = fields[2].GetUInt32();
-        uint32 aura = fields[3].GetUInt32();
+        uint32 spell = row.spell;
+        SpellEffectIndex eff = SpellEffectIndex(row.effectId);
+        uint32 pet = row.pet;
+        uint32 aura = row.aura;
 
         if (eff >= MAX_EFFECT_INDEX)
         {
@@ -113,9 +111,6 @@ void SpellMgr::LoadSpellPetAuras()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u spell pet auras", count);
     sLog.outString();

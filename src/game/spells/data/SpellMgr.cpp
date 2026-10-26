@@ -3175,9 +3175,9 @@ void SpellMgr::CheckUsedSpells(char const* table)
     uint32 countSpells = 0;
     uint32 countMasks = 0;
 
-    QueryResult* result = SpellDataRepository::QueryUsedSpells(table);
+    std::vector<UsedSpellRow> rows = SpellDataRepository::QueryUsedSpells(table);
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -3188,26 +3188,24 @@ void SpellMgr::CheckUsedSpells(char const* table)
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (UsedSpellRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         bar.step();
 
-        uint32 spell       = fields[0].GetUInt32();
-        int32  family      = fields[1].GetInt32();
-        uint64 familyMaskA = fields[2].GetUInt64();
-        uint32 familyMaskB = fields[3].GetUInt32();
-        int32  spellIcon   = fields[4].GetInt32();
-        int32  spellVisual = fields[5].GetInt32();
-        int32  category    = fields[6].GetInt32();
-        int32  effectType  = fields[7].GetInt32();
-        int32  auraType    = fields[8].GetInt32();
-        int32  effectIdx   = fields[9].GetInt32();
-        std::string name   = fields[10].GetCppString();
-        std::string code   = fields[11].GetCppString();
+        uint32 spell       = row.spellid;
+        int32  family      = row.spellFamilyName;
+        uint64 familyMaskA = row.spellFamilyMaskA;
+        uint32 familyMaskB = row.spellFamilyMaskB;
+        int32  spellIcon   = row.spellIcon;
+        int32  spellVisual = row.spellVisual;
+        int32  category    = row.spellCategory;
+        int32  effectType  = row.effectType;
+        int32  auraType    = row.effectAura;
+        int32  effectIdx   = row.effectIdx;
+        std::string name   = row.name;
+        std::string code   = row.code;
 
         // checks of correctness requirements itself
 
@@ -3443,9 +3441,6 @@ void SpellMgr::CheckUsedSpells(char const* table)
             }
         }
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString();
     sLog.outString(">> Checked %u spells and %u spell masks", countSpells, countMasks);

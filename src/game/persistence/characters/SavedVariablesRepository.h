@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
+
 class QueryResult;
 
 /// The realm's saved variables (`saved_variables`). The startup reads run synchronously; every
@@ -35,7 +37,7 @@ class QueryResult;
 namespace SavedVariablesRepository
 {
     /// Selects the next automatic arena point distribution time.
-    QueryResult* QueryNextArenaPointDistribution();
+    std::optional<uint64> QueryNextArenaPointDistribution();
 
     /// Inserts the next automatic arena point distribution time.
     void InsertNextArenaPointDistribution(uint64 time);

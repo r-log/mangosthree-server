@@ -111,8 +111,8 @@ void SpellMgr::LoadSpellTargetPositions()
 
     uint32 count = 0;
 
-    QueryResult* result = SpellDataRepository::QueryTargetPositions();
-    if (!result)
+    std::vector<SpellTargetPositionRow> rows = SpellDataRepository::QueryTargetPositions();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -121,23 +121,21 @@ void SpellMgr::LoadSpellTargetPositions()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (SpellTargetPositionRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         bar.step();
 
-        uint32 Spell_ID = fields[0].GetUInt32();
+        uint32 Spell_ID = row.id;
 
         SpellTargetPosition st;
 
-        st.target_mapId       = fields[1].GetUInt32();
-        st.target_X           = fields[2].GetFloat();
-        st.target_Y           = fields[3].GetFloat();
-        st.target_Z           = fields[4].GetFloat();
-        st.target_Orientation = fields[5].GetFloat();
+        st.target_mapId       = row.targetMap;
+        st.target_X           = row.targetPositionX;
+        st.target_Y           = row.targetPositionY;
+        st.target_Z           = row.targetPositionZ;
+        st.target_Orientation = row.targetOrientation;
 
         MapEntry const* mapEntry = sMapStore.LookupEntry(st.target_mapId);
         if (!mapEntry)
@@ -182,9 +180,6 @@ void SpellMgr::LoadSpellTargetPositions()
         mSpellTargetPositions[Spell_ID] = st;
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u spell target destination coordinates", count);
     sLog.outString();
@@ -206,8 +201,8 @@ void SpellMgr::LoadSpellBonuses()
 {
     mSpellBonusMap.clear();                             // need for reload case
     uint32 count = 0;
-    QueryResult* result = SpellDataRepository::QueryBonuses();
-    if (!result)
+    std::vector<SpellBonusRow> rows = SpellDataRepository::QueryBonuses();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -216,12 +211,11 @@ void SpellMgr::LoadSpellBonuses()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
-    do
+    BarGoLink bar(rows.size());
+    for (SpellBonusRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
-        uint32 entry = fields[0].GetUInt32();
+        uint32 entry = row.entry;
 
         SpellEntry const* spell = sSpellStore.LookupEntry(entry);
         if (!spell)
@@ -241,10 +235,10 @@ void SpellMgr::LoadSpellBonuses()
 
         SpellBonusEntry sbe;
 
-        sbe.direct_damage = fields[1].GetFloat();
-        sbe.dot_damage    = fields[2].GetFloat();
-        sbe.ap_bonus      = fields[3].GetFloat();
-        sbe.ap_dot_bonus   = fields[4].GetFloat();
+        sbe.direct_damage = row.directBonus;
+        sbe.dot_damage    = row.dotBonus;
+        sbe.ap_bonus      = row.apBonus;
+        sbe.ap_dot_bonus   = row.apDotBonus;
 
         bool need_dot = false;
         bool need_direct = false;
@@ -376,9 +370,6 @@ void SpellMgr::LoadSpellBonuses()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u extra spell bonus data",  count);
     sLog.outString();
@@ -393,8 +384,8 @@ void SpellMgr::LoadSpellElixirs()
 
     uint32 count = 0;
 
-    QueryResult* result = SpellDataRepository::QueryElixirs();
-    if (!result)
+    std::vector<SpellElixirRow> rows = SpellDataRepository::QueryElixirs();
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -405,16 +396,14 @@ void SpellMgr::LoadSpellElixirs()
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (SpellElixirRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         bar.step();
 
-        uint32 entry = fields[0].GetUInt32();
-        uint8 mask = fields[1].GetUInt8();
+        uint32 entry = row.entry;
+        uint8 mask = row.mask;
 
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(entry);
 
@@ -428,9 +417,6 @@ void SpellMgr::LoadSpellElixirs()
 
         ++count;
     }
-    while (result->NextRow());
-
-    delete result;
 
     sLog.outString(">> Loaded %u spell elixir definitions", count);
     sLog.outString();
@@ -502,8 +488,8 @@ void SpellMgr::LoadSpellThreats()
 {
     mSpellThreatMap.clear();                                // need for reload case
 
-    QueryResult* result = SpellDataRepository::QueryThreats();
-    if (!result)
+    std::vector<SpellThreatRow> rows = SpellDataRepository::QueryThreats();
+    if (rows.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -514,28 +500,23 @@ void SpellMgr::LoadSpellThreats()
 
     SpellRankHelper<SpellThreatEntry, DoSpellThreat, SpellThreatMap> rankHelper(*this, mSpellThreatMap);
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (SpellThreatRow const& row : rows)
     {
-        Field* fields = result->Fetch();
-
         bar.step();
 
-        uint32 entry = fields[0].GetUInt32();
+        uint32 entry = row.entry;
 
         SpellThreatEntry ste;
-        ste.threat = fields[1].GetUInt16();
-        ste.multiplier = fields[2].GetFloat();
-        ste.ap_bonus = fields[3].GetFloat();
+        ste.threat = row.threat;
+        ste.multiplier = row.multiplier;
+        ste.ap_bonus = row.apBonus;
 
         rankHelper.RecordRank(ste, entry);
     }
-    while (result->NextRow());
 
     rankHelper.FillHigherRanks();
-
-    delete result;
 
     sLog.outString(">> Loaded %u spell threat entries", rankHelper.worker.count);
     sLog.outString();
