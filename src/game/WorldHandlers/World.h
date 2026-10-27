@@ -62,7 +62,6 @@ class WorldSession;
 class Player;
 class Weather;
 class SqlResultQueue;
-class QueryResult;
 
 // ServerMessages.dbc
 enum ServerMessageType

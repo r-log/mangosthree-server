@@ -142,7 +142,6 @@ struct AreaTrigger;
 #include "Cell.h"
 
 // Decoupling D3: named by pointer or reference only. The .cpp files that use them include them.
-class QueryResult;
 class SqlQueryHolder;
 class WorldSession;
 struct TrainerSpell;

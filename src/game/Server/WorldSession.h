@@ -76,7 +76,6 @@ class Object;
 class Player;
 class Unit;
 class WorldPacket;
-class QueryResult;
 class SqlQueryHolder;
 class LoginQueryHolder;
 class GMTicket;
