@@ -314,10 +314,10 @@ TEST(PetCache_EveryWriteSettersMirrorIsVisibleToTheNextLookup)
     REQUIRE(cache.Spells(kCurrent).size() == size_t(2));
     CHECK_EQ(cache.Spells(kCurrent)[0].spell, 2649u);
 
-    // Pet::addSpell's unknown-spell sweep: every pet of this character loses the spell.
-    cache.EraseSpellEverywhere(2649);
+    // Pet::addSpell's unknown-spell cleanup: this pet loses the spell, the owner's other pet keeps it.
+    cache.EraseSpell(kCurrent, 2649);
     CHECK_EQ(cache.Spells(kCurrent).size(), size_t(1));
-    CHECK_EQ(cache.Spells(kSlotTwo).size(), size_t(0));
+    CHECK_EQ(cache.Spells(kSlotTwo).size(), size_t(1));
 
     // resetTalentsForAllPetsOf's `guid IN (...) AND spell IN (...)`.
     Seed(cache);

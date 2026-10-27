@@ -213,16 +213,14 @@ TEST(PetRepository_DeleteAllOfTheFiveTables)
     CheckLines(db.Take(), five, __LINE__);
 }
 
-// The spell deletes that reach past one pet: every pet's row of an unknown spell, and the listed
+// The spell deletes that reach past one pet: the listed
 // spells of the listed pets in one statement.
 TEST(PetRepository_SpellDeletesOfManyPets)
 {
     Db db;
-    PetRepository::DeleteSpellOfEveryPet(77);
     PetRepository::DeleteSpellsOfPets({ 4, 5 }, { 100, 200, 300 });
     PetRepository::DeleteSpellsOfPets({ 6 }, { 400 });
     CheckLines(db.Take(), {
-        "DELETE FROM `pet_spell` WHERE `spell` = '77'",
         "DELETE FROM `pet_spell` WHERE `guid` IN (4,5) AND `spell` IN (100,200,300)",
         "DELETE FROM `pet_spell` WHERE `guid` IN (6) AND `spell` IN (400)",
     }, __LINE__);

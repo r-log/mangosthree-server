@@ -166,11 +166,6 @@ namespace PetRepository
         stmt.PExecute(petNumber, spell, active);
     }
 
-    void DeleteSpellOfEveryPet(uint32 spell)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `pet_spell` WHERE `spell` = '%u'", spell);
-    }
-
     void DeleteSpellsOfPets(std::vector<uint32> const& petNumbers, std::vector<uint32> const& spells)
     {
         std::ostringstream ss;

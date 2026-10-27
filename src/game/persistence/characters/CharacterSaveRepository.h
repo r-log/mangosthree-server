@@ -219,8 +219,6 @@ namespace CharacterSaveRepository
     void InsertSpell(uint32 guid, uint32 spell, uint8 active, uint8 disabled);
     void DeleteSpell(uint32 guid, uint32 spell);
 
-    /// Deletes every character's row of a spell the load or a learn refuses.
-    void DeleteSpellOfEveryCharacter(uint32 spell);
 
     /// Deletes a skill row the load finds empty.
     void DeleteInvalidSkill(uint32 guid, uint32 skill);

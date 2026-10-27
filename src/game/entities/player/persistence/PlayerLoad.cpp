@@ -1048,7 +1048,7 @@ void Player::_LoadSpells(std::vector<LoginSpellRow> const& rows)
             {
                 sLog.outError("Player::_LoadSpells: %s has talent spell %u in character_spell, removing it.",
                               GetGuidStr().c_str(), spell_id);
-                CharacterSaveRepository::DeleteSpellOfEveryCharacter(spell_id);
+                CharacterSaveRepository::DeleteSpell(GetGUIDLow(), spell_id);
                 continue;
             }
 

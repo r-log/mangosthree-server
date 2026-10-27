@@ -65,11 +65,11 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
     SpellEntry const* spellInfo = sSpellStore.LookupEntry(spell_id);
     if (!spellInfo)
     {
-        // do character spell book cleanup (all characters)
+        // do character spell book cleanup (this character)
         if (!IsInWorld() && !learning)                      // spell load case
         {
-            sLog.outError("Player::addSpell: nonexistent in SpellStore spell #%u request, deleting for all characters in `character_spell`.", spell_id);
-            CharacterSaveRepository::DeleteSpellOfEveryCharacter(spell_id);
+            sLog.outError("Player::addSpell: nonexistent in SpellStore spell #%u request, deleting it for this character in `character_spell`.", spell_id);
+            CharacterSaveRepository::DeleteSpell(GetGUIDLow(), spell_id);
         }
         else
         {
@@ -81,11 +81,11 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
 
     if (!SpellMgr::IsSpellValid(spellInfo, this, false))
     {
-        // do character spell book cleanup (all characters)
+        // do character spell book cleanup (this character)
         if (!IsInWorld() && !learning)                      // spell load case
         {
-            sLog.outError("Player::addSpell: Broken spell #%u learning not allowed, deleting for all characters in `character_spell`.", spell_id);
-            CharacterSaveRepository::DeleteSpellOfEveryCharacter(spell_id);
+            sLog.outError("Player::addSpell: Broken spell #%u learning not allowed, deleting it for this character in `character_spell`.", spell_id);
+            CharacterSaveRepository::DeleteSpell(GetGUIDLow(), spell_id);
         }
         else
         {
