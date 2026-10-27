@@ -42,7 +42,7 @@ namespace GameObjectAddonRepository
 
     TableRead<GameObjectAddonRow> QueryGameObjectAddons()
     {
-        //                                              0       1                 2                 3                 4
+        //                                                 0       1                 2                 3                 4
         return ReadWorldTable<GameObjectAddonRow>("SELECT `guid`, `path_rotation0`, `path_rotation1`, `path_rotation2`, `path_rotation3` FROM `gameobject_addon`", ReadRow);
     }
 }
