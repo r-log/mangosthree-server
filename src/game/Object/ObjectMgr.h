@@ -57,6 +57,7 @@
 #include "Policies/Singleton.h"
 #include "data/CreatureAddonStore.h"
 #include "data/CreatureEquipmentStore.h"
+#include "data/CreatureModelInfoStore.h"
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
@@ -711,7 +712,7 @@ class ObjectMgr
         static Player* GetPlayer(const char* name);                                 ///< Wrapper for sPlayerRegistry.FindByName
         static Player* GetPlayer(ObjectGuid guid, bool inWorld = true);             ///< Wrapper for sPlayerRegistry.Find
         static CreatureInfo const* GetCreatureTemplate(uint32 id);                  ///< Wrapper for sCreatureStorage.LookupEntry
-        static CreatureModelInfo const* GetCreatureModelInfo(uint32 modelid);       ///< Wrapper for sCreatureModelStorage.LookupEntry
+        static CreatureModelInfo const* GetCreatureModelInfo(uint32 modelid);       ///< Lookup in the creature model info store
         static EquipmentInfo const* GetEquipmentInfo(uint32 entry);                 ///< Lookup in the creature equipment store
         static CreatureDataAddon const* GetCreatureAddon(uint32 lowguid);           ///< Lookup in the creature addon store
         static CreatureDataAddon const* GetCreatureTemplateAddon(uint32 entry);     ///< Lookup in the creature template addon store
@@ -1421,6 +1422,8 @@ class ObjectMgr
 
         CreatureAddonStore m_creatureAddons;
         CreatureAddonStore m_creatureTemplateAddons;
+
+        CreatureModelInfoStore m_creatureModels;
 
         QuestPOIStore m_questPoi;
 
