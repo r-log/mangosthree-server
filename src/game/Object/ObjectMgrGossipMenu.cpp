@@ -132,7 +132,7 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
 
     if (!sLog.HasLogFilter(LOG_FILTER_DB_STRICTED_CHECK))
     {
-        for (SQLStorageBase::SQLSIterator<GameObjectInfo> itr = sGOStorage.getDataBegin<GameObjectInfo>(); itr < sGOStorage.getDataEnd<GameObjectInfo>(); ++itr)
+        for (GameObjectTemplateStore::const_iterator itr = sObjectMgr.GetGameObjectTemplates().begin(); itr != sObjectMgr.GetGameObjectTemplates().end(); ++itr)
         {
             if (uint32 menuid = itr->GetGossipMenuId())
             {
@@ -178,7 +178,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
                 menu_ids.insert(itr->first);
             }
 
-        for (SQLStorageBase::SQLSIterator<GameObjectInfo> itr = sGOStorage.getDataBegin<GameObjectInfo>(); itr < sGOStorage.getDataEnd<GameObjectInfo>(); ++itr)
+        for (GameObjectTemplateStore::const_iterator itr = sObjectMgr.GetGameObjectTemplates().begin(); itr != sObjectMgr.GetGameObjectTemplates().end(); ++itr)
             if (uint32 menuid = itr->GetGossipMenuId())
             {
                 menu_ids.erase(menuid);

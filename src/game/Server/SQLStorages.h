@@ -32,7 +32,6 @@ extern SQLStorage sCreatureStorage;
 extern SQLStorage sItemStorage;
 extern SQLStorage sWorldTemplate;
 
-extern SQLHashStorage sGOStorage;
 
 
 #endif

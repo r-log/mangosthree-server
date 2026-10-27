@@ -457,7 +457,7 @@ uint32 ObjectMgr::GetPlayerAccountIdByPlayerName(const std::string& name) const
  * @param id The gameobject entry id.
  * @return The gameobject template, or null if missing.
  */
-GameObjectInfo const* ObjectMgr::GetGameObjectInfo(uint32 id) { return sGOStorage.LookupEntry<GameObjectInfo>(id); }
+GameObjectInfo const* ObjectMgr::GetGameObjectInfo(uint32 id) { return sObjectMgr.m_gameObjectTemplates.Find(id); }
 
 /**
  * @brief Gets a game object spawn's addon.
@@ -2847,7 +2847,7 @@ bool PlayerCondition::IsValid(uint16 entry, ConditionType condition, uint32 valu
         }
         case CONDITION_GAMEOBJECT_IN_RANGE:
         {
-            if (!sGOStorage.LookupEntry<GameObjectInfo>(value1))
+            if (!ObjectMgr::GetGameObjectInfo(value1))
             {
                 sLog.outErrorDb("Game object in range condition (entry %u, type %u) has an invalid value in value1 (gameobject). (Game object %u does not exist in the database), skipping.", entry, condition, value1);
                 return false;

@@ -127,7 +127,7 @@ void ScriptMgr::UnloadScriptLibrary()
 void ScriptMgr::CollectPossibleEventIds(std::set<uint32>& eventIds)
 {
     // Load all possible script entries from gameobjects
-    for (SQLStorageBase::SQLSIterator<GameObjectInfo> itr = sGOStorage.getDataBegin<GameObjectInfo>(); itr < sGOStorage.getDataEnd<GameObjectInfo>(); ++itr)
+    for (GameObjectTemplateStore::const_iterator itr = sObjectMgr.GetGameObjectTemplates().begin(); itr != sObjectMgr.GetGameObjectTemplates().end(); ++itr)
     {
         switch (itr->type)
         {

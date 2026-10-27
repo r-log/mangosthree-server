@@ -472,7 +472,7 @@ void ObjectMgr::LoadQuests()
         for (int j = 0; j < QUEST_OBJECTIVES_COUNT; ++j)
         {
             int32 id = qinfo->ReqCreatureOrGOId[j];
-            if (id < 0 && !sGOStorage.LookupEntry<GameObjectInfo>(-id))
+            if (id < 0 && !ObjectMgr::GetGameObjectInfo(-id))
             {
                 sLog.outErrorDb("Quest %u has `ReqCreatureOrGOId%d` = %i but gameobject %u does not exist, quest can't be done.",
                                 qinfo->GetQuestId(), j + 1, id, uint32(-id));

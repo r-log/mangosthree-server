@@ -622,7 +622,7 @@ static void FillSpellScriptTargets(SpellScriptTargetStore& targets, TableRead<Sp
                     break;
                 }
 
-                if (!sGOStorage.LookupEntry<GameObjectInfo>(itr->targetEntry))
+                if (!ObjectMgr::GetGameObjectInfo(itr->targetEntry))
                 {
                     sLog.outErrorDb("Table `spell_script_target`: gameobject template entry %u does not exist.", itr->targetEntry);
                     targets.Erase(itr->spellId);

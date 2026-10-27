@@ -99,7 +99,7 @@ void ScriptMgr::LoadScriptBinding()
             exists = id > 0 ? bool(sCreatureStorage.LookupEntry<CreatureInfo>(uint32(id))) : bool(sObjectMgr.GetCreatureData(uint32(-id)));
             break;
         case SCRIPTED_GAMEOBJECT:
-            exists = id > 0 ? bool(sGOStorage.LookupEntry<GameObjectInfo>(uint32(id))) : bool(sObjectMgr.GetGOData(uint32(-id)));
+            exists = id > 0 ? bool(ObjectMgr::GetGameObjectInfo(uint32(id))) : bool(sObjectMgr.GetGOData(uint32(-id)));
             break;
         case SCRIPTED_ITEM:
             exists = bool(sItemStorage.LookupEntry<ItemPrototype>(uint32(id)));
