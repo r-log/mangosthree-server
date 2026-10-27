@@ -155,12 +155,6 @@ namespace ItemRepository
     /// statement.
     void InsertLootItems(uint32 itemGuid, uint32 ownerGuid, std::vector<ItemLootRow> const& rows);
 
-    /// Deletes one item's row of an item's saved loot.
-    void DeleteLootItem(uint32 itemGuid, uint32 lootItemId);
-
-    /// Deletes one currency's row of an item's saved loot (saved under the negated id).
-    void DeleteLootCurrency(uint32 itemGuid, uint32 currencyId);
-
     /// Deletes the inventory row that holds an item.
     void DeleteInventoryRow(uint32 itemGuid);
 

@@ -1131,9 +1131,15 @@ void Player::_LoadBoundInstances(std::vector<LoginBoundInstanceRow> const& rows)
             // and in that case it is not used
 
             MapEntry const* mapEntry = sMapStore.LookupEntry(mapId);
-            if (!mapEntry || !mapEntry->IsDungeon())
+            if (!mapEntry)
             {
-                sLog.outError("_LoadBoundInstances: player %s(%d) has bind to nonexistent or not dungeon map %d", GetName(), GetGUIDLow(), mapId);
+                sLog.outError("_LoadBoundInstances: player %s(%d) has bind to nonexistent map %d, kept", GetName(), GetGUIDLow(), mapId);
+                continue;
+            }
+
+            if (!mapEntry->IsDungeon())
+            {
+                sLog.outError("_LoadBoundInstances: player %s(%d) has bind to not dungeon map %d", GetName(), GetGUIDLow(), mapId);
                 InstanceBindRepository::DeleteBind(GetGUIDLow(), instanceId);
                 continue;
             }
@@ -1148,8 +1154,7 @@ void Player::_LoadBoundInstances(std::vector<LoginBoundInstanceRow> const& rows)
             MapDifficultyEntry const* mapDiff = GetMapDifficultyData(mapId, Difficulty(difficulty));
             if (!mapDiff)
             {
-                sLog.outError("_LoadBoundInstances: player %s(%d) has bind to nonexistent difficulty %d instance for map %u", GetName(), GetGUIDLow(), difficulty, mapId);
-                InstanceBindRepository::DeleteBind(GetGUIDLow(), instanceId);
+                sLog.outError("_LoadBoundInstances: player %s(%d) has bind to nonexistent difficulty %d instance for map %u, kept", GetName(), GetGUIDLow(), difficulty, mapId);
                 continue;
             }
 

@@ -129,15 +129,11 @@ TEST(ItemRepository_LootWrites)
     ItemRepository::InsertLootMoney(55, 7, 1250);
     ItemRepository::InsertLootItems(55, 7, { item, currency });
     ItemRepository::InsertLootItems(56, 7, {});
-    ItemRepository::DeleteLootItem(55, 2589);
-    ItemRepository::DeleteLootCurrency(55, 395);
     CheckLines(db.Take(), {
         "DELETE FROM `item_loot` WHERE `guid` = '55'",
         "INSERT INTO `item_loot` (`guid`,`owner_guid`,`itemid`,`amount`,`suffix`,`property`) VALUES ('55', '7', 0, '1250', 0, 0)",
         "INSERT INTO `item_loot` (`guid`,`owner_guid`,`itemid`,`amount`,`suffix`,`property`) VALUES ('55', '7', '2589', '3', '0', '-12')",
         "INSERT INTO `item_loot` (`guid`,`owner_guid`,`itemid`,`amount`,`suffix`,`property`) VALUES ('55', '7', '-395', '10', '0', '0')",
-        "DELETE FROM `item_loot` WHERE `guid` = '55' AND `itemid` = '2589'",
-        "DELETE FROM `item_loot` WHERE `guid` = '55' AND `itemid` = '-395'",
     }, __LINE__);
 }
 

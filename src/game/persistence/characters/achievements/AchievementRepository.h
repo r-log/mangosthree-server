@@ -66,9 +66,6 @@ namespace AchievementRepository
     void DeleteProgress(uint32 guid, uint32 criteria);
     void InsertProgress(uint32 guid, uint32 criteria, uint32 counter, uint64 date);
 
-    /// Each deletes every character's rows of an achievement or a criteria the stores do not know.
-    void DeleteAchievementOfEveryCharacter(uint32 achievement);
-    void DeleteCriteriaOfEveryCharacter(uint32 criteria);
 }
 
 #endif

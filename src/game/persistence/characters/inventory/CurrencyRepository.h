@@ -52,8 +52,6 @@ namespace CurrencyRepository
     /// Reads a holder slot's rows, its columns in ReadRow's order.
     std::vector<CurrencyRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
-    /// Deletes the owner's row of the currency `currencyId`, as the load does for an unknown id, queued.
-    void DeleteInvalidRow(uint32 ownerGuidLow, uint32 currencyId);
 
     /// Updates the owner's row of `row.id` to the row's counts and flags, queued.
     void Update(uint32 ownerGuidLow, CurrencyRow const& row);

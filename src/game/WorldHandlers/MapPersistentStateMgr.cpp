@@ -514,7 +514,13 @@ void DungeonResetScheduler::LoadResetTimes()
 
                 MapEntry const* mapEntry = sMapStore.LookupEntry(mapid);
 
-                if (!mapEntry || !mapEntry->IsDungeon() || !GetMapDifficultyData(mapid, Difficulty(difficulty)))
+                if (!mapEntry || (mapEntry->IsDungeon() && !GetMapDifficultyData(mapid, Difficulty(difficulty))))
+                {
+                    sLog.outError("MapPersistentStateManager::LoadResetTimes: instance %u has a mapid(%u)/difficulty(%u) the client data does not hold, kept.", id, mapid, difficulty);
+                    continue;
+                }
+
+                if (!mapEntry->IsDungeon())
                 {
                     sMapPersistentStateMgr.DeleteInstanceFromDB(id);
                     continue;
@@ -563,7 +569,13 @@ void DungeonResetScheduler::LoadResetTimes()
 
             MapEntry const* mapEntry = sMapStore.LookupEntry(mapid);
 
-            if (!mapEntry || !mapEntry->IsDungeon() || !GetMapDifficultyData(mapid, difficulty))
+            if (!mapEntry || (mapEntry->IsDungeon() && !GetMapDifficultyData(mapid, difficulty)))
+            {
+                sLog.outError("MapPersistentStateManager::LoadResetTimes: mapid(%u)/difficulty(%u) pair in instance_reset the client data does not hold, kept.", mapid, difficulty);
+                continue;
+            }
+
+            if (!mapEntry->IsDungeon())
             {
                 sLog.outError("MapPersistentStateManager::LoadResetTimes: invalid mapid(%u)/difficulty(%u) pair in instance_reset!", mapid, difficulty);
                 InstanceRepository::DeleteInstanceResetNow(mapid, difficulty);
