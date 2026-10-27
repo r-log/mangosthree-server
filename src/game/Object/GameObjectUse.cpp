@@ -80,7 +80,7 @@ void GameObject::Use(Unit* user)
         m_cooldownTime = WorldGameTime::Get() + cooldown;
     }
 
-    bool scriptReturnValue = user->GetTypeId() == TYPEID_PLAYER && sScriptMgr.OnGameObjectUse((Player*)user, this);
+    bool scriptReturnValue = user->GetTypeId() == TYPEID_PLAYER && sScriptHooks.OnGameObjectUse((Player*)user, this);
     if (!scriptReturnValue)
     {
         GetMap()->ScriptsStart(DBS_ON_GOT_USE, GetEntry(), spellCaster, this);
@@ -124,7 +124,7 @@ void GameObject::Use(Unit* user)
 
             Player* player = (Player*)user;
 
-            if (!sScriptMgr.OnGossipHello(player, this))
+            if (!sScriptHooks.OnGossipHello(player, this))
             {
                 player->PrepareGossipMenu(this, GetGOInfo()->questgiver.gossipID);
                 player->SendPreparedGossip(this);
@@ -209,7 +209,7 @@ void GameObject::Use(Unit* user)
 
             if (!scriptReturnValue && user->GetTypeId() == TYPEID_UNIT)
             {
-                sScriptMgr.OnGameObjectUse(user, this);
+                sScriptHooks.OnGameObjectUse(user, this);
             }
 
             // TODO: Despawning of traps? (Also related to code in ::Update)
@@ -330,7 +330,7 @@ void GameObject::Use(Unit* user)
                 }
                 else if (info->goober.gossipID)             // ...or gossip, if page does not exist
                 {
-                    if (!sScriptMgr.OnGossipHello(player, this))
+                    if (!sScriptHooks.OnGossipHello(player, this))
                     {
                         player->PrepareGossipMenu(this, info->goober.gossipID);
                         player->SendPreparedGossip(this);

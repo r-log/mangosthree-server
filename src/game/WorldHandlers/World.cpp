@@ -282,6 +282,8 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading SpellTemplate...");
     sObjectMgr.LoadSpellTemplate();
 
+    ScriptHooks::Install(&sScriptMgr);
+
     sLog.outString("Loading Script Names...");
     sScriptMgr.LoadScriptNames();
 

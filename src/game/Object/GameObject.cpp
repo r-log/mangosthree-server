@@ -47,7 +47,8 @@
 #include "BattleGround/BattleGroundAV.h"
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "Util.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
+#include "data/ScriptNameStore.h"
 #include "GameObjectModel.h"
 #include "GameObjectAI.h"
 #include <memory>
@@ -1587,7 +1588,7 @@ bool  GameObject::AIM_Initialize()
         return false;
     }
 
-    m_AI.reset(sScriptMgr.GetGameObjectAI(this));
+    m_AI.reset(sScriptHooks.GetGameObjectAI(this));
 
     return true;
 }

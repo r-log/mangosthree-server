@@ -40,6 +40,7 @@
 #include <shared_mutex>
 #include "data/DbScriptStore.h"
 #include "data/ScriptNameStore.h"
+#include "data/ScriptHooks.h"
 
 struct AreaTriggerEntry;
 struct SpellEntry;
@@ -129,7 +130,7 @@ enum ScriptLoadResult
     SCRIPT_LOAD_ERR_OUTDATED,
 };
 
-class ScriptMgr
+class ScriptMgr : public ScriptHooks
 {
     public:
         ScriptMgr();
@@ -172,37 +173,37 @@ class ScriptMgr
         }
         static bool CanSpellEffectStartDBScript(SpellEntry const* spellinfo, SpellEffectIndex effIdx);
 
-        CreatureAI* GetCreatureAI(Creature* pCreature);
+        CreatureAI* GetCreatureAI(Creature* pCreature) override;
 
-        GameObjectAI* GetGameObjectAI(GameObject* pGo);
+        GameObjectAI* GetGameObjectAI(GameObject* pGo) override;
 
-        InstanceData* CreateInstanceData(Map* pMap);
+        InstanceData* CreateInstanceData(Map* pMap) override;
 
         char const* GetScriptLibraryVersion() const;
-        bool OnGossipHello(Player* pPlayer, Creature* pCreature);
-        bool OnGossipHello(Player* pPlayer, GameObject* pGameObject);
-        bool OnGossipHello(Player* pPlayer, Item* pItem);
-        bool OnGossipSelect(Player* pPlayer, Creature* pCreature, uint32 sender, uint32 action, const char* code);
-        bool OnGossipSelect(Player* pPlayer, GameObject* pGameObject, uint32 sender, uint32 action, const char* code);
-        bool OnGossipSelect(Player* pPlayer, Item* pItem, uint32 sender, uint32 action, const char* code);
-        bool OnQuestAccept(Player* pPlayer, Creature* pCreature, Quest const* pQuest);
-        bool OnQuestAccept(Player* pPlayer, GameObject* pGameObject, Quest const* pQuest);
-        bool OnQuestAccept(Player* pPlayer, Item* pItem, Quest const* pQuest);
-        bool OnQuestRewarded(Player* pPlayer, Creature* pCreature, Quest const* pQuest, uint32 reward);
-        bool OnQuestRewarded(Player* pPlayer, GameObject* pGameObject, Quest const* pQuest, uint32 reward);
-        uint32 GetDialogStatus(Player* pPlayer, Creature* pCreature);
-        uint32 GetDialogStatus(Player* pPlayer, GameObject* pGameObject);
-        bool OnGameObjectUse(Player* pPlayer, GameObject* pGameObject);
-        bool OnGameObjectUse(Unit* pUnit, GameObject* pGameObject);
-        bool OnItemUse(Player* pPlayer, Item* pItem, SpellCastTargets const& targets);
-        bool OnAreaTrigger(Player* pPlayer, AreaTriggerEntry const* atEntry);
-        bool OnNpcSpellClick(Player* pPlayer, Creature* pClickedCreature, uint32 spellId);
-        bool OnProcessEvent(uint32 eventId, Object* pSource, Object* pTarget, bool isStart);
-        bool OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Unit* pTarget, ObjectGuid originalCasterGuid);
-        bool OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, GameObject* pTarget, ObjectGuid originalCasterGuid);
-        bool OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Item* pTarget, ObjectGuid originalCasterGuid);
-        bool OnEffectScriptEffect(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Unit* pTarget, ObjectGuid originalCasterGuid);
-        bool OnAuraDummy(Aura const* pAura, bool apply);
+        bool OnGossipHello(Player* pPlayer, Creature* pCreature) override;
+        bool OnGossipHello(Player* pPlayer, GameObject* pGameObject) override;
+        bool OnGossipHello(Player* pPlayer, Item* pItem) override;
+        bool OnGossipSelect(Player* pPlayer, Creature* pCreature, uint32 sender, uint32 action, const char* code) override;
+        bool OnGossipSelect(Player* pPlayer, GameObject* pGameObject, uint32 sender, uint32 action, const char* code) override;
+        bool OnGossipSelect(Player* pPlayer, Item* pItem, uint32 sender, uint32 action, const char* code) override;
+        bool OnQuestAccept(Player* pPlayer, Creature* pCreature, Quest const* pQuest) override;
+        bool OnQuestAccept(Player* pPlayer, GameObject* pGameObject, Quest const* pQuest) override;
+        bool OnQuestAccept(Player* pPlayer, Item* pItem, Quest const* pQuest) override;
+        bool OnQuestRewarded(Player* pPlayer, Creature* pCreature, Quest const* pQuest, uint32 reward) override;
+        bool OnQuestRewarded(Player* pPlayer, GameObject* pGameObject, Quest const* pQuest, uint32 reward) override;
+        uint32 GetDialogStatus(Player* pPlayer, Creature* pCreature) override;
+        uint32 GetDialogStatus(Player* pPlayer, GameObject* pGameObject) override;
+        bool OnGameObjectUse(Player* pPlayer, GameObject* pGameObject) override;
+        bool OnGameObjectUse(Unit* pUnit, GameObject* pGameObject) override;
+        bool OnItemUse(Player* pPlayer, Item* pItem, SpellCastTargets const& targets) override;
+        bool OnAreaTrigger(Player* pPlayer, AreaTriggerEntry const* atEntry) override;
+        bool OnNpcSpellClick(Player* pPlayer, Creature* pClickedCreature, uint32 spellId) override;
+        bool OnProcessEvent(uint32 eventId, Object* pSource, Object* pTarget, bool isStart) override;
+        bool OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Unit* pTarget, ObjectGuid originalCasterGuid) override;
+        bool OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, GameObject* pTarget, ObjectGuid originalCasterGuid) override;
+        bool OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Item* pTarget, ObjectGuid originalCasterGuid) override;
+        bool OnEffectScriptEffect(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Unit* pTarget, ObjectGuid originalCasterGuid) override;
+        bool OnAuraDummy(Aura const* pAura, bool apply) override;
 
     private:
         void CollectPossibleEventIds(std::set<uint32>& eventIds);

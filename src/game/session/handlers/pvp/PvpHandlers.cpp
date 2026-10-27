@@ -42,7 +42,7 @@
 #include "BattleGround/BattleGroundEY.h"
 #include "BattleGround/BattleGroundWS.h"
 #include "Tools/Language.h"
-#include "WorldHandlers/ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "data/GameConfig.h"
 #include "WorldHandlers/DisableMgr.h"
 #include "Time/GameTime.h"
@@ -1174,7 +1174,7 @@ void PvpHandlers::HandleAreaSpiritHealerQueue(WorldSession& session, WorldPacket
         return;
     }
 
-    sScriptMgr.OnGossipHello(session.GetPlayer(), unit);
+    sScriptHooks.OnGossipHello(session.GetPlayer(), unit);
 }
 
 void PvpHandlers::HandleBattlemasterJoinArena(WorldSession& session, WorldPacket& recv_data)

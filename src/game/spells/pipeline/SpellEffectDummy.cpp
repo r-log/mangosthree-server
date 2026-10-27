@@ -836,15 +836,15 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
     bool libraryResult = false;
     if (gameObjTarget)
     {
-        libraryResult = sScriptMgr.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), gameObjTarget, m_originalCasterGUID);
+        libraryResult = sScriptHooks.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), gameObjTarget, m_originalCasterGUID);
     }
     else if (unitTarget && unitTarget->GetTypeId() == TYPEID_UNIT)
     {
-        libraryResult = sScriptMgr.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), (Creature*)unitTarget, m_originalCasterGUID);
+        libraryResult = sScriptHooks.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), (Creature*)unitTarget, m_originalCasterGUID);
     }
     else if (itemTarget)
     {
-        libraryResult = sScriptMgr.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), itemTarget, m_originalCasterGUID);
+        libraryResult = sScriptHooks.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), itemTarget, m_originalCasterGUID);
     }
 
     if (libraryResult || !unitTarget)

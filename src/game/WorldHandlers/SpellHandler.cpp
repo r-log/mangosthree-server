@@ -41,7 +41,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/pipeline/Spell.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "Totem.h"
 #include "spells/auras/SpellAuras.h"
 #include "persistence/characters/inventory/ItemRepository.h"
@@ -204,7 +204,7 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
     }
 
     // Note: If script stop casting it must send appropriate data to client to prevent stuck item in gray state.
-    if (!sScriptMgr.OnItemUse(pUser, pItem, targets))
+    if (!sScriptHooks.OnItemUse(pUser, pItem, targets))
     {
         // no script or script not process request by self
         pUser->CastItemUseSpell(pItem, targets, cast_count, glyphIndex);
@@ -850,7 +850,7 @@ void WorldSession::HandleSpellClick(WorldPacket& recv_data)
     {
         if (itr->second.IsFitToRequirements(_player, unit))
         {
-            if (sScriptMgr.OnNpcSpellClick(_player, unit, itr->second.spellId))
+            if (sScriptHooks.OnNpcSpellClick(_player, unit, itr->second.spellId))
             {
                 return;
             }
