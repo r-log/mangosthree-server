@@ -56,7 +56,7 @@ namespace GlyphRepository
     {
         static SqlStatementID insertGlyph;
 
-        SqlStatement stmt = CharacterDatabase.CreateStatement(insertGlyph, "INSERT INTO `character_glyphs` (`guid`, `spec`, `slot`, `glyph`) VALUES (?, ?, ?, ?)");
+        SqlStatement stmt = CharacterDatabase.CreateStatement(insertGlyph, "REPLACE INTO `character_glyphs` (`guid`, `spec`, `slot`, `glyph`) VALUES (?, ?, ?, ?)");
         stmt.PExecute(ownerGuidLow, spec, slot, glyph);
     }
 

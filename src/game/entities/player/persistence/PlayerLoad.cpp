@@ -279,6 +279,11 @@ void Player::_LoadActions(std::vector<LoginActionRow> const& rows)
             {
                 ab->uState = ACTIONBUTTON_UNCHANGED;
             }
+            else if ((type == ACTION_BUTTON_SPELL && !sSpellStore.LookupEntry(action)) ||
+                     (type == ACTION_BUTTON_ITEM && !ObjectMgr::GetItemPrototype(action)))
+            {
+                sLog.outError("  ...at loading, and kept in DB");
+            }
             else
             {
                 sLog.outError("  ...at loading, and will deleted in DB also");
@@ -514,8 +519,7 @@ void Player::_LoadInventory(std::vector<LoginInventoryRow> const& rows, uint32 t
             if (!proto)
             {
                 ItemRepository::DropInventoryRow(item_lowguid);
-                ItemRepository::DeleteUnknownItem(item_lowguid);
-                sLog.outError("Player::_LoadInventory: Player %s has an unknown item (id: #%u) in inventory, deleted.", GetName(), item_id);
+                sLog.outError("Player::_LoadInventory: Player %s has an unknown item (GUID: %u id: #%u) in inventory, kept in `item_instance`, its slot freed.", GetName(), item_lowguid, item_id);
                 continue;
             }
 
@@ -723,17 +727,16 @@ void Player::_LoadMailedItems(std::vector<LoginMailedItemRow> const& rows)
         {
             continue;
         }
-        mail->AddItem(item_guid_low, item_template);
-
         ItemPrototype const* proto = ObjectMgr::GetItemPrototype(item_template);
 
         if (!proto)
         {
-            sLog.outError("Player %u has unknown item_template (ProtoType) in mailed items(GUID: %u template: %u) in mail (%u), deleted.", GetGUIDLow(), item_guid_low, item_template, mail->messageID);
+            sLog.outError("Player %u has unknown item_template (ProtoType) in mailed items(GUID: %u template: %u) in mail (%u), kept in `item_instance`, taken out of the mail.", GetGUIDLow(), item_guid_low, item_template, mail->messageID);
             MailRepository::DropMailedItem(item_guid_low);
-            ItemRepository::DeleteUnknownItem(item_guid_low);
             continue;
         }
+
+        mail->AddItem(item_guid_low, item_template);
 
         Item* item = NewItemOrBag(proto);
 

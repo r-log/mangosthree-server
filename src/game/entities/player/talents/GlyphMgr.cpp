@@ -86,16 +86,14 @@ void GlyphMgr::LoadRow(GlyphRow const& row, RowInputs const& inputs)
     GlyphPropertiesEntry const* gp = sGlyphPropertiesStore.LookupEntry(glyph);
     if (!gp)
     {
-        sLog.outError("Player %s has not existing glyph entry %u on index %u, spec %u", inputs.ownerName, glyph, slot, spec);
-        GlyphRepository::DeleteInvalidRow(inputs.ownerGuidLow, spec, slot);
+        sLog.outError("Player %s has not existing glyph entry %u on index %u, spec %u, kept", inputs.ownerName, glyph, slot, spec);
         return;
     }
 
     GlyphSlotEntry const* gs = sGlyphSlotStore.LookupEntry(inputs.glyphSlot(slot));
     if (!gs)
     {
-        sLog.outError("Player %s has not existing glyph slot entry %u on index %u, spec %u", inputs.ownerName, inputs.glyphSlot(slot), slot, spec);
-        GlyphRepository::DeleteInvalidRow(inputs.ownerGuidLow, spec, slot);
+        sLog.outError("Player %s has not existing glyph slot entry %u on index %u, spec %u, kept", inputs.ownerName, inputs.glyphSlot(slot), slot, spec);
         return;
     }
 

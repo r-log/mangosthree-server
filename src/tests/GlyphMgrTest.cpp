@@ -173,7 +173,7 @@ namespace
 
     std::string InsertSql(uint32 spec, uint32 slot, uint32 glyph)
     {
-        return "INSERT INTO `character_glyphs` (`guid`, `spec`, `slot`, `glyph`) VALUES ('42', '"
+        return "REPLACE INTO `character_glyphs` (`guid`, `spec`, `slot`, `glyph`) VALUES ('42', '"
             + std::to_string(spec) + "', '" + std::to_string(slot) + "', '" + std::to_string(glyph) + "')";
     }
 
@@ -392,16 +392,16 @@ TEST(GlyphMgr_ApplyGlyphSinksAndFields)
 // One pass over the rows, as the owner's loop does it. The owner's glyph slot fields are the
 // test's `fields` array; the read callback records each read, so the sequence shows where the old
 // body read the field (once to look the slot type up, once more for the log line when it is
-// missing, never for an unknown glyph) interleaved with the DELETEs the database was handed.
+// missing, never for an unknown glyph) interleaved with the DELETE the database was handed.
 //
 // Rows (spec, slot, glyph), by hand:
 //   (0, 1, 94101): slot 1's field is 2, type 0 = the glyph's flags 0 -> stored in [0][1].
 //   (1, 4, 94102): slot 4's field is 6, type 1 = flags 1 -> stored in [1][4].
-//   (0, 3, 94999): no glyph property: DELETE this row; no field read.
-//   (1, 2, 94101): slot 2's field is 5, which the slot store lacks: read twice, DELETE this row.
+//   (0, 3, 94999): no glyph property: kept, logged; no field read.
+//   (1, 2, 94101): slot 2's field is 5, which the slot store lacks: read twice, kept, logged.
 //   (0, 8, 94102): slot 8's field is 10, type 2 != flags 1: DELETE this row.
 //   (1, 8, 94103): slot 8's field is 10, type 2 = flags 2 -> stored in [1][8].
-// Slot and spec differ in every DELETE, so a swapped pair of arguments shows.
+// Slot and spec differ in the DELETE, so a swapped pair of arguments shows.
 TEST(GlyphMgr_LoadRowValidAndEachInvalidKind)
 {
     SeedStores();
@@ -455,10 +455,8 @@ TEST(GlyphMgr_LoadRowValidAndEachInvalidKind)
     {
         "read 1",
         "read 4",
-        "DELETE FROM `character_glyphs` WHERE `slot` = 3 AND `spec` = 0 AND `guid` = 42",
         "read 2",
         "read 2",
-        "DELETE FROM `character_glyphs` WHERE `slot` = 2 AND `spec` = 1 AND `guid` = 42",
         "read 8",
         "DELETE FROM `character_glyphs` WHERE `slot` = 8 AND `spec` = 0 AND `guid` = 42",
         "read 8",
@@ -483,12 +481,12 @@ TEST(GlyphMgr_LoadRowValidAndEachInvalidKind)
     // The guid is a parameter: another guid lands in the per-character DELETE.
     events.clear();
     inputs.ownerGuidLow = 7;
-    FakeQueryResult other(FakeRows{ GlyphFakeRow(1, 2, kGlyphMajor) });
+    FakeQueryResult other(FakeRows{ GlyphFakeRow(0, 8, kGlyphMinor) });
     REQUIRE(other.NextRow());
     mgr.LoadRow(GlyphRepository::ReadRow(other.Fetch()), inputs);
     sync();
-    CheckEvents(events, { "read 2", "read 2",
-                          "DELETE FROM `character_glyphs` WHERE `slot` = 2 AND `spec` = 1 AND `guid` = 7" }, __LINE__);
+    CheckEvents(events, { "read 8",
+                          "DELETE FROM `character_glyphs` WHERE `slot` = 8 AND `spec` = 0 AND `guid` = 7" }, __LINE__);
 
     CHECK_EQ(TickGuard::Violations(), 0u);
 }
@@ -553,7 +551,7 @@ TEST(GlyphMgr_SaveNewChangedDeletedAcrossTwoSpecs)
     // The literal text of each kind once, so the helpers themselves are pinned.
     REQUIRE(async.executed.size() == size_t(3));
     CHECK_STR(async.executed[0], "UPDATE `character_glyphs` SET `glyph` = '94103' WHERE `guid` = '42' AND `spec` = '0' AND `slot` = '2'");
-    CHECK_STR(async.executed[1], "INSERT INTO `character_glyphs` (`guid`, `spec`, `slot`, `glyph`) VALUES ('42', '0', '3', '94101')");
+    CHECK_STR(async.executed[1], "REPLACE INTO `character_glyphs` (`guid`, `spec`, `slot`, `glyph`) VALUES ('42', '0', '3', '94101')");
     CHECK_STR(async.executed[2], "DELETE FROM `character_glyphs` WHERE `guid` = '42' AND `spec` = '0' AND `slot` = '5'");
 
     mgr.Save(kGuid, 2);
