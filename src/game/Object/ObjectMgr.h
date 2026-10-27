@@ -60,6 +60,7 @@
 #include "data/FishingBaseSkillStore.h"
 #include "data/LfgDungeonEntranceStore.h"
 #include "data/MailLevelRewardStore.h"
+#include "data/PageTextStore.h"
 #include "data/PointOfInterestStore.h"
 #include "data/QuestPOIStore.h"
 
@@ -654,6 +655,11 @@ class ObjectMgr
         PointOfInterest const* GetPointOfInterest(uint32 id) const
         {
             return m_pointsOfInterest.Find(id);
+        }
+
+        PageText const* GetPageText(uint32 id) const
+        {
+            return m_pageTexts.Find(id);
         }
 
         QuestPOIVector const* GetQuestPOIVector(uint32 questId) const
@@ -1380,6 +1386,8 @@ class ObjectMgr
         GossipMenusMap      m_mGossipMenusMap;
         GossipMenuItemsMap  m_mGossipMenuItemsMap;
         PointOfInterestStore m_pointsOfInterest;
+
+        PageTextStore m_pageTexts;
 
         QuestPOIStore m_questPoi;
 

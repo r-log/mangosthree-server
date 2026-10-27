@@ -548,7 +548,7 @@ void ObjectMgr::LoadItemPrototypes()
 
         if (proto->PageText)
         {
-            if (!sPageTextStore.LookupEntry<PageText>(proto->PageText))
+            if (!GetPageText(proto->PageText))
             {
                 sLog.outErrorDb("Item (Entry: %u) has non existing first page (Id:%u)", i, proto->PageText);
             }

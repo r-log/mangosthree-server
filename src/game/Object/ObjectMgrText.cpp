@@ -35,10 +35,10 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "ProgressBar.h"
-#include "SQLStorages.h"
 #include "DBCStores.h"
 #include "Language.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
+#include "persistence/world/items/PageTextRepository.h"
 
 static_assert(int(NPC_TEXT_ROW_OPTIONS) == int(MAX_GOSSIP_TEXT_OPTIONS), "an NPC text row holds every option");
 static_assert(int(NPC_TEXT_ROW_EMOTES) == int(std::extent<decltype(GossipTextOption::Emotes)>::value), "an NPC text option row holds every emote");
@@ -48,20 +48,42 @@ static_assert(int(NPC_TEXT_ROW_EMOTES) == int(std::extent<decltype(GossipTextOpt
  */
 void ObjectMgr::LoadPageTexts()
 {
-    sPageTextStore.Load();
-    sLog.outString(">> Loaded %u page texts", sPageTextStore.GetRecordCount());
+    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `page_text` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("page_text table is empty!\n");
+    }
+    else
+    {
+        m_pageTexts.Clear();
+        BarGoLink bar(read.rows.size());
+        for (PageTextRow const& row : read.rows)
+        {
+            bar.step();
+            m_pageTexts.Set(row.entry, row.text, row.nextPage);
+        }
+    }
+
+    sLog.outString(">> Loaded %u page texts", m_pageTexts.GetCount());
     sLog.outString();
 
-    for (uint32 i = 1; i < sPageTextStore.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < m_pageTexts.GetMaxEntry(); ++i)
     {
         // check data correctness
-        PageText const* page = sPageTextStore.LookupEntry<PageText>(i);
+        PageText const* page = m_pageTexts.Find(i);
         if (!page)
         {
             continue;
         }
 
-        if (page->Next_Page && !sPageTextStore.LookupEntry<PageText>(page->Next_Page))
+        if (page->Next_Page && !m_pageTexts.Find(page->Next_Page))
         {
             sLog.outErrorDb("Page text (Id: %u) has not existing next page (Id:%u)", i, page->Next_Page);
             continue;
@@ -69,7 +91,7 @@ void ObjectMgr::LoadPageTexts()
 
         // detect circular reference
         std::set<uint32> checkedPages;
-        for (PageText const* pageItr = page; pageItr; pageItr = sPageTextStore.LookupEntry<PageText>(pageItr->Next_Page))
+        for (PageText const* pageItr = page; pageItr; pageItr = m_pageTexts.Find(pageItr->Next_Page))
         {
             if (!pageItr->Next_Page)
             {
@@ -87,7 +109,7 @@ void ObjectMgr::LoadPageTexts()
                 ss << "create(s) a circular reference, which can cause the server to freeze. Changing Next_Page of page "
                    << pageItr->Page_ID << " to 0";
                 sLog.outErrorDb("%s", ss.str().c_str());
-                const_cast<PageText*>(pageItr)->Next_Page = 0;
+                m_pageTexts.FindForEdit(pageItr->Page_ID)->Next_Page = 0;
                 break;
             }
         }

@@ -97,6 +97,7 @@ set(SRC_GRP_TESTS
     DungeonDataRepositoryTest.cpp
     MapDataRepositoryTest.cpp
     NpcDataRepositoryTest.cpp
+    PageTextRepositoryTest.cpp
     PlayerDataRepositoryTest.cpp
     QuestDataRepositoryTest.cpp
     ReputationDataRepositoryTest.cpp
@@ -198,6 +199,8 @@ set(SRC_GRP_TESTS
     MailLevelRewardStoreTest.cpp
     ExplorationBaseXpStoreTest.cpp
     FishingBaseSkillStoreTest.cpp
+    PageTextStoreTest.cpp
+    TableReadTest.cpp
     PointOfInterestStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp

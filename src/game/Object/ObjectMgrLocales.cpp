@@ -283,7 +283,7 @@ void ObjectMgr::LoadPageTextLocales()
 
         uint32 entry = row.entry;
 
-        if (!sPageTextStore.LookupEntry<PageText>(entry))
+        if (!GetPageText(entry))
         {
             ERROR_DB_STRICT_LOG("Table `locales_page_text` has data for nonexistent page text entry %u, skipped.", entry);
             continue;
