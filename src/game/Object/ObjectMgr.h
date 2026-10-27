@@ -55,6 +55,7 @@
 #include "PlayerRegistry.h"
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
+#include "data/CreatureEquipmentStore.h"
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
@@ -1394,6 +1395,8 @@ class ObjectMgr
         PageTextStore m_pageTexts;
 
         InstanceTemplateStore m_instanceTemplates;
+
+        CreatureEquipmentStore m_creatureEquipment;
 
         QuestPOIStore m_questPoi;
 
