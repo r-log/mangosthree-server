@@ -31,6 +31,7 @@
 #include "Timeline.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -149,7 +150,7 @@ namespace Harness
         /// CharacterDatabase.AsyncPQuery calls it through the singleton; `token` is what
         /// identifies the staged queue, so an answer for a queue that has since been
         /// superseded is dropped instead of starting the wrong run.
-        void OnGuidBlockChecked(std::unique_ptr<QueryResult> taken, uint32 token);
+        void OnGuidBlockChecked(std::optional<uint32> const& taken, uint32 token);
 
     private:
         void Begin(Scenario* s);

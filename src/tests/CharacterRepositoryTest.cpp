@@ -36,6 +36,7 @@
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
+#include "persistence/characters/social/SocialRepository.h"
 #include "persistence/login/AccountRepository.h"
 #include "persistence/login/RealmRepository.h"
 
@@ -317,13 +318,12 @@ TEST(CharacterRepository_NameAndWhoisReads)
     Db chars(CharacterDatabase);
     Db login(LoginDatabase);
     int answered = 0;
-    std::function<void(QueryResult*)> read = [&answered](QueryResult* result) { delete result; ++answered; };
     auto nameRead = [&answered](std::optional<CharacterNameRow> /*row*/) { ++answered; };
     {
         TickGuard::Scope scope;
         CharacterRepository::QueryName(42, false, nameRead);
         CharacterRepository::QueryName(42, true, nameRead);
-        CHECK(AccountRepository::QueryWhois(17, read));
+        CHECK(AccountRepository::QueryWhois(17, [&answered](std::optional<WhoisRow> /*row*/) { ++answered; }));
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(chars.query.executed.size(), size_t(0));
         CHECK_EQ(login.query.executed.size(), size_t(0));
@@ -557,4 +557,42 @@ TEST(CharacterRepository_RenameTargetRow)
     CharacterDatabase.ProcessResultQueue();
     CHECK(answered);
     CHECK(!missing);
+}
+
+// The whois read answers the account's name, e-mail and last address.
+TEST(CharacterRepository_WhoisRow)
+{
+    Db login(LoginDatabase);
+    login.async.Answer("SELECT `username`", FakeRows{FakeRow{"s1.0", "s1.1", "s1.2"}});
+    std::optional<WhoisRow> row;
+    CHECK(AccountRepository::QueryWhois(17, [&row](std::optional<WhoisRow> got) { row = got; }));
+    login.Take();
+    LoginDatabase.ProcessResultQueue();
+    REQUIRE(row);
+    CHECK_STR(row->username, "s1.0");
+    CHECK_STR(row->email, "s1.1");
+    CHECK_STR(row->lastIp, "s1.2");
+}
+
+// The social flags read answers the flags, and nothing when there is no row.
+TEST(CharacterRepository_SocialFlagsValue)
+{
+    {
+        Db db(CharacterDatabase);
+        db.async.Answer("SELECT `flags`", FakeRows{FakeRow{"102"}});
+        std::optional<uint8> flags;
+        SocialRepository::QueryFlags(42, 43, [&flags](std::optional<uint8> got) { flags = got; });
+        db.Take();
+        CharacterDatabase.ProcessResultQueue();
+        REQUIRE(flags);
+        CHECK_EQ(*flags, uint8(102));
+    }
+    Db db(CharacterDatabase);
+    bool answered = false;
+    std::optional<uint8> flags;
+    SocialRepository::QueryFlags(42, 43, [&answered, &flags](std::optional<uint8> got) { answered = true; flags = got; });
+    db.Take();
+    CharacterDatabase.ProcessResultQueue();
+    CHECK(answered);
+    CHECK(!flags);
 }

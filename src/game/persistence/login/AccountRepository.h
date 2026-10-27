@@ -27,10 +27,19 @@
 #define MANGOS_H_ACCOUNTREPOSITORY
 
 #include <functional>
+#include <optional>
 #include <string>
 #include "Platform/Define.h"
 
 class QueryResult;
+
+/// An account as a GM's whois reads it: its name, e-mail and last address.
+struct WhoisRow
+{
+    std::string username;
+    std::string email;
+    std::string lastIp;
+};
 
 /// The accounts' saved rows on the login database (`account`, `account_banned`, `ip_banned`,
 /// `realmcharacters`). The authentication reads run on the network thread that asks them, and the
@@ -95,9 +104,9 @@ namespace AccountRepository
     void QueryGmLevel(uint32 accountId, std::function<void(QueryResult*)> callback);
 
     /// Asks, asynchronously, for what a whois answers: an account's name, email and last IP; the
-    /// callback runs on the world thread with the result, which it owns. Returns false, and never
+    /// callback runs on the world thread with the row, none when there is none. Returns false, and never
     /// runs the callback, when the database is shutting down.
-    bool QueryWhois(uint32 accountId, std::function<void(QueryResult*)> callback);
+    bool QueryWhois(uint32 accountId, std::function<void(std::optional<WhoisRow>)> callback);
 
     /// Sets the realm an account is playing on.
     void SetActiveRealm(uint32 realmId, uint32 accountId);

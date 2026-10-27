@@ -1465,13 +1465,13 @@ void WorldSession::HandleWhoisOpcode(WorldPacket& recv_data)
     // that cannot succeed still never reaches the database (D7b's contract).
     const uint32 requesterAccount = GetAccountId();
     const proto::SessionId requesterSession = GetSessionId();
-    if (!AccountRepository::QueryWhois(accid, [requesterAccount, requesterSession, charname](QueryResult* result)
+    if (!AccountRepository::QueryWhois(accid, [requesterAccount, requesterSession, charname](std::optional<WhoisRow> row)
                                        {
-                                           WorldSession::HandleWhoisCallback(std::unique_ptr<QueryResult>(result), requesterAccount, requesterSession, charname);
+                                           WorldSession::HandleWhoisCallback(row, requesterAccount, requesterSession, charname);
                                        }))
     {
         // The only way that fails is the login database shutting down, which is the same
-        // unknown answer a NULL result is, so it takes the same reply.
+        // unknown answer no row is, so it takes the same reply.
         SendNotification(LANG_ACCOUNT_FOR_PLAYER_NOT_FOUND, charname.c_str());
     }
 }
@@ -1479,13 +1479,13 @@ void WorldSession::HandleWhoisOpcode(WorldPacket& recv_data)
 /**
  * @brief Sends the whois answer once the account row has arrived.
  *
- * @param result The account row, or NULL when there is none.
+ * @param row The account, none when there is none.
  * @param accountId The requesting account id.
  * @param sessionId The requesting session id (C2: an answer for a session that has been
  *                  replaced by a reconnect is dropped).
  * @param charname The character the request named.
  */
-void WorldSession::HandleWhoisCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+void WorldSession::HandleWhoisCallback(std::optional<WhoisRow> const& row, uint32 accountId,
                                        proto::SessionId sessionId, std::string charname)
 {
     WorldSession* session = FindRequesterSession(accountId, sessionId);
@@ -1494,24 +1494,23 @@ void WorldSession::HandleWhoisCallback(std::unique_ptr<QueryResult> result, uint
         return;
     }
 
-    if (!result)
+    if (!row)
     {
         session->SendNotification(LANG_ACCOUNT_FOR_PLAYER_NOT_FOUND, charname.c_str());
         return;
     }
 
-    Field* fields = result->Fetch();
-    std::string acc = fields[0].GetCppString();
+    std::string acc = row->username;
     if (acc.empty())
     {
         acc = "Unknown";
     }
-    std::string email = fields[1].GetCppString();
+    std::string email = row->email;
     if (email.empty())
     {
         email = "Unknown";
     }
-    std::string lastip = fields[2].GetCppString();
+    std::string lastip = row->lastIp;
     if (lastip.empty())
     {
         lastip = "Unknown";

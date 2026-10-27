@@ -587,22 +587,21 @@ void WorldSession::QueueCalendarInviteIgnoreRead(uint32 accountId, proto::Sessio
                                                  CalendarInviteRequest request)
 {
     SocialRepository::QueryFlags(request.inviteeGuid.GetCounter(), request.playerGuid.GetCounter(),
-                                 [accountId, sessionId, request](QueryResult* result)
+                                 [accountId, sessionId, request](std::optional<uint8> flags)
                                  {
-                                     WorldSession::HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResult>(result),
-                                                                                      accountId, sessionId, request);
+                                     WorldSession::HandleCalendarInviteIgnoreCallback(flags, accountId, sessionId, request);
                                  });
 }
 
 /**
  * @brief Finishes the invite once the offline invitee's ignore flag is known.
  *
- * @param result The invitee's `character_social` row for the inviter, if there is one.
+ * @param flags The invitee's social flags for the inviter, if the invitee lists them.
  * @param accountId The inviting account.
  * @param sessionId The session the request arrived on.
  * @param request The invite as the handler captured it.
  */
-void WorldSession::HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+void WorldSession::HandleCalendarInviteIgnoreCallback(std::optional<uint8> const& flags, uint32 accountId,
                                                       proto::SessionId sessionId, CalendarInviteRequest request)
 {
     WorldSession* session = NULL;
@@ -613,10 +612,9 @@ void WorldSession::HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResul
     }
 
     bool isIgnored = false;
-    if (result)
+    if (flags)
     {
-        Field* fields = result->Fetch();
-        if (fields[0].GetUInt8() & SOCIAL_FLAG_IGNORED)
+        if (*flags & SOCIAL_FLAG_IGNORED)
         {
             isIgnored = true;
         }

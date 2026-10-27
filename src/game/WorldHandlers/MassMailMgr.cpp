@@ -98,29 +98,25 @@ struct MassMailerQueryHandler
 {
     /**
      * @brief Process query results and add receivers to mass mail task
-     * @param result Database query result containing character GUIDs
+     * @param guids The receivers' character GUIDs
      * @param mailProto Mail template to send
      * @param sender Mail sender information
      *
-     * Extracts all GUIDs from the query result and adds them to the
-     * receivers list for the mass mail task.
+     * Adds every GUID to the receivers list for the mass mail task.
      */
-    void HandleQueryCallback(QueryResult* result, MailDraft* mailProto, MailSender sender)
+    void HandleQueryCallback(std::vector<uint32> const& guids, MailDraft* mailProto, MailSender sender)
     {
-        if (!result)
+        if (guids.empty())
         {
             return;
         }
 
         MassMailMgr::ReceiversList& recievers = sMassMailMgr.AddMassMailTask(mailProto, sender);
 
-        do
+        for (uint32 guid : guids)
         {
-            Field* fields = result->Fetch();
-            recievers.insert(fields[0].GetUInt32());
+            recievers.insert(guid);
         }
-        while (result->NextRow());
-        delete result;
     }
 } massMailerQueryHandler;
 
@@ -137,9 +133,9 @@ struct MassMailerQueryHandler
  */
 void MassMailMgr::AddMassMailTask(MailDraft* mailProto, const MailSender& sender, char const* query)
 {
-    MailRepository::QueryMassMailReceivers(query, [mailProto, sender](QueryResult* result)
+    MailRepository::QueryMassMailReceivers(query, [mailProto, sender](std::vector<uint32> guids)
                                            {
-                                               massMailerQueryHandler.HandleQueryCallback(result, mailProto, sender);
+                                               massMailerQueryHandler.HandleQueryCallback(guids, mailProto, sender);
                                            });
 }
 

@@ -42,9 +42,20 @@ namespace ItemRepository
         return row;
     }
 
-    void QueryGift(uint32 itemGuid, std::function<void(QueryResult*)> callback)
+    static GiftRow ReadGift(Field* fields)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        GiftRow row;
+        row.entry = fields[0].GetUInt32();
+        row.flags = fields[1].GetUInt32();
+        return row;
+    }
+
+    void QueryGift(uint32 itemGuid, std::function<void(std::optional<GiftRow>)> callback)
+    {
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<GiftRow>(result, ReadGift));
+                                      },
                                       "SELECT `entry`, `flags` FROM `character_gifts` WHERE `item_guid` = '%u'",
                                       itemGuid);
     }

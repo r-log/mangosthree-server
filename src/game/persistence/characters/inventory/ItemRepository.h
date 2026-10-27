@@ -53,6 +53,13 @@ struct ItemInstanceRow
     std::string text;
 };
 
+/// A wrapped item's gift row: the item's entry and flags before it was wrapped.
+struct GiftRow
+{
+    uint32 entry = 0;
+    uint32 flags = 0;
+};
+
 /// The items' saved rows (`item_instance`, `character_gifts`, `item_loot`, and an item's
 /// `character_inventory` row). The gift read is asynchronous, and the start-up's highest guid and
 /// a GM's item list reads synchronous; every write is queued on the character database, and one called inside
@@ -63,8 +70,8 @@ namespace ItemRepository
     ItemInstanceRow ReadInstance(Field* fields);
 
     /// Asks for a wrapped item's gift row: the item's entry and flags before it was wrapped. The
-    /// callback runs on the world thread with the result, which it owns.
-    void QueryGift(uint32 itemGuid, std::function<void(QueryResult*)> callback);
+    /// callback runs on the world thread with the row, none when the item has none.
+    void QueryGift(uint32 itemGuid, std::function<void(std::optional<GiftRow>)> callback);
 
     /// Inserts a wrapped item's gift row: its owner, the item, and its entry and flags before it
     /// was wrapped.
