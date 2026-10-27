@@ -73,9 +73,9 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
 
     SendSysMessage(Version::GetFullVersion());
 
-    if (sScriptMgr.IsScriptLibraryLoaded())
+    if (ScriptHooks::IsInstalled())
     {
-        char const* ver = sScriptMgr.GetScriptLibraryVersion();
+        char const* ver = sScriptHooks.GetScriptLibraryVersion();
         if (ver && *ver)
         {
             PSendSysMessage(LANG_USING_SCRIPT_LIB, ver);

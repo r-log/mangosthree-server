@@ -25,8 +25,9 @@
 
 /// The script hooks the core calls, with no script library: the base answers what a server with no
 /// script library answers, an installed object is what sScriptHooks answers until the hooks it
-/// replaced are put back, and the creature AI selector asks the installed hooks first and keeps the
-/// AI a script made.
+/// replaced are put back, the creature AI selector asks the installed hooks first and keeps the AI a
+/// script made, and the script manager starts, frees and reports the installed library and finds none
+/// when none is installed.
 
 #include "TestHarness.h"
 #include "data/ScriptHooks.h"
@@ -34,6 +35,9 @@
 #include "CreatureAISelector.h"
 #include "NullCreatureAI.h"
 #include "QuestDef.h"
+#include "ScriptMgr.h"
+
+#include <string>
 
 namespace
 {
@@ -65,6 +69,27 @@ namespace
                 ++calls;
                 askedForAI = pCreature;
                 return answer;
+            }
+    };
+
+    class LibraryHooks : public ScriptHooks
+    {
+        public:
+            std::string calls;
+
+            void InitScriptLibrary() override
+            {
+                calls += "init ";
+            }
+
+            void FreeScriptLibrary() override
+            {
+                calls += "free ";
+            }
+
+            char const* GetScriptLibraryVersion() override
+            {
+                return "test library";
             }
     };
 
@@ -126,4 +151,29 @@ TEST(ScriptHooks_TheAISelectorKeepsTheAIAScriptMade)
     CHECK_EQ(hooks.calls, 1u);
     CHECK(hooks.askedForAI == &creature);
     CHECK(ai == &scripted);
+}
+
+TEST(ScriptHooks_TheScriptManagerStartsFreesAndReportsTheInstalledLibrary)
+{
+    LibraryHooks library;
+    InstalledHooks installed(&library);
+    CHECK(ScriptHooks::IsInstalled());
+
+    CHECK(sScriptMgr.LoadScriptLibrary("mangosscript") == SCRIPT_LOAD_OK);
+    CHECK_STR(library.calls, "free init ");
+    CHECK(sScriptMgr.LoadScriptLibrary("another") == SCRIPT_LOAD_ERR_NOT_FOUND);
+    CHECK_STR(library.calls, "free init ");
+
+    sScriptMgr.UnloadScriptLibrary();
+    CHECK_STR(library.calls, "free init free ");
+    CHECK_STR(std::string(sScriptHooks.GetScriptLibraryVersion()), "test library");
+}
+
+TEST(ScriptHooks_WithNoLibraryInstalledTheScriptManagerFindsNone)
+{
+    InstalledHooks base(NULL);
+    CHECK(!ScriptHooks::IsInstalled());
+    CHECK(sScriptMgr.LoadScriptLibrary("mangosscript") == SCRIPT_LOAD_ERR_NOT_FOUND);
+    CHECK(sScriptHooks.GetScriptLibraryVersion() == NULL);
+    sScriptMgr.UnloadScriptLibrary();
 }

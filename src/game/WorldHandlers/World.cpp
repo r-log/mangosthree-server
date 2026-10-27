@@ -282,8 +282,6 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading SpellTemplate...");
     sObjectMgr.LoadSpellTemplate();
 
-    ScriptHooks::Install(&sScriptMgr);
-
     sLog.outString("Loading Script Names...");
     sScriptMgr.LoadScriptNames();
 
@@ -498,10 +496,11 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading Tavern Area Triggers...");
     sObjectMgr.LoadTavernAreaTriggers();
 
-#ifdef ENABLE_SD3
-    sLog.outString("Loading all script bindings...");
-    sScriptMgr.LoadScriptBinding();
-#endif /* ENABLE_SD3 */
+    if (ScriptHooks::IsInstalled())
+    {
+        sLog.outString("Loading all script bindings...");
+        sScriptMgr.LoadScriptBinding();
+    }
 
     sLog.outString("Loading Graveyard-zone links...");
     sObjectMgr.LoadGraveyardZones();
@@ -686,25 +685,28 @@ void World::SetInitialWorldSettings()
     sEventAIMgr.LoadCreatureEventAI_Scripts();
 
     sLog.outString("Initializing Scripts...");
-#ifdef ENABLE_SD3
-    switch (sScriptMgr.LoadScriptLibrary("mangosscript"))
+    if (ScriptHooks::IsInstalled())
     {
-        case SCRIPT_LOAD_OK:
-            sLog.outString("Scripting library loaded.");
-            break;
-        case SCRIPT_LOAD_ERR_NOT_FOUND:
-            sLog.outError("Scripting library not found or not accessible.");
-            break;
-        case SCRIPT_LOAD_ERR_WRONG_API:
-            sLog.outError("Scripting library has wrong list functions (outdated?).");
-            break;
-        case SCRIPT_LOAD_ERR_OUTDATED:
-            sLog.outError("Scripting library build for old mangosd revision. You need rebuild it.");
-            break;
+        switch (sScriptMgr.LoadScriptLibrary("mangosscript"))
+        {
+            case SCRIPT_LOAD_OK:
+                sLog.outString("Scripting library loaded.");
+                break;
+            case SCRIPT_LOAD_ERR_NOT_FOUND:
+                sLog.outError("Scripting library not found or not accessible.");
+                break;
+            case SCRIPT_LOAD_ERR_WRONG_API:
+                sLog.outError("Scripting library has wrong list functions (outdated?).");
+                break;
+            case SCRIPT_LOAD_ERR_OUTDATED:
+                sLog.outError("Scripting library build for old mangosd revision. You need rebuild it.");
+                break;
+        }
     }
-#else /* ENABLE_SD3 */
-    sLog.outError("SD3 was not included in compilation, not using it.");
-#endif /* ENABLE_SD3 */
+    else
+    {
+        sLog.outError("SD3 was not included in compilation, not using it.");
+    }
     sLog.outString();
 
     ///- Initialize game time and timers
@@ -855,9 +857,10 @@ void World::showFooter()
     std::set<std::string> modules_;
 
     // SD3 is either included or disabled
-#ifdef ENABLE_SD3
-    modules_.insert("      ScriptDev3 (SD3) : Enabled");
-#endif
+    if (ScriptHooks::IsInstalled())
+    {
+        modules_.insert("      ScriptDev3 (SD3) : Enabled");
+    }
 
     std::string thisClientVersion (Version::GetClientVersion());
     std::string thisClientBuilds = Version::GetAcceptedClientBuildsStr();

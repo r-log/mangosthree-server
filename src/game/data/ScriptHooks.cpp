@@ -43,6 +43,19 @@ ScriptHooks::~ScriptHooks()
 {
 }
 
+void ScriptHooks::InitScriptLibrary()
+{
+}
+
+void ScriptHooks::FreeScriptLibrary()
+{
+}
+
+char const* ScriptHooks::GetScriptLibraryVersion()
+{
+    return NULL;
+}
+
 CreatureAI* ScriptHooks::GetCreatureAI(Creature* /*pCreature*/)
 {
     return NULL;
@@ -187,4 +200,9 @@ ScriptHooks& ScriptHooks::Installed()
 ScriptHooks* ScriptHooks::Install(ScriptHooks* hooks)
 {
     return s_installed.exchange(hooks, std::memory_order_acq_rel);
+}
+
+bool ScriptHooks::IsInstalled()
+{
+    return s_installed.load(std::memory_order_acquire) != NULL;
 }

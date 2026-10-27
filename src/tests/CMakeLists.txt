@@ -298,6 +298,12 @@ if(NOT "game" IN_LIST MANGOS_TESTS_LINKS)
     message(FATAL_ERROR "mangos_tests no longer links the game library (decoupling D1, server #80)")
 endif()
 
+get_target_property(GAME_LINKS game LINK_LIBRARIES)
+string(FIND "${GAME_LINKS}" "mangosscript" GAME_LINKS_SCRIPTS)
+if(NOT GAME_LINKS_SCRIPTS EQUAL -1)
+    message(FATAL_ERROR "the game library links mangosscript; mangosd links it and installs its ScriptHooks")
+endif()
+
 if(WITH_CRYPTO_TESTS)
     target_compile_definitions(mangos_tests PRIVATE MANGOS_CRYPTO_TESTS=1)
 
