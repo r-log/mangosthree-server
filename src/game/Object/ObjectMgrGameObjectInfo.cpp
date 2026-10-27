@@ -297,7 +297,7 @@ void ObjectMgr::LoadGameobjectInfo()
 
                 if (goInfo->goober.pageId)                  // pageId
                 {
-                    if (!sPageTextStore.LookupEntry<PageText>(goInfo->goober.pageId))
+                    if (!GetPageText(goInfo->goober.pageId))
                         sLog.outErrorDb("Gameobject (Entry: %u GoType: %u) have data7=%u but PageText (Entry %u) not exist.",
                                         goInfo->id, goInfo->type, goInfo->goober.pageId, goInfo->goober.pageId);
                 }
