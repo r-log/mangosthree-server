@@ -2288,7 +2288,7 @@ void Map::CreateInstanceData(bool load)
             // a row whose `data` column is SQL NULL loads nothing, an empty one loads "".
             if (!row.isNull)
             {
-                DEBUG_LOG("Loading instance data for `%s` (Map: %u Instance: %u)", sScriptMgr.GetScriptName(i_script_id), GetId(), i_InstanceId);
+                DEBUG_LOG("Loading instance data for `%s` (Map: %u Instance: %u)", sScriptNameStore.GetScriptName(i_script_id), GetId(), i_InstanceId);
                 i_data->Load(row.value.c_str());
             }
         }
@@ -2304,7 +2304,7 @@ void Map::CreateInstanceData(bool load)
     }
     else
     {
-        DEBUG_LOG("New instance data, \"%s\" ,initialized!", sScriptMgr.GetScriptName(i_script_id));
+        DEBUG_LOG("New instance data, \"%s\" ,initialized!", sScriptNameStore.GetScriptName(i_script_id));
         i_data->Initialize();
     }
 }
@@ -2855,7 +2855,7 @@ bool Map::ScriptsStart(DBScriptType type, uint32 id, Object* source, Object* tar
     MANGOS_ASSERT(source);
 
     ///- Find the script chain map
-    ScriptChainMap const *scm = sScriptMgr.GetScriptChainMap(type);
+    ScriptChainMap const *scm = sDbScriptStore.GetScriptChainMap(type);
     if (!scm)
     {
         return false;

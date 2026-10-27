@@ -40,7 +40,6 @@
 #include "Log.h"
 #include "MapManager.h"
 #include "ObjectGuid.h"
-#include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "World.h"
 #include "Group.h"

@@ -30,7 +30,7 @@
 #include "Policies/Singleton.h"
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptStore.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 #include "persistence/world/waypoints/WaypointRepository.h"
 
@@ -86,7 +86,7 @@ void WaypointManager::Load()
     uint32 total_behaviors = 0;
 
     /* Getting the script chain map for the DBS_ON_CREATURE_MOVEMENT event. */
-    ScriptChainMap const* scm = sScriptMgr.GetScriptChainMap(DBS_ON_CREATURE_MOVEMENT);
+    ScriptChainMap const* scm = sDbScriptStore.GetScriptChainMap(DBS_ON_CREATURE_MOVEMENT);
     if (!scm)
     {
         return;
@@ -783,7 +783,7 @@ bool WaypointManager::SetNodeScriptId(uint32 entry, uint32 dbGuid, uint32 point,
         ++m_revision;   // a running patrol re-reads its path on the next tick
     }
 
-    ScriptChainMap const* scm = sScriptMgr.GetScriptChainMap(DBS_ON_CREATURE_MOVEMENT);
+    ScriptChainMap const* scm = sDbScriptStore.GetScriptChainMap(DBS_ON_CREATURE_MOVEMENT);
     if (!scm)
     {
         return false;

@@ -39,23 +39,6 @@
 #include "CreatureAI.h"
 #include "persistence/world/ScriptDataRepository.h"
 
-/**
- * @brief Returns the script chain map for a database script type.
- *
- * @param type The database script type.
- * @return ScriptChainMap const* The corresponding script chain map, or NULL for unsupported types.
- */
-ScriptChainMap const* ScriptMgr::GetScriptChainMap(DBScriptType type)
-{
-    std::lock_guard<std::mutex> _guard(m_lock);
-    if ((type != DBS_INTERNAL) && type < DBS_END)
-    {
-        return &m_dbScripts[type];
-    }
-
-    return NULL;
-}
-
 
 // /////////////////////////////////////////////////////////
 //              DB SCRIPTS (loaders of static data)
@@ -135,7 +118,8 @@ void ScriptMgr::LoadScripts(DBScriptType type)
         return;
     }
 
-    m_dbScripts[type].clear();                                 // need for reload support
+    ScriptChainMap& chains = sDbScriptStore.GetChainsForLoad(type);
+    chains.clear();                                            // need for reload support
 
     std::vector<DbScriptRow> rows = ScriptDataRepository::QueryDbScripts(type);
 
@@ -796,12 +780,12 @@ void ScriptMgr::LoadScripts(DBScriptType type)
             }
         }
 
-        if (m_dbScripts[type].find(tmp.id) == m_dbScripts[type].end())
+        if (chains.find(tmp.id) == chains.end())
         {
             ScriptChain emptyVec;
-            m_dbScripts[type][tmp.id] = emptyVec;
+            chains[tmp.id] = emptyVec;
         }
-        m_dbScripts[type][tmp.id].push_back(tmp);
+        chains[tmp.id].push_back(tmp);
 
         ++count;
     }
@@ -825,11 +809,11 @@ void ScriptMgr::LoadDbScripts(DBScriptType t)
     }
 
     {
-        std::lock_guard<std::mutex> _g(m_lock);
+        std::lock_guard<std::mutex> _g(sDbScriptStore.GetLoadLock());
         LoadScripts(t);
     }
 
-    ScriptChainMap& scm = m_dbScripts[t];
+    ScriptChainMap& scm = sDbScriptStore.GetChainsForLoad(t);
 
     for (ScriptChainMap::const_iterator itr = scm.begin(); itr != scm.end(); ++itr)
     {
@@ -938,7 +922,8 @@ void ScriptMgr::CheckScriptTexts(std::set<int32>& ids)
 {
     for (int t = DBS_START; t < DBS_END; ++t)
     {
-        for (ScriptChainMap::const_iterator itrCM = m_dbScripts[t].begin(); itrCM != m_dbScripts[t].end(); ++itrCM)
+        ScriptChainMap const& chains = sDbScriptStore.GetChainsForLoad(DBScriptType(t));
+        for (ScriptChainMap::const_iterator itrCM = chains.begin(); itrCM != chains.end(); ++itrCM)
         {
             for (ScriptChain::const_iterator itrC = itrCM->second.begin(); itrC != itrCM->second.end(); ++itrC)
             {

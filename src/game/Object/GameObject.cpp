@@ -1569,7 +1569,7 @@ bool GameObject::HasStaticDBSpawnData() const
  */
 uint32 GameObject::GetScriptId()
 {
-    return sScriptMgr.GetBoundScriptId(SCRIPTED_GAMEOBJECT, -int32(GetGUIDLow())) ? sScriptMgr.GetBoundScriptId(SCRIPTED_GAMEOBJECT, -int32(GetGUIDLow())) : sScriptMgr.GetBoundScriptId(SCRIPTED_GAMEOBJECT, GetEntry());
+    return sScriptNameStore.GetBoundScriptId(SCRIPTED_GAMEOBJECT, -int32(GetGUIDLow())) ? sScriptNameStore.GetBoundScriptId(SCRIPTED_GAMEOBJECT, -int32(GetGUIDLow())) : sScriptNameStore.GetBoundScriptId(SCRIPTED_GAMEOBJECT, GetEntry());
 }
 
 /**

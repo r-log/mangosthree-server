@@ -69,21 +69,12 @@
 #include <cstring> /* std::strcmp */
 
 
-ScriptMgr::ScriptMgr() : m_scheduledScripts(0), m_lock()
+ScriptMgr::ScriptMgr() : m_scheduledScripts(0)
 {
-    m_dbScripts.resize(DBS_END);
-
-    ScriptChainMap emptyMap;
-
-    for (int t = DBS_START; t < DBS_END; ++t)
-    {
-        m_dbScripts[t] = emptyMap;
-    }
 }
 
 ScriptMgr::~ScriptMgr()
 {
-    m_dbScripts.clear();
 }
 
 /**
@@ -267,32 +258,6 @@ bool StartEvents_Event(Map* map, uint32 id, Object* source, Object* target, bool
 }
 
 // Wrappers
-uint32 GetScriptId(const char* name)
-{
-    return sScriptMgr.GetScriptId(name);
-}
-
-/**
- * @brief Returns the script name for a script id.
- *
- * @param id The internal script id.
- * @return char const* The matching script name.
- */
-char const* GetScriptName(uint32 id)
-{
-    return sScriptMgr.GetScriptName(id);
-}
-
-/**
- * @brief Returns the number of registered script ids.
- *
- * @return uint32 The count of registered script ids.
- */
-uint32 GetScriptIdsCount()
-{
-    return sScriptMgr.GetScriptIdsCount();
-}
-
 /**
  * @brief Sets the external waypoint table used by the waypoint manager.
  *

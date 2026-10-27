@@ -719,7 +719,7 @@ namespace Harness
                 r.refusal = buf;
                 return r;
             }
-            if (const uint32 script = sScriptMgr.GetBoundScriptId(SCRIPTED_UNIT, plan.giverEntry))
+            if (const uint32 script = sScriptNameStore.GetBoundScriptId(SCRIPTED_UNIT, plan.giverEntry))
             {
                 snprintf(buf, sizeof(buf), "giver %u binds script %u, and RewardQuest's dispatch would run it", plan.giverEntry, script);
                 r.refusal = buf;

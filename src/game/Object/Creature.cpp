@@ -36,7 +36,7 @@
 #include "World.h"
 #include "WorldGameTime.h"
 #include "ObjectMgr.h"
-#include "ScriptMgr.h"
+#include "data/ScriptNameStore.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
 #include "GossipDef.h"
@@ -3160,7 +3160,7 @@ std::string Creature::GetAIName() const
  */
 std::string Creature::GetScriptName() const
 {
-    return sScriptMgr.GetScriptName(GetScriptId());
+    return sScriptNameStore.GetScriptName(GetScriptId());
 }
 
 /**
@@ -3171,7 +3171,7 @@ std::string Creature::GetScriptName() const
 uint32 Creature::GetScriptId() const
 {
     // scripts bound to DB guid have priority over ones bound to creature entry
-    return sScriptMgr.GetBoundScriptId(SCRIPTED_UNIT, -int32(GetGUIDLow())) ? sScriptMgr.GetBoundScriptId(SCRIPTED_UNIT, -int32(GetGUIDLow())) : sScriptMgr.GetBoundScriptId(SCRIPTED_UNIT, GetEntry());
+    return sScriptNameStore.GetBoundScriptId(SCRIPTED_UNIT, -int32(GetGUIDLow())) ? sScriptNameStore.GetBoundScriptId(SCRIPTED_UNIT, -int32(GetGUIDLow())) : sScriptNameStore.GetBoundScriptId(SCRIPTED_UNIT, GetEntry());
 }
 
 // overwrite WorldObject function for proper name localization

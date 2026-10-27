@@ -38,7 +38,7 @@
 #include "Pet.h"
 #include "Util.h"
 #include "BattleGround/BattleGroundMgr.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptStore.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"
 #include "DBCStores.h"

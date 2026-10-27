@@ -49,7 +49,7 @@
 #include "BattleGround/BattleGroundWS.h"
 #include "Language.h"
 #include "Util.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptStore.h"
 #include "GridNotifiersImpl.h"
 #include "Geometry/Vector3.h"
 #include "LootMgr.h"

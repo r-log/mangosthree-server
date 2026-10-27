@@ -38,7 +38,6 @@
 
 #include "Log.h"
 #include "ObjectGuid.h"
-#include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "ProgressBar.h"
 #include "Language.h"
