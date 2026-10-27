@@ -1317,7 +1317,7 @@ bool ChatHandler::HandleLookupObjectCommand(char* args)
 
     uint32 counter = 0;
 
-    for (SQLStorageBase::SQLSIterator<GameObjectInfo> itr = sGOStorage.getDataBegin<GameObjectInfo>(); itr < sGOStorage.getDataEnd<GameObjectInfo>(); ++itr)
+    for (GameObjectTemplateStore::const_iterator itr = sObjectMgr.GetGameObjectTemplates().begin(); itr != sObjectMgr.GetGameObjectTemplates().end(); ++itr)
     {
         int loc_idx = GetSessionDbLocaleIndex();
         if (loc_idx >= 0)

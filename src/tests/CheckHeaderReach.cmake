@@ -72,6 +72,7 @@ set(REACH_RULES
     "data/QuestPOIStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/DungeonFinderStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/LfgDungeonEntranceStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "data/GameObjectTemplateStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/MultiRecordStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/ServerSpellStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/GameConfig.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"

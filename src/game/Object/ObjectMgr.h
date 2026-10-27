@@ -704,13 +704,19 @@ class ObjectMgr
 
         /// Entrance override for one LFGDungeons.dbc id; NULL = fall back to
         /// GetMapEntranceTrigger (multi-wing maps only carry overrides).
+        /// The game object templates, walked in ascending entry order.
+        GameObjectTemplateStore const& GetGameObjectTemplates() const
+        {
+            return m_gameObjectTemplates;
+        }
+
         LfgDungeonEntrance const* GetLfgDungeonEntrance(uint32 dungeonId) const
         {
             return m_lfgDungeonEntrances.Find(dungeonId);
         }
 
         // Static wrappers for various accessors
-        static GameObjectInfo const* GetGameObjectInfo(uint32 id);                  ///< Wrapper for sGOStorage.LookupEntry
+        static GameObjectInfo const* GetGameObjectInfo(uint32 id);                  ///< Lookup in the game object template store
         static GameObjectDataAddon const* GetGameObjectAddon(uint32 lowguid);       ///< Lookup in the game object addon store
         static Player* GetPlayer(const char* name);                                 ///< Wrapper for sPlayerRegistry.FindByName
         static Player* GetPlayer(ObjectGuid guid, bool inWorld = true);             ///< Wrapper for sPlayerRegistry.Find
@@ -1433,6 +1439,8 @@ class ObjectMgr
         CreatureModelInfoStore m_creatureModels;
 
         KeyedRecordStore<CreatureTemplateSpells> m_creatureTemplateSpells;
+
+        GameObjectTemplateStore m_gameObjectTemplates;
 
         KeyedRecordStore<GameObjectDataAddon> m_gameObjectAddons;
 

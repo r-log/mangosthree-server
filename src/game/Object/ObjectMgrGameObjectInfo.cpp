@@ -34,18 +34,9 @@
 #include "Policies/Singleton.h"
 #include "Log.h"
 #include "ProgressBar.h"
-#include "SQLStorages.h"
 #include "DBCStores.h"
 #include "Path.h"
-
-struct SQLGameObjectLoader : public SQLStorageLoaderBase<SQLGameObjectLoader, SQLHashStorage>
-{
-    template<class D>
-    void convert_from_str(uint32 /*field_pos*/, char const* src, D& dst)
-    {
-        dst = D(sScriptMgr.GetScriptId(src));
-    }
-};
+#include "persistence/world/gameobjects/GameObjectTemplateRepository.h"
 
 /**
  * @brief Validates a referenced gameobject lock id.
@@ -74,7 +65,7 @@ inline void CheckGOLockId(GameObjectInfo const* goInfo, uint32 dataN, uint32 N)
  */
 inline void CheckGOLinkedTrapId(GameObjectInfo const* goInfo, uint32 dataN, uint32 N)
 {
-    if (GameObjectInfo const* trapInfo = sGOStorage.LookupEntry<GameObjectInfo>(dataN))
+    if (GameObjectInfo const* trapInfo = ObjectMgr::GetGameObjectInfo(dataN))
     {
         if (trapInfo->type != GAMEOBJECT_TYPE_TRAP)
             sLog.outErrorDb("Gameobject (Entry: %u GoType: %u) have data%d=%u but GO (Entry %u) have not GAMEOBJECT_TYPE_TRAP (%u) type.",
@@ -111,7 +102,7 @@ inline void CheckGOSpellId(GameObjectInfo const* goInfo, uint32 dataN, uint32 N)
  * @param dataN The chair height value.
  * @param N The source data index.
  */
-inline void CheckAndFixGOChairHeightId(GameObjectInfo const* goInfo, uint32 const& dataN, uint32 N)
+inline void CheckAndFixGOChairHeightId(GameObjectInfo const* goInfo, uint32& dataN, uint32 N)
 {
     if (dataN <= (UNIT_STAND_STATE_SIT_HIGH_CHAIR - UNIT_STAND_STATE_SIT_LOW_CHAIR))
     {
@@ -122,7 +113,7 @@ inline void CheckAndFixGOChairHeightId(GameObjectInfo const* goInfo, uint32 cons
                     goInfo->id, goInfo->type, N, dataN, UNIT_STAND_STATE_SIT_HIGH_CHAIR - UNIT_STAND_STATE_SIT_LOW_CHAIR);
 
     // prevent client and server unexpected work
-    const_cast<uint32&>(dataN) = 0;
+    dataN = 0;
 }
 
 /**
@@ -170,7 +161,7 @@ inline void CheckGOConsumable(GameObjectInfo const* goInfo, uint32 dataN, uint32
  * @param dataN The minimum capture time value.
  * @param N The source data index.
  */
-inline void CheckAndFixGOCaptureMinTime(GameObjectInfo const* goInfo, uint32 const& dataN, uint32 N)
+inline void CheckAndFixGOCaptureMinTime(GameObjectInfo const* goInfo, uint32& dataN, uint32 N)
 {
     if (dataN > 0)
     {
@@ -181,27 +172,74 @@ inline void CheckAndFixGOCaptureMinTime(GameObjectInfo const* goInfo, uint32 con
                     goInfo->id, goInfo->type, N, dataN);
 
     // prevent division through 0 exception
-    const_cast<uint32&>(dataN) = 1;
+    dataN = 1;
 }
 
 /**
  * @brief Loads gameobject templates and validates type-specific fields.
  */
+static_assert(sizeof(GameObjectInfo().questItems) == GAMEOBJECT_TEMPLATE_QUEST_ITEM_COLUMNS * sizeof(uint32), "a game object template row holds every quest item");
+static_assert(sizeof(GameObjectInfo().raw.data) == GAMEOBJECT_TEMPLATE_DATA_COLUMNS * sizeof(uint32), "a game object template row holds every data field");
+
 void ObjectMgr::LoadGameobjectInfo()
 {
-    SQLGameObjectLoader loader;
-    loader.Load(sGOStorage);
-
-    // some checks
-    for (SQLStorageBase::SQLSIterator<GameObjectInfo> itr = sGOStorage.getDataBegin<GameObjectInfo>(); itr < sGOStorage.getDataEnd<GameObjectInfo>(); ++itr)
+    TableRead<GameObjectTemplateRow> read = GameObjectTemplateRepository::QueryGameObjectTemplates();
+    if (read.Unreadable())
     {
-        GameObjectInfo const* goInfo = itr.getValue();
+        sLog.outError("Error loading `gameobject_template` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("gameobject_template table is empty!\n");
+    }
+    else
+    {
+        m_gameObjectTemplates.Clear();
+        BarGoLink bar(read.rows.size());
+        for (GameObjectTemplateRow const& row : read.rows)
+        {
+            bar.step();
+            GameObjectInfo info = GameObjectInfo();
+            info.id = row.entry;
+            info.type = row.type;
+            info.displayId = row.displayId;
+            info.faction = row.faction;
+            info.flags = row.flags;
+            info.size = row.size;
+            for (uint32 i = 0; i < GAMEOBJECT_TEMPLATE_QUEST_ITEM_COLUMNS; ++i)
+            {
+                info.questItems[i] = row.questItems[i];
+            }
+            for (uint32 i = 0; i < GAMEOBJECT_TEMPLATE_DATA_COLUMNS; ++i)
+            {
+                info.raw.data[i] = row.data[i];
+            }
+            info.unk2 = row.unk2;
+            info.MinMoneyLoot = row.minGold;
+            info.MaxMoneyLoot = row.maxGold;
+            m_gameObjectTemplates.Set(info, row.name, row.iconName, row.castBarCaption, row.unk1);
+        }
+        loaded = uint32(read.rows.size());
+    }
+
+    // some checks, on every row read, in the order read
+    for (GameObjectTemplateRow const& row : read.rows)
+    {
+        GameObjectInfo* goInfo = m_gameObjectTemplates.FindForEdit(row.entry);
+        if (!goInfo)
+        {
+            continue;
+        }
 
         if (goInfo->size <= 0.0f)                           // prevent use too small scales
         {
             ERROR_DB_STRICT_LOG("Gameobject (Entry: %u GoType: %u) have too small size=%f",
                                 goInfo->id, goInfo->type, goInfo->size);
-            const_cast<GameObjectInfo*>(goInfo)->size =  DEFAULT_OBJECT_SCALE;
+            goInfo->size =  DEFAULT_OBJECT_SCALE;
         }
 
         // some GO types have unused go template, check goInfo->displayId at GO spawn data loading or ignore
@@ -438,6 +476,6 @@ void ObjectMgr::LoadGameobjectInfo()
         }
     }
 
-    sLog.outString(">> Loaded %u game object templates", sGOStorage.GetRecordCount());
+    sLog.outString(">> Loaded %u game object templates", loaded);
     sLog.outString();
 }

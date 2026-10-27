@@ -136,6 +136,9 @@ source_group("Persistence\\World\\Economy" FILES ${SRC_GRP_PERSISTENCE_WORLD_ECO
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_EVENTS persistence/world/events/*.cpp persistence/world/events/*.h)
 source_group("Persistence\\World\\Events" FILES ${SRC_GRP_PERSISTENCE_WORLD_EVENTS})
 
+file(GLOB SRC_GRP_PERSISTENCE_WORLD_GAMEOBJECTS persistence/world/gameobjects/*.cpp persistence/world/gameobjects/*.h)
+source_group("Persistence\\World\\Gameobjects" FILES ${SRC_GRP_PERSISTENCE_WORLD_GAMEOBJECTS})
+
 file(GLOB SRC_GRP_PERSISTENCE_WORLD_ITEMS persistence/world/items/*.cpp persistence/world/items/*.h)
 source_group("Persistence\\World\\Items" FILES ${SRC_GRP_PERSISTENCE_WORLD_ITEMS})
 
@@ -278,6 +281,7 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_WORLD_CREATURES}
     ${SRC_GRP_PERSISTENCE_WORLD_ECONOMY}
     ${SRC_GRP_PERSISTENCE_WORLD_EVENTS}
+    ${SRC_GRP_PERSISTENCE_WORLD_GAMEOBJECTS}
     ${SRC_GRP_PERSISTENCE_WORLD_ITEMS}
     ${SRC_GRP_PERSISTENCE_WORLD_LOCALES}
     ${SRC_GRP_PERSISTENCE_WORLD_MAPS}

@@ -872,7 +872,7 @@ void GameObject::TriggerLinkedGameObject(Unit* target)
         return;
     }
 
-    GameObjectInfo const* trapInfo = sGOStorage.LookupEntry<GameObjectInfo>(trapEntry);
+    GameObjectInfo const* trapInfo = ObjectMgr::GetGameObjectInfo(trapEntry);
     if (!trapInfo || trapInfo->type != GAMEOBJECT_TYPE_TRAP)
     {
         return;

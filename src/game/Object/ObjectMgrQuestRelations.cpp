@@ -176,7 +176,7 @@ void ObjectMgr::LoadGameObjectForQuests()
 {
     mGameObjectForQuestSet.clear();                         // need for reload case
 
-    if (!sGOStorage.GetMaxEntry())
+    if (!m_gameObjectTemplates.GetMaxEntry())
     {
         BarGoLink bar(1);
         bar.step();
@@ -185,11 +185,11 @@ void ObjectMgr::LoadGameObjectForQuests()
         return;
     }
 
-    BarGoLink bar(sGOStorage.GetRecordCount());
+    BarGoLink bar(m_gameObjectTemplates.GetCount());
     uint32 count = 0;
 
     // collect GO entries for GO that must activated
-    for (SQLStorageBase::SQLSIterator<GameObjectInfo> itr = sGOStorage.getDataBegin<GameObjectInfo>(); itr < sGOStorage.getDataEnd<GameObjectInfo>(); ++itr)
+    for (GameObjectTemplateStore::const_iterator itr = sObjectMgr.GetGameObjectTemplates().begin(); itr != sObjectMgr.GetGameObjectTemplates().end(); ++itr)
     {
         bar.step();
         switch (itr->type)
