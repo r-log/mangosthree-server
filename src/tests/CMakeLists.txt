@@ -231,6 +231,7 @@ set(SRC_GRP_TESTS
     DbScriptStoreTest.cpp
     ScriptNameStoreTest.cpp
     ScriptHooksTest.cpp
+    VendorItemProblemTest.cpp
     OpcodeDispatchTest.cpp
 )
 

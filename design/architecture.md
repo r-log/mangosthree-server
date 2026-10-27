@@ -45,7 +45,7 @@ These directories **dissolve**:
 | domain -> proto | 131 | `WorldPacket.h` 80, `Opcodes.h` 48 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
 | domain -> session | 83 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
 | any -> app | 27 | `World.h`: scripts 10, session 8, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
-| domain, data, session -> scripts | 30 | `ScriptMgr.h` 6, `Chat.h` 24 | `Map.cpp`, `MiscHandler.cpp`, `ObjectMgr.cpp` |
+| domain, data, session -> scripts | 29 | `ScriptMgr.h` 6, `Chat.h` 23 | `Map.cpp`, `MiscHandler.cpp`, `PlayerChat.cpp` |
 | data -> domain | 65 | `GridNotifiersImpl.h` 8, `MapManager.h` 5, `SpellMgr.h` 5, `Player.h` 4 | `ObjectMgr.cpp`, `ObjectMgr.h`, `ObjectMgrCreatures.cpp` |
 | data -> session | 2 | `GossipDef.h` 1, `NPCHandler.h` 1 | `ObjectMgr.h`, `ObjectMgrGossipMenu.cpp` |
 | motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSplineInit.cpp`, `MoveSpline.cpp`, `WireParity.cpp` |
@@ -377,7 +377,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 1 | domain -> proto: 131 lines; 215 `WorldPacket data(` sites in the domain tier; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
 | 2 | domain -> session: 83 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` included 27 times below app | the configuration interface (#143), when content touches it |
-| 4 | `Chat.h` (24) and `ScriptMgr.h` (6) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
+| 4 | `Chat.h` (23) and `ScriptMgr.h` (6) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
 | 5 | data -> domain: 65 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump` and `CharacterDatabaseCleaner` (7 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |

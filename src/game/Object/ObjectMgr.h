@@ -500,6 +500,61 @@ class IdGenerator
         T m_nextGuid;
 };
 
+/**
+ * A problem the vendor item check finds, for a GM's command to report: a `mangos_string` entry or a
+ * text, and the values it names (valueCount of them).
+ */
+struct VendorItemProblem
+{
+    int32 entry;
+    char const* text;
+    uint32 valueCount;
+    uint32 values[3];
+
+    static VendorItemProblem Entry(int32 entry)
+    {
+        return Make(entry, NULL, 0, 0, 0, 0);
+    }
+
+    static VendorItemProblem Entry(int32 entry, uint32 a)
+    {
+        return Make(entry, NULL, 1, a, 0, 0);
+    }
+
+    static VendorItemProblem Entry(int32 entry, uint32 a, uint32 b)
+    {
+        return Make(entry, NULL, 2, a, b, 0);
+    }
+
+    static VendorItemProblem Entry(int32 entry, uint32 a, uint32 b, uint32 c)
+    {
+        return Make(entry, NULL, 3, a, b, c);
+    }
+
+    static VendorItemProblem Text(char const* text)
+    {
+        return Make(0, text, 0, 0, 0, 0);
+    }
+
+    static VendorItemProblem Text(char const* text, uint32 a)
+    {
+        return Make(0, text, 1, a, 0, 0);
+    }
+
+    private:
+        static VendorItemProblem Make(int32 entry, char const* text, uint32 count, uint32 a, uint32 b, uint32 c)
+        {
+            VendorItemProblem problem;
+            problem.entry = entry;
+            problem.text = text;
+            problem.valueCount = count;
+            problem.values[0] = a;
+            problem.values[1] = b;
+            problem.values[2] = c;
+            return problem;
+        }
+};
+
 class ObjectMgr
 {
         friend class PlayerDumpReader;
@@ -1269,8 +1324,8 @@ class ObjectMgr
         void AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 extendedcost);
         void AddVendorItem(uint32 entry, uint32 item, uint8 type, uint32 maxcount, uint32 incrtime, uint32 ExtendedCost);
         bool RemoveVendorItem(uint32 entry, uint32 item, uint8 type);
-        bool IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item, uint8 type, uint32 maxcount, uint32 ptime, uint32 ExtendedCost, uint16 conditionId, Player* pl = NULL, std::set<uint32>* skip_vendors = NULL) const;
-        bool IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item, uint32 maxcount, uint32 ptime, uint32 ExtendedCost, uint16 conditionId, Player* pl = NULL, std::set<uint32>* skip_vendors = NULL) const;
+        bool IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item, uint8 type, uint32 maxcount, uint32 ptime, uint32 ExtendedCost, uint16 conditionId, std::vector<VendorItemProblem>* problems = NULL, std::set<uint32>* skip_vendors = NULL) const;
+        bool IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item, uint32 maxcount, uint32 ptime, uint32 ExtendedCost, uint16 conditionId, std::vector<VendorItemProblem>* problems = NULL, std::set<uint32>* skip_vendors = NULL) const;
 
         static inline void GetLocaleString(const StringVector& data, int loc_idx, std::string& value)
         {
