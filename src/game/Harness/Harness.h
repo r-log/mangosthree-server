@@ -36,7 +36,6 @@
 #include <vector>
 
 class Map;
-class QueryResult;
 
 namespace Harness
 {
