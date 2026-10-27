@@ -511,7 +511,7 @@ TEST(TalentMgr_PointsNeverGoBelowZero)
 }
 
 // One pass over the rows, as the owner's loop does it: every validation in order, the DELETE of
-// a failing row (three of them for every character), the inactive-spec insertion, and the
+// a failing row (each for this character only), the inactive-spec insertion, and the
 // active-spec learn called back at the exact point of its row. The sequence below interleaves
 // the statements the database was handed with the callbacks, in the order they happened.
 TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
@@ -547,14 +547,14 @@ TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
 
     FakeQueryResult result(FakeRows{
         TalentFakeRow(kTalentA, 1, 0),              // active spec: learned
-        TalentFakeRow(kTalentUnknown, 0, 0),        // no talent: DELETE for every character
-        TalentFakeRow(kTalentNoTab, 0, 0),          // no talent tab: DELETE for every character
+        TalentFakeRow(kTalentUnknown, 0, 0),        // no talent: DELETE for this character
+        TalentFakeRow(kTalentNoTab, 0, 0),          // no talent tab: DELETE for this character
         TalentFakeRow(kTalentC, 1, 1),              // inactive spec: stored, no statement
         TalentFakeRow(kTalentOtherClass, 0, 0),     // another class's tab: DELETE for this character
         TalentFakeRow(kTalentA, 3, 0),              // SpellRank[3] is 0: DELETE for this character
         TalentFakeRow(kTalentB, 0, 0),              // active spec: learned
         TalentFakeRow(kTalentA, 6, 0),              // rank above MAX_TALENT_RANK: DELETE for this character
-        TalentFakeRow(kTalentB, 0, 3),              // spec above MAX_TALENT_SPEC_COUNT: DELETE for every character
+        TalentFakeRow(kTalentB, 0, 3),              // spec above MAX_TALENT_SPEC_COUNT: DELETE for this character
         TalentFakeRow(kTalentB, 0, 2),              // spec 2 passes the check above (off by one) and fails the spec count
         TalentFakeRow(kTalentA, 2, 1),              // inactive spec: stored, no statement
     });
@@ -571,13 +571,13 @@ TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
     const std::vector<std::string> expected =
     {
         "learn 91002",
-        "DELETE FROM `character_talent` WHERE `talent_id` = '90999'",
-        "DELETE FROM `character_talent` WHERE `talent_id` = '90004'",
+        "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90999'",
+        "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90004'",
         "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90003'",
         "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90001'",
         "learn 91011",
         "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90001'",
-        "DELETE FROM `character_talent` WHERE `spec` = '3' ",
+        "DELETE FROM `character_talent` WHERE `guid` = '42' AND `spec` = '3' ",
         "DELETE FROM `character_talent` WHERE `guid` = '42' AND `spec` = '2' ",
     };
     REQUIRE(events.size() == expected.size());
@@ -908,9 +908,9 @@ TEST(TalentMgr_ActivateSpecReplayOnTheManagersMaps)
     CHECK_EQ(TickGuard::Violations(), 0u);
 }
 
-// The repository on its own: a login row read into its three values; the load's four DELETEs (two
-// that name no character: every character's rows of a talent, and of a spec) and the save of the
-// rows it is handed, in order, each its DELETE then its INSERT as its flags say, all queued.
+// The repository on its own: a login row read into its three values; the load's two DELETEs (the
+// owner's rows of a talent, and of a spec) and the save of the rows it is handed, in order, each
+// its DELETE then its INSERT as its flags say, all queued.
 TEST(TalentRepository_ReadRowAndStatements)
 {
     FakeQueryResult result(FakeRows{ TalentFakeRow(90001, 2, 1) });
@@ -943,9 +943,7 @@ TEST(TalentRepository_ReadRowAndStatements)
     added.insert = true;
     {
         TickGuard::Scope scope;
-        TalentRepository::DeleteEveryRowOfTalent(90009);
         TalentRepository::DeleteOwnerTalent(kGuid, 90008);
-        TalentRepository::DeleteEveryRowOfSpec(7);
         TalentRepository::DeleteOwnerSpec(kGuid, 1);
         TalentRepository::Save(kGuid, { changed, removed, added });
         TalentRepository::Save(kGuid, std::vector<TalentSaveRow>());
@@ -954,9 +952,7 @@ TEST(TalentRepository_ReadRowAndStatements)
     CharacterDatabase.ExecuteQueuedForTest();
     const std::vector<std::string> want =
     {
-        "DELETE FROM `character_talent` WHERE `talent_id` = '90009'",
         "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90008'",
-        "DELETE FROM `character_talent` WHERE `spec` = '7' ",
         "DELETE FROM `character_talent` WHERE `guid` = '42' AND `spec` = '1' ",
         DeleteSql(90001, 0),
         InsertSql(90001, 2, 0),

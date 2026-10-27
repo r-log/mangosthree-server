@@ -47,11 +47,6 @@ namespace GlyphRepository
         return ReadRows<GlyphRow>(holder->GetResult(slot), ReadRow);
     }
 
-    void DeleteEveryRowOfGlyph(uint32 glyph)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `glyph` = %u", glyph);
-    }
-
     void DeleteInvalidRow(uint32 ownerGuidLow, uint8 spec, uint8 slot)
     {
         CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `slot` = %u AND `spec` = %u AND `guid` = %u", slot, spec, ownerGuidLow);

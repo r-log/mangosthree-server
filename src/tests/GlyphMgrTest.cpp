@@ -397,11 +397,11 @@ TEST(GlyphMgr_ApplyGlyphSinksAndFields)
 // Rows (spec, slot, glyph), by hand:
 //   (0, 1, 94101): slot 1's field is 2, type 0 = the glyph's flags 0 -> stored in [0][1].
 //   (1, 4, 94102): slot 4's field is 6, type 1 = flags 1 -> stored in [1][4].
-//   (0, 3, 94999): no glyph property: DELETE by glyph, for every character; no field read.
+//   (0, 3, 94999): no glyph property: DELETE this row; no field read.
 //   (1, 2, 94101): slot 2's field is 5, which the slot store lacks: read twice, DELETE this row.
 //   (0, 8, 94102): slot 8's field is 10, type 2 != flags 1: DELETE this row.
 //   (1, 8, 94103): slot 8's field is 10, type 2 = flags 2 -> stored in [1][8].
-// Slot and spec differ in both per-character DELETEs, so a swapped pair of arguments shows.
+// Slot and spec differ in every DELETE, so a swapped pair of arguments shows.
 TEST(GlyphMgr_LoadRowValidAndEachInvalidKind)
 {
     SeedStores();
@@ -455,7 +455,7 @@ TEST(GlyphMgr_LoadRowValidAndEachInvalidKind)
     {
         "read 1",
         "read 4",
-        "DELETE FROM `character_glyphs` WHERE `glyph` = 94999",
+        "DELETE FROM `character_glyphs` WHERE `slot` = 3 AND `spec` = 0 AND `guid` = 42",
         "read 2",
         "read 2",
         "DELETE FROM `character_glyphs` WHERE `slot` = 2 AND `spec` = 1 AND `guid` = 42",
@@ -592,9 +592,8 @@ TEST(GlyphMgr_SaveNewChangedDeletedAcrossTwoSpecs)
 }
 
 // The repository on its own: a login row read into its three values (spec and slot through the
-// 8-bit getter, as the load always read them); the load's two DELETEs (every character's rows of a
-// glyph, the owner's row of a slot) and the save's INSERT, UPDATE and DELETE, all queued, no
-// blocking call.
+// 8-bit getter, as the load always read them); the load's DELETE of the owner's row of a slot and
+// the save's INSERT, UPDATE and DELETE, all queued, no blocking call.
 TEST(GlyphRepository_ReadRowAndStatements)
 {
     FakeQueryResult result(FakeRows{ GlyphFakeRow(1, 2, 94010) });
@@ -612,7 +611,6 @@ TEST(GlyphRepository_ReadRowAndStatements)
 
     {
         TickGuard::Scope scope;
-        GlyphRepository::DeleteEveryRowOfGlyph(94999);
         GlyphRepository::DeleteInvalidRow(kGuid, 1, 2);
         GlyphRepository::Insert(kGuid, 0, 3, 94010);
         GlyphRepository::Update(kGuid, 1, 4, 94011);
@@ -622,7 +620,6 @@ TEST(GlyphRepository_ReadRowAndStatements)
     CharacterDatabase.ExecuteQueuedForTest();
     const std::vector<std::string> want =
     {
-        "DELETE FROM `character_glyphs` WHERE `glyph` = 94999",
         "DELETE FROM `character_glyphs` WHERE `slot` = 2 AND `spec` = 1 AND `guid` = 42",
         InsertSql(0, 3, 94010),
         UpdateSql(1, 4, 94011),
