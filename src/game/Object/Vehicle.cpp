@@ -79,7 +79,7 @@ void ObjectMgr::LoadVehicleAccessory()
             accessory.vehicleEntry = row.vehicleEntry;
             accessory.seatId = row.seat;
             accessory.passengerEntry = row.accessoryEntry;
-            m_vehicleAccessories.Add(accessory);
+            m_vehicleAccessories.Add(accessory.vehicleEntry, accessory);
         }
         loaded = uint32(read.rows.size());
     }
@@ -173,14 +173,13 @@ void VehicleInfo::Initialize()
 
     // Loading passengers (rough version only!)
     VehicleAccessoryStore::Bounds bounds = sObjectMgr.GetVehicleAccessories(m_overwriteNpcEntry);
-    for (VehicleAccessoryStore::VehicleAccessoryMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
+    for (VehicleAccessoryStore::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
     {
-        VehicleAccessory const& accessory = itr->second;
-        if (Creature* summoned = m_owner->SummonCreature(accessory.passengerEntry, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), 2 * m_owner->Where().Facing(), TEMPSPAWN_DEAD_DESPAWN, 0))
+        if (Creature* summoned = m_owner->SummonCreature(itr->passengerEntry, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), 2 * m_owner->Where().Facing(), TEMPSPAWN_DEAD_DESPAWN, 0))
         {
-            DEBUG_LOG("VehicleInfo(of %s)::Initialize: Load vehicle accessory %s onto seat %u", m_owner->GetGuidStr().c_str(), summoned->GetGuidStr().c_str(), accessory.seatId);
+            DEBUG_LOG("VehicleInfo(of %s)::Initialize: Load vehicle accessory %s onto seat %u", m_owner->GetGuidStr().c_str(), summoned->GetGuidStr().c_str(), itr->seatId);
             m_accessoryGuids.insert(summoned->GetObjectGuid());
-            int32 basepoint0 = accessory.seatId + 1;
+            int32 basepoint0 = itr->seatId + 1;
             summoned->CastCustomSpell((Unit*)m_owner, SPELL_RIDE_VEHICLE_HARDCODED, &basepoint0, NULL, NULL, true);
         }
     }

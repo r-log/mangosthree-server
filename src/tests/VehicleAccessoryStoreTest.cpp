@@ -45,9 +45,9 @@ static std::vector<VehicleAccessory> Passengers(VehicleAccessoryStore const& sto
 {
     std::vector<VehicleAccessory> passengers;
     VehicleAccessoryStore::Bounds bounds = store.GetBounds(vehicle);
-    for (VehicleAccessoryStore::VehicleAccessoryMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
+    for (VehicleAccessoryStore::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
     {
-        passengers.push_back(itr->second);
+        passengers.push_back(*itr);
     }
     return passengers;
 }
@@ -57,7 +57,7 @@ TEST(VehicleAccessoryStore_VehicleWithNoPassengerAnswersNothing)
     VehicleAccessoryStore store;
     CHECK(Passengers(store, 28781).empty());
 
-    store.Add(MakeAccessory(28781, 0, 28786));
+    store.Add(28781, MakeAccessory(28781, 0, 28786));
     CHECK(Passengers(store, 28780).empty());
     CHECK(Passengers(store, 28782).empty());
 }
@@ -65,9 +65,9 @@ TEST(VehicleAccessoryStore_VehicleWithNoPassengerAnswersNothing)
 TEST(VehicleAccessoryStore_PassengersComeBackInTheOrderAdded)
 {
     VehicleAccessoryStore store;
-    store.Add(MakeAccessory(500, 2, 9002));
-    store.Add(MakeAccessory(500, 0, 9000));
-    store.Add(MakeAccessory(500, 1, 9001));
+    store.Add(500, MakeAccessory(500, 2, 9002));
+    store.Add(500, MakeAccessory(500, 0, 9000));
+    store.Add(500, MakeAccessory(500, 1, 9001));
 
     std::vector<VehicleAccessory> passengers = Passengers(store, 500);
     REQUIRE(passengers.size() == 3);
@@ -82,9 +82,9 @@ TEST(VehicleAccessoryStore_PassengersComeBackInTheOrderAdded)
 TEST(VehicleAccessoryStore_VehiclesStayIndependent)
 {
     VehicleAccessoryStore store;
-    store.Add(MakeAccessory(10, 0, 100));
-    store.Add(MakeAccessory(11, 0, 110));
-    store.Add(MakeAccessory(10, 1, 101));
+    store.Add(10, MakeAccessory(10, 0, 100));
+    store.Add(11, MakeAccessory(11, 0, 110));
+    store.Add(10, MakeAccessory(10, 1, 101));
 
     std::vector<VehicleAccessory> first = Passengers(store, 10);
     std::vector<VehicleAccessory> second = Passengers(store, 11);
@@ -97,9 +97,9 @@ TEST(VehicleAccessoryStore_VehiclesStayIndependent)
 TEST(VehicleAccessoryStore_EraseForgetsEveryPassengerOfTheVehicle)
 {
     VehicleAccessoryStore store;
-    store.Add(MakeAccessory(10, 0, 100));
-    store.Add(MakeAccessory(10, 1, 101));
-    store.Add(MakeAccessory(11, 0, 110));
+    store.Add(10, MakeAccessory(10, 0, 100));
+    store.Add(10, MakeAccessory(10, 1, 101));
+    store.Add(11, MakeAccessory(11, 0, 110));
 
     store.Erase(10);
     CHECK(Passengers(store, 10).empty());
@@ -113,8 +113,8 @@ TEST(VehicleAccessoryStore_EraseForgetsEveryPassengerOfTheVehicle)
 TEST(VehicleAccessoryStore_ClearForgetsEveryVehicle)
 {
     VehicleAccessoryStore store;
-    store.Add(MakeAccessory(10, 0, 100));
-    store.Add(MakeAccessory(11, 0, 110));
+    store.Add(10, MakeAccessory(10, 0, 100));
+    store.Add(11, MakeAccessory(11, 0, 110));
     store.Clear();
 
     CHECK(Passengers(store, 10).empty());

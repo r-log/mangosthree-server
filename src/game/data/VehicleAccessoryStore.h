@@ -27,9 +27,7 @@
 #define MANGOS_H_VEHICLEACCESSORYSTORE
 
 #include "Platform/Define.h"
-
-#include <map>
-#include <utility>
+#include "data/MultiRecordStore.h"
 
 struct VehicleAccessory
 {
@@ -38,26 +36,8 @@ struct VehicleAccessory
     uint32 passengerEntry;
 };
 
-/**
- * The vehicle accessories (`vehicle_accessory`): the passengers boarded onto a vehicle, per vehicle
- * entry, in the order they were added. Erasing a vehicle forgets every one of its passengers, and
- * clearing forgets every vehicle.
- */
-class VehicleAccessoryStore
-{
-    public:
-        typedef std::multimap<uint32, VehicleAccessory> VehicleAccessoryMap;
-        typedef std::pair<VehicleAccessoryMap::const_iterator, VehicleAccessoryMap::const_iterator> Bounds;
-
-        void Clear();
-        void Add(VehicleAccessory const& accessory);
-        /// The passengers of `vehicleEntry`, in the order they were added.
-        Bounds GetBounds(uint32 vehicleEntry) const;
-        void Erase(uint32 vehicleEntry);
-        uint32 GetCount() const;
-
-    private:
-        VehicleAccessoryMap m_accessories;
-};
+/// The vehicle accessories (`vehicle_accessory`): the passengers boarded onto a vehicle, per vehicle
+/// entry, in the order they were added.
+typedef MultiRecordStore<VehicleAccessory> VehicleAccessoryStore;
 
 #endif
