@@ -37,6 +37,7 @@
 #include "SharedDefines.h"
 #include "spells/auras/SpellAuraDefines.h"
 #include "DBCStructure.h"
+#include "data/SpellScriptTargetStore.h"
 
 #include <map>
 
@@ -44,6 +45,7 @@ class Player;
 class Spell;
 class Unit;
 struct CreatureInfo;
+enum class TableReadStatus;
 
 // only used in code
 enum SpellCategories
@@ -989,17 +991,6 @@ enum SpellTargetType
 
 #define MAX_SPELL_TARGET_TYPE 3
 
-// pre-defined targeting for spells
-struct SpellTargetEntry
-{
-    uint32 spellId;
-    uint32 type;
-    uint32 targetEntry;
-    uint32 inverseEffectMask;
-
-    bool CanNotHitWithSpellEffect(SpellEffectIndex effect) const { return inverseEffectMask & (1 << effect); }
-};
-
 // coordinates for spells (accessed using SpellMgr functions)
 struct SpellTargetPosition
 {
@@ -1504,11 +1495,19 @@ class SpellMgr
 
         void CheckUsedSpells(char const* table);
 
+        /// The script targets of `spellId`, in the order loaded.
+        SpellScriptTargetStore::Bounds GetSpellScriptTargets(uint32 spellId) const
+        {
+            return mSpellScriptTargets.GetBounds(spellId);
+        }
+
         // Loading data at server startup
         void LoadSpellChains();
         void LoadSpellLearnSkills();
         void LoadSpellLearnSpells();
         void LoadSpellScriptTarget();
+        /// Reloads the spell script targets; when the table cannot be read, keeps the targets already loaded. Answers how the read ended.
+        TableReadStatus ReloadSpellScriptTarget();
         void LoadSpellElixirs();
         void LoadSpellProcEvents();
         void LoadSpellProcItemEnchant();
@@ -1543,6 +1542,7 @@ class SpellMgr
         SpellAreaMap         mSpellAreaMap;
         SpellAreaForAuraMap  mSpellAreaForAuraMap;
         SpellAreaForAreaMap  mSpellAreaForAreaMap;
+        SpellScriptTargetStore mSpellScriptTargets;
 };
 
 #define sSpellMgr SpellMgr::Instance()

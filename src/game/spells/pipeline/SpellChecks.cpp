@@ -579,7 +579,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                spellEffect->ImplicitTarget_0 == TARGET_FOCUS_OR_SCRIPTED_GAMEOBJECT ||
                spellEffect->ImplicitTarget_1 == TARGET_FOCUS_OR_SCRIPTED_GAMEOBJECT)
             {
-                SQLMultiStorage::SQLMSIteratorBounds<SpellTargetEntry> bounds = sSpellScriptTargetStorage.getBounds<SpellTargetEntry>(m_spellInfo->ID);
+                SpellScriptTargetStore::Bounds bounds = sSpellMgr.GetSpellScriptTargets(m_spellInfo->ID);
 
                 if (bounds.first == bounds.second)
                 {
@@ -612,7 +612,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                 Creature* creatureScriptTarget = NULL;
                 GameObject* goScriptTarget = NULL;
 
-                for (SQLMultiStorage::SQLMultiSIterator<SpellTargetEntry> i_spellST = bounds.first; i_spellST != bounds.second; ++i_spellST)
+                for (SpellScriptTargetStore::const_iterator i_spellST = bounds.first; i_spellST != bounds.second; ++i_spellST)
                 {
                     if (i_spellST->CanNotHitWithSpellEffect(SpellEffectIndex(j)))
                     {

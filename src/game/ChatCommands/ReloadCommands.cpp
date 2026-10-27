@@ -1000,7 +1000,14 @@ bool ChatHandler::HandleReloadSpellProcItemEnchantCommand(char* /*args*/)
 bool ChatHandler::HandleReloadSpellScriptTargetCommand(char* /*args*/)
 {
     sLog.outString("Re-Loading SpellsScriptTarget...");
-    sSpellMgr.LoadSpellScriptTarget();
+    TableReadStatus status = sSpellMgr.ReloadSpellScriptTarget();
+    if (IsUnreadable(status))
+    {
+        PSendSysMessage("DB table `spell_script_target` could not be read: %s. The spell script targets already loaded are kept.", TableReadReason(status));
+        SetSentErrorMessage(true);
+        return false;
+    }
+
     SendGlobalSysMessage("DB table `spell_script_target` (spell targets selection in case specific creature/GO requirements) reloaded.", SEC_MODERATOR);
     return true;
 }

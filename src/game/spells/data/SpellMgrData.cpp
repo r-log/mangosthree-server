@@ -38,6 +38,7 @@
 #include "DBCStores.h"
 #include "SQLStorages.h"
 #include "persistence/world/spells/SpellDataRepository.h"
+#include "persistence/world/spells/SpellScriptTargetRepository.h"
 
 template <typename EntryType, typename WorkerType, typename StorageType>
 struct SpellRankHelper
@@ -523,20 +524,45 @@ void SpellMgr::LoadSpellThreats()
 }
 
 /**
- * @brief Loads and validates scripted spell targets.
+ * @brief Fills the spell script targets from a read that answered rows or an empty table, then checks them.
  */
-void SpellMgr::LoadSpellScriptTarget()
+static void FillSpellScriptTargets(SpellScriptTargetStore& targets, TableRead<SpellScriptTargetRow> const& read)
 {
-    sSpellScriptTargetStorage.Load();
+    std::vector<SpellTargetEntry> entries;
+    entries.reserve(read.rows.size());
+    for (SpellScriptTargetRow const& row : read.rows)
+    {
+        SpellTargetEntry entry;
+        entry.spellId = row.entry;
+        entry.type = row.type;
+        entry.targetEntry = row.targetEntry;
+        entry.inverseEffectMask = row.inverseEffectMask;
+        entries.push_back(entry);
+    }
 
-    // Check content
-    for (SQLMultiStorage::SQLSIterator<SpellTargetEntry> itr = sSpellScriptTargetStorage.getDataBegin<SpellTargetEntry>(); itr < sSpellScriptTargetStorage.getDataEnd<SpellTargetEntry>(); ++itr)
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("spell_script_target table is empty!\n");
+    }
+    else
+    {
+        targets.Clear();
+        BarGoLink bar(entries.size());
+        for (SpellTargetEntry const& entry : entries)
+        {
+            bar.step();
+            targets.Add(entry.spellId, entry);
+        }
+    }
+
+    // Check content: every row read, in the order read, the targets of a spell already erased included
+    for (std::vector<SpellTargetEntry>::const_iterator itr = entries.begin(); itr != entries.end(); ++itr)
     {
         SpellEntry const* spellProto = sSpellStore.LookupEntry(itr->spellId);
         if (!spellProto)
         {
             sLog.outErrorDb("Table `spell_script_target`: spellId %u listed for TargetEntry %u does not exist.", itr->spellId, itr->targetEntry);
-            sSpellScriptTargetStorage.EraseEntry(itr->spellId);
+            targets.Erase(itr->spellId);
             continue;
         }
 
@@ -575,14 +601,14 @@ void SpellMgr::LoadSpellScriptTarget()
         if (!targetfound)
         {
             sLog.outErrorDb("Table `spell_script_target`: spellId %u listed for TargetEntry %u does not have any implicit target TARGET_SCRIPT(38) or TARGET_SCRIPT_COORDINATES (46) or TARGET_FOCUS_OR_SCRIPTED_GAMEOBJECT (40).", itr->spellId, itr->targetEntry);
-            sSpellScriptTargetStorage.EraseEntry(itr->spellId);
+            targets.Erase(itr->spellId);
             continue;
         }
 
         if (itr->type >= MAX_SPELL_TARGET_TYPE)
         {
             sLog.outErrorDb("Table `spell_script_target`: target type %u for TargetEntry %u is incorrect.", itr->type, itr->targetEntry);
-            sSpellScriptTargetStorage.EraseEntry(itr->spellId);
+            targets.Erase(itr->spellId);
             continue;
         }
 
@@ -599,7 +625,7 @@ void SpellMgr::LoadSpellScriptTarget()
                 if (!sGOStorage.LookupEntry<GameObjectInfo>(itr->targetEntry))
                 {
                     sLog.outErrorDb("Table `spell_script_target`: gameobject template entry %u does not exist.", itr->targetEntry);
-                    sSpellScriptTargetStorage.EraseEntry(itr->spellId);
+                    targets.Erase(itr->spellId);
                     continue;
                 }
                 break;
@@ -608,7 +634,7 @@ void SpellMgr::LoadSpellScriptTarget()
                 if (!itr->targetEntry)
                 {
                     sLog.outErrorDb("Table `spell_script_target`: target entry == 0 for not GO target type (%u).", itr->type);
-                    sSpellScriptTargetStorage.EraseEntry(itr->spellId);
+                    targets.Erase(itr->spellId);
                     continue;
                 }
                 if (const CreatureInfo* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(itr->targetEntry))
@@ -616,14 +642,14 @@ void SpellMgr::LoadSpellScriptTarget()
                     if (itr->spellId == 30427 && !cInfo->SkinningLootId)
                     {
                         sLog.outErrorDb("Table `spell_script_target` has creature %u as a target of spellid 30427, but this creature has no SkinningLootId. Gas extraction will not work!", cInfo->Entry);
-                        sSpellScriptTargetStorage.EraseEntry(itr->spellId);
+                        targets.Erase(itr->spellId);
                         continue;
                     }
                 }
                 else
                 {
                     sLog.outErrorDb("Table `spell_script_target`: creature template entry %u does not exist.", itr->targetEntry);
-                    sSpellScriptTargetStorage.EraseEntry(itr->spellId);
+                    targets.Erase(itr->spellId);
                     continue;
                 }
                 break;
@@ -652,7 +678,7 @@ void SpellMgr::LoadSpellScriptTarget()
                 if (spellEffect->ImplicitTarget_0 == TARGET_SCRIPT ||
                     spellEffect->ImplicitTarget_0 != TARGET_SELF && spellEffect->ImplicitTarget_1 == TARGET_SCRIPT)
                 {
-                    SQLMultiStorage::SQLMSIteratorBounds<SpellTargetEntry> bounds = sSpellScriptTargetStorage.getBounds<SpellTargetEntry>(i);
+                    SpellScriptTargetStore::Bounds bounds = targets.GetBounds(i);
                     if (bounds.first == bounds.second)
                     {
                         sLog.outErrorDb("Spell (ID: %u) has effect EffectImplicitTargetA/EffectImplicitTargetB = %u (TARGET_SCRIPT), but does not have record in `spell_script_target`", spellInfo->ID, TARGET_SCRIPT);
@@ -662,4 +688,36 @@ void SpellMgr::LoadSpellScriptTarget()
             }
         }
     }
+}
+
+/**
+ * @brief Loads and validates scripted spell targets; stops the server when the table cannot be read.
+ */
+void SpellMgr::LoadSpellScriptTarget()
+{
+    TableRead<SpellScriptTargetRow> read = SpellScriptTargetRepository::QuerySpellScriptTargets();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `spell_script_target` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    FillSpellScriptTargets(mSpellScriptTargets, read);
+}
+
+/**
+ * @brief Reloads and validates scripted spell targets; keeps the targets already loaded when the table cannot be read.
+ */
+TableReadStatus SpellMgr::ReloadSpellScriptTarget()
+{
+    TableRead<SpellScriptTargetRow> read = SpellScriptTargetRepository::QuerySpellScriptTargets();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `spell_script_target` table: %s; the %u spell script targets already loaded are kept\n", TableReadReason(read.status), mSpellScriptTargets.GetCount());
+        return read.status;
+    }
+
+    FillSpellScriptTargets(mSpellScriptTargets, read);
+    return read.status;
 }
