@@ -537,6 +537,25 @@ struct AccountCharacterListRow
     uint32 level = 0;
 };
 
+/// A character as a GM's player info reads it: played time, level, money and account.
+struct CharacterPlayerInfoRow
+{
+    uint32 totaltime = 0;
+    uint32 level = 0;
+    uint32 money = 0;
+    uint32 account = 0;
+};
+
+/// A deleted character as a GM's deleted-character list reads it: guid, name, account and the
+/// date it was deleted.
+struct DeletedCharacterInfoRow
+{
+    uint32 guid = 0;
+    std::string name;
+    uint32 account = 0;
+    uint64 deleteDate = 0;
+};
+
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
 /// login, the logout and the account manager use them. The account manager's two reads, the GM
 /// commands' reads and the start-up's highest guid and cache rows run on the thread that calls them,
@@ -623,7 +642,7 @@ namespace CharacterRepository
 
     /// Selects the accounts of the characters whose name contains the filter, the filter escaped first
     /// through the login database, as the character ban list does.
-    QueryResult* QueryAccountsOfCharactersNamed(std::string filter);
+    std::vector<uint32> QueryAccountsOfCharactersNamed(std::string filter);
 
     /// Selects an account's characters with their race, class and level, for a GM's character list.
     std::vector<AccountCharacterListRow> QueryAccountCharacterList(uint32 accountId);
@@ -641,13 +660,13 @@ namespace CharacterRepository
     void AddAtLoginFlagsToEveryCharacter(uint32 flags);
 
     /// Selects a deleted character by its guid.
-    QueryResult* QueryDeletedCharacter(uint32 guid);
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharacter(uint32 guid);
 
     /// Selects the deleted characters whose name contains a text, the text written as handed.
-    QueryResult* QueryDeletedCharactersNamed(char const* name);
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharactersNamed(char const* name);
 
     /// Selects every deleted character.
-    QueryResult* QueryDeletedCharacters();
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharacters();
 
     /// Restores a deleted character under a name and account, the name written as handed.
     void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid);
@@ -656,7 +675,7 @@ namespace CharacterRepository
     void SetLevel(uint32 level, uint32 guid);
 
     /// Selects a character's played time, level, money and account, for a GM's player info.
-    QueryResult* QueryPlayerInfo(uint32 guid);
+    std::optional<CharacterPlayerInfoRow> QueryPlayerInfo(uint32 guid);
 
     /// Selects the account of a character by its name, the name already escaped through the login
     /// database, as a ban does.

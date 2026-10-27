@@ -282,14 +282,34 @@ namespace AccountRepository
         return ReadRows<AccountSearchRow>(result, ReadAccountSearchRow);
     }
 
-    QueryResult* QueryAccountInfo(uint32 accountId)
+    static AccountInfoRow ReadAccountInfo(Field* fields)
     {
-        return LoginDatabase.PQuery("SELECT `username`,`gmlevel`,`last_ip`,`last_login` FROM `account` WHERE `id` = '%u'", accountId);
+        AccountInfoRow row;
+        row.username = fields[0].GetCppString();
+        row.gmLevel = fields[1].GetUInt32();
+        row.lastIp = fields[2].GetCppString();
+        row.lastLogin = fields[3].GetCppString();
+        return row;
     }
 
-    QueryResult* QueryGameMasters()
+    std::optional<AccountInfoRow> QueryAccountInfo(uint32 accountId)
     {
-        return LoginDatabase.Query("SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0");
+        QueryResult* result = LoginDatabase.PQuery("SELECT `username`,`gmlevel`,`last_ip`,`last_login` FROM `account` WHERE `id` = '%u'", accountId);
+        return ReadRow<AccountInfoRow>(result, ReadAccountInfo);
+    }
+
+    static GameMasterRow ReadGameMaster(Field* fields)
+    {
+        GameMasterRow row;
+        row.username = fields[0].GetString();
+        row.gmLevel = fields[1].GetString();
+        return row;
+    }
+
+    std::vector<GameMasterRow> QueryGameMasters()
+    {
+        QueryResult* result = LoginDatabase.Query("SELECT `username`,`gmlevel` FROM `account` WHERE `gmlevel` > 0");
+        return ReadRows<GameMasterRow>(result, ReadGameMaster);
     }
 
     void ReplaceRealmCharacterCount(uint32 accountId, uint32 realmId, uint32 count)

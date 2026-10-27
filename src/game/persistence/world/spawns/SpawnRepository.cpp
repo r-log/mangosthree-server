@@ -296,30 +296,58 @@ namespace SpawnRepository
         WorldDatabase.PExecuteLog("UPDATE `creature` SET `spawntimesecs`=%i WHERE `guid`=%u", seconds, guid);
     }
 
-    QueryResult* QueryGameObjectsInRange(float x, float y, float z, uint32 mapId, float distanceSquared)
+    static GameObjectInRangeRow ReadGameObjectInRange(Field* fields)
     {
-        return WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `map`, "
-                                    "(POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ "
-                                    "FROM `gameobject` WHERE `map`='%u' AND (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) <= '%f' ORDER BY order_",
-                                    x, y, z,
-                                    mapId, x, y, z, distanceSquared);
+        GameObjectInRangeRow row;
+        row.guid = fields[0].GetUInt32();
+        row.entry = fields[1].GetUInt32();
+        row.positionX = fields[2].GetFloat();
+        row.positionY = fields[3].GetFloat();
+        row.positionZ = fields[4].GetFloat();
+        row.map = fields[5].GetUInt16();
+        return row;
     }
 
-    QueryResult* QueryNearestGameObjectOf(float x, float y, float z, uint32 mapId, uint32 entry)
+    std::vector<GameObjectInRangeRow> QueryGameObjectsInRange(float x, float y, float z, uint32 mapId, float distanceSquared)
     {
-        return WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `map` = '%i' AND `id` = '%u' ORDER BY order_ ASC LIMIT 1",
-                                    x, y, z, mapId, entry);
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `map`, "
+                                                   "(POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ "
+                                                   "FROM `gameobject` WHERE `map`='%u' AND (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) <= '%f' ORDER BY order_",
+                                                   x, y, z,
+                                                   mapId, x, y, z, distanceSquared);
+        return ReadRows<GameObjectInRangeRow>(result, ReadGameObjectInRange);
     }
 
-    QueryResult* QueryNearestGameObjectNamed(float x, float y, float z, uint32 mapId, std::string name)
+    static NearestGameObjectRow ReadNearestGameObject(Field* fields)
+    {
+        NearestGameObjectRow row;
+        row.guid = fields[0].GetUInt32();
+        row.entry = fields[1].GetUInt32();
+        row.positionX = fields[2].GetFloat();
+        row.positionY = fields[3].GetFloat();
+        row.positionZ = fields[4].GetFloat();
+        row.orientation = fields[5].GetFloat();
+        row.map = fields[6].GetUInt16();
+        return row;
+    }
+
+    std::vector<NearestGameObjectRow> QueryNearestGameObjectOf(float x, float y, float z, uint32 mapId, uint32 entry)
+    {
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - '%f', 2) + POW(`position_y` - '%f', 2) + POW(`position_z` - '%f', 2)) AS order_ FROM `gameobject` WHERE `map` = '%i' AND `id` = '%u' ORDER BY order_ ASC LIMIT 1",
+                                                   x, y, z, mapId, entry);
+        return ReadRows<NearestGameObjectRow>(result, ReadNearestGameObject);
+    }
+
+    std::vector<NearestGameObjectRow> QueryNearestGameObjectNamed(float x, float y, float z, uint32 mapId, std::string name)
     {
         WorldDatabase.escape_string(name);
-        return WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ "
-                                    "FROM `gameobject`,`gameobject_template` WHERE `gameobject_template`.`entry` = `gameobject`.`id` AND `map` = %i AND `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")" ORDER BY order_ ASC LIMIT 1",
-                                    x, y, z, mapId, name.c_str());
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ "
+                                                   "FROM `gameobject`,`gameobject_template` WHERE `gameobject_template`.`entry` = `gameobject`.`id` AND `map` = %i AND `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'")" ORDER BY order_ ASC LIMIT 1",
+                                                   x, y, z, mapId, name.c_str());
+        return ReadRows<NearestGameObjectRow>(result, ReadNearestGameObject);
     }
 
-    QueryResult* QueryNearestGameObjects(float x, float y, float z, uint32 mapId, std::set<uint16> const& activeEvents)
+    std::vector<NearestGameObjectRow> QueryNearestGameObjects(float x, float y, float z, uint32 mapId, std::set<uint16> const& activeEvents)
     {
         std::ostringstream eventFilter;
         eventFilter << " AND (event IS NULL ";
@@ -347,26 +375,30 @@ namespace SpawnRepository
             eventFilter << ")";
         }
 
-        return WorldDatabase.PQuery("SELECT `gameobject`.`guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, "
-                                    "(POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ FROM `gameobject` "
-                                    "LEFT OUTER JOIN `game_event_gameobject` on `gameobject`.`guid`=`game_event_gameobject`.`guid` WHERE `map` = '%i' %s ORDER BY order_ ASC LIMIT 10",
-                                    x, y, z, mapId, eventFilter.str().c_str());
+        QueryResult* result = WorldDatabase.PQuery("SELECT `gameobject`.`guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, "
+                                                   "(POW(`position_x` - %f, 2) + POW(`position_y` - %f, 2) + POW(`position_z` - %f, 2)) AS order_ FROM `gameobject` "
+                                                   "LEFT OUTER JOIN `game_event_gameobject` on `gameobject`.`guid`=`game_event_gameobject`.`guid` WHERE `map` = '%i' %s ORDER BY order_ ASC LIMIT 10",
+                                                   x, y, z, mapId, eventFilter.str().c_str());
+        return ReadRows<NearestGameObjectRow>(result, ReadNearestGameObject);
     }
 
-    QueryResult* QueryCreatureGuidsNamed(std::string name)
+    std::vector<uint32> QueryCreatureGuidsNamed(std::string name)
     {
         WorldDatabase.escape_string(name);
-        return WorldDatabase.PQuery("SELECT `guid` FROM `creature`, `creature_template` WHERE `creature`.`id` = `creature_template`.`entry` AND `creature_template`.`name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid` FROM `creature`, `creature_template` WHERE `creature`.`id` = `creature_template`.`entry` AND `creature_template`.`name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryGameObjectGuidsNamed(std::string name)
+    std::vector<uint32> QueryGameObjectGuidsNamed(std::string name)
     {
         WorldDatabase.escape_string(name);
-        return WorldDatabase.PQuery("SELECT `guid` FROM `gameobject`, `gameobject_template` WHERE `gameobject`.`id` = `gameobject_template`.`entry` AND `gameobject_template`.`name `" _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
+        QueryResult* result = WorldDatabase.PQuery("SELECT `guid` FROM `gameobject`, `gameobject_template` WHERE `gameobject`.`id` = `gameobject_template`.`entry` AND `gameobject_template`.`name `" _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryCreatureIdCountOf(uint32 entry)
+    std::optional<uint32> QueryCreatureIdCountOf(uint32 entry)
     {
-        return WorldDatabase.PQuery("SELECT COUNT(`id`) FROM `creature` WHERE `id` = %u", entry);
+        QueryResult* result = WorldDatabase.PQuery("SELECT COUNT(`id`) FROM `creature` WHERE `id` = %u", entry);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 }

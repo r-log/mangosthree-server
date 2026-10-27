@@ -405,10 +405,11 @@ namespace CharacterRepository
         return ReadRows<CharacterCacheRow>(result, ReadCharacterCache);
     }
 
-    QueryResult* QueryAccountsOfCharactersNamed(std::string filter)
+    std::vector<uint32> QueryAccountsOfCharactersNamed(std::string filter)
     {
         LoginDatabase.escape_string(filter);
-        return CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), filter.c_str());
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), filter.c_str());
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     static AccountCharacterListRow ReadAccountCharacterListRow(Field* fields)
@@ -448,19 +449,32 @@ namespace CharacterRepository
         CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE (`at_login` & '%u') = '0'", flags, flags);
     }
 
-    QueryResult* QueryDeletedCharacter(uint32 guid)
+    static DeletedCharacterInfoRow ReadDeletedCharacterInfo(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u", guid);
+        DeletedCharacterInfoRow row;
+        row.guid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.account = fields[2].GetUInt32();
+        row.deleteDate = fields[3].GetUInt64();
+        return row;
     }
 
-    QueryResult* QueryDeletedCharactersNamed(char const* name)
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharacter(uint32 guid)
     {
-        return CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u", guid);
+        return ReadRows<DeletedCharacterInfoRow>(result, ReadDeletedCharacterInfo);
     }
 
-    QueryResult* QueryDeletedCharacters()
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharactersNamed(char const* name)
     {
-        return CharacterDatabase.Query("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL");
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name);
+        return ReadRows<DeletedCharacterInfoRow>(result, ReadDeletedCharacterInfo);
+    }
+
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharacters()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL");
+        return ReadRows<DeletedCharacterInfoRow>(result, ReadDeletedCharacterInfo);
     }
 
     void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid)
@@ -474,10 +488,21 @@ namespace CharacterRepository
         CharacterDatabase.PExecute("UPDATE `characters` SET `level` = '%u', `xp` = 0 WHERE `guid` = '%u'", level, guid);
     }
 
-    QueryResult* QueryPlayerInfo(uint32 guid)
+    static CharacterPlayerInfoRow ReadPlayerInfo(Field* fields)
+    {
+        CharacterPlayerInfoRow row;
+        row.totaltime = fields[0].GetUInt32();
+        row.level = fields[1].GetUInt32();
+        row.money = fields[2].GetUInt32();
+        row.account = fields[3].GetUInt32();
+        return row;
+    }
+
+    std::optional<CharacterPlayerInfoRow> QueryPlayerInfo(uint32 guid)
     {
         //                                      0          1      2      3
-        return CharacterDatabase.PQuery("SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'", guid);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'", guid);
+        return ReadRow<CharacterPlayerInfoRow>(result, ReadPlayerInfo);
     }
 
     QueryResult* QueryAccountOfCharacterNamed(std::string const& name)

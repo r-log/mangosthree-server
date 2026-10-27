@@ -150,6 +150,30 @@ struct SpawnListRow
     uint16 map = 0;
 };
 
+/// A game object spawn near a GM: its guid, entry, position and map.
+struct GameObjectInRangeRow
+{
+    uint32 guid = 0;
+    uint32 entry = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    uint16 map = 0;
+};
+
+/// A game object spawn a GM's target command finds, nearest first: its guid, entry, position,
+/// orientation and map.
+struct NearestGameObjectRow
+{
+    uint32 guid = 0;
+    uint32 entry = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    float orientation = 0.0f;
+    uint16 map = 0;
+};
+
 /// The creature and game object spawns on the world database (`creature`, `gameobject` and the
 /// tables keyed on a spawn), as a GM saves and deletes them. The start-up reads and a GM's spawn
 /// lists and look-ups run synchronously; every write is queued and written to the SQL log.
@@ -214,28 +238,28 @@ namespace SpawnRepository
     void SetCreatureSpawnTime(uint32 seconds, uint32 guid);
 
     /// Selects the game object spawns on a map within a squared distance of a position, nearest first.
-    QueryResult* QueryGameObjectsInRange(float x, float y, float z, uint32 mapId, float distanceSquared);
+    std::vector<GameObjectInRangeRow> QueryGameObjectsInRange(float x, float y, float z, uint32 mapId, float distanceSquared);
 
     /// Selects the nearest game object spawn of an entry on a map.
-    QueryResult* QueryNearestGameObjectOf(float x, float y, float z, uint32 mapId, uint32 entry);
+    std::vector<NearestGameObjectRow> QueryNearestGameObjectOf(float x, float y, float z, uint32 mapId, uint32 entry);
 
     /// Selects the nearest game object spawn on a map whose template name contains a text, the text
     /// escaped first.
-    QueryResult* QueryNearestGameObjectNamed(float x, float y, float z, uint32 mapId, std::string name);
+    std::vector<NearestGameObjectRow> QueryNearestGameObjectNamed(float x, float y, float z, uint32 mapId, std::string name);
 
     /// Selects the ten nearest game object spawns on a map that belong to no event or to one of the
     /// active events.
-    QueryResult* QueryNearestGameObjects(float x, float y, float z, uint32 mapId, std::set<uint16> const& activeEvents);
+    std::vector<NearestGameObjectRow> QueryNearestGameObjects(float x, float y, float z, uint32 mapId, std::set<uint16> const& activeEvents);
 
     /// Selects the creature spawns whose template name contains a text, the text escaped first.
-    QueryResult* QueryCreatureGuidsNamed(std::string name);
+    std::vector<uint32> QueryCreatureGuidsNamed(std::string name);
 
     /// Selects the game object spawns whose template name contains a text, the text escaped first; the
     /// column is spelled as it always was.
-    QueryResult* QueryGameObjectGuidsNamed(std::string name);
+    std::vector<uint32> QueryGameObjectGuidsNamed(std::string name);
 
     /// Selects how many creature spawns are of an entry, for a GM's waypoint commands.
-    QueryResult* QueryCreatureIdCountOf(uint32 entry);
+    std::optional<uint32> QueryCreatureIdCountOf(uint32 entry);
 }
 
 #endif

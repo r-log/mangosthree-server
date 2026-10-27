@@ -96,16 +96,16 @@ TEST(BanRepository_Reads)
 {
     Db login(LoginDatabase);
     Db chars(CharacterDatabase);
-    delete BanRepository::QueryBannedAccountName(42);
-    delete BanRepository::QueryAccountBans(42);
-    delete BanRepository::QueryAccountBanHistory(42);
-    delete BanRepository::QueryIpBan("10.0.0.1");
-    delete BanRepository::QueryActiveIpBans("");
-    delete BanRepository::QueryActiveIpBans("10.0");
-    delete BanRepository::QueryActiveAccountBans("");
-    delete BanRepository::QueryActiveAccountBans("BOB");
+    BanRepository::QueryBannedAccountName(42);
+    BanRepository::QueryAccountBans(42);
+    BanRepository::QueryAccountBanHistory(42);
+    BanRepository::QueryIpBan("10.0.0.1");
+    BanRepository::QueryActiveIpBans("");
+    BanRepository::QueryActiveIpBans("10.0");
+    BanRepository::QueryActiveAccountBans("");
+    BanRepository::QueryActiveAccountBans("BOB");
     AccountRepository::QueryActiveOnRealm(1);
-    delete CharacterRepository::QueryAccountsOfCharactersNamed("Ann");
+    CharacterRepository::QueryAccountsOfCharactersNamed("Ann");
     CharacterRepository::QueryAccountCharacterList(42);
     CheckLines(login.query.executed, {
         "SELECT `account`.`username` FROM `account`,`account_banned` WHERE `account_banned`.`id`='42' AND `account_banned`.`id`=`account`.`id`",
@@ -165,16 +165,16 @@ TEST(CommandRepository_ListAndLookupReads)
     ItemRepository::QueryAuctionHoldersOf(5, 10);
     ItemRepository::QueryGuildBankCountOf(5);
     ItemRepository::QueryGuildBankHoldersOf(5, 10);
-    delete CharacterRepository::QueryDeletedCharacter(42);
-    delete CharacterRepository::QueryDeletedCharactersNamed("Ann");
-    delete CharacterRepository::QueryDeletedCharacters();
+    CharacterRepository::QueryDeletedCharacter(42);
+    CharacterRepository::QueryDeletedCharactersNamed("Ann");
+    CharacterRepository::QueryDeletedCharacters();
     SpawnRepository::QueryGameObjectCountOf(1234);
     SpawnRepository::QueryGameObjectsNear(1.5f, -2.25f, 3.0f, 1234, 10);
     SpawnRepository::QueryGameObjectsOf(1234, 10);
     SpawnRepository::QueryCreatureCountOf(1234);
     SpawnRepository::QueryCreaturesNear(1.5f, -2.25f, 3.0f, 1234, 10);
     SpawnRepository::QueryCreaturesOf(1234, 10);
-    delete ItemDataRepository::QueryItemEntryByName("Hearthstone");
+    ItemDataRepository::QueryItemEntryByName("Hearthstone");
     AccountRepository::QueryAccountsByEmail("ann@x");
     AccountRepository::QueryAccountsByLastIp("10.0");
     AccountRepository::QueryAccountsByName("BOB");
@@ -244,14 +244,14 @@ TEST(CommandRepository_SpawnInfoAndScriptReads)
     Db chars(CharacterDatabase);
     Db world(WorldDatabase);
     Db login(LoginDatabase);
-    delete SpawnRepository::QueryGameObjectsInRange(1.5f, -2.25f, 3.0f, 530, 100.0f);
-    delete SpawnRepository::QueryNearestGameObjectNamed(1.5f, -2.25f, 3.0f, 530, "Chest");
-    delete SpawnRepository::QueryNearestGameObjects(1.5f, -2.25f, 3.0f, 530, std::set<uint16>());
-    delete SpawnRepository::QueryNearestGameObjects(1.5f, -2.25f, 3.0f, 530, std::set<uint16>{7, 3});
-    delete SpawnRepository::QueryNearestGameObjectOf(1.5f, -2.25f, 3.0f, 530, 1234);
-    delete SpawnRepository::QueryCreatureGuidsNamed("Ann");
-    delete SpawnRepository::QueryGameObjectGuidsNamed("Ann");
-    delete SpawnRepository::QueryCreatureIdCountOf(1234);
+    SpawnRepository::QueryGameObjectsInRange(1.5f, -2.25f, 3.0f, 530, 100.0f);
+    SpawnRepository::QueryNearestGameObjectNamed(1.5f, -2.25f, 3.0f, 530, "Chest");
+    SpawnRepository::QueryNearestGameObjects(1.5f, -2.25f, 3.0f, 530, std::set<uint16>());
+    SpawnRepository::QueryNearestGameObjects(1.5f, -2.25f, 3.0f, 530, std::set<uint16>{7, 3});
+    SpawnRepository::QueryNearestGameObjectOf(1.5f, -2.25f, 3.0f, 530, 1234);
+    SpawnRepository::QueryCreatureGuidsNamed("Ann");
+    SpawnRepository::QueryGameObjectGuidsNamed("Ann");
+    SpawnRepository::QueryCreatureIdCountOf(1234);
     delete CommandDataRepository::QueryCommands();
     delete CommandDataRepository::QueryCommandHelpLocales();
     ScriptDataRepository::QueryScriptBindings();
@@ -259,9 +259,9 @@ TEST(CommandRepository_SpawnInfoAndScriptReads)
     ScriptDataRepository::QueryDbScripts(2);
     delete ScriptDataRepository::QueryScriptWaypointCounts();
     delete ScriptDataRepository::QueryScriptWaypoints();
-    delete CharacterRepository::QueryPlayerInfo(42);
-    delete AccountRepository::QueryAccountInfo(42);
-    delete AccountRepository::QueryGameMasters();
+    CharacterRepository::QueryPlayerInfo(42);
+    AccountRepository::QueryAccountInfo(42);
+    AccountRepository::QueryGameMasters();
     CheckLines(world.query.executed, {
         "SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '1.500000', 2) + POW(`position_y` - '-2.250000', 2) + POW(`position_z` - '3.000000', 2)) AS order_ FROM `gameobject` WHERE `map`='530' AND (POW(`position_x` - '1.500000', 2) + POW(`position_y` - '-2.250000', 2) + POW(`position_z` - '3.000000', 2)) <= '100.000000' ORDER BY order_",
         "SELECT `guid`, `id`, `position_x`, `position_y`, `position_z`, `orientation`, `map`, (POW(`position_x` - 1.500000, 2) + POW(`position_y` - -2.250000, 2) + POW(`position_z` - 3.000000, 2)) AS order_ FROM `gameobject`,`gameobject_template` WHERE `gameobject_template`.`entry` = `gameobject`.`id` AND `map` = 530 AND `name` LIKE CONCAT( '%' , 'Chest' , '%' ) ORDER BY order_ ASC LIMIT 1",
@@ -696,4 +696,383 @@ TEST(SpawnRepository_CreaturesOf)
     CHECK_EQ(rows[0].positionZ, 1003.5f);
     CHECK_EQ(rows[0].map, uint16(10004));
     CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a game object spawn near a GM lands in its member, and the rows come back in
+// order.
+TEST(SpawnRepository_GameObjectsInRange)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002.5", "1003.5", "1004.5", "10005"},
+        FakeRow{"2000", "2001", "2002.5", "2003.5", "2004.5", "20005"},
+    });
+    std::vector<GameObjectInRangeRow> rows = SpawnRepository::QueryGameObjectsInRange(1.5f, -2.25f, 3.0f, 530, 100.0f);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].entry, 1001u);
+    CHECK_EQ(rows[0].positionX, 1002.5f);
+    CHECK_EQ(rows[0].positionY, 1003.5f);
+    CHECK_EQ(rows[0].positionZ, 1004.5f);
+    CHECK_EQ(rows[0].map, uint16(10005));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a nearest game object spawn lands in its member, and the rows come back in order.
+TEST(SpawnRepository_NearestGameObjectOf)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002.5", "1003.5", "1004.5", "1005.5", "10006"},
+        FakeRow{"2000", "2001", "2002.5", "2003.5", "2004.5", "2005.5", "20006"},
+    });
+    std::vector<NearestGameObjectRow> rows = SpawnRepository::QueryNearestGameObjectOf(1.5f, -2.25f, 3.0f, 530, 1234);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].entry, 1001u);
+    CHECK_EQ(rows[0].positionX, 1002.5f);
+    CHECK_EQ(rows[0].positionY, 1003.5f);
+    CHECK_EQ(rows[0].positionZ, 1004.5f);
+    CHECK_EQ(rows[0].orientation, 1005.5f);
+    CHECK_EQ(rows[0].map, uint16(10006));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a nearest game object spawn lands in its member, and the rows come back in order.
+TEST(SpawnRepository_NearestGameObjectNamed)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002.5", "1003.5", "1004.5", "1005.5", "10006"},
+        FakeRow{"2000", "2001", "2002.5", "2003.5", "2004.5", "2005.5", "20006"},
+    });
+    std::vector<NearestGameObjectRow> rows = SpawnRepository::QueryNearestGameObjectNamed(1.5f, -2.25f, 3.0f, 530, "Chest");
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].entry, 1001u);
+    CHECK_EQ(rows[0].positionX, 1002.5f);
+    CHECK_EQ(rows[0].positionY, 1003.5f);
+    CHECK_EQ(rows[0].positionZ, 1004.5f);
+    CHECK_EQ(rows[0].orientation, 1005.5f);
+    CHECK_EQ(rows[0].map, uint16(10006));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a nearest game object spawn lands in its member, and the rows come back in order.
+TEST(SpawnRepository_NearestGameObjects)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002.5", "1003.5", "1004.5", "1005.5", "10006"},
+        FakeRow{"2000", "2001", "2002.5", "2003.5", "2004.5", "2005.5", "20006"},
+    });
+    std::vector<NearestGameObjectRow> rows = SpawnRepository::QueryNearestGameObjects(1.5f, -2.25f, 3.0f, 530, std::set<uint16>());
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].entry, 1001u);
+    CHECK_EQ(rows[0].positionX, 1002.5f);
+    CHECK_EQ(rows[0].positionY, 1003.5f);
+    CHECK_EQ(rows[0].positionZ, 1004.5f);
+    CHECK_EQ(rows[0].orientation, 1005.5f);
+    CHECK_EQ(rows[0].map, uint16(10006));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(SpawnRepository_CreatureGuidsNamed)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = SpawnRepository::QueryCreatureGuidsNamed("Ann");
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(SpawnRepository_GameObjectGuidsNamed)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = SpawnRepository::QueryGameObjectGuidsNamed("Ann");
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SpawnRepository_CreatureIdCountOf)
+{
+    {
+        Db db(WorldDatabase);
+        std::optional<uint32> value = SpawnRepository::QueryCreatureIdCountOf(1234);
+        CHECK(!value);
+    }
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = SpawnRepository::QueryCreatureIdCountOf(1234);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(ItemDataRepository_ItemEntryByName)
+{
+    {
+        Db db(WorldDatabase);
+        std::optional<uint16> value = ItemDataRepository::QueryItemEntryByName("Hearthstone");
+        CHECK(!value);
+    }
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"10007"}, FakeRow{"20007"},
+    });
+    std::optional<uint16> value = ItemDataRepository::QueryItemEntryByName("Hearthstone");
+    REQUIRE(value);
+    CHECK_EQ(*value, uint16(10007));
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(CharacterRepository_AccountsOfCharactersNamed)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = CharacterRepository::QueryAccountsOfCharactersNamed("Ann");
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// Each column of a deleted character lands in its member, and the rows come back in order.
+TEST(CharacterRepository_DeletedCharacter)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "1002", "4294967299"},
+        FakeRow{"2000", "s2.1", "2002", "8589934595"},
+    });
+    std::vector<DeletedCharacterInfoRow> rows = CharacterRepository::QueryDeletedCharacter(42);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_STR(rows[0].name, "s1.1");
+    CHECK_EQ(rows[0].account, 1002u);
+    CHECK_EQ(rows[0].deleteDate, uint64(4294967299ull));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a deleted character lands in its member, and the rows come back in order.
+TEST(CharacterRepository_DeletedCharactersNamed)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "1002", "4294967299"},
+        FakeRow{"2000", "s2.1", "2002", "8589934595"},
+    });
+    std::vector<DeletedCharacterInfoRow> rows = CharacterRepository::QueryDeletedCharactersNamed("Ann");
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_STR(rows[0].name, "s1.1");
+    CHECK_EQ(rows[0].account, 1002u);
+    CHECK_EQ(rows[0].deleteDate, uint64(4294967299ull));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a deleted character lands in its member, and the rows come back in order.
+TEST(CharacterRepository_DeletedCharacters)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "1002", "4294967299"},
+        FakeRow{"2000", "s2.1", "2002", "8589934595"},
+    });
+    std::vector<DeletedCharacterInfoRow> rows = CharacterRepository::QueryDeletedCharacters();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_STR(rows[0].name, "s1.1");
+    CHECK_EQ(rows[0].account, 1002u);
+    CHECK_EQ(rows[0].deleteDate, uint64(4294967299ull));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a character's player info lands in its member, and no rows answer nothing.
+TEST(CharacterRepository_PlayerInfo)
+{
+    {
+        Db db(CharacterDatabase);
+        CHECK(!CharacterRepository::QueryPlayerInfo(42));
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003"},
+        FakeRow{"2000", "2001", "2002", "2003"},
+    });
+    std::optional<CharacterPlayerInfoRow> row = CharacterRepository::QueryPlayerInfo(42);
+    REQUIRE(row);
+    CHECK_EQ(row->totaltime, 1000u);
+    CHECK_EQ(row->level, 1001u);
+    CHECK_EQ(row->money, 1002u);
+    CHECK_EQ(row->account, 1003u);
+}
+
+// Each column of an account's player info lands in its member, and no rows answer nothing.
+TEST(AccountRepository_AccountInfo)
+{
+    {
+        Db db(LoginDatabase);
+        CHECK(!AccountRepository::QueryAccountInfo(42));
+    }
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.0", "1001", "s1.2", "s1.3"},
+        FakeRow{"s2.0", "2001", "s2.2", "s2.3"},
+    });
+    std::optional<AccountInfoRow> row = AccountRepository::QueryAccountInfo(42);
+    REQUIRE(row);
+    CHECK_STR(row->username, "s1.0");
+    CHECK_EQ(row->gmLevel, 1001u);
+    CHECK_STR(row->lastIp, "s1.2");
+    CHECK_STR(row->lastLogin, "s1.3");
+}
+
+// Each column of a GM account lands in its member, and the rows come back in order.
+TEST(AccountRepository_GameMasters)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.0", "s1.1"},
+        FakeRow{"s2.0", "s2.1"},
+    });
+    std::vector<GameMasterRow> rows = AccountRepository::QueryGameMasters();
+    REQUIRE(rows.size() == 2);
+    CHECK_STR(rows[0].username, "s1.0");
+    CHECK_STR(rows[0].gmLevel, "s1.1");
+    CHECK_STR(rows[1].username, "s2.0");
+}
+
+// Each column of a banned account's name lands in its member, and no rows answer nothing.
+TEST(BanRepository_BannedAccountName)
+{
+    {
+        Db db(LoginDatabase);
+        CHECK(!BanRepository::QueryBannedAccountName(42));
+    }
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.0"},
+        FakeRow{},
+    });
+    std::optional<BannedAccountNameRow> row = BanRepository::QueryBannedAccountName(42);
+    REQUIRE(row);
+    REQUIRE(row->username);
+    CHECK_STR(*row->username, "s1.0");
+}
+
+// Each column of a ban of an account lands in its member, and the rows come back in order.
+TEST(BanRepository_AccountBans)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"4294967296", "4294967297", "s1.2", "s1.3"},
+        FakeRow{"8589934592", "8589934593", "s2.2", "s2.3"},
+    });
+    std::vector<AccountBanRow> rows = BanRepository::QueryAccountBans(42);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].banDate, uint64(4294967296ull));
+    CHECK_EQ(rows[0].unbanDate, uint64(4294967297ull));
+    CHECK_STR(rows[0].bannedBy, "s1.2");
+    CHECK_STR(rows[0].banReason, "s1.3");
+    CHECK_EQ(rows[1].banDate, uint64(8589934592ull));
+}
+
+// Each column of a ban of an account's history lands in its member, and the rows come back in
+// order.
+TEST(BanRepository_AccountBanHistory)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.0", "4294967297", "1", "4294967299", "s1.4", "s1.5"},
+        FakeRow{"s2.0", "8589934593", "1", "8589934595", "s2.4", "s2.5"},
+    });
+    std::vector<AccountBanHistoryRow> rows = BanRepository::QueryAccountBanHistory(42);
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].banDate);
+    CHECK_STR(*rows[0].banDate, "s1.0");
+    CHECK_EQ(rows[0].duration, uint64(4294967297ull));
+    CHECK_EQ(rows[0].active, true);
+    CHECK_EQ(rows[0].unbanDate, uint64(4294967299ull));
+    CHECK_STR(rows[0].banReason, "s1.4");
+    CHECK_STR(rows[0].bannedBy, "s1.5");
+    CHECK_EQ(rows[1].duration, uint64(8589934593ull));
+}
+
+// Each column of an address's ban lands in its member, and no rows answer nothing.
+TEST(BanRepository_IpBan)
+{
+    {
+        Db db(LoginDatabase);
+        CHECK(!BanRepository::QueryIpBan("10.0.0.1"));
+    }
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.0", "s1.1", "s1.2", "4294967299", "s1.4", "s1.5", "4294967302"},
+        FakeRow{"s2.0", "s2.1", "s2.2", "8589934595", "s2.4", "s2.5", "8589934598"},
+    });
+    std::optional<IpBanRow> row = BanRepository::QueryIpBan("10.0.0.1");
+    REQUIRE(row);
+    CHECK_STR(row->ip, "s1.0");
+    REQUIRE(row->banDate);
+    CHECK_STR(*row->banDate, "s1.1");
+    REQUIRE(row->unbanDate);
+    CHECK_STR(*row->unbanDate, "s1.2");
+    CHECK_EQ(row->remaining, uint64(4294967299ull));
+    CHECK_STR(row->banReason, "s1.4");
+    CHECK_STR(row->bannedBy, "s1.5");
+    CHECK_EQ(row->duration, uint64(4294967302ull));
+}
+
+// Each column of an active address ban lands in its member, with or without a filter, and the
+// rows come back in order.
+TEST(BanRepository_ActiveIpBans)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.0", "4294967297", "4294967298", "s1.3", "s1.4"},
+        FakeRow{"s2.0", "8589934593", "8589934594", "s2.3", "s2.4"},
+    });
+    for (char const* filter : {"", "10.0"})
+    {
+        std::vector<ActiveIpBanRow> rows = BanRepository::QueryActiveIpBans(filter);
+        REQUIRE(rows.size() == 2);
+        CHECK_STR(rows[0].ip, "s1.0");
+        CHECK_EQ(rows[0].banDate, uint64(4294967297ull));
+        CHECK_EQ(rows[0].unbanDate, uint64(4294967298ull));
+        CHECK_STR(rows[0].bannedBy, "s1.3");
+        CHECK_STR(rows[0].banReason, "s1.4");
+        CHECK_STR(rows[1].ip, "s2.0");
+    }
+}
+
+// Each banned account of the account ban list lands in its row with its name, with or without a
+// filter, and the rows come back in order.
+TEST(BanRepository_ActiveAccountBans)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{FakeRow{"1000", "s1.1"}, FakeRow{"2000", "s2.1"}});
+    for (char const* filter : {"", "BOB"})
+    {
+        std::vector<BanListAccountRow> rows = BanRepository::QueryActiveAccountBans(filter);
+        REQUIRE(rows.size() == 2);
+        CHECK_EQ(rows[0].accountId, 1000u);
+        REQUIRE(rows[0].username);
+        CHECK_STR(*rows[0].username, "s1.1");
+        CHECK_EQ(rows[1].accountId, 2000u);
+    }
 }

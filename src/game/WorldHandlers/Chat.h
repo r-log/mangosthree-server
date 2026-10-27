@@ -47,10 +47,10 @@ struct FactionState;
 struct GameTele;
 struct SpellEntry;
 
-class QueryResult;
 struct AccountListRow;
 struct AccountSearchRow;
 struct AccountCharacterListRow;
+struct BanListAccountRow;
 class ChatHandler;
 class WorldSession;
 class WorldPacket;
@@ -813,7 +813,7 @@ class ChatHandler
         void ShowTriggerListHelper(AreaTriggerEntry const* atEntry);
         void ShowTriggerTargetListHelper(uint32 id, AreaTrigger const* at, bool subpart = false);
         bool LookupPlayerSearchCommand(std::vector<AccountSearchRow> const& rows, uint32* limit = NULL);
-        bool HandleBanListHelper(QueryResult* result);
+        bool HandleBanListHelper(std::vector<BanListAccountRow> const& rows);
         bool HandleBanHelper(BanMode mode, char* args);
         bool HandleBanInfoHelper(uint32 accountid, char const* accountname);
         bool HandleUnBanHelper(BanMode mode, char* args);

@@ -59,6 +59,22 @@ struct AccountSearchRow
     std::string username;
 };
 
+/// An account as a GM's player info reads it: name, GM level, last address and last login.
+struct AccountInfoRow
+{
+    std::string username;
+    uint32 gmLevel = 0;
+    std::string lastIp;
+    std::string lastLogin;
+};
+
+/// A GM account as the GM list shows it: its name and GM level, both as text.
+struct GameMasterRow
+{
+    std::string username;
+    std::string gmLevel;
+};
+
 /// The accounts' saved rows on the login database (`account`, `account_banned`, `ip_banned`,
 /// `realmcharacters`). The authentication reads run on the network thread that asks them, and the
 /// account manager's and the GM commands' reads on the thread that calls them, synchronously; every
@@ -173,10 +189,10 @@ namespace AccountRepository
     std::vector<AccountSearchRow> QueryAccountIdsByEmail(std::string email);
 
     /// Selects an account's name, GM level, last address and last login, for a GM's player info.
-    QueryResult* QueryAccountInfo(uint32 accountId);
+    std::optional<AccountInfoRow> QueryAccountInfo(uint32 accountId);
 
     /// Selects the names and GM levels of the game master accounts.
-    QueryResult* QueryGameMasters();
+    std::vector<GameMasterRow> QueryGameMasters();
 
     /// Rewrites an account's character count on a realm, in one transaction.
     void ReplaceRealmCharacterCount(uint32 accountId, uint32 realmId, uint32 count);

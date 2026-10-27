@@ -233,12 +233,11 @@ bool ChatHandler::HandleWpAddCommand(char* args)
                 wpDestination = PATH_FROM_ENTRY;                // Default place to store paths
                 if (wpOwner->HasStaticDBSpawnData())
                 {
-                    QueryResult* result = SpawnRepository::QueryCreatureIdCountOf(wpOwner->GetEntry());
-                    if (result && result->Fetch()[0].GetUInt32() != 1)
+                    std::optional<uint32> spawnCount = SpawnRepository::QueryCreatureIdCountOf(wpOwner->GetEntry());
+                    if (spawnCount && *spawnCount != 1)
                     {
                         wpDestination = PATH_FROM_GUID;
                     }
-                    delete result;
                 }
             }
         }

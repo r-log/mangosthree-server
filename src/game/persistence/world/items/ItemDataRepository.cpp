@@ -112,9 +112,10 @@ namespace ItemDataRepository
         return ReadRows<HotfixRow>(result, ReadHotfix);
     }
 
-    QueryResult* QueryItemEntryByName(std::string itemName)
+    std::optional<uint16> QueryItemEntryByName(std::string itemName)
     {
         WorldDatabase.escape_string(itemName);
-        return WorldDatabase.PQuery("SELECT `entry` FROM `item_template` WHERE `name` = '%s'", itemName.c_str());
+        QueryResult* result = WorldDatabase.PQuery("SELECT `entry` FROM `item_template` WHERE `name` = '%s'", itemName.c_str());
+        return ReadRow<uint16>(result, [](Field* fields) { return fields[0].GetUInt16(); });
     }
 }
