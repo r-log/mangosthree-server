@@ -25,7 +25,7 @@
 
 /// PageTextRepository's read on the global WorldDatabase backed by fakes: the statement names its
 /// columns, every column of a canned row lands in its member, a NULL text reads as "", and no row
-/// answers an empty list.
+/// answers an empty table or an unreadable one, as the count of the same select says.
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
@@ -58,7 +58,9 @@ TEST(PageTextRepository_PageTexts)
         FakeRow{"1000", "s1.1", "1002"},
         FakeRow{"2000", "s2.1", "2002"},
     });
-    std::vector<PageTextRow> rows = PageTextRepository::QueryPageTexts();
+    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
+    std::vector<PageTextRow> const& rows = read.rows;
+    CHECK(read.status == TableReadStatus::Loaded);
     REQUIRE(db.query.executed.size() == 1);
     CHECK_STR(db.query.executed[0], "SELECT `entry`, `text`, `next_page` FROM `page_text`");
     REQUIRE(rows.size() == 2);
@@ -79,7 +81,8 @@ TEST(PageTextRepository_NullTextReadsAsEmpty)
         FakeRow{"8", "s8.1", "9"},
         FakeRow{"7"},
     });
-    std::vector<PageTextRow> rows = PageTextRepository::QueryPageTexts();
+    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
+    std::vector<PageTextRow> const& rows = read.rows;
     REQUIRE(rows.size() == 2);
     CHECK_STR(rows[0].text, "s8.1");
     CHECK_EQ(rows[1].entry, 7u);
@@ -87,10 +90,23 @@ TEST(PageTextRepository_NullTextReadsAsEmpty)
     CHECK_EQ(rows[1].nextPage, 0u);
 }
 
-// No row answers an empty list.
-TEST(PageTextRepository_NoRowsAnswerNothing)
+// No row and a count of 0 answer an empty table; the count is over the same select.
+TEST(PageTextRepository_NoRowsAnswerEmpty)
 {
     Db db;
-    std::vector<PageTextRow> rows = PageTextRepository::QueryPageTexts();
-    CHECK(rows.empty());
+    db.query.Answer("SELECT COUNT(*)", FakeRows{ FakeRow{"0"} });
+    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
+    CHECK(read.status == TableReadStatus::Empty);
+    CHECK(read.rows.empty());
+    REQUIRE(db.query.executed.size() == 2);
+    CHECK_STR(db.query.executed[1], "SELECT COUNT(*) FROM (SELECT `entry`, `text`, `next_page` FROM `page_text`) AS probe");
+}
+
+// No row and no count answer an unreadable table.
+TEST(PageTextRepository_FailedQueryAnswersUnreadable)
+{
+    Db db;
+    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
+    CHECK(read.status == TableReadStatus::QueryFailed);
+    CHECK(read.Unreadable());
 }

@@ -39,10 +39,9 @@ namespace PageTextRepository
         return row;
     }
 
-    std::vector<PageTextRow> QueryPageTexts()
+    TableRead<PageTextRow> QueryPageTexts()
     {
-        //                                         0        1       2
-        QueryResult* result = WorldDatabase.Query("SELECT `entry`, `text`, `next_page` FROM `page_text`");
-        return ReadRows<PageTextRow>(result, ReadRow);
+        //                                       0        1       2
+        return ReadWorldTable<PageTextRow>("SELECT `entry`, `text`, `next_page` FROM `page_text`", ReadRow);
     }
 }

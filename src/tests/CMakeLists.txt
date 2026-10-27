@@ -200,6 +200,7 @@ set(SRC_GRP_TESTS
     ExplorationBaseXpStoreTest.cpp
     FishingBaseSkillStoreTest.cpp
     PageTextStoreTest.cpp
+    TableReadTest.cpp
     PointOfInterestStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp

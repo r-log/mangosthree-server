@@ -27,9 +27,9 @@
 #define MANGOS_H_PAGETEXTREPOSITORY
 
 #include "Platform/Define.h"
+#include "persistence/TableRead.h"
 
 #include <string>
-#include <vector>
 
 class Field;
 
@@ -47,8 +47,8 @@ namespace PageTextRepository
     /// Reads one row: entry, text (a NULL text reads as ""), next page.
     PageTextRow ReadRow(Field* fields);
 
-    /// Reads every page, synchronously, in the order the database returns them.
-    std::vector<PageTextRow> QueryPageTexts();
+    /// Reads every page, synchronously, in the order the database returns them, with how the read ended.
+    TableRead<PageTextRow> QueryPageTexts();
 }
 
 #endif

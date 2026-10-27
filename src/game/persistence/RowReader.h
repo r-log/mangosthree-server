@@ -27,8 +27,10 @@
 #define MANGOS_H_ROWREADER
 
 #include "Database/DatabaseEnv.h"
+#include "persistence/TableRead.h"
 
 #include <optional>
+#include <string>
 #include <vector>
 
 /// Reads every row of a result with `read`, in order, and deletes the result; none for no result.
@@ -64,6 +66,38 @@ std::optional<Row> ReadRow(QueryResult* result, Read read)
     std::optional<Row> row = read(result->Fetch());
     delete result;
     return row;
+}
+
+/// Runs `sql` on the world database, synchronously, and reads every row with `read`. When the
+/// select answers nothing, counts the rows of the same select (`SELECT COUNT(*) FROM (sql) AS
+/// probe`) to tell an empty table from an unreadable one.
+template<class Row, class Read>
+TableRead<Row> ReadWorldTable(char const* sql, Read read)
+{
+    TableRead<Row> table;
+    QueryResult* result = WorldDatabase.Query(sql);
+    if (result)
+    {
+        table.status = TableReadStatus::Loaded;
+        table.rows = ReadRows<Row>(result, read);
+        return table;
+    }
+
+    std::string probe = std::string("SELECT COUNT(*) FROM (") + sql + ") AS probe";
+    std::optional<uint64> count = ReadRow<uint64>(WorldDatabase.Query(probe.c_str()), [](Field* fields) { return fields[0].GetUInt64(); });
+    if (!count)
+    {
+        table.status = TableReadStatus::QueryFailed;
+    }
+    else if (*count == 0)
+    {
+        table.status = TableReadStatus::Empty;
+    }
+    else
+    {
+        table.status = TableReadStatus::ChangedWhileRead;
+    }
+    return table;
 }
 
 #endif

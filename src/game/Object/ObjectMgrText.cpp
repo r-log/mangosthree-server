@@ -48,16 +48,23 @@ static_assert(int(NPC_TEXT_ROW_EMOTES) == int(std::extent<decltype(GossipTextOpt
  */
 void ObjectMgr::LoadPageTexts()
 {
-    std::vector<PageTextRow> rows = PageTextRepository::QueryPageTexts();
-    if (rows.empty())
+    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `page_text` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    if (read.status == TableReadStatus::Empty)
     {
         sLog.outError("page_text table is empty!\n");
     }
     else
     {
         m_pageTexts.Clear();
-        BarGoLink bar(rows.size());
-        for (PageTextRow const& row : rows)
+        BarGoLink bar(read.rows.size());
+        for (PageTextRow const& row : read.rows)
         {
             bar.step();
             m_pageTexts.Set(row.entry, row.text, row.nextPage);
