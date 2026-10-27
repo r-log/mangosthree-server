@@ -88,6 +88,9 @@
 #include "persistence/world/npcs/NpcDataRepository.h"
 #include "persistence/world/players/PlayerDataRepository.h"
 #include "persistence/world/quests/QuestDataRepository.h"
+#include "persistence/world/locales/LocaleDataRepository.h"
+
+static_assert(int(STRING_ROW_LOCALES) == int(MAX_LOCALE) - 1, "a string row holds every locale but the default");
 
 
 // Temporary startup accumulator for LivingWorld observability (written during LoadActiveEntities(NULL) only)
@@ -1660,13 +1663,9 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
 
     sLog.outString("Loading texts from %s%s", table, extra_content ? ", with additional data" : "");
 
-    QueryResult* result = db.PQuery("SELECT `entry`,`content_default`,"
-                                    "`content_loc1`,`content_loc2`,`content_loc3`,`content_loc4`,"
-                                    "`content_loc5`,`content_loc6`,`content_loc7`,`content_loc8`,"
-                                    "`content_loc9`,`content_loc10`,`content_loc11`"
-                                    " %s FROM %s", extra_content ? ",sound,type,language,emote" : "", table);
+    std::vector<StringRow> rows = LocaleDataRepository::QueryStrings(db, table, extra_content);
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -1686,14 +1685,13 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
 
     uint32 count = 0;
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (StringRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        int32 entry = fields[0].GetInt32();
+        int32 entry = row.entry;
 
         if (entry == 0)
         {
@@ -1718,11 +1716,11 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
         ++count;
 
         // 0 -> default, idx in to idx+1
-        data.Content[0] = fields[1].GetCppString();
+        data.Content[0] = row.contentDefault;
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
-            std::string str = fields[i + 1].GetCppString();
+            std::string str = row.content[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1742,10 +1740,10 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
         // Load additional string content if necessary
         if (extra_content)
         {
-            data.SoundId     = fields[13].GetUInt32();
-            data.Type        = fields[14].GetUInt32();
-            data.LanguageId  = Language(fields[15].GetUInt32());
-            data.Emote       = fields[16].GetUInt32();
+            data.SoundId     = row.sound;
+            data.Type        = row.type;
+            data.LanguageId  = Language(row.language);
+            data.Emote       = row.emote;
 
             if (data.SoundId && !sSoundEntriesStore.LookupEntry(data.SoundId))
             {
@@ -1772,9 +1770,7 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
             }
         }
     }
-    while (result->NextRow());
 
-    delete result;
 
     if (min_value == MIN_MANGOS_STRING_ID)
     {

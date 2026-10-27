@@ -168,9 +168,10 @@ namespace BanRepository
         LoginDatabase.escape_string(text);
     }
 
-    QueryResult* QueryAccountsOnIp(std::string const& ip)
+    std::vector<uint32> QueryAccountsOnIp(std::string const& ip)
     {
-        return LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `last_ip` = '%s'", ip.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `last_ip` = '%s'", ip.c_str());
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     void InsertIpBan(std::string const& ip, uint32 duration, std::string const& author, std::string const& reason)
@@ -178,9 +179,10 @@ namespace BanRepository
         LoginDatabase.PExecute("INSERT INTO `ip_banned` VALUES ('%s',UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+%u,'%s','%s')", ip.c_str(), duration, author.c_str(), reason.c_str());
     }
 
-    QueryResult* QueryAccountIdNamed(std::string const& name)
+    std::vector<uint32> QueryAccountIdNamed(std::string const& name)
     {
-        return LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `username` = '%s'", name.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `username` = '%s'", name.c_str());
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     void InsertAccountBan(uint32 accountId, uint32 duration, std::string const& author, std::string const& reason)

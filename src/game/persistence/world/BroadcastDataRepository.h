@@ -28,14 +28,23 @@
 
 #include "Platform/Define.h"
 
-class QueryResult;
+#include <optional>
+#include <string>
+#include <vector>
+
+/// One `autobroadcast` row.
+struct BroadcastRow
+{
+    std::optional<std::string> content;
+    uint32 ratio = 0;
+};
 
 /// The automatic broadcast messages on the world database (`autobroadcast`): the load at startup and on
 /// a reload runs synchronously, for a loader that keeps its loop.
 namespace BroadcastDataRepository
 {
     /// Selects every automatic broadcast with its weight.
-    QueryResult* QueryBroadcasts();
+    std::vector<BroadcastRow> QueryBroadcasts();
 }
 
 #endif

@@ -46,9 +46,10 @@ namespace AccountRepository
         LoginDatabase.Execute("INSERT INTO `realmcharacters` (`realmid`, `acctid`, `numchars`) SELECT `realmlist`.`id`, `account`.`id`, 0 FROM `realmlist`,`account` LEFT JOIN `realmcharacters` ON `acctid`=`account`.`id` WHERE `acctid` IS NULL");
     }
 
-    QueryResult* QueryExists(uint32 accountId)
+    bool QueryExists(uint32 accountId)
     {
-        return LoginDatabase.PQuery("SELECT 1 FROM `account` WHERE `id`='%u'", accountId);
+        QueryResult* result = LoginDatabase.PQuery("SELECT 1 FROM `account` WHERE `id`='%u'", accountId);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }).has_value();
     }
 
     bool Delete(uint32 accountId)
@@ -78,26 +79,41 @@ namespace AccountRepository
                                       passHash.c_str(), accountId);
     }
 
-    QueryResult* QueryIdByName(std::string const& username)
+    std::optional<uint32> QueryIdByName(std::string const& username)
     {
         std::string safeName = username;
         LoginDatabase.escape_string(safeName);
-        return LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `username` = '%s'", safeName.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT `id` FROM `account` WHERE `username` = '%s'", safeName.c_str());
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryGmLevel(uint32 accountId)
+    std::optional<int32> QueryGmLevel(uint32 accountId)
     {
-        return LoginDatabase.PQuery("SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);
+        QueryResult* result = LoginDatabase.PQuery("SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);
+        return ReadRow<int32>(result, [](Field* fields) { return fields[0].GetInt32(); });
     }
 
-    QueryResult* QueryName(uint32 accountId)
+    std::optional<std::string> QueryName(uint32 accountId)
     {
-        return LoginDatabase.PQuery("SELECT `username` FROM `account` WHERE `id` = '%u'", accountId);
+        QueryResult* result = LoginDatabase.PQuery("SELECT `username` FROM `account` WHERE `id` = '%u'", accountId);
+        return ReadRow<std::string>(result, [](Field* fields) { return fields[0].GetCppString(); });
     }
 
-    bool QueryNameAndPasswordHash(uint32 accountId, std::function<void(QueryResult*)> callback)
+    static AccountPasswordRow ReadAccountPassword(Field* fields)
     {
-        return LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `username`, `sha_pass_hash` FROM `account` WHERE `id`='%u'", accountId);
+        AccountPasswordRow row;
+        row.username = fields[0].GetCppString();
+        row.shaPassHash = fields[1].GetCppString();
+        return row;
+    }
+
+    bool QueryNameAndPasswordHash(uint32 accountId, std::function<void(std::optional<AccountPasswordRow>)> callback)
+    {
+        return LoginDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                         {
+                                             callback(ReadRow<AccountPasswordRow>(result, ReadAccountPassword));
+                                         },
+                                         "SELECT `username`, `sha_pass_hash` FROM `account` WHERE `id`='%u'", accountId);
     }
 
     void RegisterThread()
@@ -108,33 +124,56 @@ namespace AccountRepository
         (void)guard;
     }
 
-    QueryResult* QueryAuthAccount(std::string const& username)
+    static AuthAccountRow ReadAuthAccount(Field* fields)
+    {
+        AuthAccountRow row;
+        row.id = fields[0].GetUInt32();
+        row.gmLevel = fields[1].GetUInt16();
+        if (char const* sessionKey = fields[2].GetString())
+        {
+            row.sessionKey = sessionKey;
+        }
+        row.lastIp = fields[3].GetString();
+        row.locked = fields[4].GetUInt8();
+        row.expansion = fields[5].GetUInt8();
+        row.muteTime = fields[6].GetUInt64();
+        row.locale = fields[7].GetUInt8();
+        if (char const* os = fields[8].GetString())
+        {
+            row.os = os;
+        }
+        return row;
+    }
+
+    std::optional<AuthAccountRow> QueryAuthAccount(std::string const& username)
     {
         std::string safeAccount = username;
         LoginDatabase.escape_string(safeAccount);
 
-        return LoginDatabase.PQuery("SELECT "
-                                    "`id`, "          // 0
-                                    "`gmlevel`, "     // 1
-                                    "`sessionkey`, "  // 2
-                                    "`last_ip`, "     // 3
-                                    "`locked`, "      // 4
-                                    "`expansion`, "   // 5
-                                    "`mutetime`, "    // 6
-                                    "`locale`, "      // 7
-                                    "`os` "           // 8
-                                    "FROM `account` WHERE `username` = '%s'",
-                                    safeAccount.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT "
+                                                   "`id`, "          // 0
+                                                   "`gmlevel`, "     // 1
+                                                   "`sessionkey`, "  // 2
+                                                   "`last_ip`, "     // 3
+                                                   "`locked`, "      // 4
+                                                   "`expansion`, "   // 5
+                                                   "`mutetime`, "    // 6
+                                                   "`locale`, "      // 7
+                                                   "`os` "           // 8
+                                                   "FROM `account` WHERE `username` = '%s'",
+                                                   safeAccount.c_str());
+        return ReadRow<AuthAccountRow>(result, ReadAuthAccount);
     }
 
-    QueryResult* QueryActiveBan(uint32 accountId, std::string const& ip)
+    bool QueryActiveBan(uint32 accountId, std::string const& ip)
     {
-        return LoginDatabase.PQuery("SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 "
-                                    "AND (`unbandate` > UNIX_TIMESTAMP() OR `unbandate` = `bandate`) "
-                                    "UNION "
-                                    "SELECT 1 FROM `ip_banned` WHERE (`unbandate` = `bandate` OR "
-                                    "`unbandate` > UNIX_TIMESTAMP()) AND `ip` = '%s'",
-                                    accountId, ip.c_str());
+        QueryResult* result = LoginDatabase.PQuery("SELECT 1 FROM `account_banned` WHERE `id` = %u AND `active` = 1 "
+                                                   "AND (`unbandate` > UNIX_TIMESTAMP() OR `unbandate` = `bandate`) "
+                                                   "UNION "
+                                                   "SELECT 1 FROM `ip_banned` WHERE (`unbandate` = `bandate` OR "
+                                                   "`unbandate` > UNIX_TIMESTAMP()) AND `ip` = '%s'",
+                                                   accountId, ip.c_str());
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }).has_value();
     }
 
     void SetLastIp(std::string const& ip, std::string const& username)
@@ -145,9 +184,13 @@ namespace AccountRepository
         stmt.PExecute(ip.c_str(), username.c_str());
     }
 
-    void QueryGmLevel(uint32 accountId, std::function<void(QueryResult*)> callback)
+    void QueryGmLevel(uint32 accountId, std::function<void(std::optional<int32>)> callback)
     {
-        LoginDatabase.AsyncPQuery(std::move(callback), "SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);
+        LoginDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                  {
+                                      callback(ReadRow<int32>(result, [](Field* fields) { return fields[0].GetInt32(); }));
+                                  },
+                                  "SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", accountId);
     }
 
     static WhoisRow ReadWhois(Field* fields)

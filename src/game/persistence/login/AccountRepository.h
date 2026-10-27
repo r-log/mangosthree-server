@@ -75,6 +75,27 @@ struct GameMasterRow
     std::string gmLevel;
 };
 
+/// An account as the world gateway's authentication reads it.
+struct AuthAccountRow
+{
+    uint32 id = 0;
+    uint16 gmLevel = 0;
+    std::optional<std::string> sessionKey;
+    std::string lastIp;
+    uint8 locked = 0;
+    uint8 expansion = 0;
+    uint64 muteTime = 0;
+    uint8 locale = 0;
+    std::optional<std::string> os;
+};
+
+/// An account's name and password hash, as a password change checks them.
+struct AccountPasswordRow
+{
+    std::string username;
+    std::string shaPassHash;
+};
+
 /// The accounts' saved rows on the login database (`account`, `account_banned`, `ip_banned`,
 /// `realmcharacters`). The authentication reads run on the network thread that asks them, and the
 /// account manager's and the GM commands' reads on the thread that calls them, synchronously; every
@@ -93,7 +114,7 @@ namespace AccountRepository
     void LinkNewAccountsToRealms();
 
     /// Selects a row when the account exists.
-    QueryResult* QueryExists(uint32 accountId);
+    bool QueryExists(uint32 accountId);
 
     /// Deletes an account's row and its `realmcharacters` rows, in one transaction; the second
     /// delete is issued only when the first was queued.
@@ -106,18 +127,18 @@ namespace AccountRepository
     bool SetPasswordHash(std::string const& passHash, uint32 accountId);
 
     /// Selects an account's id by name, the name escaped.
-    QueryResult* QueryIdByName(std::string const& username);
+    std::optional<uint32> QueryIdByName(std::string const& username);
 
     /// Selects an account's GM level.
-    QueryResult* QueryGmLevel(uint32 accountId);
+    std::optional<int32> QueryGmLevel(uint32 accountId);
 
     /// Selects an account's name.
-    QueryResult* QueryName(uint32 accountId);
+    std::optional<std::string> QueryName(uint32 accountId);
 
     /// Asks, asynchronously, for an account's name and password hash; the callback runs on the world
     /// thread with the result, which it owns. Returns false, and never runs the callback, when the
     /// database is shutting down.
-    bool QueryNameAndPasswordHash(uint32 accountId, std::function<void(QueryResult*)> callback);
+    bool QueryNameAndPasswordHash(uint32 accountId, std::function<void(std::optional<AccountPasswordRow>)> callback);
 
     /// Registers the calling thread with the database client library, once per thread; a thread
     /// that reads the login database outside the database's own threads calls it first.
@@ -125,17 +146,17 @@ namespace AccountRepository
 
     /// Selects the account a client authenticates as, by name, the name escaped: id, GM level,
     /// session key, last IP, the IP lock, expansion, mute time, locale and client OS.
-    QueryResult* QueryAuthAccount(std::string const& username);
+    std::optional<AuthAccountRow> QueryAuthAccount(std::string const& username);
 
     /// Selects a row when the account or the IP has an active ban.
-    QueryResult* QueryActiveBan(uint32 accountId, std::string const& ip);
+    bool QueryActiveBan(uint32 accountId, std::string const& ip);
 
     /// Records the IP an account last authenticated from, both strings bound.
     void SetLastIp(std::string const& ip, std::string const& username);
 
     /// Asks, asynchronously, for an account's GM level; the callback runs on the world thread with
     /// the result, which it owns.
-    void QueryGmLevel(uint32 accountId, std::function<void(QueryResult*)> callback);
+    void QueryGmLevel(uint32 accountId, std::function<void(std::optional<int32>)> callback);
 
     /// Asks, asynchronously, for what a whois answers: an account's name, email and last IP; the
     /// callback runs on the world thread with the row, none when there is none. Returns false, and never

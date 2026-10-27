@@ -48,14 +48,16 @@ namespace
 
 namespace CharacterRepository
 {
-    QueryResult* QueryAccountCharacters(uint32 accountId)
+    std::vector<uint32> QueryAccountCharacters(uint32 accountId)
     {
-        return CharacterDatabase.PQuery("SELECT `guid` FROM `characters` WHERE `account`='%u'", accountId);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid` FROM `characters` WHERE `account`='%u'", accountId);
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryAccountCharacterCount(uint32 accountId)
+    std::optional<uint32> QueryAccountCharacterCount(uint32 accountId)
     {
-        return CharacterDatabase.PQuery("SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     static CharacterPositionRow ReadPosition(Field* fields)
@@ -505,9 +507,10 @@ namespace CharacterRepository
         return ReadRow<CharacterPlayerInfoRow>(result, ReadPlayerInfo);
     }
 
-    QueryResult* QueryAccountOfCharacterNamed(std::string const& name)
+    std::vector<uint32> QueryAccountOfCharacterNamed(std::string const& name)
     {
-        return CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` = '%s'", name.c_str());
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` = '%s'", name.c_str());
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(std::optional<uint32>)> callback)
