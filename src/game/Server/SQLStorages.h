@@ -34,7 +34,6 @@ extern SQLStorage sCreatureInfoAddonStorage;
 extern SQLStorage sCreatureModelStorage;
 extern SQLStorage sEquipmentStorage;
 extern SQLStorage sItemStorage;
-extern SQLStorage sInstanceTemplate;
 extern SQLStorage sWorldTemplate;
 extern SQLStorage sConditionStorage;
 

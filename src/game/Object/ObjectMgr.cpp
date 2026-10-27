@@ -85,6 +85,7 @@
 #include "persistence/world/creatures/CreatureDataRepository.h"
 #include "persistence/world/items/ItemDataRepository.h"
 #include "persistence/world/maps/MapDataRepository.h"
+#include "persistence/world/maps/InstanceTemplateRepository.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 #include "persistence/world/players/PlayerDataRepository.h"
 #include "persistence/world/quests/QuestDataRepository.h"
@@ -522,26 +523,44 @@ CreatureDataAddon const* ObjectMgr::GetCreatureTemplateAddon(uint32 entry) { ret
 ItemPrototype const* ObjectMgr::GetItemPrototype(uint32 id) { return sItemStorage.LookupEntry<ItemPrototype>(id); }
 
 
-struct SQLInstanceLoader : public SQLStorageLoaderBase<SQLInstanceLoader, SQLStorage>
-{
-    template<class D>
-    void convert_from_str(uint32 /*field_pos*/, char const* src, D& dst)
-    {
-        dst = D(sScriptMgr.GetScriptId(src));
-    }
-};
-
 /**
  * @brief Loads instance templates and validates map and ghost entrance data.
  */
 void ObjectMgr::LoadInstanceTemplate()
 {
-    SQLInstanceLoader loader;
-    loader.Load(sInstanceTemplate);
-
-    for (uint32 i = 0; i < sInstanceTemplate.GetMaxEntry(); ++i)
+    TableRead<InstanceTemplateRow> read = InstanceTemplateRepository::QueryInstanceTemplates();
+    if (read.Unreadable())
     {
-        InstanceTemplate const* temp = GetInstanceTemplate(i);
+        sLog.outError("Error loading `instance_template` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("instance_template table is empty!\n");
+    }
+    else
+    {
+        m_instanceTemplates.Clear();
+        BarGoLink bar(read.rows.size());
+        for (InstanceTemplateRow const& row : read.rows)
+        {
+            bar.step();
+            InstanceTemplate instance;
+            instance.map = row.map;
+            instance.parent = row.parent;
+            instance.levelMin = row.levelMin;
+            instance.levelMax = row.levelMax;
+            m_instanceTemplates.Set(instance);
+        }
+        loaded = uint32(read.rows.size());
+    }
+
+    for (uint32 i = 0; i < m_instanceTemplates.GetMaxEntry(); ++i)
+    {
+        InstanceTemplate const* temp = m_instanceTemplates.Find(i);
         if (!temp)
         {
             continue;
@@ -551,14 +570,14 @@ void ObjectMgr::LoadInstanceTemplate()
         if (!mapEntry)
         {
             sLog.outErrorDb("ObjectMgr::LoadInstanceTemplate: bad mapid %d for template!", temp->map);
-            sInstanceTemplate.EraseEntry(i);
+            m_instanceTemplates.Erase(i);
             continue;
         }
 
         if (!mapEntry->Instanceable())
         {
             sLog.outErrorDb("ObjectMgr::LoadInstanceTemplate: non-instanceable mapid %d for template!", temp->map);
-            sInstanceTemplate.EraseEntry(i);
+            m_instanceTemplates.Erase(i);
             continue;
         }
 
@@ -570,7 +589,7 @@ void ObjectMgr::LoadInstanceTemplate()
             {
                 sLog.outErrorDb("ObjectMgr::LoadInstanceTemplate: bad parent map id %u for instance template %d template!",
                                 temp->parent, temp->map);
-                const_cast<InstanceTemplate*>(temp)->parent = 0;
+                m_instanceTemplates.FindForEdit(i)->parent = 0;
                 continue;
             }
 
@@ -578,13 +597,13 @@ void ObjectMgr::LoadInstanceTemplate()
             {
                 sLog.outErrorDb("ObjectMgr::LoadInstanceTemplate: parent point to continent map id %u for instance template %d template, ignored, need be set only for non-continent parents!",
                                 parentEntry->ID, temp->map);
-                const_cast<InstanceTemplate*>(temp)->parent = 0;
+                m_instanceTemplates.FindForEdit(i)->parent = 0;
                 continue;
             }
         }
     }
 
-    sLog.outString(">> Loaded %u Instance Template definitions", sInstanceTemplate.GetRecordCount());
+    sLog.outString(">> Loaded %u Instance Template definitions", loaded);
     sLog.outString();
 }
 
