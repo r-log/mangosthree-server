@@ -77,6 +77,7 @@ TEST(VendorItemProblem_AnItemOfAnotherTypeIsReportedAndNotRefused)
 
 TEST(VendorItemProblem_WithNowhereToCollectTheCheckStillRefuses)
 {
-    CHECK(!sObjectMgr.IsVendorItemValid(true, "npc_vendor_template", 1, 990201, 0, 0, 0, 0));
-    CHECK(!sObjectMgr.IsVendorItemValid(true, "npc_vendor_template", 1, 990203, VENDOR_ITEM_TYPE_CURRENCY, 0, 0, 0, 0));
+    std::vector<VendorItemProblem>* nowhere = NULL;
+    CHECK(!sObjectMgr.IsVendorItemValid(true, "npc_vendor_template", 1, 990201, 0, 0, 0, 0, nowhere));
+    CHECK(!sObjectMgr.IsVendorItemValid(true, "npc_vendor_template", 1, 990203, VENDOR_ITEM_TYPE_CURRENCY, 0, 0, 0, 0, nowhere));
 }
