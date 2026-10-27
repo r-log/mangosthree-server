@@ -212,6 +212,8 @@ set(SRC_GRP_TESTS
     SpellScriptTargetRepositoryTest.cpp
     KeyedRecordStoreTest.cpp
     ConditionRepositoryTest.cpp
+    CreatureAddonStoreTest.cpp
+    CreatureAddonRepositoryTest.cpp
     PointOfInterestStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp

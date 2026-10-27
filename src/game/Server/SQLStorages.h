@@ -29,8 +29,6 @@
 #include "Database/SQLStorage.h"
 
 extern SQLStorage sCreatureStorage;
-extern SQLStorage sCreatureDataAddonStorage;
-extern SQLStorage sCreatureInfoAddonStorage;
 extern SQLStorage sCreatureModelStorage;
 extern SQLStorage sItemStorage;
 extern SQLStorage sWorldTemplate;
