@@ -202,6 +202,8 @@ set(SRC_GRP_TESTS
     PageTextStoreTest.cpp
     TableReadTest.cpp
     PageTextReloadTest.cpp
+    InstanceTemplateStoreTest.cpp
+    InstanceTemplateRepositoryTest.cpp
     PointOfInterestStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp

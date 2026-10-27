@@ -46,7 +46,7 @@
  * @param map The instance map id.
  * @return The instance template, or null if missing.
  */
-InstanceTemplate const* ObjectMgr::GetInstanceTemplate(uint32 map) { return sInstanceTemplate.LookupEntry<InstanceTemplate>(map); }
+InstanceTemplate const* ObjectMgr::GetInstanceTemplate(uint32 map) { return sObjectMgr.m_instanceTemplates.Find(map); }
 WorldTemplate const* ObjectMgr::GetWorldTemplate(uint32 map) { return sWorldTemplate.LookupEntry<WorldTemplate>(map); }
 
 /* ********************************************************************************************* */

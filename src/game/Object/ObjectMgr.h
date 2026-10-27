@@ -58,6 +58,7 @@
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
+#include "data/InstanceTemplateStore.h"
 #include "data/LfgDungeonEntranceStore.h"
 #include "data/MailLevelRewardStore.h"
 #include "data/PageTextStore.h"
@@ -1391,6 +1392,8 @@ class ObjectMgr
         PointOfInterestStore m_pointsOfInterest;
 
         PageTextStore m_pageTexts;
+
+        InstanceTemplateStore m_instanceTemplates;
 
         QuestPOIStore m_questPoi;
 
