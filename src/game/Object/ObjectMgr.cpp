@@ -496,7 +496,7 @@ CreatureModelInfo const* ObjectMgr::GetCreatureModelInfo(uint32 modelid) { retur
  * @param entry The equipment template entry id.
  * @return The equipment template, or null if missing.
  */
-EquipmentInfo const* ObjectMgr::GetEquipmentInfo(uint32 entry) { return sEquipmentStorage.LookupEntry<EquipmentInfo>(entry); }
+EquipmentInfo const* ObjectMgr::GetEquipmentInfo(uint32 entry) { return sObjectMgr.m_creatureEquipment.Find(entry); }
 
 /**
  * @brief Gets creature spawn addon data by low GUID.

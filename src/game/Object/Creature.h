@@ -272,15 +272,6 @@ struct CreatureTemplateSpells
     uint32 spells[CREATURE_MAX_SPELLS];    ///> Spell IDs creature can cast (up to CREATURE_MAX_SPELLS)
 };
 
-/// @brief Equipment template structure.
-///
-/// Defines which items a creature should equip on spawn.
-struct EquipmentInfo
-{
-    uint32  entry;            ///> Creature entry ID
-    uint32  equipentry[3];    ///> Equipment entry IDs (main hand, off-hand, ranged)
-};
-
 // from `creature` table
 struct CreatureData
 {

@@ -60,6 +60,7 @@
 
 #include <limits>
 #include "persistence/world/creatures/CreatureDataRepository.h"
+#include "persistence/world/creatures/CreatureEquipmentRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
 // The SQL loader of LoadCreatureTemplates, its only user, local to this file.
@@ -673,11 +674,39 @@ CreatureClassLvlStats const* ObjectMgr::GetCreatureClassLvlStats(uint32 level, u
  */
 void ObjectMgr::LoadEquipmentTemplates()
 {
-    sEquipmentStorage.Load();
-
-    for (uint32 i = 0; i < sEquipmentStorage.GetMaxEntry(); ++i)
+    TableRead<CreatureEquipmentRow> read = CreatureEquipmentRepository::QueryEquipmentTemplates();
+    if (read.Unreadable())
     {
-        EquipmentInfo const* eqInfo = sEquipmentStorage.LookupEntry<EquipmentInfo>(i);
+        sLog.outError("Error loading `creature_equip_template` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("creature_equip_template table is empty!\n");
+    }
+    else
+    {
+        m_creatureEquipment.Clear();
+        BarGoLink bar(read.rows.size());
+        for (CreatureEquipmentRow const& row : read.rows)
+        {
+            bar.step();
+            EquipmentInfo equipment;
+            equipment.entry = row.entry;
+            equipment.equipentry[0] = row.equipentry1;
+            equipment.equipentry[1] = row.equipentry2;
+            equipment.equipentry[2] = row.equipentry3;
+            m_creatureEquipment.Set(equipment);
+        }
+        loaded = uint32(read.rows.size());
+    }
+
+    for (uint32 i = 0; i < m_creatureEquipment.GetMaxEntry(); ++i)
+    {
+        EquipmentInfo const* eqInfo = m_creatureEquipment.Find(i);
 
         if (!eqInfo)
         {
@@ -695,7 +724,7 @@ void ObjectMgr::LoadEquipmentTemplates()
             if (!dbcitem)
             {
                 sLog.outErrorDb("Unknown item (entry=%u) in creature_equip_template.equipentry%u for entry = %u, forced to 0.", eqInfo->equipentry[j], j + 1, i);
-                const_cast<EquipmentInfo*>(eqInfo)->equipentry[j] = 0;
+                m_creatureEquipment.FindForEdit(i)->equipentry[j] = 0;
                 continue;
             }
 
@@ -711,12 +740,12 @@ void ObjectMgr::LoadEquipmentTemplates()
                     dbcitem->InventoryType != INVTYPE_RELIC)
             {
                 sLog.outErrorDb("Item (entry=%u) in creature_equip_template.equipentry%u for entry = %u is not equipable in a hand, forced to 0.", eqInfo->equipentry[j], j + 1, i);
-                const_cast<EquipmentInfo*>(eqInfo)->equipentry[j] = 0;
+                m_creatureEquipment.FindForEdit(i)->equipentry[j] = 0;
             }
         }
     }
 
-    sLog.outString(">> Loaded %u equipment template", sEquipmentStorage.GetRecordCount());
+    sLog.outString(">> Loaded %u equipment template", loaded);
     sLog.outString();
 }
 
