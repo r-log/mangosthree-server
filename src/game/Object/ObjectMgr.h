@@ -713,6 +713,7 @@ class ObjectMgr
         static Player* GetPlayer(ObjectGuid guid, bool inWorld = true);             ///< Wrapper for sPlayerRegistry.Find
         static CreatureInfo const* GetCreatureTemplate(uint32 id);                  ///< Wrapper for sCreatureStorage.LookupEntry
         static CreatureModelInfo const* GetCreatureModelInfo(uint32 modelid);       ///< Lookup in the creature model info store
+        static CreatureTemplateSpells const* GetCreatureTemplateSpells(uint32 entry); ///< Lookup in the creature template spells store
         static EquipmentInfo const* GetEquipmentInfo(uint32 entry);                 ///< Lookup in the creature equipment store
         static CreatureDataAddon const* GetCreatureAddon(uint32 lowguid);           ///< Lookup in the creature addon store
         static CreatureDataAddon const* GetCreatureTemplateAddon(uint32 entry);     ///< Lookup in the creature template addon store
@@ -1424,6 +1425,8 @@ class ObjectMgr
         CreatureAddonStore m_creatureTemplateAddons;
 
         CreatureModelInfoStore m_creatureModels;
+
+        KeyedRecordStore<CreatureTemplateSpells> m_creatureTemplateSpells;
 
         QuestPOIStore m_questPoi;
 

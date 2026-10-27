@@ -492,6 +492,14 @@ CreatureInfo const* ObjectMgr::GetCreatureTemplate(uint32 id) { return sCreature
 CreatureModelInfo const* ObjectMgr::GetCreatureModelInfo(uint32 modelid) { return sObjectMgr.m_creatureModels.Find(modelid); }
 
 /**
+ * @brief Gets a creature entry's template spells.
+ *
+ * @param entry The creature entry.
+ * @return The template spells, or null if missing.
+ */
+CreatureTemplateSpells const* ObjectMgr::GetCreatureTemplateSpells(uint32 entry) { return sObjectMgr.m_creatureTemplateSpells.Find(entry); }
+
+/**
  * @brief Gets equipment template data by entry id.
  *
  * @param entry The equipment template entry id.
