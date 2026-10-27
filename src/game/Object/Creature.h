@@ -73,6 +73,7 @@ class Player;
 class WorldSession;
 
 struct GameEventCreatureData;
+struct CreatureDataAddon;
 
 /**
  * @brief Creature extra flags enumeration
