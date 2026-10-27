@@ -51,13 +51,6 @@ typedef std::unordered_map < WorldObject* /*passenger*/, TransportInfo* /*passen
 struct VehicleEntry;
 struct VehicleSeatEntry;
 
-struct VehicleAccessory
-{
-    uint32 vehicleEntry;
-    uint32 seatId;
-    uint32 passengerEntry;
-};
-
 typedef std::map<uint8 /*seatPosition*/, VehicleSeatEntry const*> VehicleSeatMap;
 
 /**

@@ -206,6 +206,8 @@ set(SRC_GRP_TESTS
     InstanceTemplateRepositoryTest.cpp
     CreatureEquipmentStoreTest.cpp
     CreatureEquipmentRepositoryTest.cpp
+    VehicleAccessoryStoreTest.cpp
+    VehicleAccessoryRepositoryTest.cpp
     PointOfInterestStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
