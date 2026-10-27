@@ -29,6 +29,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 
 class QueryResult;
@@ -39,6 +40,23 @@ struct WhoisRow
     std::string username;
     std::string email;
     std::string lastIp;
+};
+
+/// One account as a GM's account list shows it: id, name, last address, GM level and expansion.
+struct AccountListRow
+{
+    uint32 id = 0;
+    std::string username;
+    std::string lastIp;
+    uint32 gmLevel = 0;
+    uint32 expansion = 0;
+};
+
+/// One account a GM's player search found: its id and name.
+struct AccountSearchRow
+{
+    uint32 id = 0;
+    std::string username;
 };
 
 /// The accounts' saved rows on the login database (`account`, `account_banned`, `ip_banned`,
@@ -121,7 +139,7 @@ namespace AccountRepository
     void Unlock(uint32 accountId);
 
     /// Selects the accounts playing on a realm, for a GM's online list.
-    QueryResult* QueryActiveOnRealm(uint32 realmId);
+    std::vector<AccountListRow> QueryActiveOnRealm(uint32 realmId);
 
     /// Sets an account's expansion.
     void SetExpansion(uint32 expansion, uint32 accountId);
@@ -136,23 +154,23 @@ namespace AccountRepository
     void ClearMuteTime(uint32 accountId);
 
     /// Selects the accounts whose email contains a text, the text escaped first, for a GM's lookup.
-    QueryResult* QueryAccountsByEmail(std::string email);
+    std::vector<AccountListRow> QueryAccountsByEmail(std::string email);
 
     /// Selects the accounts whose last address contains a text, the text escaped first.
-    QueryResult* QueryAccountsByLastIp(std::string ip);
+    std::vector<AccountListRow> QueryAccountsByLastIp(std::string ip);
 
     /// Selects the accounts whose name contains a text, the text escaped first.
-    QueryResult* QueryAccountsByName(std::string account);
+    std::vector<AccountListRow> QueryAccountsByName(std::string account);
 
     /// Selects the ids and names of the accounts whose last address contains a text, the text escaped
     /// first.
-    QueryResult* QueryAccountIdsByLastIp(std::string ip);
+    std::vector<AccountSearchRow> QueryAccountIdsByLastIp(std::string ip);
 
     /// Selects the ids and names of the accounts whose name contains a text, the text escaped first.
-    QueryResult* QueryAccountIdsByName(std::string account);
+    std::vector<AccountSearchRow> QueryAccountIdsByName(std::string account);
 
     /// Selects the ids and names of the accounts whose email contains a text, the text escaped first.
-    QueryResult* QueryAccountIdsByEmail(std::string email);
+    std::vector<AccountSearchRow> QueryAccountIdsByEmail(std::string email);
 
     /// Selects an account's name, GM level, last address and last login, for a GM's player info.
     QueryResult* QueryAccountInfo(uint32 accountId);

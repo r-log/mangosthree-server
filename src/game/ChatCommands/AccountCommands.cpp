@@ -242,10 +242,7 @@ bool ChatHandler::HandleAccountOnlineListCommand(char* args)
     }
 
     ///- Get the list of accounts ID logged to the realm
-    //                                                 0   1         2        3        4
-    QueryResult* result = AccountRepository::QueryActiveOnRealm(realmID);
-
-    return ShowAccountListHelper(result, &limit);
+    return ShowAccountListHelper(AccountRepository::QueryActiveOnRealm(realmID), &limit);
 }
 
 /**
@@ -375,9 +372,7 @@ bool ChatHandler::HandleAccountCharactersCommand(char* args)
     }
 
     ///- Get the characters for account id
-    QueryResult* result = CharacterRepository::QueryAccountCharacterList(account_id);
-
-    return ShowPlayerListHelper(result);
+    return ShowPlayerListHelper(CharacterRepository::QueryAccountCharacterList(account_id));
 }
 
 /**

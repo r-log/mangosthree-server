@@ -41,6 +41,7 @@
 #include "persistence/world/items/ItemDataRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -103,9 +104,9 @@ TEST(BanRepository_Reads)
     delete BanRepository::QueryActiveIpBans("10.0");
     delete BanRepository::QueryActiveAccountBans("");
     delete BanRepository::QueryActiveAccountBans("BOB");
-    delete AccountRepository::QueryActiveOnRealm(1);
+    AccountRepository::QueryActiveOnRealm(1);
     delete CharacterRepository::QueryAccountsOfCharactersNamed("Ann");
-    delete CharacterRepository::QueryAccountCharacterList(42);
+    CharacterRepository::QueryAccountCharacterList(42);
     CheckLines(login.query.executed, {
         "SELECT `account`.`username` FROM `account`,`account_banned` WHERE `account_banned`.`id`='42' AND `account_banned`.`id`=`account`.`id`",
         "SELECT `bandate`,`unbandate`,`bannedby`,`banreason` FROM `account_banned` WHERE `id` = 42 ORDER BY `unbandate`",
@@ -156,30 +157,30 @@ TEST(CommandRepository_ListAndLookupReads)
     Db chars(CharacterDatabase);
     Db world(WorldDatabase);
     Db login(LoginDatabase);
-    delete ItemRepository::QueryInventoryCountOf(5);
-    delete ItemRepository::QueryInventoryHoldersOf(5, 10);
-    delete ItemRepository::QueryMailCountOf(5);
-    delete ItemRepository::QueryMailHoldersOf(5, 10);
-    delete ItemRepository::QueryAuctionCountOf(5);
-    delete ItemRepository::QueryAuctionHoldersOf(5, 10);
-    delete ItemRepository::QueryGuildBankCountOf(5);
-    delete ItemRepository::QueryGuildBankHoldersOf(5, 10);
+    ItemRepository::QueryInventoryCountOf(5);
+    ItemRepository::QueryInventoryHoldersOf(5, 10);
+    ItemRepository::QueryMailCountOf(5);
+    ItemRepository::QueryMailHoldersOf(5, 10);
+    ItemRepository::QueryAuctionCountOf(5);
+    ItemRepository::QueryAuctionHoldersOf(5, 10);
+    ItemRepository::QueryGuildBankCountOf(5);
+    ItemRepository::QueryGuildBankHoldersOf(5, 10);
     delete CharacterRepository::QueryDeletedCharacter(42);
     delete CharacterRepository::QueryDeletedCharactersNamed("Ann");
     delete CharacterRepository::QueryDeletedCharacters();
-    delete SpawnRepository::QueryGameObjectCountOf(1234);
-    delete SpawnRepository::QueryGameObjectsNear(1.5f, -2.25f, 3.0f, 1234, 10);
-    delete SpawnRepository::QueryGameObjectsOf(1234, 10);
-    delete SpawnRepository::QueryCreatureCountOf(1234);
-    delete SpawnRepository::QueryCreaturesNear(1.5f, -2.25f, 3.0f, 1234, 10);
-    delete SpawnRepository::QueryCreaturesOf(1234, 10);
+    SpawnRepository::QueryGameObjectCountOf(1234);
+    SpawnRepository::QueryGameObjectsNear(1.5f, -2.25f, 3.0f, 1234, 10);
+    SpawnRepository::QueryGameObjectsOf(1234, 10);
+    SpawnRepository::QueryCreatureCountOf(1234);
+    SpawnRepository::QueryCreaturesNear(1.5f, -2.25f, 3.0f, 1234, 10);
+    SpawnRepository::QueryCreaturesOf(1234, 10);
     delete ItemDataRepository::QueryItemEntryByName("Hearthstone");
-    delete AccountRepository::QueryAccountsByEmail("ann@x");
-    delete AccountRepository::QueryAccountsByLastIp("10.0");
-    delete AccountRepository::QueryAccountsByName("BOB");
-    delete AccountRepository::QueryAccountIdsByLastIp("10.0");
-    delete AccountRepository::QueryAccountIdsByName("BOB");
-    delete AccountRepository::QueryAccountIdsByEmail("ann@x");
+    AccountRepository::QueryAccountsByEmail("ann@x");
+    AccountRepository::QueryAccountsByLastIp("10.0");
+    AccountRepository::QueryAccountsByName("BOB");
+    AccountRepository::QueryAccountIdsByLastIp("10.0");
+    AccountRepository::QueryAccountIdsByName("BOB");
+    AccountRepository::QueryAccountIdsByEmail("ann@x");
     CheckLines(chars.query.executed, {
         "SELECT COUNT(`item_template`) FROM `character_inventory` WHERE `item_template`='5'",
         "SELECT `ci`.`item`, `cibag`.`slot` AS bag, `ci`.`slot`, `ci`.`guid`, `characters`.`account`,`characters`.`name` FROM `character_inventory` AS `ci` LEFT JOIN `character_inventory` AS cibag ON (`cibag`.`item`=`ci`.`bag`),`characters` WHERE `ci`.`item_template`='5' AND `ci`.`guid` = `characters`.`guid` LIMIT 10 ",
@@ -310,4 +311,389 @@ TEST(SpawnRepository_CreatureCommandWrites)
         "UPDATE `creature` SET `spawndist`=5.000000, `MovementType`=1 WHERE `guid`=42",
         "UPDATE `creature` SET `spawntimesecs`=300 WHERE `guid`=42",
     }, __LINE__);
+}
+
+// Each column of an of an account's characters as a GM's character list shows it lands in its
+// member, and the rows come back in order.
+TEST(CharacterRepository_AccountCharacterList)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "102", "103", "1004"},
+        FakeRow{"2000", "s2.1", "202", "203", "2004"},
+    });
+    std::vector<AccountCharacterListRow> rows = CharacterRepository::QueryAccountCharacterList(42);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_STR(rows[0].name, "s1.1");
+    CHECK_EQ(rows[0].race, uint8(102));
+    CHECK_EQ(rows[0].classId, uint8(103));
+    CHECK_EQ(rows[0].level, 1004u);
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of an account list row lands in its member, and the rows come back in order.
+TEST(AccountRepository_ActiveOnRealm)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "s1.2", "1003", "1004"},
+        FakeRow{"2000", "s2.1", "s2.2", "2003", "2004"},
+    });
+    std::vector<AccountListRow> rows = AccountRepository::QueryActiveOnRealm(1);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].username, "s1.1");
+    CHECK_STR(rows[0].lastIp, "s1.2");
+    CHECK_EQ(rows[0].gmLevel, 1003u);
+    CHECK_EQ(rows[0].expansion, 1004u);
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of an account list row lands in its member, and the rows come back in order.
+TEST(AccountRepository_AccountsByEmail)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "s1.2", "1003", "1004"},
+        FakeRow{"2000", "s2.1", "s2.2", "2003", "2004"},
+    });
+    std::vector<AccountListRow> rows = AccountRepository::QueryAccountsByEmail("ann@x");
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].username, "s1.1");
+    CHECK_STR(rows[0].lastIp, "s1.2");
+    CHECK_EQ(rows[0].gmLevel, 1003u);
+    CHECK_EQ(rows[0].expansion, 1004u);
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of an account list row lands in its member, and the rows come back in order.
+TEST(AccountRepository_AccountsByLastIp)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "s1.2", "1003", "1004"},
+        FakeRow{"2000", "s2.1", "s2.2", "2003", "2004"},
+    });
+    std::vector<AccountListRow> rows = AccountRepository::QueryAccountsByLastIp("10.0");
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].username, "s1.1");
+    CHECK_STR(rows[0].lastIp, "s1.2");
+    CHECK_EQ(rows[0].gmLevel, 1003u);
+    CHECK_EQ(rows[0].expansion, 1004u);
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of an account list row lands in its member, and the rows come back in order.
+TEST(AccountRepository_AccountsByName)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "s1.2", "1003", "1004"},
+        FakeRow{"2000", "s2.1", "s2.2", "2003", "2004"},
+    });
+    std::vector<AccountListRow> rows = AccountRepository::QueryAccountsByName("BOB");
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].username, "s1.1");
+    CHECK_STR(rows[0].lastIp, "s1.2");
+    CHECK_EQ(rows[0].gmLevel, 1003u);
+    CHECK_EQ(rows[0].expansion, 1004u);
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of a found account lands in its member, and the rows come back in order.
+TEST(AccountRepository_AccountIdsByLastIp)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1"},
+        FakeRow{"2000", "s2.1"},
+    });
+    std::vector<AccountSearchRow> rows = AccountRepository::QueryAccountIdsByLastIp("10.0");
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].username, "s1.1");
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of a found account lands in its member, and the rows come back in order.
+TEST(AccountRepository_AccountIdsByName)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1"},
+        FakeRow{"2000", "s2.1"},
+    });
+    std::vector<AccountSearchRow> rows = AccountRepository::QueryAccountIdsByName("BOB");
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].username, "s1.1");
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each column of a found account lands in its member, and the rows come back in order.
+TEST(AccountRepository_AccountIdsByEmail)
+{
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1"},
+        FakeRow{"2000", "s2.1"},
+    });
+    std::vector<AccountSearchRow> rows = AccountRepository::QueryAccountIdsByEmail("ann@x");
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].id, 1000u);
+    CHECK_STR(rows[0].username, "s1.1");
+    CHECK_EQ(rows[1].id, 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(ItemRepository_InventoryCountOf)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint32> value = ItemRepository::QueryInventoryCountOf(5);
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = ItemRepository::QueryInventoryCountOf(5);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// Each column of an inventory holding an item entry lands in its member, and the rows come back in
+// order.
+TEST(ItemRepository_InventoryHoldersOf)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003", "1004", "s1.5"},
+        FakeRow{"2000", "2001", "2002", "2003", "2004", "s2.5"},
+    });
+    std::vector<ItemInventoryHolderRow> rows = ItemRepository::QueryInventoryHoldersOf(5, 10);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].itemGuid, 1000u);
+    CHECK_EQ(rows[0].bag, 1001u);
+    CHECK_EQ(rows[0].slot, 1002u);
+    CHECK_EQ(rows[0].ownerGuid, 1003u);
+    CHECK_EQ(rows[0].ownerAccount, 1004u);
+    CHECK_STR(rows[0].ownerName, "s1.5");
+    CHECK_EQ(rows[1].itemGuid, 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(ItemRepository_MailCountOf)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint32> value = ItemRepository::QueryMailCountOf(5);
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = ItemRepository::QueryMailCountOf(5);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// Each column of a mail holding an item entry lands in its member, and the rows come back in order.
+TEST(ItemRepository_MailHoldersOf)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "1003", "s1.4", "1005", "s1.6"},
+        FakeRow{"2000", "2001", "2002", "2003", "s2.4", "2005", "s2.6"},
+    });
+    std::vector<ItemMailHolderRow> rows = ItemRepository::QueryMailHoldersOf(5, 10);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].itemGuid, 1000u);
+    CHECK_EQ(rows[0].sender, 1001u);
+    CHECK_EQ(rows[0].receiver, 1002u);
+    CHECK_EQ(rows[0].senderAccount, 1003u);
+    CHECK_STR(rows[0].senderName, "s1.4");
+    CHECK_EQ(rows[0].receiverAccount, 1005u);
+    CHECK_STR(rows[0].receiverName, "s1.6");
+    CHECK_EQ(rows[1].itemGuid, 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(ItemRepository_AuctionCountOf)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint32> value = ItemRepository::QueryAuctionCountOf(5);
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = ItemRepository::QueryAuctionCountOf(5);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// Each column of an auction holding an item entry lands in its member, and the rows come back in
+// order.
+TEST(ItemRepository_AuctionHoldersOf)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002", "s1.3"},
+        FakeRow{"2000", "2001", "2002", "s2.3"},
+    });
+    std::vector<ItemAuctionHolderRow> rows = ItemRepository::QueryAuctionHoldersOf(5, 10);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].itemGuid, 1000u);
+    CHECK_EQ(rows[0].ownerGuid, 1001u);
+    CHECK_EQ(rows[0].ownerAccount, 1002u);
+    CHECK_STR(rows[0].ownerName, "s1.3");
+    CHECK_EQ(rows[1].itemGuid, 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(ItemRepository_GuildBankCountOf)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint32> value = ItemRepository::QueryGuildBankCountOf(5);
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = ItemRepository::QueryGuildBankCountOf(5);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// Each column of a guild bank holding an item entry lands in its member, and the rows come back in
+// order.
+TEST(ItemRepository_GuildBankHoldersOf)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "s1.2"},
+        FakeRow{"2000", "2001", "s2.2"},
+    });
+    std::vector<ItemGuildBankHolderRow> rows = ItemRepository::QueryGuildBankHoldersOf(5, 10);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].itemGuid, 1000u);
+    CHECK_EQ(rows[0].guildId, 1001u);
+    CHECK_STR(rows[0].guildName, "s1.2");
+    CHECK_EQ(rows[1].itemGuid, 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SpawnRepository_GameObjectCountOf)
+{
+    {
+        Db db(WorldDatabase);
+        std::optional<uint32> value = SpawnRepository::QueryGameObjectCountOf(1234);
+        CHECK(!value);
+    }
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = SpawnRepository::QueryGameObjectCountOf(1234);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// Each column of a spawn of an entry lands in its member, and the rows come back in order.
+TEST(SpawnRepository_GameObjectsNear)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001.5", "1002.5", "1003.5", "10004"},
+        FakeRow{"2000", "2001.5", "2002.5", "2003.5", "20004"},
+    });
+    std::vector<SpawnListRow> rows = SpawnRepository::QueryGameObjectsNear(1.5f, -2.25f, 3.0f, 1234, 10);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].positionX, 1001.5f);
+    CHECK_EQ(rows[0].positionY, 1002.5f);
+    CHECK_EQ(rows[0].positionZ, 1003.5f);
+    CHECK_EQ(rows[0].map, uint16(10004));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a spawn of an entry lands in its member, and the rows come back in order.
+TEST(SpawnRepository_GameObjectsOf)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001.5", "1002.5", "1003.5", "10004"},
+        FakeRow{"2000", "2001.5", "2002.5", "2003.5", "20004"},
+    });
+    std::vector<SpawnListRow> rows = SpawnRepository::QueryGameObjectsOf(1234, 10);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].positionX, 1001.5f);
+    CHECK_EQ(rows[0].positionY, 1002.5f);
+    CHECK_EQ(rows[0].positionZ, 1003.5f);
+    CHECK_EQ(rows[0].map, uint16(10004));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SpawnRepository_CreatureCountOf)
+{
+    {
+        Db db(WorldDatabase);
+        std::optional<uint32> value = SpawnRepository::QueryCreatureCountOf(1234);
+        CHECK(!value);
+    }
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = SpawnRepository::QueryCreatureCountOf(1234);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// Each column of a spawn of an entry lands in its member, and the rows come back in order.
+TEST(SpawnRepository_CreaturesNear)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001.5", "1002.5", "1003.5", "10004"},
+        FakeRow{"2000", "2001.5", "2002.5", "2003.5", "20004"},
+    });
+    std::vector<SpawnListRow> rows = SpawnRepository::QueryCreaturesNear(1.5f, -2.25f, 3.0f, 1234, 10);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].positionX, 1001.5f);
+    CHECK_EQ(rows[0].positionY, 1002.5f);
+    CHECK_EQ(rows[0].positionZ, 1003.5f);
+    CHECK_EQ(rows[0].map, uint16(10004));
+    CHECK_EQ(rows[1].guid, 2000u);
+}
+
+// Each column of a spawn of an entry lands in its member, and the rows come back in order.
+TEST(SpawnRepository_CreaturesOf)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001.5", "1002.5", "1003.5", "10004"},
+        FakeRow{"2000", "2001.5", "2002.5", "2003.5", "20004"},
+    });
+    std::vector<SpawnListRow> rows = SpawnRepository::QueryCreaturesOf(1234, 10);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].guid, 1000u);
+    CHECK_EQ(rows[0].positionX, 1001.5f);
+    CHECK_EQ(rows[0].positionY, 1002.5f);
+    CHECK_EQ(rows[0].positionZ, 1003.5f);
+    CHECK_EQ(rows[0].map, uint16(10004));
+    CHECK_EQ(rows[1].guid, 2000u);
 }

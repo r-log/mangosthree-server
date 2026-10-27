@@ -526,6 +526,17 @@ struct CharacterPositionRow
     std::string taxiPath;
 };
 
+/// One of an account's characters as a GM's character list shows it: guid, name, race, class and
+/// level.
+struct AccountCharacterListRow
+{
+    uint32 guid = 0;
+    std::string name;
+    uint8 race = 0;
+    uint8 classId = 0;
+    uint32 level = 0;
+};
+
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
 /// login, the logout and the account manager use them. The account manager's two reads, the GM
 /// commands' reads and the start-up's highest guid and cache rows run on the thread that calls them,
@@ -615,7 +626,7 @@ namespace CharacterRepository
     QueryResult* QueryAccountsOfCharactersNamed(std::string filter);
 
     /// Selects an account's characters with their race, class and level, for a GM's character list.
-    QueryResult* QueryAccountCharacterList(uint32 accountId);
+    std::vector<AccountCharacterListRow> QueryAccountCharacterList(uint32 accountId);
 
     /// Marks a character for a customize at its next login.
     void SetCustomizeFlag(uint32 guid);
