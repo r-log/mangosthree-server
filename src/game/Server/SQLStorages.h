@@ -35,7 +35,6 @@ extern SQLStorage sWorldTemplate;
 extern SQLHashStorage sSpellTemplate;
 extern SQLHashStorage sGOStorage;
 extern SQLHashStorage sGameObjectDataAddonStorage;
-extern SQLHashStorage sCreatureTemplateSpellsStorage;
 
 
 #endif

@@ -302,7 +302,7 @@ void SpellMgr::LoadPetDefaultSpells()
                 }
 
                 PetDefaultSpellsEntry petDefSpells;
-                if (CreatureTemplateSpells const* templateSpells = sCreatureTemplateSpellsStorage.LookupEntry<CreatureTemplateSpells>(cInfo->Entry))
+                if (CreatureTemplateSpells const* templateSpells = ObjectMgr::GetCreatureTemplateSpells(cInfo->Entry))
                     for (int j = 0; j < MAX_CREATURE_SPELL_DATA_SLOT; ++j)
                     {
                         petDefSpells.spellid[j] = templateSpells->spells[j];

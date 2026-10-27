@@ -34,6 +34,7 @@
 #include "ProgressBar.h"
 #include "SQLStorages.h"
 #include "DBCStores.h"
+#include "persistence/world/creatures/CreatureTemplateSpellsRepository.h"
 #include "persistence/world/economy/SkillDataRepository.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 
@@ -165,30 +166,65 @@ void ObjectMgr::LoadFishingBaseSkillLevel()
     sLog.outString();
 }
 
+static_assert(int(CREATURE_TEMPLATE_SPELL_COLUMNS) == int(CREATURE_MAX_SPELLS), "a creature template spells row holds every creature spell");
+
 /**
  * @brief Loads creature template spell assignments and validates their spell ids.
  */
 void ObjectMgr::LoadCreatureTemplateSpells()
 {
-    sCreatureTemplateSpellsStorage.Load();
-
-    for (SQLStorageBase::SQLSIterator<CreatureTemplateSpells> itr = sCreatureTemplateSpellsStorage.getDataBegin<CreatureTemplateSpells>(); itr < sCreatureTemplateSpellsStorage.getDataEnd<CreatureTemplateSpells>(); ++itr)
+    TableRead<CreatureTemplateSpellsRow> read = CreatureTemplateSpellsRepository::QueryCreatureTemplateSpells();
+    if (read.Unreadable())
     {
-        if (!sCreatureStorage.LookupEntry<CreatureInfo>(itr->entry))
+        sLog.outError("Error loading `creature_template_spells` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("creature_template_spells table is empty!\n");
+    }
+    else
+    {
+        m_creatureTemplateSpells.Clear();
+        BarGoLink bar(read.rows.size());
+        for (CreatureTemplateSpellsRow const& row : read.rows)
         {
-            sLog.outErrorDb("LoadCreatureTemplateSpells: Spells found for creature entry %u, but creature does not exist, skipping", itr->entry);
-            sCreatureTemplateSpellsStorage.EraseEntry(itr->entry);
+            bar.step();
+            CreatureTemplateSpells spells;
+            spells.entry = row.entry;
+            for (uint8 i = 0; i < CREATURE_MAX_SPELLS; ++i)
+            {
+                spells.spells[i] = row.spells[i];
+            }
+            m_creatureTemplateSpells.Set(row.entry, spells);
+        }
+        loaded = uint32(read.rows.size());
+    }
+
+    // every row read, in the order read, the rows of a creature already erased included
+    for (CreatureTemplateSpellsRow const& row : read.rows)
+    {
+        if (!sCreatureStorage.LookupEntry<CreatureInfo>(row.entry))
+        {
+            sLog.outErrorDb("LoadCreatureTemplateSpells: Spells found for creature entry %u, but creature does not exist, skipping", row.entry);
+            m_creatureTemplateSpells.Erase(row.entry);
         }
         for (uint8 i = 0; i < CREATURE_MAX_SPELLS; ++i)
         {
-            if (itr->spells[i] && !sSpellStore.LookupEntry(itr->spells[i]))
+            if (row.spells[i] && !sSpellStore.LookupEntry(row.spells[i]))
             {
-                sLog.outErrorDb("LoadCreatureTemplateSpells: Spells found for creature entry %u, assigned spell %u does not exist, set to 0", itr->entry, itr->spells[i]);
-                const_cast<CreatureTemplateSpells*>(*itr)->spells[i] = 0;
+                sLog.outErrorDb("LoadCreatureTemplateSpells: Spells found for creature entry %u, assigned spell %u does not exist, set to 0", row.entry, row.spells[i]);
+                if (CreatureTemplateSpells* spells = m_creatureTemplateSpells.FindForEdit(row.entry))
+                {
+                    spells->spells[i] = 0;
+                }
             }
         }
     }
 
-    sLog.outString(">> Loaded %u creature_template_spells definitions", sCreatureTemplateSpellsStorage.GetRecordCount());
+    sLog.outString(">> Loaded %u creature_template_spells definitions", loaded);
     sLog.outString();
 }
