@@ -145,7 +145,7 @@ namespace CharacterSaveRepository
     void InsertAction(uint32 guid, uint32 spec, uint32 button, uint32 action, uint32 type)
     {
         static SqlStatementID insertAction ;
-        SqlStatement stmt = CharacterDatabase.CreateStatement(insertAction, "INSERT INTO `character_action` (`guid`,`spec`, `button`,`action`,`type`) VALUES (?, ?, ?, ?, ?)");
+        SqlStatement stmt = CharacterDatabase.CreateStatement(insertAction, "REPLACE INTO `character_action` (`guid`,`spec`, `button`,`action`,`type`) VALUES (?, ?, ?, ?, ?)");
         stmt.addUInt32(guid);
         stmt.addUInt32(spec);
         stmt.addUInt32(button);

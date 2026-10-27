@@ -187,7 +187,7 @@ TEST(CharacterSaveRepository_Writes)
     }
     CheckLines(db.Take(), {
         "UPDATE `characters` SET `money` = '2500' WHERE `guid` = '42'",
-        "INSERT INTO `character_action` (`guid`,`spec`, `button`,`action`,`type`) VALUES ('42', '0', '1', '133', '0')",
+        "REPLACE INTO `character_action` (`guid`,`spec`, `button`,`action`,`type`) VALUES ('42', '0', '1', '133', '0')",
         "UPDATE `character_action` SET `action` = '116', `type` = '0' WHERE `guid` = '42' AND `button` = '2' AND `spec` = '1'",
         "DELETE FROM `character_action` WHERE `guid` = '42' AND `button` = '3' AND `spec` = '0'",
         "DELETE FROM `character_aura` WHERE `guid` = '42'",
