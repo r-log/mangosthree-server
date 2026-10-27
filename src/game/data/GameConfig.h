@@ -431,8 +431,8 @@ class GameConfig
 {
     public:
         float getConfig(eConfigFloatValues rate) const { return m_configFloatValues[rate]; }
-        uint32 getConfig(eConfigUInt64Values index) const { return m_configUint64Values[index]; }
-        uint32 getConfig(eConfigInt64Values index) const { return m_configInt64Values[index]; }
+        uint64 getConfig(eConfigUInt64Values index) const { return m_configUint64Values[index]; }
+        int64 getConfig(eConfigInt64Values index) const { return m_configInt64Values[index]; }
         uint32 getConfig(eConfigUInt32Values index) const { return m_configUint32Values[index]; }
         int32 getConfig(eConfigInt32Values index) const { return m_configInt32Values[index]; }
         bool getConfig(eConfigBoolValues index) const { return m_configBoolValues[index]; }
