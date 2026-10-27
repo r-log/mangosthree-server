@@ -56,7 +56,7 @@
 #include "Policies/Singleton.h"
 #include "Totem.h"
 #include "Creature.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "Language.h"
@@ -508,5 +508,5 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 
     // Script has to "handle with care", only use where data are not ok to use in the above code.
     // Aura scripts are DB-bound by spell/effect and can be needed for player self-use dummy auras.
-    sScriptMgr.OnAuraDummy(this, apply);
+    sScriptHooks.OnAuraDummy(this, apply);
 }

@@ -2264,7 +2264,7 @@ void Map::CreateInstanceData(bool load)
         return;
     }
 
-    i_data = sScriptMgr.CreateInstanceData(this);
+    i_data = sScriptHooks.CreateInstanceData(this);
     if (!i_data)
     {
         return;

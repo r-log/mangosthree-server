@@ -52,7 +52,7 @@
 #include "UpdateData.h"
 #include "LootMgr.h"
 #include "Chat.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "zlib.h"
 #include "PlayerRegistry.h"
 #include "ObjectLookup.h"
@@ -732,7 +732,7 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPacket& recv_data)
         return;
     }
 
-    if (sScriptMgr.OnAreaTrigger(player, atEntry))
+    if (sScriptHooks.OnAreaTrigger(player, atEntry))
     {
         return;
     }

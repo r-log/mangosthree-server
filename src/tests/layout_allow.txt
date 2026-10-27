@@ -155,13 +155,11 @@ src/game/Object/Creature.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Creature.cpp -> src/proto/Opcodes.h
 src/game/Object/Creature.cpp -> src/proto/WorldPacket.h
-src/game/Object/CreatureAISelector.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/CreatureEventAI.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/CreatureThreat.cpp -> src/game/entities/player/Player.h
 src/game/Object/CreatureThreat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/Player.h
 src/game/Object/GMTicketMgr.h -> src/game/Server/WorldSession.h
-src/game/Object/GameObject.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GameObjectDestructible.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/GameObjectDestructible.cpp -> src/proto/Opcodes.h
@@ -453,23 +451,18 @@ src/game/WorldHandlers/Map.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Map.h -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MiscHandler.cpp -> src/game/WorldHandlers/Chat.h
-src/game/WorldHandlers/MiscHandler.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/MoveMap.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/Chat.h
-src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/PetitionsHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/PoolManager.h -> src/game/Object/Creature.h
 src/game/WorldHandlers/PoolManager.h -> src/game/Object/GameObject.h
 src/game/WorldHandlers/QueryHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/QuestDef.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/QuestHandler.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillExtraItems.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/SpellHandler.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/TransportMap.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/proto/WorldPacket.h
-src/game/WorldHandlers/Transports.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/WaypointManager.cpp -> src/game/WorldHandlers/GridDefines.h
 src/game/WorldHandlers/Weather.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Weather.cpp -> src/game/entities/player/Player.h
@@ -611,7 +604,6 @@ src/game/entities/player/quests [entities] -> src/game/WorldHandlers/MapManager.
 src/game/entities/player/quests [entities] -> src/game/spells/data/SpellMgr.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/GossipDef.h
-src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/Opcodes.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/WorldPacket.h
@@ -692,8 +684,6 @@ src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
 src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The battlemaster join answers a disabled battleground through ChatHandler(&session).SendSysMessage(LANG_BG_IS_DISABLED).
 src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/Chat.h
-# The spirit healer queue opens the spirit healer's gossip through sScriptMgr.OnGossipHello.
-src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/ScriptMgr.h
 # The ticket create and text update handlers tell every online GM who accepts tickets through ChatHandler(player).PSendSysMessage.
 src/game/session/handlers/social/TicketHandlers.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h
@@ -714,7 +704,6 @@ src/game/spells/auras [spells] -> src/game/WorldHandlers/Group.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraControl.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraDummy.cpp -> src/game/Server/WorldSession.h
-src/game/spells/auras/SpellAuraDummy.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/auras/SpellAuraDummy.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraLate.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraMisc.cpp -> src/game/Server/WorldSession.h
@@ -723,7 +712,6 @@ src/game/spells/auras/SpellAuraPeriodic.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraShapeshift.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/game/Server/WorldSession.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/game/entities/player/Player.h
-src/game/spells/auras/SpellAuras.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/auras/SpellAuras.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuras.cpp -> src/proto/Opcodes.h
 src/game/spells/auras/SpellAuras.cpp -> src/proto/WorldPacket.h

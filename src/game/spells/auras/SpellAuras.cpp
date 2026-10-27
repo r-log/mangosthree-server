@@ -69,7 +69,7 @@
 #include "Policies/Singleton.h"
 #include "Creature.h"
 #include "BattleGround/BattleGround.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "Util.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -1537,7 +1537,7 @@ void Aura::TriggerSpell()
     {
         if (Unit* caster = GetCaster())
         {
-            if (triggerTarget->GetTypeId() != TYPEID_UNIT || !sScriptMgr.OnEffectDummy(caster, GetId(), GetEffIndex(), (Creature*)triggerTarget, ObjectGuid()))
+            if (triggerTarget->GetTypeId() != TYPEID_UNIT || !sScriptHooks.OnEffectDummy(caster, GetId(), GetEffIndex(), (Creature*)triggerTarget, ObjectGuid()))
             {
                 sLog.outError("Aura::TriggerSpell: Spell %u have 0 in EffectTriggered[%d], not handled custom case?", GetId(), GetEffIndex());
             }
@@ -2494,7 +2494,7 @@ void Aura::PeriodicDummyTick()
     {
         if (target && target->GetTypeId() == TYPEID_UNIT)
         {
-            sScriptMgr.OnEffectDummy(caster, GetId(), GetEffIndex(), (Creature*)target, ObjectGuid());
+            sScriptHooks.OnEffectDummy(caster, GetId(), GetEffIndex(), (Creature*)target, ObjectGuid());
         }
     }
 }

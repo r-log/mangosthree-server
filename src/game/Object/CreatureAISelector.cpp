@@ -31,7 +31,7 @@
 #include "CreatureAIImpl.h"
 #include "NullCreatureAI.h"
 #include "Policies/Singleton.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "Pet.h"
 #include "Log.h"
 
@@ -46,7 +46,7 @@ namespace FactorySelector
      */
     CreatureAI* selectAI(Creature* creature)
     {
-        CreatureAI* scriptedAI = sScriptMgr.GetCreatureAI(creature);
+        CreatureAI* scriptedAI = sScriptHooks.GetCreatureAI(creature);
         if (scriptedAI)
         {
             // charmed creature may have some script even if its not supposed to be that way (ex: Eye of Acherus)

@@ -201,7 +201,7 @@ bool StartEvents_Event(Map* map, uint32 id, Object* source, Object* target, bool
     MANGOS_ASSERT(source);
 
     // Handle SD3 script
-    if (sScriptMgr.OnProcessEvent(id, source, target, isStart))
+    if (sScriptHooks.OnProcessEvent(id, source, target, isStart))
     {
         return true;
     }

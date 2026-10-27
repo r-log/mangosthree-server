@@ -230,6 +230,7 @@ set(SRC_GRP_TESTS
     LfgDungeonEntranceStoreTest.cpp
     DbScriptStoreTest.cpp
     ScriptNameStoreTest.cpp
+    ScriptHooksTest.cpp
     OpcodeDispatchTest.cpp
 )
 

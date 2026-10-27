@@ -54,7 +54,8 @@
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundAV.h"
 #include "Version.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
+#include "data/DbScriptStore.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"
 #include "Mail.h"
@@ -733,14 +734,14 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
         switch (questGiver->GetTypeId())
         {
             case TYPEID_UNIT:
-                sScriptMgr.OnQuestAccept(this, (Creature*)questGiver, pQuest);
+                sScriptHooks.OnQuestAccept(this, (Creature*)questGiver, pQuest);
                 break;
             case TYPEID_ITEM:
             case TYPEID_CONTAINER:
-                sScriptMgr.OnQuestAccept(this, (Item*)questGiver, pQuest);
+                sScriptHooks.OnQuestAccept(this, (Item*)questGiver, pQuest);
                 break;
             case TYPEID_GAMEOBJECT:
-                sScriptMgr.OnQuestAccept(this, (GameObject*)questGiver, pQuest);
+                sScriptHooks.OnQuestAccept(this, (GameObject*)questGiver, pQuest);
                 break;
         }
 
@@ -1037,10 +1038,10 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
     switch (questGiver->GetTypeId())
     {
         case TYPEID_UNIT:
-            handled = sScriptMgr.OnQuestRewarded(this, reinterpret_cast<Creature*>(questGiver), pQuest, reward);
+            handled = sScriptHooks.OnQuestRewarded(this, reinterpret_cast<Creature*>(questGiver), pQuest, reward);
             break;
         case TYPEID_GAMEOBJECT:
-            handled = sScriptMgr.OnQuestRewarded(this, reinterpret_cast<GameObject*>(questGiver), pQuest, reward);
+            handled = sScriptHooks.OnQuestRewarded(this, reinterpret_cast<GameObject*>(questGiver), pQuest, reward);
             break;
     }
 
@@ -2641,7 +2642,7 @@ void Player::SendQuestGiverStatusMultiple()
                 continue;
             }
 
-            dialogStatus = sScriptMgr.GetDialogStatus(this, questgiver);
+            dialogStatus = sScriptHooks.GetDialogStatus(this, questgiver);
 
             if (dialogStatus > DIALOG_STATUS_REWARD_REP)
             {
@@ -2666,7 +2667,7 @@ void Player::SendQuestGiverStatusMultiple()
                 continue;
             }
 
-            dialogStatus = sScriptMgr.GetDialogStatus(this, questgiver);
+            dialogStatus = sScriptHooks.GetDialogStatus(this, questgiver);
 
             if (dialogStatus > DIALOG_STATUS_REWARD_REP)
             {

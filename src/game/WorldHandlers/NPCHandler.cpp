@@ -43,7 +43,7 @@
 #include "Player.h"
 #include "GossipDef.h"
 #include "UpdateMask.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "Creature.h"
 #include "Pet.h"
 #include "Guild.h"
@@ -464,7 +464,7 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
         pCreature->SendAreaSpiritHealerQueryOpcode(_player);
     }
 
-    if (!sScriptMgr.OnGossipHello(_player, pCreature))
+    if (!sScriptHooks.OnGossipHello(_player, pCreature))
     {
         _player->PrepareGossipMenu(pCreature, pCreature->GetCreatureInfo()->GossipMenuId);
         _player->SendPreparedGossip(pCreature);
@@ -512,7 +512,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
             return;
         }
 
-        if (!sScriptMgr.OnGossipSelect(_player, pCreature, sender, action, code.empty() ? NULL : code.c_str()))
+        if (!sScriptHooks.OnGossipSelect(_player, pCreature, sender, action, code.empty() ? NULL : code.c_str()))
         {
             _player->OnGossipSelect(pCreature, gossipListId, menuId);
         }
@@ -527,7 +527,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
             return;
         }
 
-        if (!sScriptMgr.OnGossipSelect(_player, pGo, sender, action, code.empty() ? NULL : code.c_str()))
+        if (!sScriptHooks.OnGossipSelect(_player, pGo, sender, action, code.empty() ? NULL : code.c_str()))
         {
             _player->OnGossipSelect(pGo, gossipListId, menuId);
         }

@@ -44,7 +44,7 @@
 #include "GossipDef.h"
 #include "QuestDef.h"
 #include "PlayerRegistry.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "Group.h"
 #include "persistence/characters/quests/QuestTrackerRepository.h"
 
@@ -72,7 +72,7 @@ void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recv_data)
 
             if (!cr_questgiver->IsHostileTo(_player))       // not show quest status to enemies
             {
-                dialogStatus = sScriptMgr.GetDialogStatus(_player, cr_questgiver);
+                dialogStatus = sScriptHooks.GetDialogStatus(_player, cr_questgiver);
 
                 if (dialogStatus > DIALOG_STATUS_REWARD_REP)
                 {
@@ -84,7 +84,7 @@ void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recv_data)
         case TYPEID_GAMEOBJECT:
         {
             GameObject* go_questgiver = (GameObject*)questgiver;
-            dialogStatus = sScriptMgr.GetDialogStatus(_player, go_questgiver);
+            dialogStatus = sScriptHooks.GetDialogStatus(_player, go_questgiver);
 
             if (dialogStatus > DIALOG_STATUS_REWARD_REP)
             {
@@ -130,7 +130,7 @@ void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket& recv_data)
     // Stop the npc if moving; a patrol holds its leg for a while so the player can talk
     pCreature->HoldForPlayer();
 
-    if (sScriptMgr.OnGossipHello(_player, pCreature))
+    if (sScriptHooks.OnGossipHello(_player, pCreature))
     {
         return;
     }
