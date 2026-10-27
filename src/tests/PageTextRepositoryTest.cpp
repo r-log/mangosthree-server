@@ -70,18 +70,21 @@ TEST(PageTextRepository_PageTexts)
     CHECK_EQ(rows[1].nextPage, 2002u);
 }
 
-// A NULL text reads as an empty string, and a NULL next page as 0.
+// A NULL text reads as an empty string, and a NULL next page as 0. The first row sets the
+// result's width, so the short second row's missing columns read as NULL.
 TEST(PageTextRepository_NullTextReadsAsEmpty)
 {
     Db db;
     db.query.Answer("SELECT", FakeRows{
+        FakeRow{"8", "s8.1", "9"},
         FakeRow{"7"},
     });
     std::vector<PageTextRow> rows = PageTextRepository::QueryPageTexts();
-    REQUIRE(rows.size() == 1);
-    CHECK_EQ(rows[0].entry, 7u);
-    CHECK_STR(rows[0].text, "");
-    CHECK_EQ(rows[0].nextPage, 0u);
+    REQUIRE(rows.size() == 2);
+    CHECK_STR(rows[0].text, "s8.1");
+    CHECK_EQ(rows[1].entry, 7u);
+    CHECK_STR(rows[1].text, "");
+    CHECK_EQ(rows[1].nextPage, 0u);
 }
 
 // No row answers an empty list.
