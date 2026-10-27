@@ -33,6 +33,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
 #include "Database/TickGuard.h"
+#include "persistence/characters/CharacterDumpRepository.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
@@ -747,4 +748,40 @@ TEST(CharacterRepository_AccountAsyncValues)
     LoginDatabase.ProcessResultQueue();
     CHECK(answered);
     CHECK(!gmLevel);
+}
+
+// A dump's reads: the rows of a table as text, a NULL column as none, the version row, whether a
+// guid or a name is taken, and no column names for a table the named read finds nothing in.
+TEST(CharacterDumpRepository_Reads)
+{
+    {
+        Db db(CharacterDatabase);
+        CHECK(CharacterDumpRepository::QueryColumnNames("characters").empty());
+        CHECK(CharacterDumpRepository::QueryRows("characters", "`guid`,`name`", "guid = '42'").empty());
+        CHECK(!CharacterDumpRepository::QueryVersion());
+        CHECK(!CharacterDumpRepository::QueryGuidInUse(42));
+        CHECK(!CharacterDumpRepository::QueryNameInUse("Ann"));
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT `guid`", FakeRows{FakeRow{"1000", "s1.1", "s1.2"}, FakeRow{"2000", "s2.1"}});
+    db.query.Answer("SELECT `version`", FakeRows{FakeRow{"-1000", "1001", "s1.2", "s1.3"}});
+    db.query.Answer("SELECT * FROM `characters`", FakeRows{FakeRow{"1"}});
+    std::vector<DumpRow> rows = CharacterDumpRepository::QueryRows("characters", "`guid`,`name`,`taximask`", "guid = '42'");
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].values.size() == 3);
+    REQUIRE(rows[0].values[2]);
+    CHECK_STR(*rows[0].values[2], "s1.2");
+    REQUIRE(rows[1].values.size() == 3);
+    REQUIRE(rows[1].values[0]);
+    CHECK_STR(*rows[1].values[0], "2000");
+    CHECK(!rows[1].values[2]);
+    std::optional<CharacterDbVersionRow> version = CharacterDumpRepository::QueryVersion();
+    REQUIRE(version);
+    CHECK_EQ(version->version, int16(-1000));
+    CHECK_EQ(version->structure, int16(1001));
+    CHECK_STR(version->description, "s1.2");
+    CHECK_STR(version->comment, "s1.3");
+    CHECK(CharacterDumpRepository::QueryGuidInUse(42));
+    CHECK(CharacterDumpRepository::QueryNameInUse("Ann"));
+    CHECK(Contains(db.query.executed[0], "SELECT `guid`,`name`,`taximask` FROM `characters` WHERE guid = '42'"));
 }
