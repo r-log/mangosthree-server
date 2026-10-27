@@ -42,7 +42,7 @@
 #include "GameObject.h"
 #include "Language.h"
 #include "Util.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptStore.h"
 #include "GridNotifiersImpl.h"
 #include "Geometry/Vector3.h"
 #include "movement/typedefs.h"

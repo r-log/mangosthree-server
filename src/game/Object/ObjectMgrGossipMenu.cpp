@@ -35,7 +35,7 @@
 #include "Policies/Singleton.h"
 #include "Log.h"
 #include "ProgressBar.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptStore.h"
 #include "GossipDef.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 
@@ -83,7 +83,7 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
         // Check script-id
         if (gMenu.script_id)
         {
-            ScriptChainMap const* scm = sScriptMgr.GetScriptChainMap(DBS_ON_GOSSIP);
+            ScriptChainMap const* scm = sDbScriptStore.GetScriptChainMap(DBS_ON_GOSSIP);
             if (!scm)
             {
                 continue;
@@ -296,7 +296,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
 
         if (gMenuItem.action_script_id)
         {
-            ScriptChainMap const* scm = sScriptMgr.GetScriptChainMap(DBS_ON_GOSSIP);
+            ScriptChainMap const* scm = sDbScriptStore.GetScriptChainMap(DBS_ON_GOSSIP);
             if (!scm)
             {
                 continue;
@@ -344,7 +344,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
  */
 void ObjectMgr::LoadGossipMenus()
 {
-    ScriptChainMap const* scm = sScriptMgr.GetScriptChainMap(DBS_ON_GOSSIP);
+    ScriptChainMap const* scm = sDbScriptStore.GetScriptChainMap(DBS_ON_GOSSIP);
     if (!scm)
     {
         return;

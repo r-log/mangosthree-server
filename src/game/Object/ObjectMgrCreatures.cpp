@@ -43,7 +43,7 @@
 
 #include "Log.h"
 #include "ObjectGuid.h"
-#include "ScriptMgr.h"
+#include "data/ScriptNameStore.h"
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
 #include "ProgressBar.h"
@@ -293,7 +293,7 @@ void ObjectMgr::LoadCreatureTemplates()
                 continue;
             }
 
-            if (sScriptMgr.GetBoundScriptId(SCRIPTED_UNIT, difficultyInfo->Entry))
+            if (sScriptNameStore.GetBoundScriptId(SCRIPTED_UNIT, difficultyInfo->Entry))
             {
                 sLog.outErrorDb("Difficulty %u mode creature (Entry: %u) has `ScriptName`, but in any case will used difficulty 0 mode creature (Entry: %u) ScriptName.",
                                 diff + 1, cInfo->DifficultyEntry[diff], i);

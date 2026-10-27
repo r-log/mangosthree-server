@@ -242,17 +242,17 @@ namespace Harness
                 r.refusal = "spell " + U(spellId) + ": SPELLFAMILY_GENERIC, where GetSpellRangeAndRadius keeps its dynamic labels";
                 return r;
             }
-            if (const uint32 script = sScriptMgr.GetBoundScriptId(SCRIPTED_SPELL, int32(spellId)))
+            if (const uint32 script = sScriptNameStore.GetBoundScriptId(SCRIPTED_SPELL, int32(spellId)))
             {
                 r.refusal = "spell " + U(spellId) + " binds SD3 spell script " + U(script);
                 return r;
             }
-            if (const uint32 script = sScriptMgr.GetBoundScriptId(SCRIPTED_AURASPELL, int32(spellId)))
+            if (const uint32 script = sScriptNameStore.GetBoundScriptId(SCRIPTED_AURASPELL, int32(spellId)))
             {
                 r.refusal = "spell " + U(spellId) + " binds SD3 aura script " + U(script);
                 return r;
             }
-            if (ScriptChainMap const* chains = sScriptMgr.GetScriptChainMap(DBS_ON_SPELL))
+            if (ScriptChainMap const* chains = sDbScriptStore.GetScriptChainMap(DBS_ON_SPELL))
             {
                 if (chains->find(spellId) != chains->end())
                 {
@@ -277,7 +277,7 @@ namespace Harness
                 r.refusal = "creature " + U(creatureEntry) + " runs AI '" + cinfo->AIName + "'";
                 return r;
             }
-            if (const uint32 script = sScriptMgr.GetBoundScriptId(SCRIPTED_UNIT, int32(creatureEntry)))
+            if (const uint32 script = sScriptNameStore.GetBoundScriptId(SCRIPTED_UNIT, int32(creatureEntry)))
             {
                 r.refusal = "creature " + U(creatureEntry) + " binds script " + U(script);
                 return r;
@@ -387,15 +387,15 @@ namespace Harness
                     return "spell " + U(id) + " effect " + U(i) + " triggers " + U(e->EffectTriggerSpell) + ", which the scenario does not fingerprint";
                 }
             }
-            if (const uint32 script = sScriptMgr.GetBoundScriptId(SCRIPTED_SPELL, int32(id)))
+            if (const uint32 script = sScriptNameStore.GetBoundScriptId(SCRIPTED_SPELL, int32(id)))
             {
                 return "spell " + U(id) + " binds SD3 spell script " + U(script);
             }
-            if (const uint32 script = sScriptMgr.GetBoundScriptId(SCRIPTED_AURASPELL, int32(id)))
+            if (const uint32 script = sScriptNameStore.GetBoundScriptId(SCRIPTED_AURASPELL, int32(id)))
             {
                 return "spell " + U(id) + " binds SD3 aura script " + U(script);
             }
-            if (ScriptChainMap const* chains = sScriptMgr.GetScriptChainMap(DBS_ON_SPELL))
+            if (ScriptChainMap const* chains = sDbScriptStore.GetScriptChainMap(DBS_ON_SPELL))
             {
                 if (chains->find(id) != chains->end())
                 {
@@ -423,7 +423,7 @@ namespace Harness
             {
                 return "creature " + U(entry) + " runs AI '" + cinfo->AIName + "'";
             }
-            if (const uint32 script = sScriptMgr.GetBoundScriptId(SCRIPTED_UNIT, int32(entry)))
+            if (const uint32 script = sScriptNameStore.GetBoundScriptId(SCRIPTED_UNIT, int32(entry)))
             {
                 return "creature " + U(entry) + " binds script " + U(script);
             }

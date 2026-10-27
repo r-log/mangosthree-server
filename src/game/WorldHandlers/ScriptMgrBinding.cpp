@@ -28,7 +28,6 @@
  * @brief ScriptMgr's script name and binding registry and the library version query.
  */
 
-#include <algorithm>
 #include <set>
 #include "ScriptMgr.h"
 #include "Log.h"
@@ -47,10 +46,7 @@
 void ScriptMgr::LoadScriptBinding()
 {
 #ifdef ENABLE_SD3
-    for (int i = 0; i < SCRIPTED_MAX_TYPE; ++i)
-    {
-        m_scriptBind[i].clear();
-    }
+    sScriptNameStore.ClearBindings();
 
     std::vector<ScriptBindingRow> rows = ScriptDataRepository::QueryScriptBindings();
     uint32 count = 0;
@@ -83,7 +79,7 @@ void ScriptMgr::LoadScriptBinding()
             sLog.outErrorScriptLib("script_binding table contains a script for non-existent type %u (bind %d), ignoring.", type, id);
             continue;
         }
-        uint32 scriptId = GetScriptId(scriptName);
+        uint32 scriptId = sScriptNameStore.GetScriptId(scriptName);
         if (!scriptId)  //this should never happen! the script names are initialized from the same table
         {
             sLog.outErrorScriptLib("something is very bad with your script_binding table!");
@@ -149,16 +145,17 @@ void ScriptMgr::LoadScriptBinding()
             id |= uint32(data) << 24;   //incorporate spell effect number into the key
         }
 
-        m_scriptBind[type][id] = scriptId;
+        sScriptNameStore.Bind(ScriptedObjectType(type), id, scriptId);
     }
 
     sLog.outString("Of the total %u script bindings, loaded succesfully:", count);
     for (uint8 i = 0; i < SCRIPTED_MAX_TYPE; ++i)
     {
-        if (m_scriptBind[i].size()) //ignore missing script types to shorten the log
+        uint32 binds = sScriptNameStore.GetBindingCount(ScriptedObjectType(i));
+        if (binds) //ignore missing script types to shorten the log
         {
-            sLog.outString(".. type %u: %u binds", i, uint32(m_scriptBind[i].size()));
-            count -= m_scriptBind[i].size();
+            sLog.outString(".. type %u: %u binds", i, binds);
+            count -= binds;
         }
     }
     sLog.outString("Thus, %u script binds are found bad.", count);
@@ -176,9 +173,9 @@ void ScriptMgr::LoadScriptBinding()
 bool ScriptMgr::ReloadScriptBinding()
 {
 #ifdef _DEBUG
-    m_bindMutex.lock();
+    sScriptNameStore.GetBindingLock().lock();
     LoadScriptBinding();
-    m_bindMutex.unlock();
+    sScriptNameStore.GetBindingLock().unlock();
     return true;
 #else
     return false;
@@ -190,7 +187,7 @@ bool ScriptMgr::ReloadScriptBinding()
  */
 void ScriptMgr::LoadScriptNames()
 {
-    m_scriptNames.push_back("");
+    sScriptNameStore.AddName("");
     std::vector<ScriptNameRow> rows = ScriptDataRepository::QueryScriptNames();
 
     if (rows.empty())
@@ -208,69 +205,14 @@ void ScriptMgr::LoadScriptNames()
     for (ScriptNameRow const& row : rows)
     {
         bar.step();
-        m_scriptNames.push_back((row.scriptName ? row.scriptName->c_str() : NULL));
+        sScriptNameStore.AddName((row.scriptName ? row.scriptName->c_str() : NULL));
         ++count;
     }
 
-    std::sort(m_scriptNames.begin(), m_scriptNames.end());
+    sScriptNameStore.SortNames();
 
     sLog.outString(">> Loaded %d unique Script Names", count);
     sLog.outString();
-}
-
-/**
- * @brief Resolves a script name to its internal script id.
- *
- * @param name The script name to search for.
- * @return uint32 The resolved script id, or 0 if not found.
- */
-uint32 ScriptMgr::GetScriptId(const char* name) const
-{
-    // use binary search to find the script name in the sorted vector
-    // assume "" is the first element
-    if (!name)
-    {
-        return 0;
-    }
-
-    ScriptNameMap::const_iterator itr =
-        std::lower_bound(m_scriptNames.begin(), m_scriptNames.end(), name);
-
-    if (itr == m_scriptNames.end() || *itr != name)
-    {
-        return 0;
-    }
-
-    return uint32(itr - m_scriptNames.begin());
-}
-
-/**
- * @brief Returns the script id bound to a specific scripted entity entry.
- *
- * @param entity The scripted object type.
- * @param entry The object entry or binding key.
- * @return uint32 The bound script id, or 0 if none exists.
- */
-uint32 ScriptMgr::GetBoundScriptId(ScriptedObjectType entity, int32 entry)
-{
-#ifdef _DEBUG
-    m_bindMutex.lock_shared();
-#endif /* _DEBUG */
-    uint32 id = 0;
-    if (entity < SCRIPTED_MAX_TYPE)
-    {
-        EntryToScriptIdMap::iterator it = m_scriptBind[entity].find(entry);
-        if (it != m_scriptBind[entity].end())
-        {
-            id = it->second;
-        }
-    }
-    else
-        sLog.outErrorScriptLib("asking a script for non-existing entity type %u!", entity);
-#ifdef _DEBUG
-    m_bindMutex.unlock_shared();
-#endif /* _DEBUG */
-    return id;
 }
 
 /**

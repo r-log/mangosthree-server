@@ -228,6 +228,8 @@ set(SRC_GRP_TESTS
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp
+    DbScriptStoreTest.cpp
+    ScriptNameStoreTest.cpp
     OpcodeDispatchTest.cpp
 )
 

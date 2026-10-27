@@ -28,6 +28,7 @@
 #include <cassert>
 #include "Item.h"
 #include "ObjectMgr.h"
+#include "data/ScriptNameStore.h"
 #include "ObjectGuid.h"
 #include "WorldPacket.h"
 #include "Database/DatabaseEnv.h"
@@ -1282,7 +1283,7 @@ void Item::SetLootState(ItemLootUpdateState state)
  */
 uint32 Item::GetScriptId() const
 {
-    return sScriptMgr.GetBoundScriptId(SCRIPTED_ITEM, GetEntry());
+    return sScriptNameStore.GetBoundScriptId(SCRIPTED_ITEM, GetEntry());
 }
 
 uint32 Item::GetSpecialPrice(ItemPrototype const* proto, uint32 minimumPrice /*= 10000*/)
