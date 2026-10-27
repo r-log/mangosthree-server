@@ -33,12 +33,23 @@ namespace AccountRepository
 {
     bool Insert(std::string const& username, std::string const& passHash)
     {
-        return LoginDatabase.PExecute("INSERT INTO `account` (`username`,`sha_pass_hash`,`joindate`) VALUES ('%s','%s',NOW())", username.c_str(), passHash.c_str());
+        static SqlStatementID insertAccount;
+        SqlStatement stmt = LoginDatabase.CreateStatement(insertAccount,
+                            "INSERT INTO `account` (`username`,`sha_pass_hash`,`joindate`) VALUES (?,?,NOW())");
+        stmt.addString(username);
+        stmt.addString(passHash);
+        return stmt.Execute();
     }
 
     bool InsertWithExpansion(std::string const& username, std::string const& passHash, uint32 expansion)
     {
-        return LoginDatabase.PExecute("INSERT INTO `account`(`username`,`sha_pass_hash`,`joindate`,`expansion`) VALUES('%s','%s',NOW(),'%u')", username.c_str(), passHash.c_str(), expansion);
+        static SqlStatementID insertAccountWithExpansion;
+        SqlStatement stmt = LoginDatabase.CreateStatement(insertAccountWithExpansion,
+                            "INSERT INTO `account`(`username`,`sha_pass_hash`,`joindate`,`expansion`) VALUES(?,?,NOW(),?)");
+        stmt.addString(username);
+        stmt.addString(passHash);
+        stmt.addUInt32(expansion);
+        return stmt.Execute();
     }
 
     void LinkNewAccountsToRealms()

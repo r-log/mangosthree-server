@@ -103,11 +103,10 @@ struct AccountPasswordRow
 /// one that returns bool answers false when the database refuses it.
 namespace AccountRepository
 {
-    /// Inserts a new account, joined now; the name and the hash are written as they are.
+    /// Inserts a new account, joined now, the name and the hash bound.
     bool Insert(std::string const& username, std::string const& passHash);
 
-    /// Inserts a new account with an expansion, joined now; the name and the hash are written as
-    /// they are.
+    /// Inserts a new account with an expansion, joined now, the name and the hash bound.
     bool InsertWithExpansion(std::string const& username, std::string const& passHash, uint32 expansion);
 
     /// Gives every account without a `realmcharacters` row a row of no characters on every realm.

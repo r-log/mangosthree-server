@@ -160,6 +160,22 @@ TEST(GuildRepository_SingleWrites)
     }, __LINE__);
 }
 
+// A rank switch binds the rank's name, as the rename does: the connection escapes both names when the
+// queued writes go out, and neither escapes on the calling thread.
+TEST(GuildRepository_RankWritesBindTheName)
+{
+    Db db;
+    {
+        TickGuard::Scope scope;
+        GuildRepository::ReplaceRank(3, 2, "Ann's", 67, 0);
+        GuildRepository::SetRankName(3, 4, "Bob's");
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CHECK_EQ(db.query.escaped.size(), size_t(0));
+    CHECK_EQ(db.Take().size(), size_t(2));
+    CheckLines(db.query.escaped, { "Ann's", "Bob's" }, __LINE__);
+}
+
 // The rank delete is one queued transaction; a rank switch's two REPLACEs and a disband's two groups
 // of deletes each join the transaction the guild opens around them.
 TEST(GuildRepository_Transactions)
