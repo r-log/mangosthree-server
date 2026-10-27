@@ -43,6 +43,18 @@
 uint32 GetDBCLoadedBuild();
 
 /**
+ * Returns a bit per LocaleConstant for each locale whose DBC strings were loaded
+ * at startup, the default locale included, or 0 before LoadDBCStores has run.
+ */
+uint32 GetDBCLoadedLocaleMask();
+
+/**
+ * Returns a bit per LocaleConstant for the default locale and for each
+ * fullLocaleNameList entry whose bit is set in loadedSubdirs.
+ */
+uint32 DbcLocaleMask(LocaleConstant defaultLocale, uint32 loadedSubdirs);
+
+/**
  * This function checks to see if there is a valid locale file (component.wow-<locale>.txt)
  * and returns an index to the locale or -1 if not found
  * @PARAM dataPath full path to the data directory
