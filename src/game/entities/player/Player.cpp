@@ -1475,7 +1475,7 @@ bool Player::BuildEnumData(CharacterEnumRow const& row, ByteBuffer* data, ByteBu
     if (!(playerFlags & PLAYER_FLAGS_GHOST) && (pClass == CLASS_WARLOCK || pClass == CLASS_HUNTER || pClass == CLASS_DEATH_KNIGHT))
     {
         uint32 entry = row.petEntry;
-        CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(entry);
+        CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(entry);
         if (cInfo)
         {
             petDisplayId = row.petModelId;

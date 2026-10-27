@@ -96,7 +96,7 @@ void ScriptMgr::LoadScriptBinding()
         switch (type)
         {
         case SCRIPTED_UNIT:
-            exists = id > 0 ? bool(sCreatureStorage.LookupEntry<CreatureInfo>(uint32(id))) : bool(sObjectMgr.GetCreatureData(uint32(-id)));
+            exists = id > 0 ? bool(ObjectMgr::GetCreatureTemplate(uint32(id))) : bool(sObjectMgr.GetCreatureData(uint32(-id)));
             break;
         case SCRIPTED_GAMEOBJECT:
             exists = id > 0 ? bool(ObjectMgr::GetGameObjectInfo(uint32(id))) : bool(sObjectMgr.GetGOData(uint32(-id)));

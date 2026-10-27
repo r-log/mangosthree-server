@@ -116,9 +116,9 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
     }
 
     // post loading tests
-    for (uint32 i = 1; i < sCreatureStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
     {
-        if (CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i))
+        if (CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i))
         {
             if (cInfo->GossipMenuId)
             {
@@ -193,8 +193,8 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
     // prepare menuid -> CreatureInfo map for fast access
     typedef  std::multimap<uint32, const CreatureInfo*> Menu2CInfoMap;
     Menu2CInfoMap menu2CInfoMap;
-    for (uint32 i = 1;  i < sCreatureStorage.GetMaxEntry(); ++i)
-        if (CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i))
+    for (uint32 i = 1;  i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
+        if (CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i))
             if (cInfo->GossipMenuId)
             {
                 menu2CInfoMap.insert(Menu2CInfoMap::value_type(cInfo->GossipMenuId, cInfo));

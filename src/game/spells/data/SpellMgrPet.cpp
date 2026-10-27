@@ -228,9 +228,9 @@ void SpellMgr::LoadPetDefaultSpells()
     uint32 countCreature = 0;
     uint32 countData = 0;
 
-    for (uint32 i = 0; i < sCreatureStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 0; i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
     {
-        CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i);
+        CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i);
         if (!cInfo)
         {
             continue;
@@ -282,7 +282,7 @@ void SpellMgr::LoadPetDefaultSpells()
             if (spellEffect->Effect==SPELL_EFFECT_SUMMON || spellEffect->Effect==SPELL_EFFECT_SUMMON_PET)
             {
                 uint32 creature_id = spellEffect->EffectMiscValue_0;
-                CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(creature_id);
+                CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(creature_id);
                 if (!cInfo)
                 {
                     continue;

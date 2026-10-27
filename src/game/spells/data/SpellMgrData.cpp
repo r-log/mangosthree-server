@@ -637,7 +637,7 @@ static void FillSpellScriptTargets(SpellScriptTargetStore& targets, TableRead<Sp
                     targets.Erase(itr->spellId);
                     continue;
                 }
-                if (const CreatureInfo* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(itr->targetEntry))
+                if (const CreatureInfo* cInfo = ObjectMgr::GetCreatureTemplate(itr->targetEntry))
                 {
                     if (itr->spellId == 30427 && !cInfo->SkinningLootId)
                     {

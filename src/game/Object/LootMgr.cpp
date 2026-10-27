@@ -1831,9 +1831,9 @@ void LoadLootTemplates_Creature()
     LootTemplates_Creature.LoadAndCollectLootIds(ids_set);
 
     // remove real entries and check existence loot
-    for (uint32 i = 1; i < sCreatureStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
     {
-        if (CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i))
+        if (CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i))
         {
             if (uint32 lootid = cInfo->LootId)
             {
@@ -2028,9 +2028,9 @@ void LoadLootTemplates_Pickpocketing()
     LootTemplates_Pickpocketing.LoadAndCollectLootIds(ids_set);
 
     // remove real entries and check existence loot
-    for (uint32 i = 1; i < sCreatureStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
     {
-        if (CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i))
+        if (CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i))
         {
             if (uint32 lootid = cInfo->PickpocketLootId)
             {
@@ -2114,9 +2114,9 @@ void LoadLootTemplates_Skinning()
     LootTemplates_Skinning.LoadAndCollectLootIds(ids_set);
 
     // remove real entries and check existence loot
-    for (uint32 i = 1; i < sCreatureStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
     {
-        if (CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i))
+        if (CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i))
         {
             if (uint32 lootid = cInfo->SkinningLootId)
             {

@@ -82,7 +82,7 @@ void ObjectMgr::LoadPetLevelInfo()
         for (PetLevelStatsRow const& row : rows)
         {
             uint32 creature_id = row.creatureEntry;
-            if (!sCreatureStorage.LookupEntry<CreatureInfo>(creature_id))
+            if (!ObjectMgr::GetCreatureTemplate(creature_id))
             {
                 sLog.outErrorDb("Wrong creature id %u in `pet_levelstats` table, ignoring.", creature_id);
                 continue;

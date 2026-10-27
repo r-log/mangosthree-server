@@ -479,7 +479,7 @@ void ObjectMgr::LoadQuests()
                 qinfo->ReqCreatureOrGOId[j] = 0;            // quest can't be done for this requirement
             }
 
-            if (id > 0 && !sCreatureStorage.LookupEntry<CreatureInfo>(id))
+            if (id > 0 && !ObjectMgr::GetCreatureTemplate(id))
             {
                 sLog.outErrorDb("Quest %u has `ReqCreatureOrGOId%d` = %i but creature with entry %u does not exist, quest can't be done.",
                                 qinfo->GetQuestId(), j + 1, id, uint32(id));

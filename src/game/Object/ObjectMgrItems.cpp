@@ -1002,7 +1002,7 @@ void ObjectMgr::LoadItemRequiredTarget()
             continue;
         }
 
-        if (!sCreatureStorage.LookupEntry<CreatureInfo>(uiTargetEntry))
+        if (!ObjectMgr::GetCreatureTemplate(uiTargetEntry))
         {
             sLog.outErrorDb("Table `item_required_target`: creature template entry %u does not exist.", uiTargetEntry);
             continue;

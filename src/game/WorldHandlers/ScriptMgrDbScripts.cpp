@@ -770,7 +770,7 @@ void ScriptMgr::LoadScripts(DBScriptType type)
                 break;
             case SCRIPT_COMMAND_UPDATE_TEMPLATE:              // 44
             {
-                if (!sCreatureStorage.LookupEntry<CreatureInfo>(tmp.updateTemplate.entry))
+                if (!ObjectMgr::GetCreatureTemplate(tmp.updateTemplate.entry))
                 {
                     sLog.outErrorDb("Table `db_scripts [type = %d]` has datalong = %u in SCRIPT_COMMAND_UPDATE_TEMPLATE for script id %u, but this creature_template does not exist.", type, tmp.updateTemplate.entry, tmp.id);
                     continue;
