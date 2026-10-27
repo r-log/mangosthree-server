@@ -45,7 +45,8 @@
 #include "Totem.h"
 #include "Language.h"
 #include "Util.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptStore.h"
+#include "data/ScriptHooks.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
@@ -853,7 +854,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
     }
 
     // Previous effect might have started script
-    if (!ScriptMgr::CanSpellEffectStartDBScript(m_spellInfo, SpellEffectIndex(effect->EffectIndex)))
+    if (!DbScriptStore::CanSpellEffectStartDBScript(m_spellInfo, SpellEffectIndex(effect->EffectIndex)))
     {
         return;
     }

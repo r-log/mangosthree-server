@@ -162,7 +162,6 @@ class ScriptMgr
         {
             return m_scheduledScripts > 0;
         }
-        static bool CanSpellEffectStartDBScript(SpellEntry const* spellinfo, SpellEffectIndex effIdx);
 
     private:
         void CollectPossibleEventIds(std::set<uint32>& eventIds);

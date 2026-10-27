@@ -843,7 +843,6 @@ src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/game/entities/play
 src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/proto/WorldPacket.h
-src/game/spells/pipeline/SpellEffectDummy.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/pipeline/SpellEffectDummy.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectDummy.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectHealPower.cpp -> src/game/WorldHandlers/ScriptMgr.h
@@ -852,7 +851,6 @@ src/game/spells/pipeline/SpellEffectHealPower.cpp -> src/game/spells/auras/Spell
 src/game/spells/pipeline/SpellEffectObjectCombat.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectObjectCombat.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellEffectObjectCombat.cpp -> src/proto/WorldPacket.h
-src/game/spells/pipeline/SpellEffectScript.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/pipeline/SpellEffectScript.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectSkillEnchantPet.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectSkillEnchantPet.cpp -> src/game/spells/auras/SpellAuras.h

@@ -25,15 +25,45 @@
 
 /// The database scripts' store and step type, with no database and no script manager: a new store
 /// answers an empty chain map for each type and NULL for the internal type and a type past the last,
-/// a lookup answers the chains a loader filled, and a step's helpers read its command's fields.
+/// a lookup answers the chains a loader filled, a step's helpers read its command's fields, and the
+/// effect that starts a spell's script is the one of the highest claim, the first of equals.
 
 #include "TestHarness.h"
 #include "data/DbScriptStore.h"
+#include "data/ServerSpellStore.h"
+#include "DBCStores.h"
 
 #include <mutex>
 
 namespace
 {
+    /// A spell no client data holds, with the effects given (0 for none) at indexes 0 to 2. The
+    /// effects stay registered for the rest of the run, as the spell's id is used by no other test.
+    struct ScriptedSpell
+    {
+        ServerSpell spell;
+        SpellEffectEntry effects[MAX_EFFECT_INDEX];
+
+        ScriptedSpell(uint32 id, uint32 effect0, uint32 effect1, uint32 effect2)
+        {
+            spell.Entry().ID = id;
+            uint32 const kinds[MAX_EFFECT_INDEX] = { effect0, effect1, effect2 };
+            for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+            {
+                effects[i] = SpellEffectEntry();
+                if (!kinds[i])
+                {
+                    continue;
+                }
+                effects[i].SpellID = id;
+                effects[i].EffectIndex = i;
+                effects[i].Effect = kinds[i];
+                effects[i].EffectTriggerSpell = 0;
+                AddSpellEffectEntry(&effects[i]);
+            }
+        }
+    };
+
     ScriptInfo Step(uint32 id, uint32 command)
     {
         ScriptInfo step = ScriptInfo();
@@ -96,4 +126,37 @@ TEST(DbScriptStore_StepHelpersReadTheirCommandsFields)
     CHECK(talk.IsCreatureBuddy());
     CHECK(!talk.HasAdditionalScriptFlag());
     CHECK(Step(4, SCRIPT_COMMAND_CAST_SPELL).HasAdditionalScriptFlag());
+}
+
+TEST(DbScriptStore_TheEffectOfTheHighestClaimStartsTheSpellsScript)
+{
+    static ScriptedSpell spell(990101, SPELL_EFFECT_DUMMY, SPELL_EFFECT_SCRIPT_EFFECT, SPELL_EFFECT_APPLY_AURA);
+    SpellEntry const* entry = &spell.spell.Entry();
+    CHECK_EQ(DbScriptStore::GetSpellStartDBScriptPriority(entry, EFFECT_INDEX_0), uint8(9));
+    CHECK_EQ(DbScriptStore::GetSpellStartDBScriptPriority(entry, EFFECT_INDEX_1), uint8(10));
+    CHECK_EQ(DbScriptStore::GetSpellStartDBScriptPriority(entry, EFFECT_INDEX_2), uint8(0));
+    CHECK(!DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_0));
+    CHECK(DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_1));
+    CHECK(!DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_2));
+}
+
+TEST(DbScriptStore_OfTwoEqualClaimsTheFirstStartsTheSpellsScript)
+{
+    static ScriptedSpell spell(990102, SPELL_EFFECT_APPLY_AURA, SPELL_EFFECT_DUMMY, SPELL_EFFECT_DUMMY);
+    SpellEntry const* entry = &spell.spell.Entry();
+    CHECK(!DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_0));
+    CHECK(DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_1));
+    CHECK(!DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_2));
+}
+
+TEST(DbScriptStore_ATriggerOfASpellNoClientDataHoldsStartsTheScript)
+{
+    static ScriptedSpell spell(990103, SPELL_EFFECT_TRIGGER_MISSILE, SPELL_EFFECT_TRIGGER_SPELL, 0);
+    SpellEntry const* entry = &spell.spell.Entry();
+    CHECK_EQ(DbScriptStore::GetSpellStartDBScriptPriority(entry, EFFECT_INDEX_0), uint8(4));
+    CHECK_EQ(DbScriptStore::GetSpellStartDBScriptPriority(entry, EFFECT_INDEX_1), uint8(5));
+    CHECK_EQ(DbScriptStore::GetSpellStartDBScriptPriority(entry, EFFECT_INDEX_2), uint8(0));
+    CHECK(!DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_0));
+    CHECK(DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_1));
+    CHECK(!DbScriptStore::CanSpellEffectStartDBScript(entry, EFFECT_INDEX_2));
 }
