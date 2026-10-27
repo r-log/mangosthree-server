@@ -98,9 +98,43 @@ namespace CharacterRepository
         CharacterDatabase.PExecute("UPDATE `characters` SET `gender` = '%u', `playerBytes` = '%u', `playerBytes2` = '%u' WHERE `guid` = '%u'", gender, playerBytes, playerBytes2, guid);
     }
 
-    void QueryEnum(uint32 accountId, uint32 currentPetSlot, bool declinedNames, CharacterReadCallback callback)
+    static CharacterEnumRow ReadEnum(Field* fields, bool declinedNames)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        CharacterEnumRow row;
+        row.guid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.race = fields[2].GetUInt8();
+        row.classId = fields[3].GetUInt8();
+        row.gender = fields[4].GetUInt8();
+        row.playerBytes = fields[5].GetUInt32();
+        row.playerBytes2 = fields[6].GetUInt32();
+        row.level = fields[7].GetUInt8();
+        row.zone = fields[8].GetUInt32();
+        row.map = fields[9].GetUInt32();
+        row.positionX = fields[10].GetFloat();
+        row.positionY = fields[11].GetFloat();
+        row.positionZ = fields[12].GetFloat();
+        row.guildId = fields[13].GetUInt32();
+        row.playerFlags = fields[14].GetUInt32();
+        row.atLogin = fields[15].GetUInt32();
+        row.petEntry = fields[16].GetUInt32();
+        row.petModelId = fields[17].GetUInt32();
+        row.petLevel = fields[18].GetUInt32();
+        row.equipmentCache = fields[19].GetCppString();
+        row.slot = fields[20].GetUInt8();
+        if (declinedNames)
+        {
+            row.genitive = fields[21].GetCppString();
+        }
+        return row;
+    }
+
+    void QueryEnum(uint32 accountId, uint32 currentPetSlot, bool declinedNames, std::function<void(std::vector<CharacterEnumRow>)> callback)
+    {
+        CharacterDatabase.AsyncPQuery([declinedNames, callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRows<CharacterEnumRow>(result, [declinedNames](Field* fields) { return ReadEnum(fields, declinedNames); }));
+                                      },
                                       !declinedNames ?
                                       //   ------- Query Without Declined Names --------
                                       //           0               1                2                3                 4                  5                       6                        7
@@ -233,9 +267,30 @@ namespace CharacterRepository
         stmt.PExecute(accountId);
     }
 
-    void QueryName(uint32 guid, bool declinedNames, CharacterReadCallback callback)
+    static CharacterNameRow ReadName(Field* fields, bool declinedNames)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        CharacterNameRow row;
+        row.guid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.race = fields[2].GetUInt8();
+        row.gender = fields[3].GetUInt8();
+        row.classId = fields[4].GetUInt8();
+        if (declinedNames)
+        {
+            for (int i = 0; i < CHARACTER_DECLINED_NAME_ROW_CASES; ++i)
+            {
+                row.declinedNames[i] = fields[i + 5].GetCppString();
+            }
+        }
+        return row;
+    }
+
+    void QueryName(uint32 guid, bool declinedNames, std::function<void(std::optional<CharacterNameRow>)> callback)
+    {
+        CharacterDatabase.AsyncPQuery([declinedNames, callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<CharacterNameRow>(result, [declinedNames](Field* fields) { return ReadName(fields, declinedNames); }));
+                                      },
                                       !declinedNames ?
                                       //   ------- Query Without Declined Names --------
                                       //       0       1       2       3         4
@@ -251,9 +306,20 @@ namespace CharacterRepository
                                       guid);
     }
 
-    void QueryRenameTarget(uint32 guid, uint32 accountId, uint32 renameFlag, CharacterReadCallback callback)
+    static RenameTargetRow ReadRenameTarget(Field* fields)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        RenameTargetRow row;
+        row.guid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        return row;
+    }
+
+    void QueryRenameTarget(uint32 guid, uint32 accountId, uint32 renameFlag, std::function<void(std::optional<RenameTargetRow>)> callback)
+    {
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<RenameTargetRow>(result, ReadRenameTarget));
+                                      },
                                       "SELECT `guid`, `name` FROM `characters` WHERE `guid` = %u AND `account` = %u AND (`at_login` & %u) = %u",
                                       guid, accountId, renameFlag, renameFlag);
     }
@@ -938,5 +1004,50 @@ namespace CharacterRepository
     {
         QueryResult* result = holder->GetResult(PLAYER_LOGIN_QUERY_LOADPETDECLINEDNAMES);
         return ReadRows<LoginPetDeclinedNameRow>(result, ReadLoginPetDeclinedName);
+    }
+
+    std::optional<uint32> CreateAccountCharacterCount(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(CHAR_CREATE_ACCOUNT_REALM_CHARS);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    std::optional<uint8> CreateRealmCharacterCount(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(CHAR_CREATE_REALM_CHAR_COUNT);
+        return ReadRow<uint8>(result, [](Field* fields) { return fields[0].GetUInt8(); });
+    }
+
+    static CreateAccountCharacterRow ReadCreateAccountCharacter(Field* fields)
+    {
+        CreateAccountCharacterRow row;
+        row.level = fields[0].GetUInt32();
+        row.race = fields[1].GetUInt32();
+        row.classId = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<CreateAccountCharacterRow> CreateAccountCharacters(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(CHAR_CREATE_REALM_ACCOUNT_CHARS);
+        return ReadRows<CreateAccountCharacterRow>(result, ReadCreateAccountCharacter);
+    }
+
+    std::optional<uint32> CreateHighestPetId(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(CHAR_CREATE_REALM_PET_ID);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    std::optional<uint32> CustomizeAtLogin(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(CHAR_CUSTOMIZE_AT_LOGIN);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    std::optional<uint32> CustomizePlayerBytes2(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(CHAR_CUSTOMIZE_PLAYER_BYTES2);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 }

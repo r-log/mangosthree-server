@@ -112,9 +112,8 @@ enum
     CHARACTER_DECLINED_NAME_ROW_CASES = 5
 };
 
-/// The callbacks of the asynchronous reads: they run on the world thread with what the reads
-/// returned, which they own.
-typedef std::function<void(QueryResult*)> CharacterReadCallback;
+/// The callback of the holder reads: it runs on the world thread with the answered holder, which it
+/// owns.
 typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallback;
 
 /// One `characters` row.
@@ -131,6 +130,60 @@ struct CharacterCacheRow
     float positionX = 0.0f;
     float positionY = 0.0f;
     float positionZ = 0.0f;
+};
+
+/// One character of the character list: its own columns, its guild, its current pet, and the
+/// genitive of its declined name (empty unless the list was read with the declined names).
+struct CharacterEnumRow
+{
+    uint32 guid = 0;
+    std::string name;
+    uint8 race = 0;
+    uint8 classId = 0;
+    uint8 gender = 0;
+    uint32 playerBytes = 0;
+    uint32 playerBytes2 = 0;
+    uint8 level = 0;
+    uint32 zone = 0;
+    uint32 map = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    uint32 guildId = 0;
+    uint32 playerFlags = 0;
+    uint32 atLogin = 0;
+    uint32 petEntry = 0;
+    uint32 petModelId = 0;
+    uint32 petLevel = 0;
+    std::string equipmentCache;
+    uint8 slot = 0;
+    std::string genitive;
+};
+
+/// A character as the name query reads it, with its declined names (empty unless they were read).
+struct CharacterNameRow
+{
+    uint32 guid = 0;
+    std::string name;
+    uint8 race = 0;
+    uint8 gender = 0;
+    uint8 classId = 0;
+    std::string declinedNames[CHARACTER_DECLINED_NAME_ROW_CASES];
+};
+
+/// The character a rename may rename: its guid and old name.
+struct RenameTargetRow
+{
+    uint32 guid = 0;
+    std::string name;
+};
+
+/// One of the account's characters as the create reads them: level, race and class.
+struct CreateAccountCharacterRow
+{
+    uint32 level = 0;
+    uint32 race = 0;
+    uint32 classId = 0;
 };
 
 /// One `character_skills` row of the login.
@@ -504,7 +557,7 @@ namespace CharacterRepository
 
     /// Asks for the account's characters, ordered by guid, with each one's pet in currentPetSlot
     /// and guild, and its genitive name when declinedNames is set.
-    void QueryEnum(uint32 accountId, uint32 currentPetSlot, bool declinedNames, CharacterReadCallback callback);
+    void QueryEnum(uint32 accountId, uint32 currentPetSlot, bool declinedNames, std::function<void(std::vector<CharacterEnumRow>)> callback);
 
     /// Asks the login database, in one holder, how many characters the account has across every
     /// realm. A holder the database refuses is deleted and its callback never runs.
@@ -532,11 +585,11 @@ namespace CharacterRepository
 
     /// Asks for what a name query answers: a character's guid, name, race, gender and class, and
     /// its five declined names when declinedNames is set.
-    void QueryName(uint32 guid, bool declinedNames, CharacterReadCallback callback);
+    void QueryName(uint32 guid, bool declinedNames, std::function<void(std::optional<CharacterNameRow>)> callback);
 
     /// Asks for a character's guid and name when it belongs to the account and has renameFlag
     /// set in at_login.
-    void QueryRenameTarget(uint32 guid, uint32 accountId, uint32 renameFlag, CharacterReadCallback callback);
+    void QueryRenameTarget(uint32 guid, uint32 accountId, uint32 renameFlag, std::function<void(std::optional<RenameTargetRow>)> callback);
 
     /// Sets a character's name, the name bound, clears atLoginFlag and deletes its declined names.
     void Rename(uint32 guid, std::string const& name, uint32 atLoginFlag);
@@ -686,6 +739,24 @@ namespace CharacterRepository
 
     /// Reads the login holder's pet declined names, ordered by pet.
     std::vector<LoginPetDeclinedNameRow> LoginPetDeclinedNames(SqlQueryHolder* holder);
+
+    /// Reads the create's account holder: how many characters the account has across every realm.
+    std::optional<uint32> CreateAccountCharacterCount(SqlQueryHolder* holder);
+
+    /// Reads the create's realm holder: how many characters the account has on this realm.
+    std::optional<uint8> CreateRealmCharacterCount(SqlQueryHolder* holder);
+
+    /// Reads the create's realm holder: the account's characters on this realm.
+    std::vector<CreateAccountCharacterRow> CreateAccountCharacters(SqlQueryHolder* holder);
+
+    /// Reads the create's realm holder: the highest pet id.
+    std::optional<uint32> CreateHighestPetId(SqlQueryHolder* holder);
+
+    /// Reads the customize holder: the character's at_login flags.
+    std::optional<uint32> CustomizeAtLogin(SqlQueryHolder* holder);
+
+    /// Reads the customize holder: the character's playerBytes2.
+    std::optional<uint32> CustomizePlayerBytes2(SqlQueryHolder* holder);
 }
 
 #endif

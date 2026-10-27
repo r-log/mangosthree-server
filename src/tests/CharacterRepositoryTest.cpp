@@ -111,7 +111,7 @@ TEST(CharacterRepository_EnumIsAsynchronous)
 {
     Db db(CharacterDatabase);
     int answered = 0;
-    CharacterReadCallback read = [&answered](QueryResult* result) { delete result; ++answered; };
+    auto read = [&answered](std::vector<CharacterEnumRow> /*rows*/) { ++answered; };
     {
         TickGuard::Scope scope;
         CharacterRepository::QueryEnum(17, 0, false, read);
@@ -215,7 +215,7 @@ TEST(CharacterRepository_Writes)
 {
     Db db(CharacterDatabase);
     int answered = 0;
-    CharacterReadCallback read = [&answered](QueryResult* result) { delete result; ++answered; };
+    auto read = [&answered](std::optional<RenameTargetRow> /*row*/) { ++answered; };
     CharacterHolderCallback held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
     std::string const declined[CHARACTER_DECLINED_NAME_ROW_CASES] = { "a", "b", "c", "d", "e" };
     {
@@ -317,11 +317,12 @@ TEST(CharacterRepository_NameAndWhoisReads)
     Db chars(CharacterDatabase);
     Db login(LoginDatabase);
     int answered = 0;
-    CharacterReadCallback read = [&answered](QueryResult* result) { delete result; ++answered; };
+    std::function<void(QueryResult*)> read = [&answered](QueryResult* result) { delete result; ++answered; };
+    auto nameRead = [&answered](std::optional<CharacterNameRow> /*row*/) { ++answered; };
     {
         TickGuard::Scope scope;
-        CharacterRepository::QueryName(42, false, read);
-        CharacterRepository::QueryName(42, true, read);
+        CharacterRepository::QueryName(42, false, nameRead);
+        CharacterRepository::QueryName(42, true, nameRead);
         CHECK(AccountRepository::QueryWhois(17, read));
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(chars.query.executed.size(), size_t(0));
@@ -443,4 +444,117 @@ TEST(CharacterRepository_Position)
     CHECK_EQ(row->orientation, 1003.5f);
     CHECK_EQ(row->map, 1004u);
     CHECK_STR(row->taxiPath, "s1.5");
+}
+
+// Each column of a character list row lands in its member, the rows come back in order, and the
+// genitive is read only with the declined names.
+TEST(CharacterRepository_EnumRows)
+{
+    Db db(CharacterDatabase);
+    db.async.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "s1.1", "102", "103", "104", "1005", "1006", "107", "1008", "1009",
+            "1010.5", "1011.5", "1012.5", "1013", "1014", "1015", "1016", "1017", "1018", "s1.19",
+            "120", "s1.21"},
+        FakeRow{"2000", "s2.1", "202", "203", "204", "2005", "2006", "207", "2008", "2009",
+            "2010.5", "2011.5", "2012.5", "2013", "2014", "2015", "2016", "2017", "2018", "s2.19",
+            "220", "s2.21"},
+    });
+    std::vector<CharacterEnumRow> without;
+    std::vector<CharacterEnumRow> with;
+    CharacterRepository::QueryEnum(17, 0, false, [&without](std::vector<CharacterEnumRow> rows) { without = rows; });
+    CharacterRepository::QueryEnum(17, 0, true, [&with](std::vector<CharacterEnumRow> rows) { with = rows; });
+    db.Take();
+    CharacterDatabase.ProcessResultQueue();
+    REQUIRE(without.size() == 2);
+    CHECK_EQ(without[0].guid, 1000u);
+    CHECK_STR(without[0].name, "s1.1");
+    CHECK_EQ(without[0].race, uint8(102));
+    CHECK_EQ(without[0].classId, uint8(103));
+    CHECK_EQ(without[0].gender, uint8(104));
+    CHECK_EQ(without[0].playerBytes, 1005u);
+    CHECK_EQ(without[0].playerBytes2, 1006u);
+    CHECK_EQ(without[0].level, uint8(107));
+    CHECK_EQ(without[0].zone, 1008u);
+    CHECK_EQ(without[0].map, 1009u);
+    CHECK_EQ(without[0].positionX, 1010.5f);
+    CHECK_EQ(without[0].positionY, 1011.5f);
+    CHECK_EQ(without[0].positionZ, 1012.5f);
+    CHECK_EQ(without[0].guildId, 1013u);
+    CHECK_EQ(without[0].playerFlags, 1014u);
+    CHECK_EQ(without[0].atLogin, 1015u);
+    CHECK_EQ(without[0].petEntry, 1016u);
+    CHECK_EQ(without[0].petModelId, 1017u);
+    CHECK_EQ(without[0].petLevel, 1018u);
+    CHECK_STR(without[0].equipmentCache, "s1.19");
+    CHECK_EQ(without[0].slot, uint8(120));
+    CHECK(without[0].genitive.empty());
+    CHECK_EQ(without[1].guid, 2000u);
+    REQUIRE(with.size() == 2);
+    CHECK_STR(with[0].genitive, "s1.21");
+    CHECK_STR(with[1].genitive, "s2.21");
+}
+
+// Each column of the name query's row lands in its member, the declined names only when they are
+// read, and no rows answer nothing.
+TEST(CharacterRepository_NameRow)
+{
+    {
+        Db db(CharacterDatabase);
+        db.async.Answer("SELECT", FakeRows{
+            FakeRow{"1000", "s1.1", "102", "103", "104", "s1.5", "s1.6", "s1.7", "s1.8", "s1.9"},
+        });
+        std::optional<CharacterNameRow> without;
+        std::optional<CharacterNameRow> with;
+        CharacterRepository::QueryName(42, false, [&without](std::optional<CharacterNameRow> row) { without = row; });
+        CharacterRepository::QueryName(42, true, [&with](std::optional<CharacterNameRow> row) { with = row; });
+        db.Take();
+        CharacterDatabase.ProcessResultQueue();
+        REQUIRE(without);
+        CHECK_EQ(without->guid, 1000u);
+        CHECK_STR(without->name, "s1.1");
+        CHECK_EQ(without->race, uint8(102));
+        CHECK_EQ(without->gender, uint8(103));
+        CHECK_EQ(without->classId, uint8(104));
+        CHECK(without->declinedNames[0].empty());
+        REQUIRE(with);
+        CHECK_STR(with->declinedNames[0], "s1.5");
+        CHECK_STR(with->declinedNames[1], "s1.6");
+        CHECK_STR(with->declinedNames[2], "s1.7");
+        CHECK_STR(with->declinedNames[3], "s1.8");
+        CHECK_STR(with->declinedNames[4], "s1.9");
+    }
+
+    Db none(CharacterDatabase);
+    bool answered = false;
+    std::optional<CharacterNameRow> missing;
+    CharacterRepository::QueryName(43, false, [&answered, &missing](std::optional<CharacterNameRow> row) { answered = true; missing = row; });
+    none.Take();
+    CharacterDatabase.ProcessResultQueue();
+    CHECK(answered);
+    CHECK(!missing);
+}
+
+// The rename read answers the character's guid and old name, and nothing for no rows.
+TEST(CharacterRepository_RenameTargetRow)
+{
+    {
+        Db db(CharacterDatabase);
+        db.async.Answer("SELECT", FakeRows{FakeRow{"1000", "s1.1"}});
+        std::optional<RenameTargetRow> found;
+        CharacterRepository::QueryRenameTarget(42, 17, 1, [&found](std::optional<RenameTargetRow> row) { found = row; });
+        db.Take();
+        CharacterDatabase.ProcessResultQueue();
+        REQUIRE(found);
+        CHECK_EQ(found->guid, 1000u);
+        CHECK_STR(found->name, "s1.1");
+    }
+
+    Db none(CharacterDatabase);
+    bool answered = false;
+    std::optional<RenameTargetRow> missing;
+    CharacterRepository::QueryRenameTarget(43, 17, 1, [&answered, &missing](std::optional<RenameTargetRow> row) { answered = true; missing = row; });
+    none.Take();
+    CharacterDatabase.ProcessResultQueue();
+    CHECK(answered);
+    CHECK(!missing);
 }

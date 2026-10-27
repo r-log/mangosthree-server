@@ -54,6 +54,7 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <optional>
 
 struct ItemPrototype;
 struct AuctionEntry;
@@ -61,6 +62,9 @@ struct AuctionHouseEntry;
 struct DeclinedName;
 struct CharacterCacheEntry;
 struct AccountDataRow;
+struct CharacterEnumRow;
+struct CharacterNameRow;
+struct RenameTargetRow;
 
 class ObjectGuid;
 class Creature;
@@ -497,7 +501,7 @@ class WorldSession
 
         void SendNameQueryOpcode(Player* p);
         void SendNameQueryOpcodeFromDB(ObjectGuid guid);
-        static void SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32 accountId, proto::SessionId sessionId);
+        static void SendNameQueryOpcodeFromDBCallBack(std::optional<CharacterNameRow> const& row, uint32 accountId, proto::SessionId sessionId);
 
         void SendTrainerList(ObjectGuid guid);
         void SendTrainerList(ObjectGuid guid, const std::string& strTitle);
@@ -686,7 +690,7 @@ class WorldSession
 
         void HandleCharEnumOpcode(WorldPacket& recvPacket);
         void HandlePlayerLoginOpcode(WorldPacket& recvPacket);
-        void HandleCharEnum(QueryResult* result);
+        void HandleCharEnum(std::vector<CharacterEnumRow> const& rows);
         void HandlePlayerLogin(LoginQueryHolder* holder);
         void HandleReorderCharactersOpcode(WorldPacket& recvPacket);
 
@@ -1018,7 +1022,7 @@ class WorldSession
         void HandleSetActionBarTogglesOpcode(WorldPacket& recv_data);
 
         void HandleCharRenameOpcode(WorldPacket& recv_data);
-        static void HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uint32 accountId,
+        static void HandleChangePlayerNameOpcodeCallBack(std::optional<RenameTargetRow> const& row, uint32 accountId,
                                                          proto::SessionId sessionId, std::string newname);
         void HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data);
 
