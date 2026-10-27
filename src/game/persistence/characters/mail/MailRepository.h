@@ -63,11 +63,33 @@ struct MailRow
     uint32 checked = 0;
 };
 
+/// One expired mail as the expiry read returns it.
+struct ExpiredMailRow
+{
+    uint32 id = 0;
+    uint8 messageType = 0;
+    uint32 sender = 0;
+    uint32 receiver = 0;
+    bool hasItems = false;
+    uint64 expireTime = 0;
+    uint32 cod = 0;
+    uint32 checked = 0;
+    int16 mailTemplateId = 0;
+};
+
+/// One item of an expired mail: its guid, template and mail.
+struct ExpiredMailItemRow
+{
+    uint32 itemGuid = 0;
+    uint32 itemTemplate = 0;
+    uint32 mailId = 0;
+};
+
 /// The mails' saved rows (`mail`, `mail_items`) and the item instance writes of the mail flow.
 /// Every write is queued on the character database; a write called inside CharacterTransaction
 /// joins that transaction. The mailbox, mass mail and expired-mail reads are asynchronous: the
-/// callback runs on the world thread with the result, which it owns. The start-up's highest id
-/// runs synchronously.
+/// callback runs on the world thread with the count, the guids or the answered holder, whose mails
+/// and items ExpiredMails and ExpiredMailItems read. The start-up's highest id runs synchronously.
 namespace MailRepository
 {
     /// Inserts a mail's row, the subject and body bound.
@@ -106,17 +128,17 @@ namespace MailRepository
     void DeleteDroppedItem(uint32 itemGuid);
 
     /// Asks for the number of mails a receiver holds.
-    void QueryMailboxCount(uint32 receiverGuid, std::function<void(QueryResult*)> callback);
+    void QueryMailboxCount(uint32 receiverGuid, std::function<void(std::optional<uint32>)> callback);
 
     /// Runs a mass mail's receiver query, whose first column is each receiver's guid.
-    void QueryMassMailReceivers(char const* query, std::function<void(QueryResult*)> callback);
+    void QueryMassMailReceivers(char const* query, std::function<void(std::vector<uint32>)> callback);
 
     /// Deletes the mails expired before a time that hold no item and no body, at start-up.
     void DeleteEmptyExpiredMails(uint64 before);
 
     /// Queues the expired-mail holder: the mails expired before a time, then their items, both
     /// ordered by mail id, in the slots of ExpiredMailSlot. The callback runs on the world thread.
-    void QueueExpiredMailReads(uint64 before, std::function<void(QueryResult*, SqlQueryHolder*)> callback);
+    void QueueExpiredMailReads(uint64 before, std::function<void(SqlQueryHolder*)> callback);
 
     /// Deletes the instance row of an item an expired mail drops.
     void DeleteExpiredMailItem(uint32 itemGuid);
@@ -131,6 +153,12 @@ namespace MailRepository
 
     /// Selects the highest mail id, at start-up.
     std::optional<uint32> QueryHighestId();
+
+    /// Reads the expiry holder's mails, ordered by id.
+    std::vector<ExpiredMailRow> ExpiredMails(SqlQueryHolder* holder);
+
+    /// Reads the expiry holder's mail items, ordered by mail.
+    std::vector<ExpiredMailItemRow> ExpiredMailItems(SqlQueryHolder* holder);
 }
 
 #endif

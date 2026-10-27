@@ -30,8 +30,6 @@
 
 #include <optional>
 
-class QueryResult;
-
 /// The realm's saved variables (`saved_variables`). The startup reads run synchronously; every
 /// write is queued on the character database.
 namespace SavedVariablesRepository
@@ -43,19 +41,19 @@ namespace SavedVariablesRepository
     void InsertNextArenaPointDistribution(uint64 time);
 
     /// Each selects one of the next reset times, at start-up.
-    QueryResult* QueryNextWeeklyQuestReset();
+    std::optional<uint64> QueryNextWeeklyQuestReset();
 
     /// The daily quests'.
-    QueryResult* QueryNextDailyQuestReset();
+    std::optional<uint64> QueryNextDailyQuestReset();
 
     /// The monthly quests'.
-    QueryResult* QueryNextMonthlyQuestReset();
+    std::optional<uint64> QueryNextMonthlyQuestReset();
 
     /// The currencies'.
-    QueryResult* QueryNextCurrencyReset();
+    std::optional<uint64> QueryNextCurrencyReset();
 
     /// The random battleground's.
-    QueryResult* QueryNextRandomBGReset();
+    std::optional<uint64> QueryNextRandomBGReset();
 
     /// Each inserts one of the next reset times when there is none.
     void InsertNextWeeklyQuestReset(uint64 time);
@@ -80,6 +78,18 @@ namespace SavedVariablesRepository
 
     /// The currencies'.
     void SetNextCurrencyReset(uint64 time);
+
+    /// Selects the cleanups the character database is due, at start-up.
+    std::optional<uint32> QueryCleaningFlags();
+
+    /// Selects the DBC build the character database was last cleaned for, none when the column
+    /// is missing.
+    std::optional<uint32> QueryLastCleanedDbcBuild();
+
+    /// Each clears the cleanups due once a cleanup has run: with the DBC build it ran for, and
+    /// without it when the database has no column for it.
+    void FinishCleaning(uint32 dbcBuild);
+    void FinishCleaningWithoutBuild();
 }
 
 #endif

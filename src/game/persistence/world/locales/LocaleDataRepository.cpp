@@ -182,4 +182,31 @@ namespace LocaleDataRepository
                                                   " FROM `locales_gameobject`");
         return ReadRows<GameObjectLocaleRow>(result, ReadGameObjectLocale);
     }
+
+    std::vector<StringRow> QueryStrings(Database& db, char const* table, bool extraContent)
+    {
+        QueryResult* result = db.PQuery("SELECT `entry`,`content_default`,"
+                                        "`content_loc1`,`content_loc2`,`content_loc3`,`content_loc4`,"
+                                        "`content_loc5`,`content_loc6`,`content_loc7`,`content_loc8`,"
+                                        "`content_loc9`,`content_loc10`,`content_loc11`"
+                                        " %s FROM %s", extraContent ? ",sound,type,language,emote" : "", table);
+        return ReadRows<StringRow>(result, [extraContent](Field* fields)
+                                   {
+                                       StringRow row;
+                                       row.entry = fields[0].GetInt32();
+                                       row.contentDefault = fields[1].GetCppString();
+                                       for (int i = 0; i < STRING_ROW_LOCALES; ++i)
+                                       {
+                                           row.content[i] = fields[i + 2].GetCppString();
+                                       }
+                                       if (extraContent)
+                                       {
+                                           row.sound = fields[13].GetUInt32();
+                                           row.type = fields[14].GetUInt32();
+                                           row.language = fields[15].GetUInt32();
+                                           row.emote = fields[16].GetUInt32();
+                                       }
+                                       return row;
+                                   });
+    }
 }

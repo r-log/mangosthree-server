@@ -34,6 +34,7 @@
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -148,7 +149,7 @@ TEST(ItemRepository_GiftRows)
     int answered = 0;
     {
         TickGuard::Scope scope;
-        ItemRepository::QueryGift(9, [&answered](QueryResult* result) { delete result; ++answered; });
+        ItemRepository::QueryGift(9, [&answered](std::optional<GiftRow> /*gift*/) { ++answered; });
         CharacterTransaction::Begin();
         ItemRepository::InsertGift(42, 9, 5043, 8);
         CharacterTransaction::Commit();
@@ -164,4 +165,28 @@ TEST(ItemRepository_GiftRows)
     CHECK_EQ(answered, 0);
     CharacterDatabase.ProcessResultQueue();
     CHECK_EQ(answered, 1);
+}
+
+// The gift read answers the item's entry and flags, and nothing when the item has no gift row.
+TEST(ItemRepository_GiftRow)
+{
+    {
+        Db db;
+        db.async.Answer("SELECT `entry`, `flags`", FakeRows{FakeRow{"1000", "1001"}});
+        std::optional<GiftRow> gift;
+        ItemRepository::QueryGift(9, [&gift](std::optional<GiftRow> got) { gift = got; });
+        db.Take();
+        CharacterDatabase.ProcessResultQueue();
+        REQUIRE(gift);
+        CHECK_EQ(gift->entry, 1000u);
+        CHECK_EQ(gift->flags, 1001u);
+    }
+    Db db;
+    bool answered = false;
+    std::optional<GiftRow> gift;
+    ItemRepository::QueryGift(9, [&answered, &gift](std::optional<GiftRow> got) { answered = true; gift = got; });
+    db.Take();
+    CharacterDatabase.ProcessResultQueue();
+    CHECK(answered);
+    CHECK(!gift);
 }

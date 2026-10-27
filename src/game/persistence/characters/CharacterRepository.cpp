@@ -35,7 +35,11 @@ namespace
     /// Queues a staged holder on a database, deleting it if the database refuses it.
     void QueueHolder(Database& database, SqlQueryHolder* holder, CharacterHolderCallback callback)
     {
-        if (!database.DelayQueryHolder(std::move(callback), holder))
+        if (!database.DelayQueryHolder([callback = std::move(callback)](QueryResult* /*result*/, SqlQueryHolder* answered)
+                                       {
+                                           callback(answered);
+                                       },
+                                       holder))
         {
             delete holder;                                  // delete all unprocessed queries
         }
@@ -44,14 +48,16 @@ namespace
 
 namespace CharacterRepository
 {
-    QueryResult* QueryAccountCharacters(uint32 accountId)
+    std::vector<uint32> QueryAccountCharacters(uint32 accountId)
     {
-        return CharacterDatabase.PQuery("SELECT `guid` FROM `characters` WHERE `account`='%u'", accountId);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid` FROM `characters` WHERE `account`='%u'", accountId);
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryAccountCharacterCount(uint32 accountId)
+    std::optional<uint32> QueryAccountCharacterCount(uint32 accountId)
     {
-        return CharacterDatabase.PQuery("SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
     static CharacterPositionRow ReadPosition(Field* fields)
@@ -250,7 +256,11 @@ namespace CharacterRepository
 
     bool QueueLoginReads(SqlQueryHolder* holder, CharacterHolderCallback callback)
     {
-        return CharacterDatabase.DelayQueryHolder(std::move(callback), holder);
+        return CharacterDatabase.DelayQueryHolder([callback = std::move(callback)](QueryResult* /*result*/, SqlQueryHolder* answered)
+                                                  {
+                                                      callback(answered);
+                                                  },
+                                                  holder);
     }
 
     void SetOnline(uint32 guid)
@@ -397,15 +407,28 @@ namespace CharacterRepository
         return ReadRows<CharacterCacheRow>(result, ReadCharacterCache);
     }
 
-    QueryResult* QueryAccountsOfCharactersNamed(std::string filter)
+    std::vector<uint32> QueryAccountsOfCharactersNamed(std::string filter)
     {
         LoginDatabase.escape_string(filter);
-        return CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), filter.c_str());
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), filter.c_str());
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryAccountCharacterList(uint32 accountId)
+    static AccountCharacterListRow ReadAccountCharacterListRow(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u", accountId);
+        AccountCharacterListRow row;
+        row.guid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.race = fields[2].GetUInt8();
+        row.classId = fields[3].GetUInt8();
+        row.level = fields[4].GetUInt32();
+        return row;
+    }
+
+    std::vector<AccountCharacterListRow> QueryAccountCharacterList(uint32 accountId)
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u", accountId);
+        return ReadRows<AccountCharacterListRow>(result, ReadAccountCharacterListRow);
     }
 
     void SetCustomizeFlag(uint32 guid)
@@ -428,19 +451,32 @@ namespace CharacterRepository
         CharacterDatabase.PExecute("UPDATE `characters` SET `at_login` = `at_login` | '%u' WHERE (`at_login` & '%u') = '0'", flags, flags);
     }
 
-    QueryResult* QueryDeletedCharacter(uint32 guid)
+    static DeletedCharacterInfoRow ReadDeletedCharacterInfo(Field* fields)
     {
-        return CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u", guid);
+        DeletedCharacterInfoRow row;
+        row.guid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.account = fields[2].GetUInt32();
+        row.deleteDate = fields[3].GetUInt64();
+        return row;
     }
 
-    QueryResult* QueryDeletedCharactersNamed(char const* name)
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharacter(uint32 guid)
     {
-        return CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u", guid);
+        return ReadRows<DeletedCharacterInfoRow>(result, ReadDeletedCharacterInfo);
     }
 
-    QueryResult* QueryDeletedCharacters()
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharactersNamed(char const* name)
     {
-        return CharacterDatabase.Query("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL");
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name);
+        return ReadRows<DeletedCharacterInfoRow>(result, ReadDeletedCharacterInfo);
+    }
+
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharacters()
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL");
+        return ReadRows<DeletedCharacterInfoRow>(result, ReadDeletedCharacterInfo);
     }
 
     void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid)
@@ -454,26 +490,44 @@ namespace CharacterRepository
         CharacterDatabase.PExecute("UPDATE `characters` SET `level` = '%u', `xp` = 0 WHERE `guid` = '%u'", level, guid);
     }
 
-    QueryResult* QueryPlayerInfo(uint32 guid)
+    static CharacterPlayerInfoRow ReadPlayerInfo(Field* fields)
+    {
+        CharacterPlayerInfoRow row;
+        row.totaltime = fields[0].GetUInt32();
+        row.level = fields[1].GetUInt32();
+        row.money = fields[2].GetUInt32();
+        row.account = fields[3].GetUInt32();
+        return row;
+    }
+
+    std::optional<CharacterPlayerInfoRow> QueryPlayerInfo(uint32 guid)
     {
         //                                      0          1      2      3
-        return CharacterDatabase.PQuery("SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'", guid);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'", guid);
+        return ReadRow<CharacterPlayerInfoRow>(result, ReadPlayerInfo);
     }
 
-    QueryResult* QueryAccountOfCharacterNamed(std::string const& name)
+    std::vector<uint32> QueryAccountOfCharacterNamed(std::string const& name)
     {
-        return CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` = '%s'", name.c_str());
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` = '%s'", name.c_str());
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(QueryResult*)> callback)
+    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(std::optional<uint32>)> callback)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }));
+                                      },
                                       "SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
     }
 
-    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(QueryResult*)> callback)
+    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(std::optional<uint32>)> callback)
     {
-        return CharacterDatabase.AsyncPQuery(std::move(callback),
+        return CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                             {
+                                                 callback(ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }));
+                                             },
                                              "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
                                              first, last);
     }

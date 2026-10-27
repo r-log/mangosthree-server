@@ -165,7 +165,7 @@ namespace NpcDataRepository
     std::vector<PointOfInterestRow> QueryPointsOfInterest();
 
     /// Selects every item a vendor sells, for the auction house bot's filter.
-    QueryResult* QueryVendorItemEntries();
+    std::vector<uint32> QueryVendorItemEntries();
 }
 
 #endif

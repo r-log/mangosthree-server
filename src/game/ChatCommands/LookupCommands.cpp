@@ -53,13 +53,13 @@
 /**
  * @brief Handler for LookupPlayerSearchCommand command.
  *
- * @param result Query result set to walk; consumed and freed by this call.
+ * @param rows The accounts to show.
  * @param limit Optional pointer to a remaining-results counter; decremented as rows are printed.
  * @returns True if the command executed successfully, false otherwise.
  */
-bool ChatHandler::LookupPlayerSearchCommand(QueryResult* result, uint32* limit)
+bool ChatHandler::LookupPlayerSearchCommand(std::vector<AccountSearchRow> const& rows, uint32* limit)
 {
-    if (!result)
+    if (rows.empty())
     {
         PSendSysMessage(LANG_NO_PLAYERS_FOUND);
         SetSentErrorMessage(true);
@@ -75,35 +75,24 @@ bool ChatHandler::LookupPlayerSearchCommand(QueryResult* result, uint32* limit)
         limit = &limit_local;
     }
 
-    do
+    for (AccountSearchRow const& row : rows)
     {
         if (limit && *limit == 0)
         {
             break;
         }
 
-        Field* fields = result->Fetch();
-        uint32 acc_id = fields[0].GetUInt32();
-        std::string acc_name = fields[1].GetCppString();
+        uint32 acc_id = row.id;
+        std::string acc_name = row.username;
 
         ///- Get the characters for account id
-        QueryResult* chars = CharacterRepository::QueryAccountCharacterList(acc_id);
-        if (chars)
+        std::vector<AccountCharacterListRow> chars = CharacterRepository::QueryAccountCharacterList(acc_id);
+        if (!chars.empty())
         {
-            if (chars->GetRowCount())
-            {
-                PSendSysMessage(LANG_LOOKUP_PLAYER_ACCOUNT, acc_name.c_str(), acc_id);
-                ShowPlayerListHelper(chars, limit, true, false);
-            }
-            else
-            {
-                delete chars;
-            }
+            PSendSysMessage(LANG_LOOKUP_PLAYER_ACCOUNT, acc_name.c_str(), acc_id);
+            ShowPlayerListHelper(chars, limit, true, false);
         }
     }
-    while (result->NextRow());
-
-    delete result;
 
     if (*limit == limit_original)                           // empty accounts only
     {
@@ -599,9 +588,7 @@ bool ChatHandler::HandleLookupAccountEmailCommand(char* args)
     }
 
     std::string email = emailStr;
-    QueryResult* result = AccountRepository::QueryAccountsByEmail(email);
-
-    return ShowAccountListHelper(result, &limit);
+    return ShowAccountListHelper(AccountRepository::QueryAccountsByEmail(email), &limit);
 }
 
 /**
@@ -626,9 +613,7 @@ bool ChatHandler::HandleLookupAccountIpCommand(char* args)
 
     std::string ip = ipStr;
 
-    QueryResult* result = AccountRepository::QueryAccountsByLastIp(ip);
-
-    return ShowAccountListHelper(result, &limit);
+    return ShowAccountListHelper(AccountRepository::QueryAccountsByLastIp(ip), &limit);
 }
 
 /**
@@ -656,23 +641,21 @@ bool ChatHandler::HandleLookupAccountNameCommand(char* args)
     {
         return false;
     }
-    QueryResult* result = AccountRepository::QueryAccountsByName(account);
-
-    return ShowAccountListHelper(result, &limit);
+    return ShowAccountListHelper(AccountRepository::QueryAccountsByName(account), &limit);
 }
 
 /**
  * @brief Handler for ShowAccountListHelper command.
  *
- * @param result Query result set to walk; consumed and freed by this call.
+ * @param rows The accounts to show.
  * @param limit Optional pointer to a remaining-results counter; decremented as rows are printed.
  * @param title Whether to print the column header row.
  * @param error Whether to emit an "empty list" message when result is NULL.
  * @returns True if the command executed successfully, false otherwise.
  */
-bool ChatHandler::ShowAccountListHelper(QueryResult* result, uint32* limit, bool title, bool error)
+bool ChatHandler::ShowAccountListHelper(std::vector<AccountListRow> const& rows, uint32* limit, bool title, bool error)
 {
-    if (!result)
+    if (rows.empty())
     {
         if (error)
         {
@@ -690,7 +673,7 @@ bool ChatHandler::ShowAccountListHelper(QueryResult* result, uint32* limit, bool
     }
 
     ///- Circle through accounts
-    do
+    for (AccountListRow const& row : rows)
     {
         // check limit
         if (limit)
@@ -702,8 +685,7 @@ bool ChatHandler::ShowAccountListHelper(QueryResult* result, uint32* limit, bool
             --* limit;
         }
 
-        Field* fields = result->Fetch();
-        uint32 account = fields[0].GetUInt32();
+        uint32 account = row.id;
 
         WorldSession* session = sWorld.FindSession(account);
         Player* player = session ? session->GetPlayer() : NULL;
@@ -711,14 +693,11 @@ bool ChatHandler::ShowAccountListHelper(QueryResult* result, uint32* limit, bool
 
         if (m_session)
             PSendSysMessage(LANG_ACCOUNT_LIST_LINE_CHAT,
-                            account, fields[1].GetString(), char_name, fields[2].GetString(), fields[3].GetUInt32(), fields[4].GetUInt32());
+                            account, row.username.c_str(), char_name, row.lastIp.c_str(), row.gmLevel, row.expansion);
         else
             PSendSysMessage(LANG_ACCOUNT_LIST_LINE_CONSOLE,
-                            account, fields[1].GetString(), char_name, fields[2].GetString(), fields[3].GetUInt32(), fields[4].GetUInt32());
+                            account, row.username.c_str(), char_name, row.lastIp.c_str(), row.gmLevel, row.expansion);
     }
-    while (result->NextRow());
-
-    delete result;
 
     if (!m_session)                                         // not output header for online case
     {
@@ -750,9 +729,7 @@ bool ChatHandler::HandleLookupPlayerIpCommand(char* args)
 
     std::string ip = ipStr;
 
-    QueryResult* result = AccountRepository::QueryAccountIdsByLastIp(ip);
-
-    return LookupPlayerSearchCommand(result, &limit);
+    return LookupPlayerSearchCommand(AccountRepository::QueryAccountIdsByLastIp(ip), &limit);
 }
 
 /**
@@ -781,9 +758,7 @@ bool ChatHandler::HandleLookupPlayerAccountCommand(char* args)
         return false;
     }
 
-    QueryResult* result = AccountRepository::QueryAccountIdsByName(account);
-
-    return LookupPlayerSearchCommand(result, &limit);
+    return LookupPlayerSearchCommand(AccountRepository::QueryAccountIdsByName(account), &limit);
 }
 
 /**
@@ -808,9 +783,7 @@ bool ChatHandler::HandleLookupPlayerEmailCommand(char* args)
 
     std::string email = emailStr;
 
-    QueryResult* result = AccountRepository::QueryAccountIdsByEmail(email);
-
-    return LookupPlayerSearchCommand(result, &limit);
+    return LookupPlayerSearchCommand(AccountRepository::QueryAccountIdsByEmail(email), &limit);
 }
 
 /**

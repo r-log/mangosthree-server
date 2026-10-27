@@ -28,9 +28,68 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
 #include <string>
+#include <vector>
 
 class QueryResult;
+
+/// A banned account as the ban list reads it: its id, and its name when the list read it.
+struct BanListAccountRow
+{
+    uint32 accountId = 0;
+    std::optional<std::string> username;
+};
+
+/// A banned account's name, none when it is NULL.
+struct BannedAccountNameRow
+{
+    std::optional<std::string> username;
+};
+
+/// One ban of an account: its dates, who banned it and why.
+struct AccountBanRow
+{
+    uint64 banDate = 0;
+    uint64 unbanDate = 0;
+    std::string bannedBy;
+    std::string banReason;
+};
+
+/// One ban of an account's history: when it began (as text), how long it lasts, whether it is
+/// active, when it ends, why and by whom.
+struct AccountBanHistoryRow
+{
+    std::optional<std::string> banDate;
+    uint64 duration = 0;
+    bool active = false;
+    uint64 unbanDate = 0;
+    std::string banReason;
+    std::string bannedBy;
+};
+
+/// An address's ban: the address, when it began and ends (as text), the time left, why, by whom
+/// and how long it lasts.
+struct IpBanRow
+{
+    std::string ip;
+    std::optional<std::string> banDate;
+    std::optional<std::string> unbanDate;
+    uint64 remaining = 0;
+    std::string banReason;
+    std::string bannedBy;
+    uint64 duration = 0;
+};
+
+/// An active address ban as the ban list reads it: the address, its dates, by whom and why.
+struct ActiveIpBanRow
+{
+    std::string ip;
+    uint64 banDate = 0;
+    uint64 unbanDate = 0;
+    std::string bannedBy;
+    std::string banReason;
+};
 
 /// The account and IP bans on the login database (`account_banned`, `ip_banned`), as a GM's ban commands
 /// read them, and the bans set and lifted through the world: every read runs on the calling thread,
@@ -39,39 +98,39 @@ class QueryResult;
 namespace BanRepository
 {
     /// Selects a banned account's name.
-    QueryResult* QueryBannedAccountName(uint32 accountId);
+    std::optional<BannedAccountNameRow> QueryBannedAccountName(uint32 accountId);
 
     /// Selects an account's bans, ordered by their end.
-    QueryResult* QueryAccountBans(uint32 accountId);
+    std::vector<AccountBanRow> QueryAccountBans(uint32 accountId);
 
     /// Selects an account's ban history, oldest first.
-    QueryResult* QueryAccountBanHistory(uint32 accountId);
+    std::vector<AccountBanHistoryRow> QueryAccountBanHistory(uint32 accountId);
 
     /// Selects an IP address's ban, the address escaped first.
-    QueryResult* QueryIpBan(std::string ip);
+    std::optional<IpBanRow> QueryIpBan(std::string ip);
 
     /// Deletes the IP bans that have run out.
     void DeleteExpiredIpBans();
 
     /// Selects the IP bans still in force, ordered by their end, those whose address contains the
     /// filter when one is given; the filter is escaped first.
-    QueryResult* QueryActiveIpBans(std::string filter);
+    std::vector<ActiveIpBanRow> QueryActiveIpBans(std::string filter);
 
     /// Selects the banned accounts' ids and names, those whose name contains the filter when one is
     /// given; the filter is escaped first.
-    QueryResult* QueryActiveAccountBans(std::string filter);
+    std::vector<BanListAccountRow> QueryActiveAccountBans(std::string filter);
 
     /// Escapes a text for the login database, as a ban escapes its target, reason and author.
     void EscapeString(std::string& text);
 
     /// Selects the accounts last seen on an address, the address already escaped.
-    QueryResult* QueryAccountsOnIp(std::string const& ip);
+    std::vector<uint32> QueryAccountsOnIp(std::string const& ip);
 
     /// Inserts an address's ban, the texts already escaped.
     void InsertIpBan(std::string const& ip, uint32 duration, std::string const& author, std::string const& reason);
 
     /// Selects an account's id by its name, the name already escaped.
-    QueryResult* QueryAccountIdNamed(std::string const& name);
+    std::vector<uint32> QueryAccountIdNamed(std::string const& name);
 
     /// Inserts an account's active ban, the texts already escaped.
     void InsertAccountBan(uint32 accountId, uint32 duration, std::string const& author, std::string const& reason);

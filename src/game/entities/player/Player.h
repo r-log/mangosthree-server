@@ -122,6 +122,7 @@ struct LoginMailedItemRow;
 struct LoginItemLootRow;
 struct CharacterEnumRow;
 struct DeletedCharacterRow;
+struct PetitionSignatureRow;
 class Channel;
 class DynamicObject;
 class Creature;
@@ -141,7 +142,6 @@ struct AreaTrigger;
 #include "Cell.h"
 
 // Decoupling D3: named by pointer or reference only. The .cpp files that use them include them.
-class QueryResult;
 class SqlQueryHolder;
 class WorldSession;
 struct TrainerSpell;
@@ -2528,7 +2528,7 @@ class Player : public Unit
         // The same work, with the signature rows handed in -- what the character-delete
         // holder feeds it, so the delete path reads nothing (decoupling D7d), and what the
         // queued form above hands its continuation's rows to.
-        static void RemovePetitionsAndSigns(ObjectGuid guid, QueryResult* signs);
+        static void RemovePetitionsAndSigns(ObjectGuid guid, std::vector<PetitionSignatureRow> const& signs);
         // SMSG_PETITION_SIGN_RESULTS. The GUID form is the one a continuation uses: it
         // needs no Player, so the charter owner still hears about a signature whose signer
         // logged out while the request was in flight (decoupling D7f).
@@ -3869,7 +3869,6 @@ class Player : public Unit
         // Load player spells from the database
         void _LoadSpells(std::vector<LoginSpellRow> const& rows);
         void _LoadTalents(std::vector<TalentRow> const& rows);
-        void _LoadFriendList(QueryResult* result);
         bool _LoadHomeBind(std::optional<LoginHomeBindRow> const& row);
 
         // Load declined names from the database

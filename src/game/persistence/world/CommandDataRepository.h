@@ -28,7 +28,32 @@
 
 #include "Platform/Define.h"
 
+#include <string>
+#include <vector>
+
 class QueryResult;
+
+/// One `command` row.
+struct CommandRow
+{
+    uint32 id = 0;
+    std::string commandText;
+    uint16 security = 0;
+    std::string helpText;
+};
+
+/// The help text locales a command help row holds (`help_text_loc1` to `help_text_loc8`).
+enum
+{
+    COMMAND_HELP_ROW_LOCALES = 8
+};
+
+/// One `locales_command` row: the command and its help text per locale.
+struct CommandHelpLocaleRow
+{
+    uint32 id = 0;
+    std::string helpText[COMMAND_HELP_ROW_LOCALES];
+};
 
 /// The chat command table and its localised help on the world database (`command`,
 /// `locales_command`): the loads at startup and on a reload, each run synchronously for a loader
@@ -36,10 +61,10 @@ class QueryResult;
 namespace CommandDataRepository
 {
     /// Selects every chat command's security and help text (`command`).
-    QueryResult* QueryCommands();
+    std::vector<CommandRow> QueryCommands();
 
     /// Selects every chat command's localised help text (`locales_command`).
-    QueryResult* QueryCommandHelpLocales();
+    std::vector<CommandHelpLocaleRow> QueryCommandHelpLocales();
 }
 
 #endif

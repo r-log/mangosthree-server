@@ -90,13 +90,27 @@ namespace ScriptDataRepository
         return ReadRows<DbScriptRow>(result, ReadDbScript);
     }
 
-    QueryResult* QueryScriptWaypointCounts()
+    std::vector<uint32> QueryScriptWaypointCounts()
     {
-        return WorldDatabase.PQuery("SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`");
+        QueryResult* result = WorldDatabase.PQuery("SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`");
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 
-    QueryResult* QueryScriptWaypoints()
+    static ScriptWaypointRow ReadScriptWaypoint(Field* fields)
     {
-        return WorldDatabase.PQuery("SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`");
+        ScriptWaypointRow row;
+        row.entry = fields[0].GetUInt32();
+        row.pointId = fields[1].GetUInt32();
+        row.positionX = fields[2].GetFloat();
+        row.positionY = fields[3].GetFloat();
+        row.positionZ = fields[4].GetFloat();
+        row.waitTime = fields[5].GetUInt32();
+        return row;
+    }
+
+    std::vector<ScriptWaypointRow> QueryScriptWaypoints()
+    {
+        QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`");
+        return ReadRows<ScriptWaypointRow>(result, ReadScriptWaypoint);
     }
 }

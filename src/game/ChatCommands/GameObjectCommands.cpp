@@ -420,19 +420,18 @@ bool ChatHandler::HandleGameObjectNearCommand(char* args)
     uint32 count = 0;
 
     Player* pl = m_session->GetPlayer();
-    QueryResult* result = SpawnRepository::QueryGameObjectsInRange(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), distance * distance);
+    std::vector<GameObjectInRangeRow> spawns = SpawnRepository::QueryGameObjectsInRange(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), distance * distance);
 
-    if (result)
+    if (!spawns.empty())
     {
-        do
+        for (GameObjectInRangeRow const& row : spawns)
         {
-            Field* fields = result->Fetch();
-            uint32 guid = fields[0].GetUInt32();
-            uint32 entry = fields[1].GetUInt32();
-            float x = fields[2].GetFloat();
-            float y = fields[3].GetFloat();
-            float z = fields[4].GetFloat();
-            int mapid = fields[5].GetUInt16();
+            uint32 guid = row.guid;
+            uint32 entry = row.entry;
+            float x = row.positionX;
+            float y = row.positionY;
+            float z = row.positionZ;
+            int mapid = row.map;
 
             GameObjectInfo const* gInfo = ObjectMgr::GetGameObjectInfo(entry);
 
@@ -445,9 +444,6 @@ bool ChatHandler::HandleGameObjectNearCommand(char* args)
 
             ++count;
         }
-        while (result->NextRow());
-
-        delete result;
     }
 
     PSendSysMessage(LANG_COMMAND_NEAROBJMESSAGE, distance, count);
@@ -463,7 +459,7 @@ bool ChatHandler::HandleGameObjectNearCommand(char* args)
 bool ChatHandler::HandleGameObjectTargetCommand(char* args)
 {
     Player* pl = m_session->GetPlayer();
-    QueryResult* result;
+    std::vector<NearestGameObjectRow> spawns;
     GameEventMgr::ActiveEvents const& activeEventsList = sGameEventMgr.GetActiveEventList();
     if (*args)
     {
@@ -477,20 +473,20 @@ bool ChatHandler::HandleGameObjectTargetCommand(char* args)
         uint32 id;
         if (ExtractUInt32(&cId, id))
         {
-            result = SpawnRepository::QueryNearestGameObjectOf(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), id);
+            spawns = SpawnRepository::QueryNearestGameObjectOf(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), id);
         }
         else
         {
             std::string name = cId;
-            result = SpawnRepository::QueryNearestGameObjectNamed(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), name);
+            spawns = SpawnRepository::QueryNearestGameObjectNamed(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), name);
         }
     }
     else
     {
-        result = SpawnRepository::QueryNearestGameObjects(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), activeEventsList);
+        spawns = SpawnRepository::QueryNearestGameObjects(pl->Where().X(), pl->Where().Y(), pl->Where().Z(), pl->GetMapId(), activeEventsList);
     }
 
-    if (!result)
+    if (spawns.empty())
     {
         SendSysMessage(LANG_COMMAND_TARGETOBJNOTFOUND);
         return true;
@@ -501,25 +497,22 @@ bool ChatHandler::HandleGameObjectTargetCommand(char* args)
     uint32 lowguid, id;
     uint32 mapid, pool_id;
 
-    do
+    for (NearestGameObjectRow const& row : spawns)
     {
-        Field* fields = result->Fetch();
-        lowguid = fields[0].GetUInt32();
-        id = fields[1].GetUInt32();
-        x = fields[2].GetFloat();
-        y = fields[3].GetFloat();
-        z = fields[4].GetFloat();
-        o = fields[5].GetFloat();
-        mapid = fields[6].GetUInt16();
+        lowguid = row.guid;
+        id = row.entry;
+        x = row.positionX;
+        y = row.positionY;
+        z = row.positionZ;
+        o = row.orientation;
+        mapid = row.map;
         pool_id = sPoolMgr.IsPartOfAPool<GameObject>(lowguid);
         if (!pool_id || pl->GetMap()->GetPersistentState()->IsSpawnedPoolObject<GameObject>(lowguid))
         {
             found = true;
+            break;
         }
     }
-    while (result->NextRow() && (!found));
-
-    delete result;
 
     if (!found)
     {

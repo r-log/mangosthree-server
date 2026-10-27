@@ -47,7 +47,10 @@ struct FactionState;
 struct GameTele;
 struct SpellEntry;
 
-class QueryResult;
+struct AccountListRow;
+struct AccountSearchRow;
+struct AccountCharacterListRow;
+struct BanListAccountRow;
 class ChatHandler;
 class WorldSession;
 class WorldPacket;
@@ -796,21 +799,21 @@ class ChatHandler
         GameObject* GetGameObjectWithGuid(uint32 lowguid, uint32 entry);
 
         // Utility methods for commands
-        bool ShowAccountListHelper(QueryResult* result, uint32* limit = NULL, bool title = true, bool error = true);
+        bool ShowAccountListHelper(std::vector<AccountListRow> const& rows, uint32* limit = NULL, bool title = true, bool error = true);
         void ShowAchievementListHelper(AchievementEntry const* achEntry, LocaleConstant loc, time_t const* date = NULL, Player* target = NULL);
         void ShowAchievementCriteriaListHelper(AchievementCriteriaEntry const* criEntry, AchievementEntry const* achEntry, LocaleConstant loc, Player* target = NULL);
         void ShowFactionListHelper(FactionEntry const* factionEntry, LocaleConstant loc, FactionState const* repState = NULL, Player* target = NULL);
         void ShowItemListHelper(uint32 itemId, int loc_idx, Player* target = NULL);
         void ShowQuestListHelper(uint32 questId, int32 loc_idx, Player* target = NULL);
-        bool ShowPlayerListHelper(QueryResult* result, uint32* limit = NULL, bool title = true, bool error = true);
+        bool ShowPlayerListHelper(std::vector<AccountCharacterListRow> const& rows, uint32* limit = NULL, bool title = true, bool error = true);
         void ShowCurrencyListHelper(Player* target, CurrencyTypesEntry const* currency, LocaleConstant loc);
         void ShowSpellListHelper(Player* target, SpellEntry const* spellInfo, LocaleConstant loc);
         void ShowPoolListHelper(uint16 pool_id);
         void ShowTicket(GMTicket const* ticket);
         void ShowTriggerListHelper(AreaTriggerEntry const* atEntry);
         void ShowTriggerTargetListHelper(uint32 id, AreaTrigger const* at, bool subpart = false);
-        bool LookupPlayerSearchCommand(QueryResult* result, uint32* limit = NULL);
-        bool HandleBanListHelper(QueryResult* result);
+        bool LookupPlayerSearchCommand(std::vector<AccountSearchRow> const& rows, uint32* limit = NULL);
+        bool HandleBanListHelper(std::vector<BanListAccountRow> const& rows);
         bool HandleBanHelper(BanMode mode, char* args);
         bool HandleBanInfoHelper(uint32 accountid, char const* accountname);
         bool HandleUnBanHelper(BanMode mode, char* args);

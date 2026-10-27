@@ -104,7 +104,7 @@ TEST(CharacterDeleteRepository_StagedReads)
 {
     Db db;
     int answered = 0;
-    auto held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    auto held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     {
         TickGuard::Scope scope;
         CharacterDeleteRepository::QueueDeleteReads(42, true, true, held);
@@ -160,14 +160,13 @@ TEST(CharacterDeleteRepository_SoftDeletePurgeAndHelpers)
 {
     Db db;
     int answered = 0;
-    auto read = [&answered](QueryResult* result) { delete result; ++answered; };
     {
         TickGuard::Scope scope;
         TicketRepository::DeleteOpenTickets(42);
         MailRepository::DeleteMailRow(7);
         MailRepository::DeleteMailItems(7);
         ItemRepository::DeleteUnknownItem(9);
-        PetitionRepository::QuerySignaturesBy(42, read);
+        PetitionRepository::QuerySignaturesBy(42, [&answered](std::vector<PetitionSignatureRow> /*signs*/) { ++answered; });
         PetitionRepository::DeleteSignaturesBy(42);
         PetitionRepository::DeleteOwnedBy(42);
         CharacterDeleteRepository::MarkDeleted(43, 1700000000);

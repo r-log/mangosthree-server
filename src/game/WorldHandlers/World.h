@@ -53,6 +53,7 @@
 #include <list>
 #include <mutex>
 #include <atomic>
+#include <optional>
 
 class Object;
 class ObjectGuid;
@@ -61,7 +62,6 @@ class WorldSession;
 class Player;
 class Weather;
 class SqlResultQueue;
-class QueryResult;
 
 // ServerMessages.dbc
 enum ServerMessageType
@@ -329,7 +329,7 @@ class World
     protected:
         void _UpdateGameTime();
         // callback for UpdateRealmCharacters
-        void _UpdateRealmCharCount(QueryResult* resultCharCount, uint32 accountId);
+        void _UpdateRealmCharCount(std::optional<uint32> const& charCount, uint32 accountId);
 
         void InitCurrencyResetTime();
         void InitDailyQuestResetTime();

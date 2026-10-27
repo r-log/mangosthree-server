@@ -65,6 +65,9 @@ struct AccountDataRow;
 struct CharacterEnumRow;
 struct CharacterNameRow;
 struct RenameTargetRow;
+struct PetitionDetailsRow;
+struct WhoisRow;
+struct GiftRow;
 
 class ObjectGuid;
 class Creature;
@@ -73,7 +76,6 @@ class Object;
 class Player;
 class Unit;
 class WorldPacket;
-class QueryResult;
 class SqlQueryHolder;
 class LoginQueryHolder;
 class GMTicket;
@@ -872,7 +874,7 @@ class WorldSession
         void HandleGroupAssistantLeaderOpcode(WorldPacket& recv_data);
         void HandlePartyAssignmentOpcode(WorldPacket& recv_data);
 
-        static void SendPetitionQueryCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+        static void SendPetitionQueryCallback(std::optional<PetitionDetailsRow> const& row, uint32 accountId,
                                               proto::SessionId sessionId, ObjectGuid petitionguid);
 
         void HandleGuildQueryOpcode(WorldPacket& recvPacket);
@@ -940,7 +942,7 @@ class WorldSession
         void HandleSendMail(WorldPacket& recv_data);
         static void QueueSendMailboxCountRead(uint32 accountId, proto::SessionId sessionId,
                                               ObjectGuid playerGuid, MailSendRequest request);
-        static void HandleSendMailCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+        static void HandleSendMailCallback(std::optional<uint32> const& count, uint32 accountId,
                                            proto::SessionId sessionId, ObjectGuid playerGuid,
                                            MailSendRequest request);
         void ProcessSendMail(MailSendRequest const& request, uint8 offlineMailsCount);
@@ -967,7 +969,7 @@ class WorldSession
         void HandleOpenItemOpcode(WorldPacket& recvPacket);
         static void QueueOpenWrappedItemRead(uint32 accountId, proto::SessionId sessionId,
                                              ObjectGuid playerGuid, ObjectGuid itemGuid);
-        static void HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+        static void HandleOpenWrappedItemCallback(std::optional<GiftRow> const& gift, uint32 accountId,
                                                   proto::SessionId sessionId, ObjectGuid playerGuid,
                                                   ObjectGuid itemGuid);
         void HandleCastSpellOpcode(WorldPacket& recvPacket);
@@ -1050,7 +1052,7 @@ class WorldSession
         /// Answers CMSG_WHOIS from the `account` row the handler queues. The opcode is
         /// SEC_ADMINISTRATOR-gated but is not a chat command, so no AdminScope can cover
         /// it and it is a continuation instead.
-        static void HandleWhoisCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+        static void HandleWhoisCallback(std::optional<WhoisRow> const& row, uint32 accountId,
                                         proto::SessionId sessionId, std::string charname);
         void HandleResetInstancesOpcode(WorldPacket& recv_data);
         void HandleHearthandResurrect(WorldPacket& recv_data);
@@ -1106,7 +1108,7 @@ class WorldSession
         static void ResolveCalendarInvitee(CharacterCacheEntry const& cached, CalendarInviteRequest& request);
         static void QueueCalendarInviteIgnoreRead(uint32 accountId, proto::SessionId sessionId,
                                                   CalendarInviteRequest request);
-        static void HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+        static void HandleCalendarInviteIgnoreCallback(std::optional<uint8> const& flags, uint32 accountId,
                                                        proto::SessionId sessionId, CalendarInviteRequest request);
         static void FinishCalendarEventInvite(Player* player, CalendarInviteRequest const& request, bool isIgnored);
         void HandleCalendarEventRsvp(WorldPacket& recv_data);
