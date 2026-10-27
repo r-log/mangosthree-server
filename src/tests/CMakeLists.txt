@@ -114,6 +114,7 @@ set(SRC_GRP_TESTS
     WaypointRepositoryTest.cpp
     CorpseRepositoryTest.cpp
     LoginHolderTest.cpp
+    GameConfigTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp
