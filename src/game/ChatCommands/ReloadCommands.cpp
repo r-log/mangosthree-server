@@ -408,7 +408,14 @@ bool ChatHandler::HandleReloadCreatureQuestInvRelationsCommand(char* /*args*/)
 bool ChatHandler::HandleReloadConditionsCommand(char* /*args*/)
 {
     sLog.outString("Re-Loading `conditions`... ");
-    sObjectMgr.LoadConditions();
+    TableReadStatus status = sObjectMgr.ReloadConditions();
+    if (IsUnreadable(status))
+    {
+        PSendSysMessage("DB table `conditions` could not be read: %s. The conditions already loaded are kept.", TableReadReason(status));
+        SetSentErrorMessage(true);
+        return false;
+    }
+
     SendGlobalSysMessage("DB table `conditions` reloaded.", SEC_MODERATOR);
     return true;
 }

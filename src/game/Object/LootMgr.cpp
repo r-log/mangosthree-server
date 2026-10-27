@@ -142,7 +142,7 @@ void LootStore::LoadLootTable()
 
             if (conditionId)
             {
-                const PlayerCondition* condition = sConditionStorage.LookupEntry<PlayerCondition>(conditionId);
+                const PlayerCondition* condition = sObjectMgr.GetCondition(conditionId);
                 if (!condition)
                 {
                     sLog.outErrorDb("Table `%s` for entry %u, item %u has condition_id %u that does not exist in `conditions`, ignoring", GetName(), entry, item, uint32(conditionId));

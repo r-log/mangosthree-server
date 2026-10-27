@@ -86,6 +86,7 @@
 #include "persistence/world/items/ItemDataRepository.h"
 #include "persistence/world/maps/MapDataRepository.h"
 #include "persistence/world/maps/InstanceTemplateRepository.h"
+#include "persistence/world/ConditionRepository.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 #include "persistence/world/players/PlayerDataRepository.h"
 #include "persistence/world/quests/QuestDataRepository.h"
@@ -650,16 +651,31 @@ void ObjectMgr::LoadWorldTemplate()
 }
 
 /**
- * @brief Loads player condition definitions and removes invalid entries.
+ * @brief Fills the conditions from a read that answered rows or an empty table, then removes invalid entries.
  */
-void ObjectMgr::LoadConditions()
+static void FillConditions(KeyedRecordStore<PlayerCondition>& conditions, TableRead<ConditionRow> const& read)
 {
-    SQLWorldLoader loader;
-    loader.Load(sConditionStorage);
-
-    for (uint32 i = 0; i < sConditionStorage.GetMaxEntry(); ++i)
+    // the rows of the last read that answered any, which the log line counts
+    static uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
     {
-        const PlayerCondition* condition = sConditionStorage.LookupEntry<PlayerCondition>(i);
+        sLog.outError("conditions table is empty!\n");
+    }
+    else
+    {
+        conditions.Clear();
+        BarGoLink bar(read.rows.size());
+        for (ConditionRow const& row : read.rows)
+        {
+            bar.step();
+            conditions.Set(row.entry, PlayerCondition(uint16(row.entry), int16(row.type), row.value1, row.value2));
+        }
+        loaded = uint32(read.rows.size());
+    }
+
+    for (uint32 i = 0; i < conditions.GetMaxEntry(); ++i)
+    {
+        const PlayerCondition* condition = conditions.Find(i);
         if (!condition)
         {
             continue;
@@ -668,13 +684,45 @@ void ObjectMgr::LoadConditions()
         if (!condition->IsValid())
         {
             sLog.outErrorDb("ObjectMgr::LoadConditions: invalid condition_entry %u, skip", i);
-            sConditionStorage.EraseEntry(i);
+            conditions.Erase(i);
             continue;
         }
     }
 
-    sLog.outString(">> Loaded %u Condition definitions", sConditionStorage.GetRecordCount());
+    sLog.outString(">> Loaded %u Condition definitions", loaded);
     sLog.outString();
+}
+
+/**
+ * @brief Loads player condition definitions and removes invalid entries; stops the server when the table cannot be read.
+ */
+void ObjectMgr::LoadConditions()
+{
+    TableRead<ConditionRow> read = ConditionRepository::QueryConditions();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `conditions` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    FillConditions(m_conditions, read);
+}
+
+/**
+ * @brief Reloads player condition definitions and removes invalid entries; keeps the conditions already loaded when the table cannot be read.
+ */
+TableReadStatus ObjectMgr::ReloadConditions()
+{
+    TableRead<ConditionRow> read = ConditionRepository::QueryConditions();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `conditions` table: %s; the %u conditions already loaded are kept\n", TableReadReason(read.status), m_conditions.GetCount());
+        return read.status;
+    }
+
+    FillConditions(m_conditions, read);
+    return read.status;
 }
 
 /**
@@ -1373,7 +1421,7 @@ void ObjectMgr::LoadQuestPOI()
 
 void ObjectMgr::GetConditions(uint32 conditionId, std::vector<PlayerCondition const*>& out) const
 {
-    const PlayerCondition* condition = sConditionStorage.LookupEntry<PlayerCondition>(conditionId);
+    const PlayerCondition* condition = sObjectMgr.GetCondition(conditionId);
     if (!condition)
     {
         return;
@@ -1838,7 +1886,7 @@ const char* ObjectMgr::GetMangosString(int32 entry, int locale_idx) const
 // Check if a player meets condition conditionId
 bool ObjectMgr::IsPlayerMeetToCondition(uint16 conditionId, Player const* pPlayer, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const
 {
-    if (const PlayerCondition* condition = sConditionStorage.LookupEntry<PlayerCondition>(conditionId))
+    if (const PlayerCondition* condition = sObjectMgr.GetCondition(conditionId))
     {
         return condition->Meets(pPlayer, map, source, conditionSourceType);
     }
@@ -1896,13 +1944,13 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
     {
         case CONDITION_NOT:
             // Checked on load
-            return !sConditionStorage.LookupEntry<PlayerCondition>(m_value1)->Meets(player, map, source, conditionSourceType);
+            return !sObjectMgr.GetCondition(m_value1)->Meets(player, map, source, conditionSourceType);
         case CONDITION_OR:
             // Checked on load
-            return sConditionStorage.LookupEntry<PlayerCondition>(m_value1)->Meets(player, map, source, conditionSourceType) || sConditionStorage.LookupEntry<PlayerCondition>(m_value2)->Meets(player, map, source, conditionSourceType);
+            return sObjectMgr.GetCondition(m_value1)->Meets(player, map, source, conditionSourceType) || sObjectMgr.GetCondition(m_value2)->Meets(player, map, source, conditionSourceType);
         case CONDITION_AND:
             // Checked on load
-            return sConditionStorage.LookupEntry<PlayerCondition>(m_value1)->Meets(player, map, source, conditionSourceType) && sConditionStorage.LookupEntry<PlayerCondition>(m_value2)->Meets(player, map, source, conditionSourceType);
+            return sObjectMgr.GetCondition(m_value1)->Meets(player, map, source, conditionSourceType) && sObjectMgr.GetCondition(m_value2)->Meets(player, map, source, conditionSourceType);
         case CONDITION_NONE:
             return true;                                    // empty condition, always met
         case CONDITION_AURA:
@@ -2364,7 +2412,7 @@ bool PlayerCondition::IsValid(uint16 entry, ConditionType condition, uint32 valu
                 sLog.outErrorDb("CONDITION_NOT (entry %u, type %d) has invalid value1 %u, must be lower than entry, skipped", entry, condition, value1);
                 return false;
             }
-            const PlayerCondition* condition1 = sConditionStorage.LookupEntry<PlayerCondition>(value1);
+            const PlayerCondition* condition1 = sObjectMgr.GetCondition(value1);
             if (!condition1)
             {
                 sLog.outErrorDb("CONDITION_NOT (entry %u, type %d) has value1 %u without proper condition, skipped", entry, condition, value1);
@@ -2385,13 +2433,13 @@ bool PlayerCondition::IsValid(uint16 entry, ConditionType condition, uint32 valu
                 sLog.outErrorDb("CONDITION _AND or _OR (entry %u, type %d) has invalid value2 %u, must be lower than entry, skipped", entry, condition, value2);
                 return false;
             }
-            const PlayerCondition* condition1 = sConditionStorage.LookupEntry<PlayerCondition>(value1);
+            const PlayerCondition* condition1 = sObjectMgr.GetCondition(value1);
             if (!condition1)
             {
                 sLog.outErrorDb("CONDITION _AND or _OR (entry %u, type %d) has value1 %u without proper condition, skipped", entry, condition, value1);
                 return false;
             }
-            const PlayerCondition* condition2 = sConditionStorage.LookupEntry<PlayerCondition>(value2);
+            const PlayerCondition* condition2 = sObjectMgr.GetCondition(value2);
             if (!condition2)
             {
                 sLog.outErrorDb("CONDITION _AND or _OR (entry %u, type %d) has value2 %u without proper condition, skipped", entry, condition, value2);
@@ -2771,7 +2819,7 @@ bool PlayerCondition::IsValid(uint16 entry, ConditionType condition, uint32 valu
 // Check if a condition can be used without providing a player param
 bool PlayerCondition::CanBeUsedWithoutPlayer(uint16 entry)
 {
-    PlayerCondition const* condition = sConditionStorage.LookupEntry<PlayerCondition>(entry);
+    PlayerCondition const* condition = sObjectMgr.GetCondition(entry);
     if (!condition)
     {
         return false;
@@ -3195,7 +3243,7 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         return false;
     }
 
-    if (conditionId && !sConditionStorage.LookupEntry<PlayerCondition>(conditionId))
+    if (conditionId && !sObjectMgr.GetCondition(conditionId))
     {
         sLog.outErrorDb("Table `%s` has `condition_id`=%u for item %u of %s %u but this condition is not valid, ignoring", tableName, conditionId, item_id, idStr, vendor_entry);
         return false;
@@ -3413,7 +3461,7 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         }
     }
 
-    if (conditionId && !sConditionStorage.LookupEntry<PlayerCondition>(conditionId))
+    if (conditionId && !sObjectMgr.GetCondition(conditionId))
     {
         sLog.outErrorDb("Table `%s` has `condition_id`=%u for item %u of %s %u but this condition is not valid, ignoring", tableName, conditionId, item_id, idStr, vendor_entry);
         return false;
