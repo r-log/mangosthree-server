@@ -40,29 +40,34 @@ namespace SavedVariablesRepository
         CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextArenaPointDistributionTime`) VALUES ('" UI64FMTD "')", time);
     }
 
-    QueryResult* QueryNextWeeklyQuestReset()
+    std::optional<uint64> QueryNextWeeklyQuestReset()
     {
-        return CharacterDatabase.Query("SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextWeeklyQuestResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
-    QueryResult* QueryNextDailyQuestReset()
+    std::optional<uint64> QueryNextDailyQuestReset()
     {
-        return CharacterDatabase.Query("SELECT `NextDailyQuestResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextDailyQuestResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
-    QueryResult* QueryNextMonthlyQuestReset()
+    std::optional<uint64> QueryNextMonthlyQuestReset()
     {
-        return CharacterDatabase.Query("SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
-    QueryResult* QueryNextCurrencyReset()
+    std::optional<uint64> QueryNextCurrencyReset()
     {
-        return CharacterDatabase.Query("SELECT `NextCurrenciesResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextCurrenciesResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
-    QueryResult* QueryNextRandomBGReset()
+    std::optional<uint64> QueryNextRandomBGReset()
     {
-        return CharacterDatabase.Query("SELECT `NextRandomBGResetTime` FROM `saved_variables`");
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextRandomBGResetTime` FROM `saved_variables`");
+        return ReadRow<uint64>(result, [](Field* fields) { return fields[0].GetUInt64(); });
     }
 
     void InsertNextWeeklyQuestReset(uint64 time)
@@ -103,5 +108,27 @@ namespace SavedVariablesRepository
     void SetNextCurrencyReset(uint64 time)
     {
         CharacterDatabase.PExecute("UPDATE saved_variables SET `NextCurrenciesResetTime` = '" UI64FMTD "'", time);
+    }
+
+    std::optional<uint32> QueryCleaningFlags()
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `cleaning_flags` FROM `saved_variables`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    std::optional<uint32> QueryLastCleanedDbcBuild()
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `last_cleaned_dbc_build` FROM `saved_variables`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    void FinishCleaning(uint32 dbcBuild)
+    {
+        CharacterDatabase.PExecute("UPDATE `saved_variables` SET `cleaning_flags` = 0, `last_cleaned_dbc_build` = %u", dbcBuild);
+    }
+
+    void FinishCleaningWithoutBuild()
+    {
+        CharacterDatabase.Execute("UPDATE `saved_variables` SET `cleaning_flags` = 0");
     }
 }

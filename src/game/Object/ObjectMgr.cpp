@@ -88,6 +88,9 @@
 #include "persistence/world/npcs/NpcDataRepository.h"
 #include "persistence/world/players/PlayerDataRepository.h"
 #include "persistence/world/quests/QuestDataRepository.h"
+#include "persistence/world/locales/LocaleDataRepository.h"
+
+static_assert(int(STRING_ROW_LOCALES) == int(MAX_LOCALE) - 1, "a string row holds every locale but the default");
 
 
 // Temporary startup accumulator for LivingWorld observability (written during LoadActiveEntities(NULL) only)
@@ -690,7 +693,7 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
     // Runs at start-up and on the daily mail timer inside World::Update, so both reads are staged here and the expired
     // mails' returns and deletes happen in the callback. Slot 1 reads the expired mails' items in one join ordered by
     // `mail_id`; the callback walks it as a cursor beside the mail rows, since both results ascend in that key.
-    MailRepository::QueueExpiredMailReads((uint64)basetime, [basetime, serverUp](QueryResult* /*result*/, SqlQueryHolder* h)
+    MailRepository::QueueExpiredMailReads((uint64)basetime, [basetime, serverUp](SqlQueryHolder* h)
                                           {
                                               ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                         basetime, serverUp);
@@ -713,10 +716,10 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
  */
 void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> holder, uint64 basetime, bool serverUp)
 {
-    std::unique_ptr<QueryResult> result(holder->GetResult(EXPIRED_MAIL_ROWS));
-    std::unique_ptr<QueryResult> resultItems(holder->GetResult(EXPIRED_MAIL_ITEMS));
+    std::vector<ExpiredMailRow> mails = MailRepository::ExpiredMails(holder.get());
+    std::vector<ExpiredMailItemRow> mailItems = MailRepository::ExpiredMailItems(holder.get());
 
-    if (!result)
+    if (mails.empty())
     {
         BarGoLink bar(1);
         bar.step();
@@ -730,38 +733,35 @@ void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> h
     // delitems << "DELETE FROM `item_instance` WHERE `guid` IN ( ";
     // delmails << "DELETE FROM `mail` WHERE `id` IN ( "
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(mails.size());
     uint32 count = 0;
-    Field* fields;
 
-    /// The item cursor. A result comes back already standing on its first row, so there is
-    /// a row to read exactly while this is true.
-    bool haveItemRow = (resultItems != NULL);
+    /// The item cursor: the next item row to read.
+    size_t nextItem = 0;
 
-    do
+    for (ExpiredMailRow const& mail : mails)
     {
         bar.step();
 
-        fields = result->Fetch();
         Mail* m = new Mail;
-        m->messageID = fields[0].GetUInt32();
+        m->messageID = mail.id;
 
         // Step over the item rows of any mail EARLIER than this one: a mail whose items
         // were not consumed (its receiver was online) left its run standing.
-        while (haveItemRow && resultItems->Fetch()[2].GetUInt32() < m->messageID)
+        while (nextItem < mailItems.size() && mailItems[nextItem].mailId < m->messageID)
         {
-            haveItemRow = resultItems->NextRow();
+            ++nextItem;
         }
 
-        m->messageType = fields[1].GetUInt8();
-        m->sender = fields[2].GetUInt32();
-        m->receiverGuid = ObjectGuid(HIGHGUID_PLAYER, fields[3].GetUInt32());
-        bool has_items = fields[4].GetBool();
-        m->expire_time = (time_t)fields[5].GetUInt64();
+        m->messageType = mail.messageType;
+        m->sender = mail.sender;
+        m->receiverGuid = ObjectGuid(HIGHGUID_PLAYER, mail.receiver);
+        bool has_items = mail.hasItems;
+        m->expire_time = (time_t)mail.expireTime;
         m->deliver_time = 0;
-        m->COD = fields[6].GetUInt32();
-        m->checked = fields[7].GetUInt32();
-        m->mailTemplateId = fields[8].GetInt16();
+        m->COD = mail.cod;
+        m->checked = mail.checked;
+        m->mailTemplateId = mail.mailTemplateId;
 
         Player* pl = 0;
         if (serverUp)
@@ -778,23 +778,19 @@ void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> h
         // delete or return mail:
         if (has_items)
         {
-            // This mail's own run of the joined item result: contiguous, because both
-            // results ascend in `mail_id`. AddItem copies the two numbers out, so nothing
-            // holds a Field* across the NextRow that overwrites it.
-            while (haveItemRow)
+            // This mail's own run of the joined item rows: contiguous, because both
+            // reads ascend in `mail_id`.
+            while (nextItem < mailItems.size())
             {
-                Field* fields2 = resultItems->Fetch();
-                if (fields2[2].GetUInt32() != m->messageID)
+                ExpiredMailItemRow const& mailItem = mailItems[nextItem];
+                if (mailItem.mailId != m->messageID)
                 {
                     break;
                 }
 
-                uint32 item_guid_low = fields2[0].GetUInt32();
-                uint32 item_template = fields2[1].GetUInt32();
+                m->AddItem(mailItem.itemGuid, mailItem.itemTemplate);
 
-                m->AddItem(item_guid_low, item_template);
-
-                haveItemRow = resultItems->NextRow();
+                ++nextItem;
             }
             // if it is mail from non-player, or if it's already return mail, it shouldn't be returned, but deleted
             if (m->messageType != MAIL_NORMAL || (m->checked & (MAIL_CHECK_MASK_COD_PAYMENT | MAIL_CHECK_MASK_RETURNED)))
@@ -827,7 +823,6 @@ void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> h
         delete m;
         ++count;
     }
-    while (result->NextRow());
 
     sLog.outString(">> Loaded %u mails", count);
     sLog.outString();
@@ -1668,13 +1663,9 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
 
     sLog.outString("Loading texts from %s%s", table, extra_content ? ", with additional data" : "");
 
-    QueryResult* result = db.PQuery("SELECT `entry`,`content_default`,"
-                                    "`content_loc1`,`content_loc2`,`content_loc3`,`content_loc4`,"
-                                    "`content_loc5`,`content_loc6`,`content_loc7`,`content_loc8`,"
-                                    "`content_loc9`,`content_loc10`,`content_loc11`"
-                                    " %s FROM %s", extra_content ? ",sound,type,language,emote" : "", table);
+    std::vector<StringRow> rows = LocaleDataRepository::QueryStrings(db, table, extra_content);
 
-    if (!result)
+    if (rows.empty())
     {
         BarGoLink bar(1);
 
@@ -1694,14 +1685,13 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
 
     uint32 count = 0;
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (StringRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        int32 entry = fields[0].GetInt32();
+        int32 entry = row.entry;
 
         if (entry == 0)
         {
@@ -1726,11 +1716,11 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
         ++count;
 
         // 0 -> default, idx in to idx+1
-        data.Content[0] = fields[1].GetCppString();
+        data.Content[0] = row.contentDefault;
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
-            std::string str = fields[i + 1].GetCppString();
+            std::string str = row.content[i - 1];
             if (!str.empty())
             {
                 int idx = GetOrNewIndexForLocale(LocaleConstant(i));
@@ -1750,10 +1740,10 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
         // Load additional string content if necessary
         if (extra_content)
         {
-            data.SoundId     = fields[13].GetUInt32();
-            data.Type        = fields[14].GetUInt32();
-            data.LanguageId  = Language(fields[15].GetUInt32());
-            data.Emote       = fields[16].GetUInt32();
+            data.SoundId     = row.sound;
+            data.Type        = row.type;
+            data.LanguageId  = Language(row.language);
+            data.Emote       = row.emote;
 
             if (data.SoundId && !sSoundEntriesStore.LookupEntry(data.SoundId))
             {
@@ -1780,9 +1770,7 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
             }
         }
     }
-    while (result->NextRow());
 
-    delete result;
 
     if (min_value == MIN_MANGOS_STRING_ID)
     {

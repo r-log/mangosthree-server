@@ -25,11 +25,24 @@
 
 #include "BroadcastDataRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 
 namespace BroadcastDataRepository
 {
-    QueryResult* QueryBroadcasts()
+    static BroadcastRow ReadBroadcast(Field* fields)
     {
-        return WorldDatabase.Query("SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`");
+        BroadcastRow row;
+        if (char const* text = fields[1].GetString())
+        {
+            row.content = text;
+        }
+        row.ratio = fields[2].GetUInt32();
+        return row;
+    }
+
+    std::vector<BroadcastRow> QueryBroadcasts()
+    {
+        QueryResult* result = WorldDatabase.Query("SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`");
+        return ReadRows<BroadcastRow>(result, ReadBroadcast);
     }
 }

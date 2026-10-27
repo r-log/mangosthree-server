@@ -1251,8 +1251,8 @@ bool ChatHandler::HandleGoCreatureCommand(char* args)
             else
             {
                 std::string name = pParam1;
-                QueryResult* result = SpawnRepository::QueryCreatureGuidsNamed(name);
-                if (!result)
+                std::vector<uint32> guids = SpawnRepository::QueryCreatureGuidsNamed(name);
+                if (guids.empty())
                 {
                     SendSysMessage(LANG_COMMAND_GOCREATNOTFOUND);
                     SetSentErrorMessage(true);
@@ -1261,11 +1261,8 @@ bool ChatHandler::HandleGoCreatureCommand(char* args)
 
                 FindCreatureData worker(0, m_session ? m_session->GetPlayer() : NULL);
 
-                do
+                for (uint32 guid : guids)
                 {
-                    Field* fields = result->Fetch();
-                    uint32 guid = fields[0].GetUInt32();
-
                     CreatureDataPair const* cr_data = sObjectMgr.GetCreatureDataPair(guid);
                     if (!cr_data)
                     {
@@ -1274,9 +1271,6 @@ bool ChatHandler::HandleGoCreatureCommand(char* args)
 
                     worker(*cr_data);
                 }
-                while (result->NextRow());
-
-                delete result;
 
                 CreatureDataPair const* dataPair = worker.GetResult();
                 if (!dataPair)
@@ -1401,8 +1395,8 @@ bool ChatHandler::HandleGoObjectCommand(char* args)
             else
             {
                 std::string name = pParam1;
-                QueryResult* result = SpawnRepository::QueryGameObjectGuidsNamed(name);
-                if (!result)
+                std::vector<uint32> guids = SpawnRepository::QueryGameObjectGuidsNamed(name);
+                if (guids.empty())
                 {
                     SendSysMessage(LANG_COMMAND_GOOBJNOTFOUND);
                     SetSentErrorMessage(true);
@@ -1411,11 +1405,8 @@ bool ChatHandler::HandleGoObjectCommand(char* args)
 
                 FindGOData worker(0, m_session ? m_session->GetPlayer() : NULL);
 
-                do
+                for (uint32 guid : guids)
                 {
-                    Field* fields = result->Fetch();
-                    uint32 guid = fields[0].GetUInt32();
-
                     GameObjectDataPair const* go_data = sObjectMgr.GetGODataPair(guid);
                     if (!go_data)
                     {
@@ -1424,9 +1415,6 @@ bool ChatHandler::HandleGoObjectCommand(char* args)
 
                     worker(*go_data);
                 }
-                while (result->NextRow());
-
-                delete result;
 
                 GameObjectDataPair const* dataPair = worker.GetResult();
                 if (!dataPair)

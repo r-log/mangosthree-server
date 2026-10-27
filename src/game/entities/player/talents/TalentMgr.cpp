@@ -234,7 +234,7 @@ void TalentMgr::LoadRow(TalentRow const& row, uint32 guidLow, uint32 classMask, 
     if (!talentInfo)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has invalid talent_id: %u , this talent will be deleted from character_talent", guidLow, talent_id);
-        TalentRepository::DeleteEveryRowOfTalent(talent_id);
+        TalentRepository::DeleteOwnerTalent(guidLow, talent_id);
         return;
     }
 
@@ -243,7 +243,7 @@ void TalentMgr::LoadRow(TalentRow const& row, uint32 guidLow, uint32 classMask, 
     if (!talentTabInfo)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has invalid talentTabInfo: %u for talentID: %u , this talent will be deleted from character_talent", guidLow, talentInfo->TabID, talentInfo->ID);
-        TalentRepository::DeleteEveryRowOfTalent(talent_id);
+        TalentRepository::DeleteOwnerTalent(guidLow, talent_id);
         return;
     }
 
@@ -269,7 +269,7 @@ void TalentMgr::LoadRow(TalentRow const& row, uint32 guidLow, uint32 classMask, 
     if (spec > MAX_TALENT_SPEC_COUNT)
     {
         sLog.outError("TalentMgr::LoadRow:Player (GUID: %u) has invalid talent spec: %u, spec will be deleted from character_talent", guidLow, spec);
-        TalentRepository::DeleteEveryRowOfSpec(spec);
+        TalentRepository::DeleteOwnerSpec(guidLow, spec);
         return;
     }
 

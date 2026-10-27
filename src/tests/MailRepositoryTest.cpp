@@ -31,15 +31,25 @@
 #include "TestHarness.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
 #include "Database/TickGuard.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/mail/MailRepository.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace
 {
+    /// A canned result as a connection hands it out: on its first row.
+    QueryResult* CannedResult(FakeRows rows)
+    {
+        FakeQueryResult* result = new FakeQueryResult(std::move(rows));
+        result->NextRow();
+        return result;
+    }
+
     /// The fakes on the global character database, asynchronous writes on.
     struct Db
     {
@@ -155,9 +165,9 @@ TEST(MailRepository_ReadsAreAsynchronous)
     int answered = 0;
     {
         TickGuard::Scope scope;
-        MailRepository::QueryMailboxCount(42, [&answered](QueryResult* result) { delete result; ++answered; });
+        MailRepository::QueryMailboxCount(42, [&answered](std::optional<uint32> /*count*/) { ++answered; });
         MailRepository::QueryMassMailReceivers("SELECT `guid` FROM `characters` WHERE `level` > 80",
-                                               [&answered](QueryResult* result) { delete result; ++answered; });
+                                               [&answered](std::vector<uint32> /*guids*/) { ++answered; });
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(db.query.executed.size(), size_t(0));
         CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(2));
@@ -169,4 +179,58 @@ TEST(MailRepository_ReadsAreAsynchronous)
     CHECK_EQ(answered, 0);
     CharacterDatabase.ProcessResultQueue();
     CHECK_EQ(answered, 2);
+}
+
+// The mailbox count answers the count, and the mass mail read the guids in order.
+TEST(MailRepository_AsyncValues)
+{
+    Db db;
+    db.async.Answer("SELECT COUNT(*) FROM `mail`", FakeRows{FakeRow{"1007"}});
+    db.async.Answer("SELECT `guid` FROM `characters`", FakeRows{FakeRow{"1000"}, FakeRow{"2000"}});
+    std::optional<uint32> count;
+    std::vector<uint32> guids;
+    MailRepository::QueryMailboxCount(42, [&count](std::optional<uint32> got) { count = got; });
+    MailRepository::QueryMassMailReceivers("SELECT `guid` FROM `characters` WHERE `level` > 80", [&guids](std::vector<uint32> got) { guids = got; });
+    db.Take();
+    CharacterDatabase.ProcessResultQueue();
+    REQUIRE(count);
+    CHECK_EQ(*count, 1007u);
+    REQUIRE(guids.size() == 2);
+    CHECK_EQ(guids[0], 1000u);
+    CHECK_EQ(guids[1], 2000u);
+}
+
+// Each column of an expired mail and of its items lands in its member, and the rows come back in
+// order.
+TEST(MailRepository_ExpiredRows)
+{
+    SqlQueryHolder holder;
+    holder.SetSize(EXPIRED_MAIL_COUNT);
+    holder.SetResult(EXPIRED_MAIL_ROWS, CannedResult(FakeRows{
+        FakeRow{"1000", "101", "1002", "1003", "1", "4294967301", "1006", "1007", "-1008"},
+        FakeRow{"2000", "201", "2002", "2003", "0", "8589934597", "2006", "2007", "-2008"},
+    }));
+    holder.SetResult(EXPIRED_MAIL_ITEMS, CannedResult(FakeRows{
+        FakeRow{"1000", "1001", "1002"},
+        FakeRow{"2000", "2001", "2002"},
+    }));
+    std::vector<ExpiredMailRow> mails = MailRepository::ExpiredMails(&holder);
+    REQUIRE(mails.size() == 2);
+    CHECK_EQ(mails[0].id, 1000u);
+    CHECK_EQ(mails[0].messageType, uint8(101));
+    CHECK_EQ(mails[0].sender, 1002u);
+    CHECK_EQ(mails[0].receiver, 1003u);
+    CHECK_EQ(mails[0].hasItems, true);
+    CHECK_EQ(mails[0].expireTime, uint64(4294967301ull));
+    CHECK_EQ(mails[0].cod, 1006u);
+    CHECK_EQ(mails[0].checked, 1007u);
+    CHECK_EQ(mails[0].mailTemplateId, int16(-1008));
+    CHECK_EQ(mails[1].id, 2000u);
+    CHECK_EQ(mails[1].hasItems, false);
+    std::vector<ExpiredMailItemRow> items = MailRepository::ExpiredMailItems(&holder);
+    REQUIRE(items.size() == 2);
+    CHECK_EQ(items[0].itemGuid, 1000u);
+    CHECK_EQ(items[0].itemTemplate, 1001u);
+    CHECK_EQ(items[0].mailId, 1002u);
+    CHECK_EQ(items[1].itemGuid, 2000u);
 }

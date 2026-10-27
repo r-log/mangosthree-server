@@ -53,6 +53,7 @@
 #include <list>
 #include <mutex>
 #include <atomic>
+#include <optional>
 
 class Object;
 class ObjectGuid;
@@ -61,7 +62,6 @@ class WorldSession;
 class Player;
 class Weather;
 class SqlResultQueue;
-class QueryResult;
 
 // ServerMessages.dbc
 enum ServerMessageType
@@ -265,12 +265,12 @@ class World
         /// Set a server configuration element (see #eConfigUInt64Values)
         void setConfig(eConfigUInt64Values index, uint64 value) { sGameConfig.setConfig(index, value); }
         /// Get a server configuration element (see #eConfigUInt64Values)
-        uint32 getConfig(eConfigUInt64Values index) const { return sGameConfig.getConfig(index); }
+        uint64 getConfig(eConfigUInt64Values index) const { return sGameConfig.getConfig(index); }
 
-        /// Set a server configuration element (see #eConfigUInt64Values)
+        /// Set a server configuration element (see #eConfigInt64Values)
         void setConfig(eConfigInt64Values index, int64 value) { sGameConfig.setConfig(index, value); }
-        /// Get a server configuration element (see #eConfigUInt64Values)
-        uint32 getConfig(eConfigInt64Values index) const { return sGameConfig.getConfig(index); }
+        /// Get a server configuration element (see #eConfigInt64Values)
+        int64 getConfig(eConfigInt64Values index) const { return sGameConfig.getConfig(index); }
 
         /// Set a server configuration element (see #eConfigUInt32Values)
         void setConfig(eConfigUInt32Values index, uint32 value) { sGameConfig.setConfig(index, value); }
@@ -329,7 +329,7 @@ class World
     protected:
         void _UpdateGameTime();
         // callback for UpdateRealmCharacters
-        void _UpdateRealmCharCount(QueryResult* resultCharCount, uint32 accountId);
+        void _UpdateRealmCharCount(std::optional<uint32> const& charCount, uint32 accountId);
 
         void InitCurrencyResetTime();
         void InitDailyQuestResetTime();

@@ -283,10 +283,9 @@ void WorldSession::QueueSendMailboxCountRead(uint32 accountId, proto::SessionId 
     // `mutable` is what makes the second move a move: a lambda's operator() is const by
     // default, and std::move on a const member yields a const rvalue, which copies.
     MailRepository::QueryMailboxCount(receiverLow,
-                                      [accountId, sessionId, playerGuid, request = std::move(request)](QueryResult* result) mutable
+                                      [accountId, sessionId, playerGuid, request = std::move(request)](std::optional<uint32> count) mutable
                                       {
-                                          WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult>(result),
-                                                                               accountId, sessionId, playerGuid,
+                                          WorldSession::HandleSendMailCallback(count, accountId, sessionId, playerGuid,
                                                                                std::move(request));
                                       });
 }
@@ -294,13 +293,13 @@ void WorldSession::QueueSendMailboxCountRead(uint32 accountId, proto::SessionId 
 /**
  * @brief Sends the mail once the offline receiver's mailbox count is known.
  *
- * @param result The single COUNT(*) row.
+ * @param count The receiver's number of mails.
  * @param accountId The sending account.
  * @param sessionId The session the request arrived on.
  * @param playerGuid The sender.
  * @param request The parsed mail.
  */
-void WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+void WorldSession::HandleSendMailCallback(std::optional<uint32> const& count, uint32 accountId,
                                           proto::SessionId sessionId, ObjectGuid playerGuid,
                                           MailSendRequest request)
 {
@@ -312,9 +311,9 @@ void WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult> result, u
     }
 
     uint8 mailsCount = 0;
-    if (result)
+    if (count)
     {
-        mailsCount = result->Fetch()[0].GetUInt32();
+        mailsCount = *count;
     }
 
     session->ProcessSendMail(request, mailsCount);

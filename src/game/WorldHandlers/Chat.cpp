@@ -962,18 +962,15 @@ void ChatHandler::LoadCommandTable()
     // check hardcoded part integrity
     handler.CheckIntegrity(commandTable, NULL);
 
-    QueryResult* result = CommandDataRepository::QueryCommands();
-    if (result)
+    std::vector<CommandRow> rows = CommandDataRepository::QueryCommands();
+    if (!rows.empty())
     {
-        do
+        for (CommandRow const& row : rows)
         {
-            Field* fields = result->Fetch();
-            uint32 id = fields[0].GetUInt32();
-            std::string name = fields[1].GetCppString();
-            handler.SetDataForCommandInTable(commandTable, id, name.c_str(), fields[2].GetUInt16(), fields[3].GetCppString());
+            uint32 id = row.id;
+            std::string name = row.commandText;
+            handler.SetDataForCommandInTable(commandTable, id, name.c_str(), row.security, row.helpText);
         }
-        while (result->NextRow());
-        delete result;
     }
 }
 

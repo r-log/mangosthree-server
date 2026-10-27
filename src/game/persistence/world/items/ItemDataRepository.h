@@ -28,6 +28,7 @@
 
 #include "Platform/Define.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -98,7 +99,7 @@ namespace ItemDataRepository
     std::vector<HotfixRow> QueryHotfixes();
 
     /// Selects an item template's entry by its name, the name escaped first.
-    QueryResult* QueryItemEntryByName(std::string itemName);
+    std::optional<uint16> QueryItemEntryByName(std::string itemName);
 }
 
 #endif

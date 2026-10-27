@@ -64,17 +64,18 @@ namespace LootDataRepository
         return ReadRows<ItemEnchantmentRow>(result, ReadItemEnchantment);
     }
 
-    QueryResult* QueryLootItemEntries()
+    std::vector<uint32> QueryLootItemEntries()
     {
-        return WorldDatabase.PQuery("SELECT `item` FROM `creature_loot_template` UNION "
-                                    "SELECT `item` FROM `disenchant_loot_template` UNION "
-                                    "SELECT `item` FROM `fishing_loot_template` UNION "
-                                    "SELECT `item` FROM `gameobject_loot_template` UNION "
-                                    "SELECT `item` FROM `item_loot_template` UNION "
-                                    "SELECT `item` FROM `milling_loot_template` UNION "
-                                    "SELECT `item` FROM `pickpocketing_loot_template` UNION "
-                                    "SELECT `item` FROM `prospecting_loot_template` UNION "
-                                    "SELECT `item` FROM `skinning_loot_template` UNION "
-                                    "SELECT `item` FROM `spell_loot_template`");
+        QueryResult* result = WorldDatabase.PQuery("SELECT `item` FROM `creature_loot_template` UNION "
+                                                   "SELECT `item` FROM `disenchant_loot_template` UNION "
+                                                   "SELECT `item` FROM `fishing_loot_template` UNION "
+                                                   "SELECT `item` FROM `gameobject_loot_template` UNION "
+                                                   "SELECT `item` FROM `item_loot_template` UNION "
+                                                   "SELECT `item` FROM `milling_loot_template` UNION "
+                                                   "SELECT `item` FROM `pickpocketing_loot_template` UNION "
+                                                   "SELECT `item` FROM `prospecting_loot_template` UNION "
+                                                   "SELECT `item` FROM `skinning_loot_template` UNION "
+                                                   "SELECT `item` FROM `spell_loot_template`");
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 }

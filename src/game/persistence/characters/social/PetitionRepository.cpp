@@ -25,6 +25,7 @@
 
 #include "PetitionRepository.h"
 #include "Database/DatabaseEnv.h"
+#include "persistence/RowReader.h"
 #include "Database/SqlOperations.h"
 
 #include <sstream>
@@ -35,7 +36,11 @@ namespace
     /// Queues a staged holder, deleting it if the database refuses it.
     void QueueHolder(SqlQueryHolder* holder, PetitionHolderCallback callback)
     {
-        if (!CharacterDatabase.DelayQueryHolder(std::move(callback), holder))
+        if (!CharacterDatabase.DelayQueryHolder([callback = std::move(callback)](QueryResult* /*result*/, SqlQueryHolder* answered)
+                                                {
+                                                    callback(answered);
+                                                },
+                                                holder))
         {
             delete holder;                                  // delete all unprocessed queries
         }
@@ -44,27 +49,48 @@ namespace
 
 namespace PetitionRepository
 {
-    void QueryOwnedPetitions(uint32 ownerGuid, PetitionReadCallback callback)
+    void QueryOwnedPetitions(uint32 ownerGuid, std::function<void(std::vector<uint32>)> callback)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }));
+                                      },
                                       "SELECT `petitionguid` FROM `petition` WHERE `ownerguid` = '%u'", ownerGuid);
     }
 
-    void QueryExists(uint32 petitionGuid, PetitionReadCallback callback)
+    void QueryExists(uint32 petitionGuid, std::function<void(bool)> callback)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }).has_value());
+                                      },
                                       "SELECT 1 FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid);
     }
 
-    void QueryOwner(uint32 petitionGuid, PetitionReadCallback callback)
+    void QueryOwner(uint32 petitionGuid, std::function<void(std::optional<uint32>)> callback)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }));
+                                      },
                                       "SELECT `ownerguid` FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid);
     }
 
-    void QueryDetails(uint32 petitionGuid, PetitionReadCallback callback)
+    static PetitionDetailsRow ReadDetails(Field* fields)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        PetitionDetailsRow row;
+        row.ownerGuid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        row.signs = fields[2].GetUInt8();
+        return row;
+    }
+
+    void QueryDetails(uint32 petitionGuid, std::function<void(std::optional<PetitionDetailsRow>)> callback)
+    {
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRow<PetitionDetailsRow>(result, ReadDetails));
+                                      },
                                       "SELECT `ownerguid`, `name`, "
                                       "  (SELECT COUNT(`playerguid`) FROM `petition_sign` WHERE `petition_sign`.`petitionguid` = '%u') AS `signs` "
                                       "FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid, petitionGuid);
@@ -168,9 +194,20 @@ namespace PetitionRepository
         CharacterDatabase.CommitTransaction();
     }
 
-    void QuerySignaturesBy(uint32 playerGuid, PetitionReadCallback callback)
+    static PetitionSignatureRow ReadSignature(Field* fields)
     {
-        CharacterDatabase.AsyncPQuery(std::move(callback),
+        PetitionSignatureRow row;
+        row.ownerGuid = fields[0].GetUInt32();
+        row.petitionGuid = fields[1].GetUInt32();
+        return row;
+    }
+
+    void QuerySignaturesBy(uint32 playerGuid, std::function<void(std::vector<PetitionSignatureRow>)> callback)
+    {
+        CharacterDatabase.AsyncPQuery([callback = std::move(callback)](QueryResult* result)
+                                      {
+                                          callback(ReadRows<PetitionSignatureRow>(result, ReadSignature));
+                                      },
                                       "SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'",
                                       playerGuid);
     }
@@ -186,5 +223,83 @@ namespace PetitionRepository
         CharacterDatabase.PExecute("DELETE FROM `petition` WHERE `ownerguid` = '%u'", ownerGuid);
         CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `ownerguid` = '%u'", ownerGuid);
         CharacterDatabase.CommitTransaction();
+    }
+
+    bool ShowPetitionExists(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PETITION_SHOW_PETITION);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }).has_value();
+    }
+
+    std::vector<uint32> ShowSigners(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PETITION_SHOW_SIGNATURES);
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    static PetitionSignTargetRow ReadSignTarget(Field* fields)
+    {
+        PetitionSignTargetRow row;
+        row.ownerGuid = fields[0].GetUInt32();
+        row.signs = fields[1].GetUInt8();
+        return row;
+    }
+
+    std::optional<PetitionSignTargetRow> SignReadPetition(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PETITION_SIGN_READ_PETITION);
+        return ReadRow<PetitionSignTargetRow>(result, ReadSignTarget);
+    }
+
+    static PetitionAccountSignatureRow ReadAccountSignature(Field* fields)
+    {
+        PetitionAccountSignatureRow row;
+        row.playerGuid = fields[0].GetUInt32();
+        row.petitionGuid = fields[1].GetUInt32();
+        return row;
+    }
+
+    std::optional<PetitionAccountSignatureRow> SignReadAccountSignature(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PETITION_SIGN_READ_ACCOUNT);
+        return ReadRow<PetitionAccountSignatureRow>(result, ReadAccountSignature);
+    }
+
+    bool SignedBefore(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PETITION_SIGNED_BEFORE);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }).has_value();
+    }
+
+    bool SignedAfter(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PETITION_SIGNED_AFTER);
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); }).has_value();
+    }
+
+    static PetitionTurnInRow ReadTurnIn(Field* fields)
+    {
+        PetitionTurnInRow row;
+        row.ownerGuid = fields[0].GetUInt32();
+        row.name = fields[1].GetCppString();
+        return row;
+    }
+
+    std::optional<PetitionTurnInRow> TurnInPetition(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PETITION_TURN_IN_PETITION);
+        return ReadRow<PetitionTurnInRow>(result, ReadTurnIn);
+    }
+
+    std::vector<uint32> TurnInSigners(SqlQueryHolder* holder)
+    {
+        QueryResult* result = holder->GetResult(PETITION_TURN_IN_SIGNATURES);
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    std::vector<PetitionSignatureRow> ReadHolderSignatures(SqlQueryHolder* holder, size_t slot)
+    {
+        QueryResult* result = holder->GetResult(slot);
+        return ReadRows<PetitionSignatureRow>(result, ReadSignature);
     }
 }

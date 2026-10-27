@@ -320,13 +320,13 @@ bool ChatHandler::HandleCharacterReputationCommand(char* args)
 
 bool ChatHandler::GetDeletedCharacterInfoList(DeletedInfoList& foundList, std::string searchString)
 {
-    QueryResult* resultChar;
+    std::vector<DeletedCharacterInfoRow> deleted;
     if (!searchString.empty())
     {
         // search by GUID
         if (isNumeric(searchString))
         {
-            resultChar = CharacterRepository::QueryDeletedCharacter(uint32(atoi(searchString.c_str())));
+            deleted = CharacterRepository::QueryDeletedCharacter(uint32(atoi(searchString.c_str())));
         }
         // search by name
         else
@@ -336,36 +336,31 @@ bool ChatHandler::GetDeletedCharacterInfoList(DeletedInfoList& foundList, std::s
                 return false;
             }
 
-            resultChar = CharacterRepository::QueryDeletedCharactersNamed(searchString.c_str());
+            deleted = CharacterRepository::QueryDeletedCharactersNamed(searchString.c_str());
         }
     }
     else
     {
-        resultChar = CharacterRepository::QueryDeletedCharacters();
+        deleted = CharacterRepository::QueryDeletedCharacters();
     }
 
-    if (resultChar)
+    if (!deleted.empty())
     {
-        do
+        for (DeletedCharacterInfoRow const& row : deleted)
         {
-            Field* fields = resultChar->Fetch();
-
             DeletedInfo info;
 
-            info.lowguid = fields[0].GetUInt32();
-            info.name = fields[1].GetCppString();
-            info.accountId = fields[2].GetUInt32();
+            info.lowguid = row.guid;
+            info.name = row.name;
+            info.accountId = row.account;
 
             // account name will be empty for nonexistent account
             sAccountMgr.GetName(info.accountId, info.accountName);
 
-            info.deleteDate = time_t(fields[3].GetUInt64());
+            info.deleteDate = time_t(row.deleteDate);
 
             foundList.push_back(info);
         }
-        while (resultChar->NextRow());
-
-        delete resultChar;
     }
 
     return true;

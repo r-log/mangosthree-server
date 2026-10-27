@@ -31,6 +31,7 @@
 #include "Database/DatabaseEnv.h"
 #include "persistence/world/locales/LocaleDataRepository.h"
 
+#include <string>
 #include <vector>
 
 namespace
@@ -454,4 +455,35 @@ TEST(LocaleDataRepository_GameObjectLocales)
     CHECK_STR(rows[0].castBarCaption[9], "s1.21");
     CHECK_STR(rows[0].castBarCaption[10], "s1.22");
     CHECK_EQ(rows[1].entry, 2000u);
+}
+
+// Each column of a string row lands in its member; the extra columns are read only when they are
+// asked for, and the query names the table it was handed.
+TEST(LocaleDataRepository_Strings)
+{
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"-1000", "s1.1", "s1.2", "s1.3", "s1.4", "s1.5", "s1.6", "s1.7", "s1.8", "s1.9",
+            "s1.10", "s1.11", "s1.12", "1013", "1014", "1015", "1016"},
+        FakeRow{"-2000", "s2.1", "s2.2", "s2.3", "s2.4", "s2.5", "s2.6", "s2.7", "s2.8", "s2.9",
+            "s2.10", "s2.11", "s2.12", "2013", "2014", "2015", "2016"},
+    });
+    std::vector<StringRow> plain = LocaleDataRepository::QueryStrings(WorldDatabase, "mangos_string", false);
+    std::vector<StringRow> extra = LocaleDataRepository::QueryStrings(WorldDatabase, "script_texts", true);
+    REQUIRE(plain.size() == 2);
+    CHECK_EQ(plain[0].entry, -1000);
+    CHECK_STR(plain[0].contentDefault, "s1.1");
+    CHECK_STR(plain[0].content[0], "s1.2");
+    CHECK_STR(plain[0].content[10], "s1.12");
+    CHECK_EQ(plain[0].sound, 0u);
+    CHECK_EQ(plain[0].emote, 0u);
+    CHECK_EQ(plain[1].entry, -2000);
+    REQUIRE(extra.size() == 2);
+    CHECK_EQ(extra[0].sound, 1013u);
+    CHECK_EQ(extra[0].type, 1014u);
+    CHECK_EQ(extra[0].language, 1015u);
+    CHECK_EQ(extra[0].emote, 1016u);
+    REQUIRE(db.query.executed.size() == 2);
+    CHECK(db.query.executed[0].find(" FROM mangos_string") != std::string::npos);
+    CHECK(db.query.executed[1].find(",sound,type,language,emote FROM script_texts") != std::string::npos);
 }

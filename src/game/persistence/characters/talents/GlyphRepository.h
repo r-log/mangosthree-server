@@ -50,9 +50,6 @@ namespace GlyphRepository
     /// Reads a holder slot's rows, its columns in ReadRow's order.
     std::vector<GlyphRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
-    /// Deletes every character's rows of the glyph `glyph`, not only one character's.
-    void DeleteEveryRowOfGlyph(uint32 glyph);
-
     /// Deletes the owner's row in `slot` of `spec`, as the load does for an invalid row.
     void DeleteInvalidRow(uint32 ownerGuidLow, uint8 spec, uint8 slot);
 

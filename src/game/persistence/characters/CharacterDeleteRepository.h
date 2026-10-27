@@ -111,7 +111,7 @@ namespace CharacterDeleteRepository
     /// Asks, in one holder, for the delete's reads, and with withOwner also for the character's
     /// account and name. A holder the database refuses is deleted and its callback never runs.
     void QueueDeleteReads(uint32 guid, bool fullDelete, bool withOwner,
-                          std::function<void(QueryResult*, SqlQueryHolder*)> callback);
+                          std::function<void(SqlQueryHolder*)> callback);
 
     /// Deletes every row a full delete removes, in order: the character, its own tables, the
     /// instance binds it leads, its items, mail, pets, achievements, equipment sets, its lines in

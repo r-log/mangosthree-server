@@ -27,12 +27,13 @@
 #define MANGOS_H_PETITIONHANDLERS
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 #include "Platform/Define.h"
 #include "SessionId.h"
 
 class ObjectGuid;
-class QueryResult;
 class SqlQueryHolder;
 class WorldPacket;
 class WorldSession;
@@ -65,13 +66,13 @@ struct PetitionHandlers
         static uint32 PetitionSignOutcome(bool signedBefore, bool signedAfter);
 
     private:
-        static void HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+        static void HandlePetitionBuyCallback(std::vector<uint32> const& oldPetitions, uint32 accountId,
                                               proto::SessionId sessionId, ObjectGuid playerGuid,
                                               ObjectGuid npcGuid, std::string name);
         static void HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
                                                    proto::SessionId sessionId, ObjectGuid playerGuid,
                                                    ObjectGuid petitionGuid);
-        static void HandlePetitionRenameCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+        static void HandlePetitionRenameCallback(bool exists, uint32 accountId,
                                                  proto::SessionId sessionId, ObjectGuid playerGuid,
                                                  ObjectGuid petitionGuid, std::string newname);
         static void HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
@@ -80,7 +81,7 @@ struct PetitionHandlers
         static void HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
                                                  proto::SessionId sessionId, ObjectGuid playerGuid,
                                                  ObjectGuid petitionGuid, ObjectGuid ownerGuid);
-        static void HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid);
+        static void HandlePetitionDeclineCallback(std::optional<uint32> const& owner, ObjectGuid playerGuid);
         static void HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
                                                 proto::SessionId sessionId, ObjectGuid ownGuid,
                                                 ObjectGuid petitionGuid, ObjectGuid playerGuid);

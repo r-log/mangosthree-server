@@ -33,9 +33,11 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
 #include "Database/TickGuard.h"
+#include "persistence/characters/CharacterDumpRepository.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
+#include "persistence/characters/social/SocialRepository.h"
 #include "persistence/login/AccountRepository.h"
 #include "persistence/login/RealmRepository.h"
 
@@ -145,7 +147,7 @@ TEST(CharacterRepository_CreateReads)
     Db login(LoginDatabase);
     Db chars(CharacterDatabase);
     int answered = 0;
-    CharacterHolderCallback held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    CharacterHolderCallback held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     {
         TickGuard::Scope scope;
         CharacterRepository::QueueCreateAccountRead(17, held);
@@ -177,7 +179,7 @@ TEST(CharacterRepository_LoginReads)
 {
     Db db(CharacterDatabase);
     int answered = 0;
-    CharacterHolderCallback held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    CharacterHolderCallback held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     {
         TickGuard::Scope scope;
         SqlQueryHolder* without = new SqlQueryHolder;
@@ -216,7 +218,7 @@ TEST(CharacterRepository_Writes)
     Db db(CharacterDatabase);
     int answered = 0;
     auto read = [&answered](std::optional<RenameTargetRow> /*row*/) { ++answered; };
-    CharacterHolderCallback held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    CharacterHolderCallback held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     std::string const declined[CHARACTER_DECLINED_NAME_ROW_CASES] = { "a", "b", "c", "d", "e" };
     {
         TickGuard::Scope scope;
@@ -261,8 +263,8 @@ TEST(CharacterRepository_Writes)
 TEST(CharacterRepository_AuthenticationReads)
 {
     Db db(LoginDatabase);
-    delete AccountRepository::QueryAuthAccount("bob");
-    delete AccountRepository::QueryActiveBan(17, "127.0.0.1");
+    AccountRepository::QueryAuthAccount("bob");
+    AccountRepository::QueryActiveBan(17, "127.0.0.1");
     CheckLines(db.query.executed, {
         "SELECT `id`, `gmlevel`, `sessionkey`, `last_ip`, `locked`, `expansion`, `mutetime`, `locale`, `os` FROM `account` WHERE `username` = 'bob'",
         "SELECT 1 FROM `account_banned` WHERE `id` = 17 AND `active` = 1 AND (`unbandate` > UNIX_TIMESTAMP() OR `unbandate` = `bandate`) "
@@ -317,13 +319,12 @@ TEST(CharacterRepository_NameAndWhoisReads)
     Db chars(CharacterDatabase);
     Db login(LoginDatabase);
     int answered = 0;
-    std::function<void(QueryResult*)> read = [&answered](QueryResult* result) { delete result; ++answered; };
     auto nameRead = [&answered](std::optional<CharacterNameRow> /*row*/) { ++answered; };
     {
         TickGuard::Scope scope;
         CharacterRepository::QueryName(42, false, nameRead);
         CharacterRepository::QueryName(42, true, nameRead);
-        CHECK(AccountRepository::QueryWhois(17, read));
+        CHECK(AccountRepository::QueryWhois(17, [&answered](std::optional<WhoisRow> /*row*/) { ++answered; }));
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(chars.query.executed.size(), size_t(0));
         CHECK_EQ(login.query.executed.size(), size_t(0));
@@ -349,12 +350,12 @@ TEST(CharacterRepository_AccountManagerStatements)
 {
     Db login(LoginDatabase);
     Db chars(CharacterDatabase);
-    delete AccountRepository::QueryExists(17);
-    delete AccountRepository::QueryIdByName("BOB");
-    delete AccountRepository::QueryGmLevel(17);
-    delete AccountRepository::QueryName(17);
-    delete CharacterRepository::QueryAccountCharacters(17);
-    delete CharacterRepository::QueryAccountCharacterCount(17);
+    AccountRepository::QueryExists(17);
+    AccountRepository::QueryIdByName("BOB");
+    AccountRepository::QueryGmLevel(17);
+    AccountRepository::QueryName(17);
+    CharacterRepository::QueryAccountCharacters(17);
+    CharacterRepository::QueryAccountCharacterCount(17);
     CheckLines(login.query.executed, {
         "SELECT 1 FROM `account` WHERE `id`='17'",
         "SELECT `id` FROM `account` WHERE `username` = 'BOB'",
@@ -379,7 +380,7 @@ TEST(CharacterRepository_AccountManagerStatements)
         TickGuard::Scope scope;
         CHECK(AccountRepository::SetPasswordHash("6789", 17));
         CHECK(AccountRepository::Delete(18));
-        CHECK(AccountRepository::QueryNameAndPasswordHash(17, [&answered](QueryResult* result) { delete result; ++answered; }));
+        CHECK(AccountRepository::QueryNameAndPasswordHash(17, [&answered](std::optional<AccountPasswordRow> /*row*/) { ++answered; }));
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(LoginDatabase.GetDelayQueueDepth(), size_t(7));
     }
@@ -557,4 +558,230 @@ TEST(CharacterRepository_RenameTargetRow)
     CharacterDatabase.ProcessResultQueue();
     CHECK(answered);
     CHECK(!missing);
+}
+
+// The whois read answers the account's name, e-mail and last address.
+TEST(CharacterRepository_WhoisRow)
+{
+    Db login(LoginDatabase);
+    login.async.Answer("SELECT `username`", FakeRows{FakeRow{"s1.0", "s1.1", "s1.2"}});
+    std::optional<WhoisRow> row;
+    CHECK(AccountRepository::QueryWhois(17, [&row](std::optional<WhoisRow> got) { row = got; }));
+    login.Take();
+    LoginDatabase.ProcessResultQueue();
+    REQUIRE(row);
+    CHECK_STR(row->username, "s1.0");
+    CHECK_STR(row->email, "s1.1");
+    CHECK_STR(row->lastIp, "s1.2");
+}
+
+// The social flags read answers the flags, and nothing when there is no row.
+TEST(CharacterRepository_SocialFlagsValue)
+{
+    {
+        Db db(CharacterDatabase);
+        db.async.Answer("SELECT `flags`", FakeRows{FakeRow{"102"}});
+        std::optional<uint8> flags;
+        SocialRepository::QueryFlags(42, 43, [&flags](std::optional<uint8> got) { flags = got; });
+        db.Take();
+        CharacterDatabase.ProcessResultQueue();
+        REQUIRE(flags);
+        CHECK_EQ(*flags, uint8(102));
+    }
+    Db db(CharacterDatabase);
+    bool answered = false;
+    std::optional<uint8> flags;
+    SocialRepository::QueryFlags(42, 43, [&answered, &flags](std::optional<uint8> got) { answered = true; flags = got; });
+    db.Take();
+    CharacterDatabase.ProcessResultQueue();
+    CHECK(answered);
+    CHECK(!flags);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(AccountRepository_IdByName)
+{
+    {
+        Db db(LoginDatabase);
+        std::optional<uint32> value = AccountRepository::QueryIdByName("BOB");
+        CHECK(!value);
+    }
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = AccountRepository::QueryIdByName("BOB");
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(AccountRepository_GmLevel)
+{
+    {
+        Db db(LoginDatabase);
+        std::optional<int32> value = AccountRepository::QueryGmLevel(17);
+        CHECK(!value);
+    }
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"-1007"}, FakeRow{"-2007"},
+    });
+    std::optional<int32> value = AccountRepository::QueryGmLevel(17);
+    REQUIRE(value);
+    CHECK_EQ(*value, -1007);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(AccountRepository_Name)
+{
+    {
+        Db db(LoginDatabase);
+        std::optional<std::string> value = AccountRepository::QueryName(17);
+        CHECK(!value);
+    }
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"s1.7"}, FakeRow{"s2.7"},
+    });
+    std::optional<std::string> value = AccountRepository::QueryName(17);
+    REQUIRE(value);
+    CHECK_STR(*value, "s1.7");
+}
+
+// Each column of an authenticating account lands in its member, and no rows answer nothing.
+TEST(AccountRepository_AuthAccount)
+{
+    {
+        Db db(LoginDatabase);
+        CHECK(!AccountRepository::QueryAuthAccount("bob"));
+    }
+    Db db(LoginDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "10001", "s1.2", "s1.3", "104", "105", "4294967302", "107", "s1.8"},
+        FakeRow{"2000", "20001", "s2.2", "s2.3", "204", "205", "8589934598", "207"},
+    });
+    std::optional<AuthAccountRow> row = AccountRepository::QueryAuthAccount("bob");
+    REQUIRE(row);
+    CHECK_EQ(row->id, 1000u);
+    CHECK_EQ(row->gmLevel, uint16(10001));
+    REQUIRE(row->sessionKey);
+    CHECK_STR(*row->sessionKey, "s1.2");
+    CHECK_STR(row->lastIp, "s1.3");
+    CHECK_EQ(row->locked, uint8(104));
+    CHECK_EQ(row->expansion, uint8(105));
+    CHECK_EQ(row->muteTime, uint64(4294967302ull));
+    CHECK_EQ(row->locale, uint8(107));
+    REQUIRE(row->os);
+    CHECK_STR(*row->os, "s1.8");
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(CharacterRepository_AccountCharacters)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = CharacterRepository::QueryAccountCharacters(17);
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(CharacterRepository_AccountCharacterCount)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint32> value = CharacterRepository::QueryAccountCharacterCount(17);
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = CharacterRepository::QueryAccountCharacterCount(17);
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// The existence and ban checks answer whether their read found a row.
+TEST(CharacterRepository_AccountChecks)
+{
+    {
+        Db login(LoginDatabase);
+        CHECK(!AccountRepository::QueryExists(17));
+        CHECK(!AccountRepository::QueryActiveBan(17, "127.0.0.1"));
+    }
+    Db login(LoginDatabase);
+    login.query.Answer("SELECT 1", FakeRows{FakeRow{"1"}});
+    CHECK(AccountRepository::QueryExists(17));
+    CHECK(AccountRepository::QueryActiveBan(17, "127.0.0.1"));
+}
+
+// The asynchronous GM level and password reads answer the value and the row, and nothing for no
+// rows.
+TEST(CharacterRepository_AccountAsyncValues)
+{
+    {
+        Db login(LoginDatabase);
+        login.async.Answer("SELECT `gmlevel`", FakeRows{FakeRow{"-3"}});
+        login.async.Answer("SELECT `username`, `sha_pass_hash`", FakeRows{FakeRow{"s1.0", "s1.1"}});
+        std::optional<int32> gmLevel;
+        std::optional<AccountPasswordRow> password;
+        AccountRepository::QueryGmLevel(17, [&gmLevel](std::optional<int32> got) { gmLevel = got; });
+        CHECK(AccountRepository::QueryNameAndPasswordHash(17, [&password](std::optional<AccountPasswordRow> got) { password = got; }));
+        login.Take();
+        LoginDatabase.ProcessResultQueue();
+        REQUIRE(gmLevel);
+        CHECK_EQ(*gmLevel, -3);
+        REQUIRE(password);
+        CHECK_STR(password->username, "s1.0");
+        CHECK_STR(password->shaPassHash, "s1.1");
+    }
+    Db login(LoginDatabase);
+    bool answered = false;
+    std::optional<int32> gmLevel;
+    AccountRepository::QueryGmLevel(17, [&answered, &gmLevel](std::optional<int32> got) { answered = true; gmLevel = got; });
+    login.Take();
+    LoginDatabase.ProcessResultQueue();
+    CHECK(answered);
+    CHECK(!gmLevel);
+}
+
+// A dump's reads: the rows of a table as text, a NULL column as none, the version row, whether a
+// guid or a name is taken, and no column names for a table the named read finds nothing in.
+TEST(CharacterDumpRepository_Reads)
+{
+    {
+        Db db(CharacterDatabase);
+        CHECK(CharacterDumpRepository::QueryColumnNames("characters").empty());
+        CHECK(CharacterDumpRepository::QueryRows("characters", "`guid`,`name`", "guid = '42'").empty());
+        CHECK(!CharacterDumpRepository::QueryVersion());
+        CHECK(!CharacterDumpRepository::QueryGuidInUse(42));
+        CHECK(!CharacterDumpRepository::QueryNameInUse("Ann"));
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT `guid`", FakeRows{FakeRow{"1000", "s1.1", "s1.2"}, FakeRow{"2000", "s2.1"}});
+    db.query.Answer("SELECT `version`", FakeRows{FakeRow{"-1000", "1001", "s1.2", "s1.3"}});
+    db.query.Answer("SELECT * FROM `characters`", FakeRows{FakeRow{"1"}});
+    std::vector<DumpRow> rows = CharacterDumpRepository::QueryRows("characters", "`guid`,`name`,`taximask`", "guid = '42'");
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0].values.size() == 3);
+    REQUIRE(rows[0].values[2]);
+    CHECK_STR(*rows[0].values[2], "s1.2");
+    REQUIRE(rows[1].values.size() == 3);
+    REQUIRE(rows[1].values[0]);
+    CHECK_STR(*rows[1].values[0], "2000");
+    CHECK(!rows[1].values[2]);
+    std::optional<CharacterDbVersionRow> version = CharacterDumpRepository::QueryVersion();
+    REQUIRE(version);
+    CHECK_EQ(version->version, int16(-1000));
+    CHECK_EQ(version->structure, int16(1001));
+    CHECK_STR(version->description, "s1.2");
+    CHECK_STR(version->comment, "s1.3");
+    CHECK(CharacterDumpRepository::QueryGuidInUse(42));
+    CHECK(CharacterDumpRepository::QueryNameInUse("Ann"));
+    CHECK(Contains(db.query.executed[0], "SELECT `guid`,`name`,`taximask` FROM `characters` WHERE guid = '42'"));
 }

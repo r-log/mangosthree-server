@@ -114,7 +114,7 @@ enum
 
 /// The callback of the holder reads: it runs on the world thread with the answered holder, which it
 /// owns.
-typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallback;
+typedef std::function<void(SqlQueryHolder*)> CharacterHolderCallback;
 
 /// One `characters` row.
 struct CharacterCacheRow
@@ -526,6 +526,36 @@ struct CharacterPositionRow
     std::string taxiPath;
 };
 
+/// One of an account's characters as a GM's character list shows it: guid, name, race, class and
+/// level.
+struct AccountCharacterListRow
+{
+    uint32 guid = 0;
+    std::string name;
+    uint8 race = 0;
+    uint8 classId = 0;
+    uint32 level = 0;
+};
+
+/// A character as a GM's player info reads it: played time, level, money and account.
+struct CharacterPlayerInfoRow
+{
+    uint32 totaltime = 0;
+    uint32 level = 0;
+    uint32 money = 0;
+    uint32 account = 0;
+};
+
+/// A deleted character as a GM's deleted-character list reads it: guid, name, account and the
+/// date it was deleted.
+struct DeletedCharacterInfoRow
+{
+    uint32 guid = 0;
+    std::string name;
+    uint32 account = 0;
+    uint64 deleteDate = 0;
+};
+
 /// The characters' own rows (`characters`, `character_declinedname`) as the character screen, the
 /// login, the logout and the account manager use them. The account manager's two reads, the GM
 /// commands' reads and the start-up's highest guid and cache rows run on the thread that calls them,
@@ -534,10 +564,10 @@ struct CharacterPositionRow
 namespace CharacterRepository
 {
     /// Selects the guids of an account's characters.
-    QueryResult* QueryAccountCharacters(uint32 accountId);
+    std::vector<uint32> QueryAccountCharacters(uint32 accountId);
 
     /// Selects how many characters an account has on this realm.
-    QueryResult* QueryAccountCharacterCount(uint32 accountId);
+    std::optional<uint32> QueryAccountCharacterCount(uint32 accountId);
 
     /// Selects an offline character's position, map and flight path, synchronously.
     std::optional<CharacterPositionRow> QueryPosition(uint32 guid);
@@ -612,10 +642,10 @@ namespace CharacterRepository
 
     /// Selects the accounts of the characters whose name contains the filter, the filter escaped first
     /// through the login database, as the character ban list does.
-    QueryResult* QueryAccountsOfCharactersNamed(std::string filter);
+    std::vector<uint32> QueryAccountsOfCharactersNamed(std::string filter);
 
     /// Selects an account's characters with their race, class and level, for a GM's character list.
-    QueryResult* QueryAccountCharacterList(uint32 accountId);
+    std::vector<AccountCharacterListRow> QueryAccountCharacterList(uint32 accountId);
 
     /// Marks a character for a customize at its next login.
     void SetCustomizeFlag(uint32 guid);
@@ -630,13 +660,13 @@ namespace CharacterRepository
     void AddAtLoginFlagsToEveryCharacter(uint32 flags);
 
     /// Selects a deleted character by its guid.
-    QueryResult* QueryDeletedCharacter(uint32 guid);
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharacter(uint32 guid);
 
     /// Selects the deleted characters whose name contains a text, the text written as handed.
-    QueryResult* QueryDeletedCharactersNamed(char const* name);
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharactersNamed(char const* name);
 
     /// Selects every deleted character.
-    QueryResult* QueryDeletedCharacters();
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharacters();
 
     /// Restores a deleted character under a name and account, the name written as handed.
     void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid);
@@ -645,19 +675,19 @@ namespace CharacterRepository
     void SetLevel(uint32 level, uint32 guid);
 
     /// Selects a character's played time, level, money and account, for a GM's player info.
-    QueryResult* QueryPlayerInfo(uint32 guid);
+    std::optional<CharacterPlayerInfoRow> QueryPlayerInfo(uint32 guid);
 
     /// Selects the account of a character by its name, the name already escaped through the login
     /// database, as a ban does.
-    QueryResult* QueryAccountOfCharacterNamed(std::string const& name);
+    std::vector<uint32> QueryAccountOfCharacterNamed(std::string const& name);
 
     /// Asks for the number of an account's characters on this realm; the callback runs on the world
-    /// thread with the result, which it owns.
-    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(QueryResult*)> callback);
+    /// thread with the count.
+    void QueryAccountCharacterCountAsync(uint32 accountId, std::function<void(std::optional<uint32>)> callback);
 
     /// Asks how many characters hold a guid in a range, for the harness's guid block check; answers false
     /// when the database refuses to queue it.
-    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(QueryResult*)> callback);
+    bool QueryCharacterCountInGuidRange(uint32 first, uint32 last, std::function<void(std::optional<uint32>)> callback);
 
     /// Marks every character offline, at start-up and shutdown.
     void SetEveryCharacterOffline();

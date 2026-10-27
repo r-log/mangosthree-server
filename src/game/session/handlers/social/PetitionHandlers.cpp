@@ -164,9 +164,9 @@ void PetitionHandlers::QueuePetitionBuyRead(uint32 accountId, proto::SessionId s
 {
     // the buyer's petitions are read here; the continuation deletes them and their signatures
     PetitionRepository::QueryOwnedPetitions(playerGuid.GetCounter(),
-                                            [accountId, sessionId, playerGuid, npcGuid, name](QueryResult* result)
+                                            [accountId, sessionId, playerGuid, npcGuid, name](std::vector<uint32> petitions)
                                             {
-                                                PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult>(result),
+                                                PetitionHandlers::HandlePetitionBuyCallback(petitions,
                                                                                         accountId, sessionId, playerGuid,
                                                                                         npcGuid, name);
                                             });
@@ -175,14 +175,14 @@ void PetitionHandlers::QueuePetitionBuyRead(uint32 accountId, proto::SessionId s
 /**
  * @brief Charges for the charter and writes the petition, once the owner's rows are known.
  *
- * @param result The owner's existing petitions.
+ * @param oldPetitions The guids of the owner's existing petitions.
  * @param accountId The requesting account.
  * @param sessionId The session the request arrived on.
  * @param playerGuid The buyer.
  * @param npcGuid The petitioner NPC.
  * @param name The requested charter name.
  */
-void PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+void PetitionHandlers::HandlePetitionBuyCallback(std::vector<uint32> const& oldPetitions, uint32 accountId,
                                                  proto::SessionId sessionId, ObjectGuid playerGuid,
                                                  ObjectGuid npcGuid, std::string name)
 {
@@ -255,18 +255,6 @@ void PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> re
     charter->SetState(ITEM_CHANGED, player);
     player->SendNewItem(charter, 1, true, false);
 
-    std::vector<uint32> oldPetitions;
-
-    if (result)
-    {
-        do
-        {
-            Field* fields = result->Fetch();
-            oldPetitions.push_back(fields[0].GetUInt32());
-        }
-        while (result->NextRow());
-    }
-
     // delete petitions with the same guid as this one
     std::string const invalidPetitionGuids = PetitionRepository::GuidList(oldPetitions, charter->GetGUIDLow());
 
@@ -301,7 +289,7 @@ void PetitionHandlers::HandlePetitionShowSign(WorldSession& session, WorldPacket
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueueShowSignatures(petitionguid_low,
-                                            [accountId, sessionId, playerGuid, petitionguid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                            [accountId, sessionId, playerGuid, petitionguid](SqlQueryHolder* h)
                                             {
                                                 PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                              accountId, sessionId, playerGuid,
@@ -329,10 +317,10 @@ void PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHo
         return;
     }
 
-    std::unique_ptr<QueryResult> petition(holder->GetResult(PETITION_SHOW_PETITION));
-    std::unique_ptr<QueryResult> signatures(holder->GetResult(PETITION_SHOW_SIGNATURES));
+    bool petitionExists = PetitionRepository::ShowPetitionExists(holder.get());
+    std::vector<uint32> signatures = PetitionRepository::ShowSigners(holder.get());
 
-    if (!petition)
+    if (!petitionExists)
     {
         sLog.outError("any petition on server...");
         return;
@@ -346,10 +334,10 @@ void PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHo
 
     uint8 signs = 0;
 
-    // result==NULL also correct in case no sign yet
-    if (signatures)
+    // no signatures is also correct in case no sign yet
+    if (!signatures.empty())
     {
-        signs = (uint8)signatures->GetRowCount();
+        signs = (uint8)signatures.size();
     }
 
     DEBUG_LOG("CMSG_PETITION_SHOW_SIGNATURES petition: %s", petitionGuid.GetString().c_str());
@@ -362,13 +350,10 @@ void PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHo
 
     for (uint8 i = 1; i <= signs; ++i)
     {
-        Field* fields2 = signatures->Fetch();
-        ObjectGuid signerGuid = ObjectGuid(HIGHGUID_PLAYER, fields2[0].GetUInt32());
+        ObjectGuid signerGuid = ObjectGuid(HIGHGUID_PLAYER, signatures[i - 1]);
 
         data << signerGuid;                                 // Player GUID
         data << uint32(0);                                  // there 0 ...
-
-        signatures->NextRow();
     }
 
     requestSession->SendPacket(&data);
@@ -421,9 +406,9 @@ void PetitionHandlers::HandlePetitionRename(WorldSession& session, WorldPacket& 
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueryExists(petitionGuid.GetCounter(),
-                                    [accountId, sessionId, playerGuid, petitionGuid, newname](QueryResult* result)
+                                    [accountId, sessionId, playerGuid, petitionGuid, newname](bool exists)
                                     {
-                                        PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult>(result),
+                                        PetitionHandlers::HandlePetitionRenameCallback(exists,
                                                                                    accountId, sessionId, playerGuid,
                                                                                    petitionGuid, newname);
                                     });
@@ -432,14 +417,14 @@ void PetitionHandlers::HandlePetitionRename(WorldSession& session, WorldPacket& 
 /**
  * @brief Renames the petition once it is known to exist.
  *
- * @param result The petition existence row.
+ * @param exists Whether the petition exists.
  * @param accountId The requesting account.
  * @param sessionId The session the request arrived on.
  * @param playerGuid The requesting player.
  * @param petitionGuid The petition guid.
  * @param newname The requested name.
  */
-void PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+void PetitionHandlers::HandlePetitionRenameCallback(bool exists, uint32 accountId,
                                                     proto::SessionId sessionId, ObjectGuid playerGuid,
                                                     ObjectGuid petitionGuid, std::string newname)
 {
@@ -450,7 +435,7 @@ void PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult>
         return;
     }
 
-    if (!result)
+    if (!exists)
     {
         DEBUG_LOG("CMSG_PETITION_QUERY failed for petition: %s", petitionGuid.GetString().c_str());
         return;
@@ -516,7 +501,7 @@ void PetitionHandlers::HandlePetitionSign(WorldSession& session, WorldPacket& re
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueueSignRead(petitionLowGuid, session.GetAccountId(),
-                                      [accountId, sessionId, playerGuid, petitionGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                      [accountId, sessionId, playerGuid, petitionGuid](SqlQueryHolder* h)
                                       {
                                           PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                    accountId, sessionId, playerGuid,
@@ -547,8 +532,8 @@ void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder
         return;
     }
 
-    std::unique_ptr<QueryResult> petition(holder->GetResult(PETITION_SIGN_READ_PETITION));
-    std::unique_ptr<QueryResult> accountSigns(holder->GetResult(PETITION_SIGN_READ_ACCOUNT));
+    std::optional<PetitionSignTargetRow> petition = PetitionRepository::SignReadPetition(holder.get());
+    std::optional<PetitionAccountSignatureRow> accountSign = PetitionRepository::SignReadAccountSignature(holder.get());
 
     if (!petition)
     {
@@ -556,9 +541,8 @@ void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder
         return;
     }
 
-    Field* fields = petition->Fetch();
-    ObjectGuid ownerGuid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-    uint8 signs = fields[1].GetUInt8();
+    ObjectGuid ownerGuid = ObjectGuid(HIGHGUID_PLAYER, petition->ownerGuid);
+    uint8 signs = petition->signs;
 
     if (ownerGuid == player->GetObjectGuid())
     {
@@ -581,11 +565,10 @@ void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder
         return;
     }
 
-    if (accountSigns)
+    if (accountSign)
     {
-        fields = accountSigns->Fetch();
-        ObjectGuid signerGuid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-        uint32 otherPetition = fields[1].GetUInt32();
+        ObjectGuid signerGuid = ObjectGuid(HIGHGUID_PLAYER, accountSign->playerGuid);
+        uint32 otherPetition = accountSign->petitionGuid;
         if (otherPetition == petitionGuid.GetCounter())
         {
             // close at signer side
@@ -637,7 +620,7 @@ void PetitionHandlers::QueuePetitionSignHolder(uint32 accountId, proto::SessionI
                                                ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 maxSigns)
 {
     PetitionRepository::QueueSign(petitionGuid.GetCounter(), playerGuid.GetCounter(), accountId, maxSigns,
-                                  [accountId, sessionId, playerGuid, petitionGuid, ownerGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                  [accountId, sessionId, playerGuid, petitionGuid, ownerGuid](SqlQueryHolder* h)
                                   {
                                       PetitionHandlers::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                  accountId, sessionId, playerGuid,
@@ -689,10 +672,10 @@ void PetitionHandlers::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHold
     Player* player = NULL;
     bool signerHere = WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, requestSession, player);
 
-    std::unique_ptr<QueryResult> before(holder->GetResult(PETITION_SIGNED_BEFORE));
-    std::unique_ptr<QueryResult> after(holder->GetResult(PETITION_SIGNED_AFTER));
+    bool signedBefore = PetitionRepository::SignedBefore(holder.get());
+    bool signedAfter = PetitionRepository::SignedAfter(holder.get());
 
-    uint32 outcome = PetitionSignOutcome(before != NULL, after != NULL);
+    uint32 outcome = PetitionSignOutcome(signedBefore, signedAfter);
 
     if (outcome == PETITION_SIGN_PETITION_FULL)
     {
@@ -745,10 +728,9 @@ void PetitionHandlers::HandlePetitionDecline(WorldSession& session, WorldPacket&
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueryOwner(petitionGuid.GetCounter(),
-                                   [playerGuid](QueryResult* result)
+                                   [playerGuid](std::optional<uint32> owner)
                                    {
-                                       PetitionHandlers::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult>(result),
-                                                                                   playerGuid);
+                                       PetitionHandlers::HandlePetitionDeclineCallback(owner, playerGuid);
                                    });
 }
 
@@ -761,18 +743,17 @@ void PetitionHandlers::HandlePetitionDecline(WorldSession& session, WorldPacket&
  * intervening tick would leave the owner's charter UI waiting for an answer that has
  * already been given.
  *
- * @param result The petition's owner row.
+ * @param owner The petition owner's guid, none when the petition does not exist.
  * @param playerGuid The declining player.
  */
-void PetitionHandlers::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid)
+void PetitionHandlers::HandlePetitionDeclineCallback(std::optional<uint32> const& owner, ObjectGuid playerGuid)
 {
-    if (!result)
+    if (!owner)
     {
         return;
     }
 
-    Field* fields = result->Fetch();
-    ObjectGuid ownerguid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
+    ObjectGuid ownerguid = ObjectGuid(HIGHGUID_PLAYER, *owner);
 
     if (Player* owner = sPlayerRegistry.Find(ownerguid))    // petition owner online
     {
@@ -811,7 +792,7 @@ void PetitionHandlers::HandleOfferPetition(WorldSession& session, WorldPacket& r
     ObjectGuid ownGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueueShowSignatures(petitionGuid.GetCounter(),
-                                            [accountId, sessionId, ownGuid, petitionGuid, playerGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                            [accountId, sessionId, ownGuid, petitionGuid, playerGuid](SqlQueryHolder* h)
                                             {
                                                 PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                           accountId, sessionId, ownGuid,
@@ -847,10 +828,10 @@ void PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolde
         return;
     }
 
-    std::unique_ptr<QueryResult> petition(holder->GetResult(PETITION_SHOW_PETITION));
-    std::unique_ptr<QueryResult> signatures(holder->GetResult(PETITION_SHOW_SIGNATURES));
+    bool petitionExists = PetitionRepository::ShowPetitionExists(holder.get());
+    std::vector<uint32> signatures = PetitionRepository::ShowSigners(holder.get());
 
-    if (!petition)
+    if (!petitionExists)
     {
         return;
     }
@@ -877,10 +858,10 @@ void PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolde
 
     /// Get petition signs count
     uint8 signs = 0;
-    // result==NULL also correct charter without signs
-    if (signatures)
+    // no signatures is also correct, a charter without signs
+    if (!signatures.empty())
     {
-        signs = (uint8)signatures->GetRowCount();
+        signs = (uint8)signatures.size();
     }
 
     /// Send response
@@ -892,13 +873,10 @@ void PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolde
 
     for (uint8 i = 1; i <= signs; ++i)
     {
-        Field* fields2 = signatures->Fetch();
-        ObjectGuid signerGuid = ObjectGuid(HIGHGUID_PLAYER, fields2[0].GetUInt32());
+        ObjectGuid signerGuid = ObjectGuid(HIGHGUID_PLAYER, signatures[i - 1]);
 
         data << signerGuid;                                 // Player GUID
         data << uint32(0);                                  // there 0 ...
-
-        signatures->NextRow();
     }
 
     player->GetSession()->SendPacket(&data);
@@ -926,7 +904,7 @@ void PetitionHandlers::HandleTurnInPetition(WorldSession& session, WorldPacket& 
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueueTurnInRead(petitionGuid.GetCounter(),
-                                        [accountId, sessionId, playerGuid, petitionGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                        [accountId, sessionId, playerGuid, petitionGuid](SqlQueryHolder* h)
                                         {
                                             PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                        accountId, sessionId, playerGuid,
@@ -960,8 +938,8 @@ void PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHold
         return;
     }
 
-    std::unique_ptr<QueryResult> petition(holder->GetResult(PETITION_TURN_IN_PETITION));
-    std::unique_ptr<QueryResult> signatures(holder->GetResult(PETITION_TURN_IN_SIGNATURES));
+    std::optional<PetitionTurnInRow> petition = PetitionRepository::TurnInPetition(holder.get());
+    std::vector<uint32> signatures = PetitionRepository::TurnInSigners(holder.get());
 
     /// Collect petition info data
     ObjectGuid ownerGuid;
@@ -970,9 +948,8 @@ void PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHold
     // data
     if (petition)
     {
-        Field* fields = petition->Fetch();
-        ownerGuid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-        name = fields[1].GetCppString();
+        ownerGuid = ObjectGuid(HIGHGUID_PLAYER, petition->ownerGuid);
+        name = petition->name;
     }
     else
     {
@@ -992,7 +969,7 @@ void PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHold
     }
 
     // signs
-    uint8 signs = signatures ? (uint8)signatures->GetRowCount() : 0;
+    uint8 signs = (uint8)signatures.size();
 
     uint32 count = sGameConfig.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS);
     if (signs < count)
@@ -1029,19 +1006,18 @@ void PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHold
     // register guild and add guildmaster
     sGuildMgr.AddGuild(guild);
 
-    // add members
+    // add members; a signer row of guid 0 is not passed, so the rows after it are not read
+    size_t next = 0;
     for (uint8 i = 0; i < signs; ++i)
     {
-        Field* fields = signatures->Fetch();
-
-        ObjectGuid signGuid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
+        ObjectGuid signGuid = ObjectGuid(HIGHGUID_PLAYER, signatures[next]);
         if (!signGuid)
         {
             continue;
         }
 
         guild->AddMember(signGuid, guild->GetLowestRank());
-        signatures->NextRow();
+        ++next;
     }
 
     PetitionRepository::Delete(petitionGuid.GetCounter());

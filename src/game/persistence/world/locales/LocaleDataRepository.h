@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+class Database;
+
 #include <string>
 #include <vector>
 
@@ -87,6 +89,26 @@ struct GameObjectLocaleRow
     std::string castBarCaption[LOCALE_ROW_LOCALES];
 };
 
+/// The locales a string row holds besides the default (`content_loc1` to `content_loc11`).
+enum
+{
+    STRING_ROW_LOCALES = 11
+};
+
+/// One row of a string table (`mangos_string` and the script and AI text tables): the entry, the
+/// default text and one per locale, and, when the table has them, the sound, chat type, language
+/// and emote.
+struct StringRow
+{
+    int32 entry = 0;
+    std::string contentDefault;
+    std::string content[STRING_ROW_LOCALES];
+    uint32 sound = 0;
+    uint32 type = 0;
+    uint32 language = 0;
+    uint32 emote = 0;
+};
+
 /// The localised texts on the world database (the `locales_` tables): `ObjectMgr`'s locale loads at
 /// startup and on a reload, each run synchronously and read into rows.
 namespace LocaleDataRepository
@@ -108,6 +130,10 @@ namespace LocaleDataRepository
 
     /// Selects every game object's localised names (`locales_gameobject`).
     std::vector<GameObjectLocaleRow> QueryGameObjectLocales();
+
+    /// Selects every row of a string table on a database, with the sound, type, language and emote
+    /// columns when extraContent is set.
+    std::vector<StringRow> QueryStrings(Database& db, char const* table, bool extraContent);
 }
 
 #endif

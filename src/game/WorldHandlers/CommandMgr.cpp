@@ -86,28 +86,28 @@ void CommandMgr::LoadCommandHelpLocale()
 
     uint32 count=0;
 
-    QueryResult* result = CommandDataRepository::QueryCommandHelpLocales();
+    std::vector<CommandHelpLocaleRow> rows = CommandDataRepository::QueryCommandHelpLocales();
 
-    if (!result)
+    if (rows.empty())
     {
         sLog.outString();
         sLog.outString(">> Loaded 0 locales command help definitions. DB table `locales_command` is empty.");
         return;
     }
 
-    BarGoLink bar(result->GetRowCount());
+    BarGoLink bar(rows.size());
 
-    do
+    for (CommandHelpLocaleRow const& row : rows)
     {
-        Field* fields = result->Fetch();
         bar.step();
 
-        uint32 commandId = fields[0].GetUInt32(); // to assign with db data
+        uint32 commandId = row.id; // to assign with db data
 
         CommandHelpLocale& data = m_CommandHelpLocaleMap[commandId];
         for (int i = 1; i <= MAX_LOCALE; ++i)
         {
-            std::string str = fields[i].GetCppString();
+            // the row holds the locales the table has columns for; the others read empty
+            std::string str = i <= COMMAND_HELP_ROW_LOCALES ? row.helpText[i - 1] : std::string();
             if (!str.empty())
             {
                 int idx = sObjectMgr.GetOrNewIndexForLocale(LocaleConstant(i));
@@ -123,7 +123,7 @@ void CommandMgr::LoadCommandHelpLocale()
         }
 
         ++count;
-    } while (result->NextRow());
+    }
 
     sLog.outString();
     sLog.outString(">> Loaded %u locale command help definitions", count);

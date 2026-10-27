@@ -85,35 +85,33 @@ void SystemMgr::LoadScriptWaypoints()
     uint64 uiCreatureCount = 0;
 
     // Load Waypoints
-    QueryResult* pResult = ScriptDataRepository::QueryScriptWaypointCounts();
-    if (pResult)
+    std::vector<uint32> waypointCounts = ScriptDataRepository::QueryScriptWaypointCounts();
+    if (!waypointCounts.empty())
     {
-        uiCreatureCount = pResult->GetRowCount();
-        delete pResult;
+        uiCreatureCount = waypointCounts.size();
     }
 
     outstring_log("[SD3]: Loading Script Waypoints for " UI64FMTD " creature(s)...", uiCreatureCount);
 
-    pResult = ScriptDataRepository::QueryScriptWaypoints();
+    std::vector<ScriptWaypointRow> waypoints = ScriptDataRepository::QueryScriptWaypoints();
 
-    if (pResult)
+    if (!waypoints.empty())
     {
-        BarGoLink bar(pResult->GetRowCount());
+        BarGoLink bar(waypoints.size());
         uint32 uiNodeCount = 0;
 
-        do
+        for (ScriptWaypointRow const& row : waypoints)
         {
             bar.step();
-            Field* pFields = pResult->Fetch();
             ScriptPointMove pTemp;
 
-            pTemp.uiCreatureEntry   = pFields[0].GetUInt32();
+            pTemp.uiCreatureEntry   = row.entry;
             uint32 uiEntry          = pTemp.uiCreatureEntry;
-            pTemp.uiPointId         = pFields[1].GetUInt32();
-            pTemp.fX                = pFields[2].GetFloat();
-            pTemp.fY                = pFields[3].GetFloat();
-            pTemp.fZ                = pFields[4].GetFloat();
-            pTemp.uiWaitTime        = pFields[5].GetUInt32();
+            pTemp.uiPointId         = row.pointId;
+            pTemp.fX                = row.positionX;
+            pTemp.fY                = row.positionY;
+            pTemp.fZ                = row.positionZ;
+            pTemp.uiWaitTime        = row.waitTime;
 
             CreatureInfo const* pCInfo = GetCreatureTemplateStore(pTemp.uiCreatureEntry);
 
@@ -131,9 +129,6 @@ void SystemMgr::LoadScriptWaypoints()
             m_mPointMoveMap[uiEntry].push_back(pTemp);
             ++uiNodeCount;
         }
-        while (pResult->NextRow());
-
-        delete pResult;
 
         outstring_log(">> Loaded %u Script Waypoint nodes.", uiNodeCount);
     }

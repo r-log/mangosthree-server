@@ -214,12 +214,11 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
                 const uint32 logItemCount = auction->itemCount;
                 const uint64 logBid = auction->bid;
 
-                AccountRepository::QueryGmLevel(bidder_accId, [logAccId, logBidderGuid, logOwnerGuid, logItemTemplate, logItemCount, logBid](QueryResult* result)
+                AccountRepository::QueryGmLevel(bidder_accId, [logAccId, logBidderGuid, logOwnerGuid, logItemTemplate, logItemCount, logBid](std::optional<int32> gmLevel)
                                           {
-                                              std::unique_ptr<QueryResult> row(result);
                                               // No row is AccountMgr::GetSecurity's own "return SEC_PLAYER",
-                                              // and SEC_PLAYER writes nothing -- the same silence as before (C4).
-                                              if (!row || AccountTypes((*row)[0].GetInt32()) <= SEC_PLAYER)
+                                              // and SEC_PLAYER writes nothing.
+                                              if (!gmLevel || AccountTypes(*gmLevel) <= SEC_PLAYER)
                                               {
                                                   return;
                                               }

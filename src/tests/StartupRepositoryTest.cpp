@@ -31,8 +31,10 @@
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
+#include "persistence/characters/CharacterCleanupRepository.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterSaveRepository.h"
+#include "persistence/characters/SavedVariablesRepository.h"
 #include "persistence/characters/economy/AuctionRepository.h"
 #include "persistence/characters/events/GameEventStatusRepository.h"
 #include "persistence/characters/inventory/ItemRepository.h"
@@ -101,7 +103,7 @@ TEST(MailRepository_ExpiredMail)
     {
         TickGuard::Scope scope;
         MailRepository::DeleteEmptyExpiredMails(1700000000);
-        MailRepository::QueueExpiredMailReads(1700000000, [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; });
+        MailRepository::QueueExpiredMailReads(1700000000, [&answered](SqlQueryHolder* holder) { delete holder; ++answered; });
         MailRepository::DeleteExpiredMailItem(5);
         MailRepository::ReturnExpiredMail(42, 43, 1702592000, 1700000000, 2, 9);
         MailRepository::SetReturnedItemReceiver(43, 6);
@@ -296,5 +298,29 @@ TEST(GameEventStatusRepository_ReadAndWrites)
         "TRUNCATE game_event_status",
         "DELETE FROM `game_event_status` WHERE `event` = 5",
         "INSERT IGNORE INTO `game_event_status` (`event`) VALUES (5)",
+    }, __LINE__);
+}
+
+// The cleanup reads a column's distinct ids, deletes the rows of the ids handed to it in one queued
+// statement, deletes the talent rows past the limits at once, and the flags are cleared with and
+// without the build.
+TEST(CharacterCleanupRepository_ReadsAndDeletes)
+{
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT DISTINCT", FakeRows{FakeRow{"1000"}, FakeRow{"2000"}});
+    std::vector<uint32> ids = CharacterCleanupRepository::QueryDistinct("skill", "character_skills");
+    REQUIRE(ids.size() == 2);
+    CHECK_EQ(ids[0], 1000u);
+    CHECK_EQ(ids[1], 2000u);
+    CHECK_STR(db.query.executed.back(), "SELECT DISTINCT `skill` FROM `character_skills`");
+    CharacterCleanupRepository::DeleteTalentsPastLimits(2, 5);
+    CharacterCleanupRepository::DeleteRowsWithIds("character_skills", "skill", {7, 9, 11});
+    SavedVariablesRepository::FinishCleaning(15595);
+    SavedVariablesRepository::FinishCleaningWithoutBuild();
+    CheckLines(db.Take(), {
+        "DELETE FROM `character_talent` WHERE `spec` > 2 OR `current_rank` > 5",
+        "DELETE FROM `character_skills` WHERE `skill` IN (7,9,11)",
+        "UPDATE `saved_variables` SET `cleaning_flags` = 0, `last_cleaned_dbc_build` = 15595",
+        "UPDATE `saved_variables` SET `cleaning_flags` = 0",
     }, __LINE__);
 }

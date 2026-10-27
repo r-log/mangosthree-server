@@ -311,23 +311,22 @@ void WorldSession::HandleOpenItemOpcode(WorldPacket& recvPacket)
 void WorldSession::QueueOpenWrappedItemRead(uint32 accountId, proto::SessionId sessionId,
                                             ObjectGuid playerGuid, ObjectGuid itemGuid)
 {
-    ItemRepository::QueryGift(itemGuid.GetCounter(), [accountId, sessionId, playerGuid, itemGuid](QueryResult* result)
+    ItemRepository::QueryGift(itemGuid.GetCounter(), [accountId, sessionId, playerGuid, itemGuid](std::optional<GiftRow> gift)
                               {
-                                  WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult>(result),
-                                                                              accountId, sessionId, playerGuid, itemGuid);
+                                  WorldSession::HandleOpenWrappedItemCallback(gift, accountId, sessionId, playerGuid, itemGuid);
                               });
 }
 
 /**
  * @brief Unwraps the gift once its row is known.
  *
- * @param result The item's `character_gifts` row, if it has one.
+ * @param gift The item's gift row, if it has one.
  * @param accountId The opening account.
  * @param sessionId The session the request arrived on.
  * @param playerGuid The player opening the gift.
  * @param itemGuid The wrapped item.
  */
-void WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+void WorldSession::HandleOpenWrappedItemCallback(std::optional<GiftRow> const& gift, uint32 accountId,
                                                  proto::SessionId sessionId, ObjectGuid playerGuid,
                                                  ObjectGuid itemGuid)
 {
@@ -357,11 +356,10 @@ void WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult> re
         return;
     }
 
-    if (result)
+    if (gift)
     {
-        Field* fields = result->Fetch();
-        uint32 entry = fields[0].GetUInt32();
-        uint32 flags = fields[1].GetUInt32();
+        uint32 entry = gift->entry;
+        uint32 flags = gift->flags;
 
         pItem->SetGuidValue(ITEM_FIELD_GIFTCREATOR, ObjectGuid());
         pItem->SetEntry(entry);

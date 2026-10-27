@@ -70,6 +70,17 @@ struct DbScriptRow
     float o = 0.0f;
 };
 
+/// One `script_waypoint` row.
+struct ScriptWaypointRow
+{
+    uint32 entry = 0;
+    uint32 pointId = 0;
+    float positionX = 0.0f;
+    float positionY = 0.0f;
+    float positionZ = 0.0f;
+    uint32 waitTime = 0;
+};
+
 /// The script data on the world database (`script_binding`, `db_scripts`, `script_waypoint`): the
 /// script manager's and the script library's loads at startup and on a reload, each run
 /// synchronously.
@@ -85,10 +96,10 @@ namespace ScriptDataRepository
     std::vector<DbScriptRow> QueryDbScripts(int type);
 
     /// Selects the number of script waypoints of every creature entry.
-    QueryResult* QueryScriptWaypointCounts();
+    std::vector<uint32> QueryScriptWaypointCounts();
 
     /// Selects every script waypoint, ordered by point.
-    QueryResult* QueryScriptWaypoints();
+    std::vector<ScriptWaypointRow> QueryScriptWaypoints();
 }
 
 #endif
