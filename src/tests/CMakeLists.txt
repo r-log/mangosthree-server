@@ -217,6 +217,7 @@ set(SRC_GRP_TESTS
     CreatureModelInfoRepositoryTest.cpp
     CreatureTemplateSpellsRepositoryTest.cpp
     CreatureTemplateRepositoryTest.cpp
+    ItemTemplateRepositoryTest.cpp
     TextPoolTest.cpp
     GameObjectAddonRepositoryTest.cpp
     GameObjectTemplateRepositoryTest.cpp

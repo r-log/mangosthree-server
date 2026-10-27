@@ -23,14 +23,14 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Decoupling D4e0: real items and bags in the test binary, with no character anywhere.
+/// Real items and bags in the test binary, with no character anywhere.
 ///
-/// The inventory golden table (D4e1-e3) needs real Item and Bag objects in slots. These cases
-/// prove the fixture that makes them (ItemFixture.h): sItemStorage loaded by its own loader
-/// from fake `item_template` rows, then Item::Create and Bag::Create run unchanged. Create's
-/// owner parameter is a `Player const*`; NULL is what every case passes.
+/// The inventory golden table needs real Item and Bag objects in slots. These cases prove the
+/// fixture that makes them (ItemFixture.h): the item prototypes filled from fake
+/// `item_template` rows by ObjectMgr::FillItemPrototypes, then Item::Create and Bag::Create run
+/// unchanged. Create's owner parameter is a `Player const*`; NULL is what every case passes.
 ///
-/// sItemStorage stays loaded for the rest of this binary once the first case here (or any
+/// The prototypes stay loaded for the rest of this binary once the first case here (or any
 /// other user of the fixture) has run; only the fixture's entries have prototypes.
 
 #include "TestHarness.h"
@@ -39,7 +39,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
 #include "ObjectMgr.h"
-#include "SQLStorages.h"
+#include "persistence/world/items/ItemTemplateRepository.h"
 #include "Utilities/ProgressBar.h"
 
 #include <algorithm>
@@ -55,9 +55,9 @@ namespace
     ObjectGuid OwnerGuid() { return ObjectGuid(HIGHGUID_PLAYER, uint32(42)); }
 }
 
-TEST(ItemFixture_TheLoaderTakesTheFakeRowsInItsThreeStatements)
+TEST(ItemFixture_TheFillTakesTheFakeRowsInItsOneStatement)
 {
-    // The loader's progress bar is silenced for the load and the state found is put back --
+    // The fill's progress bar is silenced for the load and the state found is put back --
     // not forced on. Seen only when this case makes the binary's first load (run it alone).
     const bool barBefore = BarGoLink::GetOutputState();
     BarGoLink::SetOutputState(false);
@@ -68,11 +68,10 @@ TEST(ItemFixture_TheLoaderTakesTheFakeRowsInItsThreeStatements)
     CHECK_STR(record.failure, "");
     REQUIRE(record.loaded);
 
-    // The loader's three reads, in its order, on the query connection: nothing else was asked.
-    REQUIRE(record.queries.size() == size_t(3));
-    CHECK_STR(record.queries[0], "SELECT MAX(`entry`) FROM `item_template`");
-    CHECK_STR(record.queries[1], "SELECT COUNT(*) FROM `item_template`");
-    CHECK_STR(record.queries[2], "SELECT * FROM `item_template`");
+    // The repository's one read, on the query connection: nothing else was asked, and no
+    // probe, as the read found rows.
+    REQUIRE(record.queries.size() == size_t(1));
+    CHECK_STR(record.queries[0], "SELECT `entry`, `class`, `subclass`, `unk0`, `name`, `displayid`, `Quality`, `Flags`, `Flags2`, `Unknown`, `Unknown1`, `Unknown2`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `RequiredSkill`, `RequiredSkillRank`, `requiredspell`, `requiredhonorrank`, `RequiredCityRank`, `RequiredReputationFaction`, `RequiredReputationRank`, `maxcount`, `stackable`, `ContainerSlots`, `stat_type1`, `stat_value1`, `stat_unk1_1`, `stat_unk2_1`, `stat_type2`, `stat_value2`, `stat_unk1_2`, `stat_unk2_2`, `stat_type3`, `stat_value3`, `stat_unk1_3`, `stat_unk2_3`, `stat_type4`, `stat_value4`, `stat_unk1_4`, `stat_unk2_4`, `stat_type5`, `stat_value5`, `stat_unk1_5`, `stat_unk2_5`, `stat_type6`, `stat_value6`, `stat_unk1_6`, `stat_unk2_6`, `stat_type7`, `stat_value7`, `stat_unk1_7`, `stat_unk2_7`, `stat_type8`, `stat_value8`, `stat_unk1_8`, `stat_unk2_8`, `stat_type9`, `stat_value9`, `stat_unk1_9`, `stat_unk2_9`, `stat_type10`, `stat_value10`, `stat_unk1_10`, `stat_unk2_10`, `ScalingStatDistribution`, `DamageType`, `delay`, `RangedModRange`, `spellid_1`, `spelltrigger_1`, `spellcharges_1`, `spellppmRate_1`, `spellcooldown_1`, `spellcategory_1`, `spellcategorycooldown_1`, `spellid_2`, `spelltrigger_2`, `spellcharges_2`, `spellppmRate_2`, `spellcooldown_2`, `spellcategory_2`, `spellcategorycooldown_2`, `spellid_3`, `spelltrigger_3`, `spellcharges_3`, `spellppmRate_3`, `spellcooldown_3`, `spellcategory_3`, `spellcategorycooldown_3`, `spellid_4`, `spelltrigger_4`, `spellcharges_4`, `spellppmRate_4`, `spellcooldown_4`, `spellcategory_4`, `spellcategorycooldown_4`, `spellid_5`, `spelltrigger_5`, `spellcharges_5`, `spellppmRate_5`, `spellcooldown_5`, `spellcategory_5`, `spellcategorycooldown_5`, `bonding`, `description`, `PageText`, `LanguageID`, `PageMaterial`, `startquest`, `lockid`, `Material`, `sheath`, `RandomProperty`, `RandomSuffix`, `itemset`, `MaxDurability`, `area`, `Map`, `BagFamily`, `TotemCategory`, `socketColor_1`, `socketContent_1`, `socketColor_2`, `socketContent_2`, `socketColor_3`, `socketContent_3`, `socketBonus`, `GemProperties`, `RequiredDisenchantSkill`, `ArmorDamageModifier`, `Duration`, `ItemLimitCategory`, `HolidayId`, `DisenchantID`, `FoodType`, `StatScalingFactor`, `Unknown400_1`, `Unknown400_2`, `minMoneyLoot`, `maxMoneyLoot`, `ExtraFlags` FROM `item_template`");
 
     // Nothing queued, and nothing counted against the tick: the load ran outside a
     // TickGuard::Scope, which is where the server's own start-up load runs.
@@ -82,33 +81,19 @@ TEST(ItemFixture_TheLoaderTakesTheFakeRowsInItsThreeStatements)
     // The fakes are gone again: WorldDatabase has no pool (GameLinkTest asserts the same).
     CHECK(!WorldDatabase);
 
-    // A row is as wide as the format, and the format stores every column as it reads it --
-    // which is why this loader and ObjectMgr::LoadItemPrototypes' SQLItemLoader, whose one
-    // override only runs for a string column stored into a number, build the same records.
+    // A row is as wide as the statement names columns.
     std::vector<Prototype> const& prototypes = Prototypes();
     REQUIRE(!prototypes.empty());
-    CHECK_EQ(std::strlen(sItemStorage.GetSrcFormat()), size_t(147));
-    CHECK_EQ(TemplateRow(prototypes[0]).size(), size_t(147));
-    CHECK_STR(sItemStorage.GetSrcFormat(), sItemStorage.GetDstFormat());
+    CHECK_EQ(TemplateRow(prototypes[0]).size(), size_t(ITEM_TEMPLATE_COLUMNS));
 
-    // One record is one packed ItemPrototype: the format's 145 four-byte and 2 pointer
-    // columns lay out exactly as the struct does, so every field reads its own column. The
-    // record size itself (SQLStorageBase::GetRecordSize) is protected; the public iterators
-    // step by it, so the data's span over the record count is that size.
-    char const* first = reinterpret_cast<char const*>(*sItemStorage.getDataBegin<ItemPrototype>());
-    char const* end = reinterpret_cast<char const*>(*sItemStorage.getDataEnd<ItemPrototype>());
-    REQUIRE(sItemStorage.GetRecordCount() > 0);
-    CHECK_EQ(size_t(end - first) / sItemStorage.GetRecordCount(), sizeof(ItemPrototype));
-    CHECK_EQ(size_t(end - first) % sItemStorage.GetRecordCount(), size_t(0));
-
-    // COUNT(*) records, and an index as long as MAX(entry) + 1.
+    // One prototype per row, and the highest entry is one below the store's max.
     uint32 maxEntry = 0;
     for (Prototype const& proto : prototypes)
     {
         maxEntry = std::max(maxEntry, proto.entry);
     }
-    CHECK_EQ(sItemStorage.GetRecordCount(), uint32(prototypes.size()));
-    CHECK_EQ(sItemStorage.GetMaxEntry(), maxEntry + 1);
+    CHECK_EQ(sObjectMgr.GetItemPrototypes().GetCount(), uint32(prototypes.size()));
+    CHECK_EQ(sObjectMgr.GetItemPrototypes().GetMaxEntry(), maxEntry + 1);
 
     // Every entry the fixture does not declare still has no prototype -- template 555 among
     // them, which CharacterOpsAsyncTest and GuildAsyncTest read as unknown.

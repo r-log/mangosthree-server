@@ -772,9 +772,9 @@ bool ChatHandler::HandleAddItemSetCommand(char* args)
     DETAIL_LOG(GetMangosString(LANG_ADDITEMSET), itemsetId);
 
     bool found = false;
-    for (uint32 id = 0; id < sItemStorage.GetMaxEntry(); ++id)
+    for (uint32 id = 0; id < sObjectMgr.GetItemPrototypes().GetMaxEntry(); ++id)
     {
-        ItemPrototype const* pProto = sItemStorage.LookupEntry<ItemPrototype>(id);
+        ItemPrototype const* pProto = ObjectMgr::GetItemPrototype(id);
         if (!pProto)
         {
             continue;

@@ -74,9 +74,9 @@ bool ChatHandler::HandleQuestAddCommand(char* args)
     }
 
     // check item starting quest (it can work incorrectly if added without item in inventory)
-    for (uint32 id = 0; id < sItemStorage.GetMaxEntry(); ++id)
+    for (uint32 id = 0; id < sObjectMgr.GetItemPrototypes().GetMaxEntry(); ++id)
     {
-        ItemPrototype const* pProto = sItemStorage.LookupEntry<ItemPrototype>(id);
+        ItemPrototype const* pProto = ObjectMgr::GetItemPrototype(id);
         if (!pProto)
         {
             continue;

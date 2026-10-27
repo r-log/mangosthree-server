@@ -102,7 +102,7 @@ void ScriptMgr::LoadScriptBinding()
             exists = id > 0 ? bool(ObjectMgr::GetGameObjectInfo(uint32(id))) : bool(sObjectMgr.GetGOData(uint32(-id)));
             break;
         case SCRIPTED_ITEM:
-            exists = bool(sItemStorage.LookupEntry<ItemPrototype>(uint32(id)));
+            exists = bool(ObjectMgr::GetItemPrototype(uint32(id)));
             break;
         case SCRIPTED_AREATRIGGER:
             exists = bool(sAreaTriggerStore.LookupEntry(uint32(id)));
