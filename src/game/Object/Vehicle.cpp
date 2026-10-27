@@ -44,6 +44,8 @@
 #include "CreatureAI.h"
 #include "ObjectMgr.h"
 #include "SQLStorages.h"
+#include "ProgressBar.h"
+#include "persistence/world/creatures/VehicleAccessoryRepository.h"
 #include "Util.h"
 #include "movement/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
@@ -53,30 +55,57 @@
 
 void ObjectMgr::LoadVehicleAccessory()
 {
-    sVehicleAccessoryStorage.Load();
+    TableRead<VehicleAccessoryRow> read = VehicleAccessoryRepository::QueryVehicleAccessories();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `vehicle_accessory` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
 
-    sLog.outString(">> Loaded %u vehicle accessories", sVehicleAccessoryStorage.GetRecordCount());
+    uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("vehicle_accessory table is empty!\n");
+    }
+    else
+    {
+        m_vehicleAccessories.Clear();
+        BarGoLink bar(read.rows.size());
+        for (VehicleAccessoryRow const& row : read.rows)
+        {
+            bar.step();
+            VehicleAccessory accessory;
+            accessory.vehicleEntry = row.vehicleEntry;
+            accessory.seatId = row.seat;
+            accessory.passengerEntry = row.accessoryEntry;
+            m_vehicleAccessories.Add(accessory);
+        }
+        loaded = uint32(read.rows.size());
+    }
+
+    sLog.outString(">> Loaded %u vehicle accessories", loaded);
     sLog.outString();
 
-    // Check content
-    for (SQLMultiStorage::SQLSIterator<VehicleAccessory> itr = sVehicleAccessoryStorage.getDataBegin<VehicleAccessory>(); itr < sVehicleAccessoryStorage.getDataEnd<VehicleAccessory>(); ++itr)
+    // Check content: every row read, in the order read, the rows of a vehicle already erased included
+    for (VehicleAccessoryRow const& row : read.rows)
     {
-        if (!sCreatureStorage.LookupEntry<CreatureInfo>(itr->vehicleEntry))
+        if (!sCreatureStorage.LookupEntry<CreatureInfo>(row.vehicleEntry))
         {
-            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where vehicle_entry is invalid, skip vehicle.", itr->vehicleEntry, itr->seatId, itr->passengerEntry);
-            sVehicleAccessoryStorage.EraseEntry(itr->vehicleEntry);
+            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where vehicle_entry is invalid, skip vehicle.", row.vehicleEntry, row.seat, row.accessoryEntry);
+            m_vehicleAccessories.Erase(row.vehicleEntry);
             continue;
         }
-        if (!sCreatureStorage.LookupEntry<CreatureInfo>(itr->passengerEntry))
+        if (!sCreatureStorage.LookupEntry<CreatureInfo>(row.accessoryEntry))
         {
-            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where accessory_entry is invalid, skip vehicle.", itr->vehicleEntry, itr->seatId, itr->passengerEntry);
-            sVehicleAccessoryStorage.EraseEntry(itr->vehicleEntry);
+            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where accessory_entry is invalid, skip vehicle.", row.vehicleEntry, row.seat, row.accessoryEntry);
+            m_vehicleAccessories.Erase(row.vehicleEntry);
             continue;
         }
-        if (itr->seatId >= MAX_VEHICLE_SEAT)
+        if (row.seat >= MAX_VEHICLE_SEAT)
         {
-            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where seat is invalid (must be between 0 and %u), skip vehicle.", itr->vehicleEntry, itr->seatId, itr->passengerEntry, MAX_VEHICLE_SEAT - 1);
-            sVehicleAccessoryStorage.EraseEntry(itr->vehicleEntry);
+            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where seat is invalid (must be between 0 and %u), skip vehicle.", row.vehicleEntry, row.seat, row.accessoryEntry, MAX_VEHICLE_SEAT - 1);
+            m_vehicleAccessories.Erase(row.vehicleEntry);
             continue;
         }
     }
@@ -143,14 +172,15 @@ void VehicleInfo::Initialize()
     }
 
     // Loading passengers (rough version only!)
-    SQLMultiStorage::SQLMSIteratorBounds<VehicleAccessory> bounds = sVehicleAccessoryStorage.getBounds<VehicleAccessory>(m_overwriteNpcEntry);
-    for (SQLMultiStorage::SQLMultiSIterator<VehicleAccessory> itr = bounds.first; itr != bounds.second; ++itr)
+    VehicleAccessoryStore::Bounds bounds = sObjectMgr.GetVehicleAccessories(m_overwriteNpcEntry);
+    for (VehicleAccessoryStore::VehicleAccessoryMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
     {
-        if (Creature* summoned = m_owner->SummonCreature(itr->passengerEntry, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), 2 * m_owner->Where().Facing(), TEMPSPAWN_DEAD_DESPAWN, 0))
+        VehicleAccessory const& accessory = itr->second;
+        if (Creature* summoned = m_owner->SummonCreature(accessory.passengerEntry, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), 2 * m_owner->Where().Facing(), TEMPSPAWN_DEAD_DESPAWN, 0))
         {
-            DEBUG_LOG("VehicleInfo(of %s)::Initialize: Load vehicle accessory %s onto seat %u", m_owner->GetGuidStr().c_str(), summoned->GetGuidStr().c_str(), itr->seatId);
+            DEBUG_LOG("VehicleInfo(of %s)::Initialize: Load vehicle accessory %s onto seat %u", m_owner->GetGuidStr().c_str(), summoned->GetGuidStr().c_str(), accessory.seatId);
             m_accessoryGuids.insert(summoned->GetObjectGuid());
-            int32 basepoint0 = itr->seatId + 1;
+            int32 basepoint0 = accessory.seatId + 1;
             summoned->CastCustomSpell((Unit*)m_owner, SPELL_RIDE_VEHICLE_HARDCODED, &basepoint0, NULL, NULL, true);
         }
     }

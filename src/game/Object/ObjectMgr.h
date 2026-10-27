@@ -65,6 +65,7 @@
 #include "data/PageTextStore.h"
 #include "data/PointOfInterestStore.h"
 #include "data/QuestPOIStore.h"
+#include "data/VehicleAccessoryStore.h"
 
 #include <string>
 #include <map>
@@ -663,6 +664,12 @@ class ObjectMgr
         PageText const* GetPageText(uint32 id) const
         {
             return m_pageTexts.Find(id);
+        }
+
+        /// The passengers boarded onto `vehicleEntry`, in the order they were loaded.
+        VehicleAccessoryStore::Bounds GetVehicleAccessories(uint32 vehicleEntry) const
+        {
+            return m_vehicleAccessories.GetBounds(vehicleEntry);
         }
 
         QuestPOIVector const* GetQuestPOIVector(uint32 questId) const
@@ -1397,6 +1404,8 @@ class ObjectMgr
         InstanceTemplateStore m_instanceTemplates;
 
         CreatureEquipmentStore m_creatureEquipment;
+
+        VehicleAccessoryStore m_vehicleAccessories;
 
         QuestPOIStore m_questPoi;
 
