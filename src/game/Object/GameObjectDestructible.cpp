@@ -40,7 +40,6 @@
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "Util.h"
 #include "ScriptMgr.h"
-#include "SQLStorages.h"
 #include <memory>
 
 /**

@@ -37,7 +37,6 @@
 #include "ObjectMgr.h"
 #include "Language.h"
 #include "data/GameConfig.h"
-#include "SQLStorages.h"
 #include "WorldSession.h"
 #include "persistence/characters/quests/QuestTrackerRepository.h"
 

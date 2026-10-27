@@ -32,7 +32,6 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "ProgressBar.h"
-#include "SQLStorages.h"
 #include "DBCStores.h"
 #include "persistence/world/creatures/CreatureTemplateSpellsRepository.h"
 #include "persistence/world/economy/SkillDataRepository.h"

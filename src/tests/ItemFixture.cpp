@@ -39,8 +39,8 @@
 
 namespace
 {
-    /// `item_template`'s columns, by the live table's names and positions (147 of them, one per
-    /// character of ItemPrototypesrcfmt in SQLStorages.cpp). Only the ones the fixture writes.
+    /// `item_template`'s columns, by the live table's names and positions (147 of them, in the
+    /// order ItemTemplateRepository's statement names them). Only the ones the fixture writes.
     enum TemplateColumn
     {
         COL_ENTRY           = 0,            // entry

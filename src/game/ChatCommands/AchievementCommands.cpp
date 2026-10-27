@@ -59,7 +59,6 @@
 #include "InstanceData.h"
 #include "CreatureEventAIMgr.h"
 #include "DBCEnums.h"
-#include "SQLStorages.h"
 #include "DisableMgr.h"
 
 void ChatHandler::ShowAchievementCriteriaListHelper(AchievementCriteriaEntry const* criEntry, AchievementEntry const* achEntry, LocaleConstant loc, Player* target /*= NULL*/)

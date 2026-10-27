@@ -32,7 +32,6 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "ProgressBar.h"
-#include "SQLStorages.h"
 #include "DBCStores.h"
 #include "ArenaTeam.h"
 #include "Group.h"
@@ -47,7 +46,6 @@
  * @return The instance template, or null if missing.
  */
 InstanceTemplate const* ObjectMgr::GetInstanceTemplate(uint32 map) { return sObjectMgr.m_instanceTemplates.Find(map); }
-WorldTemplate const* ObjectMgr::GetWorldTemplate(uint32 map) { return sWorldTemplate.LookupEntry<WorldTemplate>(map); }
 
 /* ********************************************************************************************* */
 /* *                                Loading Functions                                            */

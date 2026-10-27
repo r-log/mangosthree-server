@@ -45,7 +45,6 @@
 #include "Language.h"
 #include "data/GameConfig.h"
 #include "AccountMgr.h"
-#include "SQLStorages.h"
 #include "WorldSession.h"
 #include "persistence/characters/CharacterRepository.h"
 

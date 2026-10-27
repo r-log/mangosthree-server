@@ -35,7 +35,6 @@
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
 #include <DBCStores.h>
-#include "SQLStorages.h"
 #include "persistence/world/ScriptDataRepository.h"
 
 #ifdef ENABLE_SD3

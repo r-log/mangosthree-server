@@ -41,7 +41,6 @@
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
 
-#include "SQLStorages.h"
 #include "Log.h"
 #include "ObjectGuid.h"
 #include "ScriptMgr.h"

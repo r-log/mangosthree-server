@@ -66,9 +66,7 @@
 #include "Util.h"
 #include "Chat.h"
 #include "DB2Stores.h"
-#include "SQLStorages.h"
 #include "Vehicle.h"
-#include "SQLStorages.h"
 #include "DisableMgr.h"
 #include "spells/handlers/SpellChecksHandlers.h"
 

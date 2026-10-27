@@ -33,7 +33,6 @@
 #include "MapManager.h"
 #include "Log.h"
 #include "ObjectGuid.h"
-#include "SQLStorages.h"
 #include "Opcodes.h"
 #include "SharedDefines.h"
 #include "GuildMgr.h"

@@ -35,7 +35,6 @@
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
 #include <DBCStores.h>
-#include "SQLStorages.h"
 #include "WaypointManager.h"
 #include "CreatureAI.h"
 #include "persistence/world/ScriptDataRepository.h"

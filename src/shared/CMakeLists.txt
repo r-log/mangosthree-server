@@ -52,9 +52,6 @@ set(SRC_GRP_DATABASE
   Database/QueryResult.h
   Database/QueryResultMysql.cpp
   Database/QueryResultMysql.h
-  Database/SQLStorage.cpp
-  Database/SQLStorage.h
-  Database/SQLStorageImpl.h
   Database/SqlDelayThread.cpp
   Database/SqlDelayThread.h
   Database/SqlOperations.cpp

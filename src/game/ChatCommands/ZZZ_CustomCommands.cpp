@@ -61,5 +61,4 @@
 #include "InstanceData.h"
 #include "DBCStores.h"
 #include "CreatureEventAIMgr.h"
-#include "SQLStorages.h"
 #include "DisableMgr.h"

@@ -43,7 +43,6 @@
 #include "Creature.h"
 #include "CreatureAI.h"
 #include "ObjectMgr.h"
-#include "SQLStorages.h"
 #include "ProgressBar.h"
 #include "persistence/world/creatures/VehicleAccessoryRepository.h"
 #include "Util.h"

@@ -46,7 +46,6 @@
 #include "AchievementMgr.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
-#include "SQLStorages.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
 

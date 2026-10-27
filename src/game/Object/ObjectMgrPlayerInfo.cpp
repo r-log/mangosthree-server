@@ -32,7 +32,6 @@
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
 
-#include "SQLStorages.h"
 #include "Log.h"
 #include "MapManager.h"
 #include "ObjectGuid.h"

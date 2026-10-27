@@ -33,7 +33,6 @@
 #include "SharedDefines.h"
 #include "spells/data/SpellMgr.h"
 #include "DBCStores.h"
-#include "SQLStorages.h"
 #include "PlayerRegistry.h"
 #include "persistence/world/economy/LootDataRepository.h"
 
