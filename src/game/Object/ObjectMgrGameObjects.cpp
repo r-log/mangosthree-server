@@ -36,10 +36,10 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
-#include "SQLStorages.h"
 #include "MapManager.h"
 #include "GridDefines.h"
 #include "DisableMgr.h"
+#include "persistence/world/spawns/GameObjectAddonRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
 /**
@@ -211,14 +211,40 @@ void ObjectMgr::LoadGameObjects()
 
 void ObjectMgr::LoadGameObjectAddon()
 {
-    sGameObjectDataAddonStorage.Load();
+    TableRead<GameObjectAddonRow> read = GameObjectAddonRepository::QueryGameObjectAddons();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `gameobject_addon` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
 
-    sLog.outString(">> Loaded %u gameobject addons", sGameObjectDataAddonStorage.GetRecordCount());
+    uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("gameobject_addon table is empty!\n");
+    }
+    else
+    {
+        m_gameObjectAddons.Clear();
+        BarGoLink bar(read.rows.size());
+        for (GameObjectAddonRow const& row : read.rows)
+        {
+            bar.step();
+            GameObjectDataAddon addon;
+            addon.guid = row.guid;
+            addon.path_rotation = QuaternionData(row.pathRotation0, row.pathRotation1, row.pathRotation2, row.pathRotation3);
+            m_gameObjectAddons.Set(row.guid, addon);
+        }
+        loaded = uint32(read.rows.size());
+    }
+
+    sLog.outString(">> Loaded %u gameobject addons", loaded);
     sLog.outString();
 
-    for (uint32 i = 1; i < sGameObjectDataAddonStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < m_gameObjectAddons.GetMaxEntry(); ++i)
     {
-        GameObjectDataAddon const* addon = sGameObjectDataAddonStorage.LookupEntry<GameObjectDataAddon>(i);
+        GameObjectDataAddon* addon = m_gameObjectAddons.FindForEdit(i);
         if (!addon)
         {
             continue;
@@ -233,7 +259,7 @@ void ObjectMgr::LoadGameObjectAddon()
         if (!addon->path_rotation.isUnit())
         {
             sLog.outErrorDb("Gameobject (GUID: %u) has invalid path rotation", addon->guid);
-            const_cast<GameObjectDataAddon*>(addon)->path_rotation = QuaternionData(0.f, 0.f, 0.f, 1.f);
+            addon->path_rotation = QuaternionData(0.f, 0.f, 0.f, 1.f);
         }
     }
 }

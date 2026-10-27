@@ -236,7 +236,7 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map* map, uint32 phaseMa
 
     SetWorldRotation(rotation.x, rotation.y, rotation.z, rotation.w);
     // For most of gameobjects is (0, 0, 0, 1) quaternion, only some transports has not standart rotation
-    if (const GameObjectDataAddon* addon = sGameObjectDataAddonStorage.LookupEntry<GameObjectDataAddon>(guidlow))
+    if (const GameObjectDataAddon* addon = ObjectMgr::GetGameObjectAddon(guidlow))
     {
         SetTransportPathRotation(addon->path_rotation);
     }

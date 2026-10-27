@@ -709,6 +709,7 @@ class ObjectMgr
 
         // Static wrappers for various accessors
         static GameObjectInfo const* GetGameObjectInfo(uint32 id);                  ///< Wrapper for sGOStorage.LookupEntry
+        static GameObjectDataAddon const* GetGameObjectAddon(uint32 lowguid);       ///< Lookup in the game object addon store
         static Player* GetPlayer(const char* name);                                 ///< Wrapper for sPlayerRegistry.FindByName
         static Player* GetPlayer(ObjectGuid guid, bool inWorld = true);             ///< Wrapper for sPlayerRegistry.Find
         static CreatureInfo const* GetCreatureTemplate(uint32 id);                  ///< Wrapper for sCreatureStorage.LookupEntry
@@ -1427,6 +1428,8 @@ class ObjectMgr
         CreatureModelInfoStore m_creatureModels;
 
         KeyedRecordStore<CreatureTemplateSpells> m_creatureTemplateSpells;
+
+        KeyedRecordStore<GameObjectDataAddon> m_gameObjectAddons;
 
         QuestPOIStore m_questPoi;
 
