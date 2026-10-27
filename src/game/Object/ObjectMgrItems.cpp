@@ -953,7 +953,7 @@ void ObjectMgr::LoadItemRequiredTarget()
             {
                 if (pItemProto->Spells[i].SpellTrigger == ITEM_SPELLTRIGGER_ON_USE)
                 {
-                    SQLMultiStorage::SQLMSIteratorBounds<SpellTargetEntry> bounds = sSpellScriptTargetStorage.getBounds<SpellTargetEntry>(pSpellInfo->ID);
+                    SpellScriptTargetStore::Bounds bounds = sSpellMgr.GetSpellScriptTargets(pSpellInfo->ID);
                     if (bounds.first != bounds.second)
                     {
                         break;

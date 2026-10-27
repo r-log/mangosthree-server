@@ -261,7 +261,7 @@ namespace Harness
                     return r;
                 }
             }
-            SQLMultiStorage::SQLMSIteratorBounds<SpellTargetEntry> targets = sSpellScriptTargetStorage.getBounds<SpellTargetEntry>(spellId);
+            SpellScriptTargetStore::Bounds targets = sSpellMgr.GetSpellScriptTargets(spellId);
             if (targets.first != targets.second)
             {
                 r.refusal = "spell " + U(spellId) + " has spell_script_target rows";
@@ -403,7 +403,7 @@ namespace Harness
                     return "spell " + U(id) + " has a db_scripts chain (DBS_ON_SPELL)";
                 }
             }
-            SQLMultiStorage::SQLMSIteratorBounds<SpellTargetEntry> targets = sSpellScriptTargetStorage.getBounds<SpellTargetEntry>(id);
+            SpellScriptTargetStore::Bounds targets = sSpellMgr.GetSpellScriptTargets(id);
             if (targets.first != targets.second)
             {
                 return "spell " + U(id) + " has spell_script_target rows";
