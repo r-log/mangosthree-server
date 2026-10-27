@@ -234,8 +234,8 @@ TEST(WorldDataRepository_AppReads)
     Db world(WorldDatabase);
     DbVersionRepository::QueryVersion();
     BroadcastDataRepository::QueryBroadcasts();
-    delete NpcDataRepository::QueryVendorItemEntries();
-    delete LootDataRepository::QueryLootItemEntries();
+    NpcDataRepository::QueryVendorItemEntries();
+    LootDataRepository::QueryLootItemEntries();
     CheckLines(world.query.executed, {
         "SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1",
         "SELECT `autobroadcast`.`id`, `autobroadcast`.`content`,`autobroadcast`.`ratio` FROM `autobroadcast`",
@@ -429,4 +429,64 @@ TEST(BroadcastDataRepository_Broadcasts)
     CHECK_STR(*rows[0].content, "s1.1");
     CHECK_EQ(rows[0].ratio, 1002u);
     CHECK_EQ(rows[1].ratio, 2002u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(NpcDataRepository_VendorItemEntries)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = NpcDataRepository::QueryVendorItemEntries();
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(LootDataRepository_LootItemEntries)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = LootDataRepository::QueryLootItemEntries();
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SavedVariablesRepository_CleaningFlags)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint32> value = SavedVariablesRepository::QueryCleaningFlags();
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = SavedVariablesRepository::QueryCleaningFlags();
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
+}
+
+// The read answers the first column of the first row, and nothing for no rows.
+TEST(SavedVariablesRepository_LastCleanedDbcBuild)
+{
+    {
+        Db db(CharacterDatabase);
+        std::optional<uint32> value = SavedVariablesRepository::QueryLastCleanedDbcBuild();
+        CHECK(!value);
+    }
+    Db db(CharacterDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1007"}, FakeRow{"2007"},
+    });
+    std::optional<uint32> value = SavedVariablesRepository::QueryLastCleanedDbcBuild();
+    REQUIRE(value);
+    CHECK_EQ(*value, 1007u);
 }

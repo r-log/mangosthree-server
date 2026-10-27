@@ -78,6 +78,18 @@ namespace SavedVariablesRepository
 
     /// The currencies'.
     void SetNextCurrencyReset(uint64 time);
+
+    /// Selects the cleanups the character database is due, at start-up.
+    std::optional<uint32> QueryCleaningFlags();
+
+    /// Selects the DBC build the character database was last cleaned for, none when the column
+    /// is missing.
+    std::optional<uint32> QueryLastCleanedDbcBuild();
+
+    /// Each clears the cleanups due once a cleanup has run: with the DBC build it ran for, and
+    /// without it when the database has no column for it.
+    void FinishCleaning(uint32 dbcBuild);
+    void FinishCleaningWithoutBuild();
 }
 
 #endif

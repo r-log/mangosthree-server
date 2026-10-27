@@ -51,6 +51,8 @@
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
 #include "ProgressBar.h"
+#include "persistence/characters/CharacterCleanupRepository.h"
+#include "persistence/characters/SavedVariablesRepository.h"
 
 /**
  * @brief Main database cleanup entry point
@@ -74,24 +76,21 @@ void CharacterDatabaseCleaner::CleanDatabase()
     }
 
     // Check which cleanups are needed
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `cleaning_flags` FROM `saved_variables`");
-    if (!result)
+    std::optional<uint32> cleaningFlags = SavedVariablesRepository::QueryCleaningFlags();
+    if (!cleaningFlags)
     {
         return;
     }
-    uint32 flags = (*result)[0].GetUInt32();
-    delete result;
+    uint32 flags = *cleaningFlags;
 
     // Orphaned rows appear when the extracted DBC data is swapped for
     // another client build, so a build change schedules a full cleanup.
     bool hasBuildColumn = false;
     uint32 const dbcBuild = GetDBCLoadedBuild();
-    result = CharacterDatabase.PQuery("SELECT `last_cleaned_dbc_build` FROM `saved_variables`");
-    if (result)
+    if (std::optional<uint32> lastCleaned = SavedVariablesRepository::QueryLastCleanedDbcBuild())
     {
         hasBuildColumn = true;
-        uint32 lastCleanedBuild = (*result)[0].GetUInt32();
-        delete result;
+        uint32 lastCleanedBuild = *lastCleaned;
 
         if (dbcBuild && lastCleanedBuild != dbcBuild)
         {
@@ -135,11 +134,11 @@ void CharacterDatabaseCleaner::CleanDatabase()
     // an interrupted cleanup is retried on the next startup.
     if (hasBuildColumn)
     {
-        CharacterDatabase.PExecute("UPDATE `saved_variables` SET `cleaning_flags` = 0, `last_cleaned_dbc_build` = %u", dbcBuild);
+        SavedVariablesRepository::FinishCleaning(dbcBuild);
     }
     else
     {
-        CharacterDatabase.Execute("UPDATE `saved_variables` SET `cleaning_flags` = 0");
+        SavedVariablesRepository::FinishCleaningWithoutBuild();
     }
 }
 
@@ -158,45 +157,28 @@ void CharacterDatabaseCleaner::CleanDatabase()
  */
 void CharacterDatabaseCleaner::CheckUnique(const char* column, const char* table, bool (*check)(uint32))
 {
-    QueryResult* result = CharacterDatabase.PQuery("SELECT DISTINCT `%s` FROM `%s`", column, table);
-    if (!result)
+    std::vector<uint32> ids = CharacterCleanupRepository::QueryDistinct(column, table);
+    if (ids.empty())
     {
         sLog.outString("Table %s is empty.", table);
         return;
     }
 
-    bool found = false;
-    std::ostringstream ss;
-    BarGoLink bar(result->GetRowCount());
-    do
+    std::vector<uint32> invalid;
+    BarGoLink bar(ids.size());
+    for (uint32 id : ids)
     {
         bar.step();
 
-        Field* fields = result->Fetch();
-
-        uint32 id = fields[0].GetUInt32();
-
         if (!check(id))
         {
-            if (!found)
-            {
-                ss << "DELETE FROM `" << table << "` WHERE `" << column << "` IN (";
-                found = true;
-            }
-            else
-            {
-                ss << ",";
-            }
-            ss << id;
+            invalid.push_back(id);
         }
     }
-    while (result->NextRow());
-    delete result;
 
-    if (found)
+    if (!invalid.empty())
     {
-        ss << ")";
-        CharacterDatabase.Execute(ss.str().c_str());
+        CharacterCleanupRepository::DeleteRowsWithIds(table, column, invalid);
     }
 }
 
@@ -269,7 +251,7 @@ bool CharacterDatabaseCleaner::TalentCheck(uint32 talent_id)
 
 void CharacterDatabaseCleaner::CleanCharacterTalent()
 {
-    CharacterDatabase.DirectPExecute("DELETE FROM `character_talent` WHERE `spec` > %u OR `current_rank` > %u", MAX_TALENT_SPEC_COUNT, MAX_TALENT_RANK);
+    CharacterCleanupRepository::DeleteTalentsPastLimits(MAX_TALENT_SPEC_COUNT, MAX_TALENT_RANK);
 
     CheckUnique("talent_id", "character_talent", &TalentCheck);
 }

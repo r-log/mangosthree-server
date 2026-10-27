@@ -1378,17 +1378,15 @@ bool AuctionBotSeller::Initialize()
     sLog.outString();
 
     sLog.outString("Loading npc vendor items for filter..");
-    if (QueryResult* result = NpcDataRepository::QueryVendorItemEntries())
+    std::vector<uint32> vendorItems = NpcDataRepository::QueryVendorItemEntries();
+    if (!vendorItems.empty())
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(vendorItems.size());
+        for (uint32 item : vendorItems)
         {
             bar.step();
-            Field* fields = result->Fetch();
-            npcItems.push_back(fields[0].GetUInt32());
+            npcItems.push_back(item);
         }
-        while (result->NextRow());
-        delete result;
     }
     else
     {
@@ -1399,24 +1397,21 @@ bool AuctionBotSeller::Initialize()
     sLog.outString();
 
     sLog.outString("Loading loot items for filter..");
-    if (QueryResult* result = LootDataRepository::QueryLootItemEntries())
+    std::vector<uint32> lootEntries = LootDataRepository::QueryLootItemEntries();
+    if (!lootEntries.empty())
     {
-        BarGoLink bar(result->GetRowCount());
-        do
+        BarGoLink bar(lootEntries.size());
+        for (uint32 entry : lootEntries)
         {
             bar.step();
-            Field* fields = result->Fetch();
 
-            uint32 entry = fields[0].GetUInt32();
             if (!entry)
             {
                 continue;
             }
 
-            lootItems.push_back(fields[0].GetUInt32());
+            lootItems.push_back(entry);
         }
-        while (result->NextRow());
-        delete result;
     }
     else
     {
