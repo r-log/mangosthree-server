@@ -199,10 +199,10 @@ state_allow(achievement src/game/WorldHandlers/AchievementMgr.cpp
           SMSG_ALL_ACHIEVEMENT_DATA SMSG_SERVER_FIRST_ACHIEVEMENT SMSG_CRITERIA_DELETED
           SMSG_ACHIEVEMENT_DELETED character_achievement_progress)
 state_allow(achievement src/game/WorldHandlers/AchievementMgr.h
-    WHY "realm-wide cleanup: AchievementGlobalMgr::CleanupOrphanedCriteriaProgress's doc comment, in the owner's header"
+    WHY "realm-wide check: AchievementGlobalMgr::ReportOrphanedCriteriaProgress's doc comment, in the owner's header"
     NAMES character_achievement_progress)
 state_allow(achievement src/game/persistence/characters/achievements/AchievementRepository.cpp
-    WHY "the owner's repository: the rows it saves and deletes, and the realm-wide start-up reads and cleanup"
+    WHY "the owner's repository: the rows it saves and deletes, and the realm-wide start-up reads"
     NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/tests/AchievementRepositoryTest.cpp
     WHY "unit test that observes the repository's statements through a fake connection (checks the statements, runs nothing itself)"
@@ -214,7 +214,7 @@ state_allow(achievement src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECTs (PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS / LOADCRITERIAPROGRESS), handed to AchievementMgr::LoadFromDB"
     NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/game/WorldHandlers/AchievementGlobalMgr.cpp
-    WHY "realm-wide start-up cleanup (LoadCompletedAchievements, CleanupOrphanedCriteriaProgress)"
+    WHY "realm-wide start-up checks (LoadCompletedAchievements, ReportOrphanedCriteriaProgress)"
     NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/game/Tools/CharacterDatabaseCleaner.cpp
     WHY "realm-wide cleanup (CleanCharacterAchievementProgress's CheckUnique)"

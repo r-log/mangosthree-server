@@ -94,14 +94,4 @@ namespace AchievementRepository
         SqlStatement stmt = CharacterDatabase.CreateStatement(insProgress, "INSERT INTO `character_achievement_progress` (`guid`, `criteria`, `counter`, `date`) VALUES (?, ?, ?, ?)");
         stmt.PExecute(guid, criteria, counter, date);
     }
-
-    void DeleteAchievementOfEveryCharacter(uint32 achievement)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `character_achievement` WHERE `achievement` = %u", achievement);
-    }
-
-    void DeleteCriteriaOfEveryCharacter(uint32 criteria)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `character_achievement_progress` WHERE `criteria` = %u", criteria);
-    }
 }

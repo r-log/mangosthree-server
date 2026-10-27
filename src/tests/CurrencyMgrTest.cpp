@@ -822,7 +822,7 @@ TEST(CurrencyMgr_LoadRowValidAndInvalid)
     while (result.NextRow());
     CharacterDatabase.ExecuteQueuedForTest();
 
-    CheckEvents(async.executed, { "DELETE FROM `character_currencies` WHERE `guid` = '42' AND `id` = '9999'" }, __LINE__);
+    CHECK_EQ(async.executed.size(), size_t(0));
     CHECK_STR(Counts(mgr, kPlain), std::string("123/45/67"));
     CHECK_STR(Counts(mgr, kCapped), std::string("4000/1000/99"));
     CHECK_STR(Counts(mgr, CURRENCY_CONQUEST_POINTS), std::string("100/2700/7"));
@@ -900,14 +900,12 @@ TEST(CurrencyRepository_ReadRowAndStatements)
         TickGuard::Scope scope;
         CurrencyRepository::Update(kGuid, row);
         CurrencyRepository::Insert(kGuid, row);
-        CurrencyRepository::DeleteInvalidRow(kGuid, 9999);
         CHECK_EQ(TickGuard::Violations(), 0u);
     }
     CharacterDatabase.ExecuteQueuedForTest();
     CheckEvents(async.executed, {
         UpdateSql(392, 1500, 300, 4000, 12),
         InsertSql(392, 1500, 300, 4000, 12),
-        "DELETE FROM `character_currencies` WHERE `guid` = '42' AND `id` = '9999'",
     }, __LINE__);
     CHECK_EQ(query.executed.size(), size_t(0));
 }

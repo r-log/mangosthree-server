@@ -531,6 +531,13 @@ void AuctionHouseMgr::LoadAuctions()
         // check if sold item exists for guid
         // and item_template in fact (GetAItem will fail if problematic in result check in AuctionHouseMgr::LoadAuctionItems)
         Item* pItem = GetAItem(auction->itemGuidLow);
+        if (!pItem && !ObjectMgr::GetItemPrototype(auction->itemTemplate))
+        {
+            sLog.outError("Auction %u has an item (GUID: %u id: #%u) without a template, kept.", auction->Id, auction->itemGuidLow, auction->itemTemplate);
+            delete auction;
+            continue;
+        }
+
         if (!pItem)
         {
             auction->DeleteFromDB();

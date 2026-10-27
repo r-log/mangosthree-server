@@ -349,9 +349,8 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
         uint32 achievement_id = row.achievement;
         if (!sAchievementStore.LookupEntry(achievement_id))
         {
-            // we will remove nonexistent achievement for all characters
-            sLog.outError("Nonexistent achievement %u data removed from table `character_achievement`.", achievement_id);
-            AchievementRepository::DeleteAchievementOfEveryCharacter(achievement_id);
+            // the rows of a nonexistent achievement are kept and logged
+            sLog.outError("Nonexistent achievement %u data kept in table `character_achievement`.", achievement_id);
             continue;
         }
 
@@ -362,7 +361,7 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
     sLog.outString(">> Loaded %zu realm completed achievements.", m_allCompletedAchievements.size());
 }
 
-void AchievementGlobalMgr::CleanupOrphanedCriteriaProgress()
+void AchievementGlobalMgr::ReportOrphanedCriteriaProgress()
 {
     std::vector<AchievementCriteriaProgressRow> rows = AchievementRepository::QueryProgressCriteria();
 
@@ -372,7 +371,7 @@ void AchievementGlobalMgr::CleanupOrphanedCriteriaProgress()
         bar.step();
 
         sLog.outString();
-        sLog.outString(">> Removed 0 orphaned criteria data. DB table `character_achievement_progress` is empty.");
+        sLog.outString(">> Found 0 orphaned criteria data. DB table `character_achievement_progress` is empty.");
         return;
     }
 
@@ -385,15 +384,14 @@ void AchievementGlobalMgr::CleanupOrphanedCriteriaProgress()
         uint32 criteria_id = row.criteria;
         if (!sAchievementCriteriaStore.LookupEntry(criteria_id))
         {
-            // we will remove nonexistent criteria for all characters
-            sLog.outError("Nonexistent achievement criteria %u data removed from table `character_achievement_progress`.", criteria_id);
-            AchievementRepository::DeleteCriteriaOfEveryCharacter(criteria_id);
+            // the rows of a nonexistent criteria are kept and logged
+            sLog.outError("Nonexistent achievement criteria %u data kept in table `character_achievement_progress`.", criteria_id);
             ++count;
         }
     }
 
     sLog.outString();
-    sLog.outString(">> Removed %u orphaned criteria data from table `character_achievement_progress`.", count);
+    sLog.outString(">> Kept %u orphaned criteria data in table `character_achievement_progress`.", count);
 }
 
 void AchievementGlobalMgr::LoadRewards()

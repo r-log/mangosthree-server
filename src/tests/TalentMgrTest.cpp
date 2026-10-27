@@ -511,7 +511,8 @@ TEST(TalentMgr_PointsNeverGoBelowZero)
 }
 
 // One pass over the rows, as the owner's loop does it: every validation in order, the DELETE of
-// a failing row (each for this character only), the inactive-spec insertion, and the
+// a failing row (each for this character only; a talent or tab the client data does not hold is
+// kept), the inactive-spec insertion, and the
 // active-spec learn called back at the exact point of its row. The sequence below interleaves
 // the statements the database was handed with the callbacks, in the order they happened.
 TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
@@ -547,8 +548,8 @@ TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
 
     FakeQueryResult result(FakeRows{
         TalentFakeRow(kTalentA, 1, 0),              // active spec: learned
-        TalentFakeRow(kTalentUnknown, 0, 0),        // no talent: DELETE for this character
-        TalentFakeRow(kTalentNoTab, 0, 0),          // no talent tab: DELETE for this character
+        TalentFakeRow(kTalentUnknown, 0, 0),        // no talent: kept, logged
+        TalentFakeRow(kTalentNoTab, 0, 0),          // no talent tab: kept, logged
         TalentFakeRow(kTalentC, 1, 1),              // inactive spec: stored, no statement
         TalentFakeRow(kTalentOtherClass, 0, 0),     // another class's tab: DELETE for this character
         TalentFakeRow(kTalentA, 3, 0),              // SpellRank[3] is 0: DELETE for this character
@@ -571,8 +572,6 @@ TEST(TalentMgr_LoadRowInterleavesDeletesAndActiveSpellLearns)
     const std::vector<std::string> expected =
     {
         "learn 91002",
-        "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90999'",
-        "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90004'",
         "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90003'",
         "DELETE FROM `character_talent` WHERE `guid` = '42' AND `talent_id` = '90001'",
         "learn 91011",

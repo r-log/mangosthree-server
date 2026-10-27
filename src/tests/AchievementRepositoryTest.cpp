@@ -122,11 +122,9 @@ TEST(AchievementRepository_Writes)
         AchievementRepository::DeleteCompleted(42, 7);
         AchievementRepository::DeleteProgress(42, 100);
         AchievementRepository::InsertProgress(42, 100, 3, 1700000001);
-        AchievementRepository::DeleteAchievementOfEveryCharacter(8);
-        AchievementRepository::DeleteCriteriaOfEveryCharacter(101);
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(db.query.executed.size(), size_t(0));
-        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(8));
+        CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(6));
     }
     CheckLines(db.Take(), {
         "DELETE FROM `character_achievement` WHERE `guid` = 42",
@@ -136,8 +134,6 @@ TEST(AchievementRepository_Writes)
         "DELETE FROM `character_achievement` WHERE `guid` = 42 AND `achievement` = 7",
         "DELETE FROM `character_achievement_progress` WHERE `guid` = '42' AND `criteria` = '100'",
         "INSERT INTO `character_achievement_progress` (`guid`, `criteria`, `counter`, `date`) VALUES ('42', '100', '3', '1700000001')",
-        "DELETE FROM `character_achievement` WHERE `achievement` = 8",
-        "DELETE FROM `character_achievement_progress` WHERE `criteria` = 101",
     }, __LINE__);
 }
 

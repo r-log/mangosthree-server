@@ -392,8 +392,7 @@ void Item::LoadLootFromDB(LoginItemLootRow const& row)
         ItemPrototype const* proto = ObjectMgr::GetItemPrototype(item_id);
         if (!proto)
         {
-            ItemRepository::DeleteLootItem(GetGUIDLow(), item_id);
-            sLog.outError("Item::LoadLootFromDB: %s has an unknown item (id: #%u) in item_loot, deleted.", GetOwnerGuid().GetString().c_str(), item_id);
+            sLog.outError("Item::LoadLootFromDB: %s has an unknown item (id: #%u) in item_loot, kept.", GetOwnerGuid().GetString().c_str(), item_id);
             return;
         }
 
@@ -405,8 +404,7 @@ void Item::LoadLootFromDB(LoginItemLootRow const& row)
         CurrencyTypesEntry const* currencyEntry = sCurrencyTypesStore.LookupEntry(item_id);
         if (!currencyEntry)
         {
-            ItemRepository::DeleteLootCurrency(GetGUIDLow(), item_id);
-            sLog.outError("Item::LoadLootFromDB: %s has an unknown currency (id: #%u) in item_loot, deleted.", GetOwnerGuid().GetString().c_str(), item_id);
+            sLog.outError("Item::LoadLootFromDB: %s has an unknown currency (id: #%u) in item_loot, kept.", GetOwnerGuid().GetString().c_str(), item_id);
             return;
         }
 

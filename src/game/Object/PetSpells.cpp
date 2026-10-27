@@ -136,9 +136,7 @@ void Pet::_SaveSpellCooldowns(PlayerPetCache& cache)
  */
 void Pet::_LoadSpells(PlayerPetCache const& cache)
 {
-    // Decoupling D7e: `SELECT spell, active FROM pet_spell WHERE guid = P`, cached. The list
-    // is a COPY rather than a reference, because addSpell can delete from the cache (the
-    // unknown-spell sweep below) and would invalidate the vector under the loop.
+    // The pet's cached `pet_spell` rows (`SELECT spell, active FROM pet_spell WHERE guid = P`).
     PlayerPetCache::SpellList const rows = cache.Spells(m_charmInfo->GetPetNumber());
 
     for (size_t i = 0; i < rows.size(); ++i)
@@ -452,22 +450,10 @@ bool Pet::addSpell(uint32 spell_id, ActiveStates active /*= ACT_DECIDE*/, PetSpe
     SpellEntry const* spellInfo = sSpellStore.LookupEntry(spell_id);
     if (!spellInfo)
     {
-        // do pet spell book cleanup
+        // the pet spell load keeps the row and logs it
         if (state == PETSPELL_UNCHANGED)                    // spell load case
         {
-            sLog.outError("Pet::addSpell: nonexistent in SpellStore spell #%u request, deleting it for this pet in `pet_spell`.", spell_id);
-            PetRepository::DeleteSpell(m_charmInfo->GetPetNumber(), spell_id);
-
-            // The owner's cache forgets the spell for this pet too, so the pet's next load does
-            // not read it back. If the owner cannot be found now, the cache keeps the row and the
-            // next load of the pet logs and deletes it again.
-            if (Unit* petOwner = GetOwner())
-            {
-                if (petOwner->GetTypeId() == TYPEID_PLAYER)
-                {
-                    ((Player*)petOwner)->GetPetCache().EraseSpell(m_charmInfo->GetPetNumber(), spell_id);
-                }
-            }
+            sLog.outError("Pet::addSpell: nonexistent in SpellStore spell #%u request, kept in `pet_spell`.", spell_id);
         }
         else
         {

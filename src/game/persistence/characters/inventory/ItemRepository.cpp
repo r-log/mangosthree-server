@@ -157,16 +157,6 @@ namespace ItemRepository
         }
     }
 
-    void DeleteLootItem(uint32 itemGuid, uint32 lootItemId)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `item_loot` WHERE `guid` = '%u' AND `itemid` = '%u'", itemGuid, lootItemId);
-    }
-
-    void DeleteLootCurrency(uint32 itemGuid, uint32 currencyId)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `item_loot` WHERE `guid` = '%u' AND `itemid` = '%i'", itemGuid, -int32(currencyId));
-    }
-
     void DeleteInventoryRow(uint32 itemGuid)
     {
         static SqlStatementID delInv;

@@ -49,11 +49,6 @@ namespace CurrencyRepository
         return ReadRows<CurrencyRow>(holder->GetResult(slot), ReadRow);
     }
 
-    void DeleteInvalidRow(uint32 ownerGuidLow, uint32 currencyId)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `character_currencies` WHERE `guid` = '%u' AND `id` = '%u'", ownerGuidLow, currencyId);
-    }
-
     void Update(uint32 ownerGuidLow, CurrencyRow const& row)
     {
         CharacterDatabase.PExecute("UPDATE `character_currencies` SET `totalCount` = '%u', `weekCount` = '%u', `seasonCount` = '%u', `flags` = '%u' WHERE `guid` = '%u' AND `id` = '%u'", row.totalCount, row.weekCount, row.seasonCount, row.flags, ownerGuidLow, row.id);
