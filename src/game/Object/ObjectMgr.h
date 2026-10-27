@@ -69,6 +69,7 @@
 #include "data/PointOfInterestStore.h"
 #include "data/QuestPOIStore.h"
 #include "data/ServerSpellStore.h"
+#include "data/TextPool.h"
 #include "data/VehicleAccessoryStore.h"
 
 #include <string>
@@ -704,6 +705,12 @@ class ObjectMgr
 
         /// Entrance override for one LFGDungeons.dbc id; NULL = fall back to
         /// GetMapEntranceTrigger (multi-wing maps only carry overrides).
+        /// The creature templates.
+        KeyedRecordStore<CreatureInfo> const& GetCreatureTemplates() const
+        {
+            return m_creatureTemplates;
+        }
+
         /// The game object templates, walked in ascending entry order.
         GameObjectTemplateStore const& GetGameObjectTemplates() const
         {
@@ -720,7 +727,7 @@ class ObjectMgr
         static GameObjectDataAddon const* GetGameObjectAddon(uint32 lowguid);       ///< Lookup in the game object addon store
         static Player* GetPlayer(const char* name);                                 ///< Wrapper for sPlayerRegistry.FindByName
         static Player* GetPlayer(ObjectGuid guid, bool inWorld = true);             ///< Wrapper for sPlayerRegistry.Find
-        static CreatureInfo const* GetCreatureTemplate(uint32 id);                  ///< Wrapper for sCreatureStorage.LookupEntry
+        static CreatureInfo const* GetCreatureTemplate(uint32 id);                  ///< Lookup in the creature template store
         static CreatureModelInfo const* GetCreatureModelInfo(uint32 modelid);       ///< Lookup in the creature model info store
         static CreatureTemplateSpells const* GetCreatureTemplateSpells(uint32 entry); ///< Lookup in the creature template spells store
         static EquipmentInfo const* GetEquipmentInfo(uint32 entry);                 ///< Lookup in the creature equipment store
@@ -1439,6 +1446,9 @@ class ObjectMgr
         CreatureModelInfoStore m_creatureModels;
 
         KeyedRecordStore<CreatureTemplateSpells> m_creatureTemplateSpells;
+
+        KeyedRecordStore<CreatureInfo> m_creatureTemplates;
+        TextPool m_creatureTemplateTexts;
 
         GameObjectTemplateStore m_gameObjectTemplates;
 

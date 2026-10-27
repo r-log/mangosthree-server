@@ -490,7 +490,7 @@ Player* ObjectMgr::GetPlayer(ObjectGuid guid, bool inWorld /*=true*/) { return s
  * @param id The creature entry id.
  * @return The creature template, or null if missing.
  */
-CreatureInfo const* ObjectMgr::GetCreatureTemplate(uint32 id) { return sCreatureStorage.LookupEntry<CreatureInfo>(id); }
+CreatureInfo const* ObjectMgr::GetCreatureTemplate(uint32 id) { return sObjectMgr.m_creatureTemplates.Find(id); }
 
 /**
  * @brief Gets creature model metadata by display id.
@@ -2833,7 +2833,7 @@ bool PlayerCondition::IsValid(uint16 entry, ConditionType condition, uint32 valu
         }
         case CONDITION_CREATURE_IN_RANGE:
         {
-            if (!sCreatureStorage.LookupEntry<CreatureInfo> (value1))
+            if (!ObjectMgr::GetCreatureTemplate(value1))
             {
                 sLog.outErrorDb("Creature in range condition (entry %u, type %u) has an invalid value in value1. (Creature %u does not exist in the database), skipping.", entry, condition, value1);
                 return false;
@@ -3629,7 +3629,7 @@ bool LoadMangosStrings(DatabaseType& db, char const* table, int32 start_value, i
  */
 CreatureInfo const* GetCreatureTemplateStore(uint32 entry)
 {
-    return sCreatureStorage.LookupEntry<CreatureInfo>(entry);
+    return ObjectMgr::GetCreatureTemplate(entry);
 }
 
 /**

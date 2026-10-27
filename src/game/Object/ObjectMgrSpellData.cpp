@@ -114,7 +114,7 @@ void ObjectMgr::LoadNPCSpellClickSpells()
         mSpellClickInfoMap.insert(SpellClickInfoMap::value_type(npc_entry, info));
 
         // mark creature template as spell clickable
-        const_cast<CreatureInfo*>(cInfo)->NpcFlags |= UNIT_NPC_FLAG_SPELLCLICK;
+        m_creatureTemplates.FindForEdit(cInfo->Entry)->NpcFlags |= UNIT_NPC_FLAG_SPELLCLICK;
 
         ++count;
     }
@@ -207,7 +207,7 @@ void ObjectMgr::LoadCreatureTemplateSpells()
     // every row read, in the order read, the rows of a creature already erased included
     for (CreatureTemplateSpellsRow const& row : read.rows)
     {
-        if (!sCreatureStorage.LookupEntry<CreatureInfo>(row.entry))
+        if (!ObjectMgr::GetCreatureTemplate(row.entry))
         {
             sLog.outErrorDb("LoadCreatureTemplateSpells: Spells found for creature entry %u, but creature does not exist, skipping", row.entry);
             m_creatureTemplateSpells.Erase(row.entry);

@@ -233,9 +233,9 @@ void ObjectMgr::LoadTrainerTemplates()
         trainer_ids.insert(tItr->first);
     }
 
-    for (uint32 i = 1; i < sCreatureStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
     {
-        if (CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i))
+        if (CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i))
         {
             if (cInfo->TrainerTemplateId)
             {
@@ -340,9 +340,9 @@ void ObjectMgr::LoadVendorTemplates()
         vendor_ids.insert(vItr->first);
     }
 
-    for (uint32 i = 1; i < sCreatureStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
     {
-        if (CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i))
+        if (CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i))
         {
             if (cInfo->VendorTemplateId)
             {

@@ -90,13 +90,13 @@ void ObjectMgr::LoadVehicleAccessory()
     // Check content: every row read, in the order read, the rows of a vehicle already erased included
     for (VehicleAccessoryRow const& row : read.rows)
     {
-        if (!sCreatureStorage.LookupEntry<CreatureInfo>(row.vehicleEntry))
+        if (!ObjectMgr::GetCreatureTemplate(row.vehicleEntry))
         {
             sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where vehicle_entry is invalid, skip vehicle.", row.vehicleEntry, row.seat, row.accessoryEntry);
             m_vehicleAccessories.Erase(row.vehicleEntry);
             continue;
         }
-        if (!sCreatureStorage.LookupEntry<CreatureInfo>(row.accessoryEntry))
+        if (!ObjectMgr::GetCreatureTemplate(row.accessoryEntry))
         {
             sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where accessory_entry is invalid, skip vehicle.", row.vehicleEntry, row.seat, row.accessoryEntry);
             m_vehicleAccessories.Erase(row.vehicleEntry);

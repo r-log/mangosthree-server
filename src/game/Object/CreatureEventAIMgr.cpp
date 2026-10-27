@@ -343,7 +343,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
             temp.raw.param4 = row.eventParam4;
 
             // Creature does not exist in database
-            if (!sCreatureStorage.LookupEntry<CreatureInfo>(temp.creature_id))
+            if (!ObjectMgr::GetCreatureTemplate(temp.creature_id))
             {
                 sLog.outErrorEventAI("Event %u has script for non-existing creature entry (%u), skipping.", i, temp.creature_id);
                 continue;
@@ -507,7 +507,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                 case EVENT_T_SUMMONED_UNIT:
                 case EVENT_T_SUMMONED_JUST_DIED:
                 case EVENT_T_SUMMONED_JUST_DESPAWN:
-                    if (!sCreatureStorage.LookupEntry<CreatureInfo>(temp.summoned.creatureId))
+                    if (!ObjectMgr::GetCreatureTemplate(temp.summoned.creatureId))
                     {
                         sLog.outErrorEventAI("Creature %u are using event(%u) with nonexistent creature template id (%u) in param1, skipped.", temp.creature_id, i, temp.summoned.creatureId);
                     }
@@ -593,7 +593,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                 case EVENT_T_RECEIVE_AI_EVENT:
                 {
                     // Sender-Creature does not exist in database
-                    if (temp.receiveAIEvent.senderEntry && !sCreatureStorage.LookupEntry<CreatureInfo>(temp.receiveAIEvent.senderEntry))
+                    if (temp.receiveAIEvent.senderEntry && !ObjectMgr::GetCreatureTemplate(temp.receiveAIEvent.senderEntry))
                     {
                         sLog.outErrorEventAI("Event %u has nonexisting creature (%u) defined for event RECEIVE_AI_EVENT, skipping.", i, temp.receiveAIEvent.senderEntry);
                         continue;
@@ -690,7 +690,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                     case ACTION_T_MORPH_TO_ENTRY_OR_MODEL:
                         if (action.morph.creatureId != 0 || action.morph.modelId != 0)
                         {
-                            if (action.morph.creatureId && !sCreatureStorage.LookupEntry<CreatureInfo>(action.morph.creatureId))
+                            if (action.morph.creatureId && !ObjectMgr::GetCreatureTemplate(action.morph.creatureId))
                             {
                                 sLog.outErrorEventAI("Event %u Action %u uses nonexistent Creature entry %u.", i, j + 1, action.morph.creatureId);
                                 action.morph.creatureId = 0;
@@ -809,7 +809,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         break;
                     }
                     case ACTION_T_SUMMON:
-                        if (!sCreatureStorage.LookupEntry<CreatureInfo>(action.summon.creatureId))
+                        if (!ObjectMgr::GetCreatureTemplate(action.summon.creatureId))
                         {
                             sLog.outErrorEventAI("Event %u Action %u uses nonexistent creature entry %u.", i, j + 1, action.summon.creatureId);
                         }
@@ -845,7 +845,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         IsValidTargetType(temp.event_type, action.type, action.quest_event.target, i, j + 1);
                         break;
                     case ACTION_T_CAST_EVENT:
-                        if (!sCreatureStorage.LookupEntry<CreatureInfo>(action.cast_event.creatureId))
+                        if (!ObjectMgr::GetCreatureTemplate(action.cast_event.creatureId))
                         {
                             sLog.outErrorEventAI("Event %u Action %u uses nonexistent creature entry %u.", i, j + 1, action.cast_event.creatureId);
                         }
@@ -896,7 +896,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         }
                         break;
                     case ACTION_T_CAST_EVENT_ALL:
-                        if (!sCreatureStorage.LookupEntry<CreatureInfo>(action.cast_event_all.creatureId))
+                        if (!ObjectMgr::GetCreatureTemplate(action.cast_event_all.creatureId))
                         {
                             sLog.outErrorEventAI("Event %u Action %u uses nonexistent creature entry %u.", i, j + 1, action.cast_event_all.creatureId);
                         }
@@ -943,7 +943,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         }
                         break;
                     case ACTION_T_SUMMON_ID:
-                        if (!sCreatureStorage.LookupEntry<CreatureInfo>(action.summon_id.creatureId))
+                        if (!ObjectMgr::GetCreatureTemplate(action.summon_id.creatureId))
                         {
                             sLog.outErrorEventAI("Event %u Action %u uses nonexistent creature entry %u.", i, j + 1, action.summon_id.creatureId);
                         }
@@ -954,7 +954,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         }
                         break;
                     case ACTION_T_KILLED_MONSTER:
-                        if (!sCreatureStorage.LookupEntry<CreatureInfo>(action.killed_monster.creatureId))
+                        if (!ObjectMgr::GetCreatureTemplate(action.killed_monster.creatureId))
                         {
                             sLog.outErrorEventAI("Event %u Action %u uses nonexistent creature entry %u.", i, j + 1, action.killed_monster.creatureId);
                         }
@@ -978,7 +978,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         IsValidTargetType(temp.event_type, action.type, action.set_inst_data64.target, i, j + 1);
                         break;
                     case ACTION_T_UPDATE_TEMPLATE:
-                        if (!sCreatureStorage.LookupEntry<CreatureInfo>(action.update_template.creatureId))
+                        if (!ObjectMgr::GetCreatureTemplate(action.update_template.creatureId))
                         {
                             sLog.outErrorEventAI("Event %u Action %u uses nonexistent creature entry %u.", i, j + 1, action.update_template.creatureId);
                         }
@@ -1003,7 +1003,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                     case ACTION_T_MOUNT_TO_ENTRY_OR_MODEL:
                         if (action.mount.creatureId != 0 || action.mount.modelId != 0)
                         {
-                            if (action.mount.creatureId && !sCreatureStorage.LookupEntry<CreatureInfo>(action.mount.creatureId))
+                            if (action.mount.creatureId && !ObjectMgr::GetCreatureTemplate(action.mount.creatureId))
                             {
                                 sLog.outErrorEventAI("Event %u Action %u uses nonexistent Creature entry %u.", i, j + 1, action.mount.creatureId);
                                 action.morph.creatureId = 0;
@@ -1076,7 +1076,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         break;
 
                     case ACTION_T_SUMMON_UNIQUE:                                          //49
-                        if (!sCreatureStorage.LookupEntry<CreatureInfo>(action.summon_unique.creatureId))
+                        if (!ObjectMgr::GetCreatureTemplate(action.summon_unique.creatureId))
                         {
                             sLog.outErrorEventAI("Event %u Action %u uses nonexistent creature entry %u.", i, j + 1, action.summon_unique.creatureId);
                         }
@@ -1108,9 +1108,9 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
         m_usedTextsAmount = usedTextIds.size();
 
         // post check
-        for (uint32 i = 1; i < sCreatureStorage.GetMaxEntry(); ++i)
+        for (uint32 i = 1; i < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++i)
         {
-            if (CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(i))
+            if (CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(i))
             {
                 bool ainame = strcmp(cInfo->AIName, "EventAI") == 0;
                 bool hasevent = m_CreatureEventAI_Event_Map.find(i) != m_CreatureEventAI_Event_Map.end();

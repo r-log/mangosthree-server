@@ -1250,9 +1250,9 @@ bool ChatHandler::HandleLookupCreatureCommand(char* args)
 
     uint32 counter = 0;
 
-    for (uint32 id = 0; id < sCreatureStorage.GetMaxEntry(); ++id)
+    for (uint32 id = 0; id < sObjectMgr.GetCreatureTemplates().GetMaxEntry(); ++id)
     {
-        CreatureInfo const* cInfo = sCreatureStorage.LookupEntry<CreatureInfo>(id);
+        CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(id);
         if (!cInfo)
         {
             continue;
