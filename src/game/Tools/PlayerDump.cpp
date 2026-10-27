@@ -64,6 +64,8 @@
 #include "ObjectMgr.h"
 #include "AccountMgr.h"
 #include "GMTicketMgr.h"
+#include "persistence/characters/CharacterDumpRepository.h"
+#include "persistence/characters/CharacterTransaction.h"
 
 /**
  * @struct DumpTable
@@ -383,34 +385,33 @@ bool changetokGuid(std::string& str, int n, std::map<uint32, uint32>& guidMap, u
  *
  * @param tableName The destination table name.
  * @param tableColumnNamesAsChars The serialized column list.
- * @param result The current query result row.
+ * @param row The row.
  * @return std::string The generated INSERT statement.
  */
-std::string CreateDumpString(char const* tableName, char const* tableColumnNamesAsChars, QueryResult* result)
+std::string CreateDumpString(char const* tableName, char const* tableColumnNamesAsChars, DumpRow const& row)
 {
-    if (!tableName || !result)
+    if (!tableName)
     {
         return "";
     }
 
     std::ostringstream ss;
     ss << "INSERT INTO `" << tableName << "` ("<< tableColumnNamesAsChars  <<") VALUES (";
-    Field* fields = result->Fetch();
-    for (uint32 i = 0; i < result->GetFieldCount(); ++i)
+    for (uint32 i = 0; i < row.values.size(); ++i)
     {
         if (i != 0)
         {
             ss << ", ";
         }
 
-        if (fields[i].IsNULL())
+        if (!row.values[i])
         {
             ss << "NULL";
         }
         else
         {
-            std::string s =  fields[i].GetCppString();
-            CharacterDatabase.escape_string(s);
+            std::string s = *row.values[i];
+            CharacterDumpRepository::EscapeString(s);
 
             ss << "'" << s << "'";
         }
@@ -466,16 +467,15 @@ std::string PlayerDumpWriter::GenerateWhereStr(char const* field, GUIDs const& g
 }
 
 /**
- * @brief Stores a guid field from the current query row into a guid set.
+ * @brief Stores a guid column of a row into a guid set.
  *
- * @param result The current query row.
- * @param field The field index containing the guid.
+ * @param row The row.
+ * @param field The column holding the guid.
  * @param guids The destination guid set.
  */
-void StoreGUID(QueryResult* result, uint32 field, std::set<uint32>& guids)
+void StoreGUID(DumpRow const& row, uint32 field, std::set<uint32>& guids)
 {
-    Field* fields = result->Fetch();
-    uint32 guid = fields[field].GetUInt32();
+    uint32 guid = row.values[field] ? static_cast<uint32>(std::strtoul(row.values[field]->c_str(), NULL, 10)) : uint32(0);
     if (guid)
     {
         guids.insert(guid);
@@ -483,17 +483,16 @@ void StoreGUID(QueryResult* result, uint32 field, std::set<uint32>& guids)
 }
 
 /**
- * @brief Stores a tokenized guid extracted from a string field into a guid set.
+ * @brief Stores a tokenized guid extracted from a text column of a row into a guid set.
  *
- * @param result The current query row.
- * @param data The field index containing tokenized data.
+ * @param row The row.
+ * @param data The column holding the tokenized data.
  * @param field The token index containing the guid.
  * @param guids The destination guid set.
  */
-void StoreGUID(QueryResult* result, uint32 data, uint32 field, std::set<uint32>& guids)
+void StoreGUID(DumpRow const& row, uint32 data, uint32 field, std::set<uint32>& guids)
 {
-    Field* fields = result->Fetch();
-    std::string dataStr = fields[data].GetCppString();
+    std::string dataStr = row.values[data] ? *row.values[data] : std::string();
     uint32 guid = atoi(gettoknth(dataStr, field).c_str());
     if (guid)
     {
@@ -548,56 +547,45 @@ void PlayerDumpWriter::DumpTableContent(std::string& dump, uint32 guid, char con
 
         // fetch table columns
         std::string tableColumnNamesStr = "";
-        QueryNamedResult* resNames = CharacterDatabase.PQueryNamed("SELECT * FROM `%s` LIMIT 1", tableFrom);
-        if (!resNames)
+        std::vector<std::string> columnNames = CharacterDumpRepository::QueryColumnNames(tableFrom);
+        if (columnNames.empty())
         {
             return;
         }
-        // There will be a result since if not the code does not hit lines before... so no check needed
-        QueryFieldNames const& namesMap = resNames->GetFieldNames();
 
-        for (QueryFieldNames::const_iterator itr = namesMap.begin(); itr != namesMap.end(); ++itr)
+        for (std::string const& columnName : columnNames)
         {
-            tableColumnNamesStr += "`" + *itr  +"`,";
+            tableColumnNamesStr += "`" + columnName  +"`,";
         }
         // remove last character of tableColumnNamesStr = ","
         tableColumnNamesStr.pop_back();
 
-        // Create a non-const copy of namesMap to clear it
-        QueryFieldNames nonConstNamesMap = namesMap;
-        nonConstNamesMap.clear(); // Clear the contents of the vector
-
         // fetch results of the table
-        QueryResult* result = CharacterDatabase.PQuery("SELECT %s FROM `%s` WHERE %s", tableColumnNamesStr.c_str(), tableFrom, wherestr.c_str());
-        if (!result)
+        std::vector<DumpRow> rows = CharacterDumpRepository::QueryRows(tableFrom, tableColumnNamesStr, wherestr);
+        if (rows.empty())
         {
             return;
         }
 
-
-
-        do
+        for (DumpRow const& row : rows)
         {
             // collect guids
             switch (type)
             {
                 case DTT_INVENTORY:
-                    StoreGUID(result, 3, items); break;     // item guid collection (character_inventory.item)
+                    StoreGUID(row, 3, items); break;        // item guid collection (character_inventory.item)
                 case DTT_PET:
-                    StoreGUID(result, 0, pets);  break;     // pet petnumber collection (character_pet.id)
+                    StoreGUID(row, 0, pets);  break;        // pet petnumber collection (character_pet.id)
                 case DTT_MAIL:
-                    StoreGUID(result, 0, mails);            // mail id collection (mail.id)
+                    StoreGUID(row, 0, mails);               // mail id collection (mail.id)
                 case DTT_MAIL_ITEM:
-                    StoreGUID(result, 1, items); break;     // item guid collection (mail_items.item_guid)
+                    StoreGUID(row, 1, items); break;        // item guid collection (mail_items.item_guid)
                 default:                       break;
             }
 
-            dump += CreateDumpString(tableTo, tableColumnNamesStr.c_str(), result);
+            dump += CreateDumpString(tableTo, tableColumnNamesStr.c_str(), row);
             dump += "\n";
         }
-        while (result->NextRow());
-
-        delete result;
     }
     while (guids && guids_itr != guids->end());             // not set case iterate single time, set case iterate for all guids
 }
@@ -617,21 +605,17 @@ std::string PlayerDumpWriter::GetDump(uint32 guid)
 
     // revision check guard
     // Check the revision of character DB which will be the first  line of the whole version/structure set
-    QueryResult* result = CharacterDatabase.Query("SELECT `version`, `structure`, `description`, `comment` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` ASC LIMIT 1");
+    std::optional<CharacterDbVersionRow> version = CharacterDumpRepository::QueryVersion();
 
-    if (result)
+    if (version)
     {
-        Field* fields = result->Fetch();
-
-        dump += "DUMPED_WITH:"+std::to_string(fields[0].GetInt16())
-        + "." + std::to_string(fields[1].GetInt16()) + ".X "
+        dump += "DUMPED_WITH:"+std::to_string(version->version)
+        + "." + std::to_string(version->structure) + ".X "
         +" CHAR. DB VERSION ( "
-        + fields[2].GetCppString() + " / "
-        + fields[3].GetCppString()  +
+        + version->description + " / "
+        + version->comment  +
          ")\n\n"
         ;
-
-        delete result;
     }
     else
     {
@@ -672,7 +656,7 @@ DumpReturn PlayerDumpWriter::WriteDump(const std::string& file, uint32 guid)
 }
 
 // Reading - High-level functions
-#define ROLLBACK(DR) {CharacterDatabase.RollbackTransaction(); fclose(fin); return (DR);}
+#define ROLLBACK(DR) {CharacterTransaction::Rollback(); fclose(fin); return (DR);}
 
 /**
  * @brief Loads a player dump file into an account under a target character name or guid.
@@ -700,18 +684,15 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
         return DUMP_FILE_OPEN_ERROR;
     }
 
-    QueryResult* result = NULL;
     char newguid[20], chraccount[20], newpetid[20], currpetid[20], lastpetid[20];
 
     // make sure the same guid doesn't already exist and is safe to use
     bool incHighest = true;
     if (guid != 0 && guid < sObjectMgr.m_CharGuids.GetNextAfterMaxUsed())
     {
-        result = CharacterDatabase.PQuery("SELECT * FROM `characters` WHERE `guid` = '%u'", guid);
-        if (result)
+        if (CharacterDumpRepository::QueryGuidInUse(guid))
         {
             guid = sObjectMgr.m_CharGuids.GetNextAfterMaxUsed();
-            delete result;
         }
         else
         {
@@ -731,12 +712,10 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
 
     if (ObjectMgr::CheckPlayerName(name, true) == CHAR_NAME_SUCCESS)
     {
-        CharacterDatabase.escape_string(name);              // for safe, we use name only for sql quearies anyway
-        result = CharacterDatabase.PQuery("SELECT * FROM `characters` WHERE `name` = '%s'", name.c_str());
-        if (result)
+        CharacterDumpRepository::EscapeString(name);        // for safe, we use name only for sql quearies anyway
+        if (CharacterDumpRepository::QueryNameInUse(name))
         {
             name .clear();                                      // use the one from the dump
-            delete result;
         }
     }
     else
@@ -767,7 +746,7 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
     typedef PetIds::value_type PetIdsPair;
     PetIds petids;
 
-    CharacterDatabase.BeginTransaction();
+    CharacterTransaction::Begin();
     while (!feof(fin))
     {
         if (!fgets(buf, 32000, fin))
@@ -799,18 +778,15 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
 
         if (dbVersionLinePrefix =="DUMPED_WITH:")
         {
-            QueryResult* result = CharacterDatabase.Query("SELECT `version`, `structure`, `description`, `comment` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` ASC LIMIT 1");
+            std::optional<CharacterDbVersionRow> version = CharacterDumpRepository::QueryVersion();
 
-            if (result)
+            if (version)
             {
-                Field* fields = result->Fetch();
                 // Only version / structure is needed
-                std::string dbversion = std::to_string(fields[0].GetInt16()) + "." + std::to_string(fields[1].GetInt16())+".X";
+                std::string dbversion = std::to_string(version->version) + "." + std::to_string(version->structure)+".X";
                 size_t dbversionLen = dbversion.size();
 
                 std::string dbversionInDumpFile = line.substr(nw_pos+12, dbversionLen);
-
-               delete result;
 
                 if (dbversionInDumpFile != dbversion)
                 {
@@ -899,12 +875,10 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
                 {
                     // check if the original name already exists
                     name = getnth(line, 3);                 // characters.name
-                    CharacterDatabase.escape_string(name);
+                    CharacterDumpRepository::EscapeString(name);
 
-                    result = CharacterDatabase.PQuery("SELECT * FROM `characters` WHERE `name` = '%s'", name.c_str());
-                    if (result)
+                    if (CharacterDumpRepository::QueryNameInUse(name))
                     {
-                        delete result;
 
                         if (!changenth(line, 36, "1"))      // characters.at_login set to "rename on login"
                         {
@@ -1144,13 +1118,13 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
                 break;
         }
 
-        if (execute_ok && !CharacterDatabase.Execute(line.c_str()))
+        if (execute_ok && !CharacterDumpRepository::Execute(line))
         {
             ROLLBACK(DUMP_FILE_BROKEN);
         }
     }
 
-    CharacterDatabase.CommitTransaction();
+    CharacterTransaction::Commit();
 
     // Decoupling D7c: the row exists now, so the cache is told about it. Nothing is read
     // back; every field below was taken off the `characters` line as it was written.
