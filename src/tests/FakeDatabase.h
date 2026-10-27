@@ -176,6 +176,7 @@ class FakeConnection final : public SqlConnection
             unsigned long length) override
         {
             Enter();
+            escaped.push_back(std::string(from, length));
             for (unsigned long i = 0; i < length; ++i)
                 to[i] = from[i];
             to[length] = '\0';
@@ -198,6 +199,10 @@ class FakeConnection final : public SqlConnection
         /// connection's own lock (Database takes it before calling in), so the
         /// concurrency tests may hammer it from eight threads without racing here.
         std::vector<std::string> executed;
+
+        /// Every string handed to escape_string, in order, as it was handed. The copy escapes
+        /// nothing, so a test reads here whether a text went through the connection's escaping.
+        std::vector<std::string> escaped;
 
         std::atomic<int> active{0};
         std::atomic<bool> overlap{false};

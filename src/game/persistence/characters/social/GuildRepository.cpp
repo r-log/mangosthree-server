@@ -312,8 +312,15 @@ namespace GuildRepository
 
     void ReplaceRank(uint32 guildId, uint32 rankId, std::string const& name, uint32 rights, uint32 moneyPerDay)
     {
-        CharacterDatabase.PExecute("REPLACE INTO guild_rank (guildid,rid,rname,rights,BankMoneyPerDay) "
-            "VALUES ('%u', '%u', '%s', '%u', '%u')", guildId, rankId, name.c_str(), rights, moneyPerDay);
+        static SqlStatementID replaceRank;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(replaceRank,
+                            "REPLACE INTO guild_rank (guildid,rid,rname,rights,BankMoneyPerDay) VALUES (?, ?, ?, ?, ?)");
+        stmt.addUInt32(guildId);
+        stmt.addUInt32(rankId);
+        stmt.addString(name);
+        stmt.addUInt32(rights);
+        stmt.addUInt32(moneyPerDay);
+        stmt.Execute();
     }
 
     void SetRankName(uint32 guildId, uint32 rankId, std::string const& name)

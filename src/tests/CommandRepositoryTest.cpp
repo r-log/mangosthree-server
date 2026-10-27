@@ -213,7 +213,7 @@ TEST(CommandRepository_ListAndLookupReads)
     }, __LINE__);
 }
 
-// The player commands' writes are queued in order; the restored name is written as handed.
+// The player commands' writes are queued in order; the restored name is bound.
 TEST(CharacterRepository_CommandWrites)
 {
     Db chars(CharacterDatabase);
@@ -233,10 +233,27 @@ TEST(CharacterRepository_CommandWrites)
         "UPDATE `characters` SET `at_login` = `at_login` | '1' WHERE `guid` = '42'",
         "UPDATE `characters` SET `at_login` = `at_login` | '6' WHERE `guid` = '42'",
         "UPDATE `characters` SET `at_login` = `at_login` | '2' WHERE (`at_login` & '2') = '0'",
-        "UPDATE `characters` SET `name`='Ann', `account`='7', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = 42",
+        "UPDATE `characters` SET `name`='Ann', `account`='7', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = '42'",
         "UPDATE `characters` SET `level` = '80', `xp` = 0 WHERE `guid` = '42'",
     }, __LINE__);
 }
+// The deleted-character search escapes its text on the calling thread first; the restore binds the
+// name, which the connection escapes when the queued write goes out.
+TEST(CharacterRepository_DeletedCharacterNamesEscaped)
+{
+    Db chars(CharacterDatabase);
+    CharacterRepository::QueryDeletedCharactersNamed("O'Neil");
+    CheckLines(chars.query.escaped, { "O'Neil" }, __LINE__);
+    {
+        TickGuard::Scope scope;
+        CharacterRepository::RestoreDeletedCharacter("O'Neil", 7, 42);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CHECK_EQ(chars.query.escaped.size(), size_t(1));
+    CHECK_EQ(chars.Take().size(), size_t(1));
+    CheckLines(chars.query.escaped, { "O'Neil", "O'Neil" }, __LINE__);
+}
+
 // The GM spawn, player info, command table and script reads run on the calling thread on their
 // databases; the nearest game objects belong to no event or to one of the active ones.
 TEST(CommandRepository_SpawnInfoAndScriptReads)

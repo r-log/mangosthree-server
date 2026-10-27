@@ -212,7 +212,7 @@ namespace GuildRepository
     /// Writes a rank's bank right for a tab over the old one.
     void ReplaceBankRight(uint32 guildId, uint32 tabId, uint32 rankId, uint32 right, uint32 slotsPerDay);
 
-    /// Writes a rank's row over the old one; the name is written into the statement as it is.
+    /// Writes a rank's row over the old one, the name bound.
     void ReplaceRank(uint32 guildId, uint32 rankId, std::string const& name, uint32 rights, uint32 moneyPerDay);
 
     /// Each sets one column of a rank's row, the name bound.

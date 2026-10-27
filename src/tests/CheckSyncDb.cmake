@@ -409,7 +409,8 @@ set(ALLOW_CharacterRepository_cpp
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `account` FROM `characters` WHERE `name` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), filter.c_str())\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u\", accountId)\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `guid` = %u\", guid)\;"
-    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), name)\;"
+    "CharacterDatabase.escape_string(name)\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` \" _LIKE_ \" \" _CONCAT3_(\"'%%'\", \"'%s'\", \"'%%'\"), name.c_str())\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL\")\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `totaltime`, `level`, `money`, `account` FROM `characters` WHERE `guid` = '%u'\", guid)\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `account` FROM `characters` WHERE `name` = '%s'\", name.c_str())\;")

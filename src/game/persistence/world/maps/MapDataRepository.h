@@ -130,7 +130,7 @@ namespace MapDataRepository
     /// Inserts a GM teleport location, the name escaped on the calling thread.
     bool InsertTele(uint32 id, float x, float y, float z, float orientation, uint32 mapId, std::string const& name);
 
-    /// Deletes a GM teleport location by its name.
+    /// Deletes a GM teleport location by its name, the name escaped first.
     void DeleteTele(char const* name);
 
     /// Selects every graveyard's zone and faction (`game_graveyard_zone`).

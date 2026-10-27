@@ -662,13 +662,13 @@ namespace CharacterRepository
     /// Selects a deleted character by its guid.
     std::vector<DeletedCharacterInfoRow> QueryDeletedCharacter(uint32 guid);
 
-    /// Selects the deleted characters whose name contains a text, the text written as handed.
-    std::vector<DeletedCharacterInfoRow> QueryDeletedCharactersNamed(char const* name);
+    /// Selects the deleted characters whose name contains a text, the text escaped first.
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharactersNamed(std::string name);
 
     /// Selects every deleted character.
     std::vector<DeletedCharacterInfoRow> QueryDeletedCharacters();
 
-    /// Restores a deleted character under a name and account, the name written as handed.
+    /// Restores a deleted character under a name and account, the name bound.
     void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid);
 
     /// Sets an offline character's level and clears its experience.

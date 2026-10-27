@@ -112,7 +112,10 @@ namespace MapDataRepository
 
     void DeleteTele(char const* name)
     {
-        WorldDatabase.PExecuteLog("DELETE FROM `game_tele` WHERE `name` = '%s'", name);
+        std::string safeName(name);
+        WorldDatabase.escape_string(safeName);
+
+        WorldDatabase.PExecuteLog("DELETE FROM `game_tele` WHERE `name` = '%s'", safeName.c_str());
     }
 
     static GraveyardZoneRow ReadGraveyardZone(Field* fields)

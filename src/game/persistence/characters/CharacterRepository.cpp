@@ -467,9 +467,10 @@ namespace CharacterRepository
         return ReadRows<DeletedCharacterInfoRow>(result, ReadDeletedCharacterInfo);
     }
 
-    std::vector<DeletedCharacterInfoRow> QueryDeletedCharactersNamed(char const* name)
+    std::vector<DeletedCharacterInfoRow> QueryDeletedCharactersNamed(std::string name)
     {
-        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name);
+        CharacterDatabase.escape_string(name);
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`, `deleteInfos_Name`, `deleteInfos_Account`, `deleteDate` FROM `characters` WHERE `deleteDate` IS NOT NULL AND `deleteInfos_Name` " _LIKE_ " " _CONCAT3_("'%%'", "'%s'", "'%%'"), name.c_str());
         return ReadRows<DeletedCharacterInfoRow>(result, ReadDeletedCharacterInfo);
     }
 
@@ -481,8 +482,13 @@ namespace CharacterRepository
 
     void RestoreDeletedCharacter(char const* name, uint32 accountId, uint32 guid)
     {
-        CharacterDatabase.PExecute("UPDATE `characters` SET `name`='%s', `account`='%u', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = %u",
-                                   name, accountId, guid);
+        static SqlStatementID restoreCharacter;
+        SqlStatement stmt = CharacterDatabase.CreateStatement(restoreCharacter,
+                            "UPDATE `characters` SET `name`=?, `account`=?, `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = ?");
+        stmt.addString(name);
+        stmt.addUInt32(accountId);
+        stmt.addUInt32(guid);
+        stmt.Execute();
     }
 
     void SetLevel(uint32 level, uint32 guid)

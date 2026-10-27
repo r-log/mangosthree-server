@@ -260,17 +260,19 @@ TEST(WorldDataRepository_ObjectMgrReads)
 }
 
 // A GM's vendor, teleport and graveyard writes are queued in order; a currency's negated entry is
-// written signed, and the teleport's name is escaped on the calling thread first.
+// written signed, and the teleport's name is escaped on the calling thread first, on its insert and
+// on its delete.
 TEST(WorldDataRepository_GmWrites)
 {
     Db db;
     TickGuard::ResetViolations();
     CHECK(MapDataRepository::InsertTele(9, 1.5f, -2.25f, 3.0f, 0.5f, 530, "Shattrath"));
+    MapDataRepository::DeleteTele("Shattrath");
+    CheckLines(db.query.escaped, { "Shattrath", "Shattrath" }, __LINE__);
     {
         TickGuard::Scope scope;
         NpcDataRepository::InsertVendorItem(5, uint32(-int32(3)), 1, 2, 3);
         NpcDataRepository::DeleteVendorItem(5, 7);
-        MapDataRepository::DeleteTele("Shattrath");
         MapDataRepository::InsertGraveyardZone(1, 2, 469);
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(WorldDatabase.GetDelayQueueDepth(), size_t(5));
@@ -278,9 +280,9 @@ TEST(WorldDataRepository_GmWrites)
     WorldDatabase.ExecuteQueuedForTest();
     CheckLines(db.async.executed, {
         "INSERT INTO `game_tele` (`id`,`position_x`,`position_y`,`position_z`,`orientation`,`map`,`name`) VALUES (9,1.500000,-2.250000,3.000000,0.500000,530,'Shattrath')",
+        "DELETE FROM `game_tele` WHERE `name` = 'Shattrath'",
         "INSERT INTO `npc_vendor` (`entry`,`item`,`maxcount`,`incrtime`,`extendedcost`) VALUES('5','-3','1','2','3')",
         "DELETE FROM `npc_vendor` WHERE `entry`='5' AND `item`='7'",
-        "DELETE FROM `game_tele` WHERE `name` = 'Shattrath'",
         "INSERT INTO `game_graveyard_zone` (`id`,`ghost_zone`,`faction`) VALUES ('1', '2','469')",
     }, __LINE__);
 }

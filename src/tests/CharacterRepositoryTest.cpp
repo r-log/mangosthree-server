@@ -343,6 +343,22 @@ TEST(CharacterRepository_NameAndWhoisReads)
     CHECK_EQ(answered, 3);
 }
 
+// A new account's name and password hash are bound: the connection escapes them when the queued
+// inserts go out, and nothing escapes on the calling thread.
+TEST(CharacterRepository_AccountInsertsBindTheNameAndHash)
+{
+    Db login(LoginDatabase);
+    {
+        TickGuard::Scope scope;
+        CHECK(AccountRepository::Insert("O'NEIL", "ABCD"));
+        CHECK(AccountRepository::InsertWithExpansion("O'NEIL", "EF01", 3));
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CHECK_EQ(login.query.escaped.size(), size_t(0));
+    CHECK_EQ(login.Take().size(), size_t(2));
+    CheckLines(login.query.escaped, { "O'NEIL", "ABCD", "O'NEIL", "EF01" }, __LINE__);
+}
+
 // The account manager's reads run on the calling thread, the names escaped; its writes are queued,
 // the delete as one transaction, and the password check is answered on the world thread. The
 // rename escapes its name on the calling thread, so it runs outside the tick scope.
