@@ -214,6 +214,7 @@ set(SRC_GRP_TESTS
     ConditionRepositoryTest.cpp
     CreatureAddonStoreTest.cpp
     CreatureAddonRepositoryTest.cpp
+    CreatureModelInfoRepositoryTest.cpp
     PointOfInterestStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp

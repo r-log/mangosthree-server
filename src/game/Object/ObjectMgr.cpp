@@ -489,7 +489,7 @@ CreatureInfo const* ObjectMgr::GetCreatureTemplate(uint32 id) { return sCreature
  * @param modelid The creature model id.
  * @return The creature model info, or null if missing.
  */
-CreatureModelInfo const* ObjectMgr::GetCreatureModelInfo(uint32 modelid) { return sCreatureModelStorage.LookupEntry<CreatureModelInfo>(modelid); }
+CreatureModelInfo const* ObjectMgr::GetCreatureModelInfo(uint32 modelid) { return sObjectMgr.m_creatureModels.Find(modelid); }
 
 /**
  * @brief Gets equipment template data by entry id.

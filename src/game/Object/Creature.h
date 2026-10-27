@@ -315,16 +315,6 @@ struct CreatureClassLvlStats
     uint32  BaseArmor;
 };
 
-struct CreatureModelInfo
-{
-    uint32 modelid;
-    float bounding_radius;
-    float combat_reach;
-    uint8 gender;
-    uint32 modelid_other_gender;                            // The opposite gender for this modelid (male/female)
-    uint32 modelid_alternative;                             // An alternative model. Generally same gender(2)
-};
-
 struct CreatureModelRace
 {
     uint32 modelid;                                         // Native model/base model the selection is for

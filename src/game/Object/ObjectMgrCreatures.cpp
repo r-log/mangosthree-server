@@ -62,6 +62,7 @@
 #include "persistence/world/creatures/CreatureDataRepository.h"
 #include "persistence/world/creatures/CreatureAddonRepository.h"
 #include "persistence/world/creatures/CreatureEquipmentRepository.h"
+#include "persistence/world/creatures/CreatureModelInfoRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
 // The SQL loader of LoadCreatureTemplates, its only user, local to this file.
@@ -245,7 +246,7 @@ void ObjectMgr::LoadCreatureTemplates()
                     displayScaleEntry = displayEntry;
                 }
 
-                CreatureModelInfo const* minfo = sCreatureModelStorage.LookupEntry<CreatureModelInfo>(cInfo->ModelId[j]);
+                CreatureModelInfo const* minfo = GetCreatureModelInfo(cInfo->ModelId[j]);
                 if (!minfo)
                 {
                     sLog.outErrorDb("Creature (Entry: %u) are using modelid_%d (%u), but creature_model_info are missing for this model.", cInfo->Entry, j + 1, cInfo->ModelId[j]);
@@ -855,12 +856,42 @@ uint32 ObjectMgr::GetModelForRace(uint32 sourceModelId, uint32 racemask)
  */
 void ObjectMgr::LoadCreatureModelInfo()
 {
-    sCreatureModelStorage.Load();
+    TableRead<CreatureModelInfoRow> read = CreatureModelInfoRepository::QueryCreatureModelInfos();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `creature_model_info` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("creature_model_info table is empty!\n");
+    }
+    else
+    {
+        m_creatureModels.Clear();
+        BarGoLink bar(read.rows.size());
+        for (CreatureModelInfoRow const& row : read.rows)
+        {
+            bar.step();
+            CreatureModelInfo model;
+            model.modelid = row.modelid;
+            model.bounding_radius = row.boundingRadius;
+            model.combat_reach = row.combatReach;
+            model.gender = row.gender;
+            model.modelid_other_gender = row.modelidOtherGender;
+            model.modelid_alternative = row.modelidAlternative;
+            m_creatureModels.Set(row.modelid, model);
+        }
+        loaded = uint32(read.rows.size());
+    }
 
     // post processing
-    for (uint32 i = 1; i < sCreatureModelStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < m_creatureModels.GetMaxEntry(); ++i)
     {
-        CreatureModelInfo const* minfo = sCreatureModelStorage.LookupEntry<CreatureModelInfo>(i);
+        CreatureModelInfo const* minfo = m_creatureModels.Find(i);
         if (!minfo)
         {
             continue;
@@ -874,7 +905,7 @@ void ObjectMgr::LoadCreatureModelInfo()
         if (minfo->gender >= MAX_GENDER)
         {
             sLog.outErrorDb("Table `creature_model_info` has invalid gender (%u) for model id (%u).", uint32(minfo->gender), minfo->modelid);
-            const_cast<CreatureModelInfo*>(minfo)->gender = GENDER_MALE;
+            m_creatureModels.FindForEdit(minfo->modelid)->gender = GENDER_MALE;
         }
 
         if (minfo->modelid_other_gender)
@@ -882,12 +913,12 @@ void ObjectMgr::LoadCreatureModelInfo()
             if (minfo->modelid_other_gender == minfo->modelid)
             {
                 sLog.outErrorDb("Table `creature_model_info` has redundant modelid_other_gender model (%u) defined for model id %u.", minfo->modelid_other_gender, minfo->modelid);
-                const_cast<CreatureModelInfo*>(minfo)->modelid_other_gender = 0;
+                m_creatureModels.FindForEdit(minfo->modelid)->modelid_other_gender = 0;
             }
             else if (!sCreatureDisplayInfoStore.LookupEntry(minfo->modelid_other_gender))
             {
                 sLog.outErrorDb("Table `creature_model_info` has nonexistent modelid_other_gender model (%u) defined for model id %u.", minfo->modelid_other_gender, minfo->modelid);
-                const_cast<CreatureModelInfo*>(minfo)->modelid_other_gender = 0;
+                m_creatureModels.FindForEdit(minfo->modelid)->modelid_other_gender = 0;
             }
         }
 
@@ -896,12 +927,12 @@ void ObjectMgr::LoadCreatureModelInfo()
             if (minfo->modelid_alternative == minfo->modelid)
             {
                 sLog.outErrorDb("Table `creature_model_info` has redundant modelid_alternative model (%u) defined for model id %u.", minfo->modelid_alternative, minfo->modelid);
-                const_cast<CreatureModelInfo*>(minfo)->modelid_alternative = 0;
+                m_creatureModels.FindForEdit(minfo->modelid)->modelid_alternative = 0;
             }
             else if (!sCreatureDisplayInfoStore.LookupEntry(minfo->modelid_alternative))
             {
                 sLog.outErrorDb("Table `creature_model_info` has nonexistent modelid_alternative model (%u) defined for model id %u.", minfo->modelid_alternative, minfo->modelid);
-                const_cast<CreatureModelInfo*>(minfo)->modelid_alternative = 0;
+                m_creatureModels.FindForEdit(minfo->modelid)->modelid_alternative = 0;
             }
         }
     }
@@ -935,13 +966,13 @@ void ObjectMgr::LoadCreatureModelInfo()
             if (minfo->bounding_radius <= 0.0f)
             {
                 sLog.outErrorDb("Table `creature_model_info` have wrong bounding_radius %f for character race %u female model id %u, use %f instead", minfo->bounding_radius, race, raceEntry->FemaleDisplayID, DEFAULT_WORLD_OBJECT_SIZE);
-                const_cast<CreatureModelInfo*>(minfo)->bounding_radius = DEFAULT_WORLD_OBJECT_SIZE;
+                m_creatureModels.FindForEdit(minfo->modelid)->bounding_radius = DEFAULT_WORLD_OBJECT_SIZE;
             }
 
             if (minfo->combat_reach != 1.5f)
             {
                 sLog.outErrorDb("Table `creature_model_info` have wrong combat_reach %f for character race %u female model id %u, expected always 1.5f", minfo->combat_reach, race, raceEntry->FemaleDisplayID);
-                const_cast<CreatureModelInfo*>(minfo)->combat_reach = 1.5f;
+                m_creatureModels.FindForEdit(minfo->modelid)->combat_reach = 1.5f;
             }
         }
         else
@@ -964,13 +995,13 @@ void ObjectMgr::LoadCreatureModelInfo()
             if (minfo->bounding_radius <= 0.0f)
             {
                 sLog.outErrorDb("Table `creature_model_info` have wrong bounding_radius %f for character race %u male model id %u, use %f instead", minfo->bounding_radius, race, raceEntry->FemaleDisplayID, DEFAULT_WORLD_OBJECT_SIZE);
-                const_cast<CreatureModelInfo*>(minfo)->bounding_radius = DEFAULT_WORLD_OBJECT_SIZE;
+                m_creatureModels.FindForEdit(minfo->modelid)->bounding_radius = DEFAULT_WORLD_OBJECT_SIZE;
             }
 
             if (minfo->combat_reach != 1.5f)
             {
                 sLog.outErrorDb("Table `creature_model_info` have wrong combat_reach %f for character race %u male model id %u, expected always 1.5f", minfo->combat_reach, race, raceEntry->MaleDisplayID);
-                const_cast<CreatureModelInfo*>(minfo)->combat_reach = 1.5f;
+                m_creatureModels.FindForEdit(minfo->modelid)->combat_reach = 1.5f;
             }
         }
         else
@@ -979,7 +1010,7 @@ void ObjectMgr::LoadCreatureModelInfo()
         }
     }
 
-    sLog.outString(">> Loaded %u creature model based info", sCreatureModelStorage.GetRecordCount());
+    sLog.outString(">> Loaded %u creature model based info", loaded);
     sLog.outString();
 }
 
@@ -1027,7 +1058,7 @@ void ObjectMgr::LoadCreatureModelRace()
             continue;
         }
 
-        if (!sCreatureModelStorage.LookupEntry<CreatureModelInfo>(raceData.modelid))
+        if (!GetCreatureModelInfo(raceData.modelid))
         {
             sLog.outErrorDb("Table `creature_model_race` modelid %u does not exist in creature_model_info, skipping", raceData.modelid);
             continue;
@@ -1079,7 +1110,7 @@ void ObjectMgr::LoadCreatureModelRace()
                 continue;
             }
 
-            if (!sCreatureModelStorage.LookupEntry<CreatureModelInfo>(raceData.modelid_racial))
+            if (!GetCreatureModelInfo(raceData.modelid_racial))
             {
                 sLog.outErrorDb("Table `creature_model_race` modelid %u has modelid_racial %u, but are not defined in creature_model_info, skipping", raceData.modelid, raceData.modelid_racial);
                 continue;
