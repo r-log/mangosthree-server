@@ -115,6 +115,7 @@ set(SRC_GRP_TESTS
     CorpseRepositoryTest.cpp
     LoginHolderTest.cpp
     GameConfigTest.cpp
+    DbcLocaleMaskTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

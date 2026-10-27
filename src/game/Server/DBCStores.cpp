@@ -283,6 +283,39 @@ uint32 GetDBCLoadedBuild()
     return sDBCLoadedBuild;
 }
 
+static uint32 sDBCLoadedLocaleMask = 0;                     ///< Bit per LocaleConstant of the DBC locales loaded at startup
+
+/**
+ * @brief Returns the locales whose DBC strings were loaded at startup.
+ *
+ * @return uint32 A bit per LocaleConstant, or 0 before LoadDBCStores has run.
+ */
+uint32 GetDBCLoadedLocaleMask()
+{
+    return sDBCLoadedLocaleMask;
+}
+
+/**
+ * @brief Turns the loaded locale subdirectories into a mask of locales.
+ *
+ * @param defaultLocale The locale of the DBC files in the main directory.
+ * @param loadedSubdirs A bit per fullLocaleNameList entry whose subdirectory loaded.
+ * @return uint32 A bit per LocaleConstant.
+ */
+uint32 DbcLocaleMask(LocaleConstant defaultLocale, uint32 loadedSubdirs)
+{
+    uint32 mask = 1 << defaultLocale;
+    for (uint8 i = 0; fullLocaleNameList[i].name; ++i)
+    {
+        if (loadedSubdirs & (1 << i))
+        {
+            mask |= 1 << fullLocaleNameList[i].locale;
+        }
+    }
+
+    return mask;
+}
+
 static bool ReadDBCBuildFileText(const std::string& dbc_path, char const* localeName, std::string& text)
 {
     std::string filename  = dbc_path + "component.wow-" + localeName + ".txt";
@@ -1042,6 +1075,7 @@ void LoadDBCStores(const std::string& dataPath)
     // Remember the validated build for consumers like the character
     // database cleaner (see GetDBCLoadedBuild).
     sDBCLoadedBuild = build;
+    sDBCLoadedLocaleMask = DbcLocaleMask(availableDbcLocales.defaultLocale, availableDbcLocales.availableDbcLocales & availableDbcLocales.checkedDbcLocaleBuilds);
 
     sLog.outString();
     sLog.outString(">> Initialized %d data stores", DBCFilesCount);
