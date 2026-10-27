@@ -189,8 +189,9 @@ namespace NpcDataRepository
         return ReadRows<PointOfInterestRow>(result, ReadPointOfInterest);
     }
 
-    QueryResult* QueryVendorItemEntries()
+    std::vector<uint32> QueryVendorItemEntries()
     {
-        return WorldDatabase.Query("SELECT DISTINCT `item` FROM `npc_vendor`");
+        QueryResult* result = WorldDatabase.Query("SELECT DISTINCT `item` FROM `npc_vendor`");
+        return ReadRows<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
     }
 }

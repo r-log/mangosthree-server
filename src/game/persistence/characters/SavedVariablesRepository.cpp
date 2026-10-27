@@ -109,4 +109,26 @@ namespace SavedVariablesRepository
     {
         CharacterDatabase.PExecute("UPDATE saved_variables SET `NextCurrenciesResetTime` = '" UI64FMTD "'", time);
     }
+
+    std::optional<uint32> QueryCleaningFlags()
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `cleaning_flags` FROM `saved_variables`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    std::optional<uint32> QueryLastCleanedDbcBuild()
+    {
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `last_cleaned_dbc_build` FROM `saved_variables`");
+        return ReadRow<uint32>(result, [](Field* fields) { return fields[0].GetUInt32(); });
+    }
+
+    void FinishCleaning(uint32 dbcBuild)
+    {
+        CharacterDatabase.PExecute("UPDATE `saved_variables` SET `cleaning_flags` = 0, `last_cleaned_dbc_build` = %u", dbcBuild);
+    }
+
+    void FinishCleaningWithoutBuild()
+    {
+        CharacterDatabase.Execute("UPDATE `saved_variables` SET `cleaning_flags` = 0");
+    }
 }

@@ -314,7 +314,7 @@ set(ALLOW_CreatureEventAIRepository_cpp
 set(ALLOW_LootDataRepository_cpp
     "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `item`, `ChanceOrQuestChance`, `groupid`, `mincountOrRef`, `maxcount`, `condition_id` FROM `%s`\", table)\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `ench`, `chance` FROM `item_enchantment_template`\")\;"
-    "return WorldDatabase.PQuery(\"SELECT `item` FROM `creature_loot_template` UNION \"")
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `item` FROM `creature_loot_template` UNION \"")
 
 set(ALLOW_SkillDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `spellId`, `reqSpell`, `reqSkillValue`, `chance` FROM `skill_discovery_template`\")\;"
@@ -345,7 +345,9 @@ set(ALLOW_SavedVariablesRepository_cpp
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextDailyQuestResetTime` FROM `saved_variables`\")\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`\")\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextCurrenciesResetTime` FROM `saved_variables`\")\;"
-    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextRandomBGResetTime` FROM `saved_variables`\")\;")
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextRandomBGResetTime` FROM `saved_variables`\")\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `cleaning_flags` FROM `saved_variables`\")\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `last_cleaned_dbc_build` FROM `saved_variables`\")\;")
 
 set(ALLOW_TicketRepository_cpp
     "if (QueryResult* highest = CharacterDatabase.Query(\"SELECT MAX(`ticket_id`) FROM `character_ticket`\"))"
@@ -513,7 +515,7 @@ set(ALLOW_NpcDataRepository_cpp
     "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `condition_id` FROM `%s`\", table)\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `npc_entry`, `spell_id`, `quest_start`, `quest_start_active`, `quest_end`, `cast_flags`, `condition_id` FROM `npc_spellclick_spells`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`\")\;"
-    "return WorldDatabase.Query(\"SELECT DISTINCT `item` FROM `npc_vendor`\")\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT DISTINCT `item` FROM `npc_vendor`\")\;")
 
 set(ALLOW_PlayerDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`, `phaseMap` FROM `playercreateinfo`\")\;"
@@ -593,8 +595,8 @@ set(ALLOW_ScriptDataRepository_cpp
     "QueryResult* result = WorldDatabase.PQuery(\"SELECT `type`, `bind`, `ScriptName`, `data` FROM `script_binding`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT DISTINCT(`ScriptName`) FROM `script_binding`\")\;"
     "QueryResult* result = WorldDatabase.PQuery(\"SELECT `id`, `delay`, `command`, `datalong`, `datalong2`, `buddy_entry`, `search_radius`, `data_flags`, `dataint`, `dataint2`, `dataint3`, `dataint4`, `x`, `y`, `z`, `o` FROM `db_scripts` WHERE `script_type` = %d ORDER BY `script_guid` ASC\", type)\;"
-    "return WorldDatabase.PQuery(\"SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`\")\;"
-    "return WorldDatabase.PQuery(\"SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`\")\;")
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT COUNT(`entry`) FROM `script_waypoint` GROUP BY `entry`\")\;"
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `pointid`, `location_x`, `location_y`, `location_z`, `waittime` FROM `script_waypoint` ORDER BY `pointid`\")\;")
 
 set(ALLOW_DbVersionRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `version`, `structure`, `content` FROM `db_version` ORDER BY `version` DESC, `structure` DESC, `content` DESC LIMIT 1\")\;")

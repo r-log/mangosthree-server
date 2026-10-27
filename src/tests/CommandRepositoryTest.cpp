@@ -257,8 +257,8 @@ TEST(CommandRepository_SpawnInfoAndScriptReads)
     ScriptDataRepository::QueryScriptBindings();
     ScriptDataRepository::QueryScriptNames();
     ScriptDataRepository::QueryDbScripts(2);
-    delete ScriptDataRepository::QueryScriptWaypointCounts();
-    delete ScriptDataRepository::QueryScriptWaypoints();
+    ScriptDataRepository::QueryScriptWaypointCounts();
+    ScriptDataRepository::QueryScriptWaypoints();
     CharacterRepository::QueryPlayerInfo(42);
     AccountRepository::QueryAccountInfo(42);
     AccountRepository::QueryGameMasters();
@@ -1114,4 +1114,36 @@ TEST(CommandDataRepository_CommandHelpLocales)
     CHECK_STR(rows[0].helpText[6], "s1.7");
     CHECK_STR(rows[0].helpText[7], "s1.8");
     CHECK_EQ(rows[1].id, 2000u);
+}
+
+// Each row's first column comes back as a value, in order.
+TEST(ScriptDataRepository_ScriptWaypointCounts)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000"}, FakeRow{"2000"},
+    });
+    std::vector<uint32> values = ScriptDataRepository::QueryScriptWaypointCounts();
+    REQUIRE(values.size() == 2);
+    CHECK_EQ(values[0], 1000u);
+    CHECK_EQ(values[1], 2000u);
+}
+
+// Each column of a `script_waypoint` row lands in its member, and the rows come back in order.
+TEST(ScriptDataRepository_ScriptWaypoints)
+{
+    Db db(WorldDatabase);
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1000", "1001", "1002.5", "1003.5", "1004.5", "1005"},
+        FakeRow{"2000", "2001", "2002.5", "2003.5", "2004.5", "2005"},
+    });
+    std::vector<ScriptWaypointRow> rows = ScriptDataRepository::QueryScriptWaypoints();
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].entry, 1000u);
+    CHECK_EQ(rows[0].pointId, 1001u);
+    CHECK_EQ(rows[0].positionX, 1002.5f);
+    CHECK_EQ(rows[0].positionY, 1003.5f);
+    CHECK_EQ(rows[0].positionZ, 1004.5f);
+    CHECK_EQ(rows[0].waitTime, 1005u);
+    CHECK_EQ(rows[1].entry, 2000u);
 }

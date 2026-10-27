@@ -63,7 +63,7 @@ namespace LootDataRepository
     std::vector<ItemEnchantmentRow> QueryItemEnchantments();
 
     /// Selects every item any loot table drops, for the auction house bot's filter.
-    QueryResult* QueryLootItemEntries();
+    std::vector<uint32> QueryLootItemEntries();
 }
 
 #endif
