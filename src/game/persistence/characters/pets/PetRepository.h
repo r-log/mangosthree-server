@@ -140,8 +140,6 @@ namespace PetRepository
     /// Inserts one spell row of a pet.
     void InsertSpell(uint32 petNumber, uint32 spell, uint32 active);
 
-    /// Deletes every pet's row of a spell.
-    void DeleteSpellOfEveryPet(uint32 spell);
 
     /// Deletes the rows of the listed spells from the listed pets, in one statement. Both lists hold
     /// at least one id.

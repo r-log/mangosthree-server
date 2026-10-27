@@ -262,11 +262,6 @@ class PlayerPetCache
         /// `DELETE FROM pet_spell WHERE guid = P AND spell = S`
         void EraseSpell(uint32 petId, uint32 spell);
 
-        /// `DELETE FROM pet_spell WHERE spell = S` -- the unknown-spell sweep in Pet::addSpell.
-        /// The statement is global; this object is one character's, so it clears the spell
-        /// from this character's pets and the rest is other sessions' (see the report).
-        void EraseSpellEverywhere(uint32 spell);
-
         /// `DELETE FROM pet_spell WHERE guid IN (ids) AND spell IN (spells)`
         void EraseSpells(std::vector<uint32> const& petIds, std::vector<uint32> const& spells);
 

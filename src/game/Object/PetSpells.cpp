@@ -455,23 +455,17 @@ bool Pet::addSpell(uint32 spell_id, ActiveStates active /*= ACT_DECIDE*/, PetSpe
         // do pet spell book cleanup
         if (state == PETSPELL_UNCHANGED)                    // spell load case
         {
-            sLog.outError("Pet::addSpell: nonexistent in SpellStore spell #%u request, deleting for all pets in `pet_spell`.", spell_id);
-            PetRepository::DeleteSpellOfEveryPet(spell_id);
+            sLog.outError("Pet::addSpell: nonexistent in SpellStore spell #%u request, deleting it for this pet in `pet_spell`.", spell_id);
+            PetRepository::DeleteSpell(m_charmInfo->GetPetNumber(), spell_id);
 
-            // Decoupling D7e: the statement is global, the cache is one character's. What is
-            // reachable from here is this owner's cache, and it is cleared so the same bad
-            // spell is not read back and re-deleted by this character's next pet load. Another
-            // character who is already logged in keeps the row in ITS cache until it re-logs
-            // and issues this same DELETE once more -- an error path for a spell that is not
-            // in Spell.dbc, whose outcome (the spell is not learned, the row is gone) does not
-            // change. If the owner is not resolvable at this instant, the DELETE still goes out
-            // and this character's cache keeps the row -- that is self-healing, since the next
-            // load of the pet hits this same error line and issues the same DELETE.
+            // The owner's cache forgets the spell for this pet too, so the pet's next load does
+            // not read it back. If the owner cannot be found now, the cache keeps the row and the
+            // next load of the pet logs and deletes it again.
             if (Unit* petOwner = GetOwner())
             {
                 if (petOwner->GetTypeId() == TYPEID_PLAYER)
                 {
-                    ((Player*)petOwner)->GetPetCache().EraseSpellEverywhere(spell_id);
+                    ((Player*)petOwner)->GetPetCache().EraseSpell(m_charmInfo->GetPetNumber(), spell_id);
                 }
             }
         }

@@ -246,9 +246,9 @@ void AchievementMgr::LoadFromDB(std::vector<LoginAchievementRow> const& achievem
             AchievementCriteriaEntry const* criteria = sAchievementCriteriaStore.LookupEntry(id);
             if (!criteria)
             {
-                // we will remove nonexistent criteria for all characters
+                // remove nonexistent criteria for this character
                 sLog.outError("Nonexistent achievement criteria %u data removed from table `character_achievement_progress`.", id);
-                AchievementRepository::DeleteCriteriaOfEveryCharacter(id);
+                AchievementRepository::DeleteProgress(GetPlayer()->GetGUIDLow(), id);
                 continue;
             }
 

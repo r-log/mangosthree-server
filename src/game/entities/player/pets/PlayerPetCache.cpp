@@ -392,31 +392,6 @@ void PlayerPetCache::EraseSpell(uint32 petId, uint32 spell)
     }
 }
 
-void PlayerPetCache::EraseSpellEverywhere(uint32 spell)
-{
-    for (std::map<uint32, SpellList>::iterator itr = m_spells.begin(); itr != m_spells.end();)
-    {
-        SpellList& list = itr->second;
-        for (size_t i = 0; i < list.size(); ++i)
-        {
-            if (list[i].spell == spell)
-            {
-                list.erase(list.begin() + i);
-                break;
-            }
-        }
-
-        if (list.empty())
-        {
-            m_spells.erase(itr++);
-        }
-        else
-        {
-            ++itr;
-        }
-    }
-}
-
 void PlayerPetCache::EraseSpells(std::vector<uint32> const& petIds, std::vector<uint32> const& spells)
 {
     for (size_t p = 0; p < petIds.size(); ++p)

@@ -287,11 +287,6 @@ namespace CharacterSaveRepository
         stmt.PExecute(guid, spell);
     }
 
-    void DeleteSpellOfEveryCharacter(uint32 spell)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `character_spell` WHERE `spell` = '%u'", spell);
-    }
-
     void DeleteInvalidSkill(uint32 guid, uint32 skill)
     {
         CharacterDatabase.PExecute("DELETE FROM `character_skills` WHERE `guid` = '%u' AND `skill` = '%u' ", guid, skill);

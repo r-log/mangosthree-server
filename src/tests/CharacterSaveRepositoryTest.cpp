@@ -287,7 +287,6 @@ TEST(CharacterSaveRepository_LoadFixesBindsAndSmallWrites)
         ItemRepository::DeleteUnknownItem(77);
         ItemRepository::DropLoot(78);
         MailRepository::DropMailedItem(79);
-        CharacterSaveRepository::DeleteSpellOfEveryCharacter(133);
         CharacterSaveRepository::DeleteInvalidSkill(42, 164);
         CharacterSaveRepository::DeleteHomebind(42);
         CharacterSaveRepository::InsertHomebind(42, 0, 12, 1.5f, -2.25f, 3.0f);
@@ -310,7 +309,6 @@ TEST(CharacterSaveRepository_LoadFixesBindsAndSmallWrites)
         "DELETE FROM `item_instance` WHERE `guid` = '77'",
         "DELETE FROM `item_loot` WHERE `guid` = '78'",
         "DELETE FROM `mail_items` WHERE `item_guid` = '79'",
-        "DELETE FROM `character_spell` WHERE `spell` = '133'",
         "DELETE FROM `character_skills` WHERE `guid` = '42' AND `skill` = '164' ",
         "DELETE FROM `character_homebind` WHERE `guid` = '42'",
         "INSERT INTO `character_homebind` (`guid`,`map`,`zone`,`position_x`,`position_y`,`position_z`) VALUES ('42', '0', '12', '1.500000', '-2.250000', '3.000000')",
