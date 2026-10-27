@@ -35,7 +35,11 @@ namespace
     /// Queues a staged holder on a database, deleting it if the database refuses it.
     void QueueHolder(Database& database, SqlQueryHolder* holder, CharacterHolderCallback callback)
     {
-        if (!database.DelayQueryHolder(std::move(callback), holder))
+        if (!database.DelayQueryHolder([callback = std::move(callback)](QueryResult* /*result*/, SqlQueryHolder* answered)
+                                       {
+                                           callback(answered);
+                                       },
+                                       holder))
         {
             delete holder;                                  // delete all unprocessed queries
         }
@@ -250,7 +254,11 @@ namespace CharacterRepository
 
     bool QueueLoginReads(SqlQueryHolder* holder, CharacterHolderCallback callback)
     {
-        return CharacterDatabase.DelayQueryHolder(std::move(callback), holder);
+        return CharacterDatabase.DelayQueryHolder([callback = std::move(callback)](QueryResult* /*result*/, SqlQueryHolder* answered)
+                                                  {
+                                                      callback(answered);
+                                                  },
+                                                  holder);
     }
 
     void SetOnline(uint32 guid)

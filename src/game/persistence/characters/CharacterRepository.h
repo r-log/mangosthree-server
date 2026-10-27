@@ -114,7 +114,7 @@ enum
 
 /// The callback of the holder reads: it runs on the world thread with the answered holder, which it
 /// owns.
-typedef std::function<void(QueryResult*, SqlQueryHolder*)> CharacterHolderCallback;
+typedef std::function<void(SqlQueryHolder*)> CharacterHolderCallback;
 
 /// One `characters` row.
 struct CharacterCacheRow

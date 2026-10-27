@@ -690,7 +690,7 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
     // Runs at start-up and on the daily mail timer inside World::Update, so both reads are staged here and the expired
     // mails' returns and deletes happen in the callback. Slot 1 reads the expired mails' items in one join ordered by
     // `mail_id`; the callback walks it as a cursor beside the mail rows, since both results ascend in that key.
-    MailRepository::QueueExpiredMailReads((uint64)basetime, [basetime, serverUp](QueryResult* /*result*/, SqlQueryHolder* h)
+    MailRepository::QueueExpiredMailReads((uint64)basetime, [basetime, serverUp](SqlQueryHolder* h)
                                           {
                                               ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                         basetime, serverUp);

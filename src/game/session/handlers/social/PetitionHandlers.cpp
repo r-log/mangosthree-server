@@ -289,7 +289,7 @@ void PetitionHandlers::HandlePetitionShowSign(WorldSession& session, WorldPacket
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueueShowSignatures(petitionguid_low,
-                                            [accountId, sessionId, playerGuid, petitionguid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                            [accountId, sessionId, playerGuid, petitionguid](SqlQueryHolder* h)
                                             {
                                                 PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                              accountId, sessionId, playerGuid,
@@ -501,7 +501,7 @@ void PetitionHandlers::HandlePetitionSign(WorldSession& session, WorldPacket& re
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueueSignRead(petitionLowGuid, session.GetAccountId(),
-                                      [accountId, sessionId, playerGuid, petitionGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                      [accountId, sessionId, playerGuid, petitionGuid](SqlQueryHolder* h)
                                       {
                                           PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                    accountId, sessionId, playerGuid,
@@ -620,7 +620,7 @@ void PetitionHandlers::QueuePetitionSignHolder(uint32 accountId, proto::SessionI
                                                ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 maxSigns)
 {
     PetitionRepository::QueueSign(petitionGuid.GetCounter(), playerGuid.GetCounter(), accountId, maxSigns,
-                                  [accountId, sessionId, playerGuid, petitionGuid, ownerGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                  [accountId, sessionId, playerGuid, petitionGuid, ownerGuid](SqlQueryHolder* h)
                                   {
                                       PetitionHandlers::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                  accountId, sessionId, playerGuid,
@@ -792,7 +792,7 @@ void PetitionHandlers::HandleOfferPetition(WorldSession& session, WorldPacket& r
     ObjectGuid ownGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueueShowSignatures(petitionGuid.GetCounter(),
-                                            [accountId, sessionId, ownGuid, petitionGuid, playerGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                            [accountId, sessionId, ownGuid, petitionGuid, playerGuid](SqlQueryHolder* h)
                                             {
                                                 PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                           accountId, sessionId, ownGuid,
@@ -904,7 +904,7 @@ void PetitionHandlers::HandleTurnInPetition(WorldSession& session, WorldPacket& 
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
 
     PetitionRepository::QueueTurnInRead(petitionGuid.GetCounter(),
-                                        [accountId, sessionId, playerGuid, petitionGuid](QueryResult* /*result*/, SqlQueryHolder* h)
+                                        [accountId, sessionId, playerGuid, petitionGuid](SqlQueryHolder* h)
                                         {
                                             PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                        accountId, sessionId, playerGuid,

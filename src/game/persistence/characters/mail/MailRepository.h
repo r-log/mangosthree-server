@@ -138,7 +138,7 @@ namespace MailRepository
 
     /// Queues the expired-mail holder: the mails expired before a time, then their items, both
     /// ordered by mail id, in the slots of ExpiredMailSlot. The callback runs on the world thread.
-    void QueueExpiredMailReads(uint64 before, std::function<void(QueryResult*, SqlQueryHolder*)> callback);
+    void QueueExpiredMailReads(uint64 before, std::function<void(SqlQueryHolder*)> callback);
 
     /// Deletes the instance row of an item an expired mail drops.
     void DeleteExpiredMailItem(uint32 itemGuid);

@@ -146,7 +146,7 @@ TEST(CharacterRepository_CreateReads)
     Db login(LoginDatabase);
     Db chars(CharacterDatabase);
     int answered = 0;
-    CharacterHolderCallback held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    CharacterHolderCallback held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     {
         TickGuard::Scope scope;
         CharacterRepository::QueueCreateAccountRead(17, held);
@@ -178,7 +178,7 @@ TEST(CharacterRepository_LoginReads)
 {
     Db db(CharacterDatabase);
     int answered = 0;
-    CharacterHolderCallback held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    CharacterHolderCallback held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     {
         TickGuard::Scope scope;
         SqlQueryHolder* without = new SqlQueryHolder;
@@ -217,7 +217,7 @@ TEST(CharacterRepository_Writes)
     Db db(CharacterDatabase);
     int answered = 0;
     auto read = [&answered](std::optional<RenameTargetRow> /*row*/) { ++answered; };
-    CharacterHolderCallback held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    CharacterHolderCallback held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     std::string const declined[CHARACTER_DECLINED_NAME_ROW_CASES] = { "a", "b", "c", "d", "e" };
     {
         TickGuard::Scope scope;

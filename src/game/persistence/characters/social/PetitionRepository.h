@@ -73,7 +73,7 @@ enum PetitionTurnInSlot
 
 /// The callbacks of the asynchronous reads: they run on the world thread with what the reads
 /// returned, which they own.
-typedef std::function<void(QueryResult*, SqlQueryHolder*)> PetitionHolderCallback;
+typedef std::function<void(SqlQueryHolder*)> PetitionHolderCallback;
 
 /// A petition as its query reads it: its owner, name and number of signatures.
 struct PetitionDetailsRow

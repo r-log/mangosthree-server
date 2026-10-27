@@ -67,7 +67,7 @@ namespace CharacterDeleteRepository
     }
 
     void QueueDeleteReads(uint32 guid, bool fullDelete, bool withOwner,
-                          std::function<void(QueryResult*, SqlQueryHolder*)> callback)
+                          std::function<void(SqlQueryHolder*)> callback)
     {
         SqlQueryHolder* holder = new SqlQueryHolder;
         holder->SetSize(withOwner ? PLAYER_DELETE_READ_WITH_OWNER_COUNT : PLAYER_DELETE_READ_COUNT);
@@ -78,7 +78,11 @@ namespace CharacterDeleteRepository
         }
         StageDeleteReads(holder, guid, fullDelete);
 
-        if (!CharacterDatabase.DelayQueryHolder(std::move(callback), holder))
+        if (!CharacterDatabase.DelayQueryHolder([callback = std::move(callback)](QueryResult* /*result*/, SqlQueryHolder* answered)
+                                                {
+                                                    callback(answered);
+                                                },
+                                                holder))
         {
             delete holder;                                  // delete all unprocessed queries
         }

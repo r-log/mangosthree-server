@@ -104,7 +104,7 @@ TEST(CharacterDeleteRepository_StagedReads)
 {
     Db db;
     int answered = 0;
-    auto held = [&answered](QueryResult* /*result*/, SqlQueryHolder* holder) { delete holder; ++answered; };
+    auto held = [&answered](SqlQueryHolder* holder) { delete holder; ++answered; };
     {
         TickGuard::Scope scope;
         CharacterDeleteRepository::QueueDeleteReads(42, true, true, held);
