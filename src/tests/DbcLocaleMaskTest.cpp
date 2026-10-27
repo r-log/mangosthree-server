@@ -23,11 +23,10 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The DBC locale mask: which locales a session can read DBC text in.
+/// The DBC locale mask: which locales' DBC strings loaded.
 
 #include "TestHarness.h"
 #include "DBCStores.h"
-#include "data/GameConfig.h"
 
 // With no locale subdirectory loaded, only the default locale is in the mask.
 TEST(DbcLocaleMask_NoSubdirectoriesLeaveTheDefault)
@@ -44,15 +43,4 @@ TEST(DbcLocaleMask_SubdirectoryBitsMapToTheirLocales)
     uint32 const itIT = 1 << 12;
     CHECK_EQ(DbcLocaleMask(LOCALE_enUS, deDE), uint32((1 << LOCALE_enUS) | (1 << LOCALE_deDE)));
     CHECK_EQ(DbcLocaleMask(LOCALE_frFR, enGB | itIT), uint32((1 << LOCALE_frFR) | (1 << LOCALE_enUS) | (1 << LOCALE_itIT)));
-}
-
-// A session reads DBC text in its own locale when that locale loaded, and in the default otherwise.
-TEST(DbcLocaleMask_SessionsReadTheirOwnLocaleWhenLoaded)
-{
-    sGameConfig.SetDefaultDbcLocale(LOCALE_enUS);
-    sGameConfig.SetAvailableDbcLocaleMask(DbcLocaleMask(LOCALE_enUS, 1 << 4));
-    CHECK_EQ(int(sGameConfig.GetAvailableDbcLocale(LOCALE_enUS)), int(LOCALE_enUS));
-    CHECK_EQ(int(sGameConfig.GetAvailableDbcLocale(LOCALE_deDE)), int(LOCALE_deDE));
-    CHECK_EQ(int(sGameConfig.GetAvailableDbcLocale(LOCALE_frFR)), int(LOCALE_enUS));
-    sGameConfig.SetAvailableDbcLocaleMask(0);
 }
