@@ -135,10 +135,9 @@ struct Glyph
  * each slot reads the active spec afresh, after the previous slot's cast), the glyph slot fields
  * themselves (SetGlyphSlot/GetGlyphSlot are update fields), and the login loop over the rows.
  *
- * KEPT SEMANTICS, stated rather than fixed (backlog): a row whose glyph is unknown is deleted for
- * every character (that DELETE names the glyph only); a loaded row's spec and slot are not checked
- * against the array's bounds; a loaded glyph keeps the UNCHANGED state, so the next save writes
- * nothing for it.
+ * KEPT SEMANTICS, stated rather than fixed (backlog): a loaded row's spec and slot are not
+ * checked against the array's bounds; a loaded glyph keeps the UNCHANGED state, so the next save
+ * writes nothing for it.
  */
 class GlyphMgr
 {

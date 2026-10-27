@@ -44,19 +44,9 @@ namespace TalentRepository
         return ReadRows<TalentRow>(holder->GetResult(slot), ReadRow);
     }
 
-    void DeleteEveryRowOfTalent(uint32 talent)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `talent_id` = '%u'", talent);
-    }
-
     void DeleteOwnerTalent(uint32 ownerGuidLow, uint32 talent)
     {
         CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `guid` = '%u' AND `talent_id` = '%u'", ownerGuidLow, talent);
-    }
-
-    void DeleteEveryRowOfSpec(uint32 spec)
-    {
-        CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `spec` = '%u' ", spec);
     }
 
     void DeleteOwnerSpec(uint32 ownerGuidLow, uint32 spec)

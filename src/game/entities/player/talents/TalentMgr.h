@@ -60,11 +60,10 @@
  * that learn reaches `LearnRank` and `SpendPoints` here and may recompute the free points, so a
  * later row must see the earlier rows' effects exactly as before.
  *
- * KEPT SEMANTICS, stated rather than fixed (backlog): three of the six load DELETEs have no
- * `guid` predicate (an unknown talent, an unknown talent tab, a spec above the maximum) and so
- * delete the row for every character; the spec check `spec > MAX_TALENT_SPEC_COUNT` is one too
- * lenient and is masked by the spec-count check after it; the rank check reads `SpellRank[rank]`
- * for a rank equal to `MAX_TALENT_RANK`, one past the array.
+ * KEPT SEMANTICS, stated rather than fixed (backlog): the spec check
+ * `spec > MAX_TALENT_SPEC_COUNT` is one too lenient and is masked by the spec-count check after
+ * it; the rank check reads `SpellRank[rank]` for a rank equal to `MAX_TALENT_RANK`, one past the
+ * array.
  */
 
 struct TalentEntry;

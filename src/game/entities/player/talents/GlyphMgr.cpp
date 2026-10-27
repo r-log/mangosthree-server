@@ -87,7 +87,7 @@ void GlyphMgr::LoadRow(GlyphRow const& row, RowInputs const& inputs)
     if (!gp)
     {
         sLog.outError("Player %s has not existing glyph entry %u on index %u, spec %u", inputs.ownerName, glyph, slot, spec);
-        GlyphRepository::DeleteEveryRowOfGlyph(glyph);
+        GlyphRepository::DeleteInvalidRow(inputs.ownerGuidLow, spec, slot);
         return;
     }
 

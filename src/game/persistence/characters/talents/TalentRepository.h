@@ -60,14 +60,8 @@ namespace TalentRepository
     /// Reads a holder slot's rows, its columns in ReadRow's order.
     std::vector<TalentRow> ReadHolder(SqlQueryHolder* holder, size_t slot);
 
-    /// Deletes every character's rows of the talent `talent`, not only one character's.
-    void DeleteEveryRowOfTalent(uint32 talent);
-
     /// Deletes the owner's rows of the talent `talent`.
     void DeleteOwnerTalent(uint32 ownerGuidLow, uint32 talent);
-
-    /// Deletes every character's rows of the spec `spec`, not only one character's.
-    void DeleteEveryRowOfSpec(uint32 spec);
 
     /// Deletes the owner's rows of the spec `spec`.
     void DeleteOwnerSpec(uint32 ownerGuidLow, uint32 spec);
