@@ -82,7 +82,7 @@ bool ChatHandler::HandleListAurasCommand(char* /*args*/)
         bool talent = GetTalentSpellCost(itr->second->GetId()) > 0;
 
         SpellAuraHolder* holder = itr->second;
-        char const* name = holder->GetSpellProto()->Name_lang[GetSessionDbcLocale()];
+        char const* name = holder->GetSpellProto()->Name_lang ? holder->GetSpellProto()->Name_lang[GetSessionDbcLocale()] : "";
 
         for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
         {
@@ -125,7 +125,7 @@ bool ChatHandler::HandleListAurasCommand(char* /*args*/)
         {
             bool talent = GetTalentSpellCost((*itr)->GetId()) > 0;
 
-            char const* name = (*itr)->GetSpellProto()->Name_lang[GetSessionDbcLocale()];
+            char const* name = (*itr)->GetSpellProto()->Name_lang ? (*itr)->GetSpellProto()->Name_lang[GetSessionDbcLocale()] : "";
 
             if (m_session)
             {

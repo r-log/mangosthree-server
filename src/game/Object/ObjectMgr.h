@@ -68,6 +68,7 @@
 #include "data/PageTextStore.h"
 #include "data/PointOfInterestStore.h"
 #include "data/QuestPOIStore.h"
+#include "data/ServerSpellStore.h"
 #include "data/VehicleAccessoryStore.h"
 
 #include <string>
@@ -79,6 +80,7 @@ class ArenaTeam;
 class Item;
 class SQLStorage;
 enum class TableReadStatus;
+struct SpellTemplateRow;
 
 struct GameTele
 {
@@ -805,6 +807,9 @@ class ObjectMgr
 
         void LoadNPCSpellClickSpells();
         void LoadSpellTemplate();
+        /// Fills a server-side spell's zeroed records from its `spell_template` row; its effect is loaded
+        /// unless the row has none or its aura needs base points, which the table does not hold.
+        static void FillServerSpell(SpellTemplateRow const& row, ServerSpell& spell);
         void LoadCreatureTemplateSpells();
 
         void LoadGameTele();
@@ -1430,6 +1435,8 @@ class ObjectMgr
         KeyedRecordStore<CreatureTemplateSpells> m_creatureTemplateSpells;
 
         KeyedRecordStore<GameObjectDataAddon> m_gameObjectAddons;
+
+        ServerSpellStore m_serverSpells;
 
         QuestPOIStore m_questPoi;
 

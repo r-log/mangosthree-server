@@ -90,6 +90,10 @@ uint32 GetTalentSpellCost(TalentSpellPos const* pos);
  */
 TalentSpellPos const* GetTalentSpellPos(uint32 spellId);
 SpellEffectEntry const* GetSpellEffectEntry(uint32 spellId, SpellEffectIndex effect);
+/**
+ * Holds an effect the DBC files do not hold as its spell's effect at its index; the caller keeps it alive.
+ */
+void AddSpellEffectEntry(SpellEffectEntry const* effect);
 
 int32 GetAreaFlagByAreaID(uint32 area_id);                  // -1 if not found
 /**
