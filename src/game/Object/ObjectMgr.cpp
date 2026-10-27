@@ -90,6 +90,7 @@
 #include "persistence/world/npcs/NpcDataRepository.h"
 #include "persistence/world/players/PlayerDataRepository.h"
 #include "persistence/world/quests/QuestDataRepository.h"
+#include "persistence/world/spells/SpellTemplateRepository.h"
 #include "persistence/world/locales/LocaleDataRepository.h"
 
 static_assert(int(STRING_ROW_LOCALES) == int(MAX_LOCALE) - 1, "a string row holds every locale but the default");
@@ -1458,80 +1459,124 @@ void ObjectMgr::GetConditions(uint32 conditionId, std::vector<PlayerCondition co
     out.push_back(condition);
 }
 
-static char SERVER_SIDE_SPELL[] = "MaNGOS server-side spell";
-
-struct SQLSpellLoader : public SQLStorageLoaderBase<SQLSpellLoader, SQLHashStorage>
+/**
+ * @brief Fills a server-side spell's records from its `spell_template` row.
+ *
+ * The columns land in the fields they name: the four attribute columns in `Attributes` to
+ * `AttributesExC`, `duration_index` in `DurationIndex`, `proc_chance` and `proc_flags` in the aura
+ * options' `ProcChance` and `ProcTypeMask`, and the `effect0` columns in effect 0. Every other field
+ * is 0. The table holds no base points, so an aura that needs them leaves the spell without its effect.
+ *
+ * @param row The row.
+ * @param entry The main record to fill.
+ * @param effect The effect to fill.
+ * @param auraOptions The aura options to fill.
+ * @return true when the effect is loaded.
+ */
+bool ObjectMgr::FillServerSpell(SpellTemplateRow const& row, SpellEntry& entry, SpellEffectEntry& effect, SpellAuraOptionsEntry& auraOptions)
 {
-    template<class S, class D>
-    void default_fill(uint32 field_pos, S src, D& dst)
+    entry = SpellEntry();
+    entry.ID = row.id;
+    entry.Attributes = row.attributes;
+    entry.AttributesEx = row.attributesEx;
+    entry.AttributesExB = row.attributesEx2;
+    entry.AttributesExC = row.attributesEx3;
+    entry.DurationIndex = row.durationIndex;
+
+    auraOptions = SpellAuraOptionsEntry();
+    auraOptions.ProcChance = row.procChance;
+    auraOptions.ProcTypeMask = row.procFlags;
+
+    effect = SpellEffectEntry();
+    effect.Effect = row.effect;
+    effect.ImplicitTarget_0 = row.effectImplicitTargetA;
+    effect.ImplicitTarget_1 = row.effectImplicitTargetB;
+    effect.EffectRadiusIndex_0 = row.effectRadiusIndex;
+    effect.EffectAura = row.effectApplyAuraName;
+    effect.EffectMiscValue_0 = int32(row.effectMiscValue);
+    effect.EffectMiscValue_1 = int32(row.effectMiscValueB);
+    effect.EffectTriggerSpell = row.effectTriggerSpell;
+    effect.SpellID = row.id;
+    effect.EffectIndex = EFFECT_INDEX_0;
+
+    if (!row.effect)
     {
-        if (field_pos == LOADED_SPELLDBC_FIELD_POS_EQUIPPED_ITEM_CLASS)
-        {
-            dst = D(-1);
-        }
-        else
-        {
-            dst = D(src);
-        }
+        return false;
     }
 
-    void default_fill_to_str(uint32 field_pos, char const* /*src*/, char*& dst)
+    switch (row.effectApplyAuraName)
     {
-        // Every string field of a record belongs to the storage, which deletes
-        // all of them in SQLStorageBase::Free (SQLStorage.cpp:193). Handing it
-        // the address of SERVER_SIDE_SPELL instead of a copy meant that free ran
-        // delete[] over a static array -- once for each server-side spell -- and
-        // the heap it corrupted took the process down at exit, after the log had
-        // already said Bye!. Nothing caught it: the heap manager reports this
-        // through __fastfail, which no SEH handler, including ours, can see.
-        //
-        //   AddressSanitizer: attempting free on address which was not
-        //   malloc()-ed ... 'SERVER_SIDE_SPELL' ... of size 25
-        //     #1 SQLStorageBase::Free  SQLStorage.cpp:193
-        //     #4 dynamic atexit destructor for 'sSpellTemplate'
-        //
-        // So the name is copied, and the storage owns every byte it frees.
-        if (field_pos == LOADED_SPELLDBC_FIELD_POS_SPELLNAME_0)
-        {
-            dst = new char[sizeof(SERVER_SIDE_SPELL)];
-            std::memcpy(dst, SERVER_SIDE_SPELL, sizeof(SERVER_SIDE_SPELL));
-        }
-        else
-        {
-            dst = new char[1];
-            *dst = 0;
-        }
+        case SPELL_AURA_NONE:
+        case SPELL_AURA_DUMMY:
+        case SPELL_AURA_PROC_TRIGGER_SPELL:
+        case SPELL_AURA_TRANSFORM:
+            return true;
+        default:
+            return false;
     }
-};
+}
 
+/**
+ * @brief Loads the server-side spells (`spell_template`) into the spell stores.
+ *
+ * Each spell goes into the spell store at its id, its effect into the effect map and its aura
+ * options past the last aura options row. A spell `Spell.dbc` already holds is refused and the DBC
+ * spell kept, and so is an id past the spell store's last row.
+ */
 void ObjectMgr::LoadSpellTemplate()
 {
-    SQLSpellLoader loader;
-    loader.Load(sSpellTemplate);
-
-    sLog.outString(">> Loaded %u spell definitions", sSpellTemplate.GetRecordCount());
-    sLog.outString();
-
-    for (uint32 i = 1; i < sSpellTemplate.GetMaxEntry(); ++i)
+    TableRead<SpellTemplateRow> read = SpellTemplateRepository::QuerySpellTemplates();
+    if (read.Unreadable())
     {
-        // check data correctness
-        SpellEntry const* spellEntry = sSpellTemplate.LookupEntry<SpellEntry>(i);
-        if (!spellEntry)
-        {
-            continue;
-        }
+        sLog.outError("Error loading `spell_template` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
 
-        // insert serverside spell data
-        if (sSpellStore.GetNumRows() <= i)
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("spell_template table is empty!\n");
+    }
+    else
+    {
+        BarGoLink bar(read.rows.size());
+        for (SpellTemplateRow const& row : read.rows)
         {
-            sLog.outErrorDb("Loading Spell Template for spell %u, index out of bounds (max = %u)", i, sSpellStore.GetNumRows());
-            continue;
-        }
-        else
-        {
-            sSpellStore.InsertEntry(const_cast<SpellEntry*>(spellEntry), i);
+            bar.step();
+
+            if (row.id >= sSpellStore.GetNumRows())
+            {
+                sLog.outErrorDb("Loading Spell Template for spell %u, index out of bounds (max = %u)", row.id, sSpellStore.GetNumRows());
+                continue;
+            }
+
+            if (sSpellStore.LookupEntry(row.id))
+            {
+                sLog.outErrorDb("Table `spell_template` has spell %u, which Spell.dbc holds; the Spell.dbc spell is kept.", row.id);
+                continue;
+            }
+
+            SpellEntry entry;
+            SpellEffectEntry effect;
+            SpellAuraOptionsEntry auraOptions;
+            bool effectLoaded = FillServerSpell(row, entry, effect, auraOptions);
+            if (!effectLoaded && row.effect)
+            {
+                sLog.outErrorDb("Table `spell_template` has spell %u with aura %u, which needs base points the table does not hold; the spell is loaded without its effect.", row.id, row.effectApplyAuraName);
+            }
+
+            ServerSpell& spell = m_serverSpells.Set(entry, effectLoaded ? &effect : NULL, auraOptions, row.comments);
+            spell.entry.AuraOptionsID = sSpellAuraOptionsStore.AppendEntry(&spell.auraOptions);
+            sSpellStore.InsertEntry(&spell.entry, row.id);
+            if (spell.hasEffect)
+            {
+                AddSpellEffectEntry(&spell.effect);
+            }
         }
     }
+
+    sLog.outString(">> Loaded %u spell definitions", uint32(read.rows.size()));
+    sLog.outString();
 }
 
 /**

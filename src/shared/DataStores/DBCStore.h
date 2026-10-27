@@ -48,7 +48,7 @@ class DBCStorage
          *
          * @param f
          */
-        explicit DBCStorage(const char* f) : nCount(0), fieldCount(0), fmt(f), indexTable(NULL), m_dataTable(NULL) { }
+        explicit DBCStorage(const char* f) : nCount(0), fieldCount(0), fmt(f), indexTable(NULL), m_dataTable(NULL), loaded(false) { }
         /**
          * @brief
          *
@@ -212,6 +212,26 @@ class DBCStorage
          * @param id
          */
         void InsertEntry(T* entry, uint32 id) { assert(id < nCount && "Entry to be inserted must be in bounds!"); indexTable[id] = entry; }
+        /**
+         * @brief Adds an entry past the last row, and answers its id, which is one past the last row's.
+         *
+         * The store points at the entry and does not own it.
+         *
+         * @param entry
+         * @return uint32
+         */
+        uint32 AppendEntry(T* entry)
+        {
+            char** grown = new char*[nCount + 1];
+            for (uint32 i = 0; i < nCount; ++i)
+            {
+                grown[i] = (char*)indexTable[i];
+            }
+            grown[nCount] = (char*)entry;
+            delete[]((char**)indexTable);
+            indexTable = (T**)grown;
+            return nCount++;
+        }
 
     private:
         uint32 nCount; /**< TODO */

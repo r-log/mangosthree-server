@@ -646,7 +646,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
                         bool foundName = false;
                         for (uint8 i = 0; i < MAX_LOCALE; ++i)
                         {
-                            if (*linkedSpell->Name_lang[i] && strcmp(linkedSpell->Name_lang[i], buffer) == 0)
+                            if (linkedSpell->Name_lang && linkedSpell->Name_lang[i] && *linkedSpell->Name_lang[i] && strcmp(linkedSpell->Name_lang[i], buffer) == 0)
                             {
                                 foundName = true;
                                 break;

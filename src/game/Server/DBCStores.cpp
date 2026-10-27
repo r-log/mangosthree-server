@@ -1147,6 +1147,16 @@ SpellEffectEntry const* GetSpellEffectEntry(uint32 spellId, SpellEffectIndex eff
 }
 
 /**
+ * @brief Holds an effect the DBC files do not hold as its spell's effect at its index.
+ *
+ * @param effect The effect, kept alive by the caller.
+ */
+void AddSpellEffectEntry(SpellEffectEntry const* effect)
+{
+    sSpellEffectMap[effect->SpellID].effects[effect->EffectIndex] = effect;
+}
+
+/**
  * @brief Computes the talent point cost from a talent position.
  *
  * @param pos The talent spell position.
