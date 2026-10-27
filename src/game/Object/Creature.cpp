@@ -38,7 +38,6 @@
 #include "ObjectMgr.h"
 #include "ScriptMgr.h"
 #include "ObjectGuid.h"
-#include "SQLStorages.h"
 #include "spells/data/SpellMgr.h"
 #include "GossipDef.h"
 #include "Player.h"

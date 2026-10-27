@@ -37,7 +37,6 @@
 #include "Database/SqlOperations.h"
 #include "Policies/Singleton.h"
 
-#include "SQLStorages.h"
 #include "Log.h"
 #include "MapManager.h"
 #include "ObjectGuid.h"
@@ -622,48 +621,6 @@ void ObjectMgr::LoadInstanceTemplate()
     }
 
     sLog.outString(">> Loaded %u Instance Template definitions", loaded);
-    sLog.outString();
-}
-
-struct SQLWorldLoader : public SQLStorageLoaderBase<SQLWorldLoader, SQLStorage>
-{
-    template<class D>
-    void convert_from_str(uint32 /*field_pos*/, char const* src, D& dst)
-    {
-        dst = D(sScriptMgr.GetScriptId(src));
-    }
-};
-
-void ObjectMgr::LoadWorldTemplate()
-{
-    SQLWorldLoader loader;
-    loader.Load(sWorldTemplate, false);
-
-    for (uint32 i = 0; i < sWorldTemplate.GetMaxEntry(); ++i)
-    {
-        WorldTemplate const* temp = GetWorldTemplate(i);
-        if (!temp)
-        {
-            continue;
-        }
-
-        MapEntry const* mapEntry = sMapStore.LookupEntry(temp->map);
-        if (!mapEntry)
-        {
-            sLog.outErrorDb("ObjectMgr::LoadWorldTemplate: bad mapid %d for template!", temp->map);
-            sWorldTemplate.EraseEntry(i);
-            continue;
-        }
-
-        if (mapEntry->Instanceable())
-        {
-            sLog.outErrorDb("ObjectMgr::LoadWorldTemplate: instanceable mapid %d for template!", temp->map);
-            sWorldTemplate.EraseEntry(i);
-            continue;
-        }
-    }
-
-    sLog.outString(">> Loaded %u World Template definitions", sWorldTemplate.GetRecordCount());
     sLog.outString();
 }
 

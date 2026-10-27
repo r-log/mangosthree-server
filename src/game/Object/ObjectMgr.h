@@ -79,7 +79,6 @@
 class Group;
 class ArenaTeam;
 class Item;
-class SQLStorage;
 enum class TableReadStatus;
 struct SpellTemplateRow;
 struct ItemTemplateRow;
@@ -742,7 +741,6 @@ class ObjectMgr
         static CreatureDataAddon const* GetCreatureTemplateAddon(uint32 entry);     ///< Lookup in the creature template addon store
         static ItemPrototype const* GetItemPrototype(uint32 id);                    ///< Lookup in the item prototype store
         static InstanceTemplate const* GetInstanceTemplate(uint32 map);             ///< Lookup in the instance template store
-        static WorldTemplate const* GetWorldTemplate(uint32 map);                   ///< Wrapper for sWorldTemplate.LookupEntry
 
         // Loading functions
         void LoadArenaTeams();
@@ -790,7 +788,6 @@ class ObjectMgr
         void LoadPointOfInterestLocales();
         void LoadInstanceEncounters();
         void LoadInstanceTemplate();
-        void LoadWorldTemplate();
         void LoadConditions();
         /// Reloads the conditions; when the table cannot be read, keeps the conditions already loaded. Answers how the read ended.
         TableReadStatus ReloadConditions();

@@ -35,7 +35,6 @@
 #include "Policies/Singleton.h"
 #include "Log.h"
 #include "ProgressBar.h"
-#include "SQLStorages.h"
 #include "ScriptMgr.h"
 #include "GossipDef.h"
 #include "persistence/world/npcs/NpcDataRepository.h"

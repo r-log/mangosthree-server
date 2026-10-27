@@ -49,7 +49,6 @@
 #include "Util.h"
 #include "ScriptMgr.h"
 #include "GameObjectModel.h"
-#include "SQLStorages.h"
 #include "GameObjectAI.h"
 #include <memory>
 #include "PlayerRegistry.h"

@@ -44,7 +44,6 @@
 #include "AccountMgr.h"
 #include "GameEventMgr.h"
 #include "World.h"
-#include "SQLStorages.h"
 #include "Util.h"
 #include "WorldSession.h"
 #include "persistence/characters/CharacterRepository.h"

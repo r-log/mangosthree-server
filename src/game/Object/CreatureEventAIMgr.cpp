@@ -30,7 +30,6 @@
 #include <set>
 #include <algorithm>
 #include "Database/DatabaseEnv.h"
-#include "SQLStorages.h"
 #include "CreatureEventAI.h"
 #include "CreatureEventAIMgr.h"
 #include "ObjectMgr.h"

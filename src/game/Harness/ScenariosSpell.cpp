@@ -33,7 +33,6 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "ScriptMgr.h"
-#include "SQLStorages.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"

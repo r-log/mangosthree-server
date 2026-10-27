@@ -27,7 +27,6 @@
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "Database/DatabaseEnv.h"
-#include "SQLStorages.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 #include <vector>

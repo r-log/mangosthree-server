@@ -36,7 +36,6 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
-#include "SQLStorages.h"
 #include "persistence/world/spells/SpellDataRepository.h"
 
 /**

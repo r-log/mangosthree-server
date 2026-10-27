@@ -33,7 +33,6 @@
 #include "ObjectMgr.h"
 #include "AuctionHouseMgr.h"
 #include "Common/ServerDefines.h"
-#include "SQLStorages.h"
 #include "World.h"
 #include "WorldGameTime.h"
 

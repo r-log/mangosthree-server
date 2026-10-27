@@ -31,7 +31,6 @@
 #include "spells/auras/SpellAuraDefines.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
-#include "SQLStorages.h"
 #include "Chat.h"
 #include "spells/pipeline/Spell.h"
 #include "Unit.h"

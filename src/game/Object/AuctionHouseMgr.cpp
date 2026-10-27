@@ -31,7 +31,6 @@
 #include <map>
 #include "AuctionHouseMgr.h"
 #include "Database/DatabaseEnv.h"
-#include "SQLStorages.h"
 #include "DBCStores.h"
 #include "ProgressBar.h"
 

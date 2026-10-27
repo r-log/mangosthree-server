@@ -25,7 +25,7 @@ assert_row_type("a row type" "std::vector<CharacterEnumRow> rows = CharacterRepo
 assert_row_type("a field of another name" "UpdateField* update = object->GetField();" OFF)
 assert_row_type("a holder" "void HandlePlayerLoginCallback(SqlQueryHolder* holder);" OFF)
 
-set(ROOTS "${SOURCE_ROOT}/src/game" "${SOURCE_ROOT}/src/modules")
+set(ROOTS "${SOURCE_ROOT}/src/game" "${SOURCE_ROOT}/src/modules" "${SOURCE_ROOT}/src/shared")
 set(SOURCES "")
 foreach(ROOT_DIR IN LISTS ROOTS)
     if(NOT IS_DIRECTORY "${ROOT_DIR}")
@@ -35,6 +35,8 @@ foreach(ROOT_DIR IN LISTS ROOTS)
     list(APPEND SOURCES ${FOUND})
 endforeach()
 list(FILTER SOURCES EXCLUDE REGEX "/src/game/persistence/")
+list(FILTER SOURCES EXCLUDE REGEX "/src/shared/Database/")
+list(FILTER SOURCES EXCLUDE REGEX "/src/shared/Utilities/Callback\\.h$")
 list(LENGTH SOURCES SOURCE_COUNT)
 if(SOURCE_COUNT LESS 100)
     message(FATAL_ERROR "Row type gate found only ${SOURCE_COUNT} sources outside persistence -- gate is inert")
@@ -68,8 +70,8 @@ endforeach()
 if(STRAYS)
     string(REPLACE ";" "\n  " PRETTY "${STRAYS}")
     message(FATAL_ERROR
-        "A database row type outside persistence:\n  ${PRETTY}\n\n"
+        "A database row type outside persistence and the database driver:\n  ${PRETTY}\n\n"
         "A repository under src/game/persistence reads the result and answers rows or values;\n"
         "the code that loads, handles or shows them names the row, never QueryResult or Field.")
 endif()
-message(STATUS "row types: ${SOURCE_COUNT} files outside persistence name no QueryResult, QueryNamedResult or Field; ${PERSISTENCE_READS} result lines in persistence, self-test OK")
+message(STATUS "row types: ${SOURCE_COUNT} files outside persistence and the database driver name no QueryResult, QueryNamedResult or Field; ${PERSISTENCE_READS} result lines in persistence, self-test OK")

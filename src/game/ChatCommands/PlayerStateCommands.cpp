@@ -29,7 +29,6 @@
 #include "Language.h"
 #include "data/GameConfig.h"
 #include "AccountMgr.h"
-#include "SQLStorages.h"
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "WorldSession.h"

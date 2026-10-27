@@ -100,12 +100,6 @@ class WeatherSystem;
 #pragma pack(push,1)
 #endif
 
-struct WorldTemplate
-{
-    uint32 map;                                             // non-instance map
-    uint32 script_id;
-};
-
 enum LevelRequirementVsMode
 {
     LEVELREQUIREMENT_HEROIC = 70

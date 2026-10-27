@@ -31,7 +31,6 @@
 #include "Language.h"
 #include "data/GameConfig.h"
 #include "AccountMgr.h"
-#include "SQLStorages.h"
 #include "WorldPacket.h"
 
 /**

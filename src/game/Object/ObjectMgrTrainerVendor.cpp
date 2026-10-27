@@ -35,7 +35,6 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
-#include "SQLStorages.h"
 #include "spells/data/SpellMgr.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 

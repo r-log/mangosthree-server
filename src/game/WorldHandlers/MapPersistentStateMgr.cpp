@@ -55,7 +55,6 @@
 #include "MapPersistentStateMgr.h"
 #include "InstanceDataCache.h"
 
-#include "SQLStorages.h"
 #include "Player.h"
 #include "GridNotifiers.h"
 #include "Log.h"

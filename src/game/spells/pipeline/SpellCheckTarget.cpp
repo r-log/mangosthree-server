@@ -56,9 +56,7 @@
 #include "SharedDefines.h"
 #include "Util.h"
 #include "DB2Stores.h"
-#include "SQLStorages.h"
 #include "Vehicle.h"
-#include "SQLStorages.h"
 #include "DisableMgr.h"
 #include "spells/handlers/SpellCheckTargetHandlers.h"
 
