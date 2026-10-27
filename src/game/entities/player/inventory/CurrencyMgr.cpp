@@ -302,7 +302,7 @@ void CurrencyMgr::LoadRow(CurrencyRow const& row, uint32 conquestWeekCap, Object
     if (!entry)
     {
         sLog.outError("CurrencyMgr::Load: %s has not existing currency id %u, removing.", ownerGuid.GetString().c_str(), currency_id);
-        CurrencyRepository::DeleteEveryRowOf(currency_id);
+        CurrencyRepository::DeleteInvalidRow(ownerGuid.GetCounter(), currency_id);
         return;
     }
 

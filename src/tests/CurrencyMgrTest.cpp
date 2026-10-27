@@ -796,8 +796,7 @@ TEST(CurrencyMgr_SendWeekCap)
 
 // A loaded row: the total clamped to the total cap, the week to the week cap (conquest points' the
 // config's), the season as it is, the flags masked to 0x0C, UNCHANGED (no statement at the save).
-// An unknown id is not added and its rows are deleted -- KEPT (backlog): for every character, the
-// DELETE names only the id.
+// An unknown id is not added and the owner's row of it is deleted.
 TEST(CurrencyMgr_LoadRowValidAndInvalid)
 {
     SeedStores();
@@ -823,7 +822,7 @@ TEST(CurrencyMgr_LoadRowValidAndInvalid)
     while (result.NextRow());
     CharacterDatabase.ExecuteQueuedForTest();
 
-    CheckEvents(async.executed, { "DELETE FROM `character_currencies` WHERE `id` = '9999'" }, __LINE__);
+    CheckEvents(async.executed, { "DELETE FROM `character_currencies` WHERE `guid` = '42' AND `id` = '9999'" }, __LINE__);
     CHECK_STR(Counts(mgr, kPlain), std::string("123/45/67"));
     CHECK_STR(Counts(mgr, kCapped), std::string("4000/1000/99"));
     CHECK_STR(Counts(mgr, CURRENCY_CONQUEST_POINTS), std::string("100/2700/7"));
@@ -879,7 +878,7 @@ TEST(CurrencyMgr_SaveStreamPerState)
 
 // The repository on its own: a login row read into its five values (the id through the 16-bit
 // getter, the flags through the 8-bit one, as the load always read them); the owner's UPDATE and
-// INSERT of a row; the DELETE of every character's row of an id, queued, no blocking call.
+// INSERT of a row; the DELETE of the owner's row of an id, queued, no blocking call.
 TEST(CurrencyRepository_ReadRowAndStatements)
 {
     FakeQueryResult result(FakeRows{ CurrencyFakeRow(392, 1500, 300, 4000, 12) });
@@ -901,14 +900,14 @@ TEST(CurrencyRepository_ReadRowAndStatements)
         TickGuard::Scope scope;
         CurrencyRepository::Update(kGuid, row);
         CurrencyRepository::Insert(kGuid, row);
-        CurrencyRepository::DeleteEveryRowOf(9999);
+        CurrencyRepository::DeleteInvalidRow(kGuid, 9999);
         CHECK_EQ(TickGuard::Violations(), 0u);
     }
     CharacterDatabase.ExecuteQueuedForTest();
     CheckEvents(async.executed, {
         UpdateSql(392, 1500, 300, 4000, 12),
         InsertSql(392, 1500, 300, 4000, 12),
-        "DELETE FROM `character_currencies` WHERE `id` = '9999'",
+        "DELETE FROM `character_currencies` WHERE `guid` = '42' AND `id` = '9999'",
     }, __LINE__);
     CHECK_EQ(query.executed.size(), size_t(0));
 }

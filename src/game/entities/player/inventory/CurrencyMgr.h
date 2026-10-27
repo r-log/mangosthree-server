@@ -165,9 +165,8 @@ typedef std::function<void(CurrencyListFact const&)> CurrencyListSink;
  * the loot notification, and the two convenience checks HasCurrencyCount / HasCurrencySeasonCount
  * over the count getters.
  *
- * KEPT SEMANTICS, stated rather than fixed (backlog): an unknown id in a loaded row is deleted
- * from every character's rows (the DELETE names only the id); SetFlags and ResetWeekCounts turn a
- * NEW entry CHANGED, so its first save is an UPDATE of a row that is not there; the total cap's
+ * KEPT SEMANTICS, stated rather than fixed (backlog): SetFlags and ResetWeekCounts turn a NEW
+ * entry CHANGED, so its first save is an UPDATE of a row that is not there; the total cap's
  * excess is taken off the week count even when the week is not being modified (the week count can
  * go below zero and is stored wrapped); the week cap's excess is taken off the total, so with the
  * week count already over a lowered conquest cap a change costs the whole excess; a meta
