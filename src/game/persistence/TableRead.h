@@ -37,6 +37,12 @@ enum class TableReadStatus
     ChangedWhileRead    ///< the select answered nothing, then the same select counted rows
 };
 
+/// True when a read ended without the table's rows: the select failed or the table changed during the read.
+inline bool IsUnreadable(TableReadStatus status)
+{
+    return status == TableReadStatus::QueryFailed || status == TableReadStatus::ChangedWhileRead;
+}
+
 /// A whole-table read: how it ended and, when loaded, the rows in the order the database returned them.
 template<class Row>
 struct TableRead
@@ -44,10 +50,10 @@ struct TableRead
     TableReadStatus status = TableReadStatus::Empty;
     std::vector<Row> rows;
 
-    /// True when the table could not be read: the select failed or the table changed during the read.
+    /// True when the table could not be read.
     bool Unreadable() const
     {
-        return status == TableReadStatus::QueryFailed || status == TableReadStatus::ChangedWhileRead;
+        return IsUnreadable(status);
     }
 };
 
