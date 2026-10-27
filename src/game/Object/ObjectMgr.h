@@ -72,6 +72,7 @@ class Group;
 class ArenaTeam;
 class Item;
 class SQLStorage;
+enum class TableReadStatus;
 
 struct GameTele
 {
@@ -757,6 +758,8 @@ class ObjectMgr
         void LoadGameObjectForQuests();
 
         void LoadPageTexts();
+        /// Reloads the page texts; when the table cannot be read, keeps the pages already loaded. Answers how the read ended.
+        TableReadStatus ReloadPageTexts();
 
         void LoadPlayerInfo();
         void LoadPetLevelInfo();

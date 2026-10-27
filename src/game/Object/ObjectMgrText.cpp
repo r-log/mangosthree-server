@@ -44,46 +44,38 @@ static_assert(int(NPC_TEXT_ROW_OPTIONS) == int(MAX_GOSSIP_TEXT_OPTIONS), "an NPC
 static_assert(int(NPC_TEXT_ROW_EMOTES) == int(std::extent<decltype(GossipTextOption::Emotes)>::value), "an NPC text option row holds every emote");
 
 /**
- * @brief Loads page text records and validates page chains.
+ * @brief Fills the page texts from a read that answered rows or an empty table, and validates page chains.
  */
-void ObjectMgr::LoadPageTexts()
+static void FillPageTexts(PageTextStore& pages, TableRead<PageTextRow> const& read)
 {
-    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
-    if (read.Unreadable())
-    {
-        sLog.outError("Error loading `page_text` table: %s\n", TableReadReason(read.status));
-        Log::WaitBeforeContinueIfNeed();
-        exit(1);
-    }
-
     if (read.status == TableReadStatus::Empty)
     {
         sLog.outError("page_text table is empty!\n");
     }
     else
     {
-        m_pageTexts.Clear();
+        pages.Clear();
         BarGoLink bar(read.rows.size());
         for (PageTextRow const& row : read.rows)
         {
             bar.step();
-            m_pageTexts.Set(row.entry, row.text, row.nextPage);
+            pages.Set(row.entry, row.text, row.nextPage);
         }
     }
 
-    sLog.outString(">> Loaded %u page texts", m_pageTexts.GetCount());
+    sLog.outString(">> Loaded %u page texts", pages.GetCount());
     sLog.outString();
 
-    for (uint32 i = 1; i < m_pageTexts.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < pages.GetMaxEntry(); ++i)
     {
         // check data correctness
-        PageText const* page = m_pageTexts.Find(i);
+        PageText const* page = pages.Find(i);
         if (!page)
         {
             continue;
         }
 
-        if (page->Next_Page && !m_pageTexts.Find(page->Next_Page))
+        if (page->Next_Page && !pages.Find(page->Next_Page))
         {
             sLog.outErrorDb("Page text (Id: %u) has not existing next page (Id:%u)", i, page->Next_Page);
             continue;
@@ -91,7 +83,7 @@ void ObjectMgr::LoadPageTexts()
 
         // detect circular reference
         std::set<uint32> checkedPages;
-        for (PageText const* pageItr = page; pageItr; pageItr = m_pageTexts.Find(pageItr->Next_Page))
+        for (PageText const* pageItr = page; pageItr; pageItr = pages.Find(pageItr->Next_Page))
         {
             if (!pageItr->Next_Page)
             {
@@ -109,11 +101,43 @@ void ObjectMgr::LoadPageTexts()
                 ss << "create(s) a circular reference, which can cause the server to freeze. Changing Next_Page of page "
                    << pageItr->Page_ID << " to 0";
                 sLog.outErrorDb("%s", ss.str().c_str());
-                m_pageTexts.FindForEdit(pageItr->Page_ID)->Next_Page = 0;
+                pages.FindForEdit(pageItr->Page_ID)->Next_Page = 0;
                 break;
             }
         }
     }
+}
+
+/**
+ * @brief Loads page text records and validates page chains; stops the server when the table cannot be read.
+ */
+void ObjectMgr::LoadPageTexts()
+{
+    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `page_text` table: %s\n", TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    FillPageTexts(m_pageTexts, read);
+}
+
+/**
+ * @brief Reloads page text records and validates page chains; keeps the pages already loaded when the table cannot be read.
+ */
+TableReadStatus ObjectMgr::ReloadPageTexts()
+{
+    TableRead<PageTextRow> read = PageTextRepository::QueryPageTexts();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `page_text` table: %s; the %u page texts already loaded are kept\n", TableReadReason(read.status), m_pageTexts.GetCount());
+        return read.status;
+    }
+
+    FillPageTexts(m_pageTexts, read);
+    return read.status;
 }
 
 /**

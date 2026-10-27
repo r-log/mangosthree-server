@@ -48,6 +48,7 @@
 #include "ItemEnchantmentMgr.h"
 #include "CommandMgr.h"
 #include "ObjectMgr.h"
+#include "persistence/TableRead.h"
 
 /**
  * @brief Handler for HandleReloadAllSpellCommand command.
@@ -1055,7 +1056,14 @@ bool ChatHandler::HandleReloadSpellPetAurasCommand(char* /*args*/)
 bool ChatHandler::HandleReloadPageTextsCommand(char* /*args*/)
 {
     sLog.outString("Re-Loading Page Texts...");
-    sObjectMgr.LoadPageTexts();
+    TableReadStatus status = sObjectMgr.ReloadPageTexts();
+    if (IsUnreadable(status))
+    {
+        PSendSysMessage("DB table `page_text` could not be read: %s. The page texts already loaded are kept.", TableReadReason(status));
+        SetSentErrorMessage(true);
+        return false;
+    }
+
     SendGlobalSysMessage("DB table `page_texts` reloaded.", SEC_MODERATOR);
     return true;
 }
