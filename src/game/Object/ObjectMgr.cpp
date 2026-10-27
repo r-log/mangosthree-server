@@ -459,6 +459,14 @@ uint32 ObjectMgr::GetPlayerAccountIdByPlayerName(const std::string& name) const
 GameObjectInfo const* ObjectMgr::GetGameObjectInfo(uint32 id) { return sGOStorage.LookupEntry<GameObjectInfo>(id); }
 
 /**
+ * @brief Gets a game object spawn's addon.
+ *
+ * @param lowguid The game object spawn guid.
+ * @return The addon, or null if missing.
+ */
+GameObjectDataAddon const* ObjectMgr::GetGameObjectAddon(uint32 lowguid) { return sObjectMgr.m_gameObjectAddons.Find(lowguid); }
+
+/**
  * @brief Finds an online player by name.
  *
  * @param name The player name.
