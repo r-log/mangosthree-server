@@ -33,26 +33,41 @@
 #include <map>
 #include <string>
 
-/// A spell the client's spell data does not hold: its main record, its one effect and its aura options.
-struct ServerSpell
+/**
+ * A spell the client's spell data does not hold: its main record, its one effect and its aura
+ * options, all zeroed until filled. `SpellEntry` cannot be constructed or copied, so the main record
+ * is built in place in zeroed storage, as the DBC loader builds its records.
+ */
+class ServerSpell
 {
-    SpellEntry entry;
-    SpellEffectEntry effect;
-    bool hasEffect;
-    SpellAuraOptionsEntry auraOptions;
+    public:
+        ServerSpell();
+
+        SpellEntry& Entry();
+        SpellEntry const& Entry() const;
+
+        SpellEffectEntry effect;
+        bool hasEffect;
+        SpellAuraOptionsEntry auraOptions;
+
+    private:
+        ServerSpell(ServerSpell const&);
+        ServerSpell& operator=(ServerSpell const&);
+
+        char m_entry[sizeof(SpellEntry)];
 };
 
 /**
  * The server-side spells (`spell_template`), one per id. The store owns each spell's records and its
  * name, given in every locale with no subtext. The records keep their addresses while the store
- * lives, so the spell stores can point at them. Setting an id that already holds a spell overwrites it.
+ * lives, so the spell stores can point at them. Adding an id the store holds replaces its spell.
  */
 class ServerSpellStore
 {
     public:
-        /// Holds `entry`, `effect` (no effect when NULL) and `auraOptions` under `entry.ID`, the spell named
-        /// `name`, and answers the stored spell.
-        ServerSpell& Set(SpellEntry const& entry, SpellEffectEntry const* effect, SpellAuraOptionsEntry const& auraOptions, std::string const& name);
+        /// Adds the spell `id`, its records zeroed but for the id and the name `name`, and answers it
+        /// for the loader to fill.
+        ServerSpell& Add(uint32 id, std::string const& name);
         ServerSpell const* Find(uint32 id) const;
         uint32 GetCount() const;
 

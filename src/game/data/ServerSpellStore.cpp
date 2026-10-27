@@ -25,21 +25,37 @@
 
 #include "data/ServerSpellStore.h"
 
-ServerSpell& ServerSpellStore::Set(SpellEntry const& entry, SpellEffectEntry const* effect, SpellAuraOptionsEntry const& auraOptions, std::string const& name)
+#include <cstring>
+
+ServerSpell::ServerSpell() : effect(), hasEffect(false), auraOptions()
 {
-    Entry& stored = m_spells[entry.ID];
+    std::memset(m_entry, 0, sizeof(m_entry));
+}
+
+SpellEntry& ServerSpell::Entry()
+{
+    return *reinterpret_cast<SpellEntry*>(m_entry);
+}
+
+SpellEntry const& ServerSpell::Entry() const
+{
+    return *reinterpret_cast<SpellEntry const*>(m_entry);
+}
+
+ServerSpell& ServerSpellStore::Add(uint32 id, std::string const& name)
+{
+    m_spells.erase(id);
+    Entry& stored = m_spells[id];
     stored.name = name;
     for (uint32 i = 0; i < MAX_LOCALE; ++i)
     {
         stored.names[i] = stored.name.c_str();
         stored.subtexts[i] = "";
     }
-    stored.spell.entry = entry;
-    stored.spell.entry.Name_lang = stored.names;
-    stored.spell.entry.NameSubtext_lang = stored.subtexts;
-    stored.spell.hasEffect = effect != NULL;
-    stored.spell.effect = effect ? *effect : SpellEffectEntry();
-    stored.spell.auraOptions = auraOptions;
+    SpellEntry& entry = stored.spell.Entry();
+    entry.ID = id;
+    entry.Name_lang = stored.names;
+    entry.NameSubtext_lang = stored.subtexts;
     return stored.spell;
 }
 

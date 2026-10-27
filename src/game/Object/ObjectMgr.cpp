@@ -1460,22 +1460,20 @@ void ObjectMgr::GetConditions(uint32 conditionId, std::vector<PlayerCondition co
 }
 
 /**
- * @brief Fills a server-side spell's records from its `spell_template` row.
+ * @brief Fills a server-side spell's zeroed records from its `spell_template` row.
  *
  * The columns land in the fields they name: the four attribute columns in `Attributes` to
  * `AttributesExC`, `duration_index` in `DurationIndex`, `proc_chance` and `proc_flags` in the aura
  * options' `ProcChance` and `ProcTypeMask`, and the `effect0` columns in effect 0. Every other field
- * is 0. The table holds no base points, so an aura that needs them leaves the spell without its effect.
+ * stays 0. The table holds no base points, so an aura that needs them leaves the spell without its
+ * effect, and so does a row with no effect.
  *
  * @param row The row.
- * @param entry The main record to fill.
- * @param effect The effect to fill.
- * @param auraOptions The aura options to fill.
- * @return true when the effect is loaded.
+ * @param spell The spell, as the store added it.
  */
-bool ObjectMgr::FillServerSpell(SpellTemplateRow const& row, SpellEntry& entry, SpellEffectEntry& effect, SpellAuraOptionsEntry& auraOptions)
+void ObjectMgr::FillServerSpell(SpellTemplateRow const& row, ServerSpell& spell)
 {
-    entry = SpellEntry();
+    SpellEntry& entry = spell.Entry();
     entry.ID = row.id;
     entry.Attributes = row.attributes;
     entry.AttributesEx = row.attributesEx;
@@ -1483,11 +1481,10 @@ bool ObjectMgr::FillServerSpell(SpellTemplateRow const& row, SpellEntry& entry, 
     entry.AttributesExC = row.attributesEx3;
     entry.DurationIndex = row.durationIndex;
 
-    auraOptions = SpellAuraOptionsEntry();
-    auraOptions.ProcChance = row.procChance;
-    auraOptions.ProcTypeMask = row.procFlags;
+    spell.auraOptions.ProcChance = row.procChance;
+    spell.auraOptions.ProcTypeMask = row.procFlags;
 
-    effect = SpellEffectEntry();
+    SpellEffectEntry& effect = spell.effect;
     effect.Effect = row.effect;
     effect.ImplicitTarget_0 = row.effectImplicitTargetA;
     effect.ImplicitTarget_1 = row.effectImplicitTargetB;
@@ -1499,20 +1496,17 @@ bool ObjectMgr::FillServerSpell(SpellTemplateRow const& row, SpellEntry& entry, 
     effect.SpellID = row.id;
     effect.EffectIndex = EFFECT_INDEX_0;
 
-    if (!row.effect)
-    {
-        return false;
-    }
-
     switch (row.effectApplyAuraName)
     {
         case SPELL_AURA_NONE:
         case SPELL_AURA_DUMMY:
         case SPELL_AURA_PROC_TRIGGER_SPELL:
         case SPELL_AURA_TRANSFORM:
-            return true;
+            spell.hasEffect = row.effect != 0;
+            break;
         default:
-            return false;
+            spell.hasEffect = false;
+            break;
     }
 }
 
@@ -1556,18 +1550,15 @@ void ObjectMgr::LoadSpellTemplate()
                 continue;
             }
 
-            SpellEntry entry;
-            SpellEffectEntry effect;
-            SpellAuraOptionsEntry auraOptions;
-            bool effectLoaded = FillServerSpell(row, entry, effect, auraOptions);
-            if (!effectLoaded && row.effect)
+            ServerSpell& spell = m_serverSpells.Add(row.id, row.comments);
+            FillServerSpell(row, spell);
+            if (!spell.hasEffect && row.effect)
             {
                 sLog.outErrorDb("Table `spell_template` has spell %u with aura %u, which needs base points the table does not hold; the spell is loaded without its effect.", row.id, row.effectApplyAuraName);
             }
 
-            ServerSpell& spell = m_serverSpells.Set(entry, effectLoaded ? &effect : NULL, auraOptions, row.comments);
-            spell.entry.AuraOptionsID = sSpellAuraOptionsStore.AppendEntry(&spell.auraOptions);
-            sSpellStore.InsertEntry(&spell.entry, row.id);
+            spell.Entry().AuraOptionsID = sSpellAuraOptionsStore.AppendEntry(&spell.auraOptions);
+            sSpellStore.InsertEntry(&spell.Entry(), row.id);
             if (spell.hasEffect)
             {
                 AddSpellEffectEntry(&spell.effect);

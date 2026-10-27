@@ -807,9 +807,9 @@ class ObjectMgr
 
         void LoadNPCSpellClickSpells();
         void LoadSpellTemplate();
-        /// Fills a server-side spell's records from its `spell_template` row, and answers whether its effect is
-        /// loaded: not when the row has none, or when its aura needs a value the table does not hold.
-        static bool FillServerSpell(SpellTemplateRow const& row, SpellEntry& entry, SpellEffectEntry& effect, SpellAuraOptionsEntry& auraOptions);
+        /// Fills a server-side spell's zeroed records from its `spell_template` row; its effect is loaded
+        /// unless the row has none or its aura needs base points, which the table does not hold.
+        static void FillServerSpell(SpellTemplateRow const& row, ServerSpell& spell);
         void LoadCreatureTemplateSpells();
 
         void LoadGameTele();

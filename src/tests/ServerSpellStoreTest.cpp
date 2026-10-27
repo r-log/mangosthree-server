@@ -63,27 +63,31 @@ namespace
     }
 }
 
-// Each column lands in the field it names; every other field of the three records is 0.
+// Each column lands in the field it names; every other field of the three records is 0, and the
+// main record keeps the store's name.
 TEST(FillServerSpell_EachColumnInItsField)
 {
-    SpellEntry entry;
-    SpellEffectEntry effect;
-    SpellAuraOptionsEntry auraOptions;
-    CHECK(ObjectMgr::FillServerSpell(DistinctRow(), entry, effect, auraOptions));
+    ServerSpellStore store;
+    ServerSpell& spell = store.Add(70001, "a server-side spell");
+    ObjectMgr::FillServerSpell(DistinctRow(), spell);
+    CHECK(spell.hasEffect);
 
-    SpellEntry expected = SpellEntry();
+    char expectedBytes[sizeof(SpellEntry)] = {};
+    SpellEntry& expected = *reinterpret_cast<SpellEntry*>(expectedBytes);
     expected.ID = 70001;
     expected.Attributes = 101;
     expected.AttributesEx = 102;
     expected.AttributesExB = 103;
     expected.AttributesExC = 104;
     expected.DurationIndex = 107;
-    CHECK(std::memcmp(&entry, &expected, sizeof(SpellEntry)) == 0);
+    expected.Name_lang = spell.Entry().Name_lang;
+    expected.NameSubtext_lang = spell.Entry().NameSubtext_lang;
+    CHECK(std::memcmp(&spell.Entry(), &expected, sizeof(SpellEntry)) == 0);
 
-    CHECK_EQ(auraOptions.CumulativeAura, 0u);
-    CHECK_EQ(auraOptions.ProcChance, 106u);
-    CHECK_EQ(auraOptions.ProcCharges, 0u);
-    CHECK_EQ(auraOptions.ProcTypeMask, 105u);
+    CHECK_EQ(spell.auraOptions.CumulativeAura, 0u);
+    CHECK_EQ(spell.auraOptions.ProcChance, 106u);
+    CHECK_EQ(spell.auraOptions.ProcCharges, 0u);
+    CHECK_EQ(spell.auraOptions.ProcTypeMask, 105u);
 
     SpellEffectEntry expectedEffect = SpellEffectEntry();
     expectedEffect.Effect = SPELL_EFFECT_APPLY_AURA;
@@ -96,70 +100,74 @@ TEST(FillServerSpell_EachColumnInItsField)
     expectedEffect.EffectTriggerSpell = 115;
     expectedEffect.SpellID = 70001;
     expectedEffect.EffectIndex = 0;
-    CHECK(std::memcmp(&effect, &expectedEffect, sizeof(SpellEffectEntry)) == 0);
+    CHECK(std::memcmp(&spell.effect, &expectedEffect, sizeof(SpellEffectEntry)) == 0);
 }
 
 // The effect is loaded for no aura, a dummy, a proc trigger and a transform; not for an aura that
 // needs base points, nor for a row with no effect.
 TEST(FillServerSpell_EffectLoadedOnlyWhenTheTableCanHoldIt)
 {
-    SpellEntry entry;
-    SpellEffectEntry effect;
-    SpellAuraOptionsEntry auraOptions;
+    ServerSpellStore store;
     SpellTemplateRow row = DistinctRow();
 
     uint32 const loaded[] = { SPELL_AURA_NONE, SPELL_AURA_DUMMY, SPELL_AURA_PROC_TRIGGER_SPELL, SPELL_AURA_TRANSFORM };
     for (uint32 aura : loaded)
     {
         row.effectApplyAuraName = aura;
-        CHECK(ObjectMgr::FillServerSpell(row, entry, effect, auraOptions));
+        ServerSpell& spell = store.Add(row.id, row.comments);
+        ObjectMgr::FillServerSpell(row, spell);
+        CHECK(spell.hasEffect);
     }
 
     row.effectApplyAuraName = SPELL_AURA_FORCE_REACTION;
-    CHECK(!ObjectMgr::FillServerSpell(row, entry, effect, auraOptions));
-    CHECK_EQ(entry.ID, 70001u);
+    ServerSpell& reaction = store.Add(row.id, row.comments);
+    ObjectMgr::FillServerSpell(row, reaction);
+    CHECK(!reaction.hasEffect);
+    CHECK_EQ(reaction.Entry().ID, 70001u);
 
     row.effectApplyAuraName = SPELL_AURA_NONE;
     row.effect = 0;
-    CHECK(!ObjectMgr::FillServerSpell(row, entry, effect, auraOptions));
+    ServerSpell& none = store.Add(row.id, row.comments);
+    ObjectMgr::FillServerSpell(row, none);
+    CHECK(!none.hasEffect);
 }
 
-// The store copies the records, names the spell in every locale with no subtext, and keeps the
-// records' addresses when more spells are set.
+// The store zeroes a spell's records but for its id and name, names it in every locale with no
+// subtext, keeps the records' addresses when more spells are added, and replaces a spell added again.
 TEST(ServerSpellStore_OwnsRecordsAndName)
 {
     ServerSpellStore store;
-    SpellEntry entry;
-    SpellEffectEntry effect;
-    SpellAuraOptionsEntry auraOptions;
-    ObjectMgr::FillServerSpell(DistinctRow(), entry, effect, auraOptions);
-
-    ServerSpell& spell = store.Set(entry, &effect, auraOptions, "a server-side spell");
-    CHECK(spell.hasEffect);
-    CHECK_EQ(spell.entry.ID, 70001u);
-    CHECK_EQ(spell.effect.EffectTriggerSpell, 115u);
-    CHECK_EQ(spell.auraOptions.ProcChance, 106u);
-    REQUIRE(spell.entry.Name_lang != NULL);
-    REQUIRE(spell.entry.NameSubtext_lang != NULL);
+    ServerSpell& spell = store.Add(70001, "a server-side spell");
+    CHECK(!spell.hasEffect);
+    CHECK_EQ(spell.Entry().ID, 70001u);
+    CHECK_EQ(spell.Entry().Attributes, 0u);
+    CHECK_EQ(spell.Entry().AuraOptionsID, 0u);
+    CHECK_EQ(spell.effect.Effect, 0u);
+    CHECK_EQ(spell.auraOptions.ProcChance, 0u);
+    REQUIRE(spell.Entry().Name_lang != NULL);
+    REQUIRE(spell.Entry().NameSubtext_lang != NULL);
     for (uint32 i = 0; i < MAX_LOCALE; ++i)
     {
-        CHECK_STR(spell.entry.Name_lang[i], "a server-side spell");
-        CHECK_STR(spell.entry.NameSubtext_lang[i], "");
+        CHECK_STR(spell.Entry().Name_lang[i], "a server-side spell");
+        CHECK_STR(spell.Entry().NameSubtext_lang[i], "");
     }
 
-    SpellEntry const* address = &spell.entry;
+    SpellEntry const* address = &spell.Entry();
     for (uint32 id = 70002; id < 70100; ++id)
     {
-        entry.ID = id;
-        store.Set(entry, NULL, auraOptions, "another");
+        store.Add(id, "another");
     }
     CHECK_EQ(store.GetCount(), 99u);
     REQUIRE(store.Find(70001) != NULL);
-    CHECK(&store.Find(70001)->entry == address);
-    CHECK_STR(store.Find(70001)->entry.Name_lang[0], "a server-side spell");
-    REQUIRE(store.Find(70050) != NULL);
-    CHECK(!store.Find(70050)->hasEffect);
+    CHECK(&store.Find(70001)->Entry() == address);
+    CHECK_STR(store.Find(70001)->Entry().Name_lang[0], "a server-side spell");
     CHECK(store.Find(69999) == NULL);
+
+    ServerSpell& again = store.Add(70050, "replaced");
+    again.Entry().Attributes = 7;
+    CHECK_EQ(store.GetCount(), 99u);
+    CHECK_STR(store.Find(70050)->Entry().Name_lang[0], "replaced");
+    CHECK_EQ(store.Find(70050)->Entry().Attributes, 7u);
 }
 
 // An appended entry takes the id one past the last row, and the earlier entries stay.
