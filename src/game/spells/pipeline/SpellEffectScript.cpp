@@ -41,7 +41,8 @@
 #include "Language.h"
 #include "Util.h"
 #include "TemporarySummon.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptStore.h"
+#include "data/ScriptHooks.h"
 #include "GridNotifiersImpl.h"
 #include "Geometry/Vector3.h"
 #include "MotionMaster.h"
@@ -256,7 +257,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
     }
 
     // Previous effect might have started script
-    if (!ScriptMgr::CanSpellEffectStartDBScript(m_spellInfo, SpellEffectIndex(effect->EffectIndex)))
+    if (!DbScriptStore::CanSpellEffectStartDBScript(m_spellInfo, SpellEffectIndex(effect->EffectIndex)))
     {
         return;
     }

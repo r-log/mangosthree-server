@@ -24,6 +24,7 @@
  */
 
 #include "data/DbScriptStore.h"
+#include "DBCStores.h"
 
 DbScriptStore::DbScriptStore()
 {
@@ -49,4 +50,67 @@ ScriptChainMap& DbScriptStore::GetChainsForLoad(DBScriptType type)
 std::mutex& DbScriptStore::GetLoadLock()
 {
     return m_lock;
+}
+
+// returns priority (0 == can not start script)
+uint8 DbScriptStore::GetSpellStartDBScriptPriority(SpellEntry const* spellinfo, SpellEffectIndex effIdx)
+{
+    SpellEffectEntry const* spellEffect = spellinfo->GetSpellEffect(effIdx);
+    if (!spellEffect)
+    {
+        return 0;
+    }
+    if (spellEffect->Effect == SPELL_EFFECT_SCRIPT_EFFECT)
+    {
+        return 10;
+    }
+
+    if (spellEffect->Effect == SPELL_EFFECT_DUMMY)
+    {
+        return 9;
+    }
+
+    // NonExisting triggered spells can also start DB-Spell-Scripts
+    if (spellEffect->Effect == SPELL_EFFECT_TRIGGER_SPELL && !sSpellStore.LookupEntry(spellEffect->EffectTriggerSpell))
+    {
+        return 5;
+    }
+
+    // NonExisting trigger missile spells can also start DB-Spell-Scripts
+    if (spellEffect->Effect == SPELL_EFFECT_TRIGGER_MISSILE && !sSpellStore.LookupEntry(spellEffect->EffectTriggerSpell))
+    {
+        return 4;
+    }
+
+    // Can not start script
+    return 0;
+}
+
+// Priorize: SCRIPT_EFFECT before DUMMY before Non-Existing triggered spell, for same priority the first effect with the priority triggers
+bool DbScriptStore::CanSpellEffectStartDBScript(SpellEntry const* spellinfo, SpellEffectIndex effIdx)
+{
+    uint8 priority = GetSpellStartDBScriptPriority(spellinfo, effIdx);
+    if (!priority)
+    {
+        return false;
+    }
+
+    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        uint8 currentPriority = GetSpellStartDBScriptPriority(spellinfo, SpellEffectIndex(i));
+        if (currentPriority < priority)                     // lower priority, continue checking
+        {
+            continue;
+        }
+        if (currentPriority > priority)                     // take other index with higher priority
+        {
+            return false;
+        }
+        if (i < effIdx)                                     // same priority at lower index
+        {
+            return false;
+        }
+    }
+
+    return true;
 }

@@ -28,10 +28,13 @@
 
 #include "Platform/Define.h"
 #include "Policies/Singleton.h"
+#include "DBCEnums.h"
 
 #include <map>
 #include <mutex>
 #include <vector>
+
+struct SpellEntry;
 
 enum DBScriptType
 {
@@ -520,6 +523,14 @@ class DbScriptStore
         ScriptChainMap& GetChainsForLoad(DBScriptType type);
         /// Held by a loader while it fills the chains of a type.
         std::mutex& GetLoadLock();
+
+        /// A spell effect's claim to start the spell's database script: 10 for a script effect, 9 for
+        /// a dummy, 5 for a trigger and 4 for a trigger missile whose spell the client data does not
+        /// hold, 0 for any other effect.
+        static uint8 GetSpellStartDBScriptPriority(SpellEntry const* spellinfo, SpellEffectIndex effIdx);
+        /// Whether the effect starts the spell's database script: the effect of the highest claim, the
+        /// first of them when two claim the same.
+        static bool CanSpellEffectStartDBScript(SpellEntry const* spellinfo, SpellEffectIndex effIdx);
 
     private:
         DBScripts m_dbScripts;
