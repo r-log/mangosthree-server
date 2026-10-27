@@ -65,6 +65,7 @@ struct AccountDataRow;
 struct CharacterEnumRow;
 struct CharacterNameRow;
 struct RenameTargetRow;
+struct PetitionDetailsRow;
 
 class ObjectGuid;
 class Creature;
@@ -872,7 +873,7 @@ class WorldSession
         void HandleGroupAssistantLeaderOpcode(WorldPacket& recv_data);
         void HandlePartyAssignmentOpcode(WorldPacket& recv_data);
 
-        static void SendPetitionQueryCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+        static void SendPetitionQueryCallback(std::optional<PetitionDetailsRow> const& row, uint32 accountId,
                                               proto::SessionId sessionId, ObjectGuid petitionguid);
 
         void HandleGuildQueryOpcode(WorldPacket& recvPacket);

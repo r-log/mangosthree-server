@@ -122,6 +122,7 @@ struct LoginMailedItemRow;
 struct LoginItemLootRow;
 struct CharacterEnumRow;
 struct DeletedCharacterRow;
+struct PetitionSignatureRow;
 class Channel;
 class DynamicObject;
 class Creature;
@@ -2528,7 +2529,7 @@ class Player : public Unit
         // The same work, with the signature rows handed in -- what the character-delete
         // holder feeds it, so the delete path reads nothing (decoupling D7d), and what the
         // queued form above hands its continuation's rows to.
-        static void RemovePetitionsAndSigns(ObjectGuid guid, QueryResult* signs);
+        static void RemovePetitionsAndSigns(ObjectGuid guid, std::vector<PetitionSignatureRow> const& signs);
         // SMSG_PETITION_SIGN_RESULTS. The GUID form is the one a continuation uses: it
         // needs no Player, so the charter owner still hears about a signature whose signer
         // logged out while the request was in flight (decoupling D7f).

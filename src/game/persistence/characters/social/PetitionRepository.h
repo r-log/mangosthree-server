@@ -27,6 +27,7 @@
 #define MANGOS_H_PETITIONREPOSITORY
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 #include "Platform/Define.h"
@@ -72,8 +73,44 @@ enum PetitionTurnInSlot
 
 /// The callbacks of the asynchronous reads: they run on the world thread with what the reads
 /// returned, which they own.
-typedef std::function<void(QueryResult*)> PetitionReadCallback;
 typedef std::function<void(QueryResult*, SqlQueryHolder*)> PetitionHolderCallback;
+
+/// A petition as its query reads it: its owner, name and number of signatures.
+struct PetitionDetailsRow
+{
+    uint32 ownerGuid = 0;
+    std::string name;
+    uint8 signs = 0;
+};
+
+/// A petition as the sign request reads it: its owner and number of signatures.
+struct PetitionSignTargetRow
+{
+    uint32 ownerGuid = 0;
+    uint8 signs = 0;
+};
+
+/// One signature of an account, as the sign request reads it: the signer and the petition.
+struct PetitionAccountSignatureRow
+{
+    uint32 playerGuid = 0;
+    uint32 petitionGuid = 0;
+};
+
+/// One signature of a player, as the removal of their signatures reads it: the petition's owner
+/// and the petition.
+struct PetitionSignatureRow
+{
+    uint32 ownerGuid = 0;
+    uint32 petitionGuid = 0;
+};
+
+/// A petition as the turn-in reads it: its owner and name.
+struct PetitionTurnInRow
+{
+    uint32 ownerGuid = 0;
+    std::string name;
+};
 
 /// The guild charters' saved rows (`petition`, `petition_sign`). Every read is asynchronous and
 /// every write queued on the character database. A holder the database refuses (it is shutting
@@ -81,16 +118,16 @@ typedef std::function<void(QueryResult*, SqlQueryHolder*)> PetitionHolderCallbac
 namespace PetitionRepository
 {
     /// Asks for the petitions a character owns: their guids.
-    void QueryOwnedPetitions(uint32 ownerGuid, PetitionReadCallback callback);
+    void QueryOwnedPetitions(uint32 ownerGuid, std::function<void(std::vector<uint32>)> callback);
 
     /// Asks whether a petition exists.
-    void QueryExists(uint32 petitionGuid, PetitionReadCallback callback);
+    void QueryExists(uint32 petitionGuid, std::function<void(bool)> callback);
 
     /// Asks for a petition's owner.
-    void QueryOwner(uint32 petitionGuid, PetitionReadCallback callback);
+    void QueryOwner(uint32 petitionGuid, std::function<void(std::optional<uint32>)> callback);
 
     /// Asks for what a petition query answers: owner, name and the number of signatures.
-    void QueryDetails(uint32 petitionGuid, PetitionReadCallback callback);
+    void QueryDetails(uint32 petitionGuid, std::function<void(std::optional<PetitionDetailsRow>)> callback);
 
     /// Asks, in one holder, whether a petition exists and who has signed it.
     void QueueShowSignatures(uint32 petitionGuid, PetitionHolderCallback callback);
@@ -120,13 +157,39 @@ namespace PetitionRepository
     void Delete(uint32 petitionGuid);
 
     /// Asks for the signatures a character has made: each petition's owner and guid.
-    void QuerySignaturesBy(uint32 playerGuid, PetitionReadCallback callback);
+    void QuerySignaturesBy(uint32 playerGuid, std::function<void(std::vector<PetitionSignatureRow>)> callback);
 
     /// Deletes the signatures a character has made.
     void DeleteSignaturesBy(uint32 playerGuid);
 
     /// Deletes the petitions a character owns and their signatures, in one transaction.
     void DeleteOwnedBy(uint32 ownerGuid);
+
+    /// Reads the show holder: whether the petition exists.
+    bool ShowPetitionExists(SqlQueryHolder* holder);
+
+    /// Reads the show holder: the guids of the petition's signers.
+    std::vector<uint32> ShowSigners(SqlQueryHolder* holder);
+
+    /// Reads the sign request's holder: the petition's owner and number of signatures.
+    std::optional<PetitionSignTargetRow> SignReadPetition(SqlQueryHolder* holder);
+
+    /// Reads the sign request's holder: the account's first signature.
+    std::optional<PetitionAccountSignatureRow> SignReadAccountSignature(SqlQueryHolder* holder);
+
+    /// Each reads the sign holder: whether the player was on the petition before the insert, and
+    /// after it.
+    bool SignedBefore(SqlQueryHolder* holder);
+    bool SignedAfter(SqlQueryHolder* holder);
+
+    /// Reads the turn-in holder: the petition's owner and name.
+    std::optional<PetitionTurnInRow> TurnInPetition(SqlQueryHolder* holder);
+
+    /// Reads the turn-in holder: the guids of the petition's signers.
+    std::vector<uint32> TurnInSigners(SqlQueryHolder* holder);
+
+    /// Reads a holder slot's signatures of a player, as QuerySignaturesBy reads them.
+    std::vector<PetitionSignatureRow> ReadHolderSignatures(SqlQueryHolder* holder, size_t slot);
 }
 
 #endif

@@ -3426,8 +3426,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
     // holder, so this path reads nothing -- Guild::AddMember gets the same rows from its own
     // queued read (Player::QueueRemovePetitionsAndSigns).
     {
-        std::unique_ptr<QueryResult> resultSigns(holder->GetResult(PLAYER_DELETE_READ_PETITION_SIGNS));
-        RemovePetitionsAndSigns(playerguid, resultSigns.get());
+        RemovePetitionsAndSigns(playerguid, PetitionRepository::ReadHolderSignatures(holder.get(), PLAYER_DELETE_READ_PETITION_SIGNS));
     }
 
     switch (charDelete_method)
@@ -4382,10 +4381,9 @@ void Player::SendProficiency(ItemClass itemClass, uint32 itemSubclassMask)
  */
 void Player::QueueRemovePetitionsAndSigns(ObjectGuid guid)
 {
-    PetitionRepository::QuerySignaturesBy(guid.GetCounter(), [guid](QueryResult* result)
+    PetitionRepository::QuerySignaturesBy(guid.GetCounter(), [guid](std::vector<PetitionSignatureRow> signs)
                                           {
-                                              std::unique_ptr<QueryResult> signs(result);
-                                              Player::RemovePetitionsAndSigns(guid, signs.get());
+                                              Player::RemovePetitionsAndSigns(guid, signs);
                                           });
 }
 
@@ -4393,22 +4391,19 @@ void Player::QueueRemovePetitionsAndSigns(ObjectGuid guid)
  * @brief Removes petition ownership and signatures, with the signature rows handed in.
  *
  * @param guid  The player GUID whose petition data should be removed.
- * @param signs That player's `petition_sign` rows (owner guid, petition guid), or NULL when
- *              there are none. Borrowed: the caller keeps ownership.
+ * @param signs That player's `petition_sign` rows (owner guid, petition guid).
  */
-void Player::RemovePetitionsAndSigns(ObjectGuid guid, QueryResult* signs)
+void Player::RemovePetitionsAndSigns(ObjectGuid guid, std::vector<PetitionSignatureRow> const& signs)
 {
     uint32 lowguid = guid.GetCounter();
 
-    QueryResult* result = signs;
-    if (result)
+    if (!signs.empty())
     {
-        do                                                  // this part effectively does nothing, since the deletion / modification only takes place _after_ the PetitionQuery. Though I don't know if the result remains intact if I execute the delete query beforehand.
+        for (PetitionSignatureRow const& sign : signs)
         {
-            // and SendPetitionQueryOpcode reads data from the DB
-            Field* fields = result->Fetch();
-            ObjectGuid ownerguid   = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-            ObjectGuid petitionguid = ObjectGuid(HIGHGUID_ITEM, fields[1].GetUInt32());
+            // SendPetitionQueryOpcode reads the petition from the DB
+            ObjectGuid ownerguid   = ObjectGuid(HIGHGUID_PLAYER, sign.ownerGuid);
+            ObjectGuid petitionguid = ObjectGuid(HIGHGUID_ITEM, sign.petitionGuid);
 
             // send update if charter owner in game
             Player* owner = sObjectMgr.GetPlayer(ownerguid);
@@ -4417,7 +4412,6 @@ void Player::RemovePetitionsAndSigns(ObjectGuid guid, QueryResult* signs)
                 owner->GetSession()->SendPetitionQueryOpcode(petitionguid);
             }
         }
-        while (result->NextRow());
 
         // ORDER MATTERS, and since D7b it is an ordering between two QUEUED operations
         // rather than between a blocking read and a queued write. SendPetitionQueryOpcode

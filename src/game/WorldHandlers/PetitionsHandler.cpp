@@ -68,22 +68,21 @@ void WorldSession::SendPetitionQueryOpcode(ObjectGuid petitionguid)
     proto::SessionId sessionId = GetSessionId();
 
     PetitionRepository::QueryDetails(petitionLowGuid,
-                                     [accountId, sessionId, petitionguid](QueryResult* result)
+                                     [accountId, sessionId, petitionguid](std::optional<PetitionDetailsRow> row)
                                      {
-                                         WorldSession::SendPetitionQueryCallback(std::unique_ptr<QueryResult>(result),
-                                                                                 accountId, sessionId, petitionguid);
+                                         WorldSession::SendPetitionQueryCallback(row, accountId, sessionId, petitionguid);
                                      });
 }
 
 /**
  * @brief Builds SMSG_PETITION_QUERY_RESPONSE from the petition row.
  *
- * @param result The petition row.
+ * @param row The petition, none when it does not exist.
  * @param accountId The requesting account.
  * @param sessionId The session the request arrived on.
  * @param petitionguid The petition guid.
  */
-void WorldSession::SendPetitionQueryCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+void WorldSession::SendPetitionQueryCallback(std::optional<PetitionDetailsRow> const& row, uint32 accountId,
                                              proto::SessionId sessionId, ObjectGuid petitionguid)
 {
     WorldSession* session = sWorld.FindSession(accountId);
@@ -98,12 +97,11 @@ void WorldSession::SendPetitionQueryCallback(std::unique_ptr<QueryResult> result
     std::string name = "NO_NAME_FOR_GUID";
     uint8 signs = 0;
 
-    if (result)
+    if (row)
     {
-        Field* fields = result->Fetch();
-        ownerGuid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-        name      = fields[1].GetCppString();
-        signs     = fields[2].GetUInt8();
+        ownerGuid = ObjectGuid(HIGHGUID_PLAYER, row->ownerGuid);
+        name      = row->name;
+        signs     = row->signs;
     }
     else
     {
