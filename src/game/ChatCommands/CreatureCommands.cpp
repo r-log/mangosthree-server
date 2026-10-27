@@ -254,6 +254,46 @@ bool ChatHandler::HandleNpcAddCommand(char* args)
     return true;
 }
 
+namespace
+{
+    /// Sends the GM each problem the vendor item check found.
+    void SendVendorItemProblems(ChatHandler& handler, std::vector<VendorItemProblem> const& problems)
+    {
+        for (VendorItemProblem const& problem : problems)
+        {
+            uint32 const* v = problem.values;
+            if (problem.text)
+            {
+                if (problem.valueCount)
+                {
+                    handler.PSendSysMessage(problem.text, v[0]);
+                }
+                else
+                {
+                    handler.SendSysMessage(problem.text);
+                }
+                continue;
+            }
+
+            switch (problem.valueCount)
+            {
+                case 0:
+                    handler.SendSysMessage(problem.entry);
+                    break;
+                case 1:
+                    handler.PSendSysMessage(problem.entry, v[0]);
+                    break;
+                case 2:
+                    handler.PSendSysMessage(problem.entry, v[0], v[1]);
+                    break;
+                default:
+                    handler.PSendSysMessage(problem.entry, v[0], v[1], v[2]);
+                    break;
+            }
+        }
+    }
+}
+
 // add currency in vendorlist
 bool ChatHandler::HandleNpcAddVendorCurrencyCommand(char* args)
 {
@@ -287,7 +327,10 @@ bool ChatHandler::HandleNpcAddVendorCurrencyCommand(char* args)
 
     uint32 vendor_entry = vendor ? vendor->GetEntry() : 0;
 
-    if (!sObjectMgr.IsVendorItemValid(false, "npc_vendor", vendor_entry, currencyId, VENDOR_ITEM_TYPE_CURRENCY, maxcount, incrtime, extendedcost, 0, m_session->GetPlayer()))
+    std::vector<VendorItemProblem> problems;
+    bool valid = sObjectMgr.IsVendorItemValid(false, "npc_vendor", vendor_entry, currencyId, VENDOR_ITEM_TYPE_CURRENCY, maxcount, incrtime, extendedcost, 0, &problems);
+    SendVendorItemProblems(*this, problems);
+    if (!valid)
     {
         SetSentErrorMessage(true);
         return false;
@@ -339,7 +382,10 @@ bool ChatHandler::HandleNpcAddVendorItemCommand(char* args)
 
     uint32 vendor_entry = vendor ? vendor->GetEntry() : 0;
 
-    if (!sObjectMgr.IsVendorItemValid(false, "npc_vendor", vendor_entry, itemId, maxcount, incrtime, extendedcost, 0, m_session->GetPlayer()))
+    std::vector<VendorItemProblem> problems;
+    bool valid = sObjectMgr.IsVendorItemValid(false, "npc_vendor", vendor_entry, itemId, maxcount, incrtime, extendedcost, 0, &problems);
+    SendVendorItemProblems(*this, problems);
+    if (!valid)
     {
         SetSentErrorMessage(true);
         return false;

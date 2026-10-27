@@ -49,7 +49,6 @@
 #include "Language.h"
 #include "PoolManager.h"
 #include "GameEventMgr.h"
-#include "Chat.h"
 #include "MapPersistentStateMgr.h"
 #include "spells/auras/SpellAuras.h"
 #include "Util.h"
@@ -3157,11 +3156,11 @@ bool ObjectMgr::RemoveVendorItem(uint32 entry, uint32 item, uint8 type)
  * @param maxcount The limited stock count.
  * @param incrtime The stock replenishment interval.
  * @param conditionId The optional condition id.
- * @param pl Optional player used for command feedback.
+ * @param problems Where a GM's command collects the problems found, to report them; NULL logs them instead.
  * @param skip_vendors Optional set used to suppress repeated vendor errors.
  * @return true if the vendor item definition is valid; otherwise, false.
  */
-bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item_id, uint32 maxcount, uint32 incrtime, uint32 ExtendedCost, uint16 conditionId, Player* pl, std::set<uint32>* skip_vendors) const
+bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item_id, uint32 maxcount, uint32 incrtime, uint32 ExtendedCost, uint16 conditionId, std::vector<VendorItemProblem>* problems, std::set<uint32>* skip_vendors) const
 {
     char const* idStr = isTemplate ? "vendor template" : "vendor";
     CreatureInfo const* cInfo = NULL;
@@ -3171,9 +3170,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         cInfo = GetCreatureTemplate(vendor_entry);
         if (!cInfo)
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).SendSysMessage(LANG_COMMAND_VENDORSELECTION);
+                problems->push_back(VendorItemProblem::Entry(LANG_COMMAND_VENDORSELECTION));
             }
             else
             {
@@ -3186,9 +3185,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         {
             if (!skip_vendors || skip_vendors->count(vendor_entry) == 0)
             {
-                if (pl)
+                if (problems)
                 {
-                    ChatHandler(pl).SendSysMessage(LANG_COMMAND_VENDORSELECTION);
+                    problems->push_back(VendorItemProblem::Entry(LANG_COMMAND_VENDORSELECTION));
                 }
                 else
                 {
@@ -3206,9 +3205,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
 
     if (!GetItemPrototype(item_id))
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).PSendSysMessage(LANG_ITEM_NOT_FOUND, item_id);
+            problems->push_back(VendorItemProblem::Entry(LANG_ITEM_NOT_FOUND, item_id));
         }
         else
             sLog.outErrorDb("Table `%s` for %s %u contain nonexistent item (%u), ignoring",
@@ -3218,9 +3217,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
 
     if (ExtendedCost && !sItemExtendedCostStore.LookupEntry(ExtendedCost))
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).PSendSysMessage(LANG_EXTENDED_COST_NOT_EXIST, ExtendedCost);
+            problems->push_back(VendorItemProblem::Entry(LANG_EXTENDED_COST_NOT_EXIST, ExtendedCost));
         }
         else
             sLog.outErrorDb("Table `%s` contain item (Entry: %u) with wrong ExtendedCost (%u) for %s %u, ignoring",
@@ -3230,9 +3229,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
 
     if (maxcount > 0 && incrtime == 0)
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).PSendSysMessage("MaxCount!=0 (%u) but IncrTime==0", maxcount);
+            problems->push_back(VendorItemProblem::Text("MaxCount!=0 (%u) but IncrTime==0", maxcount));
         }
         else
             sLog.outErrorDb("Table `%s` has `maxcount` (%u) for item %u of %s %u but `incrtime`=0, ignoring",
@@ -3241,9 +3240,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     }
     else if (maxcount == 0 && incrtime > 0)
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).PSendSysMessage("MaxCount==0 but IncrTime<>=0");
+            problems->push_back(VendorItemProblem::Text("MaxCount==0 but IncrTime<>=0"));
         }
         else
             sLog.outErrorDb("Table `%s` has `maxcount`=0 for item %u of %s %u but `incrtime`<>0, ignoring",
@@ -3267,9 +3266,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
 
     if (vItems && vItems->FindItem(item_id))
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).PSendSysMessage(LANG_ITEM_ALREADY_IN_LIST, item_id);
+            problems->push_back(VendorItemProblem::Entry(LANG_ITEM_ALREADY_IN_LIST, item_id));
         }
         else
         {
@@ -3283,9 +3282,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     {
         if (tItems && tItems->GetItem(item_id))
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).PSendSysMessage(LANG_ITEM_ALREADY_IN_LIST, item_id);
+                problems->push_back(VendorItemProblem::Entry(LANG_ITEM_ALREADY_IN_LIST, item_id));
             }
             else
             {
@@ -3305,9 +3304,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
 
     if (countItems >= MAX_VENDOR_ITEMS)
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).SendSysMessage(LANG_COMMAND_ADDVENDORITEMITEMS);
+            problems->push_back(VendorItemProblem::Entry(LANG_COMMAND_ADDVENDORITEMITEMS));
         }
         else
             sLog.outErrorDb("Table `%s` has too many items (%u >= %i) for %s %u, ignoring",
@@ -3322,7 +3321,7 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
    This is the Pre Dev21 version of the function
    Delete this if the above works?
 */
-bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item_id, uint8 type, uint32 maxcount, uint32 incrtime, uint32 ExtendedCost, uint16 conditionId, Player* pl, std::set<uint32>* skip_vendors) const
+bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item_id, uint8 type, uint32 maxcount, uint32 incrtime, uint32 ExtendedCost, uint16 conditionId, std::vector<VendorItemProblem>* problems, std::set<uint32>* skip_vendors) const
 {
     char const* idStr = isTemplate ? "vendor template" : "vendor";
     char const* nameStr = type == VENDOR_ITEM_TYPE_CURRENCY ? "Currency" : "Item";
@@ -3333,9 +3332,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         cInfo = GetCreatureTemplate(vendor_entry);
         if (!cInfo)
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).SendSysMessage(LANG_COMMAND_VENDORSELECTION);
+                problems->push_back(VendorItemProblem::Entry(LANG_COMMAND_VENDORSELECTION));
             }
             else
                 sLog.outErrorDb("Table `%s` has data for nonexistent creature (Entry: %u), ignoring", tableName, vendor_entry);
@@ -3346,9 +3345,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         {
             if (!skip_vendors || skip_vendors->count(vendor_entry) == 0)
             {
-                if (pl)
+                if (problems)
                 {
-                    ChatHandler(pl).SendSysMessage(LANG_COMMAND_VENDORSELECTION);
+                    problems->push_back(VendorItemProblem::Entry(LANG_COMMAND_VENDORSELECTION));
                 }
                 else
                     sLog.outErrorDb("Table `%s` has data for creature (Entry: %u) without vendor flag, ignoring", tableName, vendor_entry);
@@ -3367,9 +3366,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     {
         if (!GetItemPrototype(item_id))
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).PSendSysMessage(LANG_ITEM_NOT_FOUND, item_id);
+                problems->push_back(VendorItemProblem::Entry(LANG_ITEM_NOT_FOUND, item_id));
             }
             else
                 sLog.outErrorDb("Table `%s` for %s %u contains nonexistent item (%u), ignoring",
@@ -3382,9 +3381,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         currencyEntry = sCurrencyTypesStore.LookupEntry(item_id);
         if (!currencyEntry)
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).PSendSysMessage(LANG_CURRENCY_NOT_FOUND, item_id);
+                problems->push_back(VendorItemProblem::Entry(LANG_CURRENCY_NOT_FOUND, item_id));
             }
             else
                 sLog.outErrorDb("Table `%s` for %s %u contains nonexistent currency (%u), ignoring",
@@ -3395,9 +3394,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         {
             if (currencyEntry->CategoryID == CURRENCY_CATEGORY_META)
             {
-                if (pl)
+                if (problems)
                 {
-                    ChatHandler(pl).PSendSysMessage(LANG_VENDOR_META_CURRENCY_NOT_ALLOWED, item_id);
+                    problems->push_back(VendorItemProblem::Entry(LANG_VENDOR_META_CURRENCY_NOT_ALLOWED, item_id));
                 }
                 else
                     sLog.outErrorDb("Table `%s` for %s %u contains not allowed meta currency (%u), ignoring",
@@ -3408,9 +3407,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     }
     else
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).PSendSysMessage(LANG_VENDOR_WRONG_ITEM_TYPE, item_id, type);
+            problems->push_back(VendorItemProblem::Entry(LANG_VENDOR_WRONG_ITEM_TYPE, item_id, type));
         }
         else
             sLog.outErrorDb("Table `%s` for %s %u contains nonexistent vendor item type %u (entry %u), ignoring",
@@ -3419,9 +3418,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
 
     if (ExtendedCost && !sItemExtendedCostStore.LookupEntry(ExtendedCost))
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).PSendSysMessage(LANG_EXTENDED_COST_NOT_EXIST, ExtendedCost);
+            problems->push_back(VendorItemProblem::Entry(LANG_EXTENDED_COST_NOT_EXIST, ExtendedCost));
         }
         else
             sLog.outErrorDb("Table `%s` contains %s (Entry: %u) with wrong ExtendedCost (%u) for %s %u, ignoring",
@@ -3433,9 +3432,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     {
         if (maxcount > 0 && incrtime == 0)
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).PSendSysMessage("MaxCount!=0 (%u) but IncrTime==0", maxcount);
+                problems->push_back(VendorItemProblem::Text("MaxCount!=0 (%u) but IncrTime==0", maxcount));
             }
             else
                 sLog.outErrorDb("Table `%s` has `maxcount` (%u) for %s %u of %s %u but `incrtime`=0, ignoring",
@@ -3444,9 +3443,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         }
         else if (maxcount == 0 && incrtime > 0)
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).PSendSysMessage("MaxCount==0 but IncrTime<>=0");
+                problems->push_back(VendorItemProblem::Text("MaxCount==0 but IncrTime<>=0"));
             }
             else
                 sLog.outErrorDb("Table `%s` has `maxcount`=0 for %s %u of %s %u but `incrtime`<>0, ignoring",
@@ -3458,9 +3457,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     {
         if (maxcount < uint32(currencyEntry->GetPrecision()))
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).PSendSysMessage(LANG_VENDOR_WRONG_CURRENCY_MAXCOUNT, item_id, uint32(currencyEntry->GetPrecision()));
+                problems->push_back(VendorItemProblem::Entry(LANG_VENDOR_WRONG_CURRENCY_MAXCOUNT, item_id, uint32(currencyEntry->GetPrecision())));
             }
             else
                 sLog.outErrorDb("Table `%s` contains %s (Entry: %u) with too low maxcount. Maxcount for currencies is buycount, so it can't be 0 or less than that's currency precision (%u), ignoring",
@@ -3483,9 +3482,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
 
     if (vItems && vItems->FindItemCostPair(item_id, type, ExtendedCost))
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).PSendSysMessage(LANG_ITEM_ALREADY_IN_LIST, item_id, type == VENDOR_ITEM_TYPE_CURRENCY, ExtendedCost);
+            problems->push_back(VendorItemProblem::Entry(LANG_ITEM_ALREADY_IN_LIST, item_id, type == VENDOR_ITEM_TYPE_CURRENCY, ExtendedCost));
         }
         else
             sLog.outErrorDb("Table `%s` has duplicate %s %u (with extended cost %u) for %s %u, ignoring",
@@ -3497,9 +3496,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     {
         if (tItems && tItems->FindItemCostPair(item_id, type, ExtendedCost))
         {
-            if (pl)
+            if (problems)
             {
-                ChatHandler(pl).PSendSysMessage(LANG_ITEM_ALREADY_IN_LIST, item_id, type == VENDOR_ITEM_TYPE_CURRENCY, ExtendedCost);
+                problems->push_back(VendorItemProblem::Entry(LANG_ITEM_ALREADY_IN_LIST, item_id, type == VENDOR_ITEM_TYPE_CURRENCY, ExtendedCost));
             }
             else
             {
@@ -3519,9 +3518,9 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
 
     if (countItems >= MAX_VENDOR_ITEMS)
     {
-        if (pl)
+        if (problems)
         {
-            ChatHandler(pl).SendSysMessage(LANG_COMMAND_ADDVENDORITEMITEMS);
+            problems->push_back(VendorItemProblem::Entry(LANG_COMMAND_ADDVENDORITEMITEMS));
         }
         else
             sLog.outErrorDb("Table `%s` has too many entries (%u >= %i) for %s %u, ignoring",

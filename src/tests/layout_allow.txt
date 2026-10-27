@@ -199,7 +199,6 @@ src/game/Object/ObjectMgr.cpp -> src/game/Object/ArenaTeam.h
 src/game/Object/ObjectMgr.cpp -> src/game/Object/CorpseManager.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/AchievementMgr.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/CellImpl.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/GridNotifiers.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Group.h
