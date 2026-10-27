@@ -82,6 +82,7 @@ class Item;
 class SQLStorage;
 enum class TableReadStatus;
 struct SpellTemplateRow;
+struct ItemTemplateRow;
 
 struct GameTele
 {
@@ -705,6 +706,12 @@ class ObjectMgr
 
         /// Entrance override for one LFGDungeons.dbc id; NULL = fall back to
         /// GetMapEntranceTrigger (multi-wing maps only carry overrides).
+        /// The item prototypes.
+        KeyedRecordStore<ItemPrototype> const& GetItemPrototypes() const
+        {
+            return m_itemPrototypes;
+        }
+
         /// The creature templates.
         KeyedRecordStore<CreatureInfo> const& GetCreatureTemplates() const
         {
@@ -733,7 +740,7 @@ class ObjectMgr
         static EquipmentInfo const* GetEquipmentInfo(uint32 entry);                 ///< Lookup in the creature equipment store
         static CreatureDataAddon const* GetCreatureAddon(uint32 lowguid);           ///< Lookup in the creature addon store
         static CreatureDataAddon const* GetCreatureTemplateAddon(uint32 entry);     ///< Lookup in the creature template addon store
-        static ItemPrototype const* GetItemPrototype(uint32 id);                    ///< Wrapper for sItemStorage.LookupEntry
+        static ItemPrototype const* GetItemPrototype(uint32 id);                    ///< Lookup in the item prototype store
         static InstanceTemplate const* GetInstanceTemplate(uint32 map);             ///< Lookup in the instance template store
         static WorldTemplate const* GetWorldTemplate(uint32 map);                   ///< Wrapper for sWorldTemplate.LookupEntry
 
@@ -770,6 +777,8 @@ class ObjectMgr
         void LoadGameObjects();
         void LoadGameObjectAddon();
         void LoadItemPrototypes();
+        /// Fills the item prototypes from `item_template` rows without the load's checks; the tests' item fixture fills them so.
+        void FillItemPrototypes(std::vector<ItemTemplateRow> const& rows);
         void LoadItemConverts();
         void LoadItemExpireConverts();
         void LoadItemRequiredTarget();
@@ -1446,6 +1455,9 @@ class ObjectMgr
         CreatureModelInfoStore m_creatureModels;
 
         KeyedRecordStore<CreatureTemplateSpells> m_creatureTemplateSpells;
+
+        KeyedRecordStore<ItemPrototype> m_itemPrototypes;
+        TextPool m_itemPrototypeTexts;
 
         KeyedRecordStore<CreatureInfo> m_creatureTemplates;
         TextPool m_creatureTemplateTexts;

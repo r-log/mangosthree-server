@@ -1870,9 +1870,9 @@ void LoadLootTemplates_Disenchant()
     LootTemplates_Disenchant.LoadAndCollectLootIds(ids_set);
 
     // remove real entries and check existence loot
-    for (uint32 i = 1; i < sItemStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetItemPrototypes().GetMaxEntry(); ++i)
     {
-        if (ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(i))
+        if (ItemPrototype const* proto = ObjectMgr::GetItemPrototype(i))
         {
             if (uint32 lootid = proto->DisenchantID)
             {
@@ -1961,9 +1961,9 @@ void LoadLootTemplates_Item()
     LootTemplates_Item.LoadAndCollectLootIds(ids_set);
 
     // remove real entries and check existence loot
-    for (uint32 i = 1; i < sItemStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetItemPrototypes().GetMaxEntry(); ++i)
     {
-        if (ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(i))
+        if (ItemPrototype const* proto = ObjectMgr::GetItemPrototype(i))
         {
             if (!(proto->Flags & ITEM_FLAG_LOOTABLE))
             {
@@ -1992,9 +1992,9 @@ void LoadLootTemplates_Milling()
     LootTemplates_Milling.LoadAndCollectLootIds(ids_set);
 
     // remove real entries and check existence loot
-    for (uint32 i = 1; i < sItemStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetItemPrototypes().GetMaxEntry(); ++i)
     {
-        ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(i);
+        ItemPrototype const* proto = ObjectMgr::GetItemPrototype(i);
         if (!proto)
         {
             continue;
@@ -2060,9 +2060,9 @@ void LoadLootTemplates_Prospecting()
     LootTemplates_Prospecting.LoadAndCollectLootIds(ids_set);
 
     // remove real entries and check existence loot
-    for (uint32 i = 1; i < sItemStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < sObjectMgr.GetItemPrototypes().GetMaxEntry(); ++i)
     {
-        ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(i);
+        ItemPrototype const* proto = ObjectMgr::GetItemPrototype(i);
         if (!proto)
         {
             continue;

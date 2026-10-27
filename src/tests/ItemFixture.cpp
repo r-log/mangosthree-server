@@ -30,7 +30,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
 #include "ObjectMgr.h"
-#include "SQLStorages.h"
+#include "persistence/world/items/ItemTemplateRepository.h"
 #include "Utilities/ProgressBar.h"
 
 #include <algorithm>
@@ -197,12 +197,12 @@ ItemFixture::LoadRecord const& ItemFixture::Load()
         maxEntry = std::max(maxEntry, proto.entry);
     }
 
-    // The loader exit()s the whole process when the row width is not the format's, so a
-    // wrong width is reported here instead of being handed to it.
-    const size_t width = std::strlen(sItemStorage.GetSrcFormat());
+    // A row narrower than the statement's columns would read its missing columns as NULL, so a
+    // wrong width is reported here instead of being handed to the read.
+    const size_t width = ITEM_TEMPLATE_COLUMNS;
     if (rows[0].size() != width)
     {
-        record.failure = "item_template row has " + std::to_string(rows[0].size()) + " columns, the format "
+        record.failure = "item_template row has " + std::to_string(rows[0].size()) + " columns, the statement "
                          + std::to_string(width);
         return record;
     }
@@ -211,26 +211,23 @@ ItemFixture::LoadRecord const& ItemFixture::Load()
     FakeConnection async(WorldDatabase);
     SqlResultQueue results;
 
-    // The three statements SQLStorageLoaderBase::Load issues, with the table and key
-    // sItemStorage was declared with (SQLStorages.cpp).
-    query.Answer("SELECT MAX(`entry`) FROM `item_template`", FakeRows{FakeRow{std::to_string(maxEntry)}});
-    query.Answer("SELECT COUNT(*) FROM `item_template`", FakeRows{FakeRow{std::to_string(rows.size())}});
-    query.Answer("SELECT * FROM `item_template`", rows);
+    // The one statement ItemTemplateRepository::QueryItemTemplates issues.
+    query.Answer("SELECT `entry`", rows);
 
     const uint32 violationsBefore = TickGuard::Violations();
     {
         AttachedFakes attached(WorldDatabase, &query, &async, &results);
         QuietBar quiet;
-        sItemStorage.Load();
+        sObjectMgr.FillItemPrototypes(ItemTemplateRepository::QueryItemTemplates().rows);
     }
 
     record.queries = query.executed;
     record.asyncStatements = async.executed.size();
     record.tickViolations = TickGuard::Violations() - violationsBefore;
-    record.loaded = sItemStorage.GetRecordCount() == rows.size();
+    record.loaded = sObjectMgr.GetItemPrototypes().GetCount() == rows.size();
     if (!record.loaded)
     {
-        record.failure = "sItemStorage holds " + std::to_string(sItemStorage.GetRecordCount()) + " records after the load, not "
+        record.failure = "the item prototypes hold " + std::to_string(sObjectMgr.GetItemPrototypes().GetCount()) + " records after the load, not "
                          + std::to_string(rows.size());
     }
     else

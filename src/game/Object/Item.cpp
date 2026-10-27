@@ -537,7 +537,7 @@ uint32 Item::GetSkill()
  */
 int32 Item::GenerateItemRandomPropertyId(uint32 item_id)
 {
-    ItemPrototype const* itemProto = sItemStorage.LookupEntry<ItemPrototype>(item_id);
+    ItemPrototype const* itemProto = ObjectMgr::GetItemPrototype(item_id);
 
     if (!itemProto)
     {

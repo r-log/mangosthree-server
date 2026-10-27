@@ -27,26 +27,21 @@
 #define MANGOS_TESTS_ITEMFIXTURE_H
 
 /**
- * Decoupling D4e0: real Item and Bag objects in the test binary.
+ * Real Item and Bag objects in the test binary.
  *
  * A bare Item() has no update fields -- Object::Object leaves them NULL until Create() --
  * and Item::Create / Bag::Create take their prototype from ObjectMgr::GetItemPrototype,
- * which is sItemStorage.LookupEntry. That storage has no insert API: the only way in is its
- * loader, which reads `item_template` from the GLOBAL WorldDatabase. So this fixture answers
- * the loader's three statements from a FakeConnection attached to WorldDatabase (D7a's seam)
- * and lets the real loader build the records.
+ * which looks in the item prototypes ObjectMgr fills from `item_template` on the GLOBAL
+ * WorldDatabase. So this fixture answers ItemTemplateRepository's one statement from a
+ * FakeConnection attached to WorldDatabase and lets ObjectMgr::FillItemPrototypes build the
+ * records from the rows it reads.
  *
- * The load is sItemStorage.Load(), which runs SQLStorageLoaderBase::Load -- the same body
- * ObjectMgr::LoadItemPrototypes runs through its SQLItemLoader. That loader's only override
- * is convert_from_str, which is reached only for a string column stored into a non-string
- * field, and the item format's source and destination strings are identical, so both
- * loaders store the same bytes (ItemFixtureTest pins that). What the fixture does NOT run is
- * LoadItemPrototypes' check pass after the load: it cross-checks every entry against the
- * DBC stores, which are empty here, and it would log each entry and clear, for one, every
- * bag-family bit (ObjectMgrItems.cpp, the BagFamily loop). The rows below are valid by
- * construction instead.
+ * The fill is the one ObjectMgr::LoadItemPrototypes runs. What the fixture does NOT run is
+ * that load's check pass after the fill: it cross-checks every entry against the DBC stores,
+ * which are empty here, and it would log each entry and clear, for one, every bag-family bit
+ * (ObjectMgrItems.cpp, the BagFamily loop). The rows below are valid by construction instead.
  *
- * sItemStorage stays loaded for the rest of the test binary once Load() has run, as D4c's
+ * The prototypes stay loaded for the rest of the test binary once Load() has run, as the
  * seeded DBC stores do: every entry this fixture declares has a prototype from then on and
  * every other entry still has none. The fixture's entries are 95001-95099; no other test
  * declares an item entry, and template 555, which CharacterOpsAsyncTest and GuildAsyncTest
@@ -139,7 +134,7 @@ namespace ItemFixture
     /// Every prototype the fixture loads, in row order.
     std::vector<Prototype> const& Prototypes();
 
-    /// The `SELECT * FROM item_template` row for one prototype: all 147 columns, as strings.
+    /// The `item_template` row for one prototype: all 147 columns in table order, as strings.
     FakeRow TemplateRow(Prototype const& proto);
 
     /// What the one load did.
@@ -147,15 +142,15 @@ namespace ItemFixture
     {
         LoadRecord() : loaded(false), asyncStatements(0), tickViolations(0) {}
 
-        bool loaded;                        ///< sItemStorage holds the prototypes
+        bool loaded;                        ///< the item prototypes hold the fixture's
         std::string failure;                ///< why not, when it does not
         std::vector<std::string> queries;   ///< the query connection's statements, in order
         size_t asyncStatements;             ///< statements that reached the async connection
         uint32 tickViolations;              ///< TickGuard violations the load counted
     };
 
-    /// Loads sItemStorage from Prototypes() the first time it succeeds, and returns the record
-    /// of that load on every call.
+    /// Fills the item prototypes from Prototypes() the first time it succeeds, and returns the
+    /// record of that load on every call.
     LoadRecord const& Load();
 
     /**

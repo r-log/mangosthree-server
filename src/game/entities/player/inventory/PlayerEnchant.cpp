@@ -89,7 +89,7 @@ bool Player::EnchantmentFitsRequirements(uint32 enchantmentcondition, int8 slot)
                     continue;
                 }
 
-                ItemPrototype const* gemProto = sItemStorage.LookupEntry<ItemPrototype>(gemid);
+                ItemPrototype const* gemProto = ObjectMgr::GetItemPrototype(gemid);
                 if (!gemProto)
                 {
                     continue;

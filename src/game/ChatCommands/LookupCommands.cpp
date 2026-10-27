@@ -164,7 +164,7 @@ void ChatHandler::ShowQuestListHelper(uint32 questId, int32 loc_idx, Player* tar
  */
 void ChatHandler::ShowItemListHelper(uint32 itemId, int loc_idx, Player* target /*=NULL*/)
 {
-    ItemPrototype const* itemProto = sItemStorage.LookupEntry<ItemPrototype >(itemId);
+    ItemPrototype const* itemProto = ObjectMgr::GetItemPrototype(itemId);
     if (!itemProto)
     {
         return;
@@ -858,9 +858,9 @@ bool ChatHandler::HandleLookupItemCommand(char* args)
     uint32 counter = 0;
 
     // Search in `item_template`
-    for (uint32 id = 0; id < sItemStorage.GetMaxEntry(); ++id)
+    for (uint32 id = 0; id < sObjectMgr.GetItemPrototypes().GetMaxEntry(); ++id)
     {
-        ItemPrototype const* pProto = sItemStorage.LookupEntry<ItemPrototype >(id);
+        ItemPrototype const* pProto = ObjectMgr::GetItemPrototype(id);
         if (!pProto)
         {
             continue;

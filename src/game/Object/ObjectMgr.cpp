@@ -538,7 +538,7 @@ CreatureDataAddon const* ObjectMgr::GetCreatureTemplateAddon(uint32 entry) { ret
  * @param id The item entry id.
  * @return The item prototype, or null if missing.
  */
-ItemPrototype const* ObjectMgr::GetItemPrototype(uint32 id) { return sItemStorage.LookupEntry<ItemPrototype>(id); }
+ItemPrototype const* ObjectMgr::GetItemPrototype(uint32 id) { return sObjectMgr.m_itemPrototypes.Find(id); }
 
 
 /**

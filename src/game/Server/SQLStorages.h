@@ -28,7 +28,6 @@
 
 #include "Database/SQLStorage.h"
 
-extern SQLStorage sItemStorage;
 extern SQLStorage sWorldTemplate;
 
 

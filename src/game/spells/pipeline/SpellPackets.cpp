@@ -469,7 +469,7 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
         {
             if (uint32 item_id = m_caster->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i))
             {
-                if (ItemPrototype const* itemEntry = sItemStorage.LookupEntry<ItemPrototype>(item_id))
+                if (ItemPrototype const* itemEntry = ObjectMgr::GetItemPrototype(item_id))
                 //if (ItemEntry const * itemEntry = sItemStore.LookupEntry(item_id))
                 {
                     if (itemEntry->Class == ITEM_CLASS_WEAPON)

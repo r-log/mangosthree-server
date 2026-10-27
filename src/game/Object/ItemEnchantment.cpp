@@ -167,7 +167,7 @@ bool Item::GemsFitSockets() const
         uint32 gemid = enchantEntry->Src_itemID;
         if (gemid)
         {
-            ItemPrototype const* gemProto = sItemStorage.LookupEntry<ItemPrototype>(gemid);
+            ItemPrototype const* gemProto = ObjectMgr::GetItemPrototype(gemid);
             if (gemProto)
             {
                 GemPropertiesEntry const* gemProperty = sGemPropertiesStore.LookupEntry(gemProto->GemProperties);
