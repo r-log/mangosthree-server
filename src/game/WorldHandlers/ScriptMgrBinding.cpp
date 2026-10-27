@@ -133,7 +133,7 @@ void ScriptMgr::LoadScriptBinding()
             }
             break;
         case SCRIPTED_CONDITION:
-            exists = sConditionStorage.LookupEntry<PlayerCondition>(uint32(id));
+            exists = sObjectMgr.GetCondition(uint32(id));
             break;
         case SCRIPTED_ACHIEVEMENT:
             break;

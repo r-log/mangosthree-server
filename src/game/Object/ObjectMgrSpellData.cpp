@@ -88,7 +88,7 @@ void ObjectMgr::LoadNPCSpellClickSpells()
             }
         }
 
-        if (info.conditionId && !sConditionStorage.LookupEntry<PlayerCondition const*>(info.conditionId))
+        if (info.conditionId && !sObjectMgr.GetCondition(info.conditionId))
         {
             sLog.outErrorDb("Table npc_spellclick_spells references unknown condition %u. Skipping entry.", info.conditionId);
             continue;

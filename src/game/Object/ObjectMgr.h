@@ -60,6 +60,7 @@
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
 #include "data/InstanceTemplateStore.h"
+#include "data/KeyedRecordStore.h"
 #include "data/LfgDungeonEntranceStore.h"
 #include "data/MailLevelRewardStore.h"
 #include "data/PageTextStore.h"
@@ -656,6 +657,12 @@ class ObjectMgr
             return NULL;
         }
 
+        /// The condition `id`, or NULL when there is none or the load erased it.
+        PlayerCondition const* GetCondition(uint32 id) const
+        {
+            return m_conditions.Find(id);
+        }
+
         PointOfInterest const* GetPointOfInterest(uint32 id) const
         {
             return m_pointsOfInterest.Find(id);
@@ -757,6 +764,8 @@ class ObjectMgr
         void LoadInstanceTemplate();
         void LoadWorldTemplate();
         void LoadConditions();
+        /// Reloads the conditions; when the table cannot be read, keeps the conditions already loaded. Answers how the read ended.
+        TableReadStatus ReloadConditions();
         void LoadMailLevelRewards();
 
         void LoadGossipText();
@@ -1406,6 +1415,8 @@ class ObjectMgr
         CreatureEquipmentStore m_creatureEquipment;
 
         VehicleAccessoryStore m_vehicleAccessories;
+
+        KeyedRecordStore<PlayerCondition> m_conditions;
 
         QuestPOIStore m_questPoi;
 

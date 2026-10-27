@@ -683,7 +683,7 @@ void ScriptMgr::LoadScripts(DBScriptType type)
                 break;
             case SCRIPT_COMMAND_TERMINATE_COND:             // 34
             {
-                if (!sConditionStorage.LookupEntry<PlayerCondition>(tmp.terminateCond.conditionId))
+                if (!sObjectMgr.GetCondition(tmp.terminateCond.conditionId))
                 {
                     sLog.outErrorDb("Table `db_scripts [type = %d]` has datalong = %u in SCRIPT_COMMAND_TERMINATE_COND for script id %u, but this condition_id does not exist.", type, tmp.terminateCond.conditionId, tmp.id);
                     continue;

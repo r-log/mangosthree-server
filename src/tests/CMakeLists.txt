@@ -210,6 +210,8 @@ set(SRC_GRP_TESTS
     VehicleAccessoryRepositoryTest.cpp
     SpellScriptTargetStoreTest.cpp
     SpellScriptTargetRepositoryTest.cpp
+    KeyedRecordStoreTest.cpp
+    ConditionRepositoryTest.cpp
     PointOfInterestStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
