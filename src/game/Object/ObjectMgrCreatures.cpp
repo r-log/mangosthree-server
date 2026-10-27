@@ -60,6 +60,7 @@
 
 #include <limits>
 #include "persistence/world/creatures/CreatureDataRepository.h"
+#include "persistence/world/creatures/CreatureAddonRepository.h"
 #include "persistence/world/creatures/CreatureEquipmentRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
@@ -415,107 +416,135 @@ void ObjectMgr::LoadCreatureTemplates()
 /**
  * @brief Converts serialized creature addon aura text into stored spell ids.
  *
- * @param addon The addon record being converted.
+ * @param text The aura text, "spell1 spell2 ...".
+ * @param guidOrEntry The addon's key, used in log output.
  * @param table The source table name.
  * @param guidEntryStr The identifier label used in log output.
+ * @return The accepted spell ids then a 0, or empty when the text names no spell.
  */
-void ObjectMgr::ConvertCreatureAddonAuras(CreatureDataAddon* addon, char const* table, char const* guidEntryStr)
+static std::vector<uint32> ConvertCreatureAddonAuras(std::string const& text, uint32 guidOrEntry, char const* table, char const* guidEntryStr)
 {
     // Now add the auras, format "spell1 spell2 ..."
-    char* p, *s;
+    char const* p, *s;
     std::vector<int> val;
-    s = p = (char*)reinterpret_cast<char const*>(addon->auras);
-    if (p)
+    s = p = text.c_str();
+    while (p[0] != 0)
     {
-        while (p[0] != 0)
-        {
-            ++p;
-            if (p[0] == ' ')
-            {
-                val.push_back(atoi(s));
-                s = ++p;
-            }
-        }
-        if (p != s)
+        ++p;
+        if (p[0] == ' ')
         {
             val.push_back(atoi(s));
+            s = ++p;
         }
-
-        // free char* loaded memory
-        delete[](char*)reinterpret_cast<char const*>(addon->auras);
     }
+    if (p != s)
+    {
+        val.push_back(atoi(s));
+    }
+
+    std::vector<uint32> auras;
 
     // empty list
     if (val.empty())
     {
-        addon->auras = NULL;
-        return;
+        return auras;
     }
 
-    // replace by new structures array
-    const_cast<uint32*&>(addon->auras) = new uint32[val.size() + 1];
-
-    uint32 i = 0;
     for (uint32 j = 0; j < val.size(); ++j)
     {
-        uint32& cAura = const_cast<uint32&>(addon->auras[i]);
-        cAura = uint32(val[j]);
+        uint32 cAura = uint32(val[j]);
 
         SpellEntry const* AdditionalSpellInfo = sSpellStore.LookupEntry(cAura);
         if (!AdditionalSpellInfo)
         {
-            sLog.outErrorDb("Creature (%s: %u) has wrong spell %u defined in `auras` field in `%s`.", guidEntryStr, addon->guidOrEntry, cAura, table);
+            sLog.outErrorDb("Creature (%s: %u) has wrong spell %u defined in `auras` field in `%s`.", guidEntryStr, guidOrEntry, cAura, table);
             continue;
         }
 
         // Must be Aura, but also allow dummy/script effect spells, as they are used sometimes to select a random aura or similar
         if (!IsSpellAppliesAura(AdditionalSpellInfo) && !IsSpellHaveEffect(AdditionalSpellInfo, SPELL_EFFECT_DUMMY) && !IsSpellHaveEffect(AdditionalSpellInfo, SPELL_EFFECT_SCRIPT_EFFECT) && !IsSpellHaveEffect(AdditionalSpellInfo, SPELL_EFFECT_TRIGGER_SPELL))
         {
-            sLog.outErrorDb("Creature (%s: %u) has spell %u defined in `auras` field in `%s, but spell doesn't apply an aura`.", guidEntryStr, addon->guidOrEntry, cAura, table);
+            sLog.outErrorDb("Creature (%s: %u) has spell %u defined in `auras` field in `%s, but spell doesn't apply an aura`.", guidEntryStr, guidOrEntry, cAura, table);
             continue;
         }
 
         // TODO: Remove LogFilter check after more research
         if (!sLog.HasLogFilter(LOG_FILTER_DB_STRICTED_CHECK) && !IsOnlySelfTargeting(AdditionalSpellInfo))
         {
-            sLog.outErrorDb("Creature (%s: %u) has spell %u defined in `auras` field in `%s, but spell is no self-only spell`.", guidEntryStr, addon->guidOrEntry, cAura, table);
+            sLog.outErrorDb("Creature (%s: %u) has spell %u defined in `auras` field in `%s, but spell is no self-only spell`.", guidEntryStr, guidOrEntry, cAura, table);
             continue;
         }
 
         if (IsSpellHaveAura(AdditionalSpellInfo, SPELL_AURA_CONTROL_VEHICLE))
         {
-            sLog.outErrorDb("Creature (%s: %u) has spell %u defined in `auras` field in `%s, but vehicle control spells are not suitable for _addon.auras handling`.", guidEntryStr, addon->guidOrEntry, cAura, table);
+            sLog.outErrorDb("Creature (%s: %u) has spell %u defined in `auras` field in `%s, but vehicle control spells are not suitable for _addon.auras handling`.", guidEntryStr, guidOrEntry, cAura, table);
             continue;
         }
 
-        if (std::find(&addon->auras[0], &addon->auras[i], cAura) != &addon->auras[i])
+        if (std::find(auras.begin(), auras.end(), cAura) != auras.end())
         {
-            sLog.outErrorDb("Creature (%s: %u) has duplicate spell %u defined in `auras` field in `%s`.", guidEntryStr, addon->guidOrEntry, cAura, table);
+            sLog.outErrorDb("Creature (%s: %u) has duplicate spell %u defined in `auras` field in `%s`.", guidEntryStr, guidOrEntry, cAura, table);
             continue;
         }
 
-        ++i;
+        auras.push_back(cAura);
     }
 
     // fill terminator element (after last added)
-    const_cast<uint32&>(addon->auras[i]) = 0;
+    auras.push_back(0);
+    return auras;
 }
 
 /**
- * @brief Loads creature addon records from a storage and validates their fields.
+ * @brief Loads creature addon records of one table into a store and validates their fields.
  *
- * @param creatureaddons The addon storage to load.
+ * @param addons The store to fill.
+ * @param read The table's read.
+ * @param table The source table name.
  * @param entryName The entry label used in log output.
  * @param comment The descriptive text used in the load summary.
  */
-void ObjectMgr::LoadCreatureAddons(SQLStorage& creatureaddons, char const* entryName, char const* comment)
+static void LoadCreatureAddonTable(CreatureAddonStore& addons, TableRead<CreatureAddonRow> const& read, char const* table, char const* entryName, char const* comment)
 {
-    creatureaddons.Load();
+    if (read.Unreadable())
+    {
+        sLog.outError("Error loading `%s` table: %s\n", table, TableReadReason(read.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
+    std::map<uint32, std::string> auraTexts;
+    uint32 loaded = 0;
+    if (read.status == TableReadStatus::Empty)
+    {
+        sLog.outError("%s table is empty!\n", table);
+    }
+    else
+    {
+        addons.Clear();
+        BarGoLink bar(read.rows.size());
+        for (CreatureAddonRow const& row : read.rows)
+        {
+            bar.step();
+            CreatureDataAddon addon;
+            addon.guidOrEntry = row.guidOrEntry;
+            addon.mount = row.mount;
+            addon.bytes1 = row.bytes1;
+            addon.sheath_state = row.sheathState;
+            addon.pvp_state = row.pvpState;
+            addon.emote = row.emote;
+            addon.splineFlags = row.moveFlags;
+            addon.auras = NULL;
+            addons.Set(addon);
+            auraTexts[row.guidOrEntry] = row.auras;
+        }
+        loaded = uint32(read.rows.size());
+    }
 
     // check data correctness and convert 'auras'
-    for (uint32 i = 1; i < creatureaddons.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < addons.GetMaxEntry(); ++i)
     {
-        CreatureDataAddon const* addon = creatureaddons.LookupEntry<CreatureDataAddon>(i);
+        CreatureDataAddon const* addon = addons.Find(i);
         if (!addon)
         {
             continue;
@@ -525,26 +554,26 @@ void ObjectMgr::LoadCreatureAddons(SQLStorage& creatureaddons, char const* entry
         {
             if (!sCreatureDisplayInfoStore.LookupEntry(addon->mount))
             {
-                sLog.outErrorDb("Creature (%s %u) have invalid displayInfoId for mount (%u) defined in `%s`.", entryName, addon->guidOrEntry, addon->mount, creatureaddons.GetTableName());
-                const_cast<CreatureDataAddon*>(addon)->mount = 0;
+                sLog.outErrorDb("Creature (%s %u) have invalid displayInfoId for mount (%u) defined in `%s`.", entryName, addon->guidOrEntry, addon->mount, table);
+                addons.FindForEdit(i)->mount = 0;
             }
         }
 
         if (addon->sheath_state > SHEATH_STATE_RANGED)
         {
-            sLog.outErrorDb("Creature (%s %u) has unknown sheath state (%u) defined in `%s`.", entryName, addon->guidOrEntry, addon->sheath_state, creatureaddons.GetTableName());
+            sLog.outErrorDb("Creature (%s %u) has unknown sheath state (%u) defined in `%s`.", entryName, addon->guidOrEntry, addon->sheath_state, table);
         }
 
         if (!sEmotesStore.LookupEntry(addon->emote))
         {
-            sLog.outErrorDb("Creature (%s %u) have invalid emote (%u) defined in `%s`.", entryName, addon->guidOrEntry, addon->emote, creatureaddons.GetTableName());
-            const_cast<CreatureDataAddon*>(addon)->emote = 0;
+            sLog.outErrorDb("Creature (%s %u) have invalid emote (%u) defined in `%s`.", entryName, addon->guidOrEntry, addon->emote, table);
+            addons.FindForEdit(i)->emote = 0;
         }
 
-        ConvertCreatureAddonAuras(const_cast<CreatureDataAddon*>(addon), creatureaddons.GetTableName(), entryName);
+        addons.SetAuras(i, ConvertCreatureAddonAuras(auraTexts[i], addon->guidOrEntry, table, entryName));
     }
 
-    sLog.outString(">> Loaded %u %s", creatureaddons.GetRecordCount(), comment);
+    sLog.outString(">> Loaded %u %s", loaded, comment);
 }
 
 /**
@@ -552,26 +581,26 @@ void ObjectMgr::LoadCreatureAddons(SQLStorage& creatureaddons, char const* entry
  */
 void ObjectMgr::LoadCreatureAddons()
 {
-    LoadCreatureAddons(sCreatureInfoAddonStorage, "Entry", "creature template addons");
+    LoadCreatureAddonTable(m_creatureTemplateAddons, CreatureAddonRepository::QueryCreatureTemplateAddons(), "creature_template_addon", "Entry", "creature template addons");
 
     // check entry ids
-    for (uint32 i = 1; i < sCreatureInfoAddonStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < m_creatureTemplateAddons.GetMaxEntry(); ++i)
     {
-        if (CreatureDataAddon const* addon = sCreatureInfoAddonStorage.LookupEntry<CreatureDataAddon>(i))
+        if (CreatureDataAddon const* addon = m_creatureTemplateAddons.Find(i))
         {
             if (!sCreatureStorage.LookupEntry<CreatureInfo>(addon->guidOrEntry))
             {
-                sLog.outErrorDb("Creature (Entry: %u) does not exist but has a record in `%s`", addon->guidOrEntry, sCreatureInfoAddonStorage.GetTableName());
+                sLog.outErrorDb("Creature (Entry: %u) does not exist but has a record in `%s`", addon->guidOrEntry, "creature_template_addon");
             }
         }
     }
 
-    LoadCreatureAddons(sCreatureDataAddonStorage, "GUID", "creature addons");
+    LoadCreatureAddonTable(m_creatureAddons, CreatureAddonRepository::QueryCreatureAddons(), "creature_addon", "GUID", "creature addons");
 
     // check entry ids
-    for (uint32 i = 1; i < sCreatureDataAddonStorage.GetMaxEntry(); ++i)
+    for (uint32 i = 1; i < m_creatureAddons.GetMaxEntry(); ++i)
     {
-        if (CreatureDataAddon const* addon = sCreatureDataAddonStorage.LookupEntry<CreatureDataAddon>(i))
+        if (CreatureDataAddon const* addon = m_creatureAddons.Find(i))
         {
             if (mCreatureDataMap.find(addon->guidOrEntry) == mCreatureDataMap.end())
             {

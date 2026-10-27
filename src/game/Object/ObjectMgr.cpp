@@ -505,7 +505,7 @@ EquipmentInfo const* ObjectMgr::GetEquipmentInfo(uint32 entry) { return sObjectM
  * @param lowguid The creature spawn low GUID.
  * @return The addon data, or null if missing.
  */
-CreatureDataAddon const* ObjectMgr::GetCreatureAddon(uint32 lowguid) { return sCreatureDataAddonStorage.LookupEntry<CreatureDataAddon>(lowguid); }
+CreatureDataAddon const* ObjectMgr::GetCreatureAddon(uint32 lowguid) { return sObjectMgr.m_creatureAddons.Find(lowguid); }
 
 /**
  * @brief Gets creature template addon data by entry id.
@@ -513,7 +513,7 @@ CreatureDataAddon const* ObjectMgr::GetCreatureAddon(uint32 lowguid) { return sC
  * @param entry The creature entry id.
  * @return The template addon data, or null if missing.
  */
-CreatureDataAddon const* ObjectMgr::GetCreatureTemplateAddon(uint32 entry) { return sCreatureInfoAddonStorage.LookupEntry<CreatureDataAddon>(entry); }
+CreatureDataAddon const* ObjectMgr::GetCreatureTemplateAddon(uint32 entry) { return sObjectMgr.m_creatureTemplateAddons.Find(entry); }
 
 /**
  * @brief Gets item prototype data by entry id.

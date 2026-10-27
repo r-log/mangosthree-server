@@ -303,19 +303,6 @@ enum SplineFlags
     SPLINEFLAG_FLYING       = 0x00002000,
 };
 
-// from `creature_addon` and `creature_template_addon`tables
-struct CreatureDataAddon
-{
-    uint32 guidOrEntry;
-    uint32 mount;
-    uint32 bytes1;
-    uint8  sheath_state;                                    // SheathState
-    uint8  pvp_state;                                       // UnitPVPStateFlags
-    uint32 emote;
-    uint32 splineFlags;
-    uint32 const* auras;                                    // loaded as char* "spell1 spell2 ... "
-};
-
 // Bases values for given Level and UnitClass
 struct CreatureClassLvlStats
 {

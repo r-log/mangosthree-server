@@ -55,6 +55,7 @@
 #include "PlayerRegistry.h"
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
+#include "data/CreatureAddonStore.h"
 #include "data/CreatureEquipmentStore.h"
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
@@ -711,11 +712,11 @@ class ObjectMgr
         static Player* GetPlayer(ObjectGuid guid, bool inWorld = true);             ///< Wrapper for sPlayerRegistry.Find
         static CreatureInfo const* GetCreatureTemplate(uint32 id);                  ///< Wrapper for sCreatureStorage.LookupEntry
         static CreatureModelInfo const* GetCreatureModelInfo(uint32 modelid);       ///< Wrapper for sCreatureModelStorage.LookupEntry
-        static EquipmentInfo const* GetEquipmentInfo(uint32 entry);                 ///< Wrapper for sEquipmentStorage.LookupEntry
-        static CreatureDataAddon const* GetCreatureAddon(uint32 lowguid);           ///< Wrapper for sCreatureDataAddonStorage.LookupEntry
-        static CreatureDataAddon const* GetCreatureTemplateAddon(uint32 entry);     ///< Wrapper for sCreatureInfoAddonStorage.LookupEntry
+        static EquipmentInfo const* GetEquipmentInfo(uint32 entry);                 ///< Lookup in the creature equipment store
+        static CreatureDataAddon const* GetCreatureAddon(uint32 lowguid);           ///< Lookup in the creature addon store
+        static CreatureDataAddon const* GetCreatureTemplateAddon(uint32 entry);     ///< Lookup in the creature template addon store
         static ItemPrototype const* GetItemPrototype(uint32 id);                    ///< Wrapper for sItemStorage.LookupEntry
-        static InstanceTemplate const* GetInstanceTemplate(uint32 map);             ///< Wrapper for sInstanceTemplate.LookupEntry
+        static InstanceTemplate const* GetInstanceTemplate(uint32 map);             ///< Lookup in the instance template store
         static WorldTemplate const* GetWorldTemplate(uint32 map);                   ///< Wrapper for sWorldTemplate.LookupEntry
 
         // Loading functions
@@ -1418,6 +1419,9 @@ class ObjectMgr
 
         KeyedRecordStore<PlayerCondition> m_conditions;
 
+        CreatureAddonStore m_creatureAddons;
+        CreatureAddonStore m_creatureTemplateAddons;
+
         QuestPOIStore m_questPoi;
 
         DungeonFinderStore m_dungeonFinder;
@@ -1450,8 +1454,6 @@ class ObjectMgr
         int DBCLocaleIndex;
 
     private:
-        void LoadCreatureAddons(SQLStorage& creatureaddons, char const* entryName, char const* comment);
-        void ConvertCreatureAddonAuras(CreatureDataAddon* addon, char const* table, char const* guidEntryStr);
         void LoadQuestRelationsHelper(QuestRelationsMap& map, QuestActor actor, QuestRole role);
         void LoadVendors(char const* tableName, bool isTemplates);
         void LoadTrainers(char const* tableName, bool isTemplates);
