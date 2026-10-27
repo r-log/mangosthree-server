@@ -62,6 +62,9 @@
 #include "DBCStores.h"
 #include "MassMailMgr.h"
 #include "ScriptMgr.h"
+#ifdef ENABLE_SD3
+#include "system/ScriptDevMgr.h"
+#endif
 #include "persistence/login/RealmRepository.h"
 
 
@@ -341,6 +344,10 @@ int main(int argc, char** argv)
 
     ///- Catch termination signals
     hook_signals();
+
+#ifdef ENABLE_SD3
+    ScriptHooks::Install(&SD3::GetScriptHooks());
+#endif
 
     // Databases, world, listener and background services all live in Master. It
     // runs the world loop on this thread and returns once the world has stopped

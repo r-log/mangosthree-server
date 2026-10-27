@@ -346,11 +346,6 @@ target_include_directories(game
         WorldHandlers
 )
 
-target_compile_definitions(game
-    PUBLIC
-        $<$<BOOL:${SCRIPT_LIB_SD3}>:ENABLE_SD3>
-)
-
 if(MSVC)
     # Strict conformance: the compiler then checks non-dependent names in template bodies at
     # definition time, as gcc and clang do, so the local build proves what the clang CI job proves.
@@ -366,7 +361,6 @@ target_link_libraries(game
         motion
         RecastNavigation::Detour
         ZLIB::ZLIB
-        $<$<BOOL:${SCRIPT_LIB_SD3}>:mangosscript>
 )
 
 if(PCH)

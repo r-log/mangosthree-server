@@ -46,17 +46,22 @@ class SpellCastTargets;
 class Unit;
 
 /**
- * The hooks the core calls on the script library: gossip, quests, object and item use, area
- * triggers, spell clicks, events, scripted spell effects and auras, and the AI and instance data of
- * a scripted creature, object or map. Each answers whether a script handled the call, or what the
- * script made. This base answers what a server with no script library answers: false, NULL, and
- * DIALOG_STATUS_UNDEFINED for a dialog status. The core calls the installed hooks through
- * sScriptHooks; until hooks are installed, it calls this base.
+ * What the core calls on the script library: its start, free and version, and the hooks for gossip,
+ * quests, object and item use, area triggers, spell clicks, events, scripted spell effects and
+ * auras, and the AI and instance data of a scripted creature, object or map. Each hook answers
+ * whether a script handled the call, or what the script made. This base answers what a server with
+ * no script library answers: false, NULL, and DIALOG_STATUS_UNDEFINED for a dialog status; it starts
+ * and frees nothing and has no version. The core calls the installed hooks through sScriptHooks;
+ * until hooks are installed, it calls this base.
  */
 class ScriptHooks
 {
     public:
         virtual ~ScriptHooks();
+
+        virtual void InitScriptLibrary();
+        virtual void FreeScriptLibrary();
+        virtual char const* GetScriptLibraryVersion();
 
         virtual CreatureAI* GetCreatureAI(Creature* pCreature);
         virtual GameObjectAI* GetGameObjectAI(GameObject* pGo);
@@ -91,6 +96,8 @@ class ScriptHooks
         /// Installs `hooks` and answers the hooks it replaces (NULL for the base). NULL installs
         /// the base. Installed once at start-up, before the map threads run.
         static ScriptHooks* Install(ScriptHooks* hooks);
+        /// Whether hooks are installed, as a script library installs its own.
+        static bool IsInstalled();
 };
 
 #define sScriptHooks ScriptHooks::Installed()

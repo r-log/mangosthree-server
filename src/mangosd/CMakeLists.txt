@@ -29,11 +29,17 @@ target_include_directories(mangosd
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+target_compile_definitions(mangosd
+    PRIVATE
+        $<$<BOOL:${SCRIPT_LIB_SD3}>:ENABLE_SD3>
+)
+
 target_link_libraries(mangosd
     PRIVATE
         game
         proto
         Threads::Threads
+        $<$<BOOL:${SCRIPT_LIB_SD3}>:mangosscript>
 )
 
 install(

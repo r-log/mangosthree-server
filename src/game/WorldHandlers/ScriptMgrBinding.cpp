@@ -36,16 +36,16 @@
 #include <DBCStores.h>
 #include "persistence/world/ScriptDataRepository.h"
 
-#ifdef ENABLE_SD3
-#include "system/ScriptDevMgr.h"
-#endif
-
 // /////////////////////////////////////////////////////////
 //              Scripting Library Hooks
 // /////////////////////////////////////////////////////////
 void ScriptMgr::LoadScriptBinding()
 {
-#ifdef ENABLE_SD3
+    if (!ScriptHooks::IsInstalled())
+    {
+        return;
+    }
+
     sScriptNameStore.ClearBindings();
 
     std::vector<ScriptBindingRow> rows = ScriptDataRepository::QueryScriptBindings();
@@ -161,7 +161,6 @@ void ScriptMgr::LoadScriptBinding()
     sLog.outString("Thus, %u script binds are found bad.", count);
 
     sLog.outString();
-#endif /* ENABLE_SD3 */
     return;
 }
 
@@ -213,18 +212,4 @@ void ScriptMgr::LoadScriptNames()
 
     sLog.outString(">> Loaded %d unique Script Names", count);
     sLog.outString();
-}
-
-/**
- * @brief Returns the version string for the loaded script library.
- *
- * @return char const* The script library version, or NULL when unavailable.
- */
-char const* ScriptMgr::GetScriptLibraryVersion() const
-{
-#ifdef ENABLE_SD3
-    return SD3::GetScriptLibraryVersion();
-#else
-    return NULL;
-#endif
 }

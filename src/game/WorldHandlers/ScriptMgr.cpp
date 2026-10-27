@@ -62,10 +62,6 @@
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "Mail.h"
 
-#ifdef ENABLE_SD3
-#include "system/ScriptDevMgr.h"
-#endif
-
 #include <cstring> /* std::strcmp */
 
 
@@ -85,14 +81,12 @@ ScriptMgr::~ScriptMgr()
  */
 ScriptLoadResult ScriptMgr::LoadScriptLibrary(const char* libName)
 {
-#ifdef ENABLE_SD3
-    if (std::strcmp(libName, "mangosscript") == 0)
+    if (ScriptHooks::IsInstalled() && std::strcmp(libName, "mangosscript") == 0)
     {
-        SD3::FreeScriptLibrary();
-        SD3::InitScriptLibrary();
+        sScriptHooks.FreeScriptLibrary();
+        sScriptHooks.InitScriptLibrary();
         return SCRIPT_LOAD_OK;
     }
-#endif
 
     return SCRIPT_LOAD_ERR_NOT_FOUND;
 }
@@ -102,11 +96,7 @@ ScriptLoadResult ScriptMgr::LoadScriptLibrary(const char* libName)
  */
 void ScriptMgr::UnloadScriptLibrary()
 {
-#ifdef ENABLE_SD3
-    SD3::FreeScriptLibrary();
-#else
-    return;
-#endif
+    sScriptHooks.FreeScriptLibrary();
 }
 
 /**
