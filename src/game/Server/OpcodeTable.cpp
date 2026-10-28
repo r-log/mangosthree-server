@@ -58,6 +58,7 @@
 #include "session/handlers/social/ChatHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
+#include "session/handlers/social/MailHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
 #include "session/handlers/social/TicketHandlers.h"
 #include "session/handlers/social/VoiceChatHandlers.h"
@@ -723,9 +724,9 @@ void InitializeOpcodes()
     OPCODE(CMSG_GUILD_SET_NOTE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildSetNoteOpcode  );
     OPCODE(SMSG_LOGIN_VERIFY_WORLD,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_CLEAR_EXPLORATION,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_SEND_MAIL,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSendMail                  );
+    OPCODE(CMSG_SEND_MAIL,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleSendMail                  );
     OPCODE(SMSG_SEND_MAIL_RESULT,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GET_MAIL_LIST,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGetMailList               );
+    OPCODE(CMSG_GET_MAIL_LIST,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleGetMailList               );
     OPCODE(SMSG_MAIL_LIST_RESULT,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_BATTLEFIELD_LIST,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleBattlefieldList            );
     OPCODE(SMSG_BATTLEFIELD_LIST,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -736,12 +737,12 @@ void InitializeOpcodes()
     //OPCODE(CMSG_TAXIENABLENODE,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_ITEM_TEXT_QUERY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ItemHandlers::HandleItemTextQuery             );
     OPCODE(SMSG_ITEM_TEXT_QUERY_RESPONSE,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_MAIL_TAKE_MONEY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMailTakeMoney             );
-    OPCODE(CMSG_MAIL_TAKE_ITEM,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMailTakeItem              );
-    OPCODE(CMSG_MAIL_MARK_AS_READ,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMailMarkAsRead            );
-    OPCODE(CMSG_MAIL_RETURN_TO_SENDER,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMailReturnToSender        );
-    OPCODE(CMSG_MAIL_DELETE,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMailDelete                );
-    OPCODE(CMSG_MAIL_CREATE_TEXT_ITEM,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMailCreateTextItem        );
+    OPCODE(CMSG_MAIL_TAKE_MONEY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleMailTakeMoney             );
+    OPCODE(CMSG_MAIL_TAKE_ITEM,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleMailTakeItem              );
+    OPCODE(CMSG_MAIL_MARK_AS_READ,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleMailMarkAsRead            );
+    OPCODE(CMSG_MAIL_RETURN_TO_SENDER,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleMailReturnToSender        );
+    OPCODE(CMSG_MAIL_DELETE,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleMailDelete                );
+    OPCODE(CMSG_MAIL_CREATE_TEXT_ITEM,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleMailCreateTextItem        );
     OPCODE(SMSG_SPELLLOGMISS,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SPELLLOGEXECUTE,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_DEBUGAURAPROC,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -800,7 +801,7 @@ void InitializeOpcodes()
     //OPCODE(CMSG_RESET_FACTION_CHEAT,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_AUTOSTORE_BANK_ITEM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleAutoStoreBankItemOpcode );
     OPCODE(CMSG_AUTOBANK_ITEM,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleAutoBankItemOpcode      );
-    OPCODE(MSG_QUERY_NEXT_MAIL_TIME,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQueryNextMailTime         );
+    OPCODE(MSG_QUERY_NEXT_MAIL_TIME,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleQueryNextMailTime         );
     OPCODE(SMSG_RECEIVED_MAIL,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_RAID_GROUP_ONLY,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_SET_DURABILITY_CHEAT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );

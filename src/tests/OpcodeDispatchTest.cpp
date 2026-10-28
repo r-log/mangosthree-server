@@ -71,8 +71,8 @@
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
 /// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
-/// query, item, LFG, contact list, GM ticket, petition, chat channel, voice chat or chat handler class
-/// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
+/// query, item, LFG, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
+/// class /// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
 /// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
 /// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
 /// processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
@@ -108,6 +108,7 @@
 #include "PlayerRegistry.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
+#include "session/handlers/social/MailHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
 #include "session/handlers/social/TicketHandlers.h"
 #include "session/handlers/social/VoiceChatHandlers.h"
@@ -1916,6 +1917,44 @@ TEST(OpcodeDispatch_ItemRowsKeepTheirStatusAndProcessing)
 
     OpcodesList const rows[] = { CMSG_SPLIT_ITEM, CMSG_SWAP_INV_ITEM, CMSG_AUTOEQUIP_ITEM_SLOT, CMSG_SWAP_ITEM, CMSG_AUTOEQUIP_ITEM,
                                  CMSG_DESTROYITEM, CMSG_READ_ITEM, CMSG_GET_ITEM_PURCHASE_DATA, CMSG_ITEM_TEXT_QUERY, CMSG_REFORGE_ITEM };
+    for (OpcodesList row : rows)
+    {
+        CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
+        CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADUNSAFE);
+    }
+}
+
+TEST(OpcodeDispatch_MailRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_SEND_MAIL].handler == &OpcodeThunk<&MailHandlers::HandleSendMail>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleSendMail>), 1);
+    CHECK(opcodeTable[CMSG_MAIL_MARK_AS_READ].handler == &OpcodeThunk<&MailHandlers::HandleMailMarkAsRead>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleMailMarkAsRead>), 1);
+    CHECK(opcodeTable[CMSG_MAIL_DELETE].handler == &OpcodeThunk<&MailHandlers::HandleMailDelete>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleMailDelete>), 1);
+    CHECK(opcodeTable[CMSG_MAIL_RETURN_TO_SENDER].handler == &OpcodeThunk<&MailHandlers::HandleMailReturnToSender>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleMailReturnToSender>), 1);
+    CHECK(opcodeTable[CMSG_MAIL_TAKE_ITEM].handler == &OpcodeThunk<&MailHandlers::HandleMailTakeItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleMailTakeItem>), 1);
+    CHECK(opcodeTable[CMSG_MAIL_TAKE_MONEY].handler == &OpcodeThunk<&MailHandlers::HandleMailTakeMoney>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleMailTakeMoney>), 1);
+    CHECK(opcodeTable[CMSG_GET_MAIL_LIST].handler == &OpcodeThunk<&MailHandlers::HandleGetMailList>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleGetMailList>), 1);
+    CHECK(opcodeTable[CMSG_MAIL_CREATE_TEXT_ITEM].handler == &OpcodeThunk<&MailHandlers::HandleMailCreateTextItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleMailCreateTextItem>), 1);
+    CHECK(opcodeTable[MSG_QUERY_NEXT_MAIL_TIME].handler == &OpcodeThunk<&MailHandlers::HandleQueryNextMailTime>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MailHandlers::HandleQueryNextMailTime>), 1);
+}
+
+TEST(OpcodeDispatch_MailRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    OpcodesList const rows[] = { CMSG_SEND_MAIL, CMSG_MAIL_MARK_AS_READ, CMSG_MAIL_DELETE, CMSG_MAIL_RETURN_TO_SENDER,
+                                 CMSG_MAIL_TAKE_ITEM, CMSG_MAIL_TAKE_MONEY, CMSG_GET_MAIL_LIST,
+                                 CMSG_MAIL_CREATE_TEXT_ITEM, MSG_QUERY_NEXT_MAIL_TIME };
     for (OpcodesList row : rows)
     {
         CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);

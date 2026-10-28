@@ -60,6 +60,7 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "session/handlers/social/MailHandlers.h"
 #include "persistence/characters/social/ArenaTeamRepository.h"
 #include "persistence/characters/social/GuildRepository.h"
 
@@ -199,7 +200,7 @@ TEST(CalendarMailAsync_SendMailStagesTheOfflineMailboxCountAndDropsItWhenTheSend
 
     AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
 
-    WorldSession::MailSendRequest request;
+    MailHandlers::MailSendRequest request;
     request.receiverGuid = ReceiverGuid();
     request.receiver = "Aldor";
     request.subject = kSubject;
@@ -208,10 +209,9 @@ TEST(CalendarMailAsync_SendMailStagesTheOfflineMailboxCountAndDropsItWhenTheSend
     {
         TickGuard::Scope scope;
 
-        // What HandleSendMail stages for an OFFLINE receiver. Before this PR the same line
-        // was a blocking PQuery on the world thread, once per mail sent to anyone not
-        // logged in.
-        WorldSession::QueueSendMailboxCountRead(kAccountId, proto::SessionId(1), SenderGuid(), request);
+        // What MailHandlers::HandleSendMail stages for an OFFLINE receiver: one queued read,
+        // and no query on the world thread.
+        MailHandlers::QueueSendMailboxCountRead(kAccountId, proto::SessionId(1), SenderGuid(), request);
 
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(query.executed.size(), size_t(0));

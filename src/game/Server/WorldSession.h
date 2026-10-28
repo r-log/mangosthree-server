@@ -511,7 +511,6 @@ class WorldSession
         void SendListInventory(ObjectGuid guid);
         bool CheckBanker(ObjectGuid guid);
         void SendShowBank(ObjectGuid guid);
-        bool CheckMailBox(ObjectGuid guid);
         void SendShowMailBox(ObjectGuid guid);
         void SendTabardVendorActivate(ObjectGuid guid);
         void SendSpiritResurrect();
@@ -904,39 +903,6 @@ class WorldSession
         void HandleStablePet(WorldPacket& recvPacket);
         void HandleUnstablePet(WorldPacket& recvPacket);
 
-        void HandleGetMailList(WorldPacket& recv_data);
-
-        /// Everything CMSG_SEND_MAIL carries, captured by value into the continuation,
-        /// plus the receiver guid the handler resolved from memory.
-        struct MailSendRequest
-        {
-            ObjectGuid mailboxGuid;
-            ObjectGuid receiverGuid;
-            std::vector<ObjectGuid> itemGuids;
-            uint64 money = 0;
-            uint64 COD = 0;
-            std::string receiver;
-            std::string subject;
-            std::string body;
-            uint32 unk1 = 0;
-            uint32 unk2 = 0;
-        };
-
-        void HandleSendMail(WorldPacket& recv_data);
-        static void QueueSendMailboxCountRead(uint32 accountId, proto::SessionId sessionId,
-                                              ObjectGuid playerGuid, MailSendRequest request);
-        static void HandleSendMailCallback(std::optional<uint32> const& count, uint32 accountId,
-                                           proto::SessionId sessionId, ObjectGuid playerGuid,
-                                           MailSendRequest request);
-        void ProcessSendMail(MailSendRequest const& request, uint8 offlineMailsCount);
-
-        void HandleMailTakeMoney(WorldPacket& recv_data);
-        void HandleMailTakeItem(WorldPacket& recv_data);
-        void HandleMailMarkAsRead(WorldPacket& recv_data);
-        void HandleMailReturnToSender(WorldPacket& recv_data);
-        void HandleMailDelete(WorldPacket& recv_data);
-        void HandleMailCreateTextItem(WorldPacket& recv_data);
-        void HandleQueryNextMailTime(WorldPacket& recv_data);
         void HandleCancelChanneling(WorldPacket& recv_data);
 
         void HandleUseItemOpcode(WorldPacket& recvPacket);
