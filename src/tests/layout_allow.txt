@@ -459,7 +459,6 @@ src/game/WorldHandlers/GroupMemberState.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/InstanceData.cpp -> src/proto/Opcodes.h
 src/game/WorldHandlers/InstanceData.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/InstanceData.h -> src/proto/WorldPacket.h
-src/game/WorldHandlers/ItemHandlerVendor.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/entities/player/PlayerRegistry.h
@@ -713,16 +712,8 @@ src/game/movement/MovementBridge.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
 src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
-# The auction house check accepts the player's own guid as the auctioneer when the player may use the auction command: ChatHandler(session.GetPlayer()).FindCommand("auction").
-src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The rename and the customize tell every client to drop the renamed character's cached data: sWorld.InvalidatePlayerDataToAllClient.
 src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp -> src/game/WorldHandlers/World.h
-# The stable master check asks whether the player may use the stable command: ChatHandler(session.GetPlayer()).FindCommand("stable").
-src/game/session/handlers/entities/NpcHandlers.cpp -> src/game/WorldHandlers/Chat.h
-# The chat handlers run a GM command typed in chat and check a message's links through ChatHandler(&session).
-src/game/session/handlers/social/ChatHandlers.cpp -> src/game/WorldHandlers/Chat.h
-# The mailbox check asks whether the player may use the mailbox command: ChatHandler(session.GetPlayer()).FindCommand("mailbox").
-src/game/session/handlers/social/MailHandlers.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h
 src/game/spells/auras [spells] -> src/game/MotionGenerators/MotionMaster.h
 src/game/spells/auras [spells] -> src/game/Object/Creature.h
@@ -876,7 +867,6 @@ src/game/spells/pipeline/Spell.h -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellCast.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellCheckTarget.cpp -> src/game/entities/player/Player.h
-src/game/spells/pipeline/SpellChecks.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/SpellChecks.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellChecks.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/game/entities/player/Player.h

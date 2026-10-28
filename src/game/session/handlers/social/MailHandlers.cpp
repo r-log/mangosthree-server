@@ -42,7 +42,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Opcodes.h"
-#include "Chat.h"
+#include "data/CommandHooks.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/mail/MailRepository.h"
 
@@ -58,7 +58,7 @@ bool MailHandlers::CheckMailBox(WorldSession& session, ObjectGuid guid)
     if (guid == session.GetPlayer()->GetObjectGuid())
     {
         // command case will return only if player have real access to command
-        if (!ChatHandler(session.GetPlayer()).FindCommand("mailbox"))
+        if (!sCommandHooks.MayUseCommand(*session.GetPlayer(), "mailbox"))
         {
             DEBUG_LOG("%s attempt open mailbox in cheating way.", guid.GetString().c_str());
             return false;

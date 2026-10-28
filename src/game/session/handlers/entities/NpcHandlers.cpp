@@ -47,7 +47,7 @@
 #include "Pet.h"
 #include "Guild.h"
 #include "GuildMgr.h"
-#include "Chat.h"
+#include "data/CommandHooks.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
 
@@ -450,7 +450,7 @@ bool NpcHandlers::CheckStableMaster(WorldSession& session, ObjectGuid guid)
     if (guid == session.GetPlayer()->GetObjectGuid())
     {
         // command case will return only if player have real access to command
-        if (!session.GetPlayer()->HasAuraType(SPELL_AURA_OPEN_STABLE) && !ChatHandler(session.GetPlayer()).FindCommand("stable"))
+        if (!session.GetPlayer()->HasAuraType(SPELL_AURA_OPEN_STABLE) && !sCommandHooks.MayUseCommand(*session.GetPlayer(), "stable"))
         {
             DEBUG_LOG("%s attempt open stable in cheating way.", guid.GetString().c_str());
             return false;

@@ -42,7 +42,7 @@
 #include "Object/AuctionHouseMgr.h"
 #include "WorldHandlers/Mail.h"
 #include "Utilities/Util.h"
-#include "WorldHandlers/Chat.h"
+#include "data/CommandHooks.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "Bag.h"
 #include "Creature.h"
@@ -113,7 +113,7 @@ AuctionHouseEntry const* AuctionHandlers::GetCheckedAuctionHouseForAuctioneer(Wo
     {
         // command case will return only if player have real access to command
         // using special access modes (1,-1) done at mode set in command, so not need recheck
-        if (session.GetPlayer()->GetAuctionAccessMode() == 0 && !ChatHandler(session.GetPlayer()).FindCommand("auction"))
+        if (session.GetPlayer()->GetAuctionAccessMode() == 0 && !sCommandHooks.MayUseCommand(*session.GetPlayer(), "auction"))
         {
             DEBUG_LOG("%s attempt open auction in cheating way.", guid.GetString().c_str());
             return NULL;

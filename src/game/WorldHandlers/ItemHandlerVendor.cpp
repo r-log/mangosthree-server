@@ -34,7 +34,7 @@
 #include "Creature.h"
 #include "DBCStores.h"
 #include "Player.h"
-#include "Chat.h"
+#include "data/CommandHooks.h"
 
 /**
  * @file ItemHandlerVendor.cpp
@@ -239,7 +239,7 @@ bool WorldSession::CheckBanker(ObjectGuid guid)
     if (guid == GetPlayer()->GetObjectGuid())
     {
         // command case will return only if player have real access to command
-        if (!ChatHandler(GetPlayer()).FindCommand("bank"))
+        if (!sCommandHooks.MayUseCommand(*GetPlayer(), "bank"))
         {
             DEBUG_LOG("%s attempt open bank in cheating way.", guid.GetString().c_str());
             return false;
