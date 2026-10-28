@@ -529,7 +529,6 @@ class WorldSession
         void SendPetNameQuery(ObjectGuid guid, uint32 petnumber);
         void SendStablePet(ObjectGuid guid);
         void SendStableResult(uint8 res);
-        bool CheckStableMaster(ObjectGuid guid);
 
         // Account Data
         AccountData* GetAccountData(AccountDataType type) { return &m_accountData[type]; }
@@ -782,7 +781,6 @@ class WorldSession
         void HandleShowingCloakOpcode(WorldPacket& recv_data);
 
         // repair
-        void HandleRepairItemOpcode(WorldPacket& recvPacket);
 
         void HandleMoveTeleportAckOpcode(WorldPacket& recvPacket);
         /// Every movement ack the registry has a layout for: decoded,
@@ -889,19 +887,6 @@ class WorldSession
         void HandleSaveGuildEmblemOpcode(WorldPacket& recvPacket);
         void HandleGuildQueryRanksOpcode(WorldPacket& recvPacket);
         void HandleGuildAutoDeclineToggleOpcode(WorldPacket& recvPacket);
-
-        void HandleTabardVendorActivateOpcode(WorldPacket& recvPacket);
-        void HandleBankerActivateOpcode(WorldPacket& recvPacket);
-        void HandleTrainerListOpcode(WorldPacket& recvPacket);
-        void HandleTrainerBuySpellOpcode(WorldPacket& recvPacket);
-
-        void HandleGossipHelloOpcode(WorldPacket& recvPacket);
-        void HandleGossipSelectOptionOpcode(WorldPacket& recvPacket);
-        void HandleSpiritHealerActivateOpcode(WorldPacket& recvPacket);
-        void HandleBinderActivateOpcode(WorldPacket& recvPacket);
-        void HandleListStabledPetsOpcode(WorldPacket& recvPacket);
-        void HandleStablePet(WorldPacket& recvPacket);
-        void HandleUnstablePet(WorldPacket& recvPacket);
 
         void HandleCancelChanneling(WorldPacket& recv_data);
 
