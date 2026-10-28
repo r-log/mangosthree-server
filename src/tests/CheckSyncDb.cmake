@@ -247,6 +247,7 @@ set(CONVERTED_FILES
     src/game/session/handlers/social/ContactHandlers.cpp
     src/game/session/handlers/social/PetitionHandlers.cpp
     src/game/session/handlers/entities/NpcHandlers.cpp
+    src/game/session/handlers/social/CalendarHandlers.cpp
 )
 
 set(ADMIN_SCOPE_FILES

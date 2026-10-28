@@ -57,6 +57,7 @@
 #include "session/handlers/entities/TaxiHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ChannelHandlers.h"
+#include "session/handlers/social/CalendarHandlers.h"
 #include "session/handlers/social/ChatHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
@@ -1231,19 +1232,19 @@ void InitializeOpcodes()
     OPCODE(CMSG_ALTER_APPEARANCE,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAlterAppearanceOpcode     );
     OPCODE(SMSG_ENABLE_BARBER_SHOP,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_BARBER_SHOP_RESULT,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_CALENDAR_GET_CALENDAR,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarGetCalendar       );
-    OPCODE(CMSG_CALENDAR_GET_EVENT,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarGetEvent          );
-    OPCODE(CMSG_CALENDAR_GUILD_FILTER,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarGuildFilter       );
-    OPCODE(CMSG_CALENDAR_ARENA_TEAM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarArenaTeam         );
-    OPCODE(CMSG_CALENDAR_ADD_EVENT,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarAddEvent          );
-    OPCODE(CMSG_CALENDAR_UPDATE_EVENT,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarUpdateEvent       );
-    OPCODE(CMSG_CALENDAR_REMOVE_EVENT,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarRemoveEvent       );
-    OPCODE(CMSG_CALENDAR_COPY_EVENT,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarCopyEvent         );
-    OPCODE(CMSG_CALENDAR_EVENT_INVITE,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarEventInvite       );
-    OPCODE(CMSG_CALENDAR_EVENT_RSVP,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarEventRsvp         );
-    OPCODE(CMSG_CALENDAR_EVENT_REMOVE_INVITE,            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarEventRemoveInvite );
-    OPCODE(CMSG_CALENDAR_EVENT_STATUS,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarEventStatus       );
-    OPCODE(CMSG_CALENDAR_EVENT_MODERATOR_STATUS,         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarEventModeratorStatus);
+    OPCODE(CMSG_CALENDAR_GET_CALENDAR,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarGetCalendar   );
+    OPCODE(CMSG_CALENDAR_GET_EVENT,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarGetEvent      );
+    OPCODE(CMSG_CALENDAR_GUILD_FILTER,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarGuildFilter   );
+    OPCODE(CMSG_CALENDAR_ARENA_TEAM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarArenaTeam     );
+    OPCODE(CMSG_CALENDAR_ADD_EVENT,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarAddEvent      );
+    OPCODE(CMSG_CALENDAR_UPDATE_EVENT,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarUpdateEvent   );
+    OPCODE(CMSG_CALENDAR_REMOVE_EVENT,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarRemoveEvent   );
+    OPCODE(CMSG_CALENDAR_COPY_EVENT,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarCopyEvent     );
+    OPCODE(CMSG_CALENDAR_EVENT_INVITE,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarEventInvite   );
+    OPCODE(CMSG_CALENDAR_EVENT_RSVP,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarEventRsvp     );
+    OPCODE(CMSG_CALENDAR_EVENT_REMOVE_INVITE,            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarEventRemoveInvite);
+    OPCODE(CMSG_CALENDAR_EVENT_STATUS,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarEventStatus   );
+    OPCODE(CMSG_CALENDAR_EVENT_MODERATOR_STATUS,         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarEventModeratorStatus);
     OPCODE(SMSG_CALENDAR_SEND_CALENDAR,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CALENDAR_SEND_EVENT,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CALENDAR_FILTER_GUILD,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1260,8 +1261,8 @@ void InitializeOpcodes()
     OPCODE(SMSG_CALENDAR_EVENT_REMOVED_ALERT,            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CALENDAR_EVENT_UPDATED_ALERT,            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CALENDAR_EVENT_MODERATOR_STATUS_ALERT,   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_CALENDAR_COMPLAIN,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarComplain          );
-    OPCODE(CMSG_CALENDAR_GET_NUM_PENDING,                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarGetNumPending     );
+    OPCODE(CMSG_CALENDAR_COMPLAIN,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarComplain      );
+    OPCODE(CMSG_CALENDAR_GET_NUM_PENDING,                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarGetNumPending );
     OPCODE(SMSG_CALENDAR_SEND_NUM_PENDING,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_SAVE_DANCE,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_NOTIFY_DANCE,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1374,7 +1375,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_CORPSE_TRANSPORT_QUERY,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_UNUSED5,                                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_UNUSED6,                                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_CALENDAR_EVENT_SIGNUP,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCalendarEventSignup       );
+    OPCODE(CMSG_CALENDAR_EVENT_SIGNUP,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CalendarHandlers::HandleCalendarEventSignup   );
     OPCODE(SMSG_CALENDAR_CLEAR_PENDING_ACTION,           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_LOAD_EQUIPMENT_SET,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_SAVE_EQUIPMENT_SET,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleEquipmentSetSaveOpcode    );

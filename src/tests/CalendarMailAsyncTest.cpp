@@ -60,6 +60,7 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "session/handlers/social/CalendarHandlers.h"
 #include "session/handlers/social/MailHandlers.h"
 #include "persistence/characters/social/ArenaTeamRepository.h"
 #include "persistence/characters/social/GuildRepository.h"
@@ -244,7 +245,7 @@ TEST(CalendarMailAsync_TheCalendarInviteTakesTheOfflineInviteeFromTheCacheAndOnl
 
     AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
 
-    WorldSession::CalendarInviteRequest request;
+    CalendarHandlers::CalendarInviteRequest request;
     request.playerGuid = SenderGuid();
     request.name = "Aldor";
     request.eventId = 11;
@@ -258,14 +259,14 @@ TEST(CalendarMailAsync_TheCalendarInviteTakesTheOfflineInviteeFromTheCacheAndOnl
         // them in the production helper fails this case.
         CharacterCacheRef cached = sCharacterCache.GetByName("aldor");
         REQUIRE(cached != NULL);
-        WorldSession::ResolveCalendarInvitee(*cached, request);
+        CalendarHandlers::ResolveCalendarInvitee(*cached, request);
 
         CHECK(request.inviteeGuid == ReceiverGuid());
         CHECK_EQ(request.inviteeTeam, uint32(ALLIANCE));
         CHECK_EQ(request.inviteeGuildId, kGuildId);
 
         // ... and the one fact that is NOT cached, staged instead of blocked on.
-        WorldSession::QueueCalendarInviteIgnoreRead(kAccountId, proto::SessionId(1), request);
+        CalendarHandlers::QueueCalendarInviteIgnoreRead(kAccountId, proto::SessionId(1), request);
 
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(query.executed.size(), size_t(0));
