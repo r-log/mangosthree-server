@@ -31,6 +31,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "ProgressBar.h"
 #include "Util.h"
 

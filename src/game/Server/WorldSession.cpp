@@ -65,6 +65,7 @@
 #include "WorldSession.h"
 #include "Player.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "ObjectLookup.h"
 #include "GameTime.h"
 #include "Group.h"

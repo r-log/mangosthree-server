@@ -29,6 +29,7 @@
 #include "Group.h"
 #include "Player.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "spells/data/SpellMgr.h"
 #include "CreatureAI.h"
 #include "InstanceData.h"

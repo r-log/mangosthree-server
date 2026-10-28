@@ -35,6 +35,7 @@
 
 #include "Chat.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "Language.h"
 #include "data/GameConfig.h"
 #include "WorldSession.h"

@@ -42,6 +42,7 @@
 #include "AchievementMgr.h"
 #include "CharacterCache.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "Language.h"
 #include "data/GameConfig.h"
 #include "AccountMgr.h"

@@ -33,6 +33,7 @@
 #include "Log.h"
 #include "Group.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
 #include "Unit.h"

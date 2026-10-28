@@ -207,6 +207,8 @@ src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Group.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/InstanceData.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Mail.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapManager.h
+# reached through ObjectMgr.h before #511
+src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
@@ -216,7 +218,6 @@ src/game/Object/ObjectMgr.h -> src/game/Object/Corpse.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Object.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Pet.h
 src/game/Object/ObjectMgr.h -> src/game/WorldHandlers/Map.h
-src/game/Object/ObjectMgr.h -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object/ObjectMgr.h -> src/game/entities/player/Player.h
 src/game/Object/ObjectMgr.h -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgrCreatures.cpp -> src/game/Object/LivingWorldAnchorPolicy.h
@@ -227,6 +228,8 @@ src/game/Object/ObjectMgrGameTele.cpp -> src/game/WorldHandlers/MapManager.h
 src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectMgrInstanceData.cpp -> src/game/Object/ArenaTeam.h
 src/game/Object/ObjectMgrInstanceData.cpp -> src/game/WorldHandlers/Group.h
+# reached through ObjectMgr.h before #511
+src/game/Object/ObjectMgrInstanceData.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/WorldHandlers/MapManager.h
 src/game/Object/ObjectMgrQuests.cpp -> src/game/spells/data/SpellMgr.h
@@ -385,6 +388,8 @@ src/game/WorldHandlers/ChatMessageValidation.cpp -> src/game/WorldHandlers/Chat.
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/Creature.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/CreatureAI.h
+# reached through ObjectMgr.h before #511
+src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/DisableMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
 src/game/WorldHandlers/DisableMgr.cpp -> src/game/OutdoorPvP/OutdoorPvPMgr.h
 src/game/WorldHandlers/DisableMgr.cpp -> src/game/entities/player/Player.h
@@ -392,6 +397,8 @@ src/game/WorldHandlers/GameEventMgr.cpp -> src/game/BattleGround/BattleGroundMgr
 # reached through ObjectMgr.h before #509
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/Object/GameObject.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapManager.h
+# reached through ObjectMgr.h before #511
+src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MassMailMgr.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/proto/WorldPacket.h
@@ -807,6 +814,8 @@ src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/Group.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/LineOfSightExemptions.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/MapManager.h
+# reached through ObjectMgr.h before #511
+src/game/spells/pipeline [spells] -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/SkillExtraItems.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/TransportMap.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/Transports.h

@@ -31,6 +31,7 @@
 #include "Log.h"
 #include "WorldPacket.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "spells/data/SpellMgr.h"
 #include "Unit.h"
 #include "Util.h"

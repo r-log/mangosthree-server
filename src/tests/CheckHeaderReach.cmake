@@ -83,6 +83,7 @@ set(REACH_RULES
     "data/GossipRecords.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Object/Object.h,WorldHandlers/Map.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/PlayerCreateInfo.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Object/Object.h,WorldHandlers/Map.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/ReputationRecords.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Object/Object.h,WorldHandlers/Map.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "data/CellObjectGuids.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Object/Object.h,WorldHandlers/Map.h,WorldHandlers/MapPersistentStateMgr.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/CreatureRecords.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Object/Object.h,Object/Creature.h,WorldHandlers/Map.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/ScriptHooks.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "session/handlers/combat/CombatHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"

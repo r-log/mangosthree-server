@@ -38,6 +38,7 @@
 #include "Log.h"
 #include "World.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "AchievementMgr.h"
 #include "Player.h"
 #include "CinematicFlyover.h"

@@ -28,6 +28,7 @@
 #include "BattleGround.h"
 #include "BattleGroundEY.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "GameObject.h"
 #include "BattleGroundMgr.h"
 #include "Language.h"
