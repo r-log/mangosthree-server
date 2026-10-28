@@ -24,14 +24,16 @@
  */
 
 /**
- * @file ChatMessageValidation.cpp
- * @brief ChatHandler::isValidChatMessage, the chat shift-link check.
+ * @file ChatLinks.cpp
+ * @brief ChatLinks::IsValid, the chat shift-link check.
  */
 
+#include "session/handlers/social/ChatLinks.h"
+
 #include "Common/Locales.h"
+#include <cstring>
 #include <sstream>
 #include <string>
-#include "Chat.h"
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
@@ -44,7 +46,7 @@
  * @param message The message text to validate.
  * @return true if the message is valid; otherwise false.
  */
-bool ChatHandler::isValidChatMessage(const char* message)
+bool ChatLinks::IsValid(const char* message)
 {
     /*
 
@@ -146,14 +148,14 @@ bool ChatHandler::isValidChatMessage(const char* message)
         }
         else if (reader.get() != '|')
         {
-            DEBUG_LOG("ChatHandler::isValidChatMessage sequence aborted unexpectedly");
+            DEBUG_LOG("ChatLinks::IsValid sequence aborted unexpectedly");
             return false;
         }
 
         // pipe has always to be followed by at least one char
         if (reader.peek() == '\0')
         {
-            DEBUG_LOG("ChatHandler::isValidChatMessage pipe followed by \\0");
+            DEBUG_LOG("ChatLinks::IsValid pipe followed by \\0");
             return false;
         }
 
@@ -182,14 +184,14 @@ bool ChatHandler::isValidChatMessage(const char* message)
             }
             else
             {
-                DEBUG_LOG("ChatHandler::isValidChatMessage invalid sequence, expected %c but got %c", *validSequenceIterator, commandChar);
+                DEBUG_LOG("ChatLinks::IsValid invalid sequence, expected %c but got %c", *validSequenceIterator, commandChar);
                 return false;
             }
         }
         else if (validSequence != validSequenceIterator)
         {
             // no escaped pipes in sequences
-            DEBUG_LOG("ChatHandler::isValidChatMessage got escaped pipe in sequence");
+            DEBUG_LOG("ChatLinks::IsValid got escaped pipe in sequence");
             return false;
         }
 
@@ -204,7 +206,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
                     reader >> c;
                     if (!c)
                     {
-                        DEBUG_LOG("ChatHandler::isValidChatMessage got \\0 while reading color in |c command");
+                        DEBUG_LOG("ChatLinks::IsValid got \\0 while reading color in |c command");
                         return false;
                     }
 
@@ -220,7 +222,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
                         color |= 10 + c - 'a';
                         continue;
                     }
-                    DEBUG_LOG("ChatHandler::isValidChatMessage got non hex char '%c' while reading color", c);
+                    DEBUG_LOG("ChatLinks::IsValid got non hex char '%c' while reading color", c);
                     return false;
                 }
                 break;
@@ -267,13 +269,13 @@ bool ChatHandler::isValidChatMessage(const char* message)
                     linkedItem = ObjectMgr::GetItemPrototype(atoi(buffer));
                     if (!linkedItem)
                     {
-                        DEBUG_LOG("ChatHandler::isValidChatMessage got invalid itemID %u in |item command", atoi(buffer));
+                        DEBUG_LOG("ChatLinks::IsValid got invalid itemID %u in |item command", atoi(buffer));
                         return false;
                     }
 
                     if (color != ItemQualityColors[linkedItem->Quality])
                     {
-                        DEBUG_LOG("ChatHandler::isValidChatMessage linked item has color %u, but user claims %u", ItemQualityColors[linkedItem->Quality],
+                        DEBUG_LOG("ChatLinks::IsValid linked item has color %u, but user claims %u", ItemQualityColors[linkedItem->Quality],
                                   color);
                         return false;
                     }
@@ -354,13 +356,13 @@ bool ChatHandler::isValidChatMessage(const char* message)
 
                     if (!linkedQuest)
                     {
-                        DEBUG_LOG("ChatHandler::isValidChatMessage Questtemplate %u not found", questid);
+                        DEBUG_LOG("ChatLinks::IsValid Questtemplate %u not found", questid);
                         return false;
                     }
 
                     if (c != ':')
                     {
-                        DEBUG_LOG("ChatHandler::isValidChatMessage Invalid quest link structure");
+                        DEBUG_LOG("ChatLinks::IsValid Invalid quest link structure");
                         return false;
                     }
 
@@ -378,13 +380,13 @@ bool ChatHandler::isValidChatMessage(const char* message)
 
                     if (questlevel >= STRONG_MAX_LEVEL)
                     {
-                        DEBUG_LOG("ChatHandler::isValidChatMessage Quest level %u too big", questlevel);
+                        DEBUG_LOG("ChatLinks::IsValid Quest level %u too big", questlevel);
                         return false;
                     }
 
                     if (c != '|')
                     {
-                        DEBUG_LOG("ChatHandler::isValidChatMessage Invalid quest link structure");
+                        DEBUG_LOG("ChatLinks::IsValid Invalid quest link structure");
                         return false;
                     }
                 }
@@ -564,7 +566,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
                 }
                 else
                 {
-                    DEBUG_LOG("ChatHandler::isValidChatMessage user sent unsupported link type '%s'", buffer);
+                    DEBUG_LOG("ChatLinks::IsValid user sent unsupported link type '%s'", buffer);
                     return false;
                 }
                 break;
@@ -575,7 +577,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
                     // links start with '['
                     if (reader.get() != '[')
                     {
-                        DEBUG_LOG("ChatHandler::isValidChatMessage link caption doesn't start with '['");
+                        DEBUG_LOG("ChatLinks::IsValid link caption doesn't start with '['");
                         return false;
                     }
                     reader.getline(buffer, 256, ']');
@@ -665,7 +667,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
 
                             if (!ql)
                             {
-                                DEBUG_LOG("ChatHandler::isValidChatMessage default questname didn't match and there is no locale");
+                                DEBUG_LOG("ChatLinks::IsValid default questname didn't match and there is no locale");
                                 return false;
                             }
 
@@ -680,7 +682,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
                             }
                             if (!foundName)
                             {
-                                DEBUG_LOG("ChatHandler::isValidChatMessage no quest locale title matched");
+                                DEBUG_LOG("ChatLinks::IsValid no quest locale title matched");
                                 return false;
                             }
                         }
@@ -726,7 +728,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
                             }
                             if (!foundName)
                             {
-                                DEBUG_LOG("ChatHandler::isValidChatMessage linked item name wasn't found in any localization");
+                                DEBUG_LOG("ChatLinks::IsValid linked item name wasn't found in any localization");
                                 return false;
                             }
                         }
@@ -760,7 +762,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
                 // no further payload
                 break;
             default:
-                DEBUG_LOG("ChatHandler::isValidChatMessage got invalid command |%c", commandChar);
+                DEBUG_LOG("ChatLinks::IsValid got invalid command |%c", commandChar);
                 return false;
         }
     }
@@ -768,7 +770,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
     // check if every opened sequence was also closed properly
     if (validSequence != validSequenceIterator)
     {
-        DEBUG_LOG("ChatHandler::isValidChatMessage EOF in active sequence");
+        DEBUG_LOG("ChatLinks::IsValid EOF in active sequence");
     }
 
     return validSequence == validSequenceIterator;

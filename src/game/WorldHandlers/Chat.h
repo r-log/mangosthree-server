@@ -165,7 +165,6 @@ class ChatHandler
         /// must never be called from inside World::Update by anything else.
         static void LoadCommandTable();
 
-        bool isValidChatMessage(const char* msg);
         bool HasSentErrorMessage() { return sentErrorMessage;}
 
         /// BuildMessageChatPacket (session/packets/chat/MessageChatPacket.h), for the code below the

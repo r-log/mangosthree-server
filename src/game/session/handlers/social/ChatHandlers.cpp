@@ -24,6 +24,7 @@
  */
 
 #include "session/handlers/social/ChatHandlers.h"
+#include "session/handlers/social/ChatLinks.h"
 
 #include "Common/ServerDefines.h"
 #include "Platform/Define.h"
@@ -68,7 +69,7 @@ bool ChatHandlers::processChatmessageFurtherAfterSecurityChecks(WorldSession& se
         }
 
         if (sGameConfig.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY) && session.GetSecurity() < SEC_MODERATOR
-            && !ChatHandler(&session).isValidChatMessage(msg.c_str()))
+            && !ChatLinks::IsValid(msg.c_str()))
         {
             sLog.outError("Player %s (GUID: %u) sent a chatmessage with an invalid link: %s", session.GetPlayer()->GetName(),
                           session.GetPlayer()->GetGUIDLow(), msg.c_str());

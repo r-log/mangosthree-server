@@ -31,21 +31,21 @@ only `src/shared`; session includes it 116 times, the motion layer 19 times (8 f
 These directories **dissolve**:
 - `Object/` (143 files): 63 to entities, 28 to data, 25 to ai, 10 to social, 9 to combat, 6 to economy and 2 to
   foundation (`ObjectGuid`).
-- `WorldHandlers/` (134 files): 33 to session (the 24 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
-  `AccountMgr`, `WorldSessionMgr`, `ChatMessage*`), 40 to maps, 26 to social, 12 to scripts, 12 to data, 4 to
+- `WorldHandlers/` (133 files): 32 to session (the 24 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
+  `AccountMgr`, `WorldSessionMgr`), 40 to maps, 26 to social, 12 to scripts, 12 to data, 4 to
   economy, 4 to entities (achievements) and 3 to app.
 - `Server/`: 11 files to session, 15 to data and `GameGlobals` to persistence. `References/`: threat to combat,
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 344 include lines go against the table.
+**Today:** 343 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 129 | `WorldPacket.h` 79, `Opcodes.h` 47 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
 | domain -> session | 83 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
 | any -> app | 26 | `World.h`: scripts 10, session 7, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
-| domain, data, session -> scripts | 24 | `ScriptMgr.h` 6, `Chat.h` 18 | `Map.cpp`, `ChatHandlers.cpp`, `PlayerChat.cpp` |
+| domain, data, session -> scripts | 23 | `ScriptMgr.h` 6, `Chat.h` 17 | `Map.cpp`, `ChatHandlers.cpp`, `PlayerChat.cpp` |
 | data -> domain | 58 | `MapManager.h` 5, `MapPersistentStateMgr.h` 5, `SpellMgr.h` 5, `Creature.h` 5 | `ObjectMgr.cpp`, `GameEventMgr.cpp`, `CreatureLinkingMgr.cpp` |
 | motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSplineInit.cpp`, `MoveSpline.cpp`, `WireParity.cpp` |
 | rest | 12 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
