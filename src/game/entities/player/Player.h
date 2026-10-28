@@ -93,6 +93,7 @@
 #include "ReputationMgr.h"
 #include "SocialList.h"     // the contact list and friend status facts of the player's own client
 #include "SharedDefines.h"
+#include "data/PlayerCreateInfo.h"
 
 #include<string>
 #include<vector>
@@ -288,75 +289,6 @@ enum ActionButtonIndex
 typedef std::map<uint8, ActionButton> ActionButtonList;
 
 // GlyphUpdateState and Glyph struct moved to GlyphMgr.h (2026-05-12).
-
-struct PlayerCreateInfoItem
-{
-    PlayerCreateInfoItem(uint32 id, uint32 amount) : item_id(id), item_amount(amount) {}
-
-    uint32 item_id;     // Item ID
-    uint32 item_amount; // Item amount
-};
-
-typedef std::list<PlayerCreateInfoItem> PlayerCreateInfoItems;
-
-// Structure to hold player class level info
-
-// Structure to hold player class info
-
-
-// Structure to hold player level info
-struct PlayerLevelInfo
-{
-    PlayerLevelInfo()
-    {
-        for (int i = 0; i < MAX_STATS; ++i)
-        {
-            stats[i] = 0;
-        }
-    }
-
-    uint8 stats[MAX_STATS]; // Stats array
-};
-
-typedef std::list<uint32> PlayerCreateInfoSpells;
-
-// Structure to hold player create info action
-struct PlayerCreateInfoAction
-{
-    PlayerCreateInfoAction() : button(0), type(0), action(0) {}
-    PlayerCreateInfoAction(uint8 _button, uint32 _action, uint8 _type) : button(_button), type(_type), action(_action) {}
-
-    uint8 button;  // Button index
-    uint8 type;    // Action type
-    uint32 action; // Action ID
-};
-
-typedef std::list<PlayerCreateInfoAction> PlayerCreateInfoActions;
-
-// Structure to hold player info
-struct PlayerInfo
-{
-    // existence checked by displayId != 0             // existence checked by displayId != 0
-    PlayerInfo() : mapId(0), areaId(0), positionX(0.f), positionY(0.f), positionZ(0.f), orientation(0.f), displayId_m(0), displayId_f(0), levelInfo(NULL)
-    {
-    }
-
-    uint32 mapId;
-    uint32 areaId;
-    float positionX;
-    float positionY;
-    float positionZ;
-    float orientation;
-    uint16 phaseMap;
-    uint16 displayId_m;
-    uint16 displayId_f;
-    PlayerCreateInfoItems item;
-    PlayerCreateInfoSpells spell;
-    PlayerCreateInfoActions action;
-
-
-    PlayerLevelInfo* levelInfo; // Level info array [level-1] 0..MaxPlayerLevel-1
-};
 
 // Structure to hold PvP info
 struct PvPInfo
@@ -4092,6 +4024,11 @@ class Player : public Unit
 
     private:
         Cell m_currentCell;   ///< the grid cell this player is filed under (see GetCurrentCell)
+
+        // The object manager's quest template and exclusive group lookups, in the shape the quest
+        // status manager takes them: one object each for the process, so a call builds nothing
+        static QuestStatusMgr::TemplateLookup const& QuestTemplateLookup();
+        static QuestStatusMgr::ExclusiveGroupLookup const& QuestExclusiveGroupLookup();
 
         // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
         // so only a call through Unit reaches it

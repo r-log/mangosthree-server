@@ -32,6 +32,7 @@
 #include "Utilities/Errors.h"
 #include <algorithm>
 #include <string>
+#include <type_traits>
 #include "Player.h"
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
@@ -66,6 +67,38 @@
 #include "QuestCompletePacket.h"
 #include "QuestRewardRules.h"
 #include "persistence/characters/quests/QuestTrackerRepository.h"
+
+/**
+ * @brief GetQuestTemplate as the lookup the quest status manager takes.
+ *
+ * One object for the process, so a caller passes a reference and builds nothing per call.
+ */
+QuestStatusMgr::TemplateLookup const& Player::QuestTemplateLookup()
+{
+    static QuestStatusMgr::TemplateLookup const lookup = [](uint32 questId)
+    {
+        return sObjectMgr.GetQuestTemplate(questId);
+    };
+    return lookup;
+}
+
+// QuestStatusMgr.h may not include the object manager's header, so it spells the bounds type itself.
+static_assert(std::is_same<ExclusiveQuestGroupsMapBounds, QuestStatusMgr::ExclusiveGroupBounds>::value,
+              "QuestStatusMgr::ExclusiveGroupBounds must be ObjectMgr's ExclusiveQuestGroupsMapBounds");
+
+/**
+ * @brief GetExclusiveQuestGroupsMapBounds as the lookup the quest status manager takes.
+ *
+ * One object for the process, like QuestTemplateLookup().
+ */
+QuestStatusMgr::ExclusiveGroupLookup const& Player::QuestExclusiveGroupLookup()
+{
+    static QuestStatusMgr::ExclusiveGroupLookup const lookup = [](int32 groupId)
+    {
+        return sObjectMgr.GetExclusiveQuestGroupsMapBounds(groupId);
+    };
+    return lookup;
+}
 
 /*********************************************************/
 /***                    QUEST SYSTEM                   ***/
@@ -1258,8 +1291,8 @@ bool Player::SatisfyQuestLog(bool msg) const
  */
 bool Player::SatisfyQuestPreviousQuest(Quest const* qInfo, bool msg) const
 {
-    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestPreviousQuest(qInfo, ObjectMgr::QuestTemplateLookup(),
-        ObjectMgr::QuestExclusiveGroupLookup());
+    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestPreviousQuest(qInfo, QuestTemplateLookup(),
+        QuestExclusiveGroupLookup());
     if (!verdict.satisfied && msg)
     {
         SendCanTakeQuestResponse(verdict.reason);
@@ -1418,8 +1451,8 @@ bool Player::SatisfyQuestExclusiveGroup(Quest const* qInfo, bool msg) const
     {
         return SatisfyQuestDay(quest, false);
     };
-    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestExclusiveGroup(qInfo, ObjectMgr::QuestTemplateLookup(),
-        ObjectMgr::QuestExclusiveGroupLookup(), dailyCheck);
+    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestExclusiveGroup(qInfo, QuestTemplateLookup(),
+        QuestExclusiveGroupLookup(), dailyCheck);
     if (!verdict.satisfied && msg)
     {
         SendCanTakeQuestResponse(verdict.reason);
@@ -1620,7 +1653,7 @@ bool Player::TakeQuestSourceItem(uint32 quest_id, bool msg)
  */
 bool Player::GetQuestRewardStatus(uint32 quest_id) const
 {
-    return m_questStatusMgr.GetQuestRewardStatus(quest_id, ObjectMgr::QuestTemplateLookup());
+    return m_questStatusMgr.GetQuestRewardStatus(quest_id, QuestTemplateLookup());
 }
 
 /**
@@ -1631,7 +1664,7 @@ bool Player::GetQuestRewardStatus(uint32 quest_id) const
  */
 bool Player::CanShareQuest(uint32 quest_id) const
 {
-    return m_questStatusMgr.CanShareQuest(quest_id, ObjectMgr::QuestTemplateLookup());
+    return m_questStatusMgr.CanShareQuest(quest_id, QuestTemplateLookup());
 }
 
 /**
@@ -1642,7 +1675,7 @@ bool Player::CanShareQuest(uint32 quest_id) const
  */
 void Player::SetQuestStatus(uint32 quest_id, QuestStatus status)
 {
-    m_questStatusMgr.SetQuestStatus(quest_id, status, ObjectMgr::QuestTemplateLookup());
+    m_questStatusMgr.SetQuestStatus(quest_id, status, QuestTemplateLookup());
 
     UpdateForQuestWorldObjects();
 }
@@ -1650,7 +1683,7 @@ void Player::SetQuestStatus(uint32 quest_id, QuestStatus status)
 // not used in MaNGOS, but used in scripting code
 uint32 Player::GetReqKillOrCastCurrentCount(uint32 quest_id, int32 entry)
 {
-    return m_questStatusMgr.GetReqKillOrCastCurrentCount(quest_id, entry, ObjectMgr::QuestTemplateLookup());
+    return m_questStatusMgr.GetReqKillOrCastCurrentCount(quest_id, entry, QuestTemplateLookup());
 }
 
 /**

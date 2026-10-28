@@ -29,6 +29,7 @@
 #include <utility>
 #include "Platform/Define.h"
 #include "SharedDefines.h"
+#include "data/ReputationRecords.h"
 #include "DBCStructure.h"
 #include <functional>
 #include <list>
@@ -109,17 +110,6 @@ typedef std::function<void(FactionStandingFact const&)> FactionStandingSink;
 typedef std::function<void(InitialReputationsFact const&)> InitialReputationsSink;
 typedef std::function<void(FactionVisibleFact const&)> FactionVisibleSink;
 typedef std::function<void(FactionAtWarFact const&)> FactionAtWarSink;
-
-/// A reputation spillover row (the world database's spillover template): the factions that also
-/// receive a change to one faction, each with its rate and the highest rank it still gains at.
-/// The object manager loads and holds the rows; the definition lives here because this manager
-/// reads them and the object manager's header must stay out of its reach.
-struct RepSpilloverTemplate
-{
-    uint32 faction[MAX_SPILLOVER_FACTIONS];
-    float faction_rate[MAX_SPILLOVER_FACTIONS];
-    uint32 faction_rank[MAX_SPILLOVER_FACTIONS];
-};
 
 struct ReputationRow;
 

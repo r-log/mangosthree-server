@@ -46,7 +46,7 @@
 #include "ObjectGuid.h"
 #include "Player.h"
 #include "UpdateMask.h"
-#include "NPCHandler.h"
+#include "data/GossipRecords.h"
 #include "Pet.h"
 #include "MapManager.h"
 #include "persistence/characters/CharacterRepository.h"

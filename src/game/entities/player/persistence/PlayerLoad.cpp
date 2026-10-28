@@ -922,7 +922,7 @@ void Player::_LoadQuestStatus(std::vector<QuestStatusRow> const& rows)
             // next row is read. Applying a rewarded row casts spells, and a quest-complete
             // effect reaches AreaExploredOrEventHappens, which reads and writes a later row --
             // so the load must stay one pass, row by row, as it always was.
-            QuestRowResult row = m_questStatusMgr.FillRow(statusRow, WorldGameTime::Get(), GetName(), ObjectMgr::QuestTemplateLookup());
+            QuestRowResult row = m_questStatusMgr.FillRow(statusRow, WorldGameTime::Get(), GetName(), QuestTemplateLookup());
             if (row.accepted)
             {
                 uint32 quest_id = row.questId;
