@@ -40,6 +40,10 @@
 #include "spells/data/SpellMgr.h"
 #include "DisableMgr.h"
 #include "World.h"
+#include "WorldPacket.h"
+#include "WorldSession.h"
+#include "Player.h"
+#include "session/packets/chat/MessageChatPacket.h"
 #include "MapManager.h"
 #include "CreatureEventAIMgr.h"
 #include "BattleGroundMgr.h"
@@ -49,6 +53,38 @@
 #include "CommandMgr.h"
 #include "ObjectMgr.h"
 #include "persistence/TableRead.h"
+
+/**
+ * @brief Sends a global system message to all sessions meeting the minimum security level.
+ *
+ * @param str The message text to send.
+ * @param minSec The minimum security level required to receive the message.
+ */
+void ChatHandler::SendGlobalSysMessage(const char* str, AccountTypes minSec)
+{
+    // Chat output
+    WorldPacket data;
+
+    // need copy to prevent corruption by strtok call in LineFromMessage original string
+    char* buf = mangos_strdup(str);
+    char* pos = buf;
+    ObjectGuid senderGuid = m_session ? m_session->GetPlayer()->GetObjectGuid() : ObjectGuid();
+
+    while (char* line = LineFromMessage(pos))
+    {
+        // m_session == null when we're accessing these command from the console.
+        ObjectGuid senderGuid;
+        if (m_session)
+        {
+            senderGuid = m_session->GetPlayer()->GetObjectGuid();
+        }
+
+        BuildMessageChatPacket(data, CHAT_MSG_SYSTEM, line, LANG_UNIVERSAL, CHAT_TAG_NONE, senderGuid);
+        sWorld.SendGlobalMessage(&data, minSec);
+    }
+
+    delete[] buf;
+}
 
 /**
  * @brief Handler for HandleReloadAllSpellCommand command.
