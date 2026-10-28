@@ -224,7 +224,6 @@ src/game/Object/ObjectMgr.h -> src/game/entities/player/quests/QuestStatusMgr.h
 src/game/Object/ObjectMgr.h -> src/game/entities/player/social/ReputationMgr.h
 src/game/Object/ObjectMgrCreatures.cpp -> src/game/Object/LivingWorldAnchorPolicy.h
 src/game/Object/ObjectMgrCreatures.cpp -> src/game/spells/data/SpellMgr.h
-src/game/Object/ObjectMgrGameObjectInfo.cpp -> src/game/WorldHandlers/Path.h
 src/game/Object/ObjectMgrGameObjects.cpp -> src/game/WorldHandlers/GridDefines.h
 src/game/Object/ObjectMgrGameObjects.cpp -> src/game/WorldHandlers/MapManager.h
 src/game/Object/ObjectMgrGameTele.cpp -> src/game/WorldHandlers/MapManager.h
@@ -318,8 +317,6 @@ src/game/References [combat] -> src/game/Object/UnitEvents.h
 src/game/References [combat] -> src/game/WorldHandlers/Map.h
 src/game/References [combat] -> src/game/spells/data/SpellMgr.h
 src/game/References/ThreatManager.cpp -> src/game/entities/player/Player.h
-src/game/Server/DB2Structure.h -> src/game/WorldHandlers/Path.h
-src/game/Server/DBCStores.cpp -> src/game/WorldHandlers/Path.h
 src/game/Server/DBCStores.cpp -> src/game/spells/auras/SpellAuraDefines.h
 src/game/Server/WorldGateway.cpp -> src/game/WorldHandlers/World.h
 src/game/Server/WorldNetwork.cpp -> src/game/WorldHandlers/World.h
@@ -636,7 +633,6 @@ src/game/entities/player/world [entities] -> src/game/WorldHandlers/Group.h
 src/game/entities/player/world [entities] -> src/game/WorldHandlers/InstanceData.h
 src/game/entities/player/world [entities] -> src/game/WorldHandlers/MapManager.h
 src/game/entities/player/world [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/world [entities] -> src/game/WorldHandlers/Path.h
 src/game/entities/player/world [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/world [entities] -> src/game/spells/data/SpellMgr.h
 src/game/entities/player/world [entities] -> src/game/spells/pipeline/Spell.h
