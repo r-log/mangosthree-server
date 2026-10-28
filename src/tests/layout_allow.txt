@@ -476,7 +476,6 @@ src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Mail.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/MailHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/Map.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/Map.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/Map.cpp -> src/game/entities/player/Player.h
@@ -729,6 +728,8 @@ src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/
 src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The chat handlers run a GM command typed in chat and check a message's links through ChatHandler(&session).
 src/game/session/handlers/social/ChatHandlers.cpp -> src/game/WorldHandlers/Chat.h
+# The mailbox check asks whether the player may use the mailbox command: ChatHandler(session.GetPlayer()).FindCommand("mailbox").
+src/game/session/handlers/social/MailHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The ticket create and text update handlers tell every online GM who accepts tickets through ChatHandler(player).PSendSysMessage.
 src/game/session/handlers/social/TicketHandlers.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h
