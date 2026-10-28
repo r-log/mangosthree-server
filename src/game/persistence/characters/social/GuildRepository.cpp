@@ -88,12 +88,12 @@ namespace GuildRepository
             row.bankResetTimeTab[i] = fields[7 + (2 * i)].GetUInt32();
             row.bankRemSlotsTab[i] = fields[8 + (2 * i)].GetUInt32();
         }
-        row.name = fields[19].GetCppString();
-        row.level = fields[20].GetUInt8();
-        row.classId = fields[21].GetUInt8();
-        row.zone = fields[22].GetUInt32();
-        row.logoutTime = fields[23].GetUInt64();
-        row.account = fields[24].GetInt32();
+        row.name = fields[23].GetCppString();
+        row.level = fields[24].GetUInt8();
+        row.classId = fields[25].GetUInt8();
+        row.zone = fields[26].GetUInt32();
+        row.logoutTime = fields[27].GetUInt64();
+        row.account = fields[28].GetInt32();
         return row;
     }
 
@@ -102,6 +102,7 @@ namespace GuildRepository
         QueryResult* result = CharacterDatabase.Query("SELECT `guildid`,`guild_member`.`guid`,`rank`,`pnote`,`offnote`,`BankResetTimeMoney`,`BankRemMoney`,"
                                                       "`BankResetTimeTab0`,`BankRemSlotsTab0`,`BankResetTimeTab1`,`BankRemSlotsTab1`,`BankResetTimeTab2`,`BankRemSlotsTab2`,"
                                                       "`BankResetTimeTab3`,`BankRemSlotsTab3`,`BankResetTimeTab4`,`BankRemSlotsTab4`,`BankResetTimeTab5`,`BankRemSlotsTab5`,"
+                                                      "`BankResetTimeTab6`,`BankRemSlotsTab6`,`BankResetTimeTab7`,`BankRemSlotsTab7`,"
                                                       "characters.name, characters.level, characters.class, characters.zone, characters.logout_time, characters.account "
                                                       "FROM guild_member LEFT JOIN characters ON characters.guid = guild_member.guid ORDER BY guildid ASC");
         return ReadRows<GuildMemberDataRow>(result, ReadGuildMemberData);
