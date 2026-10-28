@@ -53,6 +53,7 @@ struct AccountSearchRow;
 struct AccountCharacterListRow;
 struct BanListAccountRow;
 class ChatHandler;
+class CommandHooks;
 class WorldSession;
 class WorldPacket;
 class GMTicket;
@@ -157,6 +158,10 @@ class ChatHandler
 
         bool ParseCommands(const char* text);
         ChatCommand const* FindCommand(char const* text);
+
+        /// The command system's answers to the core (data/CommandHooks.h): FindCommand for whether a
+        /// player may use a command, ParseCommands for a line typed in chat. mangosd installs them.
+        static CommandHooks& GetCommandHooks();
 
         /// Decoupling D7h: applies the `command` table's security and help overrides to
         /// the hardcoded command table. Called once by World::SetInitialWorldSettings,

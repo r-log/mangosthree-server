@@ -37,7 +37,7 @@
 #include "data/GameConfig.h"
 #include "Opcodes.h"
 #include "ObjectMgr.h"
-#include "Chat.h"
+#include "data/CommandHooks.h"
 #include "session/packets/chat/MessageChatPacket.h"
 #include "ChannelMgr.h"
 #include "Group.h"
@@ -238,7 +238,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
                 break;
             }
 
-            if (ChatHandler(&session).ParseCommands(msg.c_str()))
+            if (sCommandHooks.ParseChatCommand(*session.GetPlayer(), msg.c_str()))
             {
                 break;
             }
@@ -280,7 +280,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
                 break;
             }
 
-            if (ChatHandler(&session).ParseCommands(msg.c_str()))
+            if (sCommandHooks.ParseChatCommand(*session.GetPlayer(), msg.c_str()))
             {
                 break;
             }
@@ -330,7 +330,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
                 break;
             }
 
-            if (ChatHandler(&session).ParseCommands(msg.c_str()))
+            if (sCommandHooks.ParseChatCommand(*session.GetPlayer(), msg.c_str()))
             {
                 break;
             }
@@ -377,7 +377,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
                 break;
             }
 
-            if (ChatHandler(&session).ParseCommands(msg.c_str()))
+            if (sCommandHooks.ParseChatCommand(*session.GetPlayer(), msg.c_str()))
             {
                 break;
             }
@@ -410,7 +410,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
                 break;
             }
 
-            if (ChatHandler(&session).ParseCommands(msg.c_str()))
+            if (sCommandHooks.ParseChatCommand(*session.GetPlayer(), msg.c_str()))
             {
                 break;
             }
@@ -443,7 +443,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
                 break;
             }
 
-            if (ChatHandler(&session).ParseCommands(msg.c_str()))
+            if (sCommandHooks.ParseChatCommand(*session.GetPlayer(), msg.c_str()))
             {
                 break;
             }
@@ -483,7 +483,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
                 break;
             }
 
-            if (ChatHandler(&session).ParseCommands(msg.c_str()))
+            if (sCommandHooks.ParseChatCommand(*session.GetPlayer(), msg.c_str()))
             {
                 break;
             }

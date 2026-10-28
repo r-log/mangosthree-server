@@ -64,7 +64,7 @@
 #include "LineOfSightExemptions.h"
 #include "BattleGround/BattleGround.h"
 #include "Util.h"
-#include "Chat.h"
+#include "data/CommandHooks.h"
 #include "DB2Stores.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
@@ -965,7 +965,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
                 bool gmmode = m_triggeredBySpellInfo == NULL;
 
-                if (gmmode && !ChatHandler(plrCaster).FindCommand("npc tame"))
+                if (gmmode && !sCommandHooks.MayUseCommand(*plrCaster, "npc tame"))
                 {
                     plrCaster->SendPetTameFailure(PETTAME_UNKNOWNERROR);
                     return SPELL_FAILED_DONT_REPORT;

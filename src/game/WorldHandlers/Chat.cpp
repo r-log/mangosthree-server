@@ -59,6 +59,7 @@
 #include "ObjectGuid.h"
 #include "Player.h"
 #include "session/packets/chat/SystemMessage.h"
+#include "data/CommandHooks.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "AccountMgr.h"
@@ -1694,6 +1695,30 @@ bool ChatHandler::ParseCommands(const char* text)
     ExecuteCommand(text);
 
     return true;
+}
+
+namespace
+{
+    /// The core's questions answered from the command table and the player's access level.
+    class ChatCommandHooks : public CommandHooks
+    {
+        public:
+            bool MayUseCommand(Player& player, char const* command) override
+            {
+                return ChatHandler(&player).FindCommand(command) != NULL;
+            }
+
+            bool ParseChatCommand(Player& player, char const* text) override
+            {
+                return ChatHandler(&player).ParseCommands(text);
+            }
+    };
+}
+
+CommandHooks& ChatHandler::GetCommandHooks()
+{
+    static ChatCommandHooks hooks;
+    return hooks;
 }
 
 /**
