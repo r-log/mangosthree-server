@@ -27,6 +27,7 @@
 
 #include <string>
 #include "data/GameConfig.h"
+#include "World.h"
 #include "session/handlers/social/ChatLinks.h"
 
 /**
@@ -44,9 +45,9 @@ namespace
         public:
             explicit Severity(uint32 value) : m_old(sGameConfig.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY))
             {
-                sGameConfig.setConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY, value);
+                sWorld.setConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY, value);
             }
-            ~Severity() { sGameConfig.setConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY, m_old); }
+            ~Severity() { sWorld.setConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY, m_old); }
         private:
             uint32 m_old;
     };
