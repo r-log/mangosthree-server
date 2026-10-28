@@ -23,6 +23,8 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include "session/handlers/entities/CharacterCustomizeHandlers.h"
+
 #include "Common/ServerDefines.h"
 #include "Platform/Define.h"
 #include <functional>
@@ -57,12 +59,6 @@
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterTransaction.h"
 
-/**
- * @file CharacterHandlerCustomize.cpp
- * @brief WorldSession's character customization and client-settings handlers: rename, declined names, alter appearance,
- * customize, equipment sets, reorder characters, currency flags and load screen.
- */
-
 static_assert(CHARACTER_DECLINED_NAME_ROW_CASES == MAX_DECLINED_NAME_CASES, "a character's saved declined names are its declined names");
 
 namespace
@@ -81,7 +77,7 @@ namespace
  *
  * @param recv_data The received opcode packet.
  */
-void WorldSession::HandleCharRenameOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleCharRename(WorldSession& session, WorldPacket& recv_data)
 {
     ObjectGuid guid;
     std::string newname;
@@ -94,7 +90,7 @@ void WorldSession::HandleCharRenameOpcode(WorldPacket& recv_data)
     {
         WorldPacket data(SMSG_CHAR_RENAME, 1);
         data << uint8(CHAR_NAME_NO_NAME);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
@@ -103,61 +99,58 @@ void WorldSession::HandleCharRenameOpcode(WorldPacket& recv_data)
     {
         WorldPacket data(SMSG_CHAR_RENAME, 1);
         data << uint8(res);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
     // check name limitations
-    if (GetSecurity() == SEC_PLAYER && sObjectMgr.IsReservedName(newname))
+    if (session.GetSecurity() == SEC_PLAYER && sObjectMgr.IsReservedName(newname))
     {
         WorldPacket data(SMSG_CHAR_RENAME, 1);
         data << uint8(CHAR_NAME_RESERVED);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
-    // Decoupling D7d (C5): the `NOT EXISTS (... WHERE name = '%s')` subquery is the only
-    // reason this handler escaped a string on the world thread. Since D7c the same question
-    // is answered from the character cache, whose name index folds exactly the way the
-    // `characters`.`name` collation (utf8_general_ci) compares -- so the check moves up here,
-    // into memory, and the statement below carries numbers only. A taken name answered
-    // CHAR_CREATE_ERROR before (the subquery made the SELECT return nothing, and a NULL result
-    // is what the callback maps to that code); it answers the same thing, a tick earlier.
+    // The character cache answers whether the name is taken, and its name index folds the way
+    // the `characters`.`name` collation (utf8_general_ci) compares, so the check is made here,
+    // in memory, and the statement below carries numbers only. A taken name answers
+    // CHAR_CREATE_ERROR, the code the callback gives a missing row.
     if (sObjectMgr.GetPlayerGuidByName(newname))
     {
         WorldPacket data(SMSG_CHAR_RENAME, 1);
         data << uint8(CHAR_CREATE_ERROR);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
     // make sure that the character belongs to the current account and that rename at login
     // is enabled
-    uint32 accountId = GetAccountId();
-    proto::SessionId sessionId = GetSessionId();
+    uint32 accountId = session.GetAccountId();
+    proto::SessionId sessionId = session.GetSessionId();
     CharacterRepository::QueryRenameTarget(guid.GetCounter(), accountId, AT_LOGIN_RENAME,
                                            [accountId, sessionId, newname](std::optional<RenameTargetRow> row)
                                            {
-                                               WorldSession::HandleChangePlayerNameOpcodeCallBack(row, accountId, sessionId, newname);
+                                               CharacterCustomizeHandlers::HandleChangePlayerNameCallback(row, accountId, sessionId, newname);
                                            });
 }
 
 /**
  * @brief Finalizes a character rename after the database validation query completes.
  *
- * Decoupling D7d: the account id alone was not an identity -- a reconnect in the tick between
- * the request and this answer is a NEW session on the same account, and it would have been
- * handed a rename it never asked for. FindRequesterSession() compares the session id too (C1).
+ * The account id alone is not an identity: a reconnect in the tick between the request and
+ * this answer is a new session on the same account, which never asked for the rename.
+ * FindRequesterSession() compares the session id too.
  *
  * @param row The character the rename may rename, none when it may not.
  * @param accountId The session account id.
  * @param sessionId The session the request arrived on.
  * @param newname The requested new character name.
  */
-void WorldSession::HandleChangePlayerNameOpcodeCallBack(std::optional<RenameTargetRow> const& row, uint32 accountId,
+void CharacterCustomizeHandlers::HandleChangePlayerNameCallback(std::optional<RenameTargetRow> const& row, uint32 accountId,
                                                         proto::SessionId sessionId, std::string newname)
 {
-    WorldSession* session = FindRequesterSession(accountId, sessionId);
+    WorldSession* session = WorldSession::FindRequesterSession(accountId, sessionId);
     if (!session)
     {
         return;
@@ -175,13 +168,12 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(std::optional<RenameTarg
     ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, guidLow);
     std::string oldname = row->name;
 
-    // C3, and it is not optional. The handler checked the name against the cache in the tick
-    // the request arrived in; this runs a tick later, and in between the name can have been
-    // taken -- by a second rename to the same name on another session (whose own handler check
-    // also passed, because neither had written yet), or by a create whose continuation added it
-    // to the cache. The statement above no longer carries the `NOT EXISTS` subquery that used
-    // to answer this on the delay thread AFTER the first UPDATE, so the question has to be
-    // asked again here, immediately before the write. Same refusal the handler sends.
+    // The handler checked the name against the cache in the tick the request arrived in; this
+    // runs a tick later, and in between the name can have been taken, by a second rename to the
+    // same name on another session (whose own handler check also passed, because neither had
+    // written yet), or by a create whose continuation added it to the cache. The statement above
+    // does not check the name, so it is checked again here, immediately before the write, with
+    // the refusal the handler sends.
     if (sObjectMgr.GetPlayerGuidByName(newname))
     {
         WorldPacket data(SMSG_CHAR_RENAME, 1);
@@ -197,8 +189,8 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(std::optional<RenameTarg
     CharacterRepository::Rename(guidLow, newname, uint32(AT_LOGIN_RENAME));
     CharacterTransaction::Commit();
 
-    // Decoupling D7c: the name that answers GetPlayerGuidByName / GetPlayerNameByGUID is
-    // the one just written, from this moment on.
+    // The name that answers GetPlayerGuidByName / GetPlayerNameByGUID is the one just
+    // written, from this moment on.
     sCharacterCache.UpdateName(guid, newname);
 
     sLog.outChar("Account: %d (IP: %s) Character:[%s] (guid:%u) Changed name to: %s", session->GetAccountId(), session->GetRemoteAddress().c_str(), oldname.c_str(), guidLow, newname.c_str());
@@ -212,7 +204,7 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(std::optional<RenameTarg
     sWorld.InvalidatePlayerDataToAllClient(guid);
 }
 
-void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleSetPlayerDeclinedNames(WorldSession& session, WorldPacket& recv_data)
 {
     ObjectGuid guid;
 
@@ -224,7 +216,7 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
     {
         WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
         data << uint32(1);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
@@ -233,7 +225,7 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
     {
         WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
         data << uint32(1);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
@@ -241,7 +233,7 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
     {
         WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
         data << uint32(1);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
@@ -254,7 +246,7 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
     {
         WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
         data << uint32(1);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
@@ -265,7 +257,7 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
         {
             WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
             data << uint32(1);
-            SendPacket(&data);
+            session.SendPacket(&data);
             return;
         }
     }
@@ -274,7 +266,7 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
     {
         WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
         data << uint32(1);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
@@ -284,10 +276,10 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
 
     WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
     data << uint32(0);                                      // OK
-    SendPacket(&data);
+    session.SendPacket(&data);
 }
 
-void WorldSession::HandleAlterAppearanceOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleAlterAppearance(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("CMSG_ALTER_APPEARANCE");
 
@@ -295,10 +287,10 @@ void WorldSession::HandleAlterAppearanceOpcode(WorldPacket& recv_data)
     recv_data >> Hair >> Color >> FacialHair >> skinTone;
 
     uint32 skinTone_id = -1;
-    if (_player->getRace() == RACE_TAUREN)
+    if (session.GetPlayer()->getRace() == RACE_TAUREN)
     {
         BarberShopStyleEntry const* bs_skinTone = sBarberShopStyleStore.LookupEntry(skinTone);
-        if (!bs_skinTone || bs_skinTone->Type != 3 || bs_skinTone->Race != _player->getRace() || bs_skinTone->Sex != _player->getGender())
+        if (!bs_skinTone || bs_skinTone->Type != 3 || bs_skinTone->Race != session.GetPlayer()->getRace() || bs_skinTone->Sex != session.GetPlayer()->getGender())
         {
             return;
         }
@@ -307,62 +299,62 @@ void WorldSession::HandleAlterAppearanceOpcode(WorldPacket& recv_data)
 
     BarberShopStyleEntry const* bs_hair = sBarberShopStyleStore.LookupEntry(Hair);
 
-    if (!bs_hair || bs_hair->Type != 0 || bs_hair->Race != _player->getRace() || bs_hair->Sex != _player->getGender())
+    if (!bs_hair || bs_hair->Type != 0 || bs_hair->Race != session.GetPlayer()->getRace() || bs_hair->Sex != session.GetPlayer()->getGender())
     {
         return;
     }
 
     BarberShopStyleEntry const* bs_facialHair = sBarberShopStyleStore.LookupEntry(FacialHair);
 
-    if (!bs_facialHair || bs_facialHair->Type != 2 || bs_facialHair->Race != _player->getRace() || bs_facialHair->Sex != _player->getGender())
+    if (!bs_facialHair || bs_facialHair->Type != 2 || bs_facialHair->Race != session.GetPlayer()->getRace() || bs_facialHair->Sex != session.GetPlayer()->getGender())
     {
         return;
     }
 
-    uint32 Cost = _player->GetBarberShopCost(bs_hair->Data, Color, bs_facialHair->Data, skinTone_id);
+    uint32 Cost = session.GetPlayer()->GetBarberShopCost(bs_hair->Data, Color, bs_facialHair->Data, skinTone_id);
 
     // 0 - ok
     // 1,3 - not enough money
     // 2 - you have to seat on barber chair
-    if (_player->GetMoney() < Cost)
+    if (session.GetPlayer()->GetMoney() < Cost)
     {
         WorldPacket data(SMSG_BARBER_SHOP_RESULT, 4);
         data << uint32(1);                                  // no money
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
     else
     {
         WorldPacket data(SMSG_BARBER_SHOP_RESULT, 4);
         data << uint32(0);                                  // ok
-        SendPacket(&data);
+        session.SendPacket(&data);
     }
 
-    _player->ModifyMoney(-int64(Cost));                     // it isn't free
-    _player->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_GOLD_SPENT_AT_BARBER, Cost);
+    session.GetPlayer()->ModifyMoney(-int64(Cost));                     // it isn't free
+    session.GetPlayer()->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_GOLD_SPENT_AT_BARBER, Cost);
 
-    _player->SetByteValue(PLAYER_BYTES, 2, uint8(bs_hair->Data));
-    _player->SetByteValue(PLAYER_BYTES, 3, uint8(Color));
-    _player->SetByteValue(PLAYER_BYTES_2, 0, uint8(bs_facialHair->Data));
-    if (_player->getRace() == RACE_TAUREN)
+    session.GetPlayer()->SetByteValue(PLAYER_BYTES, 2, uint8(bs_hair->Data));
+    session.GetPlayer()->SetByteValue(PLAYER_BYTES, 3, uint8(Color));
+    session.GetPlayer()->SetByteValue(PLAYER_BYTES_2, 0, uint8(bs_facialHair->Data));
+    if (session.GetPlayer()->getRace() == RACE_TAUREN)
     {
-        _player->SetByteValue(PLAYER_BYTES, 0, uint8(skinTone_id));
+        session.GetPlayer()->SetByteValue(PLAYER_BYTES, 0, uint8(skinTone_id));
     }
 
-    _player->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_VISIT_BARBER_SHOP, 1);
+    session.GetPlayer()->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_VISIT_BARBER_SHOP, 1);
 
-    _player->SetStandState(0);                              // stand up
+    session.GetPlayer()->SetStandState(0);                              // stand up
 }
 
 /**
- * @brief Starts the asynchronous character customize flow (decoupling D7d).
+ * @brief Starts the asynchronous character customize flow.
  *
- * Nothing is checked or written here: both reads the old handler blocked on are staged into
- * one holder and every decision it made is made in the continuation, in the same order.
+ * Nothing is checked or written here: both reads are staged into one holder, and every
+ * decision is made in the continuation.
  *
  * @param recv_data The received opcode packet.
  */
-void WorldSession::HandleCharCustomizeOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleCharCustomize(WorldSession& session, WorldPacket& recv_data)
 {
     ObjectGuid guid;
     CharCustomizeRequest request;
@@ -372,24 +364,24 @@ void WorldSession::HandleCharCustomizeOpcode(WorldPacket& recv_data)
 
     recv_data >> request.gender >> request.skin >> request.hairColor >> request.hairStyle >> request.facialHair >> request.face;
 
-    QueueCharCustomizeReads(GetAccountId(), GetSessionId(), guid, request);
+    QueueCharCustomizeReads(session.GetAccountId(), session.GetSessionId(), guid, request);
 }
 
 /**
- * @brief Stages the customize handler's two reads (decoupling D7d, C4).
+ * @brief Stages the customize handler's two reads.
  *
  * @param accountId The requesting account.
  * @param sessionId The session the request arrived on.
  * @param guid      The character being customized.
  * @param request   The requested name and appearance.
  */
-void WorldSession::QueueCharCustomizeReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid,
+void CharacterCustomizeHandlers::QueueCharCustomizeReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid,
                                            CharCustomizeRequest request)
 {
     CharacterRepository::QueueCustomizeReads(guid.GetCounter(), [accountId, sessionId, guid, request]
                                              (SqlQueryHolder* h)
                                              {
-                                                 WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                 CharacterCustomizeHandlers::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder>(h),
                                                                                            accountId, sessionId, guid, request);
                                              });
 }
@@ -399,8 +391,8 @@ void WorldSession::QueueCharCustomizeReads(uint32 accountId, proto::SessionId se
  *
  * Every check is the handler's, in the handler's order, with the handler's reply: the
  * at_login flag, then the name's validity, then the reserved list, then whether the name is
- * taken. The cache update still sits immediately in front of the write it describes, and the
- * write no longer escapes the name on this thread (C5).
+ * taken. The cache update sits immediately in front of the write it describes, and the write
+ * binds the name instead of escaping it on this thread.
  *
  * @param holder    The two staged reads, answered.
  * @param accountId The requesting account.
@@ -408,11 +400,11 @@ void WorldSession::QueueCharCustomizeReads(uint32 accountId, proto::SessionId se
  * @param guid      The character being customized.
  * @param request   The requested name and appearance.
  */
-void WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+void CharacterCustomizeHandlers::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
                                                proto::SessionId sessionId, ObjectGuid guid,
                                                CharCustomizeRequest request)
 {
-    WorldSession* session = FindRequesterSession(accountId, sessionId);
+    WorldSession* session = WorldSession::FindRequesterSession(accountId, sessionId);
     if (!session || !holder)
     {
         return;
@@ -464,13 +456,12 @@ void WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> h
         return;
     }
 
-    // Decoupling D7c: immediately before the write it describes, and the name it indexes is
-    // the one the player typed -- which is now also the one the statement binds.
+    // Immediately before the write it describes; the name it indexes is the one the player
+    // typed, which is also the one the statement binds.
     sCharacterCache.UpdateName(guid, newname);
 
-    // Player::Customize used to read `playerBytes2` itself; the value comes out of this
-    // holder now. No row means no such character, which is what made the old call return
-    // without writing -- the same thing skipping it does.
+    // The `playerBytes2` value comes out of this holder. No row means no such character, and
+    // Player::Customize is skipped, writing nothing.
     if (std::optional<uint32> playerBytes2 = CharacterRepository::CustomizePlayerBytes2(holder.get()))
     {
         Player::Customize(guid, request.gender, request.skin, request.face, request.hairStyle,
@@ -498,7 +489,7 @@ void WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> h
     sWorld.InvalidatePlayerDataToAllClient(guid);
 }
 
-void WorldSession::HandleEquipmentSetSaveOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleEquipmentSetSave(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("CMSG_SAVE_EQUIPMENT_SET");
 
@@ -538,7 +529,7 @@ void WorldSession::HandleEquipmentSetSaveOpcode(WorldPacket& recv_data)
             continue;
         }
 
-        Item* item = _player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        Item* item = session.GetPlayer()->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i);
 
         if (!item && itemGuid)                              // cheating check 1
         {
@@ -553,10 +544,10 @@ void WorldSession::HandleEquipmentSetSaveOpcode(WorldPacket& recv_data)
         eqSet.Items[i] = itemGuid.GetCounter();
     }
 
-    _player->SetEquipmentSet(index, eqSet);
+    session.GetPlayer()->SetEquipmentSet(index, eqSet);
 }
 
-void WorldSession::HandleEquipmentSetDeleteOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleEquipmentSetDelete(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("CMSG_EQUIPMENT_SET_DELETE");
 
@@ -564,10 +555,10 @@ void WorldSession::HandleEquipmentSetDeleteOpcode(WorldPacket& recv_data)
 
     recv_data >> setGuid.ReadAsPacked();
 
-    _player->DeleteEquipmentSet(setGuid.GetRawValue());
+    session.GetPlayer()->DeleteEquipmentSet(setGuid.GetRawValue());
 }
 
-void WorldSession::HandleEquipmentSetUseOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleEquipmentSetUse(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("CMSG_USE_EQUIPMENT_SET");
     recv_data.hexlike();
@@ -588,28 +579,28 @@ void WorldSession::HandleEquipmentSetUseOpcode(WorldPacket& recv_data)
             continue;
         }
 
-        Item* item = _player->GetInventoryMgr().GetItemByGuid(itemGuid);
+        Item* item = session.GetPlayer()->GetInventoryMgr().GetItemByGuid(itemGuid);
 
         uint16 dstpos = i | (INVENTORY_SLOT_BAG_0 << 8);
 
         if (!item)
         {
-            Item* uItem = _player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            Item* uItem = session.GetPlayer()->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i);
             if (!uItem)
             {
                 continue;
             }
 
             ItemPosCountVec sDest;
-            InventoryResult msg = _player->CanStoreItem(NULL_BAG, NULL_SLOT, sDest, uItem, false);
+            InventoryResult msg = session.GetPlayer()->CanStoreItem(NULL_BAG, NULL_SLOT, sDest, uItem, false);
             if (msg == EQUIP_ERR_OK)
             {
-                _player->RemoveItem(INVENTORY_SLOT_BAG_0, i, true);
-                _player->StoreItem(sDest, uItem, true);
+                session.GetPlayer()->RemoveItem(INVENTORY_SLOT_BAG_0, i, true);
+                session.GetPlayer()->StoreItem(sDest, uItem, true);
             }
             else
             {
-                _player->SendEquipError(msg, uItem, NULL);
+                session.GetPlayer()->SendEquipError(msg, uItem, NULL);
             }
 
             continue;
@@ -620,15 +611,15 @@ void WorldSession::HandleEquipmentSetUseOpcode(WorldPacket& recv_data)
             continue;
         }
 
-        _player->SwapItem(item->GetPos(), dstpos);
+        session.GetPlayer()->SwapItem(item->GetPos(), dstpos);
     }
 
     WorldPacket data(SMSG_USE_EQUIPMENT_SET_RESULT, 1);
     data << uint8(0);                                       // 4 - equipment swap failed - inventory is full
-    SendPacket(&data);
+    session.SendPacket(&data);
 }
 
-void WorldSession::HandleReorderCharactersOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleReorderCharacters(WorldSession& session, WorldPacket& recv_data)
 {
     uint32 charCount = recv_data.ReadBits(10);
 
@@ -659,12 +650,12 @@ void WorldSession::HandleReorderCharactersOpcode(WorldPacket& recv_data)
     CharacterTransaction::Begin();
     for (uint32 i = 0; i < charCount; ++i)
     {
-        CharacterRepository::SetSlot(slots[i], guids[i].GetCounter(), GetAccountId());
+        CharacterRepository::SetSlot(slots[i], guids[i].GetCounter(), session.GetAccountId());
     }
     CharacterTransaction::Commit();
 }
 
-void WorldSession::HandleSetCurrencyFlagsOpcode(WorldPacket& recv_data)
+void CharacterCustomizeHandlers::HandleSetCurrencyFlags(WorldSession& session, WorldPacket& recv_data)
 {
     uint32 currencyId, flags;
     recv_data >> flags >> currencyId;
@@ -674,14 +665,14 @@ void WorldSession::HandleSetCurrencyFlagsOpcode(WorldPacket& recv_data)
     if (flags & ~PLAYERCURRENCY_MASK_USED_BY_CLIENT)
     {
         DEBUG_LOG("CMSG_SET_CURRENCY_FLAGS: received unknown currency flags 0x%X from player %s account %u for currency %u",
-            flags & ~PLAYERCURRENCY_MASK_USED_BY_CLIENT, GetPlayer()->GetGuidStr().c_str(), GetAccountId(), currencyId);
+            flags & ~PLAYERCURRENCY_MASK_USED_BY_CLIENT, session.GetPlayer()->GetGuidStr().c_str(), session.GetAccountId(), currencyId);
     }
 
     flags &= PLAYERCURRENCY_MASK_USED_BY_CLIENT;
-    GetPlayer()->GetCurrencyMgr().SetFlags(currencyId, uint8(flags));
+    session.GetPlayer()->GetCurrencyMgr().SetFlags(currencyId, uint8(flags));
 }
 
-void WorldSession::HandleLoadScreenOpcode(WorldPacket& recvPacket)
+void CharacterCustomizeHandlers::HandleLoadScreen(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("CMSG_LOAD_SCREEN");
     uint32 mapID;

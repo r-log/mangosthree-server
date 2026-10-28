@@ -51,6 +51,7 @@
 #include "ObjectGuid.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "session/handlers/entities/CharacterCustomizeHandlers.h"
 #include "session/handlers/entities/CharacterHandlers.h"
 #include "persistence/characters/CharacterDeleteRepository.h"
 
@@ -83,9 +84,9 @@ namespace
         return request;
     }
 
-    WorldSession::CharCustomizeRequest MakeCustomizeRequest()
+    CharacterCustomizeHandlers::CharCustomizeRequest MakeCustomizeRequest()
     {
-        WorldSession::CharCustomizeRequest request;
+        CharacterCustomizeHandlers::CharCustomizeRequest request;
         request.newname = "Renamedchar";
         request.gender = 1;
         request.skin = 2;
@@ -476,7 +477,7 @@ TEST(CharacterOpsAsync_CustomizeStagesOneHolderOfTwoAndEscapesNoName)
 
     {
         TickGuard::Scope scope;
-        WorldSession::QueueCharCustomizeReads(kAccountId, kSessionId, CharGuid(), MakeCustomizeRequest());
+        CharacterCustomizeHandlers::QueueCharCustomizeReads(kAccountId, kSessionId, CharGuid(), MakeCustomizeRequest());
 
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(1));

@@ -71,14 +71,15 @@
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
 /// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
-/// query, item, NPC, quest, character, LFG, calendar, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
+/// query, item, NPC, quest, character, character customize, LFG, calendar, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
 /// class /// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
 /// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
 /// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
 /// processed PROCESS_INPLACE, the CMSG_QUESTGIVER_STATUS_QUERY row, processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE,
-/// CMSG_SET_ACTIVE_VOICE_CHANNEL, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE and
-/// CMSG_CHAR_DELETE rows, of status STATUS_AUTHED.
+/// CMSG_SET_ACTIVE_VOICE_CHANNEL, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE,
+/// CMSG_CHAR_DELETE, CMSG_CHAR_RENAME, CMSG_SET_PLAYER_DECLINED_NAMES, CMSG_CHAR_CUSTOMIZE,
+/// CMSG_REORDER_CHARACTERS and CMSG_LOAD_SCREEN rows, of status STATUS_AUTHED.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -90,6 +91,7 @@
 #include "Auth/BigNumber.h"
 #include "session/handlers/combat/CombatHandlers.h"
 #include "session/handlers/entities/CharacterHandlers.h"
+#include "session/handlers/entities/CharacterCustomizeHandlers.h"
 #include "session/handlers/connection/WardenHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
@@ -2175,4 +2177,56 @@ TEST(OpcodeDispatch_CharacterRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_SHOWING_HELM].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_SHOWING_CLOAK].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_SHOWING_CLOAK].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_CharacterCustomizeRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_CHAR_RENAME].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleCharRename>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleCharRename>), 1);
+    CHECK(opcodeTable[CMSG_SET_PLAYER_DECLINED_NAMES].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleSetPlayerDeclinedNames>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleSetPlayerDeclinedNames>), 1);
+    CHECK(opcodeTable[CMSG_ALTER_APPEARANCE].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleAlterAppearance>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleAlterAppearance>), 1);
+    CHECK(opcodeTable[CMSG_CHAR_CUSTOMIZE].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleCharCustomize>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleCharCustomize>), 1);
+    CHECK(opcodeTable[CMSG_SAVE_EQUIPMENT_SET].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleEquipmentSetSave>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleEquipmentSetSave>), 1);
+    CHECK(opcodeTable[CMSG_EQUIPMENT_SET_DELETE].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleEquipmentSetDelete>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleEquipmentSetDelete>), 1);
+    CHECK(opcodeTable[CMSG_USE_EQUIPMENT_SET].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleEquipmentSetUse>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleEquipmentSetUse>), 1);
+    CHECK(opcodeTable[CMSG_REORDER_CHARACTERS].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleReorderCharacters>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleReorderCharacters>), 1);
+    CHECK(opcodeTable[CMSG_SET_CURRENCY_FLAGS].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleSetCurrencyFlags>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleSetCurrencyFlags>), 1);
+    CHECK(opcodeTable[CMSG_LOAD_SCREEN].handler == &OpcodeThunk<&CharacterCustomizeHandlers::HandleLoadScreen>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterCustomizeHandlers::HandleLoadScreen>), 1);
+}
+
+TEST(OpcodeDispatch_CharacterCustomizeRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_CHAR_RENAME].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_CHAR_RENAME].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_PLAYER_DECLINED_NAMES].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_SET_PLAYER_DECLINED_NAMES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ALTER_APPEARANCE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ALTER_APPEARANCE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHAR_CUSTOMIZE].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_CHAR_CUSTOMIZE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SAVE_EQUIPMENT_SET].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SAVE_EQUIPMENT_SET].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_EQUIPMENT_SET_DELETE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_EQUIPMENT_SET_DELETE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_USE_EQUIPMENT_SET].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_USE_EQUIPMENT_SET].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REORDER_CHARACTERS].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_REORDER_CHARACTERS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_CURRENCY_FLAGS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_CURRENCY_FLAGS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOAD_SCREEN].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_LOAD_SCREEN].packetProcessing, PROCESS_THREADUNSAFE);
 }

@@ -690,7 +690,6 @@ class WorldSession
         void HandlePlayerLoginOpcode(WorldPacket& recvPacket);
         void HandleCharEnum(std::vector<CharacterEnumRow> const& rows);
         void HandlePlayerLogin(LoginQueryHolder* holder);
-        void HandleReorderCharactersOpcode(WorldPacket& recvPacket);
 
         // The character create, delete and customize continuations, in the petition handlers'
         // shape: the handler queues its reads and
@@ -721,18 +720,6 @@ class WorldSession
                                         WorldSession*& session, Player*& player);
 
         /// Everything CMSG_CHAR_CREATE carries, captured by value into the continuations.
-        /// Everything CMSG_CHAR_CUSTOMIZE carries beyond the character guid.
-        struct CharCustomizeRequest
-        {
-            std::string newname;
-            uint8 gender = 0;
-            uint8 skin = 0;
-            uint8 face = 0;
-            uint8 hairStyle = 0;
-            uint8 hairColor = 0;
-            uint8 facialHair = 0;
-        };
-
         // played time
         void HandlePlayedTime(WorldPacket& recvPacket);
 
@@ -881,19 +868,9 @@ class WorldSession
 
         void HandleSetActionBarTogglesOpcode(WorldPacket& recv_data);
 
-        void HandleCharRenameOpcode(WorldPacket& recv_data);
-        static void HandleChangePlayerNameOpcodeCallBack(std::optional<RenameTargetRow> const& row, uint32 accountId,
-                                                         proto::SessionId sessionId, std::string newname);
-        void HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data);
-
         // Customize: the at_login flag and the appearance row are read by
         // one holder, and everything the handler did after them -- the name checks, the
         // cache update, the writes and the reply -- runs in the continuation.
-        static void QueueCharCustomizeReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid,
-                                            CharCustomizeRequest request);
-        static void HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
-                                                proto::SessionId sessionId, ObjectGuid guid,
-                                                CharCustomizeRequest request);
 
         void HandleTotemDestroyed(WorldPacket& recv_data);
 
@@ -947,20 +924,12 @@ class WorldSession
 
         void HandleSpellClick(WorldPacket& recv_data);
         void HandleGetMirrorimageData(WorldPacket& recv_data);
-        void HandleAlterAppearanceOpcode(WorldPacket& recv_data);
-        void HandleCharCustomizeOpcode(WorldPacket& recv_data);
         void HandleQueryInspectAchievementsOpcode(WorldPacket& recv_data);
-        void HandleEquipmentSetSaveOpcode(WorldPacket& recv_data);
-        void HandleEquipmentSetDeleteOpcode(WorldPacket& recv_data);
-        void HandleEquipmentSetUseOpcode(WorldPacket& recv_data);
         void HandleUITimeRequestOpcode(WorldPacket& recv_data);
         void HandleReadyForAccountDataTimesOpcode(WorldPacket& recv_data);
-        void HandleSetCurrencyFlagsOpcode(WorldPacket& recv_data);
 
         // Reforge
         void SendReforgeResult(bool success);
-
-        void HandleLoadScreenOpcode(WorldPacket& recvPacket);
 
         /// A validated movement word applied to the mover: the store, the transport handling,
         /// the relocation and the edges read off the word (the mount's lift-off). Public only

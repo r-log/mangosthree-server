@@ -414,7 +414,6 @@ src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/ChannelMgr.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/CharacterHandler.cpp -> src/game/WorldHandlers/World.h
-src/game/WorldHandlers/CharacterHandlerCustomize.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Chat.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
 src/game/WorldHandlers/ChatMessage.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/ChatMessage.cpp -> src/game/WorldHandlers/World.h
@@ -721,6 +720,8 @@ src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
 src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
 # The auction house check accepts the player's own guid as the auctioneer when the player may use the auction command: ChatHandler(session.GetPlayer()).FindCommand("auction").
 src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/Chat.h
+# The rename and the customize tell every client to drop the renamed character's cached data: sWorld.InvalidatePlayerDataToAllClient.
+src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp -> src/game/WorldHandlers/World.h
 # The stable master check asks whether the player may use the stable command: ChatHandler(session.GetPlayer()).FindCommand("stable").
 src/game/session/handlers/entities/NpcHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The battlemaster join answers a disabled battleground through ChatHandler(&session).SendSysMessage(LANG_BG_IS_DISABLED).
