@@ -74,13 +74,16 @@
 /// PROCESS_THREADUNSAFE, except:
 /// - processed PROCESS_INPLACE: the CMSG_ATTACKSWING, CMSG_ATTACKSTOP, CMSG_SETSHEATHED,
 ///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID,
-///   CMSG_LOW_LEVEL_RAID_USER, CMSG_GUILD_AUTO_DECLINE_TOGGLE and CMSG_OBJECT_UPDATE_FAILED rows;
+///   CMSG_LOW_LEVEL_RAID_USER, CMSG_GUILD_AUTO_DECLINE_TOGGLE, CMSG_OBJECT_UPDATE_FAILED,
+///   CMSG_UI_TIME_REQUEST and CMSG_REQUEST_HOTFIX rows;
 /// - processed PROCESS_THREADSAFE: the six taxi rows;
 /// - of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT: the CMSG_CANCEL_TRADE row;
 /// - of status STATUS_AUTHED: the CMSG_VOICE_SESSION_ENABLE, CMSG_SET_ACTIVE_VOICE_CHANNEL,
 ///   CMSG_WARDEN_DATA, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE, CMSG_CHAR_DELETE,
 ///   CMSG_CHAR_RENAME, CMSG_SET_PLAYER_DECLINED_NAMES, CMSG_CHAR_CUSTOMIZE, CMSG_REORDER_CHARACTERS,
-///   CMSG_LOAD_SCREEN, CMSG_OPT_OUT_OF_LOOT, CMSG_GUILD_QUERY and CMSG_SET_ACTIONBAR_TOGGLES rows.
+///   CMSG_LOAD_SCREEN, CMSG_OPT_OUT_OF_LOOT, CMSG_GUILD_QUERY, CMSG_SET_ACTIONBAR_TOGGLES,
+///   CMSG_UPDATE_ACCOUNT_DATA, CMSG_REQUEST_ACCOUNT_DATA, CMSG_READY_FOR_ACCOUNT_DATA_TIMES,
+///   CMSG_REALM_SPLIT, CMSG_REQUEST_HOTFIX and CMSG_SET_TAXI_BENCHMARK_MODE rows.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -94,6 +97,7 @@
 #include "session/handlers/entities/CharacterHandlers.h"
 #include "session/handlers/entities/CharacterCustomizeHandlers.h"
 #include "session/handlers/entities/DeathHandlers.h"
+#include "session/handlers/connection/ClientHandlers.h"
 #include "session/handlers/connection/WardenHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
@@ -2708,4 +2712,44 @@ TEST(OpcodeDispatch_TogglePvPRowHoldsItsHandlersThunk)
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PvpHandlers::HandleTogglePvP>), 1);
     CHECK_EQ(opcodeTable[CMSG_TOGGLE_PVP].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_TOGGLE_PVP].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_ClientRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_UPDATE_ACCOUNT_DATA].handler == &OpcodeThunk<&ClientHandlers::HandleUpdateAccountData>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ClientHandlers::HandleUpdateAccountData>), 1);
+    CHECK(opcodeTable[CMSG_REQUEST_ACCOUNT_DATA].handler == &OpcodeThunk<&ClientHandlers::HandleRequestAccountData>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ClientHandlers::HandleRequestAccountData>), 1);
+    CHECK(opcodeTable[CMSG_READY_FOR_ACCOUNT_DATA_TIMES].handler == &OpcodeThunk<&ClientHandlers::HandleReadyForAccountDataTimes>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ClientHandlers::HandleReadyForAccountDataTimes>), 1);
+    CHECK(opcodeTable[CMSG_REALM_SPLIT].handler == &OpcodeThunk<&ClientHandlers::HandleRealmSplit>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ClientHandlers::HandleRealmSplit>), 1);
+    CHECK(opcodeTable[CMSG_UI_TIME_REQUEST].handler == &OpcodeThunk<&ClientHandlers::HandleUITimeRequest>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ClientHandlers::HandleUITimeRequest>), 1);
+    CHECK(opcodeTable[CMSG_REQUEST_HOTFIX].handler == &OpcodeThunk<&ClientHandlers::HandleRequestHotfix>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ClientHandlers::HandleRequestHotfix>), 1);
+    CHECK(opcodeTable[CMSG_SET_TAXI_BENCHMARK_MODE].handler == &OpcodeThunk<&ClientHandlers::HandleSetTaxiBenchmark>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ClientHandlers::HandleSetTaxiBenchmark>), 1);
+}
+
+TEST(OpcodeDispatch_ClientRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_UPDATE_ACCOUNT_DATA].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_UPDATE_ACCOUNT_DATA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_ACCOUNT_DATA].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_ACCOUNT_DATA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_READY_FOR_ACCOUNT_DATA_TIMES].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_READY_FOR_ACCOUNT_DATA_TIMES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REALM_SPLIT].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_REALM_SPLIT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_UI_TIME_REQUEST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_UI_TIME_REQUEST].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_HOTFIX].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_HOTFIX].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_SET_TAXI_BENCHMARK_MODE].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_SET_TAXI_BENCHMARK_MODE].packetProcessing, PROCESS_THREADUNSAFE);
 }

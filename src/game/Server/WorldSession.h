@@ -737,9 +737,6 @@ class WorldSession
 
         void SendGMTicketStatusUpdate(GMTicketStatus statusCode);
 
-        void HandleUpdateAccountData(WorldPacket& recvPacket);
-        void HandleRequestAccountData(WorldPacket& recvPacket);
-
         void HandleGameObjectUseOpcode(WorldPacket& recPacket);
         void HandleGameobjectReportUse(WorldPacket& recvPacket);
 
@@ -793,26 +790,20 @@ class WorldSession
 
         void HandleTotemDestroyed(WorldPacket& recv_data);
 
-        void HandleRealmSplitOpcode(WorldPacket& recv_data);
         void HandleTimeSyncResp(WorldPacket& recv_data);
 
         void HandleSelfResOpcode(WorldPacket& recv_data);
-
-        void HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data);
 
         // Guild Bank
 
         // Calendar
 
         // Hotfix handlers
-        void HandleRequestHotfix(WorldPacket& recv_data);
         void SendItemDb2Reply(uint32 entry);
         void SendItemSparseDb2Reply(uint32 entry);
 
         void HandleSpellClick(WorldPacket& recv_data);
         void HandleGetMirrorimageData(WorldPacket& recv_data);
-        void HandleUITimeRequestOpcode(WorldPacket& recv_data);
-        void HandleReadyForAccountDataTimesOpcode(WorldPacket& recv_data);
 
         // Reforge
         void SendReforgeResult(bool success);

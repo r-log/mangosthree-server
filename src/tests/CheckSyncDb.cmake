@@ -208,6 +208,7 @@ set(CONVERTED_FILES
     src/game/session/handlers/social/WhoHandlers.cpp
     src/game/session/handlers/social/TicketHandlers.cpp
     src/game/session/handlers/pvp/PvpHandlers.cpp
+    src/game/session/handlers/connection/ClientHandlers.cpp
     src/game/entities/player/social/SocialMgr.cpp
     src/game/Object/GMTicketMgr.cpp
     src/game/Object/AuctionHouseMgr.cpp
