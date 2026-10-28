@@ -47,40 +47,7 @@ void TaxiHandlers::HandleTaxiNodeStatusQuery(WorldSession& session, WorldPacket&
     ObjectGuid guid;
 
     recv_data >> guid;
-    SendTaxiStatus(session, guid);
-}
-
-/**
- * @brief Sends whether the nearest taxi node for a flight master is known to the player.
- *
- * @param guid The flight master guid.
- */
-void TaxiHandlers::SendTaxiStatus(WorldSession& session, ObjectGuid guid)
-{
-    // cheating checks
-    Creature* unit = session.GetPlayer()->GetMap()->GetCreature(guid);
-    if (!unit)
-    {
-        DEBUG_LOG("TaxiHandlers::SendTaxiStatus - %s not found or you can't interact with it.", guid.GetString().c_str());
-        return;
-    }
-
-    uint32 curloc = sObjectMgr.GetNearestTaxiNode(unit->Where().X(), unit->Where().Y(), unit->Where().Z(), unit->GetMapId(), session.GetPlayer()->GetTeam());
-
-    // not found nearest
-    if (curloc == 0)
-    {
-        return;
-    }
-
-    DEBUG_LOG("WORLD: current location %u ", curloc);
-
-    WorldPacket data(SMSG_TAXINODE_STATUS, 9);
-    data << ObjectGuid(guid);
-    data << uint8(session.GetPlayer()->m_taxi.IsTaximaskNodeKnown(curloc) ? 1 : 0);
-    session.SendPacket(&data);
-
-    DEBUG_LOG("WORLD: Sent SMSG_TAXINODE_STATUS");
+    session.SendTaxiStatus(guid);
 }
 
 /**

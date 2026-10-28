@@ -26,7 +26,6 @@
 #ifndef MANGOS_H_TAXIHANDLERS
 #define MANGOS_H_TAXIHANDLERS
 
-class ObjectGuid;
 class WorldPacket;
 class WorldSession;
 
@@ -41,9 +40,6 @@ struct TaxiHandlers
         static void HandleActivateTaxiExpress(WorldSession& session, WorldPacket& recv_data);
         static void HandleMoveSplineDone(WorldSession& session, WorldPacket& recv_data);
         static void HandleActivateTaxi(WorldSession& session, WorldPacket& recv_data);
-
-    private:
-        static void SendTaxiStatus(WorldSession& session, ObjectGuid guid);
 };
 
 #endif

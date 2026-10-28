@@ -38,6 +38,39 @@
 #include "MotionMaster.h"
 
 /**
+ * @brief Sends whether the nearest taxi node for a flight master is known to the player.
+ *
+ * @param guid The flight master guid.
+ */
+void WorldSession::SendTaxiStatus(ObjectGuid guid)
+{
+    // cheating checks
+    Creature* unit = GetPlayer()->GetMap()->GetCreature(guid);
+    if (!unit)
+    {
+        DEBUG_LOG("WorldSession::SendTaxiStatus - %s not found or you can't interact with it.", guid.GetString().c_str());
+        return;
+    }
+
+    uint32 curloc = sObjectMgr.GetNearestTaxiNode(unit->Where().X(), unit->Where().Y(), unit->Where().Z(), unit->GetMapId(), GetPlayer()->GetTeam());
+
+    // not found nearest
+    if (curloc == 0)
+    {
+        return;
+    }
+
+    DEBUG_LOG("WORLD: current location %u ", curloc);
+
+    WorldPacket data(SMSG_TAXINODE_STATUS, 9);
+    data << ObjectGuid(guid);
+    data << uint8(GetPlayer()->m_taxi.IsTaximaskNodeKnown(curloc) ? 1 : 0);
+    SendPacket(&data);
+
+    DEBUG_LOG("WORLD: Sent SMSG_TAXINODE_STATUS");
+}
+
+/**
  * @brief Sends the taxi route selection menu for a flight master.
  *
  * @param unit The flight master creature.
