@@ -496,7 +496,7 @@ endif()
 # of a listed member in its file (an overload would otherwise ride on the entry).
 # Entries: "<Class>::<member>|<file relative to src/game>".
 set(OWNER_DEFINED
-    # MiscHandlerSocial.cpp's contact list handler and the character's SendInitialPacketsBeforeAddToMap
+    # ContactHandlers.cpp's contact list request and the character's SendInitialPacketsBeforeAddToMap
     # call GetSocial()->SendSocialList() with no arguments; it finds the character by guid.
     "PlayerSocial::SendSocialList|entities/player/social/SocialMgr.cpp"
 )

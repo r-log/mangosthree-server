@@ -201,7 +201,6 @@ set(CONVERTED_FILES
     src/game/BattleGround/BattleGroundReward.cpp
     src/game/BattleGround/BattleGroundMgr.cpp
     src/game/WorldHandlers/PetHandler.cpp
-    src/game/WorldHandlers/MiscHandler.cpp
     src/game/session/handlers/maps/MapHandlers.cpp
     src/game/session/handlers/entities/DeathHandlers.cpp
     src/game/session/handlers/entities/PlayerHandlers.cpp

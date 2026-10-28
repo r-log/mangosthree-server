@@ -656,6 +656,34 @@ void WorldSession::HandleMoveNotActiveMoverOpcode(WorldPacket& recv_data)
     }
 }
 
+void WorldSession::HandleMoveTimeSkippedOpcode(WorldPacket& recv_data)
+{
+    /*  WorldSession::Update( WorldTimer::getMSTime() );*/
+    DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_TIME_SKIPPED");
+
+    ObjectGuid guid;
+
+    recv_data >> Unused<uint32>();
+    recv_data.ReadGuidMask<5, 1, 3, 7, 6, 0, 4, 2>(guid);
+    recv_data.ReadGuidBytes<7, 1, 2, 4, 3, 6, 0, 5>(guid);
+
+    /*
+        ObjectGuid guid;
+        uint32 time_skipped;
+        recv_data >> guid;
+        recv_data >> time_skipped;
+        DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_TIME_SKIPPED");
+
+        /// TODO
+        must be need use in mangos
+        We substract server Lags to move time ( AntiLags )
+        for exmaple
+        {
+            GetPlayer()->ModifyLastMoveTime( -int32(time_skipped) );
+        }
+    */
+}
+
 /**
  * @brief Broadcasts the player's mount special animation.
  *
