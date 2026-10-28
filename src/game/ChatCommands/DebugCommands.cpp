@@ -54,6 +54,7 @@
 #include <fstream>
 #include "ObjectLookup.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
 #include "Pet.h"

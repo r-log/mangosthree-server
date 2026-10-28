@@ -31,6 +31,7 @@
 #include <vector>
 #include "Utilities/PackedValues.h"
 #include "ObjectMgr.h"
+#include "MapPersistentStateMgr.h"
 #include "AchievementMgr.h"
 #include "MotionGenerators/MotionMaster.h"
 #include "Database/DatabaseEnv.h"

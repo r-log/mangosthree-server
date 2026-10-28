@@ -49,10 +49,10 @@
 #include "data/GossipRecords.h"
 #include "Database/DatabaseEnv.h"
 #include "Map.h"
-#include "MapPersistentStateMgr.h"
 #include "PlayerRegistry.h"
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
+#include "data/CellObjectGuids.h"
 #include "data/CreatureAddonStore.h"
 #include "data/CreatureEquipmentStore.h"
 #include "data/CreatureModelInfoStore.h"
@@ -143,19 +143,6 @@ struct AreaTrigger
     }
 };
 
-typedef std::map < uint32/*player guid*/, uint32/*instance*/ > CellCorpseSet;
-struct CellObjectGuids
-{
-    CellGuidSet creatures;
-    CellGuidSet gameobjects;
-    CellCorpseSet corpses;
-};
-typedef std::unordered_map < uint32/*cell_id*/, CellObjectGuids > CellObjectGuidsMap;
-// Keyed on the 64-bit pair, not the 32-bit one: a map id is uint32 and the
-// world database stores `creature`.`map` as int(10) unsigned, so packing it
-// into sixteen bits wraps a large id onto another map's bucket instead of
-// missing. See the warning above MAKE_PAIR32 in PackedValues.h.
-typedef std::unordered_map < uint64/*(mapid,spawnMode) pair*/, CellObjectGuidsMap > MapObjectGuids;
 
 // mangos string ranges
 #define MIN_MANGOS_STRING_ID           1                    // 'mangos_string'

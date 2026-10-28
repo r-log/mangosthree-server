@@ -39,6 +39,7 @@
 #include "DBCStores.h"
 #include "ObjectGuid.h"
 #include "PoolManager.h"
+#include "data/CellObjectGuids.h"
 
 #include <mutex>
 
@@ -51,8 +52,6 @@ struct CreatureData;
 class Player;
 class Group;
 class Map;
-
-typedef std::set<uint32> CellGuidSet;
 
 struct MapCellObjectGuids
 {

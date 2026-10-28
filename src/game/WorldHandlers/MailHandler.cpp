@@ -38,6 +38,7 @@
 #include "Log.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "CharacterCache.h"
 #include "Item.h"
 #include "AchievementMgr.h"

@@ -27,6 +27,7 @@
 #include "WorldPacket.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "GameObject.h"
 #include "Player.h"
 

@@ -32,6 +32,7 @@
 #include <string>
 #include <map>
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
 

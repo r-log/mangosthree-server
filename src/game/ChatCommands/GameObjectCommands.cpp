@@ -47,6 +47,9 @@
 #include "GameObject.h"
 #include "ObjectLookup.h"
 #include "ObjectMgr.h"
+#include "MapPersistentStateMgr.h"
+#include "PoolManager.h"
+#include "DBCStores.h"
 #include "WorldSession.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 

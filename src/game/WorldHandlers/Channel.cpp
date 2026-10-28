@@ -45,6 +45,7 @@
 #include <string>
 #include "Channel.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "data/GameConfig.h"
 #include "SocialList.h"
 #include "Chat.h"

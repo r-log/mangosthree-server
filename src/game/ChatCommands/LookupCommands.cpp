@@ -40,6 +40,8 @@
 #include "Chat.h"
 #include "AchievementMgr.h"
 #include "ObjectMgr.h"
+#include "PoolManager.h"
+#include "DBCStores.h"
 #include "Language.h"
 #include "AccountMgr.h"
 #include "GameEventMgr.h"

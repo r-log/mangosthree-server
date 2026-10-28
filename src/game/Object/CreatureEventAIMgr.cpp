@@ -33,6 +33,7 @@
 #include "CreatureEventAI.h"
 #include "CreatureEventAIMgr.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "ProgressBar.h"
 #include "Policies/Singleton.h"
 #include "ObjectGuid.h"

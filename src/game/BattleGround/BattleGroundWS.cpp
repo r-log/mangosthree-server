@@ -46,6 +46,7 @@
 #include "BattleGroundWS.h"
 #include "GameObject.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "BattleGroundMgr.h"
 #include "WorldPacket.h"
 #include "Language.h"

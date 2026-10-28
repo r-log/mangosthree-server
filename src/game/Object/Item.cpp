@@ -28,6 +28,7 @@
 #include <cassert>
 #include "Item.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "data/ScriptNameStore.h"
 #include "ObjectGuid.h"
 #include "WorldPacket.h"

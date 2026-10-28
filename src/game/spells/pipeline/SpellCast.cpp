@@ -49,6 +49,7 @@
 #include "GridNotifiersImpl.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "MapPersistentStateMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "AchievementMgr.h"
 #include "Player.h"

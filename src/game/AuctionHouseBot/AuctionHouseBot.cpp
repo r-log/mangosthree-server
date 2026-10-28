@@ -31,6 +31,7 @@
 #include "ProgressBar.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "AuctionHouseMgr.h"
 #include "Common/ServerDefines.h"
 #include "World.h"

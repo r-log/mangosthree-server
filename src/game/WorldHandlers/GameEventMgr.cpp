@@ -47,6 +47,8 @@
 #include "GameEventMgr.h"
 #include "World.h"
 #include "ObjectMgr.h"
+#include "MapPersistentStateMgr.h"
+#include "DBCStores.h"
 #include "GameObject.h"
 #include "ObjectGuid.h"
 #include "PoolManager.h"

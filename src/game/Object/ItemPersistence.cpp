@@ -25,6 +25,7 @@
 #include <sstream>
 #include "Item.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "ObjectGuid.h"
 #include "Database/DatabaseEnv.h"
 #include "persistence/characters/CharacterRepository.h"

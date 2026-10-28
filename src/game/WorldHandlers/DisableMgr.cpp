@@ -41,6 +41,7 @@
 #include <set>
 #include "DisableMgr.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "OutdoorPvPMgr.h"
 #include "Player.h"
 #include "data/GameConfig.h"

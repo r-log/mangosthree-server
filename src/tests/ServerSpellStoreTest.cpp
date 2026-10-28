@@ -30,6 +30,7 @@
 
 #include "TestHarness.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "data/ServerSpellStore.h"
 #include "persistence/world/spells/SpellTemplateRepository.h"
 #include "DataStores/DBCStore.h"

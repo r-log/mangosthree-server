@@ -29,6 +29,7 @@
 #include "Policies/Singleton.h"
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "data/DbScriptStore.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 #include "persistence/world/waypoints/WaypointRepository.h"

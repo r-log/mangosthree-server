@@ -34,6 +34,7 @@
 #include "Object/Item.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/inventory/ItemRepository.h"
+#include "DBCStores.h"
 
 /**
  * @brief Wraps an item using wrapping paper.

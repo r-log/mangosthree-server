@@ -31,6 +31,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "Player.h"
 #include "Chat.h"
 

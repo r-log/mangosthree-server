@@ -45,6 +45,7 @@
 #include "CinematicFlyover.h"
 #include "GuildMgr.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "WorldSession.h"
 #include <memory>
 #include "Auth/BigNumber.h"
