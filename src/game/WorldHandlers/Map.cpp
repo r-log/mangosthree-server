@@ -2406,7 +2406,7 @@ void DungeonMap::InitVisibilityDistance()
 */
 bool DungeonMap::Add(Player* player)
 {
-    // TODO: Not sure about checking player level: already done in HandleAreaTriggerOpcode
+    // TODO: Not sure about checking player level: already done in MapHandlers::HandleAreaTrigger
     // GMs still can teleport player in instance.
     // Is it needed?
 

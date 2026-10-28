@@ -70,10 +70,8 @@
 /// does the CMSG_WARDEN_DATA row, of status STATUS_AUTHED. On a session with no player, the
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
-/// Every row bound to a handler class (combat, vendor, pvp, loot, auction, trade, skill, enchant,
-/// pet, taxi, query, item, NPC, quest, character, character customize, warden, LFG, calendar,
-/// contact list, GM ticket, petition, chat channel, voice chat, chat, mail, group and guild) holds
-/// the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except:
+/// Every row bound to a handler class holds the status STATUS_LOGGEDIN and the processing
+/// PROCESS_THREADUNSAFE, except:
 /// - processed PROCESS_INPLACE: the CMSG_ATTACKSWING, CMSG_ATTACKSTOP, CMSG_SETSHEATHED,
 ///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID,
 ///   CMSG_LOW_LEVEL_RAID_USER and CMSG_GUILD_AUTO_DECLINE_TOGGLE rows;
@@ -108,6 +106,7 @@
 #include "session/handlers/entities/QuestHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/entities/TaxiHandlers.h"
+#include "session/handlers/maps/MapHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ChannelHandlers.h"
 #include "session/handlers/social/CalendarHandlers.h"
@@ -2505,4 +2504,40 @@ TEST(OpcodeDispatch_GuildRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_GUILD_QUERY_RANKS].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE_TOGGLE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE_TOGGLE].packetProcessing, PROCESS_INPLACE);
+}
+
+TEST(OpcodeDispatch_MapRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_ZONEUPDATE].handler == &OpcodeThunk<&MapHandlers::HandleZoneUpdate>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MapHandlers::HandleZoneUpdate>), 1);
+    CHECK(opcodeTable[CMSG_AREATRIGGER].handler == &OpcodeThunk<&MapHandlers::HandleAreaTrigger>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MapHandlers::HandleAreaTrigger>), 1);
+    CHECK(opcodeTable[CMSG_WORLD_TELEPORT].handler == &OpcodeThunk<&MapHandlers::HandleWorldTeleport>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MapHandlers::HandleWorldTeleport>), 1);
+    CHECK(opcodeTable[CMSG_RESET_INSTANCES].handler == &OpcodeThunk<&MapHandlers::HandleResetInstances>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MapHandlers::HandleResetInstances>), 1);
+    CHECK(opcodeTable[MSG_SET_DUNGEON_DIFFICULTY].handler == &OpcodeThunk<&MapHandlers::HandleSetDungeonDifficulty>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MapHandlers::HandleSetDungeonDifficulty>), 1);
+    CHECK(opcodeTable[MSG_SET_RAID_DIFFICULTY].handler == &OpcodeThunk<&MapHandlers::HandleSetRaidDifficulty>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MapHandlers::HandleSetRaidDifficulty>), 1);
+}
+
+TEST(OpcodeDispatch_MapRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_ZONEUPDATE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ZONEUPDATE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AREATRIGGER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AREATRIGGER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_WORLD_TELEPORT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_WORLD_TELEPORT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_RESET_INSTANCES].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_RESET_INSTANCES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_SET_DUNGEON_DIFFICULTY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_SET_DUNGEON_DIFFICULTY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_SET_RAID_DIFFICULTY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_SET_RAID_DIFFICULTY].packetProcessing, PROCESS_THREADUNSAFE);
 }
