@@ -788,30 +788,6 @@ class WorldSession
         static void SendPetitionQueryCallback(std::optional<PetitionDetailsRow> const& row, uint32 accountId,
                                               proto::SessionId sessionId, ObjectGuid petitionguid);
 
-        void HandleGuildQueryOpcode(WorldPacket& recvPacket);
-        void HandleGuildInviteOpcode(WorldPacket& recvPacket);
-        void HandleGuildRemoveOpcode(WorldPacket& recvPacket);
-        void HandleGuildAcceptOpcode(WorldPacket& recvPacket);
-        void HandleGuildDeclineOpcode(WorldPacket& recvPacket);
-        void HandleGuildEventLogQueryOpcode(WorldPacket& recvPacket);
-        void HandleGuildRosterOpcode(WorldPacket& recvPacket);
-        void HandleGuildPromoteOpcode(WorldPacket& recvPacket);
-        void HandleGuildDemoteOpcode(WorldPacket& recvPacket);
-        void HandleGuildSetRankOpcode(WorldPacket& recvPacket);
-        void HandleGuildSwitchRankOpcode(WorldPacket& recvPacket);
-        void HandleGuildLeaveOpcode(WorldPacket& recvPacket);
-        void HandleGuildDisbandOpcode(WorldPacket& recvPacket);
-        void HandleGuildLeaderOpcode(WorldPacket& recvPacket);
-        void HandleGuildMOTDOpcode(WorldPacket& recvPacket);
-        void HandleGuildSetNoteOpcode(WorldPacket& recvPacket);
-        void HandleGuildRankOpcode(WorldPacket& recvPacket);
-        void HandleGuildAddRankOpcode(WorldPacket& recvPacket);
-        void HandleGuildDelRankOpcode(WorldPacket& recvPacket);
-        void HandleGuildChangeInfoTextOpcode(WorldPacket& recvPacket);
-        void HandleSaveGuildEmblemOpcode(WorldPacket& recvPacket);
-        void HandleGuildQueryRanksOpcode(WorldPacket& recvPacket);
-        void HandleGuildAutoDeclineToggleOpcode(WorldPacket& recvPacket);
-
         void HandleCancelChanneling(WorldPacket& recv_data);
 
         void HandleUseItemOpcode(WorldPacket& recvPacket);
@@ -873,18 +849,6 @@ class WorldSession
         void HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data);
 
         // Guild Bank
-        void HandleGuildPermissions(WorldPacket& recv_data);
-        void HandleGuildBankMoneyWithdrawn(WorldPacket& recv_data);
-        void HandleGuildBankerActivate(WorldPacket& recv_data);
-        void HandleGuildBankQueryTab(WorldPacket& recv_data);
-        void HandleGuildBankLogQuery(WorldPacket& recv_data);
-        void HandleGuildBankDepositMoney(WorldPacket& recv_data);
-        void HandleGuildBankWithdrawMoney(WorldPacket& recv_data);
-        void HandleGuildBankSwapItems(WorldPacket& recv_data);
-        void HandleGuildBankUpdateTab(WorldPacket& recv_data);
-        void HandleGuildBankBuyTab(WorldPacket& recv_data);
-        void HandleQueryGuildBankTabText(WorldPacket& recv_data);
-        void HandleSetGuildBankTabText(WorldPacket& recv_data);
 
         // Calendar
 

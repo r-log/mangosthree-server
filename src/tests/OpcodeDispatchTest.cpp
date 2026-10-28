@@ -72,17 +72,17 @@
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
 /// Every row bound to a handler class (combat, vendor, pvp, loot, auction, trade, skill, enchant,
 /// pet, taxi, query, item, NPC, quest, character, character customize, warden, LFG, calendar,
-/// contact list, GM ticket, petition, chat channel, voice chat, chat, mail and group) holds the
-/// status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except:
+/// contact list, GM ticket, petition, chat channel, voice chat, chat, mail, group and guild) holds
+/// the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except:
 /// - processed PROCESS_INPLACE: the CMSG_ATTACKSWING, CMSG_ATTACKSTOP, CMSG_SETSHEATHED,
-///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID
-///   and CMSG_LOW_LEVEL_RAID_USER rows;
+///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID,
+///   CMSG_LOW_LEVEL_RAID_USER and CMSG_GUILD_AUTO_DECLINE_TOGGLE rows;
 /// - processed PROCESS_THREADSAFE: the six taxi rows;
 /// - of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT: the CMSG_CANCEL_TRADE row;
 /// - of status STATUS_AUTHED: the CMSG_VOICE_SESSION_ENABLE, CMSG_SET_ACTIVE_VOICE_CHANNEL,
 ///   CMSG_WARDEN_DATA, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE, CMSG_CHAR_DELETE,
 ///   CMSG_CHAR_RENAME, CMSG_SET_PLAYER_DECLINED_NAMES, CMSG_CHAR_CUSTOMIZE, CMSG_REORDER_CHARACTERS,
-///   CMSG_LOAD_SCREEN and CMSG_OPT_OUT_OF_LOOT rows.
+///   CMSG_LOAD_SCREEN, CMSG_OPT_OUT_OF_LOOT and CMSG_GUILD_QUERY rows.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -118,6 +118,7 @@
 #include "PlayerRegistry.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/GroupHandlers.h"
+#include "session/handlers/social/GuildHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
 #include "session/handlers/social/MailHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
@@ -2349,4 +2350,159 @@ TEST(OpcodeDispatch_GroupRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_LOW_LEVEL_RAID_USER].packetProcessing, PROCESS_INPLACE);
     CHECK_EQ(opcodeTable[CMSG_GROUP_REQUEST_JOIN_UPDATES].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_GROUP_REQUEST_JOIN_UPDATES].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_GuildRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_GUILD_QUERY].handler == &OpcodeThunk<&GuildHandlers::HandleGuildQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildQuery>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_INVITE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildInvite>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildInvite>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_REMOVE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildRemove>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildRemove>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_ACCEPT].handler == &OpcodeThunk<&GuildHandlers::HandleGuildAccept>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildAccept>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_DECLINE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildDecline>);
+    CHECK(opcodeTable[CMSG_GUILD_AUTO_DECLINE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildDecline>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildDecline>), 2);
+    CHECK(opcodeTable[CMSG_GUILD_ROSTER].handler == &OpcodeThunk<&GuildHandlers::HandleGuildRoster>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildRoster>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_PROMOTE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildPromote>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildPromote>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_DEMOTE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildDemote>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildDemote>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_SET_RANK].handler == &OpcodeThunk<&GuildHandlers::HandleGuildSetRank>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildSetRank>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_SWITCH_RANK].handler == &OpcodeThunk<&GuildHandlers::HandleGuildSwitchRank>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildSwitchRank>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_LEAVE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildLeave>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildLeave>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_DISBAND].handler == &OpcodeThunk<&GuildHandlers::HandleGuildDisband>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildDisband>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_LEADER].handler == &OpcodeThunk<&GuildHandlers::HandleGuildLeader>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildLeader>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_MOTD].handler == &OpcodeThunk<&GuildHandlers::HandleGuildMOTD>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildMOTD>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_SET_NOTE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildSetNote>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildSetNote>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_RANK].handler == &OpcodeThunk<&GuildHandlers::HandleGuildRank>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildRank>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_ADD_RANK].handler == &OpcodeThunk<&GuildHandlers::HandleGuildAddRank>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildAddRank>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_DEL_RANK].handler == &OpcodeThunk<&GuildHandlers::HandleGuildDelRank>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildDelRank>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_INFO_TEXT].handler == &OpcodeThunk<&GuildHandlers::HandleGuildChangeInfoText>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildChangeInfoText>), 1);
+    CHECK(opcodeTable[MSG_SAVE_GUILD_EMBLEM].handler == &OpcodeThunk<&GuildHandlers::HandleSaveGuildEmblem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleSaveGuildEmblem>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_EVENT_LOG_QUERY].handler == &OpcodeThunk<&GuildHandlers::HandleGuildEventLogQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildEventLogQuery>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANK_MONEY_WITHDRAWN].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankMoneyWithdrawn>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankMoneyWithdrawn>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_PERMISSIONS].handler == &OpcodeThunk<&GuildHandlers::HandleGuildPermissions>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildPermissions>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANKER_ACTIVATE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankerActivate>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankerActivate>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANK_QUERY_TAB].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankQueryTab>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankQueryTab>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANK_DEPOSIT_MONEY].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankDepositMoney>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankDepositMoney>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANK_WITHDRAW_MONEY].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankWithdrawMoney>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankWithdrawMoney>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANK_SWAP_ITEMS].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankSwapItems>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankSwapItems>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANK_BUY_TAB].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankBuyTab>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankBuyTab>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANK_UPDATE_TAB].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankUpdateTab>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankUpdateTab>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_BANK_LOG_QUERY].handler == &OpcodeThunk<&GuildHandlers::HandleGuildBankLogQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildBankLogQuery>), 1);
+    CHECK(opcodeTable[CMSG_QUERY_GUILD_BANK_TEXT].handler == &OpcodeThunk<&GuildHandlers::HandleQueryGuildBankTabText>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleQueryGuildBankTabText>), 1);
+    CHECK(opcodeTable[CMSG_SET_GUILD_BANK_TEXT].handler == &OpcodeThunk<&GuildHandlers::HandleSetGuildBankTabText>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleSetGuildBankTabText>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_QUERY_RANKS].handler == &OpcodeThunk<&GuildHandlers::HandleGuildQueryRanks>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildQueryRanks>), 1);
+    CHECK(opcodeTable[CMSG_GUILD_AUTO_DECLINE_TOGGLE].handler == &OpcodeThunk<&GuildHandlers::HandleGuildAutoDeclineToggle>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GuildHandlers::HandleGuildAutoDeclineToggle>), 1);
+}
+
+TEST(OpcodeDispatch_GuildRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_GUILD_QUERY].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_QUERY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_INVITE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_INVITE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_REMOVE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_REMOVE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_ACCEPT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_ACCEPT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_DECLINE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_DECLINE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_ROSTER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_ROSTER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_PROMOTE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_PROMOTE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_DEMOTE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_DEMOTE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_SET_RANK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_SET_RANK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_SWITCH_RANK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_SWITCH_RANK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_LEAVE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_LEAVE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_DISBAND].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_DISBAND].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_LEADER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_LEADER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_MOTD].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_MOTD].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_SET_NOTE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_SET_NOTE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_RANK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_RANK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_ADD_RANK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_ADD_RANK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_DEL_RANK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_DEL_RANK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_INFO_TEXT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_INFO_TEXT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_SAVE_GUILD_EMBLEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_SAVE_GUILD_EMBLEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_EVENT_LOG_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_EVENT_LOG_QUERY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_MONEY_WITHDRAWN].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_MONEY_WITHDRAWN].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_PERMISSIONS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_PERMISSIONS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANKER_ACTIVATE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANKER_ACTIVATE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_QUERY_TAB].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_QUERY_TAB].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_DEPOSIT_MONEY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_DEPOSIT_MONEY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_WITHDRAW_MONEY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_WITHDRAW_MONEY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_SWAP_ITEMS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_SWAP_ITEMS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_BUY_TAB].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_BUY_TAB].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_UPDATE_TAB].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_UPDATE_TAB].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_LOG_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_BANK_LOG_QUERY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_QUERY_GUILD_BANK_TEXT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_QUERY_GUILD_BANK_TEXT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_GUILD_BANK_TEXT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_GUILD_BANK_TEXT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_QUERY_RANKS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_QUERY_RANKS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE_TOGGLE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE_TOGGLE].packetProcessing, PROCESS_INPLACE);
 }

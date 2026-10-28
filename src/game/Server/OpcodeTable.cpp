@@ -63,6 +63,7 @@
 #include "session/handlers/social/ChatHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/GroupHandlers.h"
+#include "session/handlers/social/GuildHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
 #include "session/handlers/social/MailHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
@@ -206,7 +207,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_NAME_QUERY_RESPONSE,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_PET_NAME_QUERY,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetNameQuery               );
     OPCODE(SMSG_PET_NAME_QUERY_RESPONSE,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_QUERY,                             STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleGuildQueryOpcode          );
+    OPCODE(CMSG_GUILD_QUERY,                             STATUS_AUTHED,   PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildQuery               );
     OPCODE(SMSG_GUILD_QUERY_RESPONSE,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_PAGE_TEXT_QUERY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QueryHandlers::HandlePageTextQuery            );
     OPCODE(SMSG_PAGE_TEXT_QUERY_RESPONSE,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -245,28 +246,28 @@ void InitializeOpcodes()
     OPCODE(SMSG_PARTY_MEMBER_STATS,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PARTY_COMMAND_RESULT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(UMSG_UPDATE_GROUP_MEMBERS,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_GUILD_INVITE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildInviteOpcode         );
+    OPCODE(CMSG_GUILD_INVITE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildInvite              );
     OPCODE(SMSG_GUILD_INVITE,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_ACCEPT,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildAcceptOpcode         );
-    OPCODE(CMSG_GUILD_DECLINE,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildDeclineOpcode        );
+    OPCODE(CMSG_GUILD_ACCEPT,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildAccept              );
+    OPCODE(CMSG_GUILD_DECLINE,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildDecline             );
     OPCODE(SMSG_GUILD_DECLINE,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_GUILD_INFO,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_ROSTER,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildRosterOpcode         );
+    OPCODE(CMSG_GUILD_ROSTER,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildRoster              );
     OPCODE(SMSG_GUILD_ROSTER,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_PROMOTE,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildPromoteOpcode        );
-    OPCODE(CMSG_GUILD_DEMOTE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildDemoteOpcode         );
-    OPCODE(CMSG_GUILD_SET_RANK,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildSetRankOpcode        );
-    OPCODE(CMSG_GUILD_SWITCH_RANK,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildSwitchRankOpcode     );
-    OPCODE(CMSG_GUILD_LEAVE,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildLeaveOpcode          );
-    OPCODE(CMSG_GUILD_REMOVE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildRemoveOpcode         );
-    OPCODE(CMSG_GUILD_DISBAND,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildDisbandOpcode        );
-    OPCODE(CMSG_GUILD_LEADER,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildLeaderOpcode         );
-    OPCODE(CMSG_GUILD_MOTD,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildMOTDOpcode           );
+    OPCODE(CMSG_GUILD_PROMOTE,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildPromote             );
+    OPCODE(CMSG_GUILD_DEMOTE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildDemote              );
+    OPCODE(CMSG_GUILD_SET_RANK,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildSetRank             );
+    OPCODE(CMSG_GUILD_SWITCH_RANK,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildSwitchRank          );
+    OPCODE(CMSG_GUILD_LEAVE,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildLeave               );
+    OPCODE(CMSG_GUILD_REMOVE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildRemove              );
+    OPCODE(CMSG_GUILD_DISBAND,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildDisband             );
+    OPCODE(CMSG_GUILD_LEADER,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildLeader              );
+    OPCODE(CMSG_GUILD_MOTD,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildMOTD                );
     OPCODE(SMSG_GUILD_EVENT,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_GUILD_COMMAND_RESULT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_AUTO_DECLINE_TOGGLE,               STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleGuildAutoDeclineToggleOpcode );
-    OPCODE(CMSG_GUILD_AUTO_DECLINE,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildDeclineOpcode        );
-    OPCODE(CMSG_GUILD_QUERY_RANKS,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildQueryRanksOpcode     );
+    OPCODE(CMSG_GUILD_AUTO_DECLINE_TOGGLE,               STATUS_LOGGEDIN, PROCESS_INPLACE,      &GuildHandlers::HandleGuildAutoDeclineToggle      );
+    OPCODE(CMSG_GUILD_AUTO_DECLINE,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildDecline             );
+    OPCODE(CMSG_GUILD_QUERY_RANKS,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildQueryRanks          );
     OPCODE(SMSG_GUILD_QUERY_RANKS_RESULT,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(UMSG_UPDATE_GUILD,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_MESSAGECHAT_ADDON_BATTLEGROUND,          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChatHandlers::HandleAddonMessagechat          );
@@ -652,7 +653,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_ITEM_ENCHANT_TIME_UPDATE,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(MSG_GM_SHOWLABEL,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_PET_CAST_SPELL,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetCastSpell               );
-    OPCODE(MSG_SAVE_GUILD_EMBLEM,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSaveGuildEmblemOpcode     );
+    OPCODE(MSG_SAVE_GUILD_EMBLEM,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleSaveGuildEmblem          );
     OPCODE(MSG_TABARDVENDOR_ACTIVATE,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &NpcHandlers::HandleTabardVendorActivate       );
     OPCODE(SMSG_PLAY_SPELL_VISUAL,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_ZONEUPDATE,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleZoneUpdateOpcode          );
@@ -724,10 +725,10 @@ void InitializeOpcodes()
     //OPCODE(CMSG_GM_UBERINVIS,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_REQUEST_PLAYER_INFO,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_GM_PLAYER_INFO,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_GUILD_RANK,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildRankOpcode           );
-    OPCODE(CMSG_GUILD_ADD_RANK,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildAddRankOpcode        );
-    OPCODE(CMSG_GUILD_DEL_RANK,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildDelRankOpcode        );
-    OPCODE(CMSG_GUILD_SET_NOTE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildSetNoteOpcode  );
+    OPCODE(CMSG_GUILD_RANK,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildRank                );
+    OPCODE(CMSG_GUILD_ADD_RANK,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildAddRank             );
+    OPCODE(CMSG_GUILD_DEL_RANK,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildDelRank             );
+    OPCODE(CMSG_GUILD_SET_NOTE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildSetNote       );
     OPCODE(SMSG_LOGIN_VERIFY_WORLD,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_CLEAR_EXPLORATION,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_SEND_MAIL,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MailHandlers::HandleSendMail                  );
@@ -932,7 +933,7 @@ void InitializeOpcodes()
     //OPCODE(SMSG_MINIGAME_MOVE_FAILED,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_RAID_INSTANCE_MESSAGE,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_COMPRESSED_MOVES,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_INFO_TEXT,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildChangeInfoTextOpcode );
+    OPCODE(CMSG_GUILD_INFO_TEXT,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildChangeInfoText      );
     OPCODE(SMSG_CHAT_RESTRICTED,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_SPLINE_SET_RUN_SPEED,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_SPLINE_SET_RUN_BACK_SPEED,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1163,15 +1164,15 @@ void InitializeOpcodes()
     OPCODE(SMSG_VOICE_CHAT_STATUS,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_REPORT_PVP_AFK,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleReportPvPAFK               );
     OPCODE(SMSG_REPORT_PVP_AFK_RESULT,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_GUILD_BANKER_ACTIVATE,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankerActivate       );
-    OPCODE(CMSG_GUILD_BANK_QUERY_TAB,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankQueryTab         );
+    OPCODE(CMSG_GUILD_BANKER_ACTIVATE,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankerActivate      );
+    OPCODE(CMSG_GUILD_BANK_QUERY_TAB,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankQueryTab        );
     OPCODE(SMSG_GUILD_BANK_LIST,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_BANK_SWAP_ITEMS,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankSwapItems        );
-    OPCODE(CMSG_GUILD_BANK_BUY_TAB,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankBuyTab           );
-    OPCODE(CMSG_GUILD_BANK_UPDATE_TAB,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankUpdateTab        );
-    OPCODE(CMSG_GUILD_BANK_DEPOSIT_MONEY,                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankDepositMoney     );
-    OPCODE(CMSG_GUILD_BANK_WITHDRAW_MONEY,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankWithdrawMoney    );
-    OPCODE(CMSG_GUILD_BANK_LOG_QUERY,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankLogQuery         );
+    OPCODE(CMSG_GUILD_BANK_SWAP_ITEMS,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankSwapItems       );
+    OPCODE(CMSG_GUILD_BANK_BUY_TAB,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankBuyTab          );
+    OPCODE(CMSG_GUILD_BANK_UPDATE_TAB,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankUpdateTab       );
+    OPCODE(CMSG_GUILD_BANK_DEPOSIT_MONEY,                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankDepositMoney    );
+    OPCODE(CMSG_GUILD_BANK_WITHDRAW_MONEY,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankWithdrawMoney   );
+    OPCODE(CMSG_GUILD_BANK_LOG_QUERY,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankLogQuery        );
     OPCODE(SMSG_GUILD_BANK_LOG_QUERY_RESULT,             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_SET_CHANNEL_WATCH,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleSetChannelWatch        );
     OPCODE(SMSG_USERLIST_ADD,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1187,11 +1188,11 @@ void InitializeOpcodes()
     //OPCODE(CMSG_GM_CHARACTER_RESTORE,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_CHARACTER_SAVE,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_VOICESESSION_FULL,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_PERMISSIONS,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildPermissions          );
+    OPCODE(CMSG_GUILD_PERMISSIONS,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildPermissions         );
     OPCODE(SMSG_GUILD_PERMISSIONS,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_BANK_MONEY_WITHDRAWN,              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankMoneyWithdrawn   );
+    OPCODE(CMSG_GUILD_BANK_MONEY_WITHDRAWN,              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildBankMoneyWithdrawn  );
     OPCODE(SMSG_GUILD_BANK_MONEY_WITHDRAWN,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GUILD_EVENT_LOG_QUERY,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildEventLogQueryOpcode  );
+    OPCODE(CMSG_GUILD_EVENT_LOG_QUERY,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleGuildEventLogQuery       );
     OPCODE(SMSG_GUILD_EVENT_LOG,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_MAELSTROM_RENAME_GUILD,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_GET_MIRRORIMAGE_DATA,                    STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleGetMirrorimageData        );
@@ -1203,9 +1204,9 @@ void InitializeOpcodes()
     OPCODE(CMSG_KEEP_ALIVE,                              STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleKeepAliveOpcode           );
     //OPCODE(SMSG_RAID_READY_CHECK_ERROR,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_OPT_OUT_OF_LOOT,                         STATUS_AUTHED,   PROCESS_THREADUNSAFE, &GroupHandlers::HandleOptOutOfLoot             );
-    OPCODE(CMSG_QUERY_GUILD_BANK_TEXT,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQueryGuildBankTabText     );
+    OPCODE(CMSG_QUERY_GUILD_BANK_TEXT,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleQueryGuildBankTabText    );
     OPCODE(SMSG_GUILD_BANK_TEXT,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_SET_GUILD_BANK_TEXT,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSetGuildBankTabText       );
+    OPCODE(CMSG_SET_GUILD_BANK_TEXT,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleSetGuildBankTabText      );
     //OPCODE(CMSG_SET_GRANTABLE_LEVELS,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_GRANT_LEVEL,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_REFER_A_FRIEND,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
