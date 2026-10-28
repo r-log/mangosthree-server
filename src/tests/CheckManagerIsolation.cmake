@@ -73,8 +73,6 @@ set(GAME_DIR "${SOURCE_ROOT}/src/game")
 set(MANAGER_FILES
     entities/player/quests/QuestStatusMgr.h                 # decoupling D4a
     entities/player/quests/QuestStatusMgr.cpp               # decoupling D4a
-    entities/player/quests/QuestCompletePacket.h            # Q-2
-    entities/player/quests/QuestCompletePacket.cpp          # Q-2
     entities/player/quests/QuestRewardRules.h               # decoupling D4f
     entities/player/quests/QuestRewardRules.cpp             # decoupling D4f
     entities/player/talents/TalentMgr.h                     # decoupling D4c
