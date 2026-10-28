@@ -2814,6 +2814,8 @@ enum TrainerType                                            // this is important
 #define MAX_TRAINER_TYPE 4
 
 // CreatureType.dbc
+#define CREATURE_MAX_SPELLS     10
+
 enum CreatureType
 {
     CREATURE_TYPE_BEAST            = 1,

@@ -39,7 +39,7 @@
 #include "Log.h"
 #include "Object.h"
 #include "Bag.h"
-#include "Creature.h"
+#include "data/CreatureRecords.h"
 #include "Player.h"
 #include "ReputationMgr.h" // RepSpilloverTemplate (the reputation manager reads the rows)
 #include "Pet.h"

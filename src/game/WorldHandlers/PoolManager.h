@@ -34,11 +34,12 @@
 #include <set>
 #include "Platform/Define.h"
 #include "Policies/Singleton.h"
-#include "Creature.h"
+#include "DBCStructure.h"
 #include "GameObject.h"
 
+class Creature;
+
 class MapPersistentState;
-struct MapEntry;
 
 struct PoolTemplateData
 {
