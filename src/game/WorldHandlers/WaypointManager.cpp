@@ -26,7 +26,6 @@
 #include <set>
 #include "WaypointManager.h"
 #include "Database/DatabaseEnv.h"
-#include "GridDefines.h"
 #include "Policies/Singleton.h"
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
