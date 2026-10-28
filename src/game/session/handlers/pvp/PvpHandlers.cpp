@@ -50,6 +50,7 @@
 #include "entities/player/social/SocialMgr.h"
 #include "entities/player/PlayerRegistry.h"
 #include "DBCStores.h"
+#include "Creature.h"
 
 void PvpHandlers::HandleInspectArenaTeams(WorldSession& session, WorldPacket& recv_data)
 {

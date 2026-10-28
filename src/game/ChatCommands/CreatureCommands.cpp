@@ -44,6 +44,7 @@
 #include "WaypointManager.h"
 #include "Totem.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "ObjectLookup.h"
 #include "MotionMaster.h"
 #include "persistence/world/creatures/CreatureDataRepository.h"

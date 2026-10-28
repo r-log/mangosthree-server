@@ -26,6 +26,7 @@
 #include "Unit.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "GridMap.h"
 #include "ObjectGuid.h"
 #include "QuestDef.h"
 #include "Player.h"

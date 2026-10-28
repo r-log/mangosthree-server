@@ -33,6 +33,7 @@
 #include "QuestDef.h"
 #include "GridNotifiers.h"
 #include "ObjectMgr.h"
+#include "GridMap.h"
 #include "Formulas.h"
 #include "Group.h"
 #include "Pet.h"

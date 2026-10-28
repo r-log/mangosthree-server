@@ -38,6 +38,7 @@
 #include "Chat.h"
 #include "Language.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "data/GameConfig.h"
 #include "GMTicketMgr.h"
 #include "Mail.h"

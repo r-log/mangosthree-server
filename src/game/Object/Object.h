@@ -41,6 +41,7 @@
 #include "Geometry/Placement.h"
 #include "Util.h"
 #include "data/GameConfig.h"
+#include "SharedDefines.h"
 
 #include <set>
 #include <string>
@@ -50,9 +51,6 @@
 #define ATTACK_DISTANCE             5.0f
 #define INSPECT_DISTANCE            28.0f
 #define TRADE_DISTANCE              11.11f
-
-#define DEFAULT_WORLD_OBJECT_SIZE   0.388999998569489f      // currently used (correctly?) for any non Unit world objects. This is actually the bounding_radius, like player/creature from creature_model_data
-#define DEFAULT_OBJECT_SCALE        1.0f                    // player/item scale as default, npc/go from database, pets from dbc
 
 #define MAX_STEALTH_DETECT_RANGE    45.0f
 

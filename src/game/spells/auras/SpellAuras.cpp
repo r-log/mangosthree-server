@@ -59,6 +59,7 @@
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "Unit.h"

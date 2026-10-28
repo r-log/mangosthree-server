@@ -32,6 +32,7 @@
 #include "Database/DatabaseEnv.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "Map.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/maps/CorpseRepository.h"
 

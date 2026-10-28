@@ -29,6 +29,7 @@
  */
 
 #include "ObjectMgr.h"
+#include "Creature.h"
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
 #include "DBCStores.h"

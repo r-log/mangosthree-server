@@ -29,6 +29,7 @@
 #include "Guild.h"
 #include "Mail.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "ProgressBar.h"
 #include "persistence/characters/social/CalendarRepository.h"
 

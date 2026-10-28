@@ -36,6 +36,7 @@
 #include "Player.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "Bag.h"
 #include "WorldSession.h"
 #include "DBCStores.h"
 

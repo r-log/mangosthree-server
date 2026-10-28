@@ -41,6 +41,7 @@
 #include "AccountMgr.h"
 #include "Util.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "WorldSession.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/login/BanRepository.h"

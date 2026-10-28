@@ -44,6 +44,8 @@
 #include "Utilities/Util.h"
 #include "WorldHandlers/Chat.h"
 #include "persistence/characters/CharacterTransaction.h"
+#include "Bag.h"
+#include "Creature.h"
 
 // void called when player click on auctioneer npc
 void AuctionHandlers::HandleAuctionHello(WorldSession& session, WorldPacket& recv_data)

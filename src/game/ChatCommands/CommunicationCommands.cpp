@@ -38,6 +38,7 @@
 #include "DatabaseEnv.h"
 #include "Language.h"
 #include "ObjectMgr.h"
+#include "Creature.h"
 #include "Player.h"
 #include "World.h"
 #include "WorldSession.h"

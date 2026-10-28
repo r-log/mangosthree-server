@@ -35,6 +35,7 @@
 #include "ScriptMgr.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Cell.h"

@@ -54,6 +54,7 @@
 #include <fstream>
 #include "ObjectLookup.h"
 #include "ObjectMgr.h"
+#include "Bag.h"
 #include "DBCStores.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"

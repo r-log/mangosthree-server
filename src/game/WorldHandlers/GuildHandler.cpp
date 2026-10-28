@@ -36,6 +36,7 @@
 #include "WorldSession.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "Log.h"
 #include "OpcodeTable.h"
 #include "Guild.h"

@@ -27,6 +27,8 @@
 #include "Log.h"
 #include "Group.h"
 #include "ObjectMgr.h"
+#include "Item.h"
+#include "Player.h"
 #include "ProgressBar.h"
 #include "data/GameConfig.h"
 #include "Util.h"

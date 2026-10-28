@@ -35,6 +35,8 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "ObjectMgr.h"
+#include "Creature.h"
+#include "Bag.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
 #include "persistence/characters/inventory/ItemRepository.h"

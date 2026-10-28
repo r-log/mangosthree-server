@@ -42,6 +42,10 @@
 #include "Object/Guild.h"
 #include "WorldHandlers/GuildMgr.h"
 #include "entities/player/PlayerRegistry.h"
+#include "Player.h"
+#include "Unit.h"
+#include "spells/auras/SpellAuraDefines.h"
+#include "Creature.h"
 
 // Charters ID in item_template
 constexpr uint32 GUILD_CHARTER = 5863;

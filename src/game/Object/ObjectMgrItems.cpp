@@ -32,6 +32,7 @@
 #include <string>
 #include <set>
 #include "ObjectMgr.h"
+#include "ItemEnchantmentMgr.h"
 #include "DBCStores.h"
 #include "persistence/world/items/ItemTemplateRepository.h"
 #include "Database/DatabaseEnv.h"

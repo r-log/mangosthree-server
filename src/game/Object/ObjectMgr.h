@@ -37,19 +37,14 @@
 #include <list>
 #include <ctime>
 #include "Log.h"
-#include "Object.h"
-#include "Bag.h"
+#include "SharedDefines.h"
+#include "DBCEnums.h"
 #include "data/CreatureRecords.h"
-#include "Player.h"
-#include "Pet.h"
 #include "data/GameObjectRecords.h"
-#include "Corpse.h"
 #include "QuestDef.h"
 #include "ItemPrototype.h"
 #include "data/GossipRecords.h"
 #include "Database/DatabaseEnv.h"
-#include "Map.h"
-#include "PlayerRegistry.h"
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
 #include "data/CellObjectGuids.h"
@@ -80,6 +75,13 @@
 class Group;
 class ArenaTeam;
 class Item;
+class Player;
+class Creature;
+class GameObject;
+class Unit;
+class WorldObject;
+class Map;
+struct DeclinedName;
 enum class TableReadStatus;
 struct SpellTemplateRow;
 struct ItemTemplateRow;
