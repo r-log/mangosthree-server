@@ -996,7 +996,7 @@ void GroupHandlers::HandleRaidReadyCheck(WorldSession& session, WorldPacket& rec
  *
  * @param recv_data The received opcode packet.
  */
-void GroupHandlers::HandleRaidReadyCheckFinished(WorldSession& session, WorldPacket& /*recv_data*/)
+void GroupHandlers::HandleRaidReadyCheckFinished(WorldSession& /*session*/, WorldPacket& /*recv_data*/)
 {
     // Group* group = session.GetPlayer()->GetGroup();
     // if (!group)

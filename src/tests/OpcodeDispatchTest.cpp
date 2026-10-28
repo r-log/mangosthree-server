@@ -2284,7 +2284,8 @@ TEST(OpcodeDispatch_GroupRowsHoldTheirHandlersThunks)
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupAssistantLeader>), 1);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandlePartyAssignment>), 1);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRaidReadyCheck>), 1);
-    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRaidReadyCheckFinished>), 1);
+    // The ready check's end has an empty body, so identical code folding can give its thunk the
+    // address of another empty handler's: only its row is checked.
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRequestPartyMemberStats>), 1);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRequestRaidInfo>), 1);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleOptOutOfLoot>), 1);
