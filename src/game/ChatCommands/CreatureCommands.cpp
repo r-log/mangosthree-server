@@ -36,6 +36,7 @@
 
 #include <string>
 #include "Chat.h"
+#include "CreatureEventAI.h"
 #include "Language.h"
 #include "World.h"
 #include "GridNotifiersImpl.h"
@@ -510,6 +511,34 @@ bool ChatHandler::HandleNpcAIInfoCommand(char* /*args*/)
 
     if (pTarget->AI())
     {
+        EventAIInformation info;
+        if (pTarget->AI()->GetEventAIInformation(info))
+        {
+            PSendSysMessage(LANG_NPC_EVENTAI_PHASE, info.phase);
+            PSendSysMessage(LANG_NPC_EVENTAI_MOVE, GetOnOffStr(info.combatMovement));
+            PSendSysMessage(LANG_NPC_EVENTAI_COMBAT, GetOnOffStr(info.meleeEnabled));
+
+            if (info.showEvents)
+            {
+                PSendSysMessage("Current events of this creature:");
+                for (std::vector<EventAIInformation::Event>::const_iterator itr = info.events.begin(); itr != info.events.end(); ++itr)
+                {
+                    if (itr->actionType[2] != ACTION_T_NONE)
+                    {
+                        PSendSysMessage("%u Type%3u (%s) Timer(%3us) actions[type(param1)]: %2u(%5u)  --  %2u(%u)  --  %2u(%5u)", itr->id, itr->type, itr->enabled ? "On" : "Off", itr->time / 1000, itr->actionType[0], itr->actionParam1[0], itr->actionType[1], itr->actionParam1[1], itr->actionType[2], itr->actionParam1[2]);
+                    }
+                    else if (itr->actionType[1] != ACTION_T_NONE)
+                    {
+                        PSendSysMessage("%u Type%3u (%s) Timer(%3us) actions[type(param1)]: %2u(%5u)  --  %2u(%5u)", itr->id, itr->type, itr->enabled ? "On" : "Off", itr->time / 1000, itr->actionType[0], itr->actionParam1[0], itr->actionType[1], itr->actionParam1[1]);
+                    }
+                    else
+                    {
+                        PSendSysMessage("%u Type%3u (%s) Timer(%3us) action[type(param1)]:  %2u(%5u)", itr->id, itr->type, itr->enabled ? "On" : "Off", itr->time / 1000, itr->actionType[0], itr->actionParam1[0]);
+                    }
+                }
+            }
+        }
+
         pTarget->AI()->GetAIInformation(*this);
     }
 

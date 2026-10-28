@@ -63,6 +63,7 @@ namespace Harness
 
         // Forwarded unchanged.
         void GetAIInformation(ChatHandler& reader) override;
+        bool GetEventAIInformation(EventAIInformation& info) const override;
         void MoveInLineOfSight(Unit* who) override;
         bool CanIgnoreForRelocationNotify(Unit* who) const override;
         void EnterCombat(Unit* enemy) override;

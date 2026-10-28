@@ -39,7 +39,6 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceData.h"
-#include "Chat.h"
 #include "Language.h"
 #include "MotionMaster.h"
 
@@ -87,37 +86,38 @@ int CreatureEventAI::Permissible(const Creature* creature)
 }
 
 /**
- * @brief Prints current EventAI debug information for the creature.
+ * @brief Fills what `.npc aiinfo` shows of this AI.
  *
- * @param reader The chat handler receiving the output.
+ * @param info The phase, the combat movement and melee flags and, unless the EventAI developer
+ *             log filter is set, the events.
+ * @return true: this is an event AI.
  */
-void CreatureEventAI::GetAIInformation(ChatHandler& reader)
+bool CreatureEventAI::GetEventAIInformation(EventAIInformation& info) const
 {
-    reader.PSendSysMessage(LANG_NPC_EVENTAI_PHASE, (uint32)m_Phase);
-    reader.PSendSysMessage(LANG_NPC_EVENTAI_MOVE, reader.GetOnOffStr(m_isCombatMovement));
-    reader.PSendSysMessage(LANG_NPC_EVENTAI_COMBAT, reader.GetOnOffStr(m_MeleeEnabled));
-
-    if (sLog.HasLogFilter(LOG_FILTER_EVENT_AI_DEV))         // Give some more details if in EventAI Dev Mode
+    info.phase = m_Phase;
+    info.combatMovement = m_isCombatMovement;
+    info.meleeEnabled = m_MeleeEnabled;
+    info.showEvents = !sLog.HasLogFilter(LOG_FILTER_EVENT_AI_DEV);
+    if (!info.showEvents)
     {
-        return;
+        return true;
     }
 
-    reader.PSendSysMessage("Current events of this creature:");
     for (CreatureEventAIList::const_iterator itr = m_CreatureEventAIList.begin(); itr != m_CreatureEventAIList.end(); ++itr)
     {
-        if (itr->Event.action[2].type != ACTION_T_NONE)
+        EventAIInformation::Event event;
+        event.id = itr->Event.event_id;
+        event.type = itr->Event.event_type;
+        event.enabled = itr->Enabled;
+        event.time = itr->Time;
+        for (uint32 i = 0; i < MAX_ACTIONS; ++i)
         {
-            reader.PSendSysMessage("%u Type%3u (%s) Timer(%3us) actions[type(param1)]: %2u(%5u)  --  %2u(%u)  --  %2u(%5u)", itr->Event.event_id, itr->Event.event_type, itr->Enabled ? "On" : "Off", itr->Time / 1000, itr->Event.action[0].type, itr->Event.action[0].raw.param1, itr->Event.action[1].type, itr->Event.action[1].raw.param1, itr->Event.action[2].type, itr->Event.action[2].raw.param1);
+            event.actionType[i] = itr->Event.action[i].type;
+            event.actionParam1[i] = itr->Event.action[i].raw.param1;
         }
-        else if (itr->Event.action[1].type != ACTION_T_NONE)
-        {
-            reader.PSendSysMessage("%u Type%3u (%s) Timer(%3us) actions[type(param1)]: %2u(%5u)  --  %2u(%5u)", itr->Event.event_id, itr->Event.event_type, itr->Enabled ? "On" : "Off", itr->Time / 1000, itr->Event.action[0].type, itr->Event.action[0].raw.param1, itr->Event.action[1].type, itr->Event.action[1].raw.param1);
-        }
-        else
-        {
-            reader.PSendSysMessage("%u Type%3u (%s) Timer(%3us) action[type(param1)]:  %2u(%5u)", itr->Event.event_id, itr->Event.event_type, itr->Enabled ? "On" : "Off", itr->Time / 1000, itr->Event.action[0].type, itr->Event.action[0].raw.param1);
-        }
+        info.events.push_back(event);
     }
+    return true;
 }
 
 // For Non Dungeon map only allow non-difficulty flags or EFLAG_DIFFICULTY_0 mode

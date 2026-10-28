@@ -38,6 +38,7 @@ class Creature;
 class Player;
 struct SpellEntry;
 class ChatHandler;
+struct EventAIInformation;
 
 #define TIME_INTERVAL_LOOK   5000
 #define VISIBILITY_RANGE    10000
@@ -129,6 +130,10 @@ class CreatureAI
          * @param reader is a ChatHandler to send messages to.
          */
         virtual void GetAIInformation(ChatHandler& /*reader*/) {}
+
+        /// What `.npc aiinfo` shows of an event AI, which the command prints before
+        /// GetAIInformation's lines. False for any other AI.
+        virtual bool GetEventAIInformation(EventAIInformation& /*info*/) const { return false; }
 
         ///== Reactions At =================================
 
