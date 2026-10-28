@@ -164,43 +164,6 @@ void WorldSession::HandleLogoutCancelOpcode(WorldPacket & /*recv_data*/)
 }
 
 /**
- * @brief Toggles or explicitly sets the player's PvP flag.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleTogglePvP(WorldPacket& recv_data)
-{
-    // this opcode can be used in two ways: Either set explicit new status or toggle old status
-    if (recv_data.size() == 1)
-    {
-        bool newPvPStatus;
-        recv_data >> newPvPStatus;
-        GetPlayer()->ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP, newPvPStatus);
-        GetPlayer()->ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_PVP_TIMER, !newPvPStatus);
-    }
-    else
-    {
-        GetPlayer()->ToggleFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP);
-        GetPlayer()->ToggleFlag(PLAYER_FLAGS, PLAYER_FLAGS_PVP_TIMER);
-    }
-
-    if (GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP))
-    {
-        if (!GetPlayer()->IsPvP() || GetPlayer()->pvpInfo.endTimer != 0)
-        {
-            GetPlayer()->UpdatePvP(true, true);
-        }
-    }
-    else
-    {
-        if (!GetPlayer()->pvpInfo.inHostileArea && GetPlayer()->IsPvP())
-        {
-            GetPlayer()->pvpInfo.endTimer = time(NULL);     // start toggle-off
-        }
-    }
-}
-
-/**
  * @brief Sends the character's raid-frame (CompactUnitFrame) profiles.
  *
  * The 4.3.4 client will not fire COMPACT_UNIT_FRAME_PROFILES_LOADED until this

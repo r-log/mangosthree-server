@@ -762,7 +762,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_SPELLNONMELEEDAMAGELOG,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_LEARN_TALENT,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleLearnTalent              );
     //OPCODE(SMSG_RESURRECT_FAILED,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_TOGGLE_PVP,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleTogglePvP                 );
+    OPCODE(CMSG_TOGGLE_PVP,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleTogglePvP                  );
     OPCODE(SMSG_ZONE_UNDER_ATTACK,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(MSG_AUCTION_HELLO,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionHello           );
     OPCODE(CMSG_AUCTION_SELL_ITEM,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionSellItem        );

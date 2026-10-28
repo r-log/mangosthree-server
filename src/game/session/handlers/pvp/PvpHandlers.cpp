@@ -1383,3 +1383,40 @@ void PvpHandlers::HandleRequestRatedBgInfo(WorldSession& session, WorldPacket & 
 
     session.SendPacket(&data);
 }
+
+/**
+ * @brief Toggles or explicitly sets the player's PvP flag.
+ *
+ * @param recv_data The received opcode packet.
+ */
+void PvpHandlers::HandleTogglePvP(WorldSession& session, WorldPacket& recv_data)
+{
+    // this opcode can be used in two ways: Either set explicit new status or toggle old status
+    if (recv_data.size() == 1)
+    {
+        bool newPvPStatus;
+        recv_data >> newPvPStatus;
+        session.GetPlayer()->ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP, newPvPStatus);
+        session.GetPlayer()->ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_PVP_TIMER, !newPvPStatus);
+    }
+    else
+    {
+        session.GetPlayer()->ToggleFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP);
+        session.GetPlayer()->ToggleFlag(PLAYER_FLAGS, PLAYER_FLAGS_PVP_TIMER);
+    }
+
+    if (session.GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP))
+    {
+        if (!session.GetPlayer()->IsPvP() || session.GetPlayer()->pvpInfo.endTimer != 0)
+        {
+            session.GetPlayer()->UpdatePvP(true, true);
+        }
+    }
+    else
+    {
+        if (!session.GetPlayer()->pvpInfo.inHostileArea && session.GetPlayer()->IsPvP())
+        {
+            session.GetPlayer()->pvpInfo.endTimer = time(NULL);     // start toggle-off
+        }
+    }
+}

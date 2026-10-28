@@ -2699,3 +2699,13 @@ TEST(OpcodeDispatch_BugAndComplainRowsHoldTheirHandlersThunks)
     CHECK_EQ(opcodeTable[CMSG_COMPLAIN].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_COMPLAIN].packetProcessing, PROCESS_THREADUNSAFE);
 }
+
+TEST(OpcodeDispatch_TogglePvPRowHoldsItsHandlersThunk)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_TOGGLE_PVP].handler == &OpcodeThunk<&PvpHandlers::HandleTogglePvP>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PvpHandlers::HandleTogglePvP>), 1);
+    CHECK_EQ(opcodeTable[CMSG_TOGGLE_PVP].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_TOGGLE_PVP].packetProcessing, PROCESS_THREADUNSAFE);
+}

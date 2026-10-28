@@ -737,8 +737,6 @@ class WorldSession
 
         void SendGMTicketStatusUpdate(GMTicketStatus statusCode);
 
-        void HandleTogglePvP(WorldPacket& recvPacket);
-
         void HandleUpdateAccountData(WorldPacket& recvPacket);
         void HandleRequestAccountData(WorldPacket& recvPacket);
 
