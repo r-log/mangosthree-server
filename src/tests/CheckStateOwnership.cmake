@@ -406,7 +406,7 @@ state_allow(social src/game/persistence/characters/CharacterDeleteRepository.cpp
 state_allow(social src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADSOCIALLIST), handed to SocialMgr::LoadFromDB's per-row load"
     NAMES character_social)
-state_allow(social src/game/WorldHandlers/CalendarHandler.cpp
+state_allow(social src/game/session/handlers/social/CalendarHandlers.cpp
     WHY "an offline invitee's ignore flag for the inviter (the calendar invite's read, and its comments): the invitee's list is not loaded"
     NAMES character_social)
 state_allow(social src/game/session/handlers/social/ContactHandlers.cpp
