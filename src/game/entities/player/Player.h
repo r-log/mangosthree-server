@@ -894,6 +894,7 @@ class Player : public Unit
 {
         friend class WorldSession;
         friend struct TradeHandlers;
+        friend struct MailHandlers;
         friend void Item::AddToUpdateQueueOf(Player* player);
         friend void Item::RemoveFromUpdateQueueOf(Player* player);
     public:
