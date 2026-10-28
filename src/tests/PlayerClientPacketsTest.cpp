@@ -33,6 +33,9 @@
 #include "Player.h"
 #include "WorldPacket.h"
 #include "session/packets/PlayerPacketSinks.h"
+#include "session/packets/chat/MessageChatPacket.h"
+#include "WorldSession.h"
+#include "Auth/BigNumber.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -657,4 +660,55 @@ TEST(PlayerClientPackets_EmptyCallbackAsserts)
     }
     ReportClientFact(CombatCancelledSink(), CombatCancelledFact());
     testing::ReportFailure(__FILE__, __LINE__, "the empty client callback passed the assertion");
+}
+
+namespace
+{
+    /// The packet SendSystemMessage gives one line: from player 1, untagged, in the universal language.
+    WorldPacket SystemLine(char const* text)
+    {
+        WorldPacket data;
+        BuildMessageChatPacket(data, CHAT_MSG_SYSTEM, text, LANG_UNIVERSAL, CHAT_TAG_NONE, ObjectGuid(HIGHGUID_PLAYER, uint32(1)));
+        return data;
+    }
+
+    void KeepSystemPacket(void* context, WorldPacket const& packet)
+    {
+        static_cast<std::vector<std::string>*>(context)->push_back(Hex(packet));
+    }
+
+    /// A player with its update fields allocated, seated on its session, in no world.
+    class SeatedPlayer : public Player
+    {
+        public:
+            explicit SeatedPlayer(WorldSession& session) : Player(&session)
+            {
+                Object::_Create(1, 0, HIGHGUID_PLAYER);
+                session.SetPlayer(this);
+            }
+
+            ~SeatedPlayer()
+            {
+                GetSession()->SetPlayer(nullptr);
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+}
+
+// The installed system message callback sends the text to the player's real session, one
+// SMSG_MESSAGECHAT of type CHAT_MSG_SYSTEM per line, the player as the sender.
+TEST(PlayerClientPackets_SystemMessageGoesToTheSessionOneLineAPacket)
+{
+    std::vector<std::string> sent;
+    WorldSession session(1, "system", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&KeepSystemPacket, &sent);
+    SeatedPlayer player(session);
+    InstallPlayerPacketSinks(player);
+
+    player.ReportSystemText("one\ntwo");
+
+    REQUIRE(sent.size() == 2u);
+    CHECK_STR(sent[0], Hex(SystemLine("one")));
+    CHECK_STR(sent[1], Hex(SystemLine("two")));
 }

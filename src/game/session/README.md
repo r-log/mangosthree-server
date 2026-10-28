@@ -18,7 +18,7 @@ One stateless class per origin file, in its domain's directory or, for the reque
 
 | Directory | File | Holds |
 |---|---|---|
-| `packets/` | `PlayerPacketSinks` | `InstallPlayerPacketSinks`, and the templates it installs through: `FactToSession`, `SystemMessageToSession` (a system message, sent with `SystemMessage`), `SecurityLevelOfSession` and `ClientCallbacksToSession` |
+| `packets/` | `PlayerPacketSinks` | `InstallPlayerPacketSinks`, and the templates it installs through: `FactToSession`, `SecurityLevelOfSession` and `ClientCallbacksToSession`; it adds the player's system message callback, which sends with `SystemMessage` |
 | `packets/chat/` | `MessageChatPacket` | `SMSG_MESSAGECHAT`, or `SMSG_GM_MESSAGECHAT` for a message tagged GM, from any chat message: the type, the language, the sender's guid, then by type the names, the channel or addon prefix and the target, then the text, the tag and, for an achievement, its id; `ChatHandler::BuildChatPacket` forwards to it for the domain code that reaches it through `Chat.h` |
 | `packets/chat/` | `SystemMessage` | `SMSG_MESSAGECHAT` of type `CHAT_MSG_SYSTEM` to one session, one per line of a text or of a string table entry in the session's locale, the session's player as the sender; `ChatHandler::SendSysMessage` sends through it for a chat session, and the console's handler prints instead |
 | `packets/combat/` | `AttackSwingPackets` | `SMSG_ATTACKSWING_NOTINRANGE`, `SMSG_ATTACKSWING_BADFACING` and `SMSG_CANCEL_COMBAT`, from the swing out of reach, the swing facing away and the attack cancelled; no payload |
