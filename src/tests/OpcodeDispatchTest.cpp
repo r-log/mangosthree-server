@@ -71,7 +71,7 @@
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
 /// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
-/// query, item, NPC, quest, LFG, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
+/// query, item, NPC, quest, LFG, calendar, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
 /// class /// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
 /// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
 /// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
@@ -103,6 +103,7 @@
 #include "session/handlers/entities/TaxiHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ChannelHandlers.h"
+#include "session/handlers/social/CalendarHandlers.h"
 #include "session/handlers/social/ChatHandlers.h"
 #include "Channel.h"
 #include "ChannelMgr.h"
@@ -2054,6 +2055,63 @@ TEST(OpcodeDispatch_QuestRowsKeepTheirStatusAndProcessing)
                                  CMSG_QUEST_QUERY, CMSG_QUESTGIVER_CHOOSE_REWARD, CMSG_QUESTGIVER_REQUEST_REWARD,
                                  CMSG_QUESTLOG_REMOVE_QUEST, CMSG_QUEST_CONFIRM_ACCEPT, CMSG_QUESTGIVER_COMPLETE_QUEST,
                                  CMSG_PUSHQUESTTOPARTY, MSG_QUEST_PUSH_RESULT, CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY };
+    for (OpcodesList row : rows)
+    {
+        CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
+        CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADUNSAFE);
+    }
+}
+
+TEST(OpcodeDispatch_CalendarRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_CALENDAR_GET_CALENDAR].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarGetCalendar>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarGetCalendar>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_GET_EVENT].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarGetEvent>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarGetEvent>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_GUILD_FILTER].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarGuildFilter>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarGuildFilter>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_EVENT_SIGNUP].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarEventSignup>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarEventSignup>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_ARENA_TEAM].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarArenaTeam>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarArenaTeam>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_ADD_EVENT].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarAddEvent>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarAddEvent>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_UPDATE_EVENT].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarUpdateEvent>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarUpdateEvent>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_REMOVE_EVENT].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarRemoveEvent>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarRemoveEvent>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_COPY_EVENT].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarCopyEvent>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarCopyEvent>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_EVENT_INVITE].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarEventInvite>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarEventInvite>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_EVENT_RSVP].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarEventRsvp>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarEventRsvp>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_EVENT_REMOVE_INVITE].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarEventRemoveInvite>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarEventRemoveInvite>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_EVENT_STATUS].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarEventStatus>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarEventStatus>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_EVENT_MODERATOR_STATUS].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarEventModeratorStatus>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarEventModeratorStatus>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_COMPLAIN].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarComplain>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarComplain>), 1);
+    CHECK(opcodeTable[CMSG_CALENDAR_GET_NUM_PENDING].handler == &OpcodeThunk<&CalendarHandlers::HandleCalendarGetNumPending>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CalendarHandlers::HandleCalendarGetNumPending>), 1);
+}
+
+TEST(OpcodeDispatch_CalendarRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    OpcodesList const rows[] = { CMSG_CALENDAR_GET_CALENDAR, CMSG_CALENDAR_GET_EVENT,
+                                 CMSG_CALENDAR_GUILD_FILTER, CMSG_CALENDAR_EVENT_SIGNUP,
+                                 CMSG_CALENDAR_ARENA_TEAM, CMSG_CALENDAR_ADD_EVENT,
+                                 CMSG_CALENDAR_UPDATE_EVENT, CMSG_CALENDAR_REMOVE_EVENT,
+                                 CMSG_CALENDAR_COPY_EVENT, CMSG_CALENDAR_EVENT_INVITE,
+                                 CMSG_CALENDAR_EVENT_RSVP, CMSG_CALENDAR_EVENT_REMOVE_INVITE,
+                                 CMSG_CALENDAR_EVENT_STATUS, CMSG_CALENDAR_EVENT_MODERATOR_STATUS,
+                                 CMSG_CALENDAR_COMPLAIN, CMSG_CALENDAR_GET_NUM_PENDING };
     for (OpcodesList row : rows)
     {
         CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);

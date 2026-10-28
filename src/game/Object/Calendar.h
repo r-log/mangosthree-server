@@ -273,11 +273,10 @@ class CalendarMgr
         /**
          * @brief Writes a brand new event's row (decoupling D7g, C5).
          *
-         * Static and taking the finished event, so the two callers that used to format the
-         * row themselves -- CalendarMgr::AddEvent and, for the UPDATE twin below,
-         * WorldSession::HandleCalendarUpdateEvent -- share one prepared statement with the
-         * title and the description BOUND. That is what removes the escape_string pair each
-         * of them ran on the world thread.
+         * Static and taking the finished event, so its two callers, CalendarMgr::AddEvent and,
+         * for the UPDATE twin below, CalendarHandlers::HandleCalendarUpdateEvent, share one
+         * prepared statement with the title and the description bound, and neither escapes a
+         * string on the world thread.
          */
         static void WriteEventToDB(CalendarEvent const& event);
 

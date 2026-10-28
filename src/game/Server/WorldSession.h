@@ -979,42 +979,6 @@ class WorldSession
         void HandleSetGuildBankTabText(WorldPacket& recv_data);
 
         // Calendar
-        void HandleCalendarGetCalendar(WorldPacket& recv_data);
-        void HandleCalendarGetEvent(WorldPacket& recv_data);
-        void HandleCalendarGuildFilter(WorldPacket& recv_data);
-        void HandleCalendarEventSignup(WorldPacket& recvData);
-        void HandleCalendarArenaTeam(WorldPacket& recv_data);
-        void HandleCalendarAddEvent(WorldPacket& recv_data);
-        void HandleCalendarUpdateEvent(WorldPacket& recv_data);
-        void HandleCalendarRemoveEvent(WorldPacket& recv_data);
-        void HandleCalendarCopyEvent(WorldPacket& recv_data);
-        /// Everything CMSG_CALENDAR_EVENT_INVITE carries, plus the invitee the handler
-        /// resolved from the character cache.
-        struct CalendarInviteRequest
-        {
-            ObjectGuid playerGuid;                          ///< the inviter
-            ObjectGuid inviteeGuid;                         ///< empty = no such character
-            uint32 inviteeTeam = 0;
-            uint32 inviteeGuildId = 0;
-            uint64 eventId = 0;
-            std::string name;
-            bool isPreInvite = false;
-            bool isGuildEvent = false;
-        };
-
-        void HandleCalendarEventInvite(WorldPacket& recv_data);
-        static void ResolveCalendarInvitee(CharacterCacheEntry const& cached, CalendarInviteRequest& request);
-        static void QueueCalendarInviteIgnoreRead(uint32 accountId, proto::SessionId sessionId,
-                                                  CalendarInviteRequest request);
-        static void HandleCalendarInviteIgnoreCallback(std::optional<uint8> const& flags, uint32 accountId,
-                                                       proto::SessionId sessionId, CalendarInviteRequest request);
-        static void FinishCalendarEventInvite(Player* player, CalendarInviteRequest const& request, bool isIgnored);
-        void HandleCalendarEventRsvp(WorldPacket& recv_data);
-        void HandleCalendarEventRemoveInvite(WorldPacket& recv_data);
-        void HandleCalendarEventStatus(WorldPacket& recv_data);
-        void HandleCalendarEventModeratorStatus(WorldPacket& recv_data);
-        void HandleCalendarComplain(WorldPacket& recv_data);
-        void HandleCalendarGetNumPending(WorldPacket& recv_data);
 
         // Hotfix handlers
         void HandleRequestHotfix(WorldPacket& recv_data);
