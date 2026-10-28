@@ -14,11 +14,13 @@
 #include "CryptoGoldenVectors.h"
 
 #include "Auth/BigNumber.h"
+#include "Auth/Sha1.h"
 #include "Auth/Srp6.h"
 
 #include <cctype>
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -172,4 +174,117 @@ TEST(Srp6_proofs_change_with_every_input)
     uint8 flipped[20]; std::memcpy(flipped, M1, 20); flipped[7] ^= 0x01;
     Srp6::ServerProof(A, flipped, K, M2b);
     CHECK(std::memcmp(M2, M2b, 20) != 0);
+}
+
+namespace
+{
+    /// The client's interleave hash (Wow-64.exe 15595, 0x00658810), rebuilt from its body:
+    /// the zero bytes at the start are skipped, then one more byte if an odd number is left,
+    /// and the even and odd bytes of the rest are hashed apart and interleaved into 40 bytes.
+    void ClientInterleave(uint8* out, const uint8* in, uint32 length)
+    {
+        while (length && !*in)
+        {
+            in++;
+            length--;
+        }
+
+        if (length & 1)
+        {
+            in++;
+            length--;
+        }
+
+        const uint32 half = length >> 1;
+        std::vector<uint8> temp(half ? half : 1);
+
+        Sha1Hash sha;
+        for (uint32 i = 0; i < half; i++)
+        {
+            temp[i] = in[i * 2];
+        }
+        sha.UpdateData(temp.data(), int(half));
+        sha.Finalize();
+        for (uint32 i = 0; i < 20; i++)
+        {
+            out[i * 2] = sha.GetDigest()[i];
+        }
+
+        for (uint32 i = 0; i < half; i++)
+        {
+            temp[i] = in[i * 2 + 1];
+        }
+        sha.Initialize();
+        sha.UpdateData(temp.data(), int(half));
+        sha.Finalize();
+        for (uint32 i = 0; i < 20; i++)
+        {
+            out[i * 2 + 1] = sha.GetDigest()[i];
+        }
+    }
+
+    /// S as its 32 little-endian bytes: `zeros` zero bytes first, then a fixed pattern.
+    void SecretBytes(uint8 (&bytes)[Srp6::EphemeralWidth], int zeros)
+    {
+        for (int i = 0; i < Srp6::EphemeralWidth; ++i)
+        {
+            bytes[i] = i < zeros ? 0 : uint8(0x51 + 7 * i);
+        }
+    }
+}
+
+TEST(Srp6_the_session_key_matches_the_clients_interleave_for_zero_low_bytes)
+{
+    for (int zeros = 0; zeros <= 2; ++zeros)
+    {
+        uint8 bytes[Srp6::EphemeralWidth];
+        SecretBytes(bytes, zeros);
+
+        uint8 expected[Srp6::SessionKeyWidth];
+        ClientInterleave(expected, bytes, Srp6::EphemeralWidth);
+
+        BigNumber S;
+        S.SetBinary(bytes, Srp6::EphemeralWidth);
+        BigNumber K = Srp6::KeyFromSecret(S);
+
+        CHECK(std::memcmp(K.AsByteArray(Srp6::SessionKeyWidth), expected, Srp6::SessionKeyWidth) == 0);
+    }
+}
+
+TEST(Srp6_a_secret_whose_low_byte_is_zero_gives_a_different_key_than_splitting_all_32_bytes)
+{
+    uint8 bytes[Srp6::EphemeralWidth];
+    SecretBytes(bytes, 1);
+
+    // The old split, over all 32 bytes.
+    uint8 everyByte[Srp6::SessionKeyWidth];
+    uint8 half[Srp6::EphemeralWidth / 2];
+    Sha1Hash sha;
+    for (int i = 0; i < Srp6::EphemeralWidth / 2; ++i)
+    {
+        half[i] = bytes[i * 2];
+    }
+    sha.UpdateData(half, Srp6::EphemeralWidth / 2);
+    sha.Finalize();
+    for (int i = 0; i < 20; ++i)
+    {
+        everyByte[i * 2] = sha.GetDigest()[i];
+    }
+    for (int i = 0; i < Srp6::EphemeralWidth / 2; ++i)
+    {
+        half[i] = bytes[i * 2 + 1];
+    }
+    sha.Initialize();
+    sha.UpdateData(half, Srp6::EphemeralWidth / 2);
+    sha.Finalize();
+    for (int i = 0; i < 20; ++i)
+    {
+        everyByte[i * 2 + 1] = sha.GetDigest()[i];
+    }
+
+    BigNumber S;
+    S.SetBinary(bytes, Srp6::EphemeralWidth);
+    BigNumber K = Srp6::KeyFromSecret(S);
+
+    CHECK(std::memcmp(K.AsByteArray(Srp6::SessionKeyWidth), everyByte, Srp6::SessionKeyWidth) != 0);
 }
