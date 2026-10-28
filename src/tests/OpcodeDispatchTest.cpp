@@ -71,11 +71,11 @@
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
 /// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
-/// query, item, NPC, LFG, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
+/// query, item, NPC, quest, LFG, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
 /// class /// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
 /// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
 /// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
-/// processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
+/// processed PROCESS_INPLACE, the CMSG_QUESTGIVER_STATUS_QUERY row, processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE,
 /// CMSG_SET_ACTIVE_VOICE_CHANNEL and CMSG_NAME_QUERY rows, of status STATUS_AUTHED.
 
@@ -98,6 +98,7 @@
 #include "session/handlers/entities/NpcHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/QueryHandlers.h"
+#include "session/handlers/entities/QuestHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/entities/TaxiHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
@@ -2003,6 +2004,56 @@ TEST(OpcodeDispatch_NpcRowsKeepTheirStatusAndProcessing)
                                  CMSG_SPIRIT_HEALER_ACTIVATE, CMSG_BINDER_ACTIVATE, MSG_LIST_STABLED_PETS,
                                  CMSG_STABLE_PET, CMSG_SET_PET_SLOT, CMSG_UNSTABLE_PET,
                                  CMSG_REPAIR_ITEM };
+    for (OpcodesList row : rows)
+    {
+        CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
+        CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADUNSAFE);
+    }
+}
+
+TEST(OpcodeDispatch_QuestRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_QUESTGIVER_STATUS_QUERY].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverStatusQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverStatusQuery>), 1);
+    CHECK(opcodeTable[CMSG_QUESTGIVER_HELLO].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverHello>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverHello>), 1);
+    CHECK(opcodeTable[CMSG_QUESTGIVER_ACCEPT_QUEST].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverAcceptQuest>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverAcceptQuest>), 1);
+    CHECK(opcodeTable[CMSG_QUESTGIVER_QUERY_QUEST].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverQueryQuest>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverQueryQuest>), 1);
+    CHECK(opcodeTable[CMSG_QUEST_QUERY].handler == &OpcodeThunk<&QuestHandlers::HandleQuestQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestQuery>), 1);
+    CHECK(opcodeTable[CMSG_QUESTGIVER_CHOOSE_REWARD].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverChooseReward>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverChooseReward>), 1);
+    CHECK(opcodeTable[CMSG_QUESTGIVER_REQUEST_REWARD].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverRequestReward>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverRequestReward>), 1);
+    CHECK(opcodeTable[CMSG_QUESTLOG_REMOVE_QUEST].handler == &OpcodeThunk<&QuestHandlers::HandleQuestLogRemoveQuest>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestLogRemoveQuest>), 1);
+    CHECK(opcodeTable[CMSG_QUEST_CONFIRM_ACCEPT].handler == &OpcodeThunk<&QuestHandlers::HandleQuestConfirmAccept>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestConfirmAccept>), 1);
+    CHECK(opcodeTable[CMSG_QUESTGIVER_COMPLETE_QUEST].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverCompleteQuest>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverCompleteQuest>), 1);
+    CHECK(opcodeTable[CMSG_PUSHQUESTTOPARTY].handler == &OpcodeThunk<&QuestHandlers::HandlePushQuestToParty>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandlePushQuestToParty>), 1);
+    CHECK(opcodeTable[MSG_QUEST_PUSH_RESULT].handler == &OpcodeThunk<&QuestHandlers::HandleQuestPushResult>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestPushResult>), 1);
+    CHECK(opcodeTable[CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverStatusMultipleQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverStatusMultipleQuery>), 1);
+}
+
+TEST(OpcodeDispatch_QuestRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_QUESTGIVER_STATUS_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_QUESTGIVER_STATUS_QUERY].packetProcessing, PROCESS_INPLACE);
+
+    OpcodesList const rows[] = { CMSG_QUESTGIVER_HELLO, CMSG_QUESTGIVER_ACCEPT_QUEST, CMSG_QUESTGIVER_QUERY_QUEST,
+                                 CMSG_QUEST_QUERY, CMSG_QUESTGIVER_CHOOSE_REWARD, CMSG_QUESTGIVER_REQUEST_REWARD,
+                                 CMSG_QUESTLOG_REMOVE_QUEST, CMSG_QUEST_CONFIRM_ACCEPT, CMSG_QUESTGIVER_COMPLETE_QUEST,
+                                 CMSG_PUSHQUESTTOPARTY, MSG_QUEST_PUSH_RESULT, CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY };
     for (OpcodesList row : rows)
     {
         CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
