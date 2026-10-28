@@ -10,7 +10,7 @@ set(CONVERTED_FILES
     src/game/entities/player/persistence/PlayerDbLookup.cpp
     src/game/Object/ObjectMgr.cpp
     src/game/WorldHandlers/CharacterHandler.cpp
-    src/game/WorldHandlers/CharacterHandlerCustomize.cpp
+    src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp
     src/game/entities/player/Player.cpp
     src/game/Object/PetDatabase.cpp
     src/game/Object/PetSpells.cpp
