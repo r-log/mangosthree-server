@@ -64,7 +64,6 @@
 #include "DB2Stores.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
-#include "QuestCompletePacket.h"
 #include "QuestRewardRules.h"
 #include "persistence/characters/quests/QuestTrackerRepository.h"
 
@@ -2491,7 +2490,7 @@ void Player::SendQuestCompleteEvent(uint32 quest_id)
 }
 
 /**
- * @brief Sends SMSG_QUESTGIVER_QUEST_COMPLETE, the quest-complete summary, in the 15595 layout.
+ * @brief Tells the player's own client the quest-complete summary: what the quest gave.
  *
  * @param pQuest The rewarded quest.
  * @param xp The experience actually given (0 when none was).
@@ -2504,19 +2503,17 @@ void Player::SendQuestReward(Quest const* pQuest, uint32 xp, uint32 money, bool 
     uint32 questid = pQuest->GetQuestId();
     DEBUG_LOG("WORLD: Sent SMSG_QUESTGIVER_QUEST_COMPLETE quest = %u", questid);
 
-    QuestCompleteFields fields;
-    fields.bonusTalents = pQuest->GetBonusTalents();
-    fields.rewSkillPoints = pQuest->GetRewSkillValue();
-    fields.money = money;
-    fields.xp = xp;
-    fields.questId = questid;
-    fields.rewSkillId = pQuest->GetRewSkill();
-    fields.launchGossip = false;                // the CHOOSE_REWARD handler sends the follow-up itself
-    fields.useQuestReward = offerNextQuest;
+    QuestCompleteFact fact;
+    fact.bonusTalents = pQuest->GetBonusTalents();
+    fact.rewSkillPoints = pQuest->GetRewSkillValue();
+    fact.money = money;
+    fact.xp = xp;
+    fact.questId = questid;
+    fact.rewSkillId = pQuest->GetRewSkill();
+    fact.launchGossip = false;                  // the CHOOSE_REWARD handler sends the follow-up itself
+    fact.useQuestReward = offerNextQuest;
 
-    WorldPacket data;
-    BuildQuestCompletePacket(data, fields);
-    GetSession()->SendPacket(&data);
+    ReportClientFact(m_clientCallbacks.questComplete, fact);
 }
 
 /**

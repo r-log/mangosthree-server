@@ -649,8 +649,6 @@ src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/Gossip
 src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/Opcodes.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/quests/QuestCompletePacket.cpp -> src/proto/Opcodes.h
-src/game/entities/player/quests/QuestCompletePacket.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/social [entities] -> src/game/Object/Formulas.h
 src/game/entities/player/social [entities] -> src/game/Object/GMTicketMgr.h
 src/game/entities/player/social [entities] -> src/game/WorldHandlers/Channel.h

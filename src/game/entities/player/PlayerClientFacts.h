@@ -82,6 +82,20 @@ struct PvpCreditFact
     uint32 victimRank = 0;
 };
 
+/// The player completed a quest; the client is told what it gained. The fields are in wire order,
+/// and the offsets are where the client's reader stores each one.
+struct QuestCompleteFact
+{
+    uint32 bonusTalents = 0;        ///< +40: "You have gained %d talent points." when > 0
+    uint32 rewSkillPoints = 0;      ///< +60: stored by the client, never read
+    uint32 money = 0;               ///< +44: "Received %s." when > 0 (a signed compare)
+    uint32 xp = 0;                  ///< +48: "Experience gained: %d." when != 0
+    uint32 questId = 0;             ///< +32: the QuestCache key (title, reward items, turn-in sound)
+    uint32 rewSkillId = 0;          ///< +56: stored by the client, never read
+    bool launchGossip = false;      ///< first bit (bit 7) -> +36: the client sends CMSG_GOSSIP_HELLO to the giver
+    bool useQuestReward = false;    ///< second bit (bit 6) -> +52: keep the quest frame open for the next quest's details
+};
+
 typedef std::function<void(SwingOutOfReachFact const&)> SwingOutOfReachSink;
 typedef std::function<void(SwingBadFacingFact const&)> SwingBadFacingSink;
 typedef std::function<void(CombatCancelledFact const&)> CombatCancelledSink;
@@ -90,6 +104,7 @@ typedef std::function<void(CurrentPetFact const&)> CurrentPetSink;
 typedef std::function<void(PetActionBarClearedFact const&)> PetActionBarClearedSink;
 typedef std::function<void(StandStateFact const&)> StandStateSink;
 typedef std::function<void(PvpCreditFact const&)> PvpCreditSink;
+typedef std::function<void(QuestCompleteFact const&)> QuestCompleteSink;
 
 /// The account security level of the player's session, read at each call. An unsigned integer:
 /// the levels run from 0 to 4, and a caller comparing two of them with `<=` gets the answer the

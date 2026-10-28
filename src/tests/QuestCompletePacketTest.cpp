@@ -26,12 +26,12 @@
 #include "TestHarness.h"
 
 #include "Opcodes.h"
-#include "QuestCompletePacket.h"
+#include "session/packets/quests/QuestCompletePacket.h"
 #include "WorldPacket.h"
 
 /**
  * @file
- * @brief Q-2: SMSG_QUESTGIVER_QUEST_COMPLETE (0x55A4) byte for byte against the 15595 reader.
+ * @brief SMSG_QUESTGIVER_QUEST_COMPLETE (0x55A4) byte for byte against the 15595 reader.
  *
  * The expected bytes come from the client's reader, sub_140367840 in
  * client-truth/binary/Wow-64.c: six calls of the uint32 primitive (sub_1405A7DD0, a
@@ -47,11 +47,11 @@
 
 namespace
 {
-    /// The spec's case (design/2026-09-27-q2-questgiver-quest-complete.md section 6.5): quest
-    /// 26389 "Blackrock Invasion" shape, one bonus talent, 150 copper, 450 XP, no skill.
-    QuestCompleteFields SpecCase(bool offerNextQuest)
+    /// A quest of the shape of 26389 "Blackrock Invasion": one bonus talent, 150 copper, 450 XP,
+    /// no skill.
+    QuestCompleteFact SpecCase(bool offerNextQuest)
     {
-        QuestCompleteFields fields;
+        QuestCompleteFact fields;
         fields.bonusTalents = 1;
         fields.rewSkillPoints = 0;
         fields.money = 150;
@@ -97,7 +97,7 @@ TEST(QuestCompletePacket_every_field_distinct_pins_the_order)
     // Every byte of every uint32 differs from every other, so swapping two fields, or writing
     // one big-endian, changes the hex. The bits are the other way round from the spec case
     // (LaunchGossip set, UseQuestReward clear), so a swap of the two bits fails one of the two.
-    QuestCompleteFields fields;
+    QuestCompleteFact fields;
     fields.bonusTalents = 0x11121314;       // -> +40
     fields.rewSkillPoints = 0x21222324;     // -> +60
     fields.money = 0x31323334;              // -> +44
@@ -129,7 +129,7 @@ TEST(QuestCompletePacket_is_25_bytes_and_starts_from_an_empty_packet)
     packet << uint32(0xDEADBEEF) << uint32(0xCAFEBABE);
     packet.WriteBit(true);
 
-    BuildQuestCompletePacket(packet, QuestCompleteFields());
+    BuildQuestCompletePacket(packet, QuestCompleteFact());
 
     CHECK_EQ(packet.GetOpcode(), uint16(SMSG_QUESTGIVER_QUEST_COMPLETE));
     CHECK_EQ(packet.size(), QUEST_COMPLETE_PACKET_SIZE);

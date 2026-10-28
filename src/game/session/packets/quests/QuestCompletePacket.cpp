@@ -27,18 +27,18 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 
-void BuildQuestCompletePacket(WorldPacket& packet, QuestCompleteFields const& fields)
+void BuildQuestCompletePacket(WorldPacket& packet, QuestCompleteFact const& fact)
 {
     // 15595 reader sub_140367840: six uint32, then one byte holding two bits. WriteBit is
     // MSB-first, so the first bit lands in bit 7, which the reader takes as `v >> 7`.
     packet.Initialize(SMSG_QUESTGIVER_QUEST_COMPLETE, QUEST_COMPLETE_PACKET_SIZE);
-    packet << uint32(fields.bonusTalents);
-    packet << uint32(fields.rewSkillPoints);
-    packet << uint32(fields.money);
-    packet << uint32(fields.xp);
-    packet << uint32(fields.questId);
-    packet << uint32(fields.rewSkillId);
-    packet.WriteBit(fields.launchGossip);
-    packet.WriteBit(fields.useQuestReward);
+    packet << uint32(fact.bonusTalents);
+    packet << uint32(fact.rewSkillPoints);
+    packet << uint32(fact.money);
+    packet << uint32(fact.xp);
+    packet << uint32(fact.questId);
+    packet << uint32(fact.rewSkillId);
+    packet.WriteBit(fact.launchGossip);
+    packet.WriteBit(fact.useQuestReward);
     packet.FlushBits();
 }

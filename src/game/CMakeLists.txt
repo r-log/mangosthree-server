@@ -208,6 +208,9 @@ source_group("Session\\Packets\\Combat" FILES ${SRC_GRP_SESSION_PACKETS_COMBAT})
 file(GLOB SRC_GRP_SESSION_PACKETS_ENTITIES session/packets/entities/*.cpp session/packets/entities/*.h)
 source_group("Session\\Packets\\Entities" FILES ${SRC_GRP_SESSION_PACKETS_ENTITIES})
 
+file(GLOB SRC_GRP_SESSION_PACKETS_QUESTS session/packets/quests/*.cpp session/packets/quests/*.h)
+source_group("Session\\Packets\\Quests" FILES ${SRC_GRP_SESSION_PACKETS_QUESTS})
+
 file(GLOB SRC_GRP_SESSION_PACKETS_SPELLS session/packets/spells/*.cpp session/packets/spells/*.h)
 source_group("Session\\Packets\\Spells" FILES ${SRC_GRP_SESSION_PACKETS_SPELLS})
 
@@ -308,6 +311,7 @@ add_library(game STATIC
     ${SRC_GRP_SESSION_PACKETS}
     ${SRC_GRP_SESSION_PACKETS_COMBAT}
     ${SRC_GRP_SESSION_PACKETS_ENTITIES}
+    ${SRC_GRP_SESSION_PACKETS_QUESTS}
     ${SRC_GRP_SESSION_PACKETS_SPELLS}
     ${SRC_GRP_SPELLS}
     ${SRC_GRP_SPELLS_AURAS}

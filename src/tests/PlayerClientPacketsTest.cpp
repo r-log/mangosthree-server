@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The packets a player's own client is told, built from the player's twenty-two facts: the bytes of each
+/// The packets a player's own client is told, built from the player's twenty-three facts: the bytes of each
 /// builder, the callbacks the session installs on a player, which build the packet at each report
 /// and send it to the session the player holds at that moment, the security level read from that
 /// session at each call, and the assertion on a callback no session installed.
@@ -254,6 +254,18 @@ namespace
         return fact;
     }
 
+    /// One bonus talent, 150 copper and 450 XP for quest 26389, the next quest's details to follow.
+    QuestCompleteFact QuestDone()
+    {
+        QuestCompleteFact fact;
+        fact.bonusTalents = 1;
+        fact.money = 150;
+        fact.xp = 450;
+        fact.questId = 26389;
+        fact.useQuestReward = true;
+        return fact;
+    }
+
     /// Stands in for the session: records "<opcode>:<hex>" per packet it is sent, and answers its
     /// account security level.
     struct FakeSession
@@ -308,6 +320,7 @@ namespace
         ReportClientFact(callbacks.factionAtWar, AtWar(25, 0x03));
         ReportClientFact(callbacks.contactList, OneContact());
         ReportClientFact(callbacks.friendStatus, StatusOf(FRIEND_ONLINE));
+        ReportClientFact(callbacks.questComplete, QuestDone());
     }
 
     const char* const kEach[] =
@@ -334,6 +347,7 @@ namespace
         "4216:1900000003",
         "6017:070000000100000007000000000000000100000068690004ef0500005500000008000000",
         "0717:02070000000000000004ef0500005500000008000000",
+        "55a4:010000000000000096000000c2010000156700000000000040",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -564,8 +578,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 22u);
-    for (size_t i = 0; i < 22; ++i)
+    REQUIRE(session.sent.size() == 23u);
+    for (size_t i = 0; i < 23; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -585,9 +599,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 22u);
-    REQUIRE(second.sent.size() == 22u);
-    for (size_t i = 0; i < 22; ++i)
+    REQUIRE(first.sent.size() == 23u);
+    REQUIRE(second.sent.size() == 23u);
+    for (size_t i = 0; i < 23; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);
