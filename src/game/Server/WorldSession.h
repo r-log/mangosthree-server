@@ -720,10 +720,6 @@ class WorldSession
 
         void HandleMountSpecialAnimOpcode(WorldPacket& recvdata);
 
-        // character view
-
-        // repair
-
         void HandleMoveTeleportAckOpcode(WorldPacket& recvPacket);
         /// Every movement ack the registry has a layout for: decoded,
         /// matched against the mover's pending change, relocated on a match, and answered
@@ -732,6 +728,7 @@ class WorldSession
 
         void HandlePingOpcode(WorldPacket& recvPacket);
         void HandleKeepAliveOpcode(WorldPacket& recvPacket);
+        void HandleTimeSyncResp(WorldPacket& recv_data);
         void HandleLogoutRequestOpcode(WorldPacket& recvPacket);
         void HandleLogoutCancelOpcode(WorldPacket& recvPacket);
 
@@ -784,21 +781,11 @@ class WorldSession
         // Pet
         void HandlePetCancelAuraOpcode(WorldPacket& recvPacket);
 
-        // Customize: the at_login flag and the appearance row are read by
-        // one holder, and everything the handler did after them -- the name checks, the
-        // cache update, the writes and the reply -- runs in the continuation.
-
         void HandleTotemDestroyed(WorldPacket& recv_data);
-
-        void HandleTimeSyncResp(WorldPacket& recv_data);
 
         void HandleSelfResOpcode(WorldPacket& recv_data);
 
-        // Guild Bank
-
-        // Calendar
-
-        // Hotfix handlers
+        // Hotfix replies
         void SendItemDb2Reply(uint32 entry);
         void SendItemSparseDb2Reply(uint32 entry);
 
