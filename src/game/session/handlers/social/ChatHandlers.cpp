@@ -37,6 +37,7 @@
 #include "Opcodes.h"
 #include "ObjectMgr.h"
 #include "Chat.h"
+#include "session/packets/chat/MessageChatPacket.h"
 #include "ChannelMgr.h"
 #include "Group.h"
 #include "Guild.h"
@@ -360,7 +361,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, ChatMsg(type), msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
+            BuildMessageChatPacket(data, ChatMsg(type), msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
             group->BroadcastPacket(&data, false, group->GetMemberGroup(session.GetPlayer()->GetObjectGuid()));
 
             break;
@@ -468,7 +469,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
+            BuildMessageChatPacket(data, CHAT_MSG_RAID, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
             group->BroadcastPacket(&data, false);
         } break;
         case CHAT_MSG_RAID_LEADER:
@@ -508,7 +509,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID_LEADER, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
+            BuildMessageChatPacket(data, CHAT_MSG_RAID_LEADER, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
             group->BroadcastPacket(&data, false);
         } break;
 
@@ -536,7 +537,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
 
             WorldPacket data;
             // in battleground, raid warning is sent only to players in battleground - code is ok
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID_WARNING, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
+            BuildMessageChatPacket(data, CHAT_MSG_RAID_WARNING, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
             group->BroadcastPacket(&data, false);
         } break;
 
@@ -563,7 +564,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
+            BuildMessageChatPacket(data, CHAT_MSG_BATTLEGROUND, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
             group->BroadcastPacket(&data, false);
         } break;
 
@@ -590,7 +591,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND_LEADER, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
+            BuildMessageChatPacket(data, CHAT_MSG_BATTLEGROUND_LEADER, msg.c_str(), Language(lang), session.GetPlayer()->GetChatTag(), session.GetPlayer()->GetObjectGuid(), session.GetPlayer()->GetName());
             group->BroadcastPacket(&data, false);
         } break;
 
@@ -730,7 +731,7 @@ void ChatHandlers::HandleAddonMessagechat(WorldSession& session, WorldPacket& re
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, type, msg.c_str(), LANG_ADDON);
+            BuildMessageChatPacket(data, type, msg.c_str(), LANG_ADDON);
             group->BroadcastPacket(&data, false);
             break;
         }
@@ -784,7 +785,7 @@ void ChatHandlers::HandleAddonMessagechat(WorldSession& session, WorldPacket& re
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, type, msg.c_str(), LANG_UNIVERSAL, CHAT_TAG_NONE, ObjectGuid(), NULL, receiver->GetObjectGuid(), targetName.c_str(), NULL, 0, prefix.c_str());
+            BuildMessageChatPacket(data, type, msg.c_str(), LANG_UNIVERSAL, CHAT_TAG_NONE, ObjectGuid(), NULL, receiver->GetObjectGuid(), targetName.c_str(), NULL, 0, prefix.c_str());
             session.GetPlayer()->GetSession()->SendPacket(&data);
             break;
         }
@@ -804,7 +805,7 @@ void ChatHandlers::HandleAddonMessagechat(WorldSession& session, WorldPacket& re
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, type, msg.c_str(), LANG_ADDON, CHAT_TAG_NONE, ObjectGuid(), NULL, ObjectGuid(), NULL, NULL, 0, prefix.c_str());
+            BuildMessageChatPacket(data, type, msg.c_str(), LANG_ADDON, CHAT_TAG_NONE, ObjectGuid(), NULL, ObjectGuid(), NULL, NULL, 0, prefix.c_str());
             group->BroadcastPacket(&data, false, group->GetMemberGroup(session.GetPlayer()->GetObjectGuid()));
             break;
         }
@@ -969,6 +970,6 @@ void ChatHandlers::HandleChatIgnored(WorldSession& session, WorldPacket& recv_da
     }
 
     WorldPacket data;
-    ChatHandler::BuildChatPacket(data, CHAT_MSG_IGNORED, session.GetPlayer()->GetName(), LANG_UNIVERSAL, CHAT_TAG_NONE, session.GetPlayer()->GetObjectGuid());
+    BuildMessageChatPacket(data, CHAT_MSG_IGNORED, session.GetPlayer()->GetName(), LANG_UNIVERSAL, CHAT_TAG_NONE, session.GetPlayer()->GetObjectGuid());
     player->GetSession()->SendPacket(&data);
 }

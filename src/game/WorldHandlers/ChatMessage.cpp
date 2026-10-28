@@ -25,7 +25,7 @@
 
 /**
  * @file ChatMessage.cpp
- * @brief ChatHandler's system-message output helpers and chat-packet builder.
+ * @brief ChatHandler's system-message output helpers.
  */
 
 #include "Utilities/Errors.h"
@@ -38,6 +38,7 @@
 #include "Opcodes.h"
 #include "World.h"
 #include "Player.h"
+#include "session/packets/chat/MessageChatPacket.h"
 #include <cstdarg>
 
 /**
@@ -62,7 +63,7 @@ void ChatHandler::SendSysMessage(const char* str)
             senderGuid = m_session->GetPlayer()->GetObjectGuid();
         }
 
-        ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, line, LANG_UNIVERSAL, CHAT_TAG_NONE, senderGuid);
+        BuildMessageChatPacket(data, CHAT_MSG_SYSTEM, line, LANG_UNIVERSAL, CHAT_TAG_NONE, senderGuid);
         m_session->SendPacket(&data);
     }
 
@@ -94,7 +95,7 @@ void ChatHandler::SendGlobalSysMessage(const char* str, AccountTypes minSec)
             senderGuid = m_session->GetPlayer()->GetObjectGuid();
         }
 
-        ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, line, LANG_UNIVERSAL, CHAT_TAG_NONE, senderGuid);
+        BuildMessageChatPacket(data, CHAT_MSG_SYSTEM, line, LANG_UNIVERSAL, CHAT_TAG_NONE, senderGuid);
         sWorld.SendGlobalMessage(&data, minSec);
     }
 
@@ -184,97 +185,4 @@ void ChatHandler::PSendSysMessage(const char* format, ...)
     vsnprintf(str, 2048, format, ap);
     va_end(ap);
     SendSysMessage(str);
-}
-
-void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, char const* message, Language language /*= LANG_UNIVERSAL*/, ChatTagFlags chatTag /*= CHAT_TAG_NONE*/,
-                                  ObjectGuid const& senderGuid /*= ObjectGuid()*/, char const* senderName /*= NULL*/,
-                                  ObjectGuid const& targetGuid /*= ObjectGuid()*/, char const* targetName /*= NULL*/,
-                                  char const* channelName /*= NULL*/, uint32 achievementId /*= 0*/, const char* addonPrefix /*= NULL*/)
-{
-    bool isGM = chatTag & CHAT_TAG_GM;
-    bool isAchievement = false;
-
-    data.Initialize(isGM ? SMSG_GM_MESSAGECHAT : SMSG_MESSAGECHAT);
-    data << uint8(msgtype);
-    data << uint32(language);
-    data << ObjectGuid(senderGuid);
-    data << uint32(0);                                              // 2.1.0
-
-    switch (msgtype)
-    {
-        case CHAT_MSG_MONSTER_SAY:
-        case CHAT_MSG_MONSTER_PARTY:
-        case CHAT_MSG_MONSTER_YELL:
-        case CHAT_MSG_MONSTER_WHISPER:
-        case CHAT_MSG_MONSTER_EMOTE:
-        case CHAT_MSG_RAID_BOSS_WHISPER:
-        case CHAT_MSG_RAID_BOSS_EMOTE:
-        case CHAT_MSG_BATTLENET:
-        case CHAT_MSG_WHISPER_FOREIGN:
-            MANGOS_ASSERT(senderName);
-            data << uint32(strlen(senderName) + 1);
-            data << senderName;
-            data << ObjectGuid(targetGuid);                         // Unit Target
-            if (targetGuid && !targetGuid.IsPlayer() && !targetGuid.IsPet() && (msgtype != CHAT_MSG_WHISPER_FOREIGN))
-            {
-                data << uint32(strlen(targetName) + 1);             // target name length
-                data << targetName;                                 // target name
-            }
-            break;
-        case CHAT_MSG_BG_SYSTEM_NEUTRAL:
-        case CHAT_MSG_BG_SYSTEM_ALLIANCE:
-        case CHAT_MSG_BG_SYSTEM_HORDE:
-            data << ObjectGuid(targetGuid);                         // Unit Target
-            if (targetGuid && !targetGuid.IsPlayer())
-            {
-                MANGOS_ASSERT(targetName);
-                data << uint32(strlen(targetName) + 1);             // target name length
-                data << targetName;                                 // target name
-            }
-            break;
-        case CHAT_MSG_ACHIEVEMENT:
-        case CHAT_MSG_GUILD_ACHIEVEMENT:
-            data << ObjectGuid(targetGuid);                         // Unit Target
-            isAchievement = true;
-            break;
-        default:
-            if (isGM)
-            {
-                MANGOS_ASSERT(senderName);
-                data << uint32(strlen(senderName) + 1);
-                data << senderName;
-            }
-
-            if (msgtype == CHAT_MSG_CHANNEL)
-            {
-                MANGOS_ASSERT(channelName);
-                data << channelName;
-                data << ObjectGuid(targetGuid);
-            }
-            else if (msgtype == CHAT_MSG_ADDON)
-            {
-                MANGOS_ASSERT(addonPrefix);
-                data << addonPrefix;
-            }
-            else
-            {
-                data << ObjectGuid(targetGuid);
-            }
-            break;
-    }
-    MANGOS_ASSERT(message);
-    data << uint32(strlen(message) + 1);
-    data << message;
-    data << uint8(chatTag);
-
-    if (isAchievement)
-    {
-        data << uint32(achievementId);
-    }
-
-    if (msgtype == CHAT_MSG_RAID_BOSS_WHISPER || msgtype == CHAT_MSG_RAID_BOSS_EMOTE)
-    {
-        data << float(0.0f);                                    // Added in 4.2.0, unk
-        data << uint8(0);                                       // Added in 4.2.0, unk
-    }
 }

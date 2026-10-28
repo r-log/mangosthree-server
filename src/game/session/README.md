@@ -19,6 +19,7 @@ One stateless class per origin file, in its domain's directory or, for the reque
 | Directory | File | Holds |
 |---|---|---|
 | `packets/` | `PlayerPacketSinks` | `InstallPlayerPacketSinks`, and the templates it installs through: `FactToSession`, `SecurityLevelOfSession` and `ClientCallbacksToSession` |
+| `packets/chat/` | `MessageChatPacket` | `SMSG_MESSAGECHAT`, or `SMSG_GM_MESSAGECHAT` for a message tagged GM, from any chat message: the type, the language, the sender's guid, then by type the names, the channel or addon prefix and the target, then the text, the tag and, for an achievement, its id; `ChatHandler::BuildChatPacket` forwards to it for the domain code that reaches it through `Chat.h` |
 | `packets/combat/` | `AttackSwingPackets` | `SMSG_ATTACKSWING_NOTINRANGE`, `SMSG_ATTACKSWING_BADFACING` and `SMSG_CANCEL_COMBAT`, from the swing out of reach, the swing facing away and the attack cancelled; no payload |
 | `packets/entities/` | `CurrencyPackets` | `SMSG_SET_CURRENCY` (three bits, then the season count if sent, the total, the id and the week count if sent), `SMSG_SET_CURRENCY_WEEK_LIMIT` (the limit, then the id), `SMSG_WEEKLY_RESET_CURRENCIES` (no payload) and `SMSG_SEND_CURRENCIES` (the count and each currency's bits, then each currency's values), from `CurrencyMgr`'s count changed, week limit, weekly reset and every currency |
 | `packets/entities/` | `PetActionBarPacket` | `SMSG_PET_SPELLS` with an empty guid, from the player's pet action bar cleared: the empty guid, which clears the client's pet action bar |

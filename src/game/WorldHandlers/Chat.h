@@ -36,6 +36,7 @@
 #include "SharedDefines.h"
 #include "ObjectGuid.h"
 #include "AccountMgr.h"
+#include "session/packets/chat/MessageChatPacket.h"
 
 struct AchievementEntry;
 struct AchievementCriteriaEntry;
@@ -99,16 +100,6 @@ enum ChatCommandSearchResult
     CHAT_COMMAND_OK,                                        // found accessible command by command string
     CHAT_COMMAND_UNKNOWN,                                   // first level command not found
     CHAT_COMMAND_UNKNOWN_SUBCOMMAND,                        // command found but some level subcommand not find in subcommand list
-};
-
-enum PlayerChatTag
-{
-    CHAT_TAG_NONE               = 0x00,
-    CHAT_TAG_AFK                = 0x01,
-    CHAT_TAG_DND                = 0x02,
-    CHAT_TAG_GM                 = 0x04,
-    CHAT_TAG_COM                = 0x08,                     // Commentator
-    CHAT_TAG_DEV                = 0x10,                     // Developer
 };
 
 class ChatHandler
@@ -177,32 +168,17 @@ class ChatHandler
         bool isValidChatMessage(const char* msg);
         bool HasSentErrorMessage() { return sentErrorMessage;}
 
-        /**
-        * \brief Prepare SMSG_GM_MESSAGECHAT/SMSG_MESSAGECHAT
-        *
-        * Method:    BuildChatPacket build message chat packet generic way
-        * FullName:  ChatHandler::BuildChatPacket
-        * Access:    public static
-        * Returns:   void
-        *
-        * \param WorldPacket& data             : Provided packet will be filled with requested info
-        * \param ChatMsg msgtype               : Message type from ChatMsg enum from SharedDefines.h
-        * \param ChatTagFlags chatTag          : Chat tag from PlayerChatTag in Chat.h
-        * \param char const* message           : Message to send
-        * \param Language language             : Language from Language enum in SharedDefines.h
-        * \param ObjectGuid const& senderGuid  : May be null in some case but often required for ignore list
-        * \param char const* senderName        : Required for type *MONSTER* or *BATTLENET, but also if GM is true
-        * \param ObjectGuid const& targetGuid  : Often null, but needed for type *MONSTER* or *BATTLENET or *BATTLEGROUND* or *ACHIEVEMENT
-        * \param char const* targetName        : Often null, but needed for type *MONSTER* or *BATTLENET or *BATTLEGROUND*
-        * \param char const* channelName       : Required only for CHAT_MSG_CHANNEL
-        * \param uint32 achievementId          : Required only for *ACHIEVEMENT
-        * \param const char* addonPrefix       : Required only for *CHAT_MSG_ADDON
-        **/
+        /// BuildMessageChatPacket (session/packets/chat/MessageChatPacket.h), for the code below the
+        /// session layer that reaches the builder through this header.
         static void BuildChatPacket(
             WorldPacket& data, ChatMsg msgtype, char const* message, Language language = LANG_UNIVERSAL, ChatTagFlags chatTag = CHAT_TAG_NONE,
             ObjectGuid const& senderGuid = ObjectGuid(), char const* senderName = NULL,
             ObjectGuid const& targetGuid = ObjectGuid(), char const* targetName = NULL,
-            char const* channelName = NULL, uint32 achievementId = 0, const char* addonPrefix = NULL);
+            char const* channelName = NULL, uint32 achievementId = 0, const char* addonPrefix = NULL)
+        {
+            BuildMessageChatPacket(data, msgtype, message, language, chatTag, senderGuid, senderName, targetGuid, targetName,
+                                   channelName, achievementId, addonPrefix);
+        }
 
     protected:
         explicit ChatHandler() : m_session(NULL), sentErrorMessage(false) {}      // for CLI subclass

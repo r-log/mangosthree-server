@@ -46,6 +46,7 @@
 #include "Player.h"
 #include "OpcodeTable.h"
 #include "Chat.h"
+#include "session/packets/chat/MessageChatPacket.h"
 #include "Log.h"
 #include "Unit.h"
 #include "GossipDef.h"
@@ -656,7 +657,7 @@ bool ChatHandler::HandleDebugSendChatMsgCommand(char* args)
     }
 
     WorldPacket data;
-    ChatHandler::BuildChatPacket(data, ChatMsg(type), msg, LANG_UNIVERSAL, CHAT_TAG_NONE, m_session->GetPlayer()->GetObjectGuid(), m_session->GetPlayerName());
+    BuildMessageChatPacket(data, ChatMsg(type), msg, LANG_UNIVERSAL, CHAT_TAG_NONE, m_session->GetPlayer()->GetObjectGuid(), m_session->GetPlayerName());
     m_session->SendPacket(&data);
     return true;
 }

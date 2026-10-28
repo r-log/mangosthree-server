@@ -3736,7 +3736,18 @@ enum BanReturn
     BAN_NOTFOUND
 };
 
-/// Bit set of PlayerChatTag values (see Chat.h). Lived in Chat.h until decoupling D3.
+/// The tags of a chat message's sender, which the client shows beside the name.
+enum PlayerChatTag
+{
+    CHAT_TAG_NONE               = 0x00,
+    CHAT_TAG_AFK                = 0x01,
+    CHAT_TAG_DND                = 0x02,
+    CHAT_TAG_GM                 = 0x04,
+    CHAT_TAG_COM                = 0x08,                     // Commentator
+    CHAT_TAG_DEV                = 0x10,                     // Developer
+};
+
+/// Bit set of PlayerChatTag values.
 typedef uint32 ChatTagFlags;
 
 /// Party invite/uninvite outcomes (SMSG_PARTY_COMMAND_RESULT). Lived in WorldSession.h until decoupling D3.
