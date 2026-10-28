@@ -68,10 +68,10 @@
 /// nothing. The CMSG_VOICE_SESSION_ENABLE, CMSG_CHANNEL_VOICE_ON and CMSG_SET_ACTIVE_VOICE_CHANNEL
 /// rows, on a session with no player, each read their packet to its end and send nothing, and so
 /// does the CMSG_WARDEN_DATA row, of status STATUS_AUTHED. Every row bound to the combat, vendor,
-/// pvp, loot, auction, trade, skill, enchant, pet, LFG, contact list, GM ticket, petition, chat
-/// channel or voice chat handler class holds the status STATUS_LOGGEDIN
+/// pvp, loot, auction, trade, skill, enchant, pet, taxi, LFG, contact list, GM ticket, petition,
+/// chat channel or voice chat handler class holds the status STATUS_LOGGEDIN
 /// and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
-/// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
+/// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six taxi rows, processed PROCESS_THREADSAFE, the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE and
 /// CMSG_SET_ACTIVE_VOICE_CHANNEL rows, of status STATUS_AUTHED.
 
@@ -92,6 +92,7 @@
 #include "session/handlers/entities/EnchantHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
+#include "session/handlers/entities/TaxiHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ChannelHandlers.h"
 #include "Channel.h"
@@ -1709,4 +1710,34 @@ TEST(OpcodeDispatch_WardenRowHoldsItsHandlersThunk)
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&WardenHandlers::HandleWardenData>), 1);
     CHECK_EQ(opcodeTable[CMSG_WARDEN_DATA].status, STATUS_AUTHED);
     CHECK_EQ(opcodeTable[CMSG_WARDEN_DATA].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_TaxiRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_TAXINODE_STATUS_QUERY].handler == &OpcodeThunk<&TaxiHandlers::HandleTaxiNodeStatusQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TaxiHandlers::HandleTaxiNodeStatusQuery>), 1);
+    CHECK(opcodeTable[CMSG_TAXIQUERYAVAILABLENODES].handler == &OpcodeThunk<&TaxiHandlers::HandleTaxiQueryAvailableNodes>);
+    CHECK(opcodeTable[CMSG_ENABLETAXI].handler == &OpcodeThunk<&TaxiHandlers::HandleTaxiQueryAvailableNodes>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TaxiHandlers::HandleTaxiQueryAvailableNodes>), 2);
+    CHECK(opcodeTable[CMSG_ACTIVATETAXI].handler == &OpcodeThunk<&TaxiHandlers::HandleActivateTaxi>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TaxiHandlers::HandleActivateTaxi>), 1);
+    CHECK(opcodeTable[CMSG_ACTIVATETAXIEXPRESS].handler == &OpcodeThunk<&TaxiHandlers::HandleActivateTaxiExpress>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TaxiHandlers::HandleActivateTaxiExpress>), 1);
+    CHECK(opcodeTable[CMSG_MOVE_SPLINE_DONE].handler == &OpcodeThunk<&TaxiHandlers::HandleMoveSplineDone>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TaxiHandlers::HandleMoveSplineDone>), 1);
+}
+
+TEST(OpcodeDispatch_TaxiRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    OpcodesList const rows[] = { CMSG_TAXINODE_STATUS_QUERY, CMSG_TAXIQUERYAVAILABLENODES, CMSG_ENABLETAXI,
+                             CMSG_ACTIVATETAXI, CMSG_ACTIVATETAXIEXPRESS, CMSG_MOVE_SPLINE_DONE };
+    for (OpcodesList row : rows)
+    {
+        CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
+        CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADSAFE);
+    }
 }

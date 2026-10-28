@@ -50,6 +50,7 @@
 #include "session/handlers/entities/EnchantHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
+#include "session/handlers/entities/TaxiHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ChannelHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
@@ -574,10 +575,10 @@ void InitializeOpcodes()
     //OPCODE(CMSG_TAXIENABLEALLNODES,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_TAXISHOWNODES,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_SHOWTAXINODES,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_TAXINODE_STATUS_QUERY,                   STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleTaxiNodeStatusQueryOpcode );
+    OPCODE(CMSG_TAXINODE_STATUS_QUERY,                   STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &TaxiHandlers::HandleTaxiNodeStatusQuery       );
     OPCODE(SMSG_TAXINODE_STATUS,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_TAXIQUERYAVAILABLENODES,                 STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleTaxiQueryAvailableNodes   );
-    OPCODE(CMSG_ACTIVATETAXI,                            STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleActivateTaxiOpcode        );
+    OPCODE(CMSG_TAXIQUERYAVAILABLENODES,                 STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &TaxiHandlers::HandleTaxiQueryAvailableNodes   );
+    OPCODE(CMSG_ACTIVATETAXI,                            STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &TaxiHandlers::HandleActivateTaxi              );
     OPCODE(SMSG_ACTIVATETAXIREPLY,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_NEW_TAXI_PATH,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_TRAINER_LIST,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleTrainerListOpcode         );
@@ -864,7 +865,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_PET_ACTION_FEEDBACK,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_CHAR_RENAME,                             STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleCharRenameOpcode          );
     OPCODE(SMSG_CHAR_RENAME,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_MOVE_SPLINE_DONE,                        STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMoveSplineDoneOpcode      );
+    OPCODE(CMSG_MOVE_SPLINE_DONE,                        STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &TaxiHandlers::HandleMoveSplineDone            );
     OPCODE(CMSG_MOVE_FALL_RESET,                         STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMovementOpcodes           );
     OPCODE(SMSG_INSTANCE_SAVE_CREATED,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_RAID_INSTANCE_INFO,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -943,7 +944,7 @@ void InitializeOpcodes()
     //OPCODE(CMSG_GM_NUKE_ACCOUNT,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(MSG_GM_DESTROY_CORPSE,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_DESTROY_ONLINE_CORPSE,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_ACTIVATETAXIEXPRESS,                     STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleActivateTaxiExpressOpcode );
+    OPCODE(CMSG_ACTIVATETAXIEXPRESS,                     STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &TaxiHandlers::HandleActivateTaxiExpress       );
     OPCODE(SMSG_SET_FACTION_ATWAR,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SET_FACTION_NOT_VISIBLE,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_GAMETIMEBIAS_SET,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1329,7 +1330,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_AUCTION_LIST_PENDING_SALES,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_MODIFY_COOLDOWN,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PET_UPDATE_COMBO_POINTS,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_ENABLETAXI,                              STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleTaxiQueryAvailableNodes   );
+    OPCODE(CMSG_ENABLETAXI,                              STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &TaxiHandlers::HandleTaxiQueryAvailableNodes   );
     OPCODE(SMSG_PRE_RESURRECT,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_AURA_UPDATE_ALL,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_AURA_UPDATE,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
