@@ -75,6 +75,7 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Chat.h"
+#include "session/packets/chat/MessageChatPacket.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
 #include "MassMailMgr.h"
@@ -1150,7 +1151,7 @@ namespace MaNGOS
                 while (char* line = lineFromMessage(pos))
                 {
                     WorldPacket* data = new WorldPacket();
-                    ChatHandler::BuildChatPacket(*data, CHAT_MSG_SYSTEM, line);
+                    BuildMessageChatPacket(*data, CHAT_MSG_SYSTEM, line);
                     data_list.push_back(data);
                 }
             }

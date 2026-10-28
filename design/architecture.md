@@ -38,14 +38,14 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 350 include lines go against the table.
+**Today:** 349 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 129 | `WorldPacket.h` 79, `Opcodes.h` 47 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
 | domain -> session | 83 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
 | any -> app | 27 | `World.h`: scripts 10, session 8, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
-| domain, data, session -> scripts | 29 | `ScriptMgr.h` 6, `Chat.h` 23 | `Map.cpp`, `PlayerHandlers.cpp`, `PlayerChat.cpp` |
+| domain, data, session -> scripts | 28 | `ScriptMgr.h` 6, `Chat.h` 22 | `Map.cpp`, `PlayerHandlers.cpp`, `PlayerChat.cpp` |
 | data -> domain | 58 | `MapManager.h` 5, `MapPersistentStateMgr.h` 5, `SpellMgr.h` 5, `Creature.h` 5 | `ObjectMgr.cpp`, `GameEventMgr.cpp`, `CreatureLinkingMgr.cpp` |
 | motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSplineInit.cpp`, `MoveSpline.cpp`, `WireParity.cpp` |
 | rest | 12 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |

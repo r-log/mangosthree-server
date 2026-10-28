@@ -63,7 +63,6 @@
 #include "TransportMap.h"
 #include "BattleGround/BattleGround.h"
 #include "OutdoorPvP/OutdoorPvP.h"
-#include "Chat.h"
 #include "spells/pipeline/Spell.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"

@@ -153,6 +153,7 @@ set(SRC_GRP_TESTS
     QuestStatusMgrTest.cpp
     QuestPredicateTest.cpp
     QuestCompletePacketTest.cpp
+    MessageChatPacketTest.cpp
     QuestRewardTest.cpp
     TalentMgrTest.cpp
     ItemFixture.h

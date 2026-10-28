@@ -29,6 +29,7 @@ set(REACH_RULES
     "spells/AuraContainer.h|Object/Unit.h,Object/Object.h,spells/auras/SpellAuras.h,Server/DBCStructure.h,Server/WorldSession.h"
     "entities/player/quests/QuestStatusMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h"
     "entities/player/quests/QuestStatusMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Database/DatabaseEnv.h"
+    "session/packets/chat/MessageChatPacket.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/Chat.h,WorldHandlers/World.h,Server/DBCStores.h,Database/DatabaseEnv.h"
     "session/packets/quests/QuestCompletePacket.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/QuestDef.h,Server/DBCStores.h,Database/DatabaseEnv.h"
     "session/packets/quests/QuestCompletePacket.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/QuestDef.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h"
     "entities/player/quests/QuestRewardRules.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/QuestDef.h,WorldHandlers/World.h,Server/DBCStores.h,Database/DatabaseEnv.h"

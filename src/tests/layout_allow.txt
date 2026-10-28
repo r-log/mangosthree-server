@@ -528,7 +528,6 @@ src/game/entities/player [entities] -> src/game/spells/SpellModMgr.h
 src/game/entities/player [entities] -> src/game/spells/data/SpellMgr.h
 src/game/entities/player [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/Player.cpp -> src/game/Server/WorldSession.h
-src/game/entities/player/Player.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/World.h
