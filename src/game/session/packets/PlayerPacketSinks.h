@@ -38,6 +38,7 @@
 #include "session/packets/entities/SocialPackets.h"
 #include "session/packets/entities/StandStatePacket.h"
 #include "session/packets/quests/QuestCompletePacket.h"
+#include "session/packets/chat/SystemMessage.h"
 #include "session/packets/spells/AutoRepeatPackets.h"
 
 class Player;
@@ -52,6 +53,24 @@ std::function<void(Fact const&)> FactToSession(Owner* owner, void (*build)(World
         WorldPacket data;
         build(data, fact);
         owner->GetSession()->SendPacket(&data);
+    };
+}
+
+/// The callback for `owner` of its system messages: sends the fact's entry or text to the session
+/// `owner->GetSession()` returns at that send, one message per line.
+template <class Owner>
+SystemMessageSink SystemMessageToSession(Owner* owner)
+{
+    return [owner](SystemMessageFact const& fact)
+    {
+        if (fact.entry)
+        {
+            SendSystemMessage(*owner->GetSession(), fact.entry);
+        }
+        else
+        {
+            SendSystemMessage(*owner->GetSession(), fact.text.c_str());
+        }
     };
 }
 
@@ -95,6 +114,7 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.contactList = FactToSession(owner, &BuildContactListPacket);
     callbacks.friendStatus = FactToSession(owner, &BuildFriendStatusPacket);
     callbacks.questComplete = FactToSession(owner, &BuildQuestCompletePacket);
+    callbacks.systemMessage = SystemMessageToSession(owner);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }

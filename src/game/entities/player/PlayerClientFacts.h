@@ -31,6 +31,7 @@
 #include "ObjectGuid.h"
 
 #include <functional>
+#include <string>
 
 // What a player's own client is told: one fact per notice, each reported through a callback the
 // session installs on the player, which builds the client's packet and sends it.
@@ -96,6 +97,14 @@ struct QuestCompleteFact
     bool useQuestReward = false;    ///< second bit (bit 6) -> +52: keep the quest frame open for the next quest's details
 };
 
+/// A system message to the player's own client: the string table entry `entry` in the client's
+/// locale or, when `entry` is 0, `text`; one chat line per line of it.
+struct SystemMessageFact
+{
+    int32 entry = 0;
+    std::string text;
+};
+
 typedef std::function<void(SwingOutOfReachFact const&)> SwingOutOfReachSink;
 typedef std::function<void(SwingBadFacingFact const&)> SwingBadFacingSink;
 typedef std::function<void(CombatCancelledFact const&)> CombatCancelledSink;
@@ -105,6 +114,7 @@ typedef std::function<void(PetActionBarClearedFact const&)> PetActionBarClearedS
 typedef std::function<void(StandStateFact const&)> StandStateSink;
 typedef std::function<void(PvpCreditFact const&)> PvpCreditSink;
 typedef std::function<void(QuestCompleteFact const&)> QuestCompleteSink;
+typedef std::function<void(SystemMessageFact const&)> SystemMessageSink;
 
 /// The account security level of the player's session, read at each call. An unsigned integer:
 /// the levels run from 0 to 4, and a caller comparing two of them with `<=` gets the answer the

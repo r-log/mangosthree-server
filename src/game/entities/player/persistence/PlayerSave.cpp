@@ -43,7 +43,6 @@
 #include "Pet.h"
 #include "Util.h"
 #include "Transports.h"
-#include "Chat.h"
 #include "SocialMgr.h"
 #include "AchievementMgr.h"
 #include "Mail.h"
@@ -517,7 +516,7 @@ void Player::_SaveInventory()
     if (error)
     {
         sLog.outError("Player::_SaveInventory - one or more errors occurred save aborted!");
-        ChatHandler(this).SendSysMessage(LANG_ITEM_SAVE_FAILED);
+        ReportSystemMessage(LANG_ITEM_SAVE_FAILED);
         return;
     }
 
