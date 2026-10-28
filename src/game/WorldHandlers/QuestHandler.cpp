@@ -39,6 +39,7 @@
 #include "Opcodes.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "GameObject.h"
 #include "AchievementMgr.h"
 #include "Player.h"
 #include "GossipDef.h"

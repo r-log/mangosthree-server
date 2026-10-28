@@ -37,6 +37,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "ObjectMgr.h"
+#include "GameObject.h"
 #include "spells/data/SpellMgr.h"
 #include "Log.h"
 #include "Opcodes.h"

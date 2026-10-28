@@ -60,6 +60,7 @@
 #include <vector>
 #include "SharedDefines.h"
 #include "data/GameObjectTemplateStore.h"
+#include "data/GameObjectRecords.h"
 #include "Object.h"
 #include "LootMgr.h"
 #include "Database/DatabaseEnv.h"
@@ -67,57 +68,6 @@
 #include <memory>
 
 class GameObjectAI;
-
-struct GameObjectLocale
-{
-    std::vector<std::string> Name;
-    std::vector<std::string> CastBarCaption;
-};
-
-// client side GO show states
-enum GOState
-{
-    GO_STATE_ACTIVE             = 0x00,                     // show in world as used and not reset (closed door open)
-    GO_STATE_READY              = 0x01,                     // show in world as ready (closed door close)
-    GO_STATE_ACTIVE_ALTERNATIVE = 0x02,                     // show in world as used in alt way and not reset (closed door open by cannon fire)
-    GO_STATE_TRANSPORT_SPEC     = 0x18,                     // additional mask that have all transport gameobjects
-};
-
-#define MAX_GO_STATE              3
-
-struct QuaternionData
-{
-    float x, y, z, w;
-
-    QuaternionData() : x(0.f), y(0.f), z(0.f), w(0.f) {}
-    QuaternionData(float X, float Y, float Z, float W) : x(X), y(Y), z(Z), w(W) {}
-
-    bool isUnit() const { return fabs(x * x + y * y + z * z + w * w - 1.f) < 1e-5;}
-};
-
-// from `gameobject`
-struct GameObjectData
-{
-    uint32 id;                                              // entry in gameobject_template
-    uint32 mapid;
-    uint32 phaseMask;
-    float posX;
-    float posY;
-    float posZ;
-    float orientation;
-    QuaternionData rotation;
-    int32  spawntimesecs;
-    uint32 animprogress;
-    GOState go_state;
-    uint8 spawnMask;
-};
-
-// from `gameobject_addon`
-struct GameObjectDataAddon
-{
-    uint32 guid;
-    QuaternionData path_rotation;
-};
 
 // For containers:  [GO_NOT_READY]->GO_READY (close)->GO_ACTIVATED (open) ->GO_JUST_DEACTIVATED->GO_READY        -> ...
 // For bobber:      [GO_NOT_READY]->GO_READY (close)->GO_ACTIVATED (open) ->GO_JUST_DEACTIVATED-><deleted>

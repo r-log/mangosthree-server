@@ -47,6 +47,7 @@
 #include "GameEventMgr.h"
 #include "World.h"
 #include "ObjectMgr.h"
+#include "GameObject.h"
 #include "ObjectGuid.h"
 #include "PoolManager.h"
 #include "ProgressBar.h"

@@ -39,6 +39,7 @@
 #include <string>
 #include "Chat.h"
 #include "ObjectMgr.h"
+#include "GameObject.h"
 #include "Language.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"

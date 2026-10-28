@@ -35,9 +35,9 @@
 #include "Platform/Define.h"
 #include "Policies/Singleton.h"
 #include "DBCStructure.h"
-#include "GameObject.h"
 
 class Creature;
+class GameObject;
 
 class MapPersistentState;
 
