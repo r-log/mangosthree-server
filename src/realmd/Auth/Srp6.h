@@ -76,10 +76,18 @@ namespace Srp6
     /**
      * @brief The 40-byte session key.
      *
-     * S = (A * v^u)^b mod N, then the even and odd bytes of S are hashed separately
-     * and the two digests interleaved into K.
+     * S = (A * v^u)^b mod N, and K = KeyFromSecret(S).
      */
     BigNumber SessionKey(const BigNumber& A, const BigNumber& v, const BigNumber& u, const BigNumber& b);
+
+    /**
+     * @brief K from the shared secret S, as the client derives it (SHA1_InterleaveHash).
+     *
+     * The zero bytes at the start of S's 32 little-endian bytes are dropped, then one more
+     * byte if an odd number is left; the even and odd bytes of the rest are hashed
+     * separately and the two digests interleaved into K.
+     */
+    BigNumber KeyFromSecret(const BigNumber& S);
 
     /**
      * @brief M1 as the client computes it: H((H(N) xor H(g)) | H(login) | s | A | B | K).

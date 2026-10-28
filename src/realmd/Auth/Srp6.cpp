@@ -115,30 +115,46 @@ namespace Srp6
         BigNumber N = Modulus();
         BigNumber vCopy(v);
         BigNumber S = (BigNumber(A) * vCopy.ModExp(u, N)).ModExp(b, N);
+        return KeyFromSecret(S);
+    }
 
+    BigNumber KeyFromSecret(const BigNumber& S)
+    {
+        BigNumber secret(S);
         uint8 t[EphemeralWidth];
         uint8 half[EphemeralWidth / 2];
         uint8 vK[SessionKeyWidth];
-        std::memcpy(t, S.AsByteArray(EphemeralWidth), EphemeralWidth);
+        std::memcpy(t, secret.AsByteArray(EphemeralWidth), EphemeralWidth);
+
+        int start = 0;
+        while (start < EphemeralWidth && t[start] == 0)
+        {
+            ++start;
+        }
+        if ((EphemeralWidth - start) & 1)
+        {
+            ++start;
+        }
+        const int count = (EphemeralWidth - start) / 2;
 
         Sha1Hash sha;
-        for (int i = 0; i < EphemeralWidth / 2; ++i)
+        for (int i = 0; i < count; ++i)
         {
-            half[i] = t[i * 2];
+            half[i] = t[start + i * 2];
         }
-        sha.UpdateData(half, EphemeralWidth / 2);
+        sha.UpdateData(half, count);
         sha.Finalize();
         for (int i = 0; i < DigestWidth; ++i)
         {
             vK[i * 2] = sha.GetDigest()[i];
         }
 
-        for (int i = 0; i < EphemeralWidth / 2; ++i)
+        for (int i = 0; i < count; ++i)
         {
-            half[i] = t[i * 2 + 1];
+            half[i] = t[start + i * 2 + 1];
         }
         sha.Initialize();
-        sha.UpdateData(half, EphemeralWidth / 2);
+        sha.UpdateData(half, count);
         sha.Finalize();
         for (int i = 0; i < DigestWidth; ++i)
         {
