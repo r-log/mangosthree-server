@@ -2721,6 +2721,10 @@ BattleGroundMap::~BattleGroundMap()
  */
 void BattleGroundMap::Update(const uint32& diff)
 {
+    // The battleground's own update runs after the map's, on the same worker, and touches the
+    // map's units: the scope covers both, so it owns the map as the map's update does.
+    MapPhase::Scope phase(this);
+
     Map::Update(diff);
 
     GetBG()->Update(diff);
