@@ -825,14 +825,6 @@ class WorldSession
         void HandleGameObjectUseOpcode(WorldPacket& recPacket);
         void HandleGameobjectReportUse(WorldPacket& recvPacket);
 
-        void HandleNameQueryOpcode(WorldPacket& recvPacket);
-
-        void HandleQueryTimeOpcode(WorldPacket& recvPacket);
-
-        void HandleCreatureQueryOpcode(WorldPacket& recvPacket);
-
-        void HandleGameObjectQueryOpcode(WorldPacket& recvPacket);
-
         // Movement Handler
         void HandleMoveWorldportAckOpcode(WorldPacket& recvPacket);
         void HandleMoveWorldportAckOpcode();                // for server-side calls
@@ -907,7 +899,6 @@ class WorldSession
         void HandleGossipHelloOpcode(WorldPacket& recvPacket);
         void HandleGossipSelectOptionOpcode(WorldPacket& recvPacket);
         void HandleSpiritHealerActivateOpcode(WorldPacket& recvPacket);
-        void HandleNpcTextQueryOpcode(WorldPacket& recvPacket);
         void HandleBinderActivateOpcode(WorldPacket& recvPacket);
         void HandleListStabledPetsOpcode(WorldPacket& recvPacket);
         void HandleStablePet(WorldPacket& recvPacket);
@@ -990,16 +981,12 @@ class WorldSession
         void SendWrongFactionNotice();
 
         void HandleReclaimCorpseOpcode(WorldPacket& recvPacket);
-        void HandleCorpseQueryOpcode(WorldPacket& recvPacket);
-        void HandleCorpseMapPositionQueryOpcode(WorldPacket& recvPacket);
         void HandleResurrectResponseOpcode(WorldPacket& recvPacket);
         void HandleReturnToGraveyard(WorldPacket& recvPacket);
         void HandleSummonResponseOpcode(WorldPacket& recv_data);
 
         void HandleCompleteCinematic(WorldPacket& recvPacket);
         void HandleNextCinematicCamera(WorldPacket& recvPacket);
-
-        void HandlePageTextQueryOpcode(WorldPacket& recvPacket);
 
         void HandleTutorialFlagOpcode(WorldPacket& recv_data);
         void HandleTutorialClearOpcode(WorldPacket& recv_data);
@@ -1122,8 +1109,6 @@ class WorldSession
         void HandleEquipmentSetUseOpcode(WorldPacket& recv_data);
         void HandleUITimeRequestOpcode(WorldPacket& recv_data);
         void HandleReadyForAccountDataTimesOpcode(WorldPacket& recv_data);
-        void HandleQueryQuestsCompletedOpcode(WorldPacket& recv_data);
-        void HandleQuestPOIQueryOpcode(WorldPacket& recv_data);
         void HandleSetCurrencyFlagsOpcode(WorldPacket& recv_data);
 
         // Reforge
