@@ -327,6 +327,12 @@ Transport* Transport::GetTransport(Map const* map, ObjectGuid guid)
     return NULL;
 }
 
+bool Transport::CanStepAboard(uint32 passengerMapId, Geometry::Vector3 const& where,
+                              uint32 vesselMapId, Geometry::Placement const& pose, float reach)
+{
+    return passengerMapId == vesselMapId && pose.WithinDist(where, reach);
+}
+
 namespace
 {
     /// Resolved once per vessel entry and then authoritative: the store it is derived from
