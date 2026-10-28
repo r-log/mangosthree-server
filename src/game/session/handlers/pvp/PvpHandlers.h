@@ -32,9 +32,10 @@ class WorldSession;
 /// The client's PvP opcodes: the arena team's inspect, query, roster, create, invite, accept,
 /// decline, leave, disband, remove and leader opcodes; the battlemaster's hello and join, the
 /// arena join, the battlefield list, port, leave and status, the flag carriers' positions, the
-/// PvP log, the spirit healer's query and queue, the AFK report, and the rated battleground
-/// stats, rated battleground info, PvP options and PvP rewards requests: static entry points the
-/// opcode table binds, each borrowing the session for one call and storing nothing.
+/// PvP log, the spirit healer's query and queue, the AFK report, the rated battleground stats,
+/// rated battleground info, PvP options and PvP rewards requests; and the player's PvP flag toggled
+/// or set: static entry points the opcode table binds, each borrowing the session for one call
+/// and storing nothing.
 struct PvpHandlers
 {
     public:
@@ -65,6 +66,7 @@ struct PvpHandlers
         static void HandleRequestPvPOptionsEnabled(WorldSession& session, WorldPacket& recv_data);
         static void HandleRequestPvPRewards(WorldSession& session, WorldPacket& recv_data);
         static void HandleRequestRatedBgInfo(WorldSession& session, WorldPacket& recv_data);
+        static void HandleTogglePvP(WorldSession& session, WorldPacket& recv_data);
 };
 
 #endif
