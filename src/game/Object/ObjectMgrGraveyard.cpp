@@ -29,6 +29,7 @@
  */
 
 #include "ObjectMgr.h"
+#include "GridMap.h"
 #include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"

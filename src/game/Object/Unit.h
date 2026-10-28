@@ -183,33 +183,6 @@ enum SpellFacingFlags
 
 #define SCALE_SPELLPOWER_HEALING        1.88f
 
-/**
- * byte value (UNIT_FIELD_BYTES_1,0).
- *
- * This is not to be used as a bitmask but as one value
- * each, ie: you can't be standing and sitting down at
- * the same time.
- * \see Unit::getStandState
- * \see Unit::SetStandState
- * \see Unit::IsSitState
- * \see Unit::IsStandState
- */
-enum UnitStandStateType
-{
-    UNIT_STAND_STATE_STAND             = 0,
-    UNIT_STAND_STATE_SIT               = 1,
-    UNIT_STAND_STATE_SIT_CHAIR         = 2,
-    UNIT_STAND_STATE_SLEEP             = 3,
-    UNIT_STAND_STATE_SIT_LOW_CHAIR     = 4,
-    UNIT_STAND_STATE_SIT_MEDIUM_CHAIR  = 5,
-    UNIT_STAND_STATE_SIT_HIGH_CHAIR    = 6,
-    UNIT_STAND_STATE_DEAD              = 7,
-    UNIT_STAND_STATE_KNEEL             = 8,
-    UNIT_STAND_STATE_CUSTOM            = 9                  // Depends on model animation. Submerge, freeze, hide, hibernate, rest
-};
-
-#define MAX_UNIT_STAND_STATE             10
-
 /* byte flag value not exist in 1.12, moved/merged in (UNIT_FIELD_BYTES_1,3), in post-1.x it's in (UNIT_FIELD_BYTES_1,2)
 enum UnitStandFlags
 */
@@ -618,39 +591,6 @@ enum UnitFlags2
     UNIT_FLAG2_WORGEN_TRANSFORM     = 0x00080000,           // transform to worgen
     UNIT_FLAG2_WORGEN_TRANSFORM2    = 0x00100000,           // transform to worgen, but less animation?
     UNIT_FLAG2_WORGEN_TRANSFORM3    = 0x00200000            // transform to worgen, but less animation?
-};
-
-/// Non Player Character flags
-enum NPCFlags
-{
-    UNIT_NPC_FLAG_NONE                  = 0x00000000,
-    UNIT_NPC_FLAG_GOSSIP                = 0x00000001,       // 100%
-    UNIT_NPC_FLAG_QUESTGIVER            = 0x00000002,       // guessed, probably ok
-    UNIT_NPC_FLAG_UNK1                  = 0x00000004,
-    UNIT_NPC_FLAG_UNK2                  = 0x00000008,
-    UNIT_NPC_FLAG_TRAINER               = 0x00000010,       // 100%
-    UNIT_NPC_FLAG_TRAINER_CLASS         = 0x00000020,       // 100%
-    UNIT_NPC_FLAG_TRAINER_PROFESSION    = 0x00000040,       // 100%
-    UNIT_NPC_FLAG_VENDOR                = 0x00000080,       // 100%
-    UNIT_NPC_FLAG_VENDOR_AMMO           = 0x00000100,       // 100%, general goods vendor
-    UNIT_NPC_FLAG_VENDOR_FOOD           = 0x00000200,       // 100%
-    UNIT_NPC_FLAG_VENDOR_POISON         = 0x00000400,       // guessed
-    UNIT_NPC_FLAG_VENDOR_REAGENT        = 0x00000800,       // 100%
-    UNIT_NPC_FLAG_REPAIR                = 0x00001000,       // 100%
-    UNIT_NPC_FLAG_FLIGHTMASTER          = 0x00002000,       // 100%
-    UNIT_NPC_FLAG_SPIRITHEALER          = 0x00004000,       // guessed
-    UNIT_NPC_FLAG_SPIRITGUIDE           = 0x00008000,       // guessed
-    UNIT_NPC_FLAG_INNKEEPER             = 0x00010000,       // 100%
-    UNIT_NPC_FLAG_BANKER                = 0x00020000,       // 100%
-    UNIT_NPC_FLAG_PETITIONER            = 0x00040000,       // 100% 0xC0000 = guild petitions, 0x40000 = arena team petitions
-    UNIT_NPC_FLAG_TABARDDESIGNER        = 0x00080000,       // 100%
-    UNIT_NPC_FLAG_BATTLEMASTER          = 0x00100000,       // 100%
-    UNIT_NPC_FLAG_AUCTIONEER            = 0x00200000,       // 100%
-    UNIT_NPC_FLAG_STABLEMASTER          = 0x00400000,       // 100%
-    UNIT_NPC_FLAG_GUILD_BANKER          = 0x00800000,       // cause client to send 997 opcode
-    UNIT_NPC_FLAG_SPELLCLICK            = 0x01000000,       // cause client to send 1015 opcode (spell click), dynamic, set at loading and don't must be set in DB
-    UNIT_NPC_FLAG_PLAYER_VEHICLE        = 0x02000000,       // players with mounts that have vehicle data should have it set
-    UNIT_NPC_FLAG_REFORGER              = 0x08000000,       // reforging
 };
 
 // used in most movement packets (send and received), 30 bits in client

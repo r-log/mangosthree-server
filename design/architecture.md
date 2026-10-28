@@ -38,7 +38,7 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 346 include lines go against the table.
+**Today:** 352 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
@@ -46,7 +46,7 @@ These directories **dissolve**:
 | domain -> session | 83 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
 | any -> app | 27 | `World.h`: scripts 10, session 8, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
 | domain, data, session -> scripts | 29 | `ScriptMgr.h` 6, `Chat.h` 23 | `Map.cpp`, `MiscHandler.cpp`, `PlayerChat.cpp` |
-| data -> domain | 52 | `MapManager.h` 5, `SpellMgr.h` 5, `Player.h` 4 | `ObjectMgr.cpp`, `ObjectMgr.h`, `GameEventMgr.cpp` |
+| data -> domain | 58 | `MapManager.h` 5, `MapPersistentStateMgr.h` 5, `SpellMgr.h` 5, `Creature.h` 5 | `ObjectMgr.cpp`, `GameEventMgr.cpp`, `CreatureLinkingMgr.cpp` |
 | motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSplineInit.cpp`, `MoveSpline.cpp`, `WireParity.cpp` |
 | rest | 12 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
 
@@ -63,8 +63,8 @@ layer pair or header is a new edge. A file that reached a header only through a 
 PR: the line is listed with the reason `reached through <header> before #<PR>`, and the PR shows that the file's include closure
 reached the header at the parent commit. Any other new edge is fixed, not listed.
 
-**Today:** 824 such lines, the largest being spells -> entities 170, entities -> maps 149, -> spells 50, -> social 38
-and -> pvp 28, spells -> maps 62 and pvp -> entities 54.
+**Today:** 849 such lines, the largest being spells -> entities 175, entities -> maps 151, -> spells 50, -> social 38
+and -> pvp 28, spells -> maps 63 and pvp -> entities 55.
 
 **Which peers may know which (decided 2026-10-02).** The ratchet above keeps the cross lines from growing; it does
 not say which of them are the design and which are debt. This table does. A pair not listed is debt: its ratchet
@@ -379,7 +379,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 2 | domain -> session: 83 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` included 27 times below app | the configuration interface (#143), when content touches it |
 | 4 | `Chat.h` (23) and `ScriptMgr.h` (6) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
-| 5 | data -> domain: 52 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
+| 5 | data -> domain: 58 lines, in the loaders and managers that act on live objects; `ObjectMgr.h` reaches no domain header (its `CheckHeaderReach` row) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump` and `CharacterDatabaseCleaner` (7 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
 | 8 | 0 database calls outside persistence | closed: `CheckDatabaseCalls` keeps it at 0 |

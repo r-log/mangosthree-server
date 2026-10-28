@@ -28,6 +28,8 @@
 #include <cassert>
 #include "Item.h"
 #include "ObjectMgr.h"
+#include "Bag.h"
+#include "Player.h"
 #include "DBCStores.h"
 #include "data/ScriptNameStore.h"
 #include "ObjectGuid.h"

@@ -29,6 +29,7 @@
 #include <ctime>
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "Unit.h"

@@ -28,6 +28,7 @@
 #include "Player.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "ObjectGuid.h"
 #include "Group.h"
 #include "Formulas.h"

@@ -64,6 +64,7 @@
 #include "Transports.h"
 #include "TransportMap.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "WorldClock.h"
 
 

@@ -41,6 +41,8 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "ObjectMgr.h"
+#include "GridMap.h"
+#include "Player.h"
 #include "ObjectGuid.h"
 #include "QuestDef.h"
 #include "Creature.h"

@@ -50,6 +50,8 @@
 #include <set>
 #include "PoolManager.h"
 #include "ObjectMgr.h"
+#include "Map.h"
+#include "Creature.h"
 #include "GameObject.h"
 #include "ObjectGuid.h"
 #include "ProgressBar.h"

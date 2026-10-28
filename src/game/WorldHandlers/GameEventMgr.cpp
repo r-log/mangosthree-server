@@ -47,6 +47,7 @@
 #include "GameEventMgr.h"
 #include "World.h"
 #include "ObjectMgr.h"
+#include "Creature.h"
 #include "MapPersistentStateMgr.h"
 #include "DBCStores.h"
 #include "GameObject.h"

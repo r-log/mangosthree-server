@@ -38,6 +38,7 @@
 #include "Language.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "Bag.h"
 #include "ObjectGuid.h"
 #include "AchievementMgr.h"
 #include "Player.h"

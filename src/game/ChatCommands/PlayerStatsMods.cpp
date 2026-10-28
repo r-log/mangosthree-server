@@ -28,6 +28,8 @@
 #include <string>
 #include "Chat.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
+#include "Player.h"
 #include "DBCStores.h"
 #include "Language.h"
 #include "data/GameConfig.h"

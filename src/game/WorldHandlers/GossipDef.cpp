@@ -49,6 +49,7 @@
 #include "GossipDef.h"
 #include "QuestDef.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"

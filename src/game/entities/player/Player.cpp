@@ -51,6 +51,7 @@
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "ObjectMgr.h"
+#include "Bag.h"
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "Group.h"

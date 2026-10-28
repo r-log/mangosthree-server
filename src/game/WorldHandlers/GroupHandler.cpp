@@ -40,6 +40,7 @@
 #include "WorldSession.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "AchievementMgr.h"
 #include "Player.h"
 #include "spells/auras/SpellAuras.h"

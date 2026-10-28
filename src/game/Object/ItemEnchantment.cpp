@@ -24,6 +24,7 @@
  */
 #include "Item.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "DBCStores.h"
 #include "ObjectGuid.h"
 #include "WorldPacket.h"

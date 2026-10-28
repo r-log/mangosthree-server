@@ -49,6 +49,7 @@
 #include "ProgressBar.h"
 #include "Database/DatabaseEnv.h"
 #include "ObjectMgr.h"
+#include "Map.h"
 #include "MapPersistentStateMgr.h"
 #include "DBCStores.h"
 #include "SharedDefines.h"

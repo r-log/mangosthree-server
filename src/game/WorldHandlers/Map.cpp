@@ -65,6 +65,7 @@
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
 #include "LFGMgr.h"

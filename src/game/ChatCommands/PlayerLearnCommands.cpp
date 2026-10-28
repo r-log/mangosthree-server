@@ -43,6 +43,7 @@
 #include "DBCStores.h"
 #include "Language.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "WorldSession.h"
 
 /**

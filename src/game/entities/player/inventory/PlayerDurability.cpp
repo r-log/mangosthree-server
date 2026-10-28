@@ -31,6 +31,7 @@
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
+#include "Bag.h"
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Pet.h"

@@ -25,6 +25,8 @@
 #include <sstream>
 #include "Item.h"
 #include "ObjectMgr.h"
+#include "Bag.h"
+#include "Player.h"
 #include "DBCStores.h"
 #include "ObjectGuid.h"
 #include "Database/DatabaseEnv.h"

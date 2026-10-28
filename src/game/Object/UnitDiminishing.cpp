@@ -31,6 +31,8 @@
 #include "Unit.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "GridMap.h"
+#include "Player.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
 #include "QuestDef.h"

@@ -27,6 +27,7 @@
 #include "Guild.h"
 #include "Database/DatabaseEnv.h"
 #include "ObjectMgr.h"
+#include "Bag.h"
 #include "PlayerRegistry.h"
 #include "data/GameConfig.h"
 #include "Item.h"

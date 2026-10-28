@@ -45,6 +45,7 @@
 #include "Log.h"
 #include "World.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "DBCStores.h"
 #include "AchievementMgr.h"
 #include "CharacterCache.h"

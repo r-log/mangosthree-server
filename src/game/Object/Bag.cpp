@@ -26,6 +26,7 @@
 #include "Utilities/Errors.h"
 #include "Bag.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "Database/DatabaseEnv.h"
 #include "UpdateData.h"
 #include "persistence/characters/inventory/ItemRepository.h"

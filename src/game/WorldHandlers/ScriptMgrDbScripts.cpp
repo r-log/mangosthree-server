@@ -34,6 +34,9 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
+#include "GridDefines.h"
+#include "Object.h"
+#include "data/GameConfig.h"
 #include <DBCStores.h>
 #include "WaypointManager.h"
 #include "CreatureAI.h"

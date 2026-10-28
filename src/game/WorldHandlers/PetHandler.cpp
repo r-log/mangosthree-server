@@ -35,6 +35,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "Opcodes.h"
 #include "Pet.h"
 
