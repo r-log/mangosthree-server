@@ -513,7 +513,7 @@ TEST(RedirectStream_a_session_key_whose_top_byte_is_zero_still_proves_the_stream
     // The client hashes all 40 bytes of the session key (Wow-64.exe 15595,
     // NetClient::ClientConnectionAuthChallengeHandler, sizeof(m_sessionKey)), so a
     // key of 39 significant bytes is hashed with its zero top byte.
-    Fixture fixture("00B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F607");
+    Fixture fixture("00A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F607");
     REQUIRE(fixture.sessionKey.GetNumBytes() == 39);
     const std::array<uint8, AuthCrypt::SeedLength> seed = fixture.OpenAndReadChallengeSeed();
 

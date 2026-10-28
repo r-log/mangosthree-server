@@ -54,7 +54,7 @@ namespace
     const char* const CLIENT_ADDRESS = "203.0.113.9";
     const char* const ACCOUNT        = "ADMIN";
     const char* const SHORT_KEY      =
-        "00B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F607";
+        "00A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F607";
 
     /// A world that accepts the account with the given key and records whether the session
     /// was attached, which happens only once the client's proof checked out.
