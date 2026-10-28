@@ -935,18 +935,9 @@ class WorldSession
         void HandleMailMarkAsRead(WorldPacket& recv_data);
         void HandleMailReturnToSender(WorldPacket& recv_data);
         void HandleMailDelete(WorldPacket& recv_data);
-        void HandleItemTextQuery(WorldPacket& recv_data);
         void HandleMailCreateTextItem(WorldPacket& recv_data);
         void HandleQueryNextMailTime(WorldPacket& recv_data);
         void HandleCancelChanneling(WorldPacket& recv_data);
-
-        void HandleSplitItemOpcode(WorldPacket& recvPacket);
-        void HandleSwapInvItemOpcode(WorldPacket& recvPacket);
-        void HandleDestroyItemOpcode(WorldPacket& recvPacket);
-        void HandleAutoEquipItemOpcode(WorldPacket& recvPacket);
-        void HandleReadItemOpcode(WorldPacket& recvPacket);
-        void HandleAutoEquipItemSlotOpcode(WorldPacket& recvPacket);
-        void HandleSwapItem(WorldPacket& recvPacket);
 
         void HandleUseItemOpcode(WorldPacket& recvPacket);
         void HandleOpenItemOpcode(WorldPacket& recvPacket);
@@ -1036,8 +1027,6 @@ class WorldSession
         void HandleComplainOpcode(WorldPacket& recv_data);
         void HandleRequestPetInfoOpcode(WorldPacket& recv_data);
 
-        void HandleItemRefundInfoRequest(WorldPacket& recv_data);
-
         void HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data);
 
         // Guild Bank
@@ -1112,7 +1101,6 @@ class WorldSession
         void HandleSetCurrencyFlagsOpcode(WorldPacket& recv_data);
 
         // Reforge
-        void HandleReforgeItemOpcode(WorldPacket& recvData);
         void SendReforgeResult(bool success);
 
         void HandleLoadScreenOpcode(WorldPacket& recvPacket);
