@@ -178,7 +178,7 @@ TEST(Srp6_proofs_change_with_every_input)
 
 namespace
 {
-    /// The client's SHA1_InterleaveHash (Wow-64.exe 15595, 0x00658810), rebuilt from its body:
+    /// The client's interleave hash (Wow-64.exe 15595, 0x00658810), rebuilt from its body:
     /// the zero bytes at the start are skipped, then one more byte if an odd number is left,
     /// and the even and odd bytes of the rest are hashed apart and interleaved into 40 bytes.
     void ClientInterleave(uint8* out, const uint8* in, uint32 length)

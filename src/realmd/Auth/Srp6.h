@@ -81,7 +81,7 @@ namespace Srp6
     BigNumber SessionKey(const BigNumber& A, const BigNumber& v, const BigNumber& u, const BigNumber& b);
 
     /**
-     * @brief K from the shared secret S, as the client derives it (SHA1_InterleaveHash).
+     * @brief K from the shared secret S, as the client's interleave hash derives it (Wow-64.exe 15595, 0x00658810).
      *
      * The zero bytes at the start of S's 32 little-endian bytes are dropped, then one more
      * byte if an odd number is left; the even and odd bytes of the rest are hashed
