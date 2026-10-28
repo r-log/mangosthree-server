@@ -37,6 +37,7 @@
 #include "entities/player/PlayerRegistry.h"
 #include "entities/player/Player.h"
 #include "WorldHandlers/Chat.h"
+#include "persistence/characters/social/TicketRepository.h"
 
 /**
  * @brief Handle ticket status request (CMSG_GMTICKET_GETTICKET)
@@ -253,4 +254,75 @@ void TicketHandlers::HandleGMResponseResolve(WorldSession& session, WorldPacket&
     WorldPacket data(SMSG_GMTICKET_RESOLVE_RESPONSE, 1);
     data << uint8(0);                                       // ask to fill out gm survey = 1
     session.SendPacket(&data);
+}
+
+/**
+ * @brief Stores a bug report or suggestion from the client.
+ *
+ * @param recv_data The received opcode packet.
+ */
+void TicketHandlers::HandleBug(WorldSession& /*session*/, WorldPacket& recv_data)
+{
+    uint32 suggestion, contentlen, typelen;
+    std::string content, type;
+
+    recv_data >> suggestion >> contentlen >> content;
+
+    recv_data >> typelen >> type;
+
+    if (suggestion == 0)
+    {
+        DEBUG_LOG("WORLD: Received opcode CMSG_BUG [Bug Report]");
+    }
+    else
+    {
+        DEBUG_LOG("WORLD: Received opcode CMSG_BUG [Suggestion]");
+    }
+
+    DEBUG_LOG("%s", type.c_str());
+    DEBUG_LOG("%s", content.c_str());
+
+    // Both strings are bound: any player may send this packet.
+    TicketRepository::InsertBugReport(type, content);
+}
+
+void TicketHandlers::HandleComplain(WorldSession& session, WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: Received opcode CMSG_COMPLAIN");
+    recv_data.hexlike();
+
+    uint8 spam_type;                                        // 0 - mail, 1 - chat
+    ObjectGuid spammerGuid;
+    uint32 unk1 = 0;
+    uint32 unk2 = 0;
+    uint32 unk3 = 0;
+    uint32 unk4 = 0;
+    std::string description = "";
+    recv_data >> spam_type;                                 // unk 0x01 const, may be spam type (mail/chat)
+    recv_data >> spammerGuid;                               // player guid
+    switch (spam_type)
+    {
+        case 0:
+            recv_data >> unk1;                              // const 0
+            recv_data >> unk2;                              // probably mail id
+            recv_data >> unk3;                              // const 0
+            break;
+        case 1:
+            recv_data >> unk1;                              // probably language
+            recv_data >> unk2;                              // message type?
+            recv_data >> unk3;                              // probably channel id
+            recv_data >> unk4;                              // unk random value
+            recv_data >> description;                       // spam description string (messagetype, channel name, player name, message)
+            break;
+    }
+
+    // NOTE: all chat messages from this spammer automatically ignored by spam reporter until logout in case chat spam.
+    // if it's mail spam - ALL mails from this spammer automatically removed by client
+
+    // Complaint Received message
+    WorldPacket data(SMSG_COMPLAIN_RESULT, 1);
+    data << uint8(0);
+    session.SendPacket(&data);
+
+    DEBUG_LOG("REPORT SPAM: type %u, spammer %s, unk1 %u, unk2 %u, unk3 %u, unk4 %u, message %s", spam_type, spammerGuid.GetString().c_str(), unk1, unk2, unk3, unk4, description.c_str());
 }
