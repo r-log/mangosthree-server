@@ -53,7 +53,6 @@
 #include "Auth/Sha1.h"
 #include "UpdateData.h"
 #include "LootMgr.h"
-#include "Chat.h"
 #include "data/ScriptHooks.h"
 #include "zlib.h"
 #include "PlayerRegistry.h"
@@ -447,45 +446,6 @@ void WorldSession::HandleTogglePvP(WorldPacket& recv_data)
 }
 
 /**
- * @brief Sets the player's selected object guid.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleSetSelectionOpcode(WorldPacket& recv_data)
-{
-    ObjectGuid guid;
-    recv_data >> guid;
-
-    _player->SetSelectionGuid(guid);
-
-    // update reputation list if need
-    Unit* unit = ObjectLookup::GetUnit(*_player, guid);   // can select group members at diff maps
-    if (!unit)
-    {
-        return;
-    }
-
-    if (FactionTemplateEntry const* factionTemplateEntry = sFactionTemplateStore.LookupEntry(unit->getFaction()))
-    {
-        _player->SetFactionVisible(factionTemplateEntry);
-    }
-}
-
-/**
- * @brief Changes the player's stand state animation.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleStandStateChangeOpcode(WorldPacket& recv_data)
-{
-    // DEBUG_LOG("WORLD: Received opcode CMSG_STANDSTATECHANGE"); -- too many spam in log at lags/debug stop
-    uint32 animstate;
-    recv_data >> animstate;
-
-    _player->SetStandState(animstate);
-}
-
-/**
  * @brief Stores a bug report or suggestion from the client.
  *
  * @param recv_data The received opcode packet.
@@ -597,90 +557,6 @@ void WorldSession::SendLoadCUFProfiles()
 }
 
 /**
- * @brief Stores raid-frame profiles the client edited.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleSaveCUFProfiles(WorldPacket& recv_data)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_SAVE_CUF_PROFILES");
-
-    Player* player = GetPlayer();
-    if (!player)
-    {
-        recv_data.rfinish();
-        return;
-    }
-
-    uint8 count = uint8(recv_data.ReadBits(20));
-    if (count > MAX_CUF_PROFILES)
-    {
-        sLog.outError("HandleSaveCUFProfiles: %s sent %u profiles, max is %u",
-                      player->GetName(), count, MAX_CUF_PROFILES);
-        recv_data.rfinish();
-        return;
-    }
-
-    std::unique_ptr<CUFProfile> profiles[MAX_CUF_PROFILES];
-    uint8 nameLengths[MAX_CUF_PROFILES];
-
-    // the read order differs from the write order -- both are the client's
-    for (uint8 i = 0; i < count; ++i)
-    {
-        profiles[i].reset(new CUFProfile());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_SPEC_2, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_10_PLAYERS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_UNK_157, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_HEAL_PREDICTION, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_SPEC_1, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_PVP, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_POWER_BAR, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_15_PLAYERS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_40_PLAYERS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_PETS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_5_PLAYERS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_ONLY_DISPELLABLE_DEBUFFS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_2_PLAYERS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_UNK_156, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_NON_BOSS_DEBUFFS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_MAIN_TANK_AND_ASSIST, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_AGGRO_HIGHLIGHT, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_3_PLAYERS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_BORDER, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_USE_CLASS_COLORS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_UNK_145, recv_data.ReadBit());
-        nameLengths[i] = uint8(recv_data.ReadBits(8));
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_PVE, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_DISPLAY_HORIZONTAL_GROUPS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_AUTO_ACTIVATE_25_PLAYERS, recv_data.ReadBit());
-        profiles[i]->BoolOptions.set(CUF_KEEP_GROUPS_TOGETHER, recv_data.ReadBit());
-    }
-
-    for (uint8 i = 0; i < count; ++i)
-    {
-        recv_data >> profiles[i]->TopPoint;
-        profiles[i]->ProfileName = recv_data.ReadString(nameLengths[i]);
-        recv_data >> profiles[i]->BottomOffset;
-        recv_data >> profiles[i]->FrameHeight;
-        recv_data >> profiles[i]->FrameWidth;
-        recv_data >> profiles[i]->TopOffset;
-        recv_data >> profiles[i]->HealthText;
-        recv_data >> profiles[i]->BottomPoint;
-        recv_data >> profiles[i]->SortBy;
-        recv_data >> profiles[i]->LeftOffset;
-        recv_data >> profiles[i]->LeftPoint;
-
-        player->SaveCUFProfile(i, std::move(profiles[i]));
-    }
-
-    // slots the client no longer uses
-    for (uint8 i = count; i < MAX_CUF_PROFILES; ++i)
-    {
-        player->SaveCUFProfile(i, std::unique_ptr<CUFProfile>());
-    }
-}
-
-/**
  * @brief Consumes an account-data update packet.
  *
  * @param recv_data The received opcode packet.
@@ -787,108 +663,6 @@ void WorldSession::HandleRequestAccountData(WorldPacket& recv_data)
     SendPacket(&data);
 }
 
-/**
- * @brief Updates one action button assignment.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleSetActionButtonOpcode(WorldPacket& recv_data)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_SET_ACTION_BUTTON");
-    uint8 button;
-    uint32 packetData;
-    recv_data >> button >> packetData;
-
-    uint32 action = ACTION_BUTTON_ACTION(packetData);
-    uint8  type   = ACTION_BUTTON_TYPE(packetData);
-
-    DETAIL_LOG("BUTTON: %u ACTION: %u TYPE: %u", button, action, type);
-    if (!packetData)
-    {
-        DETAIL_LOG("MISC: Remove action from button %u", button);
-        GetPlayer()->removeActionButton(GetPlayer()->GetTalentMgr().ActiveSpec(), button);
-    }
-    else
-    {
-        switch (type)
-        {
-            case ACTION_BUTTON_MACRO:
-            case ACTION_BUTTON_CMACRO:
-                DETAIL_LOG("MISC: Added Macro %u into button %u", action, button);
-                break;
-            case ACTION_BUTTON_EQSET:
-                DETAIL_LOG("MISC: Added EquipmentSet %u into button %u", action, button);
-                break;
-            case ACTION_BUTTON_SPELL:
-                DETAIL_LOG("MISC: Added Spell %u into button %u", action, button);
-                break;
-            case ACTION_BUTTON_ITEM:
-                DETAIL_LOG("MISC: Added Item %u into button %u", action, button);
-                break;
-            case ACTION_BUTTON_EXPANDABLE:
-                DETAIL_LOG("MISC: Added Expandable action %u into button %u", action, button);
-                break;
-            default:
-                sLog.outError("MISC: Unknown action button type %u for action %u into button %u", type, action, button);
-                return;
-        }
-        GetPlayer()->addActionButton(GetPlayer()->GetTalentMgr().ActiveSpec(), button, action, type);
-    }
-}
-
-/**
- * @brief Acknowledges cinematic completion.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleCompleteCinematic(WorldPacket & /*recv_data*/)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_COMPLETE_CINEMATIC");
-
-    // Stop cinematic flyover if present; DK may hold an early
-    // visibility lease before the flyover becomes active.
-    Player* player = GetPlayer();
-    if (!player)
-    {
-        return;
-    }
-
-    if (CinematicFlyover* flyover = player->GetCinematicFlyover())
-    {
-        flyover->Stop();
-    }
-
-    // The flyover has stopped, so DK intro-deferred state can now be applied (the
-    // player is in-world at the intro spawn): area-exploration discovery/XP and
-    // the hostile-area PvP flag. Both are no-ops for races.
-    player->CheckAreaExploreAndOutdoor();
-    player->ApplyDeferredIntroPvP();
-}
-
-/**
- * @brief Advances the client's cinematic camera.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleNextCinematicCamera(WorldPacket & /*recv_data*/)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_NEXT_CINEMATIC_CAMERA");
-
-    // The client sends this when it enters the cinematic. Begin the flyover now
-    // (summon body + bind camera) so farsight binds in sync with the client's
-    // cinematic rather than during the login control window. Begin() is guarded.
-    Player* player = GetPlayer();
-    if (!player)
-    {
-        return;
-    }
-
-    if (CinematicFlyover* flyover = player->GetCinematicFlyover())
-    {
-        flyover->Begin();
-    }
-}
-
 void WorldSession::HandleMoveTimeSkippedOpcode(WorldPacket& recv_data)
 {
     /*  WorldSession::Update( WorldTimer::getMSTime() );*/
@@ -915,139 +689,6 @@ void WorldSession::HandleMoveTimeSkippedOpcode(WorldPacket& recv_data)
             GetPlayer()->ModifyLastMoveTime( -int32(time_skipped) );
         }
     */
-}
-
-/**
- * @brief Updates the player's action-bar toggle byte.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleSetActionBarTogglesOpcode(WorldPacket& recv_data)
-{
-    uint8 ActionBar;
-
-    recv_data >> ActionBar;
-
-    if (!GetPlayer())                                       // ignore until not logged (check needed because STATUS_AUTHED)
-    {
-        if (ActionBar != 0)
-        {
-            sLog.outError("WorldSession::HandleSetActionBarTogglesOpcode in not logged state with value: %u, ignored", uint32(ActionBar));
-        }
-        return;
-    }
-
-    GetPlayer()->SetByteValue(PLAYER_FIELD_BYTES, 2, ActionBar);
-}
-
-/**
- * @brief Sends the player's total and current-level played time.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandlePlayedTime(WorldPacket& recv_data)
-{
-    uint8 unk1;
-    recv_data >> unk1;                                      // 0 or 1 expected
-
-    WorldPacket data(SMSG_PLAYED_TIME, 4 + 4 + 1);
-    data << uint32(_player->GetTotalPlayedTime());
-    data << uint32(_player->GetLevelPlayedTime());
-    data << uint8(unk1);                                    // 0 - will not show in chat frame
-    SendPacket(&data);
-}
-
-/**
- * @brief Begins inspecting another nearby friendly player.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
-{
-    ObjectGuid guid;
-    recv_data >> guid;
-    DEBUG_LOG("Inspected guid is %s", guid.GetString().c_str());
-
-    Player* plr = sObjectMgr.GetPlayer(guid);
-    if (!plr)                                               // wrong player
-    {
-        return;
-    }
-
-    if (!InReach(*_player, *plr, INSPECT_DISTANCE, false))
-    {
-        return;
-    }
-
-    if (_player->IsHostileTo(plr))
-    {
-        return;
-    }
-
-    WorldPacket data(SMSG_INSPECT_RESULTS, 50);
-    data << plr->GetObjectGuid();
-
-    if (sGameConfig.getConfig(CONFIG_BOOL_TALENTS_INSPECTING) || _player->isGameMaster())
-    {
-        plr->BuildPlayerTalentsInfoData(&data);
-    }
-    else
-    {
-        data << uint32(0);                                  // unspentTalentPoints
-        data << uint8(0);                                   // talentGroupCount
-        data << uint8(0);                                   // talentGroupIndex
-    }
-
-    plr->BuildEnchantmentsInfoData(&data);
-    if (Guild* guild = sGuildMgr.GetGuildById(plr->GetGuildId()))
-    {
-        data << guild->GetObjectGuid();
-        data << uint32(guild->GetLevel());
-        data << uint64(0/*guild->GetXP()*/);
-        data << uint32(guild->GetMemberSize());             // number of members
-    }
-
-    SendPacket(&data);
-}
-
-/**
- * @brief Sends honor statistics for an inspected player.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
-{
-    ObjectGuid guid;
-    recv_data.ReadGuidMask<1, 5, 7, 3, 2, 4, 0, 6>(guid);
-    recv_data.ReadGuidBytes<4, 7, 0, 5, 1, 6, 2, 3>(guid);
-
-    Player* player = sObjectMgr.GetPlayer(guid);
-    if (!player)
-    {
-        sLog.outError("InspectHonorStats: WTF, player not found...");
-        return;
-    }
-
-    if (!InReach(*_player, *player, INSPECT_DISTANCE, false))
-    {
-        return;
-    }
-
-    if (_player->IsHostileTo(player))
-    {
-        return;
-    }
-
-    WorldPacket data(SMSG_INSPECT_HONOR_STATS, 18);
-    data.WriteGuidMask<4, 3, 6, 2, 5, 0, 7, 1>(player->GetObjectGuid());
-    data << uint8(0);                                                   // rank
-    data << uint16(player->GetUInt16Value(PLAYER_FIELD_KILLS, 1));      // yesterday kills
-    data << uint16(player->GetUInt16Value(PLAYER_FIELD_KILLS, 0));      // today kills
-    data.WriteGuidBytes<2, 0, 6, 3, 4, 1, 5>(player->GetObjectGuid());
-    data << uint32(player->GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS));
-    data.WriteGuidBytes<7>(player->GetObjectGuid());
-
-    SendPacket(&data);
 }
 
 /**
@@ -1214,61 +855,6 @@ void WorldSession::HandleRealmSplitOpcode(WorldPacket& recv_data)
     // DEBUG_LOG("response sent %u", unk);
 }
 
-/**
- * @brief Enables or disables farsight camera mode.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleFarSightOpcode(WorldPacket& recv_data)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_FAR_SIGHT");
-    // recv_data.hexlike();
-
-    uint8 op;
-    recv_data >> op;
-
-    WorldObject* obj = _player->GetMap()->GetWorldObject(_player->GetFarSightGuid());
-    if (!obj)
-    {
-        return;
-    }
-
-    switch (op)
-    {
-        case 0:
-            DEBUG_LOG("Removed FarSight from %s", _player->GetGuidStr().c_str());
-            _player->GetCamera().ResetView(false);
-            break;
-        case 1:
-            DEBUG_LOG("Added FarSight %s to %s", _player->GetFarSightGuid().GetString().c_str(), _player->GetGuidStr().c_str());
-            _player->GetCamera().SetView(obj, false);
-            break;
-    }
-}
-
-void WorldSession::HandleSetTitleOpcode(WorldPacket& recv_data)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_SET_TITLE");
-
-    int32 title;
-    recv_data >> title;
-
-    // -1 at none
-    if (title > 0 && title < MAX_TITLE_INDEX)
-    {
-        if (!GetPlayer()->HasTitle(title))
-        {
-            return;
-        }
-    }
-    else
-    {
-        title = 0;
-    }
-
-    GetPlayer()->SetUInt32Value(PLAYER_CHOSEN_TITLE, title);
-}
-
 void WorldSession::HandleTimeSyncResp(WorldPacket& recv_data)
 {
     uint32 counter, clientTicks;
@@ -1278,47 +864,6 @@ void WorldSession::HandleTimeSyncResp(WorldPacket& recv_data)
     Motion::SampleResult const result = m_timeBase.Responded(counter, clientTicks, GameTime::GetGameTimeMS());
     DEBUG_LOG("WORLD: CMSG_TIME_SYNC_RESP counter %u, client ticks %u: %s, delta %u, rtt %u",
               counter, clientTicks, Motion::SampleResultName(result), m_timeBase.Delta(), m_timeBase.LastRtt());
-}
-
-/**
- * @brief Cancels the player's mount aura when allowed.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleCancelMountAuraOpcode(WorldPacket& /*recv_data*/)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_CANCEL_MOUNT_AURA");
-
-    // The flight first: a taxi passenger carries no UNIT_FLAG_MOUNT (P5-B family 5), so the
-    // mounted test below would answer "not mounted" to one.
-    if (_player->IsTaxiFlying())                            // not blizz like; no any messages on blizz
-    {
-        ChatHandler(this).SendSysMessage(LANG_YOU_IN_FLIGHT);
-        return;
-    }
-
-    // If player is not mounted, so go out :)
-    if (!_player->IsMounted())                              // not blizz like; no any messages on blizz
-    {
-        ChatHandler(this).SendSysMessage(LANG_CHAR_NON_MOUNTED);
-        return;
-    }
-
-    _player->Unmount(_player->HasAuraType(SPELL_AURA_MOUNTED));
-    _player->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
-}
-
-/**
- * @brief Placeholder handler for client pet-info requests.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleRequestPetInfoOpcode(WorldPacket & /*recv_data */)
-{
-    /*
-        DEBUG_LOG("WORLD: Received opcode CMSG_REQUEST_PET_INFO");
-        recv_data.hexlike();
-    */
 }
 
 /**
@@ -1332,31 +877,6 @@ void WorldSession::HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data)
     recv_data >> mode;
 
     DEBUG_LOG("Client used \"/timetest %d\" command", mode);
-}
-
-void WorldSession::HandleQueryInspectAchievementsOpcode(WorldPacket& recv_data)
-{
-    ObjectGuid guid;
-
-    recv_data >> guid.ReadAsPacked();
-
-    Player* player = sObjectMgr.GetPlayer(guid);
-    if (!player)
-    {
-        return;
-    }
-
-    if (!InReach(*_player, *player, INSPECT_DISTANCE, false))
-    {
-        return;
-    }
-
-    if (_player->IsHostileTo(player))
-    {
-        return;
-    }
-
-    player->GetAchievementMgr().SendRespondInspectAchievements(_player);
 }
 
 void WorldSession::HandleUITimeRequestOpcode(WorldPacket& /*recv_data*/)
@@ -1412,26 +932,6 @@ void WorldSession::HandleRequestHotfix(WorldPacket& recv_data)
                 recv_data.rfinish();
                 break;
         }
-    }
-}
-
-void WorldSession::HandleObjectUpdateFailedOpcode(WorldPacket& recv_data)
-{
-    ObjectGuid guid;
-    recv_data.ReadGuidMask<6, 7, 4, 0, 1, 5, 3, 2>(guid);
-    recv_data.ReadGuidBytes<6, 7, 2, 3, 1, 4, 0, 5>(guid);
-
-    DEBUG_LOG("WORLD: Received CMSG_OBJECT_UPDATE_FAILED from %s (%u) guid: %s", GetPlayerName(), GetAccountId(), guid.GetString().c_str());
-    if (_player->IsInWorld())
-    {
-        if (WorldObject* obj = _player->GetMap()->GetWorldObject(guid))
-        {
-            obj->SendCreateUpdateToPlayer(_player);
-        }
-    }
-    else
-    {
-        sLog.outError("WorldSession::HandleObjectUpdateFailedOpcode: received from player not in map");
     }
 }
 

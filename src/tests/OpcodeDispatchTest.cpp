@@ -74,13 +74,13 @@
 /// PROCESS_THREADUNSAFE, except:
 /// - processed PROCESS_INPLACE: the CMSG_ATTACKSWING, CMSG_ATTACKSTOP, CMSG_SETSHEATHED,
 ///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID,
-///   CMSG_LOW_LEVEL_RAID_USER and CMSG_GUILD_AUTO_DECLINE_TOGGLE rows;
+///   CMSG_LOW_LEVEL_RAID_USER, CMSG_GUILD_AUTO_DECLINE_TOGGLE and CMSG_OBJECT_UPDATE_FAILED rows;
 /// - processed PROCESS_THREADSAFE: the six taxi rows;
 /// - of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT: the CMSG_CANCEL_TRADE row;
 /// - of status STATUS_AUTHED: the CMSG_VOICE_SESSION_ENABLE, CMSG_SET_ACTIVE_VOICE_CHANNEL,
 ///   CMSG_WARDEN_DATA, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE, CMSG_CHAR_DELETE,
 ///   CMSG_CHAR_RENAME, CMSG_SET_PLAYER_DECLINED_NAMES, CMSG_CHAR_CUSTOMIZE, CMSG_REORDER_CHARACTERS,
-///   CMSG_LOAD_SCREEN, CMSG_OPT_OUT_OF_LOOT and CMSG_GUILD_QUERY rows.
+///   CMSG_LOAD_SCREEN, CMSG_OPT_OUT_OF_LOOT, CMSG_GUILD_QUERY and CMSG_SET_ACTIONBAR_TOGGLES rows.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -103,6 +103,7 @@
 #include "session/handlers/entities/ItemHandlers.h"
 #include "session/handlers/entities/NpcHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
+#include "session/handlers/entities/PlayerHandlers.h"
 #include "session/handlers/entities/QueryHandlers.h"
 #include "session/handlers/entities/QuestHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
@@ -2573,4 +2574,93 @@ TEST(OpcodeDispatch_DeathRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_RETURN_TO_GRAVEYARD].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_HEARTH_AND_RESURRECT].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_HEARTH_AND_RESURRECT].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_PlayerRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_SET_SELECTION].handler == &OpcodeThunk<&PlayerHandlers::HandleSetSelection>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleSetSelection>), 1);
+    CHECK(opcodeTable[CMSG_STANDSTATECHANGE].handler == &OpcodeThunk<&PlayerHandlers::HandleStandStateChange>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleStandStateChange>), 1);
+    CHECK(opcodeTable[CMSG_SET_ACTION_BUTTON].handler == &OpcodeThunk<&PlayerHandlers::HandleSetActionButton>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleSetActionButton>), 1);
+    CHECK(opcodeTable[CMSG_SET_ACTIONBAR_TOGGLES].handler == &OpcodeThunk<&PlayerHandlers::HandleSetActionBarToggles>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleSetActionBarToggles>), 1);
+    CHECK(opcodeTable[CMSG_SET_TITLE].handler == &OpcodeThunk<&PlayerHandlers::HandleSetTitle>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleSetTitle>), 1);
+    CHECK(opcodeTable[CMSG_CANCEL_MOUNT_AURA].handler == &OpcodeThunk<&PlayerHandlers::HandleCancelMountAura>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleCancelMountAura>), 1);
+    CHECK(opcodeTable[CMSG_FAR_SIGHT].handler == &OpcodeThunk<&PlayerHandlers::HandleFarSight>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleFarSight>), 1);
+    CHECK(opcodeTable[CMSG_PLAYED_TIME].handler == &OpcodeThunk<&PlayerHandlers::HandlePlayedTime>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandlePlayedTime>), 1);
+    CHECK(opcodeTable[CMSG_SAVE_CUF_PROFILES].handler == &OpcodeThunk<&PlayerHandlers::HandleSaveCUFProfiles>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleSaveCUFProfiles>), 1);
+    CHECK(opcodeTable[CMSG_COMPLETE_CINEMATIC].handler == &OpcodeThunk<&PlayerHandlers::HandleCompleteCinematic>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleCompleteCinematic>), 1);
+    CHECK(opcodeTable[CMSG_NEXT_CINEMATIC_CAMERA].handler == &OpcodeThunk<&PlayerHandlers::HandleNextCinematicCamera>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleNextCinematicCamera>), 1);
+    CHECK(opcodeTable[CMSG_INSPECT].handler == &OpcodeThunk<&PlayerHandlers::HandleInspect>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleInspect>), 1);
+    CHECK(opcodeTable[CMSG_INSPECT_HONOR_STATS].handler == &OpcodeThunk<&PlayerHandlers::HandleInspectHonorStats>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleInspectHonorStats>), 1);
+    CHECK(opcodeTable[CMSG_QUERY_INSPECT_ACHIEVEMENTS].handler == &OpcodeThunk<&PlayerHandlers::HandleQueryInspectAchievements>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PlayerHandlers::HandleQueryInspectAchievements>), 1);
+}
+
+TEST(OpcodeDispatch_PlayerRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_SET_SELECTION].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_SELECTION].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_STANDSTATECHANGE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_STANDSTATECHANGE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_ACTION_BUTTON].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_ACTION_BUTTON].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_ACTIONBAR_TOGGLES].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_SET_ACTIONBAR_TOGGLES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_TITLE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_TITLE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_MOUNT_AURA].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_MOUNT_AURA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_FAR_SIGHT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_FAR_SIGHT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PLAYED_TIME].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PLAYED_TIME].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SAVE_CUF_PROFILES].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SAVE_CUF_PROFILES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_COMPLETE_CINEMATIC].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_COMPLETE_CINEMATIC].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_NEXT_CINEMATIC_CAMERA].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_NEXT_CINEMATIC_CAMERA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_INSPECT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_INSPECT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_INSPECT_HONOR_STATS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_INSPECT_HONOR_STATS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_QUERY_INSPECT_ACHIEVEMENTS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_QUERY_INSPECT_ACHIEVEMENTS].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_PetInfoRowHoldsItsHandlersThunk)
+{
+    InitializeOpcodes();
+
+    // The handler's body is empty, so identical code folding can give its thunk the address of
+    // another empty handler's: only its row is checked.
+    CHECK(opcodeTable[CMSG_REQUEST_PET_INFO].handler == &OpcodeThunk<&PetHandlers::HandleRequestPetInfo>);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_PET_INFO].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_PET_INFO].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_ObjectUpdateFailedRowHoldsItsHandlersThunk)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_OBJECT_UPDATE_FAILED].handler == &OpcodeThunk<&QueryHandlers::HandleObjectUpdateFailed>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleObjectUpdateFailed>), 1);
+    CHECK_EQ(opcodeTable[CMSG_OBJECT_UPDATE_FAILED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_OBJECT_UPDATE_FAILED].packetProcessing, PROCESS_INPLACE);
 }

@@ -70,7 +70,7 @@ void Player::CheckAreaExploreAndOutdoor()
     }
 
     // Defer area-exploration discovery/XP while a DK intro flyover is in progress;
-    // it is granted on cinematic complete (see HandleCompleteCinematic).
+    // it is granted on cinematic complete (see PlayerHandlers::HandleCompleteCinematic).
     if (IsCinematicIntroActive())
     {
         return;
@@ -283,7 +283,7 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea)
     {
         // Defer the PvP flag while a DK intro flyover is in progress so its flag
         // sound does not play mid-cinematic; ApplyDeferredIntroPvP() (called from
-        // HandleCompleteCinematic) sets it at the cinematic's end instead.
+        // PlayerHandlers::HandleCompleteCinematic) sets it at the cinematic's end instead.
         if ((!IsPvP() || pvpInfo.endTimer != 0) && !IsCinematicIntroActive())
         {
             UpdatePvP(true, true);

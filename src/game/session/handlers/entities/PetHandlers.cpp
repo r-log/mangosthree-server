@@ -856,3 +856,16 @@ void PetHandlers::HandleDismissCritter(WorldSession& session, WorldPacket& recvD
         }
     }
 }
+
+/**
+ * @brief Placeholder handler for client pet-info requests.
+ *
+ * @param recv_data The received opcode packet.
+ */
+void PetHandlers::HandleRequestPetInfo(WorldSession& /*session*/, WorldPacket & /*recv_data */)
+{
+    /*
+        DEBUG_LOG("WORLD: Received opcode CMSG_REQUEST_PET_INFO");
+        recv_data.hexlike();
+    */
+}

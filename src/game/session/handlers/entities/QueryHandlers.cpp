@@ -38,6 +38,7 @@
 #include "entities/player/Player.h"
 #include "data/GossipRecords.h"
 #include "WorldHandlers/MapManager.h"
+#include "WorldHandlers/Map.h"
 
 /**
  * @brief Handles a client request to query another player's name.
@@ -505,4 +506,24 @@ void QueryHandlers::HandleQuestPOIQuery(WorldSession& session, WorldPacket& recv
     }
 
     session.SendPacket(&data);
+}
+
+void QueryHandlers::HandleObjectUpdateFailed(WorldSession& session, WorldPacket& recv_data)
+{
+    ObjectGuid guid;
+    recv_data.ReadGuidMask<6, 7, 4, 0, 1, 5, 3, 2>(guid);
+    recv_data.ReadGuidBytes<6, 7, 2, 3, 1, 4, 0, 5>(guid);
+
+    DEBUG_LOG("WORLD: Received CMSG_OBJECT_UPDATE_FAILED from %s (%u) guid: %s", session.GetPlayerName(), session.GetAccountId(), guid.GetString().c_str());
+    if (session.GetPlayer()->IsInWorld())
+    {
+        if (WorldObject* obj = session.GetPlayer()->GetMap()->GetWorldObject(guid))
+        {
+            obj->SendCreateUpdateToPlayer(session.GetPlayer());
+        }
+    }
+    else
+    {
+        sLog.outError("QueryHandlers::HandleObjectUpdateFailed: received from player not in map");
+    }
 }
