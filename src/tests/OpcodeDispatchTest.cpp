@@ -71,13 +71,14 @@
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
 /// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
-/// query, item, NPC, quest, LFG, calendar, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
+/// query, item, NPC, quest, character, LFG, calendar, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
 /// class /// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
 /// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
 /// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
 /// processed PROCESS_INPLACE, the CMSG_QUESTGIVER_STATUS_QUERY row, processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE,
-/// CMSG_SET_ACTIVE_VOICE_CHANNEL and CMSG_NAME_QUERY rows, of status STATUS_AUTHED.
+/// CMSG_SET_ACTIVE_VOICE_CHANNEL, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE and
+/// CMSG_CHAR_DELETE rows, of status STATUS_AUTHED.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -88,6 +89,7 @@
 #include "GMTicketMgr.h"
 #include "Auth/BigNumber.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/entities/CharacterHandlers.h"
 #include "session/handlers/connection/WardenHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
@@ -2117,4 +2119,60 @@ TEST(OpcodeDispatch_CalendarRowsKeepTheirStatusAndProcessing)
         CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
         CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADUNSAFE);
     }
+}
+
+TEST(OpcodeDispatch_CharacterRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_CHAR_ENUM].handler == &OpcodeThunk<&CharacterHandlers::HandleCharEnum>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleCharEnum>), 1);
+    CHECK(opcodeTable[CMSG_CHAR_CREATE].handler == &OpcodeThunk<&CharacterHandlers::HandleCharCreate>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleCharCreate>), 1);
+    CHECK(opcodeTable[CMSG_CHAR_DELETE].handler == &OpcodeThunk<&CharacterHandlers::HandleCharDelete>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleCharDelete>), 1);
+    CHECK(opcodeTable[CMSG_SET_FACTION_ATWAR].handler == &OpcodeThunk<&CharacterHandlers::HandleSetFactionAtWar>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleSetFactionAtWar>), 1);
+    CHECK(opcodeTable[CMSG_TUTORIAL_FLAG].handler == &OpcodeThunk<&CharacterHandlers::HandleTutorialFlag>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleTutorialFlag>), 1);
+    CHECK(opcodeTable[CMSG_TUTORIAL_CLEAR].handler == &OpcodeThunk<&CharacterHandlers::HandleTutorialClear>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleTutorialClear>), 1);
+    CHECK(opcodeTable[CMSG_TUTORIAL_RESET].handler == &OpcodeThunk<&CharacterHandlers::HandleTutorialReset>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleTutorialReset>), 1);
+    CHECK(opcodeTable[CMSG_SET_WATCHED_FACTION].handler == &OpcodeThunk<&CharacterHandlers::HandleSetWatchedFaction>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleSetWatchedFaction>), 1);
+    CHECK(opcodeTable[CMSG_SET_FACTION_INACTIVE].handler == &OpcodeThunk<&CharacterHandlers::HandleSetFactionInactive>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleSetFactionInactive>), 1);
+    CHECK(opcodeTable[CMSG_SHOWING_HELM].handler == &OpcodeThunk<&CharacterHandlers::HandleShowingHelm>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleShowingHelm>), 1);
+    CHECK(opcodeTable[CMSG_SHOWING_CLOAK].handler == &OpcodeThunk<&CharacterHandlers::HandleShowingCloak>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&CharacterHandlers::HandleShowingCloak>), 1);
+}
+
+TEST(OpcodeDispatch_CharacterRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_CHAR_ENUM].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_CHAR_ENUM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHAR_CREATE].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_CHAR_CREATE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHAR_DELETE].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_CHAR_DELETE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_FACTION_ATWAR].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_FACTION_ATWAR].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_TUTORIAL_FLAG].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_TUTORIAL_FLAG].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_TUTORIAL_CLEAR].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_TUTORIAL_CLEAR].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_TUTORIAL_RESET].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_TUTORIAL_RESET].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_WATCHED_FACTION].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_WATCHED_FACTION].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_FACTION_INACTIVE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_FACTION_INACTIVE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SHOWING_HELM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SHOWING_HELM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SHOWING_CLOAK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SHOWING_CLOAK].packetProcessing, PROCESS_THREADUNSAFE);
 }

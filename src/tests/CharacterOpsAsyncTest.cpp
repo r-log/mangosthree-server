@@ -51,6 +51,7 @@
 #include "ObjectGuid.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "session/handlers/entities/CharacterHandlers.h"
 #include "persistence/characters/CharacterDeleteRepository.h"
 
 #include <memory>
@@ -66,9 +67,9 @@ namespace
 
     /// A create request that passes nothing but the packet parse: the checks that would
     /// reject it need the DBC stores, and the staging under test never looks at it.
-    WorldSession::CharCreateRequest MakeCreateRequest()
+    CharacterHandlers::CharCreateRequest MakeCreateRequest()
     {
-        WorldSession::CharCreateRequest request;
+        CharacterHandlers::CharCreateRequest request;
         request.name = "Testchar";
         request.race = 1;                                   // RACE_HUMAN
         request.playerClass = 1;                            // CLASS_WARRIOR
@@ -157,7 +158,7 @@ TEST(CharacterOpsAsync_CreateAsksTheLoginDatabaseFirstAndCreatesNothingBeforeThe
 
     {
         TickGuard::Scope scope;
-        WorldSession::QueueCharCreateAccountRead(kAccountId, kSessionId, MakeCreateRequest());
+        CharacterHandlers::QueueCharCreateAccountRead(kAccountId, kSessionId, MakeCreateRequest());
 
         // Queued, not run: the tick waited on nothing, and the LOGIN database is where it
         // waited before -- this read was a LoginDatabase.PQuery on the world thread.
@@ -203,7 +204,7 @@ TEST(CharacterOpsAsync_CreateStagesOneHolderOfThreeRealmReadsWithThePetIdOnlyOnc
 
     {
         TickGuard::Scope scope;
-        WorldSession::QueueCharCreateRealmReads(kAccountId, kSessionId, MakeCreateRequest());
+        CharacterHandlers::QueueCharCreateRealmReads(kAccountId, kSessionId, MakeCreateRequest());
 
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(1));
@@ -247,7 +248,7 @@ TEST(CharacterOpsAsync_DeleteStagesOneHolderOfEveryReadItsTransactionNeeds)
 
     {
         TickGuard::Scope scope;
-        WorldSession::QueueCharDeleteReads(kAccountId, kSessionId, CharGuid());
+        CharacterHandlers::QueueCharDeleteReads(kAccountId, kSessionId, CharGuid());
 
         // Nothing waited on, and -- the point -- nothing deleted: the transaction only runs in
         // the continuation, so a request that is dropped deletes nothing.
