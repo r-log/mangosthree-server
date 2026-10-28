@@ -66,7 +66,6 @@ struct CharacterEnumRow;
 struct CharacterNameRow;
 struct RenameTargetRow;
 struct PetitionDetailsRow;
-struct WhoisRow;
 struct GiftRow;
 
 class ObjectGuid;
@@ -733,15 +732,12 @@ class WorldSession
 
         void HandlePingOpcode(WorldPacket& recvPacket);
         void HandleKeepAliveOpcode(WorldPacket& recvPacket);
-        void HandleWhoOpcode(WorldPacket& recvPacket);
         void HandleLogoutRequestOpcode(WorldPacket& recvPacket);
         void HandleLogoutCancelOpcode(WorldPacket& recvPacket);
 
         void SendGMTicketStatusUpdate(GMTicketStatus statusCode);
 
         void HandleTogglePvP(WorldPacket& recvPacket);
-
-        void HandleBugOpcode(WorldPacket& recvPacket);
 
         void HandleUpdateAccountData(WorldPacket& recvPacket);
         void HandleRequestAccountData(WorldPacket& recvPacket);
@@ -801,15 +797,8 @@ class WorldSession
 
         void HandleRealmSplitOpcode(WorldPacket& recv_data);
         void HandleTimeSyncResp(WorldPacket& recv_data);
-        void HandleWhoisOpcode(WorldPacket& recv_data);
-        /// Answers CMSG_WHOIS from the `account` row the handler queues. The opcode is
-        /// SEC_ADMINISTRATOR-gated but is not a chat command, so no AdminScope can cover
-        /// it and it is a continuation instead.
-        static void HandleWhoisCallback(std::optional<WhoisRow> const& row, uint32 accountId,
-                                        proto::SessionId sessionId, std::string charname);
 
         void HandleSelfResOpcode(WorldPacket& recv_data);
-        void HandleComplainOpcode(WorldPacket& recv_data);
 
         void HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data);
 

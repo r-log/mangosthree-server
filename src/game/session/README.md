@@ -62,8 +62,9 @@ One stateless class per origin file, in its domain's directory or, for the reque
 | `handlers/social/` | `LfgHandlers` | the client's Dungeon Finder queue join and leave, a group member's role choice, the status request, the answer to a dungeon proposal, the teleport into and out of the dungeon, the queue comment, the lock information request and the vote to remove a member |
 | `handlers/social/` | `MailHandlers` | the client's mail sent, marked as read, deleted, returned, its item or money taken, the mail list, a mail copied into a letter and the next mail time; a mail to an offline receiver is sent a tick later, once its mailbox count is read |
 | `handlers/social/` | `PetitionHandlers` | the client's guild charter list, purchase, signatures, query, rename, sign, decline, offer and turn-in; the list is answered at once and every database read a tick later by a continuation: the query's re-finds the session by its identities, the decline's answers the charter's owner, found by guid, and the others re-find the session and the player by theirs |
-| `handlers/social/` | `TicketHandlers` | the client's GM ticket status request, a ticket's text updated, the ticket deleted, a ticket created, the ticket system status request, the survey after a closed ticket and the answer to a resolved ticket |
+| `handlers/social/` | `TicketHandlers` | the client's GM ticket status request, a ticket's text updated, the ticket deleted, a ticket created, the ticket system status request, the survey after a closed ticket, the answer to a resolved ticket, a bug report or suggestion and a spam complaint |
 | `handlers/social/` | `VoiceChatHandlers` | the client's voice and microphone switches, active voice channel and a chat channel's voice button, each read and ignored |
+| `handlers/social/` | `WhoHandlers` | the client's who list and an administrator's whois, answered a tick later from the account's row |
 
 ## The layer and the threads
 

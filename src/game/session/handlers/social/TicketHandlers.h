@@ -29,10 +29,11 @@
 class WorldPacket;
 class WorldSession;
 
-/// The client's GM ticket opcodes: the ticket status request, a ticket's text updated, the ticket
-/// deleted, a ticket created, the ticket system status request, the survey submitted after a ticket
-/// is closed and the answer to a resolved ticket: static entry points the opcode table binds, each
-/// borrowing the session for one call and storing nothing.
+/// The client's GM ticket and report opcodes: the ticket status request, a ticket's text updated,
+/// the ticket deleted, a ticket created, the ticket system status request, the survey submitted
+/// after a ticket is closed, the answer to a resolved ticket, a bug report or suggestion, and a
+/// spam complaint: static entry points the opcode table binds, each borrowing the session for one
+/// call and storing nothing.
 struct TicketHandlers
 {
     public:
@@ -43,6 +44,8 @@ struct TicketHandlers
         static void HandleGMTicketSystemStatus(WorldSession& session, WorldPacket& recv_data);
         static void HandleGMTicketSurveySubmit(WorldSession& session, WorldPacket& recv_data);
         static void HandleGMResponseResolve(WorldSession& session, WorldPacket& recv_data);
+        static void HandleBug(WorldSession& session, WorldPacket& recv_data);
+        static void HandleComplain(WorldSession& session, WorldPacket& recv_data);
 };
 
 #endif

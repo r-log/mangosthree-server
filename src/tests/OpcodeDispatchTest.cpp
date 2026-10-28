@@ -125,6 +125,7 @@
 #include "session/handlers/social/PetitionHandlers.h"
 #include "session/handlers/social/TicketHandlers.h"
 #include "session/handlers/social/VoiceChatHandlers.h"
+#include "session/handlers/social/WhoHandlers.h"
 
 #include <cstring>
 #include <type_traits>
@@ -2663,4 +2664,38 @@ TEST(OpcodeDispatch_ObjectUpdateFailedRowHoldsItsHandlersThunk)
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleObjectUpdateFailed>), 1);
     CHECK_EQ(opcodeTable[CMSG_OBJECT_UPDATE_FAILED].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_OBJECT_UPDATE_FAILED].packetProcessing, PROCESS_INPLACE);
+}
+
+TEST(OpcodeDispatch_WhoRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_WHO].handler == &OpcodeThunk<&WhoHandlers::HandleWho>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&WhoHandlers::HandleWho>), 1);
+    CHECK(opcodeTable[CMSG_WHOIS].handler == &OpcodeThunk<&WhoHandlers::HandleWhois>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&WhoHandlers::HandleWhois>), 1);
+}
+
+TEST(OpcodeDispatch_WhoRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_WHO].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_WHO].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_WHOIS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_WHOIS].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_BugAndComplainRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_BUG].handler == &OpcodeThunk<&TicketHandlers::HandleBug>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleBug>), 1);
+    CHECK(opcodeTable[CMSG_COMPLAIN].handler == &OpcodeThunk<&TicketHandlers::HandleComplain>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleComplain>), 1);
+    CHECK_EQ(opcodeTable[CMSG_BUG].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BUG].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_COMPLAIN].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_COMPLAIN].packetProcessing, PROCESS_THREADUNSAFE);
 }
