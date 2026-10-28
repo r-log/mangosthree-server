@@ -415,7 +415,6 @@ src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/ChannelMgr.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/CharacterHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Chat.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
-src/game/WorldHandlers/ChatMessageValidation.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/Creature.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/CreatureAI.h
