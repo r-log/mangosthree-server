@@ -25,6 +25,7 @@ set(SRC_GRP_TESTS
     SessionLinksTest.cpp
     RedirectRegistryTest.cpp
     RedirectStreamTest.cpp
+    SessionKeyWidthTest.cpp
     ClientFramingTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Framing.cpp
     PeerTest.cpp

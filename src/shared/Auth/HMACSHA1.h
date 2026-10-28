@@ -32,8 +32,6 @@
 
 #include <string>
 
-class BigNumber;
-
 #define SEED_KEY_SIZE 16
 
 /**
@@ -57,16 +55,11 @@ class HMACSHA1
         HMACSHA1(const HMACSHA1&) = delete;
         HMACSHA1& operator=(const HMACSHA1&) = delete;
 
-        /// Update with the minimal little-endian bytes of the number
-        void UpdateBigNumber(BigNumber *bn);
         void UpdateData(const uint8 *data, int length);
         void UpdateData(const std::string &str);
 
         /// Produce the tag; the MAC is re-keyed afterwards, ready for another message.
         void Finalize();
-
-        /// UpdateBigNumber, Finalize and return the tag in one call.
-        uint8 *ComputeHash(BigNumber *bn);
 
         /// The tag. Only meaningful after Finalize(); SHA_DIGEST_LENGTH bytes.
         uint8 *GetDigest() { return m_digest; }
