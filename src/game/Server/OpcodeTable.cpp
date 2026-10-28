@@ -49,6 +49,7 @@
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/entities/EnchantHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
+#include "session/handlers/entities/QueryHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/entities/TaxiHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
@@ -193,19 +194,19 @@ void InitializeOpcodes()
     OPCODE(SMSG_LOGOUT_COMPLETE,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_LOGOUT_CANCEL,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLogoutCancelOpcode        );
     OPCODE(SMSG_LOGOUT_CANCEL_ACK,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_NAME_QUERY,                              STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleNameQueryOpcode           );
+    OPCODE(CMSG_NAME_QUERY,                              STATUS_AUTHED,   PROCESS_THREADUNSAFE, &QueryHandlers::HandleNameQuery                );
     OPCODE(SMSG_NAME_QUERY_RESPONSE,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_PET_NAME_QUERY,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetNameQuery               );
     OPCODE(SMSG_PET_NAME_QUERY_RESPONSE,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_GUILD_QUERY,                             STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleGuildQueryOpcode          );
     OPCODE(SMSG_GUILD_QUERY_RESPONSE,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_PAGE_TEXT_QUERY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePageTextQueryOpcode       );
+    OPCODE(CMSG_PAGE_TEXT_QUERY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QueryHandlers::HandlePageTextQuery            );
     OPCODE(SMSG_PAGE_TEXT_QUERY_RESPONSE,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_QUEST_QUERY,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQuestQueryOpcode          );
     OPCODE(SMSG_QUEST_QUERY_RESPONSE,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GAMEOBJECT_QUERY,                        STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleGameObjectQueryOpcode     );
+    OPCODE(CMSG_GAMEOBJECT_QUERY,                        STATUS_LOGGEDIN, PROCESS_INPLACE,      &QueryHandlers::HandleGameObjectQuery          );
     OPCODE(SMSG_GAMEOBJECT_QUERY_RESPONSE,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_CREATURE_QUERY,                          STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleCreatureQueryOpcode       );
+    OPCODE(CMSG_CREATURE_QUERY,                          STATUS_LOGGEDIN, PROCESS_INPLACE,      &QueryHandlers::HandleCreatureQuery            );
     OPCODE(SMSG_CREATURE_QUERY_RESPONSE,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_WHO,                                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleWhoOpcode                 );
     OPCODE(SMSG_WHO,                                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -536,7 +537,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_GOSSIP_SELECT_OPTION,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGossipSelectOptionOpcode  );
     OPCODE(SMSG_GOSSIP_MESSAGE,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_GOSSIP_COMPLETE,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_NPC_TEXT_QUERY,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleNpcTextQueryOpcode        );
+    OPCODE(CMSG_NPC_TEXT_QUERY,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QueryHandlers::HandleNpcTextQuery             );
     OPCODE(SMSG_NPC_TEXT_UPDATE,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_NPC_WONT_TALK,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_QUESTGIVER_STATUS_QUERY,                 STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleQuestgiverStatusQueryOpcode);
@@ -611,7 +612,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_NOTIFICATION,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_PLAYED_TIME,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePlayedTime                );
     OPCODE(SMSG_PLAYED_TIME,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_QUERY_TIME,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQueryTimeOpcode           );
+    OPCODE(CMSG_QUERY_TIME,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QueryHandlers::HandleQueryTime                );
     OPCODE(SMSG_QUERY_TIME_RESPONSE,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_LOG_XPGAIN,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_AURACASTLOG,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -632,7 +633,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_SETSHEATHED,                             STATUS_LOGGEDIN, PROCESS_INPLACE,      &CombatHandlers::HandleSetSheathed             );
     OPCODE(SMSG_COOLDOWN_CHEAT,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SPELL_DELAYED,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_QUEST_POI_QUERY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQuestPOIQueryOpcode       );
+    OPCODE(CMSG_QUEST_POI_QUERY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QueryHandlers::HandleQuestPOIQuery            );
     OPCODE(SMSG_QUEST_POI_QUERY_RESPONSE,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_GHOST,                                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_INVIS,                                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
@@ -688,7 +689,7 @@ void InitializeOpcodes()
     //OPCODE(CMSG_UNLEARN_TALENTS,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_INSTANCE_ENCOUNTER,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_GAMEOBJECT_DESPAWN_ANIM,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(MSG_CORPSE_QUERY,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCorpseQueryOpcode         );
+    OPCODE(MSG_CORPSE_QUERY,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QueryHandlers::HandleCorpseQuery              );
     OPCODE(CMSG_GMTICKET_DELETETICKET,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMTicketDeleteTicket    );
     OPCODE(SMSG_GMTICKET_DELETETICKET,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CHAT_WRONG_FACTION,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1365,7 +1366,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_GET_ITEM_PURCHASE_DATA,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleItemRefundInfoRequest     );
     OPCODE(CMSG_ITEM_PURCHASE_REFUND,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_ITEM_PURCHASE_REFUND_RESULT,             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_CORPSE_TRANSPORT_QUERY,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCorpseMapPositionQueryOpcode);
+    OPCODE(CMSG_CORPSE_TRANSPORT_QUERY,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QueryHandlers::HandleCorpseMapPositionQuery     );
     OPCODE(SMSG_CORPSE_TRANSPORT_QUERY,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_UNUSED5,                                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_UNUSED6,                                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
@@ -1439,7 +1440,7 @@ void InitializeOpcodes()
     //OPCODE(SMSG_LOOT_UPDATE,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(UMSG_UPDATE_GROUP_INFO,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_READY_FOR_ACCOUNT_DATA_TIMES,            STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleReadyForAccountDataTimesOpcode);
-    OPCODE(CMSG_QUERY_GET_ALL_QUESTS,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQueryQuestsCompletedOpcode);
+    OPCODE(CMSG_QUERY_GET_ALL_QUESTS,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QueryHandlers::HandleQueryQuestsCompleted     );
     OPCODE(SMSG_ALL_QUESTS_COMPLETED,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_GMLAGREPORT_SUBMIT,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_AFK_MONITOR_INFO_REQUEST,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );

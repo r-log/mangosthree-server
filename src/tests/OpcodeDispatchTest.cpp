@@ -67,13 +67,17 @@
 /// its end and, the guid naming no player online, returns before it reads the player, sending
 /// nothing. The CMSG_VOICE_SESSION_ENABLE, CMSG_CHANNEL_VOICE_ON and CMSG_SET_ACTIVE_VOICE_CHANNEL
 /// rows, on a session with no player, each read their packet to its end and send nothing, and so
-/// does the CMSG_WARDEN_DATA row, of status STATUS_AUTHED. Every row bound to the combat, vendor,
-/// pvp, loot, auction, trade, skill, enchant, pet, taxi, LFG, contact list, GM ticket, petition,
-/// chat channel, voice chat or chat handler class holds the status STATUS_LOGGEDIN
-/// and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
-/// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six taxi rows, processed PROCESS_THREADSAFE, the CMSG_CANCEL_TRADE row, of status
-/// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE and
-/// CMSG_SET_ACTIVE_VOICE_CHANNEL rows, of status STATUS_AUTHED.
+/// does the CMSG_WARDEN_DATA row, of status STATUS_AUTHED. On a session with no player, the
+/// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
+/// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
+/// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
+/// query, LFG, contact list, GM ticket, petition, chat channel, voice chat or chat handler class
+/// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
+/// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
+/// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
+/// processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
+/// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE,
+/// CMSG_SET_ACTIVE_VOICE_CHANNEL and CMSG_NAME_QUERY rows, of status STATUS_AUTHED.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -91,6 +95,7 @@
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/entities/EnchantHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
+#include "session/handlers/entities/QueryHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/entities/TaxiHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
@@ -1790,5 +1795,90 @@ TEST(OpcodeDispatch_ChatRowsKeepTheirStatusAndProcessing)
             CHECK_EQ(opcodeTable[i].status, STATUS_LOGGEDIN);
             CHECK_EQ(opcodeTable[i].packetProcessing, PROCESS_THREADUNSAFE);
         }
+    }
+}
+
+TEST(OpcodeDispatch_QueryRowsAnswerFromTheTemplatesWithNoPlayer)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket creature(CMSG_CREATURE_QUERY, 12);
+    creature << uint32(0x00FFFFFE);
+    creature << ObjectGuid();
+    opcodeTable[CMSG_CREATURE_QUERY].handler(session, creature);
+    CHECK_EQ(creature.rpos(), creature.size());
+
+    WorldPacket gameObject(CMSG_GAMEOBJECT_QUERY, 12);
+    gameObject << uint32(0x00FFFFFE);
+    gameObject << ObjectGuid();
+    opcodeTable[CMSG_GAMEOBJECT_QUERY].handler(session, gameObject);
+    CHECK_EQ(gameObject.rpos(), gameObject.size());
+
+    WorldPacket transport(CMSG_CORPSE_TRANSPORT_QUERY, 4);
+    transport << uint32(0);
+    opcodeTable[CMSG_CORPSE_TRANSPORT_QUERY].handler(session, transport);
+    CHECK_EQ(transport.rpos(), size_t(4));
+
+    REQUIRE(sent.size() == 3);
+    uint32 entry = 0;
+    CHECK_EQ(sent[0].GetOpcode(), uint16(SMSG_CREATURE_QUERY_RESPONSE));
+    sent[0] >> entry;
+    CHECK_EQ(entry, uint32(0x00FFFFFE | 0x80000000));
+    CHECK_EQ(sent[1].GetOpcode(), uint16(SMSG_GAMEOBJECT_QUERY_RESPONSE));
+    sent[1] >> entry;
+    CHECK_EQ(entry, uint32(0x00FFFFFE | 0x80000000));
+    CHECK_EQ(sent[2].GetOpcode(), uint16(SMSG_CORPSE_TRANSPORT_QUERY));
+    CHECK_EQ(sent[2].size(), size_t(16));
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_QueryRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_NAME_QUERY].handler == &OpcodeThunk<&QueryHandlers::HandleNameQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleNameQuery>), 1);
+    CHECK(opcodeTable[CMSG_QUERY_TIME].handler == &OpcodeThunk<&QueryHandlers::HandleQueryTime>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleQueryTime>), 1);
+    CHECK(opcodeTable[CMSG_CREATURE_QUERY].handler == &OpcodeThunk<&QueryHandlers::HandleCreatureQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleCreatureQuery>), 1);
+    CHECK(opcodeTable[CMSG_GAMEOBJECT_QUERY].handler == &OpcodeThunk<&QueryHandlers::HandleGameObjectQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleGameObjectQuery>), 1);
+    CHECK(opcodeTable[MSG_CORPSE_QUERY].handler == &OpcodeThunk<&QueryHandlers::HandleCorpseQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleCorpseQuery>), 1);
+    CHECK(opcodeTable[CMSG_NPC_TEXT_QUERY].handler == &OpcodeThunk<&QueryHandlers::HandleNpcTextQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleNpcTextQuery>), 1);
+    CHECK(opcodeTable[CMSG_PAGE_TEXT_QUERY].handler == &OpcodeThunk<&QueryHandlers::HandlePageTextQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandlePageTextQuery>), 1);
+    CHECK(opcodeTable[CMSG_CORPSE_TRANSPORT_QUERY].handler == &OpcodeThunk<&QueryHandlers::HandleCorpseMapPositionQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleCorpseMapPositionQuery>), 1);
+    CHECK(opcodeTable[CMSG_QUERY_GET_ALL_QUESTS].handler == &OpcodeThunk<&QueryHandlers::HandleQueryQuestsCompleted>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleQueryQuestsCompleted>), 1);
+    CHECK(opcodeTable[CMSG_QUEST_POI_QUERY].handler == &OpcodeThunk<&QueryHandlers::HandleQuestPOIQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QueryHandlers::HandleQuestPOIQuery>), 1);
+}
+
+TEST(OpcodeDispatch_QueryRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_NAME_QUERY].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_NAME_QUERY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CREATURE_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CREATURE_QUERY].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_GAMEOBJECT_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GAMEOBJECT_QUERY].packetProcessing, PROCESS_INPLACE);
+
+    OpcodesList const rows[] = { CMSG_QUERY_TIME, MSG_CORPSE_QUERY, CMSG_NPC_TEXT_QUERY, CMSG_PAGE_TEXT_QUERY,
+                                 CMSG_CORPSE_TRANSPORT_QUERY, CMSG_QUERY_GET_ALL_QUESTS, CMSG_QUEST_POI_QUERY };
+    for (OpcodesList row : rows)
+    {
+        CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
+        CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADUNSAFE);
     }
 }

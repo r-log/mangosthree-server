@@ -46,6 +46,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Auth/BigNumber.h"
+#include "session/handlers/entities/QueryHandlers.h"
 
 #include <string>
 #include <utility>
@@ -326,7 +327,7 @@ TEST(RequesterSession_NameQueryGoesOnlyToTheSessionThatAsked)
 
     // The replacement is listed when the row comes: it is sent nothing, and the row is freed.
     WorldPacket first = NameQueryRequest();
-    requester.session.HandleNameQueryOpcode(first);
+    QueryHandlers::HandleNameQuery(requester.session, first);
     CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(1));
     CharacterDatabase.ExecuteQueuedForTest();
     REQUIRE(async.executed.size() == 1);
@@ -341,7 +342,7 @@ TEST(RequesterSession_NameQueryGoesOnlyToTheSessionThatAsked)
 
     // The session that asked is listed when the row comes: it is sent the name.
     WorldPacket second = NameQueryRequest();
-    requester.session.HandleNameQueryOpcode(second);
+    QueryHandlers::HandleNameQuery(requester.session, second);
     AnswerWithListed(requester.session);
     REQUIRE(requester.sent.size() == 1);
     CHECK_EQ(requester.sent[0].GetOpcode(), uint16(SMSG_NAME_QUERY_RESPONSE));
