@@ -44,6 +44,7 @@
 #include "session/handlers/combat/CombatHandlers.h"
 #include "session/handlers/entities/CharacterHandlers.h"
 #include "session/handlers/entities/CharacterCustomizeHandlers.h"
+#include "session/handlers/entities/DeathHandlers.h"
 #include "session/handlers/connection/WardenHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
@@ -508,10 +509,10 @@ void InitializeOpcodes()
     //OPCODE(SMSG_BINDZONEREPLY,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PLAYERBOUND,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CLIENT_CONTROL_UPDATE,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_REPOP_REQUEST,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRepopRequestOpcode        );
+    OPCODE(CMSG_REPOP_REQUEST,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &DeathHandlers::HandleRepopRequest             );
     OPCODE(SMSG_RESURRECT_REQUEST,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_RESURRECT_RESPONSE,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleResurrectResponseOpcode   );
-    OPCODE(CMSG_RETURN_TO_GRAVEYARD,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleReturnToGraveyard         );
+    OPCODE(CMSG_RESURRECT_RESPONSE,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &DeathHandlers::HandleResurrectResponse        );
+    OPCODE(CMSG_RETURN_TO_GRAVEYARD,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &DeathHandlers::HandleReturnToGraveyard        );
     OPCODE(CMSG_LOOT,                                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleLoot                      );
     OPCODE(CMSG_LOOT_MONEY,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleLootMoney                 );
     OPCODE(CMSG_LOOT_RELEASE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleLootRelease               );
@@ -626,7 +627,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_QUERY_TIME_RESPONSE,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_LOG_XPGAIN,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_AURACASTLOG,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_RECLAIM_CORPSE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleReclaimCorpseOpcode       );
+    OPCODE(CMSG_RECLAIM_CORPSE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &DeathHandlers::HandleReclaimCorpse            );
     OPCODE(CMSG_WRAP_ITEM,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &EnchantHandlers::HandleWrapItem               );
     OPCODE(SMSG_LEVELUP_INFO,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(MSG_MINIMAP_PING,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GroupHandlers::HandleMinimapPing              );
@@ -1351,7 +1352,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_PET_LEARNED_SPELL,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PET_REMOVED_SPELL,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE,      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChangeSeatsOnControlledVehicle );
-    OPCODE(CMSG_HEARTH_AND_RESURRECT,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleHearthandResurrect        );
+    OPCODE(CMSG_HEARTH_AND_RESURRECT,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &DeathHandlers::HandleHearthandResurrect       );
     OPCODE(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA,    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CRITERIA_DELETED,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_ACHIEVEMENT_DELETED,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );

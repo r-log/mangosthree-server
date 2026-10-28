@@ -93,6 +93,7 @@
 #include "session/handlers/combat/CombatHandlers.h"
 #include "session/handlers/entities/CharacterHandlers.h"
 #include "session/handlers/entities/CharacterCustomizeHandlers.h"
+#include "session/handlers/entities/DeathHandlers.h"
 #include "session/handlers/connection/WardenHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
@@ -2540,4 +2541,36 @@ TEST(OpcodeDispatch_MapRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[MSG_SET_DUNGEON_DIFFICULTY].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[MSG_SET_RAID_DIFFICULTY].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[MSG_SET_RAID_DIFFICULTY].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_DeathRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_REPOP_REQUEST].handler == &OpcodeThunk<&DeathHandlers::HandleRepopRequest>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&DeathHandlers::HandleRepopRequest>), 1);
+    CHECK(opcodeTable[CMSG_RECLAIM_CORPSE].handler == &OpcodeThunk<&DeathHandlers::HandleReclaimCorpse>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&DeathHandlers::HandleReclaimCorpse>), 1);
+    CHECK(opcodeTable[CMSG_RESURRECT_RESPONSE].handler == &OpcodeThunk<&DeathHandlers::HandleResurrectResponse>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&DeathHandlers::HandleResurrectResponse>), 1);
+    CHECK(opcodeTable[CMSG_RETURN_TO_GRAVEYARD].handler == &OpcodeThunk<&DeathHandlers::HandleReturnToGraveyard>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&DeathHandlers::HandleReturnToGraveyard>), 1);
+    CHECK(opcodeTable[CMSG_HEARTH_AND_RESURRECT].handler == &OpcodeThunk<&DeathHandlers::HandleHearthandResurrect>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&DeathHandlers::HandleHearthandResurrect>), 1);
+}
+
+TEST(OpcodeDispatch_DeathRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_REPOP_REQUEST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REPOP_REQUEST].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_RECLAIM_CORPSE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_RECLAIM_CORPSE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_RESURRECT_RESPONSE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_RESURRECT_RESPONSE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_RETURN_TO_GRAVEYARD].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_RETURN_TO_GRAVEYARD].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_HEARTH_AND_RESURRECT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_HEARTH_AND_RESURRECT].packetProcessing, PROCESS_THREADUNSAFE);
 }
