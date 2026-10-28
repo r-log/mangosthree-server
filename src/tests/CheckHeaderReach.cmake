@@ -21,7 +21,7 @@ endforeach()
 
 set(REACH_RULES
     "entities/player/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,WorldHandlers/NPCHandler.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h,Database/DatabaseEnv.h"
-    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,entities/player/Player.h,Server/WorldSession.h,proto/WorldPacket.h,WorldHandlers/Path.h"
+    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,entities/player/Player.h,Server/WorldSession.h,proto/WorldPacket.h,Server/Path.h"
     "combat/ArmorReduction.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,spells/auras/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
     "combat/MeleeChances.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,spells/auras/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
     "combat/SpellBonus.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,spells/auras/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
