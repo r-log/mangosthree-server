@@ -483,7 +483,6 @@ src/game/WorldHandlers/Map.h -> src/game/WorldHandlers/ScriptMgr.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/MapManager.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/MiscHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/MoveMap.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/PetitionsHandler.cpp -> src/game/WorldHandlers/World.h
 # reached through ObjectMgr.h before #512
@@ -724,6 +723,8 @@ src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/
 src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp -> src/game/WorldHandlers/World.h
 # The stable master check asks whether the player may use the stable command: ChatHandler(session.GetPlayer()).FindCommand("stable").
 src/game/session/handlers/entities/NpcHandlers.cpp -> src/game/WorldHandlers/Chat.h
+# The mount aura cancel answers a flying or an unmounted player through ChatHandler(&session).SendSysMessage.
+src/game/session/handlers/entities/PlayerHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The battlemaster join answers a disabled battleground through ChatHandler(&session).SendSysMessage(LANG_BG_IS_DISABLED).
 src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The chat handlers run a GM command typed in chat and check a message's links through ChatHandler(&session).

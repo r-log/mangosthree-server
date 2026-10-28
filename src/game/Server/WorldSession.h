@@ -719,16 +719,6 @@ class WorldSession
         static bool FindRequesterPlayer(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
                                         WorldSession*& session, Player*& player);
 
-        /// Everything CMSG_CHAR_CREATE carries, captured by value into the continuations.
-        // played time
-        void HandlePlayedTime(WorldPacket& recvPacket);
-
-        // new inspect
-        void HandleInspectOpcode(WorldPacket& recvPacket);
-
-        // new party stats
-        void HandleInspectHonorStatsOpcode(WorldPacket& recvPacket);
-
         void HandleMountSpecialAnimOpcode(WorldPacket& recvdata);
 
         // character view
@@ -751,14 +741,10 @@ class WorldSession
 
         void HandleTogglePvP(WorldPacket& recvPacket);
 
-        void HandleSetSelectionOpcode(WorldPacket& recvPacket);
-        void HandleStandStateChangeOpcode(WorldPacket& recvPacket);
         void HandleBugOpcode(WorldPacket& recvPacket);
 
         void HandleUpdateAccountData(WorldPacket& recvPacket);
         void HandleRequestAccountData(WorldPacket& recvPacket);
-        void HandleSaveCUFProfiles(WorldPacket& recvPacket);
-        void HandleSetActionButtonOpcode(WorldPacket& recvPacket);
 
         void HandleGameObjectUseOpcode(WorldPacket& recPacket);
         void HandleGameobjectReportUse(WorldPacket& recvPacket);
@@ -804,13 +790,8 @@ class WorldSession
 
         void HandleSummonResponseOpcode(WorldPacket& recv_data);
 
-        void HandleCompleteCinematic(WorldPacket& recvPacket);
-        void HandleNextCinematicCamera(WorldPacket& recvPacket);
-
         // Pet
         void HandlePetCancelAuraOpcode(WorldPacket& recvPacket);
-
-        void HandleSetActionBarTogglesOpcode(WorldPacket& recv_data);
 
         // Customize: the at_login flag and the appearance row are read by
         // one holder, and everything the handler did after them -- the name checks, the
@@ -818,8 +799,6 @@ class WorldSession
 
         void HandleTotemDestroyed(WorldPacket& recv_data);
 
-        void HandleFarSightOpcode(WorldPacket& recv_data);
-        void HandleSetTitleOpcode(WorldPacket& recv_data);
         void HandleRealmSplitOpcode(WorldPacket& recv_data);
         void HandleTimeSyncResp(WorldPacket& recv_data);
         void HandleWhoisOpcode(WorldPacket& recv_data);
@@ -829,10 +808,8 @@ class WorldSession
         static void HandleWhoisCallback(std::optional<WhoisRow> const& row, uint32 accountId,
                                         proto::SessionId sessionId, std::string charname);
 
-        void HandleCancelMountAuraOpcode(WorldPacket& recv_data);
         void HandleSelfResOpcode(WorldPacket& recv_data);
         void HandleComplainOpcode(WorldPacket& recv_data);
-        void HandleRequestPetInfoOpcode(WorldPacket& recv_data);
 
         void HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data);
 
@@ -845,11 +822,8 @@ class WorldSession
         void SendItemDb2Reply(uint32 entry);
         void SendItemSparseDb2Reply(uint32 entry);
 
-        void HandleObjectUpdateFailedOpcode(WorldPacket& recv_data);
-
         void HandleSpellClick(WorldPacket& recv_data);
         void HandleGetMirrorimageData(WorldPacket& recv_data);
-        void HandleQueryInspectAchievementsOpcode(WorldPacket& recv_data);
         void HandleUITimeRequestOpcode(WorldPacket& recv_data);
         void HandleReadyForAccountDataTimesOpcode(WorldPacket& recv_data);
 

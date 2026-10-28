@@ -31,8 +31,9 @@ class WorldSession;
 
 /// The client's queries: a player's name, the server time, a creature's or a game object's
 /// template, the player's corpse, an NPC text, an item's pages, a corpse's transport position, the
-/// quests the player completed and the points of interest of the quests in its log. Static entry
-/// points the opcode table binds, each borrowing the session for one call and storing nothing.
+/// quests the player completed, the points of interest of the quests in its log, and an object
+/// whose update the client failed to apply. Static entry points the opcode table binds, each
+/// borrowing the session for one call and storing nothing.
 struct QueryHandlers
 {
     public:
@@ -46,6 +47,7 @@ struct QueryHandlers
         static void HandleCorpseMapPositionQuery(WorldSession& session, WorldPacket& recv_data);
         static void HandleQueryQuestsCompleted(WorldSession& session, WorldPacket& recv_data);
         static void HandleQuestPOIQuery(WorldSession& session, WorldPacket& recv_data);
+        static void HandleObjectUpdateFailed(WorldSession& session, WorldPacket& recv_data);
 };
 
 #endif
