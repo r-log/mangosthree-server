@@ -118,6 +118,12 @@ class Transport : public GameObject
         /// packet named by GUID when we do not already hold the object.
         static Transport* GetTransport(Map const* map, ObjectGuid guid);
 
+        /// Whether a passenger standing at `where` on the map `passengerMapId` may step aboard a
+        /// vessel that sails the map `vesselMapId` with the pose `pose`: she must sail his map,
+        /// and he must be within `reach` of her. The pose is read only when the maps match.
+        static bool CanStepAboard(uint32 passengerMapId, Geometry::Vector3 const& where,
+                                  uint32 vesselMapId, Geometry::Placement const& pose, float reach);
+
         /// How far along her route she is, in milliseconds of path time. This is the one
         /// number the client needs to place the hull: it interpolates her from this and the
         /// path, and we estimate her from the same value, so both sides agree.

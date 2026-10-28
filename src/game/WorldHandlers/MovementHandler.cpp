@@ -792,17 +792,36 @@ void WorldSession::HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo
         {
             if (!plMover->m_transport)
             {
-                // elevators also cause the client to send transport guid - just unmount if the guid can be found in the transport list
+                // The guid is the client's word. A vessel it names is boarded only if she sails
+                // his map and he stood within her reach at his last accepted position: her hull's
+                // radius, the slack of her estimated pose and the deck's edge margin, the reach
+                // the step ashore below uses. Any other vessel is refused, or one map's update
+                // would write into a deck another worker runs. Elevators send a guid too; they
+                // are not in the vessel list, so nothing is found.
                 for (MapManager::TransportSet::const_iterator iter = sMapMgr.m_Transports.begin(); iter != sMapMgr.m_Transports.end(); ++iter)
                 {
                     if ((*iter)->GetObjectGuid() == movementInfo.GetTransportGuid())
                     {
-                        plMover->m_transport = (*iter);
+                        Transport* vessel = (*iter);
+                        TransportMap* hull = vessel->AsMap();
+
+                        const float reach = (hull ? hull->HullRadius() : MAX_DECK_EXTENT) +
+                                            vessel->NodeSlack() + DECK_EDGE_MARGIN;
+
+                        if (!Transport::CanStepAboard(plMover->GetMapId(), plMover->Where().Pos(),
+                                                      vessel->GetMapId(), vessel->Where(), reach))
+                        {
+                            DEBUG_LOG("WorldSession::HandleMoverRelocation: %s named %s as the vessel he boards, which does not sail his map within his reach",
+                                      plMover->GetGuidStr().c_str(), vessel->GetGuidStr().c_str());
+                            break;
+                        }
+
+                        plMover->m_transport = vessel;
 
                         // He walked aboard, so his client already has the vessel and is
                         // rendering the map she sails; moving him onto her own map is safe
                         // at once. Nothing tells the client -- it never learns that id.
-                        if (TransportMap* hull = (*iter)->AsMap())
+                        if (hull)
                         {
                             hull->Embark(plMover);
                         }

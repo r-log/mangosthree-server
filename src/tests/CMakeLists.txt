@@ -232,6 +232,7 @@ set(SRC_GRP_TESTS
     ScriptNameStoreTest.cpp
     ScriptHooksTest.cpp
     VendorItemProblemTest.cpp
+    TransportBoardingTest.cpp
     OpcodeDispatchTest.cpp
 )
 
