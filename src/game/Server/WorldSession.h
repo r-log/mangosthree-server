@@ -762,10 +762,6 @@ class WorldSession
         void HandleUpdateAccountData(WorldPacket& recvPacket);
         void HandleRequestAccountData(WorldPacket& recvPacket);
         void HandleSaveCUFProfiles(WorldPacket& recvPacket);
-        void HandleSetRoleOpcode(WorldPacket& recv_data);
-        void HandleRolePollBeginOpcode(WorldPacket& recv_data);
-        void HandleSetEveryoneIsAssistantOpcode(WorldPacket& recv_data);
-        void HandleClearRaidMarkerOpcode(WorldPacket& recv_data);
         void HandleSetActionButtonOpcode(WorldPacket& recvPacket);
 
         void HandleGameObjectUseOpcode(WorldPacket& recPacket);
@@ -788,27 +784,6 @@ class WorldSession
         void HandleRequestVehicleNextSeat(WorldPacket& recv_data);
         void HandleRideVehicleInteract(WorldPacket& recvPacket);
         void HandleEjectPassenger(WorldPacket& recvPacket);
-
-        void HandleRequestRaidInfoOpcode(WorldPacket& recv_data);
-
-        void HandleGroupInviteOpcode(WorldPacket& recvPacket);
-        void HandleGroupInviteResponseOpcode(WorldPacket& recvPacket);
-        void HandleGroupUninviteGuidOpcode(WorldPacket& recvPacket);
-        void HandleGroupSetLeaderOpcode(WorldPacket& recvPacket);
-        void HandleGroupDisbandOpcode(WorldPacket& recvPacket);
-        void HandleOptOutOfLootOpcode(WorldPacket& recv_data);
-        void HandleSetAllowLowLevelRaidOpcode(WorldPacket& recv_data);
-        void HandleLootMethodOpcode(WorldPacket& recvPacket);
-        void HandleLootRoll(WorldPacket& recv_data);
-        void HandleRequestPartyMemberStatsOpcode(WorldPacket& recv_data);
-        void HandleRaidTargetUpdateOpcode(WorldPacket& recv_data);
-        void HandleRaidReadyCheckOpcode(WorldPacket& recv_data);
-        void HandleRaidReadyCheckFinishedOpcode(WorldPacket& recv_data);
-        void HandleGroupRaidConvertOpcode(WorldPacket& recv_data);
-        void HandleGroupRequestJoinUpdates(WorldPacket& recv_data);
-        void HandleGroupChangeSubGroupOpcode(WorldPacket& recv_data);
-        void HandleGroupAssistantLeaderOpcode(WorldPacket& recv_data);
-        void HandlePartyAssignmentOpcode(WorldPacket& recv_data);
 
         static void SendPetitionQueryCallback(std::optional<PetitionDetailsRow> const& row, uint32 accountId,
                                               proto::SessionId sessionId, ObjectGuid petitionguid);
@@ -875,8 +850,6 @@ class WorldSession
         void HandleTotemDestroyed(WorldPacket& recv_data);
 
         void HandleWorldTeleportOpcode(WorldPacket& recv_data);
-        void HandleMinimapPingOpcode(WorldPacket& recv_data);
-        void HandleRandomRollOpcode(WorldPacket& recv_data);
         void HandleFarSightOpcode(WorldPacket& recv_data);
         void HandleSetDungeonDifficultyOpcode(WorldPacket& recv_data);
         void HandleSetRaidDifficultyOpcode(WorldPacket& recv_data);
