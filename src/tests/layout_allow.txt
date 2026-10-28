@@ -19,7 +19,6 @@ src/game/BattleGround [pvp] -> src/game/WorldHandlers/Group.h
 src/game/BattleGround [pvp] -> src/game/WorldHandlers/Mail.h
 src/game/BattleGround [pvp] -> src/game/WorldHandlers/Map.h
 src/game/BattleGround [pvp] -> src/game/WorldHandlers/MapManager.h
-src/game/BattleGround/BattleGround.cpp -> src/game/WorldHandlers/Chat.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGround.cpp -> src/proto/WorldPacket.h
@@ -182,7 +181,6 @@ src/game/Object/GameObjectUse.cpp -> src/proto/Opcodes.h
 src/game/Object/GameObjectUse.cpp -> src/proto/WorldPacket.h
 src/game/Object/GuardAI.cpp -> src/game/entities/player/Player.h
 src/game/Object/Guild.cpp -> src/game/Server/WorldSession.h
-src/game/Object/Guild.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/Guild.cpp -> src/game/entities/player/Player.h
 src/game/Object/Guild.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Guild.cpp -> src/game/entities/player/social/SocialList.h
@@ -314,7 +312,6 @@ src/game/Object/UnitVisibility.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Vehicle.cpp -> src/game/Server/WorldSession.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Vehicle.cpp -> src/game/entities/player/Player.h
-src/game/Object/WorldObjectChat.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/WorldObjectChat.cpp -> src/game/entities/player/Player.h
 src/game/Object/WorldObjectChat.cpp -> src/proto/Opcodes.h
 src/game/Object/WorldObjectChat.cpp -> src/proto/WorldPacket.h
@@ -401,12 +398,10 @@ src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapManager.h
 src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers [social] -> src/game/spells/data/SpellMgr.h
 src/game/WorldHandlers/AchievementCriteriaRequirement.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/AchievementMgr.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Channel.cpp -> src/game/Server/WorldSession.h
-src/game/WorldHandlers/Channel.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/social/SocialList.h
 src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
@@ -469,7 +464,6 @@ src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Mail.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/Map.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/Map.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/Map.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Map.cpp -> src/game/entities/player/PlayerRegistry.h
@@ -650,7 +644,6 @@ src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGBootLogi
 src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGMgr.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/social/PlayerChat.cpp -> src/game/Server/WorldSession.h
-src/game/entities/player/social/PlayerChat.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/social/PlayerChat.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/social/PlayerReputation.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/social/SocialMgr.cpp -> src/game/Server/WorldSession.h

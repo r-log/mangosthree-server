@@ -48,7 +48,7 @@
 #include "DBCStores.h"
 #include "data/GameConfig.h"
 #include "SocialList.h"
-#include "Chat.h"
+#include "data/ChatPacketBuilder.h"
 #include "WorldSession.h"
 
 Channel::Channel(const std::string& name, uint32 channel_id)
@@ -747,7 +747,7 @@ void Channel::Say(Player* player, const char* text, uint32 lang)
         lang = LANG_UNIVERSAL;
     }
     WorldPacket data;
-    ChatHandler::BuildChatPacket(data, CHAT_MSG_CHANNEL, text, Language(lang), player->GetChatTag(), guid, player->GetName(), ObjectGuid(), "", m_name.c_str());
+    BuildChatPacket(data, CHAT_MSG_CHANNEL, text, Language(lang), player->GetChatTag(), guid, player->GetName(), ObjectGuid(), "", m_name.c_str());
     SendToAll(&data, !m_players[guid].IsModerator() ? guid : ObjectGuid());
 }
 

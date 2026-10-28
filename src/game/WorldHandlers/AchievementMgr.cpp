@@ -50,7 +50,7 @@
 #include "BattleGround/BattleGroundAB.h"
 #include "Map.h"
 #include "DBCStructure.h"
-#include "Chat.h"
+#include "data/ChatPacketBuilder.h"
 
 #include "Policies/Singleton.h"
 #include "persistence/characters/achievements/AchievementRepository.h"
@@ -68,7 +68,7 @@ namespace MaNGOS
             {
                 char const* text = sObjectMgr.GetMangosString(i_textId, loc_idx);
 
-                ChatHandler::BuildChatPacket(data, i_msgtype, text, LANG_UNIVERSAL, i_player.GetChatTag(),  i_player.GetObjectGuid(), NULL, i_player.GetObjectGuid(), NULL, NULL,
+                BuildChatPacket(data, i_msgtype, text, LANG_UNIVERSAL, i_player.GetChatTag(),  i_player.GetObjectGuid(), NULL, i_player.GetObjectGuid(), NULL, NULL,
                     i_achievementId);
             }
 

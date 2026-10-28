@@ -52,7 +52,7 @@
 #include "ObjectMgr.h"
 #include "WorldPacket.h"
 #include "GridNotifiersImpl.h"
-#include "Chat.h"
+#include "data/ChatPacketBuilder.h"
 #include <cstdarg>
 #include "PlayerRegistry.h"
 
@@ -87,11 +87,11 @@ namespace MaNGOS
                     vsnprintf(str, 2048, text, ap);
                     va_end(ap);
 
-                    ChatHandler::BuildChatPacket(data, i_msgtype, &str[0], LANG_UNIVERSAL, CHAT_TAG_NONE, sourceGuid, sourceName.c_str());
+                    BuildChatPacket(data, i_msgtype, &str[0], LANG_UNIVERSAL, CHAT_TAG_NONE, sourceGuid, sourceName.c_str());
                 }
                 else
                 {
-                    ChatHandler::BuildChatPacket(data, i_msgtype, text, LANG_UNIVERSAL, CHAT_TAG_NONE, sourceGuid, sourceName.c_str(), sourceGuid, sourceName.c_str());
+                    BuildChatPacket(data, i_msgtype, text, LANG_UNIVERSAL, CHAT_TAG_NONE, sourceGuid, sourceName.c_str(), sourceGuid, sourceName.c_str());
                 }
             }
         private:
@@ -127,11 +127,11 @@ namespace MaNGOS
                     vsnprintf(str, 2048, text, ap);
                     va_end(ap);
 
-                    ChatHandler::BuildChatPacket(data, CHAT_MSG_MONSTER_YELL, &str[0], i_language, CHAT_TAG_NONE, i_source->GetObjectGuid(), i_source->GetName());
+                    BuildChatPacket(data, CHAT_MSG_MONSTER_YELL, &str[0], i_language, CHAT_TAG_NONE, i_source->GetObjectGuid(), i_source->GetName());
                 }
                 else
                 {
-                    ChatHandler::BuildChatPacket(data, CHAT_MSG_MONSTER_YELL, text, i_language, CHAT_TAG_NONE, i_source->GetObjectGuid(), i_source->GetName());
+                    BuildChatPacket(data, CHAT_MSG_MONSTER_YELL, text, i_language, CHAT_TAG_NONE, i_source->GetObjectGuid(), i_source->GetName());
                 }
             }
         private:
@@ -171,7 +171,7 @@ namespace MaNGOS
                     guid = i_source->GetObjectGuid();
                     pName = i_source->GetName();
                 }
-                ChatHandler::BuildChatPacket(data, i_msgtype, str, LANG_UNIVERSAL, CHAT_TAG_NONE, ObjectGuid(), NULL, guid, pName);
+                BuildChatPacket(data, i_msgtype, str, LANG_UNIVERSAL, CHAT_TAG_NONE, ObjectGuid(), NULL, guid, pName);
             }
         private:
             ChatMsg i_msgtype;

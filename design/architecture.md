@@ -19,7 +19,7 @@ only `src/shared`; session includes it 116 times, the motion layer 19 times (8 f
 | scripts | `modules/SD3/` (it reaches the core through the script surface, and the core reaches it through the hook interface in `data/`, #83), `ChatCommands/`, the command-dispatch half of `Chat`, `CommandMgr`, `ScriptMgr` | everything below app |
 | session | `session/`: `WorldSession`, `OpcodeTable`, gateway, `handlers/<domain>/` and `handlers/connection/`, `packets/<domain>/`, the message builders split from `Chat` | domain, data, motion, proto, persistence, foundation |
 | domain | peers: `entities/`, `spells/`, `combat/`, `maps/`, `ai/`, `social/`, `pvp/`, `economy/`; the script surface (#83) | data, motion, persistence, foundation (**not** proto) |
-| data | `data/`: DBC/DB2 and SQL stores, `ObjectMgr`'s stores, `QuestDef`, `SharedDefines`, pools, events, the read-only configuration interface (#143), the script hook interface (`ScriptHooks`, what the core calls on the script library, #83), the command hook interface (`CommandHooks`, what the core asks of the GM command system, #83) | persistence, foundation |
+| data | `data/`: DBC/DB2 and SQL stores, `ObjectMgr`'s stores, `QuestDef`, `SharedDefines`, pools, events, the read-only configuration interface (#143), the script hook interface (`ScriptHooks`, what the core calls on the script library, #83), the command hook interface (`CommandHooks`, what the core asks of the GM command system, #83), the chat packet builder the world installs (`ChatPacketBuilder`, #83) | persistence, foundation |
 | motion | `src/motion` (the kernel), `movement/` (splines) | proto, foundation |
 | proto | `src/proto` (the wire: `WorldPacket`, `Opcodes`, codecs) | foundation |
 | persistence | `src/shared/Database` (the driver), `persistence/<domain>/` (repositories, #144) | foundation |
@@ -38,14 +38,14 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 333 include lines go against the table.
+**Today:** 326 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 129 | `WorldPacket.h` 79, `Opcodes.h` 47 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
 | domain -> session | 83 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
 | any -> app | 26 | `World.h`: scripts 10, session 7, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
-| domain, data, session -> scripts | 13 | `ScriptMgr.h` 6, `Chat.h` 7 | `Map.cpp`, `Guild.cpp`, `PlayerChat.cpp` |
+| domain, data, session -> scripts | 6 | `ScriptMgr.h` 6 | `Map.cpp`, `Map.h`, `GameObjectUse.cpp` |
 | data -> domain | 58 | `MapManager.h` 5, `MapPersistentStateMgr.h` 5, `SpellMgr.h` 5, `Creature.h` 5 | `ObjectMgr.cpp`, `GameEventMgr.cpp`, `CreatureLinkingMgr.cpp` |
 | motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSplineInit.cpp`, `MoveSpline.cpp`, `WireParity.cpp` |
 | rest | 12 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
@@ -351,7 +351,7 @@ faked. The domain tier splits as one library first (its directories are peers wi
 173 / 53) and into per-directory libraries only if a cycle is ever cut on purpose. The order follows section 8:
 
 1. `data`: after rows 5 and 7 (77 lines into the domain, 3 into session).
-2. `domain`: after rows 1, 2, 3 and 4 (proto, session, `World.h`, `Chat.h` / `ScriptMgr.h`).
+2. `domain`: after rows 1, 2, 3 and 4 (proto, session, `World.h`, `ScriptMgr.h`).
 3. `session`: after the `World.h` and script edges it holds.
 4. `scripts`: `ChatCommands`, the command half of `Chat` and `ScriptMgr` join `mangosscript`; `game` already reaches
    the scripts only through the hook interface (#83).
@@ -378,7 +378,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 1 | domain -> proto: 131 lines; 215 `WorldPacket data(` sites in the domain tier; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
 | 2 | domain -> session: 83 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` included 27 times below app | the configuration interface (#143), when content touches it |
-| 4 | `Chat.h` (23) and `ScriptMgr.h` (6) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
+| 4 | `ScriptMgr.h` included below scripts 6 times, for the database script runner and `StartEvents_Event`; `Chat.h` 0 times (23 when #83 began): the session builds the chat packets and system messages, the domain builds its chat packets through `data/ChatPacketBuilder` and reports a player's system messages as a client fact, and the GM commands are reached through `data/CommandHooks` | the six with the script surface (#83); the domain's chat packets become facts with row 1 |
 | 5 | data -> domain: 58 lines, in the loaders and managers that act on live objects; `ObjectMgr.h` reaches no domain header (its `CheckHeaderReach` row) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump` and `CharacterDatabaseCleaner` (7 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
