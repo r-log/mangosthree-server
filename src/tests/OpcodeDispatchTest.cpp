@@ -71,7 +71,7 @@
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
 /// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
-/// query, item, LFG, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
+/// query, item, NPC, LFG, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
 /// class /// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
 /// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
 /// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
@@ -95,6 +95,7 @@
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/entities/EnchantHandlers.h"
 #include "session/handlers/entities/ItemHandlers.h"
+#include "session/handlers/entities/NpcHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/QueryHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
@@ -1955,6 +1956,53 @@ TEST(OpcodeDispatch_MailRowsKeepTheirStatusAndProcessing)
     OpcodesList const rows[] = { CMSG_SEND_MAIL, CMSG_MAIL_MARK_AS_READ, CMSG_MAIL_DELETE, CMSG_MAIL_RETURN_TO_SENDER,
                                  CMSG_MAIL_TAKE_ITEM, CMSG_MAIL_TAKE_MONEY, CMSG_GET_MAIL_LIST,
                                  CMSG_MAIL_CREATE_TEXT_ITEM, MSG_QUERY_NEXT_MAIL_TIME };
+    for (OpcodesList row : rows)
+    {
+        CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
+        CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADUNSAFE);
+    }
+}
+
+TEST(OpcodeDispatch_NpcRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[MSG_TABARDVENDOR_ACTIVATE].handler == &OpcodeThunk<&NpcHandlers::HandleTabardVendorActivate>);
+    CHECK(opcodeTable[CMSG_BANKER_ACTIVATE].handler == &OpcodeThunk<&NpcHandlers::HandleBankerActivate>);
+    CHECK(opcodeTable[CMSG_TRAINER_LIST].handler == &OpcodeThunk<&NpcHandlers::HandleTrainerList>);
+    CHECK(opcodeTable[CMSG_TRAINER_BUY_SPELL].handler == &OpcodeThunk<&NpcHandlers::HandleTrainerBuySpell>);
+    CHECK(opcodeTable[CMSG_GOSSIP_HELLO].handler == &OpcodeThunk<&NpcHandlers::HandleGossipHello>);
+    CHECK(opcodeTable[CMSG_GOSSIP_SELECT_OPTION].handler == &OpcodeThunk<&NpcHandlers::HandleGossipSelectOption>);
+    CHECK(opcodeTable[CMSG_SPIRIT_HEALER_ACTIVATE].handler == &OpcodeThunk<&NpcHandlers::HandleSpiritHealerActivate>);
+    CHECK(opcodeTable[CMSG_BINDER_ACTIVATE].handler == &OpcodeThunk<&NpcHandlers::HandleBinderActivate>);
+    CHECK(opcodeTable[MSG_LIST_STABLED_PETS].handler == &OpcodeThunk<&NpcHandlers::HandleListStabledPets>);
+    CHECK(opcodeTable[CMSG_STABLE_PET].handler == &OpcodeThunk<&NpcHandlers::HandleStablePet>);
+    CHECK(opcodeTable[CMSG_SET_PET_SLOT].handler == &OpcodeThunk<&NpcHandlers::HandleStablePet>);
+    CHECK(opcodeTable[CMSG_UNSTABLE_PET].handler == &OpcodeThunk<&NpcHandlers::HandleUnstablePet>);
+    CHECK(opcodeTable[CMSG_REPAIR_ITEM].handler == &OpcodeThunk<&NpcHandlers::HandleRepairItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleTabardVendorActivate>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleBankerActivate>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleTrainerList>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleTrainerBuySpell>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleGossipHello>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleGossipSelectOption>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleSpiritHealerActivate>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleBinderActivate>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleListStabledPets>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleStablePet>), 2);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleUnstablePet>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&NpcHandlers::HandleRepairItem>), 1);
+}
+
+TEST(OpcodeDispatch_NpcRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    OpcodesList const rows[] = { MSG_TABARDVENDOR_ACTIVATE, CMSG_BANKER_ACTIVATE, CMSG_TRAINER_LIST,
+                                 CMSG_TRAINER_BUY_SPELL, CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION,
+                                 CMSG_SPIRIT_HEALER_ACTIVATE, CMSG_BINDER_ACTIVATE, MSG_LIST_STABLED_PETS,
+                                 CMSG_STABLE_PET, CMSG_SET_PET_SLOT, CMSG_UNSTABLE_PET,
+                                 CMSG_REPAIR_ITEM };
     for (OpcodesList row : rows)
     {
         CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);

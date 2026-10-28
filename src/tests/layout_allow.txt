@@ -486,7 +486,6 @@ src/game/WorldHandlers/MapManager.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MiscHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/MoveMap.cpp -> src/game/WorldHandlers/World.h
-src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/PetitionsHandler.cpp -> src/game/WorldHandlers/World.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/Creature.h
@@ -724,6 +723,8 @@ src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
 src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
 # The auction house check accepts the player's own guid as the auctioneer when the player may use the auction command: ChatHandler(session.GetPlayer()).FindCommand("auction").
 src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/Chat.h
+# The stable master check asks whether the player may use the stable command: ChatHandler(session.GetPlayer()).FindCommand("stable").
+src/game/session/handlers/entities/NpcHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The battlemaster join answers a disabled battleground through ChatHandler(&session).SendSysMessage(LANG_BG_IS_DISABLED).
 src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The chat handlers run a GM command typed in chat and check a message's links through ChatHandler(&session).
