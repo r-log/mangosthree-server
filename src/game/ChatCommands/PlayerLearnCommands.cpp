@@ -724,7 +724,7 @@ bool ChatHandler::HandleLearnAllCommand(char* /*args*/)
         }
 
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(spell);
-        if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, m_session->GetPlayer()))
+        if (!spellInfo || !CheckSpellValid(spellInfo))
         {
             PSendSysMessage(LANG_COMMAND_SPELL_BROKEN, spell);
             continue;
@@ -770,7 +770,7 @@ bool ChatHandler::HandleLearnAllGMCommand(char* /*args*/)
         uint32 spell = std::strtoul((char*)gmSpellList[gmSpellIter++], NULL, 10);
 
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(spell);
-        if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, m_session->GetPlayer()))
+        if (!spellInfo || !CheckSpellValid(spellInfo))
         {
             PSendSysMessage(LANG_COMMAND_SPELL_BROKEN, spell);
             continue;
@@ -869,7 +869,7 @@ bool ChatHandler::HandleLearnAllMyPetTalentsCommand(char* /*args*/)
         }
 
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(spellid);
-        if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, player, false))
+        if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, NULL, false))
         {
             continue;
         }
@@ -940,7 +940,7 @@ bool ChatHandler::HandleLearnAllMySpellsCommand(char* /*args*/)
         }
 
         // skip broken spells
-        if (!SpellMgr::IsSpellValid(spellInfo, player, false))
+        if (!SpellMgr::IsSpellValid(spellInfo, NULL, false))
         {
             continue;
         }
@@ -1000,7 +1000,7 @@ bool ChatHandler::HandleLearnAllMyTalentsCommand(char* /*args*/)
         }
 
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(spellid);
-        if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, player, false))
+        if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, NULL, false))
         {
             continue;
         }
@@ -1088,7 +1088,7 @@ bool ChatHandler::HandleLearnCommand(char* args)
     }
 
     SpellEntry const* spellInfo = sSpellStore.LookupEntry(spell);
-    if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, player))
+    if (!spellInfo || !CheckSpellValid(spellInfo))
     {
         PSendSysMessage(LANG_COMMAND_SPELL_BROKEN, spell);
         SetSentErrorMessage(true);
@@ -1169,7 +1169,7 @@ void ChatHandler::HandleLearnSkillRecipesHelper(Player* player, uint32 skill_id)
         }
 
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(skillLine->Spell);
-        if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, player, false))
+        if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, NULL, false))
         {
             continue;
         }

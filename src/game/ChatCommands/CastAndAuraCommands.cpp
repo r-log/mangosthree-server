@@ -84,7 +84,7 @@ bool ChatHandler::HandleCastCommand(char* args)
         return false;
     }
 
-    if (!SpellMgr::IsSpellValid(spellInfo, m_session->GetPlayer()))
+    if (!CheckSpellValid(spellInfo))
     {
         PSendSysMessage(LANG_COMMAND_SPELL_BROKEN, spell);
         SetSentErrorMessage(true);
@@ -166,7 +166,7 @@ bool ChatHandler::HandleCastDistCommand(char* args)
         return false;
     }
 
-    if (!SpellMgr::IsSpellValid(spellInfo, m_session->GetPlayer()))
+    if (!CheckSpellValid(spellInfo))
     {
         PSendSysMessage(LANG_COMMAND_SPELL_BROKEN, spell);
         SetSentErrorMessage(true);
@@ -271,7 +271,7 @@ bool ChatHandler::HandleCastSelfCommand(char* args)
         return false;
     }
 
-    if (!SpellMgr::IsSpellValid(spellInfo, m_session->GetPlayer()))
+    if (!CheckSpellValid(spellInfo))
     {
         PSendSysMessage(LANG_COMMAND_SPELL_BROKEN, spell);
         SetSentErrorMessage(true);

@@ -78,7 +78,7 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
         return false;
     }
 
-    if (!SpellMgr::IsSpellValid(spellInfo, this, false))
+    if (!SpellMgr::IsSpellValid(spellInfo, NULL, false))
     {
         // the spell load keeps the row and logs it
         if (!IsInWorld() && !learning)                      // spell load case
