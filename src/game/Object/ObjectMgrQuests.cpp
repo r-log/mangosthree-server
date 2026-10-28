@@ -50,43 +50,10 @@
 #include "DisableMgr.h"
 
 #include <limits>
-#include <type_traits>
 #include "persistence/world/quests/QuestDataRepository.h"
 
 static_assert(int(QUEST_LOCALE_ROW_LOCALES) == int(MAX_LOCALE) - 1, "a quest locale row holds its texts for every locale but the default one");
 static_assert(int(QUEST_LOCALE_ROW_OBJECTIVES) == int(QUEST_OBJECTIVES_COUNT), "a quest locale row holds every objective text");
-
-/**
- * @brief GetQuestTemplate as the lookup QuestStatusMgr takes (decoupling D4a).
- *
- * One object for the process, so a caller passes a reference and builds nothing per call.
- */
-QuestStatusMgr::TemplateLookup const& ObjectMgr::QuestTemplateLookup()
-{
-    static QuestStatusMgr::TemplateLookup const lookup = [](uint32 questId)
-    {
-        return sObjectMgr.GetQuestTemplate(questId);
-    };
-    return lookup;
-}
-
-// QuestStatusMgr.h may not include this manager's header, so it spells the bounds type itself.
-static_assert(std::is_same<ExclusiveQuestGroupsMapBounds, QuestStatusMgr::ExclusiveGroupBounds>::value,
-              "QuestStatusMgr::ExclusiveGroupBounds must be ObjectMgr's ExclusiveQuestGroupsMapBounds");
-
-/**
- * @brief GetExclusiveQuestGroupsMapBounds as the lookup QuestStatusMgr takes (decoupling D4b).
- *
- * One object for the process, like QuestTemplateLookup().
- */
-QuestStatusMgr::ExclusiveGroupLookup const& ObjectMgr::QuestExclusiveGroupLookup()
-{
-    static QuestStatusMgr::ExclusiveGroupLookup const lookup = [](int32 groupId)
-    {
-        return sObjectMgr.GetExclusiveQuestGroupsMapBounds(groupId);
-    };
-    return lookup;
-}
 
 /**
  * @brief Loads quest templates and validates quest-related database references.

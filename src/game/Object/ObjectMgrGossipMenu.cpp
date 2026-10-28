@@ -36,7 +36,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "data/DbScriptStore.h"
-#include "GossipDef.h"
+#include "data/GossipRecords.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 
 /**

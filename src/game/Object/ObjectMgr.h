@@ -41,14 +41,12 @@
 #include "Bag.h"
 #include "data/CreatureRecords.h"
 #include "Player.h"
-#include "ReputationMgr.h" // RepSpilloverTemplate (the reputation manager reads the rows)
 #include "Pet.h"
 #include "data/GameObjectRecords.h"
 #include "Corpse.h"
 #include "QuestDef.h"
-#include "QuestStatusMgr.h" // QuestTemplateLookup() returns a QuestStatusMgr::TemplateLookup
 #include "ItemPrototype.h"
-#include "NPCHandler.h"
+#include "data/GossipRecords.h"
 #include "Database/DatabaseEnv.h"
 #include "Map.h"
 #include "MapPersistentStateMgr.h"
@@ -66,9 +64,11 @@
 #include "data/KeyedRecordStore.h"
 #include "data/LfgDungeonEntranceStore.h"
 #include "data/MailLevelRewardStore.h"
+#include "data/PlayerCreateInfo.h"
 #include "data/PageTextStore.h"
 #include "data/PointOfInterestStore.h"
 #include "data/QuestPOIStore.h"
+#include "data/ReputationRecords.h"
 #include "data/ServerSpellStore.h"
 #include "data/TextPool.h"
 #include "data/VehicleAccessoryStore.h"
@@ -254,27 +254,6 @@ struct PetLevelInfo
     uint16 health;
     uint16 mana;
     uint16 armor;
-};
-
-// We assume the rate is in general the same for all three types below, but chose to keep three for scalability and customization
-struct RepRewardRate
-{
-    float quest_rate;                                       // We allow rate = 0.0 in database. For this case,
-    float creature_rate;                                    // it means that no reputation are given at all
-    float spell_rate;                                       // for this faction/rate type.
-};
-
-struct ReputationOnKillEntry
-{
-    uint32 repfaction1;
-    uint32 repfaction2;
-    bool is_teamaward1;
-    uint32 reputation_max_cap1;
-    int32 repvalue1;
-    bool is_teamaward2;
-    uint32 reputation_max_cap2;
-    int32 repvalue2;
-    bool team_dependent;
 };
 
 struct GossipMenuItems
@@ -641,10 +620,6 @@ class ObjectMgr
         {
             return mQuestTemplates;
         }
-        /// Decoupling D4a: GetQuestTemplate in the shape QuestStatusMgr takes it.
-        static QuestStatusMgr::TemplateLookup const& QuestTemplateLookup();
-        /// Decoupling D4b: GetExclusiveQuestGroupsMapBounds in the shape QuestStatusMgr takes it.
-        static QuestStatusMgr::ExclusiveGroupLookup const& QuestExclusiveGroupLookup();
 
         uint32 GetQuestForAreaTrigger(uint32 Trigger_ID) const
         {
