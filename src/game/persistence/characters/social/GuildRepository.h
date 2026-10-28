@@ -97,9 +97,7 @@ struct GuildRankRow
 
 enum
 {
-    /// The bank tabs a guild member row holds a reset time and remaining slots for. The table has
-    /// columns for six; the last two tabs read the four columns after them (the name, level,
-    /// class and zone) as numbers.
+    /// The bank tabs a guild member row holds a reset time and remaining slots for: all eight.
     GUILD_MEMBER_DATA_ROW_TABS = 8
 };
 
