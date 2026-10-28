@@ -24,10 +24,8 @@
  */
 
 #include "Auth/Sha1.h"
-#include "Auth/BigNumber.h"
 #include "Crypto/SecureZero.h"
 
-#include <cstdarg>
 #include <string>
 
 Sha1Hash::~Sha1Hash()
@@ -46,21 +44,6 @@ void Sha1Hash::UpdateData(const uint8* dta, int len)
 void Sha1Hash::UpdateData(const std::string& str)
 {
     UpdateData((uint8 const*)str.c_str(), int(str.length()));
-}
-
-void Sha1Hash::UpdateBigNumbers(BigNumber* bn0, ...)
-{
-    va_list v;
-    BigNumber* bn;
-
-    va_start(v, bn0);
-    bn = bn0;
-    while (bn)
-    {
-        UpdateData(bn->AsByteArray(), bn->GetNumBytes());
-        bn = va_arg(v, BigNumber*);
-    }
-    va_end(v);
 }
 
 void Sha1Hash::Initialize()

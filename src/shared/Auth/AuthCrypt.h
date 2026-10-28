@@ -55,6 +55,10 @@ class AuthCrypt
         /// Bytes in the seed table: two 16-byte HMAC keys, send then receive.
         static constexpr size_t SeedLength = 32;
 
+        /// Bytes of the session key the client hashes and keys with: all 40, so a key whose
+        /// top byte is zero is still taken at 40 bytes, padded at the high end.
+        static constexpr int SessionKeyLength = 40;
+
         /**
          * @brief Initialize the encryption/decryption state
          *

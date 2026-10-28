@@ -305,7 +305,7 @@ namespace proto
 
         Sha1Hash sha;
         sha.UpdateData(m_redirectAccount);
-        sha.UpdateBigNumbers(&sessionKey, NULL);
+        sha.UpdateData(sessionKey.AsByteArray(AuthCrypt::SessionKeyLength), AuthCrypt::SessionKeyLength);
         sha.UpdateData(reinterpret_cast<const uint8*>(&m_seed), sizeof(m_seed));
         sha.Finalize();
 
@@ -675,7 +675,7 @@ namespace proto
         sha.UpdateData(reinterpret_cast<const uint8*>(&zero), 4);
         sha.UpdateData(reinterpret_cast<const uint8*>(&clientSeed), 4);
         sha.UpdateData(reinterpret_cast<const uint8*>(&serverSeed), 4);
-        sha.UpdateBigNumbers(&sessionKey, NULL);
+        sha.UpdateData(sessionKey.AsByteArray(AuthCrypt::SessionKeyLength), AuthCrypt::SessionKeyLength);
         sha.Finalize();
 
         if (std::memcmp(sha.GetDigest(), request.digest, AUTH_DIGEST_SIZE) != 0)

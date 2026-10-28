@@ -67,10 +67,14 @@ void AuthCrypt::Init(BigNumber* K, const uint8* seed)
     const uint8* table = seed ? seed : DEFAULT_SEED;
 
     HMACSHA1 serverEncryptHmac(SEED_KEY_SIZE, (uint8*)table);
-    uint8* encryptHash = serverEncryptHmac.ComputeHash(K);
+    serverEncryptHmac.UpdateData(K->AsByteArray(SessionKeyLength), SessionKeyLength);
+    serverEncryptHmac.Finalize();
+    uint8* encryptHash = serverEncryptHmac.GetDigest();
 
     HMACSHA1 clientDecryptHmac(SEED_KEY_SIZE, (uint8*)(table + SEED_KEY_SIZE));
-    uint8* decryptHash = clientDecryptHmac.ComputeHash(K);
+    clientDecryptHmac.UpdateData(K->AsByteArray(SessionKeyLength), SessionKeyLength);
+    clientDecryptHmac.Finalize();
+    uint8* decryptHash = clientDecryptHmac.GetDigest();
 
     // SARC4 _serverDecrypt(encryptHash);
     _clientDecrypt.Init(decryptHash);

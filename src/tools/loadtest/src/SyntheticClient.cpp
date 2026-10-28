@@ -94,7 +94,7 @@ namespace loadtest
 
             Sha1Hash sha;
             sha.UpdateData(account);
-            sha.UpdateBigNumbers(&key, NULL);
+            sha.UpdateData(key.AsByteArray(AuthCrypt::SessionKeyLength), AuthCrypt::SessionKeyLength);
             sha.UpdateData(reinterpret_cast<const uint8*>(&serverSeed), sizeof(serverSeed));
             sha.Finalize();
 
@@ -115,7 +115,7 @@ namespace loadtest
             sha.UpdateData(reinterpret_cast<const uint8*>(&zero), 4);
             sha.UpdateData(reinterpret_cast<const uint8*>(&clientSeed), 4);
             sha.UpdateData(reinterpret_cast<const uint8*>(&serverSeed), 4);
-            sha.UpdateBigNumbers(&key, NULL);
+            sha.UpdateData(key.AsByteArray(AuthCrypt::SessionKeyLength), AuthCrypt::SessionKeyLength);
             sha.Finalize();
 
             std::memcpy(digest, sha.GetDigest(), AUTH_DIGEST_SIZE);

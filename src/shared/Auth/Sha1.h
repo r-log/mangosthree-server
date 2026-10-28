@@ -31,8 +31,6 @@
 
 #include <string>
 
-class BigNumber;
-
 /// The SHA-1 digest width, under the name the protocol code has always used for it.
 constexpr int SHA_DIGEST_LENGTH = 20;
 
@@ -53,12 +51,6 @@ class Sha1Hash
         ~Sha1Hash();
         Sha1Hash(const Sha1Hash& other) = default;
         Sha1Hash& operator=(const Sha1Hash& other) = default;
-
-        /**
-         * @brief Update the hash with the minimal little-endian bytes of each number
-         * @param bn0 First BigNumber; the list is NULL terminated
-         */
-        void UpdateBigNumbers(BigNumber* bn0, ...);
 
         void UpdateData(const uint8* dta, int len);
         void UpdateData(const std::string& str);

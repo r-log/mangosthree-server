@@ -24,7 +24,6 @@
  */
 
 #include "Auth/HMACSHA1.h"
-#include "Auth/BigNumber.h"
 #include "Crypto/SecureZero.h"
 
 #include <string>
@@ -36,11 +35,6 @@ HMACSHA1::HMACSHA1(uint32 len, uint8 *seed) : m_mac(seed, seed ? size_t(len) : 0
 HMACSHA1::~HMACSHA1()
 {
     MaNGOS::Crypto::SecureZero(m_digest, sizeof m_digest);
-}
-
-void HMACSHA1::UpdateBigNumber(BigNumber *bn)
-{
-    UpdateData(bn->AsByteArray(), bn->GetNumBytes());
 }
 
 void HMACSHA1::UpdateData(const uint8 *data, int length)
@@ -59,11 +53,4 @@ void HMACSHA1::UpdateData(const std::string &str)
 void HMACSHA1::Finalize()
 {
     m_mac.Finish(m_digest);
-}
-
-uint8 *HMACSHA1::ComputeHash(BigNumber *bn)
-{
-    UpdateBigNumber(bn);
-    Finalize();
-    return m_digest;
 }

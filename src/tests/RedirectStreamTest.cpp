@@ -168,7 +168,7 @@ namespace
 
         Sha1Hash sha;
         sha.UpdateData(std::string(ACCOUNT));
-        sha.UpdateBigNumbers(&key, NULL);
+        sha.UpdateData(key.AsByteArray(AuthCrypt::SessionKeyLength), AuthCrypt::SessionKeyLength);
         sha.UpdateData(reinterpret_cast<const uint8*>(&serverSeed), sizeof(serverSeed));
         sha.Finalize();
 
@@ -214,11 +214,19 @@ namespace
         BigNumber sessionKey;
         uint32    serverSeed = 0;     ///< read out of the challenge this connection sent
 
-        Fixture()
+        /// A random session key, or the one `keyHex` spells.
+        explicit Fixture(const char* keyHex = NULL)
             : registry(std::chrono::milliseconds(60000)),
               links(std::make_shared<proto::SessionLinks>(std::make_shared<SilentLink>()))
         {
-            sessionKey.SetRand(40 * 8);
+            if (keyHex)
+            {
+                sessionKey.SetHexStr(keyHex);
+            }
+            else
+            {
+                sessionKey.SetRand(40 * 8);
+            }
 
             proto::RedirectTicket ticket;
             ticket.clientAddress = CLIENT_ADDRESS;
@@ -500,6 +508,32 @@ TEST(RedirectStream_refuses_a_second_stream_that_cannot_prove_the_session_key)
     CHECK_EQ(int(fixture.gateway.delivered.size()), 0);
 }
 
+TEST(RedirectStream_a_session_key_whose_top_byte_is_zero_still_proves_the_stream)
+{
+    // The client hashes all 40 bytes of the session key (Wow-64.exe 15595,
+    // NetClient::ClientConnectionAuthChallengeHandler, sizeof(m_sessionKey)), so a
+    // key of 39 significant bytes is hashed with its zero top byte.
+    Fixture fixture("00A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F607");
+    REQUIRE(fixture.sessionKey.GetNumBytes() == 39);
+    const std::array<uint8, AuthCrypt::SeedLength> seed = fixture.OpenAndReadChallengeSeed();
+
+    fixture.Feed(ClientBanner());
+    fixture.Feed(ContinuedSession(StreamProof(fixture.sessionKey, fixture.serverSeed)));
+    REQUIRE(!fixture.closed);
+
+    BigNumber key = fixture.sessionKey;
+    AuthCrypt clientSide;
+    clientSide.Init(&key, seed.data());
+
+    std::vector<uint8> ping = Frame(WIRE_PING, std::vector<uint8>(8, 0));
+    clientSide.DecryptRecv(ping.data(), proto::CLIENT_HEADER_SIZE);
+    fixture.Feed(ping);
+
+    CHECK(!fixture.closed);
+    REQUIRE(fixture.gateway.delivered.size() == 1);
+    CHECK_EQ(int(fixture.gateway.delivered[0]), int(WIRE_PING));
+}
+
 TEST(RedirectStream_the_proof_is_bound_to_this_connections_own_seed)
 {
     // The seed is drawn per connection, so a digest lifted from another socket's
@@ -537,7 +571,7 @@ TEST(RedirectStream_accepts_a_handshake_captured_from_the_live_client)
 
     Sha1Hash sha;
     sha.UpdateData(std::string("ADMIN"));
-    sha.UpdateBigNumbers(&sessionKey, NULL);
+    sha.UpdateData(sessionKey.AsByteArray(AuthCrypt::SessionKeyLength), AuthCrypt::SessionKeyLength);
     sha.UpdateData(seedBytes, sizeof(seedBytes));
     sha.Finalize();
 
