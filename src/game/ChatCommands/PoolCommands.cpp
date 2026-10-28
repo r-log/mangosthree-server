@@ -36,6 +36,7 @@
 #include <string>
 #include "Chat.h"
 #include "ObjectMgr.h"
+#include "GameObject.h"
 #include "Language.h"
 #include "Player.h"
 #include "PoolManager.h"

@@ -43,7 +43,7 @@
 #include "Player.h"
 #include "ReputationMgr.h" // RepSpilloverTemplate (the reputation manager reads the rows)
 #include "Pet.h"
-#include "GameObject.h"
+#include "data/GameObjectRecords.h"
 #include "Corpse.h"
 #include "QuestDef.h"
 #include "QuestStatusMgr.h" // QuestTemplateLookup() returns a QuestStatusMgr::TemplateLookup
@@ -61,6 +61,7 @@
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
+#include "data/GameObjectTemplateStore.h"
 #include "data/InstanceTemplateStore.h"
 #include "data/KeyedRecordStore.h"
 #include "data/LfgDungeonEntranceStore.h"

@@ -3,6 +3,8 @@
 # Sideways edges: "<includer directory> [<peer>] -> <header>". Paths from the repository root.
 # The gate fails on an edge that is not listed and on a line whose edge is gone or allowed.
 # A new edge is fixed, not listed. A line whose includer file changed is replaced by the new one.
+# A file that reached a header only through a header a PR cuts may include it directly, listed in that PR
+# with the reason "reached through <header> before #<PR>".
 # After removing or moving edges: python src/tests/tools/layout_gate.py --generate
 # A "#" line directly above an entry is its reason; --generate keeps it with the entry.
 
@@ -211,7 +213,6 @@ src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Bag.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Corpse.h
-src/game/Object/ObjectMgr.h -> src/game/Object/GameObject.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Object.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Pet.h
 src/game/Object/ObjectMgr.h -> src/game/WorldHandlers/Map.h
@@ -392,6 +393,8 @@ src/game/WorldHandlers/DisableMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
 src/game/WorldHandlers/DisableMgr.cpp -> src/game/OutdoorPvP/OutdoorPvPMgr.h
 src/game/WorldHandlers/DisableMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
+# reached through ObjectMgr.h before #509
+src/game/WorldHandlers/GameEventMgr.cpp -> src/game/Object/GameObject.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapManager.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MassMailMgr.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/World.h
@@ -441,8 +444,9 @@ src/game/WorldHandlers/MiscHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/MoveMap.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/PetitionsHandler.cpp -> src/game/WorldHandlers/World.h
+# reached through PoolManager.h before #509
+src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/GameObject.h
 src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/WorldHandlers/PoolManager.h -> src/game/Object/GameObject.h
 src/game/WorldHandlers/QueryHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/QuestDef.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h

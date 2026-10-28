@@ -33,6 +33,7 @@
 #include "Chat.h"
 #include "Language.h"
 #include "ObjectMgr.h"
+#include "GameObject.h"
 #include "Player.h"
 #include "WorldSession.h"
 #include "AccountMgr.h"

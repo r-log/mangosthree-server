@@ -28,6 +28,7 @@
 #include "BattleGround.h"
 #include "BattleGroundEY.h"
 #include "ObjectMgr.h"
+#include "GameObject.h"
 #include "BattleGroundMgr.h"
 #include "Language.h"
 #include "WorldPacket.h"

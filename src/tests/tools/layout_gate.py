@@ -148,6 +148,8 @@ ALLOW_HEADER = '''\
 # Sideways edges: "<includer directory> [<peer>] -> <header>". Paths from the repository root.
 # The gate fails on an edge that is not listed and on a line whose edge is gone or allowed.
 # A new edge is fixed, not listed. A line whose includer file changed is replaced by the new one.
+# A file that reached a header only through a header a PR cuts may include it directly, listed in that PR
+# with the reason "reached through <header> before #<PR>".
 # After removing or moving edges: python src/tests/tools/layout_gate.py --generate
 # A "#" line directly above an entry is its reason; --generate keeps it with the entry.
 '''

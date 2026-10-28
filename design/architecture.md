@@ -60,7 +60,9 @@ a file can split inside its directory; a new key fails. Only two seams are gated
 (`Object/Unit.cpp` -> `Player.h`, 34 lines; `SpellMgr.h` -> `SpellAuraDefines.h`, 16 lines; the 2026-09-28 decision)
 is listed per includer file and header and cannot grow, and so is an include against the table. Such a line may
 change its includer file in the PR that deletes the old one or removes the include from it, only within the same layer pair and header; a change of
-layer pair or header is a new edge.
+layer pair or header is a new edge. A file that reached a header only through a header a PR cuts may include it directly in that
+PR: the line is listed with the reason `reached through <header> before #<PR>`, and the PR shows that the file's include closure
+reached the header at the parent commit. Any other new edge is fixed, not listed.
 
 **Today:** 824 such lines, the largest being spells -> entities 170, entities -> maps 149, -> spells 50, -> social 38
 and -> pvp 28, spells -> maps 62 and pvp -> entities 54.
