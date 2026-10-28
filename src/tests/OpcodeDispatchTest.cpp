@@ -69,7 +69,7 @@
 /// rows, on a session with no player, each read their packet to its end and send nothing, and so
 /// does the CMSG_WARDEN_DATA row, of status STATUS_AUTHED. Every row bound to the combat, vendor,
 /// pvp, loot, auction, trade, skill, enchant, pet, taxi, LFG, contact list, GM ticket, petition,
-/// chat channel or voice chat handler class holds the status STATUS_LOGGEDIN
+/// chat channel, voice chat or chat handler class holds the status STATUS_LOGGEDIN
 /// and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
 /// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six taxi rows, processed PROCESS_THREADSAFE, the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE and
@@ -95,6 +95,7 @@
 #include "session/handlers/entities/TaxiHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ChannelHandlers.h"
+#include "session/handlers/social/ChatHandlers.h"
 #include "Channel.h"
 #include "ChannelMgr.h"
 #include "Player.h"
@@ -1739,5 +1740,55 @@ TEST(OpcodeDispatch_TaxiRowsKeepTheirStatusAndProcessing)
     {
         CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
         CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADSAFE);
+    }
+}
+
+TEST(OpcodeDispatch_ChatRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    OpcodesList const messages[] = { CMSG_MESSAGECHAT_SAY, CMSG_MESSAGECHAT_YELL, CMSG_MESSAGECHAT_CHANNEL,
+                                     CMSG_MESSAGECHAT_WHISPER, CMSG_MESSAGECHAT_GUILD, CMSG_MESSAGECHAT_OFFICER,
+                                     CMSG_MESSAGECHAT_AFK, CMSG_MESSAGECHAT_DND, CMSG_MESSAGECHAT_EMOTE,
+                                     CMSG_MESSAGECHAT_PARTY, CMSG_MESSAGECHAT_RAID, CMSG_MESSAGECHAT_BATTLEGROUND,
+                                     CMSG_MESSAGECHAT_RAID_WARNING };
+    for (OpcodesList row : messages)
+    {
+        CHECK(opcodeTable[row].handler == &OpcodeThunk<&ChatHandlers::HandleMessagechat>);
+    }
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChatHandlers::HandleMessagechat>), 13);
+
+    OpcodesList const addons[] = { CMSG_MESSAGECHAT_ADDON_BATTLEGROUND, CMSG_MESSAGECHAT_ADDON_GUILD,
+                                   CMSG_MESSAGECHAT_ADDON_OFFICER, CMSG_MESSAGECHAT_ADDON_PARTY,
+                                   CMSG_MESSAGECHAT_ADDON_RAID, CMSG_MESSAGECHAT_ADDON_WHISPER };
+    for (OpcodesList row : addons)
+    {
+        CHECK(opcodeTable[row].handler == &OpcodeThunk<&ChatHandlers::HandleAddonMessagechat>);
+    }
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChatHandlers::HandleAddonMessagechat>), 6);
+
+    CHECK(opcodeTable[CMSG_EMOTE].handler == &OpcodeThunk<&ChatHandlers::HandleEmote>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChatHandlers::HandleEmote>), 1);
+    CHECK(opcodeTable[CMSG_TEXT_EMOTE].handler == &OpcodeThunk<&ChatHandlers::HandleTextEmote>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChatHandlers::HandleTextEmote>), 1);
+    CHECK(opcodeTable[CMSG_CHAT_IGNORED].handler == &OpcodeThunk<&ChatHandlers::HandleChatIgnored>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChatHandlers::HandleChatIgnored>), 1);
+}
+
+TEST(OpcodeDispatch_ChatRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    for (uint32 i = 0; i < NUM_MSG_TYPES; ++i)
+    {
+        if (opcodeTable[i].handler == &OpcodeThunk<&ChatHandlers::HandleMessagechat> ||
+            opcodeTable[i].handler == &OpcodeThunk<&ChatHandlers::HandleAddonMessagechat> ||
+            opcodeTable[i].handler == &OpcodeThunk<&ChatHandlers::HandleEmote> ||
+            opcodeTable[i].handler == &OpcodeThunk<&ChatHandlers::HandleTextEmote> ||
+            opcodeTable[i].handler == &OpcodeThunk<&ChatHandlers::HandleChatIgnored>)
+        {
+            CHECK_EQ(opcodeTable[i].status, STATUS_LOGGEDIN);
+            CHECK_EQ(opcodeTable[i].packetProcessing, PROCESS_THREADUNSAFE);
+        }
     }
 }
