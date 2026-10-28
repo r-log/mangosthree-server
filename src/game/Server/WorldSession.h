@@ -752,12 +752,9 @@ class WorldSession
 
         void HandleTogglePvP(WorldPacket& recvPacket);
 
-        void HandleZoneUpdateOpcode(WorldPacket& recvPacket);
         void HandleSetSelectionOpcode(WorldPacket& recvPacket);
         void HandleStandStateChangeOpcode(WorldPacket& recvPacket);
         void HandleBugOpcode(WorldPacket& recvPacket);
-
-        void HandleAreaTriggerOpcode(WorldPacket& recvPacket);
 
         void HandleUpdateAccountData(WorldPacket& recvPacket);
         void HandleRequestAccountData(WorldPacket& recvPacket);
@@ -825,10 +822,7 @@ class WorldSession
 
         void HandleTotemDestroyed(WorldPacket& recv_data);
 
-        void HandleWorldTeleportOpcode(WorldPacket& recv_data);
         void HandleFarSightOpcode(WorldPacket& recv_data);
-        void HandleSetDungeonDifficultyOpcode(WorldPacket& recv_data);
-        void HandleSetRaidDifficultyOpcode(WorldPacket& recv_data);
         void HandleSetTitleOpcode(WorldPacket& recv_data);
         void HandleRealmSplitOpcode(WorldPacket& recv_data);
         void HandleTimeSyncResp(WorldPacket& recv_data);
@@ -838,7 +832,6 @@ class WorldSession
         /// it and it is a continuation instead.
         static void HandleWhoisCallback(std::optional<WhoisRow> const& row, uint32 accountId,
                                         proto::SessionId sessionId, std::string charname);
-        void HandleResetInstancesOpcode(WorldPacket& recv_data);
         void HandleHearthandResurrect(WorldPacket& recv_data);
 
         void HandleCancelMountAuraOpcode(WorldPacket& recv_data);

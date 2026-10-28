@@ -12,7 +12,7 @@ One directory per domain. A builder is a free function, `void BuildXPacket(World
 
 ## `handlers/`
 
-One stateless class per origin file, in its domain's directory or, for the requests of the client's connection itself, in `handlers/connection/` (combat's, made from two files, and pvp's, the class of both the arena team and the battleground files, are the two exceptions), whose static entry points the rows of `Server/OpcodeTable.cpp` bind; `handlers/README.md` says what a handler class may keep and which gates hold it.
+One stateless class per origin file, in its domain's directory or, for the requests of the client's connection itself, in `handlers/connection/` (combat's, made from two files, and pvp's, the class of both the arena team and the battleground files, are two exceptions, and the miscellaneous handlers a third: they are split by topic, each joining its domain's class for that topic), whose static entry points the rows of `Server/OpcodeTable.cpp` bind; `handlers/README.md` says what a handler class may keep and which gates hold it.
 
 ## What is here
 
@@ -49,6 +49,7 @@ One stateless class per origin file, in its domain's directory or, for the reque
 | `handlers/entities/` | `QuestHandlers` | the client's quest giver status queries, greeting, quest details, accept, reward request and choice, hand-in, quest query, log removal, party share and its answer |
 | `handlers/entities/` | `SkillHandlers` | the client's talent learning, one rank or the talent preview's choices as one group, the talent wipe at a class trainer and the skill unlearning |
 | `handlers/entities/` | `TaxiHandlers` | the client's taxi node status query, the flight map at a flight master, a flight over two nodes or a route, and the spline-done ack |
+| `handlers/maps/` | `MapHandlers` | the client's zone change, area triggers, an administrator's teleport to coordinates, the instances reset and the dungeon and raid difficulty |
 | `handlers/pvp/` | `PvpHandlers` | the client's arena team inspect, query, roster, create, invite, accept, decline, leave, disband, remove and leader opcodes; the battlemaster's hello and join, the arena join, the battlefield list, port, leave and status, the flag carriers' positions, the PvP log, the spirit healer's query and queue, the AFK report, and the rated battleground stats, rated battleground info, PvP options and PvP rewards requests |
 | `handlers/social/` | `CalendarHandlers` | the client's calendar and events, guild and arena team invites, signups, events added, updated, removed and copied, invites and their answers, statuses and moderator ranks, complaints and pending invites; an invite to an offline player is finished a tick later, once its ignore flag is read |
 | `handlers/social/` | `ChannelHandlers` | the client's chat channel join and leave, member list, password, owner change and owner query, moderator, unmoderator, mute, unmute, invite, kick, ban, unban, join announcements, display list and channel watch |
