@@ -186,7 +186,7 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/CalendarHandler.cpp
     src/game/Object/Calendar.cpp
     src/game/WorldHandlers/Mail.cpp
-    src/game/WorldHandlers/MailHandler.cpp
+    src/game/session/handlers/social/MailHandlers.cpp
     src/game/WorldHandlers/SpellHandler.cpp
     src/game/Object/ArenaTeam.cpp
     src/game/persistence/characters/social/ArenaTeamRepository.h
@@ -246,6 +246,7 @@ set(CONVERTED_FILES
     src/game/session/handlers/entities/PetHandlers.cpp
     src/game/session/handlers/social/ContactHandlers.cpp
     src/game/session/handlers/social/PetitionHandlers.cpp
+    src/game/session/handlers/entities/NpcHandlers.cpp
 )
 
 set(ADMIN_SCOPE_FILES
