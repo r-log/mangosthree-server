@@ -211,7 +211,6 @@ src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Bag.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Corpse.h
-src/game/Object/ObjectMgr.h -> src/game/Object/Creature.h
 src/game/Object/ObjectMgr.h -> src/game/Object/GameObject.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Object.h
 src/game/Object/ObjectMgr.h -> src/game/Object/Pet.h
@@ -443,7 +442,6 @@ src/game/WorldHandlers/MoveMap.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/PetitionsHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/WorldHandlers/PoolManager.h -> src/game/Object/Creature.h
 src/game/WorldHandlers/PoolManager.h -> src/game/Object/GameObject.h
 src/game/WorldHandlers/QueryHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/QuestDef.cpp -> src/game/entities/player/Player.h
