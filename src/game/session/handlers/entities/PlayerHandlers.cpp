@@ -41,7 +41,7 @@
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
 #include "DBCStores.h"
-#include "Chat.h"
+#include "session/packets/chat/SystemMessage.h"
 #include "WorldSession.h"
 
 /**
@@ -191,14 +191,14 @@ void PlayerHandlers::HandleCancelMountAura(WorldSession& session, WorldPacket& /
     // would answer "not mounted" to one.
     if (session.GetPlayer()->IsTaxiFlying())                            // not blizz like; no any messages on blizz
     {
-        ChatHandler(&session).SendSysMessage(LANG_YOU_IN_FLIGHT);
+        SendSystemMessage(session, LANG_YOU_IN_FLIGHT);
         return;
     }
 
     // If player is not mounted, so go out :)
     if (!session.GetPlayer()->IsMounted())                              // not blizz like; no any messages on blizz
     {
-        ChatHandler(&session).SendSysMessage(LANG_CHAR_NON_MOUNTED);
+        SendSystemMessage(session, LANG_CHAR_NON_MOUNTED);
         return;
     }
 

@@ -33,7 +33,7 @@
 #include "Server/WorldSession.h"
 #include "Log/Log.h"
 #include "entities/player/Player.h"
-#include "WorldHandlers/Chat.h"
+#include "session/packets/chat/SystemMessage.h"
 #include "Object/Object.h"
 #include "Object/ObjectMgr.h"
 #include "Object/ArenaTeam.h"
@@ -539,7 +539,7 @@ void PvpHandlers::HandleBattlemasterJoin(WorldSession& session, WorldPacket& rec
 
     if (DisableMgr::IsDisabledFor(DISABLE_TYPE_BATTLEGROUND, bgTypeId))
     {
-        ChatHandler(&session).SendSysMessage(LANG_BG_IS_DISABLED);
+        SendSystemMessage(session, LANG_BG_IS_DISABLED);
         return;
     }
 

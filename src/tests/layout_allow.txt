@@ -415,8 +415,6 @@ src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/ChannelMgr.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/CharacterHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Chat.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
-src/game/WorldHandlers/ChatMessage.cpp -> src/game/WorldHandlers/Chat.h
-src/game/WorldHandlers/ChatMessage.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/ChatMessageValidation.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/Creature.h
@@ -722,16 +720,10 @@ src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/
 src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp -> src/game/WorldHandlers/World.h
 # The stable master check asks whether the player may use the stable command: ChatHandler(session.GetPlayer()).FindCommand("stable").
 src/game/session/handlers/entities/NpcHandlers.cpp -> src/game/WorldHandlers/Chat.h
-# The mount aura cancel answers a flying or an unmounted player through ChatHandler(&session).SendSysMessage.
-src/game/session/handlers/entities/PlayerHandlers.cpp -> src/game/WorldHandlers/Chat.h
-# The battlemaster join answers a disabled battleground through ChatHandler(&session).SendSysMessage(LANG_BG_IS_DISABLED).
-src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The chat handlers run a GM command typed in chat and check a message's links through ChatHandler(&session).
 src/game/session/handlers/social/ChatHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The mailbox check asks whether the player may use the mailbox command: ChatHandler(session.GetPlayer()).FindCommand("mailbox").
 src/game/session/handlers/social/MailHandlers.cpp -> src/game/WorldHandlers/Chat.h
-# The ticket create and text update handlers tell every online GM who accepts tickets through ChatHandler(player).PSendSysMessage.
-src/game/session/handlers/social/TicketHandlers.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h
 src/game/spells/auras [spells] -> src/game/MotionGenerators/MotionMaster.h
 src/game/spells/auras [spells] -> src/game/Object/Creature.h

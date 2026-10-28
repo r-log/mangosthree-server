@@ -45,6 +45,7 @@
 #include "Common/Locales.h"
 #include "Utilities/Errors.h"
 #include <string>
+#include <cstdarg>
 #include "Chat.h"
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
@@ -57,6 +58,7 @@
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "Player.h"
+#include "session/packets/chat/SystemMessage.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "AccountMgr.h"
@@ -989,6 +991,101 @@ ChatHandler::~ChatHandler() {}
 const char* ChatHandler::GetMangosString(int32 entry) const
 {
     return m_session->GetMangosString(entry);
+}
+
+/**
+ * @brief Sends a system message to the current session, splitting multiline text.
+ *
+ * @param str The message text to send.
+ */
+void ChatHandler::SendSysMessage(const char* str)
+{
+    SendSystemMessage(*m_session, str);
+}
+
+/**
+ * @brief Sends a localized system message by string table entry.
+ *
+ * @param entry The string table entry identifier.
+ */
+void ChatHandler::SendSysMessage(int32 entry)
+{
+    SendSysMessage(GetMangosString(entry));
+}
+
+/**
+ * @brief Formats and sends a localized system message.
+ *
+ * @param entry The string table entry identifier.
+ */
+void ChatHandler::PSendSysMessage(int32 entry, ...)
+{
+    const char* format = GetMangosString(entry);
+    va_list ap;
+    char str [2048];
+    va_start(ap, entry);
+    vsnprintf(str, 2048, format, ap);
+    va_end(ap);
+    SendSysMessage(str);
+}
+
+/**
+ * @brief Formats and sends a localized multiline system message using @@ separators.
+ *
+ * @param entry The string table entry identifier.
+ */
+void  ChatHandler::PSendSysMessageMultiline(int32 entry, ...)
+{
+    uint32 linecount = 0;
+
+    const char* format = GetMangosString(entry);
+    va_list ap;
+    char str[2048];
+    va_start(ap, entry);
+    vsnprintf(str, 2048, format, ap);
+    va_end(ap);
+
+    std::string mangosString(str);
+
+    /* Used for tracking our position within the string while iterating through it */
+    std::string::size_type pos = 0, nextpos;
+
+    /* Find the next occurance of @ in the string
+     * This is how newlines are represented */
+    while ((nextpos = mangosString.find("@@", pos)) != std::string::npos)
+    {
+        /* If these are not equal, it means a '@@' was found
+         * These are used to represent newlines in the string
+         * It is set by the code above here */
+        if (nextpos != pos)
+        {
+            /* Send the player a system message containing the substring from pos to nextpos - pos */
+            PSendSysMessage("%s", mangosString.substr(pos, nextpos - pos).c_str());
+            ++linecount;
+        }
+        pos = nextpos + 2; // +2 because there are two @ as delimiter
+    }
+
+    /* There are no more newlines in our mangosString, so we send whatever is left */
+    if (pos < mangosString.length())
+    {
+        PSendSysMessage("%s", mangosString.substr(pos).c_str());
+    }
+}
+
+/**
+ * @brief Formats and sends a raw system message.
+ *
+ * @param format The printf-style format string.
+ */
+void ChatHandler::PSendSysMessage(const char* format, ...)
+{
+    va_list ap;
+    char str [2048];
+    va_start(ap, format);
+    vsnprintf(str, 2048, format, ap);
+    va_end(ap);
+    SendSysMessage(str);
 }
 
 /**
