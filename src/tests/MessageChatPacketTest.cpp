@@ -43,8 +43,8 @@
 namespace
 {
     ObjectGuid const kSender(uint64(0x0102030405060708));
-    ObjectGuid const kPlayer(HIGHGUID_PLAYER, 5);              // raw 0x0000000000000005
-    ObjectGuid const kCreature(HIGHGUID_UNIT, 448, 0x56);      // raw 0xF13001C000000056
+    ObjectGuid const kPlayer(HIGHGUID_PLAYER, uint32(5));                  // raw 0x0000000000000005
+    ObjectGuid const kCreature(HIGHGUID_UNIT, uint32(448), uint32(0x56));  // raw 0xF13001C000000056
 }
 
 TEST(MessageChatPacket_system_message)
