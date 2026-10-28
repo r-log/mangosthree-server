@@ -49,7 +49,6 @@
 #include "Language.h"
 #include "PoolManager.h"
 #include "GameEventMgr.h"
-#include "MapPersistentStateMgr.h"
 #include "spells/auras/SpellAuras.h"
 #include "Util.h"
 #include "WaypointManager.h"
