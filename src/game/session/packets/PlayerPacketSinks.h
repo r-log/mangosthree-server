@@ -37,6 +37,7 @@
 #include "session/packets/entities/RunePackets.h"
 #include "session/packets/entities/SocialPackets.h"
 #include "session/packets/entities/StandStatePacket.h"
+#include "session/packets/quests/QuestCompletePacket.h"
 #include "session/packets/spells/AutoRepeatPackets.h"
 
 class Player;
@@ -93,6 +94,7 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.factionAtWar = FactToSession(owner, &BuildSetFactionAtWarPacket);
     callbacks.contactList = FactToSession(owner, &BuildContactListPacket);
     callbacks.friendStatus = FactToSession(owner, &BuildFriendStatusPacket);
+    callbacks.questComplete = FactToSession(owner, &BuildQuestCompletePacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }

@@ -26,7 +26,7 @@
 #ifndef MANGOS_H_QUESTCOMPLETEPACKET
 #define MANGOS_H_QUESTCOMPLETEPACKET
 
-#include "Platform/Define.h"
+#include "PlayerClientFacts.h"
 
 #include <cstddef>
 
@@ -34,37 +34,24 @@ class WorldPacket;
 
 /**
  * @file QuestCompletePacket.h
- * @brief SMSG_QUESTGIVER_QUEST_COMPLETE in the 4.3.4 (build 15595) layout, built from plain values.
+ * @brief SMSG_QUESTGIVER_QUEST_COMPLETE in the 4.3.4 (build 15595) layout, built from the player's
+ * quest-complete fact.
  *
  * The client reads it in sub_140367840 (client-truth/binary/Wow-64.c): six uint32, then one
  * byte holding two bits, 25 bytes in all. Its handler prints the turn-in lines in chat ("X
  * completed.", "Experience gained", "Received <money>", "Received item"), plays the quest's
  * turn-in sound, and then either closes the quest frame (QUEST_FINISHED) or keeps it open for
- * the next quest in the chain. design/2026-09-27-q2-questgiver-quest-complete.md has the reader,
- * the handler and the sniffs.
+ * the next quest in the chain.
  *
- * The builder takes the values, not the quest or the character, so `mangos_tests` can pin the
- * bytes (src/tests/QuestCompletePacketTest.cpp). The owner's SendQuestReward fills the fields
- * from the quest template and from what RewardQuest actually credited.
+ * The builder takes the fact, not the quest or the character, so `mangos_tests` can pin the bytes
+ * (src/tests/QuestCompletePacketTest.cpp). Player::SendQuestReward reports the fact, from the
+ * quest template and from what RewardQuest credited.
  */
 
 /// The wire size: six uint32 and one bit byte.
 const size_t QUEST_COMPLETE_PACKET_SIZE = 6 * 4 + 1;
 
-/// The fields in wire order. The offsets are where the client's reader stores each one.
-struct QuestCompleteFields
-{
-    uint32 bonusTalents = 0;        ///< +40: "You have gained %d talent points." when > 0
-    uint32 rewSkillPoints = 0;      ///< +60: stored by the client, never read
-    uint32 money = 0;               ///< +44: "Received %s." when > 0 (a signed compare)
-    uint32 xp = 0;                  ///< +48: "Experience gained: %d." when != 0
-    uint32 questId = 0;             ///< +32: the QuestCache key (title, reward items, turn-in sound)
-    uint32 rewSkillId = 0;          ///< +56: stored by the client, never read
-    bool launchGossip = false;      ///< first bit (bit 7) -> +36: the client sends CMSG_GOSSIP_HELLO to the giver
-    bool useQuestReward = false;    ///< second bit (bit 6) -> +52: keep the quest frame open for the next quest's details
-};
-
-/// Initializes `packet` as SMSG_QUESTGIVER_QUEST_COMPLETE and writes `fields` in the 15595 layout.
-void BuildQuestCompletePacket(WorldPacket& packet, QuestCompleteFields const& fields);
+/// Initializes `packet` as SMSG_QUESTGIVER_QUEST_COMPLETE and writes `fact` in the 15595 layout.
+void BuildQuestCompletePacket(WorldPacket& packet, QuestCompleteFact const& fact);
 
 #endif
