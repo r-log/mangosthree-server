@@ -12,7 +12,7 @@ One directory per domain. A builder is a free function, `void BuildXPacket(World
 
 ## `handlers/`
 
-One stateless class per origin file, in its domain's directory (combat's, made from two files, and pvp's, the class of both the arena team and the battleground files, are the two exceptions), whose static entry points the rows of `Server/OpcodeTable.cpp` bind; `handlers/README.md` says what a handler class may keep and which gates hold it.
+One stateless class per origin file, in its domain's directory or, for the requests of the client's connection itself, in `handlers/connection/` (combat's, made from two files, and pvp's, the class of both the arena team and the battleground files, are the two exceptions), whose static entry points the rows of `Server/OpcodeTable.cpp` bind; `handlers/README.md` says what a handler class may keep and which gates hold it.
 
 ## What is here
 
@@ -33,6 +33,7 @@ One stateless class per origin file, in its domain's directory (combat's, made f
 | `packets/spells/` | `CooldownPacketSinks` | `InstallCooldownPacketSinks`: the two cooldown callbacks, each building its packet with `CooldownPackets` and sending it to the player's session |
 | `packets/spells/` | `SpellModPackets` | `SMSG_SET_FLAT_SPELL_MODIFIER` or `SMSG_SET_PCT_SPELL_MODIFIER`, from `SpellModMgr`'s modifier added or removed: the count of operations, 1, the count of pairs, the operation, then each effect bit and its sum as a float |
 | `handlers/combat/` | `CombatHandlers` | the client's melee swing, attack stop, sheath and duel accept and cancel, and the `SMSG_ATTACKSTOP` the swing sends when it refuses a target |
+| `handlers/connection/` | `WardenHandlers` | the client's Warden data, drained and ignored |
 | `handlers/economy/` | `AuctionHandlers` | the client's auction house open, sale, bid and buyout, cancel, and its search, own auctions, bid-on auctions and pending sales lists |
 | `handlers/economy/` | `LootHandlers` | the client's loot window open and close, item and currency taking, money taking and the master looter's give |
 | `handlers/economy/` | `TradeHandlers` | the client's trade request and window open, the ignored and busy notices, the offer's gold, item and item clearing, accept, unaccept and cancel |

@@ -23,10 +23,18 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "WorldPacket.h"
-#include "WorldSession.h"
+#ifndef MANGOS_H_WARDENHANDLERS
+#define MANGOS_H_WARDENHANDLERS
 
-void WorldSession::HandleWardenDataOpcode(WorldPacket& recv_data)
+class WorldPacket;
+class WorldSession;
+
+/// Handles the client's Warden data. The server runs no Warden, so the handler drains the packet
+/// of an authenticated session and does nothing else.
+struct WardenHandlers
 {
-    recv_data.rfinish();
-}
+    public:
+        static void HandleWardenData(WorldSession& session, WorldPacket& recv_data);
+};
+
+#endif
