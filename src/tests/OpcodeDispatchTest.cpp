@@ -70,16 +70,19 @@
 /// does the CMSG_WARDEN_DATA row, of status STATUS_AUTHED. On a session with no player, the
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
-/// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
-/// query, item, NPC, quest, character, character customize, LFG, calendar, contact list, GM ticket, petition, chat channel, voice chat, chat or mail handler
-/// class /// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
-/// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
-/// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
-/// processed PROCESS_INPLACE, the CMSG_QUESTGIVER_STATUS_QUERY row, processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
-/// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE,
-/// CMSG_SET_ACTIVE_VOICE_CHANNEL, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE,
-/// CMSG_CHAR_DELETE, CMSG_CHAR_RENAME, CMSG_SET_PLAYER_DECLINED_NAMES, CMSG_CHAR_CUSTOMIZE,
-/// CMSG_REORDER_CHARACTERS and CMSG_LOAD_SCREEN rows, of status STATUS_AUTHED.
+/// Every row bound to a handler class (combat, vendor, pvp, loot, auction, trade, skill, enchant,
+/// pet, taxi, query, item, NPC, quest, character, character customize, warden, LFG, calendar,
+/// contact list, GM ticket, petition, chat channel, voice chat, chat, mail and group) holds the
+/// status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except:
+/// - processed PROCESS_INPLACE: the CMSG_ATTACKSWING, CMSG_ATTACKSTOP, CMSG_SETSHEATHED,
+///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID
+///   and CMSG_LOW_LEVEL_RAID_USER rows;
+/// - processed PROCESS_THREADSAFE: the six taxi rows;
+/// - of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT: the CMSG_CANCEL_TRADE row;
+/// - of status STATUS_AUTHED: the CMSG_VOICE_SESSION_ENABLE, CMSG_SET_ACTIVE_VOICE_CHANNEL,
+///   CMSG_WARDEN_DATA, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE, CMSG_CHAR_DELETE,
+///   CMSG_CHAR_RENAME, CMSG_SET_PLAYER_DECLINED_NAMES, CMSG_CHAR_CUSTOMIZE, CMSG_REORDER_CHARACTERS,
+///   CMSG_LOAD_SCREEN and CMSG_OPT_OUT_OF_LOOT rows.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -114,6 +117,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "session/handlers/social/ContactHandlers.h"
+#include "session/handlers/social/GroupHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
 #include "session/handlers/social/MailHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
@@ -2229,4 +2233,119 @@ TEST(OpcodeDispatch_CharacterCustomizeRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_SET_CURRENCY_FLAGS].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_LOAD_SCREEN].status, STATUS_AUTHED);
     CHECK_EQ(opcodeTable[CMSG_LOAD_SCREEN].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_GroupRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_GROUP_INVITE].handler == &OpcodeThunk<&GroupHandlers::HandleGroupInvite>);
+    CHECK(opcodeTable[CMSG_GROUP_INVITE_RESPONSE].handler == &OpcodeThunk<&GroupHandlers::HandleGroupInviteResponse>);
+    CHECK(opcodeTable[CMSG_GROUP_UNINVITE_GUID].handler == &OpcodeThunk<&GroupHandlers::HandleGroupUninviteGuid>);
+    CHECK(opcodeTable[CMSG_GROUP_SET_LEADER].handler == &OpcodeThunk<&GroupHandlers::HandleGroupSetLeader>);
+    CHECK(opcodeTable[CMSG_GROUP_DISBAND].handler == &OpcodeThunk<&GroupHandlers::HandleGroupDisband>);
+    CHECK(opcodeTable[CMSG_LOOT_METHOD].handler == &OpcodeThunk<&GroupHandlers::HandleLootMethod>);
+    CHECK(opcodeTable[CMSG_LOOT_ROLL].handler == &OpcodeThunk<&GroupHandlers::HandleLootRoll>);
+    CHECK(opcodeTable[MSG_MINIMAP_PING].handler == &OpcodeThunk<&GroupHandlers::HandleMinimapPing>);
+    CHECK(opcodeTable[MSG_RANDOM_ROLL].handler == &OpcodeThunk<&GroupHandlers::HandleRandomRoll>);
+    CHECK(opcodeTable[MSG_RAID_TARGET_UPDATE].handler == &OpcodeThunk<&GroupHandlers::HandleRaidTargetUpdate>);
+    CHECK(opcodeTable[CMSG_GROUP_RAID_CONVERT].handler == &OpcodeThunk<&GroupHandlers::HandleGroupRaidConvert>);
+    CHECK(opcodeTable[CMSG_SET_ROLE].handler == &OpcodeThunk<&GroupHandlers::HandleSetRole>);
+    CHECK(opcodeTable[CMSG_ROLE_POLL_BEGIN].handler == &OpcodeThunk<&GroupHandlers::HandleRolePollBegin>);
+    CHECK(opcodeTable[CMSG_SET_EVERYONE_IS_ASSISTANT].handler == &OpcodeThunk<&GroupHandlers::HandleSetEveryoneIsAssistant>);
+    CHECK(opcodeTable[CMSG_CLEAR_RAID_MARKER].handler == &OpcodeThunk<&GroupHandlers::HandleClearRaidMarker>);
+    CHECK(opcodeTable[CMSG_GROUP_CHANGE_SUB_GROUP].handler == &OpcodeThunk<&GroupHandlers::HandleGroupChangeSubGroup>);
+    CHECK(opcodeTable[CMSG_GROUP_ASSISTANT_LEADER].handler == &OpcodeThunk<&GroupHandlers::HandleGroupAssistantLeader>);
+    CHECK(opcodeTable[MSG_PARTY_ASSIGNMENT].handler == &OpcodeThunk<&GroupHandlers::HandlePartyAssignment>);
+    CHECK(opcodeTable[MSG_RAID_READY_CHECK].handler == &OpcodeThunk<&GroupHandlers::HandleRaidReadyCheck>);
+    CHECK(opcodeTable[MSG_RAID_READY_CHECK_FINISHED].handler == &OpcodeThunk<&GroupHandlers::HandleRaidReadyCheckFinished>);
+    CHECK(opcodeTable[CMSG_REQUEST_PARTY_MEMBER_STATS].handler == &OpcodeThunk<&GroupHandlers::HandleRequestPartyMemberStats>);
+    CHECK(opcodeTable[CMSG_REQUEST_RAID_INFO].handler == &OpcodeThunk<&GroupHandlers::HandleRequestRaidInfo>);
+    CHECK(opcodeTable[CMSG_OPT_OUT_OF_LOOT].handler == &OpcodeThunk<&GroupHandlers::HandleOptOutOfLoot>);
+    CHECK(opcodeTable[CMSG_LOW_LEVEL_RAID].handler == &OpcodeThunk<&GroupHandlers::HandleSetAllowLowLevelRaid>);
+    CHECK(opcodeTable[CMSG_LOW_LEVEL_RAID_USER].handler == &OpcodeThunk<&GroupHandlers::HandleSetAllowLowLevelRaid>);
+    CHECK(opcodeTable[CMSG_GROUP_REQUEST_JOIN_UPDATES].handler == &OpcodeThunk<&GroupHandlers::HandleGroupRequestJoinUpdates>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupInvite>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupInviteResponse>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupUninviteGuid>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupSetLeader>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupDisband>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleLootMethod>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleLootRoll>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleMinimapPing>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRandomRoll>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRaidTargetUpdate>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupRaidConvert>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleSetRole>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRolePollBegin>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleSetEveryoneIsAssistant>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleClearRaidMarker>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupChangeSubGroup>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupAssistantLeader>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandlePartyAssignment>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRaidReadyCheck>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRaidReadyCheckFinished>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRequestPartyMemberStats>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleRequestRaidInfo>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleOptOutOfLoot>), 1);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleSetAllowLowLevelRaid>), 2);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&GroupHandlers::HandleGroupRequestJoinUpdates>), 1);
+}
+
+TEST(OpcodeDispatch_GroupRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_GROUP_INVITE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_INVITE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_INVITE_RESPONSE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_INVITE_RESPONSE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_UNINVITE_GUID].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_UNINVITE_GUID].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_SET_LEADER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_SET_LEADER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_DISBAND].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_DISBAND].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_METHOD].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_METHOD].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_ROLL].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_ROLL].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_MINIMAP_PING].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_MINIMAP_PING].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_RANDOM_ROLL].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_RANDOM_ROLL].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_RAID_TARGET_UPDATE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_RAID_TARGET_UPDATE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_RAID_CONVERT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_RAID_CONVERT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_ROLE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_ROLE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ROLE_POLL_BEGIN].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ROLE_POLL_BEGIN].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_EVERYONE_IS_ASSISTANT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_EVERYONE_IS_ASSISTANT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CLEAR_RAID_MARKER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CLEAR_RAID_MARKER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_CHANGE_SUB_GROUP].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_CHANGE_SUB_GROUP].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_ASSISTANT_LEADER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_ASSISTANT_LEADER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_PARTY_ASSIGNMENT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_PARTY_ASSIGNMENT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_RAID_READY_CHECK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_RAID_READY_CHECK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_RAID_READY_CHECK_FINISHED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_RAID_READY_CHECK_FINISHED].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_PARTY_MEMBER_STATS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_PARTY_MEMBER_STATS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_RAID_INFO].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_RAID_INFO].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_OPT_OUT_OF_LOOT].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_OPT_OUT_OF_LOOT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOW_LEVEL_RAID].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOW_LEVEL_RAID].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_LOW_LEVEL_RAID_USER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOW_LEVEL_RAID_USER].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_REQUEST_JOIN_UPDATES].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GROUP_REQUEST_JOIN_UPDATES].packetProcessing, PROCESS_THREADUNSAFE);
 }
