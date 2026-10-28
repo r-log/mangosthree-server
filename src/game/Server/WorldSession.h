@@ -687,7 +687,6 @@ class WorldSession
         void Handle_ServerSide(WorldPacket& recvPacket);    // sever side only, can't be accepted from client
         void Handle_Deprecated(WorldPacket& recvPacket);    // never used anymore by client
 
-        void HandleCharEnumOpcode(WorldPacket& recvPacket);
         void HandlePlayerLoginOpcode(WorldPacket& recvPacket);
         void HandleCharEnum(std::vector<CharacterEnumRow> const& rows);
         void HandlePlayerLogin(LoginQueryHolder* holder);
@@ -722,20 +721,6 @@ class WorldSession
                                         WorldSession*& session, Player*& player);
 
         /// Everything CMSG_CHAR_CREATE carries, captured by value into the continuations.
-        struct CharCreateRequest
-        {
-            std::string name;
-            uint8 race = 0;
-            uint8 playerClass = 0;
-            uint8 gender = 0;
-            uint8 skin = 0;
-            uint8 face = 0;
-            uint8 hairStyle = 0;
-            uint8 hairColor = 0;
-            uint8 facialHair = 0;
-            uint8 outfitId = 0;
-        };
-
         /// Everything CMSG_CHAR_CUSTOMIZE carries beyond the character guid.
         struct CharCustomizeRequest
         {
@@ -747,23 +732,6 @@ class WorldSession
             uint8 hairColor = 0;
             uint8 facialHair = 0;
         };
-
-        void HandleCharCreateOpcode(WorldPacket& recvPacket);
-        static uint8 CharCreateChecksInMemory(WorldSession* session, CharCreateRequest& request);
-        static void QueueCharCreateAccountRead(uint32 accountId, proto::SessionId sessionId,
-                                               CharCreateRequest request);
-        static void HandleCharCreateAccountCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
-                                                    proto::SessionId sessionId, CharCreateRequest request);
-        static void QueueCharCreateRealmReads(uint32 accountId, proto::SessionId sessionId,
-                                              CharCreateRequest request);
-        static void HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
-                                             proto::SessionId sessionId, CharCreateRequest request);
-
-        void HandleCharDeleteOpcode(WorldPacket& recvPacket);
-        static void QueueCharDeleteReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid);
-        static void HandleCharDeleteCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
-                                             proto::SessionId sessionId, ObjectGuid guid,
-                                             uint32 charDeleteMethod);
 
         // played time
         void HandlePlayedTime(WorldPacket& recvPacket);
@@ -777,8 +745,6 @@ class WorldSession
         void HandleMountSpecialAnimOpcode(WorldPacket& recvdata);
 
         // character view
-        void HandleShowingHelmOpcode(WorldPacket& recv_data);
-        void HandleShowingCloakOpcode(WorldPacket& recv_data);
 
         // repair
 
@@ -805,10 +771,6 @@ class WorldSession
         void HandleBugOpcode(WorldPacket& recvPacket);
 
         void HandleAreaTriggerOpcode(WorldPacket& recvPacket);
-
-        void HandleSetFactionAtWarOpcode(WorldPacket& recv_data);
-        void HandleSetWatchedFactionOpcode(WorldPacket& recv_data);
-        void HandleSetFactionInactiveOpcode(WorldPacket& recv_data);
 
         void HandleUpdateAccountData(WorldPacket& recvPacket);
         void HandleRequestAccountData(WorldPacket& recvPacket);
@@ -913,10 +875,6 @@ class WorldSession
 
         void HandleCompleteCinematic(WorldPacket& recvPacket);
         void HandleNextCinematicCamera(WorldPacket& recvPacket);
-
-        void HandleTutorialFlagOpcode(WorldPacket& recv_data);
-        void HandleTutorialClearOpcode(WorldPacket& recv_data);
-        void HandleTutorialResetOpcode(WorldPacket& recv_data);
 
         // Pet
         void HandlePetCancelAuraOpcode(WorldPacket& recvPacket);

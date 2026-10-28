@@ -46,6 +46,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Auth/BigNumber.h"
+#include "session/handlers/entities/CharacterHandlers.h"
 #include "session/handlers/entities/QueryHandlers.h"
 
 #include <string>
@@ -285,7 +286,7 @@ TEST(RequesterSession_CharacterListGoesOnlyToTheSessionThatAsked)
 
     // The session that asked is listed when the answer (no rows) comes: it is sent its list, empty.
     WorldPacket first = CharEnumRequest();
-    requester.session.HandleCharEnumOpcode(first);
+    CharacterHandlers::HandleCharEnum(requester.session, first);
     CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(1));
     AnswerWithListed(requester.session);
     REQUIRE(async.executed.size() == 1);
@@ -299,7 +300,7 @@ TEST(RequesterSession_CharacterListGoesOnlyToTheSessionThatAsked)
     async.Answer("SELECT `characters`.`guid`", FakeRows{FakeRow{"42", "Testchar", "1", "1", "0", "0", "0", "1",
                                                                 "12", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "", "0"}});
     WorldPacket second = CharEnumRequest();
-    requester.session.HandleCharEnumOpcode(second);
+    CharacterHandlers::HandleCharEnum(requester.session, second);
     CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(1));
     CharacterDatabase.ExecuteQueuedForTest();
     CHECK_EQ(async.executed.size(), size_t(2));

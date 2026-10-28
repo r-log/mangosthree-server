@@ -39,6 +39,7 @@ One stateless class per origin file, in its domain's directory or, for the reque
 | `handlers/economy/` | `LootHandlers` | the client's loot window open and close, item and currency taking, money taking and the master looter's give |
 | `handlers/economy/` | `TradeHandlers` | the client's trade request and window open, the ignored and busy notices, the offer's gold, item and item clearing, accept, unaccept and cancel |
 | `handlers/economy/` | `VendorHandlers` | the client's vendor sell, buyback, buy and inventory list, bag auto-store, bank slot purchase and bank auto-store |
+| `handlers/entities/` | `CharacterHandlers` | the client's character list, character creation and deletion, a faction set at war, watched or inactive, the tutorial flags and the helm and cloak shown or hidden; the list, the create and the delete answer a tick or two later, through continuations |
 | `handlers/entities/` | `EnchantHandlers` | the client's gift wrapping of an item, gem socketing and the cancelling of a temporary enchantment |
 | `handlers/entities/` | `ItemHandlers` | the client's stack split, item swaps, equipping to a slot or to where an item fits, destroying, reading, refund purchase data, item text and reforging |
 | `handlers/entities/` | `NpcHandlers` | the client's tabard vendor, banker, trainer list and spell purchase, gossip and its options, spirit healer, innkeeper's binding, stable list and pet moves, and repairs |
