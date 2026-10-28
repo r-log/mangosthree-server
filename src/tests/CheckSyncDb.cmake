@@ -203,6 +203,7 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/PetHandler.cpp
     src/game/WorldHandlers/MiscHandler.cpp
     src/game/session/handlers/maps/MapHandlers.cpp
+    src/game/session/handlers/entities/DeathHandlers.cpp
     src/game/entities/player/social/SocialMgr.cpp
     src/game/Object/GMTicketMgr.cpp
     src/game/Object/AuctionHouseMgr.cpp

@@ -743,7 +743,6 @@ class WorldSession
 
         void HandlePingOpcode(WorldPacket& recvPacket);
         void HandleKeepAliveOpcode(WorldPacket& recvPacket);
-        void HandleRepopRequestOpcode(WorldPacket& recvPacket);
         void HandleWhoOpcode(WorldPacket& recvPacket);
         void HandleLogoutRequestOpcode(WorldPacket& recvPacket);
         void HandleLogoutCancelOpcode(WorldPacket& recvPacket);
@@ -803,9 +802,6 @@ class WorldSession
         void SendPlayerNotFoundNotice(const std::string& name);
         void SendWrongFactionNotice();
 
-        void HandleReclaimCorpseOpcode(WorldPacket& recvPacket);
-        void HandleResurrectResponseOpcode(WorldPacket& recvPacket);
-        void HandleReturnToGraveyard(WorldPacket& recvPacket);
         void HandleSummonResponseOpcode(WorldPacket& recv_data);
 
         void HandleCompleteCinematic(WorldPacket& recvPacket);
@@ -832,7 +828,6 @@ class WorldSession
         /// it and it is a continuation instead.
         static void HandleWhoisCallback(std::optional<WhoisRow> const& row, uint32 accountId,
                                         proto::SessionId sessionId, std::string charname);
-        void HandleHearthandResurrect(WorldPacket& recv_data);
 
         void HandleCancelMountAuraOpcode(WorldPacket& recv_data);
         void HandleSelfResOpcode(WorldPacket& recv_data);

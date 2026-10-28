@@ -68,39 +68,6 @@
 #include "persistence/characters/social/TicketRepository.h"
 #include "persistence/login/AccountRepository.h"
 
-void WorldSession::HandleRepopRequestOpcode(WorldPacket& recv_data)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_REPOP_REQUEST");
-
-    recv_data.read_skip<uint8>();
-
-    if (GetPlayer()->IsAlive() || GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
-    {
-        return;
-    }
-
-    if (GetPlayer()->HasAuraType(SPELL_AURA_PREVENT_RESURRECTION))
-    {
-        return;
-    }
-
-    // the world update order is sessions, players, creatures
-    // the netcode runs in parallel with all of these
-    // creatures can kill players
-    // so if the server is lagging enough the player can
-    // release spirit after he's killed but before he is updated
-    if (GetPlayer()->GetDeathState() == JUST_DIED)
-    {
-        DEBUG_LOG("HandleRepopRequestOpcode: got request after player %s(%d) was killed and before he was updated", GetPlayer()->GetName(), GetPlayer()->GetGUIDLow());
-        GetPlayer()->KillPlayer();
-    }
-
-    // this is spirit release confirm?
-    GetPlayer()->RemovePet(PET_SAVE_REAGENTS);
-    GetPlayer()->BuildPlayerRepop();
-    GetPlayer()->RepopAtGraveyard();
-}
-
 /**
  * @brief Handles a /who query and sends matching player results.
  *
@@ -546,136 +513,6 @@ void WorldSession::HandleBugOpcode(WorldPacket& recv_data)
 
     // Both strings are bound: any player may send this packet.
     TicketRepository::InsertBugReport(type, content);
-}
-
-/**
- * @brief Attempts to reclaim the player's corpse.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleReclaimCorpseOpcode(WorldPacket& recv_data)
-{
-    DETAIL_LOG("WORLD: Received opcode CMSG_RECLAIM_CORPSE");
-
-    ObjectGuid guid;
-    recv_data >> guid;
-
-    if (GetPlayer()->IsAlive())
-    {
-        return;
-    }
-
-    // do not allow corpse reclaim in arena
-    if (GetPlayer()->InArena())
-    {
-        return;
-    }
-
-    // body not released yet
-    if (!GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
-    {
-        return;
-    }
-
-    Corpse* corpse = GetPlayer()->GetCorpse();
-
-    if (!corpse)
-    {
-        return;
-    }
-
-    // prevent resurrect before 30-sec delay after body release not finished
-    if (corpse->GetGhostTime() + GetPlayer()->GetCorpseReclaimDelay(corpse->GetType() == CORPSE_RESURRECTABLE_PVP) > time(NULL))
-    {
-        return;
-    }
-
-    if (!InReach(*corpse, *(GetPlayer()), CORPSE_RECLAIM_RADIUS, true))
-    {
-        return;
-    }
-
-    // resurrect
-    GetPlayer()->ResurrectPlayer(GetPlayer()->InBattleGround() ? 1.0f : 0.5f);
-
-    // spawn bones
-    GetPlayer()->SpawnCorpseBones();
-}
-
-/**
- * @brief Accepts or rejects a pending resurrection request.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleResurrectResponseOpcode(WorldPacket& recv_data)
-{
-    DETAIL_LOG("WORLD: Received opcode CMSG_RESURRECT_RESPONSE");
-
-    ObjectGuid guid;
-    uint8 status;
-    recv_data >> guid;
-    recv_data >> status;
-
-    if (GetPlayer()->IsAlive())
-    {
-        return;
-    }
-
-    if (status == 0)
-    {
-        GetPlayer()->clearResurrectRequestData();           // reject
-        return;
-    }
-
-    if (!GetPlayer()->isRessurectRequestedBy(guid))
-    {
-        return;
-    }
-
-    GetPlayer()->ResurectUsingRequestData();                // will call spawncorpsebones
-}
-
-void WorldSession::HandleReturnToGraveyard(WorldPacket& /*recvPacket*/)
-{
-    Player* pPlayer = GetPlayer();
-    if (pPlayer->IsAlive() || !pPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
-    {
-        return;
-    }
-
-    WorldSafeLocsEntry const* ClosestGrave = NULL;
-
-    // Special handle for battleground maps
-    if (BattleGround* bg = pPlayer->GetBattleGround())
-    {
-        ClosestGrave = bg->GetClosestGraveYard(pPlayer);
-    }
-    else
-    {
-        ClosestGrave = sObjectMgr.GetClosestGraveYard(pPlayer->GetCorpse()->Where().X(), pPlayer->GetCorpse()->Where().Y(), pPlayer->GetCorpse()->Where().Z(), pPlayer->GetCorpse()->GetMapId(), pPlayer->GetTeam());
-    }
-
-    // if no grave found, stay at the current location
-    // and don't show spirit healer location
-    if (ClosestGrave)
-    {
-        bool updateVisibility = pPlayer->IsInWorld() && pPlayer->GetCorpse()->GetMapId() == ClosestGrave->Continent;
-        pPlayer->TeleportTo(ClosestGrave->Continent, ClosestGrave->Loc_0, ClosestGrave->Loc_1, ClosestGrave->Loc_2, pPlayer->Where().Facing());
-        if (pPlayer->IsDead())                                       // not send if alive, because it used in TeleportTo()
-        {
-            WorldPacket data(SMSG_DEATH_RELEASE_LOC, 4 * 4);// show spirit healer position on minimap
-            data << ClosestGrave->Continent;
-            data << ClosestGrave->Loc_0;
-            data << ClosestGrave->Loc_1;
-            data << ClosestGrave->Loc_2;
-            pPlayer->GetSession()->SendPacket(&data);
-        }
-
-        if (updateVisibility && pPlayer->IsInWorld())
-        {
-            pPlayer->UpdateVisibilityAndView();
-        }
-    }
 }
 
 /**
@@ -1538,28 +1375,6 @@ void WorldSession::HandleReadyForAccountDataTimesOpcode(WorldPacket& /*recv_data
     DEBUG_LOG("WORLD: Received opcode CMSG_READY_FOR_ACCOUNT_DATA_TIMES");
 
     SendAccountDataTimes(GLOBAL_CACHE_MASK);
-}
-
-void WorldSession::HandleHearthandResurrect(WorldPacket& /*recv_data*/)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_HEARTH_AND_RESURRECT");
-
-    AreaTableEntry const* atEntry = sAreaStore.LookupEntry(_player->GetTerrain()->GetAreaId(_player->Where().X(), _player->Where().Y(), _player->Where().Z()));
-    if (!atEntry || !(atEntry->Flags & AREA_FLAG_CAN_HEARTH_AND_RES))
-    {
-        return;
-    }
-
-    // Can't use in flight
-    if (_player->IsTaxiFlying())
-    {
-        return;
-    }
-
-    // Send Everytime
-    _player->BuildPlayerRepop();
-    _player->ResurrectPlayer(100);
-    _player->TeleportToHomebind();
 }
 
 void WorldSession::HandleRequestHotfix(WorldPacket& recv_data)
