@@ -66,9 +66,10 @@
 /// The CMSG_OFFER_PETITION row reads an offer of an empty petition guid to an empty player guid to
 /// its end and, the guid naming no player online, returns before it reads the player, sending
 /// nothing. The CMSG_VOICE_SESSION_ENABLE, CMSG_CHANNEL_VOICE_ON and CMSG_SET_ACTIVE_VOICE_CHANNEL
-/// rows, on a session with no player, each read their packet to its end and send nothing. Every row
-/// bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, LFG, contact list,
-/// GM ticket, petition, chat channel or voice chat handler class holds the status STATUS_LOGGEDIN
+/// rows, on a session with no player, each read their packet to its end and send nothing, and so
+/// does the CMSG_WARDEN_DATA row, of status STATUS_AUTHED. Every row bound to the combat, vendor,
+/// pvp, loot, auction, trade, skill, enchant, pet, LFG, contact list, GM ticket, petition, chat
+/// channel or voice chat handler class holds the status STATUS_LOGGEDIN
 /// and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
 /// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE and
@@ -83,6 +84,7 @@
 #include "GMTicketMgr.h"
 #include "Auth/BigNumber.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/connection/WardenHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/TradeHandlers.h"
@@ -1678,4 +1680,33 @@ TEST(OpcodeDispatch_VoiceChatRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_CHANNEL_VOICE_ON].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_SET_ACTIVE_VOICE_CHANNEL].status, STATUS_AUTHED);
     CHECK_EQ(opcodeTable[CMSG_SET_ACTIVE_VOICE_CHANNEL].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_WardenRowDrainsItsPacketAndSendsNothing)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket warden(CMSG_WARDEN_DATA, 9);
+    warden << uint8(2);
+    warden << uint32(0x01020304);
+    warden << uint32(0x05060708);
+    opcodeTable[CMSG_WARDEN_DATA].handler(session, warden);
+    CHECK_EQ(warden.rpos(), size_t(9));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_WardenRowHoldsItsHandlersThunk)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_WARDEN_DATA].handler == &OpcodeThunk<&WardenHandlers::HandleWardenData>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&WardenHandlers::HandleWardenData>), 1);
+    CHECK_EQ(opcodeTable[CMSG_WARDEN_DATA].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_WARDEN_DATA].packetProcessing, PROCESS_THREADUNSAFE);
 }

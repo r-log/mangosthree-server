@@ -42,6 +42,7 @@
 #include "OpcodeTable.h"
 #include "WorldSession.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/connection/WardenHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/TradeHandlers.h"
@@ -900,7 +901,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_AREA_SPIRIT_HEALER_TIME,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_GM_UNTEACH,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_WARDEN_DATA,                               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_WARDEN_DATA,                               STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleWardenDataOpcode          );
+    OPCODE(CMSG_WARDEN_DATA,                               STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WardenHandlers::HandleWardenData              );
     OPCODE(CMSG_BATTLEGROUND_PLAYER_POSITIONS,           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleBattleGroundPlayerPositions);
     OPCODE(SMSG_BATTLEGROUND_PLAYER_POSITIONS,           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_PET_STOP_ATTACK,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetStopAttack              );

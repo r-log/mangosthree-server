@@ -5,10 +5,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(DormantWardenBoundary)
 
 set(OPCODE_TABLE "${SOURCE_ROOT}/src/game/Server/OpcodeTable.cpp")
-set(SESSION_HEADER "${SOURCE_ROOT}/src/game/Server/WorldSession.h")
-set(HANDLER_SOURCE "${SOURCE_ROOT}/src/game/WorldHandlers/WardenHandler.cpp")
+set(HANDLER_HEADER "${SOURCE_ROOT}/src/game/session/handlers/connection/WardenHandlers.h")
+set(HANDLER_SOURCE "${SOURCE_ROOT}/src/game/session/handlers/connection/WardenHandlers.cpp")
 
-foreach(REQUIRED_PATH OPCODE_TABLE SESSION_HEADER HANDLER_SOURCE)
+foreach(REQUIRED_PATH OPCODE_TABLE HANDLER_HEADER HANDLER_SOURCE)
     if(NOT EXISTS "${${REQUIRED_PATH}}")
         message(FATAL_ERROR
             "Dormant Warden boundary artifact is missing: ${${REQUIRED_PATH}}")
@@ -25,7 +25,7 @@ foreach(LINE IN LISTS OPCODE_LINES)
 
     string(REGEX REPLACE "[ \t]" "" COMPACT_LINE "${LINE}")
     if(COMPACT_LINE STREQUAL
-        "OPCODE(CMSG_WARDEN_DATA,STATUS_AUTHED,PROCESS_THREADUNSAFE,&WorldSession::HandleWardenDataOpcode);")
+        "OPCODE(CMSG_WARDEN_DATA,STATUS_AUTHED,PROCESS_THREADUNSAFE,&WardenHandlers::HandleWardenData);")
         math(EXPR CMSG_COUNT "${CMSG_COUNT} + 1")
     elseif(COMPACT_LINE STREQUAL
         "OPCODE(SMSG_WARDEN_DATA,STATUS_NEVER,PROCESS_INPLACE,&WorldSession::Handle_ServerSide);")
@@ -42,19 +42,19 @@ if(NOT SMSG_COUNT EQUAL 1)
         "SMSG_WARDEN_DATA must have one dormant server-side registration")
 endif()
 
-file(READ "${SESSION_HEADER}" SESSION_TEXT)
-string(FIND "${SESSION_TEXT}"
-    "void HandleWardenDataOpcode(WorldPacket& recv_data);"
-    SESSION_DECLARATION_POSITION)
-if(SESSION_DECLARATION_POSITION EQUAL -1)
+file(READ "${HANDLER_HEADER}" HEADER_TEXT)
+string(FIND "${HEADER_TEXT}"
+    "static void HandleWardenData(WorldSession& session, WorldPacket& recv_data);"
+    HEADER_DECLARATION_POSITION)
+if(HEADER_DECLARATION_POSITION EQUAL -1)
     message(FATAL_ERROR
-        "WorldSession must declare the Warden drain handler")
+        "WardenHandlers must declare the Warden drain handler")
 endif()
 
 file(READ "${HANDLER_SOURCE}" HANDLER_TEXT)
 
 string(REGEX MATCH
-    "void[ \t\r\n]*WorldSession::HandleWardenDataOpcode[^{]*{([^}]*)}"
+    "void[ \t\r\n]*WardenHandlers::HandleWardenData[^{]*{([^}]*)}"
     UNUSED "${HANDLER_TEXT}")
 set(HANDLER_BODY "${CMAKE_MATCH_1}")
 string(REGEX REPLACE "[ \t\r\n]" "" HANDLER_BODY "${HANDLER_BODY}")

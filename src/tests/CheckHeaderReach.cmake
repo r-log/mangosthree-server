@@ -88,6 +88,7 @@ set(REACH_RULES
     "data/CreatureRecords.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Object/Object.h,Object/Creature.h,WorldHandlers/Map.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/ScriptHooks.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "session/handlers/combat/CombatHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
+    "session/handlers/connection/WardenHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/economy/AuctionHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h,Object/AuctionHouseMgr.h"
     "session/handlers/economy/LootHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/economy/TradeHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
