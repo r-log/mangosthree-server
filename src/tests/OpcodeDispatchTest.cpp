@@ -71,7 +71,7 @@
 /// CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows, given an entry no template has, answer with
 /// that entry, its high bit set, and the CMSG_CORPSE_TRANSPORT_QUERY row with four zero floats.
 /// Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, taxi,
-/// query, LFG, contact list, GM ticket, petition, chat channel, voice chat or chat handler class
+/// query, item, LFG, contact list, GM ticket, petition, chat channel, voice chat or chat handler class
 /// holds the status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the
 /// CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the six
 /// taxi rows, processed PROCESS_THREADSAFE, the CMSG_CREATURE_QUERY and CMSG_GAMEOBJECT_QUERY rows,
@@ -94,6 +94,7 @@
 #include "session/handlers/economy/TradeHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/entities/EnchantHandlers.h"
+#include "session/handlers/entities/ItemHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/QueryHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
@@ -1876,6 +1877,45 @@ TEST(OpcodeDispatch_QueryRowsKeepTheirStatusAndProcessing)
 
     OpcodesList const rows[] = { CMSG_QUERY_TIME, MSG_CORPSE_QUERY, CMSG_NPC_TEXT_QUERY, CMSG_PAGE_TEXT_QUERY,
                                  CMSG_CORPSE_TRANSPORT_QUERY, CMSG_QUERY_GET_ALL_QUESTS, CMSG_QUEST_POI_QUERY };
+    for (OpcodesList row : rows)
+    {
+        CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
+        CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADUNSAFE);
+    }
+}
+
+TEST(OpcodeDispatch_ItemRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_SPLIT_ITEM].handler == &OpcodeThunk<&ItemHandlers::HandleSplitItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleSplitItem>), 1);
+    CHECK(opcodeTable[CMSG_SWAP_INV_ITEM].handler == &OpcodeThunk<&ItemHandlers::HandleSwapInvItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleSwapInvItem>), 1);
+    CHECK(opcodeTable[CMSG_AUTOEQUIP_ITEM_SLOT].handler == &OpcodeThunk<&ItemHandlers::HandleAutoEquipItemSlot>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleAutoEquipItemSlot>), 1);
+    CHECK(opcodeTable[CMSG_SWAP_ITEM].handler == &OpcodeThunk<&ItemHandlers::HandleSwapItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleSwapItem>), 1);
+    CHECK(opcodeTable[CMSG_AUTOEQUIP_ITEM].handler == &OpcodeThunk<&ItemHandlers::HandleAutoEquipItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleAutoEquipItem>), 1);
+    CHECK(opcodeTable[CMSG_DESTROYITEM].handler == &OpcodeThunk<&ItemHandlers::HandleDestroyItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleDestroyItem>), 1);
+    CHECK(opcodeTable[CMSG_READ_ITEM].handler == &OpcodeThunk<&ItemHandlers::HandleReadItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleReadItem>), 1);
+    CHECK(opcodeTable[CMSG_GET_ITEM_PURCHASE_DATA].handler == &OpcodeThunk<&ItemHandlers::HandleItemRefundInfoRequest>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleItemRefundInfoRequest>), 1);
+    CHECK(opcodeTable[CMSG_ITEM_TEXT_QUERY].handler == &OpcodeThunk<&ItemHandlers::HandleItemTextQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleItemTextQuery>), 1);
+    CHECK(opcodeTable[CMSG_REFORGE_ITEM].handler == &OpcodeThunk<&ItemHandlers::HandleReforgeItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ItemHandlers::HandleReforgeItem>), 1);
+}
+
+TEST(OpcodeDispatch_ItemRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    OpcodesList const rows[] = { CMSG_SPLIT_ITEM, CMSG_SWAP_INV_ITEM, CMSG_AUTOEQUIP_ITEM_SLOT, CMSG_SWAP_ITEM, CMSG_AUTOEQUIP_ITEM,
+                                 CMSG_DESTROYITEM, CMSG_READ_ITEM, CMSG_GET_ITEM_PURCHASE_DATA, CMSG_ITEM_TEXT_QUERY, CMSG_REFORGE_ITEM };
     for (OpcodesList row : rows)
     {
         CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
