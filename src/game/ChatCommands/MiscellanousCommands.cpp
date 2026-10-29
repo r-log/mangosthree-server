@@ -36,6 +36,7 @@
 #include <string>
 #include "Chat.h"
 #include "ObjectMgr.h"
+#include "ScriptMgr.h"
 #include "Language.h"
 #include "World.h"
 #include "BattleGroundMgr.h"

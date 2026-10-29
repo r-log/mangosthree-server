@@ -45,12 +45,14 @@
 #include "Player.h"
 #include "session/packets/chat/MessageChatPacket.h"
 #include "MapManager.h"
+#include "Map.h"
 #include "CreatureEventAIMgr.h"
 #include "BattleGroundMgr.h"
 #include "SkillExtraItems.h"
 #include "SkillDiscovery.h"
 #include "ItemEnchantmentMgr.h"
 #include "CommandMgr.h"
+#include "ScriptMgr.h"
 #include "ObjectMgr.h"
 #include "persistence/TableRead.h"
 
@@ -217,7 +219,7 @@ bool ChatHandler::HandleReloadAllQuestCommand(char* /*args*/)
  */
 bool ChatHandler::HandleReloadAllScriptsCommand(char* /*args*/)
 {
-    if (sScriptMgr.IsScriptScheduled())
+    if (Map::IsScriptScheduled())
     {
         PSendSysMessage("DB scripts used currently, please attempt reload later.");
         SetSentErrorMessage(true);
@@ -1232,7 +1234,7 @@ bool ChatHandler::HandleReloadDbScriptStringCommand(char* /*args*/)
  */
 bool ChatHandler::HandleReloadDBScriptsOnGossipCommand(char* args)
 {
-    if (sScriptMgr.IsScriptScheduled())
+    if (Map::IsScriptScheduled())
     {
         SendSysMessage("DB scripts used currently, please attempt reload later.");
         SetSentErrorMessage(true);
@@ -1262,7 +1264,7 @@ bool ChatHandler::HandleReloadDBScriptsOnGossipCommand(char* args)
  */
 bool ChatHandler::HandleReloadDBScriptsOnSpellCommand(char* args)
 {
-    if (sScriptMgr.IsScriptScheduled())
+    if (Map::IsScriptScheduled())
     {
         SendSysMessage("DB scripts used currently, please attempt reload later.");
         SetSentErrorMessage(true);
@@ -1292,7 +1294,7 @@ bool ChatHandler::HandleReloadDBScriptsOnSpellCommand(char* args)
 // */
 //bool ChatHandler::HandleReloadDBScriptsOnCreatureSpellCommand(char* args)
 //{
-//    if (sScriptMgr.IsScriptScheduled())
+//    if (Map::IsScriptScheduled())
 //    {
 //        SendSysMessage("DB scripts used currently, please attempt reload later.");
 //        SetSentErrorMessage(true);
@@ -1322,7 +1324,7 @@ bool ChatHandler::HandleReloadDBScriptsOnSpellCommand(char* args)
  */
 bool ChatHandler::HandleReloadDBScriptsOnQuestStartCommand(char* args)
 {
-    if (sScriptMgr.IsScriptScheduled())
+    if (Map::IsScriptScheduled())
     {
         SendSysMessage("DB scripts used currently, please attempt reload later.");
         SetSentErrorMessage(true);
@@ -1352,7 +1354,7 @@ bool ChatHandler::HandleReloadDBScriptsOnQuestStartCommand(char* args)
  */
 bool ChatHandler::HandleReloadDBScriptsOnQuestEndCommand(char* args)
 {
-    if (sScriptMgr.IsScriptScheduled())
+    if (Map::IsScriptScheduled())
     {
         SendSysMessage("DB scripts used currently, please attempt reload later.");
         SetSentErrorMessage(true);
@@ -1382,7 +1384,7 @@ bool ChatHandler::HandleReloadDBScriptsOnQuestEndCommand(char* args)
  */
 bool ChatHandler::HandleReloadDBScriptsOnEventCommand(char* args)
 {
-    if (sScriptMgr.IsScriptScheduled())
+    if (Map::IsScriptScheduled())
     {
         SendSysMessage("DB scripts used currently, please attempt reload later.");
         SetSentErrorMessage(true);
@@ -1412,7 +1414,7 @@ bool ChatHandler::HandleReloadDBScriptsOnEventCommand(char* args)
  */
 bool ChatHandler::HandleReloadDBScriptsOnGoUseCommand(char* args)
 {
-    if (sScriptMgr.IsScriptScheduled())
+    if (Map::IsScriptScheduled())
     {
         SendSysMessage("DB scripts used currently, please attempt reload later.");
         SetSentErrorMessage(true);
@@ -1443,7 +1445,7 @@ bool ChatHandler::HandleReloadDBScriptsOnGoUseCommand(char* args)
  */
 bool ChatHandler::HandleReloadDBScriptsOnCreatureDeathCommand(char* args)
 {
-    if (sScriptMgr.IsScriptScheduled())
+    if (Map::IsScriptScheduled())
     {
         SendSysMessage("DB scripts used currently, please attempt reload later.");
         SetSentErrorMessage(true);

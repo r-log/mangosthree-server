@@ -42,6 +42,7 @@
  * including loading terrain data, spawning objects, and cleanup.
  */
 
+#include <atomic>
 #include <cmath>
 #include "Utilities/Errors.h"
 #include <algorithm>
@@ -69,7 +70,7 @@
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
 #include "LFGMgr.h"
-#include "ScriptMgr.h"
+#include "data/ScriptHooks.h"
 #include "Group.h"
 #include "MapRefManager.h"
 #include "DBCEnums.h"
@@ -82,6 +83,12 @@
 #include "LivingWorldCellEnvelope.h"
 #include "MotionMaster.h"
 #include "persistence/characters/maps/InstanceDataRepository.h"
+
+namespace
+{
+    /// The database script steps scheduled on all maps.
+    std::atomic<long> s_scheduledScripts(0);
+}
 
 /**
  * @brief Map destructor
@@ -104,7 +111,7 @@ Map::~Map()
 
     if (!m_scriptSchedule.empty())
     {
-        sScriptMgr.DecreaseScheduledScriptCount(m_scriptSchedule.size());
+        s_scheduledScripts -= long(m_scriptSchedule.size());
     }
 
     if (m_persistentState)
@@ -2895,11 +2902,11 @@ bool Map::ScriptsStart(DBScriptType type, uint32 id, Object* source, Object* tar
     ScriptChain const* s2 = &(s->second);
     for (ScriptChain::const_iterator iter = s2->begin(); iter != s2->end(); ++iter)
     {
-        ScriptAction sa(type, this, sourceGuid, targetGuid, ownerGuid, &(*iter));
+        DbScriptStep step(type, sourceGuid, targetGuid, ownerGuid, &(*iter));
 
-        m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(WorldGameTime::Get() + iter->delay), sa));
+        m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(WorldGameTime::Get() + iter->delay), step));
 
-        sScriptMgr.IncreaseScheduledScriptsCount();
+        ++s_scheduledScripts;
     }
 
     return true;
@@ -2922,11 +2929,21 @@ void Map::ScriptCommandStart(ScriptInfo const& script, uint32 delay, Object* sou
     ObjectGuid targetGuid = target ? target->GetObjectGuid() : ObjectGuid();
     ObjectGuid ownerGuid  = source->isType(TYPEMASK_ITEM) ? ((Item*)source)->GetOwnerGuid() : ObjectGuid();
 
-    ScriptAction sa(DBS_INTERNAL, this, sourceGuid, targetGuid, ownerGuid, &script);
+    DbScriptStep step(DBS_INTERNAL, sourceGuid, targetGuid, ownerGuid, &script);
 
-    m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(WorldGameTime::Get() + delay), sa));
+    m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(WorldGameTime::Get() + delay), step));
 
-    sScriptMgr.IncreaseScheduledScriptsCount();
+    ++s_scheduledScripts;
+}
+
+/**
+ * @brief Whether a database script step is scheduled on any map.
+ *
+ * @return true while a step is scheduled.
+ */
+bool Map::IsScriptScheduled()
+{
+    return s_scheduledScripts > 0;
 }
 
 /**
@@ -2944,7 +2961,7 @@ void Map::ScriptsProcess()
     // ok as multimap is a *sorted* associative container
     while (!m_scriptSchedule.empty() && (iter->first <= WorldGameTime::Get()))
     {
-        if (iter->second.HandleScriptStep())
+        if (sDbScriptHooks.RunStep(this, iter->second))
         {
             // Terminate following script steps of this script
             DBScriptType type = iter->second.GetType();
@@ -2958,7 +2975,7 @@ void Map::ScriptsProcess()
                 if (rmItr->second.IsSameScript(type, id, sourceGuid, targetGuid, ownerGuid))
                 {
                     m_scriptSchedule.erase(rmItr++);
-                    sScriptMgr.DecreaseScheduledScriptCount();
+                    --s_scheduledScripts;
                 }
                 else
                 {
@@ -2970,7 +2987,7 @@ void Map::ScriptsProcess()
         {
             m_scriptSchedule.erase(iter);
 
-            sScriptMgr.DecreaseScheduledScriptCount();
+            --s_scheduledScripts;
         }
         iter = m_scriptSchedule.begin();
     }

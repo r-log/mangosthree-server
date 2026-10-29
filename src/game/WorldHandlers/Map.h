@@ -67,7 +67,8 @@
 #include "GameSystem/GridRefManager.h"
 #include "MapRefManager.h"
 #include "Utilities/TypeList.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptHooks.h"
+#include "data/ScriptNameStore.h"
 #include "CreatureLinkingMgr.h"
 #include "DynamicCollision.h"
 
@@ -313,6 +314,9 @@ class Map : public GridRefManager<NGridType>
         };
         bool ScriptsStart(DBScriptType type, uint32 id, Object* source, Object* target, ScriptExecutionParam execParams = SCRIPT_EXEC_PARAM_NONE);
         void ScriptCommandStart(ScriptInfo const& script, uint32 delay, Object* source, Object* target);
+        /// Whether a database script step is scheduled on any map. The script reloads are refused
+        /// while one is.
+        static bool IsScriptScheduled();
 
         // must called with AddToWorld
         void AddToActive(WorldObject* obj);
@@ -556,7 +560,7 @@ class Map : public GridRefManager<NGridType>
         static_assert(std::is_same<Map::RemoveList::key_compare, ObjectGuidPointerLess>::value, "the map's remove list walks by guid (P0-D)");
         RemoveList i_objectsToRemove;
 
-        typedef std::multimap<time_t, ScriptAction> ScriptScheduleMap;
+        typedef std::multimap<time_t, DbScriptStep> ScriptScheduleMap;
         ScriptScheduleMap m_scriptSchedule;
         TeamBuffQueue m_teamBuffs;
 

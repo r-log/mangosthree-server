@@ -31,6 +31,7 @@
 #include <set>
 #include <mutex>
 #include "ScriptMgr.h"
+#include "Map.h"
 #include "Log.h"
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
@@ -53,7 +54,7 @@
  */
 void ScriptMgr::LoadScripts(DBScriptType type)
 {
-    if (IsScriptScheduled())                                // function don't must be called in time scripts use.
+    if (Map::IsScriptScheduled())                           // function don't must be called in time scripts use.
     {
         return;
     }
