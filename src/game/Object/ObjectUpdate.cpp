@@ -292,17 +292,15 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
     {
         Unit const* unit = (Unit const*)this;
 
+        status = unit->WireStatus();
         if (vessel)
         {
-            // Written into the copy the wire is built from, not stored: a crew member is
-            // not "registered" as a passenger anywhere, it is simply on her map.
-            MovementInfo& aboard = const_cast<Unit*>(unit)->m_movementInfo;
-            aboard.SetTransportData(vessel->GetObjectGuid(), unit->Where().X(),
+            // Aboard, the status carries the vessel's guid and our deck coordinates as the
+            // offset; only this copy does, so nothing names the vessel once the unit is off her.
+            status.SetTransportData(vessel->GetObjectGuid(), unit->Where().X(),
                                     unit->Where().Y(), unit->Where().Z(),
                                     unit->Where().Facing(), 0, -1);
         }
-
-        status = unit->WireStatus();
 
         hasTransport = !status.GetTransportGuid().IsEmpty();
         isSplineEnabled = unit->IsSplineEnabled();

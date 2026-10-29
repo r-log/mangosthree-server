@@ -24,15 +24,58 @@
  */
 
 #include "Unit.h"
+#include "KinematicFlags.h"
+#include "State.h"
 
-MovementInfo Unit::WireStatus() const
+namespace Movement
 {
-    return m_movementInfo;
+    uint32 FlagsFor(Motion::Kinematics const& state)
+    {
+        uint32 flags = MOVEFLAG_NONE;
+        if (state.root)            { flags |= MOVEFLAG_ROOT; }
+        if (state.canFly)          { flags |= MOVEFLAG_CAN_FLY; }
+        if (state.waterWalk)       { flags |= MOVEFLAG_WATERWALKING; }
+        if (state.featherFall)     { flags |= MOVEFLAG_SAFE_FALL; }
+        if (state.hover)           { flags |= MOVEFLAG_HOVER; }
+        if (state.gravityDisabled) { flags |= MOVEFLAG_LEVITATING; }
+        if (state.walk)            { flags |= MOVEFLAG_WALK_MODE; }
+        if (state.swim)            { flags |= MOVEFLAG_SWIMMING; }
+        return flags;
+    }
 }
 
 uint32 Unit::WireFlags() const
 {
-    return m_movementInfo.GetMovementFlags();
+    if (MotionState().GetMode() == Motion::Mode::ClientDriven)
+    {
+        return m_movementInfo.GetMovementFlags();
+    }
+    const uint32 flags = Movement::FlagsFor(MotionState().Confirmed());
+    return IsSplineEnabled() ? flags | MOVEFLAG_FORWARD : flags;
+}
+
+MovementInfo Unit::WireStatus() const
+{
+    if (MotionState().GetMode() == Motion::Mode::ClientDriven)
+    {
+        return m_movementInfo;
+    }
+
+    // A server-driven unit's word is the kernel's and its spline's; no client's pitch, fall or
+    // report goes with it. Its position, time, seat and vehicle flags are the record's.
+    MovementInfo status;
+    status.SetMovementFlags(MovementFlags(WireFlags()));
+    status.AddMovementFlags2(m_movementInfo.GetMovementFlags2());
+    Position const* pos = m_movementInfo.GetPos();
+    status.ChangePosition(pos->x, pos->y, pos->z, pos->o);
+    status.UpdateTime(m_movementInfo.GetTime());
+    if (!m_movementInfo.GetTransportGuid().IsEmpty())
+    {
+        Position const* seat = m_movementInfo.GetTransportPos();
+        status.SetTransportData(m_movementInfo.GetTransportGuid(), seat->x, seat->y, seat->z, seat->o,
+                                m_movementInfo.GetTransportTime(), m_movementInfo.GetTransportSeat());
+    }
+    return status;
 }
 
 MovementInfo const& Unit::ClientStatus() const

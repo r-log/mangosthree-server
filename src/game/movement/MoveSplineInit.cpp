@@ -29,6 +29,7 @@
 #include "packet_builder.h"
 #include "MonsterMoveStop.h"
 #include "Unit.h"
+#include "State.h"
 #include "Transports.h"
 #include "Vehicle.h"
 #include "TransportMap.h"
@@ -179,6 +180,7 @@ namespace Movement
         }
 
         unit.m_movementInfo.SetMovementFlags((MovementFlags)moveFlags);
+        unit.MotionState().Adopt(Motion::FlagChange(Motion::ChangeType::Gait, args.walk));
         move_spline.Initialize(args);
 
         WorldPacket data(SMSG_MONSTER_MOVE, 64);
