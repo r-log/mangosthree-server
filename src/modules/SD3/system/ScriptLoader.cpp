@@ -139,19 +139,6 @@ void AddSC_instance_zulaman();
 void AddSC_zulaman();
 void AddSC_boss_zuljin();
 
-void AddSC_boss_arlokk();                            // zulgurub
-void AddSC_boss_hakkar();
-void AddSC_boss_hazzarah();
-void AddSC_boss_jeklik();
-void AddSC_boss_jindo();
-void AddSC_boss_mandokir();
-void AddSC_boss_marli();
-void AddSC_boss_ouro();
-void AddSC_boss_renataki();
-void AddSC_boss_thekal();
-void AddSC_boss_venoxis();
-void AddSC_instance_zulgurub();
-
 void AddSC_alterac_mountains();
 void AddSC_arathi_highlands();
 void AddSC_blasted_lands();
@@ -305,19 +292,6 @@ void AddEasternKingdomsScripts()
     AddSC_zulaman();
     AddSC_boss_zuljin();
 
-    AddSC_boss_arlokk();                                    // zulgurub
-    AddSC_boss_hakkar();
-    AddSC_boss_hazzarah();
-    AddSC_boss_jeklik();
-    AddSC_boss_jindo();
-    AddSC_boss_mandokir();
-    AddSC_boss_marli();
-    AddSC_boss_ouro();
-    AddSC_boss_renataki();
-    AddSC_boss_thekal();
-    AddSC_boss_venoxis();
-    AddSC_instance_zulgurub();
-
     AddSC_alterac_mountains();
     AddSC_arathi_highlands();
     AddSC_blasted_lands();
@@ -397,6 +371,7 @@ void AddSC_instance_ruins_of_ahnqiraj();
 void AddSC_boss_cthun();                             // temple_of_ahnqiraj
 void AddSC_boss_fankriss();
 void AddSC_boss_huhuran();
+void AddSC_boss_ouro();
 void AddSC_bug_trio();
 void AddSC_boss_sartura();
 void AddSC_boss_skeram();
@@ -478,6 +453,7 @@ void AddKalimdorScripts()
     AddSC_boss_cthun();                                     // temple_of_ahnqiraj
     AddSC_boss_fankriss();
     AddSC_boss_huhuran();
+    AddSC_boss_ouro();
     AddSC_bug_trio();
     AddSC_boss_sartura();
     AddSC_boss_skeram();
