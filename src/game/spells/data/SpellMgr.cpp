@@ -38,6 +38,7 @@
 #include "Unit.h"
 #include "spells/handlers/SpellMgrHandlers.h"
 #include "persistence/world/spells/SpellDataRepository.h"
+#include "spells/data/SpellTables.h"
 
 /**
  * @brief Checks whether a skill line is a primary profession.
@@ -1052,42 +1053,19 @@ bool IsPositiveEffect(SpellEntry const* spellproto, SpellEffectIndex effIndex)
     switch(spellproto->GetSpellEffectIdByIndex(effIndex))
     {
         case SPELL_EFFECT_DUMMY:
-            // some explicitly required dummy effect sets
-            switch (spellproto->ID)
+            if (HasPositiveDummyEffect(spellproto->ID))
             {
-                case 28441:                                 // AB Effect 000
-                    return false;
-                case 10258:                                 // Awaken Vault Warder
-                case 18153:                                 // Kodo Kombobulator
-                case 32312:                                 // Move 1
-                case 37388:                                 // Move 2
-                case 45863:                                 // Cosmetic - Incinerate to Random Target
-                case 49634:                                 // Sergeant's Flare
-                case 54530:                                 // Opening
-                case 56099:                                 // Throw Ice
-                case 58533:                                 // Return to Stormwind
-                case 58552:                                 // Return to Orgrimmar
-                case 62105:                                 // To'kini's Blowgun
-                case 63745:                                 // Sara's Blessing
-                case 63747:                                 // Sara's Fervor
-                case 64402:                                 // Rocket Strike
-                    return true;
-                default:
-                    break;
+                return true;
+            }
+            if (HasNegativeDummyEffect(spellproto->ID))
+            {
+                return false;
             }
             break;
         case SPELL_EFFECT_SCRIPT_EFFECT:
-            // some explicitly required script effect sets
-            switch (spellproto->ID)
+            if (HasPositiveScriptEffect(spellproto->ID))
             {
-                case 42436:                                 // Drink!
-                case 42492:                                 // Cast Energized
-                case 46650:                                 // Open Brutallus Back Door
-                case 62488:                                 // Activate Construct
-                case 64503:                                 // Water
-                    return true;
-                default:
-                    break;
+                return true;
             }
             break;
             // always positive effects (check before target checks that provided non-positive result in some case for positive effects)
@@ -1109,34 +1087,15 @@ bool IsPositiveEffect(SpellEntry const* spellproto, SpellEffectIndex effIndex)
             {
                 case SPELL_AURA_DUMMY:
                 {
-                    // dummy aura can be positive or negative dependent from casted spell
-                    switch (spellproto->ID)
+                    // dummy aura can be positive or negative dependent from casted spell; some spells have unclear
+                    // target modes for selection, so their effect is positive
+                    if (HasNegativeDummyAura(spellproto->ID))
                     {
-                        case 13139:                         // net-o-matic special effect
-                        case 23182:                         // Mark of Frost
-                        case 23445:                         // evil twin
-                        case 25040:                         // Mark of Nature
-                        case 35679:                         // Protectorate Demolitionist
-                        case 37695:                         // Stanky
-                        case 38637:                         // Nether Exhaustion (red)
-                        case 38638:                         // Nether Exhaustion (green)
-                        case 38639:                         // Nether Exhaustion (blue)
-                        case 11196:                         // Recently Bandaged
-                        case 44689:                         // Relay Race Accept Hidden Debuff - DND
-                        case 58600:                         // Restricted Flight Area
-                            return false;
-                            // some spells have unclear target modes for selection, so just make effect positive
-                        case 27184:
-                        case 27190:
-                        case 27191:
-                        case 27201:
-                        case 27202:
-                        case 27203:
-                        case 47669:
-                        case 64996:                         // Reorigination
-                            return true;
-                        default:
-                            break;
+                        return false;
+                    }
+                    if (HasPositiveDummyAura(spellproto->ID))
+                    {
+                        return true;
                     }
                 }   break;
                 case SPELL_AURA_MOD_DAMAGE_DONE:            // dependent from base point sign (negative -> negative)
@@ -1213,14 +1172,7 @@ bool IsPositiveEffect(SpellEntry const* spellproto, SpellEffectIndex effIndex)
                     }
                     break;
                 case SPELL_AURA_MOD_PACIFY_SILENCE:
-                    switch (spellproto->ID)
-                    {
-                        case 24740:                         // Wisp Costume
-                        case 47585:                         // Dispersion
-                            return true;
-                        default: break;
-                    }
-                    return false;
+                    return HasPositivePacifySilenceAura(spellproto->ID);
                 case SPELL_AURA_MOD_ROOT:
                 case SPELL_AURA_MOD_SILENCE:
                 case SPELL_AURA_GHOST:
@@ -1255,27 +1207,19 @@ bool IsPositiveEffect(SpellEntry const* spellproto, SpellEffectIndex effIndex)
                     break;
                 case SPELL_AURA_TRANSFORM:
                     // some spells negative
-                    switch (spellproto->ID)
+                    if (HasNegativeTransformAura(spellproto->ID))
                     {
-                        case 36897:                         // Transporter Malfunction (race mutation to horde)
-                        case 36899:                         // Transporter Malfunction (race mutation to alliance)
-                        case 37097:                         // Crate Disguise
-                            return false;
+                        return false;
                     }
                     break;
                 case SPELL_AURA_MOD_SCALE:
-                    // some spells negative
-                    switch (spellproto->ID)
+                    if (HasPositiveScaleAura(spellproto->ID))
                     {
-                        case 802:                           // Mutate Bug, wrongly negative by target modes
-                        case 38449:                         // Blessing of the Tides
-                        case 50312:                         // Unholy Frenzy
-                            return true;
-                        case 36900:                         // Soul Split: Evil!
-                        case 36901:                         // Soul Split: Good
-                        case 36893:                         // Transporter Malfunction (decrease size case)
-                        case 36895:                         // Transporter Malfunction (increase size case)
-                            return false;
+                        return true;
+                    }
+                    if (HasNegativeScaleAura(spellproto->ID))
+                    {
+                        return false;
                     }
                     break;
                 case SPELL_AURA_MECHANIC_IMMUNITY:
@@ -1309,43 +1253,23 @@ bool IsPositiveEffect(SpellEntry const* spellproto, SpellEffectIndex effIndex)
                     }
                 }   break;
                 case SPELL_AURA_MOD_MELEE_HASTE:
-                {
-                    switch (spellproto->ID)
+                    if (HasPositiveMeleeHasteAura(spellproto->ID))
                     {
-                        case 38449:                         // Blessing of the Tides
-                            return true;
-                        default:
-                            break;
+                        return true;
                     }
                     break;
-                }
                 case SPELL_AURA_FORCE_REACTION:
-                {
-                    switch (spellproto->ID)
+                    if (HasNegativeForceReactionAura(spellproto->ID))
                     {
-                        case 42792:                         // Recently Dropped Flag (prevent cancel)
-                        case 46221:                         // Animal Blood
-                            return false;
-                        default:
-                            break;
+                        return false;
                     }
                     break;
-                }
                 case SPELL_AURA_PHASE:
-                {
-                    switch (spellproto->ID)
+                    if (HasNegativePhaseAura(spellproto->ID))
                     {
-                        case 57508:                         // Insanity (16)
-                        case 57509:                         // Insanity (32)
-                        case 57510:                         // Insanity (64)
-                        case 57511:                         // Insanity (128)
-                        case 57512:                         // Insanity (256)
-                            return false;
-                        default:
-                            break;
+                        return false;
                     }
                     break;
-                }
                 default:
                     break;
             }

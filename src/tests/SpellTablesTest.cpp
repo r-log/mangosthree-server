@@ -379,3 +379,76 @@ TEST(SpellTables_TheEffectCastAuraAndPacketTablesAnswerTheirSwitchesLiveRows)
     CHECK_EQ(GetDisengageSpell(12345), uint32(0));
     CHECK_EQ(GetJudgementDebuffSpell(12345), uint32(0));
 }
+
+TEST(SpellTables_IsPositiveEffectsSetsHoldTheirSwitchesLabelsAndNoOthers)
+{
+    for (uint32 spellId : { 10258u, 18153u, 32312u, 37388u, 45863u, 49634u, 54530u, 56099u, 58533u, 58552u, 62105u, 63745u, 63747u, 64402u })
+    {
+        CHECK(HasPositiveDummyEffect(spellId));
+        CHECK(!HasNegativeDummyEffect(spellId));
+    }
+    for (uint32 spellId : { 28441u })
+    {
+        CHECK(HasNegativeDummyEffect(spellId));
+        CHECK(!HasPositiveDummyEffect(spellId));
+    }
+    for (uint32 spellId : { 42436u, 42492u, 46650u, 62488u, 64503u })
+    {
+        CHECK(HasPositiveScriptEffect(spellId));
+    }
+    for (uint32 spellId : { 27184u, 27190u, 27191u, 27201u, 27202u, 27203u, 47669u, 64996u })
+    {
+        CHECK(HasPositiveDummyAura(spellId));
+        CHECK(!HasNegativeDummyAura(spellId));
+    }
+    for (uint32 spellId : { 11196u, 13139u, 23182u, 23445u, 25040u, 35679u, 37695u, 38637u, 38638u, 38639u, 44689u, 58600u })
+    {
+        CHECK(HasNegativeDummyAura(spellId));
+        CHECK(!HasPositiveDummyAura(spellId));
+    }
+    for (uint32 spellId : { 24740u, 47585u })
+    {
+        CHECK(HasPositivePacifySilenceAura(spellId));
+    }
+    for (uint32 spellId : { 36897u, 36899u, 37097u })
+    {
+        CHECK(HasNegativeTransformAura(spellId));
+    }
+    for (uint32 spellId : { 802u, 38449u, 50312u })
+    {
+        CHECK(HasPositiveScaleAura(spellId));
+        CHECK(!HasNegativeScaleAura(spellId));
+    }
+    for (uint32 spellId : { 36893u, 36895u, 36900u, 36901u })
+    {
+        CHECK(HasNegativeScaleAura(spellId));
+        CHECK(!HasPositiveScaleAura(spellId));
+    }
+    for (uint32 spellId : { 38449u })
+    {
+        CHECK(HasPositiveMeleeHasteAura(spellId));
+    }
+    for (uint32 spellId : { 42792u, 46221u })
+    {
+        CHECK(HasNegativeForceReactionAura(spellId));
+    }
+    for (uint32 spellId : { 57508u, 57509u, 57510u, 57511u, 57512u })
+    {
+        CHECK(HasNegativePhaseAura(spellId));
+    }
+    for (uint32 spellId : { 0u, 12345u })
+    {
+        CHECK(!HasPositiveDummyEffect(spellId));
+        CHECK(!HasNegativeDummyEffect(spellId));
+        CHECK(!HasPositiveScriptEffect(spellId));
+        CHECK(!HasPositiveDummyAura(spellId));
+        CHECK(!HasNegativeDummyAura(spellId));
+        CHECK(!HasPositivePacifySilenceAura(spellId));
+        CHECK(!HasNegativeTransformAura(spellId));
+        CHECK(!HasPositiveScaleAura(spellId));
+        CHECK(!HasNegativeScaleAura(spellId));
+        CHECK(!HasPositiveMeleeHasteAura(spellId));
+        CHECK(!HasNegativeForceReactionAura(spellId));
+        CHECK(!HasNegativePhaseAura(spellId));
+    }
+}
