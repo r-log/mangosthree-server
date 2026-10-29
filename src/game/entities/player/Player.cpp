@@ -6304,7 +6304,7 @@ void Player::SendClearCooldown(uint32 spell_id, Unit* target)
  */
 bool Player::HasMovementFlag(MovementFlags f) const
 {
-    return m_movementInfo.HasMovementFlag(f);
+    return (WireFlags() & f) != 0;
 }
 
 void Player::ResetTimeSync()

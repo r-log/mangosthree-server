@@ -157,7 +157,7 @@ namespace Movement
         args.path[0] = real_position;
         args.initialOrientation = real_position.orientation;
 
-        uint32 moveFlags = unit.m_movementInfo.GetMovementFlags();
+        uint32 moveFlags = unit.WireFlags();
         if (args.walk)
         {
             moveFlags |= MOVEFLAG_WALK_MODE;
@@ -179,7 +179,6 @@ namespace Movement
             return 0;
         }
 
-        unit.m_movementInfo.SetMovementFlags((MovementFlags)moveFlags);
         unit.MotionState().Adopt(Motion::FlagChange(Motion::ChangeType::Gait, args.walk));
         move_spline.Initialize(args);
 
@@ -284,7 +283,6 @@ namespace Movement
         args.path[0] = real_position;
 
         args.flags = MoveSplineFlag::Done;
-        unit.m_movementInfo.RemoveMovementFlag(MOVEFLAG_FORWARD);
         move_spline.Initialize(args);
 
         // NO SEAT for a deck. A seat is a vehicle's, and a vehicle is a unit: it has a seat

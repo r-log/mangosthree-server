@@ -46,11 +46,9 @@ namespace Movement
 
 uint32 Unit::WireFlags() const
 {
-    if (MotionState().GetMode() == Motion::Mode::ClientDriven)
-    {
-        return m_movementInfo.GetMovementFlags();
-    }
-    const uint32 flags = Movement::FlagsFor(MotionState().Confirmed());
+    const uint32 flags = MotionState().GetMode() == Motion::Mode::ClientDriven
+        ? uint32(m_movementInfo.GetMovementFlags())
+        : Movement::FlagsFor(MotionState().Confirmed());
     return IsSplineEnabled() ? flags | MOVEFLAG_FORWARD : flags;
 }
 
@@ -58,7 +56,9 @@ MovementInfo Unit::WireStatus() const
 {
     if (MotionState().GetMode() == Motion::Mode::ClientDriven)
     {
-        return m_movementInfo;
+        MovementInfo status = m_movementInfo;
+        status.SetMovementFlags(MovementFlags(WireFlags()));
+        return status;
     }
 
     // A server-driven unit's word is the kernel's and its spline's; no client's pitch, fall or
