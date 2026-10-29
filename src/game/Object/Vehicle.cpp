@@ -54,6 +54,17 @@
 #include "WorldSession.h"
 #include "MotionMaster.h"
 
+uint32 VehicleMoveFlags2(VehicleEntry const& entry)
+{
+    uint32 flags2 = MOVEFLAG2_NONE;
+    if (entry.Flags & VEHICLE_FLAG_NO_STRAFE)          { flags2 |= MOVEFLAG2_NO_STRAFE; }
+    if (entry.Flags & VEHICLE_FLAG_NO_JUMPING)         { flags2 |= MOVEFLAG2_NO_JUMPING; }
+    if (entry.Flags & VEHICLE_FLAG_FULLSPEEDTURNING)   { flags2 |= MOVEFLAG2_FULLSPEEDTURNING; }
+    if (entry.Flags & VEHICLE_FLAG_ALLOW_PITCHING)     { flags2 |= MOVEFLAG2_ALLOW_PITCHING; }
+    if (entry.Flags & VEHICLE_FLAG_FULLSPEEDPITCHING)  { flags2 |= MOVEFLAG2_FULLSPEEDPITCHING; }
+    return flags2;
+}
+
 void ObjectMgr::LoadVehicleAccessory()
 {
     TableRead<VehicleAccessoryRow> read = VehicleAccessoryRepository::QueryVehicleAccessories();
@@ -185,30 +196,8 @@ void VehicleInfo::Initialize()
         }
     }
 
-    // Initialize movement limitations
     uint32 vehicleFlags = GetVehicleEntry()->Flags;
     Unit* pVehicle = (Unit*)m_owner;
-
-    if (vehicleFlags & VEHICLE_FLAG_NO_STRAFE)
-    {
-        pVehicle->m_movementInfo.AddMovementFlags2(MOVEFLAG2_NO_STRAFE);
-    }
-    if (vehicleFlags & VEHICLE_FLAG_NO_JUMPING)
-    {
-        pVehicle->m_movementInfo.AddMovementFlags2(MOVEFLAG2_NO_JUMPING);
-    }
-    if (vehicleFlags & VEHICLE_FLAG_FULLSPEEDTURNING)
-    {
-        pVehicle->m_movementInfo.AddMovementFlags2(MOVEFLAG2_FULLSPEEDTURNING);
-    }
-    if (vehicleFlags & VEHICLE_FLAG_ALLOW_PITCHING)
-    {
-        pVehicle->m_movementInfo.AddMovementFlags2(MOVEFLAG2_ALLOW_PITCHING);
-    }
-    if (vehicleFlags & VEHICLE_FLAG_FULLSPEEDPITCHING)
-    {
-        pVehicle->m_movementInfo.AddMovementFlags2(MOVEFLAG2_FULLSPEEDPITCHING);
-    }
 
     if (vehicleFlags & VEHICLE_FLAG_FIXED_POSITION)
     {

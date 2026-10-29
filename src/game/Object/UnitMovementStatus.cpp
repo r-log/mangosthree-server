@@ -26,6 +26,7 @@
 #include "Unit.h"
 #include "KinematicFlags.h"
 #include "State.h"
+#include "Vehicle.h"
 
 namespace Movement
 {
@@ -58,14 +59,23 @@ MovementInfo Unit::WireStatus() const
     {
         MovementInfo status = m_movementInfo;
         status.SetMovementFlags(MovementFlags(WireFlags()));
+        if (m_vehicleInfo)
+        {
+            status.AddMovementFlags2(MovementFlags2(VehicleMoveFlags2(*m_vehicleInfo->GetVehicleEntry())));
+        }
         return status;
     }
 
     // A server-driven unit's word is the kernel's and its spline's; no client's pitch, fall or
-    // report goes with it. Its position, time, seat and vehicle flags are the record's.
+    // report goes with it. Its position, time and seat are the record's, a vehicle's limits its
+    // entry's.
     MovementInfo status;
     status.SetMovementFlags(MovementFlags(WireFlags()));
     status.AddMovementFlags2(m_movementInfo.GetMovementFlags2());
+    if (m_vehicleInfo)
+    {
+        status.AddMovementFlags2(MovementFlags2(VehicleMoveFlags2(*m_vehicleInfo->GetVehicleEntry())));
+    }
     Position const* pos = m_movementInfo.GetPos();
     status.ChangePosition(pos->x, pos->y, pos->z, pos->o);
     status.UpdateTime(m_movementInfo.GetTime());

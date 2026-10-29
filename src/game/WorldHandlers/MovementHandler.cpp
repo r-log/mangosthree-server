@@ -490,8 +490,15 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
         mover->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
     }
 
+    // The driver of a vehicle never sends its limits (the 4.3.4 client strips them), and every
+    // relay replaces what an observer holds, so the relay carries them.
+    MovementInfo relayed = movementInfo;
+    if (VehicleInfo* vehicle = mover->GetVehicleInfo())
+    {
+        relayed.AddMovementFlags2(MovementFlags2(VehicleMoveFlags2(*vehicle->GetVehicleEntry())));
+    }
     WorldPacket data(SMSG_PLAYER_MOVE, recv_data.size());
-    data << movementInfo;
+    data << relayed;
     mover->SendMessageToSetExcept(&data, _player);
 }
 
