@@ -137,8 +137,8 @@ struct SpellRangeAndRadiusContext
 };
 
 /// `Spell::GetSpellRangeAndRadius`, the custom target amounts, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`:
-/// Conflagration sets the most targets by the map's difficulty; there is no registered default, so a miss runs the
-/// switch, which holds the fixed amounts; every outcome continues after the switch.
+/// Conflagration sets the most targets by the map's difficulty; there is no registered default, so a miss leaves the
+/// spell to the fixed amounts of FindSpellMaxTargets; every outcome continues after the switch.
 struct SpellMaxTargetsGenericSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_MAX_TARGETS_GENERIC;
@@ -148,7 +148,7 @@ struct SpellMaxTargetsGenericSite
 
 /// `Spell::GetSpellRangeAndRadius`, the custom radius cases, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`: the
 /// labels compute the radius from the effect, an aura's remaining duration or the caster's scale; there is no
-/// registered default, so a miss runs the switch, which holds the fixed radii; every outcome continues after it.
+/// registered default, so a miss leaves the spell to HasInstanceVisibilityRadius; every outcome continues after it.
 struct SpellRadiusGenericSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_RADIUS_GENERIC;
