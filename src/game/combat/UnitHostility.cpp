@@ -391,3 +391,151 @@ bool Unit::IsNeutralToAll() const
 
     return my_faction->IsNeutralToAll();
 }
+
+/**
+ * @brief Gets the faction template entry for the unit.
+ *
+ * @return The faction template entry, or NULL if invalid.
+ */
+FactionTemplateEntry const* Unit::getFactionTemplateEntry() const
+{
+    FactionTemplateEntry const* entry = sFactionTemplateStore.LookupEntry(getFaction());
+    if (!entry)
+    {
+        static ObjectGuid guid;                             // prevent repeating spam same faction problem
+
+        if (GetObjectGuid() != guid)
+        {
+            guid = GetObjectGuid();
+
+            if (guid.GetHigh() == HIGHGUID_PET)
+            {
+                sLog.outError("%s (base creature entry %u) have invalid faction template id %u, owner %s", GetGuidStr().c_str(), GetEntry(), getFaction(), GetOwnerGuid().GetString().c_str());
+            }
+            else
+            {
+                sLog.outError("%s have invalid faction template id %u", GetGuidStr().c_str(), getFaction());
+            }
+        }
+    }
+    return entry;
+}
+
+bool Unit::IsContestedGuard() const
+{
+    if (FactionTemplateEntry const* entry = getFactionTemplateEntry())
+    {
+        return entry->IsContestedGuardFaction();
+    }
+
+    return false;
+}
+
+/**
+ * @brief Checks whether the unit can currently be targeted for attack.
+ *
+ * @param inverseAlive True to invert the alive-state requirement.
+ * @return True if the unit can be attacked; otherwise, false.
+ */
+bool Unit::IsTargetableForAttack(bool inverseAlive /*=false*/) const
+{
+    if (GetTypeId() == TYPEID_PLAYER && isGameMaster())
+    {
+        return false;
+    }
+
+    if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE))
+    {
+        return false;
+    }
+
+    // to be removed if unit by any reason enter combat
+    if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE))
+    {
+        return false;
+    }
+
+    // inversealive is needed for some spells which need to be casted at dead targets (aoe)
+    if (IsAlive() == inverseAlive)
+    {
+        return false;
+    }
+
+    return IsInWorld() && !IsFeigningDeath() && !IsTaxiFlying();
+}
+
+/**
+ * @brief Flags the unit and owner for contested PvP.
+ *
+ * @param attackedPlayer The attacked player, if any.
+ */
+void Unit::SetContestedPvP(Player* attackedPlayer)
+{
+    Player* player = GetCharmerOrOwnerPlayerOrPlayerItself();
+
+    if (!player || (attackedPlayer && (attackedPlayer == player || player->IsInDuelWith(attackedPlayer))))
+    {
+        return;
+    }
+
+    player->SetContestedPvPTimer(30000);
+
+    if (!player->hasUnitState(UNIT_STAT_ATTACK_PLAYER))
+    {
+        player->addUnitState(UNIT_STAT_ATTACK_PLAYER);
+        player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_CONTESTED_PVP);
+        // call MoveInLineOfSight for nearby contested guards
+        UpdateVisibilityAndView();
+    }
+
+    if (!hasUnitState(UNIT_STAT_ATTACK_PLAYER))
+    {
+        addUnitState(UNIT_STAT_ATTACK_PLAYER);
+        // call MoveInLineOfSight for nearby contested guards
+        UpdateVisibilityAndView();
+    }
+}
+
+bool Unit::IsAllowedDamageInArea(Unit* pVictim) const
+{
+    // can damage self anywhere
+    if (pVictim == this)
+    {
+        return true;
+    }
+
+    // can damage own pet anywhere
+    if (pVictim->GetOwnerGuid() == GetObjectGuid())
+    {
+        return true;
+    }
+
+    // non player controlled unit can damage anywhere
+    Player const* pOwner = GetCharmerOrOwnerPlayerOrPlayerItself();
+    if (!pOwner)
+    {
+        return true;
+    }
+
+    // can damage non player controlled victim anywhere
+    Player const* vOwner = pVictim->GetCharmerOrOwnerPlayerOrPlayerItself();
+    if (!vOwner)
+    {
+        return true;
+    }
+
+    // can damage opponent in duel
+    if (pOwner->IsInDuelWith(vOwner))
+    {
+        return true;
+    }
+
+    // can't damage player controlled unit by player controlled unit in sanctuary
+    AreaTableEntry const* area = GetAreaEntryByAreaID(pVictim->GetTerrain()->GetAreaId(pVictim->Where().X(), pVictim->Where().Y(), pVictim->Where().Z()));
+    if (area && area->Flags & AREA_FLAG_SANCTUARY)
+    {
+        return false;
+    }
+
+    return true;
+}
