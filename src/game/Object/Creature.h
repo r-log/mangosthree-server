@@ -224,6 +224,10 @@ class Creature : public Unit
         bool IsPet() const override { return m_subtype == CREATURE_SUBTYPE_PET; }
         bool IsTotem() const override { return m_subtype == CREATURE_SUBTYPE_TOTEM; }
         bool IsTemporarySummon() const { return m_subtype == CREATURE_SUBTYPE_TEMPORARY_SUMMON; }
+        // The unit that summoned a temporary summon; empty for any other creature
+        virtual ObjectGuid GetSummonerGuid() const { return ObjectGuid(); }
+        // Whether this creature's heals are logged and scored as its owner's: a totem's are, a statue's are not
+        virtual bool CreditsHealToOwner() const { return false; }
 
         bool IsCorpse() const { return GetDeathState() ==  CORPSE; }
         bool IsDespawned() const { return GetDeathState() ==  DEAD; }
