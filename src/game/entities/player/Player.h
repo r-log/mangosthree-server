@@ -3423,7 +3423,7 @@ class Player : public Unit
         /*********************************************************/
 
         // Check if the player has a specific movement flag
-        // for script access to m_movementInfo.HasMovementFlag
+        // for script access to the movement flags
         bool HasMovementFlag(MovementFlags f) const;
 
         // Update fall information if needed
@@ -3448,13 +3448,13 @@ class Player : public Unit
         bool isMovingOrTurning() const { return (WireFlags() & movementOrTurningFlagsMask) != 0; }
 
         bool CanSwim() const override { return true; }
-        bool CanFly() const override { return m_movementInfo.HasMovementFlag(MOVEFLAG_CAN_FLY); }
+        bool CanFly() const override { return ClientStatus().HasMovementFlag(MOVEFLAG_CAN_FLY); }
         // Check if the player can swim
 
         // Check if the player can fly
 
         // Check if the player is flying
-        bool IsFlying() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_FLYING); }
+        bool IsFlying() const { return ClientStatus().HasMovementFlag(MOVEFLAG_FLYING); }
 
         // Check if the player is free flying
         bool IsFreeFlying() const { return HasAuraType(SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED) || HasAuraType(SPELL_AURA_FLY); }
@@ -3484,20 +3484,20 @@ class Player : public Unit
         void SetTransport(Transport* t) { m_transport = t; }
 
         // Get the X offset of the player's position on the transport
-        float GetTransOffsetX() const { return m_movementInfo.GetTransportPos()->x; }
+        float GetTransOffsetX() const { return ClientStatus().GetTransportPos()->x; }
 
         // Get the Y offset of the player's position on the transport
-        float GetTransOffsetY() const { return m_movementInfo.GetTransportPos()->y; }
+        float GetTransOffsetY() const { return ClientStatus().GetTransportPos()->y; }
 
         // Get the Z offset of the player's position on the transport
-        float GetTransOffsetZ() const { return m_movementInfo.GetTransportPos()->z; }
+        float GetTransOffsetZ() const { return ClientStatus().GetTransportPos()->z; }
 
         // Get the orientation offset of the player's position on the transport
-        float GetTransOffsetO() const { return m_movementInfo.GetTransportPos()->o; }
+        float GetTransOffsetO() const { return ClientStatus().GetTransportPos()->o; }
 
         // Get the transport time
-        uint32 GetTransTime() const { return m_movementInfo.GetTransportTime(); }
-        int8 GetTransSeat() const { return m_movementInfo.GetTransportSeat(); }
+        uint32 GetTransTime() const { return ClientStatus().GetTransportTime(); }
+        int8 GetTransSeat() const { return ClientStatus().GetTransportSeat(); }
 
         // Get the save timer
         uint32 GetSaveTimer() const { return m_nextSave; }

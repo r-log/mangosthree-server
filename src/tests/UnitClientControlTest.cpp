@@ -87,8 +87,8 @@ namespace
     {
         explicit Snapshot(ClientControlUnit const& unit)
             : x(unit.Where().X()), y(unit.Where().Y()), z(unit.Where().Z()), facing(unit.Where().Facing()),
-              fields(unit.Fields()), flags(unit.m_movementInfo.GetMovementFlags()),
-              flags2(unit.m_movementInfo.GetMovementFlags2()), auras(unit.GetSpellAuraHolderMap().size())
+              fields(unit.Fields()), flags(unit.ClientStatus().GetMovementFlags()),
+              flags2(unit.ClientStatus().GetMovementFlags2()), auras(unit.GetSpellAuraHolderMap().size())
         {
         }
 

@@ -397,11 +397,11 @@ void TransportInfo::SetSeatPose(Geometry::Placement const& seatPose)
     if (m_owner->GetTypeId() == TYPEID_UNIT || m_owner->GetTypeId() == TYPEID_PLAYER)
     {
         Unit* unit = static_cast<Unit*>(m_owner);
-        if (!unit->m_movementInfo.GetTransportGuid().IsEmpty())
+        if (!unit->ClientStatus().GetTransportGuid().IsEmpty())
         {
-            unit->m_movementInfo.SetTransportData(GetTransportGuid(), m_seatPose.X(),
-                                                  m_seatPose.Y(), m_seatPose.Z(),
-                                                  m_seatPose.Facing(), 0, m_seat);
+            unit->SetTransportStatus(GetTransportGuid(), m_seatPose.X(),
+                                     m_seatPose.Y(), m_seatPose.Z(),
+                                     m_seatPose.Facing(), 0, m_seat);
         }
     }
 }
@@ -493,7 +493,7 @@ void VehicleInfo::Board(Unit* passenger, uint8 seat)
 
     // Set data for createobject packets
     // No ONTRANSPORT bit in 4.3.4: the transport guid in the movement block IS the flag.
-    passenger->m_movementInfo.SetTransportData(m_owner->GetObjectGuid(), lx, ly, lz, lo, 0, seat);
+    passenger->SetTransportStatus(m_owner->GetObjectGuid(), lx, ly, lz, lo, 0, seat);
 
     if (passenger->GetTypeId() == TYPEID_PLAYER)
     {
@@ -643,7 +643,7 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
     // m_movementInfo for an observer entering view, which would otherwise still carry the old
     // transport guid, offset and seat for a unit no longer aboard. On a change of vehicle the
     // next Board writes the new vehicle's data.
-    passenger->m_movementInfo.ClearTransportData();
+    passenger->ClearTransportStatus();
 
     UnBoardPassenger(passenger);
 

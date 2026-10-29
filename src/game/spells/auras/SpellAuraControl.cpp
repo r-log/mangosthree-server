@@ -491,7 +491,7 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
         const bool clientMover = target->IsClientMover();
         if (clientMover)
         {
-            target->m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
+            target->ResetClientWord(MOVEFLAG_NONE);
             target->SetStandState(UNIT_STAND_STATE_STAND);// in 1.5 client
         }
 
@@ -899,7 +899,7 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
         if (target->GetTypeId() == TYPEID_PLAYER)
         {
             // Clear unit movement flags
-            ((Player*)target)->m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
+            target->ResetClientWord(MOVEFLAG_NONE);
         }
         else
         {

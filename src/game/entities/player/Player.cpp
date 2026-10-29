@@ -1656,7 +1656,7 @@ ChatTagFlags Player::GetChatTag() const
 
 void Player::SendTeleportPacket(float oldX, float oldY, float oldZ, float oldO)
 {
-    ObjectGuid transportGuid = m_movementInfo.GetTransportGuid();
+    ObjectGuid transportGuid = ClientStatus().GetTransportGuid();
     Motion::TeleportParams params;
     params.pos.x = Where().X();
     params.pos.y = Where().Y();
@@ -1768,7 +1768,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         }
 
         m_transport = NULL;
-        m_movementInfo.ClearTransportData();
+        ClearTransportStatus();
     }
 
     // The player was ported to another map and looses the duel immediately.
@@ -1781,8 +1781,8 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         }
 
     // reset movement flags at teleport, because player will continue move with these flags after teleport
-    m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
-    m_movementInfo.ClearFallData();
+    ResetClientWord(MOVEFLAG_NONE);
+    ClearClientFall();
     DisableSpline();
 
     if ((GetMapId() == mapid) && (!m_transport))            // TODO the !m_transport might have unexpected effects when teleporting from transport to other place on same map
@@ -1938,7 +1938,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             float final_z = z;
             float final_o = orientation;
 
-            Position const* transportPosition = m_movementInfo.GetTransportPos();
+            Position const* transportPosition = ClientStatus().GetTransportPos();
 
             if (m_transport)
             {
@@ -4700,7 +4700,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
     // set fly flag if in fly form or taxi flight to prevent visually drop at ground in showup moment
     if (IsFreeFlying() || IsTaxiFlying())
     {
-        m_movementInfo.AddMovementFlag(MOVEFLAG_FLYING);
+        ResetClientWord(MovementFlags(ClientStatus().GetMovementFlags() | MOVEFLAG_FLYING));
     }
 
     SendCurrencies();

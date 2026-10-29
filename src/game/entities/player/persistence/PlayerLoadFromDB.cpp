@@ -243,8 +243,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         RelocateToHomebind();
 
         transGUID = 0;
-
-        m_movementInfo.ClearTransportData();
     }
 
     _LoadBGData(CharacterRepository::LoginBGData(holder));
@@ -307,25 +305,25 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     if (transGUID != 0)
     {
-        m_movementInfo.SetTransportData(ObjectGuid(HIGHGUID_MO_TRANSPORT, transGUID), character->transX, character->transY, character->transZ, character->transO, 0, -1);
+        SetTransportStatus(ObjectGuid(HIGHGUID_MO_TRANSPORT, transGUID), character->transX, character->transY, character->transZ, character->transO, 0, -1);
 
         if (!MaNGOS::IsValidMapCoord(
-                    Where().X() + m_movementInfo.GetTransportPos()->x, Where().Y() + m_movementInfo.GetTransportPos()->y,
-                    Where().Z() + m_movementInfo.GetTransportPos()->z, Where().Facing() + m_movementInfo.GetTransportPos()->o) ||
+                    Where().X() + ClientStatus().GetTransportPos()->x, Where().Y() + ClientStatus().GetTransportPos()->y,
+                    Where().Z() + ClientStatus().GetTransportPos()->z, Where().Facing() + ClientStatus().GetTransportPos()->o) ||
                 // The saved place on the deck map, bounded the same way and symmetrically:
                 // the old test read the positive side only, so a character who logged out
                 // forward of the mast was sent to his homebind.
-                std::fabs(m_movementInfo.GetTransportPos()->x) > MAX_DECK_EXTENT ||
-                std::fabs(m_movementInfo.GetTransportPos()->y) > MAX_DECK_EXTENT ||
-                std::fabs(m_movementInfo.GetTransportPos()->z) > MAX_DECK_EXTENT)
+                std::fabs(ClientStatus().GetTransportPos()->x) > MAX_DECK_EXTENT ||
+                std::fabs(ClientStatus().GetTransportPos()->y) > MAX_DECK_EXTENT ||
+                std::fabs(ClientStatus().GetTransportPos()->z) > MAX_DECK_EXTENT)
         {
             sLog.outError("%s have invalid transport coordinates (X: %f Y: %f Z: %f O: %f). Teleport to default race/class locations.",
-                          guid.GetString().c_str(), Where().X() + m_movementInfo.GetTransportPos()->x, Where().Y() + m_movementInfo.GetTransportPos()->y,
-                          Where().Z() + m_movementInfo.GetTransportPos()->z, Where().Facing() + m_movementInfo.GetTransportPos()->o);
+                          guid.GetString().c_str(), Where().X() + ClientStatus().GetTransportPos()->x, Where().Y() + ClientStatus().GetTransportPos()->y,
+                          Where().Z() + ClientStatus().GetTransportPos()->z, Where().Facing() + ClientStatus().GetTransportPos()->o);
 
             RelocateToHomebind();
 
-            m_movementInfo.ClearTransportData();
+            ClearTransportStatus();
 
             transGUID = 0;
         }
@@ -368,7 +366,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
             RelocateToHomebind();
 
-            m_movementInfo.ClearTransportData();
+            ClearTransportStatus();
 
             transGUID = 0;
         }

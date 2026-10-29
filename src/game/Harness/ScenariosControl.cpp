@@ -2267,7 +2267,9 @@ namespace Harness
                 // could be undone between here and the cast by anything that touched the word,
                 // and a category that assumed its own setup held would report the feign's
                 // success over a state the feign never saw.
-                p->m_movementInfo.SetMovementFlags(kDrivingFlags);
+                MovementInfo driving = p->ClientStatus();
+                driving.SetMovementFlags(kDrivingFlags);
+                p->AcceptClientStatus(driving);
                 st->flagsBefore = uint32(p->WireFlags());
                 // Read before the cast, because it is the whole meaning of the block that
                 // follows: a player already feigning cannot have a feign raised on him, and a
@@ -2687,7 +2689,7 @@ namespace Harness
                 uint32 pUnflagged;       ///< ...on which UNIT_FLAG_STUNNED was off
                 uint32 pUninhibited;     ///< ...on which the kernel's Stunned inhibition was down
                 uint32 pTargeted;        ///< ...on which a target guid was back on him
-                uint32 pRootInWord;      ///< ...on which MOVEFLAG_ROOT sat in his m_movementInfo
+                uint32 pRootInWord;      ///< ...on which MOVEFLAG_ROOT sat in his word
                 uint32 pRootUndecided;   ///< ...on which the kernel had not decided his root
                 uint32 pRootPending;     ///< ...on which a Root change was still awaiting his ack
                 // the lift, anchored to the KERNEL's Stunned (see the sampler)
@@ -2789,7 +2791,9 @@ namespace Harness
                 // could be undone between here and the cast by anything that touched the word,
                 // the stand state or the target field, and a category that assumed its own setup
                 // held would report the stun's success over a state the stun never saw.
-                p->m_movementInfo.SetMovementFlags(kStunDrivingFlags);
+                MovementInfo driving = p->ClientStatus();
+                driving.SetMovementFlags(kStunDrivingFlags);
+                p->AcceptClientStatus(driving);
                 p->SetStandState(UNIT_STAND_STATE_SIT);
                 // A victim without a swing, as player-feign took one: Unit::Attack is what
                 // writes UNIT_FIELD_TARGET (Unit.cpp:3063), and the melee half is left out so
@@ -3101,11 +3105,11 @@ namespace Harness
                     }
                     else if (st->pRootInWord)
                     {
-                        snprintf(inflight, sizeof(inflight), "BUG(MOVEFLAG_ROOT sat in his m_movementInfo on %u of the %u samples the aura was on him: a player's root belongs in the change pipeline, not the word)", st->pRootInWord, st->pAuraSamples);
+                        snprintf(inflight, sizeof(inflight), "BUG(MOVEFLAG_ROOT sat in his word on %u of the %u samples the aura was on him: a player's root belongs in the change pipeline, not the word)", st->pRootInWord, st->pAuraSamples);
                     }
                     else
                     {
-                        snprintf(inflight, sizeof(inflight), "OK(the kernel wanted his root on all %u samples the aura was on him and it was still awaiting his ack on %u of them, and MOVEFLAG_ROOT was in his m_movementInfo on none)",
+                        snprintf(inflight, sizeof(inflight), "OK(the kernel wanted his root on all %u samples the aura was on him and it was still awaiting his ack on %u of them, and MOVEFLAG_ROOT was in his word on none)",
                                  st->pAuraSamples, st->pRootPending);
                     }
                     // --- plainCreatureNotRooted
@@ -3119,11 +3123,11 @@ namespace Harness
                     }
                     else if (st->cFlagsBefore & MOVEFLAG_ROOT)
                     {
-                        snprintf(plainroot, sizeof(plainroot), "INVALID(MOVEFLAG_ROOT was already in its m_movementInfo before the cast: 0x%08x)", st->cFlagsBefore);
+                        snprintf(plainroot, sizeof(plainroot), "INVALID(MOVEFLAG_ROOT was already in its word before the cast: 0x%08x)", st->cFlagsBefore);
                     }
                     else if (st->cFlagsAtApply & MOVEFLAG_ROOT)
                     {
-                        snprintf(plainroot, sizeof(plainroot), "BUG(MOVEFLAG_ROOT was in its m_movementInfo the instant the cast returned: 0x%08x -> 0x%08x, so a stun alone rooted a creature no client moves)", st->cFlagsBefore, st->cFlagsAtApply);
+                        snprintf(plainroot, sizeof(plainroot), "BUG(MOVEFLAG_ROOT was in its word the instant the cast returned: 0x%08x -> 0x%08x, so a stun alone rooted a creature no client moves)", st->cFlagsBefore, st->cFlagsAtApply);
                     }
                     else if (!st->cSamples)
                     {
@@ -3136,7 +3140,7 @@ namespace Harness
                     }
                     else
                     {
-                        snprintf(plainroot, sizeof(plainroot), "OK(stunned with no MOVEFLAG_ROOT in its m_movementInfo and no root decided, at the cast and on all %u samples the aura was on it)", st->cSamples);
+                        snprintf(plainroot, sizeof(plainroot), "OK(stunned with no MOVEFLAG_ROOT in its word and no root decided, at the cast and on all %u samples the aura was on it)", st->cSamples);
                     }
                 }
                 // --- stunLifted, which does not need the cast step's readings: it is entirely
@@ -3302,7 +3306,7 @@ namespace Harness
     ///
     /// Until 2026-09-21 both readers of "does a client drive this unit" asked instead whether its
     /// charmer was a player, and this creature answered yes to that. Stunned, it therefore:
-    ///   1. had its m_movementInfo zeroed WHOLE by Aura::HandleAuraModStun -- the word, not a
+    ///   1. had its word zeroed WHOLE by Aura::HandleAuraModStun -- the word, not a
     ///      mask -- with nothing to put it back, because the only restoring path is
     ///      WorldSession::HandleMoverRelocation's `else // creature charmed` branch
     ///      (MovementHandler.cpp:983-988) and it is reached from a movement packet or an ack,
@@ -3411,7 +3415,9 @@ namespace Harness
                 // Written, then READ BACK, and the read is what the verdict uses: a marker that
                 // did not survive its own setup would have the category report the stun's
                 // restraint over a word the stun never saw.
-                v->m_movementInfo.AddMovementFlag(kMoverMarker);
+                MovementInfo marked = v->ClientStatus();
+                marked.AddMovementFlag(kMoverMarker);
+                v->AcceptClientStatus(marked);
                 st->wordBefore = uint32(v->ClientStatus().GetMovementFlags());
                 st->charmedAtCast = v->GetCharmerGuid() == g;
                 st->moverAtCast = v->MoverSession() != NULL;
@@ -3549,7 +3555,7 @@ namespace Harness
                     }
                     else if (!(st->wordAtApply & uint32(kMoverMarker)))
                     {
-                        snprintf(word, sizeof(word), "BUG(the marker was gone from its m_movementInfo the instant the cast returned: 0x%08x -> 0x%08x, so the stun zeroed the authoritative word of a unit with no client to resend it)",
+                        snprintf(word, sizeof(word), "BUG(the marker was gone from its word the instant the cast returned: 0x%08x -> 0x%08x, so the stun zeroed the authoritative word of a unit with no client to resend it)",
                                  st->wordBefore, st->wordAtApply);
                     }
                     else if (!st->samples)
@@ -3558,7 +3564,7 @@ namespace Harness
                     }
                     else if (st->markerGone)
                     {
-                        snprintf(word, sizeof(word), "BUG(the marker had left its m_movementInfo on %u of the %u samples the stun was on it under the charm)", st->markerGone, st->samples);
+                        snprintf(word, sizeof(word), "BUG(the marker had left its word on %u of the %u samples the stun was on it under the charm)", st->markerGone, st->samples);
                     }
                     else
                     {
@@ -3570,7 +3576,7 @@ namespace Harness
                     // same claim about a creature nobody charmed.
                     if (st->rootedAtApply)
                     {
-                        snprintf(root, sizeof(root), "BUG(MOVEFLAG_ROOT was in its m_movementInfo the instant the cast returned: 0x%08x -> 0x%08x, so the projection client-rooted a unit the server drives)",
+                        snprintf(root, sizeof(root), "BUG(MOVEFLAG_ROOT was in its word the instant the cast returned: 0x%08x -> 0x%08x, so the projection client-rooted a unit the server drives)",
                                  st->wordBefore, st->wordAtApply);
                     }
                     else if (st->rootDecidedAtApply)
@@ -3588,7 +3594,7 @@ namespace Harness
                     }
                     else
                     {
-                        snprintf(root, sizeof(root), "OK(no MOVEFLAG_ROOT in its m_movementInfo and no root decided, at the cast and on all %u samples the stun was on it under the charm)", st->samples);
+                        snprintf(root, sizeof(root), "OK(no MOVEFLAG_ROOT in its word and no root decided, at the cast and on all %u samples the stun was on it under the charm)", st->samples);
                     }
                     // --- stunHeld: the fix took a wipe and a root away and must have taken
                     // nothing else. A stun that stopped stunning would pass both categories above.
@@ -4128,7 +4134,7 @@ namespace Harness
                     }
                     else if (st->wordAtRelease & MOVEFLAG_ROOT)
                     {
-                        snprintf(off, sizeof(off), "BUG(MOVEFLAG_ROOT was still in its m_movementInfo the instant the release returned: 0x%08x -- the body reverted to server-driven and nothing recomputed the projection)", st->wordAtRelease);
+                        snprintf(off, sizeof(off), "BUG(MOVEFLAG_ROOT was still in its word the instant the release returned: 0x%08x -- the body reverted to server-driven and nothing recomputed the projection)", st->wordAtRelease);
                     }
                     else if (st->afterSamples < 5)
                     {
@@ -4136,7 +4142,7 @@ namespace Harness
                     }
                     else if (st->afterRooted)
                     {
-                        snprintf(off, sizeof(off), "BUG(MOVEFLAG_ROOT was back in its m_movementInfo on %u of the %u samples with the stun still on it after the release)", st->afterRooted, st->afterSamples);
+                        snprintf(off, sizeof(off), "BUG(MOVEFLAG_ROOT was back in its word on %u of the %u samples with the stun still on it after the release)", st->afterRooted, st->afterSamples);
                     }
                     else
                     {

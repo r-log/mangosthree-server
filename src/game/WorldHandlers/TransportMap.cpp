@@ -415,7 +415,7 @@ bool TransportMap::Add(Player* passenger)
 {
     // WHERE HE REALLY STANDS. The wire calls it an offset; the moment it is ours it is a
     // position on this map, composed with nothing.
-    Position const* aboard = passenger->m_movementInfo.GetTransportPos();
+    Position const* aboard = passenger->ClientStatus().GetTransportPos();
     passenger->Place().MoveTo(aboard->x, aboard->y, aboard->z, aboard->o);
 
     passenger->GetMapRef().link(this, passenger);

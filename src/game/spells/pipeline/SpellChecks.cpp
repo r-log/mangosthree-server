@@ -189,7 +189,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         if (((Player*)m_caster)->isMoving() && !m_caster->HasAffectedAura(SPELL_AURA_ALLOW_CAST_WHILE_MOVING, m_spellInfo))
         {
             // skip stuck spell to allow use it in falling case and apply spell limitations at movement
-            if ((!((Player*)m_caster)->m_movementInfo.HasMovementFlag(MOVEFLAG_FALLINGFAR) || m_spellInfo->GetSpellEffectIdByIndex(EFFECT_INDEX_0) != SPELL_EFFECT_STUCK) &&
+            if ((!((Player*)m_caster)->ClientStatus().HasMovementFlag(MOVEFLAG_FALLINGFAR) || m_spellInfo->GetSpellEffectIdByIndex(EFFECT_INDEX_0) != SPELL_EFFECT_STUCK) &&
                 (IsAutoRepeat() || (m_spellInfo->GetAuraInterruptFlags() & AURA_INTERRUPT_FLAG_NOT_SEATED) != 0))
                 return SPELL_FAILED_MOVING;
         }

@@ -3092,7 +3092,7 @@ class Unit : public WorldObject
         /// instant of writing, from the map: aboard a vessel our coordinates are that
         /// map's and the client has never heard of it, so it gets no world position at
         /// all -- only the vessel's guid and those same coordinates as an offset.
-        void WriteMovementInfo(ByteBuffer& out, uint16 opcode) const;
+        void WriteMovementInfo(ByteBuffer& out, uint16 opcode, uint32 time) const;
 
         /// The movement status this unit shows: what create blocks, observer packets and
         /// heartbeats carry, and what gameplay asks of its movement flags.
@@ -3102,6 +3102,17 @@ class Unit : public WorldObject
         /// The last movement status the unit's client reported: the client's own word, its
         /// direction and fall bits and a rider's transport block.
         MovementInfo const& ClientStatus() const;
+        /// Takes the movement status the unit's client reported: the codec's one store.
+        void AcceptClientStatus(MovementInfo const& status);
+        /// Sets the client's movement word: voided where the server knows its client is about
+        /// to stop (a stun, a root, feign death, a teleport), seeded at login.
+        void ResetClientWord(MovementFlags flags);
+        /// Clears the client's fall report.
+        void ClearClientFall();
+        /// The transport block the unit's status carries: its vehicle or vessel, the offset in
+        /// it, its time and seat.
+        void SetTransportStatus(ObjectGuid transport, float x, float y, float z, float o, uint32 time, int8 seat);
+        void ClearTransportStatus();
 
         /**
          * Checks if this \ref Unit has the movement flag \ref MovementFlags::MOVEFLAG_LEVITATING
@@ -4342,8 +4353,6 @@ class Unit : public WorldObject
         /// mover session.
         uint32 GetMotionDropped() const { return m_motionDropped; }
 
-        // Movement info
-        MovementInfo m_movementInfo;
         Movement::MoveSpline* movespline;
 
         void ScheduleAINotify(uint32 delay);
@@ -4480,6 +4489,11 @@ class Unit : public WorldObject
         Motion::Kinematics InitialKinematics() const;
 
     private:
+        /// The movement status the unit's client last reported, and the transport block it
+        /// carries; read through ClientStatus() and WireStatus(), written only by the operations
+        /// above (UnitMovementStatus.cpp).
+        MovementInfo m_movementInfo;
+
         ComboPointHolderSet m_ComboPointHolders;
 
         GuidSet m_guardianPets;

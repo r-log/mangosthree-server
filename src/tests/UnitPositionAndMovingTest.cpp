@@ -204,14 +204,14 @@ TEST(UnitPositionAndMoving_ACreatureIsNeverMoving)
 
     for (uint32 bit = 0; bit < 32; ++bit)
     {
-        creature.m_movementInfo.SetMovementFlags(MovementFlags(uint32(1) << bit));
+        creature.ResetClientWord(MovementFlags(uint32(1) << bit));
         CHECK(!unit.isMoving());
     }
 
-    creature.m_movementInfo.SetMovementFlags(movementFlagsMask);
-    CHECK(creature.m_movementInfo.HasMovementFlag(movementFlagsMask));
+    creature.ResetClientWord(movementFlagsMask);
+    CHECK(creature.ClientStatus().HasMovementFlag(movementFlagsMask));
     CHECK(!unit.isMoving());
 
-    creature.m_movementInfo.SetMovementFlags(MovementFlags(0xFFFFFFFF));
+    creature.ResetClientWord(MovementFlags(0xFFFFFFFF));
     CHECK(!unit.isMoving());
 }

@@ -519,7 +519,7 @@ void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 spellID)
         }
         else
         {
-            m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
+            ResetClientWord(MOVEFLAG_NONE);
         }
 
         // blizz like 2.0.x

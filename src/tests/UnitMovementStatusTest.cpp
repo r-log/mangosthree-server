@@ -90,9 +90,11 @@ TEST(UnitMovementStatus_server_driven_word_is_the_kernels)
 TEST(UnitMovementStatus_server_driven_status_carries_no_client_report)
 {
     StatusProbe probe;
-    probe.m_movementInfo.AddMovementFlag(MOVEFLAG_STRAFE_LEFT);
-    probe.m_movementInfo.ChangePosition(1.0f, 2.0f, 3.0f, 0.5f);
-    probe.m_movementInfo.UpdateTime(1234);
+    MovementInfo reported;
+    reported.AddMovementFlag(MOVEFLAG_STRAFE_LEFT);
+    reported.ChangePosition(1.0f, 2.0f, 3.0f, 0.5f);
+    reported.UpdateTime(1234);
+    probe.AcceptClientStatus(reported);
     MovementInfo status = probe.WireStatus();
     CHECK(!(status.GetMovementFlags() & MOVEFLAG_STRAFE_LEFT));
     CHECK_EQ(uint32(status.GetMovementFlags()), probe.WireFlags());
