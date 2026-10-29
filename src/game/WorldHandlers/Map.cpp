@@ -77,7 +77,7 @@
 #include "MapPhase.h"
 #include "MoveMap.h"
 #include "Calendar.h"
-#include "Chat.h"
+#include "data/ChatPacketBuilder.h"
 #include "Weather.h"
 #include "LivingWorldCellEnvelope.h"
 #include "MotionMaster.h"
@@ -3248,7 +3248,7 @@ class StaticMonsterChatBuilder
             char const* nameForLocale = i_cInfo->Name;
             sObjectMgr.GetCreatureLocaleStrings(i_cInfo->Entry, loc_idx, &nameForLocale);
 
-            ChatHandler::BuildChatPacket(data, i_msgtype, text, i_language, CHAT_TAG_NONE, i_senderGuid, nameForLocale, i_target ? i_target->GetObjectGuid() : ObjectGuid(),
+            BuildChatPacket(data, i_msgtype, text, i_language, CHAT_TAG_NONE, i_senderGuid, nameForLocale, i_target ? i_target->GetObjectGuid() : ObjectGuid(),
                 i_target ? i_target->GetNameForLocaleIdx(loc_idx) : "");
         }
 

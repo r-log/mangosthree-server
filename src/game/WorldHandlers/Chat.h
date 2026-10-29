@@ -36,7 +36,6 @@
 #include "SharedDefines.h"
 #include "ObjectGuid.h"
 #include "AccountMgr.h"
-#include "session/packets/chat/MessageChatPacket.h"
 
 struct AchievementEntry;
 struct AchievementCriteriaEntry;
@@ -171,18 +170,6 @@ class ChatHandler
         static void LoadCommandTable();
 
         bool HasSentErrorMessage() { return sentErrorMessage;}
-
-        /// BuildMessageChatPacket (session/packets/chat/MessageChatPacket.h), for the code below the
-        /// session layer that reaches the builder through this header.
-        static void BuildChatPacket(
-            WorldPacket& data, ChatMsg msgtype, char const* message, Language language = LANG_UNIVERSAL, ChatTagFlags chatTag = CHAT_TAG_NONE,
-            ObjectGuid const& senderGuid = ObjectGuid(), char const* senderName = NULL,
-            ObjectGuid const& targetGuid = ObjectGuid(), char const* targetName = NULL,
-            char const* channelName = NULL, uint32 achievementId = 0, const char* addonPrefix = NULL)
-        {
-            BuildMessageChatPacket(data, msgtype, message, language, chatTag, senderGuid, senderName, targetGuid, targetName,
-                                   channelName, achievementId, addonPrefix);
-        }
 
     protected:
         explicit ChatHandler() : m_session(NULL), sentErrorMessage(false) {}      // for CLI subclass

@@ -76,6 +76,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Chat.h"
 #include "session/packets/chat/MessageChatPacket.h"
+#include "data/ChatPacketBuilder.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
 #include "MassMailMgr.h"
@@ -217,6 +218,9 @@ void World::CleanupsBeforeStop()
 /// Initialize the World
 void World::SetInitialWorldSettings()
 {
+    ///- The chat message builder of the code below the session
+    InstallChatPacketBuilder(&BuildMessageChatPacket);
+
     ///- Initialize the random number generator
     srand((unsigned int)time(NULL));
 
