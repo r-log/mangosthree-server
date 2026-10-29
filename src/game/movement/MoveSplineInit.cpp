@@ -313,9 +313,9 @@ namespace Movement
     {
         args.splineId = ++splineIdGen;
         // mix existing state into new
-        args.walk = unit.m_movementInfo.HasMovementFlag(MOVEFLAG_WALK_MODE);
+        args.walk = (unit.WireFlags() & MOVEFLAG_WALK_MODE) != 0;
         args.flags.canSwim = unit.CanSwim(); ///< client refuses to swim a spline mover without this bit (TC 4.3.4)
-        args.flags.flying = unit.m_movementInfo.HasMovementFlag((MovementFlags)(MOVEFLAG_CAN_FLY | MOVEFLAG_FLYING | MOVEFLAG_LEVITATING));
+        args.flags.flying = (unit.WireFlags() & (MOVEFLAG_CAN_FLY | MOVEFLAG_FLYING | MOVEFLAG_LEVITATING)) != 0;
     }
 
     /**
@@ -324,7 +324,7 @@ namespace Movement
     void MoveSplineInit::SetFall()
     {
         args.flags.EnableFalling();
-        args.flags.fallingSlow = unit.m_movementInfo.HasMovementFlag(MOVEFLAG_SAFE_FALL);
+        args.flags.fallingSlow = (unit.WireFlags() & MOVEFLAG_SAFE_FALL) != 0;
     }
 
     /**
