@@ -998,14 +998,14 @@ namespace Harness
                 st->afootRan = true;
                 st->afootNumber = p->GetPetMgr().GetTemporaryUnsummonedPetNumber();
                 Log(" 100ms a FLYING word on an UNMOUNTED player: mounted=%d word 0x%08x, temporary pet number %u",
-                    p->IsMounted() ? 1 : 0, uint32(p->m_movementInfo.GetMovementFlags()), st->afootNumber);
+                    p->IsMounted() ? 1 : 0, uint32(p->WireFlags()), st->afootNumber);
             });
             At(200, [this, g]()
             {
                 Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
                 Word(p, MOVEFLAG_NONE);
                 Log(" 200ms the flying word taken back off him: word 0x%08x",
-                    uint32(p->m_movementInfo.GetMovementFlags()));
+                    uint32(p->WireFlags()));
             });
 
             // ---- phase 1: a plain ground mount --------------------------------------------
@@ -1079,14 +1079,14 @@ namespace Harness
                 Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
                 st->liftRan = true;
                 st->mountedAtLift = p->IsMounted();
-                st->wordBeforeLift = uint32(p->m_movementInfo.GetMovementFlags());
+                st->wordBeforeLift = uint32(p->WireFlags());
                 // A MOUNTED player walking forward: a movement word with no MOVEFLAG_FLYING in
                 // it must not put the pet away, or the rule is "mounting" again by another name.
                 Word(p, MOVEFLAG_FORWARD);
                 st->groundWordNumber = p->GetPetMgr().GetTemporaryUnsummonedPetNumber();
                 Log("13100ms a mounted GROUND word: mounted=%d word 0x%08x -> 0x%08x, temporary pet number %u",
                     st->mountedAtLift ? 1 : 0, st->wordBeforeLift,
-                    uint32(p->m_movementInfo.GetMovementFlags()), st->groundWordNumber);
+                    uint32(p->WireFlags()), st->groundWordNumber);
             });
             At(13400, [this, g, gp, st]()
             {
@@ -1099,7 +1099,7 @@ namespace Harness
                 if (Pet* pet = FindPet(gp)) { pet->SetOwnerGuid(ObjectGuid()); }
                 Word(p, MOVEFLAG_FORWARD | MOVEFLAG_FLYING);
                 st->liftNumber = p->GetPetMgr().GetTemporaryUnsummonedPetNumber();
-                st->wordAfterLift = uint32(p->m_movementInfo.GetMovementFlags());
+                st->wordAfterLift = uint32(p->WireFlags());
                 Log("13400ms THE LIFT-OFF word: word 0x%08x, mounted=%d, temporary pet number %u",
                     st->wordAfterLift, p->IsMounted() ? 1 : 0, st->liftNumber);
             });

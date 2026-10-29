@@ -485,11 +485,9 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
             target->ModifyAuraState(AURA_STATE_FROZEN, apply);
         }
 
-        // M1: a client-driven unit's movement-flag wipe (and stand state) must run before
-        // Inhibit's projection sets MOVEFLAG_ROOT, or this wipe erases it right back off
-        // (a server-driven unit is unaffected: the projection never roots it for a stun alone).
-        // The word is a cache of what the client last sent, and only a client resends it, so
-        // only a unit with one may have it cleared -- Unit::IsClientMover, not the charmer.
+        // A client-driven unit's word is what its client last sent, and only a client resends
+        // it, so only a unit with one has it cleared -- Unit::IsClientMover, not the charmer.
+        // The root Inhibit's projection decides goes to that client and comes back in its ack.
         const bool clientMover = target->IsClientMover();
         if (clientMover)
         {
@@ -891,10 +889,8 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
         // unrooted a still-rooted player. The client root follows the aggregate's edges
         // (MotionMaster::ProjectClientRoot).
         //
-        // This Inhibit may run before the movement-flag wipe below (unlike the stun handler's
-        // M1, which wipes first): a player's root is a desired flag awaiting the ack, not part
-        // of m_movementInfo, while the stun handler wipes first because a charmed creature's
-        // root already is.
+        // The order against the wipe below does not matter: a client-driven unit's root is a
+        // desired flag awaiting its client's ack, never part of the word the wipe clears.
         if (!SpellDrivesItsOwnMovement(GetSpellProto()))
         {
             target->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, source);
