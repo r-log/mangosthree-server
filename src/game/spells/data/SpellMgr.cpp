@@ -25,13 +25,15 @@
 
 #include "Utilities/Errors.h"
 #include <algorithm>
+#include <cstdarg>
+#include <cstdio>
 #include <string>
+#include <vector>
 #include "spells/data/SpellMgr.h"
 #include "ObjectMgr.h"
 #include "spells/auras/SpellAuraDefines.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
-#include "Chat.h"
 #include "spells/pipeline/Spell.h"
 #include "Unit.h"
 #include "spells/handlers/SpellMgrHandlers.h"
@@ -2941,8 +2943,24 @@ SpellEntry const* SpellMgr::SelectAuraRankForLevel(SpellEntry const* spellInfo, 
     return NULL;
 }
 
+namespace
+{
+    /// A spell check problem, formatted into the 2048 bytes of a system message.
+    std::string SpellProblem(char const* format, ...) ATTR_PRINTF(1, 2);
+
+    std::string SpellProblem(char const* format, ...)
+    {
+        va_list ap;
+        char str[2048];
+        va_start(ap, format);
+        vsnprintf(str, 2048, format, ap);
+        va_end(ap);
+        return str;
+    }
+}
+
 /// Some checks for spells, to prevent adding deprecated/broken spells for trainers, spell book, etc
-bool SpellMgr::IsSpellValid(SpellEntry const* spellInfo, Player* pl, bool msg)
+bool SpellMgr::IsSpellValid(SpellEntry const* spellInfo, std::vector<std::string>* problems, bool logProblems)
 {
     // not exist
     if (!spellInfo)
@@ -2975,16 +2993,13 @@ bool SpellMgr::IsSpellValid(SpellEntry const* spellInfo, Player* pl, bool msg)
                     // skip auto-loot crafting spells, its not need explicit item info (but have special fake items sometime)
                     if (!IsLootCraftingSpell(spellInfo))
                     {
-                        if (msg)
+                        if (problems)
                         {
-                            if (pl)
-                            {
-                                ChatHandler(pl).PSendSysMessage("Craft spell %u not have create item entry.", spellInfo->ID);
-                            }
-                            else
-                            {
-                                sLog.outErrorDb("Craft spell %u not have create item entry.", spellInfo->ID);
-                            }
+                            problems->push_back(SpellProblem("Craft spell %u not have create item entry.", spellInfo->ID));
+                        }
+                        else if (logProblems)
+                        {
+                            sLog.outErrorDb("Craft spell %u not have create item entry.", spellInfo->ID);
                         }
                         return false;
                     }
@@ -2992,16 +3007,13 @@ bool SpellMgr::IsSpellValid(SpellEntry const* spellInfo, Player* pl, bool msg)
                 // also possible IsLootCraftingSpell case but fake item must exist anyway
                 else if (!ObjectMgr::GetItemPrototype( spellEffect->EffectItemType ))
                 {
-                    if (msg)
+                    if (problems)
                     {
-                        if (pl)
-                        {
-                            ChatHandler(pl).PSendSysMessage("Craft spell %u create item (Entry: %u) but item does not exist in item_template.",spellInfo->ID,spellEffect->EffectItemType);
-                        }
-                        else
-                        {
-                            sLog.outErrorDb("Craft spell %u create item (Entry: %u) but item does not exist in item_template.",spellInfo->ID,spellEffect->EffectItemType);
-                        }
+                        problems->push_back(SpellProblem("Craft spell %u create item (Entry: %u) but item does not exist in item_template.",spellInfo->ID,spellEffect->EffectItemType));
+                    }
+                    else if (logProblems)
+                    {
+                        sLog.outErrorDb("Craft spell %u create item (Entry: %u) but item does not exist in item_template.",spellInfo->ID,spellEffect->EffectItemType);
                     }
                     return false;
                 }
@@ -3012,18 +3024,15 @@ bool SpellMgr::IsSpellValid(SpellEntry const* spellInfo, Player* pl, bool msg)
             case SPELL_EFFECT_LEARN_SPELL:
             {
                 SpellEntry const* spellInfo2 = sSpellStore.LookupEntry(spellEffect->EffectTriggerSpell);
-                if (!IsSpellValid(spellInfo2, pl, msg))
+                if (!IsSpellValid(spellInfo2, problems, logProblems))
                 {
-                    if (msg)
+                    if (problems)
                     {
-                        if (pl)
-                        {
-                            ChatHandler(pl).PSendSysMessage("Spell %u learn to broken spell %u, and then...",spellInfo->ID,spellEffect->EffectTriggerSpell);
-                        }
-                        else
-                        {
-                            sLog.outErrorDb("Spell %u learn to invalid spell %u, and then...",spellInfo->ID,spellEffect->EffectTriggerSpell);
-                        }
+                        problems->push_back(SpellProblem("Spell %u learn to broken spell %u, and then...",spellInfo->ID,spellEffect->EffectTriggerSpell));
+                    }
+                    else if (logProblems)
+                    {
+                        sLog.outErrorDb("Spell %u learn to invalid spell %u, and then...",spellInfo->ID,spellEffect->EffectTriggerSpell);
                     }
                     return false;
                 }
@@ -3041,16 +3050,13 @@ bool SpellMgr::IsSpellValid(SpellEntry const* spellInfo, Player* pl, bool msg)
             {
                 if (spellReagents->Reagent[j] > 0 && !ObjectMgr::GetItemPrototype( spellReagents->Reagent[j] ))
                 {
-                    if (msg)
+                    if (problems)
                     {
-                        if (pl)
-                        {
-                            ChatHandler(pl).PSendSysMessage("Craft spell %u requires reagent item (Entry: %u) but item does not exist in item_template.",spellInfo->ID,spellReagents->Reagent[j]);
-                        }
-                        else
-                        {
-                            sLog.outErrorDb("Craft spell %u requires reagent item (Entry: %u) but item does not exist in item_template.",spellInfo->ID,spellReagents->Reagent[j]);
-                        }
+                        problems->push_back(SpellProblem("Craft spell %u requires reagent item (Entry: %u) but item does not exist in item_template.",spellInfo->ID,spellReagents->Reagent[j]));
+                    }
+                    else if (logProblems)
+                    {
+                        sLog.outErrorDb("Craft spell %u requires reagent item (Entry: %u) but item does not exist in item_template.",spellInfo->ID,spellReagents->Reagent[j]);
                     }
                     return false;
                 }

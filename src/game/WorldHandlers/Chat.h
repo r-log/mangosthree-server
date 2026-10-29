@@ -199,6 +199,9 @@ class ChatHandler
         virtual int GetSessionDbLocaleIndex() const;
 
         bool HasLowerSecurity(Player* target, ObjectGuid guid = ObjectGuid(), bool strong = false);
+        /// Whether SpellMgr::IsSpellValid accepts the spell; each problem it finds is sent to this
+        /// handler's session.
+        bool CheckSpellValid(SpellEntry const* spellInfo);
         bool HasLowerSecurityAccount(WorldSession* target, uint32 account, bool strong = false);
 
         void SendGlobalSysMessage(const char* str, AccountTypes minSec = SEC_PLAYER);

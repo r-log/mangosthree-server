@@ -1721,6 +1721,17 @@ CommandHooks& ChatHandler::GetCommandHooks()
     return hooks;
 }
 
+bool ChatHandler::CheckSpellValid(SpellEntry const* spellInfo)
+{
+    std::vector<std::string> problems;
+    bool valid = SpellMgr::IsSpellValid(spellInfo, &problems);
+    for (std::vector<std::string>::const_iterator itr = problems.begin(); itr != problems.end(); ++itr)
+    {
+        PSendSysMessage("%s", itr->c_str());
+    }
+    return valid;
+}
+
 /**
  * @brief Returns the currently selected player, or the session player if nothing is selected.
  *

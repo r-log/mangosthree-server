@@ -40,6 +40,8 @@
 #include "data/SpellScriptTargetStore.h"
 
 #include <map>
+#include <string>
+#include <vector>
 
 class Player;
 class Spell;
@@ -1422,8 +1424,10 @@ class SpellMgr
 
         bool IsSkillBonusSpell(uint32 spellId) const;
 
-        // Spell correctness for client using
-        static bool IsSpellValid(SpellEntry const* spellInfo, Player* pl = NULL, bool msg = true);
+        /// Whether the client can use the spell: its created items, its reagents and the spells it
+        /// teaches exist. Each problem found goes into `problems` when given, in the order found,
+        /// and otherwise to the DB error log when `logProblems` is set.
+        static bool IsSpellValid(SpellEntry const* spellInfo, std::vector<std::string>* problems = NULL, bool logProblems = true);
 
         SkillLineAbilityMapBounds GetSkillLineAbilityMapBounds(uint32 spell_id) const
         {

@@ -747,7 +747,6 @@ src/game/spells/auras/SpellAuras.cpp -> src/proto/Opcodes.h
 src/game/spells/auras/SpellAuras.cpp -> src/proto/WorldPacket.h
 src/game/spells/auras/UnitAuraProcHandler.cpp -> src/game/entities/player/Player.h
 src/game/spells/data [spells] -> src/game/Object/Unit.h
-src/game/spells/data/SpellMgr.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/data/SpellMgr.cpp -> src/game/spells/auras/SpellAuraDefines.h
 src/game/spells/data/SpellMgr.h -> src/game/spells/auras/SpellAuraDefines.h
 src/game/spells/data/SpellMgrAreas.cpp -> src/game/spells/auras/SpellAuraDefines.h
