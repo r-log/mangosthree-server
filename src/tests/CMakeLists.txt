@@ -192,6 +192,7 @@ set(SRC_GRP_TESTS
     UnitAccountSecurityTest.cpp
     UnitPositionAndMovingTest.cpp
     CreatureSwimTest.cpp
+    UnitMovementStatusTest.cpp
     UnitClientControlTest.cpp
     UnitNearTeleportTest.cpp
     UnitDamageCreditTest.cpp
