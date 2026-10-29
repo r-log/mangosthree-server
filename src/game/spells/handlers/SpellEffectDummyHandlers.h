@@ -73,7 +73,7 @@ struct SpellEffectDummyGenericContext
 };
 
 /// `Spell::EffectDummy`, SPELLFAMILY_GENERIC: its `switch (m_spellInfo->ID)`. Every registered label ends the effect;
-/// a miss runs the switch, which holds the other labels.
+/// there is no `default:`, so a miss goes on to the code after the family switch.
 struct SpellEffectDummyGenericSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_GENERIC;

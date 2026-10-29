@@ -40,12 +40,10 @@
 #include "Creature.h"
 #include "Language.h"
 #include "Util.h"
-#include "TemporarySummon.h"
 #include "data/DbScriptStore.h"
 #include "data/ScriptHooks.h"
 #include "GridNotifiersImpl.h"
 #include "Geometry/Vector3.h"
-#include "MotionMaster.h"
 #include <random>
 #include "spells/handlers/SpellEffectScriptHandlers.h"
 
@@ -66,53 +64,6 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
             if (SpellHandlerRegistry::Game().Dispatch<SpellEffectScriptGenericSite>(m_spellInfo->ID, ctx).IsReturn())
             {
                 return;
-            }
-
-            switch (m_spellInfo->ID)
-            {
-                case 44455:                                 // Character Script Effect Reverse Cast
-                {
-                    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_UNIT)
-                    {
-                        return;
-                    }
-
-                    Creature* pTarget = (Creature*)unitTarget;
-
-                    if (const SpellEntry *pSpell = sSpellStore.LookupEntry(effect->CalculateSimpleValue()))
-                    {
-                        // if we used item at least once...
-                        if (pTarget->IsTemporarySummon() && int32(pTarget->GetEntry()) == pSpell->GetEffectMiscValue(SpellEffectIndex(effect->EffectIndex)))
-                        {
-                            TemporarySummon* pSummon = (TemporarySummon*)pTarget;
-
-                            // can only affect "own" summoned
-                            if (pSummon->GetSummonerGuid() == m_caster->GetObjectGuid())
-                            {
-                                if (pTarget->GetMotionMaster()->Latches().roaming || pTarget->GetMotionMaster()->Latches().roamingLeg)
-                                {
-                                    pTarget->GetMotionMaster()->MovementExpired();
-                                }
-
-                                // trigger cast of quest complete script (44462, Cast Quest Complete on Master)
-                                pTarget->CastSpell(pTarget, 44462, true);
-
-                                pTarget->GetMotionMaster()->MovePoint(0, m_caster->Where().X(), m_caster->Where().Y(), m_caster->Where().Z());
-                            }
-
-                            return;
-                        }
-
-                        // or if it is first time used item, cast summon and despawn the target
-                        m_caster->CastSpell(pTarget, pSpell, true);
-                        pTarget->ForcedDespawn();
-
-                        // TODO: here we should get pointer to the just summoned and make it move.
-                        // without, it will be one extra use of quest item
-                    }
-
-                    return;
-                }
             }
             break;
         }

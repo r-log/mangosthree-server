@@ -59,7 +59,6 @@
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "Language.h"
-#include "MotionMaster.h"
 #include "spells/handlers/AuraDummyHandlers.h"
 
 #define NULL_AURA_SLOT 0xFF
@@ -87,29 +86,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyGenericSite>(GetId(), ctx).IsReturn())
                 {
                     return;
-                }
-
-                switch (GetId())
-                {
-                    case 10255:                             // Stoned
-                    {
-                        if (Unit* caster = GetCaster())
-                        {
-                            if (caster->GetTypeId() != TYPEID_UNIT)
-                            {
-                                return;
-                            }
-
-                            caster->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                            caster->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(10255, 0, caster->GetObjectGuid().GetCounter()));
-                        }
-                        return;
-                    }
-                    case 51405:                             // Digging for Treasure
-                        target->HandleEmote(EMOTE_STATE_WORK);
-                        // Pet will be following owner, this makes him stop
-                        target->GetMotionMaster()->Inhibit(Motion::Inhibition::Stunned, Motion::ControlClaim(51405, 0, GetCasterGuid().GetCounter()));
-                        return;
                 }
                 break;
             }
@@ -197,43 +173,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             return;
         }
 
-        switch (GetId())
-        {
-            case 42517:                                     // Beam to Zelfrax
-            {
-                // expecting target to be a dummy creature
-                Creature* pSummon = target->SummonCreature(23864, 0.0f, 0.0f, 0.0f, target->Where().Facing(), TEMPSPAWN_DEAD_DESPAWN, 0);
-
-                Unit* pCaster = GetCaster();
-
-                if (pSummon && pCaster)
-                {
-                    pSummon->GetMotionMaster()->MovePoint(0, pCaster->Where().X(), pCaster->Where().Y(), pCaster->Where().Z());
-                }
-
-                return;
-            }
-            case 51405:                                     // Digging for Treasure
-            {
-                const uint32 spell_list[7] =
-                {
-                    51441,                                  // hare
-                    51397,                                  // crystal
-                    51398,                                  // armor
-                    51400,                                  // gem
-                    51401,                                  // platter
-                    51402,                                  // treasure
-                    51443                                   // bug
-                };
-
-                target->CastSpell(target, spell_list[urand(0, 6)], true);
-
-                target->HandleEmote(EMOTE_STATE_NONE);
-                target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Stunned, Motion::ControlClaim(51405, 0, GetCasterGuid().GetCounter()));
-                return;
-            }
-        }
-
         // Living Bomb
         if (classOptions && classOptions->SpellClassSet == SPELLFAMILY_MAGE && (classOptions->SpellClassMask & UI64LIT(0x2000000000000)))
         {
@@ -255,63 +194,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyRemoveGenericSite>(GetId(), ctx).IsReturn())
             {
                 return;
-            }
-
-            switch (GetId())
-            {
-                case 6606:                                  // Self Visual - Sleep Until Cancelled (DND)
-                {
-                    if (apply)
-                    {
-                        target->SetStandState(UNIT_STAND_STATE_SLEEP);
-                        target->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(6606, 0, GetCasterGuid().GetCounter()));
-                    }
-                    else
-                    {
-                        target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(6606, 0, GetCasterGuid().GetCounter()));
-                        target->SetStandState(UNIT_STAND_STATE_STAND);
-                    }
-
-                    return;
-                }
-                case 35356:                                 // Spawn Feign Death
-                case 35357:                                 // Spawn Feign Death
-                case 42557:                                 // Feign Death
-                case 51329:                                 // Feign Death
-                {
-                    if (target->GetTypeId() == TYPEID_UNIT)
-                    {
-                        // Flags not set like it's done in SetFeignDeath()
-                        // UNIT_DYNFLAG_DEAD does not appear with these spells.
-                        // All of the spells appear to be present at spawn and not used to feign in combat or similar.
-                        if (apply)
-                        {
-                            target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_29);
-                            target->SetFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH);
-
-                            target->GetMotionMaster()->Inhibit(Motion::Inhibition::Dead, Motion::ControlClaim(GetId(), 0, GetCasterGuid().GetCounter()));
-                        }
-                        else
-                        {
-                            target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_29);
-                            target->RemoveFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH);
-
-                            target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Dead, Motion::ControlClaim(GetId(), 0, GetCasterGuid().GetCounter()));
-                        }
-                    }
-                    return;
-                }
-                case 43874:                                 // Scourge Mur'gul Camp: Force Shield Arcane Purple x3
-                    target->ApplyModFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE, apply);
-                    if (apply)
-                    {
-                        target->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(43874, 0, GetCasterGuid().GetCounter()));
-                    }
-                    else
-                    {
-                        target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(43874, 0, GetCasterGuid().GetCounter()));
-                    }
-                    return;
             }
             break;
         }

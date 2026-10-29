@@ -60,8 +60,8 @@ struct AuraDummyApplyGenericContext
     int32& m_periodicTimer;    ///< the aura's own `m_periodicTimer`
 };
 
-/// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_GENERIC's `switch (GetId())`: no `default:`; a miss runs the
-/// switch that still holds the other labels.
+/// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_GENERIC's `switch (GetId())`: no `default:`, so a miss goes on to
+/// the AT APPLY & REMOVE family switch.
 struct AuraDummyApplyGenericSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_GENERIC;
@@ -121,7 +121,8 @@ struct AuraDummyRemoveContext
     Unit*& target;      ///< the function's local `Unit* target = GetTarget();`
 };
 
-/// `Aura::HandleAuraDummy`, AT REMOVE `switch (GetId())`: a miss runs the switch that still holds the other labels.
+/// `Aura::HandleAuraDummy`, AT REMOVE `switch (GetId())`: no `default:`, so a miss continues at the Living Bomb
+/// block after it.
 struct AuraDummyRemoveSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_REMOVE;
@@ -141,8 +142,8 @@ struct AuraDummyApplyRemoveContext
     bool const apply;   ///< the function's parameter `apply`, which no body writes
 };
 
-/// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_GENERIC's `switch (GetId())`: no `default:`; a miss
-/// runs the switch that still holds the other labels.
+/// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_GENERIC's `switch (GetId())`: no `default:`, so a
+/// miss goes on to the pet aura, area and script code after the family switch.
 struct AuraDummyApplyRemoveGenericSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_REMOVE_GENERIC;

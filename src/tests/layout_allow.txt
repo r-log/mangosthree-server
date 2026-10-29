@@ -725,6 +725,8 @@ src/game/spells/data/SpellMgrPet.cpp -> src/game/spells/auras/SpellAuraDefines.h
 src/game/spells/data/SpellMgrProc.cpp -> src/game/spells/auras/SpellAuraDefines.h
 # The bodies read the player's battleground: Rocket Boots Engaged reports the dropped flag to it, and the location bodies read its status and whether it is an arena; the origin's own edge, same layer pair and header; dies when the flag drop and the battleground's state become facts the player answers (pvp's own seam).
 src/game/spells/handlers [spells] -> src/game/BattleGround/BattleGround.h
+# The bodies inhibit and release a unit's motion under a control claim, move a summon to a point, expire a follow or a roam and read the latches; the origin's own edge carried into the handler directory, same layer pair and header; spells -> entities is allowed, so the key stays while a handler asks for moves itself.
+src/game/spells/handlers [spells] -> src/game/MotionGenerators/MotionMaster.h
 # The bodies call creature-only methods on a unit cast to a creature, such as its virtual items, a despawn or the temporary-summon check.
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
 # The bodies call a creature's AI to start an attack or to evade and go home (AttackStart, EnterEvadeMode); the origin's own edge carried into the handler directory, same layer pair and header; an unlisted pair under the peer table, so debt, retiring with the script-hook interface that takes the AI calls.
