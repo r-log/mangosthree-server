@@ -216,7 +216,15 @@ enum SpellHandlerSite
     /// `Unit::HandleProcTriggerSpellAuraProc`, SPELLFAMILY_GENERIC's `switch (auraSpellInfo->ID)`.
     SPELL_HANDLER_SITE_UNIT_PROC_TRIGGER_SPELL_AURA_PROC_GENERIC = 74,
     /// `Unit::HandleProcTriggerSpellAuraProc`'s `switch (trigger_spell_id)`.
-    SPELL_HANDLER_SITE_UNIT_PROC_TRIGGER_SPELL_AURA_PROC_TRIGGERED = 75
+    SPELL_HANDLER_SITE_UNIT_PROC_TRIGGER_SPELL_AURA_PROC_TRIGGERED = 75,
+    /// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_HUNTER's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_HUNTER = 76,
+    /// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_SHAMAN's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_SHAMAN = 77,
+    /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_PALADIN's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_DUMMY_PALADIN = 78,
+    /// `Aura::PeriodicDummyTick`, SPELLFAMILY_ROGUE's `switch (spell->ID)`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_ROGUE = 79
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

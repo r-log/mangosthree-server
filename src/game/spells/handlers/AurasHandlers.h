@@ -206,6 +206,15 @@ struct AuraPeriodicDummyTickDruidSite
     typedef AuraPeriodicDummyTickContext Context;
 };
 
+/// `Aura::PeriodicDummyTick`, SPELLFAMILY_ROGUE's `switch (spell->ID)`: the label returns from the member; the
+/// `default:` does nothing.
+struct AuraPeriodicDummyTickRogueSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_ROGUE;
+    typedef void Value;
+    typedef AuraPeriodicDummyTickContext Context;
+};
+
 /// `Aura::PeriodicDummyTick`, SPELLFAMILY_HUNTER's `switch (spell->ID)` after the Explosive Shot test: each label
 /// returns from the member; the `default:` does nothing.
 struct AuraPeriodicDummyTickHunterSite

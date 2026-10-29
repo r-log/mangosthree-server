@@ -54,7 +54,6 @@
 #include "Unit.h"
 #include "spells/pipeline/Spell.h"
 #include "Policies/Singleton.h"
-#include "Totem.h"
 #include "Creature.h"
 #include "data/ScriptHooks.h"
 #include "Util.h"
@@ -133,21 +132,19 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 break;
             case SPELLFAMILY_HUNTER:
             {
-                switch (GetId())
+                AuraDummyApplyContext ctx(this, target);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyHunterSite>(GetId(), ctx).IsReturn())
                 {
-                    case 34026:                             // Kill Command
-                        target->CastSpell(target, 34027, true, NULL, this);
-                        return;
+                    return;
                 }
                 break;
             }
             case SPELLFAMILY_SHAMAN:
             {
-                switch (GetId())
+                AuraDummyApplyContext ctx(this, target);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyShamanSite>(GetId(), ctx).IsReturn())
                 {
-                    case 55198:                             // Tidal Force
-                        target->CastSpell(target, 55166, true, NULL, this);
-                        return;
+                    return;
                 }
 
                 // Earth Shield
@@ -214,21 +211,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     pSummon->GetMotionMaster()->MovePoint(0, pCaster->Where().X(), pCaster->Where().Y(), pCaster->Where().Z());
                 }
 
-                return;
-            }
-            case 44191:                                     // Flame Strike
-            {
-                if (target->GetMap()->IsDungeon())
-                {
-                    uint32 spellId = target->GetMap()->IsRegularDifficulty() ? 44190 : 46163;
-
-                    target->CastSpell(target, spellId, true, NULL, this);
-                }
-                return;
-            }
-            case 48385:                                     // Create Spirit Fount Beam
-            {
-                target->CastSpell(target, target->GetMap()->IsRegularDifficulty() ? 48380 : 59320, true);
                 return;
             }
             case 51405:                                     // Digging for Treasure
@@ -431,47 +413,11 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             break;
         }
         case SPELLFAMILY_PALADIN:
-            switch (GetId())
-            {
-                case 20911:                                 // Blessing of Sanctuary
-                case 25899:                                 // Greater Blessing of Sanctuary
-                {
-                    if (apply)
-                    {
-                        target->CastSpell(target, 67480, true, NULL, this);
-                    }
-                    else
-                    {
-                        target->RemoveAurasDueToSpell(67480);
-                    }
-                    return;
-                }
-            }
-            break;
-        case SPELLFAMILY_SHAMAN:
         {
-            switch (GetId())
+            AuraDummyApplyRemoveContext ctx(this, target, apply);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyPaladinSite>(GetId(), ctx).IsReturn())
             {
-                case 6495:                                  // Sentry Totem
-                {
-                    if (target->GetTypeId() != TYPEID_PLAYER)
-                    {
-                        return;
-                    }
-
-                    Totem* totem = target->GetTotem(TOTEM_SLOT_AIR);
-
-                    if (totem && apply)
-                    {
-                        ((Player*)target)->GetCamera().SetView(totem);
-                    }
-                    else
-                    {
-                        ((Player*)target)->GetCamera().ResetView();
-                    }
-
-                    return;
-                }
+                return;
             }
             break;
         }
