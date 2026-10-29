@@ -46,6 +46,7 @@
 #include "Geometry/Vector3.h"
 #include <random>
 #include "spells/handlers/SpellEffectScriptHandlers.h"
+#include "spells/data/SpellTables.h"
 
 /**
  * @brief Executes script-driven spell effect behavior for special cases.
@@ -107,19 +108,13 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                     return;
                 }
 
-                uint32 spellId1 = 0;
+                // Judgement self add
+                uint32 spellId1 = GetJudgementSelfSpell(m_spellInfo->ID);
                 uint32 spellId2 = 0;
-
-                // Judgement self add switch
-                switch (m_spellInfo->ID)
+                if (!spellId1)
                 {
-                    case 53407: spellId1 = 20184; break;    // Judgement of Justice
-                    case 20271:                             // Judgement of Light
-                    case 57774: spellId1 = 20185; break;    // Judgement of Light
-                    case 53408: spellId1 = 20186; break;    // Judgement of Wisdom
-                    default:
-                        sLog.outError("Unsupported Judgement (seal trigger) spell (Id: %u) in Spell::EffectScriptEffect", m_spellInfo->ID);
-                        return;
+                    sLog.outError("Unsupported Judgement (seal trigger) spell (Id: %u) in Spell::EffectScriptEffect", m_spellInfo->ID);
+                    return;
                 }
 
                 // offensive seals have aura dummy in 2 effect

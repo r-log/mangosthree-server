@@ -41,6 +41,7 @@
 
 #include <math.h>
 #include <stdarg.h>
+#include "spells/data/SpellTables.h"
 
 /**
  * @brief Sums all aura modifiers of a given type.
@@ -1006,13 +1007,12 @@ void Unit::RemoveAuraHolderDueToSpellByDispel(uint32 spellId, uint32 stackAmount
             Unit::AuraList const& auras = caster->GetAurasByType(SPELL_AURA_DUMMY);
             for (Unit::AuraList::const_iterator i = auras.begin(); i != auras.end(); ++i)
             {
-                switch ((*i)->GetId())
+                uint32 haste = GetLavaFlowsHasteSpell((*i)->GetId());
+                if (!haste)
                 {
-                    case 51480: triggeredSpell = 64694; break; // Lava Flows, Rank 1
-                    case 51481: triggeredSpell = 65263; break; // Lava Flows, Rank 2
-                    case 51482: triggeredSpell = 65264; break; // Lava Flows, Rank 3
-                    default: continue;
+                    continue;
                 }
+                triggeredSpell = haste;
                 break;
             }
         }

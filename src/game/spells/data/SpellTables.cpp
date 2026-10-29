@@ -387,6 +387,105 @@ namespace
         31642,
     };
 
+    constexpr SpellAnswer SHADOWFLAME_DOT[] =
+    {
+        { 47897, 47960 },
+    };
+
+    constexpr SpellAnswer STARFALL_STAR[] =
+    {
+        { 50286, 50288 },
+    };
+
+    constexpr SpellAnswer DISENGAGE[] =
+    {
+        { 57635, 57636 },
+        { 61507, 61508 },
+    };
+
+    constexpr SpellAnswer FIRE_NOVA[] =
+    {
+        { 1535, 8349 },
+    };
+
+    constexpr SpellAnswer WYVERN_STING_DOT[] =
+    {
+        { 19386, 24131 },
+    };
+
+    constexpr SpellAnswer HOLY_NOVA_HEAL[] =
+    {
+        { 15237, 23455 },
+    };
+
+    constexpr SpellAnswer JUDGEMENT_DEBUFF[] =
+    {
+        { 31804, 31803 },   // Judgement of Vengeance: Holy Vengeance
+        { 53733, 53742 },   // Judgement of Corruption: Blood Corruption
+    };
+
+    constexpr SpellAnswer JUDGEMENT_SELF[] =
+    {
+        { 20271, 20185 },   // Judgement of Light
+        { 57774, 20185 },   // Judgement of Light
+    };
+
+    constexpr SpellAnswer LAVA_FLOWS_HASTE[] =
+    {
+        { 51480, 64694 },
+        { 51481, 65263 },
+        { 51482, 65264 },
+    };
+
+    constexpr SpellAnswer REQUIRED_AREA[] =
+    {
+        { 41617, 3905 },    // Cenarion Mana Salve
+        { 41618, 3842 },    // Bottled Nethergon Energy
+        { 41619, 3905 },    // Cenarion Healing Salve
+        { 41620, 3842 },    // Bottled Nethergon Vapor
+        { 45373, 4075 },    // Bloodberry Elixir
+    };
+
+    /// A spell and the damage and heal spells it casts in its place.
+    struct SpellHurtHealRow
+    {
+        uint32 spellId;
+        SpellHurtHeal spells;
+    };
+
+    constexpr SpellHurtHealRow PENANCE[] =
+    {
+        { 47540, { 47758, 47757 } },
+    };
+
+    constexpr SpellHurtHealRow HOLY_SHOCK[] =
+    {
+        { 20473, { 25912, 25914 } },
+    };
+
+    template <std::size_t N>
+    constexpr bool SortedBySpellId(SpellHurtHealRow const (&rows)[N])
+    {
+        for (std::size_t i = 1; i < N; ++i)
+        {
+            if (!(rows[i - 1].spellId < rows[i].spellId))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// The spells of the row holding `spellId`, or NULL when no row holds it.
+    template <std::size_t N>
+    SpellHurtHeal const* SpellsOf(SpellHurtHealRow const (&rows)[N], uint32 spellId)
+    {
+        SpellHurtHealRow const* end = std::end(rows);
+        SpellHurtHealRow const* row = std::lower_bound(std::begin(rows), end, spellId,
+                                                       [](SpellHurtHealRow const& r, uint32 id) { return r.spellId < id; });
+        return row != end && row->spellId == spellId ? &row->spells : NULL;
+    }
+
     template <std::size_t N>
     constexpr bool SortedBySpellId(SpellAnswer const (&rows)[N])
     {
@@ -436,6 +535,18 @@ namespace
     static_assert(SortedBySpellId(HOLY_SHOCK_OF_HEAL), "Holy Shock rows are sorted, each once");
     static_assert(SortedBySpellId(DEEP_WOUNDS_WEAPON_PERCENT), "Deep Wounds rows are sorted, each once");
     static_assert(SortedBySpellId(BLAZING_SPEED_RANKS), "Blazing Speed ranks are sorted, each once");
+    static_assert(SortedBySpellId(SHADOWFLAME_DOT), "Shadowflame rows are sorted, each once");
+    static_assert(SortedBySpellId(STARFALL_STAR), "Starfall rows are sorted, each once");
+    static_assert(SortedBySpellId(DISENGAGE), "Disengage rows are sorted, each once");
+    static_assert(SortedBySpellId(FIRE_NOVA), "Fire Nova rows are sorted, each once");
+    static_assert(SortedBySpellId(WYVERN_STING_DOT), "Wyvern Sting rows are sorted, each once");
+    static_assert(SortedBySpellId(HOLY_NOVA_HEAL), "Holy Nova rows are sorted, each once");
+    static_assert(SortedBySpellId(JUDGEMENT_DEBUFF), "Judgement debuff rows are sorted, each once");
+    static_assert(SortedBySpellId(JUDGEMENT_SELF), "Judgement self rows are sorted, each once");
+    static_assert(SortedBySpellId(LAVA_FLOWS_HASTE), "Lava Flows rows are sorted, each once");
+    static_assert(SortedBySpellId(REQUIRED_AREA), "required area rows are sorted, each once");
+    static_assert(SortedBySpellId(PENANCE), "Penance rows are sorted, each once");
+    static_assert(SortedBySpellId(HOLY_SHOCK), "Holy Shock rows are sorted, each once");
 }
 
 SpellMaxTargetsRange const* FindSpellMaxTargets(uint32 spellId)
@@ -534,4 +645,64 @@ uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId)
 bool IsBlazingSpeedRank(uint32 spellId)
 {
     return Holds(BLAZING_SPEED_RANKS, spellId);
+}
+
+SpellHurtHeal const* FindPenanceSpells(uint32 spellId)
+{
+    return SpellsOf(PENANCE, spellId);
+}
+
+SpellHurtHeal const* FindHolyShockSpells(uint32 spellId)
+{
+    return SpellsOf(HOLY_SHOCK, spellId);
+}
+
+uint32 GetShadowflameDotSpell(uint32 spellId)
+{
+    return AnswerOf(SHADOWFLAME_DOT, spellId);
+}
+
+uint32 GetStarfallStarSpell(uint32 spellId)
+{
+    return AnswerOf(STARFALL_STAR, spellId);
+}
+
+uint32 GetDisengageSpell(uint32 spellId)
+{
+    return AnswerOf(DISENGAGE, spellId);
+}
+
+uint32 GetFireNovaSpell(uint32 spellId)
+{
+    return AnswerOf(FIRE_NOVA, spellId);
+}
+
+uint32 GetWyvernStingDotSpell(uint32 spellId)
+{
+    return AnswerOf(WYVERN_STING_DOT, spellId);
+}
+
+uint32 GetHolyNovaHealSpell(uint32 spellId)
+{
+    return AnswerOf(HOLY_NOVA_HEAL, spellId);
+}
+
+uint32 GetJudgementDebuffSpell(uint32 spellId)
+{
+    return AnswerOf(JUDGEMENT_DEBUFF, spellId);
+}
+
+uint32 GetJudgementSelfSpell(uint32 spellId)
+{
+    return AnswerOf(JUDGEMENT_SELF, spellId);
+}
+
+uint32 GetLavaFlowsHasteSpell(uint32 rankSpellId)
+{
+    return AnswerOf(LAVA_FLOWS_HASTE, rankSpellId);
+}
+
+uint32 GetSpellRequiredAreaId(uint32 spellId)
+{
+    return AnswerOf(REQUIRED_AREA, spellId);
 }

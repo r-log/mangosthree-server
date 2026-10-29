@@ -62,6 +62,7 @@
 #include "DB2Stores.h"
 #include "DisableMgr.h"
 #include "MotionMaster.h"
+#include "spells/data/SpellTables.h"
 
 /**
  * @brief Sends the cast result for this spell to the appropriate receiver.
@@ -115,24 +116,7 @@ void Spell::SendCastResult(Player* caster, SpellEntry const* spellInfo, uint8 ca
             data << uint32(spellInfo->GetRequiresSpellFocus());
             break;
         case SPELL_FAILED_REQUIRES_AREA:                    // AreaTable.dbc id
-            // hardcode areas limitation case
-            switch (spellInfo->ID)
-            {
-                case 41617:                                 // Cenarion Mana Salve
-                case 41619:                                 // Cenarion Healing Salve
-                    data << uint32(3905);
-                    break;
-                case 41618:                                 // Bottled Nethergon Energy
-                case 41620:                                 // Bottled Nethergon Vapor
-                    data << uint32(3842);
-                    break;
-                case 45373:                                 // Bloodberry Elixir
-                    data << uint32(4075);
-                    break;
-                default:                                    // default case (don't must be)
-                    data << uint32(0);
-                    break;
-            }
+            data << uint32(GetSpellRequiredAreaId(spellInfo->ID));
             break;
         case SPELL_FAILED_TOTEMS:
             {
