@@ -26,8 +26,7 @@
 #include "WireParity.h"
 
 #include "MovementBridge.h"
-#include "Unit.h"
-#include "OpcodeTable.h"
+#include "MovementInfo.h"
 #include "WorldPacket.h"
 #include "wire/MovementCodec.h"
 #include "wire/MovementFamilies.h"
@@ -44,6 +43,7 @@ namespace WireParity
     namespace
     {
         std::atomic<bool> g_enabled{ false };
+        std::atomic<char const* (*)(uint16)> g_name{ nullptr };
 
         // One row per registry entry followed by one per family opcode: the
         // registry rows are indexed by Wire::RegistryIndex and the family rows by
@@ -127,14 +127,24 @@ namespace WireParity
 
     }
 
-    void Enable(bool on) { g_enabled.store(on, std::memory_order_release); }
+    void Enable(bool on, char const* (*name)(uint16 opcode))
+    {
+        g_name.store(name, std::memory_order_release);
+        g_enabled.store(on, std::memory_order_release);
+    }
     bool Enabled() { return g_enabled.load(std::memory_order_acquire); }
+
+    char const* OpcodeName(uint16 opcode)
+    {
+        char const* (*name)(uint16) = g_name.load(std::memory_order_acquire);
+        return name ? name(opcode) : "?";
+    }
 
     void Rejected(uint16 opcode, Wire::DecodeError error)
     {
         char text[128];
         std::snprintf(text, sizeof(text), "0x%.4X %s: rejected, decode %s", uint32(opcode),
-                      LookupOpcodeName(opcode), Wire::ErrorName(error));
+                      OpcodeName(opcode), Wire::ErrorName(error));
         const int i = RowIndex(opcode);
         if (i < 0)
         {
@@ -160,7 +170,7 @@ namespace WireParity
         char const* field = Wire::FirstDifference(decoded, back);
         char text[128];
         std::snprintf(text, sizeof(text), "0x%.4X %s: bridge round trip differs at %s", uint32(opcode),
-                      LookupOpcodeName(opcode), field ? field : "?");
+                      OpcodeName(opcode), field ? field : "?");
         NoteFirst(row.hasFirst, row.first, text);
     }
 
@@ -177,7 +187,7 @@ namespace WireParity
             ++row.outFailed;
             char text[128];
             std::snprintf(text, sizeof(text), "0x%.4X %s: outbound decode %s, consumed %u, payload %u", uint32(opcode),
-                          LookupOpcodeName(opcode), Wire::ErrorName(v.result.error), uint32(v.result.consumed), uint32(packet.size()));
+                          OpcodeName(opcode), Wire::ErrorName(v.result.error), uint32(v.result.consumed), uint32(packet.size()));
             NoteFirst(row.hasFirst, row.first, text);
             return;
         }
@@ -189,7 +199,7 @@ namespace WireParity
             ++row.outInexact;
             char text[160];
             std::snprintf(text, sizeof(text), "0x%.4X %s: outbound re-encodes to %u byte(s), %u on the wire, first difference at byte %ld",
-                          uint32(opcode), LookupOpcodeName(opcode), uint32(v.reencoded), uint32(packet.size()), v.firstDifference);
+                          uint32(opcode), OpcodeName(opcode), uint32(v.reencoded), uint32(packet.size()), v.firstDifference);
             NoteFirst(row.hasFirst, row.first, text);
         }
     }
@@ -245,7 +255,7 @@ namespace WireParity
             const uint16 opcode = RowOpcode(i);
             char text[256];
             std::snprintf(text, sizeof(text), "  0x%.4X %-44s in %u/%u/%u  out %u/%u inexact %u",
-                          uint32(opcode), LookupOpcodeName(opcode),
+                          uint32(opcode), OpcodeName(opcode),
                           uint32(row.inSeen), uint32(row.inRejected), uint32(row.inBridgeMismatch),
                           uint32(row.outSeen), uint32(row.outFailed), uint32(row.outInexact));
             line(text);

@@ -35,6 +35,7 @@
 #include "Common/ServerDefines.h"
 #include "Log.h"
 #include "Opcodes.h"
+#include "OpcodeTable.h"
 #include "WorldSession.h"
 #include "WorldPacket.h"
 #include "Player.h"
@@ -688,7 +689,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_MOVEMENT_SMOOTH_GROUND_PATHS, "Movement.SmoothGroundPaths", true);
 
     setConfig(CONFIG_BOOL_MOVEMENT_WIRE_PARITY, "Movement.WireParity", false);
-    WireParity::Enable(getConfig(CONFIG_BOOL_MOVEMENT_WIRE_PARITY));
+    WireParity::Enable(getConfig(CONFIG_BOOL_MOVEMENT_WIRE_PARITY), LookupOpcodeName);
     if (WireParity::Enabled())
     {
         sLog.outString("WORLD: Wire parity shadow ON (.server movement to read it)");
