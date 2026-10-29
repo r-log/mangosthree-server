@@ -958,7 +958,7 @@ void Spell::EffectLeapForward(SpellEffectEntry const* effect)
     float groundZ = prevPos.z;
 
     // falling case
-    if (!unitTarget->GetMap()->GetHeightInRange(unitTarget->GetPhaseMask(), prevPos.x, prevPos.y, groundZ, 3.0f) && unitTarget->m_movementInfo.HasMovementFlag(MOVEFLAG_FALLING))
+    if (!unitTarget->GetMap()->GetHeightInRange(unitTarget->GetPhaseMask(), prevPos.x, prevPos.y, groundZ, 3.0f) && unitTarget->ClientStatus().HasMovementFlag(MOVEFLAG_FALLING))
     {
         nextPos.x = prevPos.x + dist * cos(orientation);
         nextPos.y = prevPos.y + dist * sin(orientation);

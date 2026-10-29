@@ -918,7 +918,7 @@ void Spell::update(uint32 difftime)
     // check if the player or unit caster has moved before the spell finished (exclude casting on vehicles)
     if (((m_caster->GetTypeId() == TYPEID_PLAYER || m_caster->GetTypeId() == TYPEID_UNIT) && m_timer != 0) &&
         (m_castPositionX != m_caster->Where().X() || m_castPositionY != m_caster->Where().Y() || m_castPositionZ != m_caster->Where().Z()) &&
-        ((spellEffect && spellEffect->Effect != SPELL_EFFECT_STUCK) || !((Player*)m_caster)->m_movementInfo.HasMovementFlag(MOVEFLAG_FALLINGFAR)) &&
+        ((spellEffect && spellEffect->Effect != SPELL_EFFECT_STUCK) || !((Player*)m_caster)->ClientStatus().HasMovementFlag(MOVEFLAG_FALLINGFAR)) &&
         !m_caster->HasAffectedAura(SPELL_AURA_ALLOW_CAST_WHILE_MOVING, m_spellInfo))
     {
         // always cancel for channeled spells
@@ -961,7 +961,7 @@ void Spell::update(uint32 difftime)
                 if (m_caster->GetTypeId() == TYPEID_PLAYER || m_caster->GetTypeId() == TYPEID_UNIT)
                 {
                     // check if player has jumped before the channeling finished
-                    if (m_caster->m_movementInfo.HasMovementFlag(MOVEFLAG_FALLING) &&
+                    if (m_caster->ClientStatus().HasMovementFlag(MOVEFLAG_FALLING) &&
                         !m_caster->HasAffectedAura(SPELL_AURA_ALLOW_CAST_WHILE_MOVING, m_spellInfo))
                     {
                         cancel();

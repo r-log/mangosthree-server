@@ -92,3 +92,28 @@ MovementInfo const& Unit::ClientStatus() const
 {
     return m_movementInfo;
 }
+
+void Unit::AcceptClientStatus(MovementInfo const& status)
+{
+    m_movementInfo = status;
+}
+
+void Unit::ResetClientWord(MovementFlags flags)
+{
+    m_movementInfo.SetMovementFlags(flags);
+}
+
+void Unit::ClearClientFall()
+{
+    m_movementInfo.ClearFallData();
+}
+
+void Unit::SetTransportStatus(ObjectGuid transport, float x, float y, float z, float o, uint32 time, int8 seat)
+{
+    m_movementInfo.SetTransportData(transport, x, y, z, o, time, seat);
+}
+
+void Unit::ClearTransportStatus()
+{
+    m_movementInfo.ClearTransportData();
+}

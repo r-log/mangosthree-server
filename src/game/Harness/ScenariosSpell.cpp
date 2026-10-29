@@ -2212,7 +2212,7 @@ namespace Harness
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
                 m_rec.Open("move");
-                MovementInfo word = p->m_movementInfo;
+                MovementInfo word = p->ClientStatus();
                 word.SetMovementFlags(MOVEFLAG_FORWARD);
                 word.ChangePosition(p->Where().X() - 1.0f, p->Where().Y(), p->Where().Z(), p->Where().Facing());
                 p->GetSession()->HandleMoverRelocation(p, word);
@@ -2227,7 +2227,7 @@ namespace Harness
                 st->slot2After = slot(p);
                 st->mana2After = p->GetPower(POWER_MANA);
                 m_rec.Open("stop");
-                MovementInfo word = p->m_movementInfo;
+                MovementInfo word = p->ClientStatus();
                 word.SetMovementFlags(MOVEFLAG_NONE);
                 word.ChangePosition(p->Where().X(), p->Where().Y(), p->Where().Z(), p->Where().Facing());
                 p->GetSession()->HandleMoverRelocation(p, word);

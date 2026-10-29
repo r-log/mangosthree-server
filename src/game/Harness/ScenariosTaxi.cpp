@@ -168,7 +168,7 @@ namespace Harness
         /// edge would be proving its own copy of it.
         void Word(Player* p, uint32 flags)
         {
-            MovementInfo word = p->m_movementInfo;
+            MovementInfo word = p->ClientStatus();
             word.SetMovementFlags(MovementFlags(flags));
             word.ChangePosition(p->Where().X(), p->Where().Y(), p->Where().Z(), p->Where().Facing());
             p->GetSession()->HandleMoverRelocation(p, word);

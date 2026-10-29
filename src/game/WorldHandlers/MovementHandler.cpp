@@ -395,7 +395,9 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
 
     // Observers learn the landing from the kernel's teleport update, built from the
     // stored status at the destination.
-    plMover->m_movementInfo.ChangePosition(dest.coord_x, dest.coord_y, dest.coord_z, dest.orientation);
+    MovementInfo arrived = plMover->ClientStatus();
+    arrived.ChangePosition(dest.coord_x, dest.coord_y, dest.coord_z, dest.orientation);
+    plMover->AcceptClientStatus(arrived);
     plMover->SendEmissions(emissions);
 
     uint32 newzone, newarea;
@@ -813,7 +815,7 @@ void WorldSession::HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo
         // previous one did not carry. #116 hung the despawn on the mount aura's apply instead,
         // so the pet vanished at the summon. Read the word he had before the store below
         // replaces it; the edge is checked once the store is done.
-        const uint32 wordBeforeThisPacket = plMover->m_movementInfo.GetMovementFlags();
+        const uint32 wordBeforeThisPacket = plMover->ClientStatus().GetMovementFlags();
 
         // BEFORE the transport branch, and the ordering is the whole of it.
         // TransportMap::Add reads the passenger's OWN m_movementInfo for his deck offset; the
@@ -821,7 +823,7 @@ void WorldSession::HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo
         // the PREVIOUS one -- which carries no transport data -- and stood him on the hull
         // origin. His minions were then drawn beside (0, 0, 0): a yard off the keel and six
         // metres under the deck, which is what "the pet comes up through the walls" was.
-        plMover->m_movementInfo = movementInfo;
+        plMover->AcceptClientStatus(movementInfo);
 
         if (movementInfo.GetTransportGuid())
         {
@@ -945,7 +947,7 @@ void WorldSession::HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo
         {
             plMover->SetPosition(movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);
         }
-        plMover->m_movementInfo = movementInfo;
+        plMover->AcceptClientStatus(movementInfo);
 
         // The lift-off edge, read once the word is finally his. Three guards, and each of them
         // is a case this would otherwise fire on wrongly:
@@ -1019,7 +1021,7 @@ void WorldSession::HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo
         // The stored status is what the observer form and the create block read;
         // a possessed creature's observer packets carried its pre-possession
         // flags, time and position before.
-        mover->m_movementInfo = movementInfo;
+        mover->AcceptClientStatus(movementInfo);
 
         if (mover->IsInWorld() && mover->GetTypeId() == TYPEID_UNIT)
         {

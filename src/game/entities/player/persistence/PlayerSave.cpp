@@ -196,10 +196,10 @@ void Player::SaveToDB()
     row.primaryTrees = ss.str();
     ss.str("");
 
-    row.transX = finiteAlways(m_movementInfo.GetTransportPos()->x);
-    row.transY = finiteAlways(m_movementInfo.GetTransportPos()->y);
-    row.transZ = finiteAlways(m_movementInfo.GetTransportPos()->z);
-    row.transO = finiteAlways(m_movementInfo.GetTransportPos()->o);
+    row.transX = finiteAlways(ClientStatus().GetTransportPos()->x);
+    row.transY = finiteAlways(ClientStatus().GetTransportPos()->y);
+    row.transZ = finiteAlways(ClientStatus().GetTransportPos()->z);
+    row.transO = finiteAlways(ClientStatus().GetTransportPos()->o);
     row.transGuid = m_transport ? m_transport->GetGUIDLow() : 0;
 
     row.extraFlags = m_ExtraFlags;

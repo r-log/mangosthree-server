@@ -695,7 +695,7 @@ bool Unit::haveOffhandWeapon() const
 /**
  * @brief Sends a heartbeat movement packet for the unit.
  */
-void Unit::WriteMovementInfo(ByteBuffer& out, uint16 opcode) const
+void Unit::WriteMovementInfo(ByteBuffer& out, uint16 opcode, uint32 time) const
 {
     // THE ONE PLACE THIS IS DECIDED, and it is decided at the instant of writing, from the
     // map. An ordinary map: send what we have. A transport map: our coordinates ARE that
@@ -716,12 +716,14 @@ void Unit::WriteMovementInfo(ByteBuffer& out, uint16 opcode) const
         // to (-3, -8, 6) on the continent. Boarding was never affected, because the deck
         // branch below had always taken its numbers from Where().
         MovementInfo ashore = WireStatus();
+        ashore.UpdateTime(time);
         ashore.ChangePosition(Where().X(), Where().Y(), Where().Z(), Where().Facing());
         ashore.Write(out, opcode);
         return;
     }
 
     MovementInfo onDeck = WireStatus();
+    onDeck.UpdateTime(time);
     onDeck.SetTransportData(vessel->GetObjectGuid(), Where().X(), Where().Y(), Where().Z(),
                             Where().Facing(), 0, -1);
     onDeck.ChangePosition(0.0f, 0.0f, 0.0f, Where().Facing());
@@ -730,10 +732,9 @@ void Unit::WriteMovementInfo(ByteBuffer& out, uint16 opcode) const
 
 void Unit::SendHeartBeat()
 {
-    m_movementInfo.UpdateTime(GameTime::GetGameTimeMS());
     WorldPacket data(MSG_MOVE_HEARTBEAT, 64);
     data << GetPackGUID();
-    WriteMovementInfo(data, data.GetOpcode());
+    WriteMovementInfo(data, data.GetOpcode(), GameTime::GetGameTimeMS());
     SendMessageToSet(&data, true);
 }
 

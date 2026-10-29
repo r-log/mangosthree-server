@@ -244,7 +244,7 @@ class Creature : public Unit
         bool CanWalk() const { return (GetCreatureInfo()->InhabitType & INHABIT_GROUND) != 0; }
         bool CanSwim() const override; ///< Aquatic nature, swim unit flags, or actual deep-water immersion.
         bool IsSwimming() const { return (WireFlags() & MOVEFLAG_SWIMMING) != 0; }
-        bool CanFly() const override { return (GetCreatureInfo()->InhabitType & INHABIT_AIR) || (GetByteValue(UNIT_FIELD_BYTES_1, 3) & UNIT_BYTE1_FLAG_FLY_ANIM) || m_movementInfo.HasMovementFlag((MovementFlags)(MOVEFLAG_LEVITATING | MOVEFLAG_CAN_FLY)); }
+        bool CanFly() const override { return (GetCreatureInfo()->InhabitType & INHABIT_AIR) || (GetByteValue(UNIT_FIELD_BYTES_1, 3) & UNIT_BYTE1_FLAG_FLY_ANIM) || (WireFlags() & (MOVEFLAG_LEVITATING | MOVEFLAG_CAN_FLY)) != 0; }
         bool IsFlying() const { return (WireFlags() & (MOVEFLAG_FLYING | MOVEFLAG_LEVITATING)) != 0; }
 
         bool IsTrainerOf(Player* player, bool msg) const;
