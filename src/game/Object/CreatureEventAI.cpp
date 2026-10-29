@@ -38,6 +38,7 @@
 #include "GameEventMgr.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "spells/auras/SpellAuras.h"
 #include "InstanceData.h"
 #include "Language.h"
 #include "MotionMaster.h"

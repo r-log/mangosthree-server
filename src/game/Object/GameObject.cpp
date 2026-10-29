@@ -33,6 +33,7 @@
 #include "ObjectMgr.h"
 #include "PoolManager.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/auras/SpellAuras.h"
 #include "UpdateMask.h"
 #include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"

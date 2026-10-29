@@ -33,7 +33,6 @@
 #include "WorldSession.h"
 #include "UpdateData.h"
 #include "CreatureAI.h"
-#include "spells/auras/SpellAuras.h"
 #include "DBCEnums.h"
 #include "DBCStores.h"
 
@@ -150,105 +149,6 @@ inline void MaNGOS::CreatureRelocationNotifier::Visit(CreatureMapType& m)
             CreatureCreatureRelocationWorker(c, &i_creature);
         }
     }
-}
-
-inline void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
-{
-    if (!target->IsAlive() || target->IsTaxiFlying())
-    {
-        return;
-    }
-
-    if (target->IsTotem())
-    {
-        return;
-    }
-
-    // Deck-aware: for an effect on a transport this measures the local separation, so the
-    // world position the server is only guessing at never enters the test.
-    if (!i_dynobject.IsInEffectRange(target))
-    {
-        return;
-    }
-
-    // Check targets for not_selectable unit flag and remove
-    if (target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_OOC_NOT_ATTACKABLE))
-    {
-        return;
-    }
-
-    // Evade target
-    if (target->GetTypeId() == TYPEID_UNIT && ((Creature*)target)->IsInEvadeMode())
-    {
-        return;
-    }
-
-    // Check player targets and remove if in GM mode or GM invisibility (for not self casting case)
-    if (target->GetTypeId() == TYPEID_PLAYER && target != i_check && (((Player*)target)->isGameMaster() || ((Player*)target)->GetVisibility() == VISIBILITY_OFF))
-    {
-        return;
-    }
-
-    // for player casts use less strict negative and more stricted positive targeting
-    if (i_check->GetTypeId() == TYPEID_PLAYER)
-    {
-        if (i_check->IsFriendlyTo(target) != i_positive)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (i_check->IsHostileTo(target) == i_positive)
-        {
-            return;
-        }
-    }
-
-    if (i_dynobject.IsAffecting(target))
-    {
-        return;
-    }
-
-    SpellEntry const* spellInfo = sSpellStore.LookupEntry(i_dynobject.GetSpellId());
-    SpellEffectIndex eff_index  = i_dynobject.GetEffIndex();
-
-    // Check target immune to spell or aura
-    if (target->IsImmuneToSpell(spellInfo, false) || target->IsImmuneToSpellEffect(spellInfo, eff_index, false))
-    {
-        return;
-    }
-
-    // Apply PersistentAreaAura on target
-    // in case 2 dynobject overlap areas for same spell, same holder is selected, so dynobjects share holder
-    SpellAuraHolder* holder = target->GetSpellAuraHolder(spellInfo->ID, i_dynobject.GetCasterGuid());
-
-    if (holder)
-    {
-        if (!holder->GetAuraByEffectIndex(eff_index))
-        {
-            PersistentAreaAura* Aur = new PersistentAreaAura(spellInfo, eff_index, NULL, holder, target, i_dynobject.GetCaster());
-            holder->AddAura(Aur, eff_index);
-            target->AddAuraToModList(Aur);
-            holder->SetInUse(true);
-            Aur->ApplyModifier(true, true);
-            holder->SetInUse(false);
-        }
-        else if (holder->GetAuraDuration() >= 0 && uint32(holder->GetAuraDuration()) < i_dynobject.GetDuration())
-        {
-            holder->SetAuraDuration(i_dynobject.GetDuration());
-            holder->SendAuraUpdate(false);
-        }
-    }
-    else
-    {
-        holder = CreateSpellAuraHolder(spellInfo, target, i_dynobject.GetCaster());
-        PersistentAreaAura* Aur = new PersistentAreaAura(spellInfo, eff_index, NULL, holder, target, i_dynobject.GetCaster());
-        holder->AddAura(Aur, eff_index);
-        target->AddSpellAuraHolder(holder);
-    }
-
-    i_dynobject.AddAffected(target);
 }
 
 template<>
