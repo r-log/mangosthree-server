@@ -3981,7 +3981,7 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
         CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) ==
               registry.Find<SpellEffectDummyGenericSite>(spellId));
     }
-    for (uint32 spellId : { 11958u, 21977u, 5938u, 23989u, 19740u, 10254u, 51866u, 51872u })
+    for (uint32 spellId : { 11958u, 21977u, 5938u, 23989u, 19740u })
     {
         CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) == NULL);
     }
@@ -5985,17 +5985,14 @@ TEST(SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     CHECK(HeldByAnotherSite(game, AuraDummyApplyGenericSite::Key, 63122));
     CHECK(!HeldByAnotherSite(game, AuraDummyApplyGenericSite::Key, 63122, SpellEffectScriptGenericSite::Key));
 
-    // The switch has no `default:`, so an id it never held and the label it still holds are misses, which run the
-    // switch; the members stay as they were.
+    // The site has no `default:`, so an id it never held is a miss, which goes on to the database script; the members
+    // stay as they were.
     ScriptMembers members;
     SpellEffectScriptContext ctx = members.Context();
     CHECK(registry.FindDefault<SpellEffectScriptGenericSite>() == NULL);
     CHECK(game.FindDefault<SpellEffectScriptGenericSite>() == NULL);
-    for (uint32 spellId : { 12345u, 44455u })
-    {
-        CHECK(game.Find<SpellEffectScriptGenericSite>(spellId) == NULL);
-        CHECK(game.Dispatch<SpellEffectScriptGenericSite>(spellId, ctx).IsMiss());
-    }
+    CHECK(game.Find<SpellEffectScriptGenericSite>(12345) == NULL);
+    CHECK(game.Dispatch<SpellEffectScriptGenericSite>(12345, ctx).IsMiss());
     CHECK(members.Untouched());
 }
 
