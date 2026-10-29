@@ -25,7 +25,7 @@
 
 #include "MovementBridge.h"
 
-#include "Unit.h"
+#include "MovementInfo.h"
 
 Wire::MovementStatus Movement::ToWire(MovementInfo const& record)
 {

@@ -275,14 +275,11 @@ src/game/Object/StatSystem.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/TemporarySummon.cpp -> src/game/Server/WorldSession.h
 src/game/Object/TemporarySummon.cpp -> src/game/entities/player/Player.h
 src/game/Object/Totem.cpp -> src/game/entities/player/Player.h
-src/game/Object/Unit.cpp -> src/game/Server/OpcodeTable.h
 src/game/Object/Unit.cpp -> src/game/Server/WorldSession.h
 src/game/Object/Unit.cpp -> src/game/entities/player/Player.h
 src/game/Object/Unit.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Unit.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Unit.cpp -> src/proto/WorldPacket.h
-src/game/Object/Unit.cpp -> src/proto/wire/MovementCodec.h
-src/game/Object/Unit.cpp -> src/proto/wire/MovementSequences.h
 src/game/Object/Unit.h -> src/game/spells/AuraContainer.h
 src/game/Object/Unit.h -> src/game/spells/auras/SpellAuraDefines.h
 src/game/Object/Unit.h -> src/proto/Opcodes.h
@@ -685,9 +682,6 @@ src/game/entities/player/world/PlayerZone.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/world/PlayerZone.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/world/PlayerZone.cpp -> src/proto/Opcodes.h
 src/game/entities/player/world/PlayerZone.cpp -> src/proto/WorldPacket.h
-src/game/movement/MovementBridge.cpp -> src/game/Object/Unit.h
-src/game/movement/WireParity.cpp -> src/game/Object/Unit.h
-src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
 # The rename and the customize tell every client to drop the renamed character's cached data: sWorld.InvalidatePlayerDataToAllClient.
 src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h

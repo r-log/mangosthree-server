@@ -37,46 +37,31 @@ class MovementInfo;
 class WorldPacket;
 
 /**
- * @brief What the shadow now is: the outbound judge of the legacy writers
- *        that remain until P2-C, the bridge witness, and the codec-rejection
- *        counters. Design v2 §13.
+ * @brief The movement wire's parity checks and its codec-rejection counters.
  *
- * MovementInfo::Read decodes every inbound status through the registry with
- * nothing beside it to compare against any more, so P1's Inbound, Relay,
- * InboundMover and InboundTeleportAck -- each a comparison against a legacy
- * reader that no longer exists -- are gone along with their call sites. Two
- * things take their place:
+ *  - Outbound: under the shadow, every packet the wire layer knows that this
+ *    server sends, a registry layout or a family, is decoded whole and
+ *    re-encoded. A packet that decodes but does not reproduce its own bytes is
+ *    counted `inexact`: the decode was sound, and the writer or the encoder
+ *    disagrees.
+ *  - Rejected: a packet the registry's codec could not decode.
+ *    MovementInfo::Read, HandleMoveTeleportAckOpcode and
+ *    HandleSetActiveMoverOpcode count it and throw, and WorldSession::Update
+ *    logs it and, by config, kicks. Counted whether or not the shadow is on.
+ *  - BridgeCheck: under the shadow, whether MovementBridge's ToWire, given the
+ *    record FromWire just filled in, reproduces the status the codec decoded.
  *
- *  - Rejected: a packet the registry's codec could not decode -- the
- *    validation ladder's first rung (design v2 §10.1), not a diagnostic.
- *    MovementInfo::Read counts it and throws; HandleMoveTeleportAckOpcode's
- *    own decode does the same for the one family opcode still read by hand.
- *    The tree's own bad-packet handling (WorldSession::Update's
- *    log-and-maybe-kick) takes it from there. Counted whether or not the
- *    shadow is on -- this is production behaviour now.
- *  - BridgeCheck: under the shadow only. Whether MovementBridge's ToWire,
- *    given the record FromWire just filled in, reproduces the status the
- *    codec decoded off the wire -- the bridge's own round-trip witness, not
- *    the reader's. A mismatch means the bridge lost something on the way in;
- *    fix MovementBridge.cpp, not the codec.
- *
- * Outbound is unchanged: it still judges every packet the wire layer knows,
- * of either kind (a registry layout or a family), by decoding it whole and
- * re-encoding what it decoded -- a packet that decodes but does not reproduce
- * its own bytes is counted as `inexact` rather than as a failure, because the
- * decode was sound and it is the writer or the encoder that disagrees.
- * SMSG_PLAYER_MOVE is judged here too now: the relay used to be excluded
- * because the P1-B shadow compared it at its writer, but that comparison is
- * gone with Relay, and the packet is the registry's own encoding, so nothing
- * exempts it any more.
- *
- * HandleSetActiveMoverOpcode reads its guid through Wire::DecodeActiveMover since
- * P2-D; a packet that fails it is counted here as rejected like any inbound layout.
+ * Every line names its opcode through the function Enable installs.
  */
 namespace WireParity
 {
-    void Enable(bool on);
+    /// Turns the shadow on or off and installs the function that names an opcode
+    /// in the report and in the codec's error lines.
+    void Enable(bool on, char const* (*name)(uint16 opcode));
     bool Enabled();
+
+    /// The installed function's name for `opcode`, or "?" while none is installed.
+    char const* OpcodeName(uint16 opcode);
 
     /// Any other packet the wire layer knows that this server sends -- a registry
     /// layout or a family: must decode whole, and should re-encode to its own bytes.

@@ -1,22 +1,28 @@
 include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(MotionBoundary)
 
-set(MOTION_DIR "${SOURCE_ROOT}/src/motion")
+set(KERNEL_DIR "${SOURCE_ROOT}/src/motion")
+set(MOTION_DIRS "${KERNEL_DIR}" "${SOURCE_ROOT}/src/game/movement")
 
-if(NOT IS_DIRECTORY "${MOTION_DIR}")
-    message(FATAL_ERROR "Motion boundary missing: ${MOTION_DIR}")
-endif()
-
-file(GLOB_RECURSE MOTION_SOURCES
-    "${MOTION_DIR}/*.h" "${MOTION_DIR}/*.hpp"
-    "${MOTION_DIR}/*.cpp" "${MOTION_DIR}/*.cc")
+set(MOTION_SOURCES "")
+foreach(MOTION_DIR IN LISTS MOTION_DIRS)
+    if(NOT IS_DIRECTORY "${MOTION_DIR}")
+        message(FATAL_ERROR "Motion boundary missing: ${MOTION_DIR}")
+    endif()
+    file(GLOB_RECURSE DIR_SOURCES
+        "${MOTION_DIR}/*.h" "${MOTION_DIR}/*.hpp"
+        "${MOTION_DIR}/*.cpp" "${MOTION_DIR}/*.cc")
+    list(APPEND MOTION_SOURCES ${DIR_SOURCES})
+endforeach()
 list(LENGTH MOTION_SOURCES MOTION_SOURCE_COUNT)
-gate_require_scanned(MotionBoundary "${MOTION_SOURCE_COUNT}" "sources in src/motion")
+gate_require_scanned(MotionBoundary "${MOTION_SOURCE_COUNT}" "sources in the motion layer")
 
 set(FORBIDDEN_PATTERNS
     "#[ \t]*include[ \t]*[\"<](Database/|World\\.h|WorldSession\\.h|AddonHandler\\.h|Warden)"
-    "#[ \t]*include[ \t]*[\"<](Unit\\.h|Player\\.h|Creature\\.h|ObjectGuid\\.h|SharedDefines\\.h|Object/|WorldHandlers/|Server/|ChatCommands/|Maps/|MotionGenerators/|movement/)"
-    "(^|[^A-Za-z0-9_])(WorldSession|sWorld|sLog|LoginDatabase|CharacterDatabase|WorldDatabase|sAddOnHandler|Warden)([^A-Za-z0-9_]|$)")
+    "#[ \t]*include[ \t]*[\"<](Unit\\.h|Player\\.h|Creature\\.h|SharedDefines\\.h|Object/|WorldHandlers/|Server/|ChatCommands/|Maps/|MotionGenerators/)"
+    "(^|[^A-Za-z0-9_])(WorldSession|sWorld|LoginDatabase|CharacterDatabase|WorldDatabase|sAddOnHandler|Warden)([^A-Za-z0-9_]|$)")
+set(KERNEL_PATTERNS
+    "(^|[^A-Za-z0-9_])sLog([^A-Za-z0-9_]|$)")
 
 set(VIOLATIONS "")
 
@@ -50,7 +56,13 @@ foreach(FILE_PATH IN LISTS MOTION_SOURCES)
         string(APPEND CODE_ONLY "${LINE}\n")
     endforeach()
 
-    foreach(PATTERN IN LISTS FORBIDDEN_PATTERNS)
+    set(PATTERNS ${FORBIDDEN_PATTERNS})
+    string(FIND "${FILE_PATH}" "${KERNEL_DIR}/" IN_KERNEL)
+    if(IN_KERNEL EQUAL 0)
+        list(APPEND PATTERNS ${KERNEL_PATTERNS})
+    endif()
+
+    foreach(PATTERN IN LISTS PATTERNS)
         if(CODE_ONLY MATCHES "${PATTERN}")
             list(APPEND VIOLATIONS "${FILE_PATH}: ${CMAKE_MATCH_0}")
         endif()
