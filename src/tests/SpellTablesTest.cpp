@@ -333,3 +333,49 @@ TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
         CHECK(!IsBlazingSpeedRank(spellId));
     }
 }
+
+TEST(SpellTables_TheEffectCastAuraAndPacketTablesAnswerTheirSwitchesLiveRows)
+{
+    SpellHurtHeal const* penance = FindPenanceSpells(47540);
+    REQUIRE(penance != NULL);
+    CHECK_EQ(penance->hurt, uint32(47758));
+    CHECK_EQ(penance->heal, uint32(47757));
+    SpellHurtHeal const* holyShock = FindHolyShockSpells(20473);
+    REQUIRE(holyShock != NULL);
+    CHECK_EQ(holyShock->hurt, uint32(25912));
+    CHECK_EQ(holyShock->heal, uint32(25914));
+    CHECK_EQ(GetShadowflameDotSpell(47897), uint32(47960));
+    CHECK_EQ(GetStarfallStarSpell(50286), uint32(50288));
+    CHECK_EQ(GetDisengageSpell(57635), uint32(57636));
+    CHECK_EQ(GetDisengageSpell(61507), uint32(61508));
+    CHECK_EQ(GetFireNovaSpell(1535), uint32(8349));
+    CHECK_EQ(GetWyvernStingDotSpell(19386), uint32(24131));
+    CHECK_EQ(GetHolyNovaHealSpell(15237), uint32(23455));
+    CHECK_EQ(GetJudgementDebuffSpell(31804), uint32(31803));
+    CHECK_EQ(GetJudgementDebuffSpell(53733), uint32(53742));
+    CHECK_EQ(GetJudgementSelfSpell(20271), uint32(20185));
+    CHECK_EQ(GetJudgementSelfSpell(57774), uint32(20185));
+    CHECK_EQ(GetLavaFlowsHasteSpell(51480), uint32(64694));
+    CHECK_EQ(GetLavaFlowsHasteSpell(51481), uint32(65263));
+    CHECK_EQ(GetLavaFlowsHasteSpell(51482), uint32(65264));
+    CHECK_EQ(GetSpellRequiredAreaId(41617), uint32(3905));
+    CHECK_EQ(GetSpellRequiredAreaId(41619), uint32(3905));
+    CHECK_EQ(GetSpellRequiredAreaId(41618), uint32(3842));
+    CHECK_EQ(GetSpellRequiredAreaId(41620), uint32(3842));
+    CHECK_EQ(GetSpellRequiredAreaId(45373), uint32(4075));
+
+    // Ranks that are not 4.3.4 spells answer nothing, and neither does an id no switch held.
+    CHECK(FindPenanceSpells(53005) == NULL);
+    CHECK(FindHolyShockSpells(20929) == NULL);
+    CHECK_EQ(GetShadowflameDotSpell(61290), uint32(0));
+    CHECK_EQ(GetStarfallStarSpell(53196), uint32(0));
+    CHECK_EQ(GetFireNovaSpell(8498), uint32(0));
+    CHECK_EQ(GetWyvernStingDotSpell(24132), uint32(0));
+    CHECK_EQ(GetHolyNovaHealSpell(15430), uint32(0));
+    CHECK_EQ(GetJudgementSelfSpell(53407), uint32(0));
+    CHECK_EQ(GetJudgementSelfSpell(53408), uint32(0));
+    CHECK_EQ(GetSpellRequiredAreaId(12345), uint32(0));
+    CHECK_EQ(GetLavaFlowsHasteSpell(12345), uint32(0));
+    CHECK_EQ(GetDisengageSpell(12345), uint32(0));
+    CHECK_EQ(GetJudgementDebuffSpell(12345), uint32(0));
+}

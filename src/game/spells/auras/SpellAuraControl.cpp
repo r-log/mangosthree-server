@@ -64,6 +64,7 @@
 #include "Language.h"
 #include "MotionMaster.h"
 #include "spells/handlers/AuraControlHandlers.h"
+#include "spells/data/SpellTables.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -585,19 +586,11 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
                     return;
                 }
 
-                uint32 spell_id = 0;
-
-                switch (GetId())
+                uint32 spell_id = GetWyvernStingDotSpell(GetId());
+                if (!spell_id)
                 {
-                    case 19386: spell_id = 24131; break;
-                    case 24132: spell_id = 24134; break;
-                    case 24133: spell_id = 24135; break;
-                    case 27068: spell_id = 27069; break;
-                    case 49011: spell_id = 49009; break;
-                    case 49012: spell_id = 49010; break;
-                    default:
-                        sLog.outError("Spell selection called for unexpected original spell %u, new spell for this spell family?", GetId());
-                        return;
+                    sLog.outError("Spell selection called for unexpected original spell %u, new spell for this spell family?", GetId());
+                    return;
                 }
 
                 SpellEntry const* spellInfo = sSpellStore.LookupEntry(spell_id);

@@ -50,6 +50,7 @@
 #include "MotionMaster.h"
 #include <random>
 #include "spells/handlers/SpellEffectDamageTeleportHandlers.h"
+#include "spells/data/SpellTables.h"
 
 /**
  * @brief Sends a resurrection request to a dead player target.
@@ -244,13 +245,13 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                 else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0001000000000000))
                 {
                     // Apply DOT part
-                    switch (m_spellInfo->ID)
+                    if (uint32 dot = GetShadowflameDotSpell(m_spellInfo->ID))
                     {
-                        case 47897: m_caster->CastSpell(unitTarget, 47960, true); break;
-                        case 61290: m_caster->CastSpell(unitTarget, 61291, true); break;
-                        default:
-                            sLog.outError("Spell::EffectDummy: Unhandeled Shadowflame spell rank %u", m_spellInfo->ID);
-                            break;
+                        m_caster->CastSpell(unitTarget, dot, true);
+                    }
+                    else
+                    {
+                        sLog.outError("Spell::EffectDummy: Unhandeled Shadowflame spell rank %u", m_spellInfo->ID);
                     }
                 }
                 // Shadow Bite
@@ -492,12 +493,10 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                 // Judgement of Vengeance/Corruption ${1+0.22*$SPH+0.14*$AP} + 10% for each application of Holy Vengeance/Blood Corruption on the target
                 else if ((classOptions && classOptions->SpellClassMask & UI64LIT(0x800000000)) && m_spellInfo->SpellIconID==2292)
                 {
-                    uint32 debuf_id;
-                    switch (m_spellInfo->ID)
+                    uint32 debuf_id = GetJudgementDebuffSpell(m_spellInfo->ID);
+                    if (!debuf_id)
                     {
-                        case 53733: debuf_id = 53742; break;// Judgement of Corruption -> Blood Corruption
-                        case 31804: debuf_id = 31803; break;// Judgement of Vengeance -> Holy Vengeance
-                        default: return;
+                        return;
                     }
 
                     float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);

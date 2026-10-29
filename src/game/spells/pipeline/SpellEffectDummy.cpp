@@ -54,6 +54,7 @@
 #include "MotionMaster.h"
 #include <random>
 #include "spells/handlers/SpellEffectDummyHandlers.h"
+#include "spells/data/SpellTables.h"
 
 /**
  * @brief Executes spell-specific dummy effect behavior.
@@ -258,17 +259,11 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     return;
                 }
 
-                int hurt = 0;
-                int heal = 0;
-                switch (m_spellInfo->ID)
+                SpellHurtHeal const* penance = FindPenanceSpells(m_spellInfo->ID);
+                if (!penance)
                 {
-                    case 47540: hurt = 47758; heal = 47757; break;
-                    case 53005: hurt = 53001; heal = 52986; break;
-                    case 53006: hurt = 53002; heal = 52987; break;
-                    case 53007: hurt = 53003; heal = 52988; break;
-                    default:
-                        sLog.outError("Spell::EffectDummy: Spell %u Penance need set correct heal/damage spell", m_spellInfo->ID);
-                        return;
+                    sLog.outError("Spell::EffectDummy: Spell %u Penance need set correct heal/damage spell", m_spellInfo->ID);
+                    return;
                 }
 
                 // prevent interrupted message for main spell
@@ -277,11 +272,11 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 // replace cast by selected spell, this also make it interruptible including target death case
                 if (m_caster->IsFriendlyTo(unitTarget))
                 {
-                    m_caster->CastSpell(unitTarget, heal, false);
+                    m_caster->CastSpell(unitTarget, penance->heal, false);
                 }
                 else
                 {
-                    m_caster->CastSpell(unitTarget, hurt, false);
+                    m_caster->CastSpell(unitTarget, penance->hurt, false);
                 }
 
                 return;
@@ -313,16 +308,13 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     return;
                 }
 
-                switch (m_spellInfo->ID)
+                if (uint32 star = GetStarfallStarSpell(m_spellInfo->ID))
                 {
-                    case 50286: m_caster->CastSpell(unitTarget, 50288, true); return;
-                    case 53196: m_caster->CastSpell(unitTarget, 53191, true); return;
-                    case 53197: m_caster->CastSpell(unitTarget, 53194, true); return;
-                    case 53198: m_caster->CastSpell(unitTarget, 53195, true); return;
-                    default:
-                        sLog.outError("Spell::EffectDummy: Unhandeled Starfall spell rank %u", m_spellInfo->ID);
-                        return;
+                    m_caster->CastSpell(unitTarget, star, true);
+                    return;
                 }
+                sLog.outError("Spell::EffectDummy: Unhandeled Starfall spell rank %u", m_spellInfo->ID);
+                return;
             }
             break;
         }
@@ -370,14 +362,11 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
             if (huntClassOptions && huntClassOptions->SpellClassMask & UI64LIT(0x0000400000000000))
             {
                 Unit* target = unitTarget;
-                uint32 spellid;
-                switch (m_spellInfo->ID)
+                uint32 spellid = GetDisengageSpell(m_spellInfo->ID);
+                if (!spellid)
                 {
-                    case 57635: spellid = 57636; break;     // one from creature cases
-                    case 61507: spellid = 61508; break;     // one from creature cases
-                    default:
-                        sLog.outError("Spell %u not handled propertly in EffectDummy(Disengage)", m_spellInfo->ID);
-                        return;
+                    sLog.outError("Spell %u not handled propertly in EffectDummy(Disengage)", m_spellInfo->ID);
+                    return;
                 }
                 if (!target || !target->IsAlive())
                 {
@@ -404,30 +393,20 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                         return;
                     }
 
-                    int hurt = 0;
-                    int heal = 0;
-
-                    switch (m_spellInfo->ID)
+                    SpellHurtHeal const* holyShock = FindHolyShockSpells(m_spellInfo->ID);
+                    if (!holyShock)
                     {
-                        case 20473: hurt = 25912; heal = 25914; break;
-                        case 20929: hurt = 25911; heal = 25913; break;
-                        case 20930: hurt = 25902; heal = 25903; break;
-                        case 27174: hurt = 27176; heal = 27175; break;
-                        case 33072: hurt = 33073; heal = 33074; break;
-                        case 48824: hurt = 48822; heal = 48820; break;
-                        case 48825: hurt = 48823; heal = 48821; break;
-                        default:
-                            sLog.outError("Spell::EffectDummy: Spell %u not handled in HS", m_spellInfo->ID);
-                            return;
+                        sLog.outError("Spell::EffectDummy: Spell %u not handled in HS", m_spellInfo->ID);
+                        return;
                     }
 
                     if (m_caster->IsFriendlyTo(unitTarget))
                     {
-                        m_caster->CastSpell(unitTarget, heal, true);
+                        m_caster->CastSpell(unitTarget, holyShock->heal, true);
                     }
                     else
                     {
-                        m_caster->CastSpell(unitTarget, hurt, true);
+                        m_caster->CastSpell(unitTarget, holyShock->hurt, true);
                     }
 
                     return;
@@ -585,19 +564,10 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     return;
                 }
 
-                uint32 triggered_spell_id;
-                switch (m_spellInfo->ID)
+                uint32 triggered_spell_id = GetFireNovaSpell(m_spellInfo->ID);
+                if (!triggered_spell_id)
                 {
-                    case 1535:  triggered_spell_id = 8349;  break;
-                    case 8498:  triggered_spell_id = 8502;  break;
-                    case 8499:  triggered_spell_id = 8503;  break;
-                    case 11314: triggered_spell_id = 11306; break;
-                    case 11315: triggered_spell_id = 11307; break;
-                    case 25546: triggered_spell_id = 25535; break;
-                    case 25547: triggered_spell_id = 25537; break;
-                    case 61649: triggered_spell_id = 61650; break;
-                    case 61657: triggered_spell_id = 61654; break;
-                    default: return;
+                    return;
                 }
 
                 totem->CastSpell(totem, triggered_spell_id, true, NULL, NULL, m_caster->GetObjectGuid());

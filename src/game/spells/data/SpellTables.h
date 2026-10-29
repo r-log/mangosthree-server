@@ -85,4 +85,31 @@ uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId);
 /// Whether a spell is a rank of Blazing Speed.
 bool IsBlazingSpeedRank(uint32 spellId);
 
+/// The damage and the heal a spell casts on an enemy or a friend in its place.
+struct SpellHurtHeal
+{
+    uint32 hurt;
+    uint32 heal;
+};
+
+/// Penance's and Holy Shock's damage and heal spells; NULL for any other spell.
+SpellHurtHeal const* FindPenanceSpells(uint32 spellId);
+SpellHurtHeal const* FindHolyShockSpells(uint32 spellId);
+
+/// The spell a spell casts for its effect; 0 for a spell the table does not hold.
+uint32 GetShadowflameDotSpell(uint32 spellId);
+uint32 GetStarfallStarSpell(uint32 spellId);
+uint32 GetDisengageSpell(uint32 spellId);
+uint32 GetFireNovaSpell(uint32 spellId);
+uint32 GetWyvernStingDotSpell(uint32 spellId);
+uint32 GetHolyNovaHealSpell(uint32 spellId);
+/// The debuff a Judgement of Vengeance or of Corruption counts; 0 for any other spell.
+uint32 GetJudgementDebuffSpell(uint32 spellId);
+/// The spell a seal's Judgement casts on its caster; 0 for any other spell.
+uint32 GetJudgementSelfSpell(uint32 spellId);
+/// The haste spell a Lava Flows rank casts when its Flame Shock is dispelled; 0 for any other spell.
+uint32 GetLavaFlowsHasteSpell(uint32 rankSpellId);
+/// The area a spell's SPELL_FAILED_REQUIRES_AREA names; 0 for a spell the table does not hold.
+uint32 GetSpellRequiredAreaId(uint32 spellId);
+
 #endif
