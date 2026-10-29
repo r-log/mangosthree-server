@@ -34,8 +34,8 @@ These directories **dissolve**:
 - `WorldHandlers/` (133 files): 32 to session (the 24 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
   `AccountMgr`, `WorldSessionMgr`), 40 to maps, 26 to social, 12 to scripts, 12 to data, 4 to
   economy, 4 to entities (achievements) and 3 to app.
-- `Server/`: 11 files to session, 15 to data and `GameGlobals` to persistence. `References/`: threat to combat,
-  maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
+- `Server/`: 11 files to session, 15 to data and `GameGlobals` to persistence. `References/`: maps to maps,
+  groups to social; the threat managers are in `combat/`. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
 **Today:** 305 include lines go against the table.
@@ -208,7 +208,7 @@ the possessed unit's view and back, the possess action bar told to its client, i
 possession ends out of reach, and the pet action bar removed otherwise: `SetCameraView`, `ResetCameraView`,
 `PossessSpellInitialize`, `RemovePet`, `RemovePetActionBar`; each with the non-player answer as `Unit`'s default).
 The aura bodies live in `spells/auras/`, beside the aura storage (`spells/AuraContainer.h`). The combat bodies still
-live in `Object/` and `References/`; only the leaf math (`combat/`) is already home.
+live in `Object/`; the threat managers and the leaf math are home in `combat/`.
 
 ## 4. The finish line per layer: the layout gate matches this page
 
@@ -389,7 +389,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
 | 13 | `Unit`: 11 `(Player*)this` casts, 211 player type tests, 59 Player-only virtuals | Unit reopen |
-| 14 | Unit's combat bodies are in `Object/` and `References/` | Unit reopen (combat) |
+| 14 | Unit's combat bodies are in `Object/` | Unit reopen (combat) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds eighteen stores (its README lists them), the generic record stores `KeyedRecordStore` and `MultiRecordStore`, `TextPool`, `GameConfig`, the script hook interface `ScriptHooks`, the command hook interface `CommandHooks` and the database script hook interface `DbScriptHooks`, while `ObjectMgr` is still in `Object/` and holds the conditions, the creature templates and their spells, the game object addons and the item templates in `KeyedRecordStore`s; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds the builders under `session/packets/`, the combat handler class under `session/handlers/combat/`, the client and warden handler classes under `session/handlers/connection/`, the vendor, loot, auction and trade handler classes under `session/handlers/economy/`, the skill, enchant, pet, taxi, query, item, NPC, quest, character, character customize, death and player handler classes under `session/handlers/entities/`, the map handler class under `session/handlers/maps/`, the pvp handler class under `session/handlers/pvp/` and the LFG, contact list, GM ticket, petition, chat channel, voice chat, chat, mail, calendar, group, guild and who handler classes under `session/handlers/social/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
 | 17 | 2,356 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory, peer and header on 2026-09-29 |
@@ -479,7 +479,7 @@ RULES = [
  (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
  (r'^game/spells/', 'spells'),
  (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|WorldSessionMgr|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
- (r'^game/combat/|^game/References/(Hostile|Threat)|^game/Object/(Unit(Combat|Damage|MeleeDamage|Threat|Hostility|Diminishing)|Formulas|StatSystem|CreatureThreat)', 'combat'),
+ (r'^game/combat/|^game/Object/(Unit(Combat|Damage|MeleeDamage|Threat|Hostility|Diminishing)|Formulas|StatSystem|CreatureThreat)', 'combat'),
  (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|Path\.|BareMap|Weather)', 'maps'),
  (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
  (r'^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),

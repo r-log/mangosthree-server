@@ -117,8 +117,6 @@ src/game/Object [entities] -> src/game/Object/GameObjectAI.h
 src/game/Object [entities] -> src/game/Object/ItemEnchantmentMgr.h
 src/game/Object [entities] -> src/game/Object/LootMgr.h
 src/game/Object [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/Object [entities] -> src/game/References/HostileRefManager.h
-src/game/Object [entities] -> src/game/References/ThreatManager.h
 src/game/Object [entities] -> src/game/WorldHandlers/Cell.h
 src/game/Object [entities] -> src/game/WorldHandlers/CellImpl.h
 src/game/Object [entities] -> src/game/WorldHandlers/GameObjectModel.h
@@ -133,8 +131,10 @@ src/game/Object [entities] -> src/game/WorldHandlers/MapManager.h
 src/game/Object [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object [entities] -> src/game/WorldHandlers/TransportMap.h
 src/game/Object [entities] -> src/game/WorldHandlers/Transports.h
+src/game/Object [entities] -> src/game/combat/HostileRefManager.h
 src/game/Object [entities] -> src/game/combat/MeleeChances.h
 src/game/Object [entities] -> src/game/combat/SpellBonus.h
+src/game/Object [entities] -> src/game/combat/ThreatManager.h
 # Unit holds the spell cooldown manager by value (Unit.h).
 src/game/Object [entities] -> src/game/spells/SpellCooldownMgr.h
 src/game/Object [entities] -> src/game/spells/data/SpellMgr.h
@@ -330,14 +330,6 @@ src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/proto/WorldPacket.h
-src/game/References [combat] -> src/game/Object/Creature.h
-src/game/References [combat] -> src/game/Object/CreatureAI.h
-src/game/References [combat] -> src/game/Object/ObjectLookup.h
-src/game/References [combat] -> src/game/Object/Unit.h
-src/game/References [combat] -> src/game/Object/UnitEvents.h
-src/game/References [combat] -> src/game/WorldHandlers/Map.h
-src/game/References [combat] -> src/game/spells/data/SpellMgr.h
-src/game/References/ThreatManager.cpp -> src/game/entities/player/Player.h
 src/game/Server/DBCStores.cpp -> src/game/spells/auras/SpellAuraDefines.h
 src/game/Server/WorldGateway.cpp -> src/game/WorldHandlers/World.h
 src/game/Server/WorldNetwork.cpp -> src/game/WorldHandlers/World.h
@@ -486,6 +478,13 @@ src/game/WorldHandlers/Weather.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Weather.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Weather.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/WorldSessionMgr.cpp -> src/game/WorldHandlers/World.h
+src/game/combat [combat] -> src/game/Object/Creature.h
+src/game/combat [combat] -> src/game/Object/CreatureAI.h
+src/game/combat [combat] -> src/game/Object/ObjectLookup.h
+src/game/combat [combat] -> src/game/Object/Unit.h
+src/game/combat [combat] -> src/game/WorldHandlers/Map.h
+src/game/combat [combat] -> src/game/spells/data/SpellMgr.h
+src/game/combat/ThreatManager.cpp -> src/game/entities/player/Player.h
 src/game/entities/player [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player [entities] -> src/game/Object/Guild.h
 src/game/entities/player [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
