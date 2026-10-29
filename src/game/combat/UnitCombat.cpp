@@ -37,6 +37,8 @@
 #include "QuestDef.h"
 #include "Player.h"
 #include "Creature.h"
+#include "MotionMaster.h"
+#include "InstanceData.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "Formulas.h"
@@ -1155,4 +1157,945 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, const Unit* pVict
     return Combat::UnitCriticalChance(attackType, isPlayer, playerOffhandCrit, playerMainhandCrit,
                                       playerRangedCrit, critAuraMod, victimRangedCritMod,
                                       victimMeleeCritMod, victimSpellAndWeaponCritMod);
+}
+
+/**
+ * @brief Processes pending melee swings against the current victim.
+ *
+ * @return True if melee attacks were valid and in range; otherwise, false.
+ */
+bool Unit::UpdateMeleeAttackingState()
+{
+    Unit* victim = getVictim();
+    if (!victim || IsNonMeleeSpellCasted(false))
+    {
+        return false;
+    }
+
+    if (!isAttackReady(BASE_ATTACK) && !(isAttackReady(OFF_ATTACK) && haveOffhandWeapon()))
+    {
+        return false;
+    }
+
+    uint8 swingError = 0;
+    if (!InMeleeReach(*this, *victim))
+    {
+        setAttackTimer(BASE_ATTACK, 100);
+        setAttackTimer(OFF_ATTACK, 100);
+        swingError = 1;
+    }
+    // 120 degrees of radiant range
+    else if (!Where().HasInArc(victim->Where(), 2 * M_PI_F / 3))
+    {
+        setAttackTimer(BASE_ATTACK, 100);
+        setAttackTimer(OFF_ATTACK, 100);
+        swingError = 2;
+    }
+    else
+    {
+        if (isAttackReady(BASE_ATTACK))
+        {
+            // prevent base and off attack in same time, delay attack at 0.2 sec
+            if (haveOffhandWeapon())
+            {
+                if (getAttackTimer(OFF_ATTACK) < ATTACK_DISPLAY_DELAY)
+                {
+                    setAttackTimer(OFF_ATTACK, ATTACK_DISPLAY_DELAY);
+                }
+            }
+            AttackerStateUpdate(victim, BASE_ATTACK);
+            resetAttackTimer(BASE_ATTACK);
+        }
+        if (haveOffhandWeapon() && isAttackReady(OFF_ATTACK))
+        {
+            // prevent base and off attack in same time, delay attack at 0.2 sec
+            uint32 base_att = getAttackTimer(BASE_ATTACK);
+            if (base_att < ATTACK_DISPLAY_DELAY)
+            {
+                setAttackTimer(BASE_ATTACK, ATTACK_DISPLAY_DELAY);
+            }
+            // do attack
+            AttackerStateUpdate(victim, OFF_ATTACK);
+            resetAttackTimer(OFF_ATTACK);
+        }
+    }
+
+    ReportSwingError(swingError);
+
+    return swingError == 0;
+}
+
+/**
+ * @brief Checks whether the unit currently has a usable offhand weapon.
+ *
+ * @return True if an offhand weapon can be used; otherwise, false.
+ */
+bool Unit::haveOffhandWeapon() const
+{
+    if (!CanUseEquippedWeapon(OFF_ATTACK))
+    {
+        return false;
+    }
+
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        return ((Player*)this)->GetWeaponForAttack(OFF_ATTACK, true, true);
+    }
+    else
+    {
+        /*uint32 ItemId = GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1);
+        ItemEntry const* itemInfo = sItemStore.LookupEntry(ItemId);
+
+        if (itemInfo && itemInfo->Class == ITEM_CLASS_WEAPON)
+        {
+            return true;
+        }*/
+
+        return false;
+    }
+}
+
+/**
+ * @brief Resets an attack timer based on attack speed modifiers.
+ *
+ * @param type The attack type whose timer should be reset.
+ */
+void Unit::resetAttackTimer(WeaponAttackType type)
+{
+    m_attackTimer[type] = uint32(GetAttackTime(type) * m_modAttackSpeedPct[type]);
+}
+
+/**
+ * @brief Calculates the combat reach between this unit and a victim.
+ *
+ * @param pVictim The victim being checked.
+ * @param forMeleeRange True to enforce the minimum melee distance.
+ * @param flat_mod Additional flat reach modifier.
+ * @return The resulting combat reach.
+ */
+float CombatReachBetween(Unit const& attacker, Unit const& victim, bool forMeleeRange,
+                         float flat_mod)
+{
+    // The measured values show BASE_MELEE_OFFSET in (1.3224, 1.342)
+    float reach = attacker.GetFloatValue(UNIT_FIELD_COMBATREACH) +
+                  victim.GetFloatValue(UNIT_FIELD_COMBATREACH) +
+                  BASE_MELEERANGE_OFFSET + flat_mod;
+
+    if (forMeleeRange && reach < ATTACK_DISTANCE)
+    {
+        reach = ATTACK_DISTANCE;
+    }
+
+    return reach;
+}
+
+float CombatDistanceBetween(Unit const& attacker, Unit const& target, bool forMeleeRange)
+{
+    if (!attacker.Where().ShareFrame(target.Where()))
+    {
+        return Geometry::Placement::Unreachable();
+    }
+
+    // Combat reach, not the bounding extents: the component measures centre to centre and
+    // the game rule supplies the gap that counts as touching.
+    const float reach = CombatReachBetween(attacker, target, forMeleeRange, 0.0f);
+    const float centres = (attacker.Where().Pos() - target.Where().Pos()).magnitude();
+    return Geometry::Placement::Gap(centres, reach);
+}
+
+bool InMeleeReach(Unit const& attacker, Unit const& victim, float flat_mod)
+{
+    const float reach = CombatReachBetween(attacker, victim, true, flat_mod);
+
+    // Combat reach replaces the extents entirely here, so the component is asked about
+    // bare points rather than about two sized objects.
+    return attacker.Where().WithinDist(victim.Where().Pos(), reach) &&
+           attacker.Where().ShareFrame(victim.Where());
+}
+
+/**
+ * @brief Sends a prepared non-melee spell damage log packet.
+ *
+ * @param log The prepared spell damage log data.
+ */
+void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
+{
+    uint32 targetHealth = log->target->GetHealth();
+    uint32 overkill = log->damage > targetHealth ? log->damage - targetHealth : 0;
+
+    WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16 + 4 + 4 + 4 + 1 + 4 + 4 + 1 + 1 + 4 + 4 + 1)); // we guess size
+    data << log->target->GetPackGUID();
+    data << log->attacker->GetPackGUID();
+    data << uint32(log->SpellID);
+    data << uint32(log->damage);                            // damage amount
+    data << uint32(overkill);                               // overkill
+    data << uint8(log->schoolMask);                         // damage school
+    data << uint32(log->absorb);                            // AbsorbedDamage
+    data << uint32(log->resist);                            // resist
+    data << uint8(log->physicalLog);                        // if 1, then client show spell name (example: %s's ranged shot hit %s for %u school or %s suffers %u school damage from %s's spell_name
+    data << uint8(log->unused);                             // unused
+    data << uint32(log->blocked);                           // blocked
+    data << uint32(log->HitInfo);
+    data << uint8(0);                                       // flag to use extend data
+    SendMessageToSet(&data, true);
+}
+
+/**
+ * @brief Builds and sends a non-melee spell damage log packet.
+ *
+ * @param target The damage target.
+ * @param SpellID The spell identifier.
+ * @param Damage The original damage amount.
+ * @param damageSchoolMask The damage school mask.
+ * @param AbsorbedDamage The absorbed amount.
+ * @param Resist The resisted amount.
+ * @param PhysicalDamage True when the log should be treated as physical.
+ * @param Blocked The blocked amount.
+ * @param CriticalHit True when the hit was critical.
+ */
+void Unit::SendSpellNonMeleeDamageLog(Unit* target, uint32 SpellID, uint32 Damage, SpellSchoolMask damageSchoolMask, uint32 AbsorbedDamage, uint32 Resist, bool PhysicalDamage, uint32 Blocked, bool CriticalHit)
+{
+    SpellNonMeleeDamage log(this, target, SpellID, damageSchoolMask);
+    log.damage = Damage - AbsorbedDamage - Resist - Blocked;
+    log.absorb = AbsorbedDamage;
+    log.resist = Resist;
+    log.physicalLog = PhysicalDamage;
+    log.blocked = Blocked;
+    log.HitInfo = SPELL_HIT_TYPE_UNK1 | SPELL_HIT_TYPE_UNK3 | SPELL_HIT_TYPE_UNK6;
+    if (CriticalHit)
+    {
+        log.HitInfo |= SPELL_HIT_TYPE_CRIT;
+    }
+    SendSpellNonMeleeDamageLog(&log);
+}
+
+/**
+ * @brief Sends a periodic aura tick log packet to nearby clients.
+ *
+ * @param pInfo The periodic aura log information.
+ */
+void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
+{
+    Aura* aura = pInfo->aura;
+    Modifier* mod = aura->GetModifier();
+
+    WorldPacket data(SMSG_PERIODICAURALOG, 30);
+    data << aura->GetTarget()->GetPackGUID();
+    data << aura->GetCasterGuid().WriteAsPacked();
+    data << uint32(aura->GetId());                          // spellId
+    data << uint32(1);                                      // count
+    data << uint32(mod->m_auraname);                        // auraId
+    switch (mod->m_auraname)
+    {
+        case SPELL_AURA_PERIODIC_DAMAGE:
+        case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
+            data << uint32(pInfo->damage);                  // damage
+            data << uint32(pInfo->overDamage);              // overkill?
+            data << uint32(GetSpellSchoolMask(aura->GetSpellProto()));
+            data << uint32(pInfo->absorb);                  // absorb
+            data << uint32(pInfo->resist);                  // resist
+            data << uint8(pInfo->critical ? 1 : 0);         // new 3.1.2 critical flag
+            break;
+        case SPELL_AURA_PERIODIC_HEAL:
+        case SPELL_AURA_OBS_MOD_HEALTH:
+            data << uint32(pInfo->damage);                  // damage
+            data << uint32(pInfo->overDamage);              // overheal?
+            data << uint32(pInfo->absorb);                  // absorb
+            data << uint8(pInfo->critical ? 1 : 0);         // new 3.1.2 critical flag
+            break;
+        case SPELL_AURA_OBS_MOD_MANA:
+        case SPELL_AURA_PERIODIC_ENERGIZE:
+            data << uint32(mod->m_miscvalue);               // power type
+            data << uint32(pInfo->damage);                  // damage
+            break;
+        case SPELL_AURA_PERIODIC_MANA_LEECH:
+            data << uint32(mod->m_miscvalue);               // power type
+            data << uint32(pInfo->damage);                  // amount
+            data << float(pInfo->multiplier);               // gain multiplier
+            break;
+        default:
+            sLog.outError("Unit::SendPeriodicAuraLog: unknown aura %u", uint32(mod->m_auraname));
+            return;
+    }
+
+    aura->GetTarget()->SendMessageToSet(&data, true);
+}
+
+/**
+ * @brief Sends a spell miss packet for a target.
+ *
+ * @param target The spell target.
+ * @param spellID The spell identifier.
+ * @param missInfo The miss reason.
+ */
+void Unit::SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo)
+{
+    WorldPacket data(SMSG_SPELLLOGMISS, (4 + 8 + 1 + 4 + 8 + 1));
+    data << uint32(spellID);
+    data << GetObjectGuid();
+    data << uint8(0);                                       // can be 0 or 1, flag
+    data << uint32(1);                                      // target count
+    // for(i = 0; i < target count; ++i)
+    data << target->GetObjectGuid();                        // target GUID
+    data << uint8(missInfo);
+    // end loop
+    SendMessageToSet(&data, true);
+}
+
+/**
+ * @brief Reports a spell whose damage resistance stopped in full.
+ *
+ * Distinct from \ref Unit::SendSpellMiss, which reports that a spell never
+ * landed. This one lands and is then resisted down to nothing, which the client
+ * shows as its own combat text type: its reader for opcode 0x0426 builds a
+ * combat text entry and, when the local player is the target, raises
+ * COMBAT_TEXT_UPDATE with the message type "SPELL_RESIST".
+ *
+ * Two flat uint64 GUIDs, not packed -- the client reads eight bytes for each.
+ * The trailing byte is a log-format selector the client reads and discards.
+ *
+ * @param target The unit the spell was resisted by.
+ * @param spellID The spell that was resisted.
+ */
+void Unit::SendSpellDamageResist(Unit* target, uint32 spellID)
+{
+    WorldPacket data(SMSG_PROCRESIST, 8 + 8 + 4 + 1);
+    data << uint64(GetObjectGuid().GetRawValue());
+    data << uint64(target->GetObjectGuid().GetRawValue());
+    data << uint32(spellID);
+    data << uint8(0);                                       // log format: 0 default, 1 debug
+    SendMessageToSet(&data, true);
+}
+
+/**
+ * @brief Sends an attacker state update using prepared melee damage data.
+ *
+ * @param damageInfo The prepared melee damage information.
+ */
+void Unit::SendAttackStateUpdate(CalcDamageInfo* damageInfo)
+{
+    DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Sending SMSG_ATTACKERSTATEUPDATE");
+
+    uint32 targetHealth = damageInfo->target->GetHealth();
+    uint32 overkill = damageInfo->damage > targetHealth ? damageInfo->damage - targetHealth : 0;
+
+    uint32 count = 1;
+    WorldPacket data(SMSG_ATTACKERSTATEUPDATE, (16 + 45));  // we guess size
+    data << (uint32)damageInfo->HitInfo;
+    data << damageInfo->attacker->GetPackGUID();
+    data << damageInfo->target->GetPackGUID();
+    data << (uint32)(damageInfo->damage);     // Full damage
+    data << uint32(overkill);                               // overkill value
+    data << uint8(count);                                   // Sub damage count
+
+    for (uint32 i = 0; i < count; ++i)
+    {
+        data << uint32(damageInfo->damageSchoolMask);       // School of sub damage
+        data << float(damageInfo->damage);                  // sub damage
+        data << uint32(damageInfo->damage);                 // Sub Damage
+    }
+
+    if (damageInfo->HitInfo & (HITINFO_ABSORB | HITINFO_ABSORB2))
+    {
+        for (uint32 i = 0; i < count; ++i)
+        {
+            data << uint32(damageInfo->absorb);             // Absorb
+        }
+    }
+
+    if (damageInfo->HitInfo & (HITINFO_RESIST | HITINFO_RESIST2))
+    {
+        for (uint32 i = 0; i < count; ++i)
+        {
+            data << uint32(damageInfo->resist);             // Resist
+        }
+    }
+
+    data << uint8(damageInfo->TargetState);
+    data << uint32(0);                                      // unknown, usually seen with -1, 0 and 1000
+    data << uint32(0);                                      // spell id, seen with heroic strike and disarm as examples.
+    // HITINFO_NOACTION normally set if spell
+
+    if (damageInfo->HitInfo & HITINFO_BLOCK)
+    {
+        data << uint32(damageInfo->blocked_amount);
+    }
+
+    if (damageInfo->HitInfo & HITINFO_UNK22)
+    {
+        data << uint32(0);                                  // count of some sort?
+    }
+
+    if (damageInfo->HitInfo & HITINFO_UNK0)
+    {
+        data << uint32(0);
+        data << float(0);
+        data << float(0);
+        data << float(0);
+        data << float(0);
+        data << float(0);
+        data << float(0);
+        data << float(0);
+        data << float(0);
+        for (uint8 i = 0; i < 5; ++i)
+        {
+            data << float(0);
+            data << float(0);
+        }
+        data << uint32(0);
+    }
+
+    SendMessageToSet(&data, true);  /**/
+}
+
+void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, uint8 /*SwingType*/, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, uint32 Resist, VictimState TargetState, uint32 BlockedAmount)
+{
+    CalcDamageInfo dmgInfo;
+    dmgInfo.HitInfo = HitInfo;
+    dmgInfo.attacker = this;
+    dmgInfo.target = target;
+    dmgInfo.damage = Damage - AbsorbDamage - Resist - BlockedAmount;
+    dmgInfo.damageSchoolMask = damageSchoolMask;
+    dmgInfo.absorb = AbsorbDamage;
+    dmgInfo.resist = Resist;
+    dmgInfo.TargetState = TargetState;
+    dmgInfo.blocked_amount = BlockedAmount;
+    SendAttackStateUpdate(&dmgInfo);
+}
+
+/**
+ * @brief Builds and sends an attacker state update from raw damage values.
+ *
+ * @param HitInfo The hit information flags.
+ * @param target The attack target.
+ * @param damageSchoolMask The damage school mask.
+ * @param Damage The original damage amount.
+ * @param AbsorbDamage The absorbed amount.
+ * @param Resist The resisted amount.
+ * @param TargetState The victim state.
+ * @param BlockedAmount The blocked amount.
+ */
+void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, uint32 Resist, VictimState TargetState, uint32 BlockedAmount)
+{
+    CalcDamageInfo dmgInfo;
+    dmgInfo.HitInfo = HitInfo;
+    dmgInfo.attacker = this;
+    dmgInfo.target = target;
+    dmgInfo.damage = Damage - AbsorbDamage - Resist - BlockedAmount;
+    dmgInfo.damageSchoolMask = damageSchoolMask;
+    dmgInfo.absorb = AbsorbDamage;
+    dmgInfo.resist = Resist;
+    dmgInfo.TargetState = TargetState;
+    dmgInfo.blocked_amount = BlockedAmount;
+    SendAttackStateUpdate(&dmgInfo);
+}
+
+/**
+ * @brief Starts attacking a victim.
+ *
+ * @param victim The victim to attack.
+ * @param meleeAttack True to begin melee attacking immediately.
+ * @return True if the attack started; otherwise, false.
+ */
+bool Unit::Attack(Unit* victim, bool meleeAttack)
+{
+    if (!victim || victim == this)
+    {
+        return false;
+    }
+
+    // dead units can neither attack nor be attacked
+    if (!IsAlive() || !victim->IsInWorld() || !victim->IsAlive())
+    {
+        return false;
+    }
+
+    // player can not attack in mount state or on a taxi (no UNIT_FLAG_MOUNT on a passenger since P5-B family 5)
+    if (GetTypeId() == TYPEID_PLAYER && (IsMounted() || IsTaxiFlying()))
+    {
+        return false;
+    }
+
+    // nobody can attack GM in GM-mode
+    if (victim->GetTypeId() == TYPEID_PLAYER)
+    {
+        if (((Player*)victim)->isGameMaster())
+        {
+            return false;
+        }
+    }
+    else
+    {
+        if (((Creature*)victim)->IsInEvadeMode())
+        {
+            return false;
+        }
+    }
+
+    // remove SPELL_AURA_MOD_UNATTACKABLE at attack (in case non-interruptible spells stun aura applied also that not let attack)
+    if (HasAuraType(SPELL_AURA_MOD_UNATTACKABLE))
+    {
+        RemoveSpellsCausingAura(SPELL_AURA_MOD_UNATTACKABLE);
+    }
+
+    // in fighting already
+    if (m_attacking)
+    {
+        if (m_attacking == victim)
+        {
+            // switch to melee attack from ranged/magic
+            if (meleeAttack)
+            {
+                if (!hasUnitState(UNIT_STAT_MELEE_ATTACKING))
+                {
+                    addUnitState(UNIT_STAT_MELEE_ATTACKING);
+                    SendMeleeAttackStart(victim);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        // remove old target data
+        AttackStop(true);
+    }
+    // new battle
+    else
+    {
+        // set position before any AI calls/assistance
+        if (GetTypeId() == TYPEID_UNIT)
+        {
+            ((Creature*)this)->SetCombatAnchor(Geometry::Vector3(Where().X(), Where().Y(), Where().Z()));
+        }
+    }
+
+    // The event row: a new combat drops a running distract (a no-op otherwise). Before the
+    // victim is assigned, so a cancelled assistance distract's finalizer sees no victim and
+    // does not stop and restart this very attack from inside it.
+    GetMotionMaster()->CombatStarted();
+
+    // Set our target — but NOT for PACIFIED creatures (training dummies, etc.).
+    // The Cata 4.3.4 client auto-rotates a unit's model toward its UNIT_FIELD_TARGET
+    // (a client-rendering behavior dating back to Vanilla), so even though the
+    // server never sends an orientation packet for the dummy, the client locally
+    // tracks whatever GUID lives in that field. Setting the target here is what
+    // makes a hit-then-walked-around dummy spin to face the attacker: combat entry
+    // → AttackStart → Attack → SetTargetGuid → client sees the field update →
+    // client rotates the model. PACIFIED is supposed to mean "this unit doesn't
+    // fight back" — that includes not visually fixating on its attacker.
+    //
+    // The TYPEID_UNIT guard is required: a player with a PACIFY-bearing debuff
+    // (Sap, Polymorph, Repentance) must still get their UNIT_FIELD_TARGET set,
+    // because in retail Cata the player's selected target persists across the CC
+    // and queued attacks resume on break. Restricting the skip to creatures
+    // avoids any PvP regression.
+    if (!(GetTypeId() == TYPEID_UNIT && HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED)))
+    {
+        SetTargetGuid(victim->GetObjectGuid());
+    }
+
+    if (meleeAttack)
+    {
+        addUnitState(UNIT_STAT_MELEE_ATTACKING);
+    }
+
+    m_attacking = victim;
+    m_attacking->_addAttacker(this);
+
+    if (GetTypeId() == TYPEID_UNIT)
+    {
+        ((Creature*)this)->SendAIReaction(AI_REACTION_HOSTILE);
+        ((Creature*)this)->CallAssistance();
+    }
+
+    // delay offhand weapon attack to next attack time
+    if (haveOffhandWeapon())
+    {
+        resetAttackTimer(OFF_ATTACK);
+    }
+
+    if (meleeAttack)
+    {
+        SendMeleeAttackStart(victim);
+    }
+
+    return true;
+}
+
+/**
+ * @brief Stops the current attack target and clears attack state.
+ *
+ * @param targetSwitch True when stopping due to switching targets.
+ * @return True if an attack was stopped; otherwise, false.
+ */
+bool Unit::AttackStop(bool targetSwitch /*=false*/)
+{
+    if (!m_attacking)
+    {
+        return false;
+    }
+
+    Unit* victim = m_attacking;
+
+    m_attacking->_removeAttacker(this);
+    m_attacking = NULL;
+
+    // Clear our target
+    SetTargetGuid(ObjectGuid());
+
+    clearUnitState(UNIT_STAT_MELEE_ATTACKING);
+
+    InterruptSpell(CURRENT_MELEE_SPELL);
+
+    // reset only at real combat stop
+    if (!targetSwitch && GetTypeId() == TYPEID_UNIT)
+    {
+        ((Creature*)this)->SetNoCallAssistance(false);
+
+        if (((Creature*)this)->HasSearchedAssistance())
+        {
+            ((Creature*)this)->SetNoSearchAssistance(false);
+            UpdateSpeed(MOVE_RUN, false);
+        }
+    }
+
+    SendMeleeAttackStop(victim);
+
+    return true;
+}
+
+/**
+ * @brief Stops combat, attackers, and optionally active casts.
+ *
+ * @param includingCast True to interrupt non-melee spells too.
+ */
+void Unit::CombatStop(bool includingCast)
+{
+    if (includingCast && IsNonMeleeSpellCasted(false))
+    {
+        InterruptNonMeleeSpells(false);
+    }
+
+    AttackStop();
+    RemoveAllAttackers();
+
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        SendAttackSwingCancelAttack();      // melee and ranged forced attack cancel
+    }
+    else if (GetTypeId() == TYPEID_UNIT)
+    {
+        if (((Creature*)this)->GetTemporaryFactionFlags() & TEMPFACTION_RESTORE_COMBAT_STOP)
+        {
+            ((Creature*)this)->ClearTemporaryFaction();
+        }
+    }
+
+    ClearInCombat();
+}
+
+/**
+ * @brief Forces all attackers to stop attacking this unit.
+ */
+void Unit::RemoveAllAttackers()
+{
+    while (!m_attackers.empty())
+    {
+        AttackerSet::iterator iter = m_attackers.begin();
+        if (!(*iter)->AttackStop())
+        {
+            sLog.outError("WORLD: Unit has an attacker that isn't attacking it!");
+            m_attackers.erase(iter);
+        }
+    }
+}
+
+/**
+ * @brief Sends a heal log packet to nearby clients.
+ *
+ * @param pVictim The healed unit.
+ * @param SpellID The spell identifier.
+ * @param Damage The healing amount.
+ * @param critical True if the heal crit.
+ */
+void Unit::SendHealSpellLog(Unit* pVictim, uint32 SpellID, uint32 Damage, uint32 OverHeal, bool critical, uint32 absorb)
+{
+    // we guess size
+    WorldPacket data(SMSG_SPELLHEALLOG, (8 + 8 + 4 + 4 + 1));
+    data << pVictim->GetPackGUID();
+    data << GetPackGUID();
+    data << uint32(SpellID);
+    data << uint32(Damage);
+    data << uint32(OverHeal);
+    data << uint32(absorb);
+    data << uint8(critical ? 1 : 0);
+    data << uint8(0);                                       // unused in client?
+    SendMessageToSet(&data, true);
+}
+
+/**
+ * @brief Puts the unit into combat with an enemy using PvP-aware rules.
+ *
+ * @param enemy The enemy unit.
+ */
+void Unit::SetInCombatWith(Unit* enemy)
+{
+    Unit* eOwner = enemy->GetCharmerOrOwnerOrSelf();
+    if (eOwner->IsPvP())
+    {
+        SetInCombatState(true, enemy);
+        return;
+    }
+
+    // check for duel
+    if (eOwner->GetTypeId() == TYPEID_PLAYER && ((Player*)eOwner)->duel)
+    {
+        if (Player const* myOwner = GetCharmerOrOwnerPlayerOrPlayerItself())
+        {
+            if (myOwner->IsInDuelWith((Player const*)eOwner))
+            {
+                SetInCombatState(true, enemy);
+                return;
+            }
+        }
+    }
+
+    SetInCombatState(false, enemy);
+}
+
+/**
+ * @brief Sets the unit into combat and triggers combat-entry side effects.
+ *
+ * @param PvP True for PvP combat rules.
+ * @param enemy The enemy that caused combat.
+ */
+void Unit::SetInCombatState(bool PvP, Unit* enemy)
+{
+    // only alive units can be in combat
+    if (!IsAlive())
+    {
+        return;
+    }
+
+    if (PvP)
+    {
+        m_CombatTimer = 5000;
+    }
+
+    bool creatureNotInCombat = GetTypeId() == TYPEID_UNIT && !HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
+
+    SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
+
+    if (IsCharmed() || IsPet())
+    {
+        SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT);
+    }
+
+    // interrupt all delayed non-combat casts
+    for (uint32 i = CURRENT_FIRST_NON_MELEE_SPELL; i < CURRENT_MAX_SPELL; ++i)
+    {
+        if (Spell* spell = GetCurrentSpell(CurrentSpellTypes(i)))
+        {
+            if (IsNonCombatSpell(spell->m_spellInfo))
+            {
+                InterruptSpell(CurrentSpellTypes(i), false);
+            }
+        }
+    }
+
+    if (getRace() == RACE_WORGEN && !IsInWorgenForm(true) && HasWorgenForm())
+    {
+        CastSpell(this, 97709, true);   // cast Altered Form
+    }
+
+    if (creatureNotInCombat)
+    {
+        // should probably be removed for the attacked (+ it's party/group) only, not global
+        RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
+
+        // client does not handle this state on it's own (reset to default at LoadCreatureAddon)
+        if (getStandState() == UNIT_STAND_STATE_CUSTOM)
+        {
+            SetStandState(UNIT_STAND_STATE_STAND);
+        }
+
+        Creature* pCreature = (Creature*)this;
+
+        if (pCreature->AI())
+        {
+            pCreature->AI()->EnterCombat(enemy);
+        }
+
+        // Some bosses are set into combat with zone
+        if (GetMap()->IsDungeon() && (pCreature->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_AGGRO_ZONE) && enemy && enemy->IsControlledByPlayer())
+        {
+            pCreature->SetInCombatWithZone();
+        }
+
+        if (InstanceData* mapInstance = GetInstanceData())
+        {
+            mapInstance->OnCreatureEnterCombat(pCreature);
+        }
+
+        if (m_isCreatureLinkingTrigger)
+        {
+            GetMap()->GetCreatureLinkingHolder()->DoCreatureLinkingEvent(LINKING_EVENT_AGGRO, pCreature, enemy);
+        }
+    }
+}
+
+/**
+ * @brief Clears combat flags and combat-related state on the unit.
+ */
+void Unit::ClearInCombat()
+{
+    m_CombatTimer = 0;
+    RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
+
+    if (IsCharmed() || IsPet())
+    {
+        RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT);
+    }
+
+    // Player's state will be cleared in Player::UpdateContestedPvP
+    if (GetTypeId() == TYPEID_UNIT)
+    {
+        Creature* cThis = static_cast<Creature*>(this);
+        if (cThis->GetCreatureInfo()->UnitFlags & UNIT_FLAG_OOC_NOT_ATTACKABLE && !(cThis->GetTemporaryFactionFlags() & TEMPFACTION_TOGGLE_OOC_NOT_ATTACK))
+        {
+            SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
+        }
+
+        clearUnitState(UNIT_STAT_ATTACK_PLAYER);
+    }
+    else
+    {
+        UpdatePotionCooldown();
+    }
+}
+
+/**
+ * @brief Clears combo point ownership references targeting this unit.
+ */
+void Unit::ClearComboPointHolders()
+{
+    while (!m_ComboPointHolders.empty())
+    {
+        uint32 lowguid = *m_ComboPointHolders.begin();
+
+        Player* plr = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, lowguid));
+        if (plr && plr->GetComboTargetGuid() == GetObjectGuid())// recheck for safe
+        {
+            plr->ClearComboPoints();                         // remove also guid from m_ComboPointHolders;
+        }
+        else
+        {
+            m_ComboPointHolders.erase(lowguid);              // or remove manually
+        }
+    }
+}
+
+/**
+ * @brief Clears all reactive timers and related aura states.
+ */
+void Unit::ClearAllReactives()
+{
+    for (int i = 0; i < MAX_REACTIVE; ++i)
+    {
+        m_reactiveTimer[i] = 0;
+    }
+
+    if (HasAuraState(AURA_STATE_DEFENSE))
+    {
+        ModifyAuraState(AURA_STATE_DEFENSE, false);
+    }
+    if (getClass() == CLASS_HUNTER && HasAuraState(AURA_STATE_HUNTER_PARRY))
+    {
+        ModifyAuraState(AURA_STATE_HUNTER_PARRY, false);
+    }
+
+    if (getClass() == CLASS_WARRIOR && GetTypeId() == TYPEID_PLAYER)
+    {
+        ClearComboPoints();
+    }
+}
+
+/**
+ * @brief Updates reactive ability timers and expires associated states.
+ *
+ * @param p_time The elapsed update time in milliseconds.
+ */
+void Unit::UpdateReactives(uint32 p_time)
+{
+    for (int i = 0; i < MAX_REACTIVE; ++i)
+    {
+        ReactiveType reactive = ReactiveType(i);
+
+        if (!m_reactiveTimer[reactive])
+        {
+            continue;
+        }
+
+        if (m_reactiveTimer[reactive] <= p_time)
+        {
+            m_reactiveTimer[reactive] = 0;
+
+            switch (reactive)
+            {
+                case REACTIVE_DEFENSE:
+                    if (HasAuraState(AURA_STATE_DEFENSE))
+                    {
+                        ModifyAuraState(AURA_STATE_DEFENSE, false);
+                    }
+                    break;
+                case REACTIVE_HUNTER_PARRY:
+                    if (getClass() == CLASS_HUNTER && HasAuraState(AURA_STATE_HUNTER_PARRY))
+                    {
+                        ModifyAuraState(AURA_STATE_HUNTER_PARRY, false);
+                    }
+                    break;
+                case REACTIVE_OVERPOWER:
+                    if (getClass() == CLASS_WARRIOR && GetTypeId() == TYPEID_PLAYER)
+                    {
+                        ClearComboPoints();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        else
+        {
+            m_reactiveTimer[reactive] -= p_time;
+        }
+    }
+}
+
+/**
+ * @brief Gets the attack power damage multiplier for an attack type.
+ *
+ * @param attType The attack type.
+ * @param normalized True to use normalized weapon speed rules.
+ * @return The attack power multiplier.
+ */
+float Unit::GetAPMultiplier(WeaponAttackType attType, bool normalized)
+{
+    uint32 const attackTime = GetAttackTime(attType);                                       // E2a
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                     // E2a
+
+    bool hasWeapon = false;
+    uint32 weaponInventoryType = 0;
+    uint32 weaponSubClass = 0;
+    if (normalized && isPlayer)                                                             // E2b, same guard
+    {
+        if (Item* Weapon = ((Player*)this)->GetWeaponForAttack(attType, true, false))
+        {
+            hasWeapon = true;
+            weaponInventoryType = Weapon->GetProto()->InventoryType;
+            weaponSubClass = Weapon->GetProto()->SubClass;
+        }
+    }
+
+    return Combat::APMultiplier(attackTime, isPlayer, normalized, hasWeapon,
+                                weaponInventoryType, weaponSubClass);
 }

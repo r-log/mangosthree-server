@@ -791,3 +791,271 @@ void Unit::CalculateHealAbsorb(const uint32 heal, uint32* absorb)
 
     *absorb = heal - RemainingHeal;
 }
+
+/**
+ * @brief Applies script-driven damage modifications before damage is dealt.
+ *
+ * @param pVictim The victim taking damage.
+ * @param damage The mutable damage amount.
+ * @param absorb Optional absorbed damage accumulator.
+ */
+void Unit::DealDamageMods(Unit* pVictim, uint32& damage, uint32* absorb)
+{
+    if (!pVictim->IsAlive() || pVictim->IsTaxiFlying() || (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->IsInEvadeMode()))
+    {
+        if (absorb)
+        {
+            *absorb += damage;
+        }
+        damage = 0;
+        return;
+    }
+
+    // You don't lose health from damage taken from another player while in a sanctuary
+    // You still see it in the combat log though
+    if (!IsAllowedDamageInArea(pVictim))
+    {
+        if (absorb)
+        {
+            *absorb += damage;
+        }
+        damage = 0;
+    }
+
+    uint32 originalDamage = damage;
+
+    // Script Event damage Deal
+    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->AI())
+    {
+        ((Creature*)this)->AI()->DamageDeal(pVictim, damage);
+    }
+    // Script Event damage taken
+    if (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->AI())
+    {
+        ((Creature*)pVictim)->AI()->DamageTaken(this, damage);
+    }
+
+    if (absorb && originalDamage > damage)
+    {
+        *absorb += (originalDamage - damage);
+    }
+}
+
+// Obsolete func need remove, here only for comotability vs another patches
+uint32 Unit::SpellNonMeleeDamageLog(Unit* pVictim, uint32 spellID, uint32 damage)
+{
+    SpellEntry const* spellInfo = sSpellStore.LookupEntry(spellID);
+    SpellNonMeleeDamage damageInfo(this, pVictim, spellInfo->ID, SpellSchoolMask(spellInfo->SchoolMask));
+    CalculateSpellDamage(&damageInfo, damage, spellInfo);
+    damageInfo.target->CalculateAbsorbResistBlock(this, &damageInfo, spellInfo);
+    DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
+    SendSpellNonMeleeDamageLog(&damageInfo);
+    DealSpellDamage(&damageInfo, true);
+    return damageInfo.damage;
+}
+
+/**
+ * @brief Computes final spell damage before application to a target.
+ *
+ * @param damageInfo The damage result structure to populate.
+ * @param damage The raw base damage.
+ * @param spellInfo The spell entry causing damage.
+ * @param attackType The associated attack type.
+ */
+void Unit::CalculateSpellDamage(SpellNonMeleeDamage* damageInfo, int32 damage, SpellEntry const* spellInfo, WeaponAttackType attackType)
+{
+    SpellSchoolMask damageSchoolMask = damageInfo->schoolMask;
+    Unit* pVictim = damageInfo->target;
+
+    if (damage < 0)
+    {
+        return;
+    }
+
+    if (!pVictim)
+    {
+        return;
+    }
+
+    // units which are not alive cannot deal damage except for dying creatures
+    if ((!this->IsAlive() || !pVictim->IsAlive()) && (this->GetTypeId() != TYPEID_UNIT || this->GetDeathState() != DEAD))
+    {
+        return;
+    }
+
+    // Check spell crit chance
+    bool crit = IsSpellCrit(pVictim, spellInfo, damageSchoolMask, attackType);
+
+    // damage bonus (per damage class)
+    switch (spellInfo->GetDmgClass())
+    {
+            // Melee and Ranged Spells
+        case SPELL_DAMAGE_CLASS_RANGED:
+        case SPELL_DAMAGE_CLASS_MELEE:
+        {
+            // Calculate damage bonus
+            damage = MeleeDamageBonusDone(pVictim, damage, attackType, spellInfo, SPELL_DIRECT_DAMAGE);
+            damage = pVictim->MeleeDamageBonusTaken(this, damage, attackType, spellInfo, SPELL_DIRECT_DAMAGE);
+
+            // if crit add critical bonus
+            if (crit)
+            {
+                damageInfo->HitInfo |= SPELL_HIT_TYPE_CRIT;
+                damage = SpellCriticalDamageBonus(spellInfo, damage, pVictim);
+                // Cata 4.0.1: no separate crit-damage resilience reduction;
+                // the single GetDamageReduction call below covers crit damage.
+            }
+        }
+        break;
+        // Magical Attacks
+        case SPELL_DAMAGE_CLASS_NONE:
+        case SPELL_DAMAGE_CLASS_MAGIC:
+        {
+            // Calculate damage bonus
+            damage = SpellDamageBonusDone(pVictim, spellInfo, damage, SPELL_DIRECT_DAMAGE);
+            damage = pVictim->SpellDamageBonusTaken(this, spellInfo, damage, SPELL_DIRECT_DAMAGE);
+
+            // If crit add critical bonus
+            if (crit)
+            {
+                damageInfo->HitInfo |= SPELL_HIT_TYPE_CRIT;
+                damage = SpellCriticalDamageBonus(spellInfo, damage, pVictim);
+                // Cata 4.0.1: no separate crit-damage resilience reduction;
+                // the single GetDamageReduction call below covers crit damage.
+            }
+        }
+        break;
+    }
+
+    // only from players
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        uint32 reduction_affected_damage = CalcNotIgnoreDamageReduction(damage, damageSchoolMask);
+        damage -= pVictim->GetDamageReduction(reduction_affected_damage);
+    }
+
+    // damage mitigation
+    if (damage > 0)
+    {
+        // physical damage => armor
+        if (damageSchoolMask & SPELL_SCHOOL_MASK_NORMAL)
+        {
+            uint32 armor_affected_damage = CalcNotIgnoreDamageReduction(damage, damageSchoolMask);
+            damage = damage - armor_affected_damage + CalcArmorReducedDamage(pVictim, armor_affected_damage);
+        }
+    }
+    else
+    {
+        damage = 0;
+    }
+    damageInfo->damage = damage;
+}
+
+/**
+ * @brief Applies prepared spell damage to a target.
+ *
+ * @param damageInfo The prepared non-melee damage information.
+ * @param durabilityLoss True to apply durability loss rules.
+ */
+void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss)
+{
+    if (!damageInfo)
+    {
+        return;
+    }
+
+    Unit* pVictim = damageInfo->target;
+
+    if (!pVictim)
+    {
+        return;
+    }
+
+    if (!pVictim->IsAlive() || pVictim->IsTaxiFlying() || (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->IsInEvadeMode()))
+    {
+        return;
+    }
+
+    SpellEntry const* spellProto = sSpellStore.LookupEntry(damageInfo->SpellID);
+    if (spellProto == NULL)
+    {
+        sLog.outError("Unit::DealSpellDamage have wrong damageInfo->SpellID: %u", damageInfo->SpellID);
+        return;
+    }
+
+    // You don't lose health from damage taken from another player while in a sanctuary
+    // You still see it in the combat log though
+    if (!IsAllowedDamageInArea(pVictim))
+    {
+        return;
+    }
+
+    // Call default DealDamage (send critical in hit info for threat calculation)
+    CleanDamage cleanDamage(0, BASE_ATTACK, damageInfo->HitInfo & SPELL_HIT_TYPE_CRIT ? MELEE_HIT_CRIT : MELEE_HIT_NORMAL);
+    DealDamage(pVictim, damageInfo->damage, &cleanDamage, SPELL_DIRECT_DAMAGE, damageInfo->schoolMask, spellProto, durabilityLoss);
+}
+
+uint32 Unit::CalcNotIgnoreAbsorbDamage(uint32 damage, SpellSchoolMask damageSchoolMask, SpellEntry const* spellInfo /*= NULL*/)
+{
+    float absorb_affected_rate = 1.0f;
+    Unit::AuraList const& ignoreAbsorbSchool = GetAurasByType(SPELL_AURA_MOD_IGNORE_ABSORB_SCHOOL);
+    for (Unit::AuraList::const_iterator i = ignoreAbsorbSchool.begin(); i != ignoreAbsorbSchool.end(); ++i)
+        if ((*i)->GetMiscValue() & damageSchoolMask)
+        {
+            absorb_affected_rate *= (100.0f - (*i)->GetModifier()->m_amount) / 100.0f;
+        }
+
+    if (spellInfo)
+    {
+        Unit::AuraList const& ignoreAbsorbForSpell = GetAurasByType(SPELL_AURA_MOD_IGNORE_ABSORB_FOR_SPELL);
+        for (Unit::AuraList::const_iterator citr = ignoreAbsorbForSpell.begin(); citr != ignoreAbsorbForSpell.end(); ++citr)
+            if ((*citr)->isAffectedOnSpell(spellInfo))
+            {
+                absorb_affected_rate *= (100.0f - (*citr)->GetModifier()->m_amount) / 100.0f;
+            }
+    }
+
+    return absorb_affected_rate <= 0.0f ? 0 : (absorb_affected_rate < 1.0f  ? uint32(damage * absorb_affected_rate) : damage);
+}
+
+uint32 Unit::CalcNotIgnoreDamageReduction(uint32 damage, SpellSchoolMask damageSchoolMask)
+{
+    float absorb_affected_rate = 1.0f;
+    Unit::AuraList const& ignoreAbsorb = GetAurasByType(SPELL_AURA_MOD_IGNORE_DAMAGE_REDUCTION_SCHOOL);
+    for (Unit::AuraList::const_iterator i = ignoreAbsorb.begin(); i != ignoreAbsorb.end(); ++i)
+        if ((*i)->GetMiscValue() & damageSchoolMask)
+        {
+            absorb_affected_rate *= (100.0f - (*i)->GetModifier()->m_amount) / 100.0f;
+        }
+
+    return absorb_affected_rate <= 0.0f ? 0 : (absorb_affected_rate < 1.0f  ? uint32(damage * absorb_affected_rate) : damage);
+}
+
+float Unit::GetCombatRatingReduction(CombatRating cr) const
+{
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        return ((Player const*)this)->GetRatingBonusValue(cr);
+    }
+    else if (IsPet())
+    {
+        // Player's pet get 100% resilience from owner
+        if (Unit* owner = GetOwner())
+            if (owner->GetTypeId() == TYPEID_PLAYER)
+            {
+                return ((Player*)owner)->GetRatingBonusValue(cr);
+            }
+    }
+
+    return 0.0f;
+}
+
+uint32 Unit::GetCombatRatingDamageReduction(CombatRating cr, float rate, float cap, uint32 damage) const
+{
+    float percent = GetCombatRatingReduction(cr) * rate;
+    if (percent > cap)
+    {
+        percent = cap;
+    }
+    return uint32(percent * damage / 100.0f);
+}
