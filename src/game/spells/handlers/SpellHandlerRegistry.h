@@ -224,7 +224,15 @@ enum SpellHandlerSite
     /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_PALADIN's `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_DUMMY_PALADIN = 78,
     /// `Aura::PeriodicDummyTick`, SPELLFAMILY_ROGUE's `switch (spell->ID)`.
-    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_ROGUE = 79
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_ROGUE = 79,
+    /// `Spell::GetSpellRangeAndRadius`, the custom target amounts, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_MAX_TARGETS_GENERIC = 80,
+    /// `Spell::GetSpellRangeAndRadius`, the custom radius cases, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_RADIUS_GENERIC = 81,
+    /// `Spell::SetTargetMap`, TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER = 82,
+    /// `Spell::EffectQuestComplete`'s `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_QUEST_COMPLETE = 83
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

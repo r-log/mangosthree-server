@@ -3873,6 +3873,8 @@ class Unit : public WorldObject
         Aura* GetAura(AuraType type, SpellFamily family, uint64 familyFlag, uint32 familyFlag2 = 0, ObjectGuid casterGuid = ObjectGuid());
         Aura* GetTriggeredByClientAura(uint32 spellId) const;
         SpellAuraHolder* GetSpellAuraHolder(uint32 spellid) const;
+        /// The remaining duration of the first aura holder of `spellId`, in milliseconds; 0 when there is none.
+        int32 GetAuraDuration(uint32 spellId) const;
         SpellAuraHolder* GetSpellAuraHolder(uint32 spellid, ObjectGuid casterGUID) const;
 
         SpellAuraHolderMap&       GetSpellAuraHolderMap()       { return m_auras.Holders(); }

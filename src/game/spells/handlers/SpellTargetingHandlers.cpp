@@ -26,6 +26,9 @@
 #include "spells/handlers/SpellTargetingHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "WorldHandlers/GridNotifiers.h"
+#include "WorldHandlers/Map.h"
+#include "Server/DBCStores.h"
+#include "spells/data/SpellMgr.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/pipeline/SpellTargetDistanceOrder.h"
 #include "entities/player/Player.h"
@@ -106,6 +109,84 @@ static SpellHandlerOutcome<void> TargetEffectDummyDefault(SpellTargetEffectDummy
     return SpellHandlerOutcome<void>::Continue();
 }
 
+/// 64844: Divine Hymn
+static SpellHandlerOutcome<void> TargetAllFriendlyUnitsAroundCaster64844(SpellTargetAllFriendlyUnitsAroundCasterContext& ctx)
+{
+    // target amount stored in parent spell dummy effect but hard to access
+    ctx.spell->FillRaidOrPartyHealthPriorityTargets(ctx.targetUnitMap, ctx.m_caster, ctx.m_caster, ctx.radius, 3, true, false, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 64904: Hymn of Hope
+static SpellHandlerOutcome<void> TargetAllFriendlyUnitsAroundCaster64904(SpellTargetAllFriendlyUnitsAroundCasterContext& ctx)
+{
+    // target amount stored in parent spell dummy effect but hard to access
+    ctx.spell->FillRaidOrPartyManaPriorityTargets(ctx.targetUnitMap, ctx.m_caster, ctx.m_caster, ctx.radius, 3, true, false, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 74452: Conflagration (Saviana, Ruby Sanctum)
+static SpellHandlerOutcome<void> MaxTargetsGeneric74452(SpellRangeAndRadiusContext& ctx)
+{
+    if (ctx.m_caster)
+    {
+        switch (ctx.m_caster->GetMap()->GetDifficulty())
+        {
+            case RAID_DIFFICULTY_10MAN_NORMAL:
+            case RAID_DIFFICULTY_10MAN_HEROIC:
+                ctx.unMaxTargets = 2;
+                break;
+            case RAID_DIFFICULTY_25MAN_NORMAL:
+            case RAID_DIFFICULTY_25MAN_HEROIC:
+                ctx.unMaxTargets = 5;
+                break;
+        }
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 24811: Draw Spirit (Lethon)
+static SpellHandlerOutcome<void> RadiusGeneric24811(SpellRangeAndRadiusContext& ctx)
+{
+    if (ctx.spellEffect->EffectIndex == EFFECT_INDEX_0)         // Copy range from EFF_1 to 0
+    {
+        ctx.radius = GetSpellRadius(sSpellRadiusStore.LookupEntry(ctx.spellEffect->GetRadiusIndex()));
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 2 labels: 28241: Poison (Naxxramas, Grobbulus Cloud), 54363: Poison (Naxxramas, Grobbulus Cloud) (H)
+static SpellHandlerOutcome<void> RadiusGenericGrobbulusPoison(SpellRangeAndRadiusContext& ctx)
+{
+    uint32 auraId = (ctx.m_spellInfo->ID == 28241 ? 28158 : 54362);
+    if (ctx.m_caster->HasAura(auraId))
+    {
+        ctx.radius = 0.5f * (60000 - ctx.m_caster->GetAuraDuration(auraId)) * 0.001f;
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 4 labels: 66881: Slime Pool (ToCrusader, Acidmaw & DreadScale), 67638, 67639, 67640: Slime Pool
+/// (Modes 1, 2 and 3)
+static SpellHandlerOutcome<void> RadiusGenericSlimePool(SpellRangeAndRadiusContext& ctx)
+{
+    if (ctx.m_caster->HasAura(66882))
+    {
+        ctx.radius = 0.5f * (60000 - ctx.m_caster->GetAuraDuration(66882)) * 0.001f;
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 56438: Arcane Overload
+static SpellHandlerOutcome<void> RadiusGeneric56438(SpellRangeAndRadiusContext& ctx)
+{
+    if (Unit* realCaster = ctx.spell->GetAffectiveCaster())
+    {
+        ctx.radius = ctx.radius * realCaster->GetObjectScale();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
 template <class Site>
 struct SpellTargetingRow
 {
@@ -145,11 +226,37 @@ uint32 RegisterSpellTargetingHandlers(SpellHandlerRegistry& registry)
         { 20577, &TargetEffectDummyCannibalize },
     };
 
+    static SpellTargetingRow<SpellTargetAllFriendlyUnitsAroundCasterSite> const allFriendlyUnitsAroundCaster[] =
+    {
+        { 64844, &TargetAllFriendlyUnitsAroundCaster64844 },
+        { 64904, &TargetAllFriendlyUnitsAroundCaster64904 },
+    };
+
+    static SpellTargetingRow<SpellMaxTargetsGenericSite> const maxTargetsGeneric[] =
+    {
+        { 74452, &MaxTargetsGeneric74452 },
+    };
+
+    static SpellTargetingRow<SpellRadiusGenericSite> const radiusGeneric[] =
+    {
+        { 24811, &RadiusGeneric24811 },
+        { 28241, &RadiusGenericGrobbulusPoison },
+        { 54363, &RadiusGenericGrobbulusPoison },
+        { 66881, &RadiusGenericSlimePool },
+        { 67638, &RadiusGenericSlimePool },
+        { 67639, &RadiusGenericSlimePool },
+        { 67640, &RadiusGenericSlimePool },
+        { 56438, &RadiusGeneric56438 },
+    };
+
     uint32 rows = RegisterSpellTargetingRows(registry, allEnemyInArea);
     registry.RegisterDefault<SpellTargetAllEnemyInAreaSite>(&TargetAllEnemyInAreaDefault);
     ++rows;
     rows += RegisterSpellTargetingRows(registry, effectDummy);
     registry.RegisterDefault<SpellTargetEffectDummySite>(&TargetEffectDummyDefault);
     ++rows;
+    rows += RegisterSpellTargetingRows(registry, allFriendlyUnitsAroundCaster);
+    rows += RegisterSpellTargetingRows(registry, maxTargetsGeneric);
+    rows += RegisterSpellTargetingRows(registry, radiusGeneric);
     return rows;
 }

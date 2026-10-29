@@ -62,6 +62,7 @@
 #include "Util.h"
 #include "DB2Stores.h"
 #include "DisableMgr.h"
+#include "spells/handlers/SpellTargetingHandlers.h"
 
 /**
  * @brief Checks whether a spell matches the quest tame spell pattern.
@@ -1288,6 +1289,12 @@ void Spell::GetSpellRangeAndRadius(SpellEffectEntry const* spellEffect, float& r
     {
         case SPELLFAMILY_GENERIC:
         {
+            SpellRangeAndRadiusContext ctx(this, m_caster, m_spellInfo, spellEffect, radius, unMaxTargets);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellMaxTargetsGenericSite>(m_spellInfo->ID, ctx).IsReturn())
+            {
+                return;
+            }
+
             switch (m_spellInfo->ID)
             {
                 case 802:                                   // Mutate Bug (AQ40, Emperor Vek'nilash)
@@ -1479,24 +1486,6 @@ void Spell::GetSpellRangeAndRadius(SpellEffectEntry const* spellEffect, float& r
                 case 63482:                                 // Lightning Whirl (h) (Ulduar, Stormcaller Brundir)
                     unMaxTargets = urand(3, 6);
                     break;
-                case 74452:                                 // Conflagration (Saviana, Ruby Sanctum)
-                {
-                    if (m_caster)
-                    {
-                        switch (m_caster->GetMap()->GetDifficulty())
-                        {
-                            case RAID_DIFFICULTY_10MAN_NORMAL:
-                            case RAID_DIFFICULTY_10MAN_HEROIC:
-                                unMaxTargets = 2;
-                                break;
-                            case RAID_DIFFICULTY_25MAN_NORMAL:
-                            case RAID_DIFFICULTY_25MAN_HEROIC:
-                                unMaxTargets = 5;
-                                break;
-                        }
-                    }
-                    break;
-                }
                 default:
                     break;
             }
@@ -1571,41 +1560,14 @@ void Spell::GetSpellRangeAndRadius(SpellEffectEntry const* spellEffect, float& r
     {
         case SPELLFAMILY_GENERIC:
         {
+            SpellRangeAndRadiusContext ctx(this, m_caster, m_spellInfo, spellEffect, radius, unMaxTargets);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellRadiusGenericSite>(m_spellInfo->ID, ctx).IsReturn())
+            {
+                return;
+            }
+
             switch (m_spellInfo->ID)
             {
-                case 24811:                                 // Draw Spirit (Lethon)
-                {
-                    if (spellEffect->EffectIndex == EFFECT_INDEX_0)         // Copy range from EFF_1 to 0
-                    {
-                        radius = GetSpellRadius(sSpellRadiusStore.LookupEntry(spellEffect->GetRadiusIndex()));
-                    }
-                    break;
-                }
-                case 28241:                                 // Poison (Naxxramas, Grobbulus Cloud)
-                case 54363:                                 // Poison (Naxxramas, Grobbulus Cloud) (H)
-                {
-                    uint32 auraId = (m_spellInfo->ID == 28241 ? 28158 : 54362);
-                    if (SpellAuraHolder* auraHolder = m_caster->GetSpellAuraHolder(auraId))
-                    {
-                        radius = 0.5f * (60000 - auraHolder->GetAuraDuration()) * 0.001f;
-                    }
-                    break;
-                }
-                case 66881:                                 // Slime Pool (ToCrusader, Acidmaw & DreadScale)
-                case 67638:                                 // Slime Pool (ToCrusader, Acidmaw & DreadScale) (Mode 1)
-                case 67639:                                 // Slime Pool (ToCrusader, Acidmaw & DreadScale) (Mode 2)
-                case 67640:                                 // Slime Pool (ToCrusader, Acidmaw & DreadScale) (Mode 3)
-                    if (SpellAuraHolder* auraHolder = m_caster->GetSpellAuraHolder(66882))
-                    {
-                        radius = 0.5f * (60000 - auraHolder->GetAuraDuration()) * 0.001f;
-                    }
-                    break;
-                case 56438:                                 // Arcane Overload
-                    if (Unit* realCaster = GetAffectiveCaster())
-                    {
-                        radius = radius * realCaster->GetObjectScale();
-                    }
-                    break;
                 case 69057:                                 // Bone Spike Graveyard (Icecrown Citadel, Lord Marrowgar encounter, 10N)
                 case 70826:                                 // Bone Spike Graveyard (Icecrown Citadel, Lord Marrowgar encounter, 25N)
                 case 72088:                                 // Bone Spike Graveyard (Icecrown Citadel, Lord Marrowgar encounter, 10H)

@@ -143,6 +143,17 @@ static SpellHandlerOutcome<void> EffectResurrectDefault(SpellEffectResurrectCont
     return SpellHandlerOutcome<void>::Continue();
 }
 
+/// 43458: Secrets of Nifflevar
+static SpellHandlerOutcome<void> EffectQuestComplete43458(SpellEffectQuestCompleteContext& ctx)
+{
+    if (!ctx.unitTarget->HasAura(ctx.effect->CalculateSimpleValue()))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    return SpellHandlerOutcome<void>::Continue();
+}
+
 template <class Site>
 struct SpellEffectObjectCombatRow
 {
@@ -208,9 +219,15 @@ uint32 RegisterSpellEffectObjectCombatHandlers(SpellHandlerRegistry& registry)
         { 54732, &EffectResurrectDefibrillate },
     };
 
+    static SpellEffectObjectCombatRow<SpellEffectQuestCompleteSite> const questComplete[] =
+    {
+        { 43458, &EffectQuestComplete43458 },
+    };
+
     uint32 rows = RegisterSpellEffectObjectCombatRows(registry, activateObject);
     rows += RegisterSpellEffectObjectCombatRows(registry, resurrect);
     registry.RegisterDefault<SpellEffectResurrectSite>(&EffectResurrectDefault);
     ++rows;
+    rows += RegisterSpellEffectObjectCombatRows(registry, questComplete);
     return rows;
 }

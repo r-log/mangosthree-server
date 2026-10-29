@@ -1162,24 +1162,10 @@ void Spell::EffectQuestComplete(SpellEffectEntry const* effect)
     }
 
     // A few spells has additional value from basepoints, check condition here.
-    switch (m_spellInfo->ID)
+    SpellEffectQuestCompleteContext ctx(unitTarget, effect);
+    if (SpellHandlerRegistry::Game().Dispatch<SpellEffectQuestCompleteSite>(m_spellInfo->ID, ctx).IsReturn())
     {
-        case 43458:                                         // Secrets of Nifflevar
-        {
-            if (!unitTarget->HasAura(effect->CalculateSimpleValue()))
-            {
-                return;
-            }
-
-            break;
-        }
-        // TODO: implement these!
-        // "this spell awards credit for the entire raid (all spell targets as this is area target) if just ONE member has both auras (yes, both effect's basepoints)"
-        // case 72155:                                      // Harvest Blight Specimen
-        // case 72162:                                      // Harvest Blight Specimen
-        // break;
-        default:
-            break;
+        return;
     }
 
     uint32 quest_id = effect->EffectMiscValue_0;

@@ -861,22 +861,15 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             FillAreaTargets(targetUnitMap, radius, PUSH_SELF_CENTER, SPELL_TARGETS_HOSTILE);
             break;
         case TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER:
-            switch (m_spellInfo->ID)
+        {
+            SpellTargetAllFriendlyUnitsAroundCasterContext ctx(this, m_caster, targetUnitMap, radius);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellTargetAllFriendlyUnitsAroundCasterSite>(m_spellInfo->ID, ctx).IsMiss())
             {
-                case 64844:                                 // Divine Hymn
-                    // target amount stored in parent spell dummy effect but hard to access
-                    FillRaidOrPartyHealthPriorityTargets(targetUnitMap, m_caster, m_caster, radius, 3, true, false, true);
-                    break;
-                case 64904:                                 // Hymn of Hope
-                    // target amount stored in parent spell dummy effect but hard to access
-                    FillRaidOrPartyManaPriorityTargets(targetUnitMap, m_caster, m_caster, radius, 3, true, false, true);
-                    break;
-                default:
-                    // selected friendly units (for casting objects) around casting object
-                    FillAreaTargets(targetUnitMap, radius, PUSH_SELF_CENTER, SPELL_TARGETS_FRIENDLY, GetCastingObject());
-                    break;
+                // selected friendly units (for casting objects) around casting object
+                FillAreaTargets(targetUnitMap, radius, PUSH_SELF_CENTER, SPELL_TARGETS_FRIENDLY, GetCastingObject());
             }
             break;
+        }
         case TARGET_ALL_FRIENDLY_UNITS_IN_AREA:
             // Death Pact (in fact selection by player selection)
             if (m_spellInfo->ID == 48743)

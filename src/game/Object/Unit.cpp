@@ -6732,6 +6732,12 @@ SpellAuraHolder* Unit::GetSpellAuraHolder(uint32 spellid) const
     return itr != m_auras.Holders().end() ? itr->second : NULL;
 }
 
+int32 Unit::GetAuraDuration(uint32 spellId) const
+{
+    SpellAuraHolder const* holder = GetSpellAuraHolder(spellId);
+    return holder ? holder->GetAuraDuration() : 0;
+}
+
 /**
  * @brief Finds an aura holder for a spell cast by a specific caster.
  *
