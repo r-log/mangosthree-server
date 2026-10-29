@@ -86,6 +86,19 @@ namespace Motion
         ++m_counters.modeChanges;
     }
 
+    bool State::Adopt(Change const& change)
+    {
+        if (change.type != ChangeType::Gait || m_mode != Mode::ServerDriven)
+        {
+            ++m_counters.refused;
+            return false;
+        }
+        ++m_counters.adopted;
+        m_desired.Apply(change);
+        m_confirmed = m_desired;
+        return true;
+    }
+
     std::vector<Emission> State::Apply(Change const& change, uint32 now)
     {
         std::vector<Emission> out;

@@ -276,3 +276,32 @@ TEST(MotionState_snapshot_is_the_desired_state_as_fresh_changes)
     State bare(Mode::ClientDriven, Kinematics());
     CHECK_EQ(bare.Snapshot().size(), size_t(7));
 }
+
+TEST(MotionState_adopt_takes_a_sent_gait_without_an_emission)
+{
+    State s(Mode::ServerDriven, Kinematics());
+    CHECK(s.Adopt(FlagChange(ChangeType::Gait, true)));
+    CHECK(s.Desired().walk);
+    CHECK(s.Confirmed() == s.Desired());
+    CHECK_EQ(s.Counters().adopted, 1u);
+    CHECK_EQ(s.Counters().applied, 0u);
+    CHECK_EQ(s.Counters().emitted, 0u);
+    CHECK(s.Adopt(FlagChange(ChangeType::Gait, false)));
+    CHECK(!s.Confirmed().walk);
+    CHECK_EQ(s.Counters().adopted, 2u);
+}
+
+TEST(MotionState_adopt_refuses_anything_but_a_server_driven_gait)
+{
+    State server(Mode::ServerDriven, Kinematics());
+    CHECK(!server.Adopt(FlagChange(ChangeType::Root, true)));
+    CHECK(!server.Desired().root);
+    CHECK(!server.Adopt(FlagChange(ChangeType::Swim, true)));
+    CHECK_EQ(server.Counters().refused, 2u);
+
+    State client(Mode::ClientDriven, Kinematics());
+    CHECK(!client.Adopt(FlagChange(ChangeType::Gait, true)));
+    CHECK(!client.Desired().walk);
+    CHECK_EQ(client.Counters().refused, 1u);
+    CHECK_EQ(client.Counters().adopted, 0u);
+}
