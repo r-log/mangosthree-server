@@ -211,16 +211,17 @@ void ScriptMgr::CollectPossibleEventIds(std::set<uint32>& eventIds)
 }
 
 /**
- * @brief Starts event `id`: the script library's hook first, then, for a game object's event
- * forwarded to a unit in a battleground or an outdoor PvP zone, that zone's handler, and otherwise
- * the database event scripts.
+ * @brief Starts event `id`: the script library's hook first, then, for a game object's event with
+ * `forwardToPvp` set, a battleground or an outdoor PvP zone (a player's own, or for another unit the
+ * map's battleground or the zone the object stands in), and otherwise the database event scripts.
  *
  * @param map The map the event happens on.
  * @param id The event id.
  * @param source The object that sends the event.
  * @param target The event's target, or NULL.
  * @param isStart Whether the event starts (false: it ends).
- * @param forwardToPvp The unit whose battleground or outdoor PvP zone may handle the event, or NULL.
+ * @param forwardToPvp The unit that lets a battleground or an outdoor PvP zone take a game object's
+ *                     event, or NULL.
  * @return true if a script, a zone or the database event scripts took the event.
  */
 bool DatabaseScriptHooks::StartEvent(Map* map, uint32 id, Object* source, Object* target, bool isStart, Unit* forwardToPvp)

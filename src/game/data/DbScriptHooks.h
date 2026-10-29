@@ -98,9 +98,10 @@ class DbScriptHooks
 
         /// Runs `step` on `map`. True when the script's following steps are to be dropped.
         virtual bool RunStep(Map* map, DbScriptStep const& step);
-        /// Starts event `id` on `map`, sent by `source` to `target`; `forwardToPvp` is the unit
-        /// whose battleground or outdoor PvP zone may take a game object's event. True when the
-        /// event was taken.
+        /// Starts event `id` on `map`, sent by `source` to `target`. A game object's event with
+        /// `forwardToPvp` set may be taken by a battleground or an outdoor PvP zone: a player's own,
+        /// or for another unit the map's battleground or the zone the object stands in. True when
+        /// the event was taken.
         virtual bool StartEvent(Map* map, uint32 id, Object* source, Object* target, bool isStart, Unit* forwardToPvp);
 
         /// The installed hooks, or the base when none are installed.

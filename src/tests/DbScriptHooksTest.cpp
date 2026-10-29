@@ -53,13 +53,21 @@ namespace
                 return false;
             }
 
+            Map* eventMap = NULL;
             uint32 eventId = 0;
+            Object* eventSource = NULL;
+            Object* eventTarget = NULL;
             bool eventStarts = false;
+            Unit* eventForward = NULL;
 
-            bool StartEvent(Map* /*map*/, uint32 id, Object* /*source*/, Object* /*target*/, bool isStart, Unit* /*forwardToPvp*/) override
+            bool StartEvent(Map* map, uint32 id, Object* source, Object* target, bool isStart, Unit* forwardToPvp) override
             {
+                eventMap = map;
                 eventId = id;
+                eventSource = source;
+                eventTarget = target;
                 eventStarts = isStart;
+                eventForward = forwardToPvp;
                 return true;
             }
     };
@@ -132,17 +140,30 @@ TEST(DbScriptHooks_InstalledHooksRunTheStep)
     CHECK(&sDbScriptHooks != &hooks);
 }
 
-// StartEvents_Event hands the event to the installed hooks, starting unless told otherwise.
+// StartEvents_Event hands each argument to the installed hooks in its place; by default the event
+// starts and is forwarded to no unit.
 TEST(DbScriptHooks_EventsGoToTheInstalledHooks)
 {
     RecordingHooks hooks;
     InstalledHooks installed(&hooks);
+    char standIns[4] = {};
+    Map* map = reinterpret_cast<Map*>(&standIns[0]);
+    Object* source = reinterpret_cast<Object*>(&standIns[1]);
+    Object* target = reinterpret_cast<Object*>(&standIns[2]);
+    Unit* forward = reinterpret_cast<Unit*>(&standIns[3]);
 
-    CHECK(StartEvents_Event(NULL, 77, NULL, NULL));
+    CHECK(StartEvents_Event(map, 77, source, target));
+    CHECK(hooks.eventMap == map);
     CHECK(hooks.eventId == 77u);
+    CHECK(hooks.eventSource == source);
+    CHECK(hooks.eventTarget == target);
     CHECK(hooks.eventStarts);
+    CHECK(hooks.eventForward == NULL);
 
-    CHECK(StartEvents_Event(NULL, 78, NULL, NULL, false));
+    CHECK(StartEvents_Event(map, 78, target, source, false, forward));
     CHECK(hooks.eventId == 78u);
+    CHECK(hooks.eventSource == target);
+    CHECK(hooks.eventTarget == source);
     CHECK(!hooks.eventStarts);
+    CHECK(hooks.eventForward == forward);
 }
