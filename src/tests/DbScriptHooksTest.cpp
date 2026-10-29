@@ -36,16 +36,18 @@
 
 namespace
 {
-    /// Records the step it is handed and asks to keep the script's following steps.
+    /// Records the map and the step it is handed and asks to keep the script's following steps.
     class RecordingHooks : public DbScriptHooks
     {
         public:
             int runs = 0;
+            Map* seenMap = NULL;
             DbScriptStep const* seen = NULL;
 
-            bool RunStep(Map* /*map*/, DbScriptStep const& step) override
+            bool RunStep(Map* map, DbScriptStep const& step) override
             {
                 ++runs;
+                seenMap = map;
                 seen = &step;
                 return false;
             }
@@ -105,11 +107,14 @@ TEST(DbScriptHooks_InstalledHooksRunTheStep)
     RecordingHooks hooks;
     ScriptInfo info = StepOfScript(5);
     DbScriptStep step(DBS_ON_GO_USE, ObjectGuid(), ObjectGuid(), ObjectGuid(), &info);
+    char mapStandIn = 0;
+    Map* map = reinterpret_cast<Map*>(&mapStandIn);
     {
         InstalledHooks installed(&hooks);
         CHECK(DbScriptHooks::IsInstalled());
-        CHECK(!sDbScriptHooks.RunStep(NULL, step));
+        CHECK(!sDbScriptHooks.RunStep(map, step));
         CHECK(hooks.runs == 1);
+        CHECK(hooks.seenMap == map);
         CHECK(hooks.seen == &step);
     }
     CHECK(&sDbScriptHooks != &hooks);
