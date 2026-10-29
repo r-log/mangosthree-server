@@ -31,11 +31,13 @@
 class GameObject;
 class Item;
 class Unit;
+struct SpellEffectEntry;
 struct SpellEntry;
 
 /**
  * @file SpellEffectObjectCombatHandlers.h
- * @brief The `Spell::EffectActivateObject` and `Spell::EffectResurrect` sites of the spell handler registry.
+ * @brief The `Spell::EffectActivateObject`, `Spell::EffectResurrect` and `Spell::EffectQuestComplete` sites of the
+ *        spell handler registry.
  *
  * The handlers are file-static functions in SpellEffectObjectCombatHandlers.cpp; this header holds what the registry
  * and tests see.
@@ -83,7 +85,27 @@ struct SpellEffectResurrectSite
     typedef SpellEffectResurrectContext Context;
 };
 
-/// Registers every `Spell::EffectActivateObject` and `Spell::EffectResurrect` handler on `registry` (defined in
+/// What the bodies of `Spell::EffectQuestComplete`'s switch read: the spell's unit target and the effect.
+struct SpellEffectQuestCompleteContext
+{
+    SpellEffectQuestCompleteContext(Unit*& targetMember, SpellEffectEntry const* const& effectParameter)
+        : unitTarget(targetMember), effect(effectParameter) {}
+
+    Unit*& unitTarget;                      ///< the spell's member `Unit* unitTarget;`
+    SpellEffectEntry const* const& effect;  ///< the function's parameter `SpellEffectEntry const* effect`
+};
+
+/// `Spell::EffectQuestComplete`'s `switch (m_spellInfo->ID)` before the credit: a label returns to withhold the
+/// credit; there is no registered default, so a miss and a label that breaks go on to the credit.
+struct SpellEffectQuestCompleteSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_EFFECT_QUEST_COMPLETE;
+    typedef void Value;
+    typedef SpellEffectQuestCompleteContext Context;
+};
+
+/// Registers every `Spell::EffectActivateObject`, `Spell::EffectResurrect` and `Spell::EffectQuestComplete` handler
+/// on `registry` (defined in
 /// SpellEffectObjectCombatHandlers.cpp). Returns the number of rows it registered, a site's `default:` counting as
 /// one; a row whose key was taken, or a second default, does not change the table, so a caller that registers on an
 /// empty table and finds fewer keys and defaults than rows has a duplicate.

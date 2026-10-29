@@ -33,11 +33,13 @@
 class Spell;
 class SpellCastTargets;
 class Unit;
+struct SpellEffectEntry;
 struct SpellEntry;
 
 /**
  * @file SpellTargetingHandlers.h
- * @brief The two `Spell::SetTargetMap` sites of the spell handler registry.
+ * @brief The three `Spell::SetTargetMap` sites and the two `Spell::GetSpellRangeAndRadius` sites of the spell
+ *        handler registry.
  *
  * The handlers are file-static functions in SpellTargetingHandlers.cpp; this header holds what the registry
  * and tests see.
@@ -90,6 +92,68 @@ struct SpellTargetEffectDummySite
     static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_TARGET_EFFECT_DUMMY;
     typedef void Value;
     typedef SpellTargetEffectDummyContext Context;
+};
+
+/// What the bodies of `Spell::SetTargetMap`'s TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER switch read and write: the
+/// spell, its caster, the target list being filled and the effect's radius.
+struct SpellTargetAllFriendlyUnitsAroundCasterContext
+{
+    SpellTargetAllFriendlyUnitsAroundCasterContext(Spell* thisSpell, Unit*& casterMember,
+                                                   std::list<Unit*>& targetsParameter, float const& radiusLocal)
+        : spell(thisSpell), m_caster(casterMember), targetUnitMap(targetsParameter), radius(radiusLocal) {}
+
+    Spell* spell;                       ///< the spell itself
+    Unit*& m_caster;                    ///< the spell's member `Unit* m_caster;`
+    std::list<Unit*>& targetUnitMap;    ///< the function's parameter `UnitList& targetUnitMap`
+    float const& radius;                ///< the function's local `float radius`
+};
+
+/// `Spell::SetTargetMap`, TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER: its `switch (m_spellInfo->ID)`. Divine Hymn and
+/// Hymn of Hope fill the targets by health or mana; there is no registered default, so a miss fills the friendly
+/// units around the casting object.
+struct SpellTargetAllFriendlyUnitsAroundCasterSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER;
+    typedef void Value;
+    typedef SpellTargetAllFriendlyUnitsAroundCasterContext Context;
+};
+
+/// What the bodies of `Spell::GetSpellRangeAndRadius`'s switches read and write: the spell, its caster and entry,
+/// the effect, and the radius and most targets the function answers.
+struct SpellRangeAndRadiusContext
+{
+    SpellRangeAndRadiusContext(Spell const* thisSpell, Unit* const& casterMember, SpellEntry const* const& spellInfoMember,
+                               SpellEffectEntry const* spellEffectParameter, float& radiusParameter,
+                               uint32& maxTargetsParameter)
+        : spell(thisSpell), m_caster(casterMember), m_spellInfo(spellInfoMember), spellEffect(spellEffectParameter),
+          radius(radiusParameter), unMaxTargets(maxTargetsParameter) {}
+
+    Spell const* spell;                     ///< the spell itself
+    Unit* const& m_caster;                  ///< the spell's member `Unit* m_caster;`
+    SpellEntry const* const& m_spellInfo;   ///< the spell's member `SpellEntry const* m_spellInfo;`
+    SpellEffectEntry const* spellEffect;    ///< the function's parameter `SpellEffectEntry const* spellEffect`
+    float& radius;                          ///< the function's parameter `float& radius`
+    uint32& unMaxTargets;                   ///< the function's parameter `uint32& unMaxTargets`
+};
+
+/// `Spell::GetSpellRangeAndRadius`, the custom target amounts, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`:
+/// Conflagration sets the most targets by the map's difficulty; there is no registered default, so a miss runs the
+/// switch, which holds the fixed amounts; every outcome continues after the switch.
+struct SpellMaxTargetsGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_MAX_TARGETS_GENERIC;
+    typedef void Value;
+    typedef SpellRangeAndRadiusContext Context;
+};
+
+/// `Spell::GetSpellRangeAndRadius`, the custom radius cases, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`: the
+/// labels compute the radius from the effect, an aura's remaining duration or the caster's scale; there is no
+/// registered default, so a miss runs the switch, which holds the fixed radii; every outcome continues after it.
+struct SpellRadiusGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_RADIUS_GENERIC;
+    typedef void Value;
+    typedef SpellRangeAndRadiusContext Context;
 };
 
 /// Registers every `Spell::SetTargetMap` handler on `registry` (defined in SpellTargetingHandlers.cpp).
