@@ -350,7 +350,8 @@ namespace
     const ObjectGuid kMover(uint64(0x0000000000010046ULL));
     const ObjectGuid kVessel(uint64(0x0000000000000102ULL));
 
-    /// A straight spline from (1, 2, 3) to (11, 2, 3) at 5 yd/s under id 9: 2,000 ms.
+    /// A straight spline from (1, 2, 3) to (11, 2, 3) at 5 yd/s under id 9: 2,001 ms, the 1 ms
+    /// every spline starts from plus 2,000 for the 10 yd.
     void StraightSpline(Movement::MoveSpline& out)
     {
         Movement::MoveSplineInitArgs args;
@@ -365,7 +366,7 @@ namespace
     /// the start, the id, type Normal, the flags, the duration, then the linear path's point
     /// count and its destination.
     const std::string kStraightBody = std::string("00" "0000803F" "00000040" "00004040" "09000000" "00")
-                                      + "00000000" "D0070000" "01000000" "00003041" "00000040" "00004040";
+                                      + "00000000" "D1070000" "01000000" "00003041" "00000040" "00004040";
 
     /// Decodes a monster move whole and checks the straight spline's fields.
     void CheckStraightSpline(WorldPacket& p, uint16 opcode, Wire::MonsterMove& back)
@@ -377,7 +378,7 @@ namespace
         CHECK(back.type == Wire::MonsterMoveType::Normal);
         CHECK_EQ(back.mover, kMover.GetRawValue());
         CHECK_EQ(back.id, uint32(9));
-        CHECK_EQ(back.duration, uint32(2000));
+        CHECK_EQ(back.duration, uint32(2001));
         CHECK(back.path == Wire::SplinePath::Linear);
         CHECK_EQ(back.destination.x, 11.0f);
         CHECK(Wire::Judge(opcode, p, false).exact);
