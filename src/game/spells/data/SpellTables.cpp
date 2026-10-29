@@ -509,6 +509,114 @@ namespace
         return row != end && row->spellId == spellId ? row->answer : 0;
     }
 
+    constexpr uint32 POSITIVE_DUMMY_EFFECTS[] =
+    {
+        10258,  // Awaken Vault Warder
+        18153,  // Kodo Kombobulator
+        32312,  // Move 1
+        37388,  // Move 2
+        45863,  // Cosmetic - Incinerate to Random Target
+        49634,  // Sergeant's Flare
+        54530,  // Opening
+        56099,  // Throw Ice
+        58533,  // Return to Stormwind
+        58552,  // Return to Orgrimmar
+        62105,  // To'kini's Blowgun
+        63745,  // Sara's Blessing
+        63747,  // Sara's Fervor
+        64402,  // Rocket Strike
+    };
+
+    constexpr uint32 NEGATIVE_DUMMY_EFFECTS[] =
+    {
+        28441,  // AB Effect 000
+    };
+
+    constexpr uint32 POSITIVE_SCRIPT_EFFECTS[] =
+    {
+        42436,  // Drink!
+        42492,  // Cast Energized
+        46650,  // Open Brutallus Back Door
+        62488,  // Activate Construct
+        64503,  // Water
+    };
+
+    constexpr uint32 POSITIVE_DUMMY_AURAS[] =
+    {
+        27184,
+        27190,
+        27191,
+        27201,
+        27202,
+        27203,
+        47669,
+        64996,  // Reorigination
+    };
+
+    constexpr uint32 NEGATIVE_DUMMY_AURAS[] =
+    {
+        11196,  // Recently Bandaged
+        13139,  // net-o-matic special effect
+        23182,  // Mark of Frost
+        23445,  // evil twin
+        25040,  // Mark of Nature
+        35679,  // Protectorate Demolitionist
+        37695,  // Stanky
+        38637,  // Nether Exhaustion (red)
+        38638,  // Nether Exhaustion (green)
+        38639,  // Nether Exhaustion (blue)
+        44689,  // Relay Race Accept Hidden Debuff - DND
+        58600,  // Restricted Flight Area
+    };
+
+    constexpr uint32 POSITIVE_PACIFY_SILENCE_AURAS[] =
+    {
+        24740,  // Wisp Costume
+        47585,  // Dispersion
+    };
+
+    constexpr uint32 NEGATIVE_TRANSFORM_AURAS[] =
+    {
+        36897,  // Transporter Malfunction (race mutation to horde)
+        36899,  // Transporter Malfunction (race mutation to alliance)
+        37097,  // Crate Disguise
+    };
+
+    constexpr uint32 POSITIVE_SCALE_AURAS[] =
+    {
+        802,  // Mutate Bug, wrongly negative by target modes
+        38449,  // Blessing of the Tides
+        50312,  // Unholy Frenzy
+    };
+
+    constexpr uint32 NEGATIVE_SCALE_AURAS[] =
+    {
+        36893,  // Transporter Malfunction (decrease size case)
+        36895,  // Transporter Malfunction (increase size case)
+        36900,  // Soul Split: Evil!
+        36901,  // Soul Split: Good
+    };
+
+    constexpr uint32 POSITIVE_MELEE_HASTE_AURAS[] =
+    {
+        38449,  // Blessing of the Tides
+    };
+
+    constexpr uint32 NEGATIVE_FORCE_REACTION_AURAS[] =
+    {
+        42792,  // Recently Dropped Flag (prevent cancel)
+        46221,  // Animal Blood
+    };
+
+    constexpr uint32 NEGATIVE_PHASE_AURAS[] =
+    {
+        57508,  // Insanity (16)
+        57509,  // Insanity (32)
+        57510,  // Insanity (64)
+        57511,  // Insanity (128)
+        57512,  // Insanity (256)
+    };
+
     /// Whether `ids`, sorted, holds `spellId`.
     template <std::size_t N>
     bool Holds(uint32 const (&ids)[N], uint32 spellId)
@@ -547,6 +655,18 @@ namespace
     static_assert(SortedBySpellId(REQUIRED_AREA), "required area rows are sorted, each once");
     static_assert(SortedBySpellId(PENANCE), "Penance rows are sorted, each once");
     static_assert(SortedBySpellId(HOLY_SHOCK), "Holy Shock rows are sorted, each once");
+    static_assert(SortedBySpellId(POSITIVE_DUMMY_EFFECTS), "positive dummy effects ids are sorted, each once");
+    static_assert(SortedBySpellId(NEGATIVE_DUMMY_EFFECTS), "negative dummy effects ids are sorted, each once");
+    static_assert(SortedBySpellId(POSITIVE_SCRIPT_EFFECTS), "positive script effects ids are sorted, each once");
+    static_assert(SortedBySpellId(POSITIVE_DUMMY_AURAS), "positive dummy auras ids are sorted, each once");
+    static_assert(SortedBySpellId(NEGATIVE_DUMMY_AURAS), "negative dummy auras ids are sorted, each once");
+    static_assert(SortedBySpellId(POSITIVE_PACIFY_SILENCE_AURAS), "positive pacify silence auras ids are sorted, each once");
+    static_assert(SortedBySpellId(NEGATIVE_TRANSFORM_AURAS), "negative transform auras ids are sorted, each once");
+    static_assert(SortedBySpellId(POSITIVE_SCALE_AURAS), "positive scale auras ids are sorted, each once");
+    static_assert(SortedBySpellId(NEGATIVE_SCALE_AURAS), "negative scale auras ids are sorted, each once");
+    static_assert(SortedBySpellId(POSITIVE_MELEE_HASTE_AURAS), "positive melee haste auras ids are sorted, each once");
+    static_assert(SortedBySpellId(NEGATIVE_FORCE_REACTION_AURAS), "negative force reaction auras ids are sorted, each once");
+    static_assert(SortedBySpellId(NEGATIVE_PHASE_AURAS), "negative phase auras ids are sorted, each once");
 }
 
 SpellMaxTargetsRange const* FindSpellMaxTargets(uint32 spellId)
@@ -705,4 +825,64 @@ uint32 GetLavaFlowsHasteSpell(uint32 rankSpellId)
 uint32 GetSpellRequiredAreaId(uint32 spellId)
 {
     return AnswerOf(REQUIRED_AREA, spellId);
+}
+
+bool HasPositiveDummyEffect(uint32 spellId)
+{
+    return Holds(POSITIVE_DUMMY_EFFECTS, spellId);
+}
+
+bool HasNegativeDummyEffect(uint32 spellId)
+{
+    return Holds(NEGATIVE_DUMMY_EFFECTS, spellId);
+}
+
+bool HasPositiveScriptEffect(uint32 spellId)
+{
+    return Holds(POSITIVE_SCRIPT_EFFECTS, spellId);
+}
+
+bool HasPositiveDummyAura(uint32 spellId)
+{
+    return Holds(POSITIVE_DUMMY_AURAS, spellId);
+}
+
+bool HasNegativeDummyAura(uint32 spellId)
+{
+    return Holds(NEGATIVE_DUMMY_AURAS, spellId);
+}
+
+bool HasPositivePacifySilenceAura(uint32 spellId)
+{
+    return Holds(POSITIVE_PACIFY_SILENCE_AURAS, spellId);
+}
+
+bool HasNegativeTransformAura(uint32 spellId)
+{
+    return Holds(NEGATIVE_TRANSFORM_AURAS, spellId);
+}
+
+bool HasPositiveScaleAura(uint32 spellId)
+{
+    return Holds(POSITIVE_SCALE_AURAS, spellId);
+}
+
+bool HasNegativeScaleAura(uint32 spellId)
+{
+    return Holds(NEGATIVE_SCALE_AURAS, spellId);
+}
+
+bool HasPositiveMeleeHasteAura(uint32 spellId)
+{
+    return Holds(POSITIVE_MELEE_HASTE_AURAS, spellId);
+}
+
+bool HasNegativeForceReactionAura(uint32 spellId)
+{
+    return Holds(NEGATIVE_FORCE_REACTION_AURAS, spellId);
+}
+
+bool HasNegativePhaseAura(uint32 spellId)
+{
+    return Holds(NEGATIVE_PHASE_AURAS, spellId);
 }

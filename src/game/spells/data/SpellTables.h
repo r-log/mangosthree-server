@@ -112,4 +112,19 @@ uint32 GetLavaFlowsHasteSpell(uint32 rankSpellId);
 /// The area a spell's SPELL_FAILED_REQUIRES_AREA names; 0 for a spell the table does not hold.
 uint32 GetSpellRequiredAreaId(uint32 spellId);
 
+/// Whether a spell's dummy effect, script effect or aura of the named kind is positive, or negative, whatever its
+/// targets and attributes say; false for a spell the table does not hold.
+bool HasPositiveDummyEffect(uint32 spellId);
+bool HasNegativeDummyEffect(uint32 spellId);
+bool HasPositiveScriptEffect(uint32 spellId);
+bool HasPositiveDummyAura(uint32 spellId);
+bool HasNegativeDummyAura(uint32 spellId);
+bool HasPositivePacifySilenceAura(uint32 spellId);
+bool HasNegativeTransformAura(uint32 spellId);
+bool HasPositiveScaleAura(uint32 spellId);
+bool HasNegativeScaleAura(uint32 spellId);
+bool HasPositiveMeleeHasteAura(uint32 spellId);
+bool HasNegativeForceReactionAura(uint32 spellId);
+bool HasNegativePhaseAura(uint32 spellId);
+
 #endif
