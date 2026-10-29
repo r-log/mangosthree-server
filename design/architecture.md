@@ -171,8 +171,8 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
-**Today (`Unit`, 652 member functions, grouped roughly by defining file and name):** combat 175, auras 112, spell
-casting 72, lifecycle and update 81, movement 81, stats and power 72, pets/charm/summons 55, visibility 4. The target
+**Today (`Unit`, 652 member functions, grouped roughly by defining file and name):** combat 175, auras 113, spell
+casting 72, lifecycle and update 80, movement 81, stats and power 72, pets/charm/summons 55, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
 **Today (player-only code in `Unit`):** Unit's 16 files hold 11 `(Player*)this` casts and 196 `TYPEID_PLAYER` tests;
@@ -207,8 +207,8 @@ armor specialization spell fits it, its combo points and its combo target: `FitA
 the possessed unit's view and back, the possess action bar told to its client, its own pet removed when the
 possession ends out of reach, and the pet action bar removed otherwise: `SetCameraView`, `ResetCameraView`,
 `PossessSpellInitialize`, `RemovePet`, `RemovePetActionBar`; each with the non-player answer as `Unit`'s default).
-Most aura bodies live in `spells/auras/`, beside the aura storage (`spells/AuraContainer.h`); the rest are still in
-`Object/Unit.cpp`. The combat bodies, the threat managers and the leaf math live in `combat/`; `Object/Unit.cpp` still
+The aura bodies live in `spells/auras/`, beside the aura storage (`spells/AuraContainer.h`).
+The combat bodies, the threat managers and the leaf math live in `combat/`; `Object/Unit.cpp` still
 holds `DealDamage`, `DealHeal`, the kill credit and the combat bodies that walk a unit's pets, which need headers
 `combat/` does not include.
 
