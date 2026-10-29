@@ -88,18 +88,10 @@ src/game/Object [ai] -> src/game/WorldHandlers/InstanceData.h
 src/game/Object [ai] -> src/game/WorldHandlers/Map.h
 src/game/Object [ai] -> src/game/spells/data/SpellMgr.h
 src/game/Object [ai] -> src/game/spells/pipeline/Spell.h
-src/game/Object [combat] -> src/game/MotionGenerators/MotionMaster.h
 src/game/Object [combat] -> src/game/Object/Creature.h
-src/game/Object [combat] -> src/game/Object/CreatureAI.h
 src/game/Object [combat] -> src/game/Object/Pet.h
 src/game/Object [combat] -> src/game/Object/Unit.h
-# reached through ObjectMgr.h before #512
-src/game/Object [combat] -> src/game/WorldHandlers/GridMap.h
-src/game/Object [combat] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/Object [combat] -> src/game/WorldHandlers/InstanceData.h
-src/game/Object [combat] -> src/game/WorldHandlers/Map.h
 src/game/Object [combat] -> src/game/spells/data/SpellMgr.h
-src/game/Object [combat] -> src/game/spells/pipeline/Spell.h
 # reached through ObjectMgr.h before #512
 src/game/Object [economy] -> src/game/Object/Bag.h
 src/game/Object [economy] -> src/game/Object/Item.h
@@ -164,8 +156,6 @@ src/game/Object/Creature.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Creature.cpp -> src/proto/Opcodes.h
 src/game/Object/Creature.cpp -> src/proto/WorldPacket.h
-src/game/Object/CreatureThreat.cpp -> src/game/entities/player/Player.h
-src/game/Object/CreatureThreat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/Player.h
 src/game/Object/GMTicketMgr.h -> src/game/Server/WorldSession.h
 src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
@@ -283,24 +273,7 @@ src/game/Object/Unit.cpp -> src/proto/WorldPacket.h
 src/game/Object/Unit.h -> src/game/spells/AuraContainer.h
 src/game/Object/Unit.h -> src/game/spells/auras/SpellAuraDefines.h
 src/game/Object/Unit.h -> src/proto/Opcodes.h
-src/game/Object/UnitCombat.cpp -> src/game/entities/player/Player.h
-src/game/Object/UnitCombat.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/Object/UnitCombat.cpp -> src/proto/Opcodes.h
-src/game/Object/UnitCombat.cpp -> src/proto/WorldPacket.h
-src/game/Object/UnitDamage.cpp -> src/game/entities/player/Player.h
-src/game/Object/UnitDamage.cpp -> src/game/spells/auras/SpellAuras.h
-# reached through ObjectMgr.h before #512
-src/game/Object/UnitDiminishing.cpp -> src/game/entities/player/Player.h
-src/game/Object/UnitHostility.cpp -> src/game/entities/player/Player.h
-src/game/Object/UnitMeleeDamage.cpp -> src/game/entities/player/Player.h
-src/game/Object/UnitMeleeDamage.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/Object/UnitMeleeDamage.cpp -> src/proto/Opcodes.h
-src/game/Object/UnitMeleeDamage.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitPower.cpp -> src/proto/WorldPacket.h
-# reached through ObjectMgr.h before #512
-src/game/Object/UnitThreat.cpp -> src/game/entities/player/Player.h
-src/game/Object/UnitThreat.cpp -> src/proto/Opcodes.h
-src/game/Object/UnitThreat.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitVisibility.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitVisibility.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Vehicle.cpp -> src/game/Server/WorldSession.h
@@ -478,13 +451,38 @@ src/game/WorldHandlers/Weather.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Weather.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Weather.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/WorldSessionMgr.cpp -> src/game/WorldHandlers/World.h
+src/game/combat [combat] -> src/game/MotionGenerators/MotionMaster.h
 src/game/combat [combat] -> src/game/Object/Creature.h
 src/game/combat [combat] -> src/game/Object/CreatureAI.h
 src/game/combat [combat] -> src/game/Object/ObjectLookup.h
 src/game/combat [combat] -> src/game/Object/Unit.h
+# reached through ObjectMgr.h before #512
+src/game/combat [combat] -> src/game/WorldHandlers/GridMap.h
+src/game/combat [combat] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/combat [combat] -> src/game/WorldHandlers/InstanceData.h
 src/game/combat [combat] -> src/game/WorldHandlers/Map.h
 src/game/combat [combat] -> src/game/spells/data/SpellMgr.h
+src/game/combat [combat] -> src/game/spells/pipeline/Spell.h
+src/game/combat/CreatureThreat.cpp -> src/game/entities/player/Player.h
+src/game/combat/CreatureThreat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/combat/ThreatManager.cpp -> src/game/entities/player/Player.h
+src/game/combat/UnitCombat.cpp -> src/game/entities/player/Player.h
+src/game/combat/UnitCombat.cpp -> src/game/spells/auras/SpellAuras.h
+src/game/combat/UnitCombat.cpp -> src/proto/Opcodes.h
+src/game/combat/UnitCombat.cpp -> src/proto/WorldPacket.h
+src/game/combat/UnitDamage.cpp -> src/game/entities/player/Player.h
+src/game/combat/UnitDamage.cpp -> src/game/spells/auras/SpellAuras.h
+# reached through ObjectMgr.h before #512
+src/game/combat/UnitDiminishing.cpp -> src/game/entities/player/Player.h
+src/game/combat/UnitHostility.cpp -> src/game/entities/player/Player.h
+src/game/combat/UnitMeleeDamage.cpp -> src/game/entities/player/Player.h
+src/game/combat/UnitMeleeDamage.cpp -> src/game/spells/auras/SpellAuras.h
+src/game/combat/UnitMeleeDamage.cpp -> src/proto/Opcodes.h
+src/game/combat/UnitMeleeDamage.cpp -> src/proto/WorldPacket.h
+# reached through ObjectMgr.h before #512
+src/game/combat/UnitThreat.cpp -> src/game/entities/player/Player.h
+src/game/combat/UnitThreat.cpp -> src/proto/Opcodes.h
+src/game/combat/UnitThreat.cpp -> src/proto/WorldPacket.h
 src/game/entities/player [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player [entities] -> src/game/Object/Guild.h
 src/game/entities/player [entities] -> src/game/OutdoorPvP/OutdoorPvP.h

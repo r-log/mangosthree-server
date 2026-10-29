@@ -29,7 +29,7 @@ only `src/shared`; session includes it 116 times, the motion layer 23 times (8 f
 `AuctionHouseBot/` is app: it is kept (the 2026-09-28 decision, section 7), off by default, and reaches the domain only through `World`'s timer and one chat command.
 
 These directories **dissolve**:
-- `Object/` (143 files): 63 to entities, 28 to data, 25 to ai, 10 to social, 9 to combat, 6 to economy and 2 to
+- `Object/` (137 files): 64 to entities, 28 to data, 25 to ai, 10 to social, 6 to economy, 2 to combat and 2 to
   foundation (`ObjectGuid`).
 - `WorldHandlers/` (133 files): 32 to session (the 24 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
   `AccountMgr`, `WorldSessionMgr`), 40 to maps, 26 to social, 12 to scripts, 12 to data, 4 to
@@ -479,7 +479,7 @@ RULES = [
  (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
  (r'^game/spells/', 'spells'),
  (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|WorldSessionMgr|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
- (r'^game/combat/|^game/Object/(Unit(Combat|Damage|MeleeDamage|Threat|Hostility|Diminishing)|Formulas|StatSystem|CreatureThreat)', 'combat'),
+ (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
  (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|Path\.|BareMap|Weather)', 'maps'),
  (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
  (r'^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),
