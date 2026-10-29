@@ -26,6 +26,7 @@
 #include "TestHarness.h"
 #include "FakeDatabase.h"
 
+#include <chrono>
 #include <string>
 #include <thread>
 #include <vector>
@@ -33,6 +34,7 @@
 TEST(Database_queries_serialize_on_connection_lock)
 {
     FakeDatabase database;
+    database.Connection().queryDelay = std::chrono::milliseconds(1);
     std::vector<std::thread> threads;
     for (unsigned i = 0; i < 8; ++i)
     {

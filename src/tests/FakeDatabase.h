@@ -29,11 +29,9 @@
 /**
  * A database with no MySQL behind it, for the unit tests.
  *
- * These lived inside DatabaseConcurrencyTest.cpp until decoupling D7a needed them in two
- * more places. FakeConnection still does what that test needs -- it reports any overlap
- * between two threads inside the same connection, which is the thing that test asserts is
- * impossible -- and now also records every statement it is handed and can answer canned
- * rows, so a test can drive the real Query/AsyncPQuery/callback paths end to end.
+ * FakeConnection reports any overlap between two threads inside the same connection, records
+ * every statement it is handed and answers canned rows, plain or with column names, so a test
+ * drives the real Query/QueryNamed/AsyncPQuery/callback paths end to end.
  *
  * The fakes are handed to a real Database through AttachTestConnections(); the database
  * owns none of them, and every holder here detaches before it lets them go.
@@ -113,7 +111,8 @@ class FakeQueryResult : public QueryResult
  * Query() records the statement, then returns the first registered answer whose prefix the
  * statement starts with, or NULL when none matches -- the same "no rows, no result" answer
  * MySQLConnection::Query() gives, and it calls NextRow() once before returning for the same
- * reason the real one does: callers Fetch() the first row without advancing.
+ * reason the real one does: callers Fetch() the first row without advancing. QueryNamed()
+ * answers the same way from the named answers, with their column names.
  */
 class FakeConnection final : public SqlConnection
 {
@@ -133,6 +132,13 @@ class FakeConnection final : public SqlConnection
             m_answers.push_back(std::make_pair(std::move(sqlPrefix), std::move(rows)));
         }
 
+        /// Answer `rows` with the column `names` to any named read starting with `sqlPrefix`.
+        /// Registration order is the match order; an empty `rows` means NULL.
+        void AnswerNamed(std::string sqlPrefix, QueryFieldNames names, FakeRows rows)
+        {
+            m_namedAnswers.push_back(NamedAnswer{std::move(sqlPrefix), std::move(names), std::move(rows)});
+        }
+
         QueryResult* Query(const char* sql) override
         {
             Enter();
@@ -145,10 +151,9 @@ class FakeConnection final : public SqlConnection
                 std::this_thread::sleep_for(
                     std::chrono::milliseconds(20));
             }
-            else
+            else if (queryDelay.count() != 0)
             {
-                std::this_thread::sleep_for(
-                    std::chrono::milliseconds(1));
+                std::this_thread::sleep_for(queryDelay);
             }
             QueryResult* result = Canned(sql);
             Leave();
@@ -159,8 +164,9 @@ class FakeConnection final : public SqlConnection
         {
             Enter();
             Record(sql);
+            QueryNamedResult* result = CannedNamed(sql);
             Leave();
-            return nullptr;
+            return result;
         }
 
         bool Execute(const char* sql) override
@@ -210,6 +216,10 @@ class FakeConnection final : public SqlConnection
         std::atomic<bool> escapeAttempting{false};
         bool coordinateEscape = false;
 
+        /// How long Query() holds the connection: widens the window in which two threads
+        /// would overlap if the database did not serialize them. Zero holds it not at all.
+        std::chrono::milliseconds queryDelay{0};
+
     private:
 
         void Record(const char* sql)
@@ -238,7 +248,35 @@ class FakeConnection final : public SqlConnection
             return nullptr;
         }
 
+        QueryNamedResult* CannedNamed(const char* sql)
+        {
+            const std::string statement(sql ? sql : "");
+            for (NamedAnswer const& answer : m_namedAnswers)
+            {
+                if (statement.compare(0, answer.prefix.size(), answer.prefix) != 0)
+                {
+                    continue;
+                }
+                if (answer.rows.empty())
+                {
+                    return nullptr;
+                }
+                FakeQueryResult* result = new FakeQueryResult(answer.rows);
+                result->NextRow();
+                return new QueryNamedResult(result, answer.names);
+            }
+            return nullptr;
+        }
+
+        struct NamedAnswer
+        {
+            std::string prefix;
+            QueryFieldNames names;
+            FakeRows rows;
+        };
+
         std::vector<std::pair<std::string, FakeRows> > m_answers;
+        std::vector<NamedAnswer> m_namedAnswers;
 };
 
 /**
@@ -249,15 +287,13 @@ class FakeConnection final : public SqlConnection
  * stack objects that die at the closing brace, which every later test in the binary would
  * then use. The guard makes the failure mode of a failing assertion "one red test" rather
  * than "one red test and a corrupt process".
- *
- * Lived in TestSeamTest.cpp until decoupling D7b needed it for the handler tests as well.
  */
 struct AttachedFakes
 {
     /// @param asyncWrites true makes Execute/PExecute/ExecuteStmt QUEUE onto the attached
     ///        delay-thread body, which is what the server does (Master.cpp calls
-    ///        AllowAsyncTransactions() at start-up). The default is false, which is the
-    ///        direct shape every case written before decoupling D7f asserts against.
+    ///        AllowAsyncTransactions() at start-up); false, the default, runs them directly
+    ///        on the connection.
     AttachedFakes(Database& database, SqlConnection* query, SqlConnection* async,
                   SqlResultQueue* results, bool asyncWrites = false)
         : m_database(database), m_wasAsync(database.AllowsAsyncTransactions())

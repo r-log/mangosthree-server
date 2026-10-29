@@ -801,3 +801,18 @@ TEST(CharacterDumpRepository_Reads)
     CHECK(CharacterDumpRepository::QueryNameInUse("Ann"));
     CHECK(Contains(db.query.executed[0], "SELECT `guid`,`name`,`taximask` FROM `characters` WHERE guid = '42'"));
 }
+
+// A dump's column names are those of the named read of one row of the table, in its order.
+TEST(CharacterDumpRepository_ColumnNames)
+{
+    Db db(CharacterDatabase);
+    db.query.AnswerNamed("SELECT * FROM `character_pet`", QueryFieldNames{"id", "entry", "owner"},
+                         FakeRows{FakeRow{"7", "416", "42"}});
+    std::vector<std::string> names = CharacterDumpRepository::QueryColumnNames("character_pet");
+    REQUIRE(names.size() == 3);
+    CHECK_STR(names[0], "id");
+    CHECK_STR(names[1], "entry");
+    CHECK_STR(names[2], "owner");
+    REQUIRE(db.query.executed.size() == 1);
+    CHECK_STR(db.query.executed[0], "SELECT * FROM `character_pet` LIMIT 1");
+}
