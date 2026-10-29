@@ -60,6 +60,11 @@ typedef std::map<uint8 /*seatPosition*/, VehicleSeatEntry const*> VehicleSeatMap
  * Nothing aboard a ship has one of these, and nothing aboard a ship ever will: there is no
  * seat there, only a map.
  */
+/// The movement limits a vehicle's entry sets (no strafe, no jump, full-speed turning and
+/// pitching, pitching on the ground), as the flags2 bits every observer and its driver read: the
+/// 4.3.4 client takes them only from what the server sends, and its driver never sends them.
+uint32 VehicleMoveFlags2(VehicleEntry const& entry);
+
 class TransportInfo
 {
     public:
