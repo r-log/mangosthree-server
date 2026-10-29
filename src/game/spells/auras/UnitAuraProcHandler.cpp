@@ -38,6 +38,7 @@
 #include "Creature.h"
 #include "Util.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
+#include "spells/data/SpellTables.h"
 
 pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
 {
@@ -761,14 +762,13 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                 }
 
                 target = this;
-                switch (dummySpell->ID)
+                uint32 arcanePotency = GetArcanePotencyProcSpell(dummySpell->ID);
+                if (!arcanePotency)
                 {
-                    case 31571: triggered_spell_id = 57529; break;
-                    case 31572: triggered_spell_id = 57531; break;
-                    default:
-                        sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u", dummySpell->ID);
-                        return SPELL_AURA_PROC_FAILED;
+                    sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u", dummySpell->ID);
+                    return SPELL_AURA_PROC_FAILED;
                 }
+                triggered_spell_id = arcanePotency;
                 break;
             }
 
@@ -859,15 +859,13 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     return SPELL_AURA_PROC_FAILED;
                 }
 
-                switch (dummySpell->ID)
+                uint32 secondWind = GetSecondWindProcSpell(dummySpell->ID);
+                if (!secondWind)
                 {
-                    case 29838: triggered_spell_id = 29842; break;
-                    case 29834: triggered_spell_id = 29841; break;
-                    case 42770: triggered_spell_id = 42771; break;
-                    default:
-                        sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u (SW)", dummySpell->ID);
-                        return SPELL_AURA_PROC_FAILED;
+                    sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u (SW)", dummySpell->ID);
+                    return SPELL_AURA_PROC_FAILED;
                 }
+                triggered_spell_id = secondWind;
 
                 target = this;
                 break;
@@ -1239,14 +1237,9 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
 
                 target = this;
 
-                switch (dummySpell->ID)
+                if (uint32 rapidRecuperation = GetRapidRecuperationProcSpell(dummySpell->ID))
                 {
-                    case 53228:                             // Rank 1
-                        triggered_spell_id = 56654;
-                        break;
-                    case 53232:                             // Rank 2
-                        triggered_spell_id = 58882;
-                        break;
+                    triggered_spell_id = rapidRecuperation;
                 }
                 break;
             }
@@ -1382,21 +1375,12 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     return SPELL_AURA_PROC_FAILED;
                 }
 
-                switch (dummySpell->ID)
+                uint32 flametongue = GetFlametongueWeaponProcSpell(dummySpell->ID);
+                if (!flametongue)
                 {
-                    case 10400: triggered_spell_id =  8026; break; // Rank 1
-                    case 15567: triggered_spell_id =  8028; break; // Rank 2
-                    case 15568: triggered_spell_id =  8029; break; // Rank 3
-                    case 15569: triggered_spell_id = 10445; break; // Rank 4
-                    case 16311: triggered_spell_id = 16343; break; // Rank 5
-                    case 16312: triggered_spell_id = 16344; break; // Rank 6
-                    case 16313: triggered_spell_id = 25488; break; // Rank 7
-                    case 58784: triggered_spell_id = 58786; break; // Rank 8
-                    case 58791: triggered_spell_id = 58787; break; // Rank 9
-                    case 58792: triggered_spell_id = 58788; break; // Rank 10
-                    default:
-                        return SPELL_AURA_PROC_FAILED;
+                    return SPELL_AURA_PROC_FAILED;
                 }
+                triggered_spell_id = flametongue;
                 break;
             }
             // Elemental Overload (Elemental Shaman mastery — spell 77222).
@@ -1537,37 +1521,12 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     return SPELL_AURA_PROC_FAILED;
                 }
 
-                uint32 spellId = 0;
                 // Every Lightning Bolt and Chain Lightning spell have duplicate vs half damage and zero cost
-                switch (procSpell->ID)
+                uint32 spellId = GetLightningOverloadSpell(procSpell->ID);
+                if (!spellId)
                 {
-                    // Lightning Bolt
-                    case   403: spellId = 45284; break;     // Rank  1
-                    case   529: spellId = 45286; break;     // Rank  2
-                    case   548: spellId = 45287; break;     // Rank  3
-                    case   915: spellId = 45288; break;     // Rank  4
-                    case   943: spellId = 45289; break;     // Rank  5
-                    case  6041: spellId = 45290; break;     // Rank  6
-                    case 10391: spellId = 45291; break;     // Rank  7
-                    case 10392: spellId = 45292; break;     // Rank  8
-                    case 15207: spellId = 45293; break;     // Rank  9
-                    case 15208: spellId = 45294; break;     // Rank 10
-                    case 25448: spellId = 45295; break;     // Rank 11
-                    case 25449: spellId = 45296; break;     // Rank 12
-                    case 49237: spellId = 49239; break;     // Rank 13
-                    case 49238: spellId = 49240; break;     // Rank 14
-                    // Chain Lightning
-                    case   421: spellId = 45297; break;     // Rank  1
-                    case   930: spellId = 45298; break;     // Rank  2
-                    case  2860: spellId = 45299; break;     // Rank  3
-                    case 10605: spellId = 45300; break;     // Rank  4
-                    case 25439: spellId = 45301; break;     // Rank  5
-                    case 25442: spellId = 45302; break;     // Rank  6
-                    case 49270: spellId = 49268; break;     // Rank  7
-                    case 49271: spellId = 49269; break;     // Rank  8
-                    default:
-                        sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u (LO)", procSpell->ID);
-                        return SPELL_AURA_PROC_FAILED;
+                    sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u (LO)", procSpell->ID);
+                    return SPELL_AURA_PROC_FAILED;
                 }
 
                 // Remove cooldown (Chain Lightning - have Category Recovery time)
@@ -1596,22 +1555,10 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     if (itrClassOptions && itrClassOptions->SpellClassSet == SPELLFAMILY_SHAMAN &&
                         (itrClassOptions->SpellClassMask & UI64LIT(0x0000000000000400)))
                     {
-                        uint32 spell = 0;
-                        switch ((*itr)->GetId())
+                        uint32 spell = GetLightningShieldDamageSpell((*itr)->GetId());
+                        if (!spell)
                         {
-                            case   324: spell = 26364; break;
-                            case   325: spell = 26365; break;
-                            case   905: spell = 26366; break;
-                            case   945: spell = 26367; break;
-                            case  8134: spell = 26369; break;
-                            case 10431: spell = 26370; break;
-                            case 10432: spell = 26363; break;
-                            case 25469: spell = 26371; break;
-                            case 25472: spell = 26372; break;
-                            case 49280: spell = 49278; break;
-                            case 49281: spell = 49279; break;
-                            default:
-                                return SPELL_AURA_PROC_FAILED;
+                            return SPELL_AURA_PROC_FAILED;
                         }
                         CastSpell(target, spell, true, castItem, triggeredByAura);
                         if ((*itr)->GetHolder()->DropAuraCharge())
@@ -1714,73 +1661,12 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     return SPELL_AURA_PROC_FAILED;
                 }
 
-                switch (procSpell->ID)
+                uint32 offHand = GetThreatOfThassarianOffHandSpell(procSpell->ID);
+                if (!offHand)
                 {
-                    // Obliterate
-                    case 49020:                             // Rank 1
-                        triggered_spell_id = 66198; break;
-                    case 51423:                             // Rank 2
-                        triggered_spell_id = 66972; break;
-                    case 51424:                             // Rank 3
-                        triggered_spell_id = 66973; break;
-                    case 51425:                             // Rank 4
-                        triggered_spell_id = 66974; break;
-                    // Frost Strike
-                    case 49143:                             // Rank 1
-                        triggered_spell_id = 66196; break;
-                    case 51416:                             // Rank 2
-                        triggered_spell_id = 66958; break;
-                    case 51417:                             // Rank 3
-                        triggered_spell_id = 66959; break;
-                    case 51418:                             // Rank 4
-                        triggered_spell_id = 66960; break;
-                    case 51419:                             // Rank 5
-                        triggered_spell_id = 66961; break;
-                    case 55268:                             // Rank 6
-                        triggered_spell_id = 66962; break;
-                    // Plague Strike
-                    case 45462:                             // Rank 1
-                        triggered_spell_id = 66216; break;
-                    case 49917:                             // Rank 2
-                        triggered_spell_id = 66988; break;
-                    case 49918:                             // Rank 3
-                        triggered_spell_id = 66989; break;
-                    case 49919:                             // Rank 4
-                        triggered_spell_id = 66990; break;
-                    case 49920:                             // Rank 5
-                        triggered_spell_id = 66991; break;
-                    case 49921:                             // Rank 6
-                        triggered_spell_id = 66992; break;
-                    // Death Strike
-                    case 49998:                             // Rank 1
-                        triggered_spell_id = 66188; break;
-                    case 49999:                             // Rank 2
-                        triggered_spell_id = 66950; break;
-                    case 45463:                             // Rank 3
-                        triggered_spell_id = 66951; break;
-                    case 49923:                             // Rank 4
-                        triggered_spell_id = 66952; break;
-                    case 49924:                             // Rank 5
-                        triggered_spell_id = 66953; break;
-                    // Rune Strike
-                    case 56815:
-                        triggered_spell_id = 66217; break;
-                    // Blood Strike
-                    case 45902:                             // Rank 1
-                        triggered_spell_id = 66215; break;
-                    case 49926:                             // Rank 2
-                        triggered_spell_id = 66975; break;
-                    case 49927:                             // Rank 3
-                        triggered_spell_id = 66976; break;
-                    case 49928:                             // Rank 4
-                        triggered_spell_id = 66977; break;
-                    case 49929:                             // Rank 5
-                        triggered_spell_id = 66978; break;
-                    case 49930:                             // Rank 6
-                        triggered_spell_id = 66979; break;
-                    default:
-                        return SPELL_AURA_PROC_FAILED;
+                    return SPELL_AURA_PROC_FAILED;
                 }
+                triggered_spell_id = offHand;
                 break;
             }
             // Runic Power Back on Snare/Root
@@ -1923,16 +1809,12 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
         {
             if (auraSpellInfo->SpellIconID == 2127)         // Blazing Speed
             {
-                switch (auraSpellInfo->ID)
+                if (!IsBlazingSpeedRank(auraSpellInfo->ID))
                 {
-                    case 31641:  // Rank 1
-                    case 31642:  // Rank 2
-                        trigger_spell_id = 31643;
-                        break;
-                    default:
-                        sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u miss possibly Blazing Speed", auraSpellInfo->ID);
-                        return SPELL_AURA_PROC_FAILED;
+                    sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u miss possibly Blazing Speed", auraSpellInfo->ID);
+                    return SPELL_AURA_PROC_FAILED;
                 }
+                trigger_spell_id = 31643;
             }
             else if (auraSpellInfo->ID == 26467)            // Persistent Shield (Scarab Brooch trinket)
             {
@@ -1974,16 +1856,13 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
                     weaponDamage = (GetFloatValue(UNIT_FIELD_MINDAMAGE) + GetFloatValue(UNIT_FIELD_MAXDAMAGE)) / 2;
                 }
 
-                switch (auraSpellInfo->ID)
+                uint32 percent = GetDeepWoundsWeaponDamagePercent(auraSpellInfo->ID);
+                if (!percent)
                 {
-                    case 12834: basepoints[EFFECT_INDEX_0] = int32(weaponDamage * 16 / 100); break;
-                    case 12849: basepoints[EFFECT_INDEX_0] = int32(weaponDamage * 32 / 100); break;
-                    case 12867: basepoints[EFFECT_INDEX_0] = int32(weaponDamage * 48 / 100); break;
-                    // Impossible case
-                    default:
-                        sLog.outError("Unit::HandleProcTriggerSpellAuraProc: DW unknown spell rank %u", auraSpellInfo->ID);
-                        return SPELL_AURA_PROC_FAILED;
+                    sLog.outError("Unit::HandleProcTriggerSpellAuraProc: DW unknown spell rank %u", auraSpellInfo->ID);
+                    return SPELL_AURA_PROC_FAILED;
                 }
+                basepoints[EFFECT_INDEX_0] = int32(weaponDamage * percent / 100);
 
                 // 1 tick/sec * 6 sec = 6 ticks
                 basepoints[EFFECT_INDEX_0] /= 6;
@@ -2107,15 +1986,13 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             // Blessed Recovery
             else if (auraSpellInfo->SpellIconID == 1875)
             {
-                switch (auraSpellInfo->ID)
+                uint32 blessedRecovery = GetBlessedRecoveryProcSpell(auraSpellInfo->ID);
+                if (!blessedRecovery)
                 {
-                    case 27811: trigger_spell_id = 27813; break;
-                    case 27815: trigger_spell_id = 27817; break;
-                    case 27816: trigger_spell_id = 27818; break;
-                    default:
-                        sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u not handled in BR", auraSpellInfo->ID);
-                        return SPELL_AURA_PROC_FAILED;
+                    sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u not handled in BR", auraSpellInfo->ID);
+                    return SPELL_AURA_PROC_FAILED;
                 }
+                trigger_spell_id = blessedRecovery;
                 basepoints[0] = damage * triggerAmount / 100 / 3;
                 target = this;
                 // increase healing factor with each critical strike. Patch 3.0.2
@@ -2249,19 +2126,13 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
                 // Holy Shock heal
                 if (procClassOptions && procClassOptions->SpellClassMask & UI64LIT(0x0001000000000000))
                 {
-                    switch (procSpell->ID)
+                    uint32 holyShock = GetHolyShockOfHeal(procSpell->ID);
+                    if (!holyShock)
                     {
-                        case 25914: originalSpellId = 20473; break;
-                        case 25913: originalSpellId = 20929; break;
-                        case 25903: originalSpellId = 20930; break;
-                        case 27175: originalSpellId = 27174; break;
-                        case 33074: originalSpellId = 33072; break;
-                        case 48820: originalSpellId = 48824; break;
-                        case 48821: originalSpellId = 48825; break;
-                        default:
-                            sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u not handled in HShock", procSpell->ID);
-                            return SPELL_AURA_PROC_FAILED;
+                        sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u not handled in HShock", procSpell->ID);
+                        return SPELL_AURA_PROC_FAILED;
                     }
+                    originalSpellId = holyShock;
                 }
                 SpellEntry const* originalSpell = sSpellStore.LookupEntry(originalSpellId);
                 if (!originalSpell)
@@ -2392,34 +2263,13 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             // Lightning Shield (overwrite non existing triggered spell call in spell.dbc
             if (auraClassOptions && auraClassOptions->SpellClassMask & UI64LIT(0x0000000000000400))
             {
-                switch (auraSpellInfo->ID)
+                uint32 lightningShield = GetLightningShieldDamageSpell(auraSpellInfo->ID);
+                if (!lightningShield)
                 {
-                    case 324:                           // Rank 1
-                        trigger_spell_id = 26364; break;
-                    case 325:                           // Rank 2
-                        trigger_spell_id = 26365; break;
-                    case 905:                           // Rank 3
-                        trigger_spell_id = 26366; break;
-                    case 945:                           // Rank 4
-                        trigger_spell_id = 26367; break;
-                    case 8134:                          // Rank 5
-                        trigger_spell_id = 26369; break;
-                    case 10431:                         // Rank 6
-                        trigger_spell_id = 26370; break;
-                    case 10432:                         // Rank 7
-                        trigger_spell_id = 26363; break;
-                    case 25469:                         // Rank 8
-                        trigger_spell_id = 26371; break;
-                    case 25472:                         // Rank 9
-                        trigger_spell_id = 26372; break;
-                    case 49280:                         // Rank 10
-                        trigger_spell_id = 49278; break;
-                    case 49281:                         // Rank 11
-                        trigger_spell_id = 49279; break;
-                    default:
-                        sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u not handled in LShield", auraSpellInfo->ID);
-                        return SPELL_AURA_PROC_FAILED;
+                    sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u not handled in LShield", auraSpellInfo->ID);
+                    return SPELL_AURA_PROC_FAILED;
                 }
+                trigger_spell_id = lightningShield;
             }
             // Lightning Shield (The Ten Storms set)
             else if (auraSpellInfo->ID == 23551)

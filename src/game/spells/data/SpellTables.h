@@ -65,4 +65,24 @@ bool IsOverloadIgnoringCastTime(uint32 spellId);
 /// Whether a spell may target a player on a taxi flight.
 bool MayTargetTaxiFlyer(uint32 spellId);
 
+/// The spells a proc casts for the rank of the aura or of the spell that procs it; 0 for a spell the table does not hold.
+uint32 GetArcanePotencyProcSpell(uint32 rankSpellId);
+uint32 GetSecondWindProcSpell(uint32 rankSpellId);
+uint32 GetRapidRecuperationProcSpell(uint32 rankSpellId);
+uint32 GetFlametongueWeaponProcSpell(uint32 rankSpellId);
+uint32 GetBlessedRecoveryProcSpell(uint32 rankSpellId);
+/// The overload copy of a Lightning Bolt or Chain Lightning; 0 for any other spell.
+uint32 GetLightningOverloadSpell(uint32 procSpellId);
+/// The damage spell of a Lightning Shield rank; 0 for any other spell.
+uint32 GetLightningShieldDamageSpell(uint32 rankSpellId);
+/// The off-hand strike Threat of Thassarian adds to a death knight strike; 0 for any other spell.
+uint32 GetThreatOfThassarianOffHandSpell(uint32 strikeSpellId);
+/// The Holy Shock a Holy Shock heal comes from; 0 for any other spell.
+uint32 GetHolyShockOfHeal(uint32 healSpellId);
+/// The share of the weapon's damage, in percent, a Deep Wounds rank deals; 0 for any other spell.
+uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId);
+
+/// Whether a spell is a rank of Blazing Speed.
+bool IsBlazingSpeedRank(uint32 spellId);
+
 #endif

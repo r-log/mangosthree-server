@@ -285,3 +285,51 @@ TEST(SpellTables_TheFiveFlagSetsHoldTheirSwitchesLiveLabelsAndNoOthers)
     CHECK(!IsHealthToMaxAura(12345));
     CHECK(!MayTargetTaxiFlyer(12345));
 }
+
+TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
+{
+    CHECK_EQ(GetArcanePotencyProcSpell(31571), uint32(57529));
+    CHECK_EQ(GetArcanePotencyProcSpell(31572), uint32(57531));
+    CHECK_EQ(GetSecondWindProcSpell(29838), uint32(29842));
+    CHECK_EQ(GetSecondWindProcSpell(29834), uint32(29841));
+    CHECK_EQ(GetSecondWindProcSpell(42770), uint32(42771));
+    CHECK_EQ(GetRapidRecuperationProcSpell(53228), uint32(56654));
+    CHECK_EQ(GetRapidRecuperationProcSpell(53232), uint32(58882));
+    CHECK_EQ(GetFlametongueWeaponProcSpell(10400), uint32(8026));
+    CHECK_EQ(GetBlessedRecoveryProcSpell(27811), uint32(27813));
+    CHECK_EQ(GetBlessedRecoveryProcSpell(27815), uint32(27817));
+    CHECK_EQ(GetBlessedRecoveryProcSpell(27816), uint32(27818));
+    CHECK_EQ(GetLightningOverloadSpell(403), uint32(45284));
+    CHECK_EQ(GetLightningOverloadSpell(421), uint32(45297));
+    CHECK_EQ(GetLightningShieldDamageSpell(324), uint32(26364));
+    CHECK_EQ(GetThreatOfThassarianOffHandSpell(49020), uint32(66198));
+    CHECK_EQ(GetThreatOfThassarianOffHandSpell(49143), uint32(66196));
+    CHECK_EQ(GetThreatOfThassarianOffHandSpell(45462), uint32(66216));
+    CHECK_EQ(GetThreatOfThassarianOffHandSpell(49998), uint32(66188));
+    CHECK_EQ(GetThreatOfThassarianOffHandSpell(56815), uint32(66217));
+    CHECK_EQ(GetThreatOfThassarianOffHandSpell(45902), uint32(66215));
+    CHECK_EQ(GetHolyShockOfHeal(25914), uint32(20473));
+    CHECK_EQ(GetDeepWoundsWeaponDamagePercent(12834), uint32(16));
+    CHECK_EQ(GetDeepWoundsWeaponDamagePercent(12849), uint32(32));
+    CHECK_EQ(GetDeepWoundsWeaponDamagePercent(12867), uint32(48));
+    CHECK(IsBlazingSpeedRank(31641));
+    CHECK(IsBlazingSpeedRank(31642));
+
+    // Ranks that are not 4.3.4 spells answer nothing, and neither does an id no switch held.
+    CHECK_EQ(GetFlametongueWeaponProcSpell(15567), uint32(0));
+    CHECK_EQ(GetLightningOverloadSpell(529), uint32(0));
+    CHECK_EQ(GetLightningOverloadSpell(930), uint32(0));
+    CHECK_EQ(GetLightningShieldDamageSpell(325), uint32(0));
+    CHECK_EQ(GetLightningShieldDamageSpell(49281), uint32(0));
+    CHECK_EQ(GetThreatOfThassarianOffHandSpell(51423), uint32(0));
+    CHECK_EQ(GetHolyShockOfHeal(25913), uint32(0));
+    for (uint32 spellId : { 0u, 12345u })
+    {
+        CHECK_EQ(GetArcanePotencyProcSpell(spellId), uint32(0));
+        CHECK_EQ(GetSecondWindProcSpell(spellId), uint32(0));
+        CHECK_EQ(GetRapidRecuperationProcSpell(spellId), uint32(0));
+        CHECK_EQ(GetBlessedRecoveryProcSpell(spellId), uint32(0));
+        CHECK_EQ(GetDeepWoundsWeaponDamagePercent(spellId), uint32(0));
+        CHECK(!IsBlazingSpeedRank(spellId));
+    }
+}
