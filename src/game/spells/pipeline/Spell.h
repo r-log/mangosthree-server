@@ -522,8 +522,6 @@ class Spell
         void WriteAmmoToPacket(WorldPacket* data);
 
         template<typename T> WorldObject* FindCorpseUsing();
-        void FillRaidOrPartyManaPriorityTargets(UnitList& targetUnitMap, Unit* member, Unit* center, float radius, uint32 count, bool raid, bool withPets, bool withcaster);
-        void FillRaidOrPartyHealthPriorityTargets(UnitList& targetUnitMap, Unit* member, Unit* center, float radius, uint32 count, bool raid, bool withPets, bool withcaster);
 
         bool CheckTarget(Unit* target, SpellEffectIndex eff);
         bool CanAutoCast(Unit* target);
@@ -615,6 +613,10 @@ class Spell
         static void SelectMountByAreaAndSkill(Unit* target, SpellEntry const* parentSpell, uint32 spellId75, uint32 spellId150, uint32 spellId225, uint32 spellId300, uint32 spellIdSpecial);
 
         typedef std::list<Unit*> UnitList;
+
+        // handler helpers: the raid or party members around a center, lowest mana or lowest health first
+        void FillRaidOrPartyManaPriorityTargets(UnitList& targetUnitMap, Unit* member, Unit* center, float radius, uint32 count, bool raid, bool withPets, bool withcaster);
+        void FillRaidOrPartyHealthPriorityTargets(UnitList& targetUnitMap, Unit* member, Unit* center, float radius, uint32 count, bool raid, bool withPets, bool withcaster);
 
         void SetSelfContainer(Spell** pCurrentContainer) { m_selfContainer = pCurrentContainer; }
         Spell** GetSelfContainer() { return m_selfContainer; }
