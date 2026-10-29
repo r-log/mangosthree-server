@@ -77,6 +77,7 @@
 #include "CellImpl.h"
 #include "Language.h"
 #include "spells/handlers/AurasHandlers.h"
+#include "spells/data/SpellTables.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -2555,25 +2556,10 @@ SpellAuraHolder::SpellAuraHolder(SpellEntry const* spellproto, Unit* target, Wor
         }
     }
 
-    // some custom stack values at aura holder create
-    switch (m_spellProto->ID)
+    // some auras applied with max stack
+    if (IsMaxStackAtCreateAura(m_spellProto->ID))
     {
-            // some auras applied with max stack
-        case 24575:                                         // Brittle Armor
-        case 24659:                                         // Unstable Power
-        case 24662:                                         // Restless Strength
-        case 26464:                                         // Mercurial Shield
-        case 34027:                                         // Kill Command
-        case 55166:                                         // Tidal Force
-        case 58914:                                         // Kill Command (pet part)
-        case 62519:                                         // Attuned to Nature
-        case 63050:                                         // Sanity
-        case 64455:                                         // Feral Essence
-        case 65294:                                         // Empowered
-        case 71564:                                         // Deadly Precision
-        case 74396:                                         // Fingers of Frost
-            m_stackAmount = m_spellProto->GetStackAmount();
-            break;
+        m_stackAmount = m_spellProto->GetStackAmount();
     }
 
     for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
