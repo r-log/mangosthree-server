@@ -286,6 +286,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
         hasTimeStamp = true,
         hasTransportTime2 = false,
         hasVehicleId = false;
+    MovementInfo status;
 
     if (isType(TYPEMASK_UNIT))
     {
@@ -301,26 +302,28 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
                                     unit->Where().Facing(), 0, -1);
         }
 
-        hasTransport = !unit->m_movementInfo.GetTransportGuid().IsEmpty();
+        status = unit->WireStatus();
+
+        hasTransport = !status.GetTransportGuid().IsEmpty();
         isSplineEnabled = unit->IsSplineEnabled();
 
         if (GetTypeId() == TYPEID_PLAYER)
         {
             // use flags received from client as they are more correct
-            hasPitch = unit->m_movementInfo.GetStatusInfo().hasPitch;
-            hasFallData = unit->m_movementInfo.GetStatusInfo().hasFallData;
-            hasFallDirection = unit->m_movementInfo.GetStatusInfo().hasFallDirection;
-            hasElevation = unit->m_movementInfo.GetStatusInfo().hasSplineElevation;
-            hasTransportTime2 = unit->m_movementInfo.GetStatusInfo().hasTransportTime2;
-            hasVehicleId = unit->m_movementInfo.GetStatusInfo().hasVehicleId;
+            hasPitch = status.GetStatusInfo().hasPitch;
+            hasFallData = status.GetStatusInfo().hasFallData;
+            hasFallDirection = status.GetStatusInfo().hasFallDirection;
+            hasElevation = status.GetStatusInfo().hasSplineElevation;
+            hasTransportTime2 = status.GetStatusInfo().hasTransportTime2;
+            hasVehicleId = status.GetStatusInfo().hasVehicleId;
         }
         else
         {
-            hasPitch = unit->m_movementInfo.HasMovementFlag(MovementFlags(MOVEFLAG_SWIMMING | MOVEFLAG_FLYING)) ||
-                            unit->m_movementInfo.HasMovementFlag2(MOVEFLAG2_ALLOW_PITCHING);
-            hasFallData = unit->m_movementInfo.HasMovementFlag2(MOVEFLAG2_INTERP_TURNING);
-            hasFallDirection = unit->m_movementInfo.HasMovementFlag(MOVEFLAG_FALLING);
-            hasElevation = unit->m_movementInfo.HasMovementFlag(MOVEFLAG_SPLINE_ELEVATION);
+            hasPitch = status.HasMovementFlag(MovementFlags(MOVEFLAG_SWIMMING | MOVEFLAG_FLYING)) ||
+                            status.HasMovementFlag2(MOVEFLAG2_ALLOW_PITCHING);
+            hasFallData = status.HasMovementFlag2(MOVEFLAG2_INTERP_TURNING);
+            hasFallDirection = status.HasMovementFlag(MOVEFLAG_FALLING);
+            hasElevation = status.HasMovementFlag(MOVEFLAG_SPLINE_ELEVATION);
         }
     }
 
@@ -328,14 +331,14 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
     {
         Unit const* unit = (Unit const*)this;
 
-        data->WriteBit(!unit->m_movementInfo.GetMovementFlags());
+        data->WriteBit(!status.GetMovementFlags());
         data->WriteBit(!hasOrientation);
 
         data->WriteGuidMask<7, 3, 2>(Guid);
 
-        if (unit->m_movementInfo.GetMovementFlags())
+        if (status.GetMovementFlags())
         {
-            data->WriteBits(unit->m_movementInfo.GetMovementFlags(), 30);
+            data->WriteBits(status.GetMovementFlags(), 30);
         }
 
         data->WriteBit(false);
@@ -349,7 +352,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
 
         if (hasTransport)
         {
-            ObjectGuid tGuid = unit->m_movementInfo.GetTransportGuid();
+            ObjectGuid tGuid = status.GetTransportGuid();
 
             data->WriteGuidMask<1>(tGuid);
             data->WriteBit(hasTransportTime2);
@@ -374,11 +377,11 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
 
         data->WriteGuidMask<0, 1>(Guid);
         data->WriteBit(false);    // Unknown 4.3.3
-        data->WriteBit(!unit->m_movementInfo.GetMovementFlags2());
+        data->WriteBit(!status.GetMovementFlags2());
 
-        if (unit->m_movementInfo.GetMovementFlags2())
+        if (status.GetMovementFlags2())
         {
-            data->WriteBits(unit->m_movementInfo.GetMovementFlags2(), 12);
+            data->WriteBits(status.GetMovementFlags2(), 12);
         }
     }
 
@@ -426,20 +429,20 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
             if (hasFallDirection)
             {
                 // 15595 client reads horizontal speed, then jump direction sin/cos
-                *data << float(unit->m_movementInfo.GetJumpInfo().xyspeed);
-                *data << float(unit->m_movementInfo.GetJumpInfo().sinAngle);
-                *data << float(unit->m_movementInfo.GetJumpInfo().cosAngle);
+                *data << float(status.GetJumpInfo().xyspeed);
+                *data << float(status.GetJumpInfo().sinAngle);
+                *data << float(status.GetJumpInfo().cosAngle);
             }
 
-            *data << uint32(unit->m_movementInfo.GetFallTime());
-            *data << float(unit->m_movementInfo.GetJumpInfo().velocity);
+            *data << uint32(status.GetFallTime());
+            *data << float(status.GetJumpInfo().velocity);
         }
 
         *data << float(unit->GetSpeed(MOVE_SWIM_BACK));
 
         if (hasElevation)
         {
-            *data << float(unit->m_movementInfo.GetSplineElevation());
+            *data << float(status.GetSplineElevation());
         }
 
         if (isSplineEnabled)
@@ -452,31 +455,31 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
 
         if (hasTransport)
         {
-            ObjectGuid tGuid = unit->m_movementInfo.GetTransportGuid();
+            ObjectGuid tGuid = status.GetTransportGuid();
 
             data->WriteGuidBytes<5, 7>(tGuid);
-            *data << uint32(unit->m_movementInfo.GetTransportTime());
-            *data << float(Geometry::Placement::NormalizeOrientation(unit->m_movementInfo.GetTransportPos()->o));
+            *data << uint32(status.GetTransportTime());
+            *data << float(Geometry::Placement::NormalizeOrientation(status.GetTransportPos()->o));
 
             if (hasTransportTime2)
             {
-                *data << uint32(unit->m_movementInfo.GetTransportTime2());
+                *data << uint32(status.GetTransportTime2());
             }
 
-            *data << float(unit->m_movementInfo.GetTransportPos()->y);
-            *data << float(unit->m_movementInfo.GetTransportPos()->x);
+            *data << float(status.GetTransportPos()->y);
+            *data << float(status.GetTransportPos()->x);
             data->WriteGuidBytes<3>(tGuid);
-            *data << float(unit->m_movementInfo.GetTransportPos()->z);
+            *data << float(status.GetTransportPos()->z);
             data->WriteGuidBytes<0>(tGuid);
 
             if (hasVehicleId)
             {
                 // The vehicle id has been its own field since P2-B; the legacy
                 // reader used to store it into the fall time.
-                *data << uint32(unit->m_movementInfo.GetVehicleId());
+                *data << uint32(status.GetVehicleId());
             }
 
-            *data << int8(unit->m_movementInfo.GetTransportSeat());
+            *data << int8(status.GetTransportSeat());
             data->WriteGuidBytes<1, 6, 2, 4>(tGuid);
         }
 
@@ -503,7 +506,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
 
         if (hasPitch)
         {
-            *data << float(unit->m_movementInfo.GetPitch());
+            *data << float(status.GetPitch());
         }
 
         *data << float(unit->GetSpeed(MOVE_FLIGHT));

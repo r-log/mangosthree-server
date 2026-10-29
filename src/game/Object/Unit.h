@@ -3094,20 +3094,29 @@ class Unit : public WorldObject
         /// all -- only the vessel's guid and those same coordinates as an offset.
         void WriteMovementInfo(ByteBuffer& out, uint16 opcode) const;
 
+        /// The movement status this unit shows: what create blocks, observer packets and
+        /// heartbeats carry, and what gameplay asks of its movement flags.
+        MovementInfo WireStatus() const;
+        /// The movement flags of WireStatus().
+        uint32 WireFlags() const;
+        /// The last movement status the unit's client reported: the client's own word, its
+        /// direction and fall bits and a rider's transport block.
+        MovementInfo const& ClientStatus() const;
+
         /**
          * Checks if this \ref Unit has the movement flag \ref MovementFlags::MOVEFLAG_LEVITATING
          * @return true if the \ref Unit is levitating, ie: it has the flag MOVEFLAG_LEVITATING, false
          * otherwise
          * \see MovementInfo::HasMovementFlag
          */
-        bool IsLevitating() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_LEVITATING); }
+        bool IsLevitating() const { return (WireFlags() & MOVEFLAG_LEVITATING) != 0; }
         /**
          * Checks if this \ref Unit has the movement flag \ref MovementFlags::MOVEFLAG_WALK_MODE
          * @return true if the \ref Unit is walking, ie: it has the flag MOVEFLAG_WALK_MODE, false
          * otherwise
          * \see MovementInfo::HasMovementFlag
          */
-        bool IsWalking() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_WALK_MODE); }
+        bool IsWalking() const { return (WireFlags() & MOVEFLAG_WALK_MODE) != 0; }
         /**
          * Whether the kernel's Rooted inhibition is held (P5-A): the one answer to "is this unit
          * rooted", independent of MOVEFLAG_ROOT, which MotionMaster::ProjectClientRoot projects from it.

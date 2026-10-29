@@ -427,7 +427,7 @@ void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
                 SendMessageToSet(&data, true);
                 break;
             case Motion::EmissionKind::Observer:
-                if (!Motion::BuildObserver(data, guid, e.counter, e.change, Movement::ToWire(m_movementInfo)))
+                if (!Motion::BuildObserver(data, guid, e.counter, e.change, Movement::ToWire(WireStatus())))
                 {
                     ++m_motionDropped;
                     continue;
@@ -715,13 +715,13 @@ void Unit::WriteMovementInfo(ByteBuffer& out, uint16 opcode) const
         // deck-local coordinate in a world position field, and the client walks the pet
         // to (-3, -8, 6) on the continent. Boarding was never affected, because the deck
         // branch below had always taken its numbers from Where().
-        MovementInfo ashore = m_movementInfo;
+        MovementInfo ashore = WireStatus();
         ashore.ChangePosition(Where().X(), Where().Y(), Where().Z(), Where().Facing());
         ashore.Write(out, opcode);
         return;
     }
 
-    MovementInfo onDeck = m_movementInfo;
+    MovementInfo onDeck = WireStatus();
     onDeck.SetTransportData(vessel->GetObjectGuid(), Where().X(), Where().Y(), Where().Z(),
                             Where().Facing(), 0, -1);
     onDeck.ChangePosition(0.0f, 0.0f, 0.0f, Where().Facing());
@@ -4187,6 +4187,7 @@ MountCapabilityEntry const* Unit::GetMountCapability(uint32 mountType) const
         ridingSkill = plr->GetSkillValue(SKILL_RIDING);
     }
 
+    MovementInfo const status = WireStatus();
     for (uint32 i = MAX_MOUNT_CAPABILITIES; i > 0; --i)
     {
         MountCapabilityEntry const* mountCapability = sMountCapabilityStore.LookupEntry(mountTypeEntry->Capability[i - 1]);
@@ -4200,14 +4201,14 @@ MountCapabilityEntry const* Unit::GetMountCapability(uint32 mountType) const
             continue;
         }
 
-        if (m_movementInfo.HasMovementFlag2(MOVEFLAG2_FULLSPEEDPITCHING))
+        if (status.HasMovementFlag2(MOVEFLAG2_FULLSPEEDPITCHING))
         {
             if (!(mountCapability->Flags & MOUNT_FLAG_CAN_PITCH))
             {
                 continue;
             }
         }
-        else if (m_movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING))
+        else if (status.HasMovementFlag(MOVEFLAG_SWIMMING))
         {
             if (!(mountCapability->Flags & MOUNT_FLAG_CAN_SWIM))
             {

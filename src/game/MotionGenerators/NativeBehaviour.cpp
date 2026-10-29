@@ -89,7 +89,7 @@ namespace
     /// The speed a unit travels at right now: the mode its own movement flags select.
     float SpeedNow(Unit const& u)
     {
-        return u.GetSpeed(Movement::SelectSpeedType(u.m_movementInfo.GetMovementFlags()));
+        return u.GetSpeed(Movement::SelectSpeedType(u.WireFlags()));
     }
 }
 
@@ -138,7 +138,7 @@ Motion::Sight NativeBehaviour::See(Unit& owner, bool tick)
     s.isCreature = owner.GetTypeId() == TYPEID_UNIT;
     s.isPet = s.isCreature && static_cast<Creature&>(owner).IsPet();
     s.combatMovementHeld = owner.hasUnitState(UNIT_STAT_NO_COMBAT_MOVEMENT);
-    s.swimming = owner.m_movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING);
+    s.swimming = (owner.WireFlags() & MOVEFLAG_SWIMMING) != 0;
     s.canFlyHint = s.isCreature && static_cast<Creature&>(owner).CanFly();
     if (m_native->TracksTarget())
     {
@@ -244,12 +244,13 @@ void NativeBehaviour::SeeTarget(Unit& owner, Unit& target, Motion::TargetView& v
     {
         // Client-driven: the flags of the last movement packet say where it is heading.
         in.playerMoved = true;
-        in.forward = target.m_movementInfo.HasMovementFlag(MOVEFLAG_FORWARD);
-        in.backward = target.m_movementInfo.HasMovementFlag(MOVEFLAG_BACKWARD);
-        in.strafeLeft = target.m_movementInfo.HasMovementFlag(MOVEFLAG_STRAFE_LEFT);
-        in.strafeRight = target.m_movementInfo.HasMovementFlag(MOVEFLAG_STRAFE_RIGHT);
-        in.falling = target.m_movementInfo.HasMovementFlag(MOVEFLAG_FALLING) ||
-                     target.m_movementInfo.HasMovementFlag(MOVEFLAG_FALLINGFAR);
+        MovementInfo const& reported = target.ClientStatus();
+        in.forward = reported.HasMovementFlag(MOVEFLAG_FORWARD);
+        in.backward = reported.HasMovementFlag(MOVEFLAG_BACKWARD);
+        in.strafeLeft = reported.HasMovementFlag(MOVEFLAG_STRAFE_LEFT);
+        in.strafeRight = reported.HasMovementFlag(MOVEFLAG_STRAFE_RIGHT);
+        in.falling = reported.HasMovementFlag(MOVEFLAG_FALLING) ||
+                     reported.HasMovementFlag(MOVEFLAG_FALLINGFAR);
         in.facing = view.facing;
         in.speed = SpeedNow(target);
     }
