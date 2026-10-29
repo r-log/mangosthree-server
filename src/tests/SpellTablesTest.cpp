@@ -26,6 +26,7 @@
 #include "TestHarness.h"
 
 #include "spells/data/SpellMgr.h"
+#include "spells/data/SpellTables.h"
 
 TEST(SpellTables_TheGooberSpellsAnswerTheirReplacementsAndAnyOtherIdItself)
 {
@@ -66,5 +67,181 @@ TEST(SpellTables_SoulstoneAnswersItsResurrectionAndNothingElse)
     for (uint32 spellId : { 20762u, 20763u, 20764u, 20765u, 27239u, 47883u, 12345u })
     {
         CHECK_EQ(GetSoulstoneResurrectionSpell(spellId), uint32(0));
+    }
+}
+
+namespace
+{
+    // The max-targets switch's labels, grouped by the amount each group set.
+    uint32 const MAX_TARGETS_1[] =
+    {
+        802, 804, 23138, 28560, 30541, 30572, 30769, 30835, 31347, 32312, 33711, 37388, 38794, 39338, 39342, 40834,
+        41537, 44869, 45391, 45785, 45863, 45892, 45976, 46372, 47669, 48278, 50742, 50988, 51003, 51146, 52438,
+        52449, 53457, 54148, 55479, 56140, 57578, 59870, 62016, 62042, 62166, 62301, 62374, 62488, 62577, 62603,
+        62797, 62978, 63018, 63024, 63545, 63744, 63745, 63747, 63795, 63820, 63830, 64218, 64234, 64402, 64425,
+        64465, 64543, 64623, 65121, 65301, 65872, 65950, 66001, 66152, 66153, 66332, 66336, 66339, 67077, 67281,
+        67282, 67283, 67296, 67297, 67298, 68912, 68950, 68987, 69048, 69057, 72088, 73142, 73144, 69140, 69674,
+        70450, 70837, 70882, 70920, 71224, 71445, 71471, 71837, 71861, 72091, 72254, 73022, 73023
+    };
+    uint32 const MAX_TARGETS_2[] =
+    {
+        10258, 28542, 62476, 63802, 66013, 67755, 67756, 68509, 69055, 69278, 70341, 71336, 71390
+    };
+    uint32 const MAX_TARGETS_2_TO_3[] =
+    {
+        61916
+    };
+    uint32 const MAX_TARGETS_3[] =
+    {
+        28796, 29213, 30004, 31298, 39341, 39344, 39992, 40869, 41303, 41376, 51904, 54522, 60936, 61693, 62477,
+        63981, 64598, 64620, 70814, 72095, 72089, 70826, 73143, 73145
+    };
+    uint32 const MAX_TARGETS_3_TO_5[] =
+    {
+        46771
+    };
+    uint32 const MAX_TARGETS_3_TO_6[] =
+    {
+        63482
+    };
+    uint32 const MAX_TARGETS_4[] =
+    {
+        37676, 38028, 46650, 67757, 71221
+    };
+    uint32 const MAX_TARGETS_5[] =
+    {
+        30843, 40243, 42005, 45641, 55665, 58917, 64604, 67076, 67078, 67700, 68510
+    };
+    uint32 const MAX_TARGETS_7[] =
+    {
+        61694
+    };
+    uint32 const MAX_TARGETS_8[] =
+    {
+        38054
+    };
+    uint32 const MAX_TARGETS_10[] =
+    {
+        54098, 54835
+    };
+    uint32 const MAX_TARGETS_15[] =
+    {
+        25991
+    };
+}
+
+TEST(SpellTables_EveryMaxTargetsRowAnswersWhatItsSwitchGroupSet)
+{
+    for (uint32 spellId : MAX_TARGETS_1)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(1));
+        CHECK_EQ(range->hi, uint32(1));
+    }
+    for (uint32 spellId : MAX_TARGETS_2)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(2));
+        CHECK_EQ(range->hi, uint32(2));
+    }
+    for (uint32 spellId : MAX_TARGETS_2_TO_3)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(2));
+        CHECK_EQ(range->hi, uint32(3));
+    }
+    for (uint32 spellId : MAX_TARGETS_3)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(3));
+        CHECK_EQ(range->hi, uint32(3));
+    }
+    for (uint32 spellId : MAX_TARGETS_3_TO_5)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(3));
+        CHECK_EQ(range->hi, uint32(5));
+    }
+    for (uint32 spellId : MAX_TARGETS_3_TO_6)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(3));
+        CHECK_EQ(range->hi, uint32(6));
+    }
+    for (uint32 spellId : MAX_TARGETS_4)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(4));
+        CHECK_EQ(range->hi, uint32(4));
+    }
+    for (uint32 spellId : MAX_TARGETS_5)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(5));
+        CHECK_EQ(range->hi, uint32(5));
+    }
+    for (uint32 spellId : MAX_TARGETS_7)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(7));
+        CHECK_EQ(range->hi, uint32(7));
+    }
+    for (uint32 spellId : MAX_TARGETS_8)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(8));
+        CHECK_EQ(range->hi, uint32(8));
+    }
+    for (uint32 spellId : MAX_TARGETS_10)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(10));
+        CHECK_EQ(range->hi, uint32(10));
+    }
+    for (uint32 spellId : MAX_TARGETS_15)
+    {
+        SpellMaxTargetsRange const* range = FindSpellMaxTargets(spellId);
+        REQUIRE(range != NULL);
+        CHECK_EQ(range->lo, uint32(15));
+        CHECK_EQ(range->hi, uint32(15));
+    }
+
+    // The labels the registry and the family switches hold, and an id no switch held, fix nothing here.
+    for (uint32 spellId : { 74452u, 38194u, 12345u, 0u })
+    {
+        CHECK(FindSpellMaxTargets(spellId) == NULL);
+    }
+}
+
+TEST(SpellTables_TheFixedRadiiAreTheSwitchesLabelsAndNoOthers)
+{
+    uint32 const instanceVisibility[] =
+    {
+        69057, 70826, 72088, 72089, 73142, 73143, 73144, 73145, 72350, 72351, 72706, 72830
+    };
+    for (uint32 spellId : instanceVisibility)
+    {
+        CHECK(HasInstanceVisibilityRadius(spellId));
+        CHECK(!HasContactRadius(spellId));
+    }
+    CHECK(HasContactRadius(49376));
+    CHECK(!HasInstanceVisibilityRadius(49376));
+
+    // The radius bodies the registry holds, and an id no switch held, take no fixed radius.
+    for (uint32 spellId : { 24811u, 28241u, 56438u, 66881u, 12345u })
+    {
+        CHECK(!HasInstanceVisibilityRadius(spellId));
+        CHECK(!HasContactRadius(spellId));
     }
 }
