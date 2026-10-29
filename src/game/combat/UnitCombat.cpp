@@ -2099,3 +2099,119 @@ float Unit::GetAPMultiplier(WeaponAttackType attType, bool normalized)
     return Combat::APMultiplier(attackTime, isPlayer, normalized, hasWeapon,
                                 weaponInventoryType, weaponSubClass);
 }
+
+/**
+ * @brief Notifies AI and pets that the unit was attacked.
+ *
+ * @param attacker The attacking unit.
+ */
+void Unit::AttackedBy(Unit* attacker)
+{
+    // trigger AI reaction
+    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->AI())
+    {
+        ((Creature*)this)->AI()->AttackedBy(attacker);
+    }
+
+    // do not pet reaction for self inflicted damage (like environmental)
+    if (attacker == this)
+    {
+        return;
+    }
+
+    // trigger pet AI reaction
+    if (Unit* pet = _GetPet())
+    {
+        pet->AttackedBy(attacker);
+    }
+}
+
+struct CombatStopWithPetsHelper
+{
+    explicit CombatStopWithPetsHelper(bool _includingCast) : includingCast(_includingCast) {}
+    void operator()(Unit* unit) const { unit->CombatStop(includingCast); }
+    bool includingCast;
+};
+
+/**
+ * @brief Stops combat for the unit and all controlled pets or guardians.
+ *
+ * @param includingCast True to interrupt non-melee spells too.
+ */
+void Unit::CombatStopWithPets(bool includingCast)
+{
+    CombatStop(includingCast);
+    CallForAllControlledUnits(CombatStopWithPetsHelper(includingCast), CONTROLLED_PET | CONTROLLED_GUARDIANS | CONTROLLED_CHARM);
+}
+
+struct IsAttackingPlayerHelper
+{
+    explicit IsAttackingPlayerHelper() {}
+    bool operator()(Unit const* unit) const { return unit->isAttackingPlayer(); }
+};
+
+/**
+ * @brief Checks whether the unit or any controlled unit is attacking a player.
+ *
+ * @return True if a player is being attacked; otherwise, false.
+ */
+bool Unit::isAttackingPlayer() const
+{
+    if (hasUnitState(UNIT_STAT_ATTACK_PLAYER))
+    {
+        return true;
+    }
+
+    return CheckAllControlledUnits(IsAttackingPlayerHelper(), CONTROLLED_PET | CONTROLLED_TOTEMS | CONTROLLED_GUARDIANS | CONTROLLED_CHARM);
+}
+
+struct StopAttackFactionHelper
+{
+    explicit StopAttackFactionHelper(uint32 _faction_id) : faction_id(_faction_id) {}
+    void operator()(Unit* unit) const { unit->StopAttackFaction(faction_id); }
+    uint32 faction_id;
+};
+
+/**
+ * @brief Stops attacking units from a specific faction.
+ *
+ * @param faction_id The faction identifier to stop attacking.
+ */
+void Unit::StopAttackFaction(uint32 faction_id)
+{
+    if (Unit* victim = getVictim())
+    {
+        if (victim->getFactionTemplateEntry()->Faction == faction_id)
+        {
+            AttackStop();
+            if (IsNonMeleeSpellCasted(false))
+            {
+                InterruptNonMeleeSpells(false);
+            }
+
+            // melee and ranged forced attack cancel
+            if (GetTypeId() == TYPEID_PLAYER)
+            {
+                SendAttackSwingCancelAttack();
+            }
+        }
+    }
+
+    AttackerSet const& attackers = getAttackers();
+    for (AttackerSet::const_iterator itr = attackers.begin(); itr != attackers.end();)
+    {
+        if ((*itr)->getFactionTemplateEntry()->Faction == faction_id)
+        {
+            (*itr)->AttackStop();
+            itr = attackers.begin();
+        }
+        else
+        {
+            ++itr;
+        }
+    }
+
+    GetHostileRefManager().deleteReferencesForFaction(faction_id);
+
+    CallForAllControlledUnits(StopAttackFactionHelper(faction_id), CONTROLLED_PET | CONTROLLED_GUARDIANS | CONTROLLED_CHARM);
+}
