@@ -30,8 +30,10 @@
 #include "Change.h"
 #include "PacketMatrix.h"
 #include "Writers.h"
-#include "MonsterMoveStop.h"
+#include "MonsterMovePacket.h"
 #include "MonsterMovePath.h"
+#include "MoveSpline.h"
+#include "ObjectGuid.h"
 #include "spline.h"
 #include "wire/MonsterMoveCodec.h"
 #include "wire/KnockBackCodec.h"
@@ -341,22 +343,102 @@ TEST(MotionWriters_refuse_cells_the_matrix_leaves_empty)
     CHECK(!BuildMover(out, 0x46, 0, none));
 }
 
-// ---- the point-carrying stop (design 2026-09-22 §3) -----------------------------------------
+// ---- the monster move and the point-carrying stop ----------------------------------------
+
+namespace
+{
+    const ObjectGuid kMover(uint64(0x0000000000010046ULL));
+    const ObjectGuid kVessel(uint64(0x0000000000000102ULL));
+
+    /// A straight spline from (1, 2, 3) to (11, 2, 3) at 5 yd/s under id 9: 2,000 ms.
+    void StraightSpline(Movement::MoveSpline& out)
+    {
+        Movement::MoveSplineInitArgs args;
+        args.path.push_back(Movement::Vector3(1.0f, 2.0f, 3.0f));
+        args.path.push_back(Movement::Vector3(11.0f, 2.0f, 3.0f));
+        args.velocity = 5.0f;
+        args.splineId = 9;
+        out.Initialize(args);
+    }
+
+    /// The straight spline's bytes after the mover and the transport block: the exit byte,
+    /// the start, the id, type Normal, the flags, the duration, then the linear path's point
+    /// count and its destination.
+    const std::string kStraightBody = std::string("00" "0000803F" "00000040" "00004040" "09000000" "00")
+                                      + "00000000" "D0070000" "01000000" "00003041" "00000040" "00004040";
+
+    /// Decodes a monster move whole and checks the straight spline's fields.
+    void CheckStraightSpline(WorldPacket& p, uint16 opcode, Wire::MonsterMove& back)
+    {
+        p.rpos(0);
+        Wire::DecodeResult r = Wire::DecodeMonsterMove(p, opcode, back);
+        REQUIRE(r.ok());
+        CHECK_EQ(r.consumed, p.size());
+        CHECK(back.type == Wire::MonsterMoveType::Normal);
+        CHECK_EQ(back.mover, kMover.GetRawValue());
+        CHECK_EQ(back.id, uint32(9));
+        CHECK_EQ(back.duration, uint32(2000));
+        CHECK(back.path == Wire::SplinePath::Linear);
+        CHECK_EQ(back.destination.x, 11.0f);
+        CHECK(Wire::Judge(opcode, p, false).exact);
+    }
+}
+
+TEST(MotionWriters_a_launched_spline_goes_out_as_a_monster_move)
+{
+    Movement::MoveSpline spline;
+    StraightSpline(spline);
+    WorldPacket p;
+    Movement::BuildMonsterMove(p, kMover, Movement::Aboard(), spline);
+    CHECK_EQ(p.GetOpcode(), uint16(SMSG_MONSTER_MOVE));
+    CHECK_STR(Hex(p), "05" "4601" + kStraightBody);
+    Wire::MonsterMove back;
+    CheckStraightSpline(p, SMSG_MONSTER_MOVE, back);
+    CHECK(!back.onTransport);
+}
+
+TEST(MotionWriters_a_spline_on_a_vehicle_seat_carries_the_vehicle_and_the_seat)
+{
+    Movement::MoveSpline spline;
+    StraightSpline(spline);
+    WorldPacket p;
+    Movement::BuildMonsterMove(p, kMover, Movement::Aboard{kVessel, 2}, spline);
+    CHECK_EQ(p.GetOpcode(), uint16(SMSG_MONSTER_MOVE_TRANSPORT));
+    CHECK_STR(Hex(p), "05" "4601" "03" "0201" "02" + kStraightBody);
+    Wire::MonsterMove back;
+    CheckStraightSpline(p, SMSG_MONSTER_MOVE_TRANSPORT, back);
+    CHECK(back.onTransport);
+    CHECK_EQ(back.transport, kVessel.GetRawValue());
+    CHECK_EQ(back.seat, int8(2));
+}
+
+TEST(MotionWriters_a_spline_on_a_deck_carries_the_vessel_and_no_seat)
+{
+    Movement::MoveSpline spline;
+    StraightSpline(spline);
+    WorldPacket p;
+    Movement::BuildMonsterMove(p, kMover, Movement::Aboard{kVessel, -1}, spline);
+    CHECK_EQ(p.GetOpcode(), uint16(SMSG_MONSTER_MOVE_TRANSPORT));
+    CHECK_STR(Hex(p), "05" "4601" "03" "0201" "FF" + kStraightBody);
+    Wire::MonsterMove back;
+    CheckStraightSpline(p, SMSG_MONSTER_MOVE_TRANSPORT, back);
+    CHECK(back.onTransport);
+    CHECK_EQ(back.transport, kVessel.GetRawValue());
+    CHECK_EQ(back.seat, int8(-1));
+}
 
 TEST(MotionWriters_the_point_carrying_stop_ends_at_the_type)
 {
-    // MoveSplineInit::StopHere's body, byte for byte. The layout the client read pinned:
-    // packed guid | u8 0 | float xyz | u32 splineId | u8 type = Stop, and NOTHING after --
-    // a classic type-1 spline reads no flags word, no duration and no facing.
-    // peer/retail-taxi-flights-2026-09-22.md §3.2: the one waypoint equals the position in
-    // 1,017 of 1,017 of the corpus's one-point packets, so there is only one point to write.
-    WorldPacket p(SMSG_MONSTER_MOVE, 32);
-    Movement::WriteMonsterMoveStop(p, 0x0000000000010046ULL, false, 0, 0, 1.0f, 2.0f, 3.0f, 6);
+    // The layout the client reads: packed guid | u8 0 | float xyz | u32 splineId | u8 type =
+    // Stop, and nothing after it -- a type-1 spline reads no flags word, no duration and no
+    // facing. The one point is the mover's own position.
+    WorldPacket p;
+    Movement::BuildMonsterMoveStop(p, kMover, Movement::Aboard(), Movement::Location(1.0f, 2.0f, 3.0f, 0.0f), 6);
+    CHECK_EQ(p.GetOpcode(), uint16(SMSG_MONSTER_MOVE));
     CHECK_STR(Hex(p), "05" "4601" "00" "0000803F" "00000040" "00004040" "06000000" "01");
     CHECK_EQ(p.size(), size_t(21));
 
-    // And it is the shape the decoder -- built from the client's own read -- expects: whole,
-    // exact, a Stop, at the point the writer was given.
+    // The decoder, built from the client's own read, takes it whole: a Stop at the point given.
     Wire::MonsterMove back;
     p.rpos(0);
     REQUIRE(Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back).ok());
@@ -372,12 +454,11 @@ TEST(MotionWriters_the_point_carrying_stop_ends_at_the_type)
 
 TEST(MotionWriters_the_point_carrying_stop_on_a_deck_carries_the_vessel_and_no_seat)
 {
-    // The transport form inserts the vessel and the seat between the mover and the exit byte.
-    // A DECK has no seat: -1, which is what both reference cores send for a MO_TRANSPORT and
-    // what MoveSplineInit passes for a unit standing on a ship.
-    WorldPacket p(SMSG_MONSTER_MOVE_TRANSPORT, 32);
-    Movement::WriteMonsterMoveStop(p, 0x0000000000010046ULL, true, 0x0000000000000102ULL, -1,
-                                   1.0f, 2.0f, 3.0f, 6);
+    // The transport form puts the vessel and the seat between the mover and the exit byte.
+    // A deck has no seat: -1.
+    WorldPacket p;
+    Movement::BuildMonsterMoveStop(p, kMover, Movement::Aboard{kVessel, -1}, Movement::Location(1.0f, 2.0f, 3.0f, 0.0f), 6);
+    CHECK_EQ(p.GetOpcode(), uint16(SMSG_MONSTER_MOVE_TRANSPORT));
     CHECK_STR(Hex(p), "05" "4601" "03" "0201" "FF" "00" "0000803F" "00000040" "00004040" "06000000" "01");
     Wire::MonsterMove back;
     p.rpos(0);

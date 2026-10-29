@@ -30,7 +30,6 @@
 #include "MoveSpline.h"
 #include <sstream>
 #include "Log.h"
-#include "Unit.h"
 
 namespace Movement
 {
@@ -293,23 +292,21 @@ namespace Movement
 /// ============================================================================================
 
     /**
-     * @brief Validates the MoveSpline initialization arguments.
-     * @param unit The unit to validate against.
-     * @return True if the arguments are valid, false otherwise.
+     * @brief Checks the arguments a spline is initialized from.
+     * @return The failing check's expression, or nullptr when the arguments are valid.
      */
-    bool MoveSplineInitArgs::Validate(Unit* unit) const
+    char const* MoveSplineInitArgs::Validate() const
     {
 #define CHECK(exp) \
     if (!(exp))\
     {\
-        sLog.outError("MoveSplineInitArgs::Validate: expression '%s' failed for %s", #exp, unit->GetGuidStr().c_str());\
-        return false;\
+        return #exp;\
     }
         CHECK(path.size() > 1);
         CHECK(velocity > 0.1f);
         CHECK(time_perc >= 0.f && time_perc <= 1.f);
         // CHECK(_checkPathBounds());
-        return true;
+        return nullptr;
 #undef CHECK
     }
 

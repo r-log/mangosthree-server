@@ -44,7 +44,7 @@
 #include "spells/pipeline/Spell.h"
 #include "AchievementMgr.h"
 #include "DBCStores.h"
-#include "movement/MoveSplineInit.h"
+#include "MotionGenerators/MoveSplineInit.h"
 #include "MotionMaster.h"
 
 #include <cmath>

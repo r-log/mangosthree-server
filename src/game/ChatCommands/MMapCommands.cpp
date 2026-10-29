@@ -43,7 +43,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"          // for mmap manager
 #include "CellImpl.h"
-#include "movement/MoveSplineInit.h"
+#include "MotionGenerators/MoveSplineInit.h"
 #include "GameTime.h"
 #include "MotionMaster.h"
 #include <fstream>

@@ -47,7 +47,7 @@
 namespace Movement
 {
     /// MonsterMoveType::MonsterMoveStop of MoveSpline.h, repeated so this header needs no
-    /// spline header at all and the suite can include it alone. MoveSplineInit.cpp
+    /// spline header at all and the suite can include it alone. MonsterMovePacket.cpp
     /// static_asserts the two against each other, so they cannot drift.
     static const uint8 kMonsterMoveStopType = 1;
 

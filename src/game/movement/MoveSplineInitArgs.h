@@ -30,8 +30,6 @@
 #include "MoveSplineFlag.h"
 #include "Geometry/Vector3.h"
 
-class Unit;
-
 namespace Movement
 {
     /**
@@ -98,11 +96,10 @@ namespace Movement
             bool walk; /**< Selects walk speed for the spline; never sent on the wire (4.3.4 has no walk spline bit). */
 
             /**
-             * @brief Validates the MoveSplineInitArgs.
-             * @param unit The unit to validate against.
-             * @return bool True if the arguments are valid, false otherwise.
+             * @brief Checks the arguments a spline is initialized from.
+             * @return The failing check's expression, or nullptr when the arguments are valid.
              */
-            bool Validate(Unit* unit) const;
+            char const* Validate() const;
         private:
             /**
              * @brief Checks if the path bounds are valid.

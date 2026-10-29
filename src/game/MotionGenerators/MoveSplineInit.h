@@ -26,7 +26,7 @@
 #ifndef MANGOSSERVER_MOVESPLINEINIT_H
 #define MANGOSSERVER_MOVESPLINEINIT_H
 
-#include "MoveSplineInitArgs.h"
+#include "movement/MoveSplineInitArgs.h"
 #include "PathFinder.h"
 
 class Unit;

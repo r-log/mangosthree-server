@@ -108,6 +108,8 @@ class TransportMap : public Map
 
         /// The game object whose hull this map is. Never NULL for a map of this kind.
         Transport* Vessel() const { return m_vessel; }
+        /// The vessel's guid, or an empty one while the map has none.
+        ObjectGuid VesselGuid() const;
 
         /**
          * @brief Measure the hull and pin its grids, once, at start-up.
