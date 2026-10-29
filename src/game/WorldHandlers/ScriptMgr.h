@@ -35,7 +35,6 @@
 #include "Policies/Singleton.h"
 #include "ObjectGuid.h"
 #include "DBCEnums.h"
-#include <atomic>
 #include <mutex>
 #include <shared_mutex>
 #include "data/DbScriptStore.h"
