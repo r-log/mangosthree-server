@@ -35,7 +35,7 @@
 #include "Object.h"
 #include "ObjectLookup.h"
 #include "ObjectMgr.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptHooks.h"
 #include "data/GameConfig.h"
 #include "Log/Log.h"
 #include "Utilities/Errors.h"

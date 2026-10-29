@@ -31,6 +31,8 @@
 #include "data/DbScriptStore.h"
 
 class Map;
+class Object;
+class Unit;
 
 /// One step of a database script that a map has scheduled: the script's type, the step, and the
 /// objects the script was started for (the owner is the source item's owner).
@@ -84,10 +86,10 @@ class DbScriptStep
 
 /**
  * What the domain asks of the database script engine, which sits above it (`ScriptMgr`,
- * `ScriptAction`): the run of a step a map has scheduled. mangosd installs the engine's hooks
- * (`ScriptMgr::GetDbScriptHooks`) at start-up; the core calls the installed ones through
- * sDbScriptHooks. This base answers for a core with no engine: a step runs nothing and ends its
- * script.
+ * `ScriptAction`): the run of a step a map has scheduled, and the start of an event. mangosd
+ * installs the engine's hooks (`ScriptMgr::GetDbScriptHooks`) at start-up; the core calls the
+ * installed ones through sDbScriptHooks. This base answers for a core with no engine: a step runs
+ * nothing and ends its script, and no event is taken.
  */
 class DbScriptHooks
 {
@@ -96,6 +98,11 @@ class DbScriptHooks
 
         /// Runs `step` on `map`. True when the script's following steps are to be dropped.
         virtual bool RunStep(Map* map, DbScriptStep const& step);
+        /// Starts event `id` on `map`, sent by `source` to `target`. A game object's event with
+        /// `forwardToPvp` set may be taken by a battleground or an outdoor PvP zone: a player's own,
+        /// or for another unit the map's battleground or the zone the object stands in. True when
+        /// the event was taken.
+        virtual bool StartEvent(Map* map, uint32 id, Object* source, Object* target, bool isStart, Unit* forwardToPvp);
 
         /// The installed hooks, or the base when none are installed.
         static DbScriptHooks& Installed();
@@ -107,5 +114,8 @@ class DbScriptHooks
 };
 
 #define sDbScriptHooks DbScriptHooks::Installed()
+
+/// Starts event `id` through the installed hooks (`DbScriptHooks::StartEvent`).
+bool StartEvents_Event(Map* map, uint32 id, Object* source, Object* target, bool isStart = true, Unit* forwardToPvp = NULL);
 
 #endif

@@ -31,7 +31,8 @@
 /**
  * @file
  * @brief What the domain asks of the database script engine: a scheduled step knows the script it
- * belongs to, the base runs no step, and the installed hooks are handed the map and the step.
+ * belongs to, the base runs no step and takes no event, and the installed hooks are handed the
+ * step and the event.
  */
 
 namespace
@@ -50,6 +51,24 @@ namespace
                 seenMap = map;
                 seen = &step;
                 return false;
+            }
+
+            Map* eventMap = NULL;
+            uint32 eventId = 0;
+            Object* eventSource = NULL;
+            Object* eventTarget = NULL;
+            bool eventStarts = false;
+            Unit* eventForward = NULL;
+
+            bool StartEvent(Map* map, uint32 id, Object* source, Object* target, bool isStart, Unit* forwardToPvp) override
+            {
+                eventMap = map;
+                eventId = id;
+                eventSource = source;
+                eventTarget = target;
+                eventStarts = isStart;
+                eventForward = forwardToPvp;
+                return true;
             }
     };
 
@@ -99,6 +118,7 @@ TEST(DbScriptHooks_BaseEndsTheScript)
 
     CHECK(!DbScriptHooks::IsInstalled());
     CHECK(sDbScriptHooks.RunStep(NULL, step));
+    CHECK(!StartEvents_Event(NULL, 9, NULL, NULL));
 }
 
 // The installed hooks are handed the step and answer for it, until the old ones are put back.
@@ -118,4 +138,32 @@ TEST(DbScriptHooks_InstalledHooksRunTheStep)
         CHECK(hooks.seen == &step);
     }
     CHECK(&sDbScriptHooks != &hooks);
+}
+
+// StartEvents_Event hands each argument to the installed hooks in its place; by default the event
+// starts and is forwarded to no unit.
+TEST(DbScriptHooks_EventsGoToTheInstalledHooks)
+{
+    RecordingHooks hooks;
+    InstalledHooks installed(&hooks);
+    char standIns[4] = {};
+    Map* map = reinterpret_cast<Map*>(&standIns[0]);
+    Object* source = reinterpret_cast<Object*>(&standIns[1]);
+    Object* target = reinterpret_cast<Object*>(&standIns[2]);
+    Unit* forward = reinterpret_cast<Unit*>(&standIns[3]);
+
+    CHECK(StartEvents_Event(map, 77, source, target));
+    CHECK(hooks.eventMap == map);
+    CHECK(hooks.eventId == 77u);
+    CHECK(hooks.eventSource == source);
+    CHECK(hooks.eventTarget == target);
+    CHECK(hooks.eventStarts);
+    CHECK(hooks.eventForward == NULL);
+
+    CHECK(StartEvents_Event(map, 78, target, source, false, forward));
+    CHECK(hooks.eventId == 78u);
+    CHECK(hooks.eventSource == target);
+    CHECK(hooks.eventTarget == source);
+    CHECK(!hooks.eventStarts);
+    CHECK(hooks.eventForward == forward);
 }

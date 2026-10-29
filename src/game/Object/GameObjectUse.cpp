@@ -44,7 +44,8 @@
 #include "BattleGround/BattleGround.h"
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "Util.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptHooks.h"
+#include "data/ScriptHooks.h"
 #include <memory>
 #include "PlayerRegistry.h"
 
