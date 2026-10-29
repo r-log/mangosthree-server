@@ -39,7 +39,7 @@
 #include "CellImpl.h"
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "Util.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptHooks.h"
 #include <memory>
 
 /**

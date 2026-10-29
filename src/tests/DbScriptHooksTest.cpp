@@ -31,7 +31,8 @@
 /**
  * @file
  * @brief What the domain asks of the database script engine: a scheduled step knows the script it
- * belongs to, the base runs no step, and the installed hooks are handed the map and the step.
+ * belongs to, the base runs no step and takes no event, and the installed hooks are handed the
+ * step and the event.
  */
 
 namespace
@@ -48,6 +49,16 @@ namespace
                 ++runs;
                 seen = &step;
                 return false;
+            }
+
+            uint32 eventId = 0;
+            bool eventStarts = false;
+
+            bool StartEvent(Map* /*map*/, uint32 id, Object* /*source*/, Object* /*target*/, bool isStart, Unit* /*forwardToPvp*/) override
+            {
+                eventId = id;
+                eventStarts = isStart;
+                return true;
             }
     };
 
@@ -97,6 +108,7 @@ TEST(DbScriptHooks_BaseEndsTheScript)
 
     CHECK(!DbScriptHooks::IsInstalled());
     CHECK(sDbScriptHooks.RunStep(NULL, step));
+    CHECK(!StartEvents_Event(NULL, 9, NULL, NULL));
 }
 
 // The installed hooks are handed the step and answer for it, until the old ones are put back.
@@ -113,4 +125,19 @@ TEST(DbScriptHooks_InstalledHooksRunTheStep)
         CHECK(hooks.seen == &step);
     }
     CHECK(&sDbScriptHooks != &hooks);
+}
+
+// StartEvents_Event hands the event to the installed hooks, starting unless told otherwise.
+TEST(DbScriptHooks_EventsGoToTheInstalledHooks)
+{
+    RecordingHooks hooks;
+    InstalledHooks installed(&hooks);
+
+    CHECK(StartEvents_Event(NULL, 77, NULL, NULL));
+    CHECK(hooks.eventId == 77u);
+    CHECK(hooks.eventStarts);
+
+    CHECK(StartEvents_Event(NULL, 78, NULL, NULL, false));
+    CHECK(hooks.eventId == 78u);
+    CHECK(!hooks.eventStarts);
 }

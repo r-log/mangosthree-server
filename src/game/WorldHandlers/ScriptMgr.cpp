@@ -76,7 +76,9 @@ ScriptMgr::~ScriptMgr()
 
 namespace
 {
-    /// The database script engine's answers to the domain: a scheduled step runs as a ScriptAction.
+    /// The database script engine's answers to the domain: a scheduled step runs as a ScriptAction,
+    /// and an event goes to the script library, a battleground or outdoor PvP zone, or the database
+    /// event scripts.
     class DatabaseScriptHooks : public DbScriptHooks
     {
         public:
@@ -85,6 +87,8 @@ namespace
                 ScriptAction action(step.GetType(), map, step.GetSourceGuid(), step.GetTargetGuid(), step.GetOwnerGuid(), step.GetScript());
                 return action.HandleScriptStep();
             }
+
+            bool StartEvent(Map* map, uint32 id, Object* source, Object* target, bool isStart, Unit* forwardToPvp) override;
     };
 }
 
@@ -206,8 +210,20 @@ void ScriptMgr::CollectPossibleEventIds(std::set<uint32>& eventIds)
     }
 }
 
-// Starters for events
-bool StartEvents_Event(Map* map, uint32 id, Object* source, Object* target, bool isStart/*=true*/, Unit* forwardToPvp/*=NULL*/)
+/**
+ * @brief Starts event `id`: the script library's hook first, then, for a game object's event
+ * forwarded to a unit in a battleground or an outdoor PvP zone, that zone's handler, and otherwise
+ * the database event scripts.
+ *
+ * @param map The map the event happens on.
+ * @param id The event id.
+ * @param source The object that sends the event.
+ * @param target The event's target, or NULL.
+ * @param isStart Whether the event starts (false: it ends).
+ * @param forwardToPvp The unit whose battleground or outdoor PvP zone may handle the event, or NULL.
+ * @return true if a script, a zone or the database event scripts took the event.
+ */
+bool DatabaseScriptHooks::StartEvent(Map* map, uint32 id, Object* source, Object* target, bool isStart, Unit* forwardToPvp)
 {
     MANGOS_ASSERT(source);
 

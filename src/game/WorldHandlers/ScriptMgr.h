@@ -120,7 +120,7 @@ class ScriptMgr
         void UnloadScriptLibrary();
 
         /// The database script engine's hooks, which mangosd installs: a scheduled step runs as a
-        /// ScriptAction.
+        /// ScriptAction, and an event starts the scripts', a zone's or the database's handling.
         static DbScriptHooks& GetDbScriptHooks();
 
     private:
@@ -128,9 +128,6 @@ class ScriptMgr
         void LoadScripts(DBScriptType type);
         void CheckScriptTexts(std::set<int32>& ids);
 };
-
-// Starters for events
-bool StartEvents_Event(Map* map, uint32 id, Object* source, Object* target, bool isStart = true, Unit* forwardToPvp = NULL);
 
 #define sScriptMgr MaNGOS::Singleton<ScriptMgr>::Instance()
 

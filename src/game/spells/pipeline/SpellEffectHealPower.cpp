@@ -40,7 +40,7 @@
 #include "BattleGround/BattleGround.h"
 #include "Language.h"
 #include "Util.h"
-#include "ScriptMgr.h"
+#include "data/DbScriptHooks.h"
 #include "GridNotifiersImpl.h"
 #include "Geometry/Vector3.h"
 #include "LootMgr.h"

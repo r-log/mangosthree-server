@@ -48,6 +48,11 @@ bool DbScriptHooks::RunStep(Map* /*map*/, DbScriptStep const& /*step*/)
     return true;
 }
 
+bool DbScriptHooks::StartEvent(Map* /*map*/, uint32 /*id*/, Object* /*source*/, Object* /*target*/, bool /*isStart*/, Unit* /*forwardToPvp*/)
+{
+    return false;
+}
+
 DbScriptHooks& DbScriptHooks::Installed()
 {
     DbScriptHooks* hooks = s_installed.load(std::memory_order_acquire);
@@ -62,4 +67,9 @@ DbScriptHooks* DbScriptHooks::Install(DbScriptHooks* hooks)
 bool DbScriptHooks::IsInstalled()
 {
     return s_installed.load(std::memory_order_acquire) != NULL;
+}
+
+bool StartEvents_Event(Map* map, uint32 id, Object* source, Object* target, bool isStart/*=true*/, Unit* forwardToPvp/*=NULL*/)
+{
+    return sDbScriptHooks.StartEvent(map, id, source, target, isStart, forwardToPvp);
 }

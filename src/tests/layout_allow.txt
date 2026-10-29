@@ -71,7 +71,6 @@ src/game/MotionGenerators [entities] -> src/game/WorldHandlers/MoveMap.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/MoveMapSharedDefines.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/TransportMap.h
 src/game/MotionGenerators/MotionMaster.cpp -> src/game/entities/player/Player.h
-src/game/MotionGenerators/NativeBehaviour.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/MotionGenerators/NativeBehaviour.cpp -> src/game/entities/player/Player.h
 src/game/Object [ai] -> src/game/MotionGenerators/MotionMaster.h
 src/game/Object [ai] -> src/game/Object/Creature.h
@@ -170,12 +169,10 @@ src/game/Object/CreatureThreat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/Player.h
 src/game/Object/GMTicketMgr.h -> src/game/Server/WorldSession.h
 src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/GameObjectDestructible.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/GameObjectDestructible.cpp -> src/proto/Opcodes.h
 src/game/Object/GameObjectDestructible.cpp -> src/proto/WorldPacket.h
 src/game/Object/GameObjectUpdate.cpp -> src/proto/Opcodes.h
 src/game/Object/GameObjectUpdate.cpp -> src/proto/WorldPacket.h
-src/game/Object/GameObjectUse.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/GameObjectUse.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GameObjectUse.cpp -> src/proto/Opcodes.h
 src/game/Object/GameObjectUse.cpp -> src/proto/WorldPacket.h
@@ -863,7 +860,6 @@ src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellEffectDummy.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectDummy.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/spells/pipeline/SpellEffectHealPower.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/pipeline/SpellEffectHealPower.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectHealPower.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectObjectCombat.cpp -> src/game/entities/player/Player.h
