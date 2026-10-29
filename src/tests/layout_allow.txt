@@ -729,7 +729,7 @@ src/game/spells/handlers [spells] -> src/game/BattleGround/BattleGround.h
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
 # The bodies call a creature's AI to start an attack or to evade and go home (AttackStart, EnterEvadeMode); the origin's own edge carried into the handler directory, same layer pair and header; an unlisted pair under the peer table, so debt, retiring with the script-hook interface that takes the AI calls.
 src/game/spells/handlers [spells] -> src/game/Object/CreatureAI.h
-# The bodies read the game object they target or find, the grenade, scuttle and detonate bodies respawn it, and the Lava Bomb and Crystal Prison bodies create one; dies with D9's map surface, or earlier if the game object's targeting facts move to entities/.
+# The bodies read the game object they target or find, the grenade, scuttle and detonate bodies respawn it, and the Lava Bomb and Crystal Prison bodies create one; spells -> entities is allowed, so the key stays while a handler acts on a game object itself.
 src/game/spells/handlers [spells] -> src/game/Object/GameObject.h
 # Extract Gas hands the skinning loot templates (LootTemplates_Skinning) to Player::AutoStoreLoot; retires when the loot template stores move to data/ with the other SQL stores, which turns the line into a down edge.
 src/game/spells/handlers [spells] -> src/game/Object/LootMgr.h
@@ -743,15 +743,15 @@ src/game/spells/handlers [spells] -> src/game/Object/TemporarySummon.h
 src/game/spells/handlers [spells] -> src/game/Object/Totem.h
 # The bonus and proc bodies read and act on the unit their handler ran for; the origin's own edge carried into the handler directory, same layer pair and header; spells -> entities is allowed, so the key stays while the Unit-site handlers read the unit itself.
 src/game/spells/handlers [spells] -> src/game/Object/Unit.h
-# The bodies visit the grid or world cells around a unit for the game objects, creatures or players near it; read-only on the grid; dies with D9's map surface.
+# The bodies visit the grid or world cells around a unit for the game objects, creatures or players near it; read-only on the grid; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/CellImpl.h
-# The bodies read the water level or the area id at a unit's position from its TerrainInfo: read-only on the grid map, dies with D9's surface.
+# The bodies read the water level or the area id at a unit's position from its TerrainInfo: read-only on the grid map; spells -> maps is allowed, so the key stays while a handler reads the terrain itself.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridMap.h
-# Read-only, a search over the grid: a reader is not a reach; dies with D9's map surface.
+# Read-only, a search over the grid: a reader is not a reach; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
-# The bodies search the grid with the searchers' visits for game objects, creatures or players; read-only on the grid; dies with D9's map surface.
+# The bodies search the grid with the searchers' visits for game objects, creatures or players; read-only on the grid; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
-# The bodies read the map's difficulty and find units and players on it by guid; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; dies with D9's surface.
+# The bodies read the map's difficulty and find units and players on it by guid; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; spells -> maps is allowed, so the key stays while a handler reads or adds to the map itself.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/Map.h
 # The research bodies ask for an explicit discovery recipe and teach it; the origin's own edge, same layer pair and header; retires when the discovery tables move to data/ with the other SQL stores, which turns the line into a down edge.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/SkillDiscovery.h
