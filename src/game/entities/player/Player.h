@@ -2205,7 +2205,7 @@ class Player : public Unit
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-        /// where the player is created: twenty-three facts out, one read in.
+        /// where the player is created: twenty-four facts out, one read in.
         struct ClientCallbacks
         {
             SwingOutOfReachSink swingOutOfReach;
@@ -2231,6 +2231,7 @@ class Player : public Unit
             ContactListSink contactList;
             FriendStatusSink friendStatus;
             QuestCompleteSink questComplete;
+            SystemMessageSink systemMessage;
             SecurityLevelQuery securityLevel;
         };
         void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }
@@ -2239,6 +2240,20 @@ class Player : public Unit
         void ReportContactList(ContactListFact const& fact) const { ReportClientFact(m_clientCallbacks.contactList, fact); }
         /// Tells the player's own client a contact's change, which SocialMgr reports.
         void ReportFriendStatus(FriendStatusFact const& fact) const { ReportClientFact(m_clientCallbacks.friendStatus, fact); }
+        /// Sends the player's own client the string table entry `entry` as a system message.
+        void ReportSystemMessage(int32 entry) const
+        {
+            SystemMessageFact fact;
+            fact.entry = entry;
+            ReportClientFact(m_clientCallbacks.systemMessage, fact);
+        }
+        /// Sends the player's own client `text` as a system message.
+        void ReportSystemText(std::string const& text) const
+        {
+            SystemMessageFact fact;
+            fact.text = text;
+            ReportClientFact(m_clientCallbacks.systemMessage, fact);
+        }
 
         /// What the session installs for the player's group, once, by InstallPlayerPacketSinks where
         /// the player is created; Unit reports through it.

@@ -67,7 +67,8 @@ SecurityLevelQuery SecurityLevelOfSession(Owner* owner)
 }
 
 /// The callbacks of `owner`'s own client: each fact goes to the builder of its packet, and the
-/// security level is read from the session.
+/// security level is read from the session. The system message's callback, which needs the real
+/// session, is InstallPlayerPacketSinks' own.
 template <class Callbacks, class Owner>
 Callbacks ClientCallbacksToSession(Owner* owner)
 {

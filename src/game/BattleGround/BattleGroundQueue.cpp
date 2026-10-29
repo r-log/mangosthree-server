@@ -25,6 +25,7 @@
 
 #include "Platform/Define.h"
 #include <algorithm>
+#include <cstdio>
 #include "SharedDefines.h"
 #include "Player.h"
 #include "BattleGroundMgr.h"
@@ -44,7 +45,6 @@
 #include "ObjectMgr.h"
 #include "DBCStores.h"
 #include "ProgressBar.h"
-#include "Chat.h"
 #include "ArenaTeam.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
@@ -320,8 +320,10 @@ GroupQueueInfo* BattleGroundQueue::AddGroup(Player* leader, Group* grp, BattleGr
                 // Show queue status to player only (when joining queue)
                 if (sGameConfig.getConfig(CONFIG_UINT32_BATTLEGROUND_QUEUE_ANNOUNCER_JOIN) == 1)
                 {
-                    ChatHandler(leader).PSendSysMessage(LANG_BG_QUEUE_ANNOUNCE_SELF, bgName, q_min_level, q_max_level,
-                                                        qAlliance, (MinPlayers > qAlliance) ? MinPlayers - qAlliance : (uint32)0, qHorde, (MinPlayers > qHorde) ? MinPlayers - qHorde : (uint32)0);
+                    char text[2048];
+                    snprintf(text, 2048, leader->GetSession()->GetMangosString(LANG_BG_QUEUE_ANNOUNCE_SELF), bgName, q_min_level, q_max_level,
+                             qAlliance, (MinPlayers > qAlliance) ? MinPlayers - qAlliance : (uint32)0, qHorde, (MinPlayers > qHorde) ? MinPlayers - qHorde : (uint32)0);
+                    leader->ReportSystemText(text);
                 }
                 // System message
                 else

@@ -30,11 +30,34 @@
 #include "Pet.h"
 #include "session/packets/spells/CooldownPacketSinks.h"
 #include "session/packets/spells/SpellModPackets.h"
+#include "session/packets/chat/SystemMessage.h"
+
+namespace
+{
+    /// The player's system messages: the fact's entry or text, sent to the session the player has
+    /// at that send, one message per line.
+    SystemMessageSink SystemMessageToSession(Player* player)
+    {
+        return [player](SystemMessageFact const& fact)
+        {
+            if (fact.entry)
+            {
+                SendSystemMessage(*player->GetSession(), fact.entry);
+            }
+            else
+            {
+                SendSystemMessage(*player->GetSession(), fact.text.c_str());
+            }
+        };
+    }
+}
 
 void InstallPlayerPacketSinks(Player& player)
 {
     InstallCooldownPacketSinks(player);
-    player.SetClientCallbacks(ClientCallbacksToSession<Player::ClientCallbacks>(&player));
+    Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&player);
+    callbacks.systemMessage = SystemMessageToSession(&player);
+    player.SetClientCallbacks(callbacks);
     player.SetGroupCallbacks(GroupCallbacksFor<GroupCallbacks>(&player));
     player.SetSpellModSink(FactToSession(&player, &BuildSpellModifierPacket));
 }

@@ -169,7 +169,7 @@ void Player::Whisper(const std::string& text, uint32 language, ObjectGuid receiv
     if (!isAcceptWhispers())
     {
         SetAcceptWhispers(true);
-        ChatHandler(this).SendSysMessage(LANG_COMMAND_WHISPERON);
+        ReportSystemMessage(LANG_COMMAND_WHISPERON);
     }
 
     // announce afk or dnd message

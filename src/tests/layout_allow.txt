@@ -43,7 +43,6 @@ src/game/BattleGround/BattleGroundMgr.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/Server/WorldSession.h
-src/game/BattleGround/BattleGroundQueue.cpp -> src/game/WorldHandlers/Chat.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundRB.cpp -> src/game/entities/player/Player.h
@@ -613,7 +612,6 @@ src/game/entities/player/persistence/PlayerLoad.cpp -> src/proto/Opcodes.h
 src/game/entities/player/persistence/PlayerLoad.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/persistence/PlayerLoadFromDB.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/persistence/PlayerSave.cpp -> src/game/Server/WorldSession.h
-src/game/entities/player/persistence/PlayerSave.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/persistence/PlayerSave.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/pets [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/Server/WorldSession.h

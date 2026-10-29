@@ -38,14 +38,14 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 335 include lines go against the table.
+**Today:** 333 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 129 | `WorldPacket.h` 79, `Opcodes.h` 47 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
 | domain -> session | 83 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
 | any -> app | 26 | `World.h`: scripts 10, session 7, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
-| domain, data, session -> scripts | 15 | `ScriptMgr.h` 6, `Chat.h` 9 | `Map.cpp`, `Guild.cpp`, `PlayerChat.cpp` |
+| domain, data, session -> scripts | 13 | `ScriptMgr.h` 6, `Chat.h` 7 | `Map.cpp`, `Guild.cpp`, `PlayerChat.cpp` |
 | data -> domain | 58 | `MapManager.h` 5, `MapPersistentStateMgr.h` 5, `SpellMgr.h` 5, `Creature.h` 5 | `ObjectMgr.cpp`, `GameEventMgr.cpp`, `CreatureLinkingMgr.cpp` |
 | motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSplineInit.cpp`, `MoveSpline.cpp`, `WireParity.cpp` |
 | rest | 12 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
@@ -102,13 +102,13 @@ domain therefore never names session or `WorldPacket`.
 **Today (packets):** 406 `WorldPacket data(` sites: session 178, the domain tier 215 (entities 145, 89 of them under
 `entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 2), scripts 7, app 4, motion 2. What a player's own client is
 told when its swing is out of reach or faces away, its attack or its auto-repeat spell is cancelled, its pet is set,
-its pet action bar is cleared, its stand state changes, it is credited honor for a kill or it completes a quest
-are nine typed facts declared beside `Player` (`PlayerClientFacts.h`); a rune converted, the runes resynchronised and rune power added are
+its pet action bar is cleared, its stand state changes, it is credited honor for a kill, it completes a quest or it
+is sent a system message are ten typed facts declared beside `Player` (`PlayerClientFacts.h`); a rune converted, the runes resynchronised and rune power added are
 three declared beside `RuneMgr`; a currency's count changed, its week limit, the weekly reset and every currency are
 four declared beside `CurrencyMgr`; the forced reactions, the changed standings, the reputation table, a faction made
 visible and a faction's at-war flag are five declared beside `ReputationMgr`; the contact list and a contact's change
-are two declared beside `PlayerSocial` (`SocialList.h`). All twenty-three are built into packets by
-`session/packets/combat/`, `spells/`, `entities/` and `quests/` and sent through the callbacks `InstallPlayerPacketSinks` installs where a player is created.
+are two declared beside `PlayerSocial` (`SocialList.h`). All twenty-four are built into packets by
+`session/packets/combat/`, `spells/`, `entities/`, `quests/` and `chat/` and sent through the callbacks `InstallPlayerPacketSinks` installs where a player is created.
 
 **Today (database):** none of the 857 calls is outside persistence; every layer reaches the databases
 through the repositories in `persistence/`. Game `.cpp` files hold 856 calls in 65 files.
