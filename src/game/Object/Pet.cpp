@@ -1098,17 +1098,9 @@ void Pet::CastOwnerTalentAuras()
 
             if (seTalent)
             {
-                switch (seTalent->ID)
+                if (uint32 petAura = GetFerociousInspirationPetAura(seTalent->ID))
                 {
-                    case 34455: // Ferocious Inspiration Rank 1
-                        CastSpell(this, 75593, true); // Ferocious Inspiration 1%
-                        break;
-                    case 34459: // Ferocious Inspiration Rank 2
-                        CastSpell(this, 75446, true); // Ferocious Inspiration 2%
-                        break;
-                    case 34460: // Ferocious Inspiration Rank 3
-                        CastSpell(this, 75447, true); // Ferocious Inspiration 3%
-                        break;
+                    CastSpell(this, petAura, true);
                 }
             }
         }

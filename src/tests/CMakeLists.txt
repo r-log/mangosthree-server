@@ -150,6 +150,7 @@ set(SRC_GRP_TESTS
     SpellHandlerRegistryTest.cpp
     SpellTargetDistanceOrderTest.cpp
     SpellTargetListTypeTest.cpp
+    SpellTablesTest.cpp
     QuestStatusMgrTest.cpp
     QuestPredicateTest.cpp
     QuestCompletePacketTest.cpp
