@@ -659,6 +659,27 @@ struct CreatureEventAIHolder
     bool UpdateRepeatTimer(Creature* creature, uint32 repeatMin, uint32 repeatMax);
 };
 
+/// What `.npc aiinfo` shows of an event AI: its phase, whether it moves and melees in combat, and,
+/// unless the EventAI developer log filter is set, each event with its timer and its actions.
+struct EventAIInformation
+{
+    struct Event
+    {
+        uint32 id;
+        uint32 type;
+        bool enabled;
+        uint32 time;                                        // milliseconds
+        uint32 actionType[MAX_ACTIONS];
+        uint32 actionParam1[MAX_ACTIONS];
+    };
+
+    uint32 phase = 0;
+    bool combatMovement = false;
+    bool meleeEnabled = false;
+    bool showEvents = false;
+    std::vector<Event> events;
+};
+
 class CreatureEventAI : public CreatureAI
 {
     public:
@@ -668,7 +689,7 @@ class CreatureEventAI : public CreatureAI
             m_CreatureEventAIList.clear();
         }
 
-        void GetAIInformation(ChatHandler& reader) override;
+        bool GetEventAIInformation(EventAIInformation& info) const override;
 
         void JustRespawned() override;
         void Reset() override;

@@ -149,6 +149,11 @@ namespace Harness
         }
     }
 
+    bool HarnessAI::GetEventAIInformation(EventAIInformation& info) const
+    {
+        return m_wrapped && m_wrapped->GetEventAIInformation(info);
+    }
+
     void HarnessAI::MoveInLineOfSight(Unit* who)
     {
         if (m_wrapped)

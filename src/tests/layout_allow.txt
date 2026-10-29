@@ -167,7 +167,6 @@ src/game/Object/Creature.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Creature.cpp -> src/proto/Opcodes.h
 src/game/Object/Creature.cpp -> src/proto/WorldPacket.h
-src/game/Object/CreatureEventAI.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/CreatureThreat.cpp -> src/game/entities/player/Player.h
 src/game/Object/CreatureThreat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/Player.h
