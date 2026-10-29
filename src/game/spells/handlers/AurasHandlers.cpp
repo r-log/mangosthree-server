@@ -2654,5 +2654,5 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
     registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);
     registry.RegisterDefault<AuraBoostPriestSite>(&AuraBoostPriestDefault);
     registry.RegisterDefault<AuraBoostHunterSite>(&AuraBoostHunterDefault);
-    return rows + 14;
+    return rows + 15;
 }
