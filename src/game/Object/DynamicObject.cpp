@@ -34,6 +34,7 @@
 #include "TransportMap.h"
 #include "GridNotifiersImpl.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/auras/SpellAuras.h"
 #include "DBCStores.h"
 
 /**

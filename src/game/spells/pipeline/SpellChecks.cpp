@@ -46,6 +46,7 @@
 
 #include "Utilities/MathDefines.h"
 #include "spells/pipeline/Spell.h"
+#include "spells/auras/SpellAuras.h"
 #include "Database/DatabaseEnv.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"

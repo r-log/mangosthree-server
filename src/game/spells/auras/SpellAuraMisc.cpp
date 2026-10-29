@@ -52,6 +52,7 @@
 #include "Player.h"
 #include "Unit.h"
 #include "spells/pipeline/Spell.h"
+#include "spells/auras/SpellAuras.h"
 #include "ObjectLookup.h"
 #include "Policies/Singleton.h"
 #include "Creature.h"

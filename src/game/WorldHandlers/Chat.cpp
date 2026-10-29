@@ -64,6 +64,7 @@
 #include "CellImpl.h"
 #include "AccountMgr.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/auras/SpellAuras.h"
 #include "PoolManager.h"
 #include "GameEventMgr.h"
 #include "AuctionHouseBot/AuctionHouseBot.h"

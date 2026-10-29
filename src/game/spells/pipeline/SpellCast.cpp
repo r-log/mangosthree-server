@@ -45,6 +45,7 @@
  */
 
 #include "spells/pipeline/Spell.h"
+#include "spells/auras/SpellAuras.h"
 #include "Database/DatabaseEnv.h"
 #include "GridNotifiersImpl.h"
 #include "Log.h"

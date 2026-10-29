@@ -50,6 +50,7 @@
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "spells/pipeline/Spell.h"
+#include "spells/auras/SpellAuras.h"
 #include "Policies/Singleton.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"

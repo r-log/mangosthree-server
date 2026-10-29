@@ -53,6 +53,7 @@
 #include "Player.h"
 #include "Unit.h"
 #include "spells/pipeline/Spell.h"
+#include "spells/auras/SpellAuras.h"
 #include "Policies/Singleton.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"

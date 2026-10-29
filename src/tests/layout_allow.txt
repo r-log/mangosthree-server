@@ -154,11 +154,19 @@ src/game/Object/Creature.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/Object/Creature.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/Creature.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
+# reached through GridNotifiersImpl.h before #572
+src/game/Object/Creature.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Creature.cpp -> src/proto/Opcodes.h
 src/game/Object/Creature.cpp -> src/proto/WorldPacket.h
+# reached through GridNotifiersImpl.h before #572
+src/game/Object/CreatureEventAI.cpp -> src/game/spells/auras/SpellAuras.h
+# reached through GridNotifiersImpl.h before #572
+src/game/Object/DynamicObject.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/Player.h
 src/game/Object/GMTicketMgr.h -> src/game/Server/WorldSession.h
 src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
+# reached through GridNotifiersImpl.h before #572
+src/game/Object/GameObject.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GameObjectDestructible.cpp -> src/proto/Opcodes.h
 src/game/Object/GameObjectDestructible.cpp -> src/proto/WorldPacket.h
 src/game/Object/GameObjectUpdate.cpp -> src/proto/Opcodes.h
@@ -399,7 +407,6 @@ src/game/WorldHandlers/GridNotifiers.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/WorldHandlers/UpdateData.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/entities/player/Player.h
-src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/spells/auras/SpellAuras.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Group.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Group.cpp -> src/game/entities/player/Player.h
@@ -834,9 +841,13 @@ src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/Spell.h -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellCast.cpp -> src/game/entities/player/Player.h
+# reached through GridNotifiersImpl.h before #572
+src/game/spells/pipeline/SpellCast.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellCheckTarget.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellChecks.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellChecks.cpp -> src/game/entities/player/PlayerRegistry.h
+# reached through GridNotifiersImpl.h before #572
+src/game/spells/pipeline/SpellChecks.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/game/spells/auras/SpellAuras.h
@@ -864,6 +875,8 @@ src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/spells/auras/SpellAuras
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellHit.cpp -> src/game/entities/player/Player.h
+# reached through GridNotifiersImpl.h before #572
+src/game/spells/pipeline/SpellHit.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/proto/Opcodes.h
@@ -872,6 +885,8 @@ src/game/spells/pipeline/SpellPower.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellTargeting.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellTargeting.cpp -> src/game/entities/player/PlayerRegistry.h
+# reached through GridNotifiersImpl.h before #572
+src/game/spells/pipeline/SpellTargeting.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/UnitSpellBonus.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/UnitSpellBonus.cpp -> src/game/spells/auras/SpellAuras.h
 src/modules/SD3/include/precompiled.h -> src/game/WorldHandlers/World.h
