@@ -29,6 +29,7 @@
 #include "spells/pipeline/Spell.h"
 #include "Common/TimeConstants.h"
 #include "Geometry/Vector3.h"
+#include "MotionGenerators/MotionMaster.h"
 #include "Object/Creature.h"
 #include "Object/CreatureAI.h"
 #include "Object/ObjectMgr.h"
@@ -990,6 +991,51 @@ static SpellHandlerOutcome<void> EffectScriptGeneric44364(SpellEffectScriptConte
     // Are there anything special with this, a random chance or condition?
     // Feeding Rock Falcon
     ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true, NULL, NULL, ctx.unitTarget->GetObjectGuid(), ctx.m_spellInfo);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 44455: Character Script Effect Reverse Cast
+static SpellHandlerOutcome<void> EffectScriptGeneric44455(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Creature* pTarget = (Creature*)ctx.unitTarget;
+
+    if (const SpellEntry *pSpell = sSpellStore.LookupEntry(ctx.effect->CalculateSimpleValue()))
+    {
+        // if we used item at least once...
+        if (pTarget->IsTemporarySummon() && int32(pTarget->GetEntry()) == pSpell->GetEffectMiscValue(SpellEffectIndex(ctx.effect->EffectIndex)))
+        {
+            TemporarySummon* pSummon = (TemporarySummon*)pTarget;
+
+            // can only affect "own" summoned
+            if (pSummon->GetSummonerGuid() == ctx.m_caster->GetObjectGuid())
+            {
+                if (pTarget->GetMotionMaster()->Latches().roaming || pTarget->GetMotionMaster()->Latches().roamingLeg)
+                {
+                    pTarget->GetMotionMaster()->MovementExpired();
+                }
+
+                // trigger cast of quest complete script (44462, Cast Quest Complete on Master)
+                pTarget->CastSpell(pTarget, 44462, true);
+
+                pTarget->GetMotionMaster()->MovePoint(0, ctx.m_caster->Where().X(), ctx.m_caster->Where().Y(), ctx.m_caster->Where().Z());
+            }
+
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        // or if it is first time used item, cast summon and despawn the target
+        ctx.m_caster->CastSpell(pTarget, pSpell, true);
+        pTarget->ForcedDespawn();
+
+        // TODO: here we should get pointer to the just summoned and make it move.
+        // without, it will be one extra use of quest item
+    }
+
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -3836,6 +3882,7 @@ uint32 RegisterSpellEffectScriptHandlers(SpellHandlerRegistry& registry)
         { 44323, &EffectScriptGenericHawkHunting },
         { 44407, &EffectScriptGenericHawkHunting },
         { 44364, &EffectScriptGeneric44364 },
+        { 44455, &EffectScriptGeneric44455 },
         { 44462, &EffectScriptGeneric44462 },
         { 44876, &EffectScriptGeneric44876 },
         { 44811, &EffectScriptGeneric44811 },

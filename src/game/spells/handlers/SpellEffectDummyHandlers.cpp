@@ -33,6 +33,7 @@
 #include "WorldHandlers/Map.h"
 #include "spells/auras/SpellAuras.h"
 #include "BattleGround/BattleGround.h"
+#include "MotionGenerators/MotionMaster.h"
 #include "Object/Creature.h"
 #include "Object/CreatureAI.h"
 #include "Object/GameObject.h"
@@ -138,6 +139,20 @@ static SpellHandlerOutcome<void> EffectDummyGenericPollyEatsTheECAC(SpellEffectD
     ctx.unitTarget->CastSpell(ctx.unitTarget, 9998, true);
 
     ((Creature*)ctx.unitTarget)->ForcedDespawn(100);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 10254: Stone Dwarf Awaken Visual
+static SpellHandlerOutcome<void> EffectDummyGeneric10254(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // see spell 10255 (aura dummy)
+    ctx.m_caster->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(10255, 0, ctx.m_caster->GetObjectGuid().GetCounter()));
+    ctx.m_caster->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -2376,6 +2391,91 @@ static SpellHandlerOutcome<void> EffectDummyGenericSiphonOfAcherus(SpellEffectDu
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// 51866: Kick Nass
+static SpellHandlerOutcome<void> EffectDummyGeneric51866(SpellEffectDummyGenericContext& ctx)
+{
+    // It is possible that Nass Heartbeat (spell id 61438) is involved in this
+    // If so, unclear how it should work and using the below instead (even though it could be a bit hack-ish)
+
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Only own guardian pet
+    if (ctx.m_caster != ctx.unitTarget->GetOwner())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // This means we already set state (see below) and need to wait.
+    if (ctx.unitTarget->Blocked(Motion::ReasonRooted))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Expecting pTargetDummy to be summoned by AI at death of target creatures.
+
+    Creature* pTargetDummy = NULL;
+    float fRange = GetSpellMaxRange(sSpellRangeStore.LookupEntry(ctx.m_spellInfo->RangeIndex));
+
+    MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck u_check(*ctx.m_caster, 28523, true, false, fRange * 2);
+    MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(pTargetDummy, u_check);
+
+    Cell::VisitGridObjects(ctx.m_caster, searcher, fRange * 2);
+
+    if (pTargetDummy)
+    {
+        if (ctx.unitTarget->GetMotionMaster()->Latches().follow || ctx.unitTarget->GetMotionMaster()->Latches().followLeg)
+        {
+            ctx.unitTarget->GetMotionMaster()->MovementExpired();
+        }
+
+        ctx.unitTarget->MonsterMoveWithSpeed(pTargetDummy->Where().X(), pTargetDummy->Where().Y(), pTargetDummy->Where().Z(), 24.f);
+
+        // Add state to temporarily prevent follow
+        ctx.unitTarget->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(51866, 0, ctx.m_caster->GetObjectGuid().GetCounter()));
+
+        // Collect Hair Sample
+        ctx.unitTarget->CastSpell(pTargetDummy, 51870, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51872: Hair Sample Collected
+static SpellHandlerOutcome<void> EffectDummyGeneric51872(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // clear state to allow follow again: m_caster here is the guardian pet
+    // rooted by Kick Nass (spell 51866; that effect's unitTarget), so the
+    // release must use its owner's counter to match the claim it was given.
+    // Without an owner there is no way to reconstruct that identity; guessing
+    // one (e.g. the pet's own counter) would silently leak the root instead, so
+    // skip the release and say so.
+    if (Unit* owner = ctx.m_caster->GetOwner())
+    {
+        ctx.m_caster->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted,
+            Motion::ControlClaim(51866, 0, owner->GetObjectGuid().GetCounter()));
+    }
+    else
+    {
+        sLog.outError("SpellEffectDummy: spell 51872 (Hair Sample Collected) found no owner for %s to release its Kick Nass root", ctx.m_caster->GetGuidStr().c_str());
+    }
+
+    // Nass Kill Credit
+    ctx.m_caster->CastSpell(ctx.m_caster, 51871, true);
+
+    // Despawn dummy creature
+    ((Creature*)ctx.unitTarget)->ForcedDespawn();
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// 52308: Take Sputum Sample: on the first effect, a caster with the aura the second effect's value names casts on
 /// itself the spell the first effect's value names; the second and third effects do nothing; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericTakeSputumSample(SpellEffectDummyGenericContext& ctx)
@@ -3769,6 +3869,7 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
         { 8063, &EffectDummyGenericDeviateFish },
         { 8213, &EffectDummyGenericCookedDeviateFish },
         { 9976, &EffectDummyGenericPollyEatsTheECAC },
+        { 10254, &EffectDummyGeneric10254 },
         { 13120, &EffectDummyGenericNetOMatic },
         { 13489, &EffectDummyGenericBurningSpirit },
         { 13567, &EffectDummyGenericDummyTrigger },
@@ -3913,6 +4014,8 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
         { 51840, &EffectDummyGenericDespawnFruitTosser },
         { 51964, &EffectDummyGenericTormentorsIncense },
         { 51858, &EffectDummyGenericSiphonOfAcherus },
+        { 51866, &EffectDummyGeneric51866 },
+        { 51872, &EffectDummyGeneric51872 },
         { 52308, &EffectDummyGenericTakeSputumSample },
         { 52369, &EffectDummyGenericDetonateExplosives },
         { 52371, &EffectDummyGenericDetonateExplosives },

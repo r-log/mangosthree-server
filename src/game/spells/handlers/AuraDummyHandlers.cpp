@@ -27,6 +27,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Object/Creature.h"
 #include "Object/ObjectMgr.h"
+#include "MotionGenerators/MotionMaster.h"
 #include "WorldHandlers/Map.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"
@@ -51,6 +52,22 @@ static SpellHandlerOutcome<void> AuraDummyApplyGeneric7057(AuraDummyApplyGeneric
     ctx.aura->SetPeriodic(true);
     ctx.aura->GetModifier()->periodictime = 30 * IN_MILLISECONDS;
     ctx.m_periodicTimer = ctx.aura->GetModifier()->periodictime;
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 10255: Stoned
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric10255(AuraDummyApplyGenericContext& ctx)
+{
+    if (Unit* caster = ctx.aura->GetCaster())
+    {
+        if (caster->GetTypeId() != TYPEID_UNIT)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        caster->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+        caster->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(10255, 0, caster->GetObjectGuid().GetCounter()));
+    }
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -219,6 +236,15 @@ static SpellHandlerOutcome<void> AuraDummyApplyGeneric48143(AuraDummyApplyGeneri
 {
     // See Death's Door
     ctx.target->CastSpell(ctx.target, 48814, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 51405: Digging for Treasure
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric51405(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->HandleEmote(EMOTE_STATE_WORK);
+    // Pet will be following owner, this makes him stop
+    ctx.target->GetMotionMaster()->Inhibit(Motion::Inhibition::Stunned, Motion::ControlClaim(51405, 0, ctx.aura->GetCasterGuid().GetCounter()));
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -769,6 +795,22 @@ static SpellHandlerOutcome<void> AuraDummyRemove42454(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// AT REMOVE 42517: Beam to Zelfrax
+static SpellHandlerOutcome<void> AuraDummyRemove42517(AuraDummyRemoveContext& ctx)
+{
+    // expecting target to be a dummy creature
+    Creature* pSummon = ctx.target->SummonCreature(23864, 0.0f, 0.0f, 0.0f, ctx.target->Where().Facing(), TEMPSPAWN_DEAD_DESPAWN, 0);
+
+    Unit* pCaster = ctx.aura->GetCaster();
+
+    if (pSummon && pCaster)
+    {
+        pSummon->GetMotionMaster()->MovePoint(0, pCaster->Where().X(), pCaster->Where().Y(), pCaster->Where().Z());
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// AT REMOVE 43969: Feathered Charm
 static SpellHandlerOutcome<void> AuraDummyRemove43969(AuraDummyRemoveContext& ctx)
 {
@@ -843,6 +885,27 @@ static SpellHandlerOutcome<void> AuraDummyRemove50141(AuraDummyRemoveContext& ct
         ctx.target->CastSpell(ctx.target, 50001, true, NULL, ctx.aura);
     }
 
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 51405: Digging for Treasure
+static SpellHandlerOutcome<void> AuraDummyRemove51405(AuraDummyRemoveContext& ctx)
+{
+    const uint32 spell_list[7] =
+    {
+        51441,                                  // hare
+        51397,                                  // crystal
+        51398,                                  // armor
+        51400,                                  // gem
+        51401,                                  // platter
+        51402,                                  // treasure
+        51443                                   // bug
+    };
+
+    ctx.target->CastSpell(ctx.target, spell_list[urand(0, 6)], true);
+
+    ctx.target->HandleEmote(EMOTE_STATE_NONE);
+    ctx.target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Stunned, Motion::ControlClaim(51405, 0, ctx.aura->GetCasterGuid().GetCounter()));
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1189,6 +1252,65 @@ static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericSubmerge(AuraDummyAp
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 6606: Self Visual - Sleep Until Cancelled (DND)
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric6606(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        ctx.target->SetStandState(UNIT_STAND_STATE_SLEEP);
+        ctx.target->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(6606, 0, ctx.aura->GetCasterGuid().GetCounter()));
+    }
+    else
+    {
+        ctx.target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(6606, 0, ctx.aura->GetCasterGuid().GetCounter()));
+        ctx.target->SetStandState(UNIT_STAND_STATE_STAND);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, one body for 4 labels: 35356: Spawn Feign Death, 35357: Spawn Feign Death,
+/// 42557: Feign Death, 51329: Feign Death
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericSpawnFeignDeath(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.target->GetTypeId() == TYPEID_UNIT)
+    {
+        // Flags not set like it's done in SetFeignDeath()
+        // UNIT_DYNFLAG_DEAD does not appear with these spells.
+        // All of the spells appear to be present at spawn and not used to feign in combat or similar.
+        if (ctx.apply)
+        {
+            ctx.target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_29);
+            ctx.target->SetFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH);
+
+            ctx.target->GetMotionMaster()->Inhibit(Motion::Inhibition::Dead, Motion::ControlClaim(ctx.aura->GetId(), 0, ctx.aura->GetCasterGuid().GetCounter()));
+        }
+        else
+        {
+            ctx.target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_29);
+            ctx.target->RemoveFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH);
+
+            ctx.target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Dead, Motion::ControlClaim(ctx.aura->GetId(), 0, ctx.aura->GetCasterGuid().GetCounter()));
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 43874: Scourge Mur'gul Camp: Force Shield Arcane Purple x3
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric43874(AuraDummyApplyRemoveContext& ctx)
+{
+    ctx.target->ApplyModFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE, ctx.apply);
+    if (ctx.apply)
+    {
+        ctx.target->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(43874, 0, ctx.aura->GetCasterGuid().GetCounter()));
+    }
+    else
+    {
+        ctx.target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(43874, 0, ctx.aura->GetCasterGuid().GetCounter()));
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// SPELLFAMILY_DRUID 52610: Savage Roar
 static SpellHandlerOutcome<void> AuraDummyDruid52610(AuraDummyApplyRemoveContext& ctx)
 {
@@ -1302,6 +1424,7 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
     {
         { 1515, &AuraDummyApplyGeneric1515 },
         { 7057, &AuraDummyApplyGeneric7057 },
+        { 10255, &AuraDummyApplyGeneric10255 },
         { 13139, &AuraDummyApplyGeneric13139 },
         { 28832, &AuraDummyApplyGenericMarkOfTheHorsemen },
         { 28833, &AuraDummyApplyGenericMarkOfTheHorsemen },
@@ -1325,6 +1448,7 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 47563, &AuraDummyApplyGeneric47563 },
         { 47593, &AuraDummyApplyGeneric47593 },
         { 48143, &AuraDummyApplyGeneric48143 },
+        { 51405, &AuraDummyApplyGeneric51405 },
         { 61187, &AuraDummyApplyGenericTwilightShift },
         { 61190, &AuraDummyApplyGenericTwilightShift },
         { 62061, &AuraDummyApplyGeneric62061 },
@@ -1400,6 +1524,7 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 41100, &AuraDummyRemove41100 },
         { 41101, &AuraDummyRemove41101 },
         { 42454, &AuraDummyRemove42454 },
+        { 42517, &AuraDummyRemove42517 },
         { 43969, &AuraDummyRemove43969 },
         { 44191, &AuraDummyRemove44191 },
         { 45934, &AuraDummyRemove45934 },
@@ -1408,6 +1533,7 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 46637, &AuraDummyRemove46637 },
         { 48385, &AuraDummyRemove48385 },
         { 50141, &AuraDummyRemove50141 },
+        { 51405, &AuraDummyRemove51405 },
         { 51870, &AuraDummyRemove51870 },
         { 52098, &AuraDummyRemove52098 },
         { 53039, &AuraDummyRemove53039 },
@@ -1455,6 +1581,12 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 40131, &AuraDummyApplyRemoveGenericShroudOfDeath },
         { 66936, &AuraDummyApplyRemoveGenericSubmerge },
         { 66948, &AuraDummyApplyRemoveGenericSubmerge },
+        { 6606, &AuraDummyApplyRemoveGeneric6606 },
+        { 35356, &AuraDummyApplyRemoveGenericSpawnFeignDeath },
+        { 35357, &AuraDummyApplyRemoveGenericSpawnFeignDeath },
+        { 42557, &AuraDummyApplyRemoveGenericSpawnFeignDeath },
+        { 51329, &AuraDummyApplyRemoveGenericSpawnFeignDeath },
+        { 43874, &AuraDummyApplyRemoveGeneric43874 },
     };
 
     static AuraDummyRow<AuraDummyDruidSite> const druid[] =
