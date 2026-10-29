@@ -4232,8 +4232,12 @@ class Unit : public WorldObject
         float GetCombatRatingReduction(CombatRating cr) const;
         uint32 GetCombatRatingDamageReduction(CombatRating cr, float rate, float cap, uint32 damage) const;
 
-        Unit* _GetTotem(TotemSlot slot) const;              // for templated function without include need
-        Pet* _GetPet(ObjectGuid guid) const;                // for templated function without include need
+        // The controlled units as units, for CallForAllControlledUnits and CheckAllControlledUnits,
+        // which do not include Pet.h or Totem.h
+        Unit* _GetTotem(TotemSlot slot) const;
+        Unit* _GetPet() const;
+        Unit* _GetMiniPet() const;
+        Unit* _GetPet(ObjectGuid guid) const;
 
         // Wrapper called by DealDamage when a creature is killed
         void JustKilledCreature(Creature* victim, Player* responsiblePlayer);
@@ -4309,13 +4313,13 @@ template<typename Func>
 void Unit::CallForAllControlledUnits(Func const& func, uint32 controlledMask)
 {
     if (controlledMask & CONTROLLED_PET)
-        if (Pet* pet = GetPet())
+        if (Unit* pet = _GetPet())
         {
             func(pet);
         }
 
     if (controlledMask & CONTROLLED_MINIPET)
-        if (Pet* mini = GetMiniPet())
+        if (Unit* mini = _GetMiniPet())
         {
             func(mini);
         }
@@ -4323,7 +4327,7 @@ void Unit::CallForAllControlledUnits(Func const& func, uint32 controlledMask)
     if (controlledMask & CONTROLLED_GUARDIANS)
     {
         for (GuidSet::const_iterator itr = m_guardianPets.begin(); itr != m_guardianPets.end();)
-            if (Pet* guardian = _GetPet(*(itr++)))
+            if (Unit* guardian = _GetPet(*(itr++)))
             {
                 func(guardian);
             }
@@ -4350,14 +4354,14 @@ template<typename Func>
 bool Unit::CheckAllControlledUnits(Func const& func, uint32 controlledMask) const
 {
     if (controlledMask & CONTROLLED_PET)
-        if (Pet const* pet = GetPet())
+        if (Unit const* pet = _GetPet())
             if (func(pet))
             {
                 return true;
             }
 
     if (controlledMask & CONTROLLED_MINIPET)
-        if (Pet const* mini = GetMiniPet())
+        if (Unit const* mini = _GetMiniPet())
             if (func(mini))
             {
                 return true;
@@ -4366,7 +4370,7 @@ bool Unit::CheckAllControlledUnits(Func const& func, uint32 controlledMask) cons
     if (controlledMask & CONTROLLED_GUARDIANS)
     {
         for (GuidSet::const_iterator itr = m_guardianPets.begin(); itr != m_guardianPets.end();)
-            if (Pet const* guardian = _GetPet(*(itr++)))
+            if (Unit const* guardian = _GetPet(*(itr++)))
                 if (func(guardian))
                 {
                     return true;

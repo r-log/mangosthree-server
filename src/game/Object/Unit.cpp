@@ -2147,7 +2147,7 @@ void Unit::AttackedBy(Unit* attacker)
     }
 
     // trigger pet AI reaction
-    if (Pet* pet = GetPet())
+    if (Unit* pet = _GetPet())
     {
         pet->AttackedBy(attacker);
     }
@@ -2354,12 +2354,32 @@ Pet* Unit::GetPet() const
 }
 
 /**
+ * @brief Gets the unit's active pet as a unit.
+ *
+ * @return The active pet, or NULL if none exists.
+ */
+Unit* Unit::_GetPet() const
+{
+    return GetPet();
+}
+
+/**
+ * @brief Gets the unit's mini pet as a unit.
+ *
+ * @return The mini pet, or NULL if none exists.
+ */
+Unit* Unit::_GetMiniPet() const
+{
+    return GetMiniPet();
+}
+
+/**
  * @brief Resolves a pet by GUID on the current map.
  *
  * @param guid The pet GUID.
  * @return The pet, or NULL if not found.
  */
-Pet* Unit::_GetPet(ObjectGuid guid) const
+Unit* Unit::_GetPet(ObjectGuid guid) const
 {
     return GetMap()->GetPet(guid);
 }
