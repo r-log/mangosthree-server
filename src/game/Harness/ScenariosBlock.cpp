@@ -102,8 +102,8 @@ namespace Harness
                     At(t, [this, ga, gb, sa, sb, t]()
                     {
                         Creature* a = Get(ga); Creature* b = Get(gb); if (!a || !b) { return; }
-                        RootSample ra = { t, a->IsRooted(), a->m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT), a->Blocked(Motion::ReasonStunned) };
-                        RootSample rb = { t, b->IsRooted(), b->m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT), b->Blocked(Motion::ReasonStunned) };
+                        RootSample ra = { t, a->IsRooted(), ((a->WireFlags() & (MOVEFLAG_ROOT)) != 0), a->Blocked(Motion::ReasonStunned) };
+                        RootSample rb = { t, b->IsRooted(), ((b->WireFlags() & (MOVEFLAG_ROOT)) != 0), b->Blocked(Motion::ReasonStunned) };
                         sa->push_back(ra);
                         sb->push_back(rb);
                         char line[160];
