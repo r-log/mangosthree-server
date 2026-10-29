@@ -109,10 +109,6 @@ file(GLOB sources_raid_ek_bwl scripts/eastern_kingdoms/blackrock_mountain/blackw
     LIST(APPEND mangosscript_LIB_SRCS ${sources_raid_ek_bwl})
     source_group("Eastern Kingdoms Scripts\\Raids\\Blackwing Lair" FILES ${sources_raid_ek_bwl})
 
-file(GLOB sources_raid_ek_zg scripts/eastern_kingdoms/zulgurub/*.cpp scripts/eastern_kingdoms/zulgurub/*.h)
-    LIST(APPEND mangosscript_LIB_SRCS ${sources_raid_ek_zg})
-    source_group("Eastern Kingdoms Scripts\\Raids\\Zul Gurub" FILES ${sources_raid_ek_zg})
-
 file(GLOB sources_instance_k_bdf scripts/kalimdor/blackfathom_deeps/*.cpp scripts/kalimdor/blackfathom_deeps/*.h)
     LIST(APPEND mangosscript_LIB_SRCS ${sources_instance_k_bdf})
     source_group("Kalimdor Scripts\\Instances\\Blackfathom Deeps" FILES ${sources_instance_k_bdf})
