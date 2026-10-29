@@ -33,6 +33,7 @@
 #include "ObjectMgr.h"
 #include "PoolManager.h"
 #include "spells/pipeline/Spell.h"
+#include "spells/data/SpellMgr.h"
 #include "UpdateMask.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
