@@ -2899,7 +2899,7 @@ FactionTemplateEntry const* Unit::getFactionTemplateEntry() const
 
             if (guid.GetHigh() == HIGHGUID_PET)
             {
-                sLog.outError("%s (base creature entry %u) have invalid faction template id %u, owner %s", GetGuidStr().c_str(), GetEntry(), getFaction(), ((Pet*)this)->GetOwnerGuid().GetString().c_str());
+                sLog.outError("%s (base creature entry %u) have invalid faction template id %u, owner %s", GetGuidStr().c_str(), GetEntry(), getFaction(), GetOwnerGuid().GetString().c_str());
             }
             else
             {
