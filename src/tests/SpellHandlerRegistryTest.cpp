@@ -837,12 +837,12 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // 9 rows and default, the activate-object site's 33 rows, the resurrect site's 3 rows and default, the two
     // targeting sites' 10 and 1 rows and their two defaults, the cast-check site's 2 rows and default, the
     // target-check site's 3 rows and default, the weapon-damage site's 6 rows, the school-damage, trigger-spell
-    // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 213 rows, the five dummy-effect
+    // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 216 rows, the five dummy-effect
     // family sites' 5, 11, 4, 4 and 4 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and five
     // defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the five periodic dummy
     // tick sites' 44, 1, 2, 1 and 2 rows and five defaults, the five boost sites' 7, 6, 2, 6 and 4 rows and four
     // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
-    // script-effect site's 282 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows,
+    // script-effect site's 283 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows,
     // the eight dummy proc sites' 37, 9, 10, 8, 11, 5, 26 and 10 rows and the haste, crit-chance and two
     // proc-trigger sites' 2, 1, 16 and 20 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
