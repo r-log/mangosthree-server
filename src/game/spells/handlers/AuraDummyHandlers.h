@@ -78,6 +78,24 @@ struct AuraDummyApplyWarriorSite
     typedef AuraDummyApplyContext Context;
 };
 
+/// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_HUNTER's `switch (GetId())`: no `default:`, so a miss goes
+/// on to the AT APPLY & REMOVE family switch.
+struct AuraDummyApplyHunterSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_HUNTER;
+    typedef void Value;
+    typedef AuraDummyApplyContext Context;
+};
+
+/// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_SHAMAN's `switch (GetId())`: no `default:`, so a miss
+/// continues at the Earth Shield block after it.
+struct AuraDummyApplyShamanSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_SHAMAN;
+    typedef void Value;
+    typedef AuraDummyApplyContext Context;
+};
+
 /// The live-out local of the quest-tame switch: each label sets `finalSpellId`, which the code after it casts.
 struct AuraDummyQuestTameContext
 {
@@ -155,6 +173,15 @@ struct AuraDummyRogueSite
 struct AuraDummyHunterSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_HUNTER;
+    typedef void Value;
+    typedef AuraDummyApplyRemoveContext Context;
+};
+
+/// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_PALADIN's `switch (GetId())`: no `default:`, so a
+/// miss goes on to the pet aura, area and script code after the family switch.
+struct AuraDummyPaladinSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_PALADIN;
     typedef void Value;
     typedef AuraDummyApplyRemoveContext Context;
 };

@@ -2358,41 +2358,10 @@ void Aura::PeriodicDummyTick()
         }
         case SPELLFAMILY_ROGUE:
         {
-            switch (spell->ID)
+            AuraPeriodicDummyTickContext ctx(this, spell, target);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraPeriodicDummyTickRogueSite>(spell->ID, ctx).IsReturn())
             {
-                // Killing Spree
-                case 51690:
-                {
-                    if (target->Blocked(Motion::ReasonStunned) || target->isFeared())
-                    {
-                        return;
-                    }
-
-                    Spell::UnitList targets;
-                    {
-                        // eff_radius ==0
-                        float radius = GetSpellMaxRange(sSpellRangeStore.LookupEntry(spell->RangeIndex));
-
-                        MaNGOS::AnyUnfriendlyVisibleUnitInObjectRangeCheck u_check(target, target, radius);
-                        MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyVisibleUnitInObjectRangeCheck> checker(targets, u_check);
-                        Cell::VisitAllObjects(target, checker, radius);
-                    }
-
-                    if (targets.empty())
-                    {
-                        return;
-                    }
-
-                    Spell::UnitList::const_iterator itr = targets.begin();
-                    std::advance(itr, urand(0, targets.size() - 1));
-                    Unit* victim = *itr;
-
-                    target->CastSpell(victim, 57840, true);
-                    target->CastSpell(victim, 57841, true);
-                    return;
-                }
-                default:
-                    break;
+                return;
             }
             break;
         }

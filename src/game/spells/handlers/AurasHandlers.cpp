@@ -27,6 +27,9 @@
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellMgr.h"
+#include "spells/pipeline/Spell.h"
+#include "Server/DBCStores.h"
 #include "WorldHandlers/CellImpl.h"
 #include "WorldHandlers/GridNotifiers.h"
 #include "WorldHandlers/GridNotifiersImpl.h"
@@ -1847,6 +1850,44 @@ static SpellHandlerOutcome<void> AuraPeriodicDummyTickDruidDefault(AuraPeriodicD
     return SpellHandlerOutcome<void>::Continue();
 }
 
+/// 51690: Killing Spree
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickRogue51690(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.target->Blocked(Motion::ReasonStunned) || ctx.target->isFeared())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Spell::UnitList targets;
+    {
+        // eff_radius ==0
+        float radius = GetSpellMaxRange(sSpellRangeStore.LookupEntry(ctx.spell->RangeIndex));
+
+        MaNGOS::AnyUnfriendlyVisibleUnitInObjectRangeCheck u_check(ctx.target, ctx.target, radius);
+        MaNGOS::UnitListSearcher<MaNGOS::AnyUnfriendlyVisibleUnitInObjectRangeCheck> checker(targets, u_check);
+        Cell::VisitAllObjects(ctx.target, checker, radius);
+    }
+
+    if (targets.empty())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Spell::UnitList::const_iterator itr = targets.begin();
+    std::advance(itr, urand(0, targets.size() - 1));
+    Unit* victim = *itr;
+
+    ctx.target->CastSpell(victim, 57840, true);
+    ctx.target->CastSpell(victim, 57841, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickRogueDefault(AuraPeriodicDummyTickContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
 /// one body for 2 labels: 53511: Feeding Frenzy, 53512: Feeding Frenzy
 static SpellHandlerOutcome<void> AuraPeriodicDummyTickHunterFeedingFrenzy(AuraPeriodicDummyTickContext& ctx)
 {
@@ -2524,6 +2565,11 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
         { 33831, &AuraPeriodicDummyTickDruid33831 },
     };
 
+    static AurasRow<AuraPeriodicDummyTickRogueSite> const periodicDummyTickRogue[] =
+    {
+        { 51690, &AuraPeriodicDummyTickRogue51690 },
+    };
+
     static AurasRow<AuraPeriodicDummyTickHunterSite> const periodicDummyTickHunter[] =
     {
         { 53511, &AuraPeriodicDummyTickHunterFeedingFrenzy },
@@ -2586,6 +2632,7 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
     rows += RegisterAurasRows(registry, periodicDummyTickGeneric);
     rows += RegisterAurasRows(registry, periodicDummyTickMage);
     rows += RegisterAurasRows(registry, periodicDummyTickDruid);
+    rows += RegisterAurasRows(registry, periodicDummyTickRogue);
     rows += RegisterAurasRows(registry, periodicDummyTickHunter);
     rows += RegisterAurasRows(registry, boostGeneric);
     rows += RegisterAurasRows(registry, boostMage);
@@ -2601,10 +2648,11 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
     registry.RegisterDefault<AuraPeriodicDummyTickGenericSite>(&AuraPeriodicDummyTickGenericDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickDruidSite>(&AuraPeriodicDummyTickDruidDefault);
+    registry.RegisterDefault<AuraPeriodicDummyTickRogueSite>(&AuraPeriodicDummyTickRogueDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickHunterSite>(&AuraPeriodicDummyTickHunterDefault);
     registry.RegisterDefault<AuraBoostGenericSite>(&AuraBoostGenericDefault);
     registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);
     registry.RegisterDefault<AuraBoostPriestSite>(&AuraBoostPriestDefault);
     registry.RegisterDefault<AuraBoostHunterSite>(&AuraBoostHunterDefault);
-    return rows + 14;
+    return rows + 15;
 }

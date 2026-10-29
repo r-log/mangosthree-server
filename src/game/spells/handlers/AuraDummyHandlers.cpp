@@ -27,6 +27,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Object/Creature.h"
 #include "Object/ObjectMgr.h"
+#include "WorldHandlers/Map.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"
 #include "entities/player/Player.h"
@@ -465,6 +466,20 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior53792(AuraDummyApplyContex
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// SPELLFAMILY_HUNTER, AT APPLY 34026: Kill Command
+static SpellHandlerOutcome<void> AuraDummyApplyHunter34026(AuraDummyApplyContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 34027, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_SHAMAN, AT APPLY 55198: Tidal Force
+static SpellHandlerOutcome<void> AuraDummyApplyShaman55198(AuraDummyApplyContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 55166, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// AT REMOVE, quest tame 19548: Tame Ice Claw Bear
 static SpellHandlerOutcome<void> AuraDummyQuestTame19548(AuraDummyQuestTameContext& ctx)
 {
@@ -766,6 +781,18 @@ static SpellHandlerOutcome<void> AuraDummyRemove43969(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// AT REMOVE 44191: Flame Strike
+static SpellHandlerOutcome<void> AuraDummyRemove44191(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.target->GetMap()->IsDungeon())
+    {
+        uint32 spellId = ctx.target->GetMap()->IsRegularDifficulty() ? 44190 : 46163;
+
+        ctx.target->CastSpell(ctx.target, spellId, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// AT REMOVE 45934: Dark Fiend
 static SpellHandlerOutcome<void> AuraDummyRemove45934(AuraDummyRemoveContext& ctx)
 {
@@ -797,6 +824,13 @@ static SpellHandlerOutcome<void> AuraDummyRemove46308(AuraDummyRemoveContext& ct
 static SpellHandlerOutcome<void> AuraDummyRemove46637(AuraDummyRemoveContext& ctx)
 {
     ctx.target->CastSpell(ctx.target, 47030, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 48385: Create Spirit Fount Beam
+static SpellHandlerOutcome<void> AuraDummyRemove48385(AuraDummyRemoveContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, ctx.target->GetMap()->IsRegularDifficulty() ? 48380 : 59320, true);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1230,6 +1264,20 @@ static SpellHandlerOutcome<void> AuraDummyHunter34477(AuraDummyApplyRemoveContex
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// SPELLFAMILY_PALADIN 20911: Blessing of Sanctuary
+static SpellHandlerOutcome<void> AuraDummyPaladin20911(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        ctx.target->CastSpell(ctx.target, 67480, true, NULL, ctx.aura);
+    }
+    else
+    {
+        ctx.target->RemoveAurasDueToSpell(67480);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
 template <class Site>
 struct AuraDummyRow
 {
@@ -1303,6 +1351,16 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 53792, &AuraDummyApplyWarrior53792 },
     };
 
+    static AuraDummyRow<AuraDummyApplyHunterSite> const hunterApply[] =
+    {
+        { 34026, &AuraDummyApplyHunter34026 },
+    };
+
+    static AuraDummyRow<AuraDummyApplyShamanSite> const shamanApply[] =
+    {
+        { 55198, &AuraDummyApplyShaman55198 },
+    };
+
     static AuraDummyRow<AuraDummyQuestTameSite> const questTame[] =
     {
         { 19548, &AuraDummyQuestTame19548 },
@@ -1343,10 +1401,12 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 41101, &AuraDummyRemove41101 },
         { 42454, &AuraDummyRemove42454 },
         { 43969, &AuraDummyRemove43969 },
+        { 44191, &AuraDummyRemove44191 },
         { 45934, &AuraDummyRemove45934 },
         { 45963, &AuraDummyRemove45963 },
         { 46308, &AuraDummyRemove46308 },
         { 46637, &AuraDummyRemove46637 },
+        { 48385, &AuraDummyRemove48385 },
         { 50141, &AuraDummyRemove50141 },
         { 51870, &AuraDummyRemove51870 },
         { 52098, &AuraDummyRemove52098 },
@@ -1413,13 +1473,21 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 34477, &AuraDummyHunter34477 },
     };
 
+    static AuraDummyRow<AuraDummyPaladinSite> const paladin[] =
+    {
+        { 20911, &AuraDummyPaladin20911 },
+    };
+
     uint32 rows = RegisterAuraDummyRows(registry, genericApply);
     rows += RegisterAuraDummyRows(registry, warriorApply);
+    rows += RegisterAuraDummyRows(registry, hunterApply);
+    rows += RegisterAuraDummyRows(registry, shamanApply);
     rows += RegisterAuraDummyRows(registry, questTame);
     rows += RegisterAuraDummyRows(registry, removal);
     rows += RegisterAuraDummyRows(registry, genericApplyRemove);
     rows += RegisterAuraDummyRows(registry, druid);
     rows += RegisterAuraDummyRows(registry, rogue);
     rows += RegisterAuraDummyRows(registry, hunter);
+    rows += RegisterAuraDummyRows(registry, paladin);
     return rows;
 }
