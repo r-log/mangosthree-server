@@ -28,6 +28,7 @@
 /// client expects, and one that changes its entry in water sends the start-swim.
 #include "TestHarness.h"
 #include "Creature.h"
+#include "State.h"
 
 namespace
 {
