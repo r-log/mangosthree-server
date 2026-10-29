@@ -50,4 +50,19 @@ bool HasInstanceVisibilityRadius(uint32 spellId);
 /// Whether a druid spell's effect, which has no radius of its own, takes the contact distance.
 bool HasContactRadius(uint32 spellId);
 
+/// Whether a modifier aura gets exactly one charge when it applies.
+bool IsOneChargeModifierAura(uint32 spellId);
+
+/// Whether a max-health percent aura sets its target's health to the new maximum when it changes.
+bool IsHealthToMaxAura(uint32 spellId);
+
+/// Whether an aura holder starts at the spell's maximum stack.
+bool IsMaxStackAtCreateAura(uint32 spellId);
+
+/// Whether a triggered overload spell ignores the cast time it carries from the spell that triggered it.
+bool IsOverloadIgnoringCastTime(uint32 spellId);
+
+/// Whether a spell may target a player on a taxi flight.
+bool MayTargetTaxiFlyer(uint32 spellId);
+
 #endif

@@ -54,6 +54,7 @@
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "Language.h"
+#include "spells/data/SpellTables.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -74,21 +75,9 @@ void Aura::HandleAddModifier(bool apply, bool Real)
         SpellEntry const* spellProto = GetSpellProto();
 
         // Add custom charges for some mod aura
-        switch (spellProto->ID)
+        if (IsOneChargeModifierAura(spellProto->ID))
         {
-            case 17941:                                     // Shadow Trance
-            case 22008:                                     // Netherwind Focus
-            case 31834:                                     // Light's Grace
-            case 34754:                                     // Clearcasting
-            case 34936:                                     // Backlash
-            case 44401:                                     // Missile Barrage
-            case 48108:                                     // Hot Streak
-            case 51124:                                     // Killing Machine
-            case 54741:                                     // Firestarter
-            case 57761:                                     // Fireball!
-            case 64823:                                     // Elune's Wrath (Balance druid t8 set
-                GetHolder()->SetAuraCharges(1);
-                break;
+            GetHolder()->SetAuraCharges(1);
         }
 
         SpellClassOptionsEntry const * opt = spellProto->GetSpellClassOptions();

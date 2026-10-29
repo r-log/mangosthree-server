@@ -257,9 +257,74 @@ namespace
         49376,  // Feral Charge - Cat
     };
 
+    /// The modifier auras that get exactly one charge.
+    constexpr uint32 ONE_CHARGE_MODIFIER_AURAS[] =
+    {
+        17941,  // Shadow Trance
+        22008,  // Netherwind Focus
+        34936,  // Backlash
+        48108,  // Hot Streak
+        51124,  // Killing Machine
+        54741,  // Firestarter
+        57761,  // Fireball!
+        64823,  // Elune's Wrath (Balance druid t8 set)
+    };
+
+    /// The max-health percent auras that set their target's health to the new maximum.
+    constexpr uint32 HEALTH_TO_MAX_AURAS[] =
+    {
+        60430,  // Molten Fury
+        64193,  // Heartbreak
+        65737,  // Heartbreak
+    };
+
+    /// The auras whose holders start at the spell's maximum stack.
+    constexpr uint32 MAX_STACK_AT_CREATE_AURAS[] =
+    {
+        24575,  // Brittle Armor
+        24659,  // Unstable Power
+        24662,  // Restless Strength
+        26464,  // Mercurial Shield
+        55166,  // Tidal Force
+        62519,  // Attuned to Nature
+        63050,  // Sanity
+        64455,  // Feral Essence
+        65294,  // Empowered
+        71564,  // Deadly Precision
+    };
+
+    /// The overload spells: zero-cost triggered copies of the caster's spell that carry its cast time, which the
+    /// triggering spell has already spent.
+    constexpr uint32 OVERLOAD_SPELLS[] =
+    {
+        45284,  // Lightning Bolt overload
+        45297,  // Chain Lightning overload
+        77451,  // Lava Burst overload
+    };
+
+    /// The spells that may target a player on a taxi flight.
+    constexpr uint32 TAXI_FLYER_TARGETS[] =
+    {
+        36573,  // Vision Guide
+        42316,  // Alcaz Survey Credit
+        42385,  // Alcaz Survey Aura
+    };
+
+    /// Whether `ids`, sorted, holds `spellId`.
+    template <std::size_t N>
+    bool Holds(uint32 const (&ids)[N], uint32 spellId)
+    {
+        return std::binary_search(std::begin(ids), std::end(ids), spellId);
+    }
+
     static_assert(SortedBySpellId(MAX_TARGETS), "max-targets rows are sorted by spell id, each once");
     static_assert(SortedBySpellId(INSTANCE_VISIBILITY_RADIUS), "instance visibility ids are sorted, each once");
     static_assert(SortedBySpellId(CONTACT_RADIUS), "contact radius ids are sorted, each once");
+    static_assert(SortedBySpellId(ONE_CHARGE_MODIFIER_AURAS), "one-charge modifier ids are sorted, each once");
+    static_assert(SortedBySpellId(HEALTH_TO_MAX_AURAS), "health-to-max ids are sorted, each once");
+    static_assert(SortedBySpellId(MAX_STACK_AT_CREATE_AURAS), "max-stack ids are sorted, each once");
+    static_assert(SortedBySpellId(OVERLOAD_SPELLS), "overload ids are sorted, each once");
+    static_assert(SortedBySpellId(TAXI_FLYER_TARGETS), "taxi flyer ids are sorted, each once");
 }
 
 SpellMaxTargetsRange const* FindSpellMaxTargets(uint32 spellId)
@@ -272,10 +337,35 @@ SpellMaxTargetsRange const* FindSpellMaxTargets(uint32 spellId)
 
 bool HasInstanceVisibilityRadius(uint32 spellId)
 {
-    return std::binary_search(std::begin(INSTANCE_VISIBILITY_RADIUS), std::end(INSTANCE_VISIBILITY_RADIUS), spellId);
+    return Holds(INSTANCE_VISIBILITY_RADIUS, spellId);
 }
 
 bool HasContactRadius(uint32 spellId)
 {
-    return std::binary_search(std::begin(CONTACT_RADIUS), std::end(CONTACT_RADIUS), spellId);
+    return Holds(CONTACT_RADIUS, spellId);
+}
+
+bool IsOneChargeModifierAura(uint32 spellId)
+{
+    return Holds(ONE_CHARGE_MODIFIER_AURAS, spellId);
+}
+
+bool IsHealthToMaxAura(uint32 spellId)
+{
+    return Holds(HEALTH_TO_MAX_AURAS, spellId);
+}
+
+bool IsMaxStackAtCreateAura(uint32 spellId)
+{
+    return Holds(MAX_STACK_AT_CREATE_AURAS, spellId);
+}
+
+bool IsOverloadIgnoringCastTime(uint32 spellId)
+{
+    return Holds(OVERLOAD_SPELLS, spellId);
+}
+
+bool MayTargetTaxiFlyer(uint32 spellId)
+{
+    return Holds(TAXI_FLYER_TARGETS, spellId);
 }

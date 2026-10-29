@@ -58,6 +58,7 @@
 #include "GridNotifiersImpl.h"
 #include "Language.h"
 #include "spells/handlers/AuraPeriodicHandlers.h"
+#include "spells/data/SpellTables.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -1117,16 +1118,10 @@ void Aura::HandleAuraModIncreaseHealthPercent(bool apply, bool /*Real*/)
 
     target->HandleStatModifier(UNIT_MOD_HEALTH, TOTAL_PCT, float(m_modifier.m_amount), apply);
 
-    // spell special cases when current health set to max value at apply
-    switch (GetId())
+    // spell special cases when current health set to max value
+    if (IsHealthToMaxAura(GetId()))
     {
-        case 60430:                                         // Molten Fury
-        case 64193:                                         // Heartbreak
-        case 65737:                                         // Heartbreak
-            target->SetHealth(target->GetMaxHealth());
-            break;
-        default:
-            break;
+        target->SetHealth(target->GetMaxHealth());
     }
 }
 

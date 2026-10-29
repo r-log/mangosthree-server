@@ -69,6 +69,7 @@
 #include "Vehicle.h"
 #include "DisableMgr.h"
 #include "spells/handlers/SpellChecksHandlers.h"
+#include "spells/data/SpellTables.h"
 
 /**
  * @brief Validates whether the spell can currently be cast.
@@ -263,19 +264,10 @@ SpellCastResult Spell::CheckCast(bool strict)
                 !m_caster->IsIgnoreUnitState(m_spellInfo, auraRestrictions->TargetAuraState == AURA_STATE_FROZEN ? IGNORE_UNIT_TARGET_NON_FROZEN : IGNORE_UNIT_TARGET_STATE))
                 return SPELL_FAILED_TARGET_AURASTATE;
 
-            // Not allow casting on flying player
-            if (target->IsTaxiFlying())
+            // Not allow casting on flying player, except some spells cast from a taxi flight
+            if (target->IsTaxiFlying() && !MayTargetTaxiFlyer(m_spellInfo->ID))
             {
-                switch (m_spellInfo->ID)
-                {
-                    // Except some spells from Taxi Flying cast
-                    case 36573:                             // Vision Guide
-                    case 42316:                             // Alcaz Survey Credit
-                    case 42385:                             // Alcaz Survey Aura
-                        break;
-                    default:
-                        return SPELL_FAILED_BAD_TARGETS;
-                }
+                return SPELL_FAILED_BAD_TARGETS;
             }
 
             if (!m_IsTriggeredSpell && !DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, NULL, SPELL_ATTR_EX2_IGNORE_LOS) && !LineOfSightExemptions::Has(m_spellInfo->ID) && !HasLineOfSight(*m_caster, *target))

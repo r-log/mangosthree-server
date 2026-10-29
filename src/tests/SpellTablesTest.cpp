@@ -245,3 +245,43 @@ TEST(SpellTables_TheFixedRadiiAreTheSwitchesLabelsAndNoOthers)
         CHECK(!HasContactRadius(spellId));
     }
 }
+
+TEST(SpellTables_TheFiveFlagSetsHoldTheirSwitchesLiveLabelsAndNoOthers)
+{
+    for (uint32 spellId : { 17941u, 22008u, 34936u, 48108u, 51124u, 54741u, 57761u, 64823u })
+    {
+        CHECK(IsOneChargeModifierAura(spellId));
+    }
+    for (uint32 spellId : { 60430u, 64193u, 65737u })
+    {
+        CHECK(IsHealthToMaxAura(spellId));
+    }
+    for (uint32 spellId : { 24575u, 24659u, 24662u, 26464u, 55166u, 62519u, 63050u, 64455u, 65294u, 71564u })
+    {
+        CHECK(IsMaxStackAtCreateAura(spellId));
+    }
+    for (uint32 spellId : { 45284u, 45297u, 77451u })
+    {
+        CHECK(IsOverloadIgnoringCastTime(spellId));
+    }
+    for (uint32 spellId : { 36573u, 42316u, 42385u })
+    {
+        CHECK(MayTargetTaxiFlyer(spellId));
+    }
+
+    // The switches' ids that are not 4.3.4 spells are in no set, and neither is an id no switch held.
+    for (uint32 spellId : { 31834u, 34754u, 44401u, 12345u })
+    {
+        CHECK(!IsOneChargeModifierAura(spellId));
+    }
+    for (uint32 spellId : { 34027u, 58914u, 74396u, 12345u })
+    {
+        CHECK(!IsMaxStackAtCreateAura(spellId));
+    }
+    for (uint32 spellId : { 45286u, 45296u, 49239u, 49240u, 45298u, 45302u, 49268u, 49269u, 12345u })
+    {
+        CHECK(!IsOverloadIgnoringCastTime(spellId));
+    }
+    CHECK(!IsHealthToMaxAura(12345));
+    CHECK(!MayTargetTaxiFlyer(12345));
+}
