@@ -2678,6 +2678,11 @@ TEST(SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDe
     CHECK(game.FindDefault<SpellEffectResurrectSite>() == onMiss);
 }
 
+namespace
+{
+    SpellEffectEntry const* WeaponDamageEffect(std::size_t slot, uint32 effectIndex);
+}
+
 TEST(SpellEffectObjectCombatHandlers_TheQuestCompleteSiteHoldsItsLabelAndNoDefault)
 {
     SpellHandlerRegistry registry;
