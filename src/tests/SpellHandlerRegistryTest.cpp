@@ -2976,11 +2976,14 @@ TEST(SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault)
     CHECK(registry.Find<SpellCheckCastAuraDummySite>(34026) == killCommand);
     CHECK(registry.FindDefault<SpellCheckCastAuraDummySite>() == onMiss);
 
-    // Keyed on the cast-check site only; the game's table holds the same rows and the same default.
+    // Survival Instincts is keyed on the cast-check site only; Kill Command also on the hunter aura dummy apply site,
+    // as the shared list's entry says. The game's table holds the same rows and the same default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK(!HeldByAnotherSite(game, SpellCheckCastAuraDummySite::Key, 61336));
+    CHECK(HeldByAnotherSite(game, SpellCheckCastAuraDummySite::Key, 34026));
+    CHECK(!HeldByAnotherSite(game, SpellCheckCastAuraDummySite::Key, 34026, AuraDummyApplyHunterSite::Key));
     for (uint32 spellId : { 34026u, 61336u })
     {
-        CHECK(!HeldByAnotherSite(game, SpellCheckCastAuraDummySite::Key, spellId));
         CHECK(game.Find<SpellCheckCastAuraDummySite>(spellId) == registry.Find<SpellCheckCastAuraDummySite>(spellId));
     }
     for (uint32 spellId : { 37433u, 68921u, 69049u, 20577u, 30769u, 24734u, 8342u, 9512u, 41099u })
