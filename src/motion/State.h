@@ -79,8 +79,8 @@ namespace Motion
 
     struct StateCounters
     {
-        uint32 applied, refused, emitted, acked, confirmed, epochs, modeChanges, mismatched, resent;
-        StateCounters() : applied(0), refused(0), emitted(0), acked(0), confirmed(0), epochs(0), modeChanges(0),
+        uint32 applied, adopted, refused, emitted, acked, confirmed, epochs, modeChanges, mismatched, resent;
+        StateCounters() : applied(0), adopted(0), refused(0), emitted(0), acked(0), confirmed(0), epochs(0), modeChanges(0),
                            mismatched(0), resent(0) {}
     };
 
@@ -96,6 +96,12 @@ namespace Motion
         Kinematics const& Confirmed() const { return m_confirmed; }
 
         std::vector<Emission> Apply(Change const& change, uint32 now);
+
+        /// A gait the caller has already put on the wire (a spline launch carries it in the
+        /// monster move's velocity): a server-driven unit takes it into desired and confirmed,
+        /// with nothing to emit. Anything but Gait, and any change to a client-driven unit, is
+        /// refused, as Apply refuses a server-only change there. True when taken.
+        bool Adopt(Change const& change);
         std::vector<Emission> Ack(ChangeType type, uint32 counter, AckPayload const& payload, uint32 now);
         AckResult LastAck() const { return m_lastAck; }
         void Tick(uint32 now) { m_pending.Tick(now); }
