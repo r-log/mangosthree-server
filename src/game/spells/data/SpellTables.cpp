@@ -310,6 +310,106 @@ namespace
         42385,  // Alcaz Survey Aura
     };
 
+    /// A spell id and the value it answers.
+    struct SpellAnswer
+    {
+        uint32 spellId;
+        uint32 answer;
+    };
+
+    constexpr SpellAnswer ARCANE_POTENCY[] =
+    {
+        { 31571, 57529 },
+        { 31572, 57531 },
+    };
+
+    constexpr SpellAnswer SECOND_WIND[] =
+    {
+        { 29834, 29841 },
+        { 29838, 29842 },
+        { 42770, 42771 },
+    };
+
+    constexpr SpellAnswer RAPID_RECUPERATION[] =
+    {
+        { 53228, 56654 },
+        { 53232, 58882 },
+    };
+
+    constexpr SpellAnswer FLAMETONGUE_WEAPON[] =
+    {
+        { 10400, 8026 },
+    };
+
+    constexpr SpellAnswer BLESSED_RECOVERY[] =
+    {
+        { 27811, 27813 },
+        { 27815, 27817 },
+        { 27816, 27818 },
+    };
+
+    constexpr SpellAnswer LIGHTNING_OVERLOAD[] =
+    {
+        { 403, 45284 },     // Lightning Bolt
+        { 421, 45297 },     // Chain Lightning
+    };
+
+    constexpr SpellAnswer LIGHTNING_SHIELD_DAMAGE[] =
+    {
+        { 324, 26364 },
+    };
+
+    constexpr SpellAnswer THREAT_OF_THASSARIAN[] =
+    {
+        { 45462, 66216 },   // Plague Strike
+        { 45902, 66215 },   // Blood Strike
+        { 49020, 66198 },   // Obliterate
+        { 49143, 66196 },   // Frost Strike
+        { 49998, 66188 },   // Death Strike
+        { 56815, 66217 },   // Rune Strike
+    };
+
+    constexpr SpellAnswer HOLY_SHOCK_OF_HEAL[] =
+    {
+        { 25914, 20473 },
+    };
+
+    constexpr SpellAnswer DEEP_WOUNDS_WEAPON_PERCENT[] =
+    {
+        { 12834, 16 },
+        { 12849, 32 },
+        { 12867, 48 },
+    };
+
+    constexpr uint32 BLAZING_SPEED_RANKS[] =
+    {
+        31641,
+        31642,
+    };
+
+    template <std::size_t N>
+    constexpr bool SortedBySpellId(SpellAnswer const (&rows)[N])
+    {
+        for (std::size_t i = 1; i < N; ++i)
+        {
+            if (!(rows[i - 1].spellId < rows[i].spellId))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// The answer of the row holding `spellId`, or 0 when no row holds it.
+    template <std::size_t N>
+    uint32 AnswerOf(SpellAnswer const (&rows)[N], uint32 spellId)
+    {
+        SpellAnswer const* end = std::end(rows);
+        SpellAnswer const* row = std::lower_bound(std::begin(rows), end, spellId,
+                                                  [](SpellAnswer const& r, uint32 id) { return r.spellId < id; });
+        return row != end && row->spellId == spellId ? row->answer : 0;
+    }
+
     /// Whether `ids`, sorted, holds `spellId`.
     template <std::size_t N>
     bool Holds(uint32 const (&ids)[N], uint32 spellId)
@@ -325,6 +425,17 @@ namespace
     static_assert(SortedBySpellId(MAX_STACK_AT_CREATE_AURAS), "max-stack ids are sorted, each once");
     static_assert(SortedBySpellId(OVERLOAD_SPELLS), "overload ids are sorted, each once");
     static_assert(SortedBySpellId(TAXI_FLYER_TARGETS), "taxi flyer ids are sorted, each once");
+    static_assert(SortedBySpellId(ARCANE_POTENCY), "Arcane Potency rows are sorted, each once");
+    static_assert(SortedBySpellId(SECOND_WIND), "Second Wind rows are sorted, each once");
+    static_assert(SortedBySpellId(RAPID_RECUPERATION), "Rapid Recuperation rows are sorted, each once");
+    static_assert(SortedBySpellId(FLAMETONGUE_WEAPON), "Flametongue Weapon rows are sorted, each once");
+    static_assert(SortedBySpellId(BLESSED_RECOVERY), "Blessed Recovery rows are sorted, each once");
+    static_assert(SortedBySpellId(LIGHTNING_OVERLOAD), "Lightning Overload rows are sorted, each once");
+    static_assert(SortedBySpellId(LIGHTNING_SHIELD_DAMAGE), "Lightning Shield rows are sorted, each once");
+    static_assert(SortedBySpellId(THREAT_OF_THASSARIAN), "Threat of Thassarian rows are sorted, each once");
+    static_assert(SortedBySpellId(HOLY_SHOCK_OF_HEAL), "Holy Shock rows are sorted, each once");
+    static_assert(SortedBySpellId(DEEP_WOUNDS_WEAPON_PERCENT), "Deep Wounds rows are sorted, each once");
+    static_assert(SortedBySpellId(BLAZING_SPEED_RANKS), "Blazing Speed ranks are sorted, each once");
 }
 
 SpellMaxTargetsRange const* FindSpellMaxTargets(uint32 spellId)
@@ -368,4 +479,59 @@ bool IsOverloadIgnoringCastTime(uint32 spellId)
 bool MayTargetTaxiFlyer(uint32 spellId)
 {
     return Holds(TAXI_FLYER_TARGETS, spellId);
+}
+
+uint32 GetArcanePotencyProcSpell(uint32 rankSpellId)
+{
+    return AnswerOf(ARCANE_POTENCY, rankSpellId);
+}
+
+uint32 GetSecondWindProcSpell(uint32 rankSpellId)
+{
+    return AnswerOf(SECOND_WIND, rankSpellId);
+}
+
+uint32 GetRapidRecuperationProcSpell(uint32 rankSpellId)
+{
+    return AnswerOf(RAPID_RECUPERATION, rankSpellId);
+}
+
+uint32 GetFlametongueWeaponProcSpell(uint32 rankSpellId)
+{
+    return AnswerOf(FLAMETONGUE_WEAPON, rankSpellId);
+}
+
+uint32 GetBlessedRecoveryProcSpell(uint32 rankSpellId)
+{
+    return AnswerOf(BLESSED_RECOVERY, rankSpellId);
+}
+
+uint32 GetLightningOverloadSpell(uint32 procSpellId)
+{
+    return AnswerOf(LIGHTNING_OVERLOAD, procSpellId);
+}
+
+uint32 GetLightningShieldDamageSpell(uint32 rankSpellId)
+{
+    return AnswerOf(LIGHTNING_SHIELD_DAMAGE, rankSpellId);
+}
+
+uint32 GetThreatOfThassarianOffHandSpell(uint32 strikeSpellId)
+{
+    return AnswerOf(THREAT_OF_THASSARIAN, strikeSpellId);
+}
+
+uint32 GetHolyShockOfHeal(uint32 healSpellId)
+{
+    return AnswerOf(HOLY_SHOCK_OF_HEAL, healSpellId);
+}
+
+uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId)
+{
+    return AnswerOf(DEEP_WOUNDS_WEAPON_PERCENT, rankSpellId);
+}
+
+bool IsBlazingSpeedRank(uint32 spellId)
+{
+    return Holds(BLAZING_SPEED_RANKS, spellId);
 }
