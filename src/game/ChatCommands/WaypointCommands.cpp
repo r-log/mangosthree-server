@@ -47,7 +47,6 @@
 #include "ObjectMgr.h"
 #include "MotionMaster.h"
 
-#include "movement/MoveSplineInit.h"
 #include <fstream>
 #include <map>
 #include <typeinfo>

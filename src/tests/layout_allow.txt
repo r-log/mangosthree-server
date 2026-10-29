@@ -685,18 +685,9 @@ src/game/entities/player/world/PlayerZone.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/world/PlayerZone.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/world/PlayerZone.cpp -> src/proto/Opcodes.h
 src/game/entities/player/world/PlayerZone.cpp -> src/proto/WorldPacket.h
-src/game/movement/MoveSpline.cpp -> src/game/Object/Unit.h
-src/game/movement/MoveSplineInit.cpp -> src/game/Object/Unit.h
-src/game/movement/MoveSplineInit.cpp -> src/game/Object/Vehicle.h
-src/game/movement/MoveSplineInit.cpp -> src/game/WorldHandlers/Map.h
-src/game/movement/MoveSplineInit.cpp -> src/game/WorldHandlers/TransportMap.h
-src/game/movement/MoveSplineInit.cpp -> src/game/WorldHandlers/Transports.h
-src/game/movement/MoveSplineInit.h -> src/game/MotionGenerators/PathFinder.h
-src/game/movement/MoveSplineSpeed.h -> src/game/Object/Unit.h
 src/game/movement/MovementBridge.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
-src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
 # The rename and the customize tell every client to drop the renamed character's cached data: sWorld.InvalidatePlayerDataToAllClient.
 src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h

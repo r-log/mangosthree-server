@@ -825,6 +825,8 @@ WorldPacket& operator>> (WorldPacket& buf, MovementInfo& mi);
 namespace Movement
 {
     class MoveSpline;
+    struct Aboard;
+    struct Location;
 }
 
 /**
@@ -4349,6 +4351,11 @@ class Unit : public WorldObject
         /// mover session's player, built from this unit's stored status. Nothing is
         /// sent while the unit is out of the world; the desired state has already advanced.
         void SendEmissions(std::vector<Motion::Emission> const& emissions);
+        /// Sends SMSG_MONSTER_MOVE for the spline just launched to everyone in range, in its
+        /// transport form while the unit is aboard something.
+        void SendMonsterMove(Movement::Aboard const& aboard) const;
+        /// Sends the point-carrying stop at `at` to everyone in range, under the spline's id.
+        void SendMonsterMoveStop(Movement::Aboard const& aboard, Movement::Location const& at) const;
         /// Emissions no packet could be built for, or a mover form on a unit without a
         /// mover session.
         uint32 GetMotionDropped() const { return m_motionDropped; }

@@ -51,7 +51,8 @@
 #include "MonsterMovePath.h"
 #include "Util.h"
 #include "WorldPacket.h"
-#include "../Object/Creature.h"
+#include "ObjectGuid.h"
+#include "Geometry/Placement.h"
 
 namespace Movement
 {

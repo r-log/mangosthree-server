@@ -48,7 +48,7 @@
 #include "ProgressBar.h"
 #include "persistence/world/creatures/VehicleAccessoryRepository.h"
 #include "Util.h"
-#include "movement/MoveSplineInit.h"
+#include "MotionGenerators/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
 #include "TemporarySummon.h"
 #include "WorldSession.h"

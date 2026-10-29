@@ -48,6 +48,11 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 
+ObjectGuid TransportMap::VesselGuid() const
+{
+    return m_vessel ? m_vessel->GetObjectGuid() : ObjectGuid();
+}
+
 /**
  * @brief Where a unit ACTUALLY is: map, frame, pose, and whether anything can move it.
  *

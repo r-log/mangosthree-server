@@ -38,7 +38,6 @@
 #include "TaxiMove.h"
 #include "WaypointManager.h"
 #include "movement/MoveSpline.h"
-#include "movement/MoveSplineInit.h"
 #include "Map.h"
 #include "ObjectLookup.h"
 #include "Creature.h"

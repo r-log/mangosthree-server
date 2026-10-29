@@ -38,7 +38,7 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 320 include lines go against the table.
+**Today:** 311 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
@@ -46,7 +46,7 @@ These directories **dissolve**:
 | domain -> session | 83 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
 | any -> app | 26 | `World.h`: scripts 10, session 7, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
 | data -> domain | 58 | `MapManager.h` 5, `MapPersistentStateMgr.h` 5, `SpellMgr.h` 5, `Creature.h` 5 | `ObjectMgr.cpp`, `GameEventMgr.cpp`, `CreatureLinkingMgr.cpp` |
-| motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSplineInit.cpp`, `MoveSpline.cpp`, `WireParity.cpp` |
+| motion -> domain, session | 3 | `Unit.h` 2, `OpcodeTable.h` 1, all from `game/movement/` | `WireParity.cpp`, `MovementBridge.cpp` |
 | rest | 12 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
 
 The domain directories are peers. Include lines that cross between them are allowed, but they cannot spread: they are
@@ -98,8 +98,8 @@ domain therefore never names session or `WorldPacket`.
 
 `persistence/` makes every `CharacterDatabase.`, `WorldDatabase.` and `LoginDatabase.` call.
 
-**Today (packets):** 406 `WorldPacket data(` sites: session 178, the domain tier 215 (entities 145, 89 of them under
-`entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 2), scripts 7, app 4, motion 2. What a player's own client is
+**Today (packets):** 404 `WorldPacket data(` sites: session 178, the domain tier 215 (entities 145, 89 of them under
+`entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 2), scripts 7, app 4. What a player's own client is
 told when its swing is out of reach or faces away, its attack or its auto-repeat spell is cancelled, its pet is set,
 its pet action bar is cleared, its stand state changes, it is credited honor for a kill, it completes a quest or it
 is sent a system message are ten typed facts declared beside `Player` (`PlayerClientFacts.h`); a rune converted, the runes resynchronised and rune power added are
@@ -222,7 +222,7 @@ the downcast counts and the database-call count.
 |---|---|---|
 | every file | lives in a directory named here; includes by path; only the edges section 1 allows | `CheckLayout`, built (#179). It ratchets from the measured edges listed in `layout_allow.txt`; `layout_gate.py --check` prints the count per bucket. Edges against the rule or into a gated seam are keyed per includer file and header; a line may change its includer file in the PR that deletes the old one or removes the include from it, only within the same layer pair and header, and a change of layer pair or header is a new edge. Sideways edges are keyed per includer directory, includer peer and header: the peer is the coupling unit, the directory stands in for it until `Object/`, `WorldHandlers/` and `References/` dissolve, and the key then collapses to directory and header. A file can split inside its directory. An edge leaves its allow-list in the PR that removes it, and a new one fails. `CheckIncludeCollisions` is in #174. |
 | proto, foundation | nothing above | `CheckProtoBoundary` (holds, 0 lines out). Foundation has no gate yet (2 lines out, `ObjectGuid.cpp`). |
-| motion | proto and foundation only | `CheckMotionBoundary`. It holds for `src/motion`; `game/movement/` (12 lines) is outside it. A unit's movement record has one owner: `CheckMovementWriters` (private to `Unit`, written only through its named operations, each from its own files). |
+| motion | proto and foundation only | `CheckMotionBoundary`. It holds for `src/motion`; `game/movement/` (3 lines) is outside it. A unit's movement record has one owner: `CheckMovementWriters` (private to `Unit`, written only through its named operations, each from its own files). |
 | persistence | the only place a `*Database.` call is spelled and a result or a field is read | `CheckDatabaseCalls`: no `CharacterDatabase`, `WorldDatabase` or `LoginDatabase` call in `src/game`, `src/modules`, `src/shared` or `src/mangosd` outside persistence and the driver; `CheckRowTypes`: no `QueryResult`, `QueryNamedResult` or `Field` there; `CheckSyncDb`: the blocking calls in the files it lists |
 | data | no domain, session or scripts header | `CheckLayout`; a `CheckHeaderReach` row for `ObjectMgr.h` |
 | domain | no `WorldPacket.h`, `Opcodes.h`, `WorldSession.h` or `*Database.`; the directories are peers under the ratchet; gated seams `entities/player` and `spells/aura`; managers never name `Player` | `CheckLayout`, `CheckManagerIsolation`, `CheckHeaderReach`, `CheckSessionSeam`, `CheckSpatialBoundary`, `CheckBlockedMasks`; `CheckStateOwnership` re-pointed at the session and persistence files |
@@ -382,7 +382,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 3 | `World.h` included 27 times below app | the configuration interface (#143), when content touches it |
 | 4 | `ScriptMgr.h` and `Chat.h` included below scripts 0 times (`Chat.h` 23 times when #83 began): a map runs its database script steps and the domain starts its events through `data/DbScriptHooks`, which `mangosd` installs; the session builds the chat packets and system messages, the domain builds its chat packets through `data/ChatPacketBuilder` and reports a player's system messages as a client fact, and the GM commands are reached through `data/CommandHooks` | closed for the includes (#83); the domain's chat packets become facts with row 1 |
 | 5 | data -> domain: 58 lines, in the loaders and managers that act on live objects; `ObjectMgr.h` reaches no domain header (its `CheckHeaderReach` row) | #121, when content needs it |
-| 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
+| 6 | `game/movement/`: the record bridge and the wire parity check include `Unit.h`, and the parity check `OpcodeTable.h` (3 lines) | #81 |
 | 7 | `PlayerDump` and `CharacterDatabaseCleaner` (7 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
 | 8 | 0 database calls outside persistence | closed: `CheckDatabaseCalls` keeps it at 0 |
 | 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); none calls the database; all twelve are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, `CurrencyMgr`, `SocialList`, `GlyphMgr`, `TalentMgr` and `QuestStatusMgr`, whose rows their repositories in `persistence/characters/` read and write). **Spells, Today:** `SpellCooldownMgr` calls no database (its rows go through its repository in `persistence/characters/spells/`) and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | closed for the database (#144: no manager calls it, each is tested from plain rows and its repository over the fake connection); the rest when the domain is next touched |
@@ -411,16 +411,16 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
 
 - Where the files go: `python layers.py src files | grep ' game/Object/' | cut -d' ' -f1 | sort | uniq -c` (and
   likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
-- The edge tables: `python layers.py src against` (1,105, with the headers and the includers),
+- The edge tables: `python layers.py src against` (311, with the headers and the includers),
   `python layers.py src sideways` (2,357) and `python layers.py src edges` (every layer pair).
-- Packets and the database: `python layers.py src packets` (407 by layer and directory) and `python layers.py src db`
+- Packets and the database: `python layers.py src packets` (404 by layer and directory) and `python layers.py src db`
   (1,006). For game `.cpp` only:
   `grep -rhoE '\b(Character|World|Login)Database\.' --include=*.cpp src/game | wc -l` (994), with `-l` for the files
   (127).
 - Proto: `python layers.py src edges | grep -E '^(proto|session +-> proto|motion +-> proto)'` (proto -> proto and
-  foundation only; session 116; motion 19), split by
+  foundation only; session 116; motion 20), split by
   `grep -hE '#\s*include\s*"(wire/[A-Za-z]+\.h|WorldPacket\.h|Opcodes\.h)"' src/motion/* | wc -l` (8) and the
-  same over `src/game/movement/*` (11).
+  same over `src/game/movement/*` (12).
 - The manager audit, per manager `M`:
   `cat M.h M.cpp | grep -v '^\s*//' | grep -oE 'SMSG_[A-Z_]+' | sort -u` (opcodes built) and
   `cat M.h M.cpp | grep -cE '\b(Character|World|Login)Database\.'` (database lines).

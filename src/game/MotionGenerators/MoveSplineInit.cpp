@@ -25,36 +25,35 @@
 
 #include "MoveSplineInit.h"
 #include "MoveSplineSpeed.h"
-#include "MoveSpline.h"
-#include "packet_builder.h"
-#include "MonsterMoveStop.h"
+#include "movement/MoveSpline.h"
+#include "movement/MonsterMovePacket.h"
 #include "Unit.h"
 #include "State.h"
-#include "Transports.h"
 #include "Vehicle.h"
 #include "TransportMap.h"
 #include "Map.h"
-#include "WorldPacket.h"
+#include "Log.h"
 #include <atomic>
 
 namespace
 {
-    /// The vessel whose deck this unit is standing on, or an empty guid. Derived from the
-    /// map, so a spline goes out as SMSG_MONSTER_MOVE_TRANSPORT for anything on a deck --
-    /// crew, pet or totem alike -- without anyone having registered it as anything.
-    ObjectGuid DeckVesselGuidOf(Unit const& unit)
+    /// What the unit is aboard: the vehicle of its seat, or else the vessel whose deck it
+    /// stands on, read from its map, so anything on a deck -- crew, pet or totem alike --
+    /// moves in the transport form. A deck has no seat, and -1 tells the client so.
+    Movement::Aboard AboardOf(Unit const& unit, TransportInfo const* vehicle)
     {
+        if (vehicle)
+        {
+            return Movement::Aboard{vehicle->GetTransportGuid(), int8(vehicle->GetTransportSeat())};
+        }
         if (Map* on = unit.FindMap())
         {
             if (TransportMap* hull = on->AsTransport())
             {
-                if (Transport* vessel = hull->Vessel())
-                {
-                    return vessel->GetObjectGuid();
-                }
+                return Movement::Aboard{hull->VesselGuid(), -1};
             }
         }
-        return ObjectGuid();
+        return Movement::Aboard();
     }
 }
 
@@ -118,8 +117,6 @@ namespace Movement
             transportInfo = NULL;
         }
 
-        const ObjectGuid vesselGuid = DeckVesselGuidOf(unit);
-
         Location real_position(unit.Where().X(), unit.Where().Y(), unit.Where().Z(), unit.Where().Facing());
 
         if (transportInfo)
@@ -174,37 +171,15 @@ namespace Movement
             args.velocity = unit.GetSpeed(SelectSpeedType(moveFlags));
         }
 
-        if (!args.Validate(&unit))
+        if (char const* failed = args.Validate())
         {
+            sLog.outError("MoveSplineInitArgs::Validate: expression '%s' failed for %s", failed, unit.GetGuidStr().c_str());
             return 0;
         }
 
         unit.MotionState().Adopt(Motion::FlagChange(Motion::ChangeType::Gait, args.walk));
         move_spline.Initialize(args);
-
-        WorldPacket data(SMSG_MONSTER_MOVE, 64);
-        data << unit.GetPackGUID();
-
-        if (transportInfo)
-        {
-            data.SetOpcode(SMSG_MONSTER_MOVE_TRANSPORT);
-            data << transportInfo->GetTransportGuid().WriteAsPacked();
-            data << int8(transportInfo->GetTransportSeat());
-        }
-        else if (!vesselGuid.IsEmpty())
-        {
-            // NO SEAT. A seat is a vehicle's, and a vehicle is a unit: it has a seat map,
-            // a transform per seat and a passenger bound to one. A ship has none of that --
-            // she is a map, and what is on her is simply on her. -1 is how the client is
-            // told there is no seat, and it is what both reference cores send for a
-            // MO_TRANSPORT.
-            data.SetOpcode(SMSG_MONSTER_MOVE_TRANSPORT);
-            data << vesselGuid.WriteAsPacked();
-            data << int8(-1);
-        }
-
-        PacketBuilder::WriteMonsterMove(move_spline, data);
-        unit.SendMessageToSet(&data, true);
+        unit.SendMonsterMove(AboardOf(unit, transportInfo));
 
         return move_spline.Duration();
     }
@@ -253,8 +228,6 @@ namespace Movement
             transportInfo = NULL;
         }
 
-        const ObjectGuid vesselGuid = DeckVesselGuidOf(unit);
-
         Location real_position(unit.Where().X(), unit.Where().Y(), unit.Where().Z(), unit.Where().Facing());
 
         if (transportInfo)
@@ -284,22 +257,7 @@ namespace Movement
 
         args.flags = MoveSplineFlag::Done;
         move_spline.Initialize(args);
-
-        // NO SEAT for a deck. A seat is a vehicle's, and a vehicle is a unit: it has a seat
-        // map, a transform per seat and a passenger bound to one. A ship has none of that --
-        // she is a map, and what is on her is simply on her. -1 is how the client is told
-        // there is no seat, and it is what both reference cores send for a MO_TRANSPORT.
-        const bool onTransport = transportInfo || !vesselGuid.IsEmpty();
-        const uint64 vessel = transportInfo ? transportInfo->GetTransportGuid().GetRawValue() : vesselGuid.GetRawValue();
-        const int8 seat = transportInfo ? int8(transportInfo->GetTransportSeat()) : int8(-1);
-
-        WorldPacket data(onTransport ? SMSG_MONSTER_MOVE_TRANSPORT : SMSG_MONSTER_MOVE, 64);
-        // One writer, shared with the suite (MonsterMoveStop.h): these are the bytes
-        // MotionWrites_the_point_carrying_stop_ends_at_the_type pins.
-        static_assert(kMonsterMoveStopType == MonsterMoveStop, "the stop writer's type byte drifted from MoveSpline.h");
-        WriteMonsterMoveStop(data, unit.GetObjectGuid().GetRawValue(), onTransport, vessel, seat,
-                             real_position.x, real_position.y, real_position.z, move_spline.GetId());
-        unit.SendMessageToSet(&data, true);
+        unit.SendMonsterMoveStop(AboardOf(unit, transportInfo), real_position);
     }
 
     /**

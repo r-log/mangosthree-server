@@ -49,7 +49,6 @@
 #include "Formulas.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
-#include "movement/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
 #include "GameTime.h"
 

@@ -65,8 +65,9 @@
 #include "MapPhase.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "movement/MoveSplineInit.h"
+#include "MotionGenerators/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
+#include "movement/MonsterMovePacket.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
 #include "Geometry/Placement.h"
@@ -445,6 +446,20 @@ void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
                 break;
         }
     }
+}
+
+void Unit::SendMonsterMove(Movement::Aboard const& aboard) const
+{
+    WorldPacket data;
+    Movement::BuildMonsterMove(data, GetObjectGuid(), aboard, *movespline);
+    SendMessageToSet(&data, true);
+}
+
+void Unit::SendMonsterMoveStop(Movement::Aboard const& aboard, Movement::Location const& at) const
+{
+    WorldPacket data;
+    Movement::BuildMonsterMoveStop(data, GetObjectGuid(), aboard, at, movespline->GetId());
+    SendMessageToSet(&data, true);
 }
 
 Unit::~Unit()
