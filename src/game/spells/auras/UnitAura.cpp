@@ -33,6 +33,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "Util.h"
+#include "Pet.h"
 #include "Totem.h"
 #include "GridNotifiersImpl.h"
 #include "movement/MoveSpline.h"
@@ -1815,4 +1816,493 @@ bool Unit::HasAuraOfDifficulty(uint32 spellId) const
         }
 
     return m_auras.Holders().find(spellId) != m_auras.Holders().end();
+}
+
+/**
+ * @brief Removes all spells on the unit that apply a specific aura type.
+ *
+ * @param auraType The aura type to remove.
+ */
+void Unit::RemoveSpellsCausingAura(AuraType auraType)
+{
+    for (AuraList::const_iterator iter = m_auras.ByType(auraType).begin(); iter != m_auras.ByType(auraType).end();)
+    {
+        RemoveAurasDueToSpell((*iter)->GetId());
+        iter = m_auras.ByType(auraType).begin();
+    }
+}
+
+/**
+ * @brief Removes spells applying an aura type except for one specific holder.
+ *
+ * @param auraType The aura type to remove.
+ * @param except The aura holder to keep.
+ */
+void Unit::RemoveSpellsCausingAura(AuraType auraType, SpellAuraHolder* except)
+{
+    for (AuraList::const_iterator iter = m_auras.ByType(auraType).begin(); iter != m_auras.ByType(auraType).end();)
+    {
+        // skip `except` aura
+        if ((*iter)->GetHolder() == except)
+        {
+            ++iter;
+            continue;
+        }
+
+        RemoveAurasDueToSpell((*iter)->GetId(), except);
+        iter = m_auras.ByType(auraType).begin();
+    }
+}
+
+/**
+ * @brief Removes stacked auras of a type from a specific caster.
+ *
+ * @param auraType The aura type to remove.
+ * @param casterGuid The caster GUID whose auras should be removed.
+ */
+void Unit::RemoveSpellsCausingAura(AuraType auraType, ObjectGuid casterGuid)
+{
+    for (AuraList::const_iterator iter = m_auras.ByType(auraType).begin(); iter != m_auras.ByType(auraType).end();)
+    {
+        if ((*iter)->GetCasterGuid() == casterGuid)
+        {
+            RemoveSpellAuraHolder((*iter)->GetHolder());
+            iter = m_auras.ByType(auraType).begin();
+        }
+        else
+        {
+            ++iter;
+        }
+    }
+}
+
+bool Unit::HasAuraStateForCaster(AuraState flag, ObjectGuid casterGuid) const
+{
+    if (!HasAuraState(flag))
+    {
+        return false;
+    }
+
+    // single per-caster aura state
+    if (flag == AURA_STATE_CONFLAGRATE)
+    {
+        Unit::AuraList const& dotList = GetAurasByType(SPELL_AURA_PERIODIC_DAMAGE);
+        for (Unit::AuraList::const_iterator i = dotList.begin(); i != dotList.end(); ++i)
+        {
+            if ((*i)->GetCasterGuid() == casterGuid &&
+                    //  Immolate or Shadowflame
+                    (*i)->GetSpellProto()->IsFitToFamily(SPELLFAMILY_WARLOCK, UI64LIT(0x0000000000000004), 0x00000002))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Applies or removes an aura state flag and updates dependent passive auras.
+ *
+ * @param flag The aura state flag.
+ * @param apply True to apply the flag; false to remove it.
+ */
+void Unit::ModifyAuraState(AuraState flag, bool apply)
+{
+    if (apply)
+    {
+        if (!HasFlag(UNIT_FIELD_AURASTATE, 1 << (flag - 1)))
+        {
+            SetFlag(UNIT_FIELD_AURASTATE, 1 << (flag - 1));
+            if (GetTypeId() == TYPEID_PLAYER)
+            {
+                CastPassiveSpellsForAuraState(flag);
+            }
+        }
+    }
+    else
+    {
+        if (HasFlag(UNIT_FIELD_AURASTATE, 1 << (flag - 1)))
+        {
+            RemoveFlag(UNIT_FIELD_AURASTATE, 1 << (flag - 1));
+
+            if (flag != AURA_STATE_ENRAGE)                  // enrage aura state triggering continues auras
+            {
+                Unit::SpellAuraHolderMap& tAuras = GetSpellAuraHolderMap();
+                for (Unit::SpellAuraHolderMap::iterator itr = tAuras.begin(); itr != tAuras.end();)
+                {
+                    SpellEntry const* spellProto = (*itr).second->GetSpellProto();
+                    if (AuraState(spellProto->GetCasterAuraState()) == flag)
+                    {
+                        RemoveSpellAuraHolder(itr->second);
+                        itr = tAuras.begin();
+                    }
+                    else
+                    {
+                        ++itr;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * @brief Applies or removes a spell immunity entry.
+ *
+ * @param spellId The spell identifier granting the immunity.
+ * @param op The immunity operation bucket.
+ * @param type The immune type value.
+ * @param apply True to apply the immunity; false to remove it.
+ */
+void Unit::ApplySpellImmune(uint32 spellId, uint32 op, uint32 type, bool apply)
+{
+    if (apply)
+    {
+        for (SpellImmuneList::iterator itr = m_spellImmune[op].begin(), next; itr != m_spellImmune[op].end(); itr = next)
+        {
+            next = itr; ++next;
+            if (itr->type == type)
+            {
+                m_spellImmune[op].erase(itr);
+                next = m_spellImmune[op].begin();
+            }
+        }
+        SpellImmune Immune;
+        Immune.spellId = spellId;
+        Immune.type = type;
+        m_spellImmune[op].push_back(Immune);
+    }
+    else
+    {
+        for (SpellImmuneList::iterator itr = m_spellImmune[op].begin(); itr != m_spellImmune[op].end(); ++itr)
+        {
+            if (itr->spellId == spellId)
+            {
+                m_spellImmune[op].erase(itr);
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * @brief Applies or removes dispel immunity and optionally clears dispellable auras.
+ *
+ * @param spellProto The spell entry granting immunity.
+ * @param type The dispel type.
+ * @param apply True to apply immunity; false to remove it.
+ */
+void Unit::ApplySpellDispelImmunity(const SpellEntry* spellProto, DispelType type, bool apply)
+{
+    ApplySpellImmune(spellProto->ID, IMMUNITY_DISPEL, type, apply);
+
+    if (apply && spellProto->HasAttribute(SPELL_ATTR_EX_DISPEL_AURAS_ON_IMMUNITY))
+    {
+        RemoveAurasWithDispelType(type);
+    }
+}
+
+int32 Unit::CalculateAuraDuration(SpellEntry const* spellProto, uint32 effectMask, int32 duration, Unit const* caster, Spell const* spell /*=NULL*/)
+{
+    if (duration <= 0)
+    {
+        return duration;
+    }
+
+    int32 mechanicMod = 0;
+    uint32 mechanicMask = GetSpellMechanicMask(spellProto, effectMask);
+
+    for (int32 mechanic = FIRST_MECHANIC; mechanic < MAX_MECHANIC; ++mechanic)
+    {
+        if (!(mechanicMask & (1 << (mechanic - 1))))
+        {
+            continue;
+        }
+
+        int32 stackingMod = GetTotalAuraModifierByMiscValue(SPELL_AURA_MECHANIC_DURATION_MOD, mechanic);
+        int32 nonStackingMod = GetMaxNegativeAuraModifierByMiscValue(SPELL_AURA_MECHANIC_DURATION_MOD_NOT_STACK, mechanic);
+
+        mechanicMod = std::min(mechanicMod, std::min(stackingMod, nonStackingMod));
+    }
+
+    int32 dispelMod = 0;
+    int32 dmgClassMod = 0;
+
+    if (!IsPositiveSpell(spellProto))
+    {
+        dispelMod   = GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_DURATION_OF_EFFECTS_BY_DISPEL, spellProto->GetDispel());
+        dmgClassMod = GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_DURATION_OF_MAGIC_EFFECTS, spellProto->GetDmgClass());
+    }
+
+    int32 durationMod = std::min(mechanicMod, std::min(dispelMod, dmgClassMod));
+
+    if (durationMod != 0)
+    {
+        duration = int32(int64(duration) * (100 + durationMod) / 100);
+
+        if (duration < 0)
+        {
+            duration = 0;
+        }
+    }
+
+    if (caster == this)
+    {
+        switch(spellProto->GetSpellFamilyName())
+        {
+            case SPELLFAMILY_DRUID:
+                // Thorns
+                if (spellProto->SpellIconID == 53 && spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000100)))
+                {
+                    // Glyph of Thorns
+                    if (Aura* aur = GetAura(57862, EFFECT_INDEX_0))
+                    {
+                        duration += aur->GetModifier()->m_amount * MINUTE * IN_MILLISECONDS;
+                    }
+                }
+                break;
+            case SPELLFAMILY_PALADIN:
+                // Blessing of Might
+                if (spellProto->SpellIconID == 298 && spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000002)))
+                {
+                    // Glyph of Blessing of Might
+                    if (Aura* aur = GetAura(57958, EFFECT_INDEX_0))
+                    {
+                        duration += aur->GetModifier()->m_amount * MINUTE * IN_MILLISECONDS;
+                    }
+                }
+                // Blessing of Wisdom
+                else if (spellProto->SpellIconID == 306 && spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000010000)))
+                {
+                    // Glyph of Blessing of Wisdom
+                    if (Aura* aur = GetAura(57979, EFFECT_INDEX_0))
+                    {
+                        duration += aur->GetModifier()->m_amount * MINUTE * IN_MILLISECONDS;
+                    }
+                }
+                // Inquisition
+                else if (spellProto->ID == 84963)
+                {
+                    if (spell && GetPowerIndex(POWER_HOLY_POWER) != INVALID_POWER_INDEX)
+                    {
+                        duration *= spell->GetUsedHolyPower();
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    return duration;
+}
+
+/**
+ * @brief Checks whether the unit currently has the frozen aura state.
+ *
+ * @return True if the unit is frozen; otherwise, false.
+ */
+bool Unit::IsFrozen() const
+{
+    return HasAuraState(AURA_STATE_FROZEN);
+}
+
+/**
+ * @brief Checks for a negative aura that uses a given interrupt flag.
+ *
+ * @param flag The interrupt flag to test.
+ * @return True if a matching negative aura is active; otherwise, false.
+ */
+bool Unit::hasNegativeAuraWithInterruptFlag(uint32 flag)
+{
+    for (SpellAuraHolderMap::const_iterator iter = m_auras.Holders().begin(); iter != m_auras.Holders().end(); ++iter)
+    {
+        if (!iter->second->IsPositive() && iter->second->GetSpellProto()->GetAuraInterruptFlags() & flag)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief Marks aura updates for group synchronization.
+ *
+ * @param slot The aura slot that changed.
+ */
+void Unit::UpdateAuraForGroup(uint8 slot)
+{
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).aura, GroupAuraFact{GROUP_UPDATE_FLAG_AURAS, slot});
+    }
+    else if (IsPet())
+    {
+        Pet* pet = ((Pet*)this);
+        if (pet->isControlled())
+        {
+            Unit* owner = GetOwner();
+            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
+            {
+                ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).petAura, PetGroupAuraFact{GROUP_UPDATE_FLAG_PET_AURAS, slot, pet});
+            }
+        }
+    }
+}
+
+/**
+ * @brief Finds a dummy aura with the specified spell identifier.
+ *
+ * @param spell_id The spell identifier to search for.
+ * @return The matching aura, or null if not found.
+ */
+Aura* Unit::GetDummyAura(uint32 spell_id) const
+{
+    Unit::AuraList const& mDummy = GetAurasByType(SPELL_AURA_DUMMY);
+    for (Unit::AuraList::const_iterator itr = mDummy.begin(); itr != mDummy.end(); ++itr)
+        if ((*itr)->GetId() == spell_id)
+        {
+            return *itr;
+        }
+
+    return NULL;
+}
+
+/**
+ * @brief Registers a persistent pet aura for the unit.
+ *
+ * @param petSpell The pet aura definition.
+ */
+void Unit::AddPetAura(PetAura const* petSpell)
+{
+    m_petAuras.insert(petSpell);
+    if (Pet* pet = GetPet())
+    {
+        pet->CastPetAura(petSpell);
+    }
+}
+
+/**
+ * @brief Unregisters a persistent pet aura from the unit.
+ *
+ * @param petSpell The pet aura definition.
+ */
+void Unit::RemovePetAura(PetAura const* petSpell)
+{
+    m_petAuras.erase(petSpell);
+    if (Pet* pet = GetPet())
+    {
+        pet->RemoveAurasDueToSpell(petSpell->GetAura(pet->GetEntry()));
+    }
+}
+
+/**
+ * @brief Removes auras blocked by a granted mechanic immunity.
+ *
+ * @param mechMask The mechanic immunity mask.
+ * @param exceptSpellId A spell to ignore during removal.
+ * @param non_positive True to limit removal to non-positive auras.
+ */
+void Unit::RemoveAurasAtMechanicImmunity(uint32 mechMask, uint32 exceptSpellId, bool non_positive /*= false*/)
+{
+    Unit::SpellAuraHolderMap& auras = GetSpellAuraHolderMap();
+    for (Unit::SpellAuraHolderMap::iterator iter = auras.begin(); iter != auras.end();)
+    {
+        SpellEntry const* spell = iter->second->GetSpellProto();
+        if (spell->ID == exceptSpellId)
+        {
+            ++iter;
+        }
+        else if (non_positive && iter->second->IsPositive())
+        {
+            ++iter;
+        }
+        else if (spell->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY))
+        {
+            ++iter;
+        }
+        else if (iter->second->HasMechanicMask(mechMask))
+        {
+            RemoveAurasDueToSpell(spell->ID);
+
+            if (auras.empty())
+            {
+                break;
+            }
+            else
+            {
+                iter = auras.begin();
+            }
+        }
+        else
+        {
+            ++iter;
+        }
+    }
+}
+
+/**
+ * @brief Deletes aura holders and auras queued for deferred cleanup.
+ */
+void Unit::CleanupDeletedAuras()
+{
+    // The lists are taken BEFORE the delete loops, so no destructor reached from here may queue a
+    // deferred deletion: such a pointer would land in the emptied container and survive to the next
+    // call -- and, at the last call before the unit dies, trip ~Unit's DeferredEmpty() assert.
+    // Nothing does today: Aura::~Aura and its three subclasses' destructors are empty, and
+    // ~SpellAuraHolder only deletes its three m_auras[i], which are Auras.
+    AuraList deletedAuras;
+    SpellAuraHolderList deletedHolders;
+    m_auras.TakeDeferred(deletedAuras, deletedHolders);
+
+    for (SpellAuraHolderList::const_iterator iter = deletedHolders.begin(); iter != deletedHolders.end(); ++iter)
+    {
+        delete *iter;
+    }
+
+    // really delete auras "deleted" while processing its ApplyModify code
+    for (AuraList::const_iterator itr = deletedAuras.begin(); itr != deletedAuras.end(); ++itr)
+    {
+        delete *itr;
+    }
+}
+
+/**
+ * @brief Finds the first aura holder for a spell identifier.
+ *
+ * @param spellid The spell identifier to search for.
+ * @return The matching aura holder, or null if none exists.
+ */
+SpellAuraHolder* Unit::GetSpellAuraHolder(uint32 spellid) const
+{
+    SpellAuraHolderMap::const_iterator itr = m_auras.Holders().find(spellid);
+    return itr != m_auras.Holders().end() ? itr->second : NULL;
+}
+
+int32 Unit::GetAuraDuration(uint32 spellId) const
+{
+    SpellAuraHolder const* holder = GetSpellAuraHolder(spellId);
+    return holder ? holder->GetAuraDuration() : 0;
+}
+
+/**
+ * @brief Finds an aura holder for a spell cast by a specific caster.
+ *
+ * @param spellid The spell identifier to search for.
+ * @param casterGuid The caster guid to match.
+ * @return The matching aura holder, or null if none exists.
+ */
+SpellAuraHolder* Unit::GetSpellAuraHolder(uint32 spellid, ObjectGuid casterGuid) const
+{
+    SpellAuraHolderConstBounds bounds = GetSpellAuraHolderBounds(spellid);
+    for (SpellAuraHolderMap::const_iterator iter = bounds.first; iter != bounds.second; ++iter)
+        if (iter->second->GetCasterGuid() == casterGuid)
+        {
+            return iter->second;
+        }
+
+    return NULL;
 }

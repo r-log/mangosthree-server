@@ -2963,3 +2963,390 @@ SpellAuraProcResult Unit::HandleInvisibilityAuraProc(Unit* pVictim, uint32 damag
     RemoveAurasDueToSpell(triggeredByAura->GetId());
     return SPELL_AURA_PROC_OK;
 }
+
+/**
+ * @brief Triggers proc handlers for attacker and victim damage events.
+ *
+ * @param pVictim The victim involved in the event.
+ * @param procAttacker The attacker proc flag mask.
+ * @param procVictim The victim proc flag mask.
+ * @param procExtra Extra proc flags.
+ * @param amount The event amount.
+ * @param attType The attack type.
+ * @param procSpell The spell responsible for the event, if any.
+ */
+void Unit::ProcDamageAndSpell(Unit* pVictim, uint32 procAttacker, uint32 procVictim, uint32 procExtra, uint32 amount, WeaponAttackType attType, SpellEntry const* procSpell)
+{
+    // Not much to do if no flags are set.
+    if (procAttacker)
+    {
+        ProcDamageAndSpellFor(false, pVictim, procAttacker, procExtra, attType, procSpell, amount);
+    }
+    // Now go on with a victim's events'n'auras
+    // Not much to do if no flags are set or there is no victim
+    if (pVictim && pVictim->IsAlive() && procVictim)
+    {
+        pVictim->ProcDamageAndSpellFor(true, this, procVictim, procExtra, attType, procSpell, amount);
+    }
+}
+
+/**
+ * @brief Gets the normalized proc chance for the currently ready weapon swing.
+ *
+ * @return The proc chance percentage.
+ */
+float Unit::GetWeaponProcChance() const
+{
+    // normalized proc chance for weapon attack speed
+    // (odd formula...)
+    if (isAttackReady(BASE_ATTACK))
+    {
+        return (GetAttackTime(BASE_ATTACK) * 1.8f / 1000.0f);
+    }
+    else if (haveOffhandWeapon() && isAttackReady(OFF_ATTACK))
+    {
+        return (GetAttackTime(OFF_ATTACK) * 1.6f / 1000.0f);
+    }
+
+    return 0.0f;
+}
+
+/**
+ * @brief Converts a proc-per-minute value into a percent chance for a weapon speed.
+ *
+ * @param WeaponSpeed The weapon speed in milliseconds.
+ * @param PPM The desired procs per minute.
+ * @return The proc chance percentage.
+ */
+float Unit::GetPPMProcChance(uint32 WeaponSpeed, float PPM) const
+{
+    // proc per minute chance calculation
+    if (PPM <= 0.0f)
+    {
+        return 0.0f;
+    }
+    return WeaponSpeed * PPM / 600.0f;                      // result is chance in percents (probability = Speed_in_sec * (PPM / 60))
+}
+
+struct ProcTriggeredData
+{
+    ProcTriggeredData(SpellProcEventEntry const* _spellProcEvent, SpellAuraHolder* _triggeredByHolder)
+        : spellProcEvent(_spellProcEvent), triggeredByHolder(_triggeredByHolder)
+    {}
+    SpellProcEventEntry const* spellProcEvent;
+    SpellAuraHolder* triggeredByHolder;
+};
+
+typedef std::list< ProcTriggeredData > ProcTriggeredList;
+typedef std::list< uint32> RemoveSpellList;
+
+/**
+ * @brief Builds an extended proc result mask from spell damage or miss data.
+ *
+ * @param damageInfo The spell damage information.
+ * @param missCondition The spell miss result.
+ * @return The extended proc mask.
+ */
+uint32 createProcExtendMask(SpellNonMeleeDamage* damageInfo, SpellMissInfo missCondition)
+{
+    uint32 procEx = PROC_EX_NONE;
+    // Check victim state
+    if (missCondition != SPELL_MISS_NONE)
+        switch (missCondition)
+        {
+            case SPELL_MISS_MISS:    procEx |= PROC_EX_MISS;   break;
+            case SPELL_MISS_RESIST:  procEx |= PROC_EX_RESIST; break;
+            case SPELL_MISS_DODGE:   procEx |= PROC_EX_DODGE;  break;
+            case SPELL_MISS_PARRY:   procEx |= PROC_EX_PARRY;  break;
+            case SPELL_MISS_BLOCK:   procEx |= PROC_EX_BLOCK;  break;
+            case SPELL_MISS_EVADE:   procEx |= PROC_EX_EVADE;  break;
+            case SPELL_MISS_IMMUNE:  procEx |= PROC_EX_IMMUNE; break;
+            case SPELL_MISS_IMMUNE2: procEx |= PROC_EX_IMMUNE; break;
+            case SPELL_MISS_DEFLECT: procEx |= PROC_EX_DEFLECT; break;
+            case SPELL_MISS_ABSORB:  procEx |= PROC_EX_ABSORB; break;
+            case SPELL_MISS_REFLECT: procEx |= PROC_EX_REFLECT; break;
+            default:
+                break;
+        }
+    else
+    {
+        // On block
+        if (damageInfo->blocked)
+        {
+            procEx |= PROC_EX_BLOCK;
+        }
+        // On absorb
+        if (damageInfo->absorb)
+        {
+            procEx |= PROC_EX_ABSORB;
+        }
+        // On crit
+        if (damageInfo->HitInfo & SPELL_HIT_TYPE_CRIT)
+        {
+            procEx |= PROC_EX_CRITICAL_HIT;
+        }
+        else
+        {
+            procEx |= PROC_EX_NORMAL_HIT;
+        }
+    }
+    return procEx;
+}
+
+/**
+ * @brief Processes proc auras for either the attacker or victim side of an event.
+ *
+ * @param isVictim True when processing victim-side procs.
+ * @param pTarget The opposite unit involved in the event.
+ * @param procFlag The proc flag mask.
+ * @param procExtra Extra proc flags.
+ * @param attType The attack type.
+ * @param procSpell The spell responsible for the event, if any.
+ * @param damage The event damage amount.
+ */
+void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, uint32 procExtra, WeaponAttackType attType, SpellEntry const* procSpell, uint32 damage)
+{
+    // For melee/ranged based attack need update skills and set some Aura states
+    if (!(procExtra & PROC_EX_CAST_END) && procFlag & MELEE_BASED_TRIGGER_MASK)
+    {
+        // If exist crit/parry/dodge/block need update aura state (for victim and attacker)
+        if (procExtra & (PROC_EX_CRITICAL_HIT | PROC_EX_PARRY | PROC_EX_DODGE | PROC_EX_BLOCK))
+        {
+            // for victim
+            if (isVictim)
+            {
+                // if victim and dodge attack
+                if (procExtra & PROC_EX_DODGE)
+                {
+                    // Update AURA_STATE on dodge
+                    if (getClass() != CLASS_ROGUE) // skip Rogue Riposte
+                    {
+                        ModifyAuraState(AURA_STATE_DEFENSE, true);
+                        StartReactiveTimer(REACTIVE_DEFENSE);
+                    }
+                }
+                // if victim and parry attack
+                if (procExtra & PROC_EX_PARRY)
+                {
+                    // For Hunters only Counterattack (skip Mongoose bite)
+                    if (getClass() == CLASS_HUNTER)
+                    {
+                        ModifyAuraState(AURA_STATE_HUNTER_PARRY, true);
+                        StartReactiveTimer(REACTIVE_HUNTER_PARRY);
+                    }
+                    else
+                    {
+                        ModifyAuraState(AURA_STATE_DEFENSE, true);
+                        StartReactiveTimer(REACTIVE_DEFENSE);
+                    }
+                }
+                // if and victim block attack
+                if (procExtra & PROC_EX_BLOCK)
+                {
+                    ModifyAuraState(AURA_STATE_DEFENSE, true);
+                    StartReactiveTimer(REACTIVE_DEFENSE);
+                }
+            }
+            else // For attacker
+            {
+                // Overpower on victim dodge
+                if (procExtra & PROC_EX_DODGE && GetTypeId() == TYPEID_PLAYER && getClass() == CLASS_WARRIOR)
+                {
+                    AddComboPoints(pTarget, 1);
+                    StartReactiveTimer(REACTIVE_OVERPOWER);
+                }
+            }
+        }
+    }
+
+    RemoveSpellList removedSpells;
+    ProcTriggeredList procTriggered;
+    // Fill procTriggered list
+    for (SpellAuraHolderMap::const_iterator itr = GetSpellAuraHolderMap().begin(); itr != GetSpellAuraHolderMap().end(); ++itr)
+    {
+        // skip deleted auras (possible at recursive triggered call
+        if (itr->second->GetState() != SPELLAURAHOLDER_STATE_READY || itr->second->IsDeleted())
+        {
+            continue;
+        }
+
+        SpellProcEventEntry const* spellProcEvent = NULL;
+        // check if that aura is triggered by proc event (then it will be managed by proc handler)
+        if (!IsTriggeredAtSpellProcEvent(pTarget, itr->second, procSpell, procFlag, procExtra, attType, isVictim, spellProcEvent))
+        {
+            // spell seem not managed by proc system, although some case need to be handled
+
+            // only process damage case on victim
+            if (!isVictim || !(procFlag & PROC_FLAG_TAKEN_ANY_DAMAGE))
+            {
+                continue;
+            }
+
+            const SpellEntry* se = itr->second->GetSpellProto();
+
+            // check if the aura is interruptible by damage and if its not just added by this spell (spell who is responsible for this damage is procSpell)
+            if (se->GetAuraInterruptFlags() & AURA_INTERRUPT_FLAG_DAMAGE && (!procSpell || procSpell->ID != se->ID))
+            {
+                DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "ProcDamageAndSpell: Added Spell %u to 'remove aura due to spell' list! Reason: Damage received.", se->ID);
+                removedSpells.push_back(se->ID);
+            }
+            continue;
+        }
+
+        itr->second->SetInUse(true);                        // prevent holder deletion
+        procTriggered.push_back(ProcTriggeredData(spellProcEvent, itr->second));
+    }
+
+    if (!procTriggered.empty())
+    {
+        // Handle effects proceed this time
+        for (ProcTriggeredList::const_iterator itr = procTriggered.begin(); itr != procTriggered.end(); ++itr)
+        {
+            // Some auras can be deleted in function called in this loop (except first, ofc)
+            SpellAuraHolder* triggeredByHolder = itr->triggeredByHolder;
+            if (triggeredByHolder->IsDeleted())
+            {
+                continue;
+            }
+
+            SpellProcEventEntry const* spellProcEvent = itr->spellProcEvent;
+            bool useCharges = triggeredByHolder->GetAuraCharges() > 0;
+            bool procSuccess = true;
+            bool anyAuraProc = false;
+
+            // For players set spell cooldown if need
+            uint32 cooldown = 0;
+            if (GetTypeId() == TYPEID_PLAYER && spellProcEvent && spellProcEvent->cooldown)
+            {
+                cooldown = spellProcEvent->cooldown;
+            }
+
+            for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+            {
+                Aura* triggeredByAura = triggeredByHolder->GetAuraByEffectIndex(SpellEffectIndex(i));
+                if (!triggeredByAura)
+                {
+                    continue;
+                }
+
+                SpellEffectEntry const* spellEffect = triggeredByHolder->GetSpellProto()->GetSpellEffect(SpellEffectIndex(i));
+                if (!spellEffect)
+                {
+                    continue;
+                }
+
+                if (procSpell)
+                {
+                    if (spellProcEvent)
+                    {
+                        if (spellProcEvent->spellFamilyMask[i])
+                        {
+                            if (!procSpell->IsFitToFamilyMask(spellProcEvent->spellFamilyMask[i]))
+                            {
+                                continue;
+                            }
+
+                            // don't allow proc from cast end for non modifier spells
+                            // unless they have proc ex defined for that
+                            if (IsCastEndProcModifierAura(triggeredByHolder->GetSpellProto(), SpellEffectIndex(i), procSpell))
+                            {
+                                if (useCharges && procExtra != PROC_EX_CAST_END && spellProcEvent->procEx == PROC_EX_NONE)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (spellProcEvent->procEx == PROC_EX_NONE && procExtra == PROC_EX_CAST_END)
+                            {
+                                continue;
+                            }
+                        }
+                        // don't check dbc FamilyFlags if schoolMask exists
+                        else if (!triggeredByAura->CanProcFrom(procSpell, procFlag, spellProcEvent->procEx, procExtra, damage != 0, !spellProcEvent->schoolMask))
+                        {
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // Mastery proc auras: the DBC's EffectSpellClassMask is narrow for these, so
+                        // CanProcFrom's generic mask check would drop every proc. An aura with its own
+                        // case in HandleProcTriggerSpellAuraProc or HandleDummyAuraProc skips the check,
+                        // and that case decides.
+                        bool isCoreHandledMasteryProc = IsCoreHandledMasteryProc(triggeredByHolder->GetId());
+                        if (!isCoreHandledMasteryProc
+                            && !triggeredByAura->CanProcFrom(procSpell, procFlag, PROC_EX_NONE, procExtra, damage != 0, true))
+                        {
+                            continue;
+                        }
+                        // CAST_END suppression for core-handled mastery
+                        // procs. Spell::cast() at Spell.cpp:4371/4375 fires
+                        // ProcDamageAndSpell unconditionally with procExtra=
+                        // PROC_EX_CAST_END and m_procAttacker matching the
+                        // hit's procFlag — so for every spell cast there
+                        // are TWO proc events on the caster: one at cast
+                        // end (procEx=CAST_END) and one at hit delivery
+                        // (procEx=NORMAL_HIT). Without filtering, a mastery
+                        // matching by procFlag alone rolls twice per cast,
+                        // doubling its effective rate and producing wasted
+                        // 0-damage triggered casts (because CAST_END is
+                        // called with damage=0). The standard procEx-
+                        // unspecified path in the if (spellProcEvent)
+                        // branch above filters this at Unit.cpp:14378
+                        // ("if procEx is unspecified and event is CAST_END
+                        // only, skip"); masteries that bypass CanProcFrom
+                        // miss that guard, so mirror it here. Verified via
+                        // [DIAG WQ] in world-server.log 2026-05-17 16:28:
+                        // every successful auto-shot produced two proc
+                        // events with procFlag=0x40 (RANGED_HIT) and
+                        // procEx alternating 0x80000 (CAST_END) / 0x1
+                        // (NORMAL_HIT), explaining the ~30% observed Wild
+                        // Quiver rate against ~16% Cata baseline.
+                        if (isCoreHandledMasteryProc
+                            && procExtra == PROC_EX_CAST_END)
+                        {
+                            continue;
+                        }
+                    }
+                }
+
+                SpellAuraProcResult procResult = (*this.*AuraProcHandler[spellEffect->EffectAura])(pTarget, damage, triggeredByAura, procSpell, procFlag, procExtra, cooldown);
+                switch (procResult)
+                {
+                    case SPELL_AURA_PROC_CANT_TRIGGER:
+                        continue;
+                    case SPELL_AURA_PROC_FAILED:
+                        procSuccess = false;
+                        break;
+                    case SPELL_AURA_PROC_OK:
+                        break;
+                }
+
+                anyAuraProc = true;
+            }
+
+            // Remove charge (aura can be removed by triggers)
+            if (useCharges && procSuccess && anyAuraProc && !triggeredByHolder->IsDeleted())
+            {
+                // If last charge dropped add spell to remove list
+                if (triggeredByHolder->DropAuraCharge())
+                {
+                    removedSpells.push_back(triggeredByHolder->GetId());
+                }
+            }
+
+            triggeredByHolder->SetInUse(false);
+        }
+    }
+
+    if (!removedSpells.empty())
+    {
+        // Sort spells and remove duplicates
+        removedSpells.sort();
+        removedSpells.unique();
+        // Remove auras from removedAuras
+        for (RemoveSpellList::const_iterator i = removedSpells.begin(); i != removedSpells.end(); ++i)
+        {
+            RemoveAurasDueToSpell(*i);
+        }
+    }
+}
