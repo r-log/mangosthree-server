@@ -60,6 +60,9 @@
 #include "BattleGround/BattleGround.h"
 #include "InstanceData.h"
 #include "OutdoorPvP/OutdoorPvP.h"
+#include "data/BattleGroundHooks.h"
+#include "data/OutdoorPvPHooks.h"
+#include "data/GroupHooks.h"
 #include "MapPersistentStateMgr.h"
 #include "MapPhase.h"
 #include "GridNotifiersImpl.h"
@@ -846,7 +849,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         {
             if (group_tap)
             {
-                group_tap->RewardGroupAtKill(pVictim, player_tap);
+                sGroupHooks.RewardAtKill(*group_tap, *pVictim, player_tap);
             }
             else if (player_tap)
             {
@@ -958,17 +961,10 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
 
             if (player_tap)                                 // PvP kill
             {
-                if (BattleGround* bg = playerVictim->GetBattleGround())
-                {
-                    bg->HandleKillPlayer(playerVictim, player_tap);
-                }
-                else if (pVictim != this)
+                if (!sBattleGroundHooks.PlayerKilled(*playerVictim, *player_tap) && pVictim != this)
                 {
                     // selfkills are not handled in outdoor pvp scripts
-                    if (OutdoorPvP* outdoorPvP = sOutdoorPvPMgr.GetScript(playerVictim->GetCachedZoneId()))
-                    {
-                        outdoorPvP->HandlePlayerKill(player_tap, playerVictim);
-                    }
+                    sOutdoorPvPHooks.PlayerKilled(playerVictim->GetCachedZoneId(), *player_tap, *playerVictim);
                 }
             }
         }
@@ -1198,17 +1194,11 @@ void Unit::JustKilledCreature(Creature* victim, Player* responsiblePlayer)
 
     if (responsiblePlayer)                                  // killedby Player, inform BG
     {
-        if (BattleGround* bg = responsiblePlayer->GetBattleGround())
-        {
-            bg->HandleKillUnit(victim, responsiblePlayer);
-        }
+        sBattleGroundHooks.CreatureKilled(*victim, *responsiblePlayer);
     }
 
     // Notify the outdoor pvp script
-    if (OutdoorPvP* outdoorPvP = sOutdoorPvPMgr.GetScript(responsiblePlayer ? responsiblePlayer->GetCachedZoneId() : GetTerrain()->GetZoneId(Where().X(), Where().Y(), Where().Z())))
-    {
-        outdoorPvP->HandleCreatureDeath(victim);
-    }
+    sOutdoorPvPHooks.CreatureDied(responsiblePlayer ? responsiblePlayer->GetCachedZoneId() : GetTerrain()->GetZoneId(Where().X(), Where().Y(), Where().Z()), *victim);
 
     // Start creature death script
     GetMap()->ScriptsStart(DBS_ON_CREATURE_DEATH, victim->GetEntry(), victim, responsiblePlayer ? responsiblePlayer : this);
@@ -2585,10 +2575,7 @@ int32 Unit::DealHeal(Unit* pVictim, uint32 addhealth, SpellEntry const* spellPro
 
     if (unit->GetTypeId() == TYPEID_PLAYER)
     {
-        if (BattleGround* bg = ((Player*)unit)->GetBattleGround())
-        {
-            bg->UpdatePlayerScore((Player*)unit, SCORE_HEALING_DONE, gain);
-        }
+        sBattleGroundHooks.HealingDone(*(Player*)unit, gain);
 
         // use the actual gain, as the overheal shall not be counted, skip gain 0 (it ignored anyway in to criteria)
         if (gain)

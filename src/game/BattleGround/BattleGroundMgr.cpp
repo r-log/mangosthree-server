@@ -73,6 +73,7 @@
 #include "persistence/characters/SavedVariablesRepository.h"
 #include "persistence/characters/pvp/BattleGroundStatsRepository.h"
 #include "persistence/world/pvp/BattleGroundDataRepository.h"
+#include "data/BattleGroundHooks.h"
 
 #include "Policies/Singleton.h"
 
@@ -81,6 +82,46 @@
 /*********************************************************/
 /***            BATTLEGROUND MANAGER                   ***/
 /*********************************************************/
+
+namespace
+{
+    /// The battleground's answers to a kill or a heal: the battleground the player is in is told.
+    class PlayerBattleGroundHooks : public BattleGroundHooks
+    {
+        public:
+            bool PlayerKilled(Player& victim, Player& killer) override
+            {
+                if (BattleGround* bg = victim.GetBattleGround())
+                {
+                    bg->HandleKillPlayer(&victim, &killer);
+                    return true;
+                }
+                return false;
+            }
+
+            void CreatureKilled(Creature& victim, Player& responsible) override
+            {
+                if (BattleGround* bg = responsible.GetBattleGround())
+                {
+                    bg->HandleKillUnit(&victim, &responsible);
+                }
+            }
+
+            void HealingDone(Player& healer, uint32 gain) override
+            {
+                if (BattleGround* bg = healer.GetBattleGround())
+                {
+                    bg->UpdatePlayerScore(&healer, SCORE_HEALING_DONE, gain);
+                }
+            }
+    };
+}
+
+BattleGroundHooks& BattleGroundMgr::GetBattleGroundHooks()
+{
+    static PlayerBattleGroundHooks hooks;
+    return hooks;
+}
 
 /**
  * @brief Constructor for BattleGroundMgr.

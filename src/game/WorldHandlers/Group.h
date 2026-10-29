@@ -78,6 +78,7 @@ class BattleGround;
 class DungeonPersistentState;
 struct GroupDataRow;
 class Unit;
+class GroupHooks;
 
 #define MAX_GROUP_SIZE 5
 #define MAX_RAID_SIZE 40
@@ -530,6 +531,8 @@ class Group
         void OfflineReadyCheck();
 
         void RewardGroupAtKill(Unit* pVictim, Player* player_tap);
+        /// The group hooks, which mangosd installs: a kill rewards the group that tapped the victim.
+        static GroupHooks& GetGroupHooks();
 
         bool SetPlayerMap(ObjectGuid guid, uint32 mapid);
 

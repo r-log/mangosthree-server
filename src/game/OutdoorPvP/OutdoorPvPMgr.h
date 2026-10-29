@@ -122,6 +122,7 @@ class Player;
 class GameObject;
 class Creature;
 class OutdoorPvP;
+class OutdoorPvPHooks;
 
 /**
  * @brief Map of capture point entries to slider states
@@ -162,6 +163,10 @@ class OutdoorPvPMgr
          * @brief Destructor
          */
         ~OutdoorPvPMgr();
+
+        /// The outdoor PvP hooks, which mangosd installs: a death is told to the script of the
+        /// zone it happens in.
+        static OutdoorPvPHooks& GetOutdoorPvPHooks();
 
         /**
          * @brief Initialize all outdoor PvP scripts

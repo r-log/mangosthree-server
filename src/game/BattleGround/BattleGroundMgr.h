@@ -145,6 +145,7 @@ enum BattleGroundQueueGroupTypes
 #define BG_QUEUE_GROUP_TYPES_COUNT 4
 
 class BattleGround;
+class BattleGroundHooks;
 
 /**
  * @brief Class for managing battleground queues.
@@ -451,6 +452,10 @@ class BattleGroundMgr
          * @brief Destructor for BattleGroundMgr.
          */
         ~BattleGroundMgr();
+
+        /// The battleground hooks, which mangosd installs: a kill or a heal is told to the
+        /// battleground the player is in.
+        static BattleGroundHooks& GetBattleGroundHooks();
 
         /**
          * @brief Updates the battleground manager.

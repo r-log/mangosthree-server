@@ -39,6 +39,7 @@
 #include "Util.h"
 #include "LootMgr.h"
 #include "persistence/characters/social/GroupRepository.h"
+#include "data/GroupHooks.h"
 
 /**
  * @file GroupInstance.cpp
@@ -616,6 +617,25 @@ static void RewardGroupAtKill_helper(Player* pGroupGuy, Unit* pVictim, uint32 co
                 }
         }
     }
+}
+
+namespace
+{
+    /// The group's answer to a kill: the group that tapped the victim is rewarded.
+    class KillRewardGroupHooks : public GroupHooks
+    {
+        public:
+            void RewardAtKill(Group& group, Unit& victim, Player* tap) override
+            {
+                group.RewardGroupAtKill(&victim, tap);
+            }
+    };
+}
+
+GroupHooks& Group::GetGroupHooks()
+{
+    static KillRewardGroupHooks hooks;
+    return hooks;
 }
 
 /** Provide rewards to group members at unit kill
