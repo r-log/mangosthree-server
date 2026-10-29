@@ -7008,8 +7008,6 @@ void Unit::UpdateSplineMovement(uint32 t_diff)
  */
 void Unit::DisableSpline()
 {
-    m_movementInfo.RemoveMovementFlag(MOVEFLAG_FORWARD);
-
     // A spline that ran out is finished, not cut; only a live one is interrupted here.
     if (!movespline->Finalized())
     {

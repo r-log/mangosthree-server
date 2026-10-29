@@ -3442,10 +3442,10 @@ class Player : public Unit
         // Build a teleport acknowledgment message
 
         // Check if the player is moving
-        bool isMoving() const override final { return m_movementInfo.HasMovementFlag(movementFlagsMask); }
+        bool isMoving() const override final { return (WireFlags() & movementFlagsMask) != 0; }
 
         // Check if the player is moving or turning
-        bool isMovingOrTurning() const { return m_movementInfo.HasMovementFlag(movementOrTurningFlagsMask); }
+        bool isMovingOrTurning() const { return (WireFlags() & movementOrTurningFlagsMask) != 0; }
 
         bool CanSwim() const override { return true; }
         bool CanFly() const override { return m_movementInfo.HasMovementFlag(MOVEFLAG_CAN_FLY); }

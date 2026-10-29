@@ -242,9 +242,10 @@ void NativeBehaviour::SeeTarget(Unit& owner, Unit& target, Motion::TargetView& v
     }
     else if (target.MoverSession() != NULL)
     {
-        // Client-driven: the flags of the last movement packet say where it is heading.
+        // Client-driven: the flags of the last movement packet, and FORWARD while a server
+        // spline carries it, say where it is heading.
         in.playerMoved = true;
-        MovementInfo const& reported = target.ClientStatus();
+        MovementInfo const reported = target.WireStatus();
         in.forward = reported.HasMovementFlag(MOVEFLAG_FORWARD);
         in.backward = reported.HasMovementFlag(MOVEFLAG_BACKWARD);
         in.strafeLeft = reported.HasMovementFlag(MOVEFLAG_STRAFE_LEFT);
