@@ -2621,35 +2621,28 @@ namespace Harness
         bool RootInFlight(Unit const* u) { return u->MotionState().Pending().Has(Motion::ChangeType::Root); }
     }
 
-    /// S69 (the harness's fourth player): the STUN's clientMover branch, and at its centre the
-    /// ORDERING inside that branch which until today only a comment asserted.
+    /// S69 (the harness's fourth player): the STUN's clientMover branch, and the root a stunned
+    /// client-driven unit is given.
     ///
-    /// Aura::HandleAuraModStun (SpellAuraControl.cpp:482) wipes the movement-flag word and
-    /// resets the stand state for a clientMover -- a player, OR a unit whose charmer is a
-    /// player -- and it does so BEFORE Inhibit(Stunned). The comment labelled M1 says why: run
-    /// it after and the wipe "erases MOVEFLAG_ROOT right back off", because Inhibit's projection
-    /// (MotionMaster::ProjectClientRoot, MotionMaster.cpp:1695) roots a stunned clientMover.
-    /// Aura::HandleAuraModRoot (SpellAuraControl.cpp:880) has the OPPOSITE order -- Inhibit
-    /// first, then the wipe -- and its own comment names the asymmetry.
+    /// Aura::HandleAuraModStun (SpellAuraControl.cpp) wipes the client's movement word and resets
+    /// the stand state for a clientMover -- a unit a client drives, a player or a body he
+    /// possesses -- then raises Inhibit(Stunned), whose projection (MotionMaster::ProjectClientRoot)
+    /// roots a stunned clientMover.
     ///
-    /// The asymmetry is real, and it is not about the plain player. Player::SetRoot
-    /// (PlayerMovement.cpp:85) never touches m_movementInfo: it applies a Motion::FlagChange and
-    /// sends it, so a player's root is a desired flag awaiting his ack and a wipe running after
-    /// Inhibit would have nothing of his to erase. Creature::SetRoot (CreatureMovement.cpp:267)
-    /// DOES write MOVEFLAG_ROOT into m_movementInfo. So M1's stated rationale bites for exactly
-    /// one shape -- the PLAYER-CHARMED CREATURE, the half of clientMover no scenario had ever
-    /// built. S34 possessed a body with a CREATURE charmer, which the projection deliberately
-    /// does not root; the three player scenarios of the last two days possessed nothing.
+    /// A unit its client drives is rooted the same way whatever it is: the kernel decides the root
+    /// and sends it to that client as the mover form, and the unit's word -- the client's own --
+    /// carries MOVEFLAG_ROOT only once the client has applied it and acked (the 4.3.4 client's
+    /// ClientMoveRootHandler, 0x005AF550, queues the root, and SendRootAck, 0x00574C10, builds its
+    /// ack from the status after the root is applied). A possessed creature is such a unit: the
+    /// client drives it through the same mover code as its own player (SetActiveMover; every
+    /// special case tests the active mover, not the unit type).
     ///
     /// Three subjects in one run, therefore, each self-casting 76216 at the same moment:
     ///   - a plain player: the branch is taken (his driving flags wiped whole, his stand state
-    ///     reset), and his m_movementInfo carries no MOVEFLAG_ROOT, because his root is in
-    ///     flight;
-    ///   - a wolf THAT SAME PLAYER possesses: MOVEFLAG_ROOT is in its m_movementInfo the instant
-    ///     the cast returns, which it can only be if the wipe ran first;
+    ///     reset), and his root is decided and in flight, not in his word;
+    ///   - a wolf THAT SAME PLAYER possesses: rooted exactly as its player is -- decided, in
+    ///     flight, not in its word;
     ///   - a plain wolf: stopped, not rooted -- the projection never asks for its root at all.
-    /// Of those, only the second is M1 itself; the first and third are the contrast that gives
-    /// it its meaning, and without them "the flag is there" would say nothing about ordering.
     ///
     /// WHAT THE SCENARIO DOES NOT CLAIM: that the plain creature was STOPPED. Unit::StopMoving
     /// at SpellAuraControl.cpp:520 is over-determined here twice over -- the Inhibit two lines
@@ -2712,9 +2705,11 @@ namespace Harness
                 bool   bCharmedBefore;   ///< ...and the player really was its charmer at the cast
                 uint32 bFlagsBefore;     ///< its flag word before the cast: MOVEFLAG_ROOT must NOT be in it
                 bool   bAuraAtApply;     ///< the holder was on it the instant the cast returned
-                uint32 bFlagsAtApply;    ///< the same word that instant: M1's reading
+                uint32 bFlagsAtApply;    ///< the same word that instant
                 uint32 bSamples;         ///< samples with the holder on it AND the player still its charmer
-                uint32 bRootMissing;     ///< ...on which MOVEFLAG_ROOT was gone from its word
+                uint32 bRootUndecided;   ///< ...on which the kernel had not decided its root
+                uint32 bRootInWord;      ///< ...on which MOVEFLAG_ROOT sat in its word
+                uint32 bRootPending;     ///< ...on which a Root change was still awaiting its client's ack
                 // --- the plain wolf
                 bool   cAuraAtApply;
                 uint32 cFlagsBefore;
@@ -2759,7 +2754,7 @@ namespace Harness
             st->pFlagAfter = st->pTargetNotBack = st->pulled = false;
             st->pFlickers = st->pDiscarded = st->pBackAfterPull = 0;
             st->took = st->bCharmedBefore = st->bAuraAtApply = false;
-            st->bFlagsBefore = st->bFlagsAtApply = st->bSamples = st->bRootMissing = 0;
+            st->bFlagsBefore = st->bFlagsAtApply = st->bSamples = st->bRootUndecided = st->bRootInWord = st->bRootPending = 0;
             st->cAuraAtApply = st->cStunnedAtApply = false;
             st->cFlagsBefore = st->cFlagsAtApply = st->cSamples = st->cRootInWord = st->cRootWanted = 0;
             Log("the player %s stands at (%.1f, %.1f); the body 4 yd east, the plain wolf 16 yd east, his mark 8 yd west",
@@ -2840,7 +2835,7 @@ namespace Harness
                     p->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED) ? 1 : 0, RootDecided(p) ? 1 : 0);
                 Log("the cast returns: body aura=%d charmer=%d flags 0x%08x -> 0x%08x (MOVEFLAG_ROOT %s) | plain aura=%d stunned=%d flags 0x%08x -> 0x%08x root decided=%d",
                     st->bAuraAtApply ? 1 : 0, st->bCharmedBefore ? 1 : 0, st->bFlagsBefore, st->bFlagsAtApply,
-                    (st->bFlagsAtApply & MOVEFLAG_ROOT) ? "held" : "GONE",
+                    (st->bFlagsAtApply & MOVEFLAG_ROOT) ? "SET" : "clear",
                     st->cAuraAtApply ? 1 : 0, st->cStunnedAtApply ? 1 : 0, st->cFlagsBefore, st->cFlagsAtApply,
                     RootDecided(c) ? 1 : 0);
             });
@@ -2953,7 +2948,9 @@ namespace Harness
                     if (b && !st->pulled && b->HasAura(STUN_SELF) && b->GetCharmerGuid() == g)
                     {
                         ++st->bSamples;
-                        if (!(uint32(b->WireFlags()) & MOVEFLAG_ROOT)) { ++st->bRootMissing; }
+                        if (uint32(b->WireFlags()) & MOVEFLAG_ROOT) { ++st->bRootInWord; }
+                        if (!RootDecided(b)) { ++st->bRootUndecided; }
+                        if (RootInFlight(b)) { ++st->bRootPending; }
                     }
                     if (c && !st->pulled && c->HasAura(STUN_SELF))
                     {
@@ -3008,11 +3005,8 @@ namespace Harness
                 {
                     // --- moverBranch: the clientMover half of the `if` was taken for the player.
                     // The driving bits are masked rather than the whole word compared to
-                    // MOVEFLAG_NONE, and that is deliberate: the very Inhibit this branch runs
-                    // before may legitimately put MOVEFLAG_ROOT into the word of a unit whose
-                    // SetRoot writes one, which is what charmedRootSurvives is about. A
-                    // whole-word test here would make this category flip on that, and the two
-                    // claims must be able to fail apart.
+                    // MOVEFLAG_NONE: the word carries MOVEFLAG_ROOT once the client acks the
+                    // root, and this category must not flip on that.
                     if (!st->pAuraAtApply)
                     {
                         snprintf(branch, sizeof(branch), "INVALID(no %u holder on him when the cast returned, so Aura::HandleAuraModStun was never on the path)", STUN_SELF);
@@ -3062,42 +3056,41 @@ namespace Harness
                     {
                         snprintf(held, sizeof(held), "OK(not stunned and holding a target guid before the cast; UNIT_FLAG_STUNNED and the kernel's Stunned inhibition both held and the target guid stayed empty on all %u samples the aura was on him)", st->pAuraSamples);
                     }
-                    // --- charmedRootSurvives: M1 itself.
+                    // --- charmedRootAwaitsAck: a possessed body is rooted as its player is.
                     if (!st->took)
                     {
                         snprintf(m1, sizeof(m1), "INVALID(TakePossessOf refused, so no player-charmed creature was built)");
                     }
                     else if (!st->bCharmedBefore)
                     {
-                        snprintf(m1, sizeof(m1), "INVALID(the wolf's charmer was not the player when the cast went out, so the clientMover branch was never its path)");
+                        snprintf(m1, sizeof(m1), "INVALID(the wolf's charmer was not the player when the cast went out, so it was not a client-driven body)");
                     }
                     else if (st->bFlagsBefore & MOVEFLAG_ROOT)
                     {
-                        snprintf(m1, sizeof(m1), "INVALID(MOVEFLAG_ROOT was already in its m_movementInfo before the cast: 0x%08x, so surviving proves nothing)", st->bFlagsBefore);
+                        snprintf(m1, sizeof(m1), "INVALID(MOVEFLAG_ROOT was already in its word before the cast: 0x%08x)", st->bFlagsBefore);
                     }
                     else if (!st->bAuraAtApply)
                     {
                         snprintf(m1, sizeof(m1), "INVALID(no %u holder on it when the cast returned)", STUN_SELF);
                     }
-                    else if (!(st->bFlagsAtApply & MOVEFLAG_ROOT))
-                    {
-                        snprintf(m1, sizeof(m1), "BUG(MOVEFLAG_ROOT was not in its m_movementInfo the instant the cast returned: 0x%08x -> 0x%08x, so the wipe ran AFTER Inhibit and erased the projection's root)",
-                                 st->bFlagsBefore, st->bFlagsAtApply);
-                    }
                     else if (!st->bSamples)
                     {
                         snprintf(m1, sizeof(m1), "INVALID(no samples with the aura on it while the player was still its charmer)");
                     }
-                    else if (st->bRootMissing)
+                    else if (st->bRootUndecided)
                     {
-                        snprintf(m1, sizeof(m1), "BUG(MOVEFLAG_ROOT was gone from its m_movementInfo on %u of the %u samples the aura was on it under the possession)", st->bRootMissing, st->bSamples);
+                        snprintf(m1, sizeof(m1), "BUG(the kernel had not decided its root on %u of the %u samples the aura was on it under the possession, so the stunned body's mover was never rooted)", st->bRootUndecided, st->bSamples);
+                    }
+                    else if (st->bRootInWord)
+                    {
+                        snprintf(m1, sizeof(m1), "BUG(MOVEFLAG_ROOT sat in its word on %u of the %u samples under the possession: a client-driven body's root waits for its client's ack, as a player's does)", st->bRootInWord, st->bSamples);
                     }
                     else
                     {
-                        snprintf(m1, sizeof(m1), "OK(0x%08x -> 0x%08x the instant the cast returned and MOVEFLAG_ROOT held on all %u samples under the possession: the wipe ran BEFORE Inhibit)",
-                                 st->bFlagsBefore, st->bFlagsAtApply, st->bSamples);
+                        snprintf(m1, sizeof(m1), "OK(the kernel wanted its root on all %u samples under the possession and it was still awaiting its client's ack on %u of them, and MOVEFLAG_ROOT was in its word on none: a possessed body is rooted as its player is)",
+                                 st->bSamples, st->bRootPending);
                     }
-                    // --- playerCarriesNoRoot: the contrast that gives M1 its meaning.
+                    // --- playerCarriesNoRoot: the player, rooted the same way.
                     if (!st->pAuraSamples)
                     {
                         snprintf(inflight, sizeof(inflight), "INVALID(the stun aura never held on him)");
@@ -3197,7 +3190,7 @@ namespace Harness
                     }
                 }
                 std::string text = std::string("moverBranch=") + branch + " | stunHeld=" + held + " | stunLifted=" + lifted +
-                                   " | charmedRootSurvives=" + m1 + " | playerCarriesNoRoot=" + inflight +
+                                   " | charmedRootAwaitsAck=" + m1 + " | playerCarriesNoRoot=" + inflight +
                                    " | plainCreatureNotRooted=" + plainroot;
                 Verdict(text);
             });
@@ -3208,7 +3201,7 @@ namespace Harness
         {
             std::string w = std::string("INVALID(") + why + ")";
             return "moverBranch=" + w + " | stunHeld=" + w + " | stunLifted=" + w +
-                   " | charmedRootSurvives=" + w + " | playerCarriesNoRoot=" + w + " | plainCreatureNotRooted=" + w;
+                   " | charmedRootAwaitsAck=" + w + " | playerCarriesNoRoot=" + w + " | plainCreatureNotRooted=" + w;
         }
     };
 
@@ -3240,8 +3233,9 @@ namespace Harness
         /// the teardown despawns the scenario's creatures before it ends its players.
         const uint32 CHARM = 21835;
 
-        /// One marker bit written into the subject's m_movementInfo just before the stun, and
-        /// the whole falsifiability of "the word was not wiped" rests on which bit it is.
+        /// One marker bit written into the subject's client record just before the stun -- the
+        /// record Aura::HandleAuraModStun wipes for a client-driven unit -- and the whole
+        /// falsifiability of "the record was not wiped" rests on which bit it is.
         ///
         /// MOVEFLAG_STRAFE_LEFT survives every route out of Aura::HandleAuraModStun EXCEPT the
         /// whole-word wipe. The `else` half of the handler's `if` reaches Unit::StopMoving, whose
@@ -3418,7 +3412,7 @@ namespace Harness
                 // did not survive its own setup would have the category report the stun's
                 // restraint over a word the stun never saw.
                 v->m_movementInfo.AddMovementFlag(kMoverMarker);
-                st->wordBefore = uint32(v->WireFlags());
+                st->wordBefore = uint32(v->ClientStatus().GetMovementFlags());
                 st->charmedAtCast = v->GetCharmerGuid() == g;
                 st->moverAtCast = v->MoverSession() != NULL;
                 SelfCast(v, STUN_SELF);
@@ -3427,9 +3421,9 @@ namespace Harness
                 // is the state Aura::HandleAuraModStun left behind and nothing else has run yet.
                 st->castRan = true;
                 st->auraAtApply = v->HasAura(STUN_SELF);
-                st->wordAtApply = uint32(v->WireFlags());
+                st->wordAtApply = uint32(v->ClientStatus().GetMovementFlags());
                 st->stunnedAtApply = v->GetMotionMaster()->Inhibited(Motion::Inhibition::Stunned);
-                st->rootedAtApply = (st->wordAtApply & MOVEFLAG_ROOT) != 0;
+                st->rootedAtApply = (v->WireFlags() & MOVEFLAG_ROOT) != 0;
                 st->rootDecidedAtApply = RootDecided(v);
                 Log("the cast returns: aura=%d charmer=%d mover session=%d flags 0x%08x -> 0x%08x (marker %s, MOVEFLAG_ROOT %s) stunned=%d root decided=%d",
                     st->auraAtApply ? 1 : 0, st->charmedAtCast ? 1 : 0, st->moverAtCast ? 1 : 0,
@@ -3455,13 +3449,14 @@ namespace Harness
                     Creature* v = Get(gv); if (!v) { return; }
                     const uint32 t = i * 100;
                     const uint32 word = uint32(v->WireFlags());
+                    const uint32 record = uint32(v->ClientStatus().GetMovementFlags());
                     // The window is keyed on the CHARM as well as on the aura: the uncharm at the
                     // end of the run drops the charmer, and a sample taken after it would be
                     // about an ordinary creature and would say nothing about this fix.
                     if (v->HasAura(STUN_SELF) && v->GetCharmerGuid() == g)
                     {
                         ++st->samples;
-                        if (!(word & uint32(kMoverMarker))) { ++st->markerGone; }
+                        if (!(record & uint32(kMoverMarker))) { ++st->markerGone; }
                         if (word & MOVEFLAG_ROOT) { ++st->rootInWord; }
                         if (RootDecided(v)) { ++st->rootDecided; }
                         if (!v->GetMotionMaster()->Inhibited(Motion::Inhibition::Stunned)) { ++st->uninhibited; }
@@ -3665,6 +3660,7 @@ namespace Harness
                 uint32 wordBefore;        ///< its word before the take
                 bool   rootedBefore;      ///< MOVEFLAG_ROOT was in it: a plain stunned creature must NOT be rooted
                 bool   rootDecidedBefore; ///< ...or the kernel had decided its root
+                bool   rootDecidedAtTake; ///< the kernel had decided its root the instant the take returned
                 bool   takeRan;           ///< the take step resolved both actors
                 bool   took;              ///< TakePossessOf returned true
                 bool   charmedAtTake;     ///< the player was its charmer the instant the take returned
@@ -3674,7 +3670,7 @@ namespace Harness
                 bool   stunnedAtTake;     ///< ...and the Stunned inhibition still was
                 uint32 wordAtTake;        ///< the word that instant: the reading the scenario exists for
                 uint32 samples;           ///< samples with the stun on it AND the possession still held
-                uint32 rootMissing;       ///< ...on which MOVEFLAG_ROOT was gone from its word
+                uint32 rootMissing;       ///< ...on which the kernel's root on it was gone
                 uint32 moverLost;         ///< ...on which the mover session had gone from under it
             };
             Player* p = SpawnPlayer(SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
@@ -3687,7 +3683,7 @@ namespace Harness
             Silence(body);
             const ObjectGuid g = p->GetObjectGuid(), gb = body->GetObjectGuid();
             auto st = std::make_shared<St>();
-            st->stunRan = st->auraBefore = st->stunnedBefore = st->rootedBefore = st->rootDecidedBefore = false;
+            st->stunRan = st->auraBefore = st->stunnedBefore = st->rootedBefore = st->rootDecidedBefore = st->rootDecidedAtTake = false;
             st->takeRan = st->took = st->charmedAtTake = st->moverAtTake = false;
             st->clientAtTake = st->possessedAtTake = st->stunnedAtTake = false;
             st->wordBefore = st->wordAtTake = 0;
@@ -3723,6 +3719,7 @@ namespace Harness
                 st->took = p->TakePossessOf(b);
                 st->takeRan = true;
                 st->wordAtTake = uint32(b->WireFlags());
+                st->rootDecidedAtTake = RootDecided(b);
                 st->charmedAtTake = b->GetCharmerGuid() == g;
                 st->moverAtTake = b->MoverSession() == p->GetSession();
                 st->clientAtTake = b->IsClientMover();
@@ -3752,7 +3749,7 @@ namespace Harness
                     if (b->HasAura(STUN_SELF) && b->GetCharmerGuid() == g)
                     {
                         ++st->samples;
-                        if (!(word & MOVEFLAG_ROOT)) { ++st->rootMissing; }
+                        if (!RootDecided(b)) { ++st->rootMissing; }
                         if (!p || b->MoverSession() != p->GetSession()) { ++st->moverLost; }
                     }
                     if (i % 10 == 0)
@@ -3856,8 +3853,8 @@ namespace Harness
                         snprintf(granted, sizeof(granted), "OK(the take handed the body the possessor's session and Unit::IsClientMover read true, and the session stayed under it on all %u samples)", st->samples);
                     }
                     // --- rootAtTake: the finding. The grant's recompute is the only thing that
-                    // can have put MOVEFLAG_ROOT there -- the projection at Unit.cpp:7144 ran
-                    // before the body had an authority at all.
+                    // can have decided the root -- the projection at Unit.cpp:7144 ran before the
+                    // body had an authority at all.
                     if (!st->stunnedAtTake)
                     {
                         snprintf(rooted, sizeof(rooted), "INVALID(the kernel's Stunned inhibition was gone the instant the take returned, so there was no stun left for the projection to read)");
@@ -3866,10 +3863,9 @@ namespace Harness
                     {
                         snprintf(rooted, sizeof(rooted), "INVALID(the take granted no mover session, so the recompute under test had no authority to read)");
                     }
-                    else if (!(st->wordAtTake & MOVEFLAG_ROOT))
+                    else if (!st->rootDecidedAtTake)
                     {
-                        snprintf(rooted, sizeof(rooted), "BUG(MOVEFLAG_ROOT was not in its m_movementInfo the instant the take returned: 0x%08x -> 0x%08x -- the projection ran at Unit.cpp:7144 before the grant and nothing recomputed it after)",
-                                 st->wordBefore, st->wordAtTake);
+                        snprintf(rooted, sizeof(rooted), "BUG(the kernel had not decided its root the instant the take returned -- the projection ran at Unit.cpp:7144 before the grant and nothing recomputed it after)");
                     }
                     else if (!st->samples)
                     {
@@ -3877,12 +3873,12 @@ namespace Harness
                     }
                     else if (st->rootMissing)
                     {
-                        snprintf(rooted, sizeof(rooted), "BUG(MOVEFLAG_ROOT was gone from its m_movementInfo on %u of the %u samples the stun was on it under the possession)", st->rootMissing, st->samples);
+                        snprintf(rooted, sizeof(rooted), "BUG(the kernel's root on it was gone on %u of the %u samples the stun was on it under the possession)", st->rootMissing, st->samples);
                     }
                     else
                     {
-                        snprintf(rooted, sizeof(rooted), "OK(0x%08x -> 0x%08x the instant the take returned and MOVEFLAG_ROOT held on all %u samples under the possession: the grant recomputed the projection)",
-                                 st->wordBefore, st->wordAtTake, st->samples);
+                        snprintf(rooted, sizeof(rooted), "OK(the root decided the instant the take returned and held on all %u samples under the possession: the grant recomputed the projection)",
+                                 st->samples);
                     }
                 }
                 std::string text = std::string("stunnedNotRootedBeforeTake=") + before + " | rootAtTake=" + rooted +
@@ -3939,9 +3935,10 @@ namespace Harness
                 bool   auraAtApply;       ///< the 76216 holder was on it when the cast returned
                 bool   charmedAtCast;     ///< the player was its charmer then
                 bool   moverAtCast;       ///< ...and a mover session was under it
-                uint32 wordAtApply;       ///< the word that instant: MOVEFLAG_ROOT must be in it
+                uint32 wordAtApply;       ///< the word that instant
+                bool   rootDecidedAtApply; ///< the kernel had decided its root that instant
                 uint32 heldSamples;       ///< samples before the release with the stun on it AND the possession held
-                uint32 heldRootMissing;   ///< ...on which MOVEFLAG_ROOT was gone
+                uint32 heldRootMissing;   ///< ...on which the kernel's root on it was gone
                 bool   releaseRan;        ///< the release step resolved the player and ran
                 uint32 wordAtRelease;     ///< the word the instant ResetControlState returned
                 bool   moverAtRelease;    ///< a mover session was STILL under it that instant
@@ -3962,7 +3959,7 @@ namespace Harness
             Silence(body);
             const ObjectGuid g = p->GetObjectGuid(), gb = body->GetObjectGuid();
             auto st = std::make_shared<St>();
-            st->took = st->castRan = st->auraAtApply = st->charmedAtCast = st->moverAtCast = false;
+            st->took = st->castRan = st->auraAtApply = st->charmedAtCast = st->moverAtCast = st->rootDecidedAtApply = false;
             st->releaseRan = st->moverAtRelease = st->clientAtRelease = false;
             st->stunnedAtRelease = st->possessedAtRelease = false;
             st->wordAtApply = st->wordAtRelease = 0;
@@ -3993,6 +3990,7 @@ namespace Harness
                 st->castRan = true;
                 st->auraAtApply = b->HasAura(STUN_SELF);
                 st->wordAtApply = uint32(b->WireFlags());
+                st->rootDecidedAtApply = RootDecided(b);
                 Log("the cast returns on the possessed body: aura=%d charmer=%d mover session=%d flags 0x%08x (MOVEFLAG_ROOT %s) stunned=%d",
                     st->auraAtApply ? 1 : 0, st->charmedAtCast ? 1 : 0, st->moverAtCast ? 1 : 0, st->wordAtApply,
                     (st->wordAtApply & MOVEFLAG_ROOT) ? "SET" : "MISSING",
@@ -4044,7 +4042,7 @@ namespace Harness
                         if (b->GetCharmerGuid() == g)
                         {
                             ++st->heldSamples;
-                            if (!(word & MOVEFLAG_ROOT)) { ++st->heldRootMissing; }
+                            if (!RootDecided(b)) { ++st->heldRootMissing; }
                         }
                     }
                     else
@@ -4084,9 +4082,9 @@ namespace Harness
                 {
                     snprintf(held, sizeof(held), "INVALID(no %u holder on it when the cast returned)", STUN_SELF);
                 }
-                else if (!(st->wordAtApply & MOVEFLAG_ROOT))
+                else if (!st->rootDecidedAtApply)
                 {
-                    snprintf(held, sizeof(held), "BUG(MOVEFLAG_ROOT was not in its m_movementInfo the instant the cast returned: 0x%08x, so the stun never client-rooted the possessed body)", st->wordAtApply);
+                    snprintf(held, sizeof(held), "BUG(the kernel had not decided its root the instant the cast returned, so the stun never client-rooted the possessed body)");
                 }
                 else if (!st->heldSamples)
                 {
@@ -4094,11 +4092,11 @@ namespace Harness
                 }
                 else if (st->heldRootMissing)
                 {
-                    snprintf(held, sizeof(held), "BUG(MOVEFLAG_ROOT was gone from its m_movementInfo on %u of the %u samples before the release)", st->heldRootMissing, st->heldSamples);
+                    snprintf(held, sizeof(held), "BUG(the kernel's root on it was gone on %u of the %u samples before the release)", st->heldRootMissing, st->heldSamples);
                 }
                 else
                 {
-                    snprintf(held, sizeof(held), "OK(client-rooted from the instant the cast returned, 0x%08x, and on all %u samples up to the release)", st->wordAtApply, st->heldSamples);
+                    snprintf(held, sizeof(held), "OK(client-rooted from the instant the cast returned, the root decided and sent to its client, and on all %u samples up to the release)", st->heldSamples);
                 }
                 // --- rootOffAtRelease and stunSurvivesRelease both need the release.
                 if (!st->releaseRan)
