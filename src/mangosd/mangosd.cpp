@@ -64,6 +64,7 @@
 #include "ScriptMgr.h"
 #include "Chat.h"
 #include "data/CommandHooks.h"
+#include "data/DbScriptHooks.h"
 #ifdef ENABLE_SD3
 #include "system/ScriptDevMgr.h"
 #endif
@@ -351,6 +352,7 @@ int main(int argc, char** argv)
     ScriptHooks::Install(&SD3::GetScriptHooks());
 #endif
     CommandHooks::Install(&ChatHandler::GetCommandHooks());
+    DbScriptHooks::Install(&ScriptMgr::GetDbScriptHooks());
 
     // Databases, world, listener and background services all live in Master. It
     // runs the world loop on this thread and returns once the world has stopped

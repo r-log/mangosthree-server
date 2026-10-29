@@ -157,6 +157,7 @@ set(SRC_GRP_TESTS
     ChatLinksTest.cpp
     CommandHooksTest.cpp
     ChatPacketBuilderTest.cpp
+    DbScriptHooksTest.cpp
     QuestRewardTest.cpp
     TalentMgrTest.cpp
     ItemFixture.h

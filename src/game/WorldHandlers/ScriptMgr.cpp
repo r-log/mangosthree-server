@@ -47,6 +47,7 @@
 #include "Utilities/Errors.h"
 #include <set>
 #include "ScriptMgr.h"
+#include "data/DbScriptHooks.h"
 #include "Policies/Singleton.h"
 #include "Log.h"
 #include "ProgressBar.h"
@@ -65,12 +66,32 @@
 #include <cstring> /* std::strcmp */
 
 
-ScriptMgr::ScriptMgr() : m_scheduledScripts(0)
+ScriptMgr::ScriptMgr()
 {
 }
 
 ScriptMgr::~ScriptMgr()
 {
+}
+
+namespace
+{
+    /// The database script engine's answers to the domain: a scheduled step runs as a ScriptAction.
+    class DatabaseScriptHooks : public DbScriptHooks
+    {
+        public:
+            bool RunStep(Map* map, DbScriptStep const& step) override
+            {
+                ScriptAction action(step.GetType(), map, step.GetSourceGuid(), step.GetTargetGuid(), step.GetOwnerGuid(), step.GetScript());
+                return action.HandleScriptStep();
+            }
+    };
+}
+
+DbScriptHooks& ScriptMgr::GetDbScriptHooks()
+{
+    static DatabaseScriptHooks hooks;
+    return hooks;
 }
 
 /**

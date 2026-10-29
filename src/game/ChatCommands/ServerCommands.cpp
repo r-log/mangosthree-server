@@ -49,6 +49,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
 #include "MapPhase.h"
+#include "data/ScriptHooks.h"
 #include "Authority.h"
 #include "WorldSession.h"
 #include "GameTime.h"

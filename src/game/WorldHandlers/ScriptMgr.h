@@ -47,6 +47,7 @@ struct SpellEntry;
 class Aura;
 class Creature;
 class CreatureAI;
+class DbScriptHooks;
 class GameObject;
 class GameObjectAI;
 class InstanceData;
@@ -73,35 +74,6 @@ class ScriptAction
         {}
 
         bool HandleScriptStep();                            // return true IF AND ONLY IF the script should be terminated
-
-        DBScriptType GetType() const
-        {
-            return m_type;
-        }
-        uint32 GetId() const
-        {
-            return m_script->id;
-        }
-        ObjectGuid GetSourceGuid() const
-        {
-            return m_sourceGuid;
-        }
-        ObjectGuid GetTargetGuid() const
-        {
-            return m_targetGuid;
-        }
-        ObjectGuid GetOwnerGuid() const
-        {
-            return m_ownerGuid;
-        }
-
-        bool IsSameScript(DBScriptType type, uint32 id, ObjectGuid sourceGuid, ObjectGuid targetGuid, ObjectGuid ownerGuid) const
-        {
-            return type == m_type && id == GetId() &&
-                   (sourceGuid == m_sourceGuid || !sourceGuid) &&
-                   (targetGuid == m_targetGuid || !targetGuid) &&
-                   (ownerGuid == m_ownerGuid || !ownerGuid);
-        }
 
     private:
         DBScriptType m_type;                                // which type has the script was started
@@ -146,31 +118,15 @@ class ScriptMgr
 
         ScriptLoadResult LoadScriptLibrary(const char* libName);
         void UnloadScriptLibrary();
-        uint32 IncreaseScheduledScriptsCount()
-        {
-            return (uint32)++m_scheduledScripts;
-        }
-        uint32 DecreaseScheduledScriptCount()
-        {
-            return (uint32)--m_scheduledScripts;
-        }
-        uint32 DecreaseScheduledScriptCount(size_t count)
-        {
-            return (uint32)(m_scheduledScripts -= count);
-        }
-        bool IsScriptScheduled() const
-        {
-            return m_scheduledScripts > 0;
-        }
+
+        /// The database script engine's hooks, which mangosd installs: a scheduled step runs as a
+        /// ScriptAction.
+        static DbScriptHooks& GetDbScriptHooks();
 
     private:
         void CollectPossibleEventIds(std::set<uint32>& eventIds);
         void LoadScripts(DBScriptType type);
         void CheckScriptTexts(std::set<int32>& ids);
-
-        // atomic op counter for active scripts amount
-        std::atomic<long> m_scheduledScripts;
-        char __cache_guard[1024];
 };
 
 // Starters for events
