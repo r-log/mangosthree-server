@@ -96,6 +96,17 @@ SpellSpecific GetSpellSpecific(uint32 spellId);
 
 // Different spell properties
 inline float GetSpellRadius(SpellRadiusEntry const* radius) { return (radius ? radius->Radius : 0); }
+
+/// The spell a goober game object casts for the spell its template names: the template's own id, or the existing
+/// spell that stands in for a dummy one.
+uint32 GetGooberCastSpell(uint32 templateSpellId);
+/// The aura a hunter's pet casts on itself for the owner's Ferocious Inspiration rank; 0 for any other spell.
+uint32 GetFerociousInspirationPetAura(uint32 talentRankSpellId);
+/// Whether a mastery proc aura's own case in HandleProcTriggerSpellAuraProc or HandleDummyAuraProc decides its procs,
+/// so the generic class-mask check of CanProcFrom is skipped for it.
+bool IsCoreHandledMasteryProc(uint32 auraSpellId);
+/// The resurrection a Soulstone Resurrection aura grants; 0 for an aura the table does not hold.
+uint32 GetSoulstoneResurrectionSpell(uint32 auraSpellId);
 /**
  * Returns the effective cast time for the specified spell.
  */

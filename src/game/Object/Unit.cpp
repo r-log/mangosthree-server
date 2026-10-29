@@ -5572,33 +5572,11 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                     }
                     else
                     {
-                        // Cata mastery proc auras: Blizzard left the DBC
-                        // EffectSpellClassMask deliberately narrow for these
-                        // (their server-side scripts owned the filter), so
-                        // CanProcFrom's generic mask check would silently drop
-                        // every mastery proc. Bypass the check for spells we
-                        // have a dedicated case for in HandleProcTriggerSpell-
-                        // AuraProc or HandleDummyAuraProc (depending on the
-                        // aura's effect type); the per-spell case is the
-                        // dispatch authority, mirroring Blizzard's design.
-                        // See MASTERY_SD3_ROADMAP.md for the planned SD3
-                        // AuraScript migration that supersedes this list.
-                        bool isCoreHandledMasteryProc = false;
-                        switch (triggeredByHolder->GetId())
-                        {
-                            case 76672: // Hand of Light (Retribution Paladin)
-                            case 76659: // Wild Quiver (Marksmanship Hunter)
-                            case 76838: // Strikes of Opportunity (Arms Warrior; cased
-                                        // under SPELLFAMILY_ROGUE in the dummy-aura
-                                        // handler due to a DBC family-name quirk —
-                                        // see the case comment for context. The SD3
-                                        // mastery migration will move it back into
-                                        // its semantically-correct location.)
-                            case 77222: // Elemental Overload (Elemental Shaman)
-                            case 76669: // Illuminated Healing (Holy Paladin)
-                                isCoreHandledMasteryProc = true;
-                                break;
-                        }
+                        // Mastery proc auras: the DBC's EffectSpellClassMask is narrow for these, so
+                        // CanProcFrom's generic mask check would drop every proc. An aura with its own
+                        // case in HandleProcTriggerSpellAuraProc or HandleDummyAuraProc skips the check,
+                        // and that case decides.
+                        bool isCoreHandledMasteryProc = IsCoreHandledMasteryProc(triggeredByHolder->GetId());
                         if (!isCoreHandledMasteryProc
                             && !triggeredByAura->CanProcFrom(procSpell, procFlag, PROC_EX_NONE, procExtra, damage != 0, true))
                         {

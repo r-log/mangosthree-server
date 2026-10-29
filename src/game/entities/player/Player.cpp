@@ -5239,19 +5239,13 @@ uint32 Player::GetResurrectionSpellId()
         // Soulstone Resurrection                           // prio: 3 (max, non death persistent)
         if (prio < 2 && (*itr)->GetSpellProto()->SpellVisualID[0] == 99 && (*itr)->GetSpellProto()->SpellIconID == 92)
         {
-            switch ((*itr)->GetId())
+            uint32 resurrection = GetSoulstoneResurrectionSpell((*itr)->GetId());
+            if (!resurrection)
             {
-                case 20707: spell_id =  3026; break;        // rank 1
-                case 20762: spell_id = 20758; break;        // rank 2
-                case 20763: spell_id = 20759; break;        // rank 3
-                case 20764: spell_id = 20760; break;        // rank 4
-                case 20765: spell_id = 20761; break;        // rank 5
-                case 27239: spell_id = 27240; break;        // rank 6
-                case 47883: spell_id = 47882; break;        // rank 7
-                default:
-                    sLog.outError("Unhandled spell %u: S.Resurrection", (*itr)->GetId());
-                    continue;
+                sLog.outError("Unhandled spell %u: S.Resurrection", (*itr)->GetId());
+                continue;
             }
+            spell_id = resurrection;
 
             prio = 3;
         }
