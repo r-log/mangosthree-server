@@ -76,13 +76,15 @@ TEST(KinematicFlags_one_flag_per_kinematic_bit)
 TEST(UnitMovementStatus_server_driven_word_is_the_kernels)
 {
     StatusProbe probe;
+    const uint32 base = probe.WireFlags();          // a creature walks until told to run
+    CHECK_EQ(base, uint32(MOVEFLAG_WALK_MODE));
     probe.SetLevitate(true);
     probe.SetRoot(true);
-    CHECK_EQ(probe.WireFlags(), uint32(MOVEFLAG_LEVITATING | MOVEFLAG_ROOT));
-    CHECK_EQ(uint32(probe.WireStatus().GetMovementFlags()), uint32(MOVEFLAG_LEVITATING | MOVEFLAG_ROOT));
+    CHECK_EQ(probe.WireFlags(), base | uint32(MOVEFLAG_LEVITATING | MOVEFLAG_ROOT));
+    CHECK_EQ(uint32(probe.WireStatus().GetMovementFlags()), base | uint32(MOVEFLAG_LEVITATING | MOVEFLAG_ROOT));
     CHECK(probe.IsLevitating());
     probe.SetLevitate(false);
-    CHECK_EQ(probe.WireFlags(), uint32(MOVEFLAG_ROOT));
+    CHECK_EQ(probe.WireFlags(), base | uint32(MOVEFLAG_ROOT));
 }
 
 TEST(UnitMovementStatus_server_driven_status_carries_no_client_report)
@@ -92,7 +94,8 @@ TEST(UnitMovementStatus_server_driven_status_carries_no_client_report)
     probe.m_movementInfo.ChangePosition(1.0f, 2.0f, 3.0f, 0.5f);
     probe.m_movementInfo.UpdateTime(1234);
     MovementInfo status = probe.WireStatus();
-    CHECK_EQ(uint32(status.GetMovementFlags()), uint32(MOVEFLAG_NONE));
+    CHECK(!(status.GetMovementFlags() & MOVEFLAG_STRAFE_LEFT));
+    CHECK_EQ(uint32(status.GetMovementFlags()), probe.WireFlags());
     CHECK_EQ(status.GetPos()->x, 1.0f);
     CHECK_EQ(status.GetPos()->z, 3.0f);
     CHECK_EQ(status.GetTime(), 1234u);
