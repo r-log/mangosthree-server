@@ -115,15 +115,19 @@ void WorldObject::MonsterTextEmote(const char* text, Unit const* target, bool Is
  */
 void WorldObject::MonsterWhisper(const char* text, Unit const* target, bool IsBossWhisper) const
 {
-    if (!target || target->GetTypeId() != TYPEID_PLAYER)
+    ClientCallbacks const* client = target ? target->GetClientCallbacks() : NULL;
+    if (!client)
     {
         return;
     }
 
-    WorldPacket data(SMSG_MESSAGECHAT, 200);
-    BuildChatPacket(data, IsBossWhisper ? CHAT_MSG_RAID_BOSS_WHISPER : CHAT_MSG_MONSTER_WHISPER, text, LANG_UNIVERSAL, CHAT_TAG_NONE, GetObjectGuid(), GetName(),
-                    target->GetObjectGuid(), target->GetName());
-    ((Player*)target)->GetSession()->SendPacket(&data);
+    MANGOS_ASSERT(text);
+    MonsterWhisperFact fact;
+    fact.sender = GetObjectGuid();
+    fact.senderName = GetName();
+    fact.text = text;
+    fact.bossWhisper = IsBossWhisper;
+    ReportClientFact(client->monsterWhisper, fact);
 }
 
 namespace MaNGOS

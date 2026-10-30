@@ -31,6 +31,7 @@
 #include "session/packets/combat/AttackSwingPackets.h"
 #include "session/packets/combat/KillPackets.h"
 #include "session/packets/entities/CurrencyPackets.h"
+#include "session/packets/entities/FishingPackets.h"
 #include "session/packets/entities/PetActionBarPacket.h"
 #include "session/packets/entities/PetGuidsPacket.h"
 #include "session/packets/entities/PetPackets.h"
@@ -109,6 +110,7 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.questComplete = FactToSession(owner, &BuildQuestCompletePacket);
     callbacks.spiritHealerConfirm = FactToSession(owner, &BuildSpiritHealerConfirmPacket);
     callbacks.summonRequest = FactToSession(owner, &BuildSummonRequestPacket);
+    callbacks.fishNotHooked = FactToSession(owner, &BuildFishNotHookedPacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }

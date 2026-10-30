@@ -29,6 +29,7 @@
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
 #include "session/packets/chat/MessageChatPacket.h"
+#include "session/packets/chat/MonsterWhisperPacket.h"
 #include "WorldPacket.h"
 
 /**
@@ -107,6 +108,30 @@ TEST(MessageChatPacket_raid_boss_whisper_ends_with_a_float_and_a_byte)
 
     // 2a raid boss whisper | language | sender | 00000000 | 05000000 "Boss" | the target, a player,
     // so no target name | text | 00 | 00000000 float 0 | 00
+    CHECK_HEX(data.contents(), data.size(),
+        "2a" "00000000" "56000000c00130f1" "00000000" "05000000" "426f737300" "0500000000000000" "03000000" "486900" "00"
+        "00000000" "00");
+}
+
+TEST(MessageChatPacket_a_monster_whisper_names_the_player_and_no_target_name)
+{
+    MonsterWhisperFact fact;
+    fact.sender = kCreature;
+    fact.senderName = "Boss";
+    fact.text = "Hi";
+    fact.bossWhisper = false;
+    WorldPacket data;
+    BuildMonsterWhisperPacket(data, fact, kPlayer, "Bob");
+
+    CHECK_EQ(data.GetOpcode(), uint16(SMSG_MESSAGECHAT));
+    // 0f monster whisper | language | sender | 00000000 | 05000000 "Boss" | the target, a player,
+    // so no target name | text | 00
+    CHECK_HEX(data.contents(), data.size(),
+        "0f" "00000000" "56000000c00130f1" "00000000" "05000000" "426f737300" "0500000000000000" "03000000" "486900" "00");
+
+    fact.bossWhisper = true;
+    BuildMonsterWhisperPacket(data, fact, kPlayer, "Bob");
+    // the raid boss whisper case above, byte for byte
     CHECK_HEX(data.contents(), data.size(),
         "2a" "00000000" "56000000c00130f1" "00000000" "05000000" "426f737300" "0500000000000000" "03000000" "486900" "00"
         "00000000" "00");

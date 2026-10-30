@@ -394,6 +394,7 @@ namespace
         ReportClientFact(callbacks.questComplete, QuestDone());
         ReportClientFact(callbacks.spiritHealerConfirm, HealerAsks(kCreature));
         ReportClientFact(callbacks.summonRequest, Summon(kPlayer, 1519, 120000));
+        ReportClientFact(callbacks.fishNotHooked, FishNotHookedFact());
     }
 
     const char* const kEach[] =
@@ -430,6 +431,7 @@ namespace
         "55a4:010000000000000096000000c2010000156700000000000040",
         "4917:2a000000b80b30f1",
         "2a07:0000f00000000000ef050000c0d40100",
+        "0a17:",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -536,6 +538,12 @@ TEST(PlayerClientPackets_PetSpellBytes)
 TEST(PlayerClientPackets_PetActionFeedbackBytes)
 {
     CHECK_STR(Built(&BuildPetActionFeedbackPacket, Feedback(2)), "0807:02");
+}
+
+// SMSG_FISH_NOT_HOOKED (0x0A17): no payload.
+TEST(PlayerClientPackets_FishNotHookedBytes)
+{
+    CHECK_STR(Built(&BuildFishNotHookedPacket, FishNotHookedFact()), "0a17:");
 }
 
 // SMSG_SPIRIT_HEALER_CONFIRM (0x4917): the healer's raw guid as a uint64.
@@ -712,8 +720,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 32u);
-    for (size_t i = 0; i < 32; ++i)
+    REQUIRE(session.sent.size() == 33u);
+    for (size_t i = 0; i < 33; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -733,9 +741,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 32u);
-    REQUIRE(second.sent.size() == 32u);
-    for (size_t i = 0; i < 32; ++i)
+    REQUIRE(first.sent.size() == 33u);
+    REQUIRE(second.sent.size() == 33u);
+    for (size_t i = 0; i < 33; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);
