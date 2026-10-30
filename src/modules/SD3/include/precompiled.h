@@ -51,7 +51,6 @@
 #include "sc_grid_searchers.h"
 #include "sc_instance.h"
 #include "spells/auras/SpellAuras.h"
-#include "World.h"
 
 // Common.h is being retired across the cores; these are the pieces the scripts
 // used to receive through it. Named here once rather than in 490 script files.

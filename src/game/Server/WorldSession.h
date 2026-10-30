@@ -262,7 +262,7 @@ class MapSessionFilter : public PacketFilter
 /**
  * @brief World session filter class
  *
- * The filter of the session update's drain in World::UpdateSessions(): takes in-place and thread-unsafe packets, and
+ * The filter of the session update's drain in SessionRegistry::Update(): takes in-place and thread-unsafe packets, and
  * thread-safe packets while the session has no player in the world.
  */
 class WorldSessionFilter : public PacketFilter

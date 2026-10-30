@@ -46,7 +46,7 @@
 #include "Language.h"
 #include "AccountMgr.h"
 #include "GameEventMgr.h"
-#include "World.h"
+#include "session/SessionRegistry.h"
 #include "Util.h"
 #include "WorldSession.h"
 #include "persistence/characters/CharacterRepository.h"
@@ -689,7 +689,7 @@ bool ChatHandler::ShowAccountListHelper(std::vector<AccountListRow> const& rows,
 
         uint32 account = row.id;
 
-        WorldSession* session = sWorld.FindSession(account);
+        WorldSession* session = sSessionRegistry.Find(account);
         Player* player = session ? session->GetPlayer() : NULL;
         char const* char_name = player ? player->GetName() : " - ";
 

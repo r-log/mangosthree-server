@@ -35,6 +35,7 @@
 #include "CorpseManager.h"
 #include "WorldSession.h"
 #include "persistence/world/items/ItemDataRepository.h"
+#include "session/SessionRegistry.h"
 
 /**
  * @file PlayerStateCommands.cpp
@@ -303,7 +304,7 @@ bool ChatHandler::HandleSaveCommand(char* /*args*/)
  */
 bool ChatHandler::HandleSaveAllCommand(char* /*args*/)
 {
-    sPlayerRegistry.SaveAll();
+    sSessionRegistry.SaveAllPlayers();
     SendSysMessage(LANG_PLAYERS_SAVED);
     return true;
 }

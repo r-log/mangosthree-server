@@ -31,9 +31,10 @@
 /// list's and the name query's result, the login's query holder with the results it holds. The
 /// session that asked is sent its list and its name answer; the login reaches it, finds no row for
 /// the character (this binary answers none) and leaves it with no player and no longer loading.
-/// The world's session list and a session's loading flag are private, so the tests reach them the
-/// way ZonePlayerSetTest.cpp reaches the set's lock; a listed session is unlisted before the test
-/// ends, since the world deletes every session still listed when it is destroyed.
+/// Each test installs a session registry of its own. The registry's session list and a session's
+/// loading flag are private, so the tests reach them the way ZonePlayerSetTest.cpp reaches the set's
+/// lock; a listed session is unlisted before the test ends, since the registry deletes every session
+/// still listed when it is destroyed.
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
@@ -42,12 +43,12 @@
 #include "ObjectGuid.h"
 #include "Opcodes.h"
 #include "SharedDefines.h"
-#include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Auth/BigNumber.h"
 #include "session/handlers/entities/CharacterHandlers.h"
 #include "session/handlers/entities/QueryHandlers.h"
+#include "session/SessionRegistry.h"
 
 #include <string>
 #include <utility>
@@ -74,11 +75,11 @@ namespace
 
     struct WorldSessionList
     {
-        typedef SessionMap World::* type;
+        typedef SessionMap SessionRegistry::* type;
         friend type MemberOf(WorldSessionList);
     };
 
-    template struct RequesterSessionMemberAccess<WorldSessionList, &World::m_sessions>;
+    template struct RequesterSessionMemberAccess<WorldSessionList, &SessionRegistry::m_sessions>;
 
     struct SessionLoadingFlag
     {
@@ -88,21 +89,39 @@ namespace
 
     template struct RequesterSessionMemberAccess<SessionLoadingFlag, &WorldSession::m_playerLoading>;
 
-    /// Lists a session under its account in the world's session list, and unlists it when the
-    /// guard goes.
+    /// A session registry of the test's own, installed while the guard lives.
+    class InstalledRegistry
+    {
+        public:
+            InstalledRegistry() : m_previous(SessionRegistry::Install(&registry)) { }
+
+            ~InstalledRegistry()
+            {
+                SessionRegistry::Install(m_previous);
+            }
+
+            InstalledRegistry(InstalledRegistry const&) = delete;
+            InstalledRegistry& operator=(InstalledRegistry const&) = delete;
+
+            SessionRegistry registry;
+
+        private:
+            SessionRegistry* m_previous;
+    };
+
+    /// Lists a session under its account in the installed registry's session list, and unlists it
+    /// when the guard goes.
     class ListedSession
     {
         public:
             explicit ListedSession(WorldSession& session) : m_accountId(session.GetAccountId())
             {
-                World& world = sWorld;
-                (world.*MemberOf(WorldSessionList()))[m_accountId] = &session;
+                (sSessionRegistry.*MemberOf(WorldSessionList()))[m_accountId] = &session;
             }
 
             ~ListedSession()
             {
-                World& world = sWorld;
-                (world.*MemberOf(WorldSessionList())).erase(m_accountId);
+                (sSessionRegistry.*MemberOf(WorldSessionList())).erase(m_accountId);
             }
 
             ListedSession(ListedSession const&) = delete;
@@ -245,7 +264,7 @@ namespace
     }
 
     /// Runs the one queued query on the connection and its callback on this thread, with
-    /// `listed` the only session the world lists.
+    /// `listed` the only session the registry lists.
     void AnswerWithListed(WorldSession& listed)
     {
         CharacterDatabase.ExecuteQueuedForTest();
@@ -256,6 +275,8 @@ namespace
 
 TEST(RequesterSession_FindRequesterSessionAnswersOnlyTheSessionTheRequestCameOn)
 {
+    InstalledRegistry installed;
+
     CollectingSession requester("requester", kRequesterSessionId);
 
     // Nothing listed: nothing found.
@@ -276,6 +297,8 @@ TEST(RequesterSession_FindRequesterSessionAnswersOnlyTheSessionTheRequestCameOn)
 
 TEST(RequesterSession_CharacterListGoesOnlyToTheSessionThatAsked)
 {
+    InstalledRegistry installed;
+
     FakeConnection query(CharacterDatabase);
     CountingConnection async(CharacterDatabase);
     SqlResultQueue results;
@@ -316,6 +339,8 @@ TEST(RequesterSession_CharacterListGoesOnlyToTheSessionThatAsked)
 
 TEST(RequesterSession_NameQueryGoesOnlyToTheSessionThatAsked)
 {
+    InstalledRegistry installed;
+
     FakeConnection query(CharacterDatabase);
     CountingConnection async(CharacterDatabase);
     SqlResultQueue results;
@@ -360,6 +385,8 @@ TEST(RequesterSession_NameQueryGoesOnlyToTheSessionThatAsked)
 
 TEST(RequesterSession_LoginReachesOnlyTheSessionThatAskedAndADroppedHolderIsFreed)
 {
+    InstalledRegistry installed;
+
     FakeConnection query(CharacterDatabase);
     CountingConnection async(CharacterDatabase);
     SqlResultQueue results;

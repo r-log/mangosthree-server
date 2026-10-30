@@ -26,7 +26,6 @@
 #include "PlayerRegistry.h"
 
 #include "Player.h"
-#include "World.h"
 #include "WorldSession.h"
 
 #include <cstring>
@@ -77,22 +76,6 @@ void PlayerRegistry::Kick(ObjectGuid guid) const
         WorldSession* session = player->GetSession();
         session->KickPlayer();          // mark for removal at the next session update
         session->LogoutPlayer(false);   // and log out now rather than waiting for it
-    }
-}
-
-void PlayerRegistry::SaveAll() const
-{
-    // Driven from the session list rather than this index: a session can exist
-    // without its player being registered here yet, and those still need saving.
-    for (const auto& iter : sWorld.GetAllSessions())
-    {
-        if (Player* player = iter.second->GetPlayer())
-        {
-            if (player->IsInWorld())
-            {
-                player->SaveToDB();
-            }
-        }
     }
 }
 

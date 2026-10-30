@@ -38,7 +38,7 @@
 #include "OpcodeTable.h"
 #include "SessionLinks.h"
 #include "SharedDefines.h"
-#include "World.h"
+#include "session/SessionRegistry.h"
 #include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "persistence/login/AccountRepository.h"
@@ -173,7 +173,7 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
 
     // ---- Security floor (server closed to ordinary players) ------------------
     // WorldSocket.cpp:1166-1179.
-    const AccountTypes allowed = sWorld.GetPlayerSecurityLimit();
+    const AccountTypes allowed = sSessionRegistry.PlayerSecurityLimit();
     if (allowed > SEC_PLAYER && row->security < allowed)
     {
         BASIC_LOG("WorldGateway: account '%s' tried to login but its security "
@@ -273,7 +273,7 @@ proto::SessionId WorldGateway::Attach(const proto::AuthRequest& request,
     WorldSession* published = session.release();
     try
     {
-        sWorld.AddSession(published);
+        sSessionRegistry.Add(published);
     }
     catch (...)
     {
@@ -348,6 +348,6 @@ void WorldGateway::Detach(proto::SessionId session)
     // The session is not deleted here, and it is not kicked from this thread
     // either. The transport marked the link closed before calling us;
     // WorldSession::Update observes that on the world thread, logs the player
-    // out and returns false, and World::UpdateSessions reaps the session. That
+    // out and returns false, and SessionRegistry::Update reaps the session. That
     // is the only thread allowed to save a player and take them off the map.
 }

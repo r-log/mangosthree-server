@@ -23,51 +23,58 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include "session/SessionRegistry.h"
+
 #include "Utilities/Errors.h"
-#include <mutex>
-#include "World.h"
 #include "WorldSession.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "Player.h"
-#include "Database/DatabaseEnv.h"
 #include "Log.h"
+#include "data/GameConfig.h"
 #include "persistence/login/RealmRepository.h"
 
-/**
- * @file WorldSessionMgr.cpp
- * @brief World's session management: zone player lookup, session add and remove and the login wait queue.
- */
+#include <algorithm>
+#include <atomic>
 
-/// Find a player in a specified zone
-Player* World::FindPlayerInZone(uint32 zone)
+namespace
 {
-    ///- circle through active sessions and return the first player found in the zone
-    SessionMap::const_iterator itr;
-    for (itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
-    {
-        if (!itr->second)
-        {
-            continue;
-        }
-        Player* player = itr->second->GetPlayer();
-        if (!player)
-        {
-            continue;
-        }
-        if (player->IsInWorld() && player->GetTerrain()->GetZoneId(player->Where().X(), player->Where().Y(), player->Where().Z()) == zone)
-        {
-            // Used by the weather system. We return the player to broadcast the change weather message to him and all players in the zone.
-            return player;
-        }
-    }
-    return NULL;
+    std::atomic<SessionRegistry*> s_installed(NULL);
 }
 
-/// Find a session by its id
-WorldSession* World::FindSession(uint32 id) const
+SessionRegistry::SessionRegistry() : m_maxActiveCount(0), m_maxQueuedCount(0), m_playerLimit(0)
 {
-    SessionMap::const_iterator itr = m_sessions.find(id);
+}
+
+SessionRegistry::~SessionRegistry()
+{
+    // it is assumed that no other thread is accessing this data when the destructor is called.  therefore, no locks are necessary
+    for (auto const session : m_sessions)
+    {
+        delete session.second;
+    }
+
+    for (auto const session : m_addQueue)
+    {
+        delete session;
+    }
+}
+
+SessionRegistry& SessionRegistry::Installed()
+{
+    SessionRegistry* registry = s_installed.load(std::memory_order_acquire);
+    MANGOS_ASSERT(registry);
+    return *registry;
+}
+
+SessionRegistry* SessionRegistry::Install(SessionRegistry* registry)
+{
+    return s_installed.exchange(registry, std::memory_order_acq_rel);
+}
+
+WorldSession* SessionRegistry::Find(uint32 accountId) const
+{
+    SessionMap::const_iterator itr = m_sessions.find(accountId);
 
     if (itr != m_sessions.end())
     {
@@ -79,11 +86,10 @@ WorldSession* World::FindSession(uint32 id) const
     }
 }
 
-/// Remove a given session
-bool World::RemoveSession(uint32 id)
+bool SessionRegistry::Remove(uint32 accountId)
 {
     ///- Find the session, kick the user, but we can't delete session at this moment to prevent iterator invalidation
-    SessionMap::const_iterator itr = m_sessions.find(id);
+    SessionMap::const_iterator itr = m_sessions.find(accountId);
 
     if (itr != m_sessions.end() && itr->second)
     {
@@ -97,20 +103,14 @@ bool World::RemoveSession(uint32 id)
     return true;
 }
 
-/**
- * @brief Queues a new session for addition during the world update.
- *
- * @param s The session to add.
- */
-void World::AddSession(WorldSession* s)
+void SessionRegistry::Add(WorldSession* session)
 {
-    std::lock_guard<std::mutex> guard(m_sessionAddQueueLock);
+    std::lock_guard<std::mutex> guard(m_addQueueLock);
 
-    m_sessionAddQueue.push_back(s);
+    m_addQueue.push_back(session);
 }
 
-void
-World::AddSession_(WorldSession* s)
+void SessionRegistry::List(WorldSession* s)
 {
     MANGOS_ASSERT(s);
 
@@ -118,7 +118,7 @@ World::AddSession_(WorldSession* s)
 
     ///- kick already loaded player with same account (if any) and remove session
     ///- if player is in loading and want to load again, return
-    if (!RemoveSession(s->GetAccountId()))
+    if (!Remove(s->GetAccountId()))
     {
         s->KickPlayer();
         delete s;                                           // session not added yet in session list, so not listed in queue
@@ -129,14 +129,14 @@ World::AddSession_(WorldSession* s)
     bool decrease_session = true;
 
     // if session already exist, prepare to it deleting at next world update
-    // NOTE - KickPlayer() should be called on "old" in RemoveSession()
+    // NOTE - KickPlayer() should be called on "old" in Remove()
     {
         SessionMap::const_iterator old = m_sessions.find(s->GetAccountId());
 
         if (old != m_sessions.end())
         {
             // prevent decrease sessions count if session queued
-            if (RemoveQueuedSession(old->second))
+            if (RemoveQueued(old->second))
             {
                 decrease_session = false;
             }
@@ -147,9 +147,9 @@ World::AddSession_(WorldSession* s)
 
     m_sessions[s->GetAccountId()] = s;
 
-    uint32 Sessions = GetActiveAndQueuedSessionCount();
-    uint32 pLimit = GetPlayerAmountLimit();
-    uint32 QueueSize = GetQueuedSessionCount();             // number of players in the queue
+    uint32 Sessions = ActiveAndQueuedCount();
+    uint32 pLimit = PlayerAmountLimit();
+    uint32 QueueSize = QueuedCount();                       // number of players in the queue
 
     // so we don't count the user trying to
     // login as a session and queue the socket that we are using
@@ -160,8 +160,8 @@ World::AddSession_(WorldSession* s)
 
     if (pLimit > 0 && Sessions >= pLimit && s->GetSecurity() == SEC_PLAYER)
     {
-        AddQueuedSession(s);
-        UpdateMaxSessionCounters();
+        AddQueued(s);
+        UpdateMaxCounters();
         DETAIL_LOG("PlayerQueue: Account id %u is in Queue Position (%u).", s->GetAccountId(), ++QueueSize);
         return;
     }
@@ -184,17 +184,17 @@ World::AddSession_(WorldSession* s)
     s->SendAddonsInfo();
 
     WorldPacket pkt(SMSG_CLIENTCACHE_VERSION, 4);
-    pkt << uint32(getConfig(CONFIG_UINT32_CLIENTCACHE_VERSION));
+    pkt << uint32(sGameConfig.getConfig(CONFIG_UINT32_CLIENTCACHE_VERSION));
     s->SendPacket(&pkt);
 
     s->SendTutorialsData();
 
-    UpdateMaxSessionCounters();
+    UpdateMaxCounters();
 
     // Updates the population
     if (pLimit > 0)
     {
-        float popu = float(GetActiveSessionCount());        // updated number of users on the server
+        float popu = float(ActiveCount());                  // updated number of users on the server
         popu /= pLimit;
         popu *= 2;
 
@@ -204,17 +204,11 @@ World::AddSession_(WorldSession* s)
     }
 }
 
-/**
- * @brief Returns the current queue position of a session.
- *
- * @param sess The session to locate.
- * @return The 1-based queue position, or 0 if not queued.
- */
-int32 World::GetQueuedSessionPos(WorldSession* sess)
+int32 SessionRegistry::QueuedPosition(WorldSession* sess) const
 {
     uint32 position = 1;
 
-    for (Queue::const_iterator iter = m_QueuedSessions.begin(); iter != m_QueuedSessions.end(); ++iter, ++position)
+    for (Queue::const_iterator iter = m_queued.begin(); iter != m_queued.end(); ++iter, ++position)
         if ((*iter) == sess)
         {
             return position;
@@ -223,15 +217,10 @@ int32 World::GetQueuedSessionPos(WorldSession* sess)
     return 0;
 }
 
-/**
- * @brief Places a session into the login queue and notifies the client.
- *
- * @param sess The session being queued.
- */
-void World::AddQueuedSession(WorldSession* sess)
+void SessionRegistry::AddQueued(WorldSession* sess)
 {
     sess->SetInQueue(true);
-    m_QueuedSessions.push_back(sess);
+    m_queued.push_back(sess);
 
     // The 1st SMSG_AUTH_RESPONSE needs to contain other info too.
     WorldPacket packet (SMSG_AUTH_RESPONSE, 21);
@@ -247,34 +236,28 @@ void World::AddQueuedSession(WorldSession* sess)
     packet << uint32(0);                                    // BillingTimeRested
     packet << uint8(0);                                     // BillingPlanFlags
     packet << uint8(AUTH_WAIT_QUEUE);
-    packet << uint32(GetQueuedSessionPos(sess));            // position in queue
+    packet << uint32(QueuedPosition(sess));                 // position in queue
 
     sess->SendPacket(&packet);
 }
 
-/**
- * @brief Removes a session from the login queue and updates later positions.
- *
- * @param sess The session to remove.
- * @return true if the session was queued and removed; otherwise false.
- */
-bool World::RemoveQueuedSession(WorldSession* sess)
+bool SessionRegistry::RemoveQueued(WorldSession* sess)
 {
     // sessions count including queued to remove (if removed_session set)
-    uint32 sessions = GetActiveSessionCount();
+    uint32 sessions = ActiveCount();
 
     uint32 position = 1;
-    Queue::iterator iter = m_QueuedSessions.begin();
+    Queue::iterator iter = m_queued.begin();
 
     // search to remove and count skipped positions
     bool found = false;
 
-    for (; iter != m_QueuedSessions.end(); ++iter, ++position)
+    for (; iter != m_queued.end(); ++iter, ++position)
     {
         if (*iter == sess)
         {
             sess->SetInQueue(false);
-            iter = m_QueuedSessions.erase(iter);
+            iter = m_queued.erase(iter);
             found = true;                                   // removing queued session
             break;
         }
@@ -290,33 +273,148 @@ bool World::RemoveQueuedSession(WorldSession* sess)
     }
 
     // accept first in queue
-    if ((!m_playerLimit || (int32)sessions < m_playerLimit) && !m_QueuedSessions.empty())
+    if ((!m_playerLimit || (int32)sessions < m_playerLimit) && !m_queued.empty())
     {
-        WorldSession* pop_sess = m_QueuedSessions.front();
+        WorldSession* pop_sess = m_queued.front();
         pop_sess->SetInQueue(false);
         pop_sess->SendAuthWaitQue(0);
         pop_sess->SendAddonsInfo();
 
         WorldPacket pkt(SMSG_CLIENTCACHE_VERSION, 4);
-        pkt << uint32(getConfig(CONFIG_UINT32_CLIENTCACHE_VERSION));
+        pkt << uint32(sGameConfig.getConfig(CONFIG_UINT32_CLIENTCACHE_VERSION));
         pop_sess->SendPacket(&pkt);
 
         pop_sess->SendAccountDataTimes(GLOBAL_CACHE_MASK);
         pop_sess->SendTutorialsData();
 
-        m_QueuedSessions.pop_front();
+        m_queued.pop_front();
 
         // update iter to point first queued socket or end() if queue is empty now
-        iter = m_QueuedSessions.begin();
+        iter = m_queued.begin();
         position = 1;
     }
 
     // update position from iter to end()
     // iter point to first not updated socket, position store new position
-    for (; iter != m_QueuedSessions.end(); ++iter, ++position)
+    for (; iter != m_queued.end(); ++iter, ++position)
     {
         (*iter)->SendAuthWaitQue(position);
     }
 
     return found;
+}
+
+void SessionRegistry::SetPlayerLimit(int32 limit, bool needUpdate)
+{
+    if (limit < -SEC_ADMINISTRATOR)
+    {
+        limit = -SEC_ADMINISTRATOR;
+    }
+
+    // lock update need
+    bool db_update_need = needUpdate || (limit < 0) != (m_playerLimit < 0) || (limit < 0 && m_playerLimit < 0 && limit != m_playerLimit);
+
+    m_playerLimit = limit;
+
+    if (db_update_need)
+        RealmRepository::SetAllowedSecurityLevel(uint32(PlayerSecurityLimit()), realmID);
+}
+
+void SessionRegistry::UpdateMaxCounters()
+{
+    m_maxActiveCount = std::max(m_maxActiveCount, uint32(m_sessions.size() - m_queued.size()));
+    m_maxQueuedCount = std::max(m_maxQueuedCount, uint32(m_queued.size()));
+}
+
+void SessionRegistry::Broadcast(WorldPacket const& packet, AccountTypes minSec)
+{
+    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    {
+        if (WorldSession* session = itr->second)
+        {
+            if (session->GetSecurity() < minSec)
+            {
+                continue;
+            }
+            Player* player = session->GetPlayer();
+            if (player && player->IsInWorld())
+            {
+                session->SendPacket(&packet);
+            }
+        }
+    }
+}
+
+void SessionRegistry::InvalidatePlayerData(ObjectGuid guid)
+{
+    WorldPacket data(SMSG_INVALIDATE_PLAYER, 8);
+    data << guid;
+    Broadcast(data);
+}
+
+void SessionRegistry::SaveAllPlayers() const
+{
+    // Driven from the session list rather than the player registry: a session can exist
+    // without its player being registered there yet, and those still need saving.
+    for (const auto& iter : m_sessions)
+    {
+        if (Player* player = iter.second->GetPlayer())
+        {
+            if (player->IsInWorld())
+            {
+                player->SaveToDB();
+            }
+        }
+    }
+}
+
+void SessionRegistry::KickAll()
+{
+    m_queued.clear();                                       // prevent send queue update packet and login queued sessions
+
+    // session not removed at kick and will removed in next update tick
+    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    {
+        itr->second->KickPlayer();
+    }
+}
+
+void SessionRegistry::KickAllLess(AccountTypes sec)
+{
+    // session not removed at kick and will removed in next update tick
+    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+        if (WorldSession* session = itr->second)
+            if (session->GetSecurity() < sec)
+            {
+                session->KickPlayer();
+            }
+}
+
+void SessionRegistry::Update(uint32 /*diff*/)
+{
+    ///- Add new sessions
+    {
+        std::lock_guard<std::mutex> guard(m_addQueueLock);
+
+        std::for_each(m_addQueue.begin(), m_addQueue.end(), [&](WorldSession *session) { List(session); });
+
+        m_addQueue.clear();
+    }
+
+    ///- Then send an update signal to remaining ones
+    for (SessionMap::iterator itr = m_sessions.begin(), next; itr != m_sessions.end(); itr = next)
+    {
+        next = itr;
+        ++next;
+        ///- and remove not active sessions from the list
+        WorldSession* pSession = itr->second;
+        WorldSessionFilter updater(pSession);
+
+        if (!pSession->Update(updater))
+        {
+            RemoveQueued(pSession);
+            m_sessions.erase(itr);
+            delete pSession;
+        }
+    }
 }

@@ -47,6 +47,7 @@
 #include "SharedDefines.h"
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"
+#include "session/SessionRegistry.h"
 
 #include <map>
 #include <set>
@@ -165,9 +166,6 @@ class AfterMapPhaseQueue
 };
 
 /// The World
-
-typedef std::unordered_map<uint32, WorldSession*> SessionMap;
-
 class World
 {
     public:
@@ -177,33 +175,6 @@ class World
         ~World();
 
         void CleanupsBeforeStop();
-
-        WorldSession* FindSession(uint32 id) const;
-        void AddSession(WorldSession* s);
-        bool RemoveSession(uint32 id);
-        /// Get the number of current active sessions
-        void UpdateMaxSessionCounters();
-        const SessionMap& GetAllSessions() const { return m_sessions; }
-        uint32 GetActiveAndQueuedSessionCount() const { return m_sessions.size(); }
-        uint32 GetActiveSessionCount() const { return m_sessions.size() - m_QueuedSessions.size(); }
-        uint32 GetQueuedSessionCount() const { return m_QueuedSessions.size(); }
-        /// Get the maximum number of parallel sessions on the server since last reboot
-        uint32 GetMaxQueuedSessionCount() const { return m_maxQueuedSessionCount; }
-        uint32 GetMaxActiveSessionCount() const { return m_maxActiveSessionCount; }
-        Player* FindPlayerInZone(uint32 zone);
-
-        /// Get the active session server limit (or security level limitations)
-        uint32 GetPlayerAmountLimit() const { return m_playerLimit >= 0 ? m_playerLimit : 0; }
-        AccountTypes GetPlayerSecurityLimit() const { return m_playerLimit <= 0 ? AccountTypes(-m_playerLimit) : SEC_PLAYER; }
-
-        /// Set the active session server limit (or security level limitation)
-        void SetPlayerLimit(int32 limit, bool needUpdate = false);
-
-        // player Queue
-        typedef std::list<WorldSession*> Queue;
-        void AddQueuedSession(WorldSession*);
-        bool RemoveQueuedSession(WorldSession* session);
-        int32 GetQueuedSessionPos(WorldSession*);
 
         /// \todo Actions on m_allowMovement still to be implemented
         /// Is movement allowed?
@@ -237,7 +208,9 @@ class World
 
         void SendWorldText(int32 string_id, ...);
         void SendWorldTextV(int32 string_id, va_list* args);
-        void SendGlobalMessage(WorldPacket* packet, AccountTypes minSec = SEC_PLAYER);
+        /// Sends `packet` to every player in the world whose account is at least `minSec`, through the
+        /// session registry; the code below the session layer, which may not reach the registry, calls this.
+        void SendGlobalMessage(WorldPacket* packet, AccountTypes minSec = SEC_PLAYER) { m_sessions.Broadcast(*packet, minSec); }
         void SendServerMessage(ServerMessageType type, const char* text = "", Player* player = NULL);
         void SendZoneUnderAttackMessage(uint32 zoneId, Team team);
         void SendDefenseMessage(uint32 zoneId, int32 textId);
@@ -253,8 +226,6 @@ class World
         static bool IsStopped() { return m_stopEvent; }
 
         void Update(uint32 diff);
-
-        void UpdateSessions(uint32 diff);
 
         /// Get a server configuration element (see #eConfigFloatValues)
         void setConfig(eConfigFloatValues index, float value) { sGameConfig.setConfig(index, value); }
@@ -292,8 +263,6 @@ class World
         bool IsPvPRealm() { return sGameConfig.IsPvPRealm(); }
         bool IsFFAPvPRealm() { return sGameConfig.IsFFAPvPRealm(); }
 
-        void KickAll();
-        void KickAllLess(AccountTypes sec);
         BanReturn BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_secs, std::string reason, const std::string& author);
         bool RemoveBanAccount(BanMode mode, std::string nameOrIP);
 
@@ -312,17 +281,6 @@ class World
         char const* GetDBVersion() { return m_DBVersion.c_str(); }
 
         void LoadBroadcastStrings();
-
-        /**
-        * \brief: force all client to request player data
-        * \param: ObjectGuid guid : guid of the specified player
-        * \returns: void
-        *
-        * Description: InvalidatePlayerDataToAllClient force all connected clients to clear specified player cache
-        * FullName: World::InvalidatePlayerDataToAllClient
-        * Access: public
-        **/
-        void InvalidatePlayerDataToAllClient(ObjectGuid guid);
 
     protected:
         void _UpdateGameTime();
@@ -384,11 +342,8 @@ class World
         uint32 mail_timer;
         uint32 mail_timer_expires;
 
-        SessionMap m_sessions;
-        uint32 m_maxActiveSessionCount;
-        uint32 m_maxQueuedSessionCount;
+        SessionRegistry m_sessions;
 
-        int32 m_playerLimit;
         void DetectDBCLang();
         bool m_allowMovement;
         std::string m_motd;
@@ -404,14 +359,6 @@ class World
         time_t m_NextWeeklyQuestReset;
         time_t m_NextMonthlyQuestReset;
 
-        // Player Queue
-        Queue m_QueuedSessions;
-
-        // sessions that are added async
-        void AddSession_(WorldSession* s);
-
-        std::mutex m_sessionAddQueueLock;
-        std::deque<WorldSession *> m_sessionAddQueue;
 
         void ApplyAfterMapPhasePosts();
         AfterMapPhaseQueue m_afterMapPhase;

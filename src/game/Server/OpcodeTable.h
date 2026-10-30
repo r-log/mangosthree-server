@@ -60,13 +60,13 @@ enum SessionStatus
 /**
  * Where the handler of a \ref WorldPacket runs. A session's packets wait in one queue in
  * arrival order, and two drains take them, each stopping at the first packet it may not take:
- * - \ref World::UpdateSessions, on the world thread, outside the map phase
+ * - \ref SessionRegistry::Update, on the world thread, outside the map phase
  * - \ref Map::Update, for a player in the world, on the thread updating the player's map
  */
 enum PacketProcessing
 {
     PROCESS_INPLACE = 0,   ///< runs at whichever of the two drains reaches it first
-    PROCESS_THREADUNSAFE,  ///< runs on the world thread in \ref World::UpdateSessions
+    PROCESS_THREADUNSAFE,  ///< runs on the world thread in \ref SessionRegistry::Update
     PROCESS_THREADSAFE     ///< runs in \ref Map::Update for a player in the world, on the world thread otherwise
 };
 

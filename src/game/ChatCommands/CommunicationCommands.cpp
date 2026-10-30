@@ -41,6 +41,7 @@
 #include "Creature.h"
 #include "Player.h"
 #include "World.h"
+#include "session/SessionRegistry.h"
 #include "WorldSession.h"
 #include "persistence/login/AccountRepository.h"
 
@@ -79,7 +80,7 @@ bool ChatHandler::HandleNotifyCommand(char* args)
 
     WorldPacket data(SMSG_NOTIFICATION, (str.size() + 1));
     data << str;
-    sWorld.SendGlobalMessage(&data);
+    sSessionRegistry.Broadcast(data);
 
     return true;
 }
@@ -113,7 +114,7 @@ bool ChatHandler::HandleMuteCommand(char* args)
     // find only player from same account if any
     if (!target)
     {
-        if (WorldSession* session = sWorld.FindSession(account_id))
+        if (WorldSession* session = sSessionRegistry.Find(account_id))
         {
             target = session->GetPlayer();
         }
@@ -166,7 +167,7 @@ bool ChatHandler::HandleUnmuteCommand(char* args)
     // find only player from same account if any
     if (!target)
     {
-        if (WorldSession* session = sWorld.FindSession(account_id))
+        if (WorldSession* session = sSessionRegistry.Find(account_id))
         {
             target = session->GetPlayer();
         }

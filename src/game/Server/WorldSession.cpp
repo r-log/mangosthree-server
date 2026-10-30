@@ -256,7 +256,7 @@ bool MapSessionFilter::Process(WorldPacket* packet)
  * @param packet Packet to process
  * @return True if packet should be processed
  *
- * Filters packets for processing in World::UpdateSessions context.
+ * Filters packets for processing in SessionRegistry::Update context.
  * Takes an in-place or thread-unsafe packet, and a thread-safe packet while the session has no player in the world.
  */
 bool WorldSessionFilter::Process(WorldPacket* packet)
@@ -590,7 +590,7 @@ bool WorldSession::Update(PacketFilter& updater)
     }
 
     // check if we are safe to proceed with logout
-    // logout procedure should happen only in World::UpdateSessions() method!!!
+    // logout procedure should happen only in SessionRegistry::Update() method!!!
     if (updater.ProcessLogout())
     {
         ///- If necessary, log the player out
@@ -1686,7 +1686,7 @@ void WorldSession::UpdateSecondStream()
     {
         // The client came back. Put the login back in the queue rather than running
         // it here: this method is reached from Map::Update as well as from
-        // World::UpdateSessions, and CMSG_PLAYER_LOGIN is thread-unsafe. Requeued,
+        // SessionRegistry::Update, and CMSG_PLAYER_LOGIN is thread-unsafe. Requeued,
         // it is dispatched in the context the opcode table asks for, and the
         // interception above lets it through now that the second stream is live.
         sWorldNetwork.CancelSecondStream(GetSessionId());
