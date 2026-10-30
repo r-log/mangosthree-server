@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """downcast_count.py <src-root>
 
-The downcast counter for the decoupling campaign (design section 8). It walks every *.cpp
-and *.h file under <src-root>, strips comments, and counts five classes of Player/Creature
-downcast at the call site:
+The downcast counter. It walks every *.cpp and *.h file under <src-root>, strips comments, and
+counts six classes of Player/Creature downcast at the call site:
 
   c_style_player    a C-style cast to Player* immediately followed by an operand
   c_style_creature  the same for Creature
@@ -11,21 +10,29 @@ downcast at the call site:
   dynamic_cast      any dynamic_cast<...>
   subtype_sites     ((Creature*)x)->IsPet() / ->IsTotem() -- a C-style cast used only to ask
                     a question Creature::GetSubtype() already answers without the cast
+  checked_helper    a call of a checked downcast: ToPlayer(), ToCreature() or ToPet(...)
 
-subtype_sites is a subset of c_style_creature: a matching site counts in both. This script is
-the campaign's downcast counter; D5f turned subtype_sites into a ratchet (ctest entry
-`subtype_downcasts`), so its regexes and output format are exact -- see the D5 brief before
-changing either.
+subtype_sites is a subset of c_style_creature: a matching site counts in both. Two totals add
+classes together:
+
+  total_c_style     c_style_player + c_style_creature
+  downcasts         c_style_player + c_style_creature + static_cast + checked_helper
+
+A C-style cast rewritten as a checked helper leaves `downcasts` where it was; a new downcast of
+any of the four kinds raises it. The ctest entries gate classes and `downcasts`, so the regexes
+and the output format are exact.
 
 python3 src/tests/tools/downcast_count.py src/game
 python3 src/tests/tools/downcast_count.py --self-test
 python3 src/tests/tools/downcast_count.py --list subtype_sites src/game
 python3 src/tests/tools/downcast_count.py --gate subtype_sites=0 src/game
+python3 src/tests/tools/downcast_count.py --gate downcasts=733 src/game
 
 --list <class> prints one `file:line: text` line per occurrence of that class (so the number of
 printed lines equals the class's occurrence count) and still prints the counts.
---gate <class>=<max> (repeatable) exits 1 when that class's occurrence count exceeds <max>, after
-naming the offending sites. It is how the campaign's ratchets are wired into ctest.
+--gate <class or total>=<max> (repeatable) exits 1 when that count exceeds <max>, after naming
+the offending sites of a class, or the classes a total adds. It is how the ratchets are wired
+into ctest.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -56,19 +63,20 @@ import os
 import re
 import sys
 
-# Order matters: it is the order printed, and c_style_player/c_style_creature are the two
-# total_c_style adds together.
+# Order matters: it is the order printed.
 #
 # Every class tolerates whitespace around the `*` and the `const`: `static_cast<Creature *>` and
-# `(Creature const *)` are the same downcast as their tight spellings, and the pre-D5f regexes
-# missed them (D5f fix round 1 widened all five and re-baselined the numbers). subtype_sites
-# accepts any receiver expression inside the cast -- `((Creature*)GetTarget())->IsPet()` and
+# `(Creature const *)` are the same downcast as their tight spellings. subtype_sites accepts any
+# receiver expression inside the cast -- `((Creature*)GetTarget())->IsPet()` and
 # `static_cast<Creature const*>(minion)->IsTotem()` count like `((Creature*)x)->IsPet()` -- and
 # the `[^;]*?` keeps a match inside one statement.
 #
 # NOT_AN_OPERAND is what the whitespace tolerance costs: `bool f(Player* ) const` declares an
-# unnamed parameter, it is not a cast, and only the tight `*)` spelling used to exclude it. A
-# cast's operand never starts with one of these keywords.
+# unnamed parameter, it is not a cast. A cast's operand never starts with one of these keywords.
+#
+# checked_helper counts calls with or without a receiver (`unit->ToPlayer()`, `ToCreature()` on
+# `this`). A helper's name right after a `*` or a `&` is its own declaration (`Player* ToPlayer()`,
+# `Pet* ToPet(Unit* unit)`), not a call.
 NOT_AN_OPERAND = r"(?!const\b|override\b|final\b|noexcept\b)"
 CLASSES = [
     ("c_style_player", re.compile(r"\(\s*Player(\s+const)?\s*\*\s*\)\s*" + NOT_AN_OPERAND + r"[A-Za-z_(]")),
@@ -78,17 +86,26 @@ CLASSES = [
     ("subtype_sites", re.compile(
         r"\(\s*\(\s*Creature(\s+const)?\s*\*\s*\)[^;]*?\)\s*->\s*(IsPet|IsTotem)\s*\(\s*\)"
         r"|static_cast<\s*Creature(\s+const)?\s*\*\s*>\s*\([^;]*?\)\s*->\s*(IsPet|IsTotem)\s*\(\s*\)")),
+    ("checked_helper", re.compile(
+        r"(?<!\*)(?<!\* )(?<!&)(?<!& )\b(To(Player|Creature)\s*\(\s*\)|ToPet\s*\()")),
 ]
 CLASS_MAP = dict(CLASSES)
+
+# The totals, in the order printed, and the classes each adds together.
+TOTALS = [
+    ("total_c_style", ("c_style_player", "c_style_creature")),
+    ("downcasts", ("c_style_player", "c_style_creature", "static_cast", "checked_helper")),
+]
+TOTAL_MAP = dict(TOTALS)
 
 
 def strip_comments(text):
     """Remove // line comments and /* ... */ block comments with a simple state machine.
 
-    String literals are not tracked separately (the brief allows this simplification): a "//"
-    or "/*" inside a string literal is stripped as if it were a real comment. That is rare in
-    this tree's cast sites and never changes which *file* has a match, only occasionally an
-    occurrence count in a file that mixes casts and string literals containing those tokens.
+    String literals are not tracked separately: a "//" or "/*" inside a string literal is
+    stripped as if it were a real comment. That is rare in this tree's cast sites and never
+    changes which *file* has a match, only occasionally an occurrence count in a file that mixes
+    casts and string literals containing those tokens.
     """
     out = []
     i = 0
@@ -115,8 +132,7 @@ def strip_comments(text):
                 i = j + 2
         else:
             # A lone '/' (division, a path separator inside a string, ...): not a comment
-            # start. Keep it and advance past it -- this is the case the earlier, buggier
-            # version of this function looped forever on.
+            # start. Keep it and advance past it.
             out.append('/')
             i = slash + 1
     return ''.join(out)
@@ -129,6 +145,14 @@ def count_occurrences(pattern, text):
 def count_text(text):
     """Occurrence counts per class for one already-comment-stripped blob."""
     return {name: count_occurrences(pattern, text) for name, pattern in CLASSES}
+
+
+def with_totals(counts):
+    """`counts` per class, with every total added."""
+    out = dict(counts)
+    for name, parts in TOTALS:
+        out[name] = sum(counts.get(part, 0) for part in parts)
+    return out
 
 
 def line_starts(text):
@@ -153,13 +177,14 @@ def find_match_lines(pattern, stripped):
 
 
 def parse_gate(spec):
-    """'subtype_sites=0' -> ('subtype_sites', 0). Raises ValueError on anything else."""
+    """'subtype_sites=0' -> ('subtype_sites', 0); a total gates the same way. Raises ValueError
+    on anything else."""
     if "=" not in spec:
-        raise ValueError(f"--gate wants <class>=<max>, got '{spec}'")
+        raise ValueError(f"--gate wants <class or total>=<max>, got '{spec}'")
     cls, _, limit = spec.partition("=")
     cls = cls.strip()
-    if cls not in CLASS_MAP:
-        raise ValueError(f"--gate: unknown class '{cls}' (known: {', '.join(CLASS_MAP)})")
+    if cls not in CLASS_MAP and cls not in TOTAL_MAP:
+        raise ValueError(f"--gate: unknown class or total '{cls}' (known: {', '.join(list(CLASS_MAP) + list(TOTAL_MAP))})")
     try:
         maximum = int(limit.strip())
     except ValueError:
@@ -207,7 +232,7 @@ def self_test():
     if n != 1:
         failures.append(f"((Creature*)this)->IsPet(): expected c_style_creature=1, got {n}")
 
-    # The spellings the pre-D5f regexes missed (fix round 1).
+    # The spaced spellings.
     text = strip_comments("Creature* c = static_cast<Creature *>(possessed);\n")
     n = count_occurrences(CLASS_MAP["static_cast"], text)
     if n != 1:
@@ -282,6 +307,37 @@ def self_test():
     if gate_failures({"c_style_creature": 400}, [("c_style_creature", 400)]):
         failures.append("gate at exactly the maximum: expected pass, got a failure")
 
+    # checked_helper: a call counts with or without a receiver, a declaration does not.
+    for call in ("if (Player const* player = unit->ToPlayer())\n",
+                 "if (Creature* killer = ToCreature())\n",
+                 "Pet* pet = ToPet(unit);\n",
+                 "Creature* c = owner.ToCreature();\n"):
+        n = count_occurrences(CLASS_MAP["checked_helper"], strip_comments(call))
+        if n != 1:
+            failures.append(f"{call.strip()}: expected checked_helper=1, got {n}")
+    for declaration in ("Player* ToPlayer() { if (GetTypeId() == TYPEID_PLAYER) return reinterpret_cast<Player*>(this); else return NULL; }\n",
+                        "Creature const* ToCreature() const { return NULL; }\n",
+                        "inline Pet* ToPet(Unit* unit)\n",
+                        "Pet const *ToPet(Unit const* unit);\n",
+                        "SendToPlayer(); AddToPet(pet); ToPlayerGuid();\n"):
+        n = count_occurrences(CLASS_MAP["checked_helper"], strip_comments(declaration))
+        if n != 0:
+            failures.append(f"{declaration.strip()}: expected checked_helper=0, got {n}")
+
+    # The totals add their classes, and gate like a class.
+    totals = with_totals({"c_style_player": 2, "c_style_creature": 1, "static_cast": 1,
+                          "dynamic_cast": 5, "subtype_sites": 1, "checked_helper": 3})
+    if totals["total_c_style"] != 3 or totals["downcasts"] != 7:
+        failures.append(f"totals: expected total_c_style=3 downcasts=7, got {totals['total_c_style']} {totals['downcasts']}")
+    try:
+        got = parse_gate("downcasts=733")
+        if got != ("downcasts", 733):
+            failures.append(f"parse_gate('downcasts=733'): expected ('downcasts', 733), got {got}")
+    except ValueError as exc:
+        failures.append(f"parse_gate('downcasts=733') raised: {exc}")
+    if not gate_failures(totals, [("downcasts", 6)]) or gate_failures(totals, [("downcasts", 7)]):
+        failures.append("gate downcasts: expected a failure at 6 and a pass at 7")
+
     if failures:
         for f in failures:
             print(f"self-test FAILED: {f}", file=sys.stderr)
@@ -341,7 +397,7 @@ def main(argv):
     totals = {name: 0 for name, _ in CLASSES}
     files_with = {name: 0 for name, _ in CLASSES}
     listed = []
-    gated_sites = {cls: [] for cls, _ in gates}
+    gated_sites = {cls: [] for cls, _ in gates if cls in CLASS_MAP}
 
     for dirpath, dirnames, names in os.walk(root):
         dirnames.sort()
@@ -383,14 +439,21 @@ def main(argv):
     if listed:
         print(f"{list_class} sites={len(listed)}")
 
+    totals = with_totals(totals)
     for cls, _ in CLASSES:
         print(f"{cls} occurrences={totals[cls]} files={files_with[cls]}")
-    print(f"total_c_style={totals['c_style_player'] + totals['c_style_creature']}")
+    for name, _ in TOTALS:
+        print(f"{name}={totals[name]}")
 
     failures = gate_failures(totals, gates)
     if failures:
         for cls, maximum in gates:
-            if totals[cls] > maximum:
+            if totals[cls] <= maximum:
+                continue
+            if cls in TOTAL_MAP:
+                parts = " + ".join(f"{part} {totals[part]}" for part in TOTAL_MAP[cls])
+                print(f"  {cls} = {parts}", file=sys.stderr)
+            else:
                 for entry in gated_sites[cls]:
                     print(f"  {entry}", file=sys.stderr)
         for message in failures:
