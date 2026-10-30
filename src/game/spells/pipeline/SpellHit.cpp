@@ -354,9 +354,9 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
         unitPlayer->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET2, m_spellInfo->ID);
     }
 
-    if (realCaster && realCaster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* realCasterPlayer = realCaster ? realCaster->ToPlayer() : NULL)
     {
-        ((Player*)realCaster)->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL2, m_spellInfo->ID, 0, unit);
+        realCasterPlayer->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL2, m_spellInfo->ID, 0, unit);
     }
 
     if (realCaster && realCaster != unit)

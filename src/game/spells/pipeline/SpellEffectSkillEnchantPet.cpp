@@ -258,9 +258,11 @@ void Spell::EffectDispel(SpellEffectEntry const* effect)
  */
 void Spell::EffectDualWield(SpellEffectEntry const* /*effect*/)
 {
-    if (unitTarget && unitTarget->GetTypeId() == TYPEID_PLAYER)
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
+    if (targetPlayer)
     {
-        ((Player*)unitTarget)->SetCanDualWield(true);
+        targetPlayer->SetCanDualWield(true);
     }
 }
 
@@ -740,11 +742,17 @@ void Spell::EffectEnchantItemTmp(SpellEffectEntry const* effect)
  */
 void Spell::EffectTameCreature(SpellEffectEntry const* /*effect*/)
 {
+    Creature* const targetCreature = unitTarget ? unitTarget->ToCreature() : NULL;
+
     // Caster must be player, checked in Spell::CheckCast
     // Spell can be triggered, we need to check original caster prior to caster
-    Player* plr = (Player*)GetAffectiveCaster();
+    Unit* affectiveCaster = GetAffectiveCaster();
+    Player* plr = affectiveCaster ? affectiveCaster->ToPlayer() : NULL;
+    if (!plr)
+    {
+        return;
+    }
 
-    Creature* creatureTarget = (Creature*)unitTarget;
 
     // cast finish successfully
     // SendChannelUpdate(0);
@@ -752,7 +760,7 @@ void Spell::EffectTameCreature(SpellEffectEntry const* /*effect*/)
 
     Pet* pet = new Pet(HUNTER_PET);
 
-    if (!pet->CreateBaseAtCreature(creatureTarget))
+    if (!pet->CreateBaseAtCreature(targetCreature))
     {
         delete pet;
         return;
@@ -778,25 +786,25 @@ void Spell::EffectTameCreature(SpellEffectEntry const* /*effect*/)
     pet->GetCharmInfo()->SetReactState(REACT_DEFENSIVE);
 
     // level of hunter pet can't be less owner level at 5 levels
-    uint32 cLevel = creatureTarget->getLevel();
+    uint32 cLevel = targetCreature->getLevel();
     uint32 plLevel = plr->getLevel();
     uint32 level = (cLevel + 5) < plLevel ? (plLevel - 5) : cLevel;
     pet->InitStatsForLevel(level);
     pet->InitLevelupSpellsForLevel();
     pet->InitTalentForLevel();
 
-    pet->SetHealthPercent(creatureTarget->GetHealthPercent());
+    pet->SetHealthPercent(targetCreature->GetHealthPercent());
 
     pet->GetCharmInfo()->SetPetNumber(sObjectMgr.GeneratePetNumber(), true);
 
     // destroy creature object
-    creatureTarget->ForcedDespawn();
+    targetCreature->ForcedDespawn();
 
     // prepare visual effect for levelup
     pet->SetUInt32Value(UNIT_FIELD_LEVEL, level - 1);
 
     // add pet object to the world
-    pet->GetMap()->Add((Creature*)pet);
+    pet->GetMap()->Add<Creature>(pet);
     pet->AIM_Initialize();
 
     // visual effect for levelup
@@ -841,11 +849,13 @@ void Spell::EffectTameCreature(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectSummonPet(SpellEffectEntry const* effect)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     uint32 petentry = effect->EffectMiscValue_0;
 
     Pet* NewSummon = new Pet;
 
-    if (Player* casterPlayer = m_caster->ToPlayer())
+    if (casterPlayer)
     {
         switch(m_caster->getClass())
         {
@@ -917,13 +927,13 @@ void Spell::EffectSummonPet(SpellEffectEntry const* effect)
     NewSummon->InitLevelupSpellsForLevel();
     NewSummon->InitTalentForLevel();
 
-    map->Add((Creature*)NewSummon);
+    map->Add<Creature>(NewSummon);
     NewSummon->AIM_Initialize();
 
     m_caster->SetPet(NewSummon);
     DEBUG_LOG("New Pet has guid %u", NewSummon->GetGUIDLow());
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (casterPlayer)
     {
         NewSummon->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
 
@@ -946,7 +956,7 @@ void Spell::EffectSummonPet(SpellEffectEntry const* effect)
         }
 
         NewSummon->SavePetToDB(PET_SAVE_AS_CURRENT);
-        ((Player*)m_caster)->PetSpellInitialize();
+        casterPlayer->PetSpellInitialize();
     }
     else
     {
@@ -1048,6 +1058,8 @@ void Spell::EffectTaunt(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     if (!unitTarget)
     {
         return;
@@ -1155,25 +1167,25 @@ void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
             // Fan of Knives
             else if (m_caster->GetTypeId()==TYPEID_PLAYER && classOptions && (classOptions->SpellClassMask & UI64LIT(0x0004000000000000)))
             {
-                Item* weapon = ((Player*)m_caster)->GetWeaponForAttack(m_attackType, true, true);
+                Item* weapon = casterPlayer->GetWeaponForAttack(m_attackType, true, true);
                 if (weapon && weapon->GetProto()->SubClass == ITEM_SUBCLASS_WEAPON_DAGGER)
                 {
                     totalDamagePercentMod *= 1.5f;          // 150% to daggers
                 }
             }
             // Ghostly Strike
-            else if (m_caster->GetTypeId() == TYPEID_PLAYER && m_spellInfo->ID == 14278)
+            else if (casterPlayer && m_spellInfo->ID == 14278)
             {
-                Item* weapon = ((Player*)m_caster)->GetWeaponForAttack(m_attackType, true, true);
+                Item* weapon = casterPlayer->GetWeaponForAttack(m_attackType, true, true);
                 if (weapon && weapon->GetProto()->SubClass == ITEM_SUBCLASS_WEAPON_DAGGER)
                 {
                     totalDamagePercentMod *= 1.44f;         // 144% to daggers
                 }
             }
             // Hemorrhage
-            else if (m_caster->GetTypeId() == TYPEID_PLAYER && classOptions && (classOptions->SpellClassMask & UI64LIT(0x2000000)))
+            else if (casterPlayer && classOptions && (classOptions->SpellClassMask & UI64LIT(0x2000000)))
             {
-                Item* weapon = ((Player*)m_caster)->GetWeaponForAttack(m_attackType, true, true);
+                Item* weapon = casterPlayer->GetWeaponForAttack(m_attackType, true, true);
                 if (weapon && weapon->GetProto()->SubClass == ITEM_SUBCLASS_WEAPON_DAGGER)
                 {
                     totalDamagePercentMod *= 1.45f;         // 145% to daggers
@@ -1355,7 +1367,7 @@ void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
     // Hemorrhage
     if (m_spellInfo->IsFitToFamily(SPELLFAMILY_ROGUE, UI64LIT(0x0000000002000000)))
     {
-        if (Player* casterPlayer = m_caster->ToPlayer())
+        if (casterPlayer)
         {
             casterPlayer->AddComboPoints(unitTarget, 1);
         }
@@ -1363,9 +1375,9 @@ void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
     // Mangle (Cat): CP
     else if (m_spellInfo->IsFitToFamily(SPELLFAMILY_DRUID, UI64LIT(0x0000040000000000)))
     {
-        if (m_caster->GetTypeId() == TYPEID_PLAYER)
+        if (casterPlayer)
         {
-            ((Player*)m_caster)->AddComboPoints(unitTarget, 1);
+            casterPlayer->AddComboPoints(unitTarget, 1);
         }
     }
 }

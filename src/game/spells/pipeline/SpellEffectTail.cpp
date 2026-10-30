@@ -527,15 +527,17 @@ void Spell::EffectSpiritHeal(SpellEffectEntry const* /*effect*/)
 // remove insignia spell effect
 void Spell::EffectSkinPlayerCorpse(SpellEffectEntry const* /*effect*/)
 {
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
     Player* const casterPlayer = m_caster->ToPlayer();
 
     DEBUG_LOG("Effect: SkinPlayerCorpse");
-    if ((!casterPlayer) || (unitTarget->GetTypeId() != TYPEID_PLAYER) || (unitTarget->IsAlive()))
+    if ((!casterPlayer) || (!targetPlayer) || (unitTarget->IsAlive()))
     {
         return;
     }
 
-    ((Player*)unitTarget)->RemovedInsignia(casterPlayer);
+    targetPlayer->RemovedInsignia(casterPlayer);
 }
 
 void Spell::EffectStealBeneficialBuff(SpellEffectEntry const* effect)
@@ -785,8 +787,8 @@ void Spell::EffectTitanGrip(SpellEffectEntry const* effect)
 
 void Spell::EffectRenamePet(SpellEffectEntry const* /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_UNIT ||
-            !unitTarget->IsPet() || ((Pet*)unitTarget)->getPetType() != HUNTER_PET)
+    Pet* targetPet = ToPet(unitTarget);
+    if (!targetPet || targetPet->getPetType() != HUNTER_PET)
         return;
 
     unitTarget->RemoveByteFlag(UNIT_FIELD_BYTES_2, 2, UNIT_CAN_BE_RENAMED);
@@ -918,6 +920,8 @@ void Spell::EffectBind(SpellEffectEntry const* effect)
 
 void Spell::EffectRestoreItemCharges(SpellEffectEntry const* effect)
 {
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
     Player* player = unitTarget ? unitTarget->ToPlayer() : NULL;
     if (!player)
     {
@@ -934,7 +938,7 @@ void Spell::EffectRestoreItemCharges(SpellEffectEntry const* effect)
     Item* item;
     if (itemProto->ItemLimitCategory)
     {
-        item = ((Player*)unitTarget)->GetInventoryMgr().GetItemByLimitedCategory(itemProto->ItemLimitCategory);
+        item = targetPlayer->GetInventoryMgr().GetItemByLimitedCategory(itemProto->ItemLimitCategory);
     }
     else
     {
@@ -1146,7 +1150,7 @@ void Spell::EffectCreateTamedPet(SpellEffectEntry const* effect)
     ClosePointNear(*unitTarget, x, y, z, newTamedPet->Where().Extent());
     newTamedPet->Place().MoveTo(x, y, z, unitTarget->Where().Facing());
 
-    map->Add((Creature*)newTamedPet);
+    map->Add<Creature>(newTamedPet);
     m_caster->SetPet(newTamedPet);
 
     newTamedPet->SavePetToDB(PET_SAVE_AS_CURRENT);

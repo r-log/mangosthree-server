@@ -225,10 +225,8 @@ void SpellCastTargets::Update(Unit* caster)
                        NULL;
 
     m_itemTarget = NULL;
-    if (caster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* player = caster->ToPlayer())
 {
-        Player* player = ((Player*)caster);
-
         if (m_targetMask & TARGET_FLAG_ITEM)
         {
             m_itemTarget = player->GetInventoryMgr().GetItemByGuid(m_itemTargetGUID);
@@ -478,9 +476,10 @@ Spell::Spell(Unit* caster, SpellEntry const* info, bool triggered, ObjectGuid or
     if (m_attackType == RANGED_ATTACK)
     {
         // wand case
-        if ((m_caster->getClassMask() & CLASSMASK_WAND_USERS) != 0 && m_caster->GetTypeId() == TYPEID_PLAYER)
+        Player* casterPlayer = m_caster->ToPlayer();
+        if ((m_caster->getClassMask() & CLASSMASK_WAND_USERS) != 0 && casterPlayer)
         {
-            if (Item* pItem = ((Player*)m_caster)->GetWeaponForAttack(RANGED_ATTACK))
+            if (Item* pItem = casterPlayer->GetWeaponForAttack(RANGED_ATTACK))
             {
                 m_spellSchoolMask = SpellSchoolMask(1 << pItem->GetProto()->DamageType);
             }

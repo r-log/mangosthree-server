@@ -1959,7 +1959,8 @@ SpellCastResult Spell::CheckPetCast(Unit* target)
             }
         }
         // cooldown
-        if (((Creature*)m_caster)->HasSpellCooldown(m_spellInfo->ID))
+        Creature* casterCreature = m_caster->ToCreature();
+        if (casterCreature && casterCreature->HasSpellCooldown(m_spellInfo->ID))
         {
             return SPELL_FAILED_NOT_READY;
         }

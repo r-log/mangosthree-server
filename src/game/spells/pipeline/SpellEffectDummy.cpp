@@ -63,6 +63,8 @@
  */
 void Spell::EffectDummy(SpellEffectEntry const* effect)
 {
+    Creature* const targetCreature = unitTarget ? unitTarget->ToCreature() : NULL;
+
     if (!unitTarget && !gameObjTarget && !itemTarget)
     {
         return;
@@ -714,9 +716,9 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
     {
         libraryResult = sScriptHooks.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), gameObjTarget, m_originalCasterGUID);
     }
-    else if (unitTarget && unitTarget->GetTypeId() == TYPEID_UNIT)
+    else if (targetCreature)
     {
-        libraryResult = sScriptHooks.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), (Creature*)unitTarget, m_originalCasterGUID);
+        libraryResult = sScriptHooks.OnEffectDummy(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), targetCreature, m_originalCasterGUID);
     }
     else if (itemTarget)
     {

@@ -924,9 +924,11 @@ void Spell::EffectAddExtraAttacks(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectParry(SpellEffectEntry const* /*effect*/)
 {
-    if (unitTarget && unitTarget->GetTypeId() == TYPEID_PLAYER)
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
+    if (targetPlayer)
     {
-        ((Player*)unitTarget)->SetCanParry(true);
+        targetPlayer->SetCanParry(true);
     }
 }
 
@@ -937,9 +939,11 @@ void Spell::EffectParry(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectBlock(SpellEffectEntry const* /*effect*/)
 {
-    if (unitTarget && unitTarget->GetTypeId() == TYPEID_PLAYER)
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
+    if (targetPlayer)
     {
-        ((Player*)unitTarget)->SetCanBlock(true);
+        targetPlayer->SetCanBlock(true);
     }
 }
 

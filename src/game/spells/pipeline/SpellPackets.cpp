@@ -764,9 +764,10 @@ void Spell::SendChannelUpdate(uint32 time)
                 // TODO - Requires more specials for target?
 
                 // Some possessed might want to despawn?
-                if (possessed->GetUInt32Value(UNIT_CREATED_BY_SPELL) == m_spellInfo->ID && possessed->GetTypeId() == TYPEID_UNIT)
+                Creature* possessedCreature = possessed->ToCreature();
+                if (possessed->GetUInt32Value(UNIT_CREATED_BY_SPELL) == m_spellInfo->ID && possessedCreature)
                 {
-                    ((Creature*)possessed)->ForcedDespawn();
+                    possessedCreature->ForcedDespawn();
                 }
             }
         }

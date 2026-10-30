@@ -263,6 +263,8 @@ void Spell::EffectPowerBurn(SpellEffectEntry const* effect)
  */
 void Spell::EffectHeal(SpellEffectEntry const* /*effect*/)
 {
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
     if (unitTarget && unitTarget->IsAlive() && damage >= 0)
     {
         // Try to get original caster
@@ -357,10 +359,9 @@ void Spell::EffectHeal(SpellEffectEntry const* /*effect*/)
             addhealth += tickheal * tickcount;
         }
         // Runic Healing Injector & Healing Potion Injector effect increase for engineers
-        else if ((m_spellInfo->ID == 67486 || m_spellInfo->ID == 67489) && unitTarget->GetTypeId() == TYPEID_PLAYER)
+        else if ((m_spellInfo->ID == 67486 || m_spellInfo->ID == 67489) && targetPlayer)
         {
-            Player* player = (Player*)unitTarget;
-            if (player->HasSkill(SKILL_ENGINEERING))
+            if (targetPlayer->HasSkill(SKILL_ENGINEERING))
             {
                 addhealth += int32(addhealth * 0.25);
             }
