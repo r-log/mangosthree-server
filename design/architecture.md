@@ -176,7 +176,7 @@ casting 72, lifecycle and update 80, movement 81, stats and power 72, pets/charm
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
 **Today (player-only code in `Unit`):** Unit's 16 files hold 11 `(Player*)this` casts and 196 `TYPEID_PLAYER` tests;
-59 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
+54 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
 `GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
 `GetItemByGuid`, the item the proc handlers ask for by guid; what `Mount` and `Unmount` ask of a mounting player:
@@ -193,9 +193,7 @@ sets: `setFactionForRace`, `InBattleGround`; what the three one-off procs ask of
 `GetSelectionGuid`, `GetNextRandomRaidMember`; the known rank of the Impurity talent `SpellBonusWithCoeffs` asks
 of a death knight: `GetKnownTalentRankById`; whether a death knight's blood runes are all on cooldown, Blade
 Barrier's test: `IsBaseRuneSlotsOnCooldown`; the passive spells a player's new aura state casts,
-`ModifyAuraState`'s loop: `CastPassiveSpellsForAuraState`; what `Unit` tells a player's own client: its attack
-cancelled, `SendAttackSwingCancelAttack`; its auto-repeat spell cancelled, `SendAutoRepeatCancel`; its pet's guid,
-`SendPetGUIDs`; its stand state, `SendStandStateUpdate`; a changed melee swing error, `ReportSwingError`; the
+`ModifyAuraState`'s loop: `CastPassiveSpellsForAuraState`; the
 account security level the GM visibility rule compares: `GetAccountSecurityLevel`; the position `Update`'s
 pending commit and a spline's end write on a player, and whether a player is moving, the auto-repeat update's
 test: `SetPosition`, `isMoving`; the client's control of its own movement, taken and returned by fear and
@@ -207,6 +205,9 @@ armor specialization spell fits it, its combo points and its combo target: `FitA
 the possessed unit's view and back, the possess action bar told to its client, its own pet removed when the
 possession ends out of reach, and the pet action bar removed otherwise: `SetCameraView`, `ResetCameraView`,
 `PossessSpellInitialize`, `RemovePet`, `RemovePetActionBar`; each with the non-player answer as `Unit`'s default).
+What `Unit` tells a player's own client (its attack or auto-repeat spell cancelled, its pet's guid, its stand state,
+a changed melee swing error) it reports through the client callbacks the player points it at; a unit that is not a
+player has none and tells nothing.
 The aura bodies live in `spells/auras/`, beside the aura storage (`spells/AuraContainer.h`).
 The combat bodies, the threat managers and the leaf math live in `combat/`; `Object/Unit.cpp` still
 holds `DealDamage`, `DealHeal` and the kill credit, which need headers `combat/` does not include.
@@ -215,7 +216,7 @@ holds `DealDamage`, `DealHeal` and the kill credit, which need headers `combat/`
 
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
-see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 928, Unit 654, WorldSession 189, ObjectMgr 255), R1, M1,
+see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 919, Unit 654, WorldSession 189, ObjectMgr 255), R1, M1,
 the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |
@@ -389,7 +390,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 10 | `CheckStateOwnership`'s achievement row: its owner, `AchievementMgr`, still builds its packets; `QuestCompletePacket` is in `session/packets/quests/` and builds the player's quest-complete fact | with `AchievementMgr`'s move (row 16) |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
-| 13 | `Unit`: 11 `(Player*)this` casts, 196 player type tests, 59 Player-only virtuals | Unit reopen |
+| 13 | `Unit`: 11 `(Player*)this` casts, 196 player type tests, 54 Player-only virtuals | Unit reopen |
 | 14 | Some of Unit's combat bodies are in `Object/Unit.cpp`: `DealDamage`, `DealHeal` and the kill credit | Unit reopen (combat) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds eighteen stores (its README lists them), the generic record stores `KeyedRecordStore` and `MultiRecordStore`, `TextPool`, `GameConfig`, the script hook interface `ScriptHooks`, the command hook interface `CommandHooks` and the database script hook interface `DbScriptHooks`, while `ObjectMgr` is still in `Object/` and holds the conditions, the creature templates and their spells, the game object addons and the item templates in `KeyedRecordStore`s; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds the builders under `session/packets/`, the combat handler class under `session/handlers/combat/`, the client and warden handler classes under `session/handlers/connection/`, the vendor, loot, auction and trade handler classes under `session/handlers/economy/`, the skill, enchant, pet, taxi, query, item, NPC, quest, character, character customize, death and player handler classes under `session/handlers/entities/`, the map handler class under `session/handlers/maps/`, the pvp handler class under `session/handlers/pvp/` and the LFG, contact list, GM ticket, petition, chat channel, voice chat, chat, mail, calendar, group, guild and who handler classes under `session/handlers/social/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
@@ -435,7 +436,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (196).
   The Player-only virtuals are the `virtual` lines of the `--all --list` output whose name is declared again in
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h`, where only a
-  unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (59 of 88).
+  unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (54 of 83).
 - Creature cooldowns: `grep -nE '^\w.*Creature::\w+\(' src/game/Object/CreatureSpellCooldown.cpp` (6).
 - The threads (section 5): the tick's order is `World::Update` (`WorldHandlers/World.cpp:971`, the `TickGuard::Scope` at the top of its
   body) read top to bottom; the map split is `MapManager::Update` (`WorldHandlers/MapManager.cpp:306`);
