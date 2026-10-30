@@ -1219,7 +1219,7 @@ bool GameObject::IsFriendlyTo(Unit const* unit) const
     }
 
     // GvP forced reaction and reputation case
-    if (Player* unitPlayer = unit->ToPlayer())
+    if (Player const* unitPlayer = unit->ToPlayer())
     {
         if (tester_faction->Faction)
         {

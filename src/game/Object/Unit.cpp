@@ -2406,7 +2406,7 @@ MountCapabilityEntry const* Unit::GetMountCapability(uint32 mountType) const
     uint32 zoneId, areaId;
     GetTerrain()->GetZoneAndAreaId(zoneId, areaId, Where().X(), Where().Y(), Where().Z());
     uint32 ridingSkill = 5000;
-    if (Player* plr = ToPlayer())
+    if (Player const* plr = ToPlayer())
     {
         ridingSkill = plr->GetSkillValue(SKILL_RIDING);
     }
