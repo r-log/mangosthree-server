@@ -1371,6 +1371,27 @@ class Unit : public WorldObject
          */
         void SendAutoRepeatCancel(Unit* target);
         /**
+         * Tells the client the action bar of the unit this unit possesses; TakePossessOf and a vehicle
+         * call it on a player once the possession has taken hold.
+         * A player reports its charm to the callback its session installed, and the session sends the
+         * charm's action bar; a unit that is not a player has no client to tell.
+         */
+        void PossessSpellInitialize();
+        /**
+         * Removes the unit's pet and saves it in a mode; a player removes its own at death, on a
+         * vehicle and in a battleground, and ResetControlState when the possession of the pet ends
+         * with the pet out of reach.
+         * @param mode how the pet is saved
+         */
+        void RemovePet(PetSaveMode mode);
+        /**
+         * Removes the pet action bar from the client; a pet's removal, a vehicle and ResetControlState
+         * call it on a player.
+         * A player reports it to the callback its session installed, and the session clears the bar;
+         * a unit that is not a player has no client to tell.
+         */
+        void RemovePetActionBar();
+        /**
          * Sends a packet to the client informing it that melee attacks are starting
          * @param pVictim the target that we attack with melee
          */
@@ -3667,39 +3688,20 @@ class Unit : public WorldObject
          */
         virtual ObjectGuid GetComboTargetGuid() const { return ObjectGuid(); }
         /**
-         * Tells the client the action bar of the unit this unit possesses; TakePossessOf calls it on a
-         * player once the possession has taken hold.
-         * Does nothing here, a unit that is not a player has no client to tell; Player sends its
-         * charm's action bar.
-         */
-        virtual void PossessSpellInitialize() { }
-        /**
-         * Removes the unit's pet; ResetControlState calls it on a player whose possession of its own pet
-         * ends with the pet out of reach.
-         * @param mode how the pet is saved
-         * Does nothing here; Player removes its pet and saves it in that mode.
-         */
-        virtual void RemovePet(PetSaveMode /*mode*/) { }
-        /**
-         * Removes the pet action bar from the client; ResetControlState calls it on a player whose
-         * possession of a unit that is not its own pet ends.
-         * Does nothing here, a unit that is not a player has no client to tell; Player's pet manager
-         * clears the bar and tells its client.
-         */
-        virtual void RemovePetActionBar() { }
-        /**
          * Sets the unit's camera to another unit's view; TakePossessOf calls it on a player as the
          * possession takes hold.
          * @param target the unit whose view the camera takes
-         * Does nothing here, a unit that is not a player has no camera; Player sets its camera's view.
+         * A player reports the view to the callback its session installed, which sets its camera; a
+         * unit that is not a player has no camera.
          */
-        virtual void SetCameraView(Unit* /*target*/) { }
+        void SetCameraView(Unit* target);
         /**
          * Sets the unit's camera back to its own view; ResetControlState calls it on a player as the
          * possession ends.
-         * Does nothing here, a unit that is not a player has no camera; Player resets its camera's view.
+         * A player reports it to the callback its session installed, which resets its camera; a unit
+         * that is not a player has no camera.
          */
-        virtual void ResetCameraView() { }
+        void ResetCameraView();
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

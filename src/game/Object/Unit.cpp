@@ -1862,6 +1862,69 @@ void Unit::SendPetGUIDs()
 }
 
 /**
+ * @brief Removes the unit's pet, saving it in a mode.
+ *
+ * @param mode How the pet is saved.
+ */
+void Unit::RemovePet(PetSaveMode mode)
+{
+    if (Pet* pet = GetPet())
+    {
+        pet->Unsummon(mode, this);
+    }
+}
+
+/**
+ * @brief Tells a player's own client that its pet action bar is cleared.
+ */
+void Unit::RemovePetActionBar()
+{
+    if (ClientCallbacks const* client = m_clientCallbacks)
+    {
+        ReportClientFact(client->petActionBarCleared, PetActionBarClearedFact());
+    }
+}
+
+/**
+ * @brief Tells a player's own client the action bar of the unit it possesses.
+ */
+void Unit::PossessSpellInitialize()
+{
+    if (ClientCallbacks const* client = m_clientCallbacks)
+    {
+        PossessBarFact fact;
+        fact.charm = GetCharm();
+        ReportClientFact(client->possessBar, fact);
+    }
+}
+
+/**
+ * @brief Sets a player's camera to another unit's view.
+ *
+ * @param target The unit whose view the camera takes.
+ */
+void Unit::SetCameraView(Unit* target)
+{
+    if (ClientCallbacks const* client = m_clientCallbacks)
+    {
+        ViewFromFact fact;
+        fact.target = target;
+        ReportClientFact(client->viewFrom, fact);
+    }
+}
+
+/**
+ * @brief Sets a player's camera back to its own view.
+ */
+void Unit::ResetCameraView()
+{
+    if (ClientCallbacks const* client = m_clientCallbacks)
+    {
+        ReportClientFact(client->viewReset, ViewResetFact());
+    }
+}
+
+/**
  * @brief Sets the unit's charm GUID.
  *
  * @param pet The charmed unit to assign, or NULL to clear it.

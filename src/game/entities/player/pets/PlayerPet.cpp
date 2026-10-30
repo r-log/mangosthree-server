@@ -122,40 +122,6 @@ void Player::PetSpellInitialize()
 }
 
 /**
- * @brief Sends the possessed unit's action bar state to the client.
- */
-void Player::PossessSpellInitialize()
-{
-    Unit* charm = GetCharm();
-
-    if (!charm)
-    {
-        return;
-    }
-
-    CharmInfo* charmInfo = charm->GetCharmInfo();
-
-    if (!charmInfo)
-    {
-        sLog.outError("Player::PossessSpellInitialize(): charm (GUID: %u TypeId: %u) has no charminfo!", charm->GetGUIDLow(), charm->GetTypeId());
-        return;
-    }
-
-    WorldPacket data(SMSG_PET_SPELLS, 8 + 2 + 4 + 4 + 4 * MAX_UNIT_ACTION_BAR_INDEX + 1 + 1);
-    data << charm->GetObjectGuid();
-    data << uint16(0);
-    data << uint32(0);
-    data << uint32(0);
-
-    charmInfo->BuildActionBar(&data);
-
-    data << uint8(0);                                       // spells count
-    data << uint8(0);                                       // cooldowns count
-
-    GetSession()->SendPacket(&data);
-}
-
-/**
  * @brief Sends the charmed unit's available actions and spells to the client.
  */
 void Player::CharmSpellInitialize()
@@ -236,8 +202,8 @@ void Player::CharmSpellInitialize()
 // guid, so it is called once, where the old body called it), reading its facts, unsummoning it,
 // and loading the pet a temporary unsummon put away. Each input is read with the old expression
 // just before the one call into the manager; each pet-side action is a callback the manager calls
-// where the old body acted. RemovePet and UnsummonPetIfAny touch no manager state: they are the
-// old bodies, verbatim. RemovePetActionBar stays inline in Player.h (it reports the client fact).
+// where the old body acted. UnsummonPetIfAny touches no manager state: it is the old body,
+// verbatim. RemovePet and RemovePetActionBar are Unit's.
 
 namespace
 {
@@ -253,14 +219,6 @@ namespace
             facts.petNumber = pet->GetCharmInfo()->GetPetNumber();
         }
         return facts;
-    }
-}
-
-void Player::RemovePet(PetSaveMode mode)
-{
-    if (Pet* pet = GetPet())
-    {
-        pet->Unsummon(mode, this);
     }
 }
 

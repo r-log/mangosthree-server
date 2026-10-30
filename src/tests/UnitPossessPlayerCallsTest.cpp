@@ -23,51 +23,46 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The player calls Unit's possess members make: TakePossessOf sets the possessor's camera to the
-/// possessed unit's view and tells its client the possess action bar; ResetControlState sets the
-/// camera back, removes the possessor's own pet when it ends out of reach, and removes the pet
-/// action bar otherwise.
+/// The possess members of a unit: TakePossessOf sets the possessor's camera to the possessed unit's
+/// view and tells its client the possess action bar; ResetControlState sets the camera back,
+/// removes the possessor's own pet when it ends out of reach, and removes the pet action bar
+/// otherwise.
 ///
-/// Unit declares the five protected; Player overrides PossessSpellInitialize, RemovePet and
-/// RemovePetActionBar where they were declared (public, called on a Player by its other callers),
-/// and the two camera calls privately, so only Unit reaches them. A Unit that is not a Player never
-/// reaches them there (each call stands under the possessor's player flag): a Creature probe with its
-/// update fields allocated (no map, no AI, no auras) makes Unit's defaults public with
-/// using-declarations. Each default leaves the probe and a second probe passed as the camera's target
-/// as they were (update fields and auras), the pet removal for every save mode. A Player cannot be
-/// built in this binary (it needs a WorldSession and a map), so Player's bodies are not run here.
-/// The static_asserts pin Unit's declarations through the probe and Player's own declarations with
-/// Unit's exact signatures (the private ones through an explicit instantiation), and which calls
-/// through a Unit, a const probe or a Player compile.
+/// Unit defines the five once: the possess action bar, the pet removal and the pet action bar
+/// removal public (their other callers call them on a Player), the two camera calls protected, and
+/// Player declares none of them. The camera, the possess bar and the pet bar are reported through
+/// the client callbacks a player points Unit at; a unit that is not a player has none and does
+/// nothing. A Creature probe with its update fields allocated (no map, no AI, no auras) makes the
+/// camera calls public with using-declarations; each call leaves the probe and a second probe
+/// passed as the camera's target as they were (update fields and auras), the pet removal for every
+/// save mode. A player with recording callbacks installed by hand reports each, in order, with its
+/// unit. The possess bar's packet is pinned byte for byte. The static_asserts pin Unit's
+/// declarations, that Player declares none (the protected ones named in an explicit instantiation,
+/// where access is not checked), and which calls compile through a Unit, a const probe or a Player.
 
 #include "TestHarness.h"
+#include "Auth/BigNumber.h"
 #include "Creature.h"
 #include "Player.h"
 #include "Unit.h"
+#include "WorldPacket.h"
+#include "WorldSession.h"
+#include "session/packets/entities/PetActionBarPacket.h"
 
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace
 {
-    /// A Creature with its update fields allocated; the player calls Unit's possess members make
-    /// are public here.
+    /// A Creature with its update fields allocated; the camera calls are public here.
     class PossessCallsUnit : public Creature
     {
         public:
-            using Unit::PossessSpellInitialize;
-            using Unit::RemovePet;
-            using Unit::RemovePetActionBar;
             using Unit::SetCameraView;
             using Unit::ResetCameraView;
 
-            static_assert(std::is_same<decltype(&PossessCallsUnit::PossessSpellInitialize), void (Unit::*)()>::value,
-                          "Unit declares the possess action bar, non-const");
-            static_assert(std::is_same<decltype(&PossessCallsUnit::RemovePet), void (Unit::*)(PetSaveMode)>::value,
-                          "Unit declares the pet removal, non-const");
-            static_assert(std::is_same<decltype(&PossessCallsUnit::RemovePetActionBar), void (Unit::*)()>::value,
-                          "Unit declares the pet action bar removal, non-const");
             static_assert(std::is_same<decltype(&PossessCallsUnit::SetCameraView), void (Unit::*)(Unit*)>::value,
                           "Unit declares the camera view, non-const");
             static_assert(std::is_same<decltype(&PossessCallsUnit::ResetCameraView), void (Unit::*)()>::value,
@@ -97,6 +92,26 @@ namespace
             }
     };
 
+    /// A player with its update fields allocated, on a session with no socket, in no world; the
+    /// camera calls are public here.
+    class PossessingPlayer : public Player
+    {
+        public:
+            using Unit::SetCameraView;
+            using Unit::ResetCameraView;
+
+            explicit PossessingPlayer(WorldSession& session) : Player(&session)
+            {
+                Object::_Create(1, 0, HIGHGUID_PLAYER);
+            }
+
+            ~PossessingPlayer()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+
     /// What a call may not change on a unit: its update fields and auras.
     struct Snapshot
     {
@@ -114,33 +129,39 @@ namespace
         size_t auras;
     };
 
-    /// Checks the type of the member it is instantiated with. Player's camera calls are private, so
-    /// they are named only in the explicit instantiations below: a member Player does not declare
-    /// itself has Unit's member pointer type, which fails the check, and an overloaded name has no
-    /// type.
-    template<class Member, Member member>
-    struct PlayerCameraViewDeclaration
+    std::string Hex(WorldPacket const& packet)
     {
-        static_assert(std::is_same<Member, void (Player::*)(Unit*)>::value,
-                      "Player declares the camera view with Unit's signature");
+        static const char* digits = "0123456789abcdef";
+        std::string text;
+        uint16 opcode = packet.GetOpcode();
+        for (int shift = 12; shift >= 0; shift -= 4)
+        {
+            text += digits[(opcode >> shift) & 0x0F];
+        }
+        text += ":";
+        text += testing::BytesToHex(packet.contents(), packet.size());
+        return text;
+    }
+
+    /// Checks the type of the member it is instantiated with. The camera calls are protected, so
+    /// they are named only in the explicit instantiations below: a member Player declared itself
+    /// would have Player's member pointer type.
+    template<class Member, Member member, class Expected>
+    struct UnitMemberThroughPlayer
+    {
+        static_assert(std::is_same<Member, Expected>::value,
+                      "Player does not declare it: its member pointer is Unit's");
     };
 
-    template<class Member, Member member>
-    struct PlayerCameraResetDeclaration
-    {
-        static_assert(std::is_same<Member, void (Player::*)()>::value,
-                      "Player declares the camera reset with Unit's signature");
-    };
+    template struct UnitMemberThroughPlayer<decltype(&Player::SetCameraView), &Player::SetCameraView, void (Unit::*)(Unit*)>;
+    template struct UnitMemberThroughPlayer<decltype(&Player::ResetCameraView), &Player::ResetCameraView, void (Unit::*)()>;
 
-    template struct PlayerCameraViewDeclaration<decltype(&Player::SetCameraView), &Player::SetCameraView>;
-    template struct PlayerCameraResetDeclaration<decltype(&Player::ResetCameraView), &Player::ResetCameraView>;
-
-    static_assert(std::is_same<decltype(&Player::PossessSpellInitialize), void (Player::*)()>::value,
-                  "Player declares the possess action bar with Unit's signature");
-    static_assert(std::is_same<decltype(&Player::RemovePet), void (Player::*)(PetSaveMode)>::value,
-                  "Player declares the pet removal with Unit's signature");
-    static_assert(std::is_same<decltype(&Player::RemovePetActionBar), void (Player::*)()>::value,
-                  "Player declares the pet action bar removal with Unit's signature");
+    static_assert(std::is_same<decltype(&Player::PossessSpellInitialize), void (Unit::*)()>::value,
+                  "Player does not declare the possess action bar: its member pointer is Unit's");
+    static_assert(std::is_same<decltype(&Player::RemovePet), void (Unit::*)(PetSaveMode)>::value,
+                  "Player does not declare the pet removal: its member pointer is Unit's");
+    static_assert(std::is_same<decltype(&Player::RemovePetActionBar), void (Unit::*)()>::value,
+                  "Player does not declare the pet action bar removal: its member pointer is Unit's");
 
     template<class T>
     auto InitializesPossessBar(int) -> decltype(std::declval<T&>().PossessSpellInitialize(), std::true_type());
@@ -183,34 +204,28 @@ namespace
                                   PET_SAVE_NEW_PET };
 }
 
+static_assert(std::is_same<decltype(&Unit::PossessSpellInitialize), void (Unit::*)()>::value &&
+              std::is_same<decltype(&Unit::RemovePet), void (Unit::*)(PetSaveMode)>::value &&
+              std::is_same<decltype(&Unit::RemovePetActionBar), void (Unit::*)()>::value,
+              "Unit declares the possess action bar, the pet removal and the pet action bar removal");
 static_assert(decltype(InitializesPossessBar<PossessCallsUnit>(0))::value &&
               decltype(RemovesPet<PossessCallsUnit>(0))::value &&
               decltype(RemovesPetBar<PossessCallsUnit>(0))::value &&
               decltype(SetsCameraView<PossessCallsUnit>(0))::value &&
               decltype(ResetsCameraView<PossessCallsUnit>(0))::value,
-              "a call through the probe reaches each of Unit's defaults");
+              "a call through the probe reaches each of the five");
 static_assert(!decltype(CallsThroughConst<PossessCallsUnit>(0))::value,
               "none of the five is const: the calls through a const unit do not compile");
-static_assert(!decltype(InitializesPossessBar<Unit>(0))::value,
-              "Unit's possess action bar is protected: a call through a Unit does not compile");
-static_assert(!decltype(RemovesPet<Unit>(0))::value,
-              "Unit's pet removal is protected: a call through a Unit does not compile");
-static_assert(!decltype(RemovesPetBar<Unit>(0))::value,
-              "Unit's pet action bar removal is protected: a call through a Unit does not compile");
-static_assert(!decltype(SetsCameraView<Unit>(0))::value,
-              "Unit's camera view is protected: a call through a Unit does not compile");
-static_assert(!decltype(ResetsCameraView<Unit>(0))::value,
-              "Unit's camera reset is protected: a call through a Unit does not compile");
-static_assert(decltype(InitializesPossessBar<Player>(0))::value,
-              "Player's possess action bar is public: a call through a Player compiles");
-static_assert(decltype(RemovesPet<Player>(0))::value,
-              "Player's pet removal is public: a call through a Player compiles");
-static_assert(decltype(RemovesPetBar<Player>(0))::value,
-              "Player's pet action bar removal is public: a call through a Player compiles");
-static_assert(!decltype(SetsCameraView<Player>(0))::value,
-              "Player's camera view is private: a call through a Player does not compile");
-static_assert(!decltype(ResetsCameraView<Player>(0))::value,
-              "Player's camera reset is private: a call through a Player does not compile");
+static_assert(decltype(InitializesPossessBar<Unit>(0))::value && decltype(RemovesPet<Unit>(0))::value &&
+              decltype(RemovesPetBar<Unit>(0))::value,
+              "the possess action bar, the pet removal and the pet action bar removal are public");
+static_assert(!decltype(SetsCameraView<Unit>(0))::value && !decltype(ResetsCameraView<Unit>(0))::value,
+              "the camera calls are protected: a call through a Unit does not compile");
+static_assert(decltype(InitializesPossessBar<Player>(0))::value && decltype(RemovesPet<Player>(0))::value &&
+              decltype(RemovesPetBar<Player>(0))::value,
+              "a call through a Player reaches the three public ones");
+static_assert(!decltype(SetsCameraView<Player>(0))::value && !decltype(ResetsCameraView<Player>(0))::value,
+              "the camera calls stay protected: a call through a Player does not compile");
 
 TEST(UnitPossessPlayerCalls_ACreatureTellsNoClientOfAPossessBar)
 {
@@ -229,7 +244,7 @@ TEST(UnitPossessPlayerCalls_ACreatureTellsNoClientOfAPossessBar)
     CHECK(Snapshot(possessed) == possessedBefore);
 }
 
-TEST(UnitPossessPlayerCalls_ACreatureRemovesNoPetInAnyMode)
+TEST(UnitPossessPlayerCalls_AUnitWithNoPetRemovesNoPetInAnyMode)
 {
     PossessCallsUnit possessor;
     Snapshot const before(possessor);
@@ -259,4 +274,48 @@ TEST(UnitPossessPlayerCalls_ACreatureHasNoCameraToSetOrReset)
     possessor.ResetCameraView();
     CHECK(Snapshot(possessor) == possessorBefore);
     CHECK(Snapshot(possessed) == possessedBefore);
+}
+
+TEST(UnitPossessPlayerCalls_APlayerReportsTheCameraAndTheBarsToItsClientCallbacks)
+{
+    WorldSession session(1, "possess", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    PossessingPlayer player(session);
+    PossessCallsUnit possessed;
+    std::vector<std::string> calls;
+    std::vector<Unit const*> units;
+
+    ClientCallbacks callbacks;
+    callbacks.viewFrom = [&](ViewFromFact const& fact) { calls.push_back("view from"); units.push_back(fact.target); };
+    callbacks.viewReset = [&](ViewResetFact const&) { calls.push_back("view reset"); };
+    callbacks.possessBar = [&](PossessBarFact const& fact) { calls.push_back("possess bar"); units.push_back(fact.charm); };
+    callbacks.petActionBarCleared = [&](PetActionBarClearedFact const&) { calls.push_back("pet bar cleared"); };
+    player.SetClientCallbacks(callbacks);
+
+    player.SetCameraView(&possessed);
+    player.PossessSpellInitialize();
+    player.ResetCameraView();
+    player.RemovePetActionBar();
+    player.RemovePet(PET_SAVE_AS_CURRENT);
+
+    CHECK(calls == std::vector<std::string>({"view from", "possess bar", "view reset", "pet bar cleared"}));
+    CHECK(units == std::vector<Unit const*>({&possessed, NULL}));
+}
+
+// The pet spells packet (0x4114) for a possessed unit: its raw guid, a zero uint16 and two zero uint32s,
+// the ten action bar slots (an empty one is passive action 0, 0x01000000; slot 3 holds spell 133,
+// enabled, 0xC1000085), no spells and no cooldowns.
+TEST(UnitPossessPlayerCalls_ThePossessBarBytes)
+{
+    PossessCallsUnit possessed;
+    CharmInfo charmInfo(&possessed);
+    charmInfo.InitEmptyActionBar();
+    charmInfo.SetActionBar(3, 133, ACT_ENABLED);
+
+    WorldPacket packet;
+    BuildPossessBarPacket(packet, ObjectGuid(HIGHGUID_UNIT, uint32(3000), uint32(42)), charmInfo);
+
+    CHECK_STR(Hex(packet), "4114:2a000000b80b30f1" "0000" "00000000" "00000000"
+                           "00000001" "00000001" "00000001" "850000c1" "00000001"
+                           "00000001" "00000001" "00000001" "00000001" "00000001"
+                           "00" "00");
 }

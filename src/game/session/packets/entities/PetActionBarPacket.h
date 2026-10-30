@@ -29,9 +29,15 @@
 #include "PlayerClientFacts.h"
 
 class WorldPacket;
+struct CharmInfo;
 
 /// Initializes `packet` as the client's pet spells with an empty guid, which clears its pet action
 /// bar.
 void BuildPetActionBarClearedPacket(WorldPacket& packet, PetActionBarClearedFact const& fact);
+
+/// Initializes `packet` as the client's pet spells for `charm`, the unit its player possesses:
+/// the unit's guid, no command or react state, the action bar `charmInfo` holds, no spells and no
+/// cooldowns.
+void BuildPossessBarPacket(WorldPacket& packet, ObjectGuid charm, CharmInfo& charmInfo);
 
 #endif
