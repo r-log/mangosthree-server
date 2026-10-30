@@ -85,6 +85,7 @@
 #include "ItemEnchantmentMgr.h"
 #include "MapManager.h"
 #include "MapPhase.h"
+#include "spells/auras/SpellAuras.h"
 #include "Harness.h"
 #include "ScriptMgr.h"
 #include "CreatureAIRegistry.h"
@@ -1066,6 +1067,7 @@ void World::Update(uint32 diff)
     ///- Update objects (maps, transport, creatures,...)
     sMapMgr.Update(diff);
     ApplyAfterMapPhasePosts();
+    ApplyOffMapAuraUpdates();
     // The GM harness (movement P0-C): scenario steps and samples run here, after
     // every map's tick and before anything else touches units, where console
     // commands run too -- outside the map phase the ownership guard watches.
@@ -1329,6 +1331,26 @@ void World::ApplyAfterMapPhasePosts()
     }
 }
 
+void World::ApplyOffMapAuraUpdates()
+{
+    std::vector<OffMapAuraUpdate> const updates = OffMapAuraUpdates::Take();
+    for (std::vector<OffMapAuraUpdate>::const_iterator itr = updates.begin(); itr != updates.end(); ++itr)
+    {
+        Map* map = sMapMgr.FindMap(itr->mapId, itr->instanceId);
+        Unit* target = map ? map->GetUnit(ObjectGuid(itr->target)) : NULL;
+        SpellAuraHolder* holder = target ? target->GetSpellAuraHolder(itr->spellId, ObjectGuid(itr->caster)) : NULL;
+        if (!holder)
+        {
+            continue;
+        }
+
+        holder->UpdateHolder(itr->diff);
+        if (!holder->IsDeleted() && !(holder->IsPermanent() || holder->IsPassive()) && holder->GetAuraDuration() == 0)
+        {
+            target->RemoveSpellAuraHolder(holder, AURA_REMOVE_BY_EXPIRE);
+        }
+    }
+}
 /// Kick (and save) all players
 void World::KickAll()
 {

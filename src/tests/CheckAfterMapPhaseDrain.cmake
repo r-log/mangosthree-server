@@ -21,6 +21,8 @@ set(IN_UPDATE OFF)
 set(MAP_UPDATES 0)
 set(AWAIT_NEXT OFF)
 set(NEXT "")
+set(AWAIT_SECOND OFF)
+set(SECOND "")
 set(LINE_NO 0)
 
 foreach(LINE IN LISTS WORLD_LINES)
@@ -47,10 +49,17 @@ foreach(LINE IN LISTS WORLD_LINES)
         continue()
     endif()
 
+    if(AWAIT_SECOND)
+        set(SECOND "${CODE}")
+        set(SECOND_LINE ${LINE_NO})
+        set(AWAIT_SECOND OFF)
+    endif()
+
     if(AWAIT_NEXT)
         set(NEXT "${CODE}")
         set(NEXT_LINE ${LINE_NO})
         set(AWAIT_NEXT OFF)
+        set(AWAIT_SECOND ON)
     endif()
 
     if("${CODE}" STREQUAL "${MAP_UPDATE}")
@@ -85,4 +94,14 @@ if(NOT "${NEXT}" STREQUAL "ApplyAfterMapPhasePosts();")
         "has returned, before anything else in the world tick runs.")
 endif()
 
-message(STATUS "after-phase drain: World::Update applies the after-phase posts right after sMapMgr.Update(diff)")
+string(REPLACE "<semicolon>" ";" SECOND "${SECOND}")
+
+if(NOT "${SECOND}" STREQUAL "ApplyOffMapAuraUpdates();")
+    message(FATAL_ERROR
+        "after-phase drain: the statement after 'ApplyAfterMapPhasePosts();' (World.cpp:${NEXT_LINE}) is\n"
+        "'${SECOND}' (World.cpp:${SECOND_LINE}), not 'ApplyOffMapAuraUpdates();'. The aura holder updates\n"
+        "the map threads left for the world thread run once every map update has returned, right\n"
+        "after the after-phase posts.")
+endif()
+
+message(STATUS "after-phase drain: World::Update applies the after-phase posts, then the off-map aura updates, right after sMapMgr.Update(diff)")
