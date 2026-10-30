@@ -185,6 +185,21 @@ struct SummonRequestFact
     uint32 autoDeclineMs;
 };
 
+/// The fish the player's bobber waited for did not bite before the bobber's time ran out.
+struct FishNotHookedFact
+{
+};
+
+/// The creature or object `sender`, named `senderName`, whispers `text` to the player; `bossWhisper`
+/// for a raid boss's whisper.
+struct MonsterWhisperFact
+{
+    ObjectGuid sender;
+    std::string senderName;
+    std::string text;
+    bool bossWhisper;
+};
+
 /// A notification to the player's own client: the string table entry `entry` in the client's locale.
 struct NotificationFact
 {
@@ -222,6 +237,8 @@ typedef std::function<void(QuestCompleteFact const&)> QuestCompleteSink;
 typedef std::function<void(SpiritHealerConfirmFact const&)> SpiritHealerConfirmSink;
 typedef std::function<void(SummonRequestFact const&)> SummonRequestSink;
 typedef std::function<void(NotificationFact const&)> NotificationSink;
+typedef std::function<void(FishNotHookedFact const&)> FishNotHookedSink;
+typedef std::function<void(MonsterWhisperFact const&)> MonsterWhisperSink;
 typedef std::function<void(SystemMessageFact const&)> SystemMessageSink;
 
 /// The account security level of the player's session, read at each call. An unsigned integer:

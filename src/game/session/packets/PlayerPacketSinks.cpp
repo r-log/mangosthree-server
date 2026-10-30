@@ -31,6 +31,7 @@
 #include "Pet.h"
 #include "session/packets/spells/CooldownPacketSinks.h"
 #include "session/packets/spells/SpellModPackets.h"
+#include "session/packets/chat/MonsterWhisperPacket.h"
 #include "session/packets/chat/SystemMessage.h"
 
 namespace
@@ -59,6 +60,18 @@ namespace
         return [player](NotificationFact const& fact)
         {
             player->GetSession()->SendNotification(fact.entry);
+        };
+    }
+
+    /// A monster's whisper to the player, sent to the session the player has at that send, the
+    /// player named as its target.
+    MonsterWhisperSink MonsterWhisperToSession(Player* player)
+    {
+        return [player](MonsterWhisperFact const& fact)
+        {
+            WorldPacket data;
+            BuildMonsterWhisperPacket(data, fact, player->GetObjectGuid(), player->GetName());
+            player->GetSession()->SendPacket(&data);
         };
     }
 
@@ -128,6 +141,7 @@ void InstallPlayerPacketSinks(Player& player)
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&player);
     callbacks.systemMessage = SystemMessageToSession(&player);
     callbacks.notification = NotificationToSession(&player);
+    callbacks.monsterWhisper = MonsterWhisperToSession(&player);
     callbacks.partyKillLog = PartyKillLogToGroupAndSession(&player);
     callbacks.viewFrom = ViewFromToCamera(&player);
     callbacks.viewReset = ViewResetToCamera(&player);
