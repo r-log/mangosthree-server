@@ -735,15 +735,6 @@ class WorldSession
         /// Finalizes a far teleport after the client acknowledges the worldport.
         void HandleMoveWorldportAckOpcode();
 
-        void HandleDismissControlledVehicle(WorldPacket& recvPacket);
-        void HandleRequestVehicleExit(WorldPacket& recvPacket);
-        void HandleRequestVehicleSwitchSeat(WorldPacket& recvPacket);
-        void HandleChangeSeatsOnControlledVehicle(WorldPacket& recvPacket);
-        void HandleRequestVehiclePrevSeat(WorldPacket& recv_data);
-        void HandleRequestVehicleNextSeat(WorldPacket& recv_data);
-        void HandleRideVehicleInteract(WorldPacket& recvPacket);
-        void HandleEjectPassenger(WorldPacket& recvPacket);
-
         static void SendPetitionQueryCallback(std::optional<PetitionDetailsRow> const& row, uint32 accountId,
                                               proto::SessionId sessionId, ObjectGuid petitionguid);
 

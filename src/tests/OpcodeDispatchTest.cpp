@@ -77,7 +77,7 @@
 ///   CMSG_UI_TIME_REQUEST, CMSG_REQUEST_HOTFIX and CMSG_GET_MIRRORIMAGE_DATA rows;
 /// - processed PROCESS_THREADSAFE: the six taxi rows, the CMSG_CAST_SPELL and CMSG_CANCEL_CAST rows,
 ///   the 27 movement rows, the 18 movement ack rows and the CMSG_MOVE_TELEPORT_ACK,
-///   CMSG_SET_ACTIVE_MOVER and CMSG_MOVE_NOT_ACTIVE_MOVER rows;
+///   CMSG_SET_ACTIVE_MOVER, CMSG_MOVE_NOT_ACTIVE_MOVER and CMSG_DISMISS_CONTROLLED_VEHICLE rows;
 /// - of status STATUS_TRANSFER: the MSG_MOVE_WORLDPORT_ACK row;
 /// - of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT: the CMSG_CANCEL_TRADE row;
 /// - of status STATUS_AUTHED: the CMSG_VOICE_SESSION_ENABLE, CMSG_SET_ACTIVE_VOICE_CHANNEL,
@@ -115,6 +115,7 @@
 #include "session/handlers/entities/QuestHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/entities/TaxiHandlers.h"
+#include "session/handlers/entities/VehicleHandlers.h"
 #include "session/handlers/maps/MapHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ChannelHandlers.h"
@@ -2868,4 +2869,48 @@ TEST(OpcodeDispatch_MovementRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_MOUNTSPECIAL_ANIM].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_SUMMON_RESPONSE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_SUMMON_RESPONSE].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_VehicleRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_DISMISS_CONTROLLED_VEHICLE].handler == &OpcodeThunk<&VehicleHandlers::HandleDismissControlledVehicle>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VehicleHandlers::HandleDismissControlledVehicle>), 1);
+    CHECK(opcodeTable[CMSG_REQUEST_VEHICLE_EXIT].handler == &OpcodeThunk<&VehicleHandlers::HandleRequestVehicleExit>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VehicleHandlers::HandleRequestVehicleExit>), 1);
+    CHECK(opcodeTable[CMSG_REQUEST_VEHICLE_SWITCH_SEAT].handler == &OpcodeThunk<&VehicleHandlers::HandleRequestVehicleSwitchSeat>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VehicleHandlers::HandleRequestVehicleSwitchSeat>), 1);
+    CHECK(opcodeTable[CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE].handler == &OpcodeThunk<&VehicleHandlers::HandleChangeSeatsOnControlledVehicle>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VehicleHandlers::HandleChangeSeatsOnControlledVehicle>), 1);
+    CHECK(opcodeTable[CMSG_REQUEST_VEHICLE_PREV_SEAT].handler == &OpcodeThunk<&VehicleHandlers::HandleRequestVehiclePrevSeat>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VehicleHandlers::HandleRequestVehiclePrevSeat>), 1);
+    CHECK(opcodeTable[CMSG_REQUEST_VEHICLE_NEXT_SEAT].handler == &OpcodeThunk<&VehicleHandlers::HandleRequestVehicleNextSeat>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VehicleHandlers::HandleRequestVehicleNextSeat>), 1);
+    CHECK(opcodeTable[CMSG_RIDE_VEHICLE_INTERACT].handler == &OpcodeThunk<&VehicleHandlers::HandleRideVehicleInteract>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VehicleHandlers::HandleRideVehicleInteract>), 1);
+    CHECK(opcodeTable[CMSG_CONTROLLER_EJECT_PASSENGER].handler == &OpcodeThunk<&VehicleHandlers::HandleEjectPassenger>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VehicleHandlers::HandleEjectPassenger>), 1);
+}
+
+TEST(OpcodeDispatch_VehicleRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_DISMISS_CONTROLLED_VEHICLE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_DISMISS_CONTROLLED_VEHICLE].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_VEHICLE_EXIT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_VEHICLE_EXIT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_VEHICLE_SWITCH_SEAT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_VEHICLE_SWITCH_SEAT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_VEHICLE_PREV_SEAT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_VEHICLE_PREV_SEAT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_VEHICLE_NEXT_SEAT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_VEHICLE_NEXT_SEAT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_RIDE_VEHICLE_INTERACT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_RIDE_VEHICLE_INTERACT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CONTROLLER_EJECT_PASSENGER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CONTROLLER_EJECT_PASSENGER].packetProcessing, PROCESS_THREADUNSAFE);
 }
