@@ -308,6 +308,7 @@ namespace
         ReportClientFact(callbacks.currentPet, PetIs(kPet));
         ReportClientFact(callbacks.petActionBarCleared, PetActionBarClearedFact());
         ReportClientFact(callbacks.standState, Stand(8));
+        ReportClientFact(callbacks.durabilityDeath, DurabilityDeathFact());
         ReportClientFact(callbacks.pvpCredit, Credit(40, kPlayer, 5));
         ReportClientFact(callbacks.runeConverted, Converted(1, 3));
         ReportClientFact(callbacks.runesResynced, Resynced());
@@ -335,6 +336,7 @@ namespace
         "2d26:0100000001000000a00140f1",
         "4114:0000000000000000",
         "6f04:08",
+        "4c27:",
         "6015:280000000000f0000000000005000000",
         "4f14:0103",
         "6224:0600000000bf00ff0100037f02ff02ff",
@@ -376,6 +378,16 @@ TEST(PlayerClientPackets_EmptyNoticesBytes)
     CHECK_STR(Built(&BuildAttackSwingNotInRangePacket, SwingOutOfReachFact()), "0b36:");
     CHECK_STR(Built(&BuildAttackSwingBadFacingPacket, SwingBadFacingFact()), "6c07:");
     CHECK_STR(Built(&BuildCancelCombatPacket, CombatCancelledFact()), "4f04:");
+    CHECK_STR(Built(&BuildDurabilityDeathPacket, DurabilityDeathFact()), "4c27:");
+}
+
+// SMSG_PARTYKILLLOG (0x4937): the killer's raw guid, then the victim's, low byte first.
+TEST(PlayerClientPackets_PartyKillLogBytes)
+{
+    PartyKillLogFact fact;
+    fact.killer = kPlayer;
+    fact.victim = kCreature;
+    CHECK_STR(Built(&BuildPartyKillLogPacket, fact), "4937:0000f000000000002a000000b80b30f1");
 }
 
 // SMSG_CANCEL_AUTO_REPEAT (0x6436): the target's packed guid, a mask byte with one bit per non-zero
@@ -581,8 +593,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 23u);
-    for (size_t i = 0; i < 23; ++i)
+    REQUIRE(session.sent.size() == 24u);
+    for (size_t i = 0; i < 24; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -602,9 +614,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 23u);
-    REQUIRE(second.sent.size() == 23u);
-    for (size_t i = 0; i < 23; ++i)
+    REQUIRE(first.sent.size() == 24u);
+    REQUIRE(second.sent.size() == 24u);
+    for (size_t i = 0; i < 24; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);
@@ -693,6 +705,12 @@ namespace
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
             }
+
+            /// The client callbacks the player points Unit at.
+            ClientCallbacks const& Client() const
+            {
+                return InstalledClientCallbacks(m_clientCallbacks);
+            }
     };
 }
 
@@ -711,4 +729,23 @@ TEST(PlayerClientPackets_SystemMessageGoesToTheSessionOneLineAPacket)
     REQUIRE(sent.size() == 2u);
     CHECK_STR(sent[0], Hex(SystemLine("one")));
     CHECK_STR(sent[1], Hex(SystemLine("two")));
+}
+
+// The installed party kill log callback sends the log to the killer's real session; with no group
+// that tapped the victim, nobody else is told.
+TEST(PlayerClientPackets_PartyKillLogGoesToTheKillersSession)
+{
+    std::vector<std::string> sent;
+    WorldSession session(1, "killer", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&KeepSystemPacket, &sent);
+    SeatedPlayer player(session);
+    InstallPlayerPacketSinks(player);
+
+    PartyKillLogFact fact;
+    fact.killer = player.GetObjectGuid();
+    fact.victim = kCreature;
+    ReportClientFact(player.Client().partyKillLog, fact);
+
+    REQUIRE(sent.size() == 1u);
+    CHECK_STR(sent[0], "4937:01000000000000002a000000b80b30f1");
 }

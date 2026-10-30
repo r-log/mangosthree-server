@@ -50,6 +50,22 @@ namespace
             }
         };
     }
+
+    /// The player's party kill log: the packet goes to the group that tapped the victim, when there
+    /// is one, the killer itself skipped, and then to the session the player has at that send.
+    PartyKillLogSink PartyKillLogToGroupAndSession(Player* player)
+    {
+        return [player](PartyKillLogFact const& fact)
+        {
+            WorldPacket data;
+            BuildPartyKillLogPacket(data, fact);
+            if (fact.group)
+            {
+                fact.group->BroadcastPacket(&data, false, fact.group->GetMemberGroup(fact.killer), fact.killer);
+            }
+            player->GetSession()->SendPacket(&data);
+        };
+    }
 }
 
 void InstallPlayerPacketSinks(Player& player)
@@ -57,6 +73,7 @@ void InstallPlayerPacketSinks(Player& player)
     InstallCooldownPacketSinks(player);
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&player);
     callbacks.systemMessage = SystemMessageToSession(&player);
+    callbacks.partyKillLog = PartyKillLogToGroupAndSession(&player);
     player.SetClientCallbacks(callbacks);
     player.SetGroupCallbacks(GroupCallbacksFor<GroupCallbacks>(&player));
     player.SetSpellModSink(FactToSession(&player, &BuildSpellModifierPacket));

@@ -33,6 +33,8 @@
 #include <functional>
 #include <string>
 
+class Group;
+
 // What a player's own client is told: one fact per notice, each reported through a callback the
 // session installs on the player, which builds the client's packet and sends it.
 
@@ -74,6 +76,20 @@ struct StandStateFact
     uint8 state = 0;
 };
 
+/// The player `killer` dealt the killing blow to `victim`; `group` is the group that tapped the
+/// victim, which is told too, NULL for none.
+struct PartyKillLogFact
+{
+    ObjectGuid killer;
+    ObjectGuid victim;
+    Group* group = NULL;
+};
+
+/// The player died and lost durability on its equipped items.
+struct DurabilityDeathFact
+{
+};
+
 /// The player is credited `honor` points for a kill; `victim` is the victim the client names (an
 /// empty guid names none) and `victimRank` the victim's rank.
 struct PvpCreditFact
@@ -112,6 +128,8 @@ typedef std::function<void(AutoRepeatCancelledFact const&)> AutoRepeatCancelledS
 typedef std::function<void(CurrentPetFact const&)> CurrentPetSink;
 typedef std::function<void(PetActionBarClearedFact const&)> PetActionBarClearedSink;
 typedef std::function<void(StandStateFact const&)> StandStateSink;
+typedef std::function<void(PartyKillLogFact const&)> PartyKillLogSink;
+typedef std::function<void(DurabilityDeathFact const&)> DurabilityDeathSink;
 typedef std::function<void(PvpCreditFact const&)> PvpCreditSink;
 typedef std::function<void(QuestCompleteFact const&)> QuestCompleteSink;
 typedef std::function<void(SystemMessageFact const&)> SystemMessageSink;
