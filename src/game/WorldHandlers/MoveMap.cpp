@@ -28,7 +28,6 @@
 #include <set>
 #include "GridMap.h"
 #include "Log.h"
-#include "World.h"
 #include "data/GameConfig.h"
 #include "Creature.h"
 
@@ -64,14 +63,14 @@ namespace
     {
         char leaf[64];
         snprintf(leaf, sizeof(leaf), "mmaps/%04u.mmap", mapId);
-        return sWorld.GetDataPath() + leaf;
+        return sGameConfig.GetDataPath() + leaf;
     }
 
     std::string MMapTileFileName(uint32 mapId, int32 x, int32 y)
     {
         char leaf[64];
         snprintf(leaf, sizeof(leaf), "mmaps/%04u%02i%02i.mmtile", mapId, x, y);
-        return sWorld.GetDataPath() + leaf;
+        return sGameConfig.GetDataPath() + leaf;
     }
 }
 

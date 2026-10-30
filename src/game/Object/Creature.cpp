@@ -201,7 +201,7 @@ void Creature::AddToWorld()
     }
 
     // Make active if required
-    if (sWorld.isForceLoadMap(GetMapId()) ||
+    if (sGameConfig.IsForceLoadMap(GetMapId()) ||
         (GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_ACTIVE) ||
         IsLivingWorldAnchor(GetCreatureInfo(), sMapStore.LookupEntry(GetMapId()),
                             sGameConfig.getConfig(CONFIG_UINT32_LIVINGWORLD_ANCHOR_MASK)) ||

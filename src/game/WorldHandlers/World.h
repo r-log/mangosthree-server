@@ -220,7 +220,6 @@ class World
         LocaleConstant GetDefaultDbcLocale() const { return sGameConfig.GetDefaultDbcLocale(); }
 
         /// Get the path where data (dbc, maps) are stored on disk
-        std::string GetDataPath() const { return m_dataPath; }
 
         /// When server started?
         time_t const& GetStartTime() const { return m_startTime; }
@@ -288,7 +287,6 @@ class World
         bool getConfig(eConfigBoolValues index) const { return sGameConfig.getConfig(index); }
 
         /// Get configuration about force-loaded maps
-        bool isForceLoadMap(uint32 id) const { return m_configForceLoadMapIds.find(id) != m_configForceLoadMapIds.end(); }
 
         /// Are we on a "Player versus Player" server?
         bool IsPvPRealm() { return sGameConfig.IsPvPRealm(); }
@@ -394,7 +392,6 @@ class World
         void DetectDBCLang();
         bool m_allowMovement;
         std::string m_motd;
-        std::string m_dataPath;
 
         // CLI command holder to be thread safe
         std::mutex m_cliCommandQueueLock;
@@ -424,7 +421,6 @@ class World
         std::string m_CreatureEventAIVersion;
 
         // List of Maps that should be force-loaded on startup
-        std::set<uint32> m_configForceLoadMapIds;
 };
 
 /// The next monthly quest reset after now: local midnight on the first of the following month (the

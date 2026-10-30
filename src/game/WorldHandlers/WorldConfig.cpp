@@ -222,7 +222,7 @@ void World::LoadConfigSettings(bool reload)
     {
         for (uint32 id : ParseIdList(forceLoadGridOnMaps))
         {
-            m_configForceLoadMapIds.insert(id);
+            sGameConfig.AddForceLoadMap(id);
         }
     }
 
@@ -636,15 +636,15 @@ void World::LoadConfigSettings(bool reload)
 
     if (reload)
     {
-        if (dataPath != m_dataPath)
+        if (dataPath != sGameConfig.GetDataPath())
         {
-            sLog.outError("DataDir option can't be changed at mangosd.conf reload, using current value (%s).", m_dataPath.c_str());
+            sLog.outError("DataDir option can't be changed at mangosd.conf reload, using current value (%s).", sGameConfig.GetDataPath().c_str());
         }
     }
     else
     {
-        m_dataPath = dataPath;
-        sLog.outString("Using DataDir %s", m_dataPath.c_str());
+        sGameConfig.SetDataPath(dataPath);
+        sLog.outString("Using DataDir %s", sGameConfig.GetDataPath().c_str());
     }
 
     setConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK, "vmap.enableIndoorCheck", true);
@@ -654,7 +654,7 @@ void World::LoadConfigSettings(bool reload)
     // than one that is absent.
     LineOfSightExemptions::Load(sConfig.GetStringDefault("vmap.ignoreSpellIds", ""));
 
-    sLog.outString("WORLD: Terrain tiles directory is: %stiles", m_dataPath.c_str());
+    sLog.outString("WORLD: Terrain tiles directory is: %stiles", sGameConfig.GetDataPath().c_str());
 
     setConfig(CONFIG_BOOL_MMAP_ENABLED, "mmap.enabled", true);
     std::string ignoreMapIds = sConfig.GetStringDefault("mmap.ignoreMapIds", "");

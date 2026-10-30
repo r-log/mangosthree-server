@@ -36,7 +36,6 @@
 #include <list>
 #include "Chat.h"
 #include "Language.h"
-#include "World.h"
 #include "data/GameConfig.h"
 #include "Creature.h"
 #include "MoveMap.h"
@@ -351,12 +350,12 @@ bool ChatHandler::HandleMmap(char* args)
     {
         if (on)
         {
-            sWorld.setConfig(CONFIG_BOOL_MMAP_ENABLED, true);
+            sGameConfig.SetMMapEnabled(true);
             SendSysMessage("WORLD: mmaps are now ENABLED (individual map settings still in effect)");
         }
         else
         {
-            sWorld.setConfig(CONFIG_BOOL_MMAP_ENABLED, false);
+            sGameConfig.SetMMapEnabled(false);
             SendSysMessage("WORLD: mmaps are now DISABLED");
         }
         return true;

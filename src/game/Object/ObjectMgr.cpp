@@ -3000,7 +3000,7 @@ ObjectMgr::LivingWorldStartupStats ObjectMgr::LoadActiveEntities(Map* _map)
     }
 
     bool collectLivingWorldStats = s_livingWorldStartupPass;
-    bool forceLoad = sWorld.isForceLoadMap(_map->GetId());
+    bool forceLoad = sGameConfig.IsForceLoadMap(_map->GetId());
 
     uint32 mapTransportCount = 0;
     uint32 forceLoadRequests = 0;
