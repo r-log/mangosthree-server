@@ -734,7 +734,7 @@ void SpellHandlers::HandlePetCancelAura(WorldSession& session, WorldPacket& recv
  *
  * @param recvPacket The unused incoming packet.
  */
-void SpellHandlers::HandleCancelGrowthAura(WorldSession& session, WorldPacket& /*recvPacket*/)
+void SpellHandlers::HandleCancelGrowthAura(WorldSession& /*session*/, WorldPacket& /*recvPacket*/)
 {
     // nothing do
 }

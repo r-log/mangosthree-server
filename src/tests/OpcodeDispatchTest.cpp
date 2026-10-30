@@ -2777,8 +2777,9 @@ TEST(OpcodeDispatch_SpellRowsHoldTheirHandlersThunks)
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandlePetCancelAura>), 1);
     CHECK(opcodeTable[CMSG_CANCEL_AUTO_REPEAT_SPELL].handler == &OpcodeThunk<&SpellHandlers::HandleCancelAutoRepeatSpell>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleCancelAutoRepeatSpell>), 1);
+    // The growth aura's handler has an empty body, so identical code folding can give its thunk the
+    // address of another empty handler's: only its row is checked.
     CHECK(opcodeTable[CMSG_CANCEL_GROWTH_AURA].handler == &OpcodeThunk<&SpellHandlers::HandleCancelGrowthAura>);
-    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleCancelGrowthAura>), 1);
     CHECK(opcodeTable[CMSG_SELF_RES].handler == &OpcodeThunk<&SpellHandlers::HandleSelfRes>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleSelfRes>), 1);
     CHECK(opcodeTable[CMSG_SPELLCLICK].handler == &OpcodeThunk<&SpellHandlers::HandleSpellClick>);
