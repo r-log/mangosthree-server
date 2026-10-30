@@ -67,7 +67,7 @@ namespace
                           "Unit declares the logging-out question");
             static_assert(std::is_same<decltype(&SeenUnit::GetTransport), Transport* (Unit::*)() const>::value,
                           "Unit declares the transport it rides");
-            static_assert(std::is_same<decltype(&SeenUnit::IsGroupVisibleFor), bool (Unit::*)(Player*) const>::value,
+            static_assert(std::is_same<decltype(&SeenUnit::IsGroupVisibleFor), bool (Unit::*)(Player const*) const>::value,
                           "Unit declares the group visibility question");
             static_assert(std::is_same<decltype(&SeenUnit::GetDrunkValue), uint16 (Unit::*)() const>::value,
                           "Unit declares the drunk value");
@@ -112,7 +112,7 @@ namespace
 
     template<class T>
     auto CallsGroupVisible(int)
-        -> decltype(std::declval<T const&>().IsGroupVisibleFor(static_cast<Player*>(NULL)), std::true_type());
+        -> decltype(std::declval<T const&>().IsGroupVisibleFor(static_cast<Player const*>(NULL)), std::true_type());
     template<class T>
     std::false_type CallsGroupVisible(...);
 
@@ -137,7 +137,7 @@ static_assert(std::is_same<decltype(&Player::GetTransport), Transport* (Player::
 template<class Member, Member member>
 struct GroupVisibleThroughPlayer
 {
-    static_assert(std::is_same<Member, bool (Unit::*)(Player*) const>::value,
+    static_assert(std::is_same<Member, bool (Unit::*)(Player const*) const>::value,
                   "Player does not declare the group visibility question: its member pointer is Unit's");
 };
 

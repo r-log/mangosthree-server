@@ -69,7 +69,7 @@ class MapManager : public MaNGOS::Singleton<MapManager>
     public:
         typedef std::map<MapID, Map* > MapMapType;
 
-        Map* CreateMap(uint32, const WorldObject* obj);
+        Map* CreateMap(uint32, WorldObject* obj);
         Map* CreateBgMap(uint32 mapid, BattleGround* bg);
         Map* FindMap(uint32 mapid, uint32 instanceId = 0) const;
         /// FindMap's body for callers already holding m_lock.

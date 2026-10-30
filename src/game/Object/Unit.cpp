@@ -1960,7 +1960,7 @@ void Unit::ResetCameraView()
  * @param p The player that looks at this unit.
  * @return The group's answer; false for a unit that is not a player.
  */
-bool Unit::IsGroupVisibleFor(Player* p) const
+bool Unit::IsGroupVisibleFor(Player const* p) const
 {
     if (GroupCallbacks const* group = m_groupCallbacks)
     {

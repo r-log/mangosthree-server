@@ -680,8 +680,9 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
     data->append(updateMask->GetMask(), updateMask->GetLength());
 
     // 2 specialized loops for speed optimization in non-unit case
-    if (isType(TYPEMASK_UNIT))                              // unit (creature/player) case
+    if (Unit const* unit = ToUnit())                        // unit (creature/player) case
     {
+        Creature const* creature = unit->ToCreature();
         for (uint16 index = 0; index < valuesCount; ++index)
         {
             if (updateMask->GetBit(index))
@@ -690,16 +691,16 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                 {
                     uint32 appendValue = m_uint32Values[index];
 
-                    if (GetTypeId() == TYPEID_UNIT)
+                    if (creature)
                     {
-                        if (!target->canSeeSpellClickOn((Creature*)this))
+                        if (!target->canSeeSpellClickOn(creature))
                         {
                             appendValue &= ~UNIT_NPC_FLAG_SPELLCLICK;
                         }
 
                         if (appendValue & UNIT_NPC_FLAG_TRAINER)
                         {
-                            if (!((Creature*)this)->IsTrainerOf(target, false))
+                            if (!creature->IsTrainerOf(target, false))
                             {
                                 appendValue &= ~(UNIT_NPC_FLAG_TRAINER | UNIT_NPC_FLAG_TRAINER_CLASS | UNIT_NPC_FLAG_TRAINER_PROFESSION);
                             }
@@ -721,7 +722,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                     if (IsPerCasterAuraState)
                     {
                         // IsPerCasterAuraState set if related pet caster aura state set already
-                        if (((Unit*)this)->HasAuraStateForCaster(AURA_STATE_CONFLAGRATE, target->GetObjectGuid()))
+                        if (unit->HasAuraStateForCaster(AURA_STATE_CONFLAGRATE, target->GetObjectGuid()))
                         {
                             *data << m_uint32Values[index];
                         }
@@ -757,32 +758,30 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                     *data << (m_uint32Values[index] & ~UNIT_FLAG_NOT_SELECTABLE);
                 }
                 /* Hide loot animation for players that aren't permitted to loot the corpse */
-                else if (index == UNIT_DYNAMIC_FLAGS && GetTypeId() == TYPEID_UNIT)
+                else if (index == UNIT_DYNAMIC_FLAGS && creature)
                 {
                     uint32 send_value = m_uint32Values[index];
 
-                    /* Initiate pointer to creature so we can check loot */
-                    if (Creature* my_creature = (Creature*)this)
-                        /* If the creature is NOT fully looted */
-                        if (!my_creature->loot.isLooted())
-                            /* If the lootable flag is NOT set */
-                            if (!(send_value & UNIT_DYNFLAG_LOOTABLE))
-                            {
-                                /* Update it on the creature */
-                                my_creature->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
-                                /* Update it in the packet */
-                                send_value = send_value | UNIT_DYNFLAG_LOOTABLE;
-                            }
+                    /* If the creature is NOT fully looted */
+                    if (!creature->loot.isLooted())
+                        /* If the lootable flag is NOT set */
+                        if (!(send_value & UNIT_DYNFLAG_LOOTABLE))
+                        {
+                            /* Update it on the creature */
+                            const_cast<Creature*>(creature)->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+                            /* Update it in the packet */
+                            send_value = send_value | UNIT_DYNFLAG_LOOTABLE;
+                        }
 
                     /* If we're not allowed to loot the target, destroy the lootable flag */
-                    if (!target->isAllowedToLoot((Creature*)this))
+                    if (!target->isAllowedToLoot(creature))
                         if (send_value & UNIT_DYNFLAG_LOOTABLE)
                         {
                             send_value = send_value & ~UNIT_DYNFLAG_LOOTABLE;
                         }
 
                     /* If we are allowed to loot it and mob is tapped by us, destroy the tapped flag */
-                    bool is_tapped = target->IsTappedByMeOrMyGroup((Creature*)this);
+                    bool is_tapped = target->IsTappedByMeOrMyGroup(creature);
 
                     /* If the creature has tapped flag but is tapped by us, remove the flag */
                     if (send_value & UNIT_DYNFLAG_TAPPED && is_tapped)

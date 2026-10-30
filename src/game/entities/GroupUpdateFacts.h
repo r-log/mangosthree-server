@@ -64,7 +64,7 @@ typedef std::function<void(GroupStatFact const&)> GroupStatSink;
 typedef std::function<void(GroupAuraFact const&)> GroupAuraSink;
 typedef std::function<void(PetGroupAuraFact const&)> PetGroupAuraSink;
 /// Whether `viewer` sees the player through its stealth under the group visibility setting.
-typedef std::function<bool(Player* viewer)> GroupVisibilityQuery;
+typedef std::function<bool(Player const* viewer)> GroupVisibilityQuery;
 /// A random other member of the player's group within `radius` that is not invisible and not
 /// hostile to it; NULL for none.
 typedef std::function<Player*(float radius)> RaidMemberQuery;

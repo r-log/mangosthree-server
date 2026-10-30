@@ -3881,7 +3881,7 @@ class Unit : public WorldObject
          * setting: a player's answer by its group, its raid or its team, through the group callbacks
          * its session installed; false for a unit that is not a player
          */
-        bool IsGroupVisibleFor(Player* p) const;
+        bool IsGroupVisibleFor(Player const* p) const;
         /**
          * @return the drunk value canDetectInvisibilityOf takes as this unit's detection level
          * against the drunk invisibility: 0 here; Player returns its own
@@ -3941,6 +3941,7 @@ class Unit : public WorldObject
         uint8 GetVisibleAurasCount() const { return m_visibleAuras.size(); }
 
         Aura* GetAura(uint32 spellId, SpellEffectIndex effindex);
+        Aura const* GetAura(uint32 spellId, SpellEffectIndex effindex) const;
         Aura* GetAura(AuraType type, SpellFamily family, uint64 familyFlag, uint32 familyFlag2 = 0, ObjectGuid casterGuid = ObjectGuid());
         Aura* GetTriggeredByClientAura(uint32 spellId) const;
         SpellAuraHolder* GetSpellAuraHolder(uint32 spellid) const;

@@ -165,7 +165,7 @@ void MapManager::InitializeVisibilityDistanceInfo()
 }
 
 /// @param id - MapId of the to be created map. @param obj WorldObject for which the map is to be created. Must be player for Instancable maps.
-Map* MapManager::CreateMap(uint32 id, const WorldObject* obj)
+Map* MapManager::CreateMap(uint32 id, WorldObject* obj)
 {
     std::lock_guard<LOCK_TYPE> guard(m_lock);
 
@@ -179,9 +179,10 @@ Map* MapManager::CreateMap(uint32 id, const WorldObject* obj)
 
     if (entry->Instanceable())
     {
-        MANGOS_ASSERT(obj && obj->GetTypeId() == TYPEID_PLAYER);
+        Player* player = obj ? obj->ToPlayer() : NULL;
+        MANGOS_ASSERT(player);
         // create DungeonMap object
-        m = CreateInstance(id, (Player*)obj);
+        m = CreateInstance(id, player);
         // Load active objects for this map
         sObjectMgr.LoadActiveEntities(m);
     }
@@ -197,7 +198,7 @@ Map* MapManager::CreateMap(uint32 id, const WorldObject* obj)
                 obj->GetTypeId() == TYPEID_GAMEOBJECT)
             {
                 m = new TransportMap(id, i_gridCleanUpDelay,
-                                     const_cast<Transport*>(static_cast<Transport const*>(obj)));
+                                     static_cast<Transport*>(obj));
             }
             else
             {

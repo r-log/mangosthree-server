@@ -688,7 +688,7 @@ bool GameObject::IsVisibleForInState(Player const* u, WorldObject const* viewPoi
             }
 
             // only rogue have skill for traps detection
-            if (Aura* aura = ((Player*)u)->GetAura(2836, EFFECT_INDEX_0))
+            if (Aura const* aura = u->GetAura(2836, EFFECT_INDEX_0))
             {
                 if (roll_chance_i(aura->GetModifier()->m_amount) && InFrontPhased(*u, *this, 15.0f, M_PI_F))
                 {

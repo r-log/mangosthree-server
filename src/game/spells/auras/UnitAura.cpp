@@ -1736,6 +1736,23 @@ Aura* Unit::GetAura(uint32 spellId, SpellEffectIndex effindex)
 }
 
 /**
+ * @brief Gets an aura by spell id and effect index on a const unit.
+ *
+ * @param spellId The spell identifier.
+ * @param effindex The effect index.
+ * @return The matching aura, or NULL if none exists.
+ */
+Aura const* Unit::GetAura(uint32 spellId, SpellEffectIndex effindex) const
+{
+    SpellAuraHolderConstBounds bounds = GetSpellAuraHolderBounds(spellId);
+    if (bounds.first != bounds.second)
+    {
+        return bounds.first->second->GetAuraByEffectIndex(effindex);
+    }
+    return NULL;
+}
+
+/**
  * @brief Gets the first aura matching type, family, flags, and optional caster.
  *
  * @param type The aura type.

@@ -3635,8 +3635,8 @@ class Player : public Unit
         // Get the map reference
         MapReference& GetMapRef() { return m_mapRef; }
 
-        bool IsTappedByMeOrMyGroup(Creature* creature);
-        bool isAllowedToLoot(Creature* creature);
+        bool IsTappedByMeOrMyGroup(Creature const* creature) const;
+        bool isAllowedToLoot(Creature const* creature) const;
 
         DeclinedName const* GetDeclinedNames() const { return m_declinedname; }
 
