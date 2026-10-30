@@ -42,6 +42,7 @@
 #include "HarnessAI.h"
 #include "WorldSession.h"
 #include "Map.h"
+#include "MapManager.h"
 #include "MapPhase.h"
 
 #include <cmath>
@@ -1453,12 +1454,17 @@ namespace Harness
             p->learnSpell(SWP, false);
             st->levelSet = p->getLevel();
 
-            At(kCastAt, [this, st, SWP]()
+            for (uint32 attempt = 0; attempt < kCastAttempts; ++attempt)
+            {
+            At(kCastAt + kCastRetry * attempt, [this, st, SWP, attempt]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
-                if (!p || !target) { return; }
-                m_rec.Open("cast");
+                if (!p || !target || st->cast) { return; }
+                if (attempt == 0)
+                {
+                    m_rec.Open("cast");
+                }
                 st->procSelf = ProcHolders(p);
                 st->procTarget = ProcHolders(target);
                 m_rec.Note("holders that can proc: self [" + st->procSelf + "], target [" + st->procTarget + "]");
@@ -1541,12 +1547,32 @@ namespace Harness
         }
     };
 
+    /// Moves `p` to the point `at` of the map `mapId` the way Scenario::SpawnPlayer places a player:
+    /// the map's own removal, then SetMap and Map::Add.
+    /// @return whether `p` is in the world on that map
+    bool MoveToMap(Player* p, uint32 mapId, Pt const& at)
+    {
+        Map* from = p->GetMap();
+        Map* to = sMapMgr.FindMap(mapId, 0);
+        if (!from || !to)
+        {
+            return false;
+        }
+        from->Remove(p, false);
+        p->SetMap(to);
+        p->Place().MoveTo(at.x, at.y, at.z, 0.0f);
+        const bool added = to->Add(p);
+        return added && p->IsInWorld() && p->GetMapId() == mapId;
+    }
     /**
      * S939 `spell-periodic-off-map`: S932's priest and cougar, with the priest gone to another map
      * between the cast and the first tick. He casts Shadow Word: Pain (589) at the silenced cougar,
-     * then teleports to Northshire Valley on Eastern Kingdoms (map 0), the transfer finished as the
-     * logout finishes one (WorldSession::HandleMoveWorldportAckOpcode); the aura keeps ticking on
-     * the cougar while its caster stands on the other map, through its six ticks to its expiry.
+     * again a tenth of a second later while the hit roll misses (each step draws its own seeded roll),
+     * then moves to Northshire Valley on Eastern Kingdoms (map 0) the way Scenario::SpawnPlayer places
+     * a player: the map's own removal, then SetMap and Map::Add. A harness player never logged in (no
+     * social list), so the worldport's arrival packets are not his to send. The aura keeps ticking on
+     * the cougar while its caster stands on the other map, through its six ticks to its expiry, and he
+     * moves back to the harness map before the verdict.
      *
      * Pins: the aura applied on the harness map, the priest in the world on map 0 before the first
      * tick, the cougar's health falling at each of the six ticks (the last one at the expiry), the
@@ -1572,7 +1598,7 @@ namespace Harness
                 std::set<uint32> achievementsAtSpawn;
                 bool dealsDamage = false;
                 QuestPlan plan;
-                bool cast = false, moved = false, settled = false;
+                bool cast = false, moved = false, settled = false, back = false;
                 std::string holderAfterCast, holderAfterExpiry, mapAfterMove;
                 uint32 healthBefore = 0;
                 std::vector<uint32> healthAfterTick;
@@ -1581,8 +1607,8 @@ namespace Harness
             const uint32 SWP = 589;
             const uint32 cougar = 2961;
             const uint32 level = 4;
-            const uint32 kCastAt = 400, kMoveAt = 1400, kPeriod = 3000, kTicks = 6;
-            const uint32 kOtherMap = 0;
+            const uint32 kCastAt = 400, kCastRetry = 100, kCastAttempts = 7, kMoveAt = 1400, kPeriod = 3000, kTicks = 6;
+            const uint32 kOtherMap = 0, kHarnessMap = GetMap() ? GetMap()->GetId() : 1;
             const Pt kNorthshire = { -8949.95f, -132.493f, 83.5312f };
 
             std::vector<SpellPrint> prints = {
@@ -1637,12 +1663,17 @@ namespace Harness
             p->learnSpell(SWP, false);
             st->levelSet = p->getLevel();
 
-            At(kCastAt, [this, st, SWP]()
+            for (uint32 attempt = 0; attempt < kCastAttempts; ++attempt)
+            {
+            At(kCastAt + kCastRetry * attempt, [this, st, SWP, attempt]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
-                if (!p || !target) { return; }
-                m_rec.Open("cast");
+                if (!p || !target || st->cast) { return; }
+                if (attempt == 0)
+                {
+                    m_rec.Open("cast");
+                }
                 const std::string procSelf = ProcHolders(p), procTarget = ProcHolders(target);
                 if (!procSelf.empty() || !procTarget.empty())
                 {
@@ -1652,21 +1683,18 @@ namespace Harness
                 }
                 st->healthBefore = target->GetHealth();
                 st->violationsBefore = MapPhase::Violations();
-                st->cast = CastAsHandler(p, SWP, target, 1) != 0;
+                CastAsHandler(p, SWP, target, 1);
                 st->holderAfterCast = HolderOf(target, SWP);
-                m_rec.Note("Shadow Word: Pain on the target: " + st->holderAfterCast);
+                st->cast = st->holderAfterCast != "none";
+                m_rec.Note("Shadow Word: Pain on the target after attempt " + U(attempt + 1) + ": " + st->holderAfterCast);
             });
+            }
             At(kMoveAt, [this, st, kOtherMap, kNorthshire]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->cast) { return; }
-                m_rec.Open("move", false);        // the transfer's own packets: logged, never digested
-                p->TeleportTo(kOtherMap, kNorthshire.x, kNorthshire.y, kNorthshire.z, 0.0f);
-                while (p->IsBeingTeleportedFar())
-                {
-                    p->GetSession()->HandleMoveWorldportAckOpcode();
-                }
-                st->moved = p->IsInWorld() && p->GetMapId() == kOtherMap;
+                m_rec.Open("move", false);        // the map change's own packets: logged, never digested
+                st->moved = MoveToMap(p, kOtherMap, kNorthshire);
                 st->mapAfterMove = U(p->GetMapId()) + (p->IsInWorld() ? " in world" : " not in world");
                 m_rec.Note("the priest after the transfer: map " + st->mapAfterMove);
                 m_rec.Open("away");
@@ -1681,7 +1709,7 @@ namespace Harness
                     st->healthAfterTick.push_back(target->GetHealth());
                 });
             }
-            At(kCastAt + kPeriod * kTicks + kPeriod / 2, [this, st, SWP]()
+            At(kCastAt + kPeriod * kTicks + kPeriod / 2, [this, st, SWP, kHarnessMap]()
             {
                 Creature* target = Get(st->target);
                 if (!target || !st->moved) { return; }
@@ -1691,6 +1719,11 @@ namespace Harness
                 st->settled = true;
                 m_rec.Open("after");
                 m_rec.Note("Shadow Word: Pain on the target: " + st->holderAfterExpiry);
+                if (Player* p = sPlayerRegistry.Find(st->player))
+                {
+                    m_rec.Open("back", false);
+                    st->back = MoveToMap(p, kHarnessMap, P0);
+                }
             });
 
             At(kCastAt + kPeriod * kTicks + kPeriod / 2 + 300, [this, st, kTicks]()
@@ -1709,7 +1742,7 @@ namespace Harness
                     return;
                 }
                 const std::string applied = std::string(st->holderAfterCast != "none" ? "OK" : "BUG") + "(holder " + st->holderAfterCast + ")";
-                const std::string offMap = std::string(st->moved ? "OK" : "BUG") + "(the priest on map " + st->mapAfterMove + ")";
+                const std::string offMap = std::string(st->moved && st->back ? "OK" : "BUG") + "(the priest on map " + st->mapAfterMove + (st->back ? ", then back" : ", not back") + ")";
                 bool falling = st->healthAfterTick.size() == kTicks;
                 std::string healths = U(st->healthBefore);
                 uint32 last = st->healthBefore;
