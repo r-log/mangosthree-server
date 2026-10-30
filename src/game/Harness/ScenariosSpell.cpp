@@ -1454,17 +1454,12 @@ namespace Harness
             p->learnSpell(SWP, false);
             st->levelSet = p->getLevel();
 
-            for (uint32 attempt = 0; attempt < kCastAttempts; ++attempt)
-            {
-            At(kCastAt + kCastRetry * attempt, [this, st, SWP, attempt]()
+            At(kCastAt, [this, st, SWP]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
-                if (!p || !target || st->cast) { return; }
-                if (attempt == 0)
-                {
-                    m_rec.Open("cast");
-                }
+                if (!p || !target) { return; }
+                m_rec.Open("cast");
                 st->procSelf = ProcHolders(p);
                 st->procTarget = ProcHolders(target);
                 m_rec.Note("holders that can proc: self [" + st->procSelf + "], target [" + st->procTarget + "]");
