@@ -121,18 +121,6 @@ void Player::PetSpellInitialize()
     GetSession()->SendPacket(&data);
 }
 
-void Player::SendPetGUIDs()
-{
-    if (!GetPetGuid())
-    {
-        return;
-    }
-
-    CurrentPetFact fact;
-    fact.pet = GetPetGuid();
-    ReportClientFact(m_clientCallbacks.currentPet, fact);
-}
-
 /**
  * @brief Sends the possessed unit's action bar state to the client.
  */

@@ -299,7 +299,7 @@ namespace
     };
 
     /// Reports one of each fact through `callbacks`, in the order of the golden list below.
-    void ReportEach(Player::ClientCallbacks const& callbacks)
+    void ReportEach(ClientCallbacks const& callbacks)
     {
         ReportClientFact(callbacks.swingOutOfReach, SwingOutOfReachFact());
         ReportClientFact(callbacks.swingBadFacing, SwingBadFacingFact());
@@ -578,7 +578,7 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     FakeOwner owner;
     owner.session = &session;
 
-    Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
+    ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
     REQUIRE(session.sent.size() == 23u);
@@ -597,7 +597,7 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     FakeOwner owner;
     owner.session = &first;
 
-    Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
+    ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     ReportEach(callbacks);
     owner.session = &second;
     ReportEach(callbacks);
@@ -621,7 +621,7 @@ TEST(PlayerClientPackets_SecurityLevelReadsTheSessionAtEachCall)
     FakeOwner owner;
     owner.session = &first;
 
-    Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&owner);
+    ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     REQUIRE(callbacks.securityLevel);
 
     CHECK(callbacks.securityLevel() == uint32(SEC_PLAYER));

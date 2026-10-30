@@ -23,25 +23,30 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The packets Unit asks a player to send to its own session: the attack cancel, the auto-repeat
-/// cancel, the pet guids, the stand state and a changed melee swing error.
+/// The packets Unit tells a player's own client: the attack cancel, the auto-repeat cancel, the
+/// pet guids, the stand state and a changed melee swing error.
 ///
-/// Unit declares the five protected, with no default argument. A Unit that is not a Player has no
-/// session: a Creature probe with its update fields allocated (no map, no AI, no auras, no
-/// session) makes them public with using-declarations; each leaves the probe with no aura holder
-/// and every update field as it was, for every byte the two byte-taking ones accept and for a NULL
-/// and a self target of the auto-repeat cancel. A Player cannot be built in this binary (it needs
-/// a WorldSession and a map), so Player's bodies are not run here. Player's attack cancel,
-/// auto-repeat cancel and pet guids stay public; its stand state and swing error overrides are
-/// private. The static_asserts pin Unit's declarations through the probe, Player's own
-/// declarations with Unit's exact signatures (the private ones named in an explicit
-/// instantiation, where access is not checked), that a call through a Unit does not compile, and
-/// that a call through a Player compiles for the three public ones and not for the two private.
+/// Unit defines the five once, with no default argument: the attack cancel and the auto-repeat
+/// cancel are public, the other three protected, and Player declares none of them. A unit reports
+/// each through the client callbacks a player points it at; a unit that is not a player has none
+/// and is told nothing. A Creature probe with its update fields allocated (no map, no AI, no auras,
+/// no session) makes the five public with using-declarations; each leaves the probe with no aura
+/// holder and every update field as it was, for every byte the two byte-taking ones accept and for
+/// a NULL and a self target of the auto-repeat cancel. A player seated on a socketless session,
+/// with the session's callbacks installed, sends each packet once, the swing error only when it
+/// differs from the last one sent. The static_asserts pin Unit's declarations through the probe,
+/// that Player declares none of the five (the protected ones named in an explicit instantiation,
+/// where access is not checked), and which calls compile through a Unit and through a Player.
 
 #include "TestHarness.h"
+#include "Auth/BigNumber.h"
 #include "Creature.h"
+#include "Opcodes.h"
 #include "Player.h"
 #include "Unit.h"
+#include "WorldPacket.h"
+#include "WorldSession.h"
+#include "session/packets/PlayerPacketSinks.h"
 
 #include <type_traits>
 #include <utility>
@@ -49,7 +54,7 @@
 
 namespace
 {
-    /// A Creature with its update fields allocated; the own-session packets Unit asks a player for
+    /// A Creature with its update fields allocated; the five packets Unit tells a player's client
     /// are public here.
     class OwnSessionPacketsUnit : public Creature
     {
@@ -99,27 +104,54 @@ namespace
             }
     };
 
-    static_assert(std::is_same<decltype(&Player::SendAttackSwingCancelAttack), void (Player::*)()>::value,
-                  "Player declares the attack cancel with Unit's signature");
-    static_assert(std::is_same<decltype(&Player::SendAutoRepeatCancel), void (Player::*)(Unit*)>::value,
-                  "Player declares the auto-repeat cancel with Unit's signature");
-    static_assert(std::is_same<decltype(&Player::SendPetGUIDs), void (Player::*)()>::value,
-                  "Player declares the pet guids with Unit's signature");
-
-    /// Checks the type of the member it is instantiated with. Player's stand state and swing error
-    /// overrides are private, so they are named only in the explicit instantiations below: a member
-    /// Player does not declare itself has Unit's member pointer type, which fails the check, and an
-    /// overloaded name has no type.
-    template<class Member, Member member>
-    struct PlayerByteOverrideDeclaration
+    /// A player with its update fields allocated, seated on its session, in no world; the three
+    /// protected packets are public here.
+    class OwnClientPlayer : public Player
     {
-        static_assert(std::is_same<Member, void (Player::*)(uint8)>::value,
-                      "Player declares the override with Unit's signature");
+        public:
+            using Unit::SendPetGUIDs;
+            using Unit::SendStandStateUpdate;
+            using Unit::ReportSwingError;
+
+            explicit OwnClientPlayer(WorldSession& session) : Player(&session)
+            {
+                Object::_Create(1, 0, HIGHGUID_PLAYER);
+                session.SetPlayer(this);
+            }
+
+            ~OwnClientPlayer()
+            {
+                GetSession()->SetPlayer(nullptr);
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
     };
 
-    template struct PlayerByteOverrideDeclaration<decltype(&Player::SendStandStateUpdate),
-                                                  &Player::SendStandStateUpdate>;
-    template struct PlayerByteOverrideDeclaration<decltype(&Player::ReportSwingError), &Player::ReportSwingError>;
+    void KeepOpcode(void* context, WorldPacket const& packet)
+    {
+        static_cast<std::vector<uint16>*>(context)->push_back(packet.GetOpcode());
+    }
+
+    static_assert(std::is_same<decltype(&Player::SendAttackSwingCancelAttack), void (Unit::*)()>::value,
+                  "Player does not declare the attack cancel: its member pointer is Unit's");
+    static_assert(std::is_same<decltype(&Player::SendAutoRepeatCancel), void (Unit::*)(Unit*)>::value,
+                  "Player does not declare the auto-repeat cancel: its member pointer is Unit's");
+
+    /// Checks the type of the member it is instantiated with. Unit's pet guids, stand state and
+    /// swing error report are protected, so they are named only in the explicit instantiations
+    /// below: a member Player declared itself would have Player's member pointer type.
+    template<class Member, Member member, class Expected>
+    struct UnitMemberThroughPlayer
+    {
+        static_assert(std::is_same<Member, Expected>::value,
+                      "Player does not declare it: its member pointer is Unit's");
+    };
+
+    template struct UnitMemberThroughPlayer<decltype(&Player::SendPetGUIDs), &Player::SendPetGUIDs, void (Unit::*)()>;
+    template struct UnitMemberThroughPlayer<decltype(&Player::SendStandStateUpdate), &Player::SendStandStateUpdate,
+                                            void (Unit::*)(uint8)>;
+    template struct UnitMemberThroughPlayer<decltype(&Player::ReportSwingError), &Player::ReportSwingError,
+                                            void (Unit::*)(uint8)>;
 
     template<class T>
     auto CallsAttackCancel(int) -> decltype(std::declval<T&>().SendAttackSwingCancelAttack(), std::true_type());
@@ -154,18 +186,20 @@ static_assert(decltype(CallsAttackCancel<OwnSessionPacketsUnit>(0))::value &&
               decltype(CallsStandState<OwnSessionPacketsUnit>(0))::value &&
               decltype(CallsSwingError<OwnSessionPacketsUnit>(0))::value,
               "a call through the probe reaches each of Unit's five");
-static_assert(!decltype(CallsAttackCancel<Unit>(0))::value, "Unit's attack cancel is protected");
-static_assert(!decltype(CallsAutoRepeatCancel<Unit>(0))::value, "Unit's auto-repeat cancel is protected");
+static_assert(decltype(CallsAttackCancel<Unit>(0))::value, "Unit's attack cancel is public");
+static_assert(decltype(CallsAutoRepeatCancel<Unit>(0))::value, "Unit's auto-repeat cancel is public");
 static_assert(!decltype(CallsPetGuids<Unit>(0))::value, "Unit's pet guids are protected");
 static_assert(!decltype(CallsStandState<Unit>(0))::value, "Unit's stand state is protected");
 static_assert(!decltype(CallsSwingError<Unit>(0))::value, "Unit's swing error report is protected");
-static_assert(decltype(CallsAttackCancel<Player>(0))::value, "Player's attack cancel is public");
-static_assert(decltype(CallsAutoRepeatCancel<Player>(0))::value, "Player's auto-repeat cancel is public");
-static_assert(decltype(CallsPetGuids<Player>(0))::value, "Player's pet guids are public");
+static_assert(decltype(CallsAttackCancel<Player>(0))::value, "a call through a Player reaches the attack cancel");
+static_assert(decltype(CallsAutoRepeatCancel<Player>(0))::value,
+              "a call through a Player reaches the auto-repeat cancel");
+static_assert(!decltype(CallsPetGuids<Player>(0))::value,
+              "the pet guids stay protected: a call through a Player does not compile");
 static_assert(!decltype(CallsStandState<Player>(0))::value,
-              "Player's stand state is private: a call through a Player does not compile");
+              "the stand state stays protected: a call through a Player does not compile");
 static_assert(!decltype(CallsSwingError<Player>(0))::value,
-              "Player's swing error report is private: a call through a Player does not compile");
+              "the swing error report stays protected: a call through a Player does not compile");
 
 TEST(UnitOwnSessionPackets_ACreatureSendsNothing)
 {
@@ -200,4 +234,42 @@ TEST(UnitOwnSessionPackets_ACreatureSendsNothing)
         CHECK(unit.GetSpellAuraHolderMap().empty());
         CHECK(creature.Fields() == fields);
     }
+}
+
+TEST(UnitOwnSessionPackets_APlayerSendsEachPacketToItsOwnSession)
+{
+    std::vector<uint16> sent;
+    WorldSession session(1, "client", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&KeepOpcode, &sent);
+    OwnClientPlayer player(session);
+    InstallPlayerPacketSinks(player);
+
+    player.SendAttackSwingCancelAttack();
+    player.SendAutoRepeatCancel(&player);
+    player.SendPetGUIDs();
+    player.SetPetGuid(ObjectGuid(HIGHGUID_PET, uint32(1234), uint32(5)));
+    player.SendPetGUIDs();
+    player.SendStandStateUpdate(UNIT_STAND_STATE_SIT);
+
+    CHECK(sent == std::vector<uint16>({uint16(SMSG_CANCEL_COMBAT), uint16(SMSG_CANCEL_AUTO_REPEAT), uint16(SMSG_PET_GUIDS),
+                                       uint16(SMSG_STANDSTATE_UPDATE)}));
+}
+
+TEST(UnitOwnSessionPackets_APlayersSwingErrorIsSentOnlyWhenItChanges)
+{
+    std::vector<uint16> sent;
+    WorldSession session(1, "client", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&KeepOpcode, &sent);
+    OwnClientPlayer player(session);
+    InstallPlayerPacketSinks(player);
+
+    player.ReportSwingError(1);
+    player.ReportSwingError(1);
+    player.ReportSwingError(2);
+    player.ReportSwingError(0);
+    player.ReportSwingError(0);
+    player.ReportSwingError(1);
+
+    CHECK(sent == std::vector<uint16>({uint16(SMSG_ATTACKSWING_NOTINRANGE), uint16(SMSG_ATTACKSWING_BADFACING),
+                                       uint16(SMSG_ATTACKSWING_NOTINRANGE)}));
 }

@@ -466,6 +466,57 @@ void Unit::SendMeleeAttackStop(Unit* victim)
 }
 
 /**
+ * @brief Tells a player's own client that its melee and ranged attack is cancelled.
+ */
+void Unit::SendAttackSwingCancelAttack()
+{
+    if (ClientCallbacks const* client = m_clientCallbacks)
+    {
+        ReportClientFact(client->combatCancelled, CombatCancelledFact());
+    }
+}
+
+/**
+ * @brief Tells a player's own client that its auto-repeat spell on `target` is cancelled.
+ *
+ * @param target The unit whose guid the client is told.
+ */
+void Unit::SendAutoRepeatCancel(Unit* target)
+{
+    if (ClientCallbacks const* client = m_clientCallbacks)
+    {
+        AutoRepeatCancelledFact fact;
+        fact.target = target->GetObjectGuid();
+        ReportClientFact(client->autoRepeatCancelled, fact);
+    }
+}
+
+/**
+ * @brief Tells a player's own client a melee swing error that differs from the last one it was
+ * told, and remembers it.
+ *
+ * @param swingError 0 for none, 1 out of reach, 2 facing the wrong way.
+ */
+void Unit::ReportSwingError(uint8 swingError)
+{
+    ClientCallbacks const* client = m_clientCallbacks;
+    if (!client || swingError == m_lastSwingError)
+    {
+        return;
+    }
+
+    if (swingError == 1)
+    {
+        ReportClientFact(client->swingOutOfReach, SwingOutOfReachFact());
+    }
+    else if (swingError == 2)
+    {
+        ReportClientFact(client->swingBadFacing, SwingBadFacingFact());
+    }
+    m_lastSwingError = swingError;
+}
+
+/**
  * @brief Checks whether an incoming melee or ranged spell can be blocked.
  *
  * @param pCaster The attacking caster.

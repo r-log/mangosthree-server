@@ -135,6 +135,8 @@ Unit::Unit() :
     m_regenTimer(0),
     m_vehicleInfo(NULL),
     m_groupCallbacks(NULL),
+    m_clientCallbacks(NULL),
+    m_lastSwingError(0),
     m_spellMods(NULL),
     m_ThreatManager(this),
     m_HostileRefManager(this),
@@ -2390,6 +2392,24 @@ void Unit::SetPet(Pet* pet)
 }
 
 /**
+ * @brief Tells a player's own client the guid of its pet, when it has one.
+ */
+void Unit::SendPetGUIDs()
+{
+    if (!GetPetGuid())
+    {
+        return;
+    }
+
+    if (ClientCallbacks const* client = m_clientCallbacks)
+    {
+        CurrentPetFact fact;
+        fact.pet = GetPetGuid();
+        ReportClientFact(client->currentPet, fact);
+    }
+}
+
+/**
  * @brief Sets the unit's charm GUID.
  *
  * @param pet The charmed unit to assign, or NULL to clear it.
@@ -3996,6 +4016,21 @@ void Unit::SetStandState(uint8 state)
     if (GetTypeId() == TYPEID_PLAYER)
     {
         SendStandStateUpdate(state);
+    }
+}
+
+/**
+ * @brief Tells a player's own client its stand state.
+ *
+ * @param state The stand state set.
+ */
+void Unit::SendStandStateUpdate(uint8 state)
+{
+    if (ClientCallbacks const* client = m_clientCallbacks)
+    {
+        StandStateFact fact;
+        fact.state = state;
+        ReportClientFact(client->standState, fact);
     }
 }
 

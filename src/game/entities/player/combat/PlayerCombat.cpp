@@ -46,11 +46,6 @@
 
 #include <cmath>
 
-void Player::SendAttackSwingNotInRange()
-{
-    ReportClientFact(m_clientCallbacks.swingOutOfReach, SwingOutOfReachFact());
-}
-
 /**
  * @brief Sends the error packet for attempting to attack a dead target.
  */
@@ -67,54 +62,6 @@ void Player::SendAttackSwingCantAttack()
 {
     WorldPacket data(SMSG_ATTACKSWING_CANT_ATTACK, 0);
     GetSession()->SendPacket(&data);
-}
-
-/**
- * @brief Tells the client that the player's current attack is cancelled.
- */
-void Player::SendAttackSwingCancelAttack()
-{
-    ReportClientFact(m_clientCallbacks.combatCancelled, CombatCancelledFact());
-}
-
-/**
- * @brief Tells the client that the player attacks while facing the wrong direction.
- */
-void Player::SendAttackSwingBadFacingAttack()
-{
-    ReportClientFact(m_clientCallbacks.swingBadFacing, SwingBadFacingFact());
-}
-
-/**
- * @brief Tells the client that its auto-repeat attack on `target` is cancelled.
- */
-void Player::SendAutoRepeatCancel(Unit* target)
-{
-    AutoRepeatCancelledFact fact;
-    fact.target = target->GetObjectGuid();
-    ReportClientFact(m_clientCallbacks.autoRepeatCancelled, fact);
-}
-
-/**
- * @brief Tells the client a melee swing error that differs from the last one it was told, and
- * remembers it.
- *
- * @param swingError 0 for none, 1 out of reach, 2 facing the wrong way.
- */
-void Player::ReportSwingError(uint8 swingError)
-{
-    if (swingError != LastSwingErrorMsg())
-    {
-        if (swingError == 1)
-        {
-            SendAttackSwingNotInRange();
-        }
-        else if (swingError == 2)
-        {
-            SendAttackSwingBadFacingAttack();
-        }
-        SwingErrorMsg(swingError);
-    }
 }
 
 /**

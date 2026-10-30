@@ -55,7 +55,7 @@ namespace
 void InstallPlayerPacketSinks(Player& player)
 {
     InstallCooldownPacketSinks(player);
-    Player::ClientCallbacks callbacks = ClientCallbacksToSession<Player::ClientCallbacks>(&player);
+    ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&player);
     callbacks.systemMessage = SystemMessageToSession(&player);
     player.SetClientCallbacks(callbacks);
     player.SetGroupCallbacks(GroupCallbacksFor<GroupCallbacks>(&player));

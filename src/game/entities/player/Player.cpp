@@ -426,7 +426,6 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
     m_deathExpireTime = 0;
 
     // Initialize swing error message to 0
-    m_swingErrorMsg = 0;
 
     // Initialize detection invisibility timer to 1 millisecond
     m_DetectInvTimer = 1 * IN_MILLISECONDS;
@@ -540,6 +539,8 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
 
     // Unit reports the player's group-visible changes through the callbacks this player holds
     m_groupCallbacks = &m_groupSinks;
+    // Unit tells the player's own client through the callbacks this player holds
+    m_clientCallbacks = &m_clientSinks;
     // Unit reaches the player's spell modifiers, and those of its pets and totems, through this pointer
     m_spellMods = &m_spellModMgr;
 }
@@ -596,6 +597,8 @@ Player::~Player()
 
     // Last: the cleanups above still report the player's group-visible changes through these callbacks
     m_groupCallbacks = NULL;
+    // Last: the cleanups above still tell the player's own client through these callbacks
+    m_clientCallbacks = NULL;
     // Last: the cleanups above may still read the player's spell modifiers through this pointer
     m_spellMods = NULL;
 }
@@ -6329,18 +6332,6 @@ void Player::SendTimeSync()
 
     // Schedule next sync in 10 sec
     m_timeSyncTimer = 10000;
-}
-
-/**
- * @brief Tells the client its stand state.
- *
- * @param state The stand state set.
- */
-void Player::SendStandStateUpdate(uint8 state)
-{
-    StandStateFact fact;
-    fact.state = state;
-    ReportClientFact(m_clientCallbacks.standState, fact);
 }
 
 bool Player::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex index, bool castOnSelf) const

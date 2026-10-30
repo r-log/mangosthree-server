@@ -106,7 +106,7 @@ void Player::AddRuneByAuraEffect(uint8 index, RuneType newType, Aura const* aura
         CastSpell(this, 90507, true);   // Death Eater
     }
 
-    m_runeMgr.SetRuneConvertAura(index, aura); m_runeMgr.ConvertRune(index, newType, m_clientCallbacks.runeConverted);
+    m_runeMgr.SetRuneConvertAura(index, aura); m_runeMgr.ConvertRune(index, newType, m_clientSinks.runeConverted);
 }
 
 void Player::RestoreBaseRune(uint8 index)
@@ -121,7 +121,7 @@ void Player::RestoreBaseRune(uint8 index)
     // Don't drop passive talents providing rune convertion
     facts.convertsRunes = aura && aura->GetModifier()->m_auraname == SPELL_AURA_CONVERT_RUNE;
 
-    m_runeMgr.RestoreBaseRune(index, facts, m_clientCallbacks.runeConverted, DropConvertAura);
+    m_runeMgr.RestoreBaseRune(index, facts, m_clientSinks.runeConverted, DropConvertAura);
 }
 
 void Player::InitRunes()
