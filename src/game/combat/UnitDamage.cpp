@@ -1043,7 +1043,7 @@ float Unit::GetCombatRatingReduction(CombatRating cr) const
 {
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        return ((Player const*)this)->GetRatingBonusValue(cr);
+        return GetRatingBonusValue(cr);
     }
     else if (IsPet())
     {
@@ -1051,7 +1051,7 @@ float Unit::GetCombatRatingReduction(CombatRating cr) const
         if (Unit* owner = GetOwner())
             if (owner->GetTypeId() == TYPEID_PLAYER)
             {
-                return ((Player*)owner)->GetRatingBonusValue(cr);
+                return owner->GetRatingBonusValue(cr);
             }
     }
 

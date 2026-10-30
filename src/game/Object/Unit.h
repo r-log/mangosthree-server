@@ -3974,6 +3974,29 @@ class Unit : public WorldObject
          * @return NULL here; Player returns the item its inventory holds under that guid, or NULL
          */
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }
+        /**
+         * The weapon this unit attacks with; the melee and spell damage, the attack power and the
+         * proc handlers ask it.
+         * @param attackType the hand or the ranged slot
+         * @param nonbroken true to answer only a weapon that is not broken
+         * @param useable true to answer only a weapon the unit can use now
+         * @return NULL here; Player returns the weapon it has equipped for the attack, or NULL
+         */
+        virtual Item* GetWeaponForAttack(WeaponAttackType /*attackType*/, bool /*nonbroken*/, bool /*useable*/) const { return NULL; }
+        /**
+         * The item this unit has equipped in a slot; the proc checks ask it for the weapon or the
+         * shield a spell needs.
+         * @param slot the equipment slot
+         * @return NULL here; Player returns the item it has equipped there, or NULL
+         */
+        virtual Item* GetEquippedItem(uint8 /*slot*/) const { return NULL; }
+        /**
+         * The bonus this unit's rating of a kind gives; the combat rating reduction asks it of a
+         * player and of a pet's owner.
+         * @param cr the combat rating
+         * @return 0 here; Player returns the bonus of its rating
+         */
+        virtual float GetRatingBonusValue(CombatRating /*cr*/) const { return 0.0f; }
 
         /**
          * The rank this unit holds with a faction; the Shattered Sun pendants' proc picks its spell

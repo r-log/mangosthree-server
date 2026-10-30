@@ -186,6 +186,7 @@ set(SRC_GRP_TESTS
     UnitKillCreditActionsTest.cpp
     CreatureCreditAnswersTest.cpp
     KillCreditHooksTest.cpp
+    UnitItemQuestionsTest.cpp
     UnitFactionAndBattleGroundActionsTest.cpp
     UnitProcOneOffActionsTest.cpp
     UnitTalentRankTest.cpp

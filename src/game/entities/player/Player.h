@@ -1261,7 +1261,10 @@ class Player : public Unit
         }
 
         // Get the weapon for the specified attack type with additional options
-        Item* GetWeaponForAttack(WeaponAttackType attackType, bool nonbroken, bool useable) const;
+        Item* GetWeaponForAttack(WeaponAttackType attackType, bool nonbroken, bool useable) const override final;
+
+        // Get the item equipped in a slot
+        Item* GetEquippedItem(uint8 slot) const override final { return GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, slot); }
 
         // Get the shield (if usable)
         Item* GetShield(bool useable = false) const;
@@ -2558,7 +2561,7 @@ class Player : public Unit
         float GetRatingMultiplier(CombatRating cr) const;
 
         // Get rating bonus value
-        float GetRatingBonusValue(CombatRating cr) const;
+        float GetRatingBonusValue(CombatRating cr) const override final;
         // Returns base spellpower bonus from items without intellect bonus
         uint32 GetBaseSpellPowerBonus() const override { return m_baseSpellPower; }
 
