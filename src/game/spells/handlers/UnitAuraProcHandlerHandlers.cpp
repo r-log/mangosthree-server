@@ -503,9 +503,10 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcGeneric63305(DummyA
     // also update caster entry if required
     if (Unit* caster = ctx.triggeredByAura->GetCaster())
     {
-        if (caster->GetEntry() != 33943 && caster->GetTypeId() == TYPEID_UNIT)
+        Creature* casterCreature = caster->ToCreature();
+        if (caster->GetEntry() != 33943 && casterCreature)
         {
-            ((Creature*)caster)->UpdateEntry(33943);
+            casterCreature->UpdateEntry(33943);
             caster->CastSpell(caster, 64017, true);
         }
     }

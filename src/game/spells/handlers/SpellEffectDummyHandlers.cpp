@@ -514,12 +514,12 @@ static SpellHandlerOutcome<void> EffectDummyGenericArcaneVacuum(SpellEffectDummy
 /// despawns and the object is added to the map; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericCrystalPrisonDummyDND(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || !ctx.unitTarget->IsAlive() || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.unitTarget->IsPet())
+    Creature* creatureTarget = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!creatureTarget || !ctx.unitTarget->IsAlive() || ctx.unitTarget->IsPet())
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    Creature* creatureTarget = (Creature*)ctx.unitTarget;
     if (creatureTarget->IsPet())
     {
         return SpellHandlerOutcome<void>::Return();
@@ -897,13 +897,15 @@ static SpellHandlerOutcome<void> EffectDummyGenericExpeditionFlare(SpellEffectDu
 /// 32146: Liquid Fire: a player caster gets the kill credit of a creature target, which despawns; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericLiquidFire(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!unitTargetCreature || !casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
-    ((Creature*)ctx.unitTarget)->ForcedDespawn();
+    casterPlayer->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+    unitTargetCreature->ForcedDespawn();
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1040,7 +1042,9 @@ static SpellHandlerOutcome<void> EffectDummyGenericChaosBlast(SpellEffectDummyGe
 /// itself, the caster gets its kill credit and the target despawns after ten seconds; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericShatariTorch(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!unitTargetCreature || !casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1052,8 +1056,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericShatariTorch(SpellEffectDummy
     }
 
     ctx.unitTarget->CastSpell(ctx.unitTarget, 39199, true);
-    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(10000);
+    casterPlayer->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+    unitTargetCreature->ForcedDespawn(10000);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1273,12 +1277,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericFireBombExplode(SpellEffectDu
 /// effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericBurnBody(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Creature* pCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!pCreature || !casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    Creature* pCreature = (Creature*)ctx.unitTarget;
 
     // Spell can be used in combat and may affect different target than the expected.
     // If target is not the expected we need to prevent this effect.
@@ -1293,7 +1298,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericBurnBody(SpellEffectDummyGene
     pCreature->ForcedDespawn(ctx.m_duration);
 
     // EFFECT_INDEX_2 has 0 miscvalue for effect 134, doing the killcredit here instead (only one known case exist where 0)
-    ((Player*)ctx.m_caster)->KilledMonster(pCreature->GetCreatureInfo(), pCreature->GetObjectGuid());
+    casterPlayer->KilledMonster(pCreature->GetCreatureInfo(), pCreature->GetObjectGuid());
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1561,12 +1566,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericArcanePrisonerRescue(SpellEff
 /// spawned is spawned for thirty seconds; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericThrowGnomishGrenade(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!ctx.unitTarget || !casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+    casterPlayer->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
 
     // look for gameobject within max spell range of unitTarget, and respawn if found
 
@@ -1707,7 +1713,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericCollectOil(SpellEffectDummyGe
 /// 51037, 55363, 47096, 63126 or 74905) and despawns a millisecond after that spell's cast time; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericCreateCover(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1732,7 +1739,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericCreateCover(SpellEffectDummyG
     {
         ctx.unitTarget->CastSpell(ctx.m_caster, spellId, true);
 
-        Creature* creatureTarget = (Creature*)ctx.unitTarget;
+        Creature* creatureTarget = unitTargetCreature;
 
         if (const SpellCastTimesEntry* pCastTime = sSpellCastTimesStore.LookupEntry(pSpell->CastingTimeIndex))
         {
@@ -1747,12 +1754,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericCreateCover(SpellEffectDummyG
 /// for thirty seconds; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericScuttleWreckedFlyingMachine(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!ctx.unitTarget || !casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+    casterPlayer->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
 
     // look for gameobject within max spell range of unitTarget, and respawn if found
     GameObject* pGo = NULL;
@@ -1877,12 +1885,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericCleansingFlamesExodar(SpellEf
 /// effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericSetExplosivesCart(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!ctx.unitTarget || !casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+    casterPlayer->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
 
     // Quest - Borean Tundra - Summon Explosives Cart
     ctx.unitTarget->CastSpell(ctx.unitTarget, 46798, true);
@@ -3142,7 +3151,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericDisengage(SpellEffectDummyGen
 /// itself, and the caster despawns; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericLightBallPassive(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    if (!ctx.unitTarget || !casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -3158,7 +3168,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericLightBallPassive(SpellEffectD
             ctx.m_caster->CastSpell(ctx.m_caster, 65795, true);
         }
 
-        ((Creature*)ctx.m_caster)->ForcedDespawn();
+        casterCreature->ForcedDespawn();
     }
     return SpellHandlerOutcome<void>::Return();
 }
@@ -3168,7 +3178,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericLightBallPassive(SpellEffectD
 /// itself, and the caster despawns; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericDarkBallPassive(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    if (!ctx.unitTarget || !casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -3184,7 +3195,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericDarkBallPassive(SpellEffectDu
             ctx.m_caster->CastSpell(ctx.m_caster, 65808, true);
         }
 
-        ((Creature*)ctx.m_caster)->ForcedDespawn();
+        casterCreature->ForcedDespawn();
     }
     return SpellHandlerOutcome<void>::Return();
 }
@@ -3194,7 +3205,9 @@ static SpellHandlerOutcome<void> EffectDummyGenericDarkBallPassive(SpellEffectDu
 /// second; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericReadLastRites(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!unitTargetCreature || !casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -3208,10 +3221,10 @@ static SpellHandlerOutcome<void> EffectDummyGenericReadLastRites(SpellEffectDumm
     // most likely make summoned "rise", hover up/sideways in the air (MOVEFLAG_LEVITATING + MOVEFLAG_HOVER)
     ctx.unitTarget->CastSpell(ctx.unitTarget, 66412, true);
 
-    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+    casterPlayer->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
 
     // Must have a delay for proper spell animation
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(1000);
+    unitTargetCreature->ForcedDespawn(1000);
     return SpellHandlerOutcome<void>::Return();
 }
 

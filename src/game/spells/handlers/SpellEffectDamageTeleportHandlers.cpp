@@ -85,9 +85,10 @@ static SpellHandlerOutcome<void> EffectSchoolDmgPercentOfMaxHealth(SpellEffectSc
 /// creature 21910
 static SpellHandlerOutcome<void> EffectSchoolDmgLightningStrike(SpellEffectSchoolDmgContext& ctx)
 {
-    if (ctx.unitTarget->GetTypeId() == TYPEID_PLAYER && ctx.unitTarget->HasAura(37830)) // Repolarized Magneto Sphere
+    Player* targetPlayer = ctx.unitTarget->ToPlayer();
+    if (targetPlayer && ctx.unitTarget->HasAura(37830)) // Repolarized Magneto Sphere
     {
-        ((Player*)ctx.unitTarget)->KilledMonsterCredit(21910);
+        targetPlayer->KilledMonsterCredit(21910);
     }
     return SpellHandlerOutcome<void>::Continue();
 // Cataclysmic Bolt
@@ -252,11 +253,12 @@ static SpellHandlerOutcome<void> EffectTeleportUnitsScrollOfRecall(SpellEffectTe
         case 60321: failAtLevel = 80; break;
     }
 
-    if (ctx.unitTarget->getLevel() > failAtLevel && ctx.unitTarget->GetTypeId() == TYPEID_PLAYER)
+    Player* targetPlayer = ctx.unitTarget->ToPlayer();
+    if (ctx.unitTarget->getLevel() > failAtLevel && targetPlayer)
     {
         ctx.unitTarget->CastSpell(ctx.unitTarget, 60444, true);
         // TODO: Unclear use of probably related spell 60322
-        uint32 spellId = (((Player*)ctx.unitTarget)->GetTeam() == ALLIANCE ? 60323 : 60328) + urand(0, 7);
+        uint32 spellId = (targetPlayer->GetTeam() == ALLIANCE ? 60323 : 60328) + urand(0, 7);
         ctx.unitTarget->CastSpell(ctx.unitTarget, spellId, true);
         return SpellHandlerOutcome<void>::Return();
     }

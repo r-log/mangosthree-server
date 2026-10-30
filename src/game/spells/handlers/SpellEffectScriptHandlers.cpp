@@ -831,14 +831,16 @@ static SpellHandlerOutcome<void> EffectScriptGenericFuryOfMedivh(SpellEffectScri
 /// one body for 3 labels: 41055 and 63416: Copy Weapon, 69891: Copy Weapon (No Threat)
 static SpellHandlerOutcome<void> EffectScriptGenericCopyWeapon(SpellEffectScriptContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT || !ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    Player* unitTargetPlayer = ctx.unitTarget ? ctx.unitTarget->ToPlayer() : NULL;
+    if (!casterCreature || !unitTargetPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (Item* pItem = ((Player*)ctx.unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
+    if (Item* pItem = unitTargetPlayer->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
     {
-        ((Creature*)ctx.m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, pItem->GetEntry());
+        casterCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, pItem->GetEntry());
 
         // Unclear what this spell should do
         ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
@@ -1177,14 +1179,16 @@ static SpellHandlerOutcome<void> EffectScriptGeneric45204(SpellEffectScriptConte
 /// one body for 2 labels: 45206: Copy Off-hand Weapon, 69892: Copy Off-hand Weapon (No Threat)
 static SpellHandlerOutcome<void> EffectScriptGenericCopyOffHandWeapon(SpellEffectScriptContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT || !ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    Player* unitTargetPlayer = ctx.unitTarget ? ctx.unitTarget->ToPlayer() : NULL;
+    if (!casterCreature || !unitTargetPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (Item* pItem = ((Player*)ctx.unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
+    if (Item* pItem = unitTargetPlayer->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
     {
-        ((Creature*)ctx.m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, pItem->GetEntry());
+        casterCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, pItem->GetEntry());
 
         // Unclear what this spell should do
         ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
@@ -1813,7 +1817,8 @@ static SpellHandlerOutcome<void> EffectScriptGeneric50217(SpellEffectScriptConte
 /// 50218: The Cleansing: Your Inner Turmoil's Mirror Image Aura
 static SpellHandlerOutcome<void> EffectScriptGeneric50218(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.m_originalCaster || ctx.m_originalCaster->GetTypeId() != TYPEID_PLAYER || !ctx.unitTarget)
+    Player* originalCasterPlayer = ctx.m_originalCaster ? ctx.m_originalCaster->ToPlayer() : NULL;
+    if (!originalCasterPlayer || !ctx.unitTarget)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1822,14 +1827,14 @@ static SpellHandlerOutcome<void> EffectScriptGeneric50218(SpellEffectScriptConte
     switch(ctx.effect->EffectIndex)
     {
         case EFFECT_INDEX_1:
-            if (((Player*)ctx.m_originalCaster)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
+            if (originalCasterPlayer->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
             {
                 ctx.unitTarget->CastSpell(ctx.m_originalCaster, ctx.effect->CalculateSimpleValue(), true);
             }
 
             return SpellHandlerOutcome<void>::Return();
         case EFFECT_INDEX_2:
-            if (((Player*)ctx.m_originalCaster)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
+            if (originalCasterPlayer->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
             {
                 ctx.unitTarget->CastSpell(ctx.m_originalCaster, ctx.effect->CalculateSimpleValue(), true);
             }
@@ -2319,7 +2324,8 @@ static SpellHandlerOutcome<void> EffectScriptGenericGiganticOrSmallFeast(SpellEf
 /// one body for 2 labels: 58418: Portal to Orgrimmar, 58420: Portal to Stormwind
 static SpellHandlerOutcome<void> EffectScriptGenericPortalToOrgrimmarStormwind(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || ctx.effect->EffectIndex != EFFECT_INDEX_0)
+    Player* unitTargetPlayer = ctx.unitTarget ? ctx.unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer || ctx.effect->EffectIndex != EFFECT_INDEX_0)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2327,7 +2333,7 @@ static SpellHandlerOutcome<void> EffectScriptGenericPortalToOrgrimmarStormwind(S
     uint32 spellID = ctx.m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_0);
     uint32 questID = ctx.m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_1);
 
-    if (((Player*)ctx.unitTarget)->GetQuestStatusMgr().GetQuestStatus(questID) == QUEST_STATUS_COMPLETE && !((Player*)ctx.unitTarget)->GetQuestRewardStatus(questID))
+    if (unitTargetPlayer->GetQuestStatusMgr().GetQuestStatus(questID) == QUEST_STATUS_COMPLETE && !unitTargetPlayer->GetQuestRewardStatus(questID))
     {
         ctx.unitTarget->CastSpell(ctx.unitTarget, spellID, true);
     }
@@ -2469,7 +2475,8 @@ static SpellHandlerOutcome<void> EffectScriptGeneric62262(SpellEffectScriptConte
 /// Iron Roots
 static SpellHandlerOutcome<void> EffectScriptGenericIronRoots(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || !((Creature*)ctx.unitTarget)->IsTemporarySummon())
+    Creature* targetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!targetCreature || !targetCreature->IsTemporarySummon())
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2484,7 +2491,7 @@ static SpellHandlerOutcome<void> EffectScriptGenericIronRoots(SpellEffectScriptC
         case 63601: ownerAura = 62861; break;
     };
 
-    if (Unit* summoner = ctx.unitTarget->GetMap()->GetUnit(((TemporarySummon*)ctx.unitTarget)->GetSummonerGuid()))
+    if (Unit* summoner = ctx.unitTarget->GetMap()->GetUnit(static_cast<TemporarySummon*>(targetCreature)->GetSummonerGuid()))
     {
         summoner->RemoveAurasDueToSpell(ownerAura);
     }
