@@ -380,12 +380,10 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
         // target and moves nothing.
         if (released && GetTypeId() != TYPEID_PLAYER && IsAlive())
         {
-            Creature* c = ((Creature*)this);
-
             // attack caster if can: the caster becomes the victim before the end rule reads one
             if (Unit* caster = IsInWorld() ? GetMap()->GetUnit(casterGuid) : NULL)
             {
-                c->AttackedBy(caster);
+                AttackedBy(caster);
             }
 
             // The end of control (reference §3.1.4, §3.1.6): a victim means the chase resumes

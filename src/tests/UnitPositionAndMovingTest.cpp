@@ -23,23 +23,20 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The position write and the moving test Unit asks a player for: Update's pending commit and the
-/// end of a spline move a player through SetPosition, and the auto-repeat spell update asks a
+/// The position write and the moving test Unit asks of itself: Update's pending commit and the
+/// end of a spline move a unit through SetPosition, and the auto-repeat spell update asks a
 /// player isMoving.
 ///
-/// Unit declares both protected; SetPosition's teleport argument defaults to false on Unit and on
-/// Player, and a call through a Unit binds Unit's. A Unit that is not a Player is relocated by its
-/// map at the same call sites and is never asked whether it moves: a Creature probe with its update
-/// fields allocated (no map, no AI, no auras) makes both public with using-declarations. Unit's
-/// SetPosition returns false and leaves the probe's placement and update fields as they were, with
-/// and without the teleport argument; Unit's isMoving answers false whatever the probe's own
-/// movement flags (Unit's member) hold. A Player cannot be built in this binary (it needs a
-/// WorldSession and a map), so Player's bodies are not run here. Both Player overrides stay public.
-/// The static_asserts pin Unit's declarations through the probe and Player's own declarations with
-/// Unit's exact signatures, that a call through a Unit does not compile, and that a call through a
-/// Player compiles. A call with four arguments through the probe binds Unit's default, which an
-/// override recording its argument shows to be false. That Player's isMoving is `final`, and the
-/// text of both default arguments, are pinned by the cast proof's text of Unit.h and Player.h.
+/// Unit declares both protected, the position write pure. Creature overrides the write, protected,
+/// relocating itself through its map; Player overrides both, public. The teleport argument
+/// defaults to false on all three. A Creature probe with its update fields allocated (no map, no
+/// AI, no auras) makes Creature's write and Unit's moving test public with using-declarations; the
+/// write needs a map, so it is not run here, and neither are Player's bodies. Unit's isMoving
+/// answers false whatever the probe's own movement flags (Unit's member) hold. The static_asserts
+/// pin Creature's and Player's declarations (each an override, so with Unit's exact signature),
+/// that a call through a Unit or a Creature does not compile, and that a call through a Player
+/// compiles. A call with four arguments through the probe binds false, which an override
+/// recording its argument shows.
 
 #include "TestHarness.h"
 #include "Creature.h"
@@ -48,21 +45,20 @@
 
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 namespace
 {
-    /// A Creature with its update fields allocated; the position write and the moving test Unit
-    /// asks a player for are public here.
+    /// A Creature with its update fields allocated; Creature's position write and Unit's moving
+    /// test are public here.
     class PositionAndMovingUnit : public Creature
     {
         public:
-            using Unit::SetPosition;
+            using Creature::SetPosition;
             using Unit::isMoving;
 
             static_assert(std::is_same<decltype(&PositionAndMovingUnit::SetPosition),
-                                       bool (Unit::*)(float, float, float, float, bool)>::value,
-                          "Unit declares the position write");
+                                       bool (Creature::*)(float, float, float, float, bool)>::value,
+                          "Creature declares the position write");
             static_assert(std::is_same<decltype(&PositionAndMovingUnit::isMoving), bool (Unit::*)() const>::value,
                           "Unit declares the moving test, const");
 
@@ -77,16 +73,6 @@ namespace
             {
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
-            }
-
-            std::vector<uint32> Fields() const
-            {
-                std::vector<uint32> fields;
-                for (uint16 i = 0; i < GetValuesCount(); ++i)
-                {
-                    fields.push_back(GetUInt32Value(i));
-                }
-                return fields;
             }
     };
 
@@ -128,21 +114,19 @@ namespace
     auto AsksMoving(int) -> decltype(std::declval<T const&>().isMoving(), std::true_type());
     template<class T>
     std::false_type AsksMoving(...);
-
-    struct Coordinates
-    {
-        float x, y, z, orientation;
-    };
 }
 
 static_assert(decltype(WritesPosition<PositionAndMovingUnit>(0))::value &&
               decltype(WritesPositionWithItsDefault<PositionAndMovingUnit>(0))::value &&
               decltype(AsksMoving<PositionAndMovingUnit>(0))::value,
-              "a call through the probe reaches Unit's position write, with and without the teleport "
-              "argument, and Unit's moving test");
+              "a call through the probe reaches Creature's position write, with and without the "
+              "teleport argument, and Unit's moving test");
 static_assert(!decltype(WritesPosition<Unit>(0))::value &&
               !decltype(WritesPositionWithItsDefault<Unit>(0))::value,
               "Unit's position write is protected: a call through a Unit does not compile");
+static_assert(!decltype(WritesPosition<Creature>(0))::value &&
+              !decltype(WritesPositionWithItsDefault<Creature>(0))::value,
+              "Creature's position write is protected: a call through a Creature does not compile");
 static_assert(!decltype(AsksMoving<Unit>(0))::value,
               "Unit's moving test is protected: a call through a Unit does not compile");
 static_assert(decltype(WritesPosition<Player>(0))::value &&
@@ -150,38 +134,7 @@ static_assert(decltype(WritesPosition<Player>(0))::value &&
               "Player's position write is public, with and without the teleport argument");
 static_assert(decltype(AsksMoving<Player>(0))::value, "Player's moving test is public");
 
-TEST(UnitPositionAndMoving_ACreatureIsNotMovedByTheWrite)
-{
-    PositionAndMovingUnit creature;
-    PositionAndMovingUnit& unit = creature;
-    creature.Place().MoveTo(10.0f, 20.0f, 30.0f, 1.0f);
-    std::vector<uint32> const fields = creature.Fields();
-    CHECK(!fields.empty());
-
-    Coordinates const sets[] =
-    {
-        { 10.0f, 20.0f, 30.0f, 1.0f },
-        { 0.0f, 0.0f, 0.0f, 0.0f },
-        { -1234.5f, 678.25f, -9.75f, 3.0f },
-        { 1.0e9f, -1.0e9f, 1.0e9f, 6.0f },
-    };
-
-    for (Coordinates const& c : sets)
-    {
-        CHECK(!unit.SetPosition(c.x, c.y, c.z, c.orientation));
-        CHECK(!unit.SetPosition(c.x, c.y, c.z, c.orientation, false));
-        CHECK(!unit.SetPosition(c.x, c.y, c.z, c.orientation, true));
-
-        CHECK_EQ(creature.Where().X(), 10.0f);
-        CHECK_EQ(creature.Where().Y(), 20.0f);
-        CHECK_EQ(creature.Where().Z(), 30.0f);
-        CHECK_EQ(creature.Where().Facing(), 1.0f);
-        CHECK(creature.Fields() == fields);
-        CHECK(unit.GetSpellAuraHolderMap().empty());
-    }
-}
-
-TEST(UnitPositionAndMoving_ACallThroughUnitBindsUnitsDefault)
+TEST(UnitPositionAndMoving_ACallWithFourArgumentsBindsNoTeleport)
 {
     TeleportRecordingUnit recorder;
     PositionAndMovingUnit& unit = recorder;

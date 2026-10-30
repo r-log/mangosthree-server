@@ -1742,7 +1742,7 @@ int32 Unit::DealHeal(Unit* pVictim, uint32 addhealth, SpellEntry const* spellPro
 
     Unit* unit = this;
 
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->CreditsHealToOwner())
+    if (CreditsHealToOwner())
     {
         unit = GetOwner();
     }

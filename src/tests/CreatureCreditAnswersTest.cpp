@@ -23,15 +23,18 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The two answers Unit's kill and heal credit ask of a creature, through a Creature reference as
-/// Unit asks them: the unit that summoned a temporary summon, and whether a creature's heals are
-/// logged and scored as its owner's (a totem's are, a statue's are not). The creatures are built
-/// without update fields or a map, so they only answer and are destroyed.
+/// The two answers Unit's kill and heal credit ask: a creature, through a Creature reference, names
+/// the unit that summoned a temporary summon; a unit, through a Unit reference, says whether its
+/// heals are logged and scored as its owner's (a totem's are, a statue's are not). The creatures
+/// are built without update fields or a map, so they only answer and are destroyed.
 
 #include "TestHarness.h"
 #include "Creature.h"
 #include "TemporarySummon.h"
 #include "Totem.h"
+#include "Unit.h"
+
+#include <type_traits>
 
 namespace
 {
@@ -46,6 +49,9 @@ namespace
     };
 }
 
+static_assert(std::is_same<decltype(&Unit::CreditsHealToOwner), bool (Unit::*)() const>::value,
+              "Unit declares the heal credit question, const");
+
 TEST(CreatureCreditAnswers_ATemporarySummonNamesItsSummoner)
 {
     ObjectGuid const byCreature(HIGHGUID_UNIT, uint32(1234), uint32(77));
@@ -54,23 +60,25 @@ TEST(CreatureCreditAnswers_ATemporarySummonNamesItsSummoner)
     TemporarySummon playerSummon(byPlayer);
     Creature const& first = creatureSummon;
     Creature const& second = playerSummon;
+    Unit const& firstUnit = creatureSummon;
 
     CHECK(first.IsTemporarySummon());
     CHECK(first.GetSummonerGuid() == byCreature);
     CHECK(first.GetSummonerGuid().IsCreatureOrVehicle());
     CHECK(second.GetSummonerGuid() == byPlayer);
     CHECK(!second.GetSummonerGuid().IsCreatureOrVehicle());
-    CHECK(!first.CreditsHealToOwner());
+    CHECK(!firstUnit.CreditsHealToOwner());
 }
 
 TEST(CreatureCreditAnswers_AnyOtherCreatureHasNoSummonerAndKeepsItsHeals)
 {
     Creature plain(CREATURE_SUBTYPE_GENERIC);
     Creature const& creature = plain;
+    Unit const& unit = plain;
 
     CHECK(!creature.IsTemporarySummon());
     CHECK(creature.GetSummonerGuid().IsEmpty());
-    CHECK(!creature.CreditsHealToOwner());
+    CHECK(!unit.CreditsHealToOwner());
 }
 
 TEST(CreatureCreditAnswers_ATotemsHealsAreItsOwnersButAStatuesAreNot)
@@ -78,13 +86,14 @@ TEST(CreatureCreditAnswers_ATotemsHealsAreItsOwnersButAStatuesAreNot)
     TypedTotem passive(TOTEM_PASSIVE);
     TypedTotem active(TOTEM_ACTIVE);
     TypedTotem statue(TOTEM_STATUE);
-    Creature const& passiveCreature = passive;
-    Creature const& activeCreature = active;
+    Unit const& passiveUnit = passive;
+    Unit const& activeUnit = active;
+    Unit const& statueUnit = statue;
     Creature const& statueCreature = statue;
 
-    CHECK(passiveCreature.IsTotem());
-    CHECK(passiveCreature.CreditsHealToOwner());
-    CHECK(activeCreature.CreditsHealToOwner());
-    CHECK(!statueCreature.CreditsHealToOwner());
+    CHECK(passiveUnit.IsTotem());
+    CHECK(passiveUnit.CreditsHealToOwner());
+    CHECK(activeUnit.CreditsHealToOwner());
+    CHECK(!statueUnit.CreditsHealToOwner());
     CHECK(statueCreature.GetSummonerGuid().IsEmpty());
 }

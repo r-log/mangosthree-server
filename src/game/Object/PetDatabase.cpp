@@ -162,7 +162,7 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     if (cinfo->CreatureType == CREATURE_TYPE_CRITTER)
     {
         AIM_Initialize();
-        pos.GetMap()->Add((Creature*)this);
+        pos.GetMap()->Add<Creature>(this);
         return true;
     }
 
@@ -321,7 +321,7 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
         SetDeathState(JUST_DIED);
     }
 
-    map->Add((Creature*)this);
+    map->Add<Creature>(this);
     AIM_Initialize();
 
     // Spells should be loaded after pet is added to map, because in CheckCast is check on it

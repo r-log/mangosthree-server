@@ -226,8 +226,6 @@ class Creature : public Unit
         bool IsTemporarySummon() const { return m_subtype == CREATURE_SUBTYPE_TEMPORARY_SUMMON; }
         // The unit that summoned a temporary summon; empty for any other creature
         virtual ObjectGuid GetSummonerGuid() const { return ObjectGuid(); }
-        // Whether this creature's heals are logged and scored as its owner's: a totem's are, a statue's are not
-        virtual bool CreditsHealToOwner() const { return false; }
 
         bool IsCorpse() const { return GetDeathState() ==  CORPSE; }
         bool IsDespawned() const { return GetDeathState() ==  DEAD; }
@@ -303,12 +301,13 @@ class Creature : public Unit
 
         CreatureAI* AI() override final { return i_AI; }
 
-        // Threat methods only a Creature can execute (decoupling D5e, server #134): each
-        // moved here from Unit unchanged, where it opened with MANGOS_ASSERT(GetTypeId() ==
-        // TYPEID_UNIT). Defined in CreatureThreat.cpp.
+        // Threat methods only a creature runs, defined in CreatureThreat.cpp
         bool SelectHostileTarget();
         void TauntApply(Unit* pVictim);
         void TauntFadeOut(Unit* taunter);
+        /// Whether victim selection passes pTarget over: it is immune to this creature's melee school,
+        /// holds a negative aura that damage breaks, or (with checkThreatArea) is out of the threat area.
+        bool IsSecondChoiceTarget(Unit* pTarget, bool checkThreatArea) const;
 
         void SetWalk(bool enable, bool asDefault = true);
         /// Stop where it stands and, for a patrol, hold the leg a while so the player can talk.
@@ -543,6 +542,10 @@ class Creature : public Unit
         void SetDisableReputationGain(bool disable) { DisableReputationGain = disable; }
         bool IsReputationGainDisabled() { return DisableReputationGain; }
     protected:
+        /// Relocates the creature through its map's creature relocation.
+        /// @return true
+        bool SetPosition(float x, float y, float z, float orientation, bool teleport = false) override;
+
         bool MeetsSelectAttackingRequirement(Unit* pTarget, SpellEntry const* pSpellInfo, uint32 selectFlags) const;
 
         bool CreateFromProto(uint32 guidlow, CreatureInfo const* cinfo, Team team, const CreatureData* data = NULL, GameEventCreatureData const* eventData = NULL);

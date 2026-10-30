@@ -145,11 +145,11 @@ void Totem::Update(uint32 update_diff, uint32 time)
 void Totem::Summon(Unit* owner)
 {
     AIM_Initialize();
-    owner->GetMap()->Add((Creature*)this);
+    owner->GetMap()->Add<Creature>(this);
 
     if (owner->GetTypeId() == TYPEID_UNIT && owner->AI())
     {
-        owner->AI()->JustSummoned((Creature*)this);
+        owner->AI()->JustSummoned(this);
     }
 
     // there are some totems, which exist just for their visual appeareance
@@ -210,7 +210,7 @@ void Totem::UnSummon()
 
         if (owner->GetTypeId() == TYPEID_UNIT && owner->AI())
         {
-            owner->AI()->SummonedCreatureDespawn((Creature*)this);
+            owner->AI()->SummonedCreatureDespawn(this);
         }
     }
 

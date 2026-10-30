@@ -263,7 +263,7 @@ void TemporarySummon::Summon(TempSpawnType type, uint32 lifetime)
 {
     SetSummonProperties(type, lifetime);
 
-    GetMap()->Add((Creature*)this);
+    GetMap()->Add<Creature>(this);
 
     AIM_Initialize();
 }

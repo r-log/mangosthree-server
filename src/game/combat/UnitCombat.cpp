@@ -339,7 +339,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
     //
     // Verified against warcraft.wiki.gg/wiki/Crushing_blow (2025-11-27)
     // and the Cataclysm-Preservation TrinityCore 4.3.4 reference impl.
-    if ((getLevel() - 4) >= pVictim->getLevel() && !IsNonMeleeSpellCasted(false) /* It should have been !spellCasted but wrath doesn't have that? */)
+    if ((getLevel() - 4) >= pVictim->getLevel() && !IsNonMeleeSpellCasted(false))
     {
         // skill_diff = attacker_skill - victim_skill, both = level*5.
         // 3.0.2 floor: minimum 20 skill points (= 4-level diff).
@@ -351,7 +351,6 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
         if (crush_chance > 0 && roll < (sum += crush_chance))
         {
             uint32 typeId = GetTypeId();
-            /* It should have been !(((Creature*)this)->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_CRUSH) but wrath doesn't have that? */
             Unit* tempOwner = GetOwner();
             Unit* tempCharmer = GetCharmer();
             if ((typeId == TYPEID_UNIT && !(GetOwnerGuid() && tempOwner && tempOwner->GetTypeId() == TYPEID_PLAYER)

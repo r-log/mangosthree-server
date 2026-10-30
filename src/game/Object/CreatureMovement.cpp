@@ -30,6 +30,7 @@
  */
 
 #include "Creature.h"
+#include "Map.h"
 #include "GridMap.h"
 #include "GameTime.h"
 #include "Common/TimeConstants.h"
@@ -41,6 +42,17 @@ namespace
     /// How long a patrol holds when a player starts talking to it (HoldForPlayer, below); the
     /// generator's own constant, the sole survivor once WaypointMovementGenerator.h was deleted.
     const uint32 STOP_TIME_FOR_PLAYER = 3 * MINUTE * IN_MILLISECONDS;
+}
+
+/**
+ * @brief Relocates the creature through its map's creature relocation.
+ *
+ * @return true.
+ */
+bool Creature::SetPosition(float x, float y, float z, float orientation, bool /*teleport*/)
+{
+    GetMap()->CreatureRelocation(this, x, y, z, orientation);
+    return true;
 }
 
 /**

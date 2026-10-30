@@ -75,22 +75,20 @@ bool Unit::CanHaveThreatList(bool ignoreAliveState/*=false*/) const
         return false;
     }
 
-    Creature const* creature = ((Creature const*)this);
-
     // totems can not have threat list
-    if (creature->IsTotem())
+    if (IsTotem())
     {
         return false;
     }
 
     // pets can not have a threat list, unless they are controlled by a creature
-    if (creature->IsPet() && creature->GetOwnerGuid().IsPlayer())
+    if (IsPet() && GetOwnerGuid().IsPlayer())
     {
         return false;
     }
 
     // charmed units can not have a threat list if charmed by player
-    if (creature->GetCharmerGuid().IsPlayer())
+    if (GetCharmerGuid().IsPlayer())
     {
         return false;
     }
@@ -153,25 +151,10 @@ void Unit::FixateTarget(Unit* pVictim)
         m_fixateTargetGuid = pVictim->GetObjectGuid();
     }
 
-    // Start attacking the fixated target or the next proper one
-    // SelectHostileTarget lives on Creature since decoupling D5e (server #134); it carried
-    // MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT) as its first statement, so the assert that
-    // guarded this call is now at the call, with the same condition and the same abort.
+    // Start attacking the fixated target or the next proper one; only a creature selects one
     Creature* creature = ToCreature();
     MANGOS_ASSERT(creature);
     creature->SelectHostileTarget();
-}
-
-//======================================================================
-
-bool Unit::IsSecondChoiceTarget(Unit* pTarget, bool checkThreatArea) const
-{
-    MANGOS_ASSERT(pTarget && GetTypeId() == TYPEID_UNIT);
-
-    return
-        pTarget->IsImmunedToDamage(GetMeleeDamageSchoolMask()) ||
-        pTarget->hasNegativeAuraWithInterruptFlag(AURA_INTERRUPT_FLAG_DAMAGE) ||
-        checkThreatArea && ((Creature*)this)->IsOutOfThreatArea(pTarget);
 }
 
 void Unit::SendThreatUpdate()
