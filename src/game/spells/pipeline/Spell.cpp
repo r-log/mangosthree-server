@@ -1145,7 +1145,9 @@ void Spell::SelectMountByAreaAndSkill(Unit* target, SpellEntry const* parentSpel
         uint32 zone, area;
         target->GetTerrain()->GetZoneAndAreaId(zone, area, target->Where().X(), target->Where().Y(), target->Where().Z());
 
-        SpellCastResult locRes = sSpellMgr.GetSpellAllowedInLocationError(pSpell, target->GetMapId(), zone, area, target->GetCharmerOrOwnerPlayerOrPlayerItself());
+        Player const* locationPlayer = target->GetCharmerOrOwnerPlayerOrPlayerItself();
+        SpellCastResult locRes = sSpellMgr.GetSpellAllowedInLocationError(pSpell, target->GetMapId(), zone, area, locationPlayer,
+                                 SpellAreaConditionCheckFor(locationPlayer));
         if (locRes != SPELL_CAST_OK || !targetPlayer->CanStartFlyInArea(target->GetMapId(), zone, area))
         {
             target->CastSpell(target, spellId150, true, NULL, NULL, ObjectGuid(), parentSpell);

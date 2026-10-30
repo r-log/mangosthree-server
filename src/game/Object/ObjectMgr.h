@@ -27,6 +27,7 @@
 #define MANGOS_H_OBJECTMGR
 
 #include <unordered_map>
+#include <functional>
 #include <utility>
 #include "Utilities/Errors.h"
 #include "Platform/Define.h"
@@ -1575,6 +1576,10 @@ class ObjectMgr
 };
 
 #define sObjectMgr MaNGOS::Singleton<ObjectMgr>::Instance()
+
+/// The spell-area condition check for `player`: whether it meets a condition, asked of the conditions
+/// the object manager loads.
+std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const* player);
 
 /// generic text function
  bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target = NULL);

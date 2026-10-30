@@ -419,7 +419,7 @@ void Aura::HandlePhase(bool apply, bool Real)
 
             for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
             {
-                itr->second->ApplyOrRemoveSpellIfCan(targetPlayer, zone, area, false);
+                itr->second->ApplyOrRemoveSpellIfCan(targetPlayer, zone, area, false, SpellAreaConditionCheckFor(targetPlayer));
             }
         }
     }

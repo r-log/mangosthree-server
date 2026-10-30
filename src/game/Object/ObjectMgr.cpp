@@ -481,6 +481,14 @@ Player* ObjectMgr::GetPlayer(const char* name) { return sPlayerRegistry.FindByNa
  */
 Player* ObjectMgr::GetPlayer(ObjectGuid guid, bool inWorld /*=true*/) { return sPlayerRegistry.Find(guid, inWorld); }
 
+std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const* player)
+{
+    return [player](uint32 conditionId)
+    {
+        return sObjectMgr.IsPlayerMeetToCondition(conditionId, player, player->GetMap(), NULL, CONDITION_FROM_SPELL_AREA);
+    };
+}
+
 /**
  * @brief Gets static creature template data by entry id.
  *

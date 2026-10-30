@@ -506,8 +506,9 @@ SpellCastResult Spell::CheckCast(bool strict)
     uint32 zone, area;
     m_caster->GetTerrain()->GetZoneAndAreaId(zone, area, m_caster->Where().X(), m_caster->Where().Y(), m_caster->Where().Z());
 
-    SpellCastResult locRes = sSpellMgr.GetSpellAllowedInLocationError(m_spellInfo, m_caster->GetMapId(), zone, area,
-                             m_caster->GetCharmerOrOwnerPlayerOrPlayerItself());
+    Player const* locationPlayer = m_caster->GetCharmerOrOwnerPlayerOrPlayerItself();
+    SpellCastResult locRes = sSpellMgr.GetSpellAllowedInLocationError(m_spellInfo, m_caster->GetMapId(), zone, area, locationPlayer,
+                             SpellAreaConditionCheckFor(locationPlayer));
     if (locRes != SPELL_CAST_OK)
     {
         return locRes;
