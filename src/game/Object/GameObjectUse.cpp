@@ -523,13 +523,14 @@ void GameObject::Use(Unit* user)
 
             if (owner)
             {
-                if (owner->GetTypeId() != TYPEID_PLAYER)
+                Player* ownerPlayer = owner->ToPlayer();
+                if (!ownerPlayer)
                 {
                     return;
                 }
 
                 // accept only use by player from same group as owner, excluding owner itself (unique use already added in spell effect)
-                if (player == (Player*)owner || (info->summoningRitual.castersGrouped && !player->IsInSameRaidWith(((Player*)owner))))
+                if (player == ownerPlayer || (info->summoningRitual.castersGrouped && !player->IsInSameRaidWith((ownerPlayer))))
                 {
                     return;
                 }
@@ -630,12 +631,13 @@ void GameObject::Use(Unit* user)
             if (info->spellcaster.partyOnly)
             {
                 Unit* caster = GetOwner();
-                if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+                Player* casterPlayer = caster ? caster->ToPlayer() : NULL;
+                if (!casterPlayer)
                 {
                     return;
                 }
 
-                if (user->GetTypeId() != TYPEID_PLAYER || !((Player*)user)->IsInSameRaidWith((Player*)caster))
+                if (user->GetTypeId() != TYPEID_PLAYER || !((Player*)user)->IsInSameRaidWith(casterPlayer))
                 {
                     return;
                 }

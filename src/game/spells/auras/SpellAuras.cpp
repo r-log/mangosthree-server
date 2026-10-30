@@ -2417,7 +2417,8 @@ void Aura::PeriodicDummyTick()
             // Drink (item drink spells)
             if (GetEffIndex() > EFFECT_INDEX_0 && spell->GetEffectApplyAuraNameByIndex(SpellEffectIndex(GetEffIndex()-1)) == SPELL_AURA_MOD_POWER_REGEN)
             {
-                if (target->GetTypeId() != TYPEID_PLAYER)
+                Player* targetPlayer = target->ToPlayer();
+                if (!targetPlayer)
                 {
                     return;
                 }
@@ -2425,7 +2426,7 @@ void Aura::PeriodicDummyTick()
                 if (Aura* aura = GetHolder()->GetAuraByEffectIndex(SpellEffectIndex(GetEffIndex() - 1)))
                 {
                     aura->GetModifier()->m_amount = m_modifier.m_amount;
-                    ((Player*)target)->UpdateManaRegen();
+                    targetPlayer->UpdateManaRegen();
                     // Disable continue
                     m_isPeriodic = false;
                     return;

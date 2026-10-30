@@ -156,14 +156,15 @@ static SpellHandlerOutcome<void> EffectTriggerSpellVanish(SpellEffectTriggerSpel
     ctx.unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_STALKED);
 
     // if this spell is given to NPC it must handle rest by it's own AI
-    if (ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = ctx.unitTarget->ToPlayer();
+    if (!unitTargetPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     uint32 spellId = 1784;
     // reset cooldown on it if needed
-    if (((Player*)ctx.unitTarget)->HasSpellCooldown(spellId))
+    if (unitTargetPlayer->HasSpellCooldown(spellId))
     {
         ctx.unitTarget->RemoveSpellCooldown(spellId);
     }

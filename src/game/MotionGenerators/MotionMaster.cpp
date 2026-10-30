@@ -1081,7 +1081,8 @@ void MotionMaster::MoveFleeing(Unit* enemy, uint32 time, uint64 claim)
  */
 void MotionMaster::MoveWaypoint(int32 id, uint32 source, uint32 initialDelay, uint32 overwriteEntry)
 {
-    if (m_owner->GetTypeId() != TYPEID_UNIT)
+    Creature* creature = m_owner->ToCreature();
+    if (!creature)
     {
         sLog.outError("Non-creature %s attempt to MoveWaypoint()", m_owner->GetGuidStr().c_str());
         return;
@@ -1091,7 +1092,6 @@ void MotionMaster::MoveWaypoint(int32 id, uint32 source, uint32 initialDelay, ui
         sLog.outError("Creature %s (Entry %u) attempt to MoveWaypoint() but creature is already using waypoint", m_owner->GetGuidStr().c_str(), m_owner->GetEntry());
         return;
     }
-    Creature* creature = (Creature*)m_owner;
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s start MoveWaypoint()", m_owner->GetGuidStr().c_str());
     Motion::PatrolBehaviour::Params p;
     BuildPatrolParams(*creature, id, (WaypointPathOrigin)source, initialDelay, overwriteEntry, p);

@@ -616,7 +616,8 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGeneric38495(AuraTriggerSpellCo
 /// 38554: Absorb Eye of Grillok
 static SpellHandlerOutcome<void> AuraTriggerSpellGeneric38554(AuraTriggerSpellContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    Creature* creatureTarget = ctx.target->ToCreature();
+    if (!creatureTarget)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -629,8 +630,6 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGeneric38554(AuraTriggerSpellCo
     {
         return SpellHandlerOutcome<void>::Return();
     }
-
-    Creature* creatureTarget = (Creature*)ctx.target;
 
     creatureTarget->ForcedDespawn();
     return SpellHandlerOutcome<void>::Return();
@@ -917,13 +916,14 @@ static SpellHandlerOutcome<void> AuraTriggerSpellMageDefault(AuraTriggerSpellCon
 /// one body for 3 labels: 53302: Sniper Training, 53303: Sniper Training, 53304: Sniper Training
 static SpellHandlerOutcome<void> AuraTriggerSpellHunterSniperTraining(AuraTriggerSpellContext& ctx)
 {
-    if (ctx.triggerTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* triggerTargetPlayer = ctx.triggerTarget->ToPlayer();
+    if (!triggerTargetPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     // Reset reapply counter at move
-    if (((Player*)ctx.triggerTarget)->isMoving())
+    if (triggerTargetPlayer->isMoving())
     {
         ctx.aura->GetModifier()->m_amount = 6;
         return SpellHandlerOutcome<void>::Return();
@@ -1028,12 +1028,13 @@ static SpellHandlerOutcome<void> AuraTriggerSpellShamanDefault(AuraTriggerSpellC
 /// 9347: Mortal Strike
 static SpellHandlerOutcome<void> AuraTriggerSpellCustom9347(AuraTriggerSpellContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = ctx.target->ToCreature();
+    if (!targetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
     // expected selection current fight target
-    ctx.triggerTarget = ((Creature*)ctx.target)->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 0, ctx.triggeredSpellInfo);
+    ctx.triggerTarget = targetCreature->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 0, ctx.triggeredSpellInfo);
     if (!ctx.triggerTarget)
     {
         return SpellHandlerOutcome<void>::Return();
@@ -1592,13 +1593,14 @@ static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric62019(AuraPeriodicD
 /// 62038: Biting Cold
 static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric62038(AuraPeriodicDummyTickContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = ctx.target->ToPlayer();
+    if (!targetPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     // if player is moving remove one aura stack
-    if (((Player*)ctx.target)->isMoving())
+    if (targetPlayer->isMoving())
     {
         ctx.target->RemoveAuraHolderFromStack(62039);
     }

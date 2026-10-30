@@ -801,12 +801,13 @@ void Aura::HandleChannelDeathItem(bool apply, bool Real)
 void Aura::HandleBindSight(bool apply, bool /*Real*/)
 {
     Unit* caster = GetCaster();
-    if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = caster ? caster->ToPlayer() : NULL;
+    if (!casterPlayer)
     {
         return;
     }
 
-    Camera& camera = ((Player*)caster)->GetCamera();
+    Camera& camera = casterPlayer->GetCamera();
     if (apply)
     {
         camera.SetView(GetTarget());
@@ -826,12 +827,13 @@ void Aura::HandleBindSight(bool apply, bool /*Real*/)
 void Aura::HandleFarSight(bool apply, bool /*Real*/)
 {
     Unit* caster = GetCaster();
-    if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = caster ? caster->ToPlayer() : NULL;
+    if (!casterPlayer)
     {
         return;
     }
 
-    Camera& camera = ((Player*)caster)->GetCamera();
+    Camera& camera = casterPlayer->GetCamera();
     if (apply)
     {
         camera.SetView(GetTarget());

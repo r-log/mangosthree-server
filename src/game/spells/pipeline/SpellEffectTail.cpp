@@ -138,7 +138,8 @@ void Spell::EffectSummonDeadPet(SpellEffectEntry const* /*effect*/)
 
 void Spell::EffectSummonAllTotems(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return;
     }
@@ -147,7 +148,7 @@ void Spell::EffectSummonAllTotems(SpellEffectEntry const* effect)
     int32 amount_buttons = effect->EffectMiscValue_1;
 
     for (int32 slot = 0; slot < amount_buttons; ++slot)
-        if (ActionButton const* actionButton = ((Player*)m_caster)->GetActionButton(start_button + slot))
+        if (ActionButton const* actionButton = casterPlayer->GetActionButton(start_button + slot))
             if (actionButton->GetType() == ACTION_BUTTON_SPELL)
                 if (uint32 spell_id = actionButton->GetAction())
                 {
@@ -205,7 +206,8 @@ void Spell::EffectBreakPlayerTargeting (SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectDurabilityDamage(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -216,7 +218,7 @@ void Spell::EffectDurabilityDamage(SpellEffectEntry const* effect)
     // Possibly its mean -1 all player equipped items and -2 all items
     if (slot < 0)
     {
-        ((Player*)unitTarget)->DurabilityPointsLossAll(damage, (slot < -1));
+        unitTargetPlayer->DurabilityPointsLossAll(damage, (slot < -1));
         return;
     }
 
@@ -226,9 +228,9 @@ void Spell::EffectDurabilityDamage(SpellEffectEntry const* effect)
         return;
     }
 
-    if (Item* item = ((Player*)unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+    if (Item* item = unitTargetPlayer->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
     {
-        ((Player*)unitTarget)->DurabilityPointsLoss(item, damage);
+        unitTargetPlayer->DurabilityPointsLoss(item, damage);
     }
 }
 
@@ -239,7 +241,8 @@ void Spell::EffectDurabilityDamage(SpellEffectEntry const* effect)
  */
 void Spell::EffectDurabilityDamagePCT(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -250,7 +253,7 @@ void Spell::EffectDurabilityDamagePCT(SpellEffectEntry const* effect)
     // Possibly its mean -1 all player equipped items and -2 all items
     if (slot < 0)
     {
-        ((Player*)unitTarget)->DurabilityLossAll(double(damage) / 100.0f, (slot < -1));
+        unitTargetPlayer->DurabilityLossAll(double(damage) / 100.0f, (slot < -1));
         return;
     }
 
@@ -265,9 +268,9 @@ void Spell::EffectDurabilityDamagePCT(SpellEffectEntry const* effect)
         return;
     }
 
-    if (Item* item = ((Player*)unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+    if (Item* item = unitTargetPlayer->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
     {
-        ((Player*)unitTarget)->DurabilityLoss(item, double(damage) / 100.0f);
+        unitTargetPlayer->DurabilityLoss(item, double(damage) / 100.0f);
     }
 }
 
@@ -503,7 +506,8 @@ void Spell::EffectSpiritHeal(SpellEffectEntry const* /*effect*/)
     {
         return;
     }
-    if (unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget->ToPlayer();
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -516,8 +520,8 @@ void Spell::EffectSpiritHeal(SpellEffectEntry const* /*effect*/)
         return;
     }
 
-    ((Player*)unitTarget)->ResurrectPlayer(1.0f);
-    ((Player*)unitTarget)->SpawnCorpseBones();
+    unitTargetPlayer->ResurrectPlayer(1.0f);
+    unitTargetPlayer->SpawnCorpseBones();
 }
 
 // remove insignia spell effect
@@ -710,32 +714,35 @@ void Spell::EffectWMOChange(SpellEffectEntry const* effect)
 
 void Spell::EffectKillCreditPersonal(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
 
-    ((Player*)unitTarget)->KilledMonsterCredit(effect->EffectMiscValue_0);
+    unitTargetPlayer->KilledMonsterCredit(effect->EffectMiscValue_0);
 }
 
 void Spell::EffectKillCreditGroup(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
 
-    ((Player*)unitTarget)->RewardPlayerAndGroupAtEvent(effect->EffectMiscValue_0, unitTarget);
+    unitTargetPlayer->RewardPlayerAndGroupAtEvent(effect->EffectMiscValue_0, unitTarget);
 }
 
 void Spell::EffectQuestFail(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
 
-    ((Player*)unitTarget)->FailQuest(effect->EffectMiscValue_0);
+    unitTargetPlayer->FailQuest(effect->EffectMiscValue_0);
 }
 
 void Spell::EffectActivateRune(SpellEffectEntry const* effect)
@@ -785,7 +792,8 @@ void Spell::EffectRenamePet(SpellEffectEntry const* /*effect*/)
 
 void Spell::EffectPlaySound(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -797,12 +805,13 @@ void Spell::EffectPlaySound(SpellEffectEntry const* effect)
         return;
     }
 
-    unitTarget->PlayDirectSound(soundId, (Player*)unitTarget);
+    unitTarget->PlayDirectSound(soundId, unitTargetPlayer);
 }
 
 void Spell::EffectPlayMusic(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -814,29 +823,31 @@ void Spell::EffectPlayMusic(SpellEffectEntry const* effect)
         return;
     }
 
-    m_caster->PlayMusic(soundId, (Player*)unitTarget);
+    m_caster->PlayMusic(soundId, unitTargetPlayer);
 }
 
 void Spell::EffectSpecCount(SpellEffectEntry const* /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
 
-    ((Player*)unitTarget)->UpdateSpecCount(damage);
+    unitTargetPlayer->UpdateSpecCount(damage);
 }
 
 void Spell::EffectActivateSpec(SpellEffectEntry const* /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
 
     uint32 spec = damage - 1;
 
-    ((Player*)unitTarget)->ActivateSpec(spec);
+    unitTargetPlayer->ActivateSpec(spec);
 }
 
 /**
@@ -985,14 +996,15 @@ void Spell::EffectTeachTaxiNode(SpellEffectEntry const* effect)
 
 void Spell::EffectQuestOffer(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
 
     if (Quest const* quest = sObjectMgr.GetQuestTemplate(effect->EffectMiscValue_0))
     {
-        Player* player = (Player*)unitTarget;
+        Player* player = unitTargetPlayer;
 
         if (player->CanTakeQuest(quest, false))
         {

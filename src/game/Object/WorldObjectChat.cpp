@@ -244,13 +244,14 @@ void WorldObject::MonsterText(MangosStringLocale const* textData, Unit const* ta
             break;
         case CHAT_TYPE_WHISPER:
         {
-            if (!target || target->GetTypeId() != TYPEID_PLAYER)
+            Player* targetPlayer = target ? target->ToPlayer() : NULL;
+            if (!targetPlayer)
             {
                 return;
             }
             MaNGOS::MonsterChatBuilder say_build(*this, CHAT_MSG_MONSTER_WHISPER, textData, LANG_UNIVERSAL, target);
             MaNGOS::LocalizedPacketDo<MaNGOS::MonsterChatBuilder> say_do(say_build);
-            say_do((Player*)target);
+            say_do(targetPlayer);
             break;
         }
         case CHAT_TYPE_BOSS_WHISPER:

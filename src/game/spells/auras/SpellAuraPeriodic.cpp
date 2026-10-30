@@ -376,13 +376,14 @@ void Aura::HandlePeriodicDamage(bool apply, bool Real)
                 // Rip
                 if (classOptions->SpellClassMask & UI64LIT(0x000000000000800000))
                 {
-                    if (caster->GetTypeId() != TYPEID_PLAYER)
+                    Player* casterPlayer = caster->ToPlayer();
+                    if (!casterPlayer)
                     {
                         break;
                     }
 
                     // 0.01*$AP*cp
-                    uint8 cp = ((Player*)caster)->GetComboPoints();
+                    uint8 cp = casterPlayer->GetComboPoints();
 
                     // Idol of Feral Shadows. Cant be handled as SpellMod in SpellAura:Dummy due its dependency from CPs
                     Unit::AuraList const& dummyAuras = caster->GetAurasByType(SPELL_AURA_DUMMY);
@@ -1211,7 +1212,8 @@ void Aura::HandleAuraModCritPercent(bool apply, bool Real)
 {
     Unit* target = GetTarget();
 
-    if (target->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = target->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -1220,9 +1222,9 @@ void Aura::HandleAuraModCritPercent(bool apply, bool Real)
     if (Real)
     {
         for (int i = 0; i < MAX_ATTACK; ++i)
-            if (Item* pItem = ((Player*)target)->GetWeaponForAttack(WeaponAttackType(i), true, false))
+            if (Item* pItem = targetPlayer->GetWeaponForAttack(WeaponAttackType(i), true, false))
             {
-                ((Player*)target)->_ApplyWeaponDependentAuraCritMod(pItem, WeaponAttackType(i), this, apply);
+                targetPlayer->_ApplyWeaponDependentAuraCritMod(pItem, WeaponAttackType(i), this, apply);
             }
     }
 
@@ -1232,9 +1234,9 @@ void Aura::HandleAuraModCritPercent(bool apply, bool Real)
 
     if (GetSpellProto()->GetEquippedItemClass() == -1)
     {
-        ((Player*)target)->HandleBaseModValue(CRIT_PERCENTAGE,         FLAT_MOD, float(m_modifier.m_amount), apply);
-        ((Player*)target)->HandleBaseModValue(OFFHAND_CRIT_PERCENTAGE, FLAT_MOD, float(m_modifier.m_amount), apply);
-        ((Player*)target)->HandleBaseModValue(RANGED_CRIT_PERCENTAGE,  FLAT_MOD, float(m_modifier.m_amount), apply);
+        targetPlayer->HandleBaseModValue(CRIT_PERCENTAGE,         FLAT_MOD, float(m_modifier.m_amount), apply);
+        targetPlayer->HandleBaseModValue(OFFHAND_CRIT_PERCENTAGE, FLAT_MOD, float(m_modifier.m_amount), apply);
+        targetPlayer->HandleBaseModValue(RANGED_CRIT_PERCENTAGE,  FLAT_MOD, float(m_modifier.m_amount), apply);
     }
     else
     {

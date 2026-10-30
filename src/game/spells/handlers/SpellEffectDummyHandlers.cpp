@@ -130,7 +130,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericCookedDeviateFish(SpellEffect
 /// of a second; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericPollyEatsTheECAC(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -138,7 +139,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericPollyEatsTheECAC(SpellEffectD
     // Summon Polly Jr.
     ctx.unitTarget->CastSpell(ctx.unitTarget, 9998, true);
 
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(100);
+    unitTargetCreature->ForcedDespawn(100);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1253,7 +1254,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericFireBomb(SpellEffectDummyGene
 /// three seconds; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericFireBombExplode(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1262,7 +1264,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericFireBombExplode(SpellEffectDu
     ctx.unitTarget->CastSpell(ctx.unitTarget, 42630, true);
 
     // despawn the bomb after exploding
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(3000);
+    unitTargetCreature->ForcedDespawn(3000);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1298,12 +1300,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericBurnBody(SpellEffectDummyGene
 /// 43014: Despawn Self: a creature caster despawns; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericDespawnSelf(SpellEffectDummyGenericContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    if (!casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Creature*)ctx.m_caster)->ForcedDespawn();
+    casterCreature->ForcedDespawn();
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1431,12 +1434,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericSendThemPacking(SpellEffectDu
 /// cast item, as from the original caster and triggered by this spell; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericDemonBroiledSurprise(SpellEffectDummyGenericContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Player*)ctx.m_caster)->CastSpell(ctx.unitTarget, 43753, true, ctx.m_CastItem, NULL, ctx.m_originalCasterGUID, ctx.m_spellInfo);
+    casterPlayer->CastSpell(ctx.unitTarget, 43753, true, ctx.m_CastItem, NULL, ctx.m_originalCasterGUID, ctx.m_spellInfo);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1679,7 +1683,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericSummonVoidSentinelSummonerVis
 /// duration; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericCollectOil(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1687,7 +1692,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericCollectOil(SpellEffectDummyGe
     if (const SpellEntry* pSpell = sSpellStore.LookupEntry(45991))
     {
         ctx.unitTarget->CastSpell(ctx.unitTarget, pSpell, true);
-        ((Creature*)ctx.unitTarget)->ForcedDespawn(ctx.m_duration);
+        unitTargetCreature->ForcedDespawn(ctx.m_duration);
     }
 
     return SpellHandlerOutcome<void>::Return();
@@ -1812,7 +1817,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericIceSpearTargetPicker(SpellEff
 /// effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericTheGreatmothersSoulcatcher(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1831,7 +1837,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericTheGreatmothersSoulcatcher(Sp
                     }
                 }
 
-        ((Creature*)ctx.unitTarget)->ForcedDespawn();
+        unitTargetCreature->ForcedDespawn();
     }
 
     return SpellHandlerOutcome<void>::Return();
@@ -2037,7 +2043,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericNeltharionsFlame(SpellEffectD
 /// it Brewfest Ram (43899) or Brewfest Riding Kodo (49378); the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericBrewfestMountTransformation(SpellEffectDummyGenericContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2050,7 +2057,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericBrewfestMountTransformation(S
     ctx.m_caster->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
 
     // Ram for Alliance, Kodo for Horde
-    if (((Player*)ctx.m_caster)->GetTeam() == ALLIANCE)
+    if (casterPlayer->GetTeam() == ALLIANCE)
     {
         if (ctx.m_caster->GetSpeedRate(MOVE_RUN) >= 2.0f)
             // 100% Ram
@@ -2112,7 +2119,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericSergeantsFlare(SpellEffectDum
 /// the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericRuneOfCommand(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2120,7 +2128,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericRuneOfCommand(SpellEffectDumm
     // Captive Stone Giant Kill Credit
     ctx.unitTarget->CastSpell(ctx.m_caster, 43564, true);
     // Is it supposed to despawn?
-    ((Creature*)ctx.unitTarget)->ForcedDespawn();
+    unitTargetCreature->ForcedDespawn();
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -2154,7 +2162,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericScourgingCrystalController(Sp
 /// 01001000 (50246) for the Horde; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericTeachLanguage(SpellEffectDummyGenericContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2165,7 +2174,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericTeachLanguage(SpellEffectDumm
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (((Player*)ctx.m_caster)->GetTeam() == ALLIANCE)
+    if (casterPlayer->GetTeam() == ALLIANCE)
     {
         // 1000001 - gnomish binary
         ctx.m_caster->CastSpell(ctx.m_caster, 50242, true);
@@ -2288,7 +2297,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericMagicPull(SpellEffectDummyGen
 /// and casts Digging for Treasure (51405) on it, and the target despawns after a millisecond; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericDiggingForTreasurePing(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2305,7 +2315,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericDiggingForTreasurePing(SpellE
     // Digging for Treasure
     pPet->CastSpell(ctx.unitTarget, 51405, true);
 
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(1);
+    unitTargetCreature->ForcedDespawn(1);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -2313,14 +2323,15 @@ static SpellHandlerOutcome<void> EffectDummyGenericDiggingForTreasurePing(SpellE
 /// battleground reports its dropped flag to it, and casts Rocket Boots Engaged (30452) on itself; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericRocketBootsEngaged(SpellEffectDummyGenericContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (BattleGround* bg = ((Player*)ctx.m_caster)->GetBattleGround())
+    if (BattleGround* bg = casterPlayer->GetBattleGround())
     {
-        bg->EventPlayerDroppedFlag((Player*)ctx.m_caster);
+        bg->EventPlayerDroppedFlag(casterPlayer);
     }
 
     ctx.m_caster->CastSpell(ctx.m_caster, 30452, true, NULL);
@@ -2332,7 +2343,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericRocketBootsEngaged(SpellEffec
 /// (51839) at random, and despawns after five seconds; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericDespawnFruitTosser(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2353,7 +2365,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericDespawnFruitTosser(SpellEffec
         }
     }
 
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(5000);
+    unitTargetCreature->ForcedDespawn(5000);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -2446,7 +2458,8 @@ static SpellHandlerOutcome<void> EffectDummyGeneric51866(SpellEffectDummyGeneric
 /// 51872: Hair Sample Collected
 static SpellHandlerOutcome<void> EffectDummyGeneric51872(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2471,7 +2484,7 @@ static SpellHandlerOutcome<void> EffectDummyGeneric51872(SpellEffectDummyGeneric
     ctx.m_caster->CastSpell(ctx.m_caster, 51871, true);
 
     // Despawn dummy creature
-    ((Creature*)ctx.unitTarget)->ForcedDespawn();
+    unitTargetCreature->ForcedDespawn();
 
     return SpellHandlerOutcome<void>::Return();
 }
@@ -2553,7 +2566,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericAncestralAwakening(SpellEffec
 /// it, otherwise Great Brewfest Kodo (49379) or Brewfest Riding Kodo (49378) by the same rate; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericBrewfestMountFactionSwap(SpellEffectDummyGenericContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2566,7 +2580,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericBrewfestMountFactionSwap(Spel
     ctx.m_caster->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
 
     // Ram for Horde, Kodo for Alliance
-    if (((Player*)ctx.m_caster)->GetTeam() == HORDE)
+    if (casterPlayer->GetTeam() == HORDE)
     {
         if (ctx.m_caster->GetSpeedRate(MOVE_RUN) >= 2.0f)
             // Swift Brewfest Ram, 100% Ram
@@ -2601,14 +2615,15 @@ static SpellHandlerOutcome<void> EffectDummyGenericRuneOfCinderglacierRazorice(S
 /// the second effect's base points has that reputation set to them; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericSetOracleWolvarFaction(SpellEffectDummyGenericContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     if (ctx.effect->EffectIndex == EFFECT_INDEX_0)
     {
-        Player* pPlayer = (Player*)ctx.m_caster;
+        Player* pPlayer = casterPlayer;
 
         uint32 faction_id = ctx.m_currentBasePoints[ctx.effect->EffectIndex];
         int32  rep_change = ctx.m_currentBasePoints[EFFECT_INDEX_1];
@@ -2665,7 +2680,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericPygmyOil(SpellEffectDummyGene
 /// and casts Mammoth Explosion Spell Spawner (54581) on itself through the cast item; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericThrowUDED(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2677,7 +2693,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericThrowUDED(SpellEffectDummyGen
     ctx.unitTarget->CastSpell(ctx.unitTarget, 29266, true);
 
     // need to despawn later
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(2000);
+    unitTargetCreature->ForcedDespawn(2000);
 
     // Mammoth Explosion Spell Spawner
     ctx.unitTarget->CastSpell(ctx.unitTarget, 54581, true, ctx.m_CastItem);
@@ -2836,7 +2852,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericDisengageCreature(SpellEffect
 /// recipient, joins faction 190 (ambient, neutral) and is not attackable out of combat; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericTokinisBlowgun(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -2847,7 +2864,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericTokinisBlowgun(SpellEffectDum
     // Although not really correct, it's needed to have access to m_caster later,
     // to properly process spell 62110 (cast from gossip).
     // Can possibly be replaced with a similar function that doesn't set any dynamic flags.
-    ((Creature*)ctx.unitTarget)->SetLootRecipient(ctx.m_caster);
+    unitTargetCreature->SetLootRecipient(ctx.m_caster);
 
     ctx.unitTarget->setFaction(190);            // Ambient (neutral)
     ctx.unitTarget->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
@@ -3381,13 +3398,14 @@ static SpellHandlerOutcome<void> EffectDummyGenericConflagration(SpellEffectDumm
 /// itself, is made ready; the effect ends
 static SpellHandlerOutcome<void> EffectDummyMageColdSnap(SpellEffectDummyMageContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     // immediately finishes the cooldown on Frost spells
-    const SpellCooldowns& cm = ((Player*)ctx.m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
+    const SpellCooldowns& cm = casterPlayer->GetSpellCooldownMgr().GetSpellCooldownMap();
     for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
     {
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);
@@ -3575,12 +3593,13 @@ static SpellHandlerOutcome<void> EffectDummyWarriorChessMove(SpellEffectDummyWar
 /// target, then Shiv (5940); the effect ends
 static SpellHandlerOutcome<void> EffectDummyRogueShiv(SpellEffectDummyRogueContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    Player* pCaster = ((Player*)ctx.m_caster);
+    Player* pCaster = (casterPlayer);
 
     Item* item = pCaster->GetWeaponForAttack(OFF_ATTACK);
     if (!item)
@@ -3625,13 +3644,14 @@ static SpellHandlerOutcome<void> EffectDummyRogueShiv(SpellEffectDummyRogueConte
 /// ready; the effect ends
 static SpellHandlerOutcome<void> EffectDummyRoguePreparation(SpellEffectDummyRogueContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     // immediately finishes the cooldown on certain Rogue abilities
-    const SpellCooldowns& cm = ((Player*)ctx.m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
+    const SpellCooldowns& cm = casterPlayer->GetSpellCooldownMgr().GetSpellCooldownMap();
     for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
     {
         SpellEntry const *spellInfo = sSpellStore.LookupEntry(itr->first);
@@ -3668,13 +3688,14 @@ static SpellHandlerOutcome<void> EffectDummyRogueHungerForBlood(SpellEffectDummy
 /// made ready; the effect ends
 static SpellHandlerOutcome<void> EffectDummyHunterReadiness(SpellEffectDummyHunterContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     // immediately finishes the cooldown for hunter abilities
-    const SpellCooldowns& cm = ((Player*)ctx.m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
+    const SpellCooldowns& cm = casterPlayer->GetSpellCooldownMgr().GetSpellCooldownMap();
     for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
     {
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);
@@ -3771,7 +3792,8 @@ static SpellHandlerOutcome<void> EffectDummyPaladinBlessing(SpellEffectDummyPala
 /// the cooldown is reset and the cast fails; the effect ends
 static SpellHandlerOutcome<void> EffectDummyPaladinRighteousDefense(SpellEffectDummyPaladinContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         ctx.spell->SendCastResult(SPELL_FAILED_TARGET_AFFECTING_COMBAT);
         return SpellHandlerOutcome<void>::Return();
@@ -3782,7 +3804,7 @@ static SpellHandlerOutcome<void> EffectDummyPaladinRighteousDefense(SpellEffectD
     if (friendTarget)
     {
         Player* player = friendTarget->GetCharmerOrOwnerPlayerOrPlayerItself();
-        if (!player || !player->IsInSameRaidWith((Player*)ctx.m_caster))
+        if (!player || !player->IsInSameRaidWith(casterPlayer))
         {
             friendTarget = NULL;
         }

@@ -131,7 +131,8 @@ void Aura::HandleModPossessPet(bool apply, bool Real)
     }
 
     Unit* caster = GetCaster();
-    if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+    Player* p_caster = caster ? caster->ToPlayer() : NULL;
+    if (!p_caster)
     {
         return;
     }
@@ -144,7 +145,6 @@ void Aura::HandleModPossessPet(bool apply, bool Real)
 
     Pet* pet = (Pet*)target;
 
-    Player* p_caster = (Player*)caster;
     Camera& camera = p_caster->GetCamera();
 
     if (apply)
@@ -155,7 +155,7 @@ void Aura::HandleModPossessPet(bool apply, bool Real)
             caster->Uncharm();
 
             //pets should be removed when possesing a target if somehow check was bypassed
-            ((Player*)caster)->UnsummonPetIfAny();
+            p_caster->UnsummonPetIfAny();
         }
 
         pet->StopMoving();
@@ -440,7 +440,8 @@ void Aura::HandleAuraModDisarm(bool apply, bool Real)
 
     target->ApplyModFlag(field, flags, apply);
 
-    if (target->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = target->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -457,7 +458,7 @@ void Aura::HandleAuraModDisarm(bool apply, bool Real)
     }
     else
     {
-        ((Player*)target)->SetRegularAttackTime();
+        targetPlayer->SetRegularAttackTime();
     }
 
     target->UpdateDamagePhysical(attack_type);

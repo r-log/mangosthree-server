@@ -91,13 +91,14 @@ void Spell::SendLoot(ObjectGuid guid, LootType loottype, LockType lockType)
         }
     }
 
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return;
     }
 
     // Send loot
-    ((Player*)m_caster)->SendLoot(guid, loottype);
+    casterPlayer->SendLoot(guid, loottype);
 }
 
 /**

@@ -1387,7 +1387,8 @@ SpellCastResult Spell::CheckCast(bool strict)
             }
             case SPELL_EFFECT_SUMMON_PLAYER:
             {
-                if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                Player* casterPlayer = m_caster->ToPlayer();
+                if (!casterPlayer)
                 {
                     return SPELL_FAILED_BAD_TARGETS;
                 }
@@ -1397,7 +1398,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                 }
 
                 Player* target = sObjectMgr.GetPlayer(m_caster->GetSelectionGuid());
-                if (!target || ((Player*)m_caster) == target || !target->IsInSameRaidWith((Player*)m_caster))
+                if (!target || (casterPlayer) == target || !target->IsInSameRaidWith(casterPlayer))
                 {
                     return SPELL_FAILED_BAD_TARGETS;
                 }

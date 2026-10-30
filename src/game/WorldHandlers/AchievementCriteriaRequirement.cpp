@@ -305,11 +305,12 @@ bool AchievementCriteriaRequirement::Meets(uint32 criteria_id, Player const* sou
         case ACHIEVEMENT_CRITERIA_REQUIRE_MAP_PLAYER_COUNT:
             return source->GetMap()->GetPlayersCountExceptGMs() <= map_players.maxcount;
         case ACHIEVEMENT_CRITERIA_REQUIRE_T_TEAM:
-            if (!target || target->GetTypeId() != TYPEID_PLAYER)
+            Player* targetPlayer = target ? target->ToPlayer() : NULL;
+            if (!targetPlayer)
             {
                 return false;
             }
-            return ((Player*)target)->GetTeam() == Team(team.team);
+            return targetPlayer->GetTeam() == Team(team.team);
         case ACHIEVEMENT_CRITERIA_REQUIRE_S_DRUNK:
             return (uint32)Player::GetDrunkenstateByValue(source->GetDrunkValue()) >= drunk.state;
         case ACHIEVEMENT_CRITERIA_REQUIRE_HOLIDAY:
