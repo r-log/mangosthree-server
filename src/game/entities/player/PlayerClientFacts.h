@@ -34,6 +34,7 @@
 #include <string>
 
 class Group;
+class Unit;
 
 // What a player's own client is told: one fact per notice, each reported through a callback the
 // session installs on the player, which builds the client's packet and sends it.
@@ -90,6 +91,23 @@ struct DurabilityDeathFact
 {
 };
 
+/// The player's camera takes `target`'s view.
+struct ViewFromFact
+{
+    Unit* target = NULL;
+};
+
+/// The player's camera goes back to the player's own view.
+struct ViewResetFact
+{
+};
+
+/// The player's client is told the action bar of `charm`, the unit the player possesses; NULL for none.
+struct PossessBarFact
+{
+    Unit* charm = NULL;
+};
+
 /// The player is credited `honor` points for a kill; `victim` is the victim the client names (an
 /// empty guid names none) and `victimRank` the victim's rank.
 struct PvpCreditFact
@@ -130,6 +148,9 @@ typedef std::function<void(PetActionBarClearedFact const&)> PetActionBarClearedS
 typedef std::function<void(StandStateFact const&)> StandStateSink;
 typedef std::function<void(PartyKillLogFact const&)> PartyKillLogSink;
 typedef std::function<void(DurabilityDeathFact const&)> DurabilityDeathSink;
+typedef std::function<void(ViewFromFact const&)> ViewFromSink;
+typedef std::function<void(ViewResetFact const&)> ViewResetSink;
+typedef std::function<void(PossessBarFact const&)> PossessBarSink;
 typedef std::function<void(PvpCreditFact const&)> PvpCreditSink;
 typedef std::function<void(QuestCompleteFact const&)> QuestCompleteSink;
 typedef std::function<void(SystemMessageFact const&)> SystemMessageSink;

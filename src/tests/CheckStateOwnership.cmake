@@ -366,10 +366,10 @@ state_row(pet
             PlayerPetCache)
 
 state_allow(pet src/game/session/packets/entities/PetActionBarPacket.cpp
-    WHY "the session's builder of the owner's fact: the empty-guid pet spells packet that clears the pet action bar"
+    WHY "the session's builders of the owner's facts: the empty-guid pet spells packet that clears the pet action bar, and the action bar of the unit the owner possesses"
     NAMES SMSG_PET_SPELLS)
 state_allow(pet src/game/entities/player/pets/PlayerPet.cpp
-    WHY "the owner's full spell bars of its pet, possessed and charmed unit (Player::PetSpellInitialize, PossessSpellInitialize, CharmSpellInitialize)"
+    WHY "the owner's full spell bars of its pet and charmed unit (Player::PetSpellInitialize, CharmSpellInitialize)"
     NAMES SMSG_PET_SPELLS)
 state_allow(pet src/tests/PlayerClientPacketsTest.cpp
     WHY "unit test of the session's builders and installed callbacks of a player's own client: checks each opcode and byte they produce, builds nothing itself"

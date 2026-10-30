@@ -26,9 +26,24 @@
 #include "PetActionBarPacket.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
+#include "Unit.h"
 
 void BuildPetActionBarClearedPacket(WorldPacket& packet, PetActionBarClearedFact const& /*fact*/)
 {
     packet.Initialize(SMSG_PET_SPELLS, 8);
     packet << ObjectGuid();
+}
+
+void BuildPossessBarPacket(WorldPacket& packet, ObjectGuid charm, CharmInfo& charmInfo)
+{
+    packet.Initialize(SMSG_PET_SPELLS, 8 + 2 + 4 + 4 + 4 * MAX_UNIT_ACTION_BAR_INDEX + 1 + 1);
+    packet << charm;
+    packet << uint16(0);
+    packet << uint32(0);
+    packet << uint32(0);
+
+    charmInfo.BuildActionBar(&packet);
+
+    packet << uint8(0);                                       // spells count
+    packet << uint8(0);                                       // cooldowns count
 }

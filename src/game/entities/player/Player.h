@@ -1211,9 +1211,6 @@ class Player : public Unit
             time_inn_enter = time;
         }
 
-        // Remove the player's pet
-        void RemovePet(PetSaveMode mode) override;
-
         uint32 GetPhaseMaskForSpawn() const;                // used for proper set phase for DB at GM-mode creature/GO spawn
 
 
@@ -2073,12 +2070,6 @@ class Player : public Unit
         // Initialize pet spells
         void PetSpellInitialize();
         void CharmSpellInitialize();
-
-        // Initialize possess spells
-        void PossessSpellInitialize() override;
-
-        // Remove the pet action bar
-        void RemovePetActionBar() override { ReportClientFact(m_clientSinks.petActionBarCleared, PetActionBarClearedFact()); }
 
         // Check if the player has a specific spell
         bool HasSpell(uint32 spell) const override;
@@ -3510,9 +3501,8 @@ class Player : public Unit
         // Pet ownership API. The state (temporary-unsummon pet number, stable slot count, pet
         // rows) and its rules live on PetMgr. The three that reach the live pet
         // (UnsummonPetTemporaryIfAny, UnsummonPetIfAny, ResummonPetTemporaryUnSummonedIfAny)
-        // live in pets/PlayerPet.cpp, with RemovePet; RemovePetActionBar reports the
-        // client fact. The temporary-unsummon pet number is read and
-        // set on the manager directly.
+        // live in pets/PlayerPet.cpp; RemovePet and RemovePetActionBar are Unit's. The
+        // temporary-unsummon pet number is read and set on the manager directly.
         PetMgr& GetPetMgr() { return m_petMgr; }
         PetMgr const& GetPetMgr() const { return m_petMgr; }
         void UnsummonPetTemporaryIfAny() override;
@@ -4018,14 +4008,6 @@ class Player : public Unit
         // Credits the damage the player dealt to a victim, its battleground score and its achievement
         // criteria, which Unit's DealDamage asks for; private, so only a call through Unit reaches it
         void CreditDamageDealt(Unit* pVictim, uint32 damage) override;
-
-        // Sets the camera to a unit's view, which Unit's TakePossessOf asks for as a possession takes
-        // hold; private, so only a call through Unit reaches it
-        void SetCameraView(Unit* target) override;
-
-        // Sets the camera back to the player's own view, which Unit's ResetControlState asks for as a
-        // possession ends; private, so only a call through Unit reaches it
-        void ResetCameraView() override;
 
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions

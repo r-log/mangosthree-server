@@ -26,6 +26,7 @@
 #include "PlayerPacketSinks.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "Log.h"
 #include "Group.h"
 #include "Pet.h"
 #include "session/packets/spells/CooldownPacketSinks.h"
@@ -66,6 +67,49 @@ namespace
             player->GetSession()->SendPacket(&data);
         };
     }
+
+    /// The player's camera, set to the fact's unit's view.
+    ViewFromSink ViewFromToCamera(Player* player)
+    {
+        return [player](ViewFromFact const& fact)
+        {
+            player->GetCamera().SetView(fact.target);
+        };
+    }
+
+    /// The player's camera, set back to the player's own view.
+    ViewResetSink ViewResetToCamera(Player* player)
+    {
+        return [player](ViewResetFact const& /*fact*/)
+        {
+            player->GetCamera().ResetView();
+        };
+    }
+
+    /// The action bar of the unit the player possesses, sent to the session the player has at that
+    /// send; nothing when it possesses no unit, and an error when the unit has no charm info.
+    PossessBarSink PossessBarToSession(Player* player)
+    {
+        return [player](PossessBarFact const& fact)
+        {
+            Unit* charm = fact.charm;
+            if (!charm)
+            {
+                return;
+            }
+
+            CharmInfo* charmInfo = charm->GetCharmInfo();
+            if (!charmInfo)
+            {
+                sLog.outError("Unit::PossessSpellInitialize(): charm (GUID: %u TypeId: %u) has no charminfo!", charm->GetGUIDLow(), charm->GetTypeId());
+                return;
+            }
+
+            WorldPacket data;
+            BuildPossessBarPacket(data, charm->GetObjectGuid(), *charmInfo);
+            player->GetSession()->SendPacket(&data);
+        };
+    }
 }
 
 void InstallPlayerPacketSinks(Player& player)
@@ -74,6 +118,9 @@ void InstallPlayerPacketSinks(Player& player)
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&player);
     callbacks.systemMessage = SystemMessageToSession(&player);
     callbacks.partyKillLog = PartyKillLogToGroupAndSession(&player);
+    callbacks.viewFrom = ViewFromToCamera(&player);
+    callbacks.viewReset = ViewResetToCamera(&player);
+    callbacks.possessBar = PossessBarToSession(&player);
     player.SetClientCallbacks(callbacks);
     player.SetGroupCallbacks(GroupCallbacksFor<GroupCallbacks>(&player));
     player.SetSpellModSink(FactToSession(&player, &BuildSpellModifierPacket));
