@@ -38,14 +38,12 @@
 #include "Player.h"
 #include "Creature.h"
 #include "MotionMaster.h"
-#include "InstanceData.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "Formulas.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "movement/MoveSpline.h"
-#include "CreatureLinkingMgr.h"
 #include "GameTime.h"
 
 #include <math.h>
@@ -1698,10 +1696,7 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     else
     {
         // set position before any AI calls/assistance
-        if (GetTypeId() == TYPEID_UNIT)
-        {
-            ((Creature*)this)->SetCombatAnchor(Geometry::Vector3(Where().X(), Where().Y(), Where().Z()));
-        }
+        AnchorCombat();
     }
 
     // The event row: a new combat drops a running distract (a no-op otherwise). Before the
@@ -1737,11 +1732,7 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     m_attacking = victim;
     m_attacking->_addAttacker(this);
 
-    if (GetTypeId() == TYPEID_UNIT)
-    {
-        ((Creature*)this)->SendAIReaction(AI_REACTION_HOSTILE);
-        ((Creature*)this)->CallAssistance();
-    }
+    AttackStarted();
 
     // delay offhand weapon attack to next attack time
     if (haveOffhandWeapon())
@@ -1783,15 +1774,9 @@ bool Unit::AttackStop(bool targetSwitch /*=false*/)
     InterruptSpell(CURRENT_MELEE_SPELL);
 
     // reset only at real combat stop
-    if (!targetSwitch && GetTypeId() == TYPEID_UNIT)
+    if (!targetSwitch)
     {
-        ((Creature*)this)->SetNoCallAssistance(false);
-
-        if (((Creature*)this)->HasSearchedAssistance())
-        {
-            ((Creature*)this)->SetNoSearchAssistance(false);
-            UpdateSpeed(MOVE_RUN, false);
-        }
+        AttackStopped();
     }
 
     SendMeleeAttackStop(victim);
@@ -1814,17 +1799,8 @@ void Unit::CombatStop(bool includingCast)
     AttackStop();
     RemoveAllAttackers();
 
-    if (GetTypeId() == TYPEID_PLAYER)
-    {
-        SendAttackSwingCancelAttack();      // melee and ranged forced attack cancel
-    }
-    else if (GetTypeId() == TYPEID_UNIT)
-    {
-        if (((Creature*)this)->GetTemporaryFactionFlags() & TEMPFACTION_RESTORE_COMBAT_STOP)
-        {
-            ((Creature*)this)->ClearTemporaryFaction();
-        }
-    }
+    SendAttackSwingCancelAttack();      // melee and ranged forced attack cancel
+    CombatStopped();
 
     ClearInCombat();
 }
@@ -1917,7 +1893,7 @@ void Unit::SetInCombatState(bool PvP, Unit* enemy)
         m_CombatTimer = 5000;
     }
 
-    bool creatureNotInCombat = GetTypeId() == TYPEID_UNIT && !HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
+    bool wasOutOfCombat = !HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
 
     SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
 
@@ -1943,39 +1919,9 @@ void Unit::SetInCombatState(bool PvP, Unit* enemy)
         CastSpell(this, 97709, true);   // cast Altered Form
     }
 
-    if (creatureNotInCombat)
+    if (wasOutOfCombat)
     {
-        // should probably be removed for the attacked (+ it's party/group) only, not global
-        RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
-
-        // client does not handle this state on it's own (reset to default at LoadCreatureAddon)
-        if (getStandState() == UNIT_STAND_STATE_CUSTOM)
-        {
-            SetStandState(UNIT_STAND_STATE_STAND);
-        }
-
-        Creature* pCreature = (Creature*)this;
-
-        if (pCreature->AI())
-        {
-            pCreature->AI()->EnterCombat(enemy);
-        }
-
-        // Some bosses are set into combat with zone
-        if (GetMap()->IsDungeon() && (pCreature->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_AGGRO_ZONE) && enemy && enemy->IsControlledByPlayer())
-        {
-            pCreature->SetInCombatWithZone();
-        }
-
-        if (InstanceData* mapInstance = GetInstanceData())
-        {
-            mapInstance->OnCreatureEnterCombat(pCreature);
-        }
-
-        if (m_isCreatureLinkingTrigger)
-        {
-            GetMap()->GetCreatureLinkingHolder()->DoCreatureLinkingEvent(LINKING_EVENT_AGGRO, pCreature, enemy);
-        }
+        EnteredCombat(enemy);
     }
 }
 
@@ -1992,21 +1938,8 @@ void Unit::ClearInCombat()
         RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT);
     }
 
-    // Player's state will be cleared in Player::UpdateContestedPvP
-    if (GetTypeId() == TYPEID_UNIT)
-    {
-        Creature* cThis = static_cast<Creature*>(this);
-        if (cThis->GetCreatureInfo()->UnitFlags & UNIT_FLAG_OOC_NOT_ATTACKABLE && !(cThis->GetTemporaryFactionFlags() & TEMPFACTION_TOGGLE_OOC_NOT_ATTACK))
-        {
-            SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
-        }
-
-        clearUnitState(UNIT_STAT_ATTACK_PLAYER);
-    }
-    else
-    {
-        UpdatePotionCooldown();
-    }
+    LeftCombat();
+    UpdatePotionCooldown();
 }
 
 /**

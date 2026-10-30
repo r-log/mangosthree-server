@@ -1306,6 +1306,30 @@ class Unit : public WorldObject
          * @param includingCast if we should stop the currently casting spell aswell
          */
         void CombatStop(bool includingCast = false);
+
+    protected:
+        /**
+         * Attack calls it when a new battle starts, before the motion master hears of the combat.
+         * Does nothing here; Creature keeps its position as its combat anchor.
+         */
+        virtual void AnchorCombat() { }
+        /**
+         * Attack calls it once the victim is set. Does nothing here; Creature shows its hostile
+         * reaction and calls for assistance.
+         */
+        virtual void AttackStarted() { }
+        /**
+         * AttackStop calls it on a real stop, not on a target switch. Does nothing here; Creature
+         * may call and search for assistance again, and runs at its own speed again.
+         */
+        virtual void AttackStopped() { }
+        /**
+         * CombatStop calls it once the attackers are gone, before the combat flag clears. Does
+         * nothing here; Creature restores a temporary faction that ends with combat.
+         */
+        virtual void CombatStopped() { }
+
+    public:
         /**
          * Calls Unit::CombatStop to stop combat, also calls Unit::CombatStop for pets etc. by using
          * Unit::CallForAllControlledUnits
@@ -2414,6 +2438,23 @@ class Unit : public WorldObject
          * \see EUnitFields
          */
         void ClearInCombat();
+
+    protected:
+        /**
+         * SetInCombatState calls it when the unit enters combat from out of combat. Does nothing
+         * here; Creature tells its AI, puts a dungeon boss's zone in combat with it, and tells its
+         * instance and the creatures linked to it.
+         * @param enemy the unit that put it in combat, or NULL
+         */
+        virtual void EnteredCombat(Unit* /*enemy*/) { }
+        /**
+         * ClearInCombat calls it once the combat flag is clear. Does nothing here; Creature is
+         * unattackable out of combat again when its template says so, and no longer counts as
+         * attacking a player.
+         */
+        virtual void LeftCombat() { }
+
+    public:
         /**
          * Probably returns how long it is until this Unit should get out of PvP combat again,
          * although not used in that sense.
@@ -4063,6 +4104,16 @@ class Unit : public WorldObject
         float GetSpeed(UnitMoveType mtype) const;
         float GetSpeedRate(UnitMoveType mtype) const { return m_speed_rate[mtype]; }
         void SetSpeedRate(UnitMoveType mtype, float rate, bool forced = false, bool ignoreChange = false);
+
+    protected:
+        /**
+         * The factor UpdateSpeed applies for the unit's own state, before the slowing auras.
+         * @return 1 here; Creature returns 0.66 while it has searched for assistance, Player its
+         * ghost run rate while it is a ghost
+         */
+        virtual float StateSpeedFactor() const { return 1.0f; }
+
+    public:
 
         void KnockBackFrom(Unit* target, float horizontalSpeed, float verticalSpeed);
         void KnockBackWithAngle(float angle, float horizontalSpeed, float verticalSpeed);

@@ -25,7 +25,6 @@
 
 #include "Unit.h"
 #include "Log.h"
-#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "QuestDef.h"
@@ -207,22 +206,8 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced, float ratio, bool ignore
             break;
     }
 
-    // for creature case, we check explicit if mob searched for assistance
-    if (GetTypeId() == TYPEID_UNIT)
-    {
-        if (((Creature*)this)->HasSearchedAssistance())
-        {
-            speed *= 0.66f;                                  // best guessed value, so this will be 33% reduction. Based off initial speed, mob can then "run", "walk fast" or "walk".
-        }
-    }
-    // for player case, we look for some custom rates
-    else
-    {
-        if (GetDeathState() == CORPSE)
-        {
-            speed *= sGameConfig.getConfig(InBattleGround() ? CONFIG_FLOAT_GHOST_RUN_SPEED_BG : CONFIG_FLOAT_GHOST_RUN_SPEED_WORLD);
-        }
-    }
+    // the unit's own state: a creature that searched for assistance, a player's ghost
+    speed *= StateSpeedFactor();
 
     // Apply strongest slow aura mod to speed
     int32 slow = GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED);

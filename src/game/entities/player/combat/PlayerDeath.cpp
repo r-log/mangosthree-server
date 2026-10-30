@@ -519,3 +519,16 @@ void Player::SendCorpseReclaimDelay(bool load)
     data << uint32(delay * IN_MILLISECONDS);
     GetSession()->SendPacket(&data);
 }
+
+/**
+ * @brief The ghost run rate while the player is a ghost; 1 otherwise.
+ */
+float Player::StateSpeedFactor() const
+{
+    if (GetDeathState() != CORPSE)
+    {
+        return 1.0f;
+    }
+
+    return sGameConfig.getConfig(InBattleGround() ? CONFIG_FLOAT_GHOST_RUN_SPEED_BG : CONFIG_FLOAT_GHOST_RUN_SPEED_WORLD);
+}
