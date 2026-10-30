@@ -1496,13 +1496,13 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
             }
         }
 
-        if (Player* attackerPlayer = ToPlayer())
+        if (m_itemCallbacks)
         {
             // random durability for items (HIT DONE)
             if (roll_chance_f(sGameConfig.getConfig(CONFIG_FLOAT_RATE_DURABILITY_LOSS_DAMAGE)))
             {
                 EquipmentSlots slot = EquipmentSlots(urand(0, EQUIPMENT_SLOT_END - 1));
-                attackerPlayer->DurabilityPointLossForEquipSlot(slot);
+                m_itemCallbacks->durabilityPointLoss(slot);
             }
         }
 

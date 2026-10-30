@@ -79,6 +79,7 @@
 #include "CurrencyMgr.h" // CurrencyMgr is held by value on Player; brings in PlayerCurrency struct + PlayerCurrencyState/Flag enums + PlayerCurrenciesMap typedef
 #include "RuneMgr.h"    // RuneMgr is held by value on Player; brings in RuneType/RuneInfo/Runes + owns death-knight rune state
 #include "ClientCallbacks.h" // the facts and callbacks of the player's own client
+#include "ItemCallbacks.h"   // what Unit asks of and tells the player's inventory
 #include "entities/GroupUpdateFacts.h" // the facts and callbacks of the player's group updates
 #include "spells/SpellModMgr.h" // SpellModMgr is held by value on Player; brings in the spell modifier fact and its sink
 
@@ -3859,6 +3860,7 @@ class Player : public Unit
         TalentMgr m_talentMgr;
         CooldownSinks m_cooldownSinks;
         ClientCallbacks m_clientSinks;
+        ItemCallbacks m_itemSinks;
         GroupCallbacks m_groupSinks;
         SpellModChangedSink m_spellModSink;
         uint32 m_GuildIdInvited; // Guild ID invited
@@ -3970,10 +3972,6 @@ class Player : public Unit
         // status manager takes them: one object each for the process, so a call builds nothing
         static QuestStatusMgr::TemplateLookup const& QuestTemplateLookup();
         static QuestStatusMgr::ExclusiveGroupLookup const& QuestExclusiveGroupLookup();
-
-        // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
-        // so only a call through Unit reaches it
-        Item* GetItemByGuid(ObjectGuid guid) const override { return GetInventoryMgr().GetItemByGuid(guid); }
 
         // The rank of a talent Unit's spell bonus asks for: the one the talent manager knows, or NULL;
         // private, so only a call through Unit reaches it

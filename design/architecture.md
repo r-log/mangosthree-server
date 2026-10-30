@@ -177,12 +177,12 @@ casting 73, lifecycle and update 82, movement 83, stats and power 72, pets/charm
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 The families become component classes `Unit` owns in #601.
 
-**Today (player-only code in `Unit`):** Unit's 16 files hold no C-style casts: row 24's accessor and the durability a hit costs a player and an
-item's combat spells, two item actions #143 turns into facts the inventory hears, ask `ToPlayer()`; they hold 186 `TYPEID_PLAYER` tests;
-44 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
+**Today (player-only code in `Unit`):** Unit's 16 files hold no C-style casts: row 24's accessor asks `ToPlayer()`, and the durability a hit
+done costs the attacker and an item's combat spells go through the item callbacks the player installs (`ItemCallbacks`); they hold 178
+`TYPEID_PLAYER` tests; 43 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
 `GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
-`GetItemByGuid`, the item the proc handlers ask for by guid, and the weapon an attack uses, the item equipped in a slot and a
+the weapon an attack uses, the item equipped in a slot and a
 combat rating's bonus: `GetWeaponForAttack`, `GetEquippedItem`, `GetRatingBonusValue`; what `Mount` and `Unmount` ask of a mounting player:
 `UnsummonPetTemporaryIfAny`, `ResummonPetTemporaryUnSummonedIfAny`, `InArena`, `GetCollisionHeight`; and what the
 visibility, targeting and aura checks ask of a player: `isGameMaster`, `IsLoading`, `IsLoggingOut`, `GetTransport`,
@@ -202,9 +202,10 @@ confuse: `SetClientControl`; a player's short teleport on its own map, `NearTele
 `TeleportNear`; the damage a player's hit credits to its battleground score and its achievements,
 `DealDamage`'s player arm: `CreditDamageDealt`; what `CalculateSpellDamage` reads of a player, whether an
 armor specialization spell fits it, its combo points and its combo target: `FitArmorSpecializationRules`,
-`GetComboPoints`, `GetComboTargetGuid`; each with the non-player answer as `Unit`'s default). The 44 are 7 motion
-answers (#81), 31 questions with the non-player answer as the default, and 6 named debt: `GetItemByGuid` (#143),
-`ProhibitSpellSchool` (#600), `SetSheath` and `Say` (row 1), `Uncharm` (row 24) and `setFactionForRace` (#601).
+`GetComboPoints`, `GetComboTargetGuid`; each with the non-player answer as `Unit`'s default). The 43 are 7 motion
+answers (#81), 31 questions with the non-player answer as the default, and 5 named debt: `ProhibitSpellSchool` (#600),
+`SetSheath` and `Say` (row 1), `Uncharm` (row 24) and `setFactionForRace` (#601). The item the proc handlers ask for by
+guid (`GetItemByGuid`) is no virtual: `Unit` asks the player's item callbacks for it.
 What `Unit` tells a player's own client (its attack or auto-repeat spell cancelled, its pet's guid, its stand state,
 a changed melee swing error, the possess action bar, the pet action bar removed) and what a possession does to its
 camera, it reports through the client callbacks the player points it at; a unit that is not a player has none and
@@ -227,7 +228,7 @@ A layer is done when its gate enforces its rule on a clean clone, and it is fini
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
 see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 909, Unit 674, WorldSession 189, ObjectMgr 255), R1, M1,
 the downcast counts (ctest `player_downcasts`, `creature_downcasts` and `pet_downcasts`, `downcast_count.py --gate` at
-0 C-style casts in `src/game`; ctest `total_downcasts` at 521, the
+0 C-style casts in `src/game`; ctest `total_downcasts` at 519, the
 C-style casts, the `static_cast`s and the calls of the checked downcasts `ToPlayer()`, `ToCreature()` and `ToPet()`
 together, so a cast rewritten as a checked downcast leaves it where it was and a new downcast of any kind but
 `dynamic_cast` fails it; ctest `static_downcasts` at 2, the two inside `ToPet`, which test `IsPet()` first; ctest
@@ -415,7 +416,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 10 | `CheckStateOwnership`'s achievement row: its owner, `AchievementMgr`, still builds its packets; `QuestCompletePacket` is in `session/packets/quests/` and builds the player's quest-complete fact | with `AchievementMgr`'s move (row 16) |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, a behaviour change, in #600 on 4.3.4 evidence |
-| 13 | `Unit`: 0 C-style casts (row 24's accessors ask `ToPlayer()`), 186 player type tests, 44 Player-only virtuals: 7 motion answers (#81), 31 questions `Unit` asks of a player with the non-player answer as the default, 6 named debt (`GetItemByGuid` #143; `ProhibitSpellSchool` #600; `SetSheath`, `Say` row 1; `Uncharm` row 24; `setFactionForRace` #601) | closed (#186) at this boundary; the debt moves with its issues |
+| 13 | `Unit`: 0 C-style casts (row 24's accessors ask `ToPlayer()`), 178 player type tests, 43 Player-only virtuals: 7 motion answers (#81), 31 questions `Unit` asks of a player with the non-player answer as the default, 5 named debt (`ProhibitSpellSchool` #600; `SetSheath`, `Say` row 1; `Uncharm` row 24; `setFactionForRace` #601) | closed (#186) at this boundary; the debt moves with its issues |
 | 14 | Unit's combat bodies are in `combat/`; `Object/Unit.cpp` keeps `CanAttackByItself` (a vehicle-control question), the random target selection (targeting), the PvP flags (entity state) and `ApplyAttackTimePercentMod` (a stat modifier) | closed (#186) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds eighteen stores (its README lists them), the generic record stores `KeyedRecordStore` and `MultiRecordStore`, `TextPool`, `GameConfig`, the script hook interface `ScriptHooks`, the command hook interface `CommandHooks` and the database script hook interface `DbScriptHooks`, while `ObjectMgr` is still in `Object/` and holds the conditions, the creature templates and their spells, the game object addons and the item templates in `KeyedRecordStore`s; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds the builders under `session/packets/`, the combat handler class under `session/handlers/combat/`, the client and warden handler classes under `session/handlers/connection/`, the vendor, loot, auction and trade handler classes under `session/handlers/economy/`, the skill, enchant, pet, taxi, query, item, NPC, quest, character, character customize, death and player handler classes under `session/handlers/entities/`, the map handler class under `session/handlers/maps/`, the pvp handler class under `session/handlers/pvp/` and the LFG, contact list, GM ticket, petition, chat channel, voice chat, chat, mail, calendar, group, guild and who handler classes under `session/handlers/social/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |

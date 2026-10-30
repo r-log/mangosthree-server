@@ -109,6 +109,7 @@ set(OWNER_FILES
     entities/player/Player.h
     entities/player/Player.cpp
     entities/player/ClientCallbacks.h
+    entities/player/inventory/ItemCallbacks.h
     entities/player/PlayerRegistry.h
     entities/player/PlayerRegistry.cpp
     entities/player/persistence/PlayerLoad.cpp
