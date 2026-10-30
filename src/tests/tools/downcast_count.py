@@ -2,11 +2,13 @@
 """downcast_count.py <src-root>
 
 The downcast counter. It walks every *.cpp and *.h file under <src-root>, strips comments, and
-counts six classes of Player/Creature downcast at the call site:
+counts seven classes of Player/Creature/Pet downcast at the call site:
 
   c_style_player    a C-style cast to Player* immediately followed by an operand
   c_style_creature  the same for Creature
-  static_cast       static_cast<Player*> / static_cast<Creature*> (and the "const" spelling)
+  c_style_pet       the same for Pet
+  static_cast       static_cast<Player*> / static_cast<Creature*> / static_cast<Pet*> (and the
+                    "const" spelling)
   dynamic_cast      any dynamic_cast<...>
   subtype_sites     ((Creature*)x)->IsPet() / ->IsTotem() -- a C-style cast used only to ask
                     a question Creature::GetSubtype() already answers without the cast
@@ -15,18 +17,18 @@ counts six classes of Player/Creature downcast at the call site:
 subtype_sites is a subset of c_style_creature: a matching site counts in both. Two totals add
 classes together:
 
-  total_c_style     c_style_player + c_style_creature
-  downcasts         c_style_player + c_style_creature + static_cast + checked_helper
+  total_c_style     c_style_player + c_style_creature + c_style_pet
+  downcasts         total_c_style + static_cast + checked_helper
 
 A C-style cast rewritten as a checked helper leaves `downcasts` where it was; a new downcast of
-any of the four kinds raises it. The ctest entries gate classes and `downcasts`, so the regexes
+any kind but dynamic_cast raises it. The ctest entries gate classes and `downcasts`, so the regexes
 and the output format are exact.
 
 python3 src/tests/tools/downcast_count.py src/game
 python3 src/tests/tools/downcast_count.py --self-test
 python3 src/tests/tools/downcast_count.py --list subtype_sites src/game
 python3 src/tests/tools/downcast_count.py --gate subtype_sites=0 src/game
-python3 src/tests/tools/downcast_count.py --gate downcasts=733 src/game
+python3 src/tests/tools/downcast_count.py --gate downcasts=803 src/game
 
 --list <class> prints one `file:line: text` line per occurrence of that class (so the number of
 printed lines equals the class's occurrence count) and still prints the counts.
@@ -81,7 +83,8 @@ NOT_AN_OPERAND = r"(?!const\b|override\b|final\b|noexcept\b)"
 CLASSES = [
     ("c_style_player", re.compile(r"\(\s*Player(\s+const)?\s*\*\s*\)\s*" + NOT_AN_OPERAND + r"[A-Za-z_(]")),
     ("c_style_creature", re.compile(r"\(\s*Creature(\s+const)?\s*\*\s*\)\s*" + NOT_AN_OPERAND + r"[A-Za-z_(]")),
-    ("static_cast", re.compile(r"static_cast<\s*(Player|Creature)(\s+const)?\s*\*\s*>")),
+    ("c_style_pet", re.compile(r"\(\s*Pet(\s+const)?\s*\*\s*\)\s*" + NOT_AN_OPERAND + r"[A-Za-z_(]")),
+    ("static_cast", re.compile(r"static_cast<\s*(Player|Creature|Pet)(\s+const)?\s*\*\s*>")),
     ("dynamic_cast", re.compile(r"dynamic_cast<")),
     ("subtype_sites", re.compile(
         r"\(\s*\(\s*Creature(\s+const)?\s*\*\s*\)[^;]*?\)\s*->\s*(IsPet|IsTotem)\s*\(\s*\)"
@@ -93,8 +96,8 @@ CLASS_MAP = dict(CLASSES)
 
 # The totals, in the order printed, and the classes each adds together.
 TOTALS = [
-    ("total_c_style", ("c_style_player", "c_style_creature")),
-    ("downcasts", ("c_style_player", "c_style_creature", "static_cast", "checked_helper")),
+    ("total_c_style", ("c_style_player", "c_style_creature", "c_style_pet")),
+    ("downcasts", ("c_style_player", "c_style_creature", "c_style_pet", "static_cast", "checked_helper")),
 ]
 TOTAL_MAP = dict(TOTALS)
 
@@ -324,19 +327,28 @@ def self_test():
         if n != 0:
             failures.append(f"{declaration.strip()}: expected checked_helper=0, got {n}")
 
+    # Pet's casts count like Player's and Creature's.
+    text = strip_comments("((Pet*)pet)->SetSpellOpener(); Pet const* p = static_cast<Pet const*>(u);\n")
+    n = count_occurrences(CLASS_MAP["c_style_pet"], text)
+    if n != 1:
+        failures.append(f"((Pet*)pet): expected c_style_pet=1, got {n}")
+    n = count_occurrences(CLASS_MAP["static_cast"], text)
+    if n != 1:
+        failures.append(f"static_cast<Pet const*>: expected static_cast=1, got {n}")
+
     # The totals add their classes, and gate like a class.
-    totals = with_totals({"c_style_player": 2, "c_style_creature": 1, "static_cast": 1,
+    totals = with_totals({"c_style_player": 2, "c_style_creature": 1, "c_style_pet": 4, "static_cast": 1,
                           "dynamic_cast": 5, "subtype_sites": 1, "checked_helper": 3})
-    if totals["total_c_style"] != 3 or totals["downcasts"] != 7:
-        failures.append(f"totals: expected total_c_style=3 downcasts=7, got {totals['total_c_style']} {totals['downcasts']}")
+    if totals["total_c_style"] != 7 or totals["downcasts"] != 11:
+        failures.append(f"totals: expected total_c_style=7 downcasts=11, got {totals['total_c_style']} {totals['downcasts']}")
     try:
         got = parse_gate("downcasts=733")
         if got != ("downcasts", 733):
             failures.append(f"parse_gate('downcasts=733'): expected ('downcasts', 733), got {got}")
     except ValueError as exc:
         failures.append(f"parse_gate('downcasts=733') raised: {exc}")
-    if not gate_failures(totals, [("downcasts", 6)]) or gate_failures(totals, [("downcasts", 7)]):
-        failures.append("gate downcasts: expected a failure at 6 and a pass at 7")
+    if not gate_failures(totals, [("downcasts", 10)]) or gate_failures(totals, [("downcasts", 11)]):
+        failures.append("gate downcasts: expected a failure at 10 and a pass at 11")
 
     if failures:
         for f in failures:
