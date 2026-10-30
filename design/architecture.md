@@ -250,7 +250,7 @@ that is correct and invisible.
 timed managers (mail, auctions, the auction bot, LFG), then `UpdateSessions` (each session's queued packets are
 handled here, on this thread, outside any map, until the first one only a map's update may take (a
 `PROCESS_THREADSAFE` packet of a player in the world): the session rule below),
-then `MapManager::Update`, then the posts the map phase left for the world thread (`ApplyAfterMapPhasePosts`), then the harness, battlegrounds and
+then `MapManager::Update`, then the posts the map phase left for the world thread (`ApplyAfterMapPhasePosts`) and the aura holder updates it left (`ApplyOffMapAuraUpdates`), then the harness, battlegrounds and
 outdoor PvP, then `ProcessResultQueue` for the three databases (every async query's continuation runs here), then the
 console's queued commands. Nothing else touches game state.
 
@@ -301,14 +301,17 @@ none.
 | Session handlers run on the world thread in `UpdateSessions`, outside the map phase, or on the thread updating the player's map: `Map::Update` drains each in-world player's queue through `MapSessionFilter` under the map phase, on a map worker when the pool runs and, when no worker pool runs, on the world thread, which updates the maps itself, map by map, under the map phase (`MapManager.cpp:318`, `:333-341`), taking the rows marked `PROCESS_THREADSAFE` and `PROCESS_INPLACE`, 73 of the 437 bound rows (attack swing, attack stop and sheathing among them). Each drain stops at the first packet its filter refuses, so a `PROCESS_THREADSAFE` row of an in-world player runs only on the map's thread, and a `PROCESS_INPLACE` row on whichever drain reaches it (`World.cpp:1625`, `Map.cpp:919-928`, `WorldSession.cpp:210-269`, `LockedQueue.h:82-99`) | not yet built: `CheckSessionSeam` checks four named files for session calls and no threading |
 | No synchronous database acquisition under the tick | `TickGuard` (strict mode asserts; the CI job proves the four strict cases stand) and `CheckSyncDb` |
 | Packets cross from the network only through `SessionMailbox` | the `proto` boundary: `IClientLink` / `IWorldGateway` |
-| A map never writes into another map during the phase, except within one world: a world map and the decks of the vessels sailing it write into each other, on that map's thread | transport crossings run after the barrier; a team buff for a player on a map the calling thread does not own is posted to that map's `TeamBuffQueue` and applied by that map's own update, the first statement after its `MapPhase::Scope` (`Map::ApplyTeamBuffs`, pinned by `CheckTeamBuffDrain`), and a deck's update owns the map it interrupted, so a buff for a player there is applied at once; a defense or zone-under-attack message and a missing graveyard link raised during the phase are posted to the world's `AfterMapPhaseQueue` and applied by the world thread after the barrier, the statement after `sMapMgr.Update` (`World::ApplyAfterMapPhasePosts`, pinned by `CheckAfterMapPhaseDrain`) |
+| A map never writes into another map during the phase, except within one world: a world map and the decks of the vessels sailing it write into each other, on that map's thread | transport crossings run after the barrier; a team buff for a player on a map the calling thread does not own is posted to that map's `TeamBuffQueue` and applied by that map's own update, the first statement after its `MapPhase::Scope` (`Map::ApplyTeamBuffs`, pinned by `CheckTeamBuffDrain`), and a deck's update owns the map it interrupted, so a buff for a player there is applied at once; a defense or zone-under-attack message and a missing graveyard link raised during the phase are posted to the world's `AfterMapPhaseQueue` and applied by the world thread after the barrier, the statement after `sMapMgr.Update` (`World::ApplyAfterMapPhasePosts`, pinned by `CheckAfterMapPhaseDrain`); an aura holder whose caster is a player on another map is updated by the world thread right after them (`World::ApplyOffMapAuraUpdates`, pinned by the same gate) |
 | State every map thread can reach (outdoor PvP's scripts) is touched under a leaf lock, as an atomic, or after the barrier | the zone player set and the capture-point slider store are leaf locks; Eastern Plaguelands' tower counts are atomics, each read once by the script's zone-entry override; the team buffs and the after-phase posts are the routes of the row above. A caller that bypasses a route or reads a count twice passes every test: review holds them |
 | A harness run is deterministic | the stepped clock runs every map inline, in order, on one thread |
 
 **Today:**
-- A periodic aura whose caster is on another map ticks on its target's map thread and reads and writes the caster,
-  which the caster's own map may be updating on the other thread: a data race in the default two-thread
-  configuration (#599).
+- An aura holder whose caster is a player on a map the updating thread does not own waits for the world thread:
+  the target's map posts the holder's update (`OffMapAuraUpdates`, declared beside `MapPhase`), and `World` runs it
+  after the map phase with the same time, expiry included (`World::ApplyOffMapAuraUpdates`, the statement after the
+  after-phase posts, pinned by `CheckAfterMapPhaseDrain`). A periodic tick and an aura's per-second cost check that
+  the thread owns their caster at the spell seam; harness scenario 939 runs an aura whose caster changed map, with no
+  violation (#599).
 - Ownership is checked at two seams, the movement kernel (`Unit::AssertMotionOwner`) and the spell seam
   (`Unit::AssertSpellSeamOwner`), where a unit's per-spell handlers enter the registry: 13 of the 15 dispatches of a
   `Unit` site build one of the five contexts that hold the unit, and building it checks the unit. The other two,
