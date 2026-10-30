@@ -568,6 +568,22 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME method_counter_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --self-test)
 
+    add_test(NAME player_methods
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 908
+            --class Player --header ${CMAKE_SOURCE_DIR}/src/game/entities/player/Player.h)
+
+    add_test(NAME unit_methods
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 675
+            --class Unit --header ${CMAKE_SOURCE_DIR}/src/game/Object/Unit.h)
+
+    add_test(NAME world_session_methods
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 189
+            --class WorldSession --header ${CMAKE_SOURCE_DIR}/src/game/Server/WorldSession.h)
+
+    add_test(NAME object_mgr_methods
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 255
+            --class ObjectMgr --header ${CMAKE_SOURCE_DIR}/src/game/Object/ObjectMgr.h)
+
     # Decoupling D4k: a character manager never stores a callback. The check reads the managers
     # from CheckManagerIsolation.cmake's MANAGER_FILES and walks their headers with the method
     # counter's class-scope scanner; it runs its own self-test first, and alone here as well.
