@@ -42,6 +42,7 @@
 #include "HarnessAI.h"
 #include "WorldSession.h"
 #include "Map.h"
+#include "MapPhase.h"
 
 #include <cmath>
 #include <cstdio>
@@ -1535,6 +1536,194 @@ namespace Harness
                 expired = std::string(st->holderAfterExpiry == "none" ? "OK" : "BUG") + "(the holder after the last tick: " + st->holderAfterExpiry +
                           "; AURA_UPDATE in the last tick window " + Joined(upsLast) + ")";
                 Verdict(Compose({ st->templateOk, applied, perTick, expired,
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel, st->dealsDamage, &st->plan), DigestValue("the cast") }));
+            });
+        }
+    };
+
+    /**
+     * S939 `spell-periodic-off-map`: S932's priest and cougar, with the priest gone to another map
+     * between the cast and the first tick. He casts Shadow Word: Pain (589) at the silenced cougar,
+     * then teleports to Northshire Valley on Eastern Kingdoms (map 0), the transfer finished as the
+     * logout finishes one (WorldSession::HandleMoveWorldportAckOpcode); the aura keeps ticking on
+     * the cougar while its caster stands on the other map, through its six ticks to its expiry.
+     *
+     * Pins: the aura applied on the harness map, the priest in the world on map 0 before the first
+     * tick, the cougar's health falling at each of the six ticks (the last one at the expiry), the
+     * holder gone after the expiry, and the ownership violations counted while the aura ran
+     * (MapPhase::Violations()): none, because an aura whose caster is a player on another map waits
+     * for the world thread (OffMapAuraUpdates).
+     */
+    class SpellPeriodicOffMap : public SpellScenario
+    {
+    public:
+        SpellPeriodicOffMap()
+            : SpellScenario("spell-periodic-off-map", 939,
+                            { "template", "applied", "offMap", "everyTick", "expired", "ownership", "noPersistence", "digest" }) {}
+
+        void Prepare() override
+        {
+            struct St
+            {
+                ObjectGuid player, target;
+                std::string templateOk;
+                uint32 levelSet = 0;
+                bool noReachLevel = false;
+                std::set<uint32> achievementsAtSpawn;
+                bool dealsDamage = false;
+                QuestPlan plan;
+                bool cast = false, moved = false, settled = false;
+                std::string holderAfterCast, holderAfterExpiry, mapAfterMove;
+                uint32 healthBefore = 0;
+                std::vector<uint32> healthAfterTick;
+                uint32 violationsBefore = 0, violationsAfter = 0;
+            };
+            const uint32 SWP = 589;
+            const uint32 cougar = 2961;
+            const uint32 level = 4;
+            const uint32 kCastAt = 400, kMoveAt = 1400, kPeriod = 3000, kTicks = 6;
+            const uint32 kOtherMap = 0;
+            const Pt kNorthshire = { -8949.95f, -132.493f, 83.5312f };
+
+            std::vector<SpellPrint> prints = {
+                // 589: 26 fields, fnv cb49aeac
+                { 589, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 3000 }, { "eff0.EffectBasePoints", 5 }, { "eff0.EffectBonusCoefficient", 1042603311 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+            QuestPlan plan;
+            plan.quest = 0;
+            plan.classId = CLASS_PRIEST;
+            plan.level = level;
+            plan.spells.insert(SWP);
+            plan.casts.insert(SWP);
+            plan.dealsDamage = true;
+            std::string templateOk;
+            QuestPreCheck pre;
+            if (!Qualify(prints, { cougar }, plan, templateOk, &pre))
+            {
+                return;
+            }
+
+            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z), 0.0f, CLASS_PRIEST);
+            if (!p)
+            {
+                Verdict(Invalid("spawn failed"));
+                return;
+            }
+            StartTimeSync(p);
+            const float tx = P0.x + 10.0f;
+            Creature* target = Spawn(cougar, tx, P0.y, Ground(tx, P0.y, P0.z), 3.14159f);
+            if (!target)
+            {
+                Verdict(Invalid("the target (2961) did not spawn"));
+                return;
+            }
+            Silence(target);
+            Park(target);
+
+            auto st = std::make_shared<St>();
+            st->player = p->GetObjectGuid();
+            st->target = target->GetObjectGuid();
+            st->templateOk = templateOk;
+            st->noReachLevel = pre.levelBound == pre.startLevel;
+            st->achievementsAtSpawn = Achievements(p);
+            st->dealsDamage = plan.dealsDamage;
+            st->plan = plan;
+
+            SpellWatch watch;
+            watch.target = st->target;
+            m_rec.Begin(Name(), p, watch);
+            m_rec.Open("level", false);           // a setup window: logged, never digested
+            SetLevelAsResetDoes(p, level);
+            p->learnSpell(SWP, false);
+            st->levelSet = p->getLevel();
+
+            At(kCastAt, [this, st, SWP]()
+            {
+                Player* p = sPlayerRegistry.Find(st->player);
+                Creature* target = Get(st->target);
+                if (!p || !target) { return; }
+                m_rec.Open("cast");
+                const std::string procSelf = ProcHolders(p), procTarget = ProcHolders(target);
+                if (!procSelf.empty() || !procTarget.empty())
+                {
+                    m_rec.End();
+                    Verdict(Invalid("holders that can proc: self [" + procSelf + "], target [" + procTarget + "]"));
+                    return;
+                }
+                st->healthBefore = target->GetHealth();
+                st->violationsBefore = MapPhase::Violations();
+                st->cast = CastAsHandler(p, SWP, target, 1) != 0;
+                st->holderAfterCast = HolderOf(target, SWP);
+                m_rec.Note("Shadow Word: Pain on the target: " + st->holderAfterCast);
+            });
+            At(kMoveAt, [this, st, kOtherMap, kNorthshire]()
+            {
+                Player* p = sPlayerRegistry.Find(st->player);
+                if (!p || !st->cast) { return; }
+                m_rec.Open("move", false);        // the transfer's own packets: logged, never digested
+                p->TeleportTo(kOtherMap, kNorthshire.x, kNorthshire.y, kNorthshire.z, 0.0f);
+                while (p->IsBeingTeleportedFar())
+                {
+                    p->GetSession()->HandleMoveWorldportAckOpcode();
+                }
+                st->moved = p->IsInWorld() && p->GetMapId() == kOtherMap;
+                st->mapAfterMove = U(p->GetMapId()) + (p->IsInWorld() ? " in world" : " not in world");
+                m_rec.Note("the priest after the transfer: map " + st->mapAfterMove);
+                m_rec.Open("away");
+            });
+            for (uint32 k = 2; k <= kTicks; ++k)
+            {
+                // half a period before tick k is due: the health tick k-1 left
+                At(kCastAt + kPeriod * k - kPeriod / 2, [this, st]()
+                {
+                    Creature* target = Get(st->target);
+                    if (!target || !st->moved) { return; }
+                    st->healthAfterTick.push_back(target->GetHealth());
+                });
+            }
+            At(kCastAt + kPeriod * kTicks + kPeriod / 2, [this, st, SWP]()
+            {
+                Creature* target = Get(st->target);
+                if (!target || !st->moved) { return; }
+                st->healthAfterTick.push_back(target->GetHealth());
+                st->holderAfterExpiry = HolderOf(target, SWP);
+                st->violationsAfter = MapPhase::Violations();
+                st->settled = true;
+                m_rec.Open("after");
+                m_rec.Note("Shadow Word: Pain on the target: " + st->holderAfterExpiry);
+            });
+
+            At(kCastAt + kPeriod * kTicks + kPeriod / 2 + 300, [this, st, kTicks]()
+            {
+                m_rec.End();
+                Player* p = sPlayerRegistry.Find(st->player);
+                if (!p)
+                {
+                    Verdict(Invalid("the harness player was gone at the verdict"));
+                    return;
+                }
+                if (!st->cast || !st->settled)
+                {
+                    const std::string why = "INVALID(the cast, the transfer or the last step did not run)";
+                    Verdict(Compose({ st->templateOk, why, why, why, why, why, why, DigestValue("the cast") }));
+                    return;
+                }
+                const std::string applied = std::string(st->holderAfterCast != "none" ? "OK" : "BUG") + "(holder " + st->holderAfterCast + ")";
+                const std::string offMap = std::string(st->moved ? "OK" : "BUG") + "(the priest on map " + st->mapAfterMove + ")";
+                bool falling = st->healthAfterTick.size() == kTicks;
+                std::string healths = U(st->healthBefore);
+                uint32 last = st->healthBefore;
+                for (size_t k = 0; k < st->healthAfterTick.size(); ++k)
+                {
+                    falling = falling && st->healthAfterTick[k] < last;
+                    last = st->healthAfterTick[k];
+                    healths += "->" + U(st->healthAfterTick[k]);
+                }
+                const std::string everyTick = std::string(falling ? "OK" : "BUG") + "(health " + healths + ")";
+                const std::string expired = std::string(st->holderAfterExpiry == "none" ? "OK" : "BUG") + "(the holder after the last tick: " + st->holderAfterExpiry + ")";
+                const uint32 violations = st->violationsAfter - st->violationsBefore;
+                const std::string ownership = std::string(violations == 0 ? "OK" : "BUG") + "(" + U(violations) + " ownership violations while the aura ran)";
+                Verdict(Compose({ st->templateOk, applied, offMap, everyTick, expired, ownership,
                                   NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel, st->dealsDamage, &st->plan), DigestValue("the cast") }));
             });
         }
@@ -3159,5 +3348,6 @@ namespace Harness
         r.Register(new SpellSelfRollHellfire());
         r.Register(new SpellMortarShotFallthrough());
         r.Register(new SpellCreatureCooldowns());
+        r.Register(new SpellPeriodicOffMap());
     }
 }
