@@ -79,7 +79,7 @@ TEST(NullDatabase_PingReturns)
 // together. HaltDelayThread() leaves a second, asymmetric state: the async connection is still
 // alive while the per-thread transaction slot and the worker are gone. Nothing used to run in
 // that window, because the callbacks queued during the halt were discarded -- D7a's shutdown
-// drain now runs them, and a callback that writes (World::_UpdateRealmCharCount reaching
+// drain now runs them, and a callback that writes (the realm character count refresh reaching
 // LoginDatabase.PExecute) dereferenced the NULL slot on its way to Execute(). Every write path
 // has to refuse there, which is what the old discard amounted to anyway.
 TEST(HaltedDatabase_WritesAreRefusedInsteadOfCrashing)

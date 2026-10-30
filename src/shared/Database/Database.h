@@ -718,7 +718,7 @@ class Database
          *
          * Between the halts and the process's exit the connection is still alive while the
          * other two are NULL, and D7a's shutdown drain now runs callbacks in exactly that
-         * window — a callback that writes (`_UpdateRealmCharCount` reaching `PExecute`) would
+         * window — a callback that writes (the realm character count refresh reaching `PExecute`) would
          * have dereferenced a NULL `m_TransStorage`. So the D1 null-guard treatment has to
          * cover all three, not only the connection. A write refused here is a write the old
          * code discarded unrun anyway, because nothing was left to execute it.
