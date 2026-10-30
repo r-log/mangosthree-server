@@ -616,6 +616,7 @@ class DungeonMap : public Map
         void Update(const uint32&) override;
         bool Reset(InstanceResetMethod method);
         void PermBindAllPlayers(Player* player);
+        void CreditCreatureKill(Creature* victim, Player* creditedPlayer);
         void UnloadAll(bool pForce) override;
         void SendResetWarnings(uint32 timeLeft) const;
         void SetResetSchedule(bool on);

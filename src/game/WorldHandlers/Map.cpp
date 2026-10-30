@@ -2654,6 +2654,38 @@ void DungeonMap::PermBindAllPlayers(Player* player)
 }
 
 /**
+ * @brief Records the kill of a creature credited to a player: in a raid or heroic dungeon an
+ * instance-binding creature binds the players inside, in a normal one the reset time is kept past
+ * the creature's respawn, and the encounter state counts the kill.
+ *
+ * @param victim The creature that was killed.
+ * @param creditedPlayer The player credited with the kill.
+ */
+void DungeonMap::CreditCreatureKill(Creature* victim, Player* creditedPlayer)
+{
+    if (IsRaidOrHeroicDungeon())
+    {
+        if (victim->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_INSTANCE_BIND)
+        {
+            PermBindAllPlayers(creditedPlayer);
+        }
+    }
+    else
+    {
+        DungeonPersistentState* save = GetPersistanceState();
+        // the reset time is set but not added to the scheduler
+        // until the players leave the instance
+        time_t resettime = victim->GetRespawnTimeEx() + 2 * HOUR;
+        if (save->GetResetTime() < resettime)
+        {
+            save->SetResetTime(resettime);
+        }
+    }
+    // update encounter state if needed
+    GetPersistanceState()->UpdateEncounterState(ENCOUNTER_CREDIT_KILL_CREATURE, victim->GetEntry());
+}
+
+/**
  * @brief Teleports players out, clears respawn data if needed, and unloads all dungeon grids.
  *
  * @param pForce True to force unloading regardless of active objects.
