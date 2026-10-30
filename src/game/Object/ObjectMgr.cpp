@@ -2233,7 +2233,7 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
         }
         case CONDITION_LAST_WAYPOINT:
         {
-            Creature* sourceCreature = source->ToCreature();
+            Creature const* sourceCreature = source->ToCreature();
             if (!sourceCreature)
             {
                 sLog.outErrorDb("CONDITION_LAST_WAYPOINT (entry %u) is used for non creature source (source %s) by %s", m_entry, source->GetGuidStr().c_str(), player->GetGuidStr().c_str());

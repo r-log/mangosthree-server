@@ -244,7 +244,7 @@ void WorldObject::MonsterText(MangosStringLocale const* textData, Unit const* ta
             break;
         case CHAT_TYPE_WHISPER:
         {
-            Player* targetPlayer = target ? target->ToPlayer() : NULL;
+            Player const* targetPlayer = target ? target->ToPlayer() : NULL;
             if (!targetPlayer)
             {
                 return;
