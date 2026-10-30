@@ -290,6 +290,15 @@ void AchievementMgr::LoadFromDB(std::vector<LoginAchievementRow> const& achievem
     }
 }
 
+void AchievementMgr::BuildServerFirstAchievementPacket(WorldPacket& data, char const* name, ObjectGuid guid, uint32 achievementId)
+{
+    data.Initialize(SMSG_SERVER_FIRST_ACHIEVEMENT, strlen(name) + 1 + 8 + 4 + 4);
+    data << name;
+    data << guid;
+    data << uint32(achievementId);
+    data << uint32(0);                                      // 1=link supplied string as player name, 0=display plain string
+}
+
 void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement)
 {
     if (GetPlayer()->GetSession()->PlayerLoading())

@@ -304,6 +304,10 @@ class AchievementMgr
         enum ProgressType { PROGRESS_SET, PROGRESS_ACCUMULATE, PROGRESS_HIGHEST };
         void SetCriteriaProgress(AchievementCriteriaEntry const* criteria, AchievementEntry const* achievement, uint32 changeValue, ProgressType ptype);
 
+        /// Builds into `data` the packet that tells a client the player `name` (`guid`) is the realm's
+        /// first to earn `achievementId`.
+        static void BuildServerFirstAchievementPacket(WorldPacket& data, char const* name, ObjectGuid guid, uint32 achievementId);
+
     private:
         void SendAchievementEarned(AchievementEntry const* achievement);
         void SendCriteriaUpdate(uint32 id, CriteriaProgress const* progress);

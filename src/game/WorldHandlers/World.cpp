@@ -1286,11 +1286,8 @@ bool World::PostAfterMapPhase(AfterMapPhasePost const& post)
 /// Tells every client that the player `name` is the realm's first to earn `achievementId`
 void World::RealmFirstAchievement(char const* name, ObjectGuid guid, uint32 achievementId)
 {
-    WorldPacket data(SMSG_SERVER_FIRST_ACHIEVEMENT, strlen(name) + 1 + 8 + 4 + 4);
-    data << name;
-    data << guid;
-    data << uint32(achievementId);
-    data << uint32(0);                                      // 1=link supplied string as player name, 0=display plain string
+    WorldPacket data;
+    AchievementMgr::BuildServerFirstAchievementPacket(data, name, guid, achievementId);
     m_sessions.Broadcast(data);
 }
 
