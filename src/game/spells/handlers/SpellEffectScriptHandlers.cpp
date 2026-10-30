@@ -1898,7 +1898,7 @@ static SpellHandlerOutcome<void> EffectScriptGeneric50725(SpellEffectScriptConte
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Player*)caster)->RemoveSpellCategoryCooldown(82, true);
+    caster->RemoveSpellCategoryCooldown(82, true);
     return SpellHandlerOutcome<void>::Return();
 }
 

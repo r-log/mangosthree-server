@@ -132,7 +132,7 @@ void Aura::HandleShapeshiftBoosts(bool apply)
 
             if (target->GetTypeId() == TYPEID_PLAYER)     // Spell 49868 have same category as main form spell and share cooldown
             {
-                ((Player*)target)->RemoveSpellCooldown(49868);
+                target->RemoveSpellCooldown(49868);
             }
             break;
         case FORM_GHOSTWOLF:
@@ -220,7 +220,7 @@ void Aura::HandleShapeshiftBoosts(bool apply)
             }
 
             // Leader of the Pack
-            if (((Player*)target)->HasSpell(17007))
+            if (target->HasSpell(17007))
             {
                 SpellEntry const* spellInfo = sSpellStore.LookupEntry(24932);
                 if (spellInfo && spellInfo->GetStances() & (1<<(form-1)))
@@ -230,7 +230,7 @@ void Aura::HandleShapeshiftBoosts(bool apply)
             }
 
             // Savage Roar
-            if (form == FORM_CAT && ((Player*)target)->HasAura(52610))
+            if (form == FORM_CAT && target->HasAura(52610))
             {
                 target->CastSpell(target, 62071, true);
             }

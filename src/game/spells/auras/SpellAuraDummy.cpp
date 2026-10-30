@@ -272,7 +272,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             // Predatory Strikes
             if (target->GetTypeId() == TYPEID_PLAYER && GetSpellProto()->SpellIconID == 1563)
             {
-                ((Player*)target)->UpdateAttackPowerAndDamage();
+                target->UpdateAttackPowerAndDamage();
                 return;
             }
             break;

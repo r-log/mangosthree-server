@@ -896,7 +896,7 @@ void MotionMaster::MoveTargetedHome()
         return;
     }
     Clear(false);
-    if (m_owner->GetTypeId() == TYPEID_UNIT && !((Creature*)m_owner)->GetCharmerOrOwnerGuid())
+    if (m_owner->GetTypeId() == TYPEID_UNIT && !m_owner->GetCharmerOrOwnerGuid())
     {
         if (m_owner->IsLinkingEventTrigger() && m_owner->GetMap()->GetCreatureLinkingHolder()->TryFollowMaster((Creature*)m_owner))
         {
@@ -921,9 +921,9 @@ void MotionMaster::MoveTargetedHome()
         p.facing = o;
         Request(R(Motion::Kind::Home), std::unique_ptr<Motion::Behaviour>(new Motion::HomeBehaviour(p)));
     }
-    else if (m_owner->GetTypeId() == TYPEID_UNIT && ((Creature*)m_owner)->GetCharmerOrOwnerGuid())
+    else if (m_owner->GetTypeId() == TYPEID_UNIT && m_owner->GetCharmerOrOwnerGuid())
     {
-        if (Unit* target = ((Creature*)m_owner)->GetCharmerOrOwner())
+        if (Unit* target = m_owner->GetCharmerOrOwner())
         {
             DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s follow to %s", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str());
             Request(R(Motion::Kind::Follow), std::unique_ptr<Motion::Behaviour>(

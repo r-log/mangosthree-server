@@ -468,7 +468,7 @@ void Spell::cast(bool skipCheck)
         case SPELLFAMILY_ROGUE:
             // Fan of Knives (main hand)
             if (m_spellInfo->ID == 51723 && m_caster->GetTypeId() == TYPEID_PLAYER &&
-                    ((Player*)m_caster)->haveOffhandWeapon())
+                    m_caster->haveOffhandWeapon())
             {
                 AddTriggeredSpell(52874);                   // Fan of Knives (offhand)
             }
@@ -911,7 +911,7 @@ void Spell::update(uint32 difftime)
     // check if the player or unit caster has moved before the spell finished (exclude casting on vehicles)
     if (((m_caster->GetTypeId() == TYPEID_PLAYER || m_caster->GetTypeId() == TYPEID_UNIT) && m_timer != 0) &&
         (m_castPositionX != m_caster->Where().X() || m_castPositionY != m_caster->Where().Y() || m_castPositionZ != m_caster->Where().Z()) &&
-        ((spellEffect && spellEffect->Effect != SPELL_EFFECT_STUCK) || !((Player*)m_caster)->ClientStatus().HasMovementFlag(MOVEFLAG_FALLINGFAR)) &&
+        ((spellEffect && spellEffect->Effect != SPELL_EFFECT_STUCK) || !m_caster->ClientStatus().HasMovementFlag(MOVEFLAG_FALLINGFAR)) &&
         !m_caster->HasAffectedAura(SPELL_AURA_ALLOW_CAST_WHILE_MOVING, m_spellInfo))
     {
         // always cancel for channeled spells
@@ -1147,7 +1147,7 @@ void Spell::finish(bool ok)
     // potions disabled by client, send event "not in combat" if need
     if (m_caster->GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)m_caster)->UpdatePotionCooldown(this);
+        m_caster->UpdatePotionCooldown(this);
     }
 
     // call triggered spell only at successful cast (after clear combo points -> for add some if need)

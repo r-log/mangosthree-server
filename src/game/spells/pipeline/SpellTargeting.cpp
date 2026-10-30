@@ -877,7 +877,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             {
                 // checked in Spell::CheckCast
                 if (m_caster->GetTypeId() == TYPEID_PLAYER)
-                    if (Unit* target = m_caster->GetMap()->GetPet(((Player*)m_caster)->GetSelectionGuid()))
+                    if (Unit* target = m_caster->GetMap()->GetPet(m_caster->GetSelectionGuid()))
                     {
                         targetUnitMap.push_back(target);
                     }
@@ -1365,7 +1365,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             }
             else if (m_caster->GetTypeId() == TYPEID_PLAYER)
             {
-                pTarget = ObjectLookup::GetUnit(*m_caster, ((Player*)m_caster)->GetSelectionGuid());
+                pTarget = ObjectLookup::GetUnit(*m_caster, m_caster->GetSelectionGuid());
             }
             else if (m_targets.getUnitTarget())
             {
@@ -1549,8 +1549,8 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     }
                     break;
                 case SPELL_EFFECT_SUMMON_PLAYER:
-                    if (m_caster->GetTypeId() == TYPEID_PLAYER && ((Player*)m_caster)->GetSelectionGuid())
-                        if (Player* target = sObjectMgr.GetPlayer(((Player*)m_caster)->GetSelectionGuid()))
+                    if (m_caster->GetTypeId() == TYPEID_PLAYER && m_caster->GetSelectionGuid())
+                        if (Player* target = sObjectMgr.GetPlayer(m_caster->GetSelectionGuid()))
                         {
                             targetUnitMap.push_back(target);
                         }

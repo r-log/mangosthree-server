@@ -252,11 +252,11 @@ bool AchievementCriteriaRequirement::Meets(uint32 criteria_id, Player const* sou
             {
                 return false;
             }
-            if (classRace.class_id && classRace.class_id != ((Player*)target)->getClass())
+            if (classRace.class_id && classRace.class_id != target->getClass())
             {
                 return false;
             }
-            if (classRace.race_id && classRace.race_id != ((Player*)target)->getRace())
+            if (classRace.race_id && classRace.race_id != target->getRace())
             {
                 return false;
             }

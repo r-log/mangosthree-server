@@ -2061,7 +2061,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericBrewfestMountTransformation(S
     }
     else
     {
-        if (((Player*)ctx.m_caster)->GetSpeedRate(MOVE_RUN) >= 2.0f)
+        if (ctx.m_caster->GetSpeedRate(MOVE_RUN) >= 2.0f)
             // 100% Kodo
             ctx.m_caster->CastSpell(ctx.m_caster, 49379, true);
         else
@@ -2577,7 +2577,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericBrewfestMountFactionSwap(Spel
     }
     else
     {
-        if (((Player*)ctx.m_caster)->GetSpeedRate(MOVE_RUN) >= 2.0f)
+        if (ctx.m_caster->GetSpeedRate(MOVE_RUN) >= 2.0f)
             // Great Brewfest Kodo, 100% Kodo
             ctx.m_caster->CastSpell(ctx.m_caster, 49379, true);
         else
@@ -3396,7 +3396,7 @@ static SpellHandlerOutcome<void> EffectDummyMageColdSnap(SpellEffectDummyMageCon
             (GetSpellSchoolMask(spellInfo) & SPELL_SCHOOL_MASK_FROST) &&
             spellInfo->ID != 11958 && GetSpellRecoveryTime(spellInfo) > 0)
         {
-            ((Player*)ctx.m_caster)->RemoveSpellCooldown((itr++)->first, true);
+            ctx.m_caster->RemoveSpellCooldown((itr++)->first, true);
         }
         else
         {
@@ -3638,7 +3638,7 @@ static SpellHandlerOutcome<void> EffectDummyRoguePreparation(SpellEffectDummyRog
         SpellClassOptionsEntry const* prepClassOptions = spellInfo->GetSpellClassOptions();
         if (prepClassOptions && prepClassOptions->SpellClassSet == SPELLFAMILY_ROGUE && (prepClassOptions->SpellClassMask & UI64LIT(0x0000024000000860)))
         {
-            ((Player*)ctx.m_caster)->RemoveSpellCooldown((itr++)->first,true);
+            ctx.m_caster->RemoveSpellCooldown((itr++)->first,true);
         }
         else
         {
@@ -3681,7 +3681,7 @@ static SpellHandlerOutcome<void> EffectDummyHunterReadiness(SpellEffectDummyHunt
 
         if (spellInfo->GetSpellFamilyName() == SPELLFAMILY_HUNTER && spellInfo->ID != 23989 && GetSpellRecoveryTime(spellInfo) > 0 )
         {
-            ((Player*)ctx.m_caster)->RemoveSpellCooldown((itr++)->first,true);
+            ctx.m_caster->RemoveSpellCooldown((itr++)->first,true);
         }
         else
         {
@@ -3703,7 +3703,7 @@ static SpellHandlerOutcome<void> EffectDummyHunterScatterShot(SpellEffectDummyHu
     // break Auto Shot and autohit
     ctx.m_caster->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
     ctx.m_caster->AttackStop();
-    ((Player*)ctx.m_caster)->SendAttackSwingCancelAttack();
+    ctx.m_caster->SendAttackSwingCancelAttack();
     return SpellHandlerOutcome<void>::Return();
 // Last Stand
 }
@@ -3791,7 +3791,7 @@ static SpellHandlerOutcome<void> EffectDummyPaladinRighteousDefense(SpellEffectD
     // non-standard cast requirement check
     if (!friendTarget || friendTarget->getAttackers().empty())
     {
-        ((Player*)ctx.m_caster)->RemoveSpellCooldown(ctx.m_spellInfo->ID, true);
+        ctx.m_caster->RemoveSpellCooldown(ctx.m_spellInfo->ID, true);
         ctx.spell->SendCastResult(SPELL_FAILED_TARGET_AFFECTING_COMBAT);
         return SpellHandlerOutcome<void>::Return();
     }

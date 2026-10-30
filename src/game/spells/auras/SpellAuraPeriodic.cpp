@@ -1473,7 +1473,7 @@ void Aura::HandleAuraModAttackPowerOfArmor(bool /*apply*/, bool Real)
     // Recalculate bonus
     if (GetTarget()->GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)GetTarget())->UpdateAttackPowerAndDamage(false);
+        GetTarget()->UpdateAttackPowerAndDamage(false);
     }
 }
 /********************************/

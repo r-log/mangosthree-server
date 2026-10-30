@@ -2231,7 +2231,7 @@ static SpellHandlerOutcome<void> AuraBoostHunterDefault(AuraBoostContext& ctx)
         // triggered spell have same category as main spell and cooldown
         if (ctx.apply && ctx.holder->GetTarget()->GetTypeId() == TYPEID_PLAYER)
         {
-            ((Player*)ctx.holder->GetTarget())->RemoveSpellCooldown(61848);
+            ctx.holder->GetTarget()->RemoveSpellCooldown(61848);
         }
     }
     else

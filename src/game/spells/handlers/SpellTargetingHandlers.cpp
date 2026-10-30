@@ -91,7 +91,7 @@ static SpellHandlerOutcome<void> TargetEffectDummyCannibalize(SpellTargetEffectD
         // clear cooldown at fail
         if (ctx.m_caster->GetTypeId() == TYPEID_PLAYER)
         {
-            ((Player*)ctx.m_caster)->RemoveSpellCooldown(ctx.m_spellInfo->ID, true);
+            ctx.m_caster->RemoveSpellCooldown(ctx.m_spellInfo->ID, true);
         }
         ctx.spell->SendCastResult(SPELL_FAILED_NO_EDIBLE_CORPSES);
         ctx.spell->finish(false);

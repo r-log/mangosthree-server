@@ -510,7 +510,7 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
     }
 
     // update form-dependent armor specializations
-    if (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->getClass() == CLASS_DRUID)
+    if (target->GetTypeId() == TYPEID_PLAYER && target->getClass() == CLASS_DRUID)
     {
         ((Player*)target)->UpdateArmorSpecializations();
     }

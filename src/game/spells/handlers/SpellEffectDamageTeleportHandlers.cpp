@@ -165,7 +165,7 @@ static SpellHandlerOutcome<void> EffectTriggerSpellVanish(SpellEffectTriggerSpel
     // reset cooldown on it if needed
     if (((Player*)ctx.unitTarget)->HasSpellCooldown(spellId))
     {
-        ((Player*)ctx.unitTarget)->RemoveSpellCooldown(spellId);
+        ctx.unitTarget->RemoveSpellCooldown(spellId);
     }
 
     ctx.m_caster->CastSpell(ctx.unitTarget, spellId, true);

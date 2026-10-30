@@ -191,7 +191,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         if (((Player*)m_caster)->isMoving() && !m_caster->HasAffectedAura(SPELL_AURA_ALLOW_CAST_WHILE_MOVING, m_spellInfo))
         {
             // skip stuck spell to allow use it in falling case and apply spell limitations at movement
-            if ((!((Player*)m_caster)->ClientStatus().HasMovementFlag(MOVEFLAG_FALLINGFAR) || m_spellInfo->GetSpellEffectIdByIndex(EFFECT_INDEX_0) != SPELL_EFFECT_STUCK) &&
+            if ((!m_caster->ClientStatus().HasMovementFlag(MOVEFLAG_FALLINGFAR) || m_spellInfo->GetSpellEffectIdByIndex(EFFECT_INDEX_0) != SPELL_EFFECT_STUCK) &&
                 (IsAutoRepeat() || (m_spellInfo->GetAuraInterruptFlags() & AURA_INTERRUPT_FLAG_NOT_SEATED) != 0))
                 return SPELL_FAILED_MOVING;
         }
@@ -302,7 +302,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                 if (m_targets.m_targetMask == TARGET_FLAG_SELF &&
                     m_spellInfo->GetEffectImplicitTargetAByIndex(EFFECT_INDEX_1) == TARGET_CHAIN_DAMAGE)
                 {
-                    target = m_caster->GetMap()->GetUnit(((Player*)m_caster)->GetSelectionGuid());
+                    target = m_caster->GetMap()->GetUnit(m_caster->GetSelectionGuid());
                     if (!target)
                     {
                         return SPELL_FAILED_BAD_TARGETS;
@@ -818,11 +818,11 @@ SpellCastResult Spell::CheckCast(bool strict)
                         return SPELL_FAILED_ERROR;
                     }
 
-                    if (!((Player*)m_caster)->GetSelectionGuid())
+                    if (!m_caster->GetSelectionGuid())
                     {
                         return SPELL_FAILED_BAD_IMPLICIT_TARGETS;
                     }
-                    Pet* target = m_caster->GetMap()->GetPet(((Player*)m_caster)->GetSelectionGuid());
+                    Pet* target = m_caster->GetMap()->GetPet(m_caster->GetSelectionGuid());
 
                     // alive
                     if (!target || target->IsDead())
@@ -1371,7 +1371,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     if (plClass == CLASS_WARLOCK)                  // let warlock do a replacement summon
                     {
                         if (strict)     // Summoning Disorientation, trigger pet stun (cast by pet so it doesn't attack player)
-                            if (Pet* pet = ((Player*)m_caster)->GetPet())
+                            if (Pet* pet = m_caster->GetPet())
                             {
                                 pet->CastSpell(pet, 32752, true, NULL, NULL, pet->GetObjectGuid());
                             }
@@ -1390,12 +1390,12 @@ SpellCastResult Spell::CheckCast(bool strict)
                 {
                     return SPELL_FAILED_BAD_TARGETS;
                 }
-                if (!((Player*)m_caster)->GetSelectionGuid())
+                if (!m_caster->GetSelectionGuid())
                 {
                     return SPELL_FAILED_BAD_TARGETS;
                 }
 
-                Player* target = sObjectMgr.GetPlayer(((Player*)m_caster)->GetSelectionGuid());
+                Player* target = sObjectMgr.GetPlayer(m_caster->GetSelectionGuid());
                 if (!target || ((Player*)m_caster) == target || !target->IsInSameRaidWith((Player*)m_caster))
                 {
                     return SPELL_FAILED_BAD_TARGETS;
