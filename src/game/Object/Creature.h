@@ -318,6 +318,9 @@ class Creature : public Unit
         /// holds a negative aura that damage breaks, or (with checkThreatArea) is out of the threat area.
         bool IsSecondChoiceTarget(Unit* pTarget, bool checkThreatArea) const;
 
+        /// Relocates the creature through its map's creature relocation.
+        /// @return true
+        bool SetPosition(float x, float y, float z, float orientation, bool teleport = false) override;
         void SetWalk(bool enable, bool asDefault = true);
         /// Stop where it stands and, for a patrol, hold the leg a while so the player can talk.
         void HoldForPlayer();
@@ -551,10 +554,6 @@ class Creature : public Unit
         void SetDisableReputationGain(bool disable) { DisableReputationGain = disable; }
         bool IsReputationGainDisabled() { return DisableReputationGain; }
     protected:
-        /// Relocates the creature through its map's creature relocation.
-        /// @return true
-        bool SetPosition(float x, float y, float z, float orientation, bool teleport = false) override;
-
         // The creature's part of Unit's combat flow, defined in CreatureCombat.cpp
         void AnchorCombat() override;
         void AttackStarted() override;

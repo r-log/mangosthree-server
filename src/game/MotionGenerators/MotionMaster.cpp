@@ -1868,7 +1868,7 @@ void MotionMaster::RelocateSelected(float x, float y, float z, float o)
     {
         bound->behaviour->Suspend(*m_owner);
     }
-    m_owner->GetMap()->CreatureRelocation((Creature*)m_owner, x, y, z, o);
+    m_owner->SetPosition(x, y, z, o);
     m_owner->SendHeartBeat();
     // The relocation and the heartbeat may have changed what is selected; resume whatever
     // is selected now, as the stack applied its Reset to whatever ended up on top.

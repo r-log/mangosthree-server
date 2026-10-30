@@ -3680,15 +3680,19 @@ class Unit : public WorldObject
          * installed reads
          */
         virtual uint32 GetAccountSecurityLevel() const { return 0; }
+
+    public:
         /**
-         * Moves the unit to a position, telling its map; Update's pending commit and the end of a
-         * spline call it.
+         * Moves the unit to a position, telling its map; Update's pending commit, the end of a
+         * spline, a creature's short teleport and a possessed creature's own movement call it.
          * @param teleport true when the move is a teleport
          * @return Player relocates itself and its map's view of it, and returns false only for a
          * position outside the map; Creature is relocated by its map's creature relocation and
          * returns true
          */
         virtual bool SetPosition(float x, float y, float z, float orientation, bool teleport = false) = 0;
+
+    protected:
         /**
          * Whether the unit's movement flags hold a moving flag; the auto-repeat spell update asks it of
          * a player.

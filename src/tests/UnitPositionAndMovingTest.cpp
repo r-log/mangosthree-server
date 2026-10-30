@@ -23,20 +23,20 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The position write and the moving test Unit asks of itself: Update's pending commit and the
-/// end of a spline move a unit through SetPosition, and the auto-repeat spell update asks a
-/// player isMoving.
+/// The position write and the moving test: Update's pending commit, the end of a spline, a
+/// creature's short teleport and a possessed creature's own movement move a unit through
+/// SetPosition, and the auto-repeat spell update asks a player isMoving.
 ///
-/// Unit declares both protected, the position write pure. Creature overrides the write, protected,
-/// relocating itself through its map; Player overrides both, public. The teleport argument
-/// defaults to false on all three. A Creature probe with its update fields allocated (no map, no
-/// AI, no auras) makes Creature's write and Unit's moving test public with using-declarations; the
-/// write needs a map, so it is not run here, and neither are Player's bodies. Unit's isMoving
+/// Unit declares the position write public and pure, and the moving test protected. Creature
+/// overrides the write, relocating itself through its map; Player overrides both, public. The
+/// teleport argument defaults to false on all three. A Creature probe with its update fields
+/// allocated (no map, no AI, no auras) makes Unit's moving test public with a using-declaration;
+/// the write needs a map, so it is not run here, and neither are Player's bodies. Unit's isMoving
 /// answers false whatever the probe's own movement flags (Unit's member) hold. The static_asserts
 /// pin Creature's and Player's declarations (each an override, so with Unit's exact signature),
-/// that a call through a Unit or a Creature does not compile, and that a call through a Player
-/// compiles. A call with four arguments through the probe binds false, which an override
-/// recording its argument shows.
+/// that a call through a Unit, a Creature or a Player compiles, and that the moving test through a
+/// Unit does not. A call with four arguments binds false, which an override recording its
+/// argument shows.
 
 #include "TestHarness.h"
 #include "Creature.h"
@@ -48,15 +48,13 @@
 
 namespace
 {
-    /// A Creature with its update fields allocated; Creature's position write and Unit's moving
-    /// test are public here.
+    /// A Creature with its update fields allocated; Unit's moving test is public here.
     class PositionAndMovingUnit : public Creature
     {
         public:
-            using Creature::SetPosition;
             using Unit::isMoving;
 
-            static_assert(std::is_same<decltype(&PositionAndMovingUnit::SetPosition),
+            static_assert(std::is_same<decltype(&Creature::SetPosition),
                                        bool (Creature::*)(float, float, float, float, bool)>::value,
                           "Creature declares the position write");
             static_assert(std::is_same<decltype(&PositionAndMovingUnit::isMoving), bool (Unit::*)() const>::value,
@@ -119,14 +117,14 @@ namespace
 static_assert(decltype(WritesPosition<PositionAndMovingUnit>(0))::value &&
               decltype(WritesPositionWithItsDefault<PositionAndMovingUnit>(0))::value &&
               decltype(AsksMoving<PositionAndMovingUnit>(0))::value,
-              "a call through the probe reaches Creature's position write, with and without the "
-              "teleport argument, and Unit's moving test");
-static_assert(!decltype(WritesPosition<Unit>(0))::value &&
-              !decltype(WritesPositionWithItsDefault<Unit>(0))::value,
-              "Unit's position write is protected: a call through a Unit does not compile");
-static_assert(!decltype(WritesPosition<Creature>(0))::value &&
-              !decltype(WritesPositionWithItsDefault<Creature>(0))::value,
-              "Creature's position write is protected: a call through a Creature does not compile");
+              "a call through the probe reaches the position write, with and without the teleport"
+              " argument, and Unit's moving test");
+static_assert(decltype(WritesPosition<Unit>(0))::value &&
+              decltype(WritesPositionWithItsDefault<Unit>(0))::value,
+              "Unit's position write is public, with and without the teleport argument");
+static_assert(decltype(WritesPosition<Creature>(0))::value &&
+              decltype(WritesPositionWithItsDefault<Creature>(0))::value,
+              "Creature's position write is public, with and without the teleport argument");
 static_assert(!decltype(AsksMoving<Unit>(0))::value,
               "Unit's moving test is protected: a call through a Unit does not compile");
 static_assert(decltype(WritesPosition<Player>(0))::value &&
