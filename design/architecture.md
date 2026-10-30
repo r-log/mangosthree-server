@@ -227,12 +227,14 @@ A layer is done when its gate enforces its rule on a clean clone, and it is fini
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
 see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 909, Unit 674, WorldSession 189, ObjectMgr 255), R1, M1,
 the downcast counts (ctest `player_downcasts`, `creature_downcasts` and `pet_downcasts`, `downcast_count.py --gate` at
-3, 5 and 0 C-style casts in `src/game`, lowered in the PR that cuts them; ctest `total_downcasts` at 526, the
+0 C-style casts in `src/game`; ctest `total_downcasts` at 521, the
 C-style casts, the `static_cast`s and the calls of the checked downcasts `ToPlayer()`, `ToCreature()` and `ToPet()`
 together, so a cast rewritten as a checked downcast leaves it where it was and a new downcast of any kind but
 `dynamic_cast` fails it; ctest `static_downcasts` at 2, the two inside `ToPet`, which test `IsPet()` first; ctest
 `dynamic_downcasts` at 12, the waypoint commands' six that ask whether a creature is a
-waypoint marker and the harness's six that ask for its own AI or summon) and the database-call count.
+waypoint marker and the harness's six that ask for its own AI or summon; ctest `const_casts` at 2, the values block
+setting the loot flag on the creature it describes and `Player::GetMover() const` answering with the player itself)
+and the database-call count.
 
 | Layer | Rule | Gate |
 |---|---|---|
@@ -411,7 +413,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 10 | `CheckStateOwnership`'s achievement row: its owner, `AchievementMgr`, still builds its packets; `QuestCompletePacket` is in `session/packets/quests/` and builds the player's quest-complete fact | with `AchievementMgr`'s move (row 16) |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, a behaviour change, in #600 on 4.3.4 evidence |
-| 13 | `Unit`: 2 `(Player*)this` casts (two item actions; row 24's accessors ask `ToPlayer()`), 186 player type tests, 44 Player-only virtuals: 7 motion answers (#81), 31 questions `Unit` asks of a player with the non-player answer as the default, 6 named debt (`GetItemByGuid` #143; `ProhibitSpellSchool` #600; `SetSheath`, `Say` row 1; `Uncharm` row 24; `setFactionForRace` #601) | closed (#186) at this boundary; the debt moves with its issues |
+| 13 | `Unit`: 0 C-style casts (row 24's accessors ask `ToPlayer()`), 186 player type tests, 44 Player-only virtuals: 7 motion answers (#81), 31 questions `Unit` asks of a player with the non-player answer as the default, 6 named debt (`GetItemByGuid` #143; `ProhibitSpellSchool` #600; `SetSheath`, `Say` row 1; `Uncharm` row 24; `setFactionForRace` #601) | closed (#186) at this boundary; the debt moves with its issues |
 | 14 | Unit's combat bodies are in `combat/`; `Object/Unit.cpp` keeps `CanAttackByItself` (a vehicle-control question), the random target selection (targeting), the PvP flags (entity state) and `ApplyAttackTimePercentMod` (a stat modifier) | closed (#186) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds eighteen stores (its README lists them), the generic record stores `KeyedRecordStore` and `MultiRecordStore`, `TextPool`, `GameConfig`, the script hook interface `ScriptHooks`, the command hook interface `CommandHooks` and the database script hook interface `DbScriptHooks`, while `ObjectMgr` is still in `Object/` and holds the conditions, the creature templates and their spells, the game object addons and the item templates in `KeyedRecordStore`s; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds the builders under `session/packets/`, the combat handler class under `session/handlers/combat/`, the client and warden handler classes under `session/handlers/connection/`, the vendor, loot, auction and trade handler classes under `session/handlers/economy/`, the skill, enchant, pet, taxi, query, item, NPC, quest, character, character customize, death and player handler classes under `session/handlers/entities/`, the map handler class under `session/handlers/maps/`, the pvp handler class under `session/handlers/pvp/` and the LFG, contact list, GM ticket, petition, chat channel, voice chat, chat, mail, calendar, group, guild and who handler classes under `session/handlers/social/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
