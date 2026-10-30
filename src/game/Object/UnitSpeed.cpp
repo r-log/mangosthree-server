@@ -221,20 +221,8 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced, float ratio, bool ignore
         }
     }
 
-    if (GetTypeId() == TYPEID_UNIT)
-    {
-        switch (mtype)
-        {
-            case MOVE_RUN:
-                speed *= ((Creature*)this)->GetCreatureInfo()->SpeedRun;
-                break;
-            case MOVE_WALK:
-                speed *= ((Creature*)this)->GetCreatureInfo()->SpeedWalk;
-                break;
-            default:
-                break;
-        }
-    }
+    // the unit's kind: a creature's template run and walk rates
+    speed *= NativeSpeedFactor(mtype);
 
     SetSpeedRate(mtype, speed * ratio, forced, ignoreChange);
 }

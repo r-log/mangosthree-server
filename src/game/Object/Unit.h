@@ -1328,6 +1328,11 @@ class Unit : public WorldObject
          * nothing here; Creature restores a temporary faction that ends with combat.
          */
         virtual void CombatStopped() { }
+        /**
+         * Whether this unit's melee hits may crush: here when a creature charms it; Creature answers
+         * whether no player owns it and its template allows it.
+         */
+        virtual bool MayCrush() const;
 
     public:
         /**
@@ -1724,7 +1729,12 @@ class Unit : public WorldObject
          */
         void setFaction(uint32 faction) { SetUInt32Value(UNIT_FIELD_FACTIONTEMPLATE, faction); }
         FactionTemplateEntry const* getFactionTemplateEntry() const;
-        void RestoreOriginalFaction();
+        /**
+         * Gives the unit back its own faction when a faction override ends: here the faction of its
+         * race, through setFactionForRace; Creature takes its owner's for a pet or a totem, else its
+         * template's.
+         */
+        virtual void RestoreOriginalFaction();
         /**
          * Are we hostile towards the given Unit?
          * @param unit the unit we want to check against
@@ -1767,15 +1777,12 @@ class Unit : public WorldObject
         bool IsFFAPvP() const { return HasByteFlag(UNIT_FIELD_BYTES_2, 1, UNIT_BYTE2_FLAG_FFA_PVP); }
         void SetFFAPvP(bool state);
         /**
-         * Returns the CreatureType for this Unit. For players this most often is
-         * CREATURE_TYPE_HUMANOID unless he/she has shapeshifted or something like that.
-         * Ie: Bear form probably wouldn't yield the same return value.
-         * For creatures though Creature::GetCreatureInfo() is called and the CreatureInfo::type
-         * field is used.
+         * Returns the CreatureType for this Unit: here its shapeshift form's creature type, or
+         * CREATURE_TYPE_HUMANOID when the form names none; Creature returns its template's type.
          * @return the CreatureType for this Unit
          * \see CreatureType
          */
-        uint32 GetCreatureType() const;
+        virtual uint32 GetCreatureType() const;
         /**
          * Returns a bitmask representation of CreatureType for this Unit.
          * @return A bitmask representation of GetCreatureType()
@@ -1888,6 +1895,15 @@ class Unit : public WorldObject
         virtual bool IsTotem() const { return false; }
         /// Whether this unit's heals are logged and scored as its owner's: a totem's are, a statue's are not.
         virtual bool CreditsHealToOwner() const { return false; }
+        /// Whether this unit's kind lets it parry; Creature answers false when its template forbids it.
+        virtual bool MayParry() const { return true; }
+        /// Whether this unit's kind lets it block; Creature answers false when its template forbids it.
+        virtual bool MayBlock() const { return true; }
+        /// Whether a parry hastens this unit's next swing; Creature answers false when its template forbids it.
+        virtual bool ParryHastensAttack() const { return true; }
+        /// Whether killing this unit gives experience; Creature answers false for a totem, a pet, or
+        /// a creature whose template forbids it.
+        virtual bool GrantsXPAtKill() const { return true; }
 
         /**
          * Returns the maximum skill value the given Unit can have. Ie: the sword skill can
@@ -2085,12 +2101,12 @@ class Unit : public WorldObject
          * have the attribute SPELL_ATTR_EX3_CANT_MISS. Also, in PvP you can't dodge or parry
          * when the attacker is behind you, but this is possible in PvE.
          *
-         * Creatures with the flag CREATURE_FLAG_EXTRA_NO_PARRY can't parry an attack
+         * A victim whose kind does not let it parry (MayParry) can't parry an attack
          * @param pVictim the victim that was hit
          * @param spell the spell that was cast
          * @return Whether or not the spell hit/was resisted/blocked etc. A successfull cast would result in SPELL_MISS_NONE being returned
          * \see SpellEntry::HasAttribute for checking the SPELL_ATTR_EX3_CANT_MISS
-         * \see Creature::GetCreatureInfo for the flags_extra
+         * \see Unit::MayParry
          */
         SpellMissInfo MeleeSpellHitResult(Unit* pVictim, SpellEntry const* spell);
         /**
@@ -4112,6 +4128,17 @@ class Unit : public WorldObject
          * ghost run rate while it is a ghost
          */
         virtual float StateSpeedFactor() const { return 1.0f; }
+        /**
+         * The factor UpdateSpeed applies for the unit's kind, after the slowing auras.
+         * @return 1 here; Creature returns its template's run or walk rate for MOVE_RUN or MOVE_WALK
+         */
+        virtual float NativeSpeedFactor(UnitMoveType /*mtype*/) const { return 1.0f; }
+        /**
+         * The factor the spell damage bonus applies for the unit's kind.
+         * @return 1 here; Creature returns the configured rate of its template's elite rank, and 1
+         * for a pet
+         */
+        virtual float SpellDamageRankFactor() const { return 1.0f; }
 
     public:
 

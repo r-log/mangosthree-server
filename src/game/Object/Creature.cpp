@@ -3142,6 +3142,25 @@ void Creature::SetFactionTemporary(uint32 factionId, uint32 tempFactionFlags)
 }
 
 /**
+ * @brief Gives the creature back its own faction: its owner's for a pet or a totem, else its
+ * template's.
+ */
+void Creature::RestoreOriginalFaction()
+{
+    if (IsPet() || IsTotem())
+    {
+        if (Unit* owner = GetOwner())
+        {
+            setFaction(owner->getFaction());
+        }
+    }
+    else
+    {
+        setFaction(GetCreatureInfo()->FactionAlliance);
+    }
+}
+
+/**
  * @brief Restores the original faction and temporary flags after a temporary change.
  */
 void Creature::ClearTemporaryFaction()

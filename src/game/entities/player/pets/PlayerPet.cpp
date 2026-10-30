@@ -144,9 +144,7 @@ void Player::CharmSpellInitialize()
 
     if (charm->GetTypeId() != TYPEID_PLAYER)
     {
-        CreatureInfo const* cinfo = ((Creature*)charm)->GetCreatureInfo();
-
-        if (cinfo && cinfo->CreatureType == CREATURE_TYPE_DEMON && getClass() == CLASS_WARLOCK)
+        if (charm->GetCreatureType() == CREATURE_TYPE_DEMON && getClass() == CLASS_WARLOCK)
         {
             for (uint32 i = 0; i < CREATURE_MAX_SPELLS; ++i)
             {

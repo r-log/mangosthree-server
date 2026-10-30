@@ -349,8 +349,7 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
     // This seems to reduce the victims time until next attack if your attack was parried
     if (damageInfo->TargetState == VICTIMSTATE_PARRY)
     {
-        if (pVictim->GetTypeId() != TYPEID_UNIT ||
-            !(((Creature*)pVictim)->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_PARRY_HASTEN))
+        if (pVictim->ParryHastensAttack())
         {
             // Get attack timers
             float offtime = float(pVictim->getAttackTimer(OFF_ATTACK));

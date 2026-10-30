@@ -242,6 +242,15 @@ class Creature : public Unit
         bool IsCivilian() const { return (GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_CIVILIAN) != 0; }
         bool IsGuard() const { return (GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_GUARD) != 0; }
         bool IsUnkillable() const { return (GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_UNKILLABLE) != 0; }
+        uint32 GetCreatureType() const override { return GetCreatureInfo()->CreatureType; }
+        bool MayParry() const override { return !(GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_PARRY); }
+        bool MayBlock() const override { return !(GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_BLOCK); }
+        bool ParryHastensAttack() const override { return !(GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_PARRY_HASTEN); }
+        bool GrantsXPAtKill() const override
+        {
+            return !IsTotem() && !IsPet() && !(GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_XP_AT_KILL);
+        }
+        void RestoreOriginalFaction() override;
 
         bool CanWalk() const { return (GetCreatureInfo()->InhabitType & INHABIT_GROUND) != 0; }
         bool CanSwim() const override; ///< Aquatic nature, swim unit flags, or actual deep-water immersion.
@@ -553,7 +562,13 @@ class Creature : public Unit
         void CombatStopped() override;
         void EnteredCombat(Unit* enemy) override;
         void LeftCombat() override;
+        bool MayCrush() const override;
         float StateSpeedFactor() const override;
+
+        // The creature's kind in Unit's speed and spell damage, defined in CreatureMovement.cpp
+        // and CreatureLevel.cpp
+        float NativeSpeedFactor(UnitMoveType mtype) const override;
+        float SpellDamageRankFactor() const override;
 
         bool MeetsSelectAttackingRequirement(Unit* pTarget, SpellEntry const* pSpellInfo, uint32 selectFlags) const;
 

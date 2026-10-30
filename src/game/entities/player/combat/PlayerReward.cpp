@@ -58,17 +58,7 @@ bool Player::isHonorOrXPTarget(Unit* pVictim) const
         return false;
     }
 
-    if (pVictim->GetTypeId() == TYPEID_UNIT)
-    {
-        Creature* pVictimAsCreature = reinterpret_cast<Creature*>(pVictim);
-        if (pVictimAsCreature->IsTotem() ||
-            pVictimAsCreature->IsPet() ||
-            pVictimAsCreature->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_XP_AT_KILL)
-        {
-            return false;
-        }
-    }
-    return true;
+    return pVictim->GrantsXPAtKill();
 }
 
 /**

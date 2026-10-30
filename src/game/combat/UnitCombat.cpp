@@ -265,7 +265,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
         // Reduce parry chance by attacker expertise rating
         parry_chance -= GetMeleeRollExpertiseReduction(attType);
 
-        if (parry_chance > 0 && (pVictim->GetTypeId() == TYPEID_PLAYER || !(((Creature*)pVictim)->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_PARRY)))
+        if (parry_chance > 0 && pVictim->MayParry())
         {
             parry_chance -= skillBonus;
 
@@ -305,7 +305,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
     // check if attack comes from behind, nobody can parry or block if attacker is behind
     if (!from_behind)
     {
-        if (pVictim->GetTypeId() == TYPEID_PLAYER || !(((Creature*)pVictim)->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_BLOCK))
+        if (pVictim->MayBlock())
         {
             tmp = block_chance;
             if ((tmp > 0)                                   // check if unit _can_ block
@@ -348,12 +348,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
 
         if (crush_chance > 0 && roll < (sum += crush_chance))
         {
-            uint32 typeId = GetTypeId();
-            Unit* tempOwner = GetOwner();
-            Unit* tempCharmer = GetCharmer();
-            if ((typeId == TYPEID_UNIT && !(GetOwnerGuid() && tempOwner && tempOwner->GetTypeId() == TYPEID_PLAYER)
-                && !(static_cast<Creature const*>(this)->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_CRUSH))
-                || (typeId == TYPEID_PLAYER && GetCharmerGuid() && tempCharmer && tempCharmer->GetTypeId() == TYPEID_UNIT))
+            if (MayCrush())
             {
                 DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "RollMeleeOutcomeAgainst: CRUSHING <%d, %d)", sum - crush_chance, sum);
                 return MELEE_HIT_CRUSHING;
@@ -363,6 +358,15 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
 
     DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "RollMeleeOutcomeAgainst: NORMAL");
     return MELEE_HIT_NORMAL;
+}
+
+/**
+ * @brief Whether a creature charms the unit, so that its melee hits may crush.
+ */
+bool Unit::MayCrush() const
+{
+    Unit* charmer = GetCharmer();
+    return GetCharmerGuid() && charmer && charmer->GetTypeId() == TYPEID_UNIT;
 }
 
 /**
@@ -553,13 +557,9 @@ bool Unit::IsSpellBlocked(Unit* pCaster, SpellEntry const* spellEntry, WeaponAtt
     }
     */
 
-    // Check creatures ExtraFlags for disable block
-    if (GetTypeId() == TYPEID_UNIT)
+    if (!MayBlock())
     {
-        if (((Creature*)this)->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_BLOCK)
-        {
-            return false;
-        }
+        return false;
     }
 
     float blockChance = GetUnitBlockChance();
@@ -730,14 +730,9 @@ SpellMissInfo Unit::MeleeSpellHitResult(Unit* pVictim, SpellEntry const* spell)
             canParry = false;
         }
     }
-    // Check creatures ExtraFlags for disable parry
-    if (pVictim->GetTypeId() == TYPEID_UNIT)
+    if (!pVictim->MayParry())
     {
-        uint32 flagEx = ((Creature*)pVictim)->GetCreatureInfo()->ExtraFlags;
-        if (flagEx & CREATURE_FLAG_EXTRA_NO_PARRY)
-        {
-            canParry = false;
-        }
+        canParry = false;
     }
     // Ignore combat result aura
     AuraList const& ignore = GetAurasByType(SPELL_AURA_IGNORE_COMBAT_RESULT);
