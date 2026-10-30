@@ -42,7 +42,6 @@
 #include "spells/data/SpellMgr.h"
 #include "QuestDef.h"
 #include "Player.h"
-#include "ItemCallbacks.h"
 #include "Creature.h"
 #include "spells/pipeline/Spell.h"
 #include "entities/GroupUpdateFacts.h"
