@@ -55,11 +55,8 @@ src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/proto/WorldPacket.h
 src/game/ChatCommands/AHBotCommands.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
 src/game/ChatCommands/BanAndKickCommands.cpp -> src/game/WorldHandlers/World.h
-src/game/ChatCommands/CommunicationCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/CreatureCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/DebugCommands.cpp -> src/game/Harness/Harness.h
-src/game/ChatCommands/MiscellanousCommands.cpp -> src/game/WorldHandlers/World.h
-src/game/ChatCommands/PlayerMiscCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/ReloadCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/ServerCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
@@ -149,7 +146,6 @@ src/game/Object/CharacterCache.cpp -> src/game/entities/player/Player.h
 src/game/Object/CinematicFlyover.cpp -> src/game/entities/player/Player.h
 src/game/Object/Corpse.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/WorldHandlers/GossipDef.h
-src/game/Object/Creature.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/Creature.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through GridNotifiersImpl.h before #572
@@ -227,7 +223,6 @@ src/game/Object/ObjectMgrGameObjects.cpp -> src/game/WorldHandlers/MapManager.h
 src/game/Object/ObjectMgrGameTele.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/GridMap.h
-src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectMgrInstanceData.cpp -> src/game/Object/ArenaTeam.h
 src/game/Object/ObjectMgrInstanceData.cpp -> src/game/WorldHandlers/Group.h
 # reached through ObjectMgr.h before #511
@@ -361,7 +356,6 @@ src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapManager.h
 src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers [social] -> src/game/spells/data/SpellMgr.h
 src/game/WorldHandlers/AchievementCriteriaRequirement.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/AchievementMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Channel.cpp -> src/game/Server/WorldSession.h
@@ -392,7 +386,6 @@ src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #511
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MassMailMgr.h
-src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/WorldHandlers/UpdateData.h

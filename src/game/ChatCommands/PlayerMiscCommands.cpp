@@ -44,7 +44,7 @@
 #include "CharacterCache.h"
 #include "Pet.h"
 #include "Player.h"
-#include "World.h"
+#include "data/WorldBroadcast.h"
 #include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "persistence/characters/CharacterRepository.h"
@@ -392,7 +392,7 @@ bool ChatHandler::HandleResetAllCommand(char* args)
     if (casename == "spells")
     {
         atLogin = AT_LOGIN_RESET_SPELLS;
-        sWorld.SendWorldText(LANG_RESETALL_SPELLS);
+        sWorldBroadcast.WorldText(LANG_RESETALL_SPELLS);
         if (!m_session)
         {
             SendSysMessage(LANG_RESETALL_SPELLS);
@@ -401,7 +401,7 @@ bool ChatHandler::HandleResetAllCommand(char* args)
     else if (casename == "talents")
     {
         atLogin = AtLoginFlags(AT_LOGIN_RESET_TALENTS | AT_LOGIN_RESET_PET_TALENTS);
-        sWorld.SendWorldText(LANG_RESETALL_TALENTS);
+        sWorldBroadcast.WorldText(LANG_RESETALL_TALENTS);
         if (!m_session)
         {
             SendSysMessage(LANG_RESETALL_TALENTS);

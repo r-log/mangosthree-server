@@ -36,7 +36,7 @@
 
 #include "Log.h"
 #include "ObjectGuid.h"
-#include "World.h"
+#include "data/WorldBroadcast.h"
 #include "ProgressBar.h"
 #include "Language.h"
 #include "PoolManager.h"
@@ -328,7 +328,7 @@ void ObjectMgr::SetGraveYardLinkTeam(uint32 id, uint32 zoneId, Team team)
     }
 
     AfterMapPhasePost const post = { AfterMapPhasePost::GRAVEYARD_LINK_TEAM, zoneId, 0, team, id };
-    if (sWorld.PostAfterMapPhase(post))
+    if (sWorldBroadcast.PostAfterMapPhase(post))
     {
         return;
     }
