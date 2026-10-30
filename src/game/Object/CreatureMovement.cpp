@@ -56,6 +56,24 @@ bool Creature::SetPosition(float x, float y, float z, float orientation, bool /*
 }
 
 /**
+ * @brief The creature's template run or walk rate for MOVE_RUN or MOVE_WALK; 1 otherwise.
+ *
+ * @param mtype The movement type.
+ */
+float Creature::NativeSpeedFactor(UnitMoveType mtype) const
+{
+    switch (mtype)
+    {
+        case MOVE_RUN:
+            return GetCreatureInfo()->SpeedRun;
+        case MOVE_WALK:
+            return GetCreatureInfo()->SpeedWalk;
+        default:
+            return 1.0f;
+    }
+}
+
+/**
  * @brief Enables or disables walk mode for the creature.
  *
  * @param enable true to walk; false to run.

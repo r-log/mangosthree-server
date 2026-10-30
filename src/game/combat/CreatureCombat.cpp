@@ -28,8 +28,8 @@
  * @brief The creature's part of Unit's combat flow: its combat anchor, its reaction and call
  *        for assistance when it attacks, the assistance and temporary faction reset when it
  *        stops, what it tells its AI, its instance and its linked creatures when it enters
- *        combat, its out-of-combat flags when it leaves, and its speed while it has searched for
- *        assistance.
+ *        combat, its out-of-combat flags when it leaves, whether its hits may crush, and its speed
+ *        while it has searched for assistance.
  */
 
 #include "Creature.h"
@@ -114,6 +114,13 @@ void Creature::LeftCombat()
 
     // a player's is cleared in Player::UpdateContestedPvP
     clearUnitState(UNIT_STAT_ATTACK_PLAYER);
+}
+
+bool Creature::MayCrush() const
+{
+    Unit* owner = GetOwner();
+    return !(GetOwnerGuid() && owner && owner->GetTypeId() == TYPEID_PLAYER)
+        && !(GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_CRUSH);
 }
 
 //======================================================================

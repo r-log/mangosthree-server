@@ -141,11 +141,8 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
     float DoneTotalMod = 1.0f;
     int32 DoneTotal = 0;
 
-    // Creature damage
-    if (GetTypeId() == TYPEID_UNIT && !IsPet())
-    {
-        DoneTotalMod *= ((Creature*)this)->_GetSpellDamageMod(((Creature*)this)->GetCreatureInfo()->Rank);
-    }
+    // the unit's kind: a creature's elite rank rate
+    DoneTotalMod *= SpellDamageRankFactor();
 
     AuraList const& mModDamagePercentDone = GetAurasByType(SPELL_AURA_MOD_DAMAGE_PERCENT_DONE);
     for (AuraList::const_iterator i = mModDamagePercentDone.begin(); i != mModDamagePercentDone.end(); ++i)

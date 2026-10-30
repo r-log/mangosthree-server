@@ -409,7 +409,7 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGeneric30427(AuraTriggerSpellCo
     // move loot to player inventory and despawn target
     if (caster->GetTypeId() == TYPEID_PLAYER &&
             ctx.triggerTarget->GetTypeId() == TYPEID_UNIT &&
-            ((Creature*)ctx.triggerTarget)->GetCreatureInfo()->CreatureType == CREATURE_TYPE_GAS_CLOUD)
+            ctx.triggerTarget->GetCreatureType() == CREATURE_TYPE_GAS_CLOUD)
     {
         Player* player = (Player*)caster;
         Creature* creature = (Creature*)ctx.triggerTarget;

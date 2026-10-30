@@ -2773,27 +2773,20 @@ bool Unit::IsInvisibleForAlive() const
 }
 
 /**
- * @brief Gets the effective creature type for the unit.
+ * @brief Gets the creature type of the unit's shapeshift form, humanoid without one.
  *
  * @return The creature type identifier.
  */
 uint32 Unit::GetCreatureType() const
 {
-    if (GetTypeId() == TYPEID_PLAYER)
+    SpellShapeshiftFormEntry const* ssEntry = sSpellShapeshiftFormStore.LookupEntry(GetShapeshiftForm());
+    if (ssEntry && ssEntry->CreatureType > 0)
     {
-        SpellShapeshiftFormEntry const* ssEntry = sSpellShapeshiftFormStore.LookupEntry(GetShapeshiftForm());
-        if (ssEntry && ssEntry->CreatureType > 0)
-        {
-            return ssEntry->CreatureType;
-        }
-        else
-        {
-            return CREATURE_TYPE_HUMANOID;
-        }
+        return ssEntry->CreatureType;
     }
     else
     {
-        return ((Creature*)this)->GetCreatureInfo()->CreatureType;
+        return CREATURE_TYPE_HUMANOID;
     }
 }
 
@@ -3845,26 +3838,7 @@ void Unit::SetFFAPvP(bool state)
 
 void Unit::RestoreOriginalFaction()
 {
-    if (GetTypeId() == TYPEID_PLAYER)
-    {
-        setFactionForRace(getRace());
-    }
-    else
-    {
-        Creature* creature = (Creature*)this;
-
-        if (creature->IsPet() || creature->IsTotem())
-        {
-            if (Unit* owner = GetOwner())
-            {
-                setFaction(owner->getFaction());
-            }
-        }
-        else
-        {
-            setFaction(creature->GetCreatureInfo()->FactionAlliance);
-        }
-    }
+    setFactionForRace(getRace());
 }
 
 void Unit::KnockBackFrom(Unit* target, float horizontalSpeed, float verticalSpeed)

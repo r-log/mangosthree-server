@@ -362,3 +362,11 @@ float Creature::_GetSpellDamageMod(int32 Rank)
             return sGameConfig.getConfig(CONFIG_FLOAT_RATE_CREATURE_ELITE_ELITE_SPELLDAMAGE);
     }
 }
+
+/**
+ * @brief The configured spell damage rate of the creature's elite rank; 1 for a pet.
+ */
+float Creature::SpellDamageRankFactor() const
+{
+    return IsPet() ? 1.0f : _GetSpellDamageMod(GetCreatureInfo()->Rank);
+}
