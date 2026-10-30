@@ -172,13 +172,14 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
-**Today (`Unit`, 657 member functions, grouped roughly by defining file and name):** combat 178, auras 113, spell
-casting 72, lifecycle and update 80, movement 81, stats and power 72, pets/charm/summons 57, visibility 4. The target
+**Today (`Unit`, 673 member functions, grouped roughly by defining file and name):** combat 189, auras 113, spell
+casting 73, lifecycle and update 82, movement 83, stats and power 72, pets/charm/summons 57, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
+The families become component classes `Unit` owns in #601.
 
 **Today (player-only code in `Unit`):** Unit's 16 files hold 3 `(Player*)this` casts (row 24's accessor, and the durability a hit costs a player and an
-item's combat spells, two item actions #143 turns into facts the inventory hears) and 194 `TYPEID_PLAYER` tests;
-45 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
+item's combat spells, two item actions #143 turns into facts the inventory hears) and 186 `TYPEID_PLAYER` tests;
+44 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
 `GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
 `GetItemByGuid`, the item the proc handlers ask for by guid, and the weapon an attack uses, the item equipped in a slot and a
@@ -201,7 +202,9 @@ confuse: `SetClientControl`; a player's short teleport on its own map, `NearTele
 `TeleportNear`; the damage a player's hit credits to its battleground score and its achievements,
 `DealDamage`'s player arm: `CreditDamageDealt`; what `CalculateSpellDamage` reads of a player, whether an
 armor specialization spell fits it, its combo points and its combo target: `FitArmorSpecializationRules`,
-`GetComboPoints`, `GetComboTargetGuid`; each with the non-player answer as `Unit`'s default).
+`GetComboPoints`, `GetComboTargetGuid`; each with the non-player answer as `Unit`'s default). The 44 are 7 motion
+answers (#81), 31 questions with the non-player answer as the default, and 6 named debt: `GetItemByGuid` (#143),
+`ProhibitSpellSchool` (#600), `SetSheath` and `Say` (row 1), `Uncharm` (row 24) and `setFactionForRace` (#601).
 What `Unit` tells a player's own client (its attack or auto-repeat spell cancelled, its pet's guid, its stand state,
 a changed melee swing error, the possess action bar, the pet action bar removed) and what a possession does to its
 camera, it reports through the client callbacks the player points it at; a unit that is not a player has none and
@@ -303,6 +306,9 @@ none.
 | A harness run is deterministic | the stepped clock runs every map inline, in order, on one thread |
 
 **Today:**
+- A periodic aura whose caster is on another map ticks on its target's map thread and reads and writes the caster,
+  which the caster's own map may be updating on the other thread: a data race in the default two-thread
+  configuration (#599).
 - Ownership is checked at two seams, the movement kernel (`Unit::AssertMotionOwner`) and the spell seam
   (`Unit::AssertSpellSeamOwner`), where a unit's per-spell handlers enter the registry: 13 of the 15 dispatches of a
   `Unit` site build one of the five contexts that hold the unit, and building it checks the unit. The other two,
@@ -396,8 +402,8 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); none calls the database; all twelve are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, `CurrencyMgr`, `SocialList`, `GlyphMgr`, `TalentMgr` and `QuestStatusMgr`, whose rows their repositories in `persistence/characters/` read and write). **Spells, Today:** `SpellCooldownMgr` calls no database (its rows go through its repository in `persistence/characters/spells/`) and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | closed for the database (#144: no manager calls it, each is tested from plain rows and its repository over the fake connection); the rest when the domain is next touched |
 | 10 | `CheckStateOwnership`'s achievement row: its owner, `AchievementMgr`, still builds its packets; `QuestCompletePacket` is in `session/packets/quests/` and builds the player's quest-complete fact | with `AchievementMgr`'s move (row 16) |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
-| 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
-| 13 | `Unit`: 3 `(Player*)this` casts, 194 player type tests, 45 Player-only virtuals | Unit reopen |
+| 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, a behaviour change, in #600 on 4.3.4 evidence |
+| 13 | `Unit`: 3 `(Player*)this` casts (row 24's accessor, two item actions), 186 player type tests, 44 Player-only virtuals: 7 motion answers (#81), 31 questions `Unit` asks of a player with the non-player answer as the default, 6 named debt (`GetItemByGuid` #143; `ProhibitSpellSchool` #600; `SetSheath`, `Say` row 1; `Uncharm` row 24; `setFactionForRace` #601) | closed (#186) at this boundary; the debt moves with its issues |
 | 14 | Unit's combat bodies are in `combat/`; `Object/Unit.cpp` keeps `CanAttackByItself` (a vehicle-control question), the random target selection (targeting), the PvP flags (entity state) and `ApplyAttackTimePercentMod` (a stat modifier) | closed (#186) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds eighteen stores (its README lists them), the generic record stores `KeyedRecordStore` and `MultiRecordStore`, `TextPool`, `GameConfig`, the script hook interface `ScriptHooks`, the command hook interface `CommandHooks` and the database script hook interface `DbScriptHooks`, while `ObjectMgr` is still in `Object/` and holds the conditions, the creature templates and their spells, the game object addons and the item templates in `KeyedRecordStore`s; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds the builders under `session/packets/`, the combat handler class under `session/handlers/combat/`, the client and warden handler classes under `session/handlers/connection/`, the vendor, loot, auction and trade handler classes under `session/handlers/economy/`, the skill, enchant, pet, taxi, query, item, NPC, quest, character, character customize, death and player handler classes under `session/handlers/entities/`, the map handler class under `session/handlers/maps/`, the pvp handler class under `session/handlers/pvp/` and the LFG, contact list, GM ticket, petition, chat channel, voice chat, chat, mail, calendar, group, guild and who handler classes under `session/handlers/social/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
