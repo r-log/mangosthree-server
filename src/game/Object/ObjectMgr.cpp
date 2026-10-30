@@ -43,6 +43,7 @@
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "Group.h"
 #include "ArenaTeam.h"
 #include "CharacterCache.h"
@@ -1092,10 +1093,10 @@ void ObjectMgr::SetHighestGuids()
 
     // setup reserved ranges for static guids spawn
     m_StaticCreatureGuids.Set(m_FirstTemporaryCreatureGuid);
-    m_FirstTemporaryCreatureGuid += sWorld.getConfig(CONFIG_UINT32_GUID_RESERVE_SIZE_CREATURE);
+    m_FirstTemporaryCreatureGuid += sGameConfig.getConfig(CONFIG_UINT32_GUID_RESERVE_SIZE_CREATURE);
 
     m_StaticGameObjectGuids.Set(m_FirstTemporaryGameObjectGuid);
-    m_FirstTemporaryGameObjectGuid += sWorld.getConfig(CONFIG_UINT32_GUID_RESERVE_SIZE_GAMEOBJECT);
+    m_FirstTemporaryGameObjectGuid += sGameConfig.getConfig(CONFIG_UINT32_GUID_RESERVE_SIZE_GAMEOBJECT);
 }
 
 
@@ -1219,7 +1220,7 @@ std::string ObjectMgr::GeneratePetName(uint32 entry)
     if (list0.empty() || list1.empty())
     {
         CreatureInfo const* cinfo = GetCreatureTemplate(entry);
-        char const* petname = GetPetName(cinfo->Family, sWorld.GetDefaultDbcLocale());
+        char const* petname = GetPetName(cinfo->Family, sGameConfig.GetDefaultDbcLocale());
         if (!petname)
         {
             petname = cinfo->Name;
@@ -1980,7 +1981,7 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
         }
         case CONDITION_TEAM:
         {
-            if (conditionSourceType == CONDITION_FROM_REFERING_LOOT && sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_AUCTION))
+            if (conditionSourceType == CONDITION_FROM_REFERING_LOOT && sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_AUCTION))
             {
                 return true;
             }
@@ -2549,7 +2550,7 @@ bool PlayerCondition::IsValid(uint16 entry, ConditionType condition, uint32 valu
                 sLog.outErrorDb("Skill condition (entry %u, type %u) specifies non-existing skill (%u), skipped", entry, condition, value1);
                 return false;
             }
-            if (value2 < 1 || value2 > sWorld.GetConfigMaxSkillValue())
+            if (value2 < 1 || value2 > sGameConfig.GetConfigMaxSkillValue())
             {
                 sLog.outErrorDb("Skill condition (entry %u, type %u) specifies invalid skill value (%u), skipped", entry, condition, value2);
                 return false;
@@ -2642,7 +2643,7 @@ bool PlayerCondition::IsValid(uint16 entry, ConditionType condition, uint32 valu
         }
         case CONDITION_LEVEL:
         {
-            if (!value1 || value1 > sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+            if (!value1 || value1 > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
             {
                 sLog.outErrorDb("Level condition (entry %u, type %u)has invalid level %u, skipped", entry, condition, value1);
                 return false;

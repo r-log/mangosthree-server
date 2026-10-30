@@ -37,6 +37,7 @@
 #include "WorldSession.h"
 #include "Opcodes.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectGuid.h"
 #include "Player.h"
 #include "persistence/characters/CharacterRepository.h"
@@ -87,7 +88,7 @@ void WorldSession::SendNameQueryOpcodeFromDB(ObjectGuid guid)
 {
     uint32 accountId = GetAccountId();
     proto::SessionId sessionId = GetSessionId();
-    CharacterRepository::QueryName(guid.GetCounter(), sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED),
+    CharacterRepository::QueryName(guid.GetCounter(), sGameConfig.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED),
                                    [accountId, sessionId](std::optional<CharacterNameRow> row)
                                    {
                                        WorldSession::SendNameQueryOpcodeFromDBCallBack(row, accountId, sessionId);
@@ -139,7 +140,7 @@ void WorldSession::SendNameQueryOpcodeFromDBCallBack(std::optional<CharacterName
     data << uint8(pClass);                                  // class
 
     // if the first declined name is empty, the rest must be too
-    if (sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) && !row->declinedNames[0].empty())
+    if (sGameConfig.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) && !row->declinedNames[0].empty())
     {
         data << uint8(1);                                   // is declined
         for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)

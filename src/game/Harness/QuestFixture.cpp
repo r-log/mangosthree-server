@@ -27,7 +27,7 @@
 #include "QuestDef.h"
 #include "ObjectMgr.h"
 #include "Player.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "DBCStores.h"
@@ -684,7 +684,7 @@ namespace Harness
         }
 
         // 2. the quest tracker
-        if (sWorld.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER))
+        if (sGameConfig.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER))
         {
             r.refusal = "QuestTracker.Enable is on: AddQuest and CompleteQuest would write the tracker's rows";
             return r;
@@ -735,13 +735,13 @@ namespace Harness
             r.refusal = buf;
             return r;
         }
-        const uint32 maxLevel = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
+        const uint32 maxLevel = sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
         r.startLevel = plan.level ? plan.level
-                       : sWorld.getConfig(plan.classId == CLASS_DEATH_KNIGHT ? CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL : CONFIG_UINT32_START_PLAYER_LEVEL);
+                       : sGameConfig.getConfig(plan.classId == CLASS_DEATH_KNIGHT ? CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL : CONFIG_UINT32_START_PLAYER_LEVEL);
         uint32 level = r.startLevel;
         if (q && level < maxLevel)
         {
-            r.xpBound = uint32(QuestXpBound(q, level) * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST)) * plan.rewards;
+            r.xpBound = uint32(QuestXpBound(q, level) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST)) * plan.rewards;
             uint32 xp = r.xpBound;   // a spawned or level-set player starts the level at 0 XP
             while (level < maxLevel && xp >= sObjectMgr.GetXPForLevel(level))
             {
@@ -813,7 +813,7 @@ namespace Harness
             }
             const uint64 money = r.startLevel < maxLevel
                                  ? uint64(std::max<int32>(q->GetRewOrReqMoney(), 0))
-                                 : uint64(std::max<int64>(int64(q->GetRewMoneyMaxLevel() * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY)), int64(q->GetRewOrReqMoney())));
+                                 : uint64(std::max<int64>(int64(q->GetRewMoneyMaxLevel() * sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY)), int64(q->GetRewOrReqMoney())));
             t.questMoney = money * rewards;
             t.moneyMoves = t.moneyMoves || t.questMoney != 0 || q->GetRewOrReqMoney() < 0;
             if (plan.choice < QUEST_REWARD_CHOICES_COUNT)

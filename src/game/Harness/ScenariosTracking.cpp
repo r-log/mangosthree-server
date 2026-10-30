@@ -34,6 +34,7 @@
 #include "World.h"        // the TargetPosRecalculateRange the follow's drift edge is built on
 #include "Utilities/MathDefines.h"
 #include "Log.h"
+#include "data/GameConfig.h"
 
 #include <algorithm>
 #include <cmath>
@@ -185,7 +186,7 @@ namespace Harness
         {
             const float oe = f->Where().Extent(), te = leader->Where().Extent();
             const float standing = FOLLOW_DIST + oe + te;
-            const float recalcRange = sWorld.getConfig(CONFIG_FLOAT_RATE_TARGET_POS_RECALCULATION_RANGE);
+            const float recalcRange = sGameConfig.getConfig(CONFIG_FLOAT_RATE_TARGET_POS_RECALCULATION_RANGE);
             const float recalc = recalcRange + oe + te;
             const float floorTerm = 0.5f;                 // MotionDriver's MIN_RELAY_DISTANCE
             const float cadence = 0.4f * leaderSpeed;

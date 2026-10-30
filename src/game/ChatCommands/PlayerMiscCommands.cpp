@@ -45,6 +45,7 @@
 #include "Pet.h"
 #include "Player.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "persistence/characters/CharacterRepository.h"
 
@@ -215,8 +216,8 @@ bool ChatHandler::HandleResetLevelCommand(char* args)
 
     // set starting level
     uint32 start_level = target->getClass() != CLASS_DEATH_KNIGHT
-                         ? sWorld.getConfig(CONFIG_UINT32_START_PLAYER_LEVEL)
-                         : sWorld.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL);
+                         ? sGameConfig.getConfig(CONFIG_UINT32_START_PLAYER_LEVEL)
+                         : sGameConfig.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL);
 
     target->_ApplyAllLevelScaleItemMods(false);
 

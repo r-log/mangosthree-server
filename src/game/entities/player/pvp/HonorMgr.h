@@ -142,8 +142,8 @@ class HonorMgr
             Clock clock;                            ///< the rollover's clock, read twice
             OwnerFacts owner;
             VictimFacts victim;
-            bool ffaRealm = false;                  ///< sWorld.IsFFAPvPRealm()
-            float honorRate = 0.0f;                 ///< sWorld.getConfig(CONFIG_FLOAT_RATE_HONOR)
+            bool ffaRealm = false;                  ///< sGameConfig.IsFFAPvPRealm()
+            float honorRate = 0.0f;                 ///< sGameConfig.getConfig(CONFIG_FLOAT_RATE_HONOR)
             Draw draw;                              ///< urand(8, 12), called only where the old body drew
         };
 

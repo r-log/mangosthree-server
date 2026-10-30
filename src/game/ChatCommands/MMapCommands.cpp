@@ -37,6 +37,7 @@
 #include "Chat.h"
 #include "Language.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "Creature.h"
 #include "MoveMap.h"
 #include "PathFinder.h" // for mmap manager
@@ -289,7 +290,7 @@ bool ChatHandler::HandleMmapLoadedTilesCommand(char* /*args*/)
 bool ChatHandler::HandleMmapStatsCommand(char* /*args*/)
 {
     PSendSysMessage("mmap stats:");
-    PSendSysMessage("  global mmap pathfinding is %sabled", sWorld.getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "en" : "dis");
+    PSendSysMessage("  global mmap pathfinding is %sabled", sGameConfig.getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "en" : "dis");
 
     MMAP::MMapManager* manager = MMAP::MMapFactory::createOrGetMMapManager();
     PSendSysMessage(" %u maps loaded with %u tiles overall", manager->getLoadedMapsCount(), manager->getLoadedTilesCount());
@@ -361,7 +362,7 @@ bool ChatHandler::HandleMmap(char* args)
         return true;
     }
 
-    on = sWorld.getConfig(CONFIG_BOOL_MMAP_ENABLED);
+    on = sGameConfig.getConfig(CONFIG_BOOL_MMAP_ENABLED);
     PSendSysMessage("mmaps are %sabled", on ? "en" : "dis");
 
     return true;

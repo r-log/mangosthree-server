@@ -36,7 +36,7 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "AchievementMgr.h"
 #include "DBCStores.h"
 #include "Opcodes.h"
@@ -529,7 +529,7 @@ namespace Harness
                 st->repBefore = p->GetReputationMgr().GetReputation(72);
                 st->held57524Before = p->GetInventoryMgr().GetItemCount(57524);
                 st->held858Before = p->GetInventoryMgr().GetItemCount(858);
-                st->xpExpected = uint32(q->XPValue(p) * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+                st->xpExpected = uint32(q->XPValue(p) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
 
                 m_rec.Open("reward");
                 st->rewardRan = true;
@@ -926,7 +926,7 @@ namespace Harness
                 st->repBefore = p->GetReputationMgr().GetReputation(69);
                 st->held5399Before = p->GetInventoryMgr().GetItemCount(5399);
                 st->held961Before = p->GetInventoryMgr().GetItemCount(961);
-                st->xpExpected = uint32(q->XPValue(p) * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+                st->xpExpected = uint32(q->XPValue(p) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
                 st->rewardRan = Reward(p, q, 1, p, p->GetObjectGuid(), "canReward", "reward", st->canReward);
                 st->askPackets = m_rec.CountIn("canReward");
                 st->moneyAfter = p->GetMoney();
@@ -1535,7 +1535,7 @@ namespace Harness
                 st->moneyBefore = p->GetMoney();
                 st->xpBefore = p->GetUInt32Value(PLAYER_XP);
                 st->levelBefore = p->getLevel();
-                st->xpExpected = uint32(q->XPValue(p) * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+                st->xpExpected = uint32(q->XPValue(p) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
                 st->rewardRan = Reward(p, q, 0, p, p->GetObjectGuid(), "canReward", "reward", st->canReward);
                 st->freeAfter = p->GetTalentMgr().FreePoints();
                 st->talentUpdates = m_rec.CountIn("reward", SMSG_TALENT_UPDATE);
@@ -2021,7 +2021,7 @@ namespace Harness
             const uint32 creditEntry = 39221;
             const uint32 gem = 52086;
             const uint32 currency = 361;
-            const uint32 level = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
+            const uint32 level = sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
             QuestPlan plan;
             plan.quest = questId;
             plan.level = level;
@@ -2205,12 +2205,12 @@ namespace Harness
                 }
 
                 // --- maxLevelMoney
-                const uint64 wantMoney = uint64(q->GetRewMoneyMaxLevel() * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
+                const uint64 wantMoney = uint64(q->GetRewMoneyMaxLevel() * sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
                 if (!st->rewardRan)
                 {
                     snprintf(money, sizeof(money), "INVALID(the reward never ran: CanRewardQuest=%d)", st->canReward ? 1 : 0);
                 }
-                else if (st->levelBefore != sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) || st->moneyAfter - st->moneyBefore != wantMoney ||
+                else if (st->levelBefore != sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) || st->moneyAfter - st->moneyBefore != wantMoney ||
                          st->xpAfter != st->xpBefore || st->levelAfter != st->levelBefore || st->xpLogs)
                 {
                     snprintf(money, sizeof(money), "BUG(level %u -> %u, money +%lld (expected RewMoneyMaxLevel x Rate.Drop.Money = %llu), XP %u -> %u, LOG_XPGAIN x%u)",

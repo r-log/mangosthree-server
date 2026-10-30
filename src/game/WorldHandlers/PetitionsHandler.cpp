@@ -38,6 +38,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "Creature.h"
 #include "spells/auras/SpellAuraDefines.h"
@@ -170,9 +171,9 @@ void WorldSession::SendPetitionShowList(ObjectGuid guid)
         data << uint32(1);                  // index
         data << uint32(GUILD_CHARTER);      // charter entry
         data << uint32(CHARTER_DISPLAY_ID); // charter display id
-        data << uint32(sWorld.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST)); // charter cost
+        data << uint32(sGameConfig.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST)); // charter cost
         data << uint32(0);                  // unknown
-        data << uint32(sWorld.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS));  // required signs
+        data << uint32(sGameConfig.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS));  // required signs
     }
 
     SendPacket(&data);

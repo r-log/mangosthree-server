@@ -43,6 +43,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "DBCStores.h"
@@ -154,7 +155,7 @@ class LoginQueryHolder : public SqlQueryHolder
  */
 bool LoginQueryHolder::Initialize()
 {
-    return CharacterRepository::StageLoginReads(this, m_guid.GetCounter(), sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED));
+    return CharacterRepository::StageLoginReads(this, m_guid.GetCounter(), sGameConfig.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED));
 }
 
 // The callbacks find their session again by account id and session id: a session can be gone,
@@ -331,7 +332,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     // Dungeon Finder: tell the client up front when the feature is off, so
     // the Dungeon Finder panel shows the disabled state instead of an empty
     // list
-    if (!sWorld.getConfig(CONFIG_BOOL_LFG_ENABLE))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_LFG_ENABLE))
     {
         data.Initialize(SMSG_LFG_DISABLED, 0);
         LFGPackets::BuildDisabled(data);
@@ -480,7 +481,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     }
 
     bool createCinematicFlyover = isFirstLogin && cinematicSequenceId &&
-        sWorld.getConfig(CONFIG_BOOL_CINEMATIC_FLYOVER_ENABLE);
+        sGameConfig.getConfig(CONFIG_BOOL_CINEMATIC_FLYOVER_ENABLE);
     bool createEarlyDkCinematicFlyover = createCinematicFlyover &&
         cinematicSequenceId == 165 && pCurrChar->GetMapId() == 609;
 
@@ -576,7 +577,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     pCurrChar->LoadPet();
 
     /* If we're running an FFA PvP realm and the player isn't a GM, mark them as PvP flagged */
-    if (sWorld.IsFFAPvPRealm() && !pCurrChar->isGameMaster() && !pCurrChar->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING))
+    if (sGameConfig.IsFFAPvPRealm() && !pCurrChar->isGameMaster() && !pCurrChar->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING))
     {
         pCurrChar->SetFFAPvP(true);
     }
@@ -615,7 +616,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     }
 
     /* If player should have all taxi paths, give them to the player */
-    if (sWorld.getConfig(CONFIG_BOOL_ALL_TAXI_PATHS))
+    if (sGameConfig.getConfig(CONFIG_BOOL_ALL_TAXI_PATHS))
     {
         pCurrChar->SetTaxiCheater(true);
     }
@@ -629,7 +630,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     if (!pCurrChar->isGMVisible())
     {
         SendNotification(LANG_INVISIBLE_INVISIBLE);
-        SpellEntry const* invisibleAuraInfo = sSpellStore.LookupEntry(sWorld.getConfig(CONFIG_UINT32_GM_INVISIBLE_AURA));
+        SpellEntry const* invisibleAuraInfo = sSpellStore.LookupEntry(sGameConfig.getConfig(CONFIG_UINT32_GM_INVISIBLE_AURA));
         if (invisibleAuraInfo && IsSpellAppliesAura(invisibleAuraInfo))
         {
             pCurrChar->CastSpell(pCurrChar, invisibleAuraInfo, true);

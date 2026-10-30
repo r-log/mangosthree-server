@@ -39,6 +39,7 @@
 #include "CreatureEventAI.h"
 #include "Language.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "TemporarySummon.h"
@@ -559,7 +560,7 @@ bool ChatHandler::HandleNpcChangeLevelCommand(char* args)
     }
 
     uint8 lvl = (uint8)atoi(args);
-    if (lvl < 1 || lvl > sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) + 3)
+    if (lvl < 1 || lvl > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) + 3)
     {
         SendSysMessage(LANG_BAD_VALUE);
         SetSentErrorMessage(true);

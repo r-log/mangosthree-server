@@ -39,6 +39,7 @@
 #include "SessionLinks.h"
 #include "SharedDefines.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "persistence/login/AccountRepository.h"
 
@@ -140,7 +141,7 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
     const std::string lastIp = account->lastIp;
     const bool        locked = account->locked == 1;
 
-    row->expansion = uint8(std::min<uint32>(sWorld.getConfig(CONFIG_UINT32_EXPANSION),
+    row->expansion = uint8(std::min<uint32>(sGameConfig.getConfig(CONFIG_UINT32_EXPANSION),
                                             account->expansion));
     row->muteTime  = time_t(account->muteTime);
 

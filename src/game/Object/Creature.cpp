@@ -34,6 +34,7 @@
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "ObjectMgr.h"
 #include "data/ScriptNameStore.h"
@@ -203,10 +204,10 @@ void Creature::AddToWorld()
     if (sWorld.isForceLoadMap(GetMapId()) ||
         (GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_ACTIVE) ||
         IsLivingWorldAnchor(GetCreatureInfo(), sMapStore.LookupEntry(GetMapId()),
-                            sWorld.getConfig(CONFIG_UINT32_LIVINGWORLD_ANCHOR_MASK)) ||
+                            sGameConfig.getConfig(CONFIG_UINT32_LIVINGWORLD_ANCHOR_MASK)) ||
         (GetLivingWorldDefenderCategory(GetCreatureInfo(), sMapStore.LookupEntry(GetMapId()),
                                         GetDefaultMovementType() == CREATURE_MOVEMENT_WAYPOINT)
-            & sWorld.getConfig(CONFIG_UINT32_LIVINGWORLD_ANCHOR_MASK)))
+            & sGameConfig.getConfig(CONFIG_UINT32_LIVINGWORLD_ANCHOR_MASK)))
     {
         SetActiveObjectState(true);
     }
@@ -666,7 +667,7 @@ void Creature::Update(uint32 update_diff, uint32 diff)
             {
                 DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "Respawning...");
                 m_respawnTime = 0;
-                m_aggroDelay = sWorld.getConfig(CONFIG_UINT32_CREATURE_RESPAWN_AGGRO_DELAY);
+                m_aggroDelay = sGameConfig.getConfig(CONFIG_UINT32_CREATURE_RESPAWN_AGGRO_DELAY);
                 lootForPickPocketed = false;
                 lootForBody         = false;
                 lootForSkin         = false;
@@ -921,7 +922,7 @@ void Creature::RegeneratePower()
             // Combat and any controlled creature
             if (IsInCombat() || GetCharmerOrOwnerGuid())
             {
-                float ManaIncreaseRate = sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_MANA);
+                float ManaIncreaseRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_MANA);
                 float Spirit = GetStat(STAT_SPIRIT);
 
                 addValue = uint32(Spirit / 5.0f + 17.0f) * ManaIncreaseRate;
@@ -933,10 +934,10 @@ void Creature::RegeneratePower()
             break;
         case POWER_ENERGY:
             // ToDo: for vehicle this is different - NEEDS TO BE FIXED!
-            addValue = 20 * sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_ENERGY);
+            addValue = 20 * sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_ENERGY);
             break;
         case POWER_FOCUS:
-            addValue = 24 * sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_FOCUS);
+            addValue = 24 * sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_FOCUS);
             break;
         default:
             return;
@@ -989,7 +990,7 @@ void Creature::RegenerateHealth()
     // Not only pet, but any controlled creature
     if (GetCharmerOrOwnerGuid())
     {
-        float HealthIncreaseRate = sWorld.getConfig(CONFIG_FLOAT_RATE_HEALTH);
+        float HealthIncreaseRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_HEALTH);
         float Spirit = GetStat(STAT_SPIRIT); //for charmed creatures, spirit = 0!
         if (GetPower(POWER_MANA) > 0)
         {
@@ -1018,7 +1019,7 @@ void Creature::DoFleeToGetAssistance()
         return;
     }
 
-    float radius = sWorld.getConfig(CONFIG_FLOAT_CREATURE_FAMILY_FLEE_ASSISTANCE_RADIUS);
+    float radius = sGameConfig.getConfig(CONFIG_FLOAT_CREATURE_FAMILY_FLEE_ASSISTANCE_RADIUS);
     if (radius > 0)
     {
         Creature* pCreature = NULL;
@@ -1032,7 +1033,7 @@ void Creature::DoFleeToGetAssistance()
 
         if (!pCreature)
         {
-            SetFeared(true, getVictim()->GetObjectGuid(), 0 , sWorld.getConfig(CONFIG_UINT32_CREATURE_FAMILY_FLEE_DELAY));
+            SetFeared(true, getVictim()->GetObjectGuid(), 0 , sGameConfig.getConfig(CONFIG_UINT32_CREATURE_FAMILY_FLEE_DELAY));
         }
         else
         {
@@ -1110,19 +1111,19 @@ bool Creature::Create(uint32 guidlow, CreatureCreatePos& cPos, CreatureInfo cons
     switch (GetCreatureInfo()->Rank)
     {
         case CREATURE_ELITE_RARE:
-            m_corpseDelay = sWorld.getConfig(CONFIG_UINT32_CORPSE_DECAY_RARE);
+            m_corpseDelay = sGameConfig.getConfig(CONFIG_UINT32_CORPSE_DECAY_RARE);
             break;
         case CREATURE_ELITE_ELITE:
-            m_corpseDelay = sWorld.getConfig(CONFIG_UINT32_CORPSE_DECAY_ELITE);
+            m_corpseDelay = sGameConfig.getConfig(CONFIG_UINT32_CORPSE_DECAY_ELITE);
             break;
         case CREATURE_ELITE_RAREELITE:
-            m_corpseDelay = sWorld.getConfig(CONFIG_UINT32_CORPSE_DECAY_RAREELITE);
+            m_corpseDelay = sGameConfig.getConfig(CONFIG_UINT32_CORPSE_DECAY_RAREELITE);
             break;
         case CREATURE_ELITE_WORLDBOSS:
-            m_corpseDelay = sWorld.getConfig(CONFIG_UINT32_CORPSE_DECAY_WORLDBOSS);
+            m_corpseDelay = sGameConfig.getConfig(CONFIG_UINT32_CORPSE_DECAY_WORLDBOSS);
             break;
         default:
-            m_corpseDelay = sWorld.getConfig(CONFIG_UINT32_CORPSE_DECAY_NORMAL);
+            m_corpseDelay = sGameConfig.getConfig(CONFIG_UINT32_CORPSE_DECAY_NORMAL);
             break;
     }
 
@@ -1331,7 +1332,7 @@ void Creature::PrepareBodyLootState()
         // have normal loot
         if (GetCreatureInfo()->MaxLootGold > 0 || GetCreatureInfo()->LootId ||
                 // ... or can have skinning after
-                (GetCreatureInfo()->SkinningLootId && sWorld.getConfig(CONFIG_BOOL_CORPSE_EMPTY_LOOT_SHOW)))
+                (GetCreatureInfo()->SkinningLootId && sGameConfig.getConfig(CONFIG_BOOL_CORPSE_EMPTY_LOOT_SHOW)))
         {
             // Only show the lootable glitter if a player participated in the kill.
             // Without a recipient, no player is allowed to loot (see Player::SendLoot
@@ -1721,9 +1722,9 @@ bool Creature::LoadFromDB(uint32 guidlow, Map* map)
     }
 
     // check if it is rabbit day
-    if (IsAlive() && sWorld.getConfig(CONFIG_UINT32_RABBIT_DAY))
+    if (IsAlive() && sGameConfig.getConfig(CONFIG_UINT32_RABBIT_DAY))
     {
-        time_t rabbit_day = time_t(sWorld.getConfig(CONFIG_UINT32_RABBIT_DAY));
+        time_t rabbit_day = time_t(sGameConfig.getConfig(CONFIG_UINT32_RABBIT_DAY));
         tm rabbit_day_tm = *localtime(&rabbit_day);
         tm now_tm = *localtime(&WorldGameTime::Get());
 
@@ -1860,7 +1861,7 @@ void Creature::DeleteFromDB(uint32 lowguid, CreatureData const* data)
  */
 float Creature::GetAttackDistance(Unit const* pl) const
 {
-    float aggroRate = sWorld.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO);
+    float aggroRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO);
     if (aggroRate == 0)
     {
         return 0.0f;
@@ -1884,7 +1885,7 @@ float Creature::GetAttackDistance(Unit const* pl) const
     // radius grow if playlevel < creaturelevel
     RetDistance -= (float)leveldif;
 
-    if (creaturelevel + 5 <= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (creaturelevel + 5 <= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         // detect range auras
         RetDistance += GetTotalAuraModifier(SPELL_AURA_MOD_DETECT_RANGE);
@@ -1915,7 +1916,7 @@ void Creature::SetDeathState(DeathState s)
         m_respawnTime = time(NULL) + m_respawnDelay;        // respawn delay (spawntimesecs)
 
         // always save boss respawn time at death to prevent crash cheating
-        if (sWorld.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY) || IsWorldBoss())
+        if (sGameConfig.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY) || IsWorldBoss())
         {
             SaveRespawnTime();
         }
@@ -2341,7 +2342,7 @@ bool Creature::IsVisibleInGridForPlayer(Player* pl) const
         if (corpse)
         {
             // 20 - aggro distance for same level, 25 - max additional distance if player level less that creature level
-            if (InReach(*corpse, *this, (20 + 25)*sWorld.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO)))
+            if (InReach(*corpse, *this, (20 + 25)*sGameConfig.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO)))
             {
                 return true;
             }
@@ -2390,7 +2391,7 @@ void Creature::CallAssistance()
             return;
         }
 
-        AI()->SendAIEventAround(AI_EVENT_CALL_ASSISTANCE, getVictim(), sWorld.getConfig(CONFIG_UINT32_CREATURE_FAMILY_ASSISTANCE_DELAY), sWorld.getConfig(CONFIG_FLOAT_CREATURE_FAMILY_ASSISTANCE_RADIUS));
+        AI()->SendAIEventAround(AI_EVENT_CALL_ASSISTANCE, getVictim(), sGameConfig.getConfig(CONFIG_UINT32_CREATURE_FAMILY_ASSISTANCE_DELAY), sGameConfig.getConfig(CONFIG_FLOAT_CREATURE_FAMILY_ASSISTANCE_RADIUS));
     }
 }
 
@@ -2570,7 +2571,7 @@ bool Creature::IsOutOfThreatArea(Unit* pVictim) const
     }
 
     float AttackDist = GetAttackDistance(pVictim);
-    float ThreatRadius = sWorld.getConfig(CONFIG_FLOAT_THREAT_RADIUS);
+    float ThreatRadius = sGameConfig.getConfig(CONFIG_FLOAT_THREAT_RADIUS);
 
     // Use AttackDistance in distance check if threat radius is lower. This prevents creature bounce in and out of combat every update tick.
     return !pVictim->Where().WithinDist(CombatAnchor(), ThreatRadius > AttackDist ? ThreatRadius : AttackDist);
@@ -3023,7 +3024,7 @@ void Creature::AllLootRemovedFromCorpse()
         return;
     }
 
-    float decayRate = m_ignoreCorpseDecayRatio ? 1.f : sWorld.getConfig(CONFIG_FLOAT_RATE_CORPSE_DECAY_LOOTED);
+    float decayRate = m_ignoreCorpseDecayRatio ? 1.f : sGameConfig.getConfig(CONFIG_FLOAT_RATE_CORPSE_DECAY_LOOTED);
 
     if (loot.loot_type == LOOT_SKINNING)
     {
@@ -3050,7 +3051,7 @@ uint32 Creature::GetLevelForTarget(Unit const* target) const
         return Unit::GetLevelForTarget(target);
     }
 
-    uint32 level = target->getLevel() + sWorld.getConfig(CONFIG_UINT32_WORLD_BOSS_LEVEL_DIFF);
+    uint32 level = target->getLevel() + sGameConfig.getConfig(CONFIG_UINT32_WORLD_BOSS_LEVEL_DIFF);
     if (level < 1)
     {
         return 1;
