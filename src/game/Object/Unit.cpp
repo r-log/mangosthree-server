@@ -1553,9 +1553,8 @@ void Unit::SetPowerType(Powers new_powertype)
     {
         ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_POWER_TYPE});
     }
-    else if (IsPet())
+    else if (Pet* pet = ToPet(this))
     {
-        Pet* pet = ((Pet*)this);
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
@@ -2407,9 +2406,8 @@ MountCapabilityEntry const* Unit::GetMountCapability(uint32 mountType) const
     uint32 zoneId, areaId;
     GetTerrain()->GetZoneAndAreaId(zoneId, areaId, Where().X(), Where().Y(), Where().Z());
     uint32 ridingSkill = 5000;
-    if (GetTypeId() == TYPEID_PLAYER)
+    if (Player const* plr = ToPlayer())
     {
-        Player* plr = (Player*)(this);
         ridingSkill = plr->GetSkillValue(SKILL_RIDING);
     }
 
@@ -2720,9 +2718,9 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
     }
     else
     {
-        spellLevel = spellProto->GetSpellLevel();                                       // E2a, reaches the DBC store
-        uint32 maxLevel = spellProto->GetMaxLevel();                                    // E2a
-        uint32 baseLevel = spellProto->GetBaseLevel();                                  // E2a
+        spellLevel = spellProto->GetSpellLevel(); // reaches the DBC store
+        uint32 maxLevel = spellProto->GetMaxLevel();
+        uint32 baseLevel = spellProto->GetBaseLevel();
 
         Combat::SpellLegacyScaling const legacy = Combat::SpellLegacyScalingPoints(
                 level, spellLevel, maxLevel, baseLevel, spellEffect->EffectRealPointsPerLevel,
@@ -2866,9 +2864,8 @@ void Unit::SetHealth(uint32 val)
     {
         ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_CUR_HP});
     }
-    else if (IsPet())
+    else if (Pet* pet = ToPet(this))
     {
-        Pet* pet = ((Pet*)this);
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
@@ -2895,9 +2892,8 @@ void Unit::SetMaxHealth(uint32 val)
     {
         ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_MAX_HP});
     }
-    else if (IsPet())
+    else if (Pet* pet = ToPet(this))
     {
-        Pet* pet = ((Pet*)this);
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
@@ -3587,9 +3583,8 @@ void Unit::SetDisplayId(uint32 modelId)
 
     UpdateModelData();
 
-    if (IsPet())
+    if (Pet* pet = ToPet(this))
     {
-        Pet* pet = ((Pet*)this);
         if (!pet->isControlled())
         {
             return;

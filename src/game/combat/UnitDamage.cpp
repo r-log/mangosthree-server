@@ -61,11 +61,11 @@
  */
 uint32 Unit::CalcArmorReducedDamage(Unit* pVictim, const uint32 damage)
 {
-    uint32 const victimArmor = pVictim->GetArmor();                                                                                   // E2a
-    int32 const targetResistanceMod = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, SPELL_SCHOOL_MASK_NORMAL);     // E2a
-    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                                                               // E2a
-    uint32 const victimLevel = pVictim->getLevel();                                                                                   // E2a, read twice by the body
-    uint32 const attackerLevel = getLevel();                                                                                          // E2a, read twice by the body
+    uint32 const victimArmor = pVictim->GetArmor();
+    int32 const targetResistanceMod = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, SPELL_SCHOOL_MASK_NORMAL);
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;
+    uint32 const victimLevel = pVictim->getLevel(); // read twice by the body
+    uint32 const attackerLevel = getLevel(); // read twice by the body
 
     float armorPenetrationPct = 0.0f;
     if (isPlayer)
@@ -1496,13 +1496,13 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
             }
         }
 
-        if (GetTypeId() == TYPEID_PLAYER)
+        if (Player* attackerPlayer = ToPlayer())
         {
             // random durability for items (HIT DONE)
             if (roll_chance_f(sGameConfig.getConfig(CONFIG_FLOAT_RATE_DURABILITY_LOSS_DAMAGE)))
             {
                 EquipmentSlots slot = EquipmentSlots(urand(0, EQUIPMENT_SLOT_END - 1));
-                ((Player*)this)->DurabilityPointLossForEquipSlot(slot);
+                attackerPlayer->DurabilityPointLossForEquipSlot(slot);
             }
         }
 
@@ -1762,10 +1762,10 @@ int32 Unit::DealHeal(Unit* pVictim, uint32 addhealth, SpellEntry const* spellPro
         unitPlayer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEAL_CASTED, addhealth);
     }
 
-    if (pVictim->GetTypeId() == TYPEID_PLAYER)
+    if (Player* victimPlayer = pVictim->ToPlayer())
     {
-        ((Player*)pVictim)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_TOTAL_HEALING_RECEIVED, gain);
-        ((Player*)pVictim)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED, addhealth);
+        victimPlayer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_TOTAL_HEALING_RECEIVED, gain);
+        victimPlayer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED, addhealth);
     }
 
     // Script Event HealedBy

@@ -98,44 +98,43 @@ bool Unit::IsHostileTo(Unit const* unit) const
     }
 
     // special cases (Duel, etc)
-    if (tester->GetTypeId() == TYPEID_PLAYER && target->GetTypeId() == TYPEID_PLAYER)
+    Player const* testerPlayer = tester->ToPlayer();
+    Player const* targetPlayer = target->ToPlayer();
+    if (testerPlayer && targetPlayer)
     {
-        Player const* pTester = (Player const*)tester;
-        Player const* pTarget = (Player const*)target;
-
         // Duel
-        if (pTester->IsInDuelWith(pTarget))
+        if (testerPlayer->IsInDuelWith(targetPlayer))
         {
             return true;
         }
 
         // Group
-        if (pTester->GetGroup() && pTester->GetGroup() == pTarget->GetGroup())
+        if (testerPlayer->GetGroup() && testerPlayer->GetGroup() == targetPlayer->GetGroup())
         {
             return false;
         }
 
         // Sanctuary
-        if (pTarget->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_SANCTUARY) && pTester->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_SANCTUARY))
+        if (targetPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_SANCTUARY) && testerPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_SANCTUARY))
         {
             return false;
         }
 
         // PvP FFA state
-        if (pTester->IsFFAPvP() && pTarget->IsFFAPvP())
+        if (testerPlayer->IsFFAPvP() && targetPlayer->IsFFAPvP())
         {
             return true;
         }
 
         //= PvP states
         // Green/Blue (can't attack)
-        if (pTester->GetTeam() == pTarget->GetTeam())
+        if (testerPlayer->GetTeam() == targetPlayer->GetTeam())
         {
             return false;
         }
 
         // Red (can attack) if true, Blue/Yellow (can't attack) in another case
-        return pTester->IsPvP() && pTarget->IsPvP();
+        return testerPlayer->IsPvP() && targetPlayer->IsPvP();
     }
 
     // faction base cases
@@ -152,7 +151,7 @@ bool Unit::IsHostileTo(Unit const* unit) const
     }
 
     // PvC forced reaction and reputation case
-    if (Player const* testerPlayer = tester->ToPlayer())
+    if (testerPlayer)
     {
         if (target_faction->Faction)
         {
@@ -171,7 +170,7 @@ bool Unit::IsHostileTo(Unit const* unit) const
         }
     }
     // CvP forced reaction and reputation case
-    else if (Player const* targetPlayer = target->ToPlayer())
+    else if (targetPlayer)
     {
         if (tester_faction->Faction)
         {
@@ -253,44 +252,42 @@ bool Unit::IsFriendlyTo(Unit const* unit) const
 
     // special cases (Duel)
     Player const* testerPlayer = tester->ToPlayer();
-    if (testerPlayer && target->GetTypeId() == TYPEID_PLAYER)
+    Player const* targetPlayer = target->ToPlayer();
+    if (testerPlayer && targetPlayer)
     {
-        Player const* pTester = testerPlayer;
-        Player const* pTarget = (Player const*)target;
-
         // Duel
-        if (pTester->IsInDuelWith(pTarget))
+        if (testerPlayer->IsInDuelWith(targetPlayer))
         {
             return false;
         }
 
         // Group
-        if (pTester->GetGroup() && pTester->GetGroup() == pTarget->GetGroup())
+        if (testerPlayer->GetGroup() && testerPlayer->GetGroup() == targetPlayer->GetGroup())
         {
             return true;
         }
 
         // Sanctuary
-        if (pTarget->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_SANCTUARY) && pTester->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_SANCTUARY))
+        if (targetPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_SANCTUARY) && testerPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_SANCTUARY))
         {
             return true;
         }
 
         // PvP FFA state
-        if (pTester->IsFFAPvP() && pTarget->IsFFAPvP())
+        if (testerPlayer->IsFFAPvP() && targetPlayer->IsFFAPvP())
         {
             return false;
         }
 
         //= PvP states
         // Green/Blue (non-attackable)
-        if (pTester->GetTeam() == pTarget->GetTeam())
+        if (testerPlayer->GetTeam() == targetPlayer->GetTeam())
         {
             return true;
         }
 
         // Blue (friendly/non-attackable) if not PVP, or Yellow/Red in another case (attackable)
-        return !pTarget->IsPvP();
+        return !targetPlayer->IsPvP();
     }
 
     // faction base cases
@@ -307,31 +304,31 @@ bool Unit::IsFriendlyTo(Unit const* unit) const
     }
 
     // PvC forced reaction and reputation case
-    if (tester->GetTypeId() == TYPEID_PLAYER)
+    if (testerPlayer)
     {
         if (target_faction->Faction)
         {
             // forced reaction
-            if (ReputationRank const* force = ((Player*)tester)->GetReputationMgr().GetForcedRankIfAny(target_faction))
+            if (ReputationRank const* force = testerPlayer->GetReputationMgr().GetForcedRankIfAny(target_faction))
             {
                 return *force >= REP_FRIENDLY;
             }
 
             // if faction have reputation then friendly state for tester at 100% dependent from at_war state
             if (FactionEntry const* raw_target_faction = sFactionStore.LookupEntry(target_faction->Faction))
-                if (FactionState const* factionState = ((Player*)tester)->GetReputationMgr().GetState(raw_target_faction))
+                if (FactionState const* factionState = testerPlayer->GetReputationMgr().GetState(raw_target_faction))
                 {
                     return !(factionState->Flags & FACTION_FLAG_AT_WAR);
                 }
         }
     }
     // CvP forced reaction and reputation case
-    else if (target->GetTypeId() == TYPEID_PLAYER)
+    else if (targetPlayer)
     {
         if (tester_faction->Faction)
         {
             // forced reaction
-            if (ReputationRank const* force = ((Player*)target)->GetReputationMgr().GetForcedRankIfAny(tester_faction))
+            if (ReputationRank const* force = targetPlayer->GetReputationMgr().GetForcedRankIfAny(tester_faction))
             {
                 return *force >= REP_FRIENDLY;
             }
@@ -340,7 +337,7 @@ bool Unit::IsFriendlyTo(Unit const* unit) const
             if (FactionEntry const* raw_tester_faction = sFactionStore.LookupEntry(tester_faction->Faction))
                 if (raw_tester_faction->ReputationIndex >= 0)
                 {
-                    return ((Player const*)target)->GetReputationMgr().GetRank(raw_tester_faction) >= REP_FRIENDLY;
+                    return targetPlayer->GetReputationMgr().GetRank(raw_tester_faction) >= REP_FRIENDLY;
                 }
         }
     }

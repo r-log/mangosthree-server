@@ -970,10 +970,10 @@ void VehicleInfo::ApplySeatMods(Unit* passenger, uint32 seatFlags)
 
             pPlayer->SetClientControl(pVehicle, 1);
 
-            if (pVehicle->GetTypeId() == TYPEID_UNIT)
+            if (Creature* vehicleCreature = pVehicle->ToCreature())
             {
                 // set vehicle faction as per the controller faction
-                ((Creature*)pVehicle)->SetFactionTemporary(pPlayer->getFaction(), TEMPFACTION_NONE);
+                vehicleCreature->SetFactionTemporary(pPlayer->getFaction(), TEMPFACTION_NONE);
             }
         }
 
@@ -1037,9 +1037,9 @@ void VehicleInfo::RemoveSeatMods(Unit* passenger, uint32 seatFlags)
             pPlayer->SetClientControl(pPlayer, 1);
 
             // reset vehicle faction
-            if (pVehicle->GetTypeId() == TYPEID_UNIT)
+            if (Creature* vehicleCreature = pVehicle->ToCreature())
             {
-                ((Creature*)pVehicle)->ClearTemporaryFaction();
+                vehicleCreature->ClearTemporaryFaction();
             }
         }
 

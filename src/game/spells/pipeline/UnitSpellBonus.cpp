@@ -592,10 +592,9 @@ uint32 Unit::SpellDamageBonusTaken(Unit* pCaster, SpellEntry const* spellProto, 
     }
 
     // Mod damage from spell mechanic
-    float const mechanicDamageTakenMultiplier = GetTotalAuraMultiplierByMiscValueForMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, GetAllSpellMechanicMask(spellProto));   // E2a
+    float const mechanicDamageTakenMultiplier = GetTotalAuraMultiplierByMiscValueForMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, GetAllSpellMechanicMask(spellProto));
 
-    // Mod damage taken from AoE spells: the avoidance reads stay under the original
-    // guards, and the pet test reads this unit's subtype, so it stays here too (E2b).
+    // Mod damage taken from AoE spells
     bool const isAreaOfEffectSpell = IsAreaOfEffectSpell(spellProto);
     float aoeDamageAvoidanceMultiplier = 1.0f;
     bool isPet = false;
@@ -963,8 +962,8 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
  */
 uint32 Unit::SpellCriticalDamageBonus(SpellEntry const* spellProto, uint32 damage, Unit* pVictim)
 {
-    uint32 const dmgClass = spellProto->GetDmgClass();                                  // E2a, read once for both tests
-    const int32 pctBonus = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_CRIT_DAMAGE_BONUS, GetSpellSchoolMask(spellProto));   // E2a
+    uint32 const dmgClass = spellProto->GetDmgClass(); // read once for both tests
+    const int32 pctBonus = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_CRIT_DAMAGE_BONUS, GetSpellSchoolMask(spellProto));
 
     int32 crit_bonus = Combat::SpellCritDamageBonusBase(damage, dmgClass, pctBonus);
 
@@ -974,8 +973,8 @@ uint32 Unit::SpellCriticalDamageBonus(SpellEntry const* spellProto, uint32 damag
         modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_CRIT_DAMAGE_BONUS, crit_bonus);
     }
 
-    // The victim's crit damage modifiers, gathered under the original guards: pVictim is
-    // nullable (E2b) and only one of the three aggregators is ever read.
+    // The victim's crit damage modifiers: pVictim is nullable and only one of the three
+    // aggregators is ever read.
     bool isRangedAttack = false;
     int32 victimRangedCritDamageMod = 0;
     int32 victimMeleeCritDamageMod = 0;
@@ -1015,7 +1014,7 @@ uint32 Unit::SpellCriticalDamageBonus(SpellEntry const* spellProto, uint32 damag
  */
 uint32 Unit::SpellCriticalHealingBonus(SpellEntry const* spellProto, uint32 damage, Unit* pVictim)
 {
-    float const criticalHealingMultiplier = GetTotalAuraMultiplier(SPELL_AURA_MOD_CRITICAL_HEALING_AMOUNT);   // E2a
+    float const criticalHealingMultiplier = GetTotalAuraMultiplier(SPELL_AURA_MOD_CRITICAL_HEALING_AMOUNT);
 
     return Combat::SpellCriticalHealingBonus(damage, criticalHealingMultiplier);
 }
@@ -1196,8 +1195,8 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
 uint32 Unit::SpellHealingBonusTaken(Unit* pCaster, SpellEntry const* spellProto, int32 healamount, DamageEffectType damagetype, uint32 stack)
 {
     // Healing taken percent
-    int32 const healingPctNegative = GetMaxNegativeAuraModifier(SPELL_AURA_MOD_HEALING_PCT);   // E2a
-    int32 const healingPctPositive = GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HEALING_PCT);   // E2a
+    int32 const healingPctNegative = GetMaxNegativeAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
+    int32 const healingPctPositive = GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
 
     float TakenTotalMod = Combat::SpellHealingTakenPercent(healingPctNegative, healingPctPositive);
 
@@ -1518,7 +1517,7 @@ uint32 Unit::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackTyp
     }
 
     // The creature-type and attack-power aggregators, gathered under the original guards.
-    int32 const damageDoneCreatureMod = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_DAMAGE_DONE_CREATURE, creatureTypeMask);   // E2a
+    int32 const damageDoneCreatureMod = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_DAMAGE_DONE_CREATURE, creatureTypeMask);
     int32 victimRangedApAttackerBonus = 0;
     int32 rangedApVersusMod = 0;
     int32 victimMeleeApAttackerBonus = 0;
@@ -1760,7 +1759,7 @@ uint32 Unit::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackTyp
     else if (APbonus || DoneFlat)
     {
         bool normalized = spellProto ? IsSpellHaveEffect(spellProto, SPELL_EFFECT_NORMALIZED_WEAPON_DMG) : false;
-        float const apMultiplier = GetAPMultiplier(attType, normalized);                // E2a
+        float const apMultiplier = GetAPMultiplier(attType, normalized);
 
         // the switch only chooses WHICH UnitMods the TOTAL_PCT read uses, so it stays here
         UnitMods unitMod;
@@ -1771,7 +1770,7 @@ uint32 Unit::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackTyp
             case OFF_ATTACK:    unitMod = UNIT_MOD_DAMAGE_OFFHAND;  break;
             case RANGED_ATTACK: unitMod = UNIT_MOD_DAMAGE_RANGED;   break;
         }
-        float const damageTotalPct = GetModifierValue(unitMod, TOTAL_PCT);              // E2a
+        float const damageTotalPct = GetModifierValue(unitMod, TOTAL_PCT);
 
         DoneTotal = Combat::MeleeDamageDoneWeaponBased(DoneTotal, APbonus, DoneFlat,
                                                        apMultiplier, damageTotalPct);
@@ -1837,11 +1836,11 @@ uint32 Unit::MeleeDamageBonusTaken(Unit* pCaster, uint32 pdamage, WeaponAttackTy
         meleeDamageTakenPct = GetTotalAuraMultiplier(SPELL_AURA_MOD_MELEE_DAMAGE_TAKEN_PCT);
     }
 
-    int32 const damageTakenSchoolMod = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_DAMAGE_TAKEN, schoolMask);                                            // E2a
-    float const damagePercentTakenMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);                          // E2a
-    float const mechanicDamageTakenMultiplier = GetTotalAuraMultiplierByMiscValueForMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, mechanicMask);      // E2a
+    int32 const damageTakenSchoolMod = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_DAMAGE_TAKEN, schoolMask);
+    float const damagePercentTakenMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
+    float const mechanicDamageTakenMultiplier = GetTotalAuraMultiplierByMiscValueForMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, mechanicMask);
 
-    // ..taken pct (aoe avoidance): the pet test reads this unit's subtype, so it stays here (E2b)
+    // ..taken pct (aoe avoidance)
     bool const isAreaOfEffectSpell = spellProto && IsAreaOfEffectSpell(spellProto);
     float aoeDamageAvoidanceMultiplier = 1.0f;
     bool isPet = false;

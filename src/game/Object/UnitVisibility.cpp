@@ -193,14 +193,11 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
 
     // raw invisibility
     bool invisible = (m_invisibilityMask != 0 || u->m_invisibilityMask != 0);
-    if (u->GetTypeId() == TYPEID_PLAYER) // if object is player with mover, use its visibility masks, so that an invisible player MCing a creature can see stuff
+    if (Player const* player = u->ToPlayer()) // if object is player with mover, use its visibility masks, so that an invisible player MCing a creature can see stuff
     {
-        if (Player* player = (Player*)u)
+        if (Unit* mover = player->GetMover())
         {
-            if (Unit* mover=player->GetMover())
-            {
-                invisible= (m_invisibilityMask != 0 || mover->m_invisibilityMask != 0);
-            }
+            invisible = (m_invisibilityMask != 0 || mover->m_invisibilityMask != 0);
         }
     }
 
@@ -281,7 +278,8 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     }
 
     // set max ditance
-    float visibleDistance = (u->GetTypeId() == TYPEID_PLAYER) ? MAX_PLAYER_STEALTH_DETECT_RANGE : ((Creature const*)u)->GetAttackDistance(this);
+    Creature const* creatureViewer = u->ToCreature();
+    float visibleDistance = creatureViewer ? creatureViewer->GetAttackDistance(this) : MAX_PLAYER_STEALTH_DETECT_RANGE;
 
     // Always invisible from back (when stealth detection is on), also filter max distance cases
     bool isInFront = InFrontPhased(*viewPoint, *this, visibleDistance, M_PI_F);

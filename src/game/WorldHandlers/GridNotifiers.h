@@ -1364,7 +1364,7 @@ namespace MaNGOS
                     delete i_data_cache[i];
                 }
             }
-            void operator()(Player* p);
+            void operator()(Player const* p);
 
         private:
             Builder& i_builder;

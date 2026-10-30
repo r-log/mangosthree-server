@@ -424,9 +424,10 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
     if (!(damageInfo->HitInfo & HITINFO_MISS))
     {
         // on weapon hit casts
-        if (GetTypeId() == TYPEID_PLAYER && pVictim->IsAlive())
+        Player* attackerPlayer = ToPlayer();
+        if (attackerPlayer && pVictim->IsAlive())
         {
-            ((Player*)this)->CastItemCombatSpell(pVictim, damageInfo->attackType);
+            attackerPlayer->CastItemCombatSpell(pVictim, damageInfo->attackType);
         }
 
         // victim's damage shield

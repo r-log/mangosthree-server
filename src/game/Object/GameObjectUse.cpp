@@ -191,10 +191,10 @@ void GameObject::Use(Unit* user)
                 AddUse();
             }
 
-            if (IsBattleGroundTrap && user->GetTypeId() == TYPEID_PLAYER)
+            if (IsBattleGroundTrap && userPlayer)
             {
                 // BattleGround gameobjects case
-                if (BattleGround* bg = ((Player*)user)->GetBattleGround())
+                if (BattleGround* bg = userPlayer->GetBattleGround())
                 {
                     bg->HandleTriggerBuff(GetObjectGuid());
                 }
@@ -637,7 +637,7 @@ void GameObject::Use(Unit* user)
                     return;
                 }
 
-                if (user->GetTypeId() != TYPEID_PLAYER || !((Player*)user)->IsInSameRaidWith(casterPlayer))
+                if (!userPlayer || !userPlayer->IsInSameRaidWith(casterPlayer))
                 {
                     return;
                 }

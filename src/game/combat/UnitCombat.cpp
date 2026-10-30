@@ -807,8 +807,7 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* pVictim, SpellEntry const* spell)
     }
 
     SpellSchoolMask schoolMask = GetSpellSchoolMask(spell);
-    // GetLevelForTarget is virtual on both sides, so both reads stay here (E2b) and keep
-    // the original's order.
+    // both levels are read through the virtual GetLevelForTarget, the victim's first
     bool const victimIsPlayer = (pVictim->GetTypeId() == TYPEID_PLAYER);
     uint32 const victimLevel = pVictim->GetLevelForTarget(this);
     uint32 const attackerLevel = GetLevelForTarget(pVictim);
@@ -970,7 +969,7 @@ SpellMissInfo Unit::SpellHitResult(Unit* pVictim, SpellEntry const* spell, bool 
  */
 float Unit::MeleeMissChanceCalc(const Unit* pVictim, WeaponAttackType attType) const
 {
-    bool const hasVictim = pVictim != NULL;                                     // E2a
+    bool const hasVictim = pVictim != NULL;
 
     bool hasOffhandWeapon = false;
     bool isNormalSpellActive = false;
@@ -980,10 +979,10 @@ float Unit::MeleeMissChanceCalc(const Unit* pVictim, WeaponAttackType attType) c
     bool victimIsPlayer = false;
     int32 victimRangedHitChanceMod = 0;
     int32 victimMeleeHitChanceMod = 0;
-    if (hasVictim)                                                              // E2b, the early return's guard: every read below wants a victim
+    if (hasVictim)
     {
-        hasOffhandWeapon = haveOffhandWeapon();                                 // E2a
-        if (hasOffhandWeapon && attType != RANGED_ATTACK)                       // E2b, same guard
+        hasOffhandWeapon = haveOffhandWeapon();
+        if (hasOffhandWeapon && attType != RANGED_ATTACK)
         {
             for (uint32 i = CURRENT_FIRST_NON_MELEE_SPELL; i < CURRENT_MAX_SPELL; ++i)
             {
@@ -996,19 +995,19 @@ float Unit::MeleeMissChanceCalc(const Unit* pVictim, WeaponAttackType attType) c
             hasMeleeSpell = m_currentSpells[CURRENT_MELEE_SPELL] != NULL;
         }
 
-        attackerSkill = GetMaxSkillValueForLevel(pVictim);                      // E2b, GetLevelForTarget is virtual
-        victimDefenseSkill = pVictim->GetMaxSkillValueForLevel(this);           // E2b, the same virtual on the victim
-        victimIsPlayer = pVictim->GetTypeId() == TYPEID_PLAYER;                 // E2a
+        attackerSkill = GetMaxSkillValueForLevel(pVictim);
+        victimDefenseSkill = pVictim->GetMaxSkillValueForLevel(this);
+        victimIsPlayer = pVictim->GetTypeId() == TYPEID_PLAYER;
 
         // Each arm below walks one aura list, as the original does: gathering both
         // would double the work on every swing.
         if (attType == RANGED_ATTACK)
         {
-            victimRangedHitChanceMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_HIT_CHANCE);   // E2a
+            victimRangedHitChanceMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_HIT_CHANCE);
         }
         else
         {
-            victimMeleeHitChanceMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_HIT_CHANCE);     // E2a
+            victimMeleeHitChanceMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_HIT_CHANCE);
         }
     }
 
@@ -1025,8 +1024,8 @@ float Unit::MeleeMissChanceCalc(const Unit* pVictim, WeaponAttackType attType) c
  */
 float Unit::GetUnitDodgeChance() const
 {
-    bool const isStunned = Blocked(Motion::ReasonStunned);                              // E2a
-    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                 // E2a
+    bool const isStunned = Blocked(Motion::ReasonStunned);
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;
 
     float playerDodgePercentage = 0.0f;
     bool isTotem = false;
@@ -1035,14 +1034,14 @@ float Unit::GetUnitDodgeChance() const
     {
         if (isPlayer)
         {
-            playerDodgePercentage = GetFloatValue(PLAYER_DODGE_PERCENTAGE);             // E2b, same guard: a PLAYER_ field
+            playerDodgePercentage = GetFloatValue(PLAYER_DODGE_PERCENTAGE);
         }
         else
         {
-            isTotem = IsTotem();                                                        // E2b, same guard: the subtype read
+            isTotem = IsTotem();
             if (!isTotem)
             {
-                dodgeAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_DODGE_PERCENT);      // E2a, kept under its original branch
+                dodgeAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_DODGE_PERCENT);
             }
         }
     }
@@ -1058,10 +1057,10 @@ float Unit::GetUnitDodgeChance() const
  */
 float Unit::GetUnitParryChance() const
 {
-    bool const isCastingNonMeleeSpell = IsNonMeleeSpellCasted(false);                   // E2a
-    bool const isStunned = Blocked(Motion::ReasonStunned);                              // E2a
-    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                 // E2a
-    bool const isCreature = GetTypeId() == TYPEID_UNIT;                                 // E2a
+    bool const isCastingNonMeleeSpell = IsNonMeleeSpellCasted(false);
+    bool const isStunned = Blocked(Motion::ReasonStunned);
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;
+    bool const isCreature = GetTypeId() == TYPEID_UNIT;
 
     bool canParry = false;
     bool hasParryWeapon = false;
@@ -1070,13 +1069,12 @@ float Unit::GetUnitParryChance() const
     int32 parryAuraMod = 0;
     if (!isCastingNonMeleeSpell && !isStunned)                                          // the early return's guard
     {
-        if (isPlayer)
+        if (Player const* player = ToPlayer())
         {
-            Player const* player = (Player const*)this;                                 // E2b, same guard: the downcast
             canParry = player->CanParry();
             if (canParry)
             {
-                Item* tmpitem = player->GetWeaponForAttack(BASE_ATTACK, true, true);    // E2b, nullable, same guard
+                Item* tmpitem = player->GetWeaponForAttack(BASE_ATTACK, true, true);
                 if (!tmpitem)
                 {
                     tmpitem = player->GetWeaponForAttack(OFF_ATTACK, true, true);
@@ -1085,16 +1083,16 @@ float Unit::GetUnitParryChance() const
                 if (tmpitem)
                 {
                     hasParryWeapon = true;
-                    playerParryPercentage = GetFloatValue(PLAYER_PARRY_PERCENTAGE);     // E2b, same guard: a PLAYER_ field
+                    playerParryPercentage = GetFloatValue(PLAYER_PARRY_PERCENTAGE);
                 }
             }
         }
         else if (isCreature)
         {
-            creatureType = GetCreatureType();                                           // E2a, kept under its original branch
+            creatureType = GetCreatureType();
             if (creatureType == CREATURE_TYPE_HUMANOID)
             {
-                parryAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_PARRY_PERCENT);      // E2a, kept under its original branch
+                parryAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_PARRY_PERCENT);
             }
         }
     }
@@ -1111,9 +1109,9 @@ float Unit::GetUnitParryChance() const
  */
 float Unit::GetUnitBlockChance() const
 {
-    bool const isCastingNonMeleeSpell = IsNonMeleeSpellCasted(false);                       // E2a
-    bool const isStunned = Blocked(Motion::ReasonStunned);                                  // E2a
-    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                     // E2a
+    bool const isCastingNonMeleeSpell = IsNonMeleeSpellCasted(false);
+    bool const isStunned = Blocked(Motion::ReasonStunned);
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;
 
     bool canBlock = false;
     bool canUseOffhandWeapon = false;
@@ -1123,9 +1121,8 @@ float Unit::GetUnitBlockChance() const
     int32 blockAuraMod = 0;
     if (!isCastingNonMeleeSpell && !isStunned)                                              // the early return's guard
     {
-        if (isPlayer)
+        if (Player const* player = ToPlayer())
         {
-            Player const* player = (Player const*)this;                                     // E2b, same guard: the downcast
             canBlock = player->CanBlock();
             if (canBlock)                                                                   // the body's && short-circuits here
             {
@@ -1133,20 +1130,20 @@ float Unit::GetUnitBlockChance() const
             }
             if (canBlock && canUseOffhandWeapon)
             {
-                Item* tmpitem = player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);  // E2b, nullable, same guard
+                Item* tmpitem = player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
                 if (tmpitem && !tmpitem->IsBroken())
                 {
                     hasUnbrokenOffhandItem = true;
-                    playerBlockPercentage = GetFloatValue(PLAYER_BLOCK_PERCENTAGE);         // E2b, same guard: a PLAYER_ field
+                    playerBlockPercentage = GetFloatValue(PLAYER_BLOCK_PERCENTAGE);
                 }
             }
         }
         else
         {
-            isTotem = IsTotem();                                                            // E2b, same guard: the subtype read
+            isTotem = IsTotem();
             if (!isTotem)
             {
-                blockAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_BLOCK_CHANCE_PERCENT);   // E2a, kept under its original branch
+                blockAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_BLOCK_CHANCE_PERCENT);
             }
         }
     }
@@ -1165,13 +1162,13 @@ float Unit::GetUnitBlockChance() const
  */
 float Unit::GetUnitCriticalChance(WeaponAttackType attackType, const Unit* pVictim) const
 {
-    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                     // E2a
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;
 
     float playerOffhandCrit = 0.0f;
     float playerMainhandCrit = 0.0f;
     float playerRangedCrit = 0.0f;
     int32 critAuraMod = 0;
-    if (isPlayer)                                                                           // E2b, same guard: PLAYER_ fields
+    if (isPlayer)
     {
         playerOffhandCrit = GetFloatValue(PLAYER_OFFHAND_CRIT_PERCENTAGE);
         playerMainhandCrit = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
@@ -1179,7 +1176,7 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, const Unit* pVict
     }
     else
     {
-        critAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);                    // E2a, kept under its original branch
+        critAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
     }
 
     // Each arm below walks one aura list, as the original does.
@@ -1187,15 +1184,15 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, const Unit* pVict
     int32 victimMeleeCritMod = 0;
     if (attackType == RANGED_ATTACK)
     {
-        victimRangedCritMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE);   // E2a
+        victimRangedCritMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE);
     }
     else
     {
-        victimMeleeCritMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE);     // E2a
+        victimMeleeCritMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE);
     }
 
     int32 const victimSpellAndWeaponCritMod =
-        pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE);               // E2a
+        pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE);
 
     return Combat::UnitCriticalChance(attackType, isPlayer, playerOffhandCrit, playerMainhandCrit,
                                       playerRangedCrit, critAuraMod, victimRangedCritMod,
@@ -2034,13 +2031,13 @@ void Unit::UpdateReactives(uint32 p_time)
  */
 float Unit::GetAPMultiplier(WeaponAttackType attType, bool normalized)
 {
-    uint32 const attackTime = GetAttackTime(attType);                                       // E2a
-    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                     // E2a
+    uint32 const attackTime = GetAttackTime(attType);
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;
 
     bool hasWeapon = false;
     uint32 weaponInventoryType = 0;
     uint32 weaponSubClass = 0;
-    if (normalized && isPlayer)                                                             // E2b, same guard
+    if (normalized && isPlayer)
     {
         if (Item* Weapon = GetWeaponForAttack(attType, true, false))
         {

@@ -144,9 +144,9 @@ Creature* WorldObject::SummonCreature(uint32 id, float x, float y, float z, floa
     TemporarySummon* pCreature = new TemporarySummon(GetObjectGuid());
 
     Team team = TEAM_NONE;
-    if (GetTypeId() == TYPEID_PLAYER)
+    if (Player* summonerPlayer = ToPlayer())
     {
-        team = ((Player*)this)->GetTeam();
+        team = summonerPlayer->GetTeam();
     }
 
     CreatureCreatePos pos(GetMap(), x, y, z, ang, GetPhaseMask());

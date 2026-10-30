@@ -739,9 +739,9 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
         uint32 limittime = pQuest->GetLimitTime();
 
         // shared timed quest
-        if (questGiver && questGiver->GetTypeId() == TYPEID_PLAYER)
+        if (Player* giverPlayer = questGiver ? questGiver->ToPlayer() : NULL)
         {
-            limittime = ((Player*)questGiver)->GetQuestStatusMgr().Map()[quest_id].m_timer / IN_MILLISECONDS;
+            limittime = giverPlayer->GetQuestStatusMgr().Map()[quest_id].m_timer / IN_MILLISECONDS;
         }
 
         m_questStatusMgr.AddTimedQuest(quest_id);
@@ -766,7 +766,7 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
         switch (questGiver->GetTypeId())
         {
             case TYPEID_UNIT:
-                sScriptHooks.OnQuestAccept(this, (Creature*)questGiver, pQuest);
+                sScriptHooks.OnQuestAccept(this, questGiver->ToCreature(), pQuest);
                 break;
             case TYPEID_ITEM:
             case TYPEID_CONTAINER:

@@ -435,12 +435,13 @@ struct UpdateZoneDependentPetsHelper
     explicit UpdateZoneDependentPetsHelper(Player* _owner, uint32 zone, uint32 area) : owner(_owner), zone_id(zone), area_id(area) {}
     void operator()(Unit* unit) const
     {
-        if (unit->GetTypeId() == TYPEID_UNIT && unit->IsPet() && !((Pet*)unit)->isControlled())
+        Pet* pet = ToPet(unit);
+        if (pet && !pet->isControlled())
             if (uint32 spell_id = unit->GetUInt32Value(UNIT_CREATED_BY_SPELL))
                 if (SpellEntry const* spellEntry = sSpellStore.LookupEntry(spell_id))
                     if (sSpellMgr.GetSpellAllowedInLocationError(spellEntry, owner->GetMapId(), zone_id, area_id, owner) != SPELL_CAST_OK)
                     {
-                        ((Pet*)unit)->Unsummon(PET_SAVE_AS_DELETED, owner);
+                        pet->Unsummon(PET_SAVE_AS_DELETED, owner);
                     }
     }
     Player* owner;

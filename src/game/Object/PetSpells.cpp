@@ -616,7 +616,7 @@ bool Pet::learnSpell(uint32 spell_id)
     if (!m_loading)
     {
         Unit* owner = GetOwner();
-        if (owner && owner->GetTypeId() == TYPEID_PLAYER)
+        if (Player* ownerPlayer = owner ? owner->ToPlayer() : NULL)
         {
             if (ClientCallbacks const* client = owner->GetClientCallbacks())
             {
@@ -625,7 +625,7 @@ bool Pet::learnSpell(uint32 spell_id)
                 ReportClientFact(client->petSpellLearned, fact);
             }
 
-            ((Player*)owner)->PetSpellInitialize();
+            ownerPlayer->PetSpellInitialize();
         }
     }
     return true;

@@ -3685,9 +3685,9 @@ bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target /*=NULL*
         else if (data->Type == CHAT_TYPE_WHISPER || data->Type == CHAT_TYPE_BOSS_WHISPER)
         {
             // An error will be displayed for the text
-            if (target && target->GetTypeId() == TYPEID_PLAYER)
+            if (Player const* targetPlayer = target ? target->ToPlayer() : NULL)
             {
-                source->PlayDirectSound(data->SoundId, (Player const*)target);
+                source->PlayDirectSound(data->SoundId, targetPlayer);
             }
         }
         else

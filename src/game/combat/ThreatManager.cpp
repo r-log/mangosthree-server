@@ -230,11 +230,11 @@ void HostileReference::updateOnlineStatus()
         (!getTarget()->isGameMaster() ||
          !getTarget()->IsTaxiFlying()))
     {
-        Creature* creature = (Creature*) getSourceUnit();
-        online = getTarget()->isInAccessablePlaceFor(creature);
+        Creature* creature = getSourceUnit()->ToCreature();
+        online = creature && getTarget()->isInAccessablePlaceFor(creature);
         if (!online)
         {
-            if (creature->AI()->canReachByRangeAttack(getTarget()))
+            if (creature && creature->AI()->canReachByRangeAttack(getTarget()))
             {
                 online = true;                               // not accessable but stays online
             }
@@ -697,7 +697,8 @@ void ThreatManager::modifyThreatPercent(Unit* pVictim, int32 pPercent)
 Unit* ThreatManager::getHostileTarget()
 {
     iThreatContainer.update();
-    HostileReference* nextVictim = iThreatContainer.selectNextVictim((Creature*) getOwner(), getCurrentVictim());
+    Creature* ownerCreature = getOwner()->ToCreature();
+    HostileReference* nextVictim = ownerCreature ? iThreatContainer.selectNextVictim(ownerCreature, getCurrentVictim()) : NULL;
     setCurrentVictim(nextVictim);
     return getCurrentVictim() != NULL ? getCurrentVictim()->getTarget() : NULL;
 }
