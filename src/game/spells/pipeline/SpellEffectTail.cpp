@@ -453,12 +453,12 @@ void Spell::EffectTransmitted(SpellEffectEntry const* effect)
 
 void Spell::EffectProspecting(SpellEffectEntry const* /*effect*/)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER || !itemTarget)
+    Player* p_caster = m_caster->ToPlayer();
+    if (!p_caster || !itemTarget)
     {
         return;
     }
 
-    Player* p_caster = (Player*)m_caster;
 
     if (sGameConfig.getConfig(CONFIG_BOOL_SKILL_PROSPECTING))
     {
@@ -467,17 +467,17 @@ void Spell::EffectProspecting(SpellEffectEntry const* /*effect*/)
         p_caster->UpdateGatherSkill(SKILL_JEWELCRAFTING, SkillValue, reqSkillValue);
     }
 
-    ((Player*)m_caster)->SendLoot(itemTarget->GetObjectGuid(), LOOT_PROSPECTING);
+    p_caster->SendLoot(itemTarget->GetObjectGuid(), LOOT_PROSPECTING);
 }
 
 void Spell::EffectMilling(SpellEffectEntry const* /*effect*/)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER || !itemTarget)
+    Player* p_caster = m_caster->ToPlayer();
+    if (!p_caster || !itemTarget)
     {
         return;
     }
 
-    Player* p_caster = (Player*)m_caster;
 
     if (sGameConfig.getConfig(CONFIG_BOOL_SKILL_MILLING))
     {
@@ -486,7 +486,7 @@ void Spell::EffectMilling(SpellEffectEntry const* /*effect*/)
         p_caster->UpdateGatherSkill(SKILL_INSCRIPTION, SkillValue, reqSkillValue);
     }
 
-    ((Player*)m_caster)->SendLoot(itemTarget->GetObjectGuid(), LOOT_MILLING);
+    p_caster->SendLoot(itemTarget->GetObjectGuid(), LOOT_MILLING);
 }
 
 void Spell::EffectSkill(SpellEffectEntry const* /*effect*/)
@@ -527,13 +527,17 @@ void Spell::EffectSpiritHeal(SpellEffectEntry const* /*effect*/)
 // remove insignia spell effect
 void Spell::EffectSkinPlayerCorpse(SpellEffectEntry const* /*effect*/)
 {
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     DEBUG_LOG("Effect: SkinPlayerCorpse");
-    if ((m_caster->GetTypeId() != TYPEID_PLAYER) || (unitTarget->GetTypeId() != TYPEID_PLAYER) || (unitTarget->IsAlive()))
+    if ((!casterPlayer) || (!targetPlayer) || (unitTarget->IsAlive()))
     {
         return;
     }
 
-    ((Player*)unitTarget)->RemovedInsignia((Player*)m_caster);
+    targetPlayer->RemovedInsignia(casterPlayer);
 }
 
 void Spell::EffectStealBeneficialBuff(SpellEffectEntry const* effect)
@@ -783,8 +787,8 @@ void Spell::EffectTitanGrip(SpellEffectEntry const* effect)
 
 void Spell::EffectRenamePet(SpellEffectEntry const* /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_UNIT ||
-            !unitTarget->IsPet() || ((Pet*)unitTarget)->getPetType() != HUNTER_PET)
+    Pet* targetPet = ToPet(unitTarget);
+    if (!targetPet || targetPet->getPetType() != HUNTER_PET)
         return;
 
     unitTarget->RemoveByteFlag(UNIT_FIELD_BYTES_2, 2, UNIT_CAN_BE_RENAMED);
@@ -916,6 +920,8 @@ void Spell::EffectBind(SpellEffectEntry const* effect)
 
 void Spell::EffectRestoreItemCharges(SpellEffectEntry const* effect)
 {
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
     Player* player = unitTarget ? unitTarget->ToPlayer() : NULL;
     if (!player)
     {
@@ -932,7 +938,7 @@ void Spell::EffectRestoreItemCharges(SpellEffectEntry const* effect)
     Item* item;
     if (itemProto->ItemLimitCategory)
     {
-        item = ((Player*)unitTarget)->GetInventoryMgr().GetItemByLimitedCategory(itemProto->ItemLimitCategory);
+        item = targetPlayer->GetInventoryMgr().GetItemByLimitedCategory(itemProto->ItemLimitCategory);
     }
     else
     {
@@ -1144,7 +1150,7 @@ void Spell::EffectCreateTamedPet(SpellEffectEntry const* effect)
     ClosePointNear(*unitTarget, x, y, z, newTamedPet->Where().Extent());
     newTamedPet->Place().MoveTo(x, y, z, unitTarget->Where().Facing());
 
-    map->Add((Creature*)newTamedPet);
+    map->Add<Creature>(newTamedPet);
     m_caster->SetPet(newTamedPet);
 
     newTamedPet->SavePetToDB(PET_SAVE_AS_CURRENT);

@@ -735,37 +735,39 @@ void Spell::SendInterrupted(uint8 result)
  */
 void Spell::SendChannelUpdate(uint32 time)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     if (time == 0)
     {
         // Reset farsight for some possessing auras of possessed summoned (as they might work with different aura types)
-        if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_FARSIGHT) && m_caster->GetTypeId() == TYPEID_PLAYER && m_caster->GetCharmGuid()
+        if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_FARSIGHT) && casterPlayer && m_caster->GetCharmGuid()
             && !IsSpellHaveAura(m_spellInfo, SPELL_AURA_MOD_POSSESS) && !IsSpellHaveAura(m_spellInfo, SPELL_AURA_MOD_POSSESS_PET))
         {
-            Player* player = (Player*)m_caster;
             // These Auras are applied to self, so get the possessed first
-            Unit* possessed = player->GetCharm();
+            Unit* possessed = casterPlayer->GetCharm();
 
-            player->SetCharm(NULL);
+            casterPlayer->SetCharm(NULL);
             if (possessed)
             {
-                player->SetClientControl(possessed, 0);
+                casterPlayer->SetClientControl(possessed, 0);
             }
-            player->GetCamera().ResetView();
-            player->SetClientControl(player, 1);
-            player->RemovePetActionBar();
+            casterPlayer->GetCamera().ResetView();
+            casterPlayer->SetClientControl(casterPlayer, 1);
+            casterPlayer->RemovePetActionBar();
 
             if (possessed)
             {
                 possessed->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
                 possessed->SetCharmerGuid(ObjectGuid());
                 // After the charmer is gone: the block's client-root projection reads it.
-                possessed->GetMotionMaster()->Uninhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, player->GetObjectGuid().GetCounter()));
+                possessed->GetMotionMaster()->Uninhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, casterPlayer->GetObjectGuid().GetCounter()));
                 // TODO - Requires more specials for target?
 
                 // Some possessed might want to despawn?
-                if (possessed->GetUInt32Value(UNIT_CREATED_BY_SPELL) == m_spellInfo->ID && possessed->GetTypeId() == TYPEID_UNIT)
+                Creature* possessedCreature = possessed->ToCreature();
+                if (possessed->GetUInt32Value(UNIT_CREATED_BY_SPELL) == m_spellInfo->ID && possessedCreature)
                 {
-                    ((Creature*)possessed)->ForcedDespawn();
+                    possessedCreature->ForcedDespawn();
                 }
             }
         }

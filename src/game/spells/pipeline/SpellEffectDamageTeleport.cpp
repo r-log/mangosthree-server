@@ -147,6 +147,8 @@ void Spell::EffectEnvironmentalDMG(SpellEffectEntry const* effect)
  */
 void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     if (unitTarget && unitTarget->IsAlive())
     {
         SpellClassOptionsEntry const* classOptions = m_spellInfo->GetSpellClassOptions();
@@ -350,7 +352,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
             {
                 SpellEffectEntry const* rakeSpellEffect = m_spellInfo->GetSpellEffect(EFFECT_INDEX_2);
                 // Ferocious Bite
-                Player* casterPlayer = m_caster->ToPlayer();
                 if (casterPlayer && (classOptions && classOptions->SpellClassMask & UI64LIT(0x000800000)) && m_spellInfo->SpellVisualID[0]==6587)
                 {
                     // converts up to 30 points of energy into ($f1+$AP/410) additional damage
@@ -381,7 +382,7 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                 if (m_caster->GetTypeId()==TYPEID_PLAYER && (classOptions && classOptions->SpellClassMask & UI64LIT(0x800000000)))
                 {
                     // consume from stack dozes not more that have combo-points
-                    if (uint32 combo = ((Player*)m_caster)->GetComboPoints())
+                    if (uint32 combo = casterPlayer->GetComboPoints())
                     {
                         Aura* poison = 0;
                         // Lookup for Deadly poison (only attacker applied)
@@ -439,14 +440,14 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                         // Eviscerate and Envenom Bonus Damage (item set effect)
                         if (m_caster->GetDummyAura(37169))
                         {
-                            damage += ((Player*)m_caster)->GetComboPoints() * 40;
+                            damage += casterPlayer->GetComboPoints() * 40;
                         }
                     }
                 }
                 // Eviscerate
                 else if ((classOptions && classOptions->SpellClassMask & UI64LIT(0x00020000)) && m_caster->GetTypeId()==TYPEID_PLAYER)
                 {
-                    if (uint32 combo = ((Player*)m_caster)->GetComboPoints())
+                    if (uint32 combo = casterPlayer->GetComboPoints())
                     {
                         float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
                         damage += irand(int32(ap * combo * 0.03f), int32(ap * combo * 0.07f));
@@ -657,6 +658,8 @@ void Spell::EffectForceCast(SpellEffectEntry const* effect)
  */
 void Spell::EffectTriggerSpell(SpellEffectEntry const* effect)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     // only unit case known
     if (!unitTarget)
     {
@@ -693,7 +696,7 @@ void Spell::EffectTriggerSpell(SpellEffectEntry const* effect)
         // main hand weapon required
         if (spellInfo->HasAttribute(SPELL_ATTR_EX3_MAIN_HAND))
         {
-            Item* item = ((Player*)m_caster)->GetWeaponForAttack(BASE_ATTACK, true, false);
+            Item* item = casterPlayer->GetWeaponForAttack(BASE_ATTACK, true, false);
 
             // skip spell if no weapon in slot or broken
             if (!item)
@@ -711,7 +714,7 @@ void Spell::EffectTriggerSpell(SpellEffectEntry const* effect)
         // offhand hand weapon required
         if (spellInfo->HasAttribute(SPELL_ATTR_EX3_REQ_OFFHAND))
         {
-            Item* item = ((Player*)m_caster)->GetWeaponForAttack(OFF_ATTACK, true, false);
+            Item* item = casterPlayer->GetWeaponForAttack(OFF_ATTACK, true, false);
 
             // skip spell if no weapon in slot or broken
             if (!item)

@@ -65,7 +65,12 @@
  */
 void Spell::TakeCastItem()
 {
-    if (!m_CastItem || m_caster->GetTypeId() != TYPEID_PLAYER)
+    if (!m_CastItem)
+    {
+        return;
+    }
+    Player* casterPlayer = m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return;
     }
@@ -111,7 +116,7 @@ void Spell::TakeCastItem()
                     {
                         m_CastItem->SetSpellCharges(i, charges);
                     }
-                    m_CastItem->SetState(ITEM_CHANGED, (Player*)m_caster);
+                    m_CastItem->SetState(ITEM_CHANGED, casterPlayer);
                 }
 
                 // all charges used
@@ -123,7 +128,7 @@ void Spell::TakeCastItem()
     if (expendable && withoutCharges)
     {
         uint32 count = 1;
-        ((Player*)m_caster)->DestroyItemCount(m_CastItem, count, true);
+        casterPlayer->DestroyItemCount(m_CastItem, count, true);
 
         // prevent crash at access to deleted m_targets.getItemTarget
         ClearCastItem();

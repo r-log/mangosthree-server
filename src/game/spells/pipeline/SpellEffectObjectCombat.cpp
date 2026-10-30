@@ -140,6 +140,8 @@ void Spell::EffectInterruptCast(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectSummonObjectWild(SpellEffectEntry const* effect)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     uint32 gameobject_id = effect->EffectMiscValue_0;
 
     GameObject* pGameObj = new GameObject;
@@ -178,10 +180,9 @@ void Spell::EffectSummonObjectWild(SpellEffectEntry const* effect)
     // Store the GO to the caster
     m_caster->AddWildGameObject(pGameObj);
 
-    if (pGameObj->GetGoType() == GAMEOBJECT_TYPE_FLAGDROP && m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (pGameObj->GetGoType() == GAMEOBJECT_TYPE_FLAGDROP && casterPlayer)
     {
-        Player* pl = (Player*)m_caster;
-        BattleGround* bg = ((Player*)m_caster)->GetBattleGround();
+        BattleGround* bg = casterPlayer->GetBattleGround();
 
         switch (pGameObj->GetMapId())
         {
@@ -189,7 +190,7 @@ void Spell::EffectSummonObjectWild(SpellEffectEntry const* effect)
             {
                 if (bg && bg->GetTypeID() == BATTLEGROUND_WS && bg->GetStatus() == STATUS_IN_PROGRESS)
                 {
-                    Team team = pl->GetTeam() == ALLIANCE ? HORDE : ALLIANCE;
+                    Team team = casterPlayer->GetTeam() == ALLIANCE ? HORDE : ALLIANCE;
 
                     ((BattleGroundWS*)bg)->SetDroppedFlagGuid(pGameObj->GetObjectGuid(), team);
                 }
@@ -274,13 +275,13 @@ void Spell::EffectAddComboPoints(SpellEffectEntry const* effect /*effect*/)
  */
 void Spell::EffectDuel(SpellEffectEntry const* effect)
 {
-    if (!m_caster || !unitTarget || m_caster->GetTypeId() != TYPEID_PLAYER || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* caster = m_caster ? m_caster->ToPlayer() : NULL;
+    Player* target = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!caster || !target)
     {
         return;
     }
 
-    Player* caster = (Player*)m_caster;
-    Player* target = (Player*)unitTarget;
 
     // caster or target already have requested duel
     if (caster->duel || target->duel || !target->GetSocial() || target->GetSocial()->HasIgnore(caster->GetObjectGuid()))
@@ -626,6 +627,8 @@ void Spell::EffectEnchantHeldItem(SpellEffectEntry const* effect)
  */
 void Spell::EffectDisEnchant(SpellEffectEntry const* /*effect*/)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     Player* p_caster = m_caster->ToPlayer();
     if (!p_caster)
     {
@@ -639,7 +642,7 @@ void Spell::EffectDisEnchant(SpellEffectEntry const* /*effect*/)
 
     p_caster->UpdateCraftSkill(m_spellInfo->ID);
 
-    ((Player*)m_caster)->SendLoot(itemTarget->GetObjectGuid(), LOOT_DISENCHANTING);
+    casterPlayer->SendLoot(itemTarget->GetObjectGuid(), LOOT_DISENCHANTING);
 
     // item will be removed at disenchanting end
 }
@@ -921,9 +924,11 @@ void Spell::EffectAddExtraAttacks(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectParry(SpellEffectEntry const* /*effect*/)
 {
-    if (unitTarget && unitTarget->GetTypeId() == TYPEID_PLAYER)
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
+    if (targetPlayer)
     {
-        ((Player*)unitTarget)->SetCanParry(true);
+        targetPlayer->SetCanParry(true);
     }
 }
 
@@ -934,9 +939,11 @@ void Spell::EffectParry(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectBlock(SpellEffectEntry const* /*effect*/)
 {
-    if (unitTarget && unitTarget->GetTypeId() == TYPEID_PLAYER)
+    Player* const targetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+
+    if (targetPlayer)
     {
-        ((Player*)unitTarget)->SetCanBlock(true);
+        targetPlayer->SetCanBlock(true);
     }
 }
 

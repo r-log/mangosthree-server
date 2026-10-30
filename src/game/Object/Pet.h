@@ -275,7 +275,7 @@ class Pet : public Creature
         void SetDuration(int32 dur) { m_duration = dur; }
         int32 GetDuration() { return m_duration; }
 
-        int32 GetBonusDamage() { return m_bonusdamage; }
+        int32 GetBonusDamage() const { return m_bonusdamage; }
         void SetBonusDamage(int32 damage) { m_bonusdamage = damage; }
 
         bool UpdateStats(Stats stat) override;

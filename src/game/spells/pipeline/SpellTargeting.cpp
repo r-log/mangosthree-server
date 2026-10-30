@@ -121,12 +121,13 @@ struct ChainHealingOrder
     }
     int32 ChainHealingHash(Unit const* Target) const
     {
+        Player const* targetPlayer = Target->ToPlayer();
+        Player const* mainPlayer = MainTarget ? MainTarget->ToPlayer() : NULL;
         if (Target == MainTarget)
         {
             return 0;
         }
-        else if (Target->GetTypeId() == TYPEID_PLAYER && MainTarget->GetTypeId() == TYPEID_PLAYER &&
-                 ((Player const*)Target)->IsInSameRaidWith((Player const*)MainTarget))
+        else if (targetPlayer && mainPlayer && targetPlayer->IsInSameRaidWith(mainPlayer))
         {
             if (Target->GetHealth() == Target->GetMaxHealth())
             {
@@ -523,7 +524,8 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             {
                 for (UnitList::const_iterator iter = tempTargetUnitMap.begin(); iter != tempTargetUnitMap.end(); ++iter)
                 {
-                    if ((*iter)->GetTypeId() != TYPEID_UNIT)
+                    Creature* candidate = (*iter)->ToCreature();
+                    if (!candidate)
                     {
                         continue;
                     }
@@ -543,7 +545,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
 
                         if ((*iter)->GetEntry() == i_spellST->targetEntry)
                         {
-                            if (i_spellST->type == SPELL_TARGET_TYPE_DEAD && ((Creature*)(*iter))->IsCorpse())
+                            if (i_spellST->type == SPELL_TARGET_TYPE_DEAD && candidate->IsCorpse())
                             {
                                 targetUnitMap.push_back((*iter));
                             }
@@ -580,7 +582,8 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             {
                 for (UnitList::const_iterator iter = tempTargetUnitMap.begin(); iter != tempTargetUnitMap.end(); ++iter)
                 {
-                    if ((*iter)->GetTypeId() != TYPEID_UNIT)
+                    Creature* candidate = (*iter)->ToCreature();
+                    if (!candidate)
                     {
                         continue;
                     }
@@ -600,7 +603,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
 
                         if ((*iter)->GetEntry() == i_spellST->targetEntry)
                         {
-                            if (i_spellST->type == SPELL_TARGET_TYPE_DEAD && ((Creature*)(*iter))->IsCorpse())
+                            if (i_spellST->type == SPELL_TARGET_TYPE_DEAD && candidate->IsCorpse())
                             {
                                 targetUnitMap.push_back((*iter));
                             }
@@ -795,10 +798,11 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             break;
         case TARGET_NONCOMBAT_PET:
             if (Unit* target = m_targets.getUnitTarget())
-                if (target->GetTypeId() == TYPEID_UNIT && target->IsPet() && ((Pet*)target)->getPetType() == MINI_PET)
-                {
-                    targetUnitMap.push_back(target);
-                }
+                if (Pet* targetPet = ToPet(target))
+                    if (targetPet->getPetType() == MINI_PET)
+                    {
+                        targetUnitMap.push_back(target);
+                    }
             break;
         case TARGET_SUMMONER:
         {
@@ -1026,7 +1030,8 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             {
                 for (UnitList::const_iterator iter = tempTargetUnitMap.begin(); iter != tempTargetUnitMap.end(); ++iter)
                 {
-                    if ((*iter)->GetTypeId() != TYPEID_UNIT)
+                    Creature* candidate = (*iter)->ToCreature();
+                    if (!candidate)
                     {
                         continue;
                     }
@@ -1046,7 +1051,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
 
                         if ((*iter)->GetEntry() == i_spellST->targetEntry)
                         {
-                            if (i_spellST->type == SPELL_TARGET_TYPE_DEAD && ((Creature*)(*iter))->IsCorpse())
+                            if (i_spellST->type == SPELL_TARGET_TYPE_DEAD && candidate->IsCorpse())
                             {
                                 targetUnitMap.push_back((*iter));
                             }
@@ -1138,21 +1143,19 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             if (owner)
             {
                 targetUnitMap.push_back(m_caster);
-                if (owner->GetTypeId() == TYPEID_PLAYER)
-                {
-                    pTarget = (Player*)owner;
-                }
+                pTarget = owner->ToPlayer();
             }
             else if (m_caster->GetTypeId() == TYPEID_PLAYER)
             {
                 if (Unit* target = m_targets.getUnitTarget())
                 {
-                    if (target->GetTypeId() != TYPEID_PLAYER)
+                    Player* targetPlayer = target->ToPlayer();
+                    if (!targetPlayer)
                     {
                         if (target->IsPet())
                         {
                             Unit* targetOwner = target->GetOwner();
-                            if (Player* targetOwnerPlayer = targetOwner->ToPlayer())
+                            if (Player* targetOwnerPlayer = targetOwner ? targetOwner->ToPlayer() : NULL)
                             {
                                 pTarget = targetOwnerPlayer;
                             }
@@ -1160,7 +1163,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     }
                     else
                     {
-                        pTarget = (Player*)target;
+                        pTarget = targetPlayer;
                     }
                 }
             }
@@ -1310,8 +1313,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
         }
         case TARGET_AREAEFFECT_PARTY_AND_CLASS:
         {
-            Player* targetPlayer = m_targets.getUnitTarget() && m_targets.getUnitTarget()->GetTypeId() == TYPEID_PLAYER
-                                   ? (Player*)m_targets.getUnitTarget() : NULL;
+            Player* targetPlayer = m_targets.getUnitTarget() ? m_targets.getUnitTarget()->ToPlayer() : NULL;
 
             Group* pGroup = targetPlayer ? targetPlayer->GetGroup() : NULL;
             if (pGroup)

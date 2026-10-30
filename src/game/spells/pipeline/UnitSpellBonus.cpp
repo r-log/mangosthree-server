@@ -532,9 +532,9 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
 
     // Pets just add their bonus damage to their spell damage
     // note that their spell damage is just gain of their own auras
-    if (IsPet())
+    if (Pet const* pet = ToPet(this))
     {
-        DoneAdvertisedBenefit += ((Pet*)this)->GetBonusDamage();
+        DoneAdvertisedBenefit += pet->GetBonusDamage();
     }
 
     // apply ap bonus and benefit affected by spell power implicit coeffs and spell level penalties
@@ -1511,9 +1511,9 @@ uint32 Unit::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackTyp
         }
 
         // Pets just add their bonus damage to their melee damage
-        if (IsPet())
+        if (Pet const* pet = ToPet(this))
         {
-            DoneFlat += ((Pet*)this)->GetBonusDamage();
+            DoneFlat += pet->GetBonusDamage();
         }
     }
 

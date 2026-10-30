@@ -652,10 +652,12 @@ void Spell::cast(bool skipCheck)
 
 void Spell::TakeAmmo()
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     // take ammo
-    if (m_attackType == RANGED_ATTACK && m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (m_attackType == RANGED_ATTACK && casterPlayer)
     {
-        Item* pItem = ((Player*)m_caster)->GetWeaponForAttack(RANGED_ATTACK, true, false);
+        Item* pItem = casterPlayer->GetWeaponForAttack(RANGED_ATTACK, true, false);
 
         // wands don't have ammo
         if (!pItem || pItem->GetProto()->SubClass == ITEM_SUBCLASS_WEAPON_WAND)
@@ -668,13 +670,13 @@ void Spell::TakeAmmo()
             if (pItem->GetMaxStackCount() == 1)
             {
                 // decrease durability for non-stackable throw weapon
-                ((Player*)m_caster)->DurabilityPointLossForEquipSlot(EQUIPMENT_SLOT_RANGED);
+                casterPlayer->DurabilityPointLossForEquipSlot(EQUIPMENT_SLOT_RANGED);
             }
             else
             {
                 // decrease items amount for stackable throw weapon
                 uint32 count = 1;
-                ((Player*)m_caster)->DestroyItemCount(pItem, count, true);
+                casterPlayer->DestroyItemCount(pItem, count, true);
             }
         }
     }
