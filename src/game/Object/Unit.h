@@ -4045,6 +4045,12 @@ class Unit : public WorldObject
          */
         virtual CreatureAI* AI() { return NULL; }
         /**
+         * Whether this unit is evading, on its way home after leaving combat: melee and spells miss
+         * it as evaded, it takes no damage, and an area aura passes it over.
+         * @return false here, a player never evades; Creature answers from its motion
+         */
+        virtual bool IsInEvadeMode() const { return false; }
+        /**
          * The weapon this unit attacks with; the melee and spell damage, the attack power and the
          * proc handlers ask it.
          * @param attackType the hand or the ranged slot

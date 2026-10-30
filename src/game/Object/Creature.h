@@ -298,7 +298,7 @@ class Creature : public Unit
 
         uint8 getRace() const override;
 
-        bool IsInEvadeMode() const;
+        bool IsInEvadeMode() const override final;
 
         bool AIM_Initialize();
 
