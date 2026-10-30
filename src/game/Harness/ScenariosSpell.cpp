@@ -1563,15 +1563,17 @@ namespace Harness
      * S939 `spell-periodic-off-map`: S932's priest and cougar, with the priest gone to another map
      * between the cast and the first tick. The priest casts Shadow Word: Pain (589) at the silenced
      * cougar, again a tenth of a second later while the hit roll misses (each step draws its own seeded
-     * roll; the missed attempt's global cooldown is cancelled by call), then moves to Eastern Kingdoms
-     * (map 0) the way Scenario::SpawnPlayer places a player: the map's own removal, then SetMap and
-     * Map::Add. The spot there has no creature or game object spawned within 800 yards, so no other
-     * unit's updates reach the priest, and it stands high above the ground, out of any water. A harness
-     * player never logged in (no social list), so the worldport's arrival packets are not theirs to
-     * send. The aura keeps ticking on the cougar while its caster stands on the other map, through its
-     * six ticks to its expiry, and the priest moves back to the harness map before the verdict.
+     * roll; the missed attempt's global cooldown is cancelled by call), then moves to Deepholm (map
+     * 646) the way Scenario::SpawnPlayer places a player: the map's own removal, then SetMap and
+     * Map::Add. No creature or game object is spawned within 800 yards of the spot there, and no vessel
+     * route leaves or enters that map, so no other unit's updates reach the priest: a vessel crossing
+     * between maps is announced to every player on them at a moment of the wall clock, which no seed
+     * controls. A harness player never logged in (no social list), so the worldport's arrival packets
+     * are not theirs to send. The aura keeps ticking on the cougar while its caster stands on the other
+     * map, through its six ticks to its expiry, and the priest moves back to the harness map before the
+     * verdict.
      *
-     * Pins: the aura applied on the harness map, the priest in the world on map 0 before the first
+     * Pins: the aura applied on the harness map, the priest in the world on map 646 before the first
      * tick, the cougar's health falling at each of the six ticks (the last one at the expiry), the
      * holder gone after the expiry, and the ownership violations counted while the aura ran
      * (MapPhase::Violations()): none, because an aura whose caster is a player on another map waits
@@ -1605,8 +1607,8 @@ namespace Harness
             const uint32 cougar = 2961;
             const uint32 level = 4;
             const uint32 kCastAt = 400, kCastRetry = 100, kCastAttempts = 7, kMoveAt = 1400, kPeriod = 3000, kTicks = 6;
-            const uint32 kOtherMap = 0, kHarnessMap = GetMap() ? GetMap()->GetId() : 1;
-            const Pt kQuietSpot = { -7200.0f, 1300.0f, 300.0f };
+            const uint32 kOtherMap = 646, kHarnessMap = GetMap() ? GetMap()->GetId() : 1;
+            const Pt kQuietSpot = { -1362.0f, 1299.0f, 300.0f };
 
             std::vector<SpellPrint> prints = {
                 // 589: 26 fields, fnv cb49aeac
