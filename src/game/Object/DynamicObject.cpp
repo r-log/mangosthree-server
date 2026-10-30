@@ -97,7 +97,7 @@ void DynamicObject::AddToWorld()
     ///- Register the dynamicObject for guid lookup
     if (!IsInWorld())
     {
-        GetMap()->GetObjectsStore().insert<DynamicObject>(GetObjectGuid(), (DynamicObject*)this);
+        GetMap()->GetObjectsStore().insert<DynamicObject>(GetObjectGuid(), this);
     }
 
     Object::AddToWorld();
@@ -111,7 +111,7 @@ void DynamicObject::RemoveFromWorld()
     ///- Remove the dynamicObject from the accessor
     if (IsInWorld())
     {
-        GetMap()->GetObjectsStore().erase<DynamicObject>(GetObjectGuid(), (DynamicObject*)NULL);
+        GetMap()->GetObjectsStore().erase<DynamicObject>(GetObjectGuid());
         GetViewPoint().Event_RemovedFromWorld();
     }
 

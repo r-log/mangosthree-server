@@ -113,7 +113,7 @@ class TypeUnorderedMapContainer
             }
         }
         template <typename T>
-        bool erase(KEY_TYPE handle, T*)
+        bool erase(KEY_TYPE handle)
         {
             std::get<Meta::IndexOf<T,Tuple>::value>(i_container).erase(handle);
             return true;
@@ -128,7 +128,7 @@ class TypeUnorderedMapContainer
         }
 
         template <typename T>
-        T* find (KEY_TYPE handle, T*)
+        T* find(KEY_TYPE handle)
         {
             auto&& _element = std::get<Meta::IndexOf<T,Tuple>::value>(i_container);
             auto&& iter = _element.find(handle);
