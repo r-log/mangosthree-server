@@ -898,8 +898,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericExpeditionFlare(SpellEffectDu
 static SpellHandlerOutcome<void> EffectDummyGenericLiquidFire(SpellEffectDummyGenericContext& ctx)
 {
     Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Player* casterPlayer = ctx.m_caster->ToPlayer();
-    if (!unitTargetCreature || !casterPlayer)
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1043,8 +1048,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericChaosBlast(SpellEffectDummyGe
 static SpellHandlerOutcome<void> EffectDummyGenericShatariTorch(SpellEffectDummyGenericContext& ctx)
 {
     Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Player* casterPlayer = ctx.m_caster->ToPlayer();
-    if (!unitTargetCreature || !casterPlayer)
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1278,8 +1288,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericFireBombExplode(SpellEffectDu
 static SpellHandlerOutcome<void> EffectDummyGenericBurnBody(SpellEffectDummyGenericContext& ctx)
 {
     Creature* pCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!pCreature)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Player* casterPlayer = ctx.m_caster->ToPlayer();
-    if (!pCreature || !casterPlayer)
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1566,8 +1581,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericArcanePrisonerRescue(SpellEff
 /// spawned is spawned for thirty seconds; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericThrowGnomishGrenade(SpellEffectDummyGenericContext& ctx)
 {
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Player* casterPlayer = ctx.m_caster->ToPlayer();
-    if (!ctx.unitTarget || !casterPlayer)
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1754,8 +1774,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericCreateCover(SpellEffectDummyG
 /// for thirty seconds; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericScuttleWreckedFlyingMachine(SpellEffectDummyGenericContext& ctx)
 {
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Player* casterPlayer = ctx.m_caster->ToPlayer();
-    if (!ctx.unitTarget || !casterPlayer)
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1885,8 +1910,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericCleansingFlamesExodar(SpellEf
 /// effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericSetExplosivesCart(SpellEffectDummyGenericContext& ctx)
 {
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Player* casterPlayer = ctx.m_caster->ToPlayer();
-    if (!ctx.unitTarget || !casterPlayer)
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -3151,8 +3181,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericDisengage(SpellEffectDummyGen
 /// itself, and the caster despawns; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericLightBallPassive(SpellEffectDummyGenericContext& ctx)
 {
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Creature* casterCreature = ctx.m_caster->ToCreature();
-    if (!ctx.unitTarget || !casterCreature)
+    if (!casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -3178,8 +3213,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericLightBallPassive(SpellEffectD
 /// itself, and the caster despawns; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericDarkBallPassive(SpellEffectDummyGenericContext& ctx)
 {
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Creature* casterCreature = ctx.m_caster->ToCreature();
-    if (!ctx.unitTarget || !casterCreature)
+    if (!casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -3206,8 +3246,13 @@ static SpellHandlerOutcome<void> EffectDummyGenericDarkBallPassive(SpellEffectDu
 static SpellHandlerOutcome<void> EffectDummyGenericReadLastRites(SpellEffectDummyGenericContext& ctx)
 {
     Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     Player* casterPlayer = ctx.m_caster->ToPlayer();
-    if (!unitTargetCreature || !casterPlayer)
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
