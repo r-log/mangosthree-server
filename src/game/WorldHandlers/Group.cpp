@@ -1893,7 +1893,7 @@ void Group::OfflineReadyCheck()
  * @param viewer The player to test visibility against.
  * @return True if the player is group-visible; otherwise, false.
  */
-bool IsGroupVisible(Player const& player, Player* viewer)
+bool IsGroupVisible(Player const& player, Player const* viewer)
 {
     switch (sGameConfig.getConfig(CONFIG_UINT32_GROUP_VISIBILITY))
     {

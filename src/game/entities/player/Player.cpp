@@ -4135,7 +4135,7 @@ void Player::SendPetSkillWipeConfirm()
 }
 
 
-bool Player::IsTappedByMeOrMyGroup(Creature* creature)
+bool Player::IsTappedByMeOrMyGroup(Creature const* creature) const
 {
     /* Nobody tapped the monster (solo kill by another NPC) */
     if (!creature->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED))
@@ -4150,7 +4150,7 @@ bool Player::IsTappedByMeOrMyGroup(Creature* creature)
         if (Group* plr_group = recipient->GetGroup())
         {
             /* Recipient is in a group... but is it ours? */
-            if (Group* my_group = GetGroup())
+            if (Group const* my_group = GetGroup())
             {
                 /* Check groups are the same */
                 if (plr_group != my_group)
@@ -4188,7 +4188,7 @@ bool Player::IsTappedByMeOrMyGroup(Creature* creature)
  * @param creature The creature to test.
  * @return True if the tap belongs to this player or group; otherwise, false.
  */
-bool Player::isAllowedToLoot(Creature* creature)
+bool Player::isAllowedToLoot(Creature const* creature) const
 {
     // never tapped by any (mob solo kill)
     if (!creature->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED))
@@ -4205,7 +4205,7 @@ bool Player::isAllowedToLoot(Creature* creature)
 
         if (Group* otherGroup = recipient->GetGroup())
         {
-            Group* thisGroup = GetGroup();
+            Group const* thisGroup = GetGroup();
             if (!thisGroup)
             {
                 return false;

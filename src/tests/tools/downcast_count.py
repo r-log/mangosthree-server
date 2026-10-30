@@ -2,7 +2,7 @@
 """downcast_count.py <src-root>
 
 The downcast counter. It walks every *.cpp and *.h file under <src-root>, strips comments, and
-counts seven classes of Player/Creature/Pet downcast at the call site:
+counts eight classes of Player/Creature/Pet cast at the call site:
 
   c_style_player    a C-style cast to Player* immediately followed by an operand
   c_style_creature  the same for Creature
@@ -10,6 +10,7 @@ counts seven classes of Player/Creature/Pet downcast at the call site:
   static_cast       static_cast<Player*> / static_cast<Creature*> / static_cast<Pet*> (and the
                     "const" spelling)
   dynamic_cast      any dynamic_cast<...>
+  const_cast        const_cast<Player*> / const_cast<Creature*> / const_cast<Pet*>
   subtype_sites     ((Creature*)x)->IsPet() / ->IsTotem() -- a C-style cast used only to ask
                     a question Creature::GetSubtype() already answers without the cast
   checked_helper    a call of a checked downcast: ToPlayer(), ToCreature() or ToPet(...)
@@ -28,7 +29,7 @@ python3 src/tests/tools/downcast_count.py src/game
 python3 src/tests/tools/downcast_count.py --self-test
 python3 src/tests/tools/downcast_count.py --list subtype_sites src/game
 python3 src/tests/tools/downcast_count.py --gate subtype_sites=0 src/game
-python3 src/tests/tools/downcast_count.py --gate downcasts=526 src/game
+python3 src/tests/tools/downcast_count.py --gate downcasts=521 src/game
 
 --list <class> prints one `file:line: text` line per occurrence of that class (so the number of
 printed lines equals the class's occurrence count) and still prints the counts.
@@ -86,6 +87,7 @@ CLASSES = [
     ("c_style_pet", re.compile(r"\(\s*Pet(\s+const)?\s*\*\s*\)\s*" + NOT_AN_OPERAND + r"[A-Za-z_(]")),
     ("static_cast", re.compile(r"static_cast<\s*(Player|Creature|Pet)(\s+const)?\s*\*\s*>")),
     ("dynamic_cast", re.compile(r"dynamic_cast<")),
+    ("const_cast", re.compile(r"const_cast<\s*(Player|Creature|Pet)(\s+const)?\s*\*\s*>")),
     ("subtype_sites", re.compile(
         r"\(\s*\(\s*Creature(\s+const)?\s*\*\s*\)[^;]*?\)\s*->\s*(IsPet|IsTotem)\s*\(\s*\)"
         r"|static_cast<\s*Creature(\s+const)?\s*\*\s*>\s*\([^;]*?\)\s*->\s*(IsPet|IsTotem)\s*\(\s*\)")),
@@ -335,6 +337,12 @@ def self_test():
     n = count_occurrences(CLASS_MAP["static_cast"], text)
     if n != 1:
         failures.append(f"static_cast<Pet const*>: expected static_cast=1, got {n}")
+
+    # const_cast counts the entity types only.
+    text = strip_comments("const_cast<Creature*>(creature)->SetFlag(f); const_cast<CreatureData*>(data)->posX = x;\n")
+    n = count_occurrences(CLASS_MAP["const_cast"], text)
+    if n != 1:
+        failures.append(f"const_cast<Creature*> beside const_cast<CreatureData*>: expected const_cast=1, got {n}")
 
     # The totals add their classes, and gate like a class.
     totals = with_totals({"c_style_player": 2, "c_style_creature": 1, "c_style_pet": 4, "static_cast": 1,

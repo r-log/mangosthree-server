@@ -322,11 +322,11 @@ TEST(GroupUpdateFacts_APlayerAsksTheGroupQuestionsOfItsCallbacks)
     WorldSession session(1, "group", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
     QuestionedPlayer player(session);
     QuestionedPlayer* viewer = &player;
-    std::vector<Player*> viewers;
+    std::vector<Player const*> viewers;
     std::vector<float> radii;
 
     GroupCallbacks callbacks;
-    callbacks.groupVisibleFor = [&](Player* p) { viewers.push_back(p); return p != NULL; };
+    callbacks.groupVisibleFor = [&](Player const* p) { viewers.push_back(p); return p != NULL; };
     callbacks.nextRandomRaidMember = [&](float radius) { radii.push_back(radius); return radius > 30.0f ? viewer : NULL; };
     player.SetGroupCallbacks(callbacks);
 
@@ -335,7 +335,7 @@ TEST(GroupUpdateFacts_APlayerAsksTheGroupQuestionsOfItsCallbacks)
     CHECK(player.GetNextRandomRaidMember(40.0f) == &player);
     CHECK(player.GetNextRandomRaidMember(20.0f) == NULL);
 
-    CHECK(viewers == std::vector<Player*>({&player, NULL}));
+    CHECK(viewers == std::vector<Player const*>({&player, NULL}));
     CHECK(radii == std::vector<float>({40.0f, 20.0f}));
 }
 

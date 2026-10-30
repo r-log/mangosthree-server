@@ -183,9 +183,10 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     }
 
     // grouped players should always see stealthed party members
-    if (GetTypeId() == TYPEID_PLAYER && u->GetTypeId() == TYPEID_PLAYER)
+    Player const* viewer = u->ToPlayer();
+    if (GetTypeId() == TYPEID_PLAYER && viewer)
     {
-        if (IsGroupVisibleFor(((Player*)u)) && u->IsFriendlyTo(this))
+        if (IsGroupVisibleFor(viewer) && u->IsFriendlyTo(this))
         {
             return true;
         }

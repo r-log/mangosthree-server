@@ -699,7 +699,7 @@ class Group
 
 /// Whether `viewer` sees `player` through its stealth under the group visibility setting: in the
 /// same group (the default), in the same raid (1) or on the same team (2).
-bool IsGroupVisible(Player const& player, Player* viewer);
+bool IsGroupVisible(Player const& player, Player const* viewer);
 
 /// A random other member of `player`'s group within `radius` that is not invisible and not hostile
 /// to it; NULL for none, or when `player` is in no group.
