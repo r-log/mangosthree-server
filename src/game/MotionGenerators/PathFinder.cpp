@@ -329,7 +329,7 @@ void PathFinder::BuildPolyPath(const Vector3& startPos, const Vector3& endPos)
         DEBUG_FILTER_LOG(LOG_FILTER_PATHFINDING, "++ BuildPolyPath :: farFromPoly distToStartPoly=%.3f distToEndPoly=%.3f\n", distToStartPoly, distToEndPoly);
 
         bool buildShotrcut = false;
-        if (Creature* owner = m_sourceUnit->ToCreature())
+        if (Creature const* owner = m_sourceUnit->ToCreature())
         {
 
             Vector3 p = (distToStartPoly > 7.0f) ? startPos : endPos;
@@ -749,7 +749,7 @@ void PathFinder::createFilter()
     uint16 includeFlags = 0;
     uint16 excludeFlags = 0;
 
-    if (Creature* creature = m_sourceUnit->ToCreature())
+    if (Creature const* creature = m_sourceUnit->ToCreature())
     {
         if (creature->CanWalk())
         {
