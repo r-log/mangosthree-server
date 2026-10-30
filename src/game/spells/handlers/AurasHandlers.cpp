@@ -209,7 +209,7 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGeneric24780(AuraTriggerSpellCo
 
     if (Unit* pEnemy = ctx.target->SelectRandomUnfriendlyTarget(ctx.target->getVictim(), 100.0f))
     {
-        ((Creature*)ctx.target)->AI()->AttackStart(pEnemy);
+        ctx.target->AI()->AttackStart(pEnemy);
     }
 
     return SpellHandlerOutcome<void>::Return();

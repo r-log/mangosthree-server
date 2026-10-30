@@ -943,9 +943,9 @@ void ChatHandlers::HandleTextEmote(WorldSession& session, WorldPacket& recv_data
     session.GetPlayer()->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DO_EMOTE, text_emote, 0, unit);
 
     // Send scripted event call
-    if (unit && unit->GetTypeId() == TYPEID_UNIT && ((Creature*)unit)->AI())
+    if (unit && unit->GetTypeId() == TYPEID_UNIT && unit->AI())
     {
-        ((Creature*)unit)->AI()->ReceiveEmote(session.GetPlayer(), text_emote);
+        unit->AI()->ReceiveEmote(session.GetPlayer(), text_emote);
     }
 }
 

@@ -4236,9 +4236,9 @@ Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry co
     else
     {
         // fire just summoned hook
-        if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->AI())
+        if (GetTypeId() == TYPEID_UNIT && AI())
         {
-            ((Creature*)this)->AI()->JustSummoned(pCreature);
+            AI()->JustSummoned(pCreature);
         }
     }
 

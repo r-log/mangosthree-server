@@ -147,9 +147,9 @@ void Totem::Summon(Unit* owner)
     AIM_Initialize();
     owner->GetMap()->Add((Creature*)this);
 
-    if (owner->GetTypeId() == TYPEID_UNIT && ((Creature*)owner)->AI())
+    if (owner->GetTypeId() == TYPEID_UNIT && owner->AI())
     {
-        ((Creature*)owner)->AI()->JustSummoned((Creature*)this);
+        owner->AI()->JustSummoned((Creature*)this);
     }
 
     // there are some totems, which exist just for their visual appeareance
@@ -208,9 +208,9 @@ void Totem::UnSummon()
             }
         }
 
-        if (owner->GetTypeId() == TYPEID_UNIT && ((Creature*)owner)->AI())
+        if (owner->GetTypeId() == TYPEID_UNIT && owner->AI())
         {
-            ((Creature*)owner)->AI()->SummonedCreatureDespawn((Creature*)this);
+            owner->AI()->SummonedCreatureDespawn((Creature*)this);
         }
     }
 

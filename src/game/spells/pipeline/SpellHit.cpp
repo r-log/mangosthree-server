@@ -147,9 +147,9 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
             if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) && !IsPositiveSpell(m_spellInfo->ID) &&
                     m_caster->IsVisibleForOrDetect(unit, unit, false))
             {
-                if (!unit->IsInCombat() && unit->GetTypeId() != TYPEID_PLAYER && ((Creature*)unit)->AI())
+                if (!unit->IsInCombat() && unit->GetTypeId() != TYPEID_PLAYER && unit->AI())
                 {
-                    ((Creature*)unit)->AI()->AttackedBy(real_caster);
+                    unit->AI()->AttackedBy(real_caster);
                 }
 
                 unit->AddThreat(real_caster);
@@ -294,20 +294,20 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
             }
         }
 
-        if (((Creature*)unit)->AI())
+        if (unit->AI())
         {
-            ((Creature*)unit)->AI()->SpellHit(m_caster, m_spellInfo);
+            unit->AI()->SpellHit(m_caster, m_spellInfo);
         }
     }
 
     // Call scripted function for AI if this spell is casted by a creature
-    if (m_caster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_caster)->AI())
+    if (m_caster->GetTypeId() == TYPEID_UNIT && m_caster->AI())
     {
-        ((Creature*)m_caster)->AI()->SpellHitTarget(unit, m_spellInfo);
+        m_caster->AI()->SpellHitTarget(unit, m_spellInfo);
     }
-    if (real_caster && real_caster != m_caster && real_caster->GetTypeId() == TYPEID_UNIT && ((Creature*)real_caster)->AI())
+    if (real_caster && real_caster != m_caster && real_caster->GetTypeId() == TYPEID_UNIT && real_caster->AI())
     {
-        ((Creature*)real_caster)->AI()->SpellHitTarget(unit, m_spellInfo);
+        real_caster->AI()->SpellHitTarget(unit, m_spellInfo);
     }
 
     if (m_spellAuraHolder)
@@ -404,7 +404,7 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                     unit->SetStandState(UNIT_STAND_STATE_STAND);
                 }
 
-                if (!unit->IsInCombat() && unit->GetTypeId() != TYPEID_PLAYER && ((Creature*)unit)->AI())
+                if (!unit->IsInCombat() && unit->GetTypeId() != TYPEID_PLAYER && unit->AI())
                 {
                     unit->AttackedBy(realCaster);
                 }

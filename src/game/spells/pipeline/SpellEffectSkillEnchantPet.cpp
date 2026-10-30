@@ -952,20 +952,20 @@ void Spell::EffectSummonPet(SpellEffectEntry const* effect)
     {
         // Notify Summoner
         if (m_originalCaster && (m_originalCaster != m_caster)
-            && (m_originalCaster->GetTypeId() == TYPEID_UNIT) && ((Creature*)m_originalCaster)->AI())
+            && (m_originalCaster->GetTypeId() == TYPEID_UNIT) && m_originalCaster->AI())
         {
-            ((Creature*)m_originalCaster)->AI()->JustSummoned(NewSummon);
+            m_originalCaster->AI()->JustSummoned(NewSummon);
             if (m_originalCaster->IsInCombat() && !(NewSummon->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PASSIVE)))
             {
-                ((Creature*)NewSummon)->AI()->AttackStart(m_originalCaster->getAttackerForHelper());
+                NewSummon->AI()->AttackStart(m_originalCaster->getAttackerForHelper());
             }
         }
-        else if ((m_caster->GetTypeId() == TYPEID_UNIT) && ((Creature*)m_caster)->AI())
+        else if ((m_caster->GetTypeId() == TYPEID_UNIT) && m_caster->AI())
         {
-            ((Creature*)m_caster)->AI()->JustSummoned(NewSummon);
+            m_caster->AI()->JustSummoned(NewSummon);
             if (m_caster->IsInCombat() && !(NewSummon->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PASSIVE)))
             {
-                ((Creature*)NewSummon)->AI()->AttackStart(m_caster->getAttackerForHelper());
+                NewSummon->AI()->AttackStart(m_caster->getAttackerForHelper());
             }
         }
     }

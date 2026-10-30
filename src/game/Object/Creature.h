@@ -301,7 +301,7 @@ class Creature : public Unit
         /// map updates and wraps the selected AI inside a recording one that owns it.
         void SetAI(CreatureAI* ai) { i_AI = ai; }
 
-        CreatureAI* AI() { return i_AI; }
+        CreatureAI* AI() override final { return i_AI; }
 
         // Threat methods only a Creature can execute (decoupling D5e, server #134): each
         // moved here from Unit unchanged, where it opened with MANGOS_ASSERT(GetTypeId() ==

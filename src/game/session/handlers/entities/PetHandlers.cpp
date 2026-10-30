@@ -152,9 +152,9 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
                             pet->AttackStop();
                             pet->GetMotionMaster()->Clear();
 
-                            if (((Creature*)pet)->AI())
+                            if (pet->AI())
                             {
-                                ((Creature*)pet)->AI()->AttackStart(targetUnit);
+                                pet->AI()->AttackStart(targetUnit);
                                  // 10% chance to play special warlock pet attack talk, else growl
                                 if (pet->IsPet() && ((Pet*)pet)->getPetType() == SUMMON_PET && roll_chance_i(10))
                                 {
@@ -286,7 +286,7 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
                 pet->AttackStop();
                 pet->GetMotionMaster()->Clear();
 
-                ((Creature*)pet)->AI()->AttackStart(unit_target);
+                pet->AI()->AttackStart(unit_target);
                  // 10% chance to play special warlock pet attack talk, else growl
                 if (pet->IsPet() && ((Pet*)pet)->getPetType() == SUMMON_PET && pet != unit_target && roll_chance_i(10))
                 {

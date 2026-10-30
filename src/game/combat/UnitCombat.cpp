@@ -2144,9 +2144,9 @@ float Unit::GetAPMultiplier(WeaponAttackType attType, bool normalized)
 void Unit::AttackedBy(Unit* attacker)
 {
     // trigger AI reaction
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->AI())
+    if (GetTypeId() == TYPEID_UNIT && AI())
     {
-        ((Creature*)this)->AI()->AttackedBy(attacker);
+        AI()->AttackedBy(attacker);
     }
 
     // do not pet reaction for self inflicted damage (like environmental)
