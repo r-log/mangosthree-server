@@ -3394,7 +3394,7 @@ class Player : public Unit
         void SetClientControl(Unit* target, uint8 allowMove) override;
         /// The unit this client has selected to move, resolved through the session;
         /// this player when nothing is selected.
-        Unit* GetMover() const;
+        Unit const* GetMover() const;
         /// True when no unit but this player is this client's to move (membership,
         /// not the client's selection: a possessing player cannot deselect its way
         /// past this by clearing CMSG_MOVE_NOT_ACTIVE_MOVER).

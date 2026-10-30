@@ -196,7 +196,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     bool invisible = (m_invisibilityMask != 0 || u->m_invisibilityMask != 0);
     if (Player const* player = u->ToPlayer()) // if object is player with mover, use its visibility masks, so that an invisible player MCing a creature can see stuff
     {
-        if (Unit* mover = player->GetMover())
+        if (Unit const* mover = player->GetMover())
         {
             invisible = (m_invisibilityMask != 0 || mover->m_invisibilityMask != 0);
         }

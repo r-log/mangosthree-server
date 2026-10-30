@@ -2093,7 +2093,11 @@ bool ChatHandler::HandleDebugMovementSpeedCommand(char* args)
         SetSentErrorMessage(true);
         return false;
     }
-    Unit* mover = target->GetMover();
+    Unit* mover = target->GetSession()->SelectedMover();
+    if (!mover)
+    {
+        mover = target;
+    }
     mover->SetSpeedRate(MOVE_RUN, rate, true);
     PSendSysMessage("run speed of %s set to rate %.2f", mover->GetGuidStr().c_str(), rate);
     return true;
