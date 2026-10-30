@@ -1025,7 +1025,7 @@ void WorldSession::HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo
 
         if (mover->IsInWorld() && mover->GetTypeId() == TYPEID_UNIT)
         {
-            mover->GetMap()->CreatureRelocation((Creature*)mover, movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);
+            mover->SetPosition(movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);
         }
     }
 }
