@@ -1876,7 +1876,7 @@ SpellCastResult Spell::CheckPetCast(Unit* target)
         Unit* charmer = m_caster->GetCharmerOrOwner();
         if (charmer)
         {
-            Player* pCharmer = charmer->GetTypeId() == TYPEID_PLAYER ? static_cast<Player*>(charmer) : NULL;
+            Player* pCharmer = charmer->ToPlayer();
             if (!charmer->IsAlive() && (!pCharmer || !pCharmer->IsGhouled()))
             {
                 return SPELL_FAILED_CASTER_DEAD;

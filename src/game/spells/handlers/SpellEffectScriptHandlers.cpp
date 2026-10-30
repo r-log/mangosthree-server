@@ -2350,7 +2350,7 @@ static SpellHandlerOutcome<void> EffectScriptGeneric59317(SpellEffectScriptConte
     }
 
     // return from top
-    if (static_cast<Player*>(ctx.unitTarget)->GetTerrain()->GetAreaId(static_cast<Player*>(ctx.unitTarget)->Where().X(), static_cast<Player*>(ctx.unitTarget)->Where().Y(), static_cast<Player*>(ctx.unitTarget)->Where().Z()) == 4637)
+    if (ctx.unitTarget->GetTerrain()->GetAreaId(ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z()) == 4637)
     {
         ctx.unitTarget->CastSpell(ctx.unitTarget, 59316, true);
     }

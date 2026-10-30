@@ -279,20 +279,15 @@ bool ScriptAction::LogIfNotGameObject(WorldObject* pWorldObject)
     }
     return false;
 }
-/**
- * @brief Logs an error when the provided world object is not a player.
- *
- * @param pWorldObject The world object to validate.
- * @return true if validation failed; otherwise false.
- */
-bool ScriptAction::LogIfNotPlayer(WorldObject* pWorldObject)
+/// The player `pWorldObject` is, or NULL after logging that the command needs one
+Player* ScriptAction::ToPlayerOrLog(WorldObject* pWorldObject)
 {
-    if (!pWorldObject || pWorldObject->GetTypeId() != TYPEID_PLAYER)
+    Player* player = pWorldObject ? pWorldObject->ToPlayer() : NULL;
+    if (!player)
     {
         sLog.outErrorDb(" DB-SCRIPTS: Process table `db_scripts [type = %d]` id %u, command %u call for non-player, skipping.", m_type, m_script->id, m_script->command);
-        return true;
     }
-    return false;
+    return player;
 }
 
 /// Helper to get a player if possible (target preferred)
@@ -1178,14 +1173,14 @@ bool ScriptAction::HandleScriptStep()
             Player* player = NULL;
             WorldObject* second = pSource;
             // First case: target is player
-            if (pTarget && pTarget->GetTypeId() == TYPEID_PLAYER)
+            if (Player* targetPlayer = pTarget ? pTarget->ToPlayer() : NULL)
             {
-                player = static_cast<Player*>(pTarget);
+                player = targetPlayer;
             }
             // Second case: source is player
-            else if (pSource && pSource->GetTypeId() == TYPEID_PLAYER)
+            else if (Player* sourcePlayer = pSource ? pSource->ToPlayer() : NULL)
             {
-                player = static_cast<Player*>(pSource);
+                player = sourcePlayer;
                 second = pTarget;
             }
 
@@ -1302,7 +1297,8 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_SEND_MAIL:                      // 38
         {
-            if (LogIfNotPlayer(pTarget))
+            Player* targetPlayer = ToPlayerOrLog(pTarget);
+            if (!targetPlayer)
             {
                 return false;
             }
@@ -1322,7 +1318,7 @@ bool ScriptAction::HandleScriptStep()
             }
             uint32 deliverDelay = m_script->textId[0] > 0 ? (uint32)m_script->textId[0] : 0;
 
-            MailDraft(m_script->sendMail.mailTemplateId).SendMailTo(static_cast<Player*>(pTarget), sender, MAIL_CHECK_MASK_HAS_BODY, deliverDelay);
+            MailDraft(m_script->sendMail.mailTemplateId).SendMailTo(targetPlayer, sender, MAIL_CHECK_MASK_HAS_BODY, deliverDelay);
             break;
         }
         case SCRIPT_COMMAND_CHANGE_ENTRY:                   // 39

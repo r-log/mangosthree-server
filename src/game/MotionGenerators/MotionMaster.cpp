@@ -912,7 +912,7 @@ void MotionMaster::MoveTargetedHome()
         Bound const* current = SelectedBound();
         if (!current || !current->behaviour->GetResetPosition(*m_owner, x, y, z, o))
         {
-            Geometry::Placement const& home = static_cast<Creature*>(m_owner)->Spawn();
+            Geometry::Placement const& home = ownerCreature->Spawn();
             x = home.X();
             y = home.Y();
             z = home.Z();
@@ -1126,7 +1126,8 @@ bool MotionMaster::PauseWaypoints(int32 ms)
  */
 void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 startNode, uint32 mountDisplayId)
 {
-    if (m_owner->GetTypeId() != TYPEID_PLAYER)
+    Player* passenger = m_owner->ToPlayer();
+    if (!passenger)
     {
         sLog.outError("%s attempt taxi over %u nodes", m_owner->GetGuidStr().c_str(), uint32(route.size()));
         return;
@@ -1143,7 +1144,7 @@ void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 start
     if (!TaxiRoute::Weld(route, welded))
     {
         sLog.outError("%s attempt taxi over a missing or degenerate path along a route of %u nodes", m_owner->GetGuidStr().c_str(), uint32(route.size()));
-        static_cast<Player*>(m_owner)->m_taxi.ClearTaxiDestinations();
+        passenger->m_taxi.ClearTaxiDestinations();
         return;
     }
     p.nodes.reserve(welded.size());
@@ -1160,7 +1161,7 @@ void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 start
     if (p.nodes.empty() || startNode >= p.nodes.size())
     {
         sLog.outError("%s attempt taxi from node %u of a route of %u path nodes", m_owner->GetGuidStr().c_str(), startNode, uint32(p.nodes.size()));
-        static_cast<Player*>(m_owner)->m_taxi.ClearTaxiDestinations();
+        passenger->m_taxi.ClearTaxiDestinations();
         return;
     }
     // The landing snaps onto the destination's TaxiNodes position when it has one (a spell
@@ -1173,13 +1174,12 @@ void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 start
             p.landing = Motion::Vector3(destination->Pos_0, destination->Pos_1, destination->Pos_2);
         }
     }
-    // THE LANDING TIME, stamped once and only once (design 2026-09-22 §2): the whole remaining
+    // THE LANDING TIME, stamped once and only once: the whole remaining
     // route's flyable length over the very speed this spline is laid at. It is the takeoff that
     // stamps it -- a resume finds one already set and keeps it, because the contract was bought
     // at the click and a passenger who spent ten minutes in a battleground does not get those
-    // ten minutes added to his flight. PlayerTaxi::ClearTaxiDestinations drops the stamp with
+    // ten minutes added to their flight. PlayerTaxi::ClearTaxiDestinations drops the stamp with
     // the route, so the next takeoff always finds zero.
-    Player* passenger = static_cast<Player*>(m_owner);
     if (!passenger->m_taxi.GetLandingTime())
     {
         const float remaining = TaxiResume::Length(welded, startNode);

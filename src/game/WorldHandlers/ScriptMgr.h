@@ -88,7 +88,7 @@ class ScriptAction
         Creature* ToCreatureOrLog(WorldObject* pWorldObject);
         bool LogIfNotUnit(WorldObject* pWorldObject);
         bool LogIfNotGameObject(WorldObject* pWorldObject);
-        bool LogIfNotPlayer(WorldObject* pWorldObject);
+        Player* ToPlayerOrLog(WorldObject* pWorldObject);
         Player* GetPlayerTargetOrSourceAndLog(WorldObject* pSource, WorldObject* pTarget);
 };
 

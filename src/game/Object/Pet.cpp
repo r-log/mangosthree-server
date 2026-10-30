@@ -1068,12 +1068,12 @@ void Pet::CastPetAuras(bool current)
  */
 void Pet::CastOwnerTalentAuras()
 {
-    if (!GetOwner() || GetOwner()->GetTypeId() != TYPEID_PLAYER)
+    Unit* owner = GetOwner();
+    Player* pOwner = owner ? owner->ToPlayer() : NULL;
+    if (!pOwner)
     {
         return;
     }
-
-    Player* pOwner = static_cast<Player *>(GetOwner());
 
     // Handle Ferocious Inspiration Talent
     if (pOwner && pOwner->getClass() == CLASS_HUNTER)

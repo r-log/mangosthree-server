@@ -162,8 +162,7 @@ namespace
     /// the client holds it. Either one alone leaves the two disagreeing.
     void ForgetMinion(Creature* minion, Unit* watcher)
     {
-        Player* client = watcher && watcher->GetTypeId() == TYPEID_PLAYER
-                             ? static_cast<Player*>(watcher) : NULL;
+        Player* client = watcher ? watcher->ToPlayer() : NULL;
         if (!client)
         {
             return;
@@ -173,7 +172,7 @@ namespace
         client->m_clientGUIDs.erase(minion->GetObjectGuid());
     }
 
-    void DrawMinionTo(Unit* minion, Unit* master, Map* dest)
+    void DrawMinionTo(Creature* minion, Unit* master, Map* dest)
     {
         if (!minion || !master || !dest)
         {
@@ -196,10 +195,8 @@ namespace
             return;                         // the ordinary case, once a tick, per minion
         }
 
-        Creature* c = static_cast<Creature*>(minion);
-
         DEBUG_FILTER_LOG(LOG_FILTER_DECK_MINIONS,
-                         "DrawMinionTo: FROM %s", DescribeSpatially(c).c_str());
+                         "DrawMinionTo: FROM %s", DescribeSpatially(minion).c_str());
         DEBUG_FILTER_LOG(LOG_FILTER_DECK_MINIONS,
                          "DrawMinionTo:   TO map=%u%s beside %s", dest->GetId(),
                          dest->AsTransport() ? "[deck]" : "",
@@ -210,7 +207,7 @@ namespace
                        PET_FOLLOW_ANGLE);
 
         // Whatever leg it was on was planned in the map it is leaving; none of it survives.
-        c->StopMoving();
+        minion->StopMoving();
 
         // TELL EVERY CLIENT TO DROP IT FIRST, and MAKE THE SERVER AGREE. Without this the
         // ones already holding it get only a heartbeat at the far side and interpolate the
@@ -225,17 +222,17 @@ namespace
         // And THE MASTER MUST BE IN THE LIST. He is the one client that has to re-create it,
         // and he is the one this loop cannot reach: by the time a minion is drawn ashore he
         // has already been taken off the deck map it is walking.
-        ForgetMinion(c, master);
+        ForgetMinion(minion, master);
 
-        for (Map::PlayerList::const_iterator itr = c->GetMap()->GetPlayers().begin();
-             itr != c->GetMap()->GetPlayers().end(); ++itr)
+        for (Map::PlayerList::const_iterator itr = minion->GetMap()->GetPlayers().begin();
+             itr != minion->GetMap()->GetPlayers().end(); ++itr)
         {
-            ForgetMinion(c, itr->getSource());
+            ForgetMinion(minion, itr->getSource());
         }
 
-        c->GetMap()->Remove(c, false);
-        c->Place().MoveTo(x, y, z, master->Where().Facing());
-        dest->Add(c);
+        minion->GetMap()->Remove(minion, false);
+        minion->Place().MoveTo(x, y, z, master->Where().Facing());
+        dest->Add(minion);
 
         // AND THE MOTION, in the frame it now stands in. Initialize() alone restores the
         // creature's DEFAULT behaviour -- for a pet that is not following anybody, which is
@@ -245,19 +242,19 @@ namespace
         // it here first with all=true emptied it down to and including the idle behaviour,
         // and the Clear inside MoveFollow then asserted on !empty() -- a crash on every
         // step ashore, from MotionMaster::DirectClean.
-        if (c->GetCharmInfo() && c->GetCharmInfo()->HasCommandState(COMMAND_STAY))
+        if (minion->GetCharmInfo() && minion->GetCharmInfo()->HasCommandState(COMMAND_STAY))
         {
-            c->GetMotionMaster()->MoveIdle();
+            minion->GetMotionMaster()->MoveIdle();
         }
         else
         {
-            c->GetMotionMaster()->MoveFollow(master, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
+            minion->GetMotionMaster()->MoveFollow(master, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
         }
 
-        c->SendHeartBeat();
+        minion->SendHeartBeat();
 
         DEBUG_FILTER_LOG(LOG_FILTER_DECK_MINIONS,
-                         "DrawMinionTo: DONE %s", DescribeSpatially(c).c_str());
+                         "DrawMinionTo: DONE %s", DescribeSpatially(minion).c_str());
     }
 
     /// Every minion this master controls, moved to `dest` beside him. The reconciler does
@@ -274,7 +271,7 @@ namespace
         // which means the master no longer owns what is standing on the other map.
         int seen = 0;
         master->CallForAllControlledUnits(
-            [master, dest, &seen](Unit* minion) { ++seen; DrawMinionTo(minion, master, dest); },
+            [master, dest, &seen](Unit* minion) { ++seen; if (Creature* creature = minion->ToCreature()) { DrawMinionTo(creature, master, dest); } },
             CONTROLLED_PET | CONTROLLED_MINIPET | CONTROLLED_GUARDIANS | CONTROLLED_TOTEMS);
 
         DEBUG_FILTER_LOG(LOG_FILTER_DECK_MINIONS,
@@ -667,7 +664,7 @@ void TransportMap::UpdateMinions()
         }
 
         master->CallForAllControlledUnits(
-            [this, master](Unit* minion) { DrawMinionTo(minion, master, this); },
+            [this, master](Unit* minion) { if (Creature* creature = minion->ToCreature()) { DrawMinionTo(creature, master, this); } },
             CONTROLLED_PET | CONTROLLED_MINIPET | CONTROLLED_GUARDIANS | CONTROLLED_TOTEMS);
     }
 
