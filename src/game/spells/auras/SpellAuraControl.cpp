@@ -100,13 +100,13 @@ void Aura::HandleModPossess(bool apply, bool Real)
 
     if (apply)
     {
-        if (caster->GetTypeId() == TYPEID_PLAYER)
+        if (Player* casterPlayer = caster->ToPlayer())
         {
             //remove any existing charm just in case
             caster->Uncharm();
 
             //pets should be removed when possesing a target if somehow check was bypassed
-            ((Player*)caster)->UnsummonPetIfAny();
+            casterPlayer->UnsummonPetIfAny();
         }
 
         caster->TakePossessOf(target);
@@ -235,16 +235,16 @@ void Aura::HandleModCharm(bool apply, bool Real)
         target->DeleteThreatList();
         target->GetHostileRefManager().deleteReferences();
 
-        if (target->GetTypeId() == TYPEID_UNIT)
+        if (Creature* targetCreature = target->ToCreature())
         {
-            ((Creature*)target)->AIM_Initialize();
+            targetCreature->AIM_Initialize();
             CharmInfo* charmInfo = target->InitCharmInfo(target);
             charmInfo->InitCharmCreateSpells();
             charmInfo->SetReactState(REACT_DEFENSIVE);
 
             if (caster->GetTypeId() == TYPEID_PLAYER && caster->getClass() == CLASS_WARLOCK)
             {
-                CreatureInfo const* cinfo = ((Creature*)target)->GetCreatureInfo();
+                CreatureInfo const* cinfo = targetCreature->GetCreatureInfo();
                 if (cinfo && cinfo->CreatureType == CREATURE_TYPE_DEMON)
                 {
                     // creature with pet number expected have class set
@@ -279,9 +279,9 @@ void Aura::HandleModCharm(bool apply, bool Real)
     {
         target->SetCharmerGuid(ObjectGuid());
 
-        if (target->GetTypeId() == TYPEID_PLAYER)
+        if (Player* targetPlayer = target->ToPlayer())
         {
-            ((Player*)target)->setFactionForRace(target->getRace());
+            targetPlayer->setFactionForRace(target->getRace());
         }
         else
         {

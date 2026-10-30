@@ -405,9 +405,9 @@ void Spell::EffectTransmitted(SpellEffectEntry const* effect)
         }
         case GAMEOBJECT_TYPE_SUMMONING_RITUAL:
         {
-            if (m_caster->GetTypeId() == TYPEID_PLAYER)
+            if (Player* casterPlayer = m_caster->ToPlayer())
             {
-                pGameObj->AddUniqueUse((Player*)m_caster);
+                pGameObj->AddUniqueUse(casterPlayer);
                 m_caster->AddGameObject(pGameObj);          // will removed at spell cancel
             }
             break;

@@ -333,16 +333,16 @@ bool ChatHandler::HandleModifyTalentCommand(char* args)
         return false;
     }
 
-    if (target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = target->ToPlayer())
     {
         // check online security
-        if (HasLowerSecurity((Player*)target))
+        if (HasLowerSecurity(targetPlayer))
         {
             return false;
         }
 
-        ((Player*)target)->GetTalentMgr().SetFreePoints(tp);
-        ((Player*)target)->SendTalentsInfoData(false);
+        targetPlayer->GetTalentMgr().SetFreePoints(tp);
+        targetPlayer->SendTalentsInfoData(false);
         return true;
     }
     else if (target->IsPet())
@@ -665,18 +665,18 @@ bool ChatHandler::HandleModifyScaleCommand(char* args)
         return false;
     }
 
-    if (target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = target->ToPlayer())
     {
         // check online security
-        if (HasLowerSecurity((Player*)target))
+        if (HasLowerSecurity(targetPlayer))
         {
             return false;
         }
 
-        PSendSysMessage(LANG_YOU_CHANGE_SIZE, Scale, GetNameLink((Player*)target).c_str());
-        if (needReportToTarget((Player*)target))
+        PSendSysMessage(LANG_YOU_CHANGE_SIZE, Scale, GetNameLink(targetPlayer).c_str());
+        if (needReportToTarget(targetPlayer))
         {
-            ChatHandler((Player*)target).PSendSysMessage(LANG_YOURS_SIZE_CHANGED, GetNameLink().c_str(), Scale);
+            ChatHandler(targetPlayer).PSendSysMessage(LANG_YOURS_SIZE_CHANGED, GetNameLink().c_str(), Scale);
         }
     }
 

@@ -477,13 +477,13 @@ void VehicleInfo::Board(Unit* passenger, uint8 seat)
     // vehicle's cell.
     if (passenger->IsInWorld() && m_owner->IsInWorld())
     {
-        if (passenger->GetTypeId() == TYPEID_PLAYER)
+        if (Player* passengerPlayer = passenger->ToPlayer())
         {
-            m_owner->GetMap()->PlayerRelocation((Player*)passenger, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
+            m_owner->GetMap()->PlayerRelocation(passengerPlayer, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
         }
-        else if (passenger->GetTypeId() == TYPEID_UNIT)
+        else if (Creature* passengerCreature = passenger->ToCreature())
         {
-            m_owner->GetMap()->CreatureRelocation((Creature*)passenger, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
+            m_owner->GetMap()->CreatureRelocation(passengerCreature, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
         }
     }
 
@@ -682,16 +682,16 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
     }
 
     // Some creature vehicles get despawned after passenger unboarding
-    if (m_owner->GetTypeId() == TYPEID_UNIT)
+    if (Creature* ownerCreature = m_owner->ToCreature())
     {
         // TODO: Guesswork, but seems to be fairly near correct
         // Only if the passenger was on control seat? Also depending on some flags
         if ((seatEntry->Flags & SEAT_FLAG_CAN_CONTROL) &&
                 !(m_vehicleEntry->Flags & (VEHICLE_FLAG_UNK4 | VEHICLE_FLAG_UNK20)))
         {
-            if (((Creature*)m_owner)->IsTemporarySummon())
+            if (ownerCreature->IsTemporarySummon())
             {
-                ((Creature*)m_owner)->ForcedDespawn(1000);
+                ownerCreature->ForcedDespawn(1000);
             }
         }
     }
@@ -805,13 +805,13 @@ void VehicleInfo::UpdateGlobalPositionOf(WorldObject* passenger, float lx, float
     float gx, gy, gz, go;
     CalculateGlobalPositionOf(lx, ly, lz, lo, gx, gy, gz, go);
 
-    if (passenger->GetTypeId() == TYPEID_PLAYER)
+    if (Player* passengerPlayer = passenger->ToPlayer())
     {
-        m_owner->GetMap()->PlayerRelocation((Player*)passenger, gx, gy, gz, go);
+        m_owner->GetMap()->PlayerRelocation(passengerPlayer, gx, gy, gz, go);
     }
-    else if (passenger->GetTypeId() == TYPEID_UNIT)
+    else if (Creature* passengerCreature = passenger->ToCreature())
     {
-        m_owner->GetMap()->CreatureRelocation((Creature*)passenger, gx, gy, gz, go);
+        m_owner->GetMap()->CreatureRelocation(passengerCreature, gx, gy, gz, go);
     }
     else
     {
@@ -956,15 +956,15 @@ void VehicleInfo::ApplySeatMods(Unit* passenger, uint32 seatFlags)
 
             // Unconfirmed - default speed handling. Before the grant: a gait change is
             // server-only and the kernel refuses it on a client-driven unit.
-            if (pVehicle->GetTypeId() == TYPEID_UNIT)
+            if (Creature* vehicleCreature = pVehicle->ToCreature())
             {
                 if (!pPlayer->IsWalking() && pVehicle->IsWalking())
                 {
-                    ((Creature*)pVehicle)->SetWalk(false, true);
+                    vehicleCreature->SetWalk(false, true);
                 }
                 else if (pPlayer->IsWalking() && !pVehicle->IsWalking())
                 {
-                    ((Creature*)pVehicle)->SetWalk(true, true);
+                    vehicleCreature->SetWalk(true, true);
                 }
             }
 

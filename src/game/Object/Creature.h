@@ -478,7 +478,7 @@ class Creature : public Unit
         Cell const& GetCurrentCell() const { return m_currentCell; }
         void SetCurrentCell(Cell const& cell) { m_currentCell = cell; }
 
-        bool IsVisibleInGridForPlayer(Player* pl) const override;
+        bool IsVisibleInGridForPlayer(Player const* pl) const override;
 
         void RemoveCorpse();
         bool IsDeadByDefault() const { return m_IsDeadByDefault; };

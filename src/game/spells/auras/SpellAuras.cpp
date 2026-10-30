@@ -754,9 +754,9 @@ void AreaAura::Update(uint32 diff)
                 {
                     Group* pGroup = NULL;
 
-                    if (owner->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* ownerPlayer = owner->ToPlayer())
                     {
-                        pGroup = ((Player*)owner)->GetGroup();
+                        pGroup = ownerPlayer->GetGroup();
                     }
 
                     if (pGroup)
@@ -2047,8 +2047,8 @@ void Aura::PeriodicTick()
                 pCaster->ProcDamageAndSpell(target, procAttacker, procVictim, procEx, gain, BASE_ATTACK, spellProto);
 
                 // add HoTs to amount healed in bgs
-                if (pCaster->GetTypeId() == TYPEID_PLAYER)
-                    if (BattleGround* bg = ((Player*)pCaster)->GetBattleGround())
+                if (Player* casterPlayer = pCaster->ToPlayer())
+                    if (BattleGround* bg = casterPlayer->GetBattleGround())
                     {
                         bg->UpdatePlayerScore(((Player*)pCaster), SCORE_HEALING_DONE, gain);
                     }

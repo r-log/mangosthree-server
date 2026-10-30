@@ -3460,7 +3460,7 @@ class Player : public Unit
         bool HaveAtClient(WorldObject const* u) const { return u == this || m_clientGUIDs.find(u->GetObjectGuid()) != m_clientGUIDs.end(); }
 
         // Check if the player is visible in the grid for another player
-        bool IsVisibleInGridForPlayer(Player* pl) const override;
+        bool IsVisibleInGridForPlayer(Player const* pl) const override;
 
         // Check if the player is visible globally for another player
         bool IsVisibleGloballyFor(Player* pl) const;

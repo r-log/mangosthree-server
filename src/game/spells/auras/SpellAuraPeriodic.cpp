@@ -1252,10 +1252,10 @@ void Aura::HandleModHitChance(bool apply, bool /*Real*/)
 {
     Unit* target = GetTarget();
 
-    if (target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = target->ToPlayer())
     {
-        ((Player*)target)->UpdateMeleeHitChances();
-        ((Player*)target)->UpdateRangedHitChances();
+        targetPlayer->UpdateMeleeHitChances();
+        targetPlayer->UpdateRangedHitChances();
     }
     else
     {

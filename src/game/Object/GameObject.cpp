@@ -1156,12 +1156,12 @@ bool GameObject::IsHostileTo(Unit const* unit) const
     }
 
     // GvP forced reaction and reputation case
-    if (unit->GetTypeId() == TYPEID_PLAYER)
+    if (Player const* unitPlayer = unit->ToPlayer())
     {
         if (tester_faction->Faction)
         {
             // forced reaction
-            if (ReputationRank const* force = ((Player*)unit)->GetReputationMgr().GetForcedRankIfAny(tester_faction))
+            if (ReputationRank const* force = unitPlayer->GetReputationMgr().GetForcedRankIfAny(tester_faction))
             {
                 return *force <= REP_HOSTILE;
             }
@@ -1170,7 +1170,7 @@ bool GameObject::IsHostileTo(Unit const* unit) const
             FactionEntry const* raw_tester_faction = sFactionStore.LookupEntry(tester_faction->Faction);
             if (raw_tester_faction && raw_tester_faction->ReputationIndex >= 0)
             {
-                return ((Player const*)unit)->GetReputationMgr().GetRank(raw_tester_faction) <= REP_HOSTILE;
+                return unitPlayer->GetReputationMgr().GetRank(raw_tester_faction) <= REP_HOSTILE;
             }
         }
     }

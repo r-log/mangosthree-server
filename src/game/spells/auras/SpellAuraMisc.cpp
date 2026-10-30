@@ -167,9 +167,9 @@ void Aura::HandleShapeshiftBoosts(bool apply)
             target->CastSpell(target, spellId2, true, NULL, this);
         }
 
-        if (target->GetTypeId() == TYPEID_PLAYER)
+        if (Player* targetPlayer = target->ToPlayer())
         {
-            const PlayerSpellMap& sp_list = ((Player*)target)->GetSpellMap();
+            const PlayerSpellMap& sp_list = targetPlayer->GetSpellMap();
             for (PlayerSpellMap::const_iterator itr = sp_list.begin(); itr != sp_list.end(); ++itr)
             {
                 if (itr->second.state == PLAYERSPELL_REMOVED)
@@ -598,10 +598,10 @@ void Aura::HandleSpiritOfRedemption(bool apply, bool Real)
     // prepare spirit state
     if (apply)
     {
-        if (target->GetTypeId() == TYPEID_PLAYER)
+        if (Player* targetPlayer = target->ToPlayer())
         {
             // disable breath/etc timers
-            ((Player*)target)->StopMirrorTimers();
+            targetPlayer->StopMirrorTimers();
 
             // set stand state (expected in this form)
             if (!target->IsStandState())

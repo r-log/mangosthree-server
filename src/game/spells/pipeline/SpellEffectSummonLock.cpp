@@ -921,9 +921,9 @@ bool Spell::DoSummonPet(SpellEffectEntry const* effect)
         spawnCreature->SetDuration(m_duration);
     }
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* casterPlayer = m_caster->ToPlayer())
     {
-        if (spawnCreature->LoadPetFromDB((Player*)m_caster, pet_entry))
+        if (spawnCreature->LoadPetFromDB(casterPlayer, pet_entry))
         {
             // Summon in dest location
             if (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION)

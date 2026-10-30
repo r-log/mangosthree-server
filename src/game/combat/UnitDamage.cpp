@@ -103,9 +103,9 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
         // Ignore resistance by self SPELL_AURA_MOD_TARGET_RESISTANCE aura
         tmpvalue2 += (float)pCaster->GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, schoolMask);
 
-        if (pCaster->GetTypeId() == TYPEID_PLAYER)
+        if (Player* casterPlayer = pCaster->ToPlayer())
         {
-            tmpvalue2 -= (float)((Player*)pCaster)->GetSpellPenetrationItemMod();
+            tmpvalue2 -= (float)casterPlayer->GetSpellPenetrationItemMod();
         }
 
         tmpvalue2 *= (float)(0.15f / getLevel());
@@ -1749,17 +1749,17 @@ int32 Unit::DealHeal(Unit* pVictim, uint32 addhealth, SpellEntry const* spellPro
     // overheal = addhealth - gain
     unit->SendHealSpellLog(pVictim, spellProto->ID, addhealth, addhealth - gain, critical, absorb);
 
-    if (unit->GetTypeId() == TYPEID_PLAYER)
+    if (Player* unitPlayer = unit->ToPlayer())
     {
-        sBattleGroundHooks.HealingDone(*(Player*)unit, gain);
+        sBattleGroundHooks.HealingDone(*unitPlayer, gain);
 
         // use the actual gain, as the overheal shall not be counted, skip gain 0 (it ignored anyway in to criteria)
         if (gain)
         {
-            ((Player*)unit)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HEALING_DONE, gain, 0, pVictim);
+            unitPlayer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HEALING_DONE, gain, 0, pVictim);
         }
 
-        ((Player*)unit)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEAL_CASTED, addhealth);
+        unitPlayer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEAL_CASTED, addhealth);
     }
 
     if (pVictim->GetTypeId() == TYPEID_PLAYER)

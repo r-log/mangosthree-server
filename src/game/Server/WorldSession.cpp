@@ -661,9 +661,9 @@ void WorldSession::LogoutPlayer(bool Save)
                 Unit* owner = (*itr)->GetOwner();           // including player controlled case
                 if (owner)
                 {
-                    if (owner->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* ownerPlayer = owner->ToPlayer())
                     {
-                        aset.insert((Player*)owner);
+                        aset.insert(ownerPlayer);
                     }
                 }
                 else if ((*itr)->GetTypeId() == TYPEID_PLAYER)

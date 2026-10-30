@@ -939,24 +939,24 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 Unit* targetOwner = target->GetCharmerOrOwner();
                 if (owner)
                 {
-                    if (owner->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* ownerPlayer = owner->ToPlayer())
                     {
                         if (target == owner)
                         {
                             targetUnitMap.push_back(target);
                             break;
                         }
-                        pGroup = ((Player*)owner)->GetGroup();
+                        pGroup = ownerPlayer->GetGroup();
                     }
                 }
-                else if (m_caster->GetTypeId() == TYPEID_PLAYER)
+                else if (Player* casterPlayer = m_caster->ToPlayer())
                 {
                     if (targetOwner == m_caster && target->IsPet())
                     {
                         targetUnitMap.push_back(target);
                         break;
                     }
-                    pGroup = ((Player*)m_caster)->GetGroup();
+                    pGroup = casterPlayer->GetGroup();
                 }
 
                 if (pGroup)
@@ -1152,9 +1152,9 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                         if (target->IsPet())
                         {
                             Unit* targetOwner = target->GetOwner();
-                            if (targetOwner->GetTypeId() == TYPEID_PLAYER)
+                            if (Player* targetOwnerPlayer = targetOwner->ToPlayer())
                             {
-                                pTarget = (Player*)targetOwner;
+                                pTarget = targetOwnerPlayer;
                             }
                         }
                     }

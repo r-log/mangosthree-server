@@ -329,23 +329,23 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
                 if (unit_target)
                 {
                     pet->SetInFront(unit_target);
-                    if (unit_target->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* unit_targetPlayer = unit_target->ToPlayer())
                     {
-                        pet->SendCreateUpdateToPlayer((Player*)unit_target);
+                        pet->SendCreateUpdateToPlayer(unit_targetPlayer);
                     }
                 }
                 else if (Unit* unit_target2 = spell->m_targets.getUnitTarget())
                 {
                     pet->SetInFront(unit_target2);
-                    if (unit_target2->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* unit_target2Player = unit_target2->ToPlayer())
                     {
-                        pet->SendCreateUpdateToPlayer((Player*)unit_target2);
+                        pet->SendCreateUpdateToPlayer(unit_target2Player);
                     }
                 }
                 if (Unit* powner = pet->GetCharmerOrOwner())
-                    if (powner->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* pownerPlayer = powner->ToPlayer())
                     {
-                        pet->SendCreateUpdateToPlayer((Player*)powner);
+                        pet->SendCreateUpdateToPlayer(pownerPlayer);
                     }
                 result = SPELL_CAST_OK;
             }

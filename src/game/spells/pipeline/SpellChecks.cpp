@@ -184,11 +184,11 @@ SpellCastResult Spell::CheckCast(bool strict)
         }
     }
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* casterPlayer = m_caster->ToPlayer())
     {
         // cancel autorepeat spells if cast start when moving
         // (not wand currently autorepeat cast delayed to moving stop anyway in spell update code)
-        if (((Player*)m_caster)->isMoving() && !m_caster->HasAffectedAura(SPELL_AURA_ALLOW_CAST_WHILE_MOVING, m_spellInfo))
+        if (casterPlayer->isMoving() && !m_caster->HasAffectedAura(SPELL_AURA_ALLOW_CAST_WHILE_MOVING, m_spellInfo))
         {
             // skip stuck spell to allow use it in falling case and apply spell limitations at movement
             if ((!m_caster->ClientStatus().HasMovementFlag(MOVEFLAG_FALLINGFAR) || m_spellInfo->GetSpellEffectIdByIndex(EFFECT_INDEX_0) != SPELL_EFFECT_STUCK) &&
@@ -197,7 +197,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         }
 
         if (!m_IsTriggeredSpell && NeedsComboPoints(m_spellInfo) && !m_caster->IsIgnoreUnitState(m_spellInfo, IGNORE_UNIT_TARGET_STATE) &&
-                (!m_targets.getUnitTarget() || m_targets.getUnitTarget()->GetObjectGuid() != ((Player*)m_caster)->GetComboTargetGuid()) &&
+                (!m_targets.getUnitTarget() || m_targets.getUnitTarget()->GetObjectGuid() != casterPlayer->GetComboTargetGuid()) &&
                 !m_spellInfo->HasAttribute(SPELL_ATTR_EX8_IGNORE_TARGET_FOR_COMBO_POINTS))
             // warrior not have real combo-points at client side but use this way for mark allow Overpower use
             return m_caster->getClass() == CLASS_WARRIOR ? SPELL_FAILED_CASTER_AURASTATE : SPELL_FAILED_NO_COMBO_POINTS;
@@ -1492,10 +1492,10 @@ SpellCastResult Spell::CheckCast(bool strict)
                     }
                 }
 
-                if (m_caster->GetTypeId() == TYPEID_PLAYER)
+                if (Player* casterPlayer = m_caster->ToPlayer())
                 {
                     // not allow use this effect at battleground until battleground start
-                    if (BattleGround const* bg = ((Player*)m_caster)->GetBattleGround())
+                    if (BattleGround const* bg = casterPlayer->GetBattleGround())
                     {
                         if (bg->GetStatus() != STATUS_IN_PROGRESS)
                         {

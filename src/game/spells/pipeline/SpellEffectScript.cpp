@@ -194,9 +194,9 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
 
     // Script based implementation. Must be used only for not good for implementation in core spell effects
     // So called only for not processed cases
-    if (unitTarget->GetTypeId() == TYPEID_UNIT)
+    if (Creature* unitTargetCreature = unitTarget->ToCreature())
     {
-        if (sScriptHooks.OnEffectScriptEffect(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), (Creature*)unitTarget, m_originalCasterGUID))
+        if (sScriptHooks.OnEffectScriptEffect(m_caster, m_spellInfo->ID, SpellEffectIndex(effect->EffectIndex), unitTargetCreature, m_originalCasterGUID))
         {
             return;
         }

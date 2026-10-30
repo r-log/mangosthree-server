@@ -91,10 +91,10 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
 
     Map& _map = *u->GetMap();
     // Grid dead/alive checks
-    if (u->GetTypeId() == TYPEID_PLAYER)
+    if (Player const* uPlayer = u->ToPlayer())
     {
         // non visible at grid for any stealth state
-        if (!IsVisibleInGridForPlayer((Player*)u))
+        if (!IsVisibleInGridForPlayer(uPlayer))
         {
             return false;
         }

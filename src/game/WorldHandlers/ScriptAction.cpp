@@ -1231,9 +1231,9 @@ bool ScriptAction::HandleScriptStep()
                 ((Creature*)pSource)->AI()->SendAIEventAround(AIEventType(m_script->sendAIEvent.eventType), (Unit*)pTarget, 0, float(m_script->sendAIEvent.radius));
             }
             // else if no radius and target is creature send AI event to target
-            else if (pTarget->GetTypeId() == TYPEID_UNIT)
+            else if (Creature* targetCreature = pTarget->ToCreature())
             {
-                ((Creature*)pSource)->AI()->SendAIEvent(AIEventType(m_script->sendAIEvent.eventType), NULL, (Creature*)pTarget);
+                ((Creature*)pSource)->AI()->SendAIEvent(AIEventType(m_script->sendAIEvent.eventType), NULL, targetCreature);
             }
             break;
         }

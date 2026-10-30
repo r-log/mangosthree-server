@@ -269,9 +269,9 @@ void PetAI::UpdateAI(const uint32 diff)
             // auto turn to target
             m_creature->SetInFront(victim);
 
-            if (victim->GetTypeId() == TYPEID_PLAYER)
+            if (Player* victimPlayer = victim->ToPlayer())
             {
-                m_creature->SendCreateUpdateToPlayer((Player*)victim);
+                m_creature->SendCreateUpdateToPlayer(victimPlayer);
             }
 
             if (owner && owner->GetTypeId() == TYPEID_PLAYER)
@@ -415,9 +415,9 @@ void PetAI::UpdateAI(const uint32 diff)
             if (!m_creature->Where().HasInArc(target->Where(), M_PI_F))
             {
                 m_creature->SetInFront(target);
-                if (target->GetTypeId() == TYPEID_PLAYER)
+                if (Player* targetPlayer = target->ToPlayer())
                 {
-                    m_creature->SendCreateUpdateToPlayer((Player*)target);
+                    m_creature->SendCreateUpdateToPlayer(targetPlayer);
                 }
 
                 if (owner && owner->GetTypeId() == TYPEID_PLAYER)
@@ -580,9 +580,9 @@ void PetAI::UpdateAllies()
     {
         return;
     }
-    else if (owner->GetTypeId() == TYPEID_PLAYER)
+    else if (Player* ownerPlayer = owner->ToPlayer())
     {
-        pGroup = ((Player*)owner)->GetGroup();
+        pGroup = ownerPlayer->GetGroup();
     }
 
     // only pet and owner/not in group->ok

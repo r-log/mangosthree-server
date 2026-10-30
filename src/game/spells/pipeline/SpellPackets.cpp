@@ -423,9 +423,9 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
     uint32 ammoInventoryType = 0;
     uint32 ammoDisplayID = 0;
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* casterPlayer = m_caster->ToPlayer())
     {
-        Item* pItem = ((Player*)m_caster)->GetWeaponForAttack(RANGED_ATTACK);
+        Item* pItem = casterPlayer->GetWeaponForAttack(RANGED_ATTACK);
         if (pItem)
         {
             ammoInventoryType = pItem->GetProto()->InventoryType;

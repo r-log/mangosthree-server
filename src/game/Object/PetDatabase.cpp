@@ -335,15 +335,15 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     owner->SetPet(this);                                    // in DB stored only full controlled creature
     DEBUG_LOG("New Pet has guid %u", GetGUIDLow());
 
-    if (owner->GetTypeId() == TYPEID_PLAYER)
+    if (Player* ownerPlayer = owner->ToPlayer())
     {
-        ((Player*)owner)->PetSpellInitialize();
-        if (((Player*)owner)->GetGroup())
+        ownerPlayer->PetSpellInitialize();
+        if (ownerPlayer->GetGroup())
         {
-            ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_PET);
+            ownerPlayer->SetGroupUpdateFlag(GROUP_UPDATE_PET);
         }
 
-        ((Player*)owner)->SendTalentsInfoData(true);
+        ownerPlayer->SendTalentsInfoData(true);
     }
 
     if (owner->GetTypeId() == TYPEID_PLAYER && getPetType() == HUNTER_PET)
