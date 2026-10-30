@@ -82,7 +82,8 @@ void GameObject::Use(Unit* user)
         m_cooldownTime = WorldGameTime::Get() + cooldown;
     }
 
-    bool scriptReturnValue = user->GetTypeId() == TYPEID_PLAYER && sScriptHooks.OnGameObjectUse((Player*)user, this);
+    Player* userPlayer = user->ToPlayer();
+    bool scriptReturnValue = userPlayer && sScriptHooks.OnGameObjectUse(userPlayer, this);
     if (!scriptReturnValue)
     {
         GetMap()->ScriptsStart(DBS_ON_GOT_USE, GetEntry(), spellCaster, this);

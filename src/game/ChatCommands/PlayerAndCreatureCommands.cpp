@@ -60,9 +60,12 @@ bool ChatHandler::HandleDeMorphCommand(char* /*args*/)
     }
 
     // check online security
-    else if (target->GetTypeId() == TYPEID_PLAYER && HasLowerSecurity((Player*)target))
+    else if (Player* targetPlayer = target->ToPlayer())
     {
-        return false;
+        if (HasLowerSecurity(targetPlayer))
+        {
+            return false;
+        }
     }
 
     target->DeMorph();
@@ -100,9 +103,12 @@ bool ChatHandler::HandleModifyMorphCommand(char* args)
     }
 
     // check online security
-    else if (target->GetTypeId() == TYPEID_PLAYER && HasLowerSecurity((Player*)target))
+    else if (Player* targetPlayer = target->ToPlayer())
     {
-        return false;
+        if (HasLowerSecurity(targetPlayer))
+        {
+            return false;
+        }
     }
 
     target->SetDisplayId(display_id);

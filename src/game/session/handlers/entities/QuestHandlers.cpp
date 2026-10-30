@@ -156,10 +156,11 @@ void QuestHandlers::HandleQuestgiverAcceptQuest(WorldSession& session, WorldPack
 
     Object* pObject = session.GetPlayer()->GetObjectByTypeMask(guid, TYPEMASK_CREATURE_GAMEOBJECT_PLAYER_OR_ITEM);
 
-    // no or incorrect quest giver (player himself is questgiver for SPELL_EFFECT_QUEST_OFFER)
+    // no or incorrect quest giver (the player is the quest giver for SPELL_EFFECT_QUEST_OFFER)
+    Player* giverPlayer = pObject ? pObject->ToPlayer() : NULL;
     if (!pObject
-            || (pObject->GetTypeId() != TYPEID_PLAYER && !pObject->HasQuest(quest))
-            || (pObject->GetTypeId() == TYPEID_PLAYER && pObject != session.GetPlayer() && !((Player*)pObject)->CanShareQuest(quest))
+            || (!giverPlayer && !pObject->HasQuest(quest))
+            || (giverPlayer && giverPlayer != session.GetPlayer() && !giverPlayer->CanShareQuest(quest))
        )
     {
         session.GetPlayer()->PlayerTalkClass->CloseGossip();

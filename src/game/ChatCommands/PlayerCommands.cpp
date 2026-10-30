@@ -226,9 +226,12 @@ bool ChatHandler::HandleModifyPhaseCommand(char* args)
     }
 
     // check online security
-    else if (target->GetTypeId() == TYPEID_PLAYER && HasLowerSecurity((Player*)target))
+    else if (Player* targetPlayer = target->ToPlayer())
     {
-        return false;
+        if (HasLowerSecurity(targetPlayer))
+        {
+            return false;
+        }
     }
 
     target->SetPhaseMask(phasemask, true);

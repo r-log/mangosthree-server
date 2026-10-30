@@ -2669,7 +2669,7 @@ SpellCastResult Spell::CheckItems()
     // if not item target then required item must be equipped (for triggered case not report error)
     else
     {
-        if (m_caster->GetTypeId() == TYPEID_PLAYER && !((Player*)m_caster)->HasItemFitToSpellReqirements(m_spellInfo))
+        if (!p_caster->HasItemFitToSpellReqirements(m_spellInfo))
         {
             return m_IsTriggeredSpell ? SPELL_FAILED_DONT_REPORT : SPELL_FAILED_EQUIPPED_ITEM_CLASS;
         }

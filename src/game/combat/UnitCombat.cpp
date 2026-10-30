@@ -1844,11 +1844,12 @@ void Unit::SetInCombatWith(Unit* enemy)
     }
 
     // check for duel
-    if (eOwner->GetTypeId() == TYPEID_PLAYER && ((Player*)eOwner)->duel)
+    Player const* enemyPlayer = eOwner->ToPlayer();
+    if (enemyPlayer && enemyPlayer->duel)
     {
         if (Player const* myOwner = GetCharmerOrOwnerPlayerOrPlayerItself())
         {
-            if (myOwner->IsInDuelWith((Player const*)eOwner))
+            if (myOwner->IsInDuelWith(enemyPlayer))
             {
                 SetInCombatState(true, enemy);
                 return;
