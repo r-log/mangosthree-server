@@ -412,18 +412,17 @@ bool ChatHandler::HandleAuraGroupCommand(char* args)
     }
 
     Unit* rawTarget = getSelectedUnit();
-    Player* playerTarget ;
+    Player* playerTarget;
 
     if (rawTarget)
     {
-        if (rawTarget->GetTypeId() == TYPEID_UNIT)
+        playerTarget = rawTarget->ToPlayer();
+        if (!playerTarget)
         {
             SendSysMessage(LANG_NO_CHAR_SELECTED);
             SetSentErrorMessage(true);
             return false;
         }
-
-        playerTarget = (Player*)rawTarget;
     }
     else
     {
@@ -519,14 +518,13 @@ bool ChatHandler::HandleUnAuraGroupCommand(char* args)
 
     if (rawTarget)
     {
-        if (rawTarget->GetTypeId() == TYPEID_UNIT)
+        playerTarget = rawTarget->ToPlayer();
+        if (!playerTarget)
         {
             SendSysMessage(LANG_NO_CHAR_SELECTED);
             SetSentErrorMessage(true);
             return false;
         }
-
-        playerTarget = (Player*)rawTarget;
     }
     else
     {

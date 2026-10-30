@@ -666,9 +666,9 @@ void WorldSession::LogoutPlayer(bool Save)
                         aset.insert(ownerPlayer);
                     }
                 }
-                else if ((*itr)->GetTypeId() == TYPEID_PLAYER)
+                else if (Player* attackerPlayer = (*itr)->ToPlayer())
                 {
-                    aset.insert((Player*)(*itr));
+                    aset.insert(attackerPlayer);
                 }
             }
 

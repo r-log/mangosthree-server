@@ -64,7 +64,7 @@ void QuestHandlers::HandleQuestgiverStatusQuery(WorldSession& session, WorldPack
     {
         case TYPEID_UNIT:
         {
-            Creature* cr_questgiver = (Creature*)questgiver;
+            Creature* cr_questgiver = questgiver->ToCreature();
 
             if (!cr_questgiver->IsHostileTo(session.GetPlayer()))       // not show quest status to enemies
             {

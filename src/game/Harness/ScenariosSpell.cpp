@@ -697,9 +697,9 @@ namespace Harness
             else
             {
                 Unit* charmer = pet->GetCharmerOrOwner();
-                if (charmer && charmer->GetTypeId() == TYPEID_PLAYER)
+                if (Player* charmerPlayer = charmer ? charmer->ToPlayer() : NULL)
                 {
-                    Spell::SendCastResult((Player*)charmer, spellInfo, 0, result, true);
+                    Spell::SendCastResult(charmerPlayer, spellInfo, 0, result, true);
                 }
                 if (!pet->HasSpellCooldown(spellId))
                 {

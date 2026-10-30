@@ -85,7 +85,7 @@ class ScriptAction
         // Helper functions
         bool GetScriptCommandObject(const ObjectGuid guid, bool includeItem, Object*& resultObject);
         bool GetScriptProcessTargets(WorldObject* pOrigSource, WorldObject* pOrigTarget, WorldObject*& pFinalSource, WorldObject*& pFinalTarget);
-        bool LogIfNotCreature(WorldObject* pWorldObject);
+        Creature* ToCreatureOrLog(WorldObject* pWorldObject);
         bool LogIfNotUnit(WorldObject* pWorldObject);
         bool LogIfNotGameObject(WorldObject* pWorldObject);
         bool LogIfNotPlayer(WorldObject* pWorldObject);

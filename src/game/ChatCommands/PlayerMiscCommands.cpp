@@ -321,14 +321,14 @@ bool ChatHandler::HandleResetTalentsCommand(char* args)
     if (!ExtractPlayerTarget(&args, &target, NULL, &target_name))
     {
         // Try reset talents as Hunter Pet
-        Creature* creature = getSelectedCreature();
-        if (!*args && creature && creature->IsPet())
+        Pet* pet = ToPet(getSelectedCreature());
+        if (!*args && pet)
         {
-            Unit* owner = creature->GetOwner();
+            Unit* owner = pet->GetOwner();
             Player* ownerPlayer = owner ? owner->ToPlayer() : NULL;
-            if (ownerPlayer && ((Pet*)creature)->isControlled())
+            if (ownerPlayer && pet->isControlled())
             {
-                ((Pet*)creature)->resetTalents(true);
+                pet->resetTalents(true);
                 ownerPlayer->SendTalentsInfoData(true);
                 ownerPlayer->SendTalentsInvoluntarilyReset(true);
 
