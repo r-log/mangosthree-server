@@ -408,4 +408,16 @@ class Pet : public Creature
             MANGOS_ASSERT(false);
         }
 };
+
+/// The pet `unit` is, or NULL when `unit` is NULL or no pet.
+inline Pet* ToPet(Unit* unit)
+{
+    return unit && unit->IsPet() ? static_cast<Pet*>(unit) : NULL;
+}
+
+/// The pet `unit` is, or NULL when `unit` is NULL or no pet.
+inline Pet const* ToPet(Unit const* unit)
+{
+    return unit && unit->IsPet() ? static_cast<Pet const*>(unit) : NULL;
+}
 #endif

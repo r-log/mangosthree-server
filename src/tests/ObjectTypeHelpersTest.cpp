@@ -25,14 +25,16 @@
 
 /// Object's checked downcasts: ToPlayer, ToCreature, ToUnit, ToGameObject, ToCorpse and
 /// ToDynObject answer the object itself when its type id (its type mask, for ToUnit) names that
-/// kind, and NULL otherwise.
+/// kind, and NULL otherwise. Pet.h's ToPet answers the pet a unit is, and NULL for no unit and for
+/// a unit that is no pet.
 ///
 /// Object.h sees the derived classes only as declarations, so each helper converts with
 /// reinterpret_cast, which gives the derived object only while the Object sits at its start. The
 /// first test pins that layout for every kind the helpers answer, a totem's included: the
 /// conversion to the base and the reinterpret give the same address. The others ask a player, a
-/// creature and each other kind of world object every helper, const and not. The player is on a
-/// socketless session with its update fields allocated; the other objects are bare.
+/// creature and each other kind of world object every helper, const and not, and a pet, a creature, a
+/// player and no unit ToPet. The player is on a socketless session with its update fields allocated;
+/// the other objects are bare.
 
 #include "TestHarness.h"
 #include "Auth/BigNumber.h"
@@ -40,6 +42,7 @@
 #include "Creature.h"
 #include "DynamicObject.h"
 #include "GameObject.h"
+#include "Pet.h"
 #include "Player.h"
 #include "Totem.h"
 #include "Unit.h"
@@ -152,4 +155,20 @@ TEST(ObjectTypeHelpers_AWorldObjectThatIsNoUnitIsOnlyItsOwnKind)
     CHECK(objects[0]->ToCorpse() == NULL && objects[0]->ToDynObject() == NULL);
     CHECK(objects[1]->ToGameObject() == NULL && objects[1]->ToDynObject() == NULL);
     CHECK(objects[2]->ToGameObject() == NULL && objects[2]->ToCorpse() == NULL);
+}
+
+TEST(ObjectTypeHelpers_ToPetAnswersOnlyAPet)
+{
+    WorldSession session(1, "typed", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    TypedPlayer player(session);
+    Creature creature(CREATURE_SUBTYPE_GENERIC);
+    Pet pet(HUNTER_PET);
+
+    CHECK(ToPet(static_cast<Unit*>(&pet)) == &pet);
+    CHECK(ToPet(static_cast<Unit const*>(&pet)) == &pet);
+    CHECK(ToPet(static_cast<Unit*>(&creature)) == NULL);
+    CHECK(ToPet(static_cast<Unit const*>(&creature)) == NULL);
+    CHECK(ToPet(static_cast<Unit*>(&player)) == NULL);
+    CHECK(ToPet(static_cast<Unit*>(NULL)) == NULL);
+    CHECK(ToPet(static_cast<Unit const*>(NULL)) == NULL);
 }
