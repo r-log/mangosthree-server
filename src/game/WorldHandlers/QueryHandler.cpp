@@ -36,7 +36,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Opcodes.h"
-#include "World.h"
+#include "data/ResetSchedule.h"
 #include "data/GameConfig.h"
 #include "ObjectGuid.h"
 #include "Player.h"
@@ -163,6 +163,6 @@ void WorldSession::SendQueryTimeResponse()
 {
     WorldPacket data(SMSG_QUERY_TIME_RESPONSE, 4 + 4);
     data << uint32(time(NULL));
-    data << uint32(sWorld.GetNextDailyQuestsResetTime() - time(NULL));
+    data << uint32(sResetSchedule.nextDailyQuestReset - time(NULL));
     SendPacket(&data);
 }

@@ -35,7 +35,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/ResetSchedule.h"
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "WorldPacket.h"
@@ -79,6 +79,7 @@
 #include "State.h"
 #include "persistence/characters/CharacterDeleteRepository.h"
 #include "persistence/characters/CharacterRepository.h"
+#include "persistence/login/AccountRepository.h"
 #include "persistence/characters/CharacterSaveRepository.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/inventory/ItemRepository.h"
@@ -3332,6 +3333,22 @@ uint32 Player::DeleteMethodFor(ObjectGuid playerguid, bool deleteFinally)
     return charDelete_method;
 }
 
+namespace
+{
+    /// Asks the character database for the account's number of characters on this realm, and writes
+    /// the answer to the login database's realm list.
+    void RefreshRealmCharacterCount(uint32 accountId)
+    {
+        CharacterRepository::QueryAccountCharacterCountAsync(accountId, [accountId](std::optional<uint32> charCount)
+                                                             {
+                                                                 if (charCount)
+                                                                 {
+                                                                     AccountRepository::ReplaceRealmCharacterCount(accountId, realmID, *charCount);
+                                                                 }
+                                                             });
+    }
+}
+
 /**
  * Deletes a character from the database
  *
@@ -3585,7 +3602,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
 
     if (updateRealmChars)
     {
-        sWorld.UpdateRealmCharCount(accountId);
+        RefreshRealmCharacterCount(accountId);
     }
 }
 
@@ -4670,7 +4687,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
     //if (HasRestrictedLevel)
     //    data << uint32(20);                                       // RestrictedLevel (starter accounts)
 
-    data << uint32(sWorld.GetNextWeeklyQuestsResetTime() - WEEK);   // LastWeeklyReset (not instance reset)
+    data << uint32(sResetSchedule.nextWeeklyQuestReset - WEEK);   // LastWeeklyReset (not instance reset)
     data << uint32(GetMap()->GetDifficulty());
     GetSession()->SendPacket(&data);
 

@@ -164,16 +164,13 @@ std::atomic<uint32> World::m_worldLoopCounter{0};
  * This is called once when the server starts, before any configuration
  * is loaded or systems initialized.
  */
-World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
+World::World(): mail_timer(0), mail_timer_expires(0)
 {
     m_allowMovement = true;
     m_ShutdownMask = 0;
     m_ShutdownTimer = 0;
     WorldGameTime::Set(time(NULL));
     m_startTime = WorldGameTime::Get();
-    m_NextCurrencyReset = 0;
-    m_NextDailyQuestReset = 0;
-    m_NextWeeklyQuestReset = 0;
     m_broadcastEnable = false;
     m_broadcastList.clear();
     m_broadcastWeight = 0;
@@ -184,6 +181,7 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
     sGameConfig.Reset();
 
     SessionRegistry::Install(&m_sessions);
+    ResetSchedule::Install(&m_resets);
     WorldBroadcast::Install(this);
     ServerControl::Install(this);
     InstallGuidOverflowHandler(&StopOnGuidOverflow);
@@ -217,6 +215,12 @@ World::~World()
     if (control != this)
     {
         ServerControl::Install(control);
+    }
+
+    ResetSchedule const* resets = ResetSchedule::Install(NULL);
+    if (resets != &m_resets)
+    {
+        ResetSchedule::Install(resets);
     }
 
     MMAP::MMapFactory::clear();
@@ -1002,25 +1006,25 @@ void World::Update(uint32 diff)
     sMassMailMgr.Update();
 
     /// Handle daily quests and dungeon reset time
-    if (WorldGameTime::Get() > m_NextDailyQuestReset)
+    if (WorldGameTime::Get() > m_resets.nextDailyQuestReset)
     {
         ResetDailyQuests();
     }
 
     /// Handle weekly quests reset time
-    if (WorldGameTime::Get() > m_NextWeeklyQuestReset)
+    if (WorldGameTime::Get() > m_resets.nextWeeklyQuestReset)
     {
         ResetWeeklyQuests();
     }
 
     /// Handle monthly quests reset time
-    if (WorldGameTime::Get() > m_NextMonthlyQuestReset)
+    if (WorldGameTime::Get() > m_resets.nextMonthlyQuestReset)
     {
         ResetMonthlyQuests();
     }
 
     /// Handle weekly currency cap reset time
-    if (WorldGameTime::Get() > m_NextCurrencyReset)
+    if (WorldGameTime::Get() > m_resets.nextCurrencyReset)
     {
         ResetCurrencyWeekCounts();
     }
@@ -1600,43 +1604,16 @@ void World::UpdateResultQueue()
     DatabaseLifecycle::ProcessLoginResults();
 }
 
-/**
- * @brief Requests an asynchronous character count refresh for an account.
- *
- * @param accountId The account id to refresh.
- */
-void World::UpdateRealmCharCount(uint32 accountId)
-{
-    CharacterRepository::QueryAccountCharacterCountAsync(accountId, [this, accountId](std::optional<uint32> charCount)
-                                                         {
-                                                             _UpdateRealmCharCount(charCount, accountId);
-                                                         });
-}
-
-/**
- * @brief Stores the updated realm character count for an account.
- *
- * @param charCount The account's number of characters on this realm.
- * @param accountId The account id being updated.
- */
-void World::_UpdateRealmCharCount(std::optional<uint32> const& charCount, uint32 accountId)
-{
-    if (charCount)
-    {
-        AccountRepository::ReplaceRealmCharacterCount(accountId, realmID, *charCount);
-    }
-}
-
 void World::InitWeeklyQuestResetTime()
 {
     std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextWeeklyQuestReset();
     if (!nextReset)
     {
-        m_NextWeeklyQuestReset = time_t(time(NULL));        // game time not yet init
+        m_resets.nextWeeklyQuestReset = time_t(time(NULL));        // game time not yet init
     }
     else
     {
-        m_NextWeeklyQuestReset = time_t(*nextReset);
+        m_resets.nextWeeklyQuestReset = time_t(*nextReset);
     }
 
     // generate time by config
@@ -1660,11 +1637,11 @@ void World::InitWeeklyQuestResetTime()
     }
 
     // normalize reset time
-    m_NextWeeklyQuestReset = m_NextWeeklyQuestReset < curTime ? nextWeekResetTime - WEEK : nextWeekResetTime;
+    m_resets.nextWeeklyQuestReset = m_resets.nextWeeklyQuestReset < curTime ? nextWeekResetTime - WEEK : nextWeekResetTime;
 
     if (!nextReset)
     {
-        SavedVariablesRepository::InsertNextWeeklyQuestReset(uint64(m_NextWeeklyQuestReset));
+        SavedVariablesRepository::InsertNextWeeklyQuestReset(uint64(m_resets.nextWeeklyQuestReset));
     }
 }
 
@@ -1673,11 +1650,11 @@ void World::InitDailyQuestResetTime()
     std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextDailyQuestReset();
     if (!nextReset)
     {
-        m_NextDailyQuestReset = time_t(time(NULL));         // game time not yet init
+        m_resets.nextDailyQuestReset = time_t(time(NULL));         // game time not yet init
     }
     else
     {
-        m_NextDailyQuestReset = time_t(*nextReset);
+        m_resets.nextDailyQuestReset = time_t(*nextReset);
     }
 
     // generate time by config
@@ -1699,11 +1676,11 @@ void World::InitDailyQuestResetTime()
     }
 
     // normalize reset time
-    m_NextDailyQuestReset = m_NextDailyQuestReset < curTime ? nextDayResetTime - DAY : nextDayResetTime;
+    m_resets.nextDailyQuestReset = m_resets.nextDailyQuestReset < curTime ? nextDayResetTime - DAY : nextDayResetTime;
 
     if (!nextReset)
     {
-        SavedVariablesRepository::InsertNextDailyQuestReset(uint64(m_NextDailyQuestReset));
+        SavedVariablesRepository::InsertNextDailyQuestReset(uint64(m_resets.nextDailyQuestReset));
     }
 }
 
@@ -1774,27 +1751,27 @@ void World::SetMonthlyQuestResetTime(bool initialize)
 
         if (!nextReset)
         {
-            m_NextMonthlyQuestReset = WorldGameTime::Get();
+            m_resets.nextMonthlyQuestReset = WorldGameTime::Get();
         }
         else
         {
             const time_t stored = time_t(*nextReset);
-            m_NextMonthlyQuestReset = MonthlyQuestResetOnLocalMidnight(stored);
-            if (m_NextMonthlyQuestReset != stored)
+            m_resets.nextMonthlyQuestReset = MonthlyQuestResetOnLocalMidnight(stored);
+            if (m_resets.nextMonthlyQuestReset != stored)
             {
                 sLog.outBasic("Monthly quest reset time %s (" UI64FMTD ") is not local midnight "
                     "on the first of a month, moved to %s (" UI64FMTD ")",
                     TimeToTimestampStr(stored).c_str(), uint64(stored),
-                    TimeToTimestampStr(m_NextMonthlyQuestReset).c_str(), uint64(m_NextMonthlyQuestReset));
+                    TimeToTimestampStr(m_resets.nextMonthlyQuestReset).c_str(), uint64(m_resets.nextMonthlyQuestReset));
             }
         }
     }
 
     // computed from the world game time, the clock Update compares the reset against
-    m_NextMonthlyQuestReset = NextMonthlyQuestReset(WorldGameTime::Get(), m_NextMonthlyQuestReset, initialize);
+    m_resets.nextMonthlyQuestReset = NextMonthlyQuestReset(WorldGameTime::Get(), m_resets.nextMonthlyQuestReset, initialize);
 
     // Row must exist for this to work. Currently row is added by InitDailyQuestResetTime(), called before this function
-    SavedVariablesRepository::SetNextMonthlyQuestReset(uint64(m_NextMonthlyQuestReset));
+    SavedVariablesRepository::SetNextMonthlyQuestReset(uint64(m_resets.nextMonthlyQuestReset));
 }
 
 void World::InitCurrencyResetTime()
@@ -1802,15 +1779,15 @@ void World::InitCurrencyResetTime()
     std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextCurrencyReset();
     if (!nextReset)
     {
-        m_NextCurrencyReset = time_t(time(NULL));        // game time not yet init
+        m_resets.nextCurrencyReset = time_t(time(NULL));        // game time not yet init
     }
     else
     {
-        m_NextCurrencyReset = time_t(*nextReset);
+        m_resets.nextCurrencyReset = time_t(*nextReset);
     }
 
     // re-init case or not exists
-    if (!m_NextCurrencyReset)
+    if (!m_resets.nextCurrencyReset)
     {
         // generate time by config
         time_t curTime = time(NULL);
@@ -1833,12 +1810,12 @@ void World::InitCurrencyResetTime()
         }
 
         // normalize reset time
-        m_NextCurrencyReset = m_NextCurrencyReset < curTime ? nextWeekResetTime - getConfig(CONFIG_UINT32_CURRENCY_RESET_INTERVAL) * DAY : nextWeekResetTime;
+        m_resets.nextCurrencyReset = m_resets.nextCurrencyReset < curTime ? nextWeekResetTime - getConfig(CONFIG_UINT32_CURRENCY_RESET_INTERVAL) * DAY : nextWeekResetTime;
     }
 
     if (!nextReset)
     {
-        SavedVariablesRepository::InsertNextCurrencyReset(uint64(m_NextCurrencyReset));
+        SavedVariablesRepository::InsertNextCurrencyReset(uint64(m_resets.nextCurrencyReset));
     }
 }
 
@@ -1847,11 +1824,11 @@ void World::InitRandomBGResetTime()
     std::optional<uint64> nextReset = SavedVariablesRepository::QueryNextRandomBGReset();
     if (!nextReset)
     {
-        m_NextRandomBGReset = time_t(time(NULL));         // game time not yet init
+        m_resets.nextRandomBGReset = time_t(time(NULL));         // game time not yet init
     }
     else
     {
-        m_NextRandomBGReset = time_t(*nextReset);
+        m_resets.nextRandomBGReset = time_t(*nextReset);
     }
 
     // generate time by config
@@ -1873,10 +1850,10 @@ void World::InitRandomBGResetTime()
     }
 
     // normalize reset time
-    m_NextRandomBGReset = m_NextRandomBGReset < curTime ? nextDayResetTime - DAY : nextDayResetTime;
+    m_resets.nextRandomBGReset = m_resets.nextRandomBGReset < curTime ? nextDayResetTime - DAY : nextDayResetTime;
     if (!nextReset)
     {
-        SavedVariablesRepository::InsertNextRandomBGReset(uint64(m_NextRandomBGReset));
+        SavedVariablesRepository::InsertNextRandomBGReset(uint64(m_resets.nextRandomBGReset));
     }
 }
 
@@ -1890,8 +1867,8 @@ void World::ResetDailyQuests()
             itr->second->GetPlayer()->ResetDailyQuestStatus();
         }
 
-    m_NextDailyQuestReset = time_t(m_NextDailyQuestReset + DAY);
-    SavedVariablesRepository::SetNextDailyQuestReset(uint64(m_NextDailyQuestReset));
+    m_resets.nextDailyQuestReset = time_t(m_resets.nextDailyQuestReset + DAY);
+    SavedVariablesRepository::SetNextDailyQuestReset(uint64(m_resets.nextDailyQuestReset));
 
     if (getConfig(CONFIG_BOOL_LFG_ENABLE))
     {
@@ -1909,8 +1886,8 @@ void World::ResetWeeklyQuests()
             itr->second->GetPlayer()->GetQuestStatusMgr().ResetWeeklyQuestStatus();
         }
 
-    m_NextWeeklyQuestReset = time_t(m_NextWeeklyQuestReset + WEEK);
-    SavedVariablesRepository::SetNextWeeklyQuestReset(uint64(m_NextWeeklyQuestReset));
+    m_resets.nextWeeklyQuestReset = time_t(m_resets.nextWeeklyQuestReset + WEEK);
+    SavedVariablesRepository::SetNextWeeklyQuestReset(uint64(m_resets.nextWeeklyQuestReset));
 
     if (getConfig(CONFIG_BOOL_LFG_ENABLE))
     {
@@ -1952,9 +1929,9 @@ void World::ResetCurrencyWeekCounts()
         }
     }
 
-    m_NextCurrencyReset = time_t(m_NextCurrencyReset + DAY * sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_RESET_INTERVAL));
+    m_resets.nextCurrencyReset = time_t(m_resets.nextCurrencyReset + DAY * sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_RESET_INTERVAL));
 
-    SavedVariablesRepository::SetNextCurrencyReset(uint64(m_NextCurrencyReset));
+    SavedVariablesRepository::SetNextCurrencyReset(uint64(m_resets.nextCurrencyReset));
 }
 
 

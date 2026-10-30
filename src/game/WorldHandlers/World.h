@@ -50,6 +50,7 @@
 #include "session/SessionRegistry.h"
 #include "data/WorldBroadcast.h"
 #include "data/ServerControl.h"
+#include "data/ResetSchedule.h"
 
 #include <map>
 #include <set>
@@ -174,9 +175,6 @@ class World : public WorldBroadcast, public ServerControl
         time_t const& GetStartTime() const { return m_startTime; }
         /// Uptime (in secs)
         uint32 Uptime() const override { return uint32(WorldGameTime::Get() - m_startTime); }
-        /// Next daily quests reset time
-        time_t GetNextDailyQuestsResetTime() const { return m_NextDailyQuestReset; }
-        time_t GetNextWeeklyQuestsResetTime() const { return m_NextWeeklyQuestReset; }
 
         /// Get the maximum skill level a player can reach
         uint16 GetConfigMaxSkillValue() const { return sGameConfig.GetConfigMaxSkillValue(); }
@@ -246,7 +244,6 @@ class World : public WorldBroadcast, public ServerControl
         void UpdateResultQueue();
         void InitResultQueue();
 
-        void UpdateRealmCharCount(uint32 accid);
 
         LocaleConstant GetAvailableDbcLocale(LocaleConstant locale) const { return sGameConfig.GetAvailableDbcLocale(locale); }
 
@@ -258,8 +255,6 @@ class World : public WorldBroadcast, public ServerControl
 
     protected:
         void _UpdateGameTime();
-        // callback for UpdateRealmCharacters
-        void _UpdateRealmCharCount(std::optional<uint32> const& charCount, uint32 accountId);
 
         void InitCurrencyResetTime();
         void InitDailyQuestResetTime();
@@ -325,11 +320,7 @@ class World : public WorldBroadcast, public ServerControl
         std::deque<CliCommandHolder *> m_cliCommandQueue;
 
         // scheduled reset times
-        time_t m_NextCurrencyReset;
-        time_t m_NextDailyQuestReset;
-        time_t m_NextRandomBGReset;
-        time_t m_NextWeeklyQuestReset;
-        time_t m_NextMonthlyQuestReset;
+        ResetSchedule m_resets;
 
 
         void ApplyAfterMapPhasePosts();

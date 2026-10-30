@@ -424,7 +424,6 @@ src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/GameObject.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/Map.h
 src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/WorldHandlers/QueryHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/QuestDef.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillExtraItems.cpp -> src/game/entities/player/Player.h
@@ -493,7 +492,6 @@ src/game/entities/player [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/Player.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/Player.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/Player.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/Player.cpp -> src/proto/Opcodes.h
 src/game/entities/player/Player.cpp -> src/proto/WorldPacket.h
