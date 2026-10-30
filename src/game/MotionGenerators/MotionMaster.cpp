@@ -725,9 +725,10 @@ void MotionMaster::Initialize()
     m_owner->StopMoving();
     Scope scope(*this, Motion::TransactionKind::ClearAll);
     m_arbiter.Clear(true);
-    if (m_owner->GetTypeId() == TYPEID_UNIT && !m_owner->Blocked(Motion::ReasonPossessed))
+    Creature* ownerCreature = m_owner->ToCreature();
+    if (ownerCreature && !m_owner->Blocked(Motion::ReasonPossessed))
     {
-        Creature* creature = (Creature*)m_owner;
+        Creature* creature = ownerCreature;
         MANGOS_ASSERT(creature->GetCreatureInfo() != NULL);   // every creature reaching here has one: the default-type reads below assume it
         // A player's pet has no factory default: the old follow default fell through to the
         // idle below too, and the pet code installs its follow itself.
@@ -896,9 +897,10 @@ void MotionMaster::MoveTargetedHome()
         return;
     }
     Clear(false);
-    if (m_owner->GetTypeId() == TYPEID_UNIT && !m_owner->GetCharmerOrOwnerGuid())
+    Creature* ownerCreature = m_owner->ToCreature();
+    if (ownerCreature && !m_owner->GetCharmerOrOwnerGuid())
     {
-        if (m_owner->IsLinkingEventTrigger() && m_owner->GetMap()->GetCreatureLinkingHolder()->TryFollowMaster((Creature*)m_owner))
+        if (m_owner->IsLinkingEventTrigger() && m_owner->GetMap()->GetCreatureLinkingHolder()->TryFollowMaster(ownerCreature))
         {
             DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s refollowed linked master", m_owner->GetGuidStr().c_str());
             return;

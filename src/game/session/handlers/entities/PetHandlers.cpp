@@ -673,9 +673,10 @@ void PetHandlers::HandlePetCastSpell(WorldSession& session, WorldPacket& recvPac
     else
     {
         Unit* owner = pet->GetCharmerOrOwner();
-        if (owner && owner->GetTypeId() == TYPEID_PLAYER && !triggeredByAura)
+        Player* ownerPlayer = owner ? owner->ToPlayer() : NULL;
+        if (ownerPlayer && !triggeredByAura)
         {
-            Spell::SendCastResult((Player*)owner, spellInfo, 0, result, true);
+            Spell::SendCastResult(ownerPlayer, spellInfo, 0, result, true);
         }
 
         if (!pet->HasSpellCooldown(spellid) && !triggeredByAura)

@@ -1646,13 +1646,14 @@ static SpellHandlerOutcome<void> EffectDummyGenericOpenPortal(SpellEffectDummyGe
 /// creature target despawns; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericReCursiveTransmatterInjection(SpellEffectDummyGenericContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() == TYPEID_PLAYER && ctx.unitTarget)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (casterPlayer && ctx.unitTarget)
     {
         if (const SpellEntry* pSpell = sSpellStore.LookupEntry(46022))
         {
             ctx.m_caster->CastSpell(ctx.unitTarget, pSpell, true);
             SpellEffectEntry const* killSpellEffect = pSpell->GetSpellEffect(EFFECT_INDEX_0);
-            ((Player*)ctx.m_caster)->KilledMonsterCredit(killSpellEffect ? killSpellEffect->EffectMiscValue_0 : 0);
+            casterPlayer->KilledMonsterCredit(killSpellEffect ? killSpellEffect->EffectMiscValue_0 : 0);
         }
 
         if (Creature* unitTargetCreature = ctx.unitTarget->ToCreature())
