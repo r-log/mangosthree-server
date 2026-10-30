@@ -646,7 +646,7 @@ void Aura::HandleSchoolAbsorb(bool apply, bool Real)
     if (apply)
     {
         // prevent double apply bonuses
-        if (target->GetTypeId() != TYPEID_PLAYER || !((Player*)target)->GetSession()->PlayerLoading())
+        if (!target->IsLoading())
         {
             float DoneActualBenefit = 0.0f;
             switch(spellProto->GetSpellFamilyName())

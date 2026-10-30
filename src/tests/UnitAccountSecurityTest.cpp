@@ -23,18 +23,16 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The security level of the account playing a unit, which Unit's GM visibility rule compares: a
-/// game master in GM mode sees a player whose level is not above its own.
+/// The security level of the account playing a unit, which Unit's GM visibility rule and a pet's
+/// talent reset compare: a game master in GM mode sees a player whose level is not above its own,
+/// and a pet keeps its talents for an administrator.
 ///
-/// Unit declares it protected, with no argument. A Unit that is not a Player has no account: a
-/// bare Creature probe (no map, no AI, no auras) makes it public with a using-declaration and is
-/// asked through its own reference. A Player cannot be built in this binary (it needs a
-/// WorldSession and a map), so its override's read of the query its session installed is not
-/// asked here; the client packets test asks the installed query. Player's override is private:
-/// the static_asserts pin Unit's declaration through the probe, Player's own declaration with
-/// Unit's exact signature (named in an explicit instantiation, where access is not checked), and
-/// that a call through a Unit or through a Player does not compile. That Player's override is
-/// `final` is pinned by the cast proof's text of Player.h.
+/// Unit declares it public, with no argument. A Unit that is not a Player has no account: a bare
+/// Creature probe (no map, no AI, no auras) is asked through a Unit reference. Player's override
+/// reads the query its session installed, which the client packets test asks. Player's override
+/// is private: the static_asserts pin Unit's declaration, Player's own declaration with Unit's
+/// exact signature (named in an explicit instantiation, where access is not checked), that a call
+/// through a Unit compiles, and that a call through a Player does not.
 
 #include "TestHarness.h"
 #include "Creature.h"
@@ -46,18 +44,8 @@
 
 namespace
 {
-    /// A bare Creature; the account security level Unit asks a player for is public here.
-    class AccountSecurityUnit : public Creature
-    {
-        public:
-            using Unit::GetAccountSecurityLevel;
-
-            static_assert(std::is_same<decltype(&AccountSecurityUnit::GetAccountSecurityLevel),
-                                       uint32 (Unit::*)() const>::value,
-                          "Unit declares the account security level, const");
-
-            AccountSecurityUnit() : Creature(CREATURE_SUBTYPE_GENERIC) { }
-    };
+    static_assert(std::is_same<decltype(&Unit::GetAccountSecurityLevel), uint32 (Unit::*)() const>::value,
+                  "Unit declares the account security level, const");
 
     /// Checks the type of the member it is instantiated with. Player's override is private, so it
     /// is named only in the explicit instantiation below: a member Player does not declare itself
@@ -79,17 +67,15 @@ namespace
     std::false_type AsksAccountSecurity(...);
 }
 
-static_assert(decltype(AsksAccountSecurity<AccountSecurityUnit>(0))::value,
-              "a call through the probe reaches Unit's account security level");
-static_assert(!decltype(AsksAccountSecurity<Unit>(0))::value,
-              "Unit's account security level is protected: a call through a Unit does not compile");
+static_assert(decltype(AsksAccountSecurity<Unit>(0))::value,
+              "Unit's account security level is public: a call through a Unit compiles");
 static_assert(!decltype(AsksAccountSecurity<Player>(0))::value,
               "Player's account security level is private: a call through a Player does not compile");
 
 TEST(UnitAccountSecurity_ACreatureHasAPlayersLevel)
 {
-    AccountSecurityUnit creature;
-    AccountSecurityUnit const& unit = creature;
+    Creature creature(CREATURE_SUBTYPE_GENERIC);
+    Unit const& unit = creature;
 
     CHECK_EQ(unit.GetAccountSecurityLevel(), uint32(0));
 }

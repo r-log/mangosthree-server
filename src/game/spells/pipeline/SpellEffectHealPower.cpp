@@ -64,7 +64,7 @@ void Spell::EffectApplyAura(SpellEffectEntry const* effect)
 
     // ghost spell check, allow apply any auras at player loading in ghost mode (will be cleanup after load)
     if ((!unitTarget->IsAlive() && !(IsDeathOnlySpell(m_spellInfo) || IsDeathPersistentSpell(m_spellInfo))) &&
-            (unitTarget->GetTypeId() != TYPEID_PLAYER || !((Player*)unitTarget)->GetSession()->PlayerLoading()))
+            !unitTarget->IsLoading())
         return;
 
     Unit* caster = GetAffectiveCaster();

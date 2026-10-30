@@ -969,7 +969,7 @@ void Pet::UpdateFreeTalentPoints(bool resetIfNeed)
         if (resetIfNeed)
         {
             Unit* owner = GetOwner();
-            if (!owner || owner->GetTypeId() != TYPEID_PLAYER || ((Player*)owner)->GetSession()->GetSecurity() < SEC_ADMINISTRATOR)
+            if (!owner || owner->GetAccountSecurityLevel() < SEC_ADMINISTRATOR)
             {
                 resetTalents(true);
             }

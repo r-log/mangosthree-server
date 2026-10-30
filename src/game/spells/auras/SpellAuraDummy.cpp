@@ -128,7 +128,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 if (classOptions && (classOptions->SpellClassMask & UI64LIT(0x40000000000)))
                 {
                     // prevent double apply bonuses
-                    if (target->GetTypeId() != TYPEID_PLAYER || !((Player*)target)->GetSession()->PlayerLoading())
+                    if (!target->IsLoading())
                     {
                         if (Unit* caster = GetCaster())
                         {
@@ -238,7 +238,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     if (Unit* caster = GetCaster())
                     {
                         // prevent double apply bonuses
-                        if (target->GetTypeId() != TYPEID_PLAYER || !((Player*)target)->GetSession()->PlayerLoading())
+                        if (!target->IsLoading())
                         {
                             m_modifier.m_amount = caster->SpellHealingBonusDone(target, GetSpellProto(), m_modifier.m_amount, SPELL_DIRECT_DAMAGE);
                             m_modifier.m_amount = target->SpellHealingBonusTaken(caster, GetSpellProto(), m_modifier.m_amount, SPELL_DIRECT_DAMAGE);
