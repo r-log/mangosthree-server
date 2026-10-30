@@ -187,7 +187,7 @@ void Creature::AddToWorld()
     ///- Register the creature for guid lookup
     if (!IsInWorld() && GetObjectGuid().IsCreatureOrVehicle())
     {
-        GetMap()->GetObjectsStore().insert<Creature>(GetObjectGuid(), (Creature*)this);
+        GetMap()->GetObjectsStore().insert<Creature>(GetObjectGuid(), this);
     }
 
     Unit::AddToWorld();

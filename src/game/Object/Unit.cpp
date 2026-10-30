@@ -519,16 +519,7 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
         if (Where().X() == m_pendingCommitFrom.x && Where().Y() == m_pendingCommitFrom.y &&
             Where().Z() == m_pendingCommitFrom.z && Where().Facing() == m_pendingCommitFrom.o)
         {
-            if (GetTypeId() == TYPEID_PLAYER)
-            {
-                SetPosition(m_pendingCommit.x, m_pendingCommit.y,
-                                             m_pendingCommit.z, m_pendingCommit.o);
-            }
-            else
-            {
-                GetMap()->CreatureRelocation((Creature*)this, m_pendingCommit.x, m_pendingCommit.y,
-                                             m_pendingCommit.z, m_pendingCommit.o);
-            }
+            SetPosition(m_pendingCommit.x, m_pendingCommit.y, m_pendingCommit.z, m_pendingCommit.o);
         }
     }
 
@@ -3783,8 +3774,7 @@ void Unit::NearTeleportTo(float x, float y, float z, float orientation, bool cas
     {
         // Creature relocation acts like instant movement: the selected behaviour expects the
         // interrupt/reset pair around it to react properly.
-        Creature* c = (Creature*)this;
-        c->GetMotionMaster()->RelocateSelected(x, y, z, orientation);
+        GetMotionMaster()->RelocateSelected(x, y, z, orientation);
     }
 }
 
@@ -4095,13 +4085,9 @@ void Unit::UpdateSplineMovement(uint32 t_diff)
                                 Geometry::Vector3(loc.x, loc.y, loc.z), loc.orientation);
             GetTransportInfo()->SetSeatPose(deckPose);
         }
-        else if (GetTypeId() == TYPEID_PLAYER)
-        {
-            SetPosition(loc.x, loc.y, loc.z, loc.orientation);
-        }
         else
         {
-            GetMap()->CreatureRelocation((Creature*)this, loc.x, loc.y, loc.z, loc.orientation);
+            SetPosition(loc.x, loc.y, loc.z, loc.orientation);
         }
     }
 }

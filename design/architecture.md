@@ -195,9 +195,8 @@ sets: `setFactionForRace`, `InBattleGround`; what two one-off procs ask of a pla
 of a death knight: `GetKnownTalentRankById`; whether a death knight's blood runes are all on cooldown, Blade
 Barrier's test: `IsBaseRuneSlotsOnCooldown`; the passive spells a player's new aura state casts,
 `ModifyAuraState`'s loop: `CastPassiveSpellsForAuraState`; the
-account security level the GM visibility rule compares: `GetAccountSecurityLevel`; the position `Update`'s
-pending commit and a spline's end write on a player, and whether a player is moving, the auto-repeat update's
-test: `SetPosition`, `isMoving`; the client's control of its own movement, taken and returned by fear and
+account security level the GM visibility rule compares: `GetAccountSecurityLevel`; whether a player is
+moving, the auto-repeat update's test: `isMoving`; the client's control of its own movement, taken and returned by fear and
 confuse: `SetClientControl`; a player's short teleport on its own map, `NearTeleportTo`'s player arm:
 `TeleportNear`; the damage a player's hit credits to its battleground score and its achievements,
 `DealDamage`'s player arm: `CreditDamageDealt`; what `CalculateSpellDamage` reads of a player, whether an
@@ -222,7 +221,7 @@ mangosd installs, and a dungeon records the kill credited to a player itself (`D
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
 see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 908, Unit 657, WorldSession 189, ObjectMgr 255), R1, M1,
-the downcast counts (ctest `player_downcasts` and `creature_downcasts`, `downcast_count.py --gate` at 511 and 245 C-style
+the downcast counts (ctest `player_downcasts` and `creature_downcasts`, `downcast_count.py --gate` at 511 and 231 C-style
 casts in `src/game`, lowered in the PR that cuts them) and the database-call count.
 
 | Layer | Rule | Gate |

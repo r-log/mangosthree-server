@@ -25,16 +25,8 @@
 
 /**
  * @file CreatureThreat.cpp
- * @brief The threat methods only a Creature can execute: hostile-target selection
- *        and taunt application/fade-out.
- *
- * Decoupling D5e (server #134). Moved unchanged from Unit (UnitThreat.cpp), where each
- * opened with MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT) and then downcast this to a
- * Creature to reach AI(), SetCannotReachTarget() and the evade hooks. The asserts are
- * kept -- they are now trivially true -- and the downcasts on this are gone. Unit's
- * private m_ThreatManager and m_HostileRefManager are reached through the public
- * GetThreatManager()/GetHostileRefManager() accessors that stay on Unit; nothing else in
- * any body changed. No behaviour change.
+ * @brief The threat methods only a creature runs: hostile-target selection, taunt
+ *        application and fade-out, and the second-choice test of victim selection.
  */
 
 #include "Utilities/Errors.h"
@@ -306,4 +298,16 @@ bool Creature::SelectHostileTarget()
     }
 
     return false;
+}
+
+//======================================================================
+
+bool Creature::IsSecondChoiceTarget(Unit* pTarget, bool checkThreatArea) const
+{
+    MANGOS_ASSERT(pTarget);
+
+    return
+        pTarget->IsImmunedToDamage(GetMeleeDamageSchoolMask()) ||
+        pTarget->hasNegativeAuraWithInterruptFlag(AURA_INTERRUPT_FLAG_DAMAGE) ||
+        checkThreatArea && IsOutOfThreatArea(pTarget);
 }
