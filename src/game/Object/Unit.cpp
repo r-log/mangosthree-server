@@ -830,16 +830,11 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         {
             player_tap->ProcDamageAndSpell(pVictim, PROC_FLAG_KILL, PROC_FLAG_KILLED, PROC_EX_NONE, 0);
 
-            WorldPacket data(SMSG_PARTYKILLLOG, (8 + 8));   // send event PARTY_KILL
-            data << player_tap->GetObjectGuid();            // player with killing blow
-            data << pVictim->GetObjectGuid();               // victim
-
-            if (group_tap)
-            {
-                group_tap->BroadcastPacket(&data, false, group_tap->GetMemberGroup(player_tap->GetObjectGuid()), player_tap->GetObjectGuid());
-            }
-
-            player_tap->SendDirectMessage(&data);
+            PartyKillLogFact partyKill;
+            partyKill.killer = player_tap->GetObjectGuid();
+            partyKill.victim = pVictim->GetObjectGuid();
+            partyKill.group = group_tap;
+            ReportClientFact(InstalledClientCallbacks(player_tap->m_clientCallbacks).partyKillLog, partyKill);
         }
         else if (GetTypeId() == TYPEID_UNIT && this != pVictim)
         {
@@ -940,9 +935,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
             {
                 DEBUG_LOG("DealDamage: Killed %s, looing 10 percents durability", pVictim->GetGuidStr().c_str());
                 playerVictim->DurabilityLossAll(0.10f, false);
-                // durability lost message
-                WorldPacket data(SMSG_DURABILITY_DAMAGE_DEATH, 0);
-                playerVictim->GetSession()->SendPacket(&data);
+                ReportClientFact(InstalledClientCallbacks(playerVictim->m_clientCallbacks).durabilityDeath, DurabilityDeathFact());
             }
 
             if (!spiritOfRedemtionTalentReady)              // Before informing Battleground

@@ -34,7 +34,7 @@
 #include "SocialList.h"
 
 /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-/// where the player is created: twenty-four facts out, one read in.
+/// where the player is created: twenty-six facts out, one read in.
 struct ClientCallbacks
 {
     SwingOutOfReachSink swingOutOfReach;
@@ -44,6 +44,8 @@ struct ClientCallbacks
     CurrentPetSink currentPet;
     PetActionBarClearedSink petActionBarCleared;
     StandStateSink standState;
+    PartyKillLogSink partyKillLog;
+    DurabilityDeathSink durabilityDeath;
     PvpCreditSink pvpCredit;
     RuneConvertedSink runeConverted;
     RunesResyncedSink runesResynced;

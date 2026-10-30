@@ -29,6 +29,7 @@
 #include "PlayerClientFacts.h"
 #include "WorldPacket.h"
 #include "session/packets/combat/AttackSwingPackets.h"
+#include "session/packets/combat/KillPackets.h"
 #include "session/packets/entities/CurrencyPackets.h"
 #include "session/packets/entities/PetActionBarPacket.h"
 #include "session/packets/entities/PetGuidsPacket.h"
@@ -68,7 +69,8 @@ SecurityLevelQuery SecurityLevelOfSession(Owner* owner)
 
 /// The callbacks of `owner`'s own client: each fact goes to the builder of its packet, and the
 /// security level is read from the session. The system message's callback, which needs the real
-/// session, is InstallPlayerPacketSinks' own.
+/// session, and the party kill log's, which also tells the killer's group, are
+/// InstallPlayerPacketSinks' own.
 template <class Callbacks, class Owner>
 Callbacks ClientCallbacksToSession(Owner* owner)
 {
@@ -80,6 +82,7 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.currentPet = FactToSession(owner, &BuildPetGuidsPacket);
     callbacks.petActionBarCleared = FactToSession(owner, &BuildPetActionBarClearedPacket);
     callbacks.standState = FactToSession(owner, &BuildStandStateUpdatePacket);
+    callbacks.durabilityDeath = FactToSession(owner, &BuildDurabilityDeathPacket);
     callbacks.pvpCredit = FactToSession(owner, &BuildPvpCreditPacket);
     callbacks.runeConverted = FactToSession(owner, &BuildConvertRunePacket);
     callbacks.runesResynced = FactToSession(owner, &BuildResyncRunesPacket);
