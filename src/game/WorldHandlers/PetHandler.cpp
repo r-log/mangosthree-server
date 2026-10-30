@@ -73,12 +73,13 @@ void WorldSession::SendPetNameQuery(ObjectGuid petguid, uint32 petnumber)
     data << name;
     data << uint32(pet->GetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP));
 
-    if (pet->IsPet() && ((Pet*)pet)->GetDeclinedNames())
+    Pet* asPet = ToPet(pet);
+    if (asPet && asPet->GetDeclinedNames())
     {
         data << uint8(1);
         for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
         {
-            data << ((Pet*)pet)->GetDeclinedNames()->name[i];
+            data << asPet->GetDeclinedNames()->name[i];
         }
     }
     else

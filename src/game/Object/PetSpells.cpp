@@ -92,9 +92,11 @@ void Pet::_LoadSpellCooldowns(PlayerPetCache const& cache)
             DEBUG_LOG("Pet (Number: %u) spell %u cooldown loaded (%u secs).", m_charmInfo->GetPetNumber(), spell_id, uint32(db_time - curTime));
         }
 
-        if (!m_CreatureSpellCooldowns.empty() && GetOwner())
+        Unit* owner = GetOwner();
+        Player* ownerPlayer = owner ? owner->ToPlayer() : NULL;
+        if (!m_CreatureSpellCooldowns.empty() && ownerPlayer)
         {
-            ((Player*)GetOwner())->GetSession()->SendPacket(&data);
+            ownerPlayer->GetSession()->SendPacket(&data);
         }
     }
 }
@@ -898,9 +900,9 @@ bool Pet::resetTalents(bool no_cost)
 void Pet::resetTalentsForAllPetsOf(Player* owner, Pet* online_pet /*= NULL*/)
 {
     // not need after this call
-    if (((Player*)owner)->HasAtLoginFlag(AT_LOGIN_RESET_PET_TALENTS))
+    if (owner->HasAtLoginFlag(AT_LOGIN_RESET_PET_TALENTS))
     {
-        ((Player*)owner)->RemoveAtLoginFlag(AT_LOGIN_RESET_PET_TALENTS, true);
+        owner->RemoveAtLoginFlag(AT_LOGIN_RESET_PET_TALENTS, true);
     }
 
     // reset for online

@@ -86,6 +86,7 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
 
     // a charmed creature or player has no pet state: only a pet's is set
     Pet* const asPet = ToPet(pet);
+    Creature* const asCreature = pet->ToCreature();
 
     if (pet->GetTypeId() == TYPEID_PLAYER)
     {
@@ -188,7 +189,6 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
                 }
                 case COMMAND_ABANDON:                       // abandon (hunter pet) or dismiss (summoned pet)
                 {
-                    Creature* petC = (Creature*)pet;
                     if (asPet)
                     {
                         if (asPet->getPetType() == HUNTER_PET)
@@ -207,9 +207,9 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
                         session.GetPlayer()->Uncharm();
                     }
 
-                    if (petC->IsTemporarySummon()) // special case when pet was temporary summon through DoSummonPossesed
+                    if (asCreature && asCreature->IsTemporarySummon()) // special case when pet was temporary summon through DoSummonPossesed
                     {
-                        petC->ForcedDespawn();
+                        asCreature->ForcedDespawn();
                         return;
                     }
 
@@ -352,7 +352,10 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
 
             if (result == SPELL_CAST_OK)
             {
-                ((Creature*)pet)->AddCreatureSpellCooldown(spellid);
+                if (asCreature)
+                {
+                    asCreature->AddCreatureSpellCooldown(spellid);
+                }
 
                 unit_target = spell->m_targets.getUnitTarget();
 
@@ -371,13 +374,13 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
                 else
                 {
                     Unit* owner = pet->GetCharmerOrOwner();
-                    if (owner && owner->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* ownerPlayer = owner ? owner->ToPlayer() : NULL)
                     {
-                        Spell::SendCastResult((Player*)owner, spellInfo, 0, result, true);
+                        Spell::SendCastResult(ownerPlayer, spellInfo, 0, result, true);
                     }
                 }
 
-                if (!((Creature*)pet)->HasSpellCooldown(spellid))
+                if (asCreature && !asCreature->HasSpellCooldown(spellid))
                 {
                     session.GetPlayer()->SendClearCooldown(spellid, pet);
                 }
@@ -452,7 +455,8 @@ void PetHandlers::HandlePetSetAction(WorldSession& session, WorldPacket& recv_da
     }
 
     // pet can have action bar disabled
-    if (pet->IsPet() && ((Pet*)pet)->GetModeFlags() & PET_MODE_DISABLE_ACTIONS)
+    Pet* const asPet = ToPet(pet);
+    if (asPet && asPet->GetModeFlags() & PET_MODE_DISABLE_ACTIONS)
     {
         return;
     }
@@ -538,9 +542,9 @@ void PetHandlers::HandlePetSetAction(WorldSession& session, WorldPacket& recv_da
                 {
                     charmInfo->ToggleCreatureAutocast(spell_id, true);
                 }
-                else
+                else if (asPet)
                 {
-                    ((Pet*)pet)->ToggleAutocast(spell_id, true);
+                    asPet->ToggleAutocast(spell_id, true);
                 }
             }
             // sign for no/turn off autocast
@@ -550,9 +554,9 @@ void PetHandlers::HandlePetSetAction(WorldSession& session, WorldPacket& recv_da
                 {
                     charmInfo->ToggleCreatureAutocast(spell_id, false);
                 }
-                else
+                else if (asPet)
                 {
-                    ((Pet*)pet)->ToggleAutocast(spell_id, false);
+                    asPet->ToggleAutocast(spell_id, false);
                 }
             }
 
@@ -598,9 +602,9 @@ void PetHandlers::HandlePetSpellAutocast(WorldSession& session, WorldPacket& rec
     if (pet->IsCharmed())
         // state can be used as boolean
         pet->GetCharmInfo()->ToggleCreatureAutocast(spellid, state);
-    else
+    else if (Pet* asPet = ToPet(pet))
     {
-        ((Pet*)pet)->ToggleAutocast(spellid, state);
+        asPet->ToggleAutocast(spellid, state);
     }
 
     charmInfo->SetSpellAutocast(spellid, state);
@@ -821,9 +825,9 @@ void PetHandlers::HandlePetAbandon(WorldSession& session, WorldPacket& recv_data
     // pet/charmed
     if (Creature* pet = session.GetPlayer()->GetMap()->GetAnyTypeCreature(guid))
     {
-        if (pet->IsPet())
+        if (Pet* asPet = ToPet(pet))
         {
-            ((Pet*)pet)->Unsummon(PET_SAVE_AS_DELETED, session.GetPlayer());
+            asPet->Unsummon(PET_SAVE_AS_DELETED, session.GetPlayer());
         }
         else if (pet->GetObjectGuid() == session.GetPlayer()->GetCharmGuid())
         {

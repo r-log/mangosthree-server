@@ -84,7 +84,7 @@ void Pet::AddToWorld()
     ///- Register the pet for guid lookup
     if (!IsInWorld())
     {
-        GetMap()->GetObjectsStore().insert<Pet>(GetObjectGuid(), (Pet*)this);
+        GetMap()->GetObjectsStore().insert<Pet>(GetObjectGuid(), this);
     }
 
     Unit::AddToWorld();
