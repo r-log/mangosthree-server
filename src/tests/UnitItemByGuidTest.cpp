@@ -25,34 +25,43 @@
 
 /// The item Unit's proc handlers ask for by guid: the item an aura was cast from.
 ///
-/// A Unit that is not a Player holds no item: a bare Creature (no map, no AI, no auras) is asked
-/// through a Unit reference. A Player cannot be built in this binary (it needs a WorldSession and
-/// a map). Player's override is private: the static_asserts pin Unit's declaration, that a call
-/// through a Unit reaches the lookup and that a call through a Player does not compile; Player.h
-/// marks the override `override`, so it fails to build unless it matches Unit's declaration.
+/// Unit answers through the item callbacks a player installs for itself, and NULL for a unit that
+/// holds none: a bare Creature (no map, no AI, no auras) is asked through a Unit reference. A player on
+/// a socketless session, in no world, answers through its own callbacks, from its empty inventory. The
+/// static_asserts pin Unit's declaration and that Player declares none of its own.
 
 #include "TestHarness.h"
+#include "Auth/BigNumber.h"
 #include "Creature.h"
 #include "Player.h"
 #include "Unit.h"
+#include "WorldSession.h"
 
 #include <type_traits>
-#include <utility>
 
 namespace
 {
-    template<class T>
-    auto CallsItemByGuid(int) -> decltype(std::declval<T const&>().GetItemByGuid(ObjectGuid()), std::true_type());
+    /// A player with its update fields allocated, on a session with no socket, in no world.
+    class StandingPlayer : public Player
+    {
+        public:
+            explicit StandingPlayer(WorldSession& session) : Player(&session)
+            {
+                Object::_Create(1, 0, HIGHGUID_PLAYER);
+            }
 
-    template<class T>
-    std::false_type CallsItemByGuid(...);
+            ~StandingPlayer()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
 }
 
 static_assert(std::is_same<decltype(&Unit::GetItemByGuid), Item* (Unit::*)(ObjectGuid) const>::value,
               "Unit declares the item lookup by guid");
-static_assert(decltype(CallsItemByGuid<Unit>(0))::value, "a call through a Unit reaches the item lookup");
-static_assert(!decltype(CallsItemByGuid<Player>(0))::value,
-              "Player's item lookup is private: a call through a Player does not compile");
+static_assert(std::is_same<decltype(&Player::GetItemByGuid), Item* (Unit::*)(ObjectGuid) const>::value,
+              "Player declares no item lookup of its own: its member pointer is Unit's");
 
 TEST(UnitItemByGuid_ACreatureHoldsNoItemUnderAnyGuid)
 {
@@ -63,4 +72,14 @@ TEST(UnitItemByGuid_ACreatureHoldsNoItemUnderAnyGuid)
     CHECK(unit.GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, uint32(1))) == NULL);
     CHECK(unit.GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, uint32(0xFFFFFFFF))) == NULL);
     CHECK(unit.GetItemByGuid(ObjectGuid(HIGHGUID_PLAYER, uint32(7))) == NULL);
+}
+
+TEST(UnitItemByGuid_APlayerAnswersFromItsInventory)
+{
+    WorldSession session(1, "items", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    StandingPlayer player(session);
+    Unit const& unit = player;
+
+    CHECK(unit.GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, uint32(1))) == NULL);
+    CHECK(unit.GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, uint32(0xFFFFFFFF))) == NULL);
 }

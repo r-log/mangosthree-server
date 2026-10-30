@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """player_sinks.py [--root <repo root>] --check | --self-test: every player gets the session's callbacks, and
-the player's four pointers (its group callbacks, its own-client callbacks, its cooldown callbacks, its spell
-modifiers) are set last in its constructor and cleared last in its destructor.
+the player's five pointers (its group callbacks, its own-client callbacks, its cooldown callbacks, its item
+callbacks, its spell modifiers) are set last in its constructor and cleared last in its destructor.
 
 Every `new Player(` under src/ -- placement (`new (std::nothrow) Player(`), qualified (`new ::Player(`) and
 make_unique/make_shared<Player> included, the SD3 scripts too -- assigns the player to a variable, and
@@ -10,13 +10,13 @@ of the `new` itself does not count and fails.
 The number of creation sites is fixed at SITES: a new site fails until it installs the callbacks and SITES is
 raised with it, and a removed site fails until SITES is lowered.
 
-In src/game/entities/player/Player.cpp the last four statements of the body of `Player::Player(` (its
+In src/game/entities/player/Player.cpp the last five statements of the body of `Player::Player(` (its
 definition header at column 0, the body read by brace matching from the `{` that follows) are `m_groupCallbacks
-= &m_groupSinks;`, `m_clientCallbacks = &m_clientSinks;`, `m_cooldownCallbacks = &m_cooldownSinks;` and
-`m_spellMods = &m_spellModMgr;`, in any order, and the last four statements of `Player::~Player(`'s body are
-`m_groupCallbacks = NULL;`, `m_clientCallbacks = NULL;`, `m_cooldownCallbacks = NULL;` and `m_spellMods = NULL;`,
-in any order: after them only whitespace and the body's closing brace at column 0 follow. No other assignment to
-one of the four stands under src/; an initialiser `m_groupCallbacks(NULL)` is not an assignment. Comments and
+= &m_groupSinks;`, `m_clientCallbacks = &m_clientSinks;`, `m_cooldownCallbacks = &m_cooldownSinks;`,
+`m_itemCallbacks = &m_itemSinks;` and `m_spellMods = &m_spellModMgr;`, in any order, and the last five statements
+of `Player::~Player(`'s body are `m_groupCallbacks = NULL;`, `m_clientCallbacks = NULL;`, `m_cooldownCallbacks =
+NULL;`, `m_itemCallbacks = NULL;` and `m_spellMods = NULL;`, in any order: after them only whitespace and the
+body's closing brace at column 0 follow. No other assignment to one of the five stands under src/; an initialiser `m_groupCallbacks(NULL)` is not an assignment. Comments and
 literals are ignored.
 
 Not caught: a player created through a macro or a factory function, and an install made on another path
@@ -68,17 +68,19 @@ CREATE = re.compile(r'\bnew\b\s*(?:\([^()]*\)\s*)?(?:::\s*)?Player\s*\(|\bmake_(
 ASSIGNED = re.compile(r'(\w+)\s*(?:=|\()\s*(?:std\s*::\s*)?$')
 
 PLAYER_CPP = 'src/game/entities/player/Player.cpp'
-POINTER = re.compile(r'\b(?:m_groupCallbacks|m_clientCallbacks|m_cooldownCallbacks|m_spellMods)\s*=(?!=)')
+POINTER = re.compile(r'\b(?:m_groupCallbacks|m_clientCallbacks|m_cooldownCallbacks|m_itemCallbacks|m_spellMods)\s*=(?!=)')
 PINS = (
     ('Player::Player(', (
         (re.compile(r'\bm_groupCallbacks\s*=\s*&\s*m_groupSinks\s*;'), 'm_groupCallbacks = &m_groupSinks;'),
         (re.compile(r'\bm_clientCallbacks\s*=\s*&\s*m_clientSinks\s*;'), 'm_clientCallbacks = &m_clientSinks;'),
         (re.compile(r'\bm_cooldownCallbacks\s*=\s*&\s*m_cooldownSinks\s*;'), 'm_cooldownCallbacks = &m_cooldownSinks;'),
+        (re.compile(r'\bm_itemCallbacks\s*=\s*&\s*m_itemSinks\s*;'), 'm_itemCallbacks = &m_itemSinks;'),
         (re.compile(r'\bm_spellMods\s*=\s*&\s*m_spellModMgr\s*;'), 'm_spellMods = &m_spellModMgr;'))),
     ('Player::~Player(', (
         (re.compile(r'\bm_groupCallbacks\s*=\s*NULL\s*;'), 'm_groupCallbacks = NULL;'),
         (re.compile(r'\bm_clientCallbacks\s*=\s*NULL\s*;'), 'm_clientCallbacks = NULL;'),
         (re.compile(r'\bm_cooldownCallbacks\s*=\s*NULL\s*;'), 'm_cooldownCallbacks = NULL;'),
+        (re.compile(r'\bm_itemCallbacks\s*=\s*NULL\s*;'), 'm_itemCallbacks = NULL;'),
         (re.compile(r'\bm_spellMods\s*=\s*NULL\s*;'), 'm_spellMods = NULL;'))),
 )
 
@@ -159,7 +161,8 @@ def pins(text):
 
 
 def assignments(text):
-    """[line] of every assignment to m_groupCallbacks, m_clientCallbacks, m_cooldownCallbacks or m_spellMods,
+    """[line] of every assignment to m_groupCallbacks, m_clientCallbacks, m_cooldownCallbacks, m_itemCallbacks or
+    m_spellMods,
     comments and literals ignored."""
     clean = case_labels.blank(text)
     return [clean.count('\n', 0, m.start()) + 1 for m in POINTER.finditer(clean)]
@@ -232,7 +235,8 @@ def check(root, out=print, expected=SITES):
     if failed:
         return 1
     out('PlayerSinks OK: %d files under %s, %d player creation sites, each installs the session callbacks; '
-        'the group-callback, client-callback, cooldown-callback and spell-modifier pointers are set and cleared '
+        'the group-callback, client-callback, cooldown-callback, item-callback and spell-modifier pointers are set and '
+        'cleared '
         'last in %s'
         % (files, SCOPE, len(found), PLAYER_CPP))
     return 0
@@ -289,9 +293,10 @@ def self_test():
     ctor = 'Player::Player(WorldSession* s): Unit(), m_camera(this)\n{\n    m_slot = 255;\n\n    %s\n}\n\n'
     dtor = 'Player::~Player()\n{\n    CleanupsBeforeDelete();\n    %s\n}\n'
     sets = ('m_groupCallbacks = &m_groupSinks;\n    m_clientCallbacks = &m_clientSinks;\n'
-            '    m_cooldownCallbacks = &m_cooldownSinks;\n    m_spellMods = &m_spellModMgr;')
+            '    m_cooldownCallbacks = &m_cooldownSinks;\n    m_itemCallbacks = &m_itemSinks;\n'
+            '    m_spellMods = &m_spellModMgr;')
     clears = ('// the cleanups report\n    m_groupCallbacks = NULL;\n    m_clientCallbacks = NULL;\n'
-              '    m_cooldownCallbacks = NULL;\n    m_spellMods = NULL;')
+              '    m_cooldownCallbacks = NULL;\n    m_itemCallbacks = NULL;\n    m_spellMods = NULL;')
     player = ctor % sets + dtor % clears
 
     def expect_pins(label, text, want):
@@ -301,33 +306,38 @@ def self_test():
 
     expect_pins('the set and the clear last', player, [])
     expect_pins('the clear followed by a statement', ctor % sets + dtor % (clears + '\n    delete m_x;'),
-                [18, 17, 16, 15])
+                [20, 19, 18, 17, 16])
     expect_pins('the clear at the top',
                 ctor % sets + 'Player::~Player()\n{\n    m_groupCallbacks = NULL;\n    m_clientCallbacks = NULL;\n'
-                '    m_cooldownCallbacks = NULL;\n    m_spellMods = NULL;\n    CleanupsBeforeDelete();\n}\n',
-                [16, 15, 14, 13])
-    expect_pins('the clear missing', ctor % sets + dtor % '', [11, 11, 11, 11])
-    expect_pins('the set missing', ctor % '' + dtor % clears, [1, 1, 1, 1])
+                '    m_cooldownCallbacks = NULL;\n    m_itemCallbacks = NULL;\n    m_spellMods = NULL;\n'
+                '    CleanupsBeforeDelete();\n}\n',
+                [18, 17, 16, 15, 14])
+    expect_pins('the clear missing', ctor % sets + dtor % '', [12, 12, 12, 12, 12])
+    expect_pins('the set missing', ctor % '' + dtor % clears, [1, 1, 1, 1, 1])
     expect_pins('the set inside a nested block',
-                ctor % ('if (a)\n    {\n        %s\n    }' % sets) + dtor % clears, [10, 9, 8, 7])
+                ctor % ('if (a)\n    {\n        %s\n    }' % sets) + dtor % clears, [11, 10, 9, 8, 7])
     expect_pins('the clear commented out',
                 ctor % sets + dtor % ('// m_groupCallbacks = NULL;\n    m_clientCallbacks = NULL;\n'
-                                      '    m_cooldownCallbacks = NULL;\n    m_spellMods = NULL;'), [11])
+                                      '    m_cooldownCallbacks = NULL;\n    m_itemCallbacks = NULL;\n'
+                                      '    m_spellMods = NULL;'), [12])
     expect_pins('the clear as nullptr',
                 ctor % sets + dtor % ('m_groupCallbacks = NULL;\n    m_clientCallbacks = NULL;\n'
-                                      '    m_cooldownCallbacks = NULL;\n    m_spellMods = nullptr;'), [11, 16, 15, 14])
+                                      '    m_cooldownCallbacks = NULL;\n    m_itemCallbacks = NULL;\n'
+                                      '    m_spellMods = nullptr;'), [12, 18, 17, 16, 15])
     expect_pins('no destructor', ctor % sets, [1])
     expect_pins('an indented closing brace',
                 ctor % sets + 'Player::~Player()\n{\n    m_groupCallbacks = NULL;\n    m_clientCallbacks = NULL;\n'
-                '    m_cooldownCallbacks = NULL;\n    m_spellMods = NULL;\n    }\n', [17])
-    expect_pins('the four in another order',
-                ctor % ('m_spellMods = &m_spellModMgr;\n    m_cooldownCallbacks = &m_cooldownSinks;\n'
+                '    m_cooldownCallbacks = NULL;\n    m_itemCallbacks = NULL;\n    m_spellMods = NULL;\n    }\n', [19])
+    expect_pins('the five in another order',
+                ctor % ('m_spellMods = &m_spellModMgr;\n    m_itemCallbacks = &m_itemSinks;\n'
+                        '    m_cooldownCallbacks = &m_cooldownSinks;\n'
                         '    m_clientCallbacks = &m_clientSinks;\n    m_groupCallbacks = &m_groupSinks;')
-                + dtor % ('m_spellMods = NULL;\n    m_groupCallbacks = NULL;\n    m_cooldownCallbacks = NULL;\n'
-                          '    m_clientCallbacks = NULL;'), [])
+                + dtor % ('m_spellMods = NULL;\n    m_groupCallbacks = NULL;\n    m_itemCallbacks = NULL;\n'
+                          '    m_cooldownCallbacks = NULL;\n    m_clientCallbacks = NULL;'), [])
     expect_pins('a statement between the pointers',
                 ctor % sets + dtor % ('m_groupCallbacks = NULL;\n    m_clientCallbacks = NULL;\n    delete m_x;\n'
-                                      '    m_cooldownCallbacks = NULL;\n    m_spellMods = NULL;'), [15, 14])
+                                      '    m_cooldownCallbacks = NULL;\n    m_itemCallbacks = NULL;\n'
+                                      '    m_spellMods = NULL;'), [16, 15])
 
     def expect_assignments(label, text, want):
         got = assignments(text)
@@ -341,6 +351,7 @@ def self_test():
     expect_assignments('the spell-modifier pointer', 'm_spellMods(NULL),\nm_spellMods = p;\nm_spellModsX = p;\n', [2])
     expect_assignments('the client-callback pointer', 'm_clientCallbacks(NULL),\nm_clientCallbacks = p;\n', [2])
     expect_assignments('the cooldown-callback pointer', 'm_cooldownCallbacks(NULL),\nm_cooldownCallbacks = p;\n', [2])
+    expect_assignments('the item-callback pointer', 'm_itemCallbacks(NULL),\nm_itemCallbacks = p;\n', [2])
 
     good = 'Player* p = new Player(s);\n' + install
     three = {'src/game/WorldHandlers/CharacterHandler.cpp': good + good, 'src/game/Harness/Scenario.cpp': good,

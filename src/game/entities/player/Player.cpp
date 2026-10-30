@@ -538,12 +538,18 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
 
     m_slot = 255;
 
+    m_itemSinks.findItem = [this](ObjectGuid guid) { return GetInventoryMgr().GetItemByGuid(guid); };
+    m_itemSinks.durabilityPointLoss = [this](EquipmentSlots slot) { DurabilityPointLossForEquipSlot(slot); };
+    m_itemSinks.castItemCombatSpells = [this](Unit& target, WeaponAttackType attackType) { CastItemCombatSpell(&target, attackType); };
+
     // Unit reports the player's group-visible changes through the callbacks this player holds
     m_groupCallbacks = &m_groupSinks;
     // Unit tells the player's own client through the callbacks this player holds
     m_clientCallbacks = &m_clientSinks;
     // Unit starts and ends the player's cooldowns through the callbacks this player holds
     m_cooldownCallbacks = &m_cooldownSinks;
+    // Unit asks and tells the player's inventory through the callbacks this player holds
+    m_itemCallbacks = &m_itemSinks;
     // Unit reaches the player's spell modifiers, and those of its pets and totems, through this pointer
     m_spellMods = &m_spellModMgr;
 }
@@ -604,6 +610,8 @@ Player::~Player()
     m_clientCallbacks = NULL;
     // Last: the cleanups above may still end the player's cooldowns through these callbacks
     m_cooldownCallbacks = NULL;
+    // Last: the cleanups above may still ask the player's inventory through these callbacks
+    m_itemCallbacks = NULL;
     // Last: the cleanups above may still read the player's spell modifiers through this pointer
     m_spellMods = NULL;
 }

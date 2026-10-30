@@ -130,6 +130,7 @@ Unit::Unit() :
     m_groupCallbacks(NULL),
     m_clientCallbacks(NULL),
     m_cooldownCallbacks(NULL),
+    m_itemCallbacks(NULL),
     m_lastPotionId(0),
     m_lastSwingError(0),
     m_spellMods(NULL),
@@ -1952,6 +1953,17 @@ void Unit::ResetCameraView()
     {
         ReportClientFact(client->viewReset, ViewResetFact());
     }
+}
+
+/**
+ * @brief The item this unit holds under a guid, which the player's item callbacks find.
+ *
+ * @param guid The item's guid.
+ * @return The item, or NULL for none and for a unit that is not a player.
+ */
+Item* Unit::GetItemByGuid(ObjectGuid guid) const
+{
+    return m_itemCallbacks ? m_itemCallbacks->findItem(guid) : NULL;
 }
 
 /**

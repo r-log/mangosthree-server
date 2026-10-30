@@ -315,6 +315,7 @@ struct CreatureInfo;
 struct GroupCallbacks;
 struct ClientCallbacks;
 struct CooldownSinks;
+struct ItemCallbacks;
 
 class Aura;
 class SpellAuraHolder;
@@ -4037,9 +4038,10 @@ class Unit : public WorldObject
         /**
          * The item this unit holds under a guid; the proc handlers ask it for the item an aura was
          * cast from.
-         * @return NULL here; Player returns the item its inventory holds under that guid, or NULL
+         * @return The item the player's item callbacks find under that guid; NULL for a unit that is
+         *         not a player
          */
-        virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }
+        Item* GetItemByGuid(ObjectGuid guid) const;
         /**
          * The AI that drives this unit; the combat, the spell code and the scripts tell it what happened.
          * @return NULL here, a player is driven by its client; Creature returns its own
@@ -4349,6 +4351,8 @@ class Unit : public WorldObject
         ClientCallbacks const* m_clientCallbacks;
         // The player's cooldown callbacks, NULL for a unit that is not a player
         CooldownSinks const* m_cooldownCallbacks;
+        // The player's item callbacks, NULL for a unit that is not a player
+        ItemCallbacks const* m_itemCallbacks;
         // The last health or mana potion the player used in combat, which blocks the next until
         // combat ends; 0 for none
         uint32 m_lastPotionId;

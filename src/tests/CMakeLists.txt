@@ -541,7 +541,7 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME total_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate downcasts=521 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate downcasts=519 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME const_casts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
