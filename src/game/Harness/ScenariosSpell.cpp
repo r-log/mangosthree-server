@@ -1561,16 +1561,19 @@ namespace Harness
     }
     /**
      * S939 `spell-periodic-off-map`: S932's priest and cougar, with the priest gone to another map
-     * between the cast and the first tick. He casts Shadow Word: Pain (589) at the silenced cougar,
-     * again a tenth of a second later while the hit roll misses (each step draws its own seeded roll;
-     * the missed attempt's global cooldown is cancelled by call),
-     * then moves to Northshire Valley on Eastern Kingdoms (map 0) the way Scenario::SpawnPlayer places
-     * a player: the map's own removal, then SetMap and Map::Add. A harness player never logged in (no
-     * social list), so the worldport's arrival packets are not his to send. The aura keeps ticking on
-     * the cougar while its caster stands on the other map, through its six ticks to its expiry, and he
-     * moves back to the harness map before the verdict.
+     * between the cast and the first tick. The priest casts Shadow Word: Pain (589) at the silenced
+     * cougar, again a tenth of a second later while the hit roll misses (each step draws its own seeded
+     * roll; the missed attempt's global cooldown is cancelled by call), then moves to Deepholm (map
+     * 646) the way Scenario::SpawnPlayer places a player: the map's own removal, then SetMap and
+     * Map::Add. No creature or game object is spawned within 800 yards of the spot there, and no vessel
+     * route leaves or enters that map, so no other unit's updates reach the priest: a vessel crossing
+     * between maps is announced to every player on them at a moment of the wall clock, which no seed
+     * controls. A harness player never logged in (no social list), so the worldport's arrival packets
+     * are not theirs to send. The aura keeps ticking on the cougar while its caster stands on the other
+     * map, through its six ticks to its expiry, and the priest moves back to the harness map before the
+     * verdict.
      *
-     * Pins: the aura applied on the harness map, the priest in the world on map 0 before the first
+     * Pins: the aura applied on the harness map, the priest in the world on map 646 before the first
      * tick, the cougar's health falling at each of the six ticks (the last one at the expiry), the
      * holder gone after the expiry, and the ownership violations counted while the aura ran
      * (MapPhase::Violations()): none, because an aura whose caster is a player on another map waits
@@ -1604,8 +1607,8 @@ namespace Harness
             const uint32 cougar = 2961;
             const uint32 level = 4;
             const uint32 kCastAt = 400, kCastRetry = 100, kCastAttempts = 7, kMoveAt = 1400, kPeriod = 3000, kTicks = 6;
-            const uint32 kOtherMap = 0, kHarnessMap = GetMap() ? GetMap()->GetId() : 1;
-            const Pt kNorthshire = { -8949.95f, -132.493f, 83.5312f };
+            const uint32 kOtherMap = 646, kHarnessMap = GetMap() ? GetMap()->GetId() : 1;
+            const Pt kQuietSpot = { -1362.0f, 1299.0f, 300.0f };
 
             std::vector<SpellPrint> prints = {
                 // 589: 26 fields, fnv cb49aeac
@@ -1690,12 +1693,12 @@ namespace Harness
                 m_rec.Note("Shadow Word: Pain on the target after attempt " + U(attempt + 1) + ": " + st->holderAfterCast);
             });
             }
-            At(kMoveAt, [this, st, kOtherMap, kNorthshire]()
+            At(kMoveAt, [this, st, kOtherMap, kQuietSpot]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->cast) { return; }
                 m_rec.Open("move", false);        // the map change's own packets: logged, never digested
-                st->moved = MoveToMap(p, kOtherMap, kNorthshire);
+                st->moved = MoveToMap(p, kOtherMap, kQuietSpot);
                 st->mapAfterMove = U(p->GetMapId()) + (p->IsInWorld() ? " in world" : " not in world");
                 m_rec.Note("the priest after the transfer: map " + st->mapAfterMove);
                 m_rec.Open("away");
