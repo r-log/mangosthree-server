@@ -114,7 +114,7 @@ SpellCastResult Spell::CheckCast(bool strict)
             return SPELL_FAILED_AFFECTING_COMBAT;
         }
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER && !((Player*)m_caster)->isGameMaster() &&
+    if (m_caster->GetTypeId() == TYPEID_PLAYER && !m_caster->isGameMaster() &&
         sGameConfig.getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK))
     {
         if (m_spellInfo->HasAttribute(SPELL_ATTR_OUTDOORS_ONLY) &&
@@ -1664,7 +1664,7 @@ SpellCastResult Spell::CheckCast(bool strict)
             case SPELL_AURA_MOUNTED:
             {
 
-                if (m_caster->GetTypeId() == TYPEID_PLAYER && ((Player*)m_caster)->GetTransport())
+                if (m_caster->GetTransport())
                 {
                     return SPELL_FAILED_NO_MOUNTS_ALLOWED;
                 }

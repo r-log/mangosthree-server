@@ -490,7 +490,7 @@ void Aura::HandlePeriodicLeech(bool apply, bool /*Real*/)
     m_isPeriodic = apply;
 
     // For prevent double apply bonuses
-    bool loading = (GetTarget()->GetTypeId() == TYPEID_PLAYER && ((Player*)GetTarget())->IsLoading());
+    bool loading = GetTarget()->IsLoading();
 
     // Custom damage calculation after
     if (apply)
@@ -532,7 +532,7 @@ void Aura::HandlePeriodicHealthFunnel(bool apply, bool /*Real*/)
     m_isPeriodic = apply;
 
     // For prevent double apply bonuses
-    bool loading = (GetTarget()->GetTypeId() == TYPEID_PLAYER && ((Player*)GetTarget())->IsLoading());
+    bool loading = GetTarget()->IsLoading();
 
     // Custom damage calculation after
     if (apply)

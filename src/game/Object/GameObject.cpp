@@ -1126,7 +1126,7 @@ void GameObject::SetWorldRotationAngles(float z_rot, float y_rot, float x_rot)
 bool GameObject::IsHostileTo(Unit const* unit) const
 {
     // always non-hostile to GM in GM mode
-    if (unit->GetTypeId() == TYPEID_PLAYER && ((Player const*)unit)->isGameMaster())
+    if (unit->isGameMaster())
     {
         return false;
     }
@@ -1189,7 +1189,7 @@ bool GameObject::IsHostileTo(Unit const* unit) const
 bool GameObject::IsFriendlyTo(Unit const* unit) const
 {
     // always friendly to GM in GM mode
-    if (unit->GetTypeId() == TYPEID_PLAYER && ((Player const*)unit)->isGameMaster())
+    if (unit->isGameMaster())
     {
         return true;
     }

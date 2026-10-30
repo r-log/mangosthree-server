@@ -46,7 +46,7 @@ void Creature::TauntApply(Unit* taunter)
 {
     MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT);
 
-    if (!taunter || (taunter->GetTypeId() == TYPEID_PLAYER && ((Player*)taunter)->isGameMaster()))
+    if (!taunter || taunter->isGameMaster())
     {
         return;
     }
@@ -86,7 +86,7 @@ void Creature::TauntFadeOut(Unit* taunter)
 {
     MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT);
 
-    if (!taunter || (taunter->GetTypeId() == TYPEID_PLAYER && ((Player*)taunter)->isGameMaster()))
+    if (!taunter || taunter->isGameMaster())
     {
         return;
     }
