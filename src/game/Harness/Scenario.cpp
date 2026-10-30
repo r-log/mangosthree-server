@@ -427,7 +427,7 @@ namespace Harness
         pet->GetCharmInfo()->SetReactState(REACT_DEFENSIVE);
         pet->InitPetCreateSpells();                    // memory only: the action bar, the family passives, the owner's pet auras
         pet->SetActiveObjectState(true);               // before Map::Add
-        map->Add((Creature*)pet);
+        map->Add<Creature>(pet);
         pet->AIM_Initialize();
         // The factory AI dropped from under a recording decorator, as Scenario::Silence does
         // it for a spawned actor -- which cannot be used here, because Silence refuses
