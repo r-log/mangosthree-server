@@ -128,6 +128,7 @@ set(SRC_GRP_TESTS
     RequesterSessionTest.cpp
     SessionRegistryTest.cpp
     LootFlagViewerTest.cpp
+    TappedViewerFlagsTest.cpp
     PetCacheTest.cpp
     GuildAsyncTest.cpp
     CalendarMailAsyncTest.cpp
