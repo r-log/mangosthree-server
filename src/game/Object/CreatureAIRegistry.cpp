@@ -30,7 +30,6 @@
 #include "PetAI.h"
 #include "TotemAI.h"
 #include "CreatureEventAI.h"
-#include "CreatureAIImpl.h"
 #include "CreatureAIRegistry.h"
 
 namespace AIRegistry

@@ -28,7 +28,6 @@
 
 #include "Platform/Define.h"
 #include "CreatureAI.h"
-#include "Dynamic/FactoryHolder.h"
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
 

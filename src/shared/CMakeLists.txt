@@ -64,7 +64,6 @@ set(SRC_GRP_DATABASE
 source_group("Database" FILES ${SRC_GRP_DATABASE})
 
 set(SRC_GRP_DYNAMIC
-  Dynamic/FactoryHolder.h
   Dynamic/ObjectRegistry.h
 )
 source_group("Dynamic" FILES ${SRC_GRP_DYNAMIC})
