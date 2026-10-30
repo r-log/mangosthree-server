@@ -544,7 +544,7 @@ void BattleGroundWS::EventPlayerClickedOnFlag(Player* source, GameObject* target
             UpdateFlagState(HORDE, BG_WS_FLAG_STATE_ON_PLAYER);
             UpdateWorldState(BG_WS_FLAG_UNK_ALLIANCE, 1);
         }
-        // called in HandleGameObjectUseOpcode:
+        // called in SpellHandlers::HandleGameObjectUse:
         // target_obj->Delete();
     }
 
@@ -572,7 +572,7 @@ void BattleGroundWS::EventPlayerClickedOnFlag(Player* source, GameObject* target
             UpdateFlagState(ALLIANCE, BG_WS_FLAG_STATE_ON_PLAYER);
             UpdateWorldState(BG_WS_FLAG_UNK_HORDE, 1);
         }
-        // called in HandleGameObjectUseOpcode:
+        // called in SpellHandlers::HandleGameObjectUse:
         // target_obj->Delete();
     }
 

@@ -205,6 +205,9 @@ source_group("Session\\Handlers\\Pvp" FILES ${SRC_GRP_SESSION_HANDLERS_PVP})
 file(GLOB SRC_GRP_SESSION_HANDLERS_SOCIAL session/handlers/social/*.cpp session/handlers/social/*.h)
 source_group("Session\\Handlers\\Social" FILES ${SRC_GRP_SESSION_HANDLERS_SOCIAL})
 
+file(GLOB SRC_GRP_SESSION_HANDLERS_SPELLS session/handlers/spells/*.cpp session/handlers/spells/*.h)
+source_group("Session\\Handlers\\Spells" FILES ${SRC_GRP_SESSION_HANDLERS_SPELLS})
+
 file(GLOB SRC_GRP_SESSION_PACKETS session/packets/*.cpp session/packets/*.h)
 source_group("Session\\Packets" FILES ${SRC_GRP_SESSION_PACKETS})
 
@@ -319,6 +322,7 @@ add_library(game STATIC
     ${SRC_GRP_SESSION_HANDLERS_MAPS}
     ${SRC_GRP_SESSION_HANDLERS_PVP}
     ${SRC_GRP_SESSION_HANDLERS_SOCIAL}
+    ${SRC_GRP_SESSION_HANDLERS_SPELLS}
     ${SRC_GRP_SESSION_PACKETS}
     ${SRC_GRP_SESSION_PACKETS_CHAT}
     ${SRC_GRP_SESSION_PACKETS_COMBAT}
