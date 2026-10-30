@@ -4048,16 +4048,6 @@ enum TeleportLocation
     TELEPORT_LOCATION_BG_ENTRY_POINT = 1,
 };
 
-// For Loot system
-enum CreatureLootStatus
-{
-    CREATURE_LOOT_STATUS_NONE           = 0,
-    CREATURE_LOOT_STATUS_PICKPOCKETED   = 1,
-    CREATURE_LOOT_STATUS_LOOTED         = 2,
-    CREATURE_LOOT_STATUS_SKIN_AVAILABLE = 3,
-    CREATURE_LOOT_STATUS_SKINNED        = 4
-};
-
 /**
  * Some statuses that can be sent with the \ref OpcodesList::SMSG_GM_TICKET_STATUS_UPDATE opcode
  * to change what the client is currently showing about your open ticket.
