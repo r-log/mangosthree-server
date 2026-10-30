@@ -48,6 +48,7 @@ class Totem : public Creature
         uint32 GetTotemDuration() const { return m_duration; }
         Unit* GetOwner();
         TotemType GetTotemType() const { return m_type; }
+        bool CreditsHealToOwner() const override { return GetTotemType() != TOTEM_STATUE; }
         void SetTypeBySummonSpell(SpellEntry const* spellProto);
         void SetDuration(uint32 dur) { m_duration = dur; }
         void SetOwner(Unit* owner);
