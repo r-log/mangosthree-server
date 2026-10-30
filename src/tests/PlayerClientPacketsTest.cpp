@@ -678,8 +678,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 24u);
-    for (size_t i = 0; i < 24; ++i)
+    REQUIRE(session.sent.size() == 30u);
+    for (size_t i = 0; i < 30; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -699,9 +699,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 24u);
-    REQUIRE(second.sent.size() == 24u);
-    for (size_t i = 0; i < 24; ++i)
+    REQUIRE(first.sent.size() == 30u);
+    REQUIRE(second.sent.size() == 30u);
+    for (size_t i = 0; i < 30; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);
