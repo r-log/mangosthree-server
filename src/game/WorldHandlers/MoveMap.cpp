@@ -29,6 +29,7 @@
 #include "GridMap.h"
 #include "Log.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "Creature.h"
 
 #include "MoveMap.h"
@@ -175,7 +176,7 @@ namespace MMAP
      */
     bool MMapFactory::IsPathfindingEnabled(uint32 mapId, const Unit* unit = NULL)
     {
-        if (!sWorld.getConfig(CONFIG_BOOL_MMAP_ENABLED))
+        if (!sGameConfig.getConfig(CONFIG_BOOL_MMAP_ENABLED))
         {
             return false;
         }

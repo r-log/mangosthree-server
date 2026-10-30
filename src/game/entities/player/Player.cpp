@@ -36,6 +36,7 @@
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -365,7 +366,7 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
 
     m_areaUpdateId = 0;
 
-    m_nextSave = sWorld.getConfig(CONFIG_UINT32_INTERVAL_SAVE);
+    m_nextSave = sGameConfig.getConfig(CONFIG_UINT32_INTERVAL_SAVE);
 
     // randomize first save time in range [CONFIG_UINT32_INTERVAL_SAVE] around [CONFIG_UINT32_INTERVAL_SAVE]
     // this must help in case next save after mass player load after server startup
@@ -753,12 +754,12 @@ bool Player::Create(uint32 guidlow, const std::string& name, uint8 race, uint8 c
 
     // set starting level
     uint32 start_level = getClass() != CLASS_DEATH_KNIGHT
-                         ? sWorld.getConfig(CONFIG_UINT32_START_PLAYER_LEVEL)
-                         : sWorld.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL);
+                         ? sGameConfig.getConfig(CONFIG_UINT32_START_PLAYER_LEVEL)
+                         : sGameConfig.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL);
 
     if (GetSession()->GetSecurity() >= SEC_MODERATOR)
     {
-        uint32 gm_level = sWorld.getConfig(CONFIG_UINT32_START_GM_LEVEL);
+        uint32 gm_level = sGameConfig.getConfig(CONFIG_UINT32_START_GM_LEVEL);
         if (gm_level > start_level)
         {
             start_level = gm_level;
@@ -769,9 +770,9 @@ bool Player::Create(uint32 guidlow, const std::string& name, uint8 race, uint8 c
 
     InitRunes();
 
-    SetUInt64Value(PLAYER_FIELD_COINAGE, sWorld.getConfig(CONFIG_UINT64_START_PLAYER_MONEY));
-    SetCurrencyCount(CURRENCY_HONOR_POINTS,sWorld.getConfig(CONFIG_UINT32_CURRENCY_START_HONOR_POINTS));
-    SetCurrencyCount(CURRENCY_CONQUEST_POINTS, sWorld.getConfig(CONFIG_UINT32_CURRENCY_START_CONQUEST_POINTS));
+    SetUInt64Value(PLAYER_FIELD_COINAGE, sGameConfig.getConfig(CONFIG_UINT64_START_PLAYER_MONEY));
+    SetCurrencyCount(CURRENCY_HONOR_POINTS,sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_START_HONOR_POINTS));
+    SetCurrencyCount(CURRENCY_CONQUEST_POINTS, sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_START_CONQUEST_POINTS));
 
     // Initialize played time
     m_Last_tick = time(NULL);
@@ -1505,7 +1506,7 @@ bool Player::BuildEnumData(CharacterEnumRow const& row, ByteBuffer* data, ByteBu
     {
         char_flags |= CHARACTER_FLAG_RENAME;
     }
-    if (sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED))
+    if (sGameConfig.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED))
     {
         if (!row.genitive.empty())
         {
@@ -2375,7 +2376,7 @@ void Player::SetGameMaster(bool on)
         CallForAllControlledUnits(SetGameMasterOffHelper(getFaction()), CONTROLLED_PET | CONTROLLED_TOTEMS | CONTROLLED_GUARDIANS | CONTROLLED_CHARM);
 
         // restore FFA PvP Server state
-        if (sWorld.IsFFAPvPRealm())
+        if (sGameConfig.IsFFAPvPRealm())
         {
             SetFFAPvP(true);
         }
@@ -2483,7 +2484,7 @@ uint32 Player::GiveXP(uint32 xp, Unit* victim)
     uint32 level = getLevel();
 
     // XP to money conversion processed in Player::RewardQuest
-    if (level >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (level >= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         return 0;
     }
@@ -2516,11 +2517,11 @@ uint32 Player::GiveXP(uint32 xp, Unit* victim)
     uint32 nextLvlXP = GetUInt32Value(PLAYER_NEXT_LEVEL_XP);
     uint32 newXP = curXP + xp + rested_bonus_xp;
 
-    while (newXP >= nextLvlXP && level < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    while (newXP >= nextLvlXP && level < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         newXP -= nextLvlXP;
 
-        if (level < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+        if (level < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
         {
             GiveLevel(level + 1);
         }
@@ -2661,7 +2662,7 @@ void Player::UpdateFreeTalentPoints(bool resetIfNeed)
             m_talentMgr.SetActiveSpec(0);
         }
 
-        uint32 talentPointsForLevel = TalentMgr::CalculateTalentsPoints(getLevel(), getClass(), sWorld.getConfig(CONFIG_FLOAT_RATE_TALENT), m_questRewardTalentCount);
+        uint32 talentPointsForLevel = TalentMgr::CalculateTalentsPoints(getLevel(), getClass(), sGameConfig.getConfig(CONFIG_FLOAT_RATE_TALENT), m_questRewardTalentCount);
 
         // if used more that have then reset
         if (m_talentMgr.UsedPoints() > talentPointsForLevel)
@@ -2714,7 +2715,7 @@ void Player::InitStatsForLevel(bool reapplyMods)
     PlayerLevelInfo info;
     sObjectMgr.GetPlayerLevelInfo(getRace(), getClass(), getLevel(), &info);
 
-    SetUInt32Value(PLAYER_FIELD_MAX_LEVEL, sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
+    SetUInt32Value(PLAYER_FIELD_MAX_LEVEL, sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
     SetUInt32Value(PLAYER_NEXT_LEVEL_XP, sObjectMgr.GetXPForLevel(getLevel()));
 
     // reset before any aura state sources (health set/aura apply)
@@ -3319,8 +3320,8 @@ TrainerSpellState Player::GetTrainerSpellState(TrainerSpell const* trainer_spell
  */
 uint32 Player::DeleteMethodFor(ObjectGuid playerguid, bool deleteFinally)
 {
-    uint32 charDelete_method = sWorld.getConfig(CONFIG_UINT32_CHARDELETE_METHOD);
-    uint32 charDelete_minLvl = sWorld.getConfig(CONFIG_UINT32_CHARDELETE_MIN_LEVEL);
+    uint32 charDelete_method = sGameConfig.getConfig(CONFIG_UINT32_CHARDELETE_METHOD);
+    uint32 charDelete_minLvl = sGameConfig.getConfig(CONFIG_UINT32_CHARDELETE_MIN_LEVEL);
 
     // if we want to finally delete the character or the character does not meet the level requirement, we set it to mode 0
     if (deleteFinally || Player::GetLevelFromDB(playerguid) < charDelete_minLvl)
@@ -3595,7 +3596,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
  */
 void Player::DeleteOldCharacters()
 {
-    uint32 keepDays = sWorld.getConfig(CONFIG_UINT32_CHARDELETE_KEEP_DAYS);
+    uint32 keepDays = sGameConfig.getConfig(CONFIG_UINT32_CHARDELETE_KEEP_DAYS);
     if (!keepDays)
     {
         return;
@@ -3944,7 +3945,7 @@ void Player::SetInGuild(uint32 GuildId)
         SetGuidValue(OBJECT_FIELD_DATA, ObjectGuid());
     }
 
-    ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_GUILD_LEVELING_ENABLED, GuildId != 0 && sWorld.getConfig(CONFIG_BOOL_GUILD_LEVELING_ENABLED));
+    ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_GUILD_LEVELING_ENABLED, GuildId != 0 && sGameConfig.getConfig(CONFIG_BOOL_GUILD_LEVELING_ENABLED));
     SetUInt16Value(OBJECT_FIELD_TYPE, 1, GuildId != 0);
 }
 
@@ -3976,7 +3977,7 @@ bool Player::CanUseCapturePoint()
     return IsAlive() &&                                     // living
            !HasStealthAura() &&                             // not stealthed
            !HasInvisibilityAura() &&                        // visible
-           (IsPvP() || sWorld.IsPvPRealm()) &&
+           (IsPvP() || sGameConfig.IsPvPRealm()) &&
            !HasMovementFlag(MOVEFLAG_FLYING) &&
            !IsTaxiFlying() &&
            !isGameMaster();
@@ -4020,9 +4021,9 @@ void Player::SendInitWorldStates(uint32 zoneid, uint32 areaid)
     data << uint16(0);                                      // count of uint64 blocks, placeholder
 
     // Current arena season
-    FillInitialWorldState(data, count, 0xC77, sWorld.getConfig(CONFIG_UINT32_ARENA_SEASON_ID));
+    FillInitialWorldState(data, count, 0xC77, sGameConfig.getConfig(CONFIG_UINT32_ARENA_SEASON_ID));
     // Previous arena season
-    FillInitialWorldState(data, count, 0xF3D, sWorld.getConfig(CONFIG_UINT32_ARENA_SEASON_PREVIOUS_ID));
+    FillInitialWorldState(data, count, 0xF3D, sGameConfig.getConfig(CONFIG_UINT32_ARENA_SEASON_PREVIOUS_ID));
     // 0 - Battle for Wintergrasp in progress, 1 - otherwise
     FillInitialWorldState(data, count, 0xED9, 1);
     // Time when next Battle for Wintergrasp starts
@@ -4261,7 +4262,7 @@ void Player::UpdateSpeakTime()
     time_t current = time(NULL);
     if (m_speakTime > current)
     {
-        uint32 max_count = sWorld.getConfig(CONFIG_UINT32_CHATFLOOD_MESSAGE_COUNT);
+        uint32 max_count = sGameConfig.getConfig(CONFIG_UINT32_CHATFLOOD_MESSAGE_COUNT);
         if (!max_count)
         {
             return;
@@ -4271,7 +4272,7 @@ void Player::UpdateSpeakTime()
         if (m_speakCount >= max_count)
         {
             // prevent overwrite mute time, if message send just before mutes set, for example.
-            time_t new_mute = current + sWorld.getConfig(CONFIG_UINT32_CHATFLOOD_MUTE_TIME);
+            time_t new_mute = current + sGameConfig.getConfig(CONFIG_UINT32_CHATFLOOD_MUTE_TIME);
             if (GetSession()->m_muteTime < new_mute)
             {
                 GetSession()->m_muteTime = new_mute;
@@ -4285,7 +4286,7 @@ void Player::UpdateSpeakTime()
         m_speakCount = 0;
     }
 
-    m_speakTime = current + sWorld.getConfig(CONFIG_UINT32_CHATFLOOD_MESSAGE_DELAY);
+    m_speakTime = current + sGameConfig.getConfig(CONFIG_UINT32_CHATFLOOD_MESSAGE_DELAY);
 }
 
 /**
@@ -4622,7 +4623,7 @@ void Player::InitDisplayIds()
  */
 void Player::InitPrimaryProfessions()
 {
-    SetFreePrimaryProfessions(sWorld.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL));
+    SetFreePrimaryProfessions(sGameConfig.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL));
 }
 
 void Player::SendInitialPacketsBeforeAddToMap()
@@ -5996,7 +5997,7 @@ void Player::_LoadSkills(std::vector<LoginSkillRow> const& rows)
     // special settings
     if (getClass() == CLASS_DEATH_KNIGHT)
     {
-        uint32 base_level = std::min(getLevel(), sWorld.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL));
+        uint32 base_level = std::min(getLevel(), sGameConfig.getConfig(CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL));
         if (base_level < 1)
         {
             base_level = 1;
@@ -6194,7 +6195,7 @@ void Player::HandleFall(MovementInfo const& movementInfo)
 
         if (damageperc > 0)
         {
-            uint32 damage = (uint32)(damageperc * GetMaxHealth() * sWorld.getConfig(CONFIG_FLOAT_RATE_DAMAGE_FALL));
+            uint32 damage = (uint32)(damageperc * GetMaxHealth() * sGameConfig.getConfig(CONFIG_FLOAT_RATE_DAMAGE_FALL));
 
             float height = movementInfo.GetPos()->z;
             ClampToAllowedZ(*this, movementInfo.GetPos()->x, movementInfo.GetPos()->y, height);

@@ -51,6 +51,7 @@
 #include <set>
 #include <atomic>
 #include "World.h"
+#include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
 #include "Config/Config.h"
@@ -1986,7 +1987,7 @@ void World::ResetCurrencyWeekCounts()
         }
     }
 
-    m_NextCurrencyReset = time_t(m_NextCurrencyReset + DAY * sWorld.getConfig(CONFIG_UINT32_CURRENCY_RESET_INTERVAL));
+    m_NextCurrencyReset = time_t(m_NextCurrencyReset + DAY * sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_RESET_INTERVAL));
 
     SavedVariablesRepository::SetNextCurrencyReset(uint64(m_NextCurrencyReset));
 }

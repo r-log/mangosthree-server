@@ -34,7 +34,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "DBCStores.h"
 #include "Log.h"
@@ -509,7 +509,7 @@ namespace Harness
                 p->m_taxi.AddTaxiDestination(DEST_NODE);
                 // Half the route flown: the contract has as many seconds left as half its length
                 // buys at the taxi speed. This is exactly what a short dungeon pop leaves behind.
-                const float speed = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED);
+                const float speed = sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED);
                 p->m_taxi.SetLandingTime(uint32(WorldGameTime::Get()) + uint32(float(st->total) * 0.5f / speed));
                 p->ContinueTaxiFlight();
                 st->airRan = true;
@@ -608,7 +608,7 @@ namespace Harness
                 {
                     // --- takeoffStampsTheLanding: the contract's clock, written once, at the
                     // click. Everything else here is about reading it back.
-                    const uint32 speed = uint32(sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED));
+                    const uint32 speed = uint32(sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED));
                     const uint32 expect = speed ? (st->total + speed / 2) / speed : 0;
                     const uint32 got = st->stampAtTakeoff > st->nowAtTakeoff ? st->stampAtTakeoff - st->nowAtTakeoff : 0;
                     if (!st->stampAtTakeoff)

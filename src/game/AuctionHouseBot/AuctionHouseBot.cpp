@@ -34,7 +34,7 @@
 #include "DBCStores.h"
 #include "AuctionHouseMgr.h"
 #include "Common/ServerDefines.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldGameTime.h"
 
 /** \addtogroup auctionbot
@@ -704,7 +704,7 @@ bool AuctionBotConfig::Reload()
 char const* AuctionBotConfig::GetItemClassName(ItemClass itemclass)
 {
     ItemClassEntry const* itemClassEntry = sItemClassStore.LookupEntry(itemclass);
-    return itemClassEntry ? itemClassEntry->ClassName_lang[sWorld.GetDefaultDbcLocale()] : "";
+    return itemClassEntry ? itemClassEntry->ClassName_lang[sGameConfig.GetDefaultDbcLocale()] : "";
 }
 
 /**

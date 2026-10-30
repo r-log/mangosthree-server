@@ -35,7 +35,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Log.h"
 #include "movement/MoveSpline.h"
 #include "Utilities/MathDefines.h"
@@ -295,7 +295,7 @@ namespace Harness
                     st->ax = a->Where().X();
                     st->ay = a->Where().Y();
                     a->SetConfused(true, gk, POLYMORPH, 0);
-                    Log("confused at (%.1f, %.1f), radius %.1f, mt=%s", st->ax, st->ay, sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS), TypeName(a));
+                    Log("confused at (%.1f, %.1f), radius %.1f, mt=%s", st->ax, st->ay, sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS), TypeName(a));
                 });
                 for (uint32 i = 1; i <= 60; ++i)
                 {
@@ -343,7 +343,7 @@ namespace Harness
                 }
                 At(6600, [this, st]()
                 {
-                    const float radius = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
+                    const float radius = sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
                     char within[128], gait[96], cadence[160];
                     if (st->launches < 2)
                     {
@@ -704,7 +704,7 @@ namespace Harness
                 }
                 At(5600, [this, st]()
                 {
-                    const float radius = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
+                    const float radius = sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
                     char lurches[128], within[128];
                     snprintf(lurches, sizeof(lurches), "%s(%u lurches, CONFUSED throughout: %d, highest clearance %.1f yd)", (st->launches >= 1 && st->typeHeld && st->aboveGround >= 1.0f) ? "OK" : "BUG", st->launches, st->typeHeld ? 1 : 0, st->aboveGround);
                     if (st->launches < 1) { snprintf(within, sizeof(within), "INVALID(no lurch)"); }
@@ -1914,7 +1914,7 @@ namespace Harness
             st->pulled = false;
             st->flickers = st->discarded = st->backAfterPull = 0;
             Log("the player %s stands at (%.1f, %.1f), the kobold 6 yd east, envelope %.1f yd", g.GetString().c_str(),
-                p->Where().X(), p->Where().Y(), sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS));
+                p->Where().X(), p->Where().Y(), sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS));
 
             At(kConfuseCastAt, [this, g, gk, st]()
             {
@@ -2026,7 +2026,7 @@ namespace Harness
             }
             At(kConfuseCastAt + 6100, [this, st]()
             {
-                const float radius = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
+                const float radius = sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
                 char taken[200], wanders[144], returned[296], taxi[112];
                 if (!st->confusedSamples)
                 {

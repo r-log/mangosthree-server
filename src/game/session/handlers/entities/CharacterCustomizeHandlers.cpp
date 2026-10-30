@@ -39,6 +39,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "DBCStores.h"
 #include "AchievementMgr.h"
@@ -623,7 +624,7 @@ void CharacterCustomizeHandlers::HandleReorderCharacters(WorldSession& session, 
 {
     uint32 charCount = recv_data.ReadBits(10);
 
-    if (charCount > sWorld.getConfig(CONFIG_UINT32_CHARACTERS_PER_REALM))
+    if (charCount > sGameConfig.getConfig(CONFIG_UINT32_CHARACTERS_PER_REALM))
     {
         DEBUG_LOG("SESSION: received CMSG_REORDER_CHARACTERS, but characters count %u is beyond server limit.", charCount);
         recv_data.rfinish();

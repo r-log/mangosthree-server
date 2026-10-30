@@ -46,6 +46,7 @@
 #include <map>
 #include "GameEventMgr.h"
 #include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "Creature.h"
 #include "MapPersistentStateMgr.h"
@@ -745,7 +746,7 @@ void GameEventMgr::ApplyNewEvent(uint16 event_id, bool resume)
     m_ActiveEvents.insert(event_id);
     GameEventStatusRepository::InsertEvent(event_id);
 
-    if (sWorld.getConfig(CONFIG_BOOL_EVENT_ANNOUNCE))
+    if (sGameConfig.getConfig(CONFIG_BOOL_EVENT_ANNOUNCE))
     {
         sWorld.SendWorldText(LANG_EVENTMESSAGE, mGameEvent[event_id].description.c_str());
     }
