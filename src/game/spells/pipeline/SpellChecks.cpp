@@ -651,14 +651,15 @@ SpellCastResult Spell::CheckCast(bool strict)
                             // check if explicit target is provided and check it up against database valid target entry/state
                             if (Unit* pTarget = m_targets.getUnitTarget())
                             {
-                                if (pTarget->GetTypeId() == TYPEID_UNIT && pTarget->GetEntry() == i_spellST->targetEntry)
+                                Creature* targetCreature = pTarget->ToCreature();
+                                if (targetCreature && pTarget->GetEntry() == i_spellST->targetEntry)
                                 {
-                                    if (i_spellST->type == SPELL_TARGET_TYPE_DEAD && ((Creature*)pTarget)->IsCorpse())
+                                    if (i_spellST->type == SPELL_TARGET_TYPE_DEAD && targetCreature->IsCorpse())
                                     {
                                         // always use spellMaxRange, in case GetLastRange returned different in a previous pass
                                         if (InReach(*pTarget, *m_caster, GetSpellMaxRange(srange)))
                                         {
-                                            targetExplicit = (Creature*)pTarget;
+                                            targetExplicit = targetCreature;
                                         }
                                     }
                                     else if (i_spellST->type == SPELL_TARGET_TYPE_CREATURE && pTarget->IsAlive())
@@ -666,7 +667,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                                         // always use spellMaxRange, in case GetLastRange returned different in a previous pass
                                         if (InReach(*pTarget, *m_caster, GetSpellMaxRange(srange)))
                                         {
-                                            targetExplicit = (Creature*)pTarget;
+                                            targetExplicit = targetCreature;
                                         }
                                     }
                                 }

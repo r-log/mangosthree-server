@@ -325,16 +325,17 @@ bool ChatHandler::HandleResetTalentsCommand(char* args)
         if (!*args && creature && creature->IsPet())
         {
             Unit* owner = creature->GetOwner();
-            if (owner && owner->GetTypeId() == TYPEID_PLAYER && ((Pet*)creature)->isControlled())
+            Player* ownerPlayer = owner ? owner->ToPlayer() : NULL;
+            if (ownerPlayer && ((Pet*)creature)->isControlled())
             {
                 ((Pet*)creature)->resetTalents(true);
-                ((Player*)owner)->SendTalentsInfoData(true);
-                ((Player*)owner)->SendTalentsInvoluntarilyReset(true);
+                ownerPlayer->SendTalentsInfoData(true);
+                ownerPlayer->SendTalentsInvoluntarilyReset(true);
 
-                ChatHandler((Player*)owner).SendSysMessage(LANG_RESET_PET_TALENTS);
-                if (!m_session || m_session->GetPlayer() != ((Player*)owner))
+                ChatHandler(ownerPlayer).SendSysMessage(LANG_RESET_PET_TALENTS);
+                if (!m_session || m_session->GetPlayer() != (ownerPlayer))
                 {
-                    PSendSysMessage(LANG_RESET_PET_TALENTS_ONLINE, GetNameLink((Player*)owner).c_str());
+                    PSendSysMessage(LANG_RESET_PET_TALENTS_ONLINE, GetNameLink(ownerPlayer).c_str());
                 }
             }
             return true;

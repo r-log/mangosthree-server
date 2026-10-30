@@ -316,10 +316,11 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGenericTeslaChain(AuraTriggerSp
 {
     // X-Chain is casted by Tesla to X, so: caster == Tesla, target = X
     Unit* pCaster = ctx.aura->GetCaster();
-    if (pCaster && pCaster->GetTypeId() == TYPEID_UNIT && !InReach(*pCaster, *ctx.target, 60.0f))
+    Creature* casterCreature = pCaster ? pCaster->ToCreature() : NULL;
+    if (casterCreature && !InReach(*pCaster, *ctx.target, 60.0f))
     {
         pCaster->InterruptNonMeleeSpells(true);
-        ((Creature*)pCaster)->SetInCombatWithZone();
+        casterCreature->SetInCombatWithZone();
         // Stalagg Tesla Passive or Feugen Tesla Passive
         pCaster->CastSpell(pCaster, ctx.auraId == 28096 ? 28097 : 28109, true, NULL, NULL, ctx.target->GetObjectGuid());
     }

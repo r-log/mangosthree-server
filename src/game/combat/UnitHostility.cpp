@@ -252,9 +252,10 @@ bool Unit::IsFriendlyTo(Unit const* unit) const
     }
 
     // special cases (Duel)
-    if (tester->GetTypeId() == TYPEID_PLAYER && target->GetTypeId() == TYPEID_PLAYER)
+    Player const* testerPlayer = tester->ToPlayer();
+    if (testerPlayer && target->GetTypeId() == TYPEID_PLAYER)
     {
-        Player const* pTester = (Player const*)tester;
+        Player const* pTester = testerPlayer;
         Player const* pTarget = (Player const*)target;
 
         // Duel

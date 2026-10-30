@@ -348,16 +348,17 @@ bool ChatHandler::HandleModifyTalentCommand(char* args)
     else if (target->IsPet())
     {
         Unit* owner = target->GetOwner();
-        if (owner && owner->GetTypeId() == TYPEID_PLAYER && ((Pet*)target)->isControlled())
+        Player* ownerPlayer = owner ? owner->ToPlayer() : NULL;
+        if (ownerPlayer && ((Pet*)target)->isControlled())
         {
             // check online security
-            if (HasLowerSecurity((Player*)owner))
+            if (HasLowerSecurity(ownerPlayer))
             {
                 return false;
             }
 
             ((Pet*)target)->SetFreeTalentPoints(tp);
-            ((Player*)owner)->SendTalentsInfoData(true);
+            ownerPlayer->SendTalentsInfoData(true);
             return true;
         }
     }

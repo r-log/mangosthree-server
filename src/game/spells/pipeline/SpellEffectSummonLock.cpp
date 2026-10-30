@@ -345,11 +345,12 @@ void Spell::EffectSummonType(SpellEffectEntry const* effect)
     // Expected Level                                       (Totem, Pet and Critter may not use this)
     uint32 level = responsibleCaster ? responsibleCaster->getLevel() : m_caster->getLevel();
     // level of creature summoned using engineering item based at engineering skill level
-    if (m_caster->GetTypeId() == TYPEID_PLAYER && m_CastItem)
+    Player* casterPlayer = m_caster->ToPlayer();
+    if (casterPlayer && m_CastItem)
     {
         ItemPrototype const* proto = m_CastItem->GetProto();
         if (proto && proto->RequiredSkill == SKILL_ENGINEERING)
-            if (uint16 engineeringSkill = ((Player*)m_caster)->GetSkillValue(SKILL_ENGINEERING))
+            if (uint16 engineeringSkill = casterPlayer->GetSkillValue(SKILL_ENGINEERING))
             {
                 level = engineeringSkill / 5;
                 amount = 1;                                 // TODO HACK (needs a neat way of doing)
