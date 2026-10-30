@@ -415,6 +415,9 @@ class World
 
         void ApplyAfterMapPhasePosts();
         AfterMapPhaseQueue m_afterMapPhase;
+        /// Runs the aura holder updates the map phase left for the world thread (OffMapAuraUpdates), each
+        /// with the time its update was given, and removes a holder that expired in it.
+        void ApplyOffMapAuraUpdates();
 
         // used versions
         std::string m_DBVersion;

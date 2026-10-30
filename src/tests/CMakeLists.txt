@@ -63,6 +63,7 @@ set(SRC_GRP_TESTS
     ZonePlayerSetTest.cpp
     PlaguelandsTowerCountTest.cpp
     TeamBuffQueueTest.cpp
+    OffMapAuraUpdatesTest.cpp
     CapturePointSliderStoreTest.cpp
     PvpBroadcastTest.cpp
     ArenaTeamRepositoryTest.cpp

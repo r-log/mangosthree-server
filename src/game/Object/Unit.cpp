@@ -923,6 +923,42 @@ void Unit::HandleEmote(uint32 emote_id)
     }
 }
 
+namespace
+{
+    /// Posts the update of `holder` on `target` for the world thread, and says whether it did: when
+    /// its caster is another player, in the world, whom this thread does not own.
+    bool PostOffMapAuraUpdate(Unit const& target, SpellAuraHolder const& holder, uint32 diff)
+    {
+        ObjectGuid const casterGuid = holder.GetCasterGuid();
+        if (!casterGuid.IsPlayer() || casterGuid == target.GetObjectGuid())
+        {
+            return false;
+        }
+
+        Unit const* caster = holder.GetCaster();
+        if (!caster || !caster->IsInWorld())
+        {
+            return false;
+        }
+
+        Transport const* vessel = Transport::VesselOf(*caster);
+        if (!OffMapAuraUpdates::Waits(caster->GetMap(), vessel ? vessel->FindMap() : NULL))
+        {
+            return false;
+        }
+
+        OffMapAuraUpdate update;
+        update.mapId = target.GetMapId();
+        update.instanceId = target.GetInstanceId();
+        update.target = target.GetObjectGuid().GetRawValue();
+        update.spellId = holder.GetId();
+        update.caster = casterGuid.GetRawValue();
+        update.diff = diff;
+        OffMapAuraUpdates::Post(update);
+        return true;
+    }
+}
+
 /**
  * @brief Updates active spells, auras, and owned game objects.
  *
@@ -950,6 +986,10 @@ void Unit::_UpdateSpells(uint32 time)
     // called code at aura remove, to skip an entry that was planned to update but has been removed
     for (SpellAuraHolder* i_holder = m_auras.BeginUpdate(); i_holder; i_holder = m_auras.NextUpdate())
     {
+        if (PostOffMapAuraUpdate(*this, *i_holder, time))
+        {
+            continue;                                       // the world thread runs it after the map phase, expiry included
+        }
         i_holder->UpdateHolder(time);                       // the walk already shifted to the next element, so a removal from in here is safe
     }
 

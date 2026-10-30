@@ -1686,6 +1686,15 @@ void Aura::PeriodicTick()
     SpellEntry const* spellProto = GetSpellProto();
     SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();
 
+    // the tick reads and writes its caster: another player must be owned by this thread
+    if (GetCasterGuid().IsPlayer() && GetCasterGuid() != target->GetObjectGuid())
+    {
+        if (Unit const* caster = GetCaster())
+        {
+            caster->AssertSpellSeamOwner();
+        }
+    }
+
     switch (m_modifier.m_auraname)
     {
         case SPELL_AURA_PERIODIC_DAMAGE:
@@ -3857,6 +3866,7 @@ void SpellAuraHolder::Update(uint32 diff)
         {
             if (Unit* caster = GetCaster())
             {
+                caster->AssertSpellSeamOwner();
                 Powers powertype = Powers(GetSpellProto()->PowerType);
                 m_timeCla = 1*IN_MILLISECONDS;
 

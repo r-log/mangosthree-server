@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+#include <vector>
+
 class Map;
 
 /**
@@ -82,6 +84,37 @@ namespace MapPhase
     uint32 Violations();           ///< process-wide, since start
     /// Counts one violation; the first ten are logged, naming what was touched (`subject`) and whose (`unit`).
     void Violation(char const* subject, char const* unit);
+}
+
+/// One aura holder's update that waits for the end of the map phase: the holder of the spell
+/// `spellId` that `caster` cast on the unit `target` of the map `mapId`, instance `instanceId`, and
+/// the time `diff` its update was given. The guids are raw values.
+struct OffMapAuraUpdate
+{
+    uint32 mapId;
+    uint32 instanceId;
+    uint64 target;
+    uint32 spellId;
+    uint64 caster;
+    uint32 diff;
+};
+
+/**
+ * The aura holder updates that wait for the end of the map phase. A holder's update reads and
+ * writes its caster; when the caster is a player on a map this thread does not update, the
+ * player's own map may be updating that player on another thread. The target's map posts the holder's
+ * update here instead, and the world thread runs it once every map is done
+ * (World::ApplyOffMapAuraUpdates), with the same time.
+ */
+namespace OffMapAuraUpdates
+{
+    /// Whether an aura update whose caster stands on `casterMap` waits: this thread owns no unit
+    /// there (`casterSailed`: the map the caster's vessel sails, NULL when the caster rides none).
+    bool Waits(Map const* casterMap, Map const* casterSailed);
+    /// Queues `update`; any thread may post.
+    void Post(OffMapAuraUpdate const& update);
+    /// The queued updates in the order they were posted, leaving the queue empty.
+    std::vector<OffMapAuraUpdate> Take();
 }
 
 #endif
