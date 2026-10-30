@@ -40,7 +40,7 @@ static SpellHandlerOutcome<SpellCastResult> CheckCastKillCommand(SpellCheckCastA
 /// 61336: Survival Instincts: the caster must be a player in a feral form
 static SpellHandlerOutcome<SpellCastResult> CheckCastSurvivalInstincts(SpellCheckCastAuraDummyContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER || !((Player*)ctx.m_caster)->IsInFeralForm())
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER || !ctx.m_caster->IsInFeralForm())
     {
         return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_ONLY_SHAPESHIFT);
     }

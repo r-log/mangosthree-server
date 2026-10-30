@@ -411,7 +411,7 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                             }
 
                             // Master Poisoner
-                            Unit::AuraList const& auraList = ((Player*)m_caster)->GetAurasByType(SPELL_AURA_MOD_DURATION_OF_EFFECTS_BY_DISPEL);
+                            Unit::AuraList const& auraList = m_caster->GetAurasByType(SPELL_AURA_MOD_DURATION_OF_EFFECTS_BY_DISPEL);
                             for (Unit::AuraList::const_iterator iter = auraList.begin(); iter != auraList.end(); ++iter)
                             {
                                 if ((*iter)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_ROGUE && (*iter)->GetSpellProto()->SpellIconID == 1960)
@@ -432,7 +432,7 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                             }
 
                             damage *= doses;
-                            damage += int32(((Player*)m_caster)->GetTotalAttackPowerValue(BASE_ATTACK) * 0.09f * doses);
+                            damage += int32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.09f * doses);
                         }
                         // Eviscerate and Envenom Bonus Damage (item set effect)
                         if (m_caster->GetDummyAura(37169))
@@ -805,7 +805,7 @@ void Spell::EffectJump(SpellEffectEntry const* effect)
             }
             else if (m_caster->GetTypeId() == TYPEID_PLAYER)
             {
-                pTarget = m_caster->GetMap()->GetUnit(((Player*)m_caster)->GetSelectionGuid());
+                pTarget = m_caster->GetMap()->GetUnit(m_caster->GetSelectionGuid());
             }
 
             o = pTarget ? pTarget->Where().Facing() : m_caster->Where().Facing();
@@ -938,7 +938,7 @@ void Spell::EffectTeleportUnits(SpellEffectEntry const* effect)   // TODO - Use 
             }
             else if (unitTarget->GetTypeId() == TYPEID_PLAYER)
             {
-                pTarget = unitTarget->GetMap()->GetUnit(((Player*)unitTarget)->GetSelectionGuid());
+                pTarget = unitTarget->GetMap()->GetUnit(unitTarget->GetSelectionGuid());
             }
 
             // Init dest coordinates

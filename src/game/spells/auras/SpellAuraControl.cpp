@@ -325,7 +325,7 @@ void Aura::HandleModCharm(bool apply, bool Real)
 
         if (caster->GetTypeId() == TYPEID_PLAYER)
         {
-            ((Player*)caster)->RemovePetActionBar();
+            caster->RemovePetActionBar();
         }
 
         target->CombatStop(true);
@@ -1358,7 +1358,7 @@ void Aura::HandleModMechanicImmunity(bool apply, bool /*Real*/)
     // Heroic Fury (Intercept cooldown remove)
     else if (apply && GetSpellProto()->ID == 60970 && target->GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)target)->RemoveSpellCooldown(20252, true);
+        target->RemoveSpellCooldown(20252, true);
     }
 }
 

@@ -192,7 +192,7 @@ void Totem::UnSummon()
         // remove aura all party members too
         if (owner->GetTypeId() == TYPEID_PLAYER)
         {
-            ((Player*)owner)->SendAutoRepeatCancel(this);
+            owner->SendAutoRepeatCancel(this);
 
             // Not only the player can summon the totem (scripted AI)
             if (Group* pGroup = ((Player*)owner)->GetGroup())

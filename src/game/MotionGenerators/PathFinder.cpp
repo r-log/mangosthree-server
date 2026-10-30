@@ -270,7 +270,7 @@ void PathFinder::BuildPolyPath(const Vector3& startPos, const Vector3& endPos)
 {
     // water is an open volume the 2.5D navmesh cannot represent: a mesh
     // path would pin a swimmer to the lake-bed polys, so swim straight
-    bool canSwim = m_sourceUnit->GetTypeId() == TYPEID_UNIT && ((Creature*)m_sourceUnit)->CanSwim();
+    bool canSwim = m_sourceUnit->GetTypeId() == TYPEID_UNIT && m_sourceUnit->CanSwim();
     if (canSwim && BuildSwimShortcut(startPos, endPos))
     {
         return;
@@ -307,11 +307,11 @@ void PathFinder::BuildPolyPath(const Vector3& startPos, const Vector3& endPos)
             if ((startPoly == INVALID_POLYREF && m_sourceUnit->GetTerrain()->IsUnderWater(startPos.x, startPos.y, startPos.z)) ||
                 (endPoly == INVALID_POLYREF && m_sourceUnit->GetTerrain()->IsUnderWater(endPos.x, endPos.y, endPos.z)))
             {
-                m_type = ((Creature*)m_sourceUnit)->CanSwim() ? PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH) : PATHFIND_NOPATH;
+                m_type = m_sourceUnit->CanSwim() ? PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH) : PATHFIND_NOPATH;
             }
             else
             {
-                m_type = ((Creature*)m_sourceUnit)->CanFly() ? PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH) : PATHFIND_NOPATH;
+                m_type = m_sourceUnit->CanFly() ? PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH) : PATHFIND_NOPATH;
             }
         }
         else

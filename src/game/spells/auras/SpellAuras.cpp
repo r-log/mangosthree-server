@@ -622,7 +622,7 @@ SingleEnemyTargetAura::SingleEnemyTargetAura(SpellEntry const* spellproto, Spell
 {
     if (caster)
     {
-        m_castersTargetGuid = caster->GetTypeId() == TYPEID_PLAYER ? ((Player*)caster)->GetSelectionGuid() : caster->GetTargetGuid();
+        m_castersTargetGuid = caster->GetTypeId() == TYPEID_PLAYER ? caster->GetSelectionGuid() : caster->GetTargetGuid();
     }
 }
 
@@ -1128,7 +1128,7 @@ void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
     }
 
     // Check player targets and remove if in GM mode or GM invisibility (for not self casting case)
-    if (target->GetTypeId() == TYPEID_PLAYER && target != i_check && (((Player*)target)->isGameMaster() || ((Player*)target)->GetVisibility() == VISIBILITY_OFF))
+    if (target->GetTypeId() == TYPEID_PLAYER && target != i_check && (((Player*)target)->isGameMaster() || target->GetVisibility() == VISIBILITY_OFF))
     {
         return;
     }
@@ -2753,7 +2753,7 @@ void SpellAuraHolder::_AddSpellAuraHolder()
         if (m_spellProto->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE))
         {
             Item* castItem = m_castItemGuid ? ((Player*)caster)->GetInventoryMgr().GetItemByGuid(m_castItemGuid) : NULL;
-            ((Player*)caster)->AddSpellAndCategoryCooldowns(m_spellProto, castItem ? castItem->GetEntry() : 0, NULL, true);
+            caster->AddSpellAndCategoryCooldowns(m_spellProto, castItem ? castItem->GetEntry() : 0, NULL, true);
         }
     }
 
@@ -3052,7 +3052,7 @@ void SpellAuraHolder::_RemoveSpellAuraHolder()
             if (GetSpellProto()->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE))
                 // note: item based cooldowns and cooldown spell mods with charges ignored (unknown existing cases)
             {
-                ((Player*)caster)->SendCooldownEvent(GetSpellProto());
+                caster->SendCooldownEvent(GetSpellProto());
             }
         }
     }

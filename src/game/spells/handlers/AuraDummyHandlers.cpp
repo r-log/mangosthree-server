@@ -1086,7 +1086,7 @@ static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric40133(AuraDummyApply
         }
         else
         {
-            ((Player*)owner)->RemovePet(PET_SAVE_REAGENTS);
+            owner->RemovePet(PET_SAVE_REAGENTS);
         }
     }
     return SpellHandlerOutcome<void>::Return();
@@ -1110,7 +1110,7 @@ static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric40132(AuraDummyApply
         }
         else
         {
-            ((Player*)owner)->RemovePet(PET_SAVE_REAGENTS);
+            owner->RemovePet(PET_SAVE_REAGENTS);
         }
     }
     return SpellHandlerOutcome<void>::Return();
