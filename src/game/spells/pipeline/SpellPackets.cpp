@@ -76,7 +76,8 @@ void Spell::SendCastResult(SpellCastResult result)
         return;
     }
 
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return;
     }
@@ -86,7 +87,7 @@ void Spell::SendCastResult(SpellCastResult result)
         return;
     }
 
-    SendCastResult((Player*)m_caster, m_spellInfo, m_cast_count, result);
+    SendCastResult(casterPlayer, m_spellInfo, m_cast_count, result);
 }
 
 /**
@@ -892,7 +893,8 @@ void Spell::SendResurrectRequest(Player* target)
 
 void Spell::SendPlaySpellVisual(uint32 SpellID)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return;
     }
@@ -900,5 +902,5 @@ void Spell::SendPlaySpellVisual(uint32 SpellID)
     WorldPacket data;
     m_caster->BuildSendPlayVisualPacket(&data, SpellID, false);
 
-    ((Player*)m_caster)->SendDirectMessage(&data);
+    casterPlayer->SendDirectMessage(&data);
 }

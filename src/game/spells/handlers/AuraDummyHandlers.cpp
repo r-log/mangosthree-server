@@ -369,7 +369,8 @@ static SpellHandlerOutcome<void> AuraDummyApplyGeneric71563(AuraDummyApplyGeneri
 /// SPELLFAMILY_WARRIOR 41099: Battle Stance
 static SpellHandlerOutcome<void> AuraDummyApplyWarrior41099(AuraDummyApplyContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = ctx.target->ToCreature();
+    if (!targetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -381,16 +382,17 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior41099(AuraDummyApplyContex
     ctx.target->CastSpell(ctx.target, 41106, true, NULL, ctx.aura);
 
     // equipment
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32614);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32614);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
     return SpellHandlerOutcome<void>::Return();
 }
 
 /// SPELLFAMILY_WARRIOR 41100: Berserker Stance
 static SpellHandlerOutcome<void> AuraDummyApplyWarrior41100(AuraDummyApplyContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = ctx.target->ToCreature();
+    if (!targetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -402,16 +404,17 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior41100(AuraDummyApplyContex
     ctx.target->CastSpell(ctx.target, 41107, true, NULL, ctx.aura);
 
     // equipment
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32614);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32614);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
     return SpellHandlerOutcome<void>::Return();
 }
 
 /// SPELLFAMILY_WARRIOR 41101: Defensive Stance
 static SpellHandlerOutcome<void> AuraDummyApplyWarrior41101(AuraDummyApplyContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = ctx.target->ToCreature();
+    if (!targetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -423,16 +426,17 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior41101(AuraDummyApplyContex
     ctx.target->CastSpell(ctx.target, 41105, true, NULL, ctx.aura);
 
     // equipment
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32604);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 31467);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32604);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 31467);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
     return SpellHandlerOutcome<void>::Return();
 }
 
 /// SPELLFAMILY_WARRIOR 53790: Defensive Stance
 static SpellHandlerOutcome<void> AuraDummyApplyWarrior53790(AuraDummyApplyContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = ctx.target->ToCreature();
+    if (!targetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -444,16 +448,17 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior53790(AuraDummyApplyContex
     ctx.target->CastSpell(ctx.target, 41105, true, NULL, ctx.aura);
 
     // equipment
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43625);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 39384);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43625);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 39384);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
     return SpellHandlerOutcome<void>::Return();
 }
 
 /// SPELLFAMILY_WARRIOR 53791: Berserker Stance
 static SpellHandlerOutcome<void> AuraDummyApplyWarrior53791(AuraDummyApplyContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = ctx.target->ToCreature();
+    if (!targetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -465,16 +470,17 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior53791(AuraDummyApplyContex
     ctx.target->CastSpell(ctx.target, 41107, true, NULL, ctx.aura);
 
     // equipment
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43625);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 43625);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43625);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 43625);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
     return SpellHandlerOutcome<void>::Return();
 }
 
 /// SPELLFAMILY_WARRIOR 53792: Battle Stance
 static SpellHandlerOutcome<void> AuraDummyApplyWarrior53792(AuraDummyApplyContext& ctx)
 {
-    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = ctx.target->ToCreature();
+    if (!targetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -486,9 +492,9 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior53792(AuraDummyApplyContex
     ctx.target->CastSpell(ctx.target, 41106, true, NULL, ctx.aura);
 
     // equipment
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43623);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
-    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43623);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
+    targetCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
     return SpellHandlerOutcome<void>::Return();
 }
 

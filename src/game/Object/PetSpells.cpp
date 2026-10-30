@@ -813,15 +813,16 @@ void Pet::InitPetCreateSpells()
 bool Pet::resetTalents(bool no_cost)
 {
     Unit* owner = GetOwner();
-    if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
+    Player* player = owner ? owner->ToPlayer() : NULL;
+    if (!player)
     {
         return false;
     }
 
     // not need after this call
-    if (((Player*)owner)->HasAtLoginFlag(AT_LOGIN_RESET_PET_TALENTS))
+    if (player->HasAtLoginFlag(AT_LOGIN_RESET_PET_TALENTS))
     {
-        ((Player*)owner)->RemoveAtLoginFlag(AT_LOGIN_RESET_PET_TALENTS, true);
+        player->RemoveAtLoginFlag(AT_LOGIN_RESET_PET_TALENTS, true);
     }
 
     CreatureInfo const* ci = GetCreatureInfo();
@@ -835,8 +836,6 @@ bool Pet::resetTalents(bool no_cost)
     {
         return false;
     }
-
-    Player* player = (Player*)owner;
 
     if (m_usedTalentCount == 0)
     {
@@ -995,14 +994,15 @@ void Pet::InitTalentForLevel()
     UpdateFreeTalentPoints();
 
     Unit* owner = GetOwner();
-    if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
+    Player* ownerPlayer = owner ? owner->ToPlayer() : NULL;
+    if (!ownerPlayer)
     {
         return;
     }
 
     if (!m_loading)
     {
-        ((Player*)owner)->SendTalentsInfoData(true);
+        ownerPlayer->SendTalentsInfoData(true);
     }
 }
 

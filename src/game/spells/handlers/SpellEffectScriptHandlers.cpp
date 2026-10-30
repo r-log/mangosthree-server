@@ -901,13 +901,14 @@ static SpellHandlerOutcome<void> EffectScriptGeneric42281(SpellEffectScriptConte
 /// 42492: Cast Energized
 static SpellHandlerOutcome<void> EffectScriptGeneric42492(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = ctx.unitTarget ? ctx.unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     uint32 questId = ctx.m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_1);
-    if (!questId || !GetQuestTemplateStore(questId) || !((Player*)ctx.unitTarget)->GetQuestStatusMgr().IsCurrentQuest(questId))
+    if (!questId || !GetQuestTemplateStore(questId) || !unitTargetPlayer->GetQuestStatusMgr().IsCurrentQuest(questId))
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -959,7 +960,8 @@ static SpellHandlerOutcome<void> EffectScriptGeneric43375(SpellEffectScriptConte
 /// one body for 2 labels: 44323 and 44407: Hawk Hunting
 static SpellHandlerOutcome<void> EffectScriptGenericHawkHunting(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -976,7 +978,7 @@ static SpellHandlerOutcome<void> EffectScriptGenericHawkHunting(SpellEffectScrip
 
     ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
     // despawn delay depends on the distance between caster and target
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(100 * ctx.unitTarget->Where().DistanceTo(ctx.m_caster->Where(), false));
+    unitTargetCreature->ForcedDespawn(100 * ctx.unitTarget->Where().DistanceTo(ctx.m_caster->Where(), false));
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1041,7 +1043,8 @@ static SpellHandlerOutcome<void> EffectScriptGeneric44455(SpellEffectScriptConte
 /// 44462: The Way to His Heart...: Cast Quest Complete on Master
 static SpellHandlerOutcome<void> EffectScriptGeneric44462(SpellEffectScriptContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    if (!casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1062,7 +1065,7 @@ static SpellHandlerOutcome<void> EffectScriptGeneric44462(SpellEffectScriptConte
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (!((Creature*)ctx.m_caster)->IsTemporarySummon())
+    if (!casterCreature->IsTemporarySummon())
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1217,12 +1220,13 @@ static SpellHandlerOutcome<void> EffectScriptGeneric45260(SpellEffectScriptConte
 /// 45313: Anchor Here
 static SpellHandlerOutcome<void> EffectScriptGeneric45313(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Creature*)ctx.unitTarget)->SetSpawn(
+    unitTargetCreature->SetSpawn(
         Geometry::Vector3(ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(),
                           ctx.unitTarget->Where().Z()),
         ctx.unitTarget->Where().Facing());
@@ -1282,12 +1286,13 @@ static SpellHandlerOutcome<void> EffectScriptGeneric45668(SpellEffectScriptConte
 static SpellHandlerOutcome<void> EffectScriptGeneric45691(SpellEffectScriptContext& ctx)
 {
     // assuming caster is creature, if not, then return
-    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    if (!casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    Player* pPlayer = ((Creature*)ctx.m_caster)->GetOriginalLootRecipient();
+    Player* pPlayer = casterCreature->GetOriginalLootRecipient();
 
     if (!pPlayer)
     {
@@ -1307,7 +1312,8 @@ static SpellHandlerOutcome<void> EffectScriptGeneric45691(SpellEffectScriptConte
 /// 45713: Naked Caravan Guard - Master Transform
 static SpellHandlerOutcome<void> EffectScriptGeneric45713(SpellEffectScriptContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    if (!casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1340,13 +1346,13 @@ static SpellHandlerOutcome<void> EffectScriptGeneric45713(SpellEffectScriptConte
     if (!ctx.m_caster->Where().ShareFrame(ctx.m_caster->Where()) || ctx.m_caster->GetUInt32Value(UNIT_NPC_FLAGS) == UNIT_NPC_FLAG_NONE)
     {
         display_id = Creature::ChooseDisplayId(cTemplate);
-        ((Creature*)ctx.m_caster)->LoadEquipment(((Creature*)ctx.m_caster)->GetEquipmentId());
+        casterCreature->LoadEquipment(casterCreature->GetEquipmentId());
     }
     else
     {
         ctx.m_caster->SetUInt32Value(UNIT_NPC_FLAGS, cTemplate->NpcFlags);
-        ((Creature*)ctx.m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 0);
-        ((Creature*)ctx.m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
+        casterCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 0);
+        casterCreature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
 
         switch (ctx.m_caster->GetDisplayId())
         {
@@ -1501,12 +1507,13 @@ static SpellHandlerOutcome<void> EffectScriptGeneric46430(SpellEffectScriptConte
 /// 46642: 5,000 Gold
 static SpellHandlerOutcome<void> EffectScriptGeneric46642(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = ctx.unitTarget ? ctx.unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ((Player*)ctx.unitTarget)->ModifyMoney(5000 * GOLD);
+    unitTargetPlayer->ModifyMoney(5000 * GOLD);
     return SpellHandlerOutcome<void>::Continue();
 }
 
@@ -1717,12 +1724,13 @@ static SpellHandlerOutcome<void> EffectScriptGeneric48810(SpellEffectScriptConte
 /// 48811: Despawn Forgotten Soul
 static SpellHandlerOutcome<void> EffectScriptGeneric48811(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (!((Creature*)ctx.unitTarget)->IsTemporarySummon())
+    if (!unitTargetCreature->IsTemporarySummon())
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1836,12 +1844,13 @@ static SpellHandlerOutcome<void> EffectScriptGeneric50218(SpellEffectScriptConte
 /// 50238: The Cleansing: Your Inner Turmoil's On Death Cast on Master
 static SpellHandlerOutcome<void> EffectScriptGeneric50238(SpellEffectScriptContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    Creature* casterCreature = ctx.m_caster->ToCreature();
+    if (!casterCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (((Creature*)ctx.m_caster)->IsTemporarySummon())
+    if (casterCreature->IsTemporarySummon())
     {
         TemporarySummon* pSummon = (TemporarySummon*)ctx.m_caster;
 
@@ -1943,7 +1952,8 @@ static SpellHandlerOutcome<void> EffectScriptGenericShatter(SpellEffectScriptCon
 /// 50894: Zul'Drak Rat
 static SpellHandlerOutcome<void> EffectScriptGeneric50894(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
@@ -1954,7 +1964,7 @@ static SpellHandlerOutcome<void> EffectScriptGeneric50894(SpellEffectScriptConte
         {
             // Gluttonous Lurkers: Summon Gorged Lurking Basilisk
             ctx.unitTarget->CastSpell(ctx.m_caster, 50928, true);
-            ((Creature*)ctx.unitTarget)->ForcedDespawn(1);
+            unitTargetCreature->ForcedDespawn(1);
         }
     }
 
@@ -2157,13 +2167,14 @@ static SpellHandlerOutcome<void> EffectScriptGeneric52941(SpellEffectScriptConte
 /// 53110: Devour Humanoid
 static SpellHandlerOutcome<void> EffectScriptGeneric53110(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
-    ((Creature*)ctx.unitTarget)->ForcedDespawn(8000);
+    unitTargetCreature->ForcedDespawn(8000);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -2390,15 +2401,16 @@ static SpellHandlerOutcome<void> EffectScriptGeneric59789(SpellEffectScriptConte
 /// Inscription Research, 61756: Northrend Inscription Research (FAST QA VERSION), 64323: Book of Glyph Mastery
 static SpellHandlerOutcome<void> EffectScriptGenericDiscoveryResearch(SpellEffectScriptContext& ctx)
 {
-    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
     // learn random explicit discovery recipe (if any)
-    if (uint32 discoveredSpell = GetExplicitDiscoverySpell(ctx.m_spellInfo->ID, (Player*)ctx.m_caster))
+    if (uint32 discoveredSpell = GetExplicitDiscoverySpell(ctx.m_spellInfo->ID, casterPlayer))
     {
-        ((Player*)ctx.m_caster)->learnSpell(discoveredSpell, false);
+        casterPlayer->learnSpell(discoveredSpell, false);
     }
 
     return SpellHandlerOutcome<void>::Return();
@@ -2872,12 +2884,13 @@ static SpellHandlerOutcome<void> EffectScriptGeneric64623(SpellEffectScriptConte
 /// 64767: Stormhammer
 static SpellHandlerOutcome<void> EffectScriptGeneric64767(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* unitTargetCreature = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!unitTargetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (Creature* target = (Creature*)ctx.unitTarget)
+    if (Creature* target = unitTargetCreature)
     {
         target->AI()->EnterEvadeMode();
         target->CastSpell(target, 62470, true);
@@ -3338,12 +3351,13 @@ static SpellHandlerOutcome<void> EffectScriptGeneric72705(SpellEffectScriptConte
 /// 72900: Start Halls of Reflection Quest AE
 static SpellHandlerOutcome<void> EffectScriptGeneric72900(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = ctx.unitTarget ? ctx.unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    if (Player* target = (Player*)ctx.unitTarget)
+    if (Player* target = unitTargetPlayer)
     {
         target->CastSpell(target, target->GetTeam() == ALLIANCE ? 71351 : 71542, true);
     }

@@ -483,13 +483,14 @@ bool CreatureEventAI::ProcessEvent(CreatureEventAIHolder& pHolder, Unit* pAction
         case EVENT_T_SUMMONED_JUST_DESPAWN:
         {
             // Prevent event from occuring on no unit or non creatures
-            if (!pActionInvoker || pActionInvoker->GetTypeId() != TYPEID_UNIT)
+            Creature* actionInvokerCreature = pActionInvoker ? pActionInvoker->ToCreature() : NULL;
+            if (!actionInvokerCreature)
             {
                 return false;
             }
 
             // Creature id doesn't match up
-            if (((Creature*)pActionInvoker)->GetEntry() != event.summoned.creatureId)
+            if (actionInvokerCreature->GetEntry() != event.summoned.creatureId)
             {
                 return false;
             }

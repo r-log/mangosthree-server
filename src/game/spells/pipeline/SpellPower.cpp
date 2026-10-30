@@ -392,7 +392,8 @@ void Spell::TakeRunePower(bool hit)
  */
 void Spell::TakeReagents()
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* p_caster = m_caster->ToPlayer();
+    if (!p_caster)
     {
         return;
     }
@@ -402,7 +403,6 @@ void Spell::TakeReagents()
         return;
     }
 
-    Player* p_caster = (Player*)m_caster;
     if (p_caster->CanNoReagentCast(m_spellInfo))
     {
         return;

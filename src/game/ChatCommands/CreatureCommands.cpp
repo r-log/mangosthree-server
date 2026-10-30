@@ -99,7 +99,8 @@ bool ChatHandler::HandleRespawnCommand(char* /*args*/)
     Unit* target = getSelectedUnit();
     if (pl->GetSelectionGuid() && target)
     {
-        if (target->GetTypeId() != TYPEID_UNIT)
+        Creature* targetCreature = target->ToCreature();
+        if (!targetCreature)
         {
             SendSysMessage(LANG_SELECT_CREATURE);
             SetSentErrorMessage(true);
@@ -108,7 +109,7 @@ bool ChatHandler::HandleRespawnCommand(char* /*args*/)
 
         if (target->IsDead())
         {
-            ((Creature*)target)->Respawn();
+            targetCreature->Respawn();
         }
         return true;
     }

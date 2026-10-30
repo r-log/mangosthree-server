@@ -64,7 +64,8 @@ void Spell::EffectResurrectNew(SpellEffectEntry const* effect)
         return;
     }
 
-    if (unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget->ToPlayer();
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -74,7 +75,7 @@ void Spell::EffectResurrectNew(SpellEffectEntry const* effect)
         return;
     }
 
-    Player* pTarget = ((Player*)unitTarget);
+    Player* pTarget = (unitTargetPlayer);
 
     if (pTarget->isRessurectRequested())      // already have one active request
     {
@@ -881,12 +882,13 @@ void Spell::EffectTeleportUnits(SpellEffectEntry const* effect)   // TODO - Use 
         case TARGET_INNKEEPER_COORDINATES:
         {
             // Only players can teleport to innkeeper
-            if (unitTarget->GetTypeId() != TYPEID_PLAYER)
+            Player* unitTargetPlayer = unitTarget->ToPlayer();
+            if (!unitTargetPlayer)
             {
                 return;
             }
 
-            ((Player*)unitTarget)->TeleportToHomebind(unitTarget == m_caster ? TELE_TO_SPELL : 0);
+            unitTargetPlayer->TeleportToHomebind(unitTarget == m_caster ? TELE_TO_SPELL : 0);
             return;
         }
         case TARGET_AREAEFFECT_INSTANT:                     // in all cases first TARGET_TABLE_X_Y_Z_COORDINATES

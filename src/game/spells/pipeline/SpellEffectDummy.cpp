@@ -93,13 +93,14 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
             // Conjure Mana Gem
             if (effect->EffectIndex == EFFECT_INDEX_1 && m_spellInfo->GetSpellEffectIdByIndex(EFFECT_INDEX_0) == SPELL_EFFECT_CREATE_ITEM)
             {
-                if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                Player* casterPlayer = m_caster->ToPlayer();
+                if (!casterPlayer)
                 {
                     return;
                 }
 
                 // checked in create item check, avoid unexpected
-                if (Item* item = ((Player*)m_caster)->GetInventoryMgr().GetItemByLimitedCategory(ITEM_LIMIT_CATEGORY_MANA_GEM))
+                if (Item* item = casterPlayer->GetInventoryMgr().GetItemByLimitedCategory(ITEM_LIMIT_CATEGORY_MANA_GEM))
                     if (item->HasMaxCharges())
                     {
                         return;
@@ -533,11 +534,12 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
             // Lava Lash
             if (m_spellInfo->IsFitToFamilyMask(UI64LIT(0x0000000000000000), 0x00000004))
             {
-                if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                Player* casterPlayer = m_caster->ToPlayer();
+                if (!casterPlayer)
                 {
                     return;
                 }
-                Item* item = ((Player*)m_caster)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+                Item* item = casterPlayer->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
                 if (item)
                 {
                     // Damage is increased if your off-hand weapon is enchanted with Flametongue.

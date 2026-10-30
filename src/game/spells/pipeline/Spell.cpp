@@ -1116,14 +1116,15 @@ void Spell::ResetEffectDamageAndHeal()
 
 void Spell::SelectMountByAreaAndSkill(Unit* target, SpellEntry const* parentSpell, uint32 spellId75, uint32 spellId150, uint32 spellId225, uint32 spellId300, uint32 spellIdSpecial)
 {
-    if (!target || target->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = target ? target->ToPlayer() : NULL;
+    if (!targetPlayer)
     {
         return;
     }
 
     // Prevent stacking of mounts
     target->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
-    uint16 skillval = ((Player*)target)->GetSkillValue(SKILL_RIDING);
+    uint16 skillval = targetPlayer->GetSkillValue(SKILL_RIDING);
     if (!skillval)
     {
         return;
@@ -1144,13 +1145,13 @@ void Spell::SelectMountByAreaAndSkill(Unit* target, SpellEntry const* parentSpel
         target->GetTerrain()->GetZoneAndAreaId(zone, area, target->Where().X(), target->Where().Y(), target->Where().Z());
 
         SpellCastResult locRes = sSpellMgr.GetSpellAllowedInLocationError(pSpell, target->GetMapId(), zone, area, target->GetCharmerOrOwnerPlayerOrPlayerItself());
-        if (locRes != SPELL_CAST_OK || !((Player*)target)->CanStartFlyInArea(target->GetMapId(), zone, area))
+        if (locRes != SPELL_CAST_OK || !targetPlayer->CanStartFlyInArea(target->GetMapId(), zone, area))
         {
             target->CastSpell(target, spellId150, true, NULL, NULL, ObjectGuid(), parentSpell);
         }
         else if (spellIdSpecial > 0)
         {
-            for (PlayerSpellMap::const_iterator iter = ((Player*)target)->GetSpellMap().begin(); iter != ((Player*)target)->GetSpellMap().end(); ++iter)
+            for (PlayerSpellMap::const_iterator iter = targetPlayer->GetSpellMap().begin(); iter != targetPlayer->GetSpellMap().end(); ++iter)
             {
                 if (iter->second.state != PLAYERSPELL_REMOVED)
                 {

@@ -253,7 +253,8 @@ void Spell::EffectAddComboPoints(SpellEffectEntry const* effect /*effect*/)
         return;
     }
 
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = m_caster->ToPlayer();
+    if (!casterPlayer)
     {
         return;
     }
@@ -263,7 +264,7 @@ void Spell::EffectAddComboPoints(SpellEffectEntry const* effect /*effect*/)
         return;
     }
 
-    ((Player*)m_caster)->AddComboPoints(unitTarget, damage);
+    casterPlayer->AddComboPoints(unitTarget, damage);
 }
 
 /**
@@ -361,7 +362,8 @@ void Spell::EffectDuel(SpellEffectEntry const* effect)
  */
 void Spell::EffectStuck(SpellEffectEntry const* effect /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* pTarget = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!pTarget)
     {
         return;
     }
@@ -370,8 +372,6 @@ void Spell::EffectStuck(SpellEffectEntry const* effect /*effect*/)
     {
         return;
     }
-
-    Player* pTarget = (Player*)unitTarget;
 
     DEBUG_LOG("Spell Effect: Stuck");
     DETAIL_LOG("Player %s (guid %u) used auto-unstuck future at map %u (%f, %f, %f)", pTarget->GetName(), pTarget->GetGUIDLow(), m_caster->GetMapId(), m_caster->Where().X(), pTarget->Where().Y(), pTarget->Where().Z());
@@ -401,7 +401,8 @@ void Spell::EffectStuck(SpellEffectEntry const* effect /*effect*/)
  */
 void Spell::EffectSummonPlayer(SpellEffectEntry const* /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -415,7 +416,7 @@ void Spell::EffectSummonPlayer(SpellEffectEntry const* /*effect*/)
     float x, y, z;
     ClosePointNear(*m_caster, x, y, z, unitTarget->Where().Extent());
 
-    ((Player*)unitTarget)->SetSummonPoint(m_caster->GetMapId(), x, y, z);
+    unitTargetPlayer->SetSummonPoint(m_caster->GetMapId(), x, y, z);
 
     if (ClientCallbacks const* client = unitTarget->GetClientCallbacks())
     {
@@ -862,7 +863,8 @@ void Spell::EffectSummonObject(SpellEffectEntry const* effect)
  */
 void Spell::EffectResurrect(SpellEffectEntry const* /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -878,7 +880,7 @@ void Spell::EffectResurrect(SpellEffectEntry const* /*effect*/)
         return;
     }
 
-    Player* pTarget = ((Player*)unitTarget);
+    Player* pTarget = (unitTargetPlayer);
 
     if (pTarget->isRessurectRequested())      // already have one active request
     {
@@ -1155,7 +1157,8 @@ void Spell::EffectReputation(SpellEffectEntry const* effect)
  */
 void Spell::EffectQuestComplete(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -1168,7 +1171,7 @@ void Spell::EffectQuestComplete(SpellEffectEntry const* effect)
     }
 
     uint32 quest_id = effect->EffectMiscValue_0;
-    ((Player*)unitTarget)->AreaExploredOrEventHappens(quest_id);
+    unitTargetPlayer->AreaExploredOrEventHappens(quest_id);
 }
 
 /**
@@ -1182,7 +1185,8 @@ void Spell::EffectSelfResurrect(SpellEffectEntry const* effect)
     {
         return;
     }
-    if (unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget->ToPlayer();
+    if (!unitTargetPlayer)
     {
         return;
     }
@@ -1210,7 +1214,7 @@ void Spell::EffectSelfResurrect(SpellEffectEntry const* effect)
         }
     }
 
-    Player* plr = ((Player*)unitTarget);
+    Player* plr = (unitTargetPlayer);
     plr->ResurrectPlayer(0.0f);
 
     plr->SetHealth(health);
@@ -1228,29 +1232,30 @@ void Spell::EffectSelfResurrect(SpellEffectEntry const* effect)
  */
 void Spell::EffectSkinning(SpellEffectEntry const* /*effect*/)
 {
-    if (unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* creature = unitTarget->ToCreature();
+    if (!creature)
     {
         return;
     }
-    if (!m_caster || m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* casterPlayer = m_caster ? m_caster->ToPlayer() : NULL;
+    if (!casterPlayer)
     {
         return;
     }
 
-    Creature* creature = (Creature*) unitTarget;
     int32 targetLevel = creature->getLevel();
 
     uint32 skill = creature->GetCreatureInfo()->GetRequiredLootSkill();
 
-    ((Player*)m_caster)->SendLoot(creature->GetObjectGuid(), LOOT_SKINNING);
+    casterPlayer->SendLoot(creature->GetObjectGuid(), LOOT_SKINNING);
     creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
 
     int32 reqValue = targetLevel < 10 ? 0 : targetLevel < 20 ? (targetLevel - 10) * 10 : targetLevel * 5;
 
-    int32 skillValue = ((Player*)m_caster)->GetPureSkillValue(skill);
+    int32 skillValue = casterPlayer->GetPureSkillValue(skill);
 
     // Double chances for elites
-    ((Player*)m_caster)->UpdateGatherSkill(skill, skillValue, reqValue, creature->IsElite() ? 2 : 1);
+    casterPlayer->UpdateGatherSkill(skill, skillValue, reqValue, creature->IsElite() ? 2 : 1);
 }
 
 /**
@@ -1326,12 +1331,13 @@ void Spell::EffectKnockBack(SpellEffectEntry const* effect)
  */
 void Spell::EffectSendTaxi(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* unitTargetPlayer = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!unitTargetPlayer)
     {
         return;
     }
 
-    ((Player*)unitTarget)->ActivateTaxiPathTo(effect->EffectMiscValue_0, m_spellInfo->ID);
+    unitTargetPlayer->ActivateTaxiPathTo(effect->EffectMiscValue_0, m_spellInfo->ID);
 }
 
 /**

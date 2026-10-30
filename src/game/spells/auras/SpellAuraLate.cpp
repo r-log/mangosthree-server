@@ -69,17 +69,18 @@ void Aura::HandleAuraModAllCritChance(bool apply, bool Real)
 
     Unit* target = GetTarget();
 
-    if (target->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = target->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)target)->HandleBaseModValue(CRIT_PERCENTAGE,         FLAT_MOD, float(m_modifier.m_amount), apply);
-    ((Player*)target)->HandleBaseModValue(OFFHAND_CRIT_PERCENTAGE, FLAT_MOD, float(m_modifier.m_amount), apply);
-    ((Player*)target)->HandleBaseModValue(RANGED_CRIT_PERCENTAGE,  FLAT_MOD, float(m_modifier.m_amount), apply);
+    targetPlayer->HandleBaseModValue(CRIT_PERCENTAGE,         FLAT_MOD, float(m_modifier.m_amount), apply);
+    targetPlayer->HandleBaseModValue(OFFHAND_CRIT_PERCENTAGE, FLAT_MOD, float(m_modifier.m_amount), apply);
+    targetPlayer->HandleBaseModValue(RANGED_CRIT_PERCENTAGE,  FLAT_MOD, float(m_modifier.m_amount), apply);
 
     // included in Player::UpdateSpellCritChance calculation
-    ((Player*)target)->UpdateAllSpellCritChances();
+    targetPlayer->UpdateAllSpellCritChances();
 }
 
 void Aura::HandleAuraStopNaturalManaRegen(bool apply, bool Real)
@@ -105,12 +106,13 @@ void Aura::HandleAuraSetVehicleId(bool apply, bool Real)
 void Aura::HandleAuraMastery(bool apply, bool Real)
 {
     Unit* target = GetTarget();
-    if (target->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = target->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)target)->UpdateMasteryAuras();
+    targetPlayer->UpdateMasteryAuras();
 }
 
 void Aura::HandleAuraModBlockCritChance(bool apply, bool Real)
