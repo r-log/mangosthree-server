@@ -170,6 +170,27 @@ struct QuestCompleteFact
     bool useQuestReward = false;    ///< second bit (bit 6) -> +52: keep the quest frame open for the next quest's details
 };
 
+/// The player's client asks whether the spirit healer `healer` may resurrect the player.
+struct SpiritHealerConfirmFact
+{
+    ObjectGuid healer;
+};
+
+/// The player is summoned by `summoner`, from the zone `zone`; the client declines on its own after
+/// `autoDeclineMs` milliseconds.
+struct SummonRequestFact
+{
+    ObjectGuid summoner;
+    uint32 zone;
+    uint32 autoDeclineMs;
+};
+
+/// A notification to the player's own client: the string table entry `entry` in the client's locale.
+struct NotificationFact
+{
+    int32 entry;
+};
+
 /// A system message to the player's own client: the string table entry `entry` in the client's
 /// locale or, when `entry` is 0, `text`; one chat line per line of it.
 struct SystemMessageFact
@@ -198,6 +219,9 @@ typedef std::function<void(ViewResetFact const&)> ViewResetSink;
 typedef std::function<void(PossessBarFact const&)> PossessBarSink;
 typedef std::function<void(PvpCreditFact const&)> PvpCreditSink;
 typedef std::function<void(QuestCompleteFact const&)> QuestCompleteSink;
+typedef std::function<void(SpiritHealerConfirmFact const&)> SpiritHealerConfirmSink;
+typedef std::function<void(SummonRequestFact const&)> SummonRequestSink;
+typedef std::function<void(NotificationFact const&)> NotificationSink;
 typedef std::function<void(SystemMessageFact const&)> SystemMessageSink;
 
 /// The account security level of the player's session, read at each call. An unsigned integer:

@@ -417,11 +417,14 @@ void Spell::EffectSummonPlayer(SpellEffectEntry const* /*effect*/)
 
     ((Player*)unitTarget)->SetSummonPoint(m_caster->GetMapId(), x, y, z);
 
-    WorldPacket data(SMSG_SUMMON_REQUEST, 8 + 4 + 4);
-    data << m_caster->GetObjectGuid();                      // summoner guid
-    data << uint32(m_caster->GetTerrain()->GetZoneId(m_caster->Where().X(), m_caster->Where().Y(), m_caster->Where().Z()));                  // summoner zone
-    data << uint32(MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS); // auto decline after msecs
-    ((Player*)unitTarget)->GetSession()->SendPacket(&data);
+    if (ClientCallbacks const* client = unitTarget->GetClientCallbacks())
+    {
+        SummonRequestFact fact;
+        fact.summoner = m_caster->GetObjectGuid();
+        fact.zone = m_caster->GetTerrain()->GetZoneId(m_caster->Where().X(), m_caster->Where().Y(), m_caster->Where().Z());
+        fact.autoDeclineMs = MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS;
+        ReportClientFact(client->summonRequest, fact);
+    }
 }
 
 /**

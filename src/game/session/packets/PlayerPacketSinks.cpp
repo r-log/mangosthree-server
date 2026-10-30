@@ -52,6 +52,16 @@ namespace
         };
     }
 
+    /// The player's notifications: the fact's string table entry, sent to the session the player has
+    /// at that send.
+    NotificationSink NotificationToSession(Player* player)
+    {
+        return [player](NotificationFact const& fact)
+        {
+            player->GetSession()->SendNotification(fact.entry);
+        };
+    }
+
     /// The player's party kill log: the packet goes to the group that tapped the victim, when there
     /// is one, the killer itself skipped, and then to the session the player has at that send.
     PartyKillLogSink PartyKillLogToGroupAndSession(Player* player)
@@ -117,6 +127,7 @@ void InstallPlayerPacketSinks(Player& player)
     InstallCooldownPacketSinks(player);
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&player);
     callbacks.systemMessage = SystemMessageToSession(&player);
+    callbacks.notification = NotificationToSession(&player);
     callbacks.partyKillLog = PartyKillLogToGroupAndSession(&player);
     callbacks.viewFrom = ViewFromToCamera(&player);
     callbacks.viewReset = ViewResetToCamera(&player);

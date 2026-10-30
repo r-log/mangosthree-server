@@ -18,7 +18,7 @@ One stateless class per origin file, in its domain's directory or, for the reque
 
 | Directory | File | Holds |
 |---|---|---|
-| `packets/` | `PlayerPacketSinks` | `InstallPlayerPacketSinks`, and the templates it installs through: `FactToSession`, `SecurityLevelOfSession` and `ClientCallbacksToSession`; it adds the player's system message callback, which sends with `SystemMessage` |
+| `packets/` | `PlayerPacketSinks` | `InstallPlayerPacketSinks`, and the templates it installs through: `FactToSession`, `SecurityLevelOfSession` and `ClientCallbacksToSession`; it adds the player's system message callback, which sends with `SystemMessage`, and its notification callback, which sends the string table entry with `WorldSession::SendNotification` |
 | `packets/chat/` | `MessageChatPacket` | `SMSG_MESSAGECHAT`, or `SMSG_GM_MESSAGECHAT` for a message tagged GM, from any chat message: the type, the language, the sender's guid, then by type the names, the channel or addon prefix and the target, then the text, the tag and, for an achievement, its id; the domain builds it through `data/ChatPacketBuilder`, which the world points at it |
 | `packets/chat/` | `SystemMessage` | `SMSG_MESSAGECHAT` of type `CHAT_MSG_SYSTEM` to one session, one per line of a text or of a string table entry in the session's locale, the session's player as the sender; `ChatHandler::SendSysMessage` sends through it for a chat session, and the console's handler prints instead |
 | `packets/combat/` | `AttackSwingPackets` | `SMSG_ATTACKSWING_NOTINRANGE`, `SMSG_ATTACKSWING_BADFACING` and `SMSG_CANCEL_COMBAT`, from the swing out of reach, the swing facing away and the attack cancelled; no payload |
@@ -35,6 +35,7 @@ One stateless class per origin file, in its domain's directory or, for the reque
 | `packets/spells/` | `AutoRepeatPackets` | `SMSG_CANCEL_AUTO_REPEAT`, from the auto-repeat spell cancelled: the target's packed guid |
 | `packets/spells/` | `CooldownPackets` | `SMSG_COOLDOWN_EVENT` (the spell id, then the owner's guid) and `SMSG_CLEAR_COOLDOWNS` (the owner's bit-packed guid around the count and every spell id), from `SpellCooldownMgr`'s cooldown event and clear of every cooldown |
 | `packets/spells/` | `CooldownPacketSinks` | `InstallCooldownPacketSinks`: the two cooldown callbacks, each building its packet with `CooldownPackets` and sending it to the player's session |
+| `packets/spells/` | `SpellEffectPackets` | `SMSG_SPIRIT_HEALER_CONFIRM` (the healer's guid) and `SMSG_SUMMON_REQUEST` (the summoner's guid, its zone, then the auto-decline time in milliseconds), from a spirit healer's resurrection and a summon spell, told to the player's client |
 | `packets/spells/` | `SpellModPackets` | `SMSG_SET_FLAT_SPELL_MODIFIER` or `SMSG_SET_PCT_SPELL_MODIFIER`, from `SpellModMgr`'s modifier added or removed: the count of operations, 1, the count of pairs, the operation, then each effect bit and its sum as a float |
 | `handlers/combat/` | `CombatHandlers` | the client's melee swing, attack stop, sheath and duel accept and cancel, and the `SMSG_ATTACKSTOP` the swing sends when it refuses a target |
 | `handlers/connection/` | `ClientHandlers` | the client's account data saved and asked for, the account data times, the realm split state, the UI time, hotfixed item records and the taxi benchmark mode |

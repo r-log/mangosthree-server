@@ -343,11 +343,11 @@ static SpellHandlerOutcome<void> EffectDummyGenericSpiritHealerRes(SpellEffectDu
 
     Unit* caster = ctx.spell->GetAffectiveCaster();
 
-    if (caster && caster->GetTypeId() == TYPEID_PLAYER)
+    if (ClientCallbacks const* client = caster ? caster->GetClientCallbacks() : NULL)
     {
-        WorldPacket data(SMSG_SPIRIT_HEALER_CONFIRM, 8);
-        data << ctx.unitTarget->GetObjectGuid();
-        ((Player*)caster)->GetSession()->SendPacket(&data);
+        SpiritHealerConfirmFact fact;
+        fact.healer = ctx.unitTarget->GetObjectGuid();
+        ReportClientFact(client->spiritHealerConfirm, fact);
     }
     return SpellHandlerOutcome<void>::Return();
 }
