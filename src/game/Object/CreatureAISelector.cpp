@@ -38,6 +38,14 @@
 
 namespace FactorySelector
 {
+    /// How well the AI that `factory` creates fits `creature`; every factory the registry holds is a SelectableAI.
+    static int PermitOf(CreatureAICreator const* factory, Creature const* creature)
+    {
+        SelectableAI const* selectable = dynamic_cast<SelectableAI const*>(factory);
+        MANGOS_ASSERT(selectable != NULL);
+        return selectable->Permit(creature);
+    }
+
     /**
      * @brief Selects the most appropriate AI implementation for a creature.
      *
@@ -46,6 +54,7 @@ namespace FactorySelector
      */
     CreatureAI* selectAI(Creature* creature)
     {
+        Pet const* pet = ToPet(creature);
         CreatureAI* scriptedAI = sScriptHooks.GetCreatureAI(creature);
         if (scriptedAI)
         {
@@ -56,7 +65,7 @@ namespace FactorySelector
             }
 
             // Allow scripting AI for normal creatures and not controlled pets (guardians and mini-pets)
-            if (!creature->IsPet() || !static_cast<Pet*>(creature)->isControlled())
+            if (!pet || !pet->isControlled())
             {
                 return scriptedAI;
             }
@@ -71,7 +80,7 @@ namespace FactorySelector
         // select by NPC flags _first_ - otherwise EventAI might be choosen for pets/totems
         // excplicit check for isControlled() and owner type to allow guardian, mini-pets and pets controlled by NPCs to be scripted by EventAI
         Unit* owner = NULL;
-        if (creature->IsPet() && ((Pet*)creature)->isControlled())
+        if (pet && pet->isControlled())
         {
             Unit* controler = creature->GetOwner() ? creature->GetOwner() : creature->GetCharmer();
             if (controler && controler->GetTypeId() == TYPEID_PLAYER && controler->IsAlive())
@@ -88,6 +97,11 @@ namespace FactorySelector
         if (!ai_factory && !ainame.empty())
         {
             ai_factory = ai_registry.GetRegistryItem(ainame.c_str());
+            if (ai_factory && PermitOf(ai_factory, creature) == PERMIT_BASE_NO)
+            {
+                sLog.outErrorDb("Creature (Entry: %u) has AIName '%s' in creature_template, which does not fit it; another AI is selected.", creature->GetEntry(), ainame.c_str());
+                ai_factory = NULL;
+            }
         }
 
         if (!ai_factory && creature->IsGuard())
@@ -104,13 +118,11 @@ namespace FactorySelector
             for (RMT::const_iterator iter = l.begin(); iter != l.end(); ++iter)
             {
                 const CreatureAICreator* factory = iter->second;
-                const SelectableAI* p = dynamic_cast<const SelectableAI*>(factory);
-                MANGOS_ASSERT(p != NULL);
-                int val = p->Permit(creature);
+                int val = PermitOf(factory, creature);
                 if (val > best_val)
                 {
                     best_val = val;
-                    ai_factory = p;
+                    ai_factory = factory;
                 }
             }
         }

@@ -393,7 +393,8 @@ void Pet::SavePetToDB(PetSaveMode mode)
         return;
     }
 
-    Player* pOwner = (Player*)GetOwner();
+    Unit* owner = GetOwner();
+    Player* pOwner = owner ? owner->ToPlayer() : NULL;
     if (!pOwner)
     {
         return;

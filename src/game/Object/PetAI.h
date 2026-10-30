@@ -31,6 +31,7 @@
 #include "Timer.h"
 
 class Creature;
+class Pet;
 class Spell;
 
 class PetAI : public CreatureAI
@@ -55,6 +56,7 @@ class PetAI : public CreatureAI
 
         void UpdateAllies();
 
+        Pet* const m_pet;                                   ///< the pet this AI drives; the selector gives PetAI to pets only
         TimeTracker i_tracker;
         bool inCombat;
 

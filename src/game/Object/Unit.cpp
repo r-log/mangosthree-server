@@ -3057,20 +3057,21 @@ void CharmInfo::InitVehicleCreateSpells()
 {
     InitEmptyActionBar();
 
-    if (m_unit->GetTypeId() == TYPEID_PLAYER)               // player vehicles don't have spells, keep the action bar empty
+    Creature* creature = m_unit->ToCreature();
+    if (!creature)                                          // player vehicles don't have spells, keep the action bar empty
     {
         return;
     }
 
     for (uint32 x = 0; x < CREATURE_MAX_SPELLS; ++x)
     {
-        if (IsPassiveSpell(((Creature*)m_unit)->m_spells[x]))
+        if (IsPassiveSpell(creature->m_spells[x]))
         {
-            m_unit->CastSpell(m_unit, ((Creature*)m_unit)->m_spells[x], true);
+            m_unit->CastSpell(m_unit, creature->m_spells[x], true);
         }
         else
         {
-            AddSpellToActionBar(((Creature*)m_unit)->m_spells[x], ActiveStates(0x8 + x));
+            AddSpellToActionBar(creature->m_spells[x], ActiveStates(0x8 + x));
         }
     }
 }
@@ -3082,7 +3083,8 @@ void CharmInfo::InitPossessCreateSpells()
 {
     InitEmptyActionBar();                                   // charm action bar
 
-    if (m_unit->GetTypeId() == TYPEID_PLAYER)               // possessed players don't have spells, keep the action bar empty
+    Creature* creature = m_unit->ToCreature();
+    if (!creature)                                          // possessed players don't have spells, keep the action bar empty
     {
         return;
     }
@@ -3091,13 +3093,13 @@ void CharmInfo::InitPossessCreateSpells()
 
     for (uint32 x = 0; x < CREATURE_MAX_SPELLS; ++x)
     {
-        if (IsPassiveSpell(((Creature*)m_unit)->m_spells[x]))
+        if (IsPassiveSpell(creature->m_spells[x]))
         {
-            m_unit->CastSpell(m_unit, ((Creature*)m_unit)->m_spells[x], true);
+            m_unit->CastSpell(m_unit, creature->m_spells[x], true);
         }
         else
         {
-            AddSpellToActionBar(((Creature*)m_unit)->m_spells[x], ACT_PASSIVE);
+            AddSpellToActionBar(creature->m_spells[x], ACT_PASSIVE);
         }
     }
 }
@@ -3107,7 +3109,8 @@ void CharmInfo::InitPossessCreateSpells()
  */
 void CharmInfo::InitCharmCreateSpells()
 {
-    if (m_unit->GetTypeId() == TYPEID_PLAYER)               // charmed players don't have spells
+    Creature* creature = m_unit->ToCreature();
+    if (!creature)                                          // charmed players don't have spells
     {
         InitEmptyActionBar();
         return;
@@ -3117,7 +3120,7 @@ void CharmInfo::InitCharmCreateSpells()
 
     for (uint32 x = 0; x < CREATURE_MAX_SPELLS; ++x)
     {
-        uint32 spellId = ((Creature*)m_unit)->m_spells[x];
+        uint32 spellId = creature->m_spells[x];
 
         if (!spellId)
         {
