@@ -65,6 +65,12 @@
 #include "Chat.h"
 #include "data/CommandHooks.h"
 #include "data/DbScriptHooks.h"
+#include "data/BattleGroundHooks.h"
+#include "data/OutdoorPvPHooks.h"
+#include "data/GroupHooks.h"
+#include "BattleGround/BattleGroundMgr.h"
+#include "OutdoorPvP/OutdoorPvPMgr.h"
+#include "Group.h"
 #ifdef ENABLE_SD3
 #include "system/ScriptDevMgr.h"
 #endif
@@ -353,6 +359,9 @@ int main(int argc, char** argv)
 #endif
     CommandHooks::Install(&ChatHandler::GetCommandHooks());
     DbScriptHooks::Install(&ScriptMgr::GetDbScriptHooks());
+    BattleGroundHooks::Install(&BattleGroundMgr::GetBattleGroundHooks());
+    OutdoorPvPHooks::Install(&OutdoorPvPMgr::GetOutdoorPvPHooks());
+    GroupHooks::Install(&Group::GetGroupHooks());
 
     // Databases, world, listener and background services all live in Master. It
     // runs the world loop on this thread and returns once the world has stopped

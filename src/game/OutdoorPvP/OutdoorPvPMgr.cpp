@@ -36,7 +36,37 @@
 #include "OutdoorPvPTF.h"
 #include "OutdoorPvPZM.h"
 #include "DisableMgr.h"
+#include "data/OutdoorPvPHooks.h"
 
+namespace
+{
+    /// The outdoor PvP scripts' answers to a death: the script of the zone it happens in is told.
+    class ZoneOutdoorPvPHooks : public OutdoorPvPHooks
+    {
+        public:
+            void PlayerKilled(uint32 zone, Player& killer, Player& victim) override
+            {
+                if (OutdoorPvP* outdoorPvP = sOutdoorPvPMgr.GetScript(zone))
+                {
+                    outdoorPvP->HandlePlayerKill(&killer, &victim);
+                }
+            }
+
+            void CreatureDied(uint32 zone, Creature& victim) override
+            {
+                if (OutdoorPvP* outdoorPvP = sOutdoorPvPMgr.GetScript(zone))
+                {
+                    outdoorPvP->HandleCreatureDeath(&victim);
+                }
+            }
+    };
+}
+
+OutdoorPvPHooks& OutdoorPvPMgr::GetOutdoorPvPHooks()
+{
+    static ZoneOutdoorPvPHooks hooks;
+    return hooks;
+}
 
 void CapturePointSliderStore::Set(uint32 entry, CapturePointSlider const& value)
 {
