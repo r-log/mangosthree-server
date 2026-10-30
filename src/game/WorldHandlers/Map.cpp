@@ -3116,7 +3116,7 @@ void Map::ApplyTeamBuffs()
  */
 Creature* Map::GetCreature(ObjectGuid guid)
 {
-    return m_objectsStore.find<Creature>(guid, (Creature*)NULL);
+    return m_objectsStore.find<Creature>(guid);
 }
 
 /**
@@ -3126,7 +3126,7 @@ Creature* Map::GetCreature(ObjectGuid guid)
  */
 Pet* Map::GetPet(ObjectGuid guid)
 {
-    return m_objectsStore.find<Pet>(guid, (Pet*)NULL);
+    return m_objectsStore.find<Pet>(guid);
 }
 
 /**
@@ -3167,7 +3167,7 @@ Creature* Map::GetAnyTypeCreature(ObjectGuid guid)
  */
 GameObject* Map::GetGameObject(ObjectGuid guid)
 {
-    return m_objectsStore.find<GameObject>(guid, (GameObject*)NULL);
+    return m_objectsStore.find<GameObject>(guid);
 }
 
 /**
@@ -3177,7 +3177,7 @@ GameObject* Map::GetGameObject(ObjectGuid guid)
  */
 DynamicObject* Map::GetDynamicObject(ObjectGuid guid)
 {
-    return m_objectsStore.find<DynamicObject>(guid, (DynamicObject*)NULL);
+    return m_objectsStore.find<DynamicObject>(guid);
 }
 
 /**

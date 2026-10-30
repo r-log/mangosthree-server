@@ -1483,7 +1483,7 @@ namespace Harness
             pet->GetCharmInfo()->SetReactState(REACT_DEFENSIVE);
             pet->InitPetCreateSpells();
             pet->SetActiveObjectState(true);
-            map->Add((Creature*)pet);
+            map->Add<Creature>(pet);
             pet->AIM_Initialize();
             // The factory AI dropped from under the recording decorator, as Scenario::Silence
             // does it for a spawned actor: PetAI::UpdateAI draws from urand for its autocast pick

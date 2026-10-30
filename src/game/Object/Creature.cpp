@@ -230,7 +230,7 @@ void Creature::RemoveFromWorld()
     ///- Remove the creature from the accessor
     if (IsInWorld() && GetObjectGuid().IsCreatureOrVehicle())
     {
-        GetMap()->GetObjectsStore().erase<Creature>(GetObjectGuid(), (Creature*)NULL);
+        GetMap()->GetObjectsStore().erase<Creature>(GetObjectGuid());
     }
 
     Unit::RemoveFromWorld();

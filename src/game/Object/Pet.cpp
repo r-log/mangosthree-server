@@ -98,7 +98,7 @@ void Pet::RemoveFromWorld()
     ///- Remove the pet from the accessor
     if (IsInWorld())
     {
-        GetMap()->GetObjectsStore().erase<Pet>(GetObjectGuid(), (Pet*)NULL);
+        GetMap()->GetObjectsStore().erase<Pet>(GetObjectGuid());
     }
 
     ///- Don't call the function for Creature, normal mobs + totems go in a different storage

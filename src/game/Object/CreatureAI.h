@@ -26,7 +26,8 @@
 #ifndef MANGOS_CREATUREAI_H
 #define MANGOS_CREATUREAI_H
 
-#include "Dynamic/FactoryHolder.h"
+#include "Dynamic/ObjectRegistry.h"
+#include "Policies/Singleton.h"
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
 #include "Arbiter.h"
@@ -397,19 +398,37 @@ class CreatureAI
         float m_attackAngle;
 };
 
-struct SelectableAI : public FactoryHolder<CreatureAI>, public Permissible<Creature>
+class SelectableAI;
+typedef ObjectRegistry<SelectableAI> CreatureAIRegistry;
+typedef MaNGOS::Singleton<CreatureAIRegistry> CreatureAIRepository;
+
+/// The factory of one creature AI, registered under the AI's name: it creates the AI for a creature
+/// and answers how well the AI fits one.
+class SelectableAI
 {
-    SelectableAI(const char* id) : FactoryHolder<CreatureAI>(id) {}
+    public:
+        explicit SelectableAI(char const* key) : m_key(key) {}
+        virtual ~SelectableAI() {}
+
+        std::string const& key() const { return m_key; }
+
+        virtual CreatureAI* Create(Creature* creature) const = 0;
+        virtual int Permit(Creature const* creature) const = 0;
+
+        /// Adds this factory to the registry under its key.
+        void RegisterSelf() { CreatureAIRepository::Instance().InsertItem(this, m_key); }
+
+    private:
+        std::string m_key;
 };
 
 template<class REAL_AI>
 struct CreatureAIFactory : public SelectableAI
 {
-    CreatureAIFactory(const char* name) : SelectableAI(name) {}
+    explicit CreatureAIFactory(char const* name) : SelectableAI(name) {}
 
-    CreatureAI* Create(void*) const override;
-
-    int Permit(const Creature* c) const override { return REAL_AI::Permissible(c); }
+    CreatureAI* Create(Creature* creature) const override { return new REAL_AI(creature); }
+    int Permit(Creature const* creature) const override { return REAL_AI::Permissible(creature); }
 };
 
 enum Permitions
@@ -421,9 +440,5 @@ enum Permitions
     PERMIT_BASE_FACTION_SPECIFIC   = 400,
     PERMIT_BASE_SPECIAL            = 800
 };
-
-typedef FactoryHolder<CreatureAI> CreatureAICreator;
-typedef FactoryHolder<CreatureAI>::FactoryHolderRegistry CreatureAIRegistry;
-typedef FactoryHolder<CreatureAI>::FactoryHolderRepository CreatureAIRepository;
 
 #endif

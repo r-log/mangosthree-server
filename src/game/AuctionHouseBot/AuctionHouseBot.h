@@ -368,8 +368,6 @@ private:
  * @brief Base interface for auction bot agents
  *
  * AuctionBotAgent is the base interface for AuctionBotSeller and AuctionBotBuyer.
- * It provides the ability to use dynamic_cast in AuctionHouseBot methods,
- * such as SetItemsRatio which casts m_Seller to AuctionBotSeller.
  */
 class AuctionBotAgent
 {
@@ -424,6 +422,9 @@ struct AuctionHouseBotStatusInfoPerType
  * Alliance, Horde, and Neutral.
  */
 typedef AuctionHouseBotStatusInfoPerType AuctionHouseBotStatusInfo[MAX_AUCTION_HOUSE_TYPE];
+
+class AuctionBotBuyer;
+class AuctionBotSeller;
 
 /**
  * @brief This class handle both Selling and Buying method
@@ -520,8 +521,8 @@ class AuctionHouseBot
          *
          */
         void InitializeAgents();
-        AuctionBotAgent* m_Buyer; /**< The buyer (\ref AuctionBotBuyer) for this \ref AuctionHouseBot */
-        AuctionBotAgent* m_Seller; /**< The seller (\ref AuctionBotSeller) for this \ref AuctionHouseBot */
+        AuctionBotBuyer* m_Buyer; /**< The buyer for this \ref AuctionHouseBot */
+        AuctionBotSeller* m_Seller; /**< The seller for this \ref AuctionHouseBot */
 
         uint32 m_OperationSelector; /**< 0..2*MAX_AUCTION_HOUSE_TYPE-1 */
 };

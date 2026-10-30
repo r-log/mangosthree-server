@@ -2393,9 +2393,9 @@ void AuctionHouseBot::Initialize()
  */
 void AuctionHouseBot::SetItemsRatio(uint32 al, uint32 ho, uint32 ne)
 {
-    if (AuctionBotSeller* seller = dynamic_cast<AuctionBotSeller*>(m_Seller))
+    if (m_Seller)
     {
-        seller->SetItemsRatio(al, ho, ne);
+        m_Seller->SetItemsRatio(al, ho, ne);
     }
 }
 
@@ -2406,9 +2406,9 @@ void AuctionHouseBot::SetItemsRatio(uint32 al, uint32 ho, uint32 ne)
  */
 void AuctionHouseBot::SetItemsRatioForHouse(AuctionHouseType house, uint32 val)
 {
-    if (AuctionBotSeller* seller = dynamic_cast<AuctionBotSeller*>(m_Seller))
+    if (m_Seller)
     {
-        seller->SetItemsRatioForHouse(house, val);
+        m_Seller->SetItemsRatioForHouse(house, val);
     }
 }
 
@@ -2418,9 +2418,9 @@ void AuctionHouseBot::SetItemsRatioForHouse(AuctionHouseType house, uint32 val)
  */
 void AuctionHouseBot::SetItemsAmount(uint32(&vals) [MAX_AUCTION_QUALITY])
 {
-    if (AuctionBotSeller* seller = dynamic_cast<AuctionBotSeller*>(m_Seller))
+    if (m_Seller)
     {
-        seller->SetItemsAmount(vals);
+        m_Seller->SetItemsAmount(vals);
     }
 }
 
@@ -2431,9 +2431,9 @@ void AuctionHouseBot::SetItemsAmount(uint32(&vals) [MAX_AUCTION_QUALITY])
  */
 void AuctionHouseBot::SetItemsAmountForQuality(AuctionQuality quality, uint32 val)
 {
-    if (AuctionBotSeller* seller = dynamic_cast<AuctionBotSeller*>(m_Seller))
+    if (m_Seller)
     {
-        seller->SetItemsAmountForQuality(quality, val);
+        m_Seller->SetItemsAmountForQuality(quality, val);
     }
 }
 
