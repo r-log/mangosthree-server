@@ -1288,22 +1288,7 @@ bool Unit::haveOffhandWeapon() const
         return false;
     }
 
-    if (GetTypeId() == TYPEID_PLAYER)
-    {
-        return ((Player*)this)->GetWeaponForAttack(OFF_ATTACK, true, true);
-    }
-    else
-    {
-        /*uint32 ItemId = GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1);
-        ItemEntry const* itemInfo = sItemStore.LookupEntry(ItemId);
-
-        if (itemInfo && itemInfo->Class == ITEM_CLASS_WEAPON)
-        {
-            return true;
-        }*/
-
-        return false;
-    }
+    return GetWeaponForAttack(OFF_ATTACK, true, true);
 }
 
 /**
@@ -2139,7 +2124,7 @@ float Unit::GetAPMultiplier(WeaponAttackType attType, bool normalized)
     uint32 weaponSubClass = 0;
     if (normalized && isPlayer)                                                             // E2b, same guard
     {
-        if (Item* Weapon = ((Player*)this)->GetWeaponForAttack(attType, true, false))
+        if (Item* Weapon = GetWeaponForAttack(attType, true, false))
         {
             hasWeapon = true;
             weaponInventoryType = Weapon->GetProto()->InventoryType;
