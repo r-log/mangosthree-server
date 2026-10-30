@@ -528,19 +528,19 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME player_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate c_style_player=46 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate c_style_player=13 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME creature_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate c_style_creature=47 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate c_style_creature=36 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME pet_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate c_style_pet=19 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate c_style_pet=8 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME total_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate downcasts=588 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate downcasts=573 ${CMAKE_SOURCE_DIR}/src/game)
 
     # Decoupling D7a: the synchronous-call inventory is a hint generator, not a ratchet, so
     # only its own scanner is gated -- an inventory that miscounts is worse than none.
