@@ -151,7 +151,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     // should be able to see it too
     if (u->IsAlive() && IsAlive() && IsInvisibleForAlive() != u->IsInvisibleForAlive())
     {
-        if (u->GetTypeId() != TYPEID_PLAYER || !((Player*)u)->isGameMaster())
+        if (!u->isGameMaster())
         {
             return false;
         }
@@ -164,7 +164,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     }
 
     // GMs see any players, not higher GMs and all units in any phase
-    if (u->GetTypeId() == TYPEID_PLAYER && ((Player*)u)->isGameMaster())
+    if (u->isGameMaster())
     {
         if (GetTypeId() == TYPEID_PLAYER)
         {

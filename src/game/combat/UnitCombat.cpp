@@ -1647,7 +1647,7 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     // nobody can attack GM in GM-mode
     if (victim->GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)victim)->isGameMaster())
+        if (victim->isGameMaster())
         {
             return false;
         }

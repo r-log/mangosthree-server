@@ -1128,7 +1128,7 @@ void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
     }
 
     // Check player targets and remove if in GM mode or GM invisibility (for not self casting case)
-    if (target->GetTypeId() == TYPEID_PLAYER && target != i_check && (((Player*)target)->isGameMaster() || target->GetVisibility() == VISIBILITY_OFF))
+    if (target->GetTypeId() == TYPEID_PLAYER && target != i_check && (target->isGameMaster() || target->GetVisibility() == VISIBILITY_OFF))
     {
         return;
     }

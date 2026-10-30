@@ -959,13 +959,13 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                         if (targetOwner->GetTypeId() == TYPEID_PLAYER &&
                             target->IsPet() &&
                             target->GetOwnerGuid() == targetOwner->GetObjectGuid() &&
-                            pGroup->IsMember(((Player*)targetOwner)->GetObjectGuid()))
+                            pGroup->IsMember(targetOwner->GetObjectGuid()))
                         {
                             targetUnitMap.push_back(target);
                         }
                     }
                     // 1Our target can be a player who is on our group
-                    else if (target->GetTypeId() == TYPEID_PLAYER && pGroup->IsMember(((Player*)target)->GetObjectGuid()))
+                    else if (target->GetTypeId() == TYPEID_PLAYER && pGroup->IsMember(target->GetObjectGuid()))
                     {
                         targetUnitMap.push_back(target);
                     }
