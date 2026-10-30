@@ -177,8 +177,8 @@ casting 73, lifecycle and update 82, movement 83, stats and power 72, pets/charm
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 The families become component classes `Unit` owns in #601.
 
-**Today (player-only code in `Unit`):** Unit's 16 files hold 3 `(Player*)this` casts (row 24's accessor, and the durability a hit costs a player and an
-item's combat spells, two item actions #143 turns into facts the inventory hears) and 186 `TYPEID_PLAYER` tests;
+**Today (player-only code in `Unit`):** Unit's 16 files hold no C-style casts: row 24's accessor and the durability a hit costs a player and an
+item's combat spells, two item actions #143 turns into facts the inventory hears, ask `ToPlayer()`; they hold 186 `TYPEID_PLAYER` tests;
 44 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
 `GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
