@@ -571,7 +571,7 @@ void MovementHandlers::HandleMoverRelocation(WorldSession& session, Unit* mover,
 
         if (movementInfo.GetTransportGuid())
         {
-            if (!plMover->m_transport)
+            if (!plMover->GetTransport())
             {
                 // The guid is the client's word. A vessel it names is boarded only if she sails
                 // his map and he stood within her reach at his last accepted position: her hull's
@@ -597,7 +597,7 @@ void MovementHandlers::HandleMoverRelocation(WorldSession& session, Unit* mover,
                             break;
                         }
 
-                        plMover->m_transport = vessel;
+                        plMover->SetTransport(vessel);
 
                         // He walked aboard, so his client already has the vessel and is
                         // rendering the map she sails; moving him onto her own map is safe
@@ -611,7 +611,7 @@ void MovementHandlers::HandleMoverRelocation(WorldSession& session, Unit* mover,
                 }
             }
         }
-        else if (plMover->m_transport)               // if we were on a transport, leave
+        else if (plMover->GetTransport())           // if we were on a transport, leave
         {
             // He walked ashore, and his own client just told us where: that world point is
             // better than anything we could derive from a hull whose pose we only estimate.
@@ -622,9 +622,9 @@ void MovementHandlers::HandleMoverRelocation(WorldSession& session, Unit* mover,
             // Drop the flag for one packet -- the client does, on arrival, before it has
             // resolved the hull -- and that zero is read as a destination. (0, 0, 0) on map
             // 0 is the middle of Lordamere Lake, which is exactly where people landed.
-            if (TransportMap* hull = plMover->m_transport->AsMap())
+            if (TransportMap* hull = plMover->GetTransport()->AsMap())
             {
-                Transport* vessel = plMover->m_transport;
+                Transport* vessel = plMover->GetTransport();
 
                 const float reach = hull->HullRadius() + vessel->NodeSlack() +
                                     DECK_EDGE_MARGIN;
@@ -648,7 +648,7 @@ void MovementHandlers::HandleMoverRelocation(WorldSession& session, Unit* mover,
                                     vessel->Where().Z(), vessel->Where().Facing());
                 }
             }
-            plMover->m_transport = NULL;
+            plMover->SetTransport(NULL);
             movementInfo.ClearTransportData();
         }
 
@@ -661,7 +661,7 @@ void MovementHandlers::HandleMoverRelocation(WorldSession& session, Unit* mover,
         // Aboard, the deck offset IS his position: it is what the client computed against
         // the hull it is drawing, and the world pair in the same packet describes a place
         // on a map he is no longer filed under. Ashore, the two are the same packet field.
-        if (plMover->m_transport && plMover->GetMap()->AsTransport())
+        if (plMover->GetTransport() && plMover->GetMap()->AsTransport())
         {
             const Position* offset = movementInfo.GetTransportPos();
             plMover->SetPosition(offset->x, offset->y, offset->z, offset->o);
