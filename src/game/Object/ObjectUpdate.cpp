@@ -780,13 +780,11 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                             send_value = send_value & ~UNIT_DYNFLAG_LOOTABLE;
                         }
 
-                    /* If we are allowed to loot it and mob is tapped by us, destroy the tapped flag */
-                    bool is_tapped = target->IsTappedByMeOrMyGroup(creature);
-
-                    /* If the creature has tapped flag but is tapped by us, remove the flag */
-                    if (send_value & UNIT_DYNFLAG_TAPPED && is_tapped)
+                    /* A tapped creature is tapped by this viewer when the viewer or its group holds the tap;
+                       the client greys the name of a tapped creature only when it is not */
+                    if ((send_value & UNIT_DYNFLAG_TAPPED) && target->IsTappedByMeOrMyGroup(creature))
                     {
-                        send_value = send_value & ~UNIT_DYNFLAG_TAPPED;
+                        send_value |= UNIT_DYNFLAG_TAPPED_BY_PLAYER;
                     }
 
                     *data << send_value;

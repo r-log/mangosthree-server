@@ -127,6 +127,7 @@ set(SRC_GRP_TESTS
     CharacterOpsAsyncTest.cpp
     RequesterSessionTest.cpp
     SessionRegistryTest.cpp
+    TappedViewerFlagsTest.cpp
     PetCacheTest.cpp
     GuildAsyncTest.cpp
     CalendarMailAsyncTest.cpp

@@ -1449,7 +1449,6 @@ void Creature::SetLootRecipient(Unit* unit)
         m_lootRecipientGuid.Clear();
         m_lootGroupRecipientId = 0;
         RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED);
-        RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED_BY_PLAYER);
         return;
     }
 
@@ -1475,7 +1474,6 @@ void Creature::SetLootRecipient(Unit* unit)
     }
 
     SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED);
-    SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED_BY_PLAYER);
 }
 
 /**
