@@ -320,7 +320,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         return;
     }
 
-    if (target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = target->ToPlayer())
     {
         SpellAreaForAreaMapBounds saBounds = sSpellMgr.GetSpellAreaForAuraMapBounds(GetId());
         if (saBounds.first != saBounds.second)
@@ -330,7 +330,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 
             for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
             {
-                itr->second->ApplyOrRemoveSpellIfCan((Player*)target, zone, area, false);
+                itr->second->ApplyOrRemoveSpellIfCan(targetPlayer, zone, area, false);
             }
         }
     }

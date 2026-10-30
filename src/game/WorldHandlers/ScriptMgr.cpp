@@ -239,12 +239,12 @@ bool DatabaseScriptHooks::StartEvent(Map* map, uint32 id, Object* source, Object
     {
         BattleGround* bg = NULL;
         OutdoorPvP* opvp = NULL;
-        if (forwardToPvp->GetTypeId() == TYPEID_PLAYER)
+        if (Player* forwardToPvpPlayer = forwardToPvp->ToPlayer())
         {
-            bg = ((Player*)forwardToPvp)->GetBattleGround();
+            bg = forwardToPvpPlayer->GetBattleGround();
             if (!bg)
             {
-                opvp = sOutdoorPvPMgr.GetScript(((Player*)forwardToPvp)->GetCachedZoneId());
+                opvp = sOutdoorPvPMgr.GetScript(forwardToPvpPlayer->GetCachedZoneId());
             }
         }
         else

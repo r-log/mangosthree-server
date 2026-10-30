@@ -404,7 +404,7 @@ void Aura::HandlePhase(bool apply, bool Real)
 
     target->SetPhaseMask(apply ? GetMiscValue() : uint32(PHASEMASK_NORMAL), true);
     // no-phase is also phase state so same code for apply and remove
-    if (target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = target->ToPlayer())
     {
         SpellAreaForAreaMapBounds saBounds = sSpellMgr.GetSpellAreaForAuraMapBounds(GetId());
         if (saBounds.first != saBounds.second)
@@ -414,7 +414,7 @@ void Aura::HandlePhase(bool apply, bool Real)
 
             for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
             {
-                itr->second->ApplyOrRemoveSpellIfCan((Player*)target, zone, area, false);
+                itr->second->ApplyOrRemoveSpellIfCan(targetPlayer, zone, area, false);
             }
         }
     }

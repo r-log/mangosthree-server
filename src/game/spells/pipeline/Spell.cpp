@@ -756,9 +756,9 @@ void Spell::UpdatePointers()
 
     m_targets.Update(m_caster);
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* casterPlayer = m_caster->ToPlayer())
     {
-        m_CastItem = ((Player *)m_caster)->GetInventoryMgr().GetItemByGuid(m_CastItemGuid);
+        m_CastItem = casterPlayer->GetInventoryMgr().GetItemByGuid(m_CastItemGuid);
     }
     else
     {

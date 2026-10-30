@@ -977,9 +977,9 @@ void CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
         case ACTION_T_QUEST_EVENT:          //15
             if (Unit* target = GetTargetByType(action.quest_event.target, pActionInvoker, pAIEventSender, reportTargetError))
             {
-                if (target->GetTypeId() == TYPEID_PLAYER)
+                if (Player* targetPlayer = target->ToPlayer())
                 {
-                    ((Player*)target)->AreaExploredOrEventHappens(action.quest_event.questId);
+                    targetPlayer->AreaExploredOrEventHappens(action.quest_event.questId);
                 }
             }
             else if (reportTargetError)

@@ -284,9 +284,9 @@ static SpellHandlerOutcome<void> AuraDummyApplyGeneric63122(AuraDummyApplyGeneri
 static SpellHandlerOutcome<void> AuraDummyApplyGeneric63624(AuraDummyApplyGenericContext& ctx)
 {
     // Teach Learn Talent Specialization Switches, required for client triggered casts, allow after 30 sec delay
-    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = ctx.target->ToPlayer())
     {
-        ((Player*)ctx.target)->learnSpell(63680, false);
+        targetPlayer->learnSpell(63680, false);
     }
     return SpellHandlerOutcome<void>::Return();
 }
@@ -1188,12 +1188,12 @@ static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericNotSelectable(AuraDu
 /// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 58204: LK Intro VO
 static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric58204(AuraDummyApplyRemoveContext& ctx)
 {
-    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = ctx.target->ToPlayer())
     {
         // Play part 1
         if (ctx.apply)
         {
-            ctx.target->PlayDirectSound(14970, (Player*)ctx.target);
+            ctx.target->PlayDirectSound(14970, targetPlayer);
         }
         // continue in 58205
         else

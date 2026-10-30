@@ -133,9 +133,9 @@ void Spell::EffectEnvironmentalDMG(SpellEffectEntry const* effect)
     m_caster->CalculateDamageAbsorbAndResist(m_caster, GetSpellSchoolMask(m_spellInfo), SPELL_DIRECT_DAMAGE, damage, &absorb, &resist);
 
     m_caster->SendSpellNonMeleeDamageLog(m_caster, m_spellInfo->ID, damage, GetSpellSchoolMask(m_spellInfo), absorb, resist, false, 0, false);
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* casterPlayer = m_caster->ToPlayer())
     {
-        ((Player*)m_caster)->EnvironmentalDamage(DAMAGE_FIRE, damage);
+        casterPlayer->EnvironmentalDamage(DAMAGE_FIRE, damage);
     }
 }
 
@@ -903,9 +903,9 @@ void Spell::EffectTeleportUnits(SpellEffectEntry const* effect)   // TODO - Use 
             {
                 unitTarget->NearTeleportTo(st->target_X, st->target_Y, st->target_Z, st->target_Orientation, unitTarget == m_caster);
             }
-            else if (unitTarget->GetTypeId() == TYPEID_PLAYER)
+            else if (Player* unitTargetPlayer = unitTarget->ToPlayer())
             {
-                ((Player*)unitTarget)->TeleportTo(st->target_mapId, st->target_X, st->target_Y, st->target_Z, st->target_Orientation, unitTarget == m_caster ? TELE_TO_SPELL : 0);
+                unitTargetPlayer->TeleportTo(st->target_mapId, st->target_X, st->target_Y, st->target_Z, st->target_Orientation, unitTarget == m_caster ? TELE_TO_SPELL : 0);
             }
             break;
         }

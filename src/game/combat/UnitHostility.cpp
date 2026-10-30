@@ -152,31 +152,31 @@ bool Unit::IsHostileTo(Unit const* unit) const
     }
 
     // PvC forced reaction and reputation case
-    if (tester->GetTypeId() == TYPEID_PLAYER)
+    if (Player* testerPlayer = tester->ToPlayer())
     {
         if (target_faction->Faction)
         {
             // forced reaction
-            if (ReputationRank const* force = ((Player*)tester)->GetReputationMgr().GetForcedRankIfAny(target_faction))
+            if (ReputationRank const* force = testerPlayer->GetReputationMgr().GetForcedRankIfAny(target_faction))
             {
                 return *force <= REP_HOSTILE;
             }
 
             // if faction have reputation then hostile state for tester at 100% dependent from at_war state
             if (FactionEntry const* raw_target_faction = sFactionStore.LookupEntry(target_faction->Faction))
-                if (FactionState const* factionState = ((Player*)tester)->GetReputationMgr().GetState(raw_target_faction))
+                if (FactionState const* factionState = testerPlayer->GetReputationMgr().GetState(raw_target_faction))
                 {
                     return (factionState->Flags & FACTION_FLAG_AT_WAR);
                 }
         }
     }
     // CvP forced reaction and reputation case
-    else if (target->GetTypeId() == TYPEID_PLAYER)
+    else if (Player* targetPlayer = target->ToPlayer())
     {
         if (tester_faction->Faction)
         {
             // forced reaction
-            if (ReputationRank const* force = ((Player*)target)->GetReputationMgr().GetForcedRankIfAny(tester_faction))
+            if (ReputationRank const* force = targetPlayer->GetReputationMgr().GetForcedRankIfAny(tester_faction))
             {
                 return *force <= REP_HOSTILE;
             }
@@ -185,7 +185,7 @@ bool Unit::IsHostileTo(Unit const* unit) const
             FactionEntry const* raw_tester_faction = sFactionStore.LookupEntry(tester_faction->Faction);
             if (raw_tester_faction && raw_tester_faction->ReputationIndex >= 0)
             {
-                return ((Player const*)target)->GetReputationMgr().GetRank(raw_tester_faction) <= REP_HOSTILE;
+                return targetPlayer->GetReputationMgr().GetRank(raw_tester_faction) <= REP_HOSTILE;
             }
         }
     }

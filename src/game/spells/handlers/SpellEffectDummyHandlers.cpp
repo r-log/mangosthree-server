@@ -1651,9 +1651,9 @@ static SpellHandlerOutcome<void> EffectDummyGenericReCursiveTransmatterInjection
             ((Player*)ctx.m_caster)->KilledMonsterCredit(killSpellEffect ? killSpellEffect->EffectMiscValue_0 : 0);
         }
 
-        if (ctx.unitTarget->GetTypeId() == TYPEID_UNIT)
+        if (Creature* unitTargetCreature = ctx.unitTarget->ToCreature())
         {
-            ((Creature*)ctx.unitTarget)->ForcedDespawn();
+            unitTargetCreature->ForcedDespawn();
         }
     }
 

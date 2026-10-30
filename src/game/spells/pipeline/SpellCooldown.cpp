@@ -70,9 +70,9 @@ bool Spell::HasGlobalCooldown()
     {
         return m_caster->GetCharmInfo()->GetGlobalCooldownMgr().HasGlobalCooldown(m_spellInfo);
     }
-    else if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    else if (Player* casterPlayer = m_caster->ToPlayer())
     {
-        return ((Player*)m_caster)->GetGlobalCooldownMgr().HasGlobalCooldown(m_spellInfo);
+        return casterPlayer->GetGlobalCooldownMgr().HasGlobalCooldown(m_spellInfo);
     }
     else
     {

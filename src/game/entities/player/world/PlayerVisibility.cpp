@@ -164,12 +164,12 @@ void Player::UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject* targe
         {
             ObjectGuid t_guid = target->GetObjectGuid();
 
-            if (target->GetTypeId() == TYPEID_UNIT)
+            if (Creature* targetCreature = target->ToCreature())
             {
-                BeforeVisibilityDestroy<Creature>((Creature*)target, this);
+                BeforeVisibilityDestroy<Creature>(targetCreature, this);
 
                 // at remove from map (destroy) show kill animation (in different out of range/stealth case)
-                target->DestroyForPlayer(this, !target->IsInWorld() && ((Creature*)target)->IsDead());
+                target->DestroyForPlayer(this, !target->IsInWorld() && targetCreature->IsDead());
             }
             else
             {

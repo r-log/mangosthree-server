@@ -773,9 +773,9 @@ bool Pet::removeSpell(uint32 spell_id, bool learn_prev, bool clear_ab)
         {
             // need update action bar for last removed rank
             if (Unit* owner = GetOwner())
-                if (owner->GetTypeId() == TYPEID_PLAYER)
+                if (Player* ownerPlayer = owner->ToPlayer())
                 {
-                    ((Player*)owner)->PetSpellInitialize();
+                    ownerPlayer->PetSpellInitialize();
                 }
         }
     }

@@ -409,9 +409,9 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
                 {
                     uint32 Rage_val = 0;
                     // Stance mastery + Tactical mastery (both passive, and last have aura only in defense stance, but need apply at any stance switch)
-                    if (target->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* targetPlayer = target->ToPlayer())
                     {
-                        PlayerSpellMap const& sp_list = ((Player*)target)->GetSpellMap();
+                        PlayerSpellMap const& sp_list = targetPlayer->GetSpellMap();
                         for (PlayerSpellMap::const_iterator itr = sp_list.begin(); itr != sp_list.end(); ++itr)
                         {
                             if (itr->second.state == PLAYERSPELL_REMOVED)
@@ -612,9 +612,9 @@ void Aura::HandleAuraTransform(bool apply, bool Real)
         target->SetDisplayId(target->GetNativeDisplayId());
 
         // apply default equipment for creature case
-        if (target->GetTypeId() == TYPEID_UNIT)
+        if (Creature* targetCreature = target->ToCreature())
         {
-            ((Creature*)target)->LoadEquipment(((Creature*)target)->GetCreatureInfo()->EquipmentTemplateId, true);
+            targetCreature->LoadEquipment(targetCreature->GetCreatureInfo()->EquipmentTemplateId, true);
         }
 
         // re-apply some from still active with preference negative cases

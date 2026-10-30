@@ -493,7 +493,7 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
 
     Aura* triggeredByAura = mover->GetTriggeredByClientAura(spellId);
 
-    if (mover->GetTypeId() == TYPEID_PLAYER)
+    if (Player* moverPlayer = mover->ToPlayer())
     {
         // Raid world markers are never learned -- the client offers them to the
         // raid leader/assistants and casts them straight from the UI, so they
@@ -503,7 +503,7 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
         {
             // in a raid only the leader and assistants may place them; in a
             // party any member may
-            Group* group = ((Player*)mover)->GetGroup();
+            Group* group = moverPlayer->GetGroup();
             raidMarker = group && (!group->isRaidGroup() ||
                                    group->IsLeader(mover->GetObjectGuid()) ||
                                    group->IsAssistant(mover->GetObjectGuid()));
@@ -512,7 +512,7 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
         // not have spell in spellbook or spell passive and not casted by client
 
         if (!raidMarker &&
-            ((!((Player*)mover)->HasActiveSpell(spellId) && !triggeredByAura) || IsPassiveSpell(spellInfo)))
+            ((!moverPlayer->HasActiveSpell(spellId) && !triggeredByAura) || IsPassiveSpell(spellInfo)))
         {
             sLog.outError("World: %s casts spell %u which he shouldn't have", mover->GetGuidStr().c_str(), spellId);
             // cheater? kick? ban?

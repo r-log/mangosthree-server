@@ -843,7 +843,7 @@ void Spell::EffectSummonPet(SpellEffectEntry const* effect)
 
     Pet* NewSummon = new Pet;
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* casterPlayer = m_caster->ToPlayer())
     {
         switch(m_caster->getClass())
         {
@@ -861,7 +861,7 @@ void Spell::EffectSummonPet(SpellEffectEntry const* effect)
                 }
 
                 // Load pet from db; if any to load
-                if (NewSummon->LoadPetFromDB((Player*)m_caster, petentry))
+                if (NewSummon->LoadPetFromDB(casterPlayer, petentry))
                 {
                     NewSummon->SetHealth(NewSummon->GetMaxHealth());
                     NewSummon->SetPower(POWER_MANA, NewSummon->GetMaxPower(POWER_MANA));
@@ -1353,9 +1353,9 @@ void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
     // Hemorrhage
     if (m_spellInfo->IsFitToFamily(SPELLFAMILY_ROGUE, UI64LIT(0x0000000002000000)))
     {
-        if (m_caster->GetTypeId() == TYPEID_PLAYER)
+        if (Player* casterPlayer = m_caster->ToPlayer())
         {
-            ((Player*)m_caster)->AddComboPoints(unitTarget, 1);
+            casterPlayer->AddComboPoints(unitTarget, 1);
         }
     }
     // Mangle (Cat): CP
