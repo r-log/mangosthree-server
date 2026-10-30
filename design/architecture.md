@@ -314,8 +314,8 @@ none.
   spell and aura code outside those 13 dispatches) relies on the phase structure and on nobody reaching across.
 - The network pool is sized by `hardware_concurrency()` (`net/reactor/ReactorServer.cpp:110`), not by the
   configuration. `Network.Threads` said otherwise and was read by no source file; it was removed from
-  `mangosd.conf.dist.in` on 2026-09-29. `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by
-  no source file either; the engine sets its own socket options.
+  `mangosd.conf.dist.in` on 2026-09-29. `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` were read by
+  no source file either and are removed too; the engine sets its own socket options.
 - The game draws from the seeded `RNG` only: its 7 C library `rand()` draws moved to it, and `CheckRawRand` holds
   `src/game` at 0 draws and one `srand`, `World.cpp`'s. SD3 is the exception until #83: its 21 `rand()` draws (20
   lines in 10 script files) still use the C library. On Windows the UCRT keeps `rand()` state per thread, so
@@ -403,7 +403,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 17 | 2,356 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory, peer and header on 2026-09-29 |
 | 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet; sideways lines re-keyed per includer directory, peer and header on 2026-09-29); the database gate built (`CheckDatabaseCalls`, #144) |
 | 19 | Thread ownership is checked at the movement kernel and at the spell seam, both by the one-world rule (`Unit::IsOwnedByThisThread`: `MapPhase::Owns` for the unit's map and, for a unit on a deck, for the map its vessel sails too): each of the five registry contexts that hold a unit checks it when built (`Unit::AssertSpellSeamOwner`), so 13 of the 15 dispatches of a `Unit` site check the unit they run for; the other two (`Unit::HandleSpellCritChanceAuraProc` and Lifebloom in `Unit::SpellHealingBonusDone`) give their handlers no unit, and the `Aura`, `SpellAuraHolder`, `Spell` and `SpellMgr` sites are not checked | closed for the `Unit` sites whose handlers are given the unit |
-| 20 | `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by no source file (`Network.Threads` was, and is deleted) | delete them or wire them through #143 |
+| 20 | `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay`, which no source file read, are gone from `mangosd.conf.dist.in`, as `Network.Threads` is. The engine sets its own socket options: the reactor and io_uring servers set `TCP_NODELAY`, the Windows IOCP server sets none (a behaviour question for the owner) | closed (#143) |
 | 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:242`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` linked each other | closed: the core calls the scripts through the hook interface (#83), `game` no longer links `mangosscript`, and `mangosd` links it and installs its hooks |
@@ -452,7 +452,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   the map-phase rows are
   `grep -E '^\s*OPCODE\(' src/game/Server/OpcodeTable.cpp | grep -vE 'Handle_(ServerSide|NULL|EarlyProccess|Deprecated)\b' | grep -cE 'PROCESS_(THREADSAFE|INPLACE)'`
   (73; without the last filter, 437 bound rows);
-  `grep -rl "Network\.\(OutKBuff\|OutUBuff\|TcpNodelay\)" src` finds only `mangosd.conf.dist.in`; the strict-mode proof is the
+  `grep -rl "Network\.\(OutKBuff\|OutUBuff\|TcpNodelay\)" src` finds nothing; the strict-mode proof is the
   "Check strict tick mode is armed" step of `core_linux_build.yml`. Raw generators:
   `python src/tests/tools/raw_rand.py --list` (0 draws in `src/game`, one `srand` in `World.cpp`; comments and literals
   excluded) and `grep -rnE '\brand\s*\(' src/modules/SD3 | grep -vE 'urand|irand'` (20 lines, 21 draws).

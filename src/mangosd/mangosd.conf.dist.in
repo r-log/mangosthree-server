@@ -1957,19 +1957,6 @@ OutdoorPvp.GHEnabled = 1
 ################################################################################
 # NETWORK CONFIG
 #
-#    Network.OutKBuff
-#         The size of the output kernel buffer used ( SO_SNDBUF socket option, tcp manual ).
-#         Default: -1 (Use system default setting)
-#
-#    Network.OutUBuff
-#         Userspace buffer for output. This is amount of memory reserved per each connection.
-#         Default: 65536
-#
-#    Network.TcpNoDelay:
-#         TCP Nagle algorithm setting
-#         Default: 0 (enable Nagle algorithm, less traffic, more latency)
-#                  1 (TCP_NO_DELAY, disable Nagle algorithm, more traffic but less latency)
-#
 #    Network.KickOnBadPacket
 #         Kick player on bad packet format.
 #         Default: 0 - do not kick
@@ -1977,9 +1964,6 @@ OutdoorPvp.GHEnabled = 1
 #
 ################################################################################
 
-Network.OutKBuff        = -1
-Network.OutUBuff        = 65536
-Network.TcpNodelay      = 1
 Network.KickOnBadPacket = 0
 
 ################################################################################
