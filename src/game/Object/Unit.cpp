@@ -1681,7 +1681,7 @@ Player* Unit::GetCharmerOrOwnerPlayerOrPlayerItself()
         return sPlayerRegistry.Find(guid);
     }
 
-    return GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL;
+    return ToPlayer();
 }
 
 /**
@@ -1697,7 +1697,7 @@ Player const* Unit::GetCharmerOrOwnerPlayerOrPlayerItself() const
         return sPlayerRegistry.Find(guid);
     }
 
-    return GetTypeId() == TYPEID_PLAYER ? (Player const*)this : NULL;
+    return ToPlayer();
 }
 
 /**

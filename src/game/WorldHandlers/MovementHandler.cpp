@@ -364,7 +364,7 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
         CountAck(&AckCounters::wrongGuid, &AckTotalsCounters::wrongGuid);
         return;
     }
-    Player* plMover = member->GetTypeId() == TYPEID_PLAYER ? (Player*)member : NULL;
+    Player* plMover = member->ToPlayer();
     if (!plMover || !plMover->IsBeingTeleportedNear())
     {
         return;
@@ -459,7 +459,7 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
     {
         return;
     }
-    Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : NULL;
+    Player* plMover = mover->ToPlayer();
 
     // ignore, waiting processing in WorldSession::HandleMoveWorldportAckOpcode and WorldSession::HandleMoveTeleportAck
     if (plMover && plMover->IsBeingTeleported())
@@ -538,7 +538,7 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
                   _player->GetGuidStr().c_str(), LookupOpcodeName(opcode), guid.GetString().c_str());
         return;
     }
-    Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : NULL;
+    Player* plMover = mover->ToPlayer();
 
     Motion::MatrixRow const* row = Motion::RowForAck(opcode);
     if (!row)
@@ -806,7 +806,7 @@ void WorldSession::HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo
     // pair lands the clock falls back to server-now and counts it.
     movementInfo.UpdateTime(m_timeBase.Rebase(movementInfo.GetTime(), GameTime::GetGameTimeMS()));
 
-    if (Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : NULL)
+    if (Player* plMover = mover->ToPlayer())
     {
         // LIFT-OFF, WHICH IS WHEN THE PET GOES (live test 2026-09-22, C4/T7; the 4.2.0 rule of
         // design 2026-09-22 section 4). Retail despawns a permanent pet when its mounted owner

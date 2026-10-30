@@ -297,13 +297,15 @@ bool ScriptAction::LogIfNotPlayer(WorldObject* pWorldObject)
 /// Helper to get a player if possible (target preferred)
 Player* ScriptAction::GetPlayerTargetOrSourceAndLog(WorldObject* pSource, WorldObject* pTarget)
 {
-    if ((!pTarget || pTarget->GetTypeId() != TYPEID_PLAYER) && (!pSource || pSource->GetTypeId() != TYPEID_PLAYER))
+    Player* target = pTarget ? pTarget->ToPlayer() : NULL;
+    Player* source = pSource ? pSource->ToPlayer() : NULL;
+    if (!target && !source)
     {
         sLog.outErrorDb(" DB-SCRIPTS: Process table `db_scripts [type = %d]` id %u, command %u call for non player, skipping.", m_type, m_script->id, m_script->command);
         return NULL;
     }
 
-    return pTarget && pTarget->GetTypeId() == TYPEID_PLAYER ? (Player*)pTarget : (Player*)pSource;
+    return target ? target : source;
 }
 
 /// Handle one Script Step

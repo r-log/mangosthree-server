@@ -62,9 +62,8 @@ static SpellHandlerOutcome<void> EffectEnergizeBaseManaPercent(SpellEffectEnergi
 /// 67487, 67490: Mana Potion Injector, Runic Mana Injector: a quarter more for a player target with Engineering
 static SpellHandlerOutcome<void> EffectEnergizeManaInjector(SpellEffectEnergizeContext& ctx)
 {
-    if (ctx.unitTarget->GetTypeId() == TYPEID_PLAYER)
+    if (Player* player = ctx.unitTarget->ToPlayer())
     {
-        Player* player = (Player*)ctx.unitTarget;
         if (player->HasSkill(SKILL_ENGINEERING))
         {
             ctx.damage += int32(ctx.damage * 0.25);

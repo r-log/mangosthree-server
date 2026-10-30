@@ -329,9 +329,8 @@ void PathFinder::BuildPolyPath(const Vector3& startPos, const Vector3& endPos)
         DEBUG_FILTER_LOG(LOG_FILTER_PATHFINDING, "++ BuildPolyPath :: farFromPoly distToStartPoly=%.3f distToEndPoly=%.3f\n", distToStartPoly, distToEndPoly);
 
         bool buildShotrcut = false;
-        if (m_sourceUnit->GetTypeId() == TYPEID_UNIT)
+        if (Creature const* owner = m_sourceUnit->ToCreature())
         {
-            Creature* owner = (Creature*)m_sourceUnit;
 
             Vector3 p = (distToStartPoly > 7.0f) ? startPos : endPos;
             if (m_sourceUnit->GetTerrain()->IsUnderWater(p.x, p.y, p.z))
@@ -750,9 +749,8 @@ void PathFinder::createFilter()
     uint16 includeFlags = 0;
     uint16 excludeFlags = 0;
 
-    if (m_sourceUnit->GetTypeId() == TYPEID_UNIT)
+    if (Creature const* creature = m_sourceUnit->ToCreature())
     {
-        Creature* creature = (Creature*)m_sourceUnit;
         if (creature->CanWalk())
         {
             includeFlags |= NAV_GROUND;           // walk

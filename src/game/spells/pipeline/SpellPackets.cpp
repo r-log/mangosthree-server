@@ -243,9 +243,8 @@ void Spell::SendSpellStart()
 
     if (castFlags & CAST_FLAG_PREDICTED_RUNES)              // predicted runes
     {
-        if (m_caster->GetTypeId() == TYPEID_PLAYER)
+        if (Player* caster = m_caster->ToPlayer())
         {
-            Player* caster = (Player*)m_caster;
 
             data << uint8(m_runesState);
             data << uint8(caster->GetRuneMgr().GetRunesState());
@@ -357,9 +356,8 @@ void Spell::SendSpellGo()
 
     if (castFlags & CAST_FLAG_PREDICTED_RUNES)              // predicted runes
     {
-        if (m_caster->GetTypeId() == TYPEID_PLAYER)
+        if (Player* caster = m_caster->ToPlayer())
         {
-            Player* caster = (Player*)m_caster;
 
             data << uint8(m_runesState);
             data << uint8(caster->GetRuneMgr().GetRunesState());

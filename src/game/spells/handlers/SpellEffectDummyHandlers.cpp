@@ -3752,7 +3752,7 @@ static SpellHandlerOutcome<void> EffectDummyPaladinBlessing(SpellEffectDummyPala
         return SpellHandlerOutcome<void>::Return();
     }
 
-    Player* casterPlayer = ctx.m_caster->GetTypeId() == TYPEID_PLAYER ? (Player*)ctx.m_caster : NULL;
+    Player* casterPlayer = ctx.m_caster->ToPlayer();
     Player* targetPlayer = ctx.unitTarget->GetCharmerOrOwnerPlayerOrPlayerItself();
     if (casterPlayer && targetPlayer && casterPlayer != targetPlayer &&
         casterPlayer->IsInSameRaidWith(targetPlayer) && sSpellStore.LookupEntry(buffId + 1))

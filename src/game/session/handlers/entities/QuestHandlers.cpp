@@ -331,9 +331,8 @@ void QuestHandlers::HandleQuestgiverChooseReward(WorldSession& session, WorldPac
             {
                 session.GetPlayer()->PlayerTalkClass->SendQuestGiverQuestDetails(nextquest, guid, true);
             }
-            else if (pObject->GetTypeId() == TYPEID_UNIT)
+            else if (Creature* pCreature = pObject->ToCreature())
             {
-                Creature* pCreature = (Creature*)pObject;
                 session.GetPlayer()->PrepareGossipMenu(pCreature, pCreature->GetCreatureInfo()->GossipMenuId);
 
                 if (!session.GetPlayer()->PlayerTalkClass->Empty())

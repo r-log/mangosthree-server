@@ -1328,7 +1328,7 @@ void Aura::ReapplyAffectedPassiveAuras(Unit* target, bool owner_mode)
 
     if (!affectedSelf.empty())
     {
-        Player* pTarget = target->GetTypeId() == TYPEID_PLAYER ? (Player*)target : NULL;
+        Player* pTarget = target->ToPlayer();
 
         for (std::map<uint32, ObjectGuid>::const_iterator map_itr = affectedSelf.begin(); map_itr != affectedSelf.end(); ++map_itr)
         {
