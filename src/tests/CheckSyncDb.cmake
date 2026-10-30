@@ -187,7 +187,7 @@ set(CONVERTED_FILES
     src/game/Object/Calendar.cpp
     src/game/WorldHandlers/Mail.cpp
     src/game/session/handlers/social/MailHandlers.cpp
-    src/game/WorldHandlers/SpellHandler.cpp
+    src/game/session/handlers/spells/SpellHandlers.cpp
     src/game/Object/ArenaTeam.cpp
     src/game/persistence/characters/social/ArenaTeamRepository.h
     src/game/persistence/characters/social/ArenaTeamRepository.cpp

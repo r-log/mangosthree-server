@@ -278,7 +278,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                 return SPELL_FAILED_LINE_OF_SIGHT;
             }
 
-            // auto selection spell rank implemented in WorldSession::HandleCastSpellOpcode
+            // auto selection spell rank implemented in SpellHandlers::HandleCastSpell
             // this case can be triggered if rank not found (too low-level target for first rank)
             if (casterPlayer && !m_CastItem && !m_IsTriggeredSpell)
             {

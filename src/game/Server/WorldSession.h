@@ -66,7 +66,6 @@ struct CharacterEnumRow;
 struct CharacterNameRow;
 struct RenameTargetRow;
 struct PetitionDetailsRow;
-struct GiftRow;
 
 class ObjectGuid;
 class Creature;
@@ -734,9 +733,6 @@ class WorldSession
 
         void SendGMTicketStatusUpdate(GMTicketStatus statusCode);
 
-        void HandleGameObjectUseOpcode(WorldPacket& recPacket);
-        void HandleGameobjectReportUse(WorldPacket& recvPacket);
-
         // Movement Handler
         void HandleMoveWorldportAckOpcode(WorldPacket& recvPacket);
         void HandleMoveWorldportAckOpcode();                // for server-side calls
@@ -758,39 +754,14 @@ class WorldSession
         static void SendPetitionQueryCallback(std::optional<PetitionDetailsRow> const& row, uint32 accountId,
                                               proto::SessionId sessionId, ObjectGuid petitionguid);
 
-        void HandleCancelChanneling(WorldPacket& recv_data);
-
-        void HandleUseItemOpcode(WorldPacket& recvPacket);
-        void HandleOpenItemOpcode(WorldPacket& recvPacket);
-        static void QueueOpenWrappedItemRead(uint32 accountId, proto::SessionId sessionId,
-                                             ObjectGuid playerGuid, ObjectGuid itemGuid);
-        static void HandleOpenWrappedItemCallback(std::optional<GiftRow> const& gift, uint32 accountId,
-                                                  proto::SessionId sessionId, ObjectGuid playerGuid,
-                                                  ObjectGuid itemGuid);
-        void HandleCastSpellOpcode(WorldPacket& recvPacket);
-        void HandleCancelCastOpcode(WorldPacket& recvPacket);
-        void HandleCancelAuraOpcode(WorldPacket& recvPacket);
-        void HandleCancelGrowthAuraOpcode(WorldPacket& recvPacket);
-        void HandleCancelAutoRepeatSpellOpcode(WorldPacket& recvPacket);
-
         void SendPlayerNotFoundNotice(const std::string& name);
         void SendWrongFactionNotice();
 
         void HandleSummonResponseOpcode(WorldPacket& recv_data);
 
-        // Pet
-        void HandlePetCancelAuraOpcode(WorldPacket& recvPacket);
-
-        void HandleTotemDestroyed(WorldPacket& recv_data);
-
-        void HandleSelfResOpcode(WorldPacket& recv_data);
-
         // Hotfix replies
         void SendItemDb2Reply(uint32 entry);
         void SendItemSparseDb2Reply(uint32 entry);
-
-        void HandleSpellClick(WorldPacket& recv_data);
-        void HandleGetMirrorimageData(WorldPacket& recv_data);
 
         // Reforge
         void SendReforgeResult(bool success);
