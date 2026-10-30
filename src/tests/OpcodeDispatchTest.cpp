@@ -74,8 +74,7 @@
 /// - processed PROCESS_INPLACE: the CMSG_ATTACKSWING, CMSG_ATTACKSTOP, CMSG_SETSHEATHED,
 ///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID,
 ///   CMSG_LOW_LEVEL_RAID_USER, CMSG_GUILD_AUTO_DECLINE_TOGGLE, CMSG_OBJECT_UPDATE_FAILED,
-///   CMSG_UI_TIME_REQUEST, CMSG_REQUEST_HOTFIX, CMSG_GET_MIRRORIMAGE_DATA and CMSG_MOVE_TIME_SKIPPED
-///   rows;
+///   CMSG_UI_TIME_REQUEST, CMSG_REQUEST_HOTFIX and CMSG_GET_MIRRORIMAGE_DATA rows;
 /// - processed PROCESS_THREADSAFE: the six taxi rows, the CMSG_CAST_SPELL and CMSG_CANCEL_CAST rows,
 ///   the 27 movement rows, the 18 movement ack rows and the CMSG_MOVE_TELEPORT_ACK,
 ///   CMSG_SET_ACTIVE_MOVER and CMSG_MOVE_NOT_ACTIVE_MOVER rows;
@@ -2828,6 +2827,8 @@ TEST(OpcodeDispatch_MovementRowsHoldTheirHandlersThunks)
 {
     InitializeOpcodes();
 
+    // CMSG_MOVE_TIME_SKIPPED shares 0x7A0A with MSG_MOVE_TIME_SKIPPED, whose later row holds the slot,
+    // so the time-skipped handler is not checked here.
     CHECK(opcodeTable[MSG_MOVE_WORLDPORT_ACK].handler == &OpcodeThunk<&MovementHandlers::HandleMoveWorldportAck>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveWorldportAck>), 1);
     CHECK(opcodeTable[CMSG_MOVE_TELEPORT_ACK].handler == &OpcodeThunk<&MovementHandlers::HandleMoveTeleportAck>);
@@ -2841,8 +2842,6 @@ TEST(OpcodeDispatch_MovementRowsHoldTheirHandlersThunks)
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleSetActiveMover>), 1);
     CHECK(opcodeTable[CMSG_MOVE_NOT_ACTIVE_MOVER].handler == &OpcodeThunk<&MovementHandlers::HandleMoveNotActiveMover>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveNotActiveMover>), 1);
-    CHECK(opcodeTable[CMSG_MOVE_TIME_SKIPPED].handler == &OpcodeThunk<&MovementHandlers::HandleMoveTimeSkipped>);
-    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveTimeSkipped>), 1);
     CHECK(opcodeTable[CMSG_MOUNTSPECIAL_ANIM].handler == &OpcodeThunk<&MovementHandlers::HandleMountSpecialAnim>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMountSpecialAnim>), 1);
     CHECK(opcodeTable[CMSG_SUMMON_RESPONSE].handler == &OpcodeThunk<&MovementHandlers::HandleSummonResponse>);
@@ -2865,8 +2864,6 @@ TEST(OpcodeDispatch_MovementRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_SET_ACTIVE_MOVER].packetProcessing, PROCESS_THREADSAFE);
     CHECK_EQ(opcodeTable[CMSG_MOVE_NOT_ACTIVE_MOVER].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_MOVE_NOT_ACTIVE_MOVER].packetProcessing, PROCESS_THREADSAFE);
-    CHECK_EQ(opcodeTable[CMSG_MOVE_TIME_SKIPPED].status, STATUS_LOGGEDIN);
-    CHECK_EQ(opcodeTable[CMSG_MOVE_TIME_SKIPPED].packetProcessing, PROCESS_INPLACE);
     CHECK_EQ(opcodeTable[CMSG_MOUNTSPECIAL_ANIM].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_MOUNTSPECIAL_ANIM].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_SUMMON_RESPONSE].status, STATUS_LOGGEDIN);
