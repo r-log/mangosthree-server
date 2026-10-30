@@ -808,13 +808,20 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 return;
             }
 
+            // a summoner or owner that has left the map is no target
             if (caster->GetTypeId() == TYPEID_UNIT && ((Creature*)caster)->IsTemporarySummon())
             {
-                targetUnitMap.push_back(((TemporarySummon*)(Creature*)caster)->GetSummoner());
+                if (Unit* summoner = ((TemporarySummon*)(Creature*)caster)->GetSummoner())
+                {
+                    targetUnitMap.push_back(summoner);
+                }
             }
             else if (caster->GetTypeId() == TYPEID_GAMEOBJECT && !((GameObject*)caster)->HasStaticDBSpawnData())
             {
-                targetUnitMap.push_back(((GameObject*)caster)->GetOwner());
+                if (Unit* owner = ((GameObject*)caster)->GetOwner())
+                {
+                    targetUnitMap.push_back(owner);
+                }
             }
             else
             {
