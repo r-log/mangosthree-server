@@ -256,7 +256,8 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     // players detect players only in Player::HandleStealthedUnitsDetection()
     if (!detect)
     {
-        return (u->GetTypeId() == TYPEID_PLAYER) ? ((Player*)u)->HaveAtClient(this) : false;
+        Player const* player = u->ToPlayer();
+        return player && player->HaveAtClient(this);
     }
 
     // Special cases
