@@ -754,14 +754,15 @@ void AreaAura::Update(uint32 diff)
                 {
                     Group* pGroup = NULL;
 
-                    if (Player* ownerPlayer = owner->ToPlayer())
+                    Player* ownerPlayer = owner->ToPlayer();
+                    if (ownerPlayer)
                     {
                         pGroup = ownerPlayer->GetGroup();
                     }
 
                     if (pGroup)
                     {
-                        uint8 subgroup = ((Player*)owner)->GetSubGroup();
+                        uint8 subgroup = ownerPlayer->GetSubGroup();
                         for (GroupReference* itr = pGroup->GetFirstMember(); itr != NULL; itr = itr->next())
                         {
                             Player* Target = itr->getSource();
@@ -799,9 +800,9 @@ void AreaAura::Update(uint32 diff)
                 {
                     Group* pGroup = NULL;
 
-                    if (owner->GetTypeId() == TYPEID_PLAYER)
+                    if (Player* ownerPlayer = owner->ToPlayer())
                     {
-                        pGroup = ((Player*)owner)->GetGroup();
+                        pGroup = ownerPlayer->GetGroup();
                     }
 
                     if (pGroup)
@@ -1391,7 +1392,8 @@ void Aura::ReapplyAffectedPassiveAuras()
     GetTarget()->CallForAllControlledUnits(ReapplyAffectedPassiveAurasHelper(this), CONTROLLED_PET | CONTROLLED_TOTEMS);
 
     // re-apply talents/passives/area auras applied to group members (it affected by player spellmods)
-    if (Group* group = ((Player*)GetTarget())->GetGroup())
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (Group* group = targetPlayer ? targetPlayer->GetGroup() : NULL)
         for (GroupReference* itr = group->GetFirstMember(); itr != NULL; itr = itr->next())
             if (Player* member = itr->getSource())
                 if (member != GetTarget() && member->Where().ShareFrame((GetTarget())->Where()))
@@ -1644,7 +1646,8 @@ void Aura::TriggerSpell()
     {
         if (Unit* caster = GetCaster())
         {
-            if (triggerTarget->GetTypeId() != TYPEID_UNIT || !sScriptHooks.OnEffectDummy(caster, GetId(), GetEffIndex(), (Creature*)triggerTarget, ObjectGuid()))
+            Creature* triggerCreature = triggerTarget->ToCreature();
+            if (!triggerCreature || !sScriptHooks.OnEffectDummy(caster, GetId(), GetEffIndex(), triggerCreature, ObjectGuid()))
             {
                 sLog.outError("Aura::TriggerSpell: Spell %u have 0 in EffectTriggered[%d], not handled custom case?", GetId(), GetEffIndex());
             }
@@ -1837,12 +1840,14 @@ void Aura::PeriodicTick()
             pCaster->DealDamage(target, pdamage, &cleanDamage, DOT, GetSpellSchoolMask(spellProto), spellProto, true);
 
             // Drain Soul (chance soul shard)
-            if (pCaster->GetTypeId() == TYPEID_PLAYER && classOptions && classOptions->SpellClassSet == SPELLFAMILY_WARLOCK && classOptions->SpellClassMask & UI64LIT(0x0000000000004000))
+            Player* casterPlayer = pCaster->ToPlayer();
+            if (casterPlayer && classOptions && classOptions->SpellClassSet == SPELLFAMILY_WARLOCK && classOptions->SpellClassMask & UI64LIT(0x0000000000004000))
             {
                 // Only from non-grey units
+                Creature* targetCreature = target->ToCreature();
                 if (roll_chance_i(10) &&                    // 1-2 from drain with final and without glyph, 0-1 from damage
-                        ((Player*)pCaster)->isHonorOrXPTarget(target) &&
-                        (target->GetTypeId() != TYPEID_UNIT || ((Player*)pCaster)->isAllowedToLoot((Creature*)target)))
+                        casterPlayer->isHonorOrXPTarget(target) &&
+                        (!targetCreature || casterPlayer->isAllowedToLoot(targetCreature)))
                 {
                     pCaster->CastSpell(pCaster, 43836, true, NULL, this);
                 }
@@ -2050,7 +2055,7 @@ void Aura::PeriodicTick()
                 if (Player* casterPlayer = pCaster->ToPlayer())
                     if (BattleGround* bg = casterPlayer->GetBattleGround())
                     {
-                        bg->UpdatePlayerScore(((Player*)pCaster), SCORE_HEALING_DONE, gain);
+                        bg->UpdatePlayerScore(casterPlayer, SCORE_HEALING_DONE, gain);
                     }
 
                 target->GetHostileRefManager().threatAssist(pCaster, float(gain) * 0.5f * sSpellMgr.GetSpellThreatMultiplier(spellProto), spellProto);
@@ -2578,9 +2583,9 @@ void Aura::PeriodicDummyTick()
 
     if (Unit* caster = GetCaster())
     {
-        if (target && target->GetTypeId() == TYPEID_UNIT)
+        if (Creature* targetCreature = target ? target->ToCreature() : NULL)
         {
-            sScriptHooks.OnEffectDummy(caster, GetId(), GetEffIndex(), (Creature*)target, ObjectGuid());
+            sScriptHooks.OnEffectDummy(caster, GetId(), GetEffIndex(), targetCreature, ObjectGuid());
         }
     }
 }
@@ -2758,11 +2763,11 @@ void SpellAuraHolder::_AddSpellAuraHolder()
     Unit* caster = GetCaster();
 
     // set infinity cooldown state for spells
-    if (caster && caster->GetTypeId() == TYPEID_PLAYER)
+    if (Player* casterPlayer = caster ? caster->ToPlayer() : NULL)
     {
         if (m_spellProto->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE))
         {
-            Item* castItem = m_castItemGuid ? ((Player*)caster)->GetInventoryMgr().GetItemByGuid(m_castItemGuid) : NULL;
+            Item* castItem = m_castItemGuid ? casterPlayer->GetInventoryMgr().GetItemByGuid(m_castItemGuid) : NULL;
             caster->AddSpellAndCategoryCooldowns(m_spellProto, castItem ? castItem->GetEntry() : 0, NULL, true);
         }
     }
@@ -2914,11 +2919,12 @@ void SpellAuraHolder::_RemoveSpellAuraHolder()
         }
 
     // remove at-store spell cast items (for all remove modes?)
-    if (m_target->GetTypeId() == TYPEID_PLAYER && m_removeMode != AURA_REMOVE_BY_DEFAULT && m_removeMode != AURA_REMOVE_BY_DELETE)
+    Player* targetPlayer = m_target->ToPlayer();
+    if (targetPlayer && m_removeMode != AURA_REMOVE_BY_DEFAULT && m_removeMode != AURA_REMOVE_BY_DELETE)
         if (ObjectGuid castItemGuid = GetCastItemGuid())
-            if (Item* castItem = ((Player*)m_target)->GetInventoryMgr().GetItemByGuid(castItemGuid))
+            if (Item* castItem = targetPlayer->GetInventoryMgr().GetItemByGuid(castItemGuid))
             {
-                ((Player*)m_target)->DestroyItemWithOnStoreSpell(castItem, GetId());
+                targetPlayer->DestroyItemWithOnStoreSpell(castItem, GetId());
             }
 
     // passive auras do not get put in slots - said who? ;)
@@ -3242,12 +3248,13 @@ bool SpellAuraHolder::IsWeaponBuffCoexistableWith(SpellAuraHolder const* ref) co
     }
 
     // only self applied player buffs
-    if (m_target->GetTypeId() != TYPEID_PLAYER || m_target->GetObjectGuid() != GetCasterGuid())
+    Player* targetPlayer = m_target->ToPlayer();
+    if (!targetPlayer || m_target->GetObjectGuid() != GetCasterGuid())
     {
         return false;
     }
 
-    Item* castItem = ((Player*)m_target)->GetInventoryMgr().GetItemByGuid(GetCastItemGuid());
+    Item* castItem = targetPlayer->GetInventoryMgr().GetItemByGuid(GetCastItemGuid());
     if (!castItem)
     {
         return false;

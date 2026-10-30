@@ -61,7 +61,8 @@
 
 void Aura::HandleAddModifier(bool apply, bool Real)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER || !Real)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer || !Real)
     {
         return;
     }
@@ -96,7 +97,7 @@ void Aura::HandleAddModifier(bool apply, bool Real)
         }
     }
 
-    ((Player*)GetTarget())->AddSpellMod(this, apply);
+    targetPlayer->AddSpellMod(this, apply);
 
     ReapplyAffectedPassiveAuras();
 }

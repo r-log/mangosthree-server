@@ -138,12 +138,11 @@ void Aura::HandleModPossessPet(bool apply, bool Real)
     }
 
     Unit* target = GetTarget();
-    if (target->GetTypeId() != TYPEID_UNIT || !target->IsPet())
+    Pet* pet = ToPet(target);
+    if (!pet)
     {
         return;
     }
-
-    Pet* pet = (Pet*)target;
 
     Camera& camera = p_caster->GetCamera();
 
@@ -213,13 +212,13 @@ void Aura::HandleModCharm(bool apply, bool Real)
 
     if (apply)
     {
-        if (caster->GetTypeId() == TYPEID_PLAYER)
+        if (Player* casterPlayer = caster->ToPlayer())
         {
             //remove any existing charm just in case
             caster->Uncharm();
 
             //pets should be removed when possesing a target if somehow check was bypassed
-            ((Player*)caster)->UnsummonPetIfAny();
+            casterPlayer->UnsummonPetIfAny();
         }
 
         // is it really need after spell check checks?
@@ -270,9 +269,9 @@ void Aura::HandleModCharm(bool apply, bool Real)
             }
         }
 
-        if (caster->GetTypeId() == TYPEID_PLAYER)
+        if (Player* casterPlayer = caster->ToPlayer())
         {
-            ((Player*)caster)->CharmSpellInitialize();
+            casterPlayer->CharmSpellInitialize();
         }
     }
     else
@@ -283,9 +282,9 @@ void Aura::HandleModCharm(bool apply, bool Real)
         {
             targetPlayer->setFactionForRace(target->getRace());
         }
-        else
+        else if (Creature* targetCreature = target->ToCreature())
         {
-            CreatureInfo const* cinfo = ((Creature*)target)->GetCreatureInfo();
+            CreatureInfo const* cinfo = targetCreature->GetCreatureInfo();
 
             // restore faction
             if (target->IsPet())
@@ -332,9 +331,9 @@ void Aura::HandleModCharm(bool apply, bool Real)
         target->DeleteThreatList();
         target->GetHostileRefManager().deleteReferences();
 
-        if (target->GetTypeId() == TYPEID_UNIT)
+        if (Creature* targetCreature = target->ToCreature())
         {
-            ((Creature*)target)->AIM_Initialize();
+            targetCreature->AIM_Initialize();
             target->AttackedBy(caster);
         }
     }
@@ -731,9 +730,10 @@ void Aura::HandleInvisibility(bool apply, bool Real)
 
         target->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_IMMUNE_OR_LOST_SELECTION);
 
-        if (Real && target->GetTypeId() == TYPEID_PLAYER)
+        Player* targetPlayer = target->ToPlayer();
+        if (Real && targetPlayer)
         {
-            if (((Player*)target)->GetMover() == NULL) // check if the player doesnt have a mover, when player is hidden during MC of creature
+            if (targetPlayer->GetMover() == NULL) // check if the player doesnt have a mover, when player is hidden during MC of creature
             {
                 // apply glow vision
                 target->SetByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
@@ -809,9 +809,10 @@ void Aura::HandleInvisibilityDetect(bool apply, bool Real)
             target->m_detectInvisibilityMask |= (1 << (*itr)->GetModifier()->m_miscvalue);
         }
     }
-    if (Real && target->GetTypeId() == TYPEID_PLAYER)
+    Player* targetPlayer = target->ToPlayer();
+    if (Real && targetPlayer)
     {
-        ((Player*)target)->GetCamera().UpdateVisibilityForOwner();
+        targetPlayer->GetCamera().UpdateVisibilityForOwner();
     }
 }
 
@@ -1196,9 +1197,10 @@ void Aura::HandleAuraModIncreaseFlightSpeed(bool apply, bool Real)
     }
 
     // Swift Flight Form check for higher speed flying mounts
-    if (apply && target->GetTypeId() == TYPEID_PLAYER && GetSpellProto()->ID == 40121)
+    Player* targetPlayer = target->ToPlayer();
+    if (apply && targetPlayer && GetSpellProto()->ID == 40121)
     {
-        for (PlayerSpellMap::const_iterator iter = ((Player*)target)->GetSpellMap().begin(); iter != ((Player*)target)->GetSpellMap().end(); ++iter)
+        for (PlayerSpellMap::const_iterator iter = targetPlayer->GetSpellMap().begin(); iter != targetPlayer->GetSpellMap().end(); ++iter)
         {
             if (iter->second.state != PLAYERSPELL_REMOVED)
             {
@@ -1387,10 +1389,10 @@ void Aura::HandleAuraModEffectImmunity(bool apply, bool /*Real*/)
     Unit* target = GetTarget();
 
     // when removing flag aura, handle flag drop
-    if (!apply && target->GetTypeId() == TYPEID_PLAYER
+    Player* player = target->ToPlayer();
+    if (!apply && player
         && (GetSpellProto()->GetAuraInterruptFlags() & AURA_INTERRUPT_FLAG_IMMUNE_OR_LOST_SELECTION) )
     {
-        Player* player = (Player*)target;
         if (BattleGround* bg = player->GetBattleGround())
         {
             bg->EventPlayerDroppedFlag(player);

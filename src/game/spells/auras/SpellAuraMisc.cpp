@@ -290,10 +290,10 @@ void Aura::HandleShapeshiftBoosts(bool apply)
             target->RemoveAurasDueToSpell(MasterShaperSpellId);
         }
 
-        if (target->GetTypeId() == TYPEID_PLAYER)
+        if (Player* targetPlayer = target->ToPlayer())
         {
             // re-apply passive spells that don't need shapeshift but were inactive in current form:
-            const PlayerSpellMap& sp_list = ((Player*)target)->GetSpellMap();
+            const PlayerSpellMap& sp_list = targetPlayer->GetSpellMap();
             for (PlayerSpellMap::const_iterator itr = sp_list.begin(); itr != sp_list.end(); ++itr)
             {
                 if (itr->second.state == PLAYERSPELL_REMOVED) continue;
@@ -438,7 +438,8 @@ void Aura::HandleModRating(bool apply, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -446,7 +447,7 @@ void Aura::HandleModRating(bool apply, bool Real)
     for (uint32 rating = 0; rating < MAX_COMBAT_RATING; ++rating)
         if (m_modifier.m_miscvalue & (1 << rating))
         {
-            ((Player*)GetTarget())->ApplyRatingMod(CombatRating(rating), m_modifier.m_amount, apply);
+            targetPlayer->ApplyRatingMod(CombatRating(rating), m_modifier.m_amount, apply);
         }
 }
 
@@ -458,7 +459,8 @@ void Aura::HandleModRatingFromStat(bool apply, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -466,7 +468,7 @@ void Aura::HandleModRatingFromStat(bool apply, bool Real)
     for (uint32 rating = 0; rating < MAX_COMBAT_RATING; ++rating)
         if (m_modifier.m_miscvalue & (1 << rating))
         {
-            ((Player*)GetTarget())->ApplyRatingMod(CombatRating(rating), 0, apply);
+            targetPlayer->ApplyRatingMod(CombatRating(rating), 0, apply);
         }
 }
 
@@ -489,13 +491,14 @@ void Aura::HandleForceMoveForward(bool apply, bool Real)
 
 void Aura::HandleAuraModExpertise(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)GetTarget())->UpdateExpertise(BASE_ATTACK);
-    ((Player*)GetTarget())->UpdateExpertise(OFF_ATTACK);
+    targetPlayer->UpdateExpertise(BASE_ATTACK);
+    targetPlayer->UpdateExpertise(OFF_ATTACK);
 }
 
 void Aura::HandleModTargetResistance(bool apply, bool Real)
@@ -528,9 +531,9 @@ void Aura::HandleModTargetResistance(bool apply, bool Real)
  */
 void Aura::HandleModShieldBlockDamage(bool apply, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = GetTarget()->ToPlayer())
     {
-        ((Player*)GetTarget())->HandleBaseModValue(SHIELD_BLOCK_DAMAGE_VALUE, FLAT_MOD, float(m_modifier.m_amount), apply);
+        targetPlayer->HandleBaseModValue(SHIELD_BLOCK_DAMAGE_VALUE, FLAT_MOD, float(m_modifier.m_amount), apply);
     }
 }
 
