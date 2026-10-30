@@ -233,8 +233,7 @@ C-style casts, the `static_cast`s and the calls of the checked downcasts `ToPlay
 together, so a cast rewritten as a checked downcast leaves it where it was and a new downcast of any kind but
 `dynamic_cast` fails it; ctest `static_downcasts` at 2, the two inside `ToPet`, which test `IsPet()` first; ctest
 `dynamic_downcasts` at 12, the waypoint commands' six that ask whether a creature is a
-waypoint marker and the harness's six that ask for its own AI or summon; ctest `const_casts` at 1,
-`Player::GetMover() const` answering with the player itself),
+waypoint marker and the harness's six that ask for its own AI or summon; ctest `const_casts` at 0),
 the database-call count, and ctest `manager_isolation`, which also holds the managers and the stores (its manager
 list, every file under `data/`, `SpellMgr` and `SocialMgr`) at no singleton reference but their own accessor: a
 manager or a store takes its dependencies in the constructor, or the read as a parameter.
