@@ -1182,17 +1182,7 @@ void Pet::SynchronizeLevelWithOwner()
 void Pet::SetModeFlags(PetModeFlags mode)
 {
     m_petModeFlags = mode;
-
-    Unit* owner = GetOwner();
-    if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
-    {
-        return;
-    }
-
-    WorldPacket data(SMSG_PET_MODE, 12);
-    data << GetObjectGuid();
-    data << uint32(m_petModeFlags);
-    ((Player*)owner)->GetSession()->SendPacket(&data);
+    ReportModeFlags();
 }
 
 void Pet::SetStayPosition(bool stay)
@@ -1232,14 +1222,25 @@ void Pet::ApplyModeFlags(PetModeFlags mode, bool apply)
         m_petModeFlags = PetModeFlags(m_petModeFlags & ~mode);
     }
 
+    ReportModeFlags();
+}
+
+/**
+ * @brief Tells the owner's client the pet's mode flags.
+ */
+void Pet::ReportModeFlags() const
+{
     Unit* owner = GetOwner();
-    if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
+    if (!owner)
     {
         return;
     }
 
-    WorldPacket data(SMSG_PET_MODE, 12);
-    data << GetObjectGuid();
-    data << uint32(m_petModeFlags);
-    ((Player*)owner)->GetSession()->SendPacket(&data);
+    if (ClientCallbacks const* client = owner->GetClientCallbacks())
+    {
+        PetModeFact fact;
+        fact.pet = GetObjectGuid();
+        fact.modeFlags = uint32(m_petModeFlags);
+        ReportClientFact(client->petMode, fact);
+    }
 }

@@ -395,6 +395,8 @@ class Pet : public Creature
         DeclinedName* m_declinedname;
 
     private:
+        void ReportModeFlags() const;
+
         PetModeFlags m_petModeFlags;
 
         void SaveToDB(uint32, uint8, uint32) override       // overwrite of Creature::SaveToDB     - don't must be called

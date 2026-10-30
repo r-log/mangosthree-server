@@ -88,6 +88,51 @@ namespace
         return fact;
     }
 
+    PetModeFact PetMode(ObjectGuid pet, uint32 modeFlags)
+    {
+        PetModeFact fact;
+        fact.pet = pet;
+        fact.modeFlags = modeFlags;
+        return fact;
+    }
+
+    PetSpellLearnedFact Learned(uint32 spellId)
+    {
+        PetSpellLearnedFact fact;
+        fact.spellId = spellId;
+        return fact;
+    }
+
+    PetSpellRemovedFact Removed(uint32 spellId)
+    {
+        PetSpellRemovedFact fact;
+        fact.spellId = spellId;
+        return fact;
+    }
+
+    PetActionFeedbackFact Feedback(uint8 message)
+    {
+        PetActionFeedbackFact fact;
+        fact.message = message;
+        return fact;
+    }
+
+    PetTalkFact Talk(ObjectGuid pet, uint32 talk)
+    {
+        PetTalkFact fact;
+        fact.pet = pet;
+        fact.talk = talk;
+        return fact;
+    }
+
+    PetAiReactionFact Reaction(ObjectGuid pet, uint32 reaction)
+    {
+        PetAiReactionFact fact;
+        fact.pet = pet;
+        fact.reaction = reaction;
+        return fact;
+    }
+
     StandStateFact Stand(uint8 state)
     {
         StandStateFact fact;
@@ -307,6 +352,12 @@ namespace
         ReportClientFact(callbacks.autoRepeatCancelled, AutoRepeat(kCreature));
         ReportClientFact(callbacks.currentPet, PetIs(kPet));
         ReportClientFact(callbacks.petActionBarCleared, PetActionBarClearedFact());
+        ReportClientFact(callbacks.petMode, PetMode(kPet, 0x0101));
+        ReportClientFact(callbacks.petSpellLearned, Learned(12345));
+        ReportClientFact(callbacks.petSpellRemoved, Removed(12345));
+        ReportClientFact(callbacks.petActionFeedback, Feedback(2));
+        ReportClientFact(callbacks.petTalk, Talk(kPet, 1));
+        ReportClientFact(callbacks.petAiReaction, Reaction(kPet, 2));
         ReportClientFact(callbacks.standState, Stand(8));
         ReportClientFact(callbacks.durabilityDeath, DurabilityDeathFact());
         ReportClientFact(callbacks.pvpCredit, Credit(40, kPlayer, 5));
@@ -335,6 +386,12 @@ namespace
         "6436:f12ab80b30f1",
         "2d26:0100000001000000a00140f1",
         "4114:0000000000000000",
+        "2235:01000000a00140f101010000",
+        "0507:39300000",
+        "6a04:39300000",
+        "0807:02",
+        "4324:01000000a00140f101000000",
+        "0637:01000000a00140f102000000",
         "6f04:08",
         "4c27:",
         "6015:280000000000f0000000000005000000",
@@ -439,6 +496,34 @@ TEST(PlayerClientPackets_PetGuidsBytes)
 TEST(PlayerClientPackets_PetActionBarClearedBytes)
 {
     CHECK_STR(Built(&BuildPetActionBarClearedPacket, PetActionBarClearedFact()), "4114:0000000000000000");
+}
+
+// SMSG_PET_MODE (0x2235): the pet's raw guid as a uint64, then its mode flags as a uint32.
+TEST(PlayerClientPackets_PetModeBytes)
+{
+    CHECK_STR(Built(&BuildPetModePacket, PetMode(kPet, 0x0101)), "2235:01000000a00140f101010000");
+    CHECK_STR(Built(&BuildPetModePacket, PetMode(kPet, 0)), "2235:01000000a00140f100000000");
+}
+
+// SMSG_PET_LEARNED_SPELL (0x0507) and SMSG_PET_REMOVED_SPELL (0x6A04): the spell id as a uint32.
+TEST(PlayerClientPackets_PetSpellBytes)
+{
+    CHECK_STR(Built(&BuildPetLearnedSpellPacket, Learned(12345)), "0507:39300000");
+    CHECK_STR(Built(&BuildPetRemovedSpellPacket, Removed(12345)), "6a04:39300000");
+}
+
+// SMSG_PET_ACTION_FEEDBACK (0x0807): the feedback code, one byte.
+TEST(PlayerClientPackets_PetActionFeedbackBytes)
+{
+    CHECK_STR(Built(&BuildPetActionFeedbackPacket, Feedback(2)), "0807:02");
+}
+
+// SMSG_PET_ACTION_SOUND (0x4324) and SMSG_AI_REACTION (0x0637): the pet's raw guid as a uint64,
+// then the sound or the reaction as a uint32.
+TEST(PlayerClientPackets_PetSoundAndReactionBytes)
+{
+    CHECK_STR(Built(&BuildPetActionSoundPacket, Talk(kPet, 1)), "4324:01000000a00140f101000000");
+    CHECK_STR(Built(&BuildPetAiReactionPacket, Reaction(kPet, 2)), "0637:01000000a00140f102000000");
 }
 
 // SMSG_STANDSTATE_UPDATE (0x6F04): the state, one byte.
@@ -593,8 +678,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 24u);
-    for (size_t i = 0; i < 24; ++i)
+    REQUIRE(session.sent.size() == 30u);
+    for (size_t i = 0; i < 30; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -614,9 +699,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 24u);
-    REQUIRE(second.sent.size() == 24u);
-    for (size_t i = 0; i < 24; ++i)
+    REQUIRE(first.sent.size() == 30u);
+    REQUIRE(second.sent.size() == 30u);
+    for (size_t i = 0; i < 30; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);

@@ -616,13 +616,14 @@ bool Pet::learnSpell(uint32 spell_id)
         Unit* owner = GetOwner();
         if (owner && owner->GetTypeId() == TYPEID_PLAYER)
         {
-            WorldPacket data(SMSG_PET_LEARNED_SPELL, 4);
-            data << uint32(spell_id);
-            ((Player*)owner)->GetSession()->SendPacket(&data);
-
+            if (ClientCallbacks const* client = owner->GetClientCallbacks())
             {
-                ((Player*)owner)->PetSpellInitialize();
+                PetSpellLearnedFact fact;
+                fact.spellId = spell_id;
+                ReportClientFact(client->petSpellLearned, fact);
             }
+
+            ((Player*)owner)->PetSpellInitialize();
         }
     }
     return true;
@@ -693,11 +694,11 @@ bool Pet::unlearnSpell(uint32 spell_id, bool learn_prev, bool clear_ab)
         {
             if (Unit* owner = GetOwner())
             {
-                if (owner->GetTypeId() == TYPEID_PLAYER)
+                if (ClientCallbacks const* client = owner->GetClientCallbacks())
                 {
-                    WorldPacket data(SMSG_PET_REMOVED_SPELL, 4);
-                    data << uint32(spell_id);
-                    ((Player*)owner)->GetSession()->SendPacket(&data);
+                    PetSpellRemovedFact fact;
+                    fact.spellId = spell_id;
+                    ReportClientFact(client->petSpellRemoved, fact);
                 }
             }
         }

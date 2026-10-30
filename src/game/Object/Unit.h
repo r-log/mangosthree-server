@@ -3142,6 +3142,8 @@ class Unit : public WorldObject
          * \see Unit::GetOwnerGuid
          */
         Unit* GetOwner() const;
+        /// The callbacks of this unit's own client; NULL for a unit that is not a player.
+        ClientCallbacks const* GetClientCallbacks() const { return m_clientCallbacks; }
         /**
          * Returns the \ref Pet for this \ref Unit if any
          * @return the \ref Pet that is associated with this \ref Unit if any, NULL if there is none
