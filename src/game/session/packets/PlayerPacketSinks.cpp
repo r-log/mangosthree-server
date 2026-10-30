@@ -122,6 +122,10 @@ void InstallPlayerPacketSinks(Player& player)
     callbacks.viewReset = ViewResetToCamera(&player);
     callbacks.possessBar = PossessBarToSession(&player);
     player.SetClientCallbacks(callbacks);
-    player.SetGroupCallbacks(GroupCallbacksFor<GroupCallbacks>(&player));
+    GroupCallbacks group = GroupCallbacksFor<GroupCallbacks>(&player);
+    Player* owner = &player;
+    group.groupVisibleFor = [owner](Player* viewer) { return IsGroupVisible(*owner, viewer); };
+    group.nextRandomRaidMember = [owner](float radius) { return RandomRaidMemberNear(*owner, radius); };
+    player.SetGroupCallbacks(group);
     player.SetSpellModSink(FactToSession(&player, &BuildSpellModifierPacket));
 }

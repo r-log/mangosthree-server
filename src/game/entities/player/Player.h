@@ -2367,8 +2367,6 @@ class Player : public Unit
         // Send duel countdown
         void SendDuelCountdown(uint32 counter);
 
-        // Check if the player is visible for another player in the group
-        bool IsGroupVisibleFor(Player* p) const override final;
 
         // Check if the player is in the same group with another player
         bool IsInSameGroupWith(Player const* p) const;
@@ -3604,8 +3602,6 @@ class Player : public Unit
         // Set the aura update mask
         void SetAuraUpdateMask(uint8 slot) { m_auraUpdateMask |= (uint64(1) << slot); }
 
-        // Get the next random raid member within a radius
-        Player* GetNextRandomRaidMember(float radius) override final;
 
         // Check if the player can be uninvited from the group
         PartyResult CanUninviteFromGroup(ObjectGuid guidMember = ObjectGuid()) const;

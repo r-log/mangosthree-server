@@ -3559,10 +3559,11 @@ class Unit : public WorldObject
         /**
          * The raid member Prayer of Mending jumps to next.
          * @param radius the distance the member stands within
-         * @return NULL here; Player returns a random other member of its group within the radius
-         * that is not invisible and not hostile to it, or NULL
+         * @return a player's answer, through the group callbacks its session installed: a random other
+         * member of its group within the radius that is not invisible and not hostile to it, or NULL;
+         * NULL for a unit that is not a player
          */
-        virtual Player* GetNextRandomRaidMember(float /*radius*/) { return NULL; }
+        Player* GetNextRandomRaidMember(float radius);
         /**
          * The rank of a talent this unit knows; SpellBonusWithCoeffs raises a death knight's attack
          * power bonus by the rank of Impurity it knows.
@@ -3811,9 +3812,10 @@ class Unit : public WorldObject
         /**
          * @param p the player that looks at this unit
          * @return whether P sees this unit through its stealth under the group visibility
-         * setting: false here; Player answers by its group, its raid or its team
+         * setting: a player's answer by its group, its raid or its team, through the group callbacks
+         * its session installed; false for a unit that is not a player
          */
-        virtual bool IsGroupVisibleFor(Player* /*p*/) const { return false; }
+        bool IsGroupVisibleFor(Player* p) const;
         /**
          * @return the drunk value canDetectInvisibilityOf takes as this unit's detection level
          * against the drunk invisibility: 0 here; Player returns its own

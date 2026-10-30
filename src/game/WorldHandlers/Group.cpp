@@ -1886,4 +1886,61 @@ void Group::OfflineReadyCheck()
     }
 }
 
+/**
+ * @brief Checks whether a player is visible to another through group visibility rules.
+ *
+ * @param player The player looked at.
+ * @param viewer The player to test visibility against.
+ * @return True if the player is group-visible; otherwise, false.
+ */
+bool IsGroupVisible(Player const& player, Player* viewer)
+{
+    switch (sGameConfig.getConfig(CONFIG_UINT32_GROUP_VISIBILITY))
+    {
+        default:
+            return player.IsInSameGroupWith(viewer);
+        case 1:
+            return player.IsInSameRaidWith(viewer);
+        case 2:
+            return player.GetTeam() == viewer->GetTeam();
+    }
+}
 
+/**
+ * @brief Selects a random raid member near a player within a radius.
+ *
+ * @param player The player whose group is searched.
+ * @param radius The maximum search radius.
+ * @return A random eligible raid member, or NULL if none are found.
+ */
+Player* RandomRaidMemberNear(Player& player, float radius)
+{
+    Group* pGroup = player.GetGroup();
+    if (!pGroup)
+    {
+        return NULL;
+    }
+
+    std::vector<Player*> nearMembers;
+    nearMembers.reserve(pGroup->GetMembersCount());
+
+    for (GroupReference* itr = pGroup->GetFirstMember(); itr != NULL; itr = itr->next())
+    {
+        Player* Target = itr->getSource();
+
+        // IsHostileTo check duel and controlled by enemy
+        if (Target && Target != &player && InReach(player, *Target, radius) &&
+                !Target->HasInvisibilityAura() && !player.IsHostileTo(Target))
+                {
+                    nearMembers.push_back(Target);
+                }
+    }
+
+    if (nearMembers.empty())
+    {
+        return NULL;
+    }
+
+    uint32 randTarget = urand(0, nearMembers.size() - 1);
+    return nearMembers[randTarget];
+}

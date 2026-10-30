@@ -48,25 +48,6 @@
 
 #include <cmath>
 /**
- * @brief Checks whether another player should be visible through group visibility rules.
- *
- * @param p The player to test visibility against.
- * @return True if the player is group-visible; otherwise, false.
- */
-bool Player::IsGroupVisibleFor(Player* p) const
-{
-    switch (sGameConfig.getConfig(CONFIG_UINT32_GROUP_VISIBILITY))
-    {
-        default:
-            return IsInSameGroupWith(p);
-        case 1:
-            return IsInSameRaidWith(p);
-        case 2:
-            return GetTeam() == p->GetTeam();
-    }
-}
-
-/**
  * @brief Checks whether this player and another player are in the same subgroup.
  *
  * @param p The other player to compare.
@@ -176,44 +157,6 @@ void Player::SendUpdateToOutOfRangeGroupMembers()
     {
         pet->ResetAuraUpdateMask();
     }
-}
-
-/**
- * @brief Selects a random nearby raid member within a radius.
- *
- * @param radius The maximum search radius.
- * @return A random eligible raid member, or NULL if none are found.
- */
-Player* Player::GetNextRandomRaidMember(float radius)
-{
-    Group* pGroup = GetGroup();
-    if (!pGroup)
-    {
-        return NULL;
-    }
-
-    std::vector<Player*> nearMembers;
-    nearMembers.reserve(pGroup->GetMembersCount());
-
-    for (GroupReference* itr = pGroup->GetFirstMember(); itr != NULL; itr = itr->next())
-    {
-        Player* Target = itr->getSource();
-
-        // IsHostileTo check duel and controlled by enemy
-        if (Target && Target != this && InReach(*this, *Target, radius) &&
-                !Target->HasInvisibilityAura() && !IsHostileTo(Target))
-                {
-                    nearMembers.push_back(Target);
-                }
-    }
-
-    if (nearMembers.empty())
-    {
-        return NULL;
-    }
-
-    uint32 randTarget = urand(0, nearMembers.size() - 1);
-    return nearMembers[randTarget];
 }
 
 /**

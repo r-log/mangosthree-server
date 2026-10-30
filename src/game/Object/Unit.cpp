@@ -1925,6 +1925,38 @@ void Unit::ResetCameraView()
 }
 
 /**
+ * @brief Asks a player's group whether another player sees it through its stealth.
+ *
+ * @param p The player that looks at this unit.
+ * @return The group's answer; false for a unit that is not a player.
+ */
+bool Unit::IsGroupVisibleFor(Player* p) const
+{
+    if (GroupCallbacks const* group = m_groupCallbacks)
+    {
+        MANGOS_ASSERT(group->groupVisibleFor);
+        return group->groupVisibleFor(p);
+    }
+    return false;
+}
+
+/**
+ * @brief Asks a player's group for a random other member near it.
+ *
+ * @param radius The distance the member stands within.
+ * @return The group's answer; NULL for a unit that is not a player.
+ */
+Player* Unit::GetNextRandomRaidMember(float radius)
+{
+    if (GroupCallbacks const* group = m_groupCallbacks)
+    {
+        MANGOS_ASSERT(group->nextRandomRaidMember);
+        return group->nextRandomRaidMember(radius);
+    }
+    return NULL;
+}
+
+/**
  * @brief Sets the unit's charm GUID.
  *
  * @param pet The charmed unit to assign, or NULL to clear it.
