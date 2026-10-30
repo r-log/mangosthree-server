@@ -495,9 +495,8 @@ void VehicleInfo::Board(Unit* passenger, uint8 seat)
     // No ONTRANSPORT bit in 4.3.4: the transport guid in the movement block IS the flag.
     passenger->SetTransportStatus(m_owner->GetObjectGuid(), lx, ly, lz, lo, 0, seat);
 
-    if (passenger->GetTypeId() == TYPEID_PLAYER)
+    if (Player* pPlayer = passenger->ToPlayer())
     {
-        Player* pPlayer = (Player*)passenger;
         pPlayer->RemovePet(PET_SAVE_AS_CURRENT);
 
         WorldPacket data(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA);
@@ -658,9 +657,8 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
 
     if (!changeVehicle)                                     // Send expected unboarding packages
     {
-        if (passenger->GetTypeId() == TYPEID_PLAYER)
+        if (Player* pPlayer = passenger->ToPlayer())
         {
-            Player* pPlayer = (Player*)passenger;
             pPlayer->ResummonPetTemporaryUnSummonedIfAny();
             pPlayer->SetFallInformation(0, pPlayer->Where().Z());
 
@@ -937,9 +935,8 @@ void VehicleInfo::ApplySeatMods(Unit* passenger, uint32 seatFlags)
         passenger->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
     }
 
-    if (passenger->GetTypeId() == TYPEID_PLAYER)
+    if (Player* pPlayer = passenger->ToPlayer())
     {
-        Player* pPlayer = (Player*)passenger;
 
         // group update
         if (pPlayer->GetGroup())
@@ -1014,9 +1011,8 @@ void VehicleInfo::RemoveSeatMods(Unit* passenger, uint32 seatFlags)
         passenger->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
     }
 
-    if (passenger->GetTypeId() == TYPEID_PLAYER)
+    if (Player* pPlayer = passenger->ToPlayer())
     {
-        Player* pPlayer = (Player*)passenger;
 
         // group update
         if (pPlayer->GetGroup())

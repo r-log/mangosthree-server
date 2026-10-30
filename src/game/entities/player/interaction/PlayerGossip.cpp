@@ -97,9 +97,8 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
             }
         }
 
-        if (pSource->GetTypeId() == TYPEID_UNIT)
+        if (Creature* pCreature = pSource->ToCreature())
         {
-            Creature* pCreature = (Creature*)pSource;
 
             uint32 npcflags = pCreature->GetUInt32Value(UNIT_NPC_FLAGS);
 

@@ -334,9 +334,8 @@ void Spell::FillTargetMap()
             }
         }
 
-        if (m_caster->GetTypeId() == TYPEID_PLAYER)
+        if (Player* me = m_caster->ToPlayer())
         {
-            Player* me = (Player*)m_caster;
             for (UnitList::const_iterator itr = tmpUnitLists[effToIndex[i]].begin(); itr != tmpUnitLists[effToIndex[i]].end(); ++itr)
             {
                 Player* targetOwner = (*itr)->GetCharmerOrOwnerPlayerOrPlayerItself();

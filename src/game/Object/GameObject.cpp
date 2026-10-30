@@ -659,9 +659,8 @@ bool GameObject::IsVisibleForInState(Player const* u, WorldObject const* viewPoi
             // handle summoned traps, usually by players
             if (Unit* owner = GetOwner())
             {
-                if (owner->GetTypeId() == TYPEID_PLAYER)
+                if (Player* ownerPlayer = owner->ToPlayer())
                 {
-                    Player* ownerPlayer = (Player*)owner;
                     if ((GetMap()->IsBattleGroundOrArena() && ownerPlayer->GetBGTeam() != u->GetBGTeam()) ||
                         (ownerPlayer->IsInDuelWith(u)) ||
                         (ownerPlayer->GetTeam() != u->GetTeam()))

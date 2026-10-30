@@ -292,9 +292,8 @@ void GameObject::Use(Unit* user)
         {
             // Handle OutdoorPvP use cases
             // Note: this may be also handled by DB spell scripts in the future, when the world state manager is implemented
-            if (user->GetTypeId() == TYPEID_PLAYER)
+            if (Player* player = user->ToPlayer())
             {
-                Player* player = (Player*)user;
                 if (OutdoorPvP* outdoorPvP = sOutdoorPvPMgr.GetScript(player->GetCachedZoneId()))
                 {
                     outdoorPvP->HandleGameObjectUse(player, this);
@@ -320,9 +319,8 @@ void GameObject::Use(Unit* user)
 
             m_cooldownTime = time(NULL) + info->GetAutoCloseTime();
 
-            if (user->GetTypeId() == TYPEID_PLAYER)
+            if (Player* player = user->ToPlayer())
             {
-                Player* player = (Player*)user;
 
                 if (info->goober.pageId)                    // show page...
                 {
