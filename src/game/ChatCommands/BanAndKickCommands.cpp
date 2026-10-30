@@ -37,7 +37,7 @@
 #include <string>
 #include "Chat.h"
 #include "Language.h"
-#include "World.h"
+#include "data/ServerControl.h"
 #include "AccountMgr.h"
 #include "Util.h"
 #include "ObjectMgr.h"
@@ -198,7 +198,7 @@ bool ChatHandler::HandleBanHelper(BanMode mode, char* args)
             break;
     }
 
-    switch (sWorld.BanAccount(mode, nameOrIP, duration_secs, reason, m_session ? m_session->GetPlayerName() : ""))
+    switch (sServerControl.Ban(mode, nameOrIP, duration_secs, reason, m_session ? m_session->GetPlayerName() : ""))
     {
         case BAN_SUCCESS:
             if (duration_secs > 0)
@@ -570,7 +570,7 @@ bool ChatHandler::HandleUnBanHelper(BanMode mode, char* args)
             break;
     }
 
-    if (sWorld.RemoveBanAccount(mode, nameOrIP))
+    if (sServerControl.RemoveBan(mode, nameOrIP))
     {
         PSendSysMessage(LANG_UNBAN_UNBANNED, nameOrIP.c_str());
     }

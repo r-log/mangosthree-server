@@ -181,7 +181,7 @@ void CliService::RunManaged()
 {
     std::string line;
 
-    while (!m_stop.load(std::memory_order_acquire) && !World::IsStopped())
+    while (!m_stop.load(std::memory_order_acquire) && !ServerControl::IsStopped())
     {
         // Already UTF-8: the console decodes keystrokes to code points itself, so
         // the consoleToUtf8() step of the line-based path would double-convert.
@@ -201,7 +201,7 @@ void CliService::RunLineBased()
 {
     char buffer[256];
 
-    while (!m_stop.load(std::memory_order_acquire) && !World::IsStopped())
+    while (!m_stop.load(std::memory_order_acquire) && !ServerControl::IsStopped())
     {
 #ifndef _WIN32
         // Poll rather than block, so shutdown does not have to wait for the
@@ -209,7 +209,7 @@ void CliService::RunLineBased()
         // ten commands a second.
         while (!LinePending())
         {
-            if (m_stop.load(std::memory_order_acquire) || World::IsStopped())
+            if (m_stop.load(std::memory_order_acquire) || ServerControl::IsStopped())
             {
                 return;
             }
@@ -241,7 +241,7 @@ void CliService::RunLineBased()
             // console in service mode (Master.cpp); nothing covered POSIX.
             if (StdinIsTerminal())
             {
-                World::StopNow(SHUTDOWN_EXIT_CODE);
+                ServerControl::StopNow(SHUTDOWN_EXIT_CODE);
             }
             else
             {

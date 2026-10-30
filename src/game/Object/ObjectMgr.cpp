@@ -42,7 +42,6 @@
 #include "MapManager.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
 #include "data/GameConfig.h"
 #include "Group.h"
 #include "ArenaTeam.h"
@@ -223,7 +222,7 @@ T IdGenerator<T>::Generate()
     if (m_nextGuid >= std::numeric_limits<T>::max() - 1)
     {
         sLog.outError("%s guid overflow!! Can't continue, shutting down server. ", m_name);
-        World::StopNow(ERROR_EXIT_CODE);
+        GuidOverflow();
     }
     return m_nextGuid++;
 }

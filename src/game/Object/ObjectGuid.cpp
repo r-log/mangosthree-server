@@ -26,10 +26,28 @@
 #include <string>
 #include "ObjectGuid.h"
 
-#include "World.h"
 #include "ObjectMgr.h"
 
+#include <atomic>
 #include <sstream>
+
+namespace
+{
+    std::atomic<GuidOverflowHandler> s_overflowHandler(NULL);
+}
+
+GuidOverflowHandler InstallGuidOverflowHandler(GuidOverflowHandler handler)
+{
+    return s_overflowHandler.exchange(handler, std::memory_order_acq_rel);
+}
+
+void GuidOverflow()
+{
+    if (GuidOverflowHandler handler = s_overflowHandler.load(std::memory_order_acquire))
+    {
+        handler();
+    }
+}
 
 /**
  * @brief Gets a human-readable type name for a high GUID category.
@@ -98,7 +116,7 @@ uint32 ObjectGuidGenerator<high>::Generate()
     if (m_nextGuid >= ObjectGuid::GetMaxCounter(high) - 1)
     {
         sLog.outError("%s guid overflow!! Can't continue, shutting down server. ", ObjectGuid::GetTypeName(high));
-        World::StopNow(ERROR_EXIT_CODE);
+        GuidOverflow();
     }
     return m_nextGuid++;
 }

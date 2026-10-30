@@ -38,7 +38,7 @@
 #include "Chat.h"
 #include "CreatureEventAI.h"
 #include "Language.h"
-#include "World.h"
+#include "data/ServerControl.h"
 #include "data/GameConfig.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
@@ -1336,14 +1336,14 @@ bool ChatHandler::HandleNpcSubNameCommand(char* /*args*/)
  */
 bool ChatHandler::HandleNpcAllowMovementCommand(char* /*args*/)
 {
-    if (sWorld.getAllowMovement())
+    if (sServerControl.MovementAllowed())
     {
-        sWorld.SetAllowMovement(false);
+        sServerControl.SetMovementAllowed(false);
         SendSysMessage(LANG_CREATURE_MOVE_DISABLED);
     }
     else
     {
-        sWorld.SetAllowMovement(true);
+        sServerControl.SetMovementAllowed(true);
         SendSysMessage(LANG_CREATURE_MOVE_ENABLED);
     }
     return true;

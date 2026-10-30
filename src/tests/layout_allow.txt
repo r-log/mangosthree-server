@@ -54,11 +54,7 @@ src/game/BattleGround/BattleGroundSA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/proto/WorldPacket.h
 src/game/ChatCommands/AHBotCommands.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
-src/game/ChatCommands/BanAndKickCommands.cpp -> src/game/WorldHandlers/World.h
-src/game/ChatCommands/CreatureCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/DebugCommands.cpp -> src/game/Harness/Harness.h
-src/game/ChatCommands/ReloadCommands.cpp -> src/game/WorldHandlers/World.h
-src/game/ChatCommands/ServerCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/GridMap.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/Map.h
@@ -196,7 +192,6 @@ src/game/Object/LootMgr.cpp -> src/game/entities/player/Player.h
 src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Object.h -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectGuid.cpp -> src/game/Object/ObjectMgr.h
-src/game/Object/ObjectGuid.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
@@ -212,7 +207,6 @@ src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Mail.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #511
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/data/SpellMgr.h
@@ -363,7 +357,6 @@ src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/social/SocialList
 src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/ChannelMgr.cpp -> src/game/Server/WorldSession.h
-src/game/WorldHandlers/CharacterHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Chat.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/Creature.h

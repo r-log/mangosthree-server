@@ -121,13 +121,13 @@ static void on_signal(int s)
     switch (s)
     {
         case SIGINT:
-            World::StopNow(RESTART_EXIT_CODE);
+            ServerControl::StopNow(RESTART_EXIT_CODE);
             break;
         case SIGTERM:
 #ifdef _WIN32
         case SIGBREAK:
 #endif
-            World::StopNow(SHUTDOWN_EXIT_CODE);
+            ServerControl::StopNow(SHUTDOWN_EXIT_CODE);
             break;
     }
 

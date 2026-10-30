@@ -49,6 +49,7 @@
 #include "WorldGameTime.h"
 #include "session/SessionRegistry.h"
 #include "data/WorldBroadcast.h"
+#include "data/ServerControl.h"
 
 #include <map>
 #include <set>
@@ -79,18 +80,6 @@ enum ServerMessageType
     SERVER_MSG_INSTANCE_RESTART_TIME  = 9,
 };
 
-enum ShutdownMask
-{
-    SHUTDOWN_MASK_RESTART = 1,
-    SHUTDOWN_MASK_IDLE    = 2,
-};
-
-enum ShutdownExitCode
-{
-    SHUTDOWN_EXIT_CODE = 0,
-    ERROR_EXIT_CODE    = 1,
-    RESTART_EXIT_CODE  = 2,
-};
 
 /// Timers for different object refresh rates
 enum WorldTimers
@@ -155,7 +144,7 @@ class AfterMapPhaseQueue
 };
 
 /// The World
-class World : public WorldBroadcast
+class World : public WorldBroadcast, public ServerControl
 {
     public:
         static std::atomic<uint32> m_worldLoopCounter;
@@ -167,14 +156,14 @@ class World : public WorldBroadcast
 
         /// \todo Actions on m_allowMovement still to be implemented
         /// Is movement allowed?
-        bool getAllowMovement() const { return m_allowMovement; }
+        bool MovementAllowed() const override { return m_allowMovement; }
         /// Allow/Disallow object movements
-        void SetAllowMovement(bool allow) { m_allowMovement = allow; }
+        void SetMovementAllowed(bool allow) override { m_allowMovement = allow; }
 
         /// Set a new Message of the Day
-        void SetMotd(const std::string& motd) { m_motd = motd; }
+        void SetMotd(std::string const& motd) override { m_motd = motd; }
         /// Get the current Message of the Day
-        const char* GetMotd() const { return m_motd.c_str(); }
+        char const* Motd() const override { return m_motd.c_str(); }
         void showFooter();
 
         LocaleConstant GetDefaultDbcLocale() const { return sGameConfig.GetDefaultDbcLocale(); }
@@ -184,7 +173,7 @@ class World : public WorldBroadcast
         /// When server started?
         time_t const& GetStartTime() const { return m_startTime; }
         /// Uptime (in secs)
-        uint32 GetUptime() const { return uint32(WorldGameTime::Get() - m_startTime); }
+        uint32 Uptime() const override { return uint32(WorldGameTime::Get() - m_startTime); }
         /// Next daily quests reset time
         time_t GetNextDailyQuestsResetTime() const { return m_NextDailyQuestReset; }
         time_t GetNextWeeklyQuestsResetTime() const { return m_NextWeeklyQuestReset; }
@@ -194,6 +183,7 @@ class World : public WorldBroadcast
 
         void SetInitialWorldSettings();
         void LoadConfigSettings(bool reload = false);
+        void ReloadConfig() override { LoadConfigSettings(true); }
 
         void WorldTextV(int32 stringId, va_list* args) override;
         void SendServerMessage(ServerMessageType type, const char* text = "", Player* player = NULL);
@@ -204,13 +194,10 @@ class World : public WorldBroadcast
         void WorldStateChanged(uint32 field, uint32 value) override;
 
         /// Are we in the middle of a shutdown?
-        bool IsShutdowning() const { return m_ShutdownTimer > 0; }
-        void ShutdownServ(uint32 time, uint32 options, uint8 exitcode);
-        void ShutdownCancel();
-        void ShutdownMsg(bool show = false, Player* player = NULL);
-        static uint8 GetExitCode() { return m_ExitCode; }
-        static void StopNow(uint8 exitcode) { m_stopEvent = true; m_ExitCode = exitcode; }
-        static bool IsStopped() { return m_stopEvent; }
+        bool IsShuttingDown() const override { return m_ShutdownTimer > 0; }
+        void Shutdown(uint32 delay, uint32 options, uint8 exitCode) override;
+        void CancelShutdown() override;
+        void ShutdownMessage(bool show = false, Player* player = NULL) override;
 
         void Update(uint32 diff);
 
@@ -250,8 +237,8 @@ class World : public WorldBroadcast
         bool IsPvPRealm() { return sGameConfig.IsPvPRealm(); }
         bool IsFFAPvPRealm() { return sGameConfig.IsFFAPvPRealm(); }
 
-        BanReturn BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_secs, std::string reason, const std::string& author);
-        bool RemoveBanAccount(BanMode mode, std::string nameOrIP);
+        BanReturn Ban(BanMode mode, std::string nameOrIP, uint32 durationSecs, std::string reason, std::string const& author) override;
+        bool RemoveBan(BanMode mode, std::string nameOrIP) override;
 
         void ProcessCliCommands();
         void QueueCliCommand(CliCommandHolder* commandHolder) { std::lock_guard<std::mutex> guard(m_cliCommandQueueLock); m_cliCommandQueue.push_back(commandHolder); }
@@ -265,9 +252,9 @@ class World : public WorldBroadcast
 
         // used World DB version
         void LoadDBVersion();
-        char const* GetDBVersion() { return m_DBVersion.c_str(); }
+        char const* DbVersion() const override { return m_DBVersion.c_str(); }
 
-        void LoadBroadcastStrings();
+        void LoadBroadcastStrings() override;
 
     protected:
         void _UpdateGameTime();
@@ -319,8 +306,6 @@ class World : public WorldBroadcast
         bool m_broadcastEnable;
         IntervalTimer m_broadcastTimer;
 
-        static volatile bool m_stopEvent;
-        static uint8 m_ExitCode;
         uint32 m_ShutdownTimer;
         uint32 m_ShutdownMask;
 

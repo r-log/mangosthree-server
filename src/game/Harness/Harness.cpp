@@ -325,7 +325,7 @@ namespace Harness
         // The last drain (Master::Run, after the delay threads are halted) runs whatever
         // was still queued when the stop came -- on a world whose maps are being unloaded.
         // Starting a run there would create a map behind the shutdown's back.
-        if (World::IsStopped())
+        if (ServerControl::IsStopped())
         {
             sLog.outString("MVTEST refused: the server is shutting down");
             m_queue.clear();

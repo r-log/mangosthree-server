@@ -74,7 +74,7 @@ class Master
         void StartServices();
         void StopServices();
 
-        /// The world heartbeat. Returns when World::IsStopped() becomes true.
+        /// The world heartbeat. Returns when ServerControl::IsStopped() becomes true.
         void WorldLoop();
 
         /// Push the once-a-second figures into the full-screen console's status

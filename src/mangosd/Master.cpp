@@ -265,7 +265,7 @@ void Master::PublishConsoleStatus(uint32 diff)
         return;
     }
 
-    const uint32 uptime = sWorld.GetUptime();
+    const uint32 uptime = sServerControl.Uptime();
     char buf[64];
 
     snprintf(buf, sizeof(buf), "%u / %u", sSessionRegistry.ActiveCount(),
@@ -293,7 +293,7 @@ void Master::WorldLoop()
     uint32 previous = getMSTime();
     uint32 lastStatus = 0;
 
-    while (!World::IsStopped())
+    while (!ServerControl::IsStopped())
     {
         // Read by the freeze watchdog to tell a busy server from a wedged one.
         ++World::m_worldLoopCounter;
@@ -326,7 +326,7 @@ void Master::WorldLoop()
 #ifdef _WIN32
         if (m_ServiceStatus == 0)               // service stopped
         {
-            World::StopNow(SHUTDOWN_EXIT_CODE);
+            ServerControl::StopNow(SHUTDOWN_EXIT_CODE);
         }
         while (m_ServiceStatus == 2)            // service paused
         {
@@ -484,5 +484,5 @@ int Master::Run()
     DatabaseLifecycle::EndWorldThread();
 
     sLog.outString("Halting process...");
-    return World::GetExitCode();
+    return ServerControl::ExitCode();
 }

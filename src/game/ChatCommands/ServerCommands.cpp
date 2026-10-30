@@ -37,7 +37,7 @@
 #include <string>
 #include "Chat.h"
 #include "Language.h"
-#include "World.h"
+#include "data/ServerControl.h"
 #include "session/SessionRegistry.h"
 #include "Config.h"
 #include "Version.h"
@@ -70,7 +70,7 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
     uint32 queuedClientsNum = sSessionRegistry.QueuedCount();
     uint32 maxActiveClientsNum = sSessionRegistry.MaxActiveCount();
     uint32 maxQueuedClientsNum = sSessionRegistry.MaxQueuedCount();
-    std::string str = secsToTimeString(sWorld.GetUptime());
+    std::string str = secsToTimeString(sServerControl.Uptime());
     uint32 updateTime = sWorldUpdateTime.GetLastUpdateTime();
 
     SendSysMessage(Version::GetFullVersion());
@@ -94,7 +94,7 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
 
     PSendSysMessage("%s", Version::GetRunningSystem());
 
-    PSendSysMessage(LANG_USING_WORLD_DB, sWorld.GetDBVersion());
+    PSendSysMessage(LANG_USING_WORLD_DB, sServerControl.DbVersion());
     PSendSysMessage(LANG_CONNECTED_USERS, activeClientsNum, maxActiveClientsNum, queuedClientsNum, maxQueuedClientsNum);
     PSendSysMessage(LANG_UPTIME, str.c_str());
     PSendSysMessage("World Delay: %u", updateTime); // ToDo: move to language string
@@ -258,7 +258,7 @@ bool ChatHandler::HandleServerDatabaseCommand(char* /*args*/)
  */
 bool ChatHandler::HandleServerMotdCommand(char* /*args*/)
 {
-    PSendSysMessage(LANG_MOTD_CURRENT, sWorld.GetMotd());
+    PSendSysMessage(LANG_MOTD_CURRENT, sServerControl.Motd());
     return true;
 }
 
@@ -270,7 +270,7 @@ bool ChatHandler::HandleServerMotdCommand(char* /*args*/)
  */
 bool ChatHandler::HandleServerShutDownCancelCommand(char* /*args*/)
 {
-    sWorld.ShutdownCancel();
+    sServerControl.CancelShutdown();
     return true;
 }
 
@@ -302,7 +302,7 @@ bool ChatHandler::HandleServerShutDownCommand(char* args)
         return false;
     }
 
-    sWorld.ShutdownServ(delay, 0, exitcode);
+    sServerControl.Shutdown(delay, 0, exitcode);
     return true;
 }
 
@@ -334,7 +334,7 @@ bool ChatHandler::HandleServerRestartCommand(char* args)
         return false;
     }
 
-    sWorld.ShutdownServ(delay, SHUTDOWN_MASK_RESTART, exitcode);
+    sServerControl.Shutdown(delay, SHUTDOWN_MASK_RESTART, exitcode);
     return true;
 }
 
@@ -366,7 +366,7 @@ bool ChatHandler::HandleServerIdleRestartCommand(char* args)
         return false;
     }
 
-    sWorld.ShutdownServ(delay, SHUTDOWN_MASK_RESTART | SHUTDOWN_MASK_IDLE, exitcode);
+    sServerControl.Shutdown(delay, SHUTDOWN_MASK_RESTART | SHUTDOWN_MASK_IDLE, exitcode);
     return true;
 }
 
@@ -398,7 +398,7 @@ bool ChatHandler::HandleServerIdleShutDownCommand(char* args)
         return false;
     }
 
-    sWorld.ShutdownServ(delay, SHUTDOWN_MASK_IDLE, exitcode);
+    sServerControl.Shutdown(delay, SHUTDOWN_MASK_IDLE, exitcode);
     return true;
 }
 
@@ -411,7 +411,7 @@ bool ChatHandler::HandleServerIdleShutDownCommand(char* args)
 bool ChatHandler::HandleServerExitCommand(char* /*args*/)
 {
     SendSysMessage(LANG_COMMAND_EXIT);
-    World::StopNow(SHUTDOWN_EXIT_CODE);
+    ServerControl::StopNow(SHUTDOWN_EXIT_CODE);
     return true;
 }
 
@@ -524,7 +524,7 @@ bool ChatHandler::HandleServerResetAllRaidCommand(char* args)
  */
 bool ChatHandler::HandleServerSetMotdCommand(char* args)
 {
-    sWorld.SetMotd(args);
+    sServerControl.SetMotd(args);
     PSendSysMessage(LANG_MOTD_NEW, args);
     return true;
 }

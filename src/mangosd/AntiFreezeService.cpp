@@ -93,7 +93,7 @@ void AntiFreezeService::Run()
                             [this] { return m_stop.load(std::memory_order_acquire); });
         }
 
-        if (m_stop.load(std::memory_order_acquire) || World::IsStopped())
+        if (m_stop.load(std::memory_order_acquire) || ServerControl::IsStopped())
         {
             break;
         }

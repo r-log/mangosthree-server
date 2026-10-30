@@ -39,7 +39,7 @@
 #include "Language.h"
 #include "spells/data/SpellMgr.h"
 #include "DisableMgr.h"
-#include "World.h"
+#include "data/ServerControl.h"
 #include "session/SessionRegistry.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
@@ -319,7 +319,7 @@ bool ChatHandler::HandleReloadConfigCommand(char* /*args*/)
 {
     sLog.outString("Re-Loading config settings...");
     const bool statisticsWereOn = sGameConfig.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS);
-    sWorld.LoadConfigSettings(true);
+    sServerControl.ReloadConfig();
     sMapMgr.InitializeVisibilityDistanceInfo();
 
     // Decoupling D7i, fix round 1: the battleground statistics id counter is primed at
@@ -387,7 +387,7 @@ bool ChatHandler::HandleReloadAreaTriggerTeleportCommand(char* /*args*/)
 bool ChatHandler::HandleReloadAutoBroadcastCommand(char* /*args*/)
 {
     sLog.outString("Re-Loading broadcast strings...");
-    sWorld.LoadBroadcastStrings();
+    sServerControl.LoadBroadcastStrings();
     SendGlobalSysMessage("Broadcast strings reloaded.", SEC_MODERATOR);
     return true;
 }
