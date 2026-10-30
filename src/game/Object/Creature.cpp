@@ -2316,7 +2316,7 @@ SpellEntry const* Creature::ReachWithSpellCure(Unit* pVictim)
  * @param pl The observing player.
  * @return true if visible; otherwise, false.
  */
-bool Creature::IsVisibleInGridForPlayer(Player* pl) const
+bool Creature::IsVisibleInGridForPlayer(Player const* pl) const
 {
     // gamemaster in GM mode see all, including ghosts
     if (pl->isGameMaster())

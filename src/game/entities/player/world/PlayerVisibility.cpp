@@ -52,7 +52,7 @@
  * @param pl The observing player.
  * @return True if this player should be visible; otherwise, false.
  */
-bool Player::IsVisibleInGridForPlayer(Player* pl) const
+bool Player::IsVisibleInGridForPlayer(Player const* pl) const
 {
     // gamemaster in GM mode see all, including ghosts
     if (pl->isGameMaster() && GetSession()->GetSecurity() <= pl->GetSession()->GetSecurity())
