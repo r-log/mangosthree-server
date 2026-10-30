@@ -23,48 +23,79 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include <atomic>
 #include <string>
 #include "SocialMgr.h"
-#include "Policies/Singleton.h"
+#include "Utilities/Errors.h"
 #include "Database/DatabaseEnv.h"
 #include "Player.h"
-#include "ObjectMgr.h"
 #include "data/GameConfig.h"
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
 #include "persistence/characters/social/SocialRepository.h"
 
 
+namespace
+{
+    std::atomic<SocialMgr*> s_installed(NULL);
+}
+
 /**
  * @brief Tells the character's own client its contact list.
  *
- * The owner side of PlayerSocial::SendSocialList(fill, send), defined here because it finds the
- * character by guid (nothing is reported when the lookup finds nobody) and fills each entry from
- * the other characters. The Player-less overload in SocialList.cpp makes the fact.
+ * The owner side of PlayerSocial::SendSocialList(fill, send), defined here because the social
+ * manager finds the character by guid and fills each entry from the other characters.
  */
 void PlayerSocial::SendSocialList()
 {
-    Player* plr = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, m_playerLowGuid));
+    sSocialMgr.SendSocialList(*this);
+}
+
+/**
+ * @brief Initializes the social manager.
+ *
+ * @param players The registry it finds the other characters in.
+ */
+SocialMgr::SocialMgr(PlayerRegistry& players) : m_players(players)
+{
+}
+
+SocialMgr& SocialMgr::Installed()
+{
+    SocialMgr* mgr = s_installed.load(std::memory_order_acquire);
+    MANGOS_ASSERT(mgr);
+    return *mgr;
+}
+
+SocialMgr* SocialMgr::Install(SocialMgr* mgr)
+{
+    return s_installed.exchange(mgr, std::memory_order_acq_rel);
+}
+
+/**
+ * @brief Tells the owner of a contact list its list, when the owner is online.
+ *
+ * Nothing is reported when the lookup finds nobody. The Player-less overload in SocialList.cpp
+ * makes the fact.
+ *
+ * @param social The contact list to send.
+ */
+void SocialMgr::SendSocialList(PlayerSocial& social)
+{
+    Player* plr = m_players.Find(ObjectGuid(HIGHGUID_PLAYER, social.m_playerLowGuid));
     if (!plr)
     {
         return;
     }
 
-    SendSocialList([plr](uint32 friendLowGuid, FriendInfo& friendInfo)
+    social.SendSocialList([this, plr](uint32 friendLowGuid, FriendInfo& friendInfo)
     {
-        sSocialMgr.GetFriendInfo(plr, friendLowGuid, friendInfo);
+        GetFriendInfo(plr, friendLowGuid, friendInfo);
     },
     [plr](ContactListFact const& fact)
     {
         plr->ReportContactList(fact);
     });
-}
-
-/**
- * @brief Initializes the social manager.
- */
-SocialMgr::SocialMgr()
-{
 }
 
 /**
@@ -88,7 +119,7 @@ void SocialMgr::GetFriendInfo(Player* player, uint32 friend_lowguid, FriendInfo&
         return;
     }
 
-    Player* pFriend = sPlayerRegistry.Find(ObjectGuid(HIGHGUID_PLAYER, friend_lowguid));
+    Player* pFriend = m_players.Find(ObjectGuid(HIGHGUID_PLAYER, friend_lowguid));
 
     Team team = player->GetTeam();
     AccountTypes security = player->GetSession()->GetSecurity();
@@ -195,7 +226,7 @@ void SocialMgr::BroadcastToFriendListers(Player* player, FriendStatusFact const&
         PlayerSocialMap::const_iterator itr2 = itr->second.m_playerSocialMap.find(guid);
         if (itr2 != itr->second.m_playerSocialMap.end() && (itr2->second.Flags & SOCIAL_FLAG_FRIEND))
         {
-            Player* pFriend = sPlayerRegistry.Find(ObjectGuid(HIGHGUID_PLAYER, itr->first));
+            Player* pFriend = m_players.Find(ObjectGuid(HIGHGUID_PLAYER, itr->first));
 
             // The same verdict with the roles swapped: the lister is the viewer, the changed
             // character the seen one. The lister's facts are pure field reads (session security,

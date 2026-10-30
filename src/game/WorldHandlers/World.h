@@ -51,6 +51,7 @@
 #include "data/WorldBroadcast.h"
 #include "data/ServerControl.h"
 #include "data/ResetSchedule.h"
+#include "SocialMgr.h"
 
 #include <map>
 #include <set>
@@ -321,6 +322,8 @@ class World : public WorldBroadcast, public ServerControl
 
         // scheduled reset times
         ResetSchedule m_resets;
+
+        SocialMgr m_social;
 
 
         void ApplyAfterMapPhasePosts();

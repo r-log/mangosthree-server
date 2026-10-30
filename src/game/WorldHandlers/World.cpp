@@ -164,7 +164,7 @@ std::atomic<uint32> World::m_worldLoopCounter{0};
  * This is called once when the server starts, before any configuration
  * is loaded or systems initialized.
  */
-World::World(): mail_timer(0), mail_timer_expires(0)
+World::World(): mail_timer(0), mail_timer_expires(0), m_social(sPlayerRegistry)
 {
     m_allowMovement = true;
     m_ShutdownMask = 0;
@@ -182,6 +182,7 @@ World::World(): mail_timer(0), mail_timer_expires(0)
 
     SessionRegistry::Install(&m_sessions);
     ResetSchedule::Install(&m_resets);
+    SocialMgr::Install(&m_social);
     WorldBroadcast::Install(this);
     ServerControl::Install(this);
     InstallGuidOverflowHandler(&StopOnGuidOverflow);
@@ -215,6 +216,12 @@ World::~World()
     if (control != this)
     {
         ServerControl::Install(control);
+    }
+
+    SocialMgr* social = SocialMgr::Install(NULL);
+    if (social != &m_social)
+    {
+        SocialMgr::Install(social);
     }
 
     ResetSchedule const* resets = ResetSchedule::Install(NULL);
