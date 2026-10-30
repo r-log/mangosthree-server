@@ -577,15 +577,13 @@ bool ChatHandler::HandleFreezePlayerCommand(char* args)
     // 2. If arg is empty, gets the current selected target (returns current player if no unit selected)
     if (!targetPlayer)
     {
-        Unit* selectedTtarget = getSelectedPlayer();
-
-        if (!selectedTtarget)
+        targetPlayer = getSelectedPlayer();
+        if (!targetPlayer)
         {
             SendSysMessage(LANG_NO_CHAR_SELECTED);
             SetSentErrorMessage(true);
             return false;
         }
-        targetPlayer = (Player*)selectedTtarget;
     }
 
 
@@ -647,15 +645,13 @@ bool ChatHandler::HandleUnfreezePlayerCommand(char* args)
     // 2. If arg is empty, gets the current selected target (returns current player if no unit selected)
     if (!targetPlayer)
     {
-        Unit* selectedTtarget = getSelectedPlayer();
-
-        if (!selectedTtarget)
+        targetPlayer = getSelectedPlayer();
+        if (!targetPlayer)
         {
             SendSysMessage(LANG_NO_CHAR_SELECTED);
             SetSentErrorMessage(true);
             return false;
         }
-        targetPlayer = (Player*)selectedTtarget;
     }
 
     unFreezePlayer(targetPlayer);

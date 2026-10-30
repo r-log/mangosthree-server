@@ -120,9 +120,10 @@ bool ScriptAction::GetScriptProcessTargets(WorldObject* pOrigSource, WorldObject
 
                 if (cinfo != NULL)
                 {
-                    pBuddy = m_map->GetCreature(cinfo->GetObjectGuid(m_script->searchRadiusOrGuid));
+                    Creature* buddyCreature = m_map->GetCreature(cinfo->GetObjectGuid(m_script->searchRadiusOrGuid));
+                    pBuddy = buddyCreature;
 
-                    if (pBuddy && !((Creature*)pBuddy)->IsAlive())
+                    if (buddyCreature && !buddyCreature->IsAlive())
                     {
                         sLog.outError(" DB-SCRIPTS: Process table `db_scripts [type = %d]` id %u, command %u has buddy %u by guid %u but buddy is dead, skipping.", m_type, m_script->id, m_script->command, m_script->buddyEntry, m_script->searchRadiusOrGuid);
                         return false;
@@ -238,15 +239,15 @@ bool ScriptAction::GetScriptProcessTargets(WorldObject* pOrigSource, WorldObject
     return true;
 }
 
-/// Helper to log error information
-bool ScriptAction::LogIfNotCreature(WorldObject* pWorldObject)
+/// The creature `pWorldObject` is, or NULL after logging that the command needs one
+Creature* ScriptAction::ToCreatureOrLog(WorldObject* pWorldObject)
 {
-    if (!pWorldObject || pWorldObject->GetTypeId() != TYPEID_UNIT)
+    Creature* creature = pWorldObject ? pWorldObject->ToCreature() : NULL;
+    if (!creature)
     {
         sLog.outErrorDb(" DB-SCRIPTS: Process table `db_scripts [type = %d]` id %u, command %u call for non-creature, skipping.", m_type, m_script->id, m_script->command);
-        return true;
     }
-    return false;
+    return creature;
 }
 /**
  * @brief Logs an error when the provided world object is not a unit.
@@ -827,12 +828,13 @@ bool ScriptAction::HandleScriptStep()
                 pTarget = pSource;
             }
 
-            if (LogIfNotCreature(pTarget))
+            Creature* targetCreature = ToCreatureOrLog(pTarget);
+            if (!targetCreature)
             {
                 break;
             }
 
-            ((Creature*)pTarget)->ForcedDespawn(m_script->despawn.despawnDelay);
+            targetCreature->ForcedDespawn(m_script->despawn.despawnDelay);
 
             break;
         }
@@ -849,7 +851,8 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_MOVEMENT:                       // 20
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
@@ -860,28 +863,27 @@ bool ScriptAction::HandleScriptStep()
             switch (m_script->movement.movementType)
             {
                 case CREATURE_MOVEMENT_IDLE:
-                    ((Creature*)pSource)->GetMotionMaster()->MoveIdle();
+                    sourceCreature->GetMotionMaster()->MoveIdle();
                     break;
                 case CREATURE_MOVEMENT_RANDOM:
                     if (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL)
                     {
-                        ((Creature*)pSource)->GetMotionMaster()->MoveRandomAroundPoint(pSource->Where().X(), pSource->Where().Y(), pSource->Where().Z(), float(m_script->movement.wanderDistance));
+                        sourceCreature->GetMotionMaster()->MoveRandomAroundPoint(pSource->Where().X(), pSource->Where().Y(), pSource->Where().Z(), float(m_script->movement.wanderDistance));
                     }
                     else
                     {
                         float respX, respY, respZ, respO, wander_distance;
-                        Creature* pRespawnOwner = (Creature*)pSource;
-                        respX = pRespawnOwner->Spawn().X();
-                        respY = pRespawnOwner->Spawn().Y();
-                        respZ = pRespawnOwner->Spawn().Z();
-                        respO = pRespawnOwner->Spawn().Facing();
-                        wander_distance = pRespawnOwner->GetRespawnRadius();
+                        respX = sourceCreature->Spawn().X();
+                        respY = sourceCreature->Spawn().Y();
+                        respZ = sourceCreature->Spawn().Z();
+                        respO = sourceCreature->Spawn().Facing();
+                        wander_distance = sourceCreature->GetRespawnRadius();
                         wander_distance = m_script->movement.wanderDistance ? m_script->movement.wanderDistance : wander_distance;
-                        ((Creature*)pSource)->GetMotionMaster()->MoveRandomAroundPoint(respX, respY, respZ, wander_distance);
+                        sourceCreature->GetMotionMaster()->MoveRandomAroundPoint(respX, respY, respZ, wander_distance);
                     }
                     break;
                 case CREATURE_MOVEMENT_WAYPOINT:
-                    ((Creature*)pSource)->GetMotionMaster()->MoveWaypoint();
+                    sourceCreature->GetMotionMaster()->MoveWaypoint();
                     break;
             }
 
@@ -889,96 +891,102 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_SET_ACTIVEOBJECT:               // 21
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
-            ((Creature*)pSource)->SetActiveObjectState(m_script->activeObject.activate);
+            sourceCreature->SetActiveObjectState(m_script->activeObject.activate);
             break;
         }
         case SCRIPT_COMMAND_SET_FACTION:                    // 22
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
             if (m_script->faction.factionId)
             {
-                ((Creature*)pSource)->SetFactionTemporary(m_script->faction.factionId, m_script->faction.flags);
+                sourceCreature->SetFactionTemporary(m_script->faction.factionId, m_script->faction.flags);
             }
             else
             {
-                ((Creature*)pSource)->ClearTemporaryFaction();
+                sourceCreature->ClearTemporaryFaction();
             }
 
             break;
         }
         case SCRIPT_COMMAND_MORPH_TO_ENTRY_OR_MODEL:        // 23
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
             if (!m_script->morph.creatureOrModelEntry)
             {
-                ((Creature*)pSource)->DeMorph();
+                sourceCreature->DeMorph();
             }
             else if (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL)
             {
-                ((Creature*)pSource)->SetDisplayId(m_script->morph.creatureOrModelEntry);
+                sourceCreature->SetDisplayId(m_script->morph.creatureOrModelEntry);
             }
             else
             {
                 CreatureInfo const* ci = ObjectMgr::GetCreatureTemplate(m_script->morph.creatureOrModelEntry);
                 uint32 display_id = Creature::ChooseDisplayId(ci);
 
-                ((Creature*)pSource)->SetDisplayId(display_id);
+                sourceCreature->SetDisplayId(display_id);
             }
 
             break;
         }
         case SCRIPT_COMMAND_MOUNT_TO_ENTRY_OR_MODEL:        // 24
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
             if (!m_script->mount.creatureOrModelEntry)
             {
-                ((Creature*)pSource)->Unmount();
+                sourceCreature->Unmount();
             }
             else if (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL)
             {
-                ((Creature*)pSource)->Mount(m_script->mount.creatureOrModelEntry);
+                sourceCreature->Mount(m_script->mount.creatureOrModelEntry);
             }
             else
             {
                 CreatureInfo const* ci = ObjectMgr::GetCreatureTemplate(m_script->mount.creatureOrModelEntry);
                 uint32 display_id = Creature::ChooseDisplayId(ci);
 
-                ((Creature*)pSource)->Mount(display_id);
+                sourceCreature->Mount(display_id);
             }
 
             break;
         }
         case SCRIPT_COMMAND_SET_RUN:                        // 25
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
-            ((Creature*)pSource)->SetWalk(!m_script->run.run, true);
+            sourceCreature->SetWalk(!m_script->run.run, true);
 
             break;
         }
         case SCRIPT_COMMAND_ATTACK_START:                   // 26
         {
-            if (LogIfNotCreature(pSource))
+            Creature* pAttacker = ToCreatureOrLog(pSource);
+            if (!pAttacker)
             {
                 break;
             }
@@ -987,7 +995,6 @@ bool ScriptAction::HandleScriptStep()
                 break;
             }
 
-            Creature* pAttacker = static_cast<Creature*>(pSource);
             Unit* unitTarget = static_cast<Unit*>(pTarget);
 
             if (pAttacker->IsFriendlyTo(unitTarget))
@@ -1039,18 +1046,18 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_STAND_STATE:                    // 28
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
-            // Must be safe cast to Unit* here
-            ((Unit*)pSource)->SetStandState(m_script->standState.stand_state);
+            sourceCreature->SetStandState(m_script->standState.stand_state);
             break;
         }
         case SCRIPT_COMMAND_MODIFY_NPC_FLAGS:               // 29
         {
-            if (LogIfNotCreature(pSource))
+            if (!ToCreatureOrLog(pSource))
             {
                 break;
             }
@@ -1133,9 +1140,9 @@ bool ScriptAction::HandleScriptStep()
 
             if (result)                                    // Terminate further steps of this script
             {
-                if (m_script->textId[0] && !LogIfNotCreature(pSource))
+                Creature* cSource = m_script->textId[0] ? ToCreatureOrLog(pSource) : NULL;
+                if (cSource)
                 {
-                    Creature* cSource = static_cast<Creature*>(pSource);
                     cSource->GetMotionMaster()->AddToSelectedPatrolPause(m_script->textId[0]);
                 }
 
@@ -1146,17 +1153,18 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_PAUSE_WAYPOINTS:                // 32
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 return false;
             }
             if (m_script->pauseWaypoint.doPause)
             {
-                ((Creature*)pSource)->addUnitState(UNIT_STAT_WAYPOINT_PAUSED);
+                sourceCreature->addUnitState(UNIT_STAT_WAYPOINT_PAUSED);
             }
             else
             {
-                ((Creature*)pSource)->clearUnitState(UNIT_STAT_WAYPOINT_PAUSED);
+                sourceCreature->clearUnitState(UNIT_STAT_WAYPOINT_PAUSED);
             }
             break;
         }
@@ -1216,7 +1224,8 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_SEND_AI_EVENT_AROUND:           // 35
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 return false;
             }
@@ -1228,12 +1237,12 @@ bool ScriptAction::HandleScriptStep()
             // if radius is provided send AI event around
             if (m_script->sendAIEvent.radius)
             {
-                ((Creature*)pSource)->AI()->SendAIEventAround(AIEventType(m_script->sendAIEvent.eventType), (Unit*)pTarget, 0, float(m_script->sendAIEvent.radius));
+                sourceCreature->AI()->SendAIEventAround(AIEventType(m_script->sendAIEvent.eventType), (Unit*)pTarget, 0, float(m_script->sendAIEvent.radius));
             }
             // else if no radius and target is creature send AI event to target
             else if (Creature* targetCreature = pTarget->ToCreature())
             {
-                ((Creature*)pSource)->AI()->SendAIEvent(AIEventType(m_script->sendAIEvent.eventType), NULL, targetCreature);
+                sourceCreature->AI()->SendAIEvent(AIEventType(m_script->sendAIEvent.eventType), NULL, targetCreature);
             }
             break;
         }
@@ -1249,7 +1258,8 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_MOVE_DYNAMIC:                   // 37
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 return false;
             }
@@ -1287,7 +1297,7 @@ bool ScriptAction::HandleScriptStep()
                 z = std::max(z, pTarget->Where().Z());
                 ClampToAllowedZ(*pSource, x, y, z);
             }
-            ((Creature*)pSource)->GetMotionMaster()->MovePoint(1, x, y, z);
+            sourceCreature->GetMotionMaster()->MovePoint(1, x, y, z);
             break;
         }
         case SCRIPT_COMMAND_SEND_MAIL:                      // 38
@@ -1296,7 +1306,7 @@ bool ScriptAction::HandleScriptStep()
             {
                 return false;
             }
-            if (!m_script->sendMail.altSender && LogIfNotCreature(pSource))
+            if (!m_script->sendMail.altSender && !ToCreatureOrLog(pSource))
             {
                 return false;
             }
@@ -1317,12 +1327,13 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_CHANGE_ENTRY:                   // 39
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
-            ((Creature*)pSource)->UpdateEntry(m_script->changeEntry.creatureEntry);
+            sourceCreature->UpdateEntry(m_script->changeEntry.creatureEntry);
             break;
         }
         case SCRIPT_COMMAND_DESPAWN_GO:                     // 40
@@ -1352,21 +1363,23 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_RESPAWN:                        // 41
         {
-            if (LogIfNotCreature(pTarget))
+            Creature* targetCreature = ToCreatureOrLog(pTarget);
+            if (!targetCreature)
             {
                 break;
             }
-            ((Creature*)pTarget)->Respawn();
+            targetCreature->Respawn();
             break;
         }
         case SCRIPT_COMMAND_SET_EQUIPMENT_SLOTS:            // 42
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
-            Creature* pCSource = static_cast<Creature*>(pSource);
+            Creature* pCSource = sourceCreature;
 
             // reset default
             if (m_script->setEquipment.resetDefault)
@@ -1417,12 +1430,13 @@ bool ScriptAction::HandleScriptStep()
         }
         case SCRIPT_COMMAND_UPDATE_TEMPLATE:                // 44
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
 
-            Creature* pCre = static_cast<Creature*>(pSource);
+            Creature* pCre = sourceCreature;
 
             if (pCre->GetEntry() != m_script->updateTemplate.entry)
             {
@@ -1455,7 +1469,8 @@ bool ScriptAction::HandleScriptStep()
 
         case SCRIPT_COMMAND_SET_FLY:                        // 59
         {
-            if (LogIfNotCreature(pSource))
+            Creature* sourceCreature = ToCreatureOrLog(pSource);
+            if (!sourceCreature)
             {
                 break;
             }
@@ -1473,7 +1488,7 @@ bool ScriptAction::HandleScriptStep()
                 }
             }
 
-            ((Creature*)pSource)->SetLevitate((m_script->fly.enable == 0) ? false : true);
+            sourceCreature->SetLevitate((m_script->fly.enable == 0) ? false : true);
             break;
         }
         default:

@@ -576,9 +576,9 @@ bool ChatHandler::HandleNpcChangeLevelCommand(char* args)
         return false;
     }
 
-    if (pCreature->IsPet())
+    if (Pet* pet = ToPet(pCreature))
     {
-        ((Pet*)pCreature)->GivePetLevel(lvl);
+        pet->GivePetLevel(lvl);
     }
     else
     {
@@ -686,7 +686,7 @@ bool ChatHandler::HandleNpcDeleteCommand(char* args)
             break;
         }
         case CREATURE_SUBTYPE_PET:
-            ((Pet*)unit)->Unsummon(PET_SAVE_AS_CURRENT);
+            ToPet(unit)->Unsummon(PET_SAVE_AS_CURRENT);
             break;
         case CREATURE_SUBTYPE_TOTEM:
             ((Totem*)unit)->UnSummon();

@@ -2049,7 +2049,7 @@ void Map::RemoveAllObjectsInRemoveList()
                 Remove((GameObject*)obj, true);
                 break;
             case TYPEID_UNIT:
-                Remove((Creature*)obj, true);
+                Remove(obj->ToCreature(), true);
                 break;
             default:
                 sLog.outError("Non-grid object (TypeId: %u) in grid object removing list, ignored.", obj->GetTypeId());

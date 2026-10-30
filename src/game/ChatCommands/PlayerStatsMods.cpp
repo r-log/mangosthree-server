@@ -345,11 +345,11 @@ bool ChatHandler::HandleModifyTalentCommand(char* args)
         targetPlayer->SendTalentsInfoData(false);
         return true;
     }
-    else if (target->IsPet())
+    else if (Pet* pet = ToPet(target))
     {
-        Unit* owner = target->GetOwner();
+        Unit* owner = pet->GetOwner();
         Player* ownerPlayer = owner ? owner->ToPlayer() : NULL;
-        if (ownerPlayer && ((Pet*)target)->isControlled())
+        if (ownerPlayer && pet->isControlled())
         {
             // check online security
             if (HasLowerSecurity(ownerPlayer))
@@ -357,7 +357,7 @@ bool ChatHandler::HandleModifyTalentCommand(char* args)
                 return false;
             }
 
-            ((Pet*)target)->SetFreeTalentPoints(tp);
+            pet->SetFreeTalentPoints(tp);
             ownerPlayer->SendTalentsInfoData(true);
             return true;
         }

@@ -236,9 +236,9 @@ bool ChatHandler::HandleDieCommand(char* /*args*/)
         return false;
     }
 
-    if (target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = target->ToPlayer())
     {
-        if (HasLowerSecurity((Player*)target, ObjectGuid(), false))
+        if (HasLowerSecurity(targetPlayer, ObjectGuid(), false))
         {
             return false;
         }

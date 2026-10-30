@@ -905,10 +905,9 @@ void WorldSession::HandleGetMirrorimageData(WorldPacket& recv_data)
     data << (uint8)pCreature->getGender();
     data << (uint8)pCreature->getClass();
 
-    if (pCaster && pCaster->GetTypeId() == TYPEID_PLAYER)
+    Player* pPlayer = pCaster ? pCaster->ToPlayer() : NULL;
+    if (pPlayer)
     {
-        Player* pPlayer = (Player*)pCaster;
-
         // skin, face, hair, haircolor
         data << (uint8)pPlayer->GetByteValue(PLAYER_BYTES, 0);
         data << (uint8)pPlayer->GetByteValue(PLAYER_BYTES, 1);
