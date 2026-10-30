@@ -26,14 +26,19 @@
 /// What a player's group is told about the player: the callbacks the session installs on a player,
 /// which mark each fact's flag on the player's group update mask and an aura fact's slot on the
 /// player or on the fact's pet, only while the player is in a group; the assertions on a callback
-/// no session installed and on a unit that holds no callbacks; and a unit that is not a player
-/// holding none.
+/// no session installed and on a unit that holds no callbacks; a unit that is not a player
+/// holding none; and the two questions Unit asks of a player's group (whether another player sees
+/// it through its stealth, and a random raid member near it), which a creature answers with false
+/// and NULL and a player asks through its callbacks.
 
 #include "TestHarness.h"
+#include "Auth/BigNumber.h"
 #include "Creature.h"
 #include "Group.h"
 #include "Pet.h"
+#include "Player.h"
 #include "Unit.h"
+#include "WorldSession.h"
 #include "entities/GroupUpdateFacts.h"
 
 #include <cstdlib>
@@ -84,6 +89,36 @@ namespace
     {
         public:
             using Unit::m_groupCallbacks;
+    };
+
+    /// A bare Creature; the two group questions are public here.
+    class QuestionedCreature : public Creature
+    {
+        public:
+            using Unit::IsGroupVisibleFor;
+            using Unit::GetNextRandomRaidMember;
+
+            QuestionedCreature() : Creature(CREATURE_SUBTYPE_GENERIC) { }
+    };
+
+    /// A player with its update fields allocated, on a session with no socket, in no world; the two
+    /// group questions are public here.
+    class QuestionedPlayer : public Player
+    {
+        public:
+            using Unit::IsGroupVisibleFor;
+            using Unit::GetNextRandomRaidMember;
+
+            explicit QuestionedPlayer(WorldSession& session) : Player(&session)
+            {
+                Object::_Create(1, 0, HIGHGUID_PLAYER);
+            }
+
+            ~QuestionedPlayer()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
     };
 
     GroupStatFact Stat(uint32 flag)
@@ -267,4 +302,50 @@ TEST(GroupUpdateFacts_NoCallbacksAssert)
     }
     InstalledGroupCallbacks(NULL);
     testing::ReportFailure(__FILE__, __LINE__, "a unit holding no group callbacks passed the assertion");
+}
+
+// A unit that is not a player has no group: nobody sees it through its stealth, and it has no raid
+// member to jump to.
+TEST(GroupUpdateFacts_ACreatureAnswersTheGroupQuestionsWithNoGroup)
+{
+    QuestionedCreature creature;
+
+    CHECK(!creature.IsGroupVisibleFor(NULL));
+    CHECK(creature.GetNextRandomRaidMember(0.0f) == NULL);
+    CHECK(creature.GetNextRandomRaidMember(40.0f) == NULL);
+}
+
+// A player asks the two questions of the group callbacks it holds, with the viewer and the radius,
+// and returns their answers.
+TEST(GroupUpdateFacts_APlayerAsksTheGroupQuestionsOfItsCallbacks)
+{
+    WorldSession session(1, "group", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    QuestionedPlayer player(session);
+    QuestionedPlayer* viewer = &player;
+    std::vector<Player*> viewers;
+    std::vector<float> radii;
+
+    GroupCallbacks callbacks;
+    callbacks.groupVisibleFor = [&](Player* p) { viewers.push_back(p); return p != NULL; };
+    callbacks.nextRandomRaidMember = [&](float radius) { radii.push_back(radius); return radius > 30.0f ? viewer : NULL; };
+    player.SetGroupCallbacks(callbacks);
+
+    CHECK(player.IsGroupVisibleFor(&player));
+    CHECK(!player.IsGroupVisibleFor(NULL));
+    CHECK(player.GetNextRandomRaidMember(40.0f) == &player);
+    CHECK(player.GetNextRandomRaidMember(20.0f) == NULL);
+
+    CHECK(viewers == std::vector<Player*>({&player, NULL}));
+    CHECK(radii == std::vector<float>({40.0f, 20.0f}));
+}
+
+// The group's answers for a player in no group: under the default visibility setting it sees
+// itself and nobody else in its group, and it has no raid member near it.
+TEST(GroupUpdateFacts_APlayerInNoGroupHasOnlyItselfToSeeAndNoRaidMember)
+{
+    WorldSession session(1, "alone", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    QuestionedPlayer player(session);
+
+    CHECK(IsGroupVisible(player, &player));
+    CHECK(RandomRaidMemberNear(player, 40.0f) == NULL);
 }

@@ -32,8 +32,9 @@
 /// Creature probe (no map, no AI, no auras) makes the six public with using-declarations and is
 /// asked through its own reference. A Player cannot be built in this binary (it needs a
 /// WorldSession and a map); the static_asserts pin Unit's declarations through the probe, that
-/// Player declares each of the six public with Unit's exact signature, and which references a
-/// call compiles through; Player.h marks each `override`, so a Player answers with its own.
+/// Player declares five of the six public with Unit's exact signature, and which references a call
+/// compiles through; Player.h marks each `override`, so a Player answers with its own. The group
+/// visibility question Player does not declare: Unit asks the player's group callbacks.
 
 #include "TestHarness.h"
 #include "Creature.h"
@@ -128,8 +129,18 @@ static_assert(std::is_same<decltype(&Player::IsLoggingOut), bool (Player::*)() c
               "Player asks its session whether it is logging out");
 static_assert(std::is_same<decltype(&Player::GetTransport), Transport* (Player::*)() const>::value,
               "Player returns the transport it rides");
-static_assert(std::is_same<decltype(&Player::IsGroupVisibleFor), bool (Player::*)(Player*) const>::value,
-              "Player answers under the group visibility setting");
+
+/// Checks the type of the member it is instantiated with. The group visibility question is
+/// protected, so it is named only in the explicit instantiation below: a member Player declared
+/// itself would have Player's member pointer type.
+template<class Member, Member member>
+struct GroupVisibleThroughPlayer
+{
+    static_assert(std::is_same<Member, bool (Unit::*)(Player*) const>::value,
+                  "Player does not declare the group visibility question: its member pointer is Unit's");
+};
+
+template struct GroupVisibleThroughPlayer<decltype(&Player::IsGroupVisibleFor), &Player::IsGroupVisibleFor>;
 static_assert(std::is_same<decltype(&Player::GetDrunkValue), uint16 (Player::*)() const>::value,
               "Player returns its own drunk value");
 
@@ -139,8 +150,10 @@ static_assert(!decltype(CallsGameMaster<Unit>(0))::value && !decltype(CallsLoadi
               "Unit's six are protected: a call through a Unit does not compile");
 static_assert(decltype(CallsGameMaster<Player>(0))::value && decltype(CallsLoading<Player>(0))::value
               && decltype(CallsLoggingOut<Player>(0))::value && decltype(CallsTransport<Player>(0))::value
-              && decltype(CallsGroupVisible<Player>(0))::value && decltype(CallsDrunkValue<Player>(0))::value,
-              "Player's six are public: a call through a Player compiles");
+              && decltype(CallsDrunkValue<Player>(0))::value,
+              "Player's five are public: a call through a Player compiles");
+static_assert(!decltype(CallsGroupVisible<Player>(0))::value,
+              "the group visibility question stays protected: a call through a Player does not compile");
 
 TEST(UnitVisibilitySession_ACreatureIsNoGameMasterAndHasNoSession)
 {

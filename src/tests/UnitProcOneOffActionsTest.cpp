@@ -35,10 +35,10 @@
 /// through its own reference; the say leaves every update field as it was, the selection is an
 /// empty guid whatever target the creature holds, and the raid member is NULL. A Player cannot be
 /// built in this binary (it needs a WorldSession and a map); the static_asserts pin Unit's
-/// declarations through the probe, that Player declares the three public with Unit's exact
-/// signature, the selection returned by value and `const` on both sides, and which references a
-/// call compiles through. That Player's selection and raid member are `final` is pinned by the
-/// cast proof's text of Player.h.
+/// declarations through the probe, that Player declares the say and the selection public with
+/// Unit's exact signature, the selection returned by value and `const` on both sides, that Player
+/// declares no raid member (Unit asks the player's group callbacks), and which references a call
+/// compiles through.
 
 #include "TestHarness.h"
 #include "Creature.h"
@@ -114,8 +114,18 @@ static_assert(std::is_same<decltype(&Player::GetSelectionGuid), ObjectGuid (Play
               "Player returns its selection, by value, const");
 static_assert(std::is_same<decltype(std::declval<Player const&>().GetSelectionGuid()), ObjectGuid>::value,
               "a call of Player's selection yields an ObjectGuid value, not a reference");
-static_assert(std::is_same<decltype(&Player::GetNextRandomRaidMember), Player* (Player::*)(float)>::value,
-              "Player returns a random member of its group");
+
+/// Checks the type of the member it is instantiated with. The raid member is protected, so it is
+/// named only in the explicit instantiation below: a member Player declared itself would have
+/// Player's member pointer type.
+template<class Member, Member member>
+struct RaidMemberThroughPlayer
+{
+    static_assert(std::is_same<Member, Player* (Unit::*)(float)>::value,
+                  "Player does not declare the raid member: its member pointer is Unit's");
+};
+
+template struct RaidMemberThroughPlayer<decltype(&Player::GetNextRandomRaidMember), &Player::GetNextRandomRaidMember>;
 
 static_assert(decltype(CallsSay<Unit>(0))::value,
               "Unit's say is public: a call through a Unit compiles");
@@ -127,8 +137,8 @@ static_assert(decltype(CallsGetSelectionGuid<Player>(0))::value,
               "Player's selection is public: a call through a const Player compiles");
 static_assert(!decltype(CallsGetNextRandomRaidMember<Unit>(0))::value,
               "Unit's raid member is protected: a call through a Unit does not compile");
-static_assert(decltype(CallsGetNextRandomRaidMember<Player>(0))::value,
-              "Player's raid member is public: a call through a Player compiles");
+static_assert(!decltype(CallsGetNextRandomRaidMember<Player>(0))::value,
+              "the raid member stays protected: a call through a Player does not compile");
 
 TEST(UnitProcOneOffActions_ACreatureSaysNothing)
 {

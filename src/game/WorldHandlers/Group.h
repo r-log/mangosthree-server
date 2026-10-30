@@ -697,6 +697,14 @@ class Group
         ObjectGuid _resummonMarker(uint8 slot, ObjectGuid skip);
 };
 
+/// Whether `viewer` sees `player` through its stealth under the group visibility setting: in the
+/// same group (the default), in the same raid (1) or on the same team (2).
+bool IsGroupVisible(Player const& player, Player* viewer);
+
+/// A random other member of `player`'s group within `radius` that is not invisible and not hostile
+/// to it; NULL for none, or when `player` is in no group.
+Player* RandomRaidMemberNear(Player& player, float radius);
+
 /// The group callbacks of `owner`: each fact marks its flag on `owner`'s group update mask, and an
 /// aura fact its slot on `owner` or on the fact's pet, only while `owner` is in a group.
 template <class Callbacks, class Owner>
