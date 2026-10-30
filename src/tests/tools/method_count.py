@@ -70,9 +70,14 @@ brace on a preprocessor line, `#if 0` blocks (they count) and a declaration repe
 --list prints every class-scope statement, the ones not counted marked
 `[not counted: <reason>]`, with literal contents blanked.
 
+--gate <max> (with --all) is how the method counts are wired into ctest as ratchets: it exits 1
+when the class has more than <max> member functions, printing every counted member so the new one
+can be found, and when it counts none (a gate that counts nothing passes nothing).
+
 python3 src/tests/tools/method_count.py --class Player --header src/game/entities/player/Player.h
 python3 src/tests/tools/method_count.py --list --class Player --header src/game/entities/player/Player.h
 python3 src/tests/tools/method_count.py --all [--list] --class Player --header src/game/entities/player/Player.h
+python3 src/tests/tools/method_count.py --all --gate 908 --class Player --header src/game/entities/player/Player.h
 python3 src/tests/tools/method_count.py --self-test
 """
 #
@@ -811,6 +816,30 @@ def all_self_test():
     return ok
 
 
+def gate_failure(name, count, maximum):
+    """The message when `count` methods blow a gate of `maximum`, or None when the gate holds."""
+    if count == 0:
+        return 'GATE FAILED: %s methods=0 -- a gate that counts nothing passes nothing' % name
+    if count > maximum:
+        return ('GATE FAILED: %s methods=%d exceeds the allowed maximum %d; a new member function '
+                'raises it: the counted members follow' % (name, count, maximum))
+    return None
+
+
+def gate_self_test():
+    """The --gate decision's self-test; True when it passes."""
+    ok = True
+    for label, count, maximum, fails in (('at the maximum', 25, 25, False),
+                                         ('below the maximum', 24, 25, False),
+                                         ('above the maximum', 26, 25, True),
+                                         ('nothing counted', 0, 25, True)):
+        if (gate_failure('Widget', count, maximum) is not None) != fails:
+            print('self-test (--gate, %s): %d methods against %d %s' % (label, count, maximum,
+                                                                     'passed' if fails else 'failed'))
+            ok = False
+    return ok
+
+
 def self_test():
     ok = True
     try:
@@ -850,6 +879,8 @@ def self_test():
             ok = False
     if not all_self_test():
         ok = False
+    if not gate_self_test():
+        ok = False
     print('self-test %s' % ('OK' if ok else 'FAILED'))
     return 0 if ok else 1
 
@@ -865,11 +896,16 @@ def main(argv):
                              ' the ones not counted marked)')
     parser.add_argument('--all', action='store_true',
                         help='count every member function (a brace-aware walk) instead of R1')
+    parser.add_argument('--gate', type=int, metavar='MAX',
+                        help='with --all: exit 1 when the class has more than MAX member functions, or none')
     args = parser.parse_args(argv[1:])
     if args.self_test:
         return self_test()
     if not args.name or not args.header:
         parser.print_usage()
+        return 2
+    if args.gate is not None and not args.all:
+        print('--gate counts every member function: give --all with it')
         return 2
     # newline='': no translation, so a '\r' stays where grep sees it and only '\n' ends a line.
     with open(args.header, encoding='utf-8', errors='replace', newline='') as f:
@@ -883,6 +919,14 @@ def main(argv):
                 print('%s:%d: %s%s' % (args.header, line, mark, signature))
         print('%s methods=%d (--all over %s:%d-%d; %d other class-scope statements)'
               % (args.name, len(methods), args.header, first, last, len(entries) - len(methods)))
+        if args.gate is not None:
+            failure = gate_failure(args.name, len(methods), args.gate)
+            if failure:
+                for line, _, signature in methods:
+                    print('  %s:%d: %s' % (args.header, line, signature), file=sys.stderr)
+                print(failure, file=sys.stderr)
+                return 1
+            print('gate %s methods<=%d: OK (%d)' % (args.name, args.gate, len(methods)))
         return 0
     first, last, counted = count_methods(text, args.name)
     if args.list:
