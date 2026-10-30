@@ -37,6 +37,7 @@
 /// still listed when it is destroyed.
 
 #include "TestHarness.h"
+#include "InstalledSessionRegistry.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
@@ -88,26 +89,6 @@ namespace
     };
 
     template struct RequesterSessionMemberAccess<SessionLoadingFlag, &WorldSession::m_playerLoading>;
-
-    /// A session registry of the test's own, installed while the guard lives.
-    class InstalledRegistry
-    {
-        public:
-            InstalledRegistry() : m_previous(SessionRegistry::Install(&registry)) { }
-
-            ~InstalledRegistry()
-            {
-                SessionRegistry::Install(m_previous);
-            }
-
-            InstalledRegistry(InstalledRegistry const&) = delete;
-            InstalledRegistry& operator=(InstalledRegistry const&) = delete;
-
-            SessionRegistry registry;
-
-        private:
-            SessionRegistry* m_previous;
-    };
 
     /// Lists a session under its account in the installed registry's session list, and unlists it
     /// when the guard goes.
@@ -275,7 +256,7 @@ namespace
 
 TEST(RequesterSession_FindRequesterSessionAnswersOnlyTheSessionTheRequestCameOn)
 {
-    InstalledRegistry installed;
+    InstalledSessionRegistry sessions;
 
     CollectingSession requester("requester", kRequesterSessionId);
 
@@ -297,7 +278,7 @@ TEST(RequesterSession_FindRequesterSessionAnswersOnlyTheSessionTheRequestCameOn)
 
 TEST(RequesterSession_CharacterListGoesOnlyToTheSessionThatAsked)
 {
-    InstalledRegistry installed;
+    InstalledSessionRegistry sessions;
 
     FakeConnection query(CharacterDatabase);
     CountingConnection async(CharacterDatabase);
@@ -339,7 +320,7 @@ TEST(RequesterSession_CharacterListGoesOnlyToTheSessionThatAsked)
 
 TEST(RequesterSession_NameQueryGoesOnlyToTheSessionThatAsked)
 {
-    InstalledRegistry installed;
+    InstalledSessionRegistry sessions;
 
     FakeConnection query(CharacterDatabase);
     CountingConnection async(CharacterDatabase);
@@ -385,7 +366,7 @@ TEST(RequesterSession_NameQueryGoesOnlyToTheSessionThatAsked)
 
 TEST(RequesterSession_LoginReachesOnlyTheSessionThatAskedAndADroppedHolderIsFreed)
 {
-    InstalledRegistry installed;
+    InstalledSessionRegistry sessions;
 
     FakeConnection query(CharacterDatabase);
     CountingConnection async(CharacterDatabase);

@@ -31,7 +31,7 @@
 ///
 /// What they cannot do is enter the full create: HandleCharCreateCallback builds a Player,
 /// which cannot be constructed in this binary (it needs the DBC stores, the object manager's
-/// loaded data and a map), and the continuations re-find their session through sWorld, which
+/// loaded data and a map), and the continuations re-find their session in the installed session registry, which
 /// has no session behind any account here. So what is driven is what the handlers hand to the
 /// database -- the staging -- plus the whole of the delete body, which needs neither a Player
 /// nor a session and is therefore callable with a hand-filled holder. That is the same
@@ -43,6 +43,7 @@
 /// "wrote nothing" assertions below cover.
 
 #include "TestHarness.h"
+#include "InstalledSessionRegistry.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
@@ -140,6 +141,8 @@ namespace
 
 TEST(CharacterOpsAsync_CreateAsksTheLoginDatabaseFirstAndCreatesNothingBeforeTheAnswer)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
 
     FakeConnection loginQuery(LoginDatabase);
@@ -191,6 +194,8 @@ TEST(CharacterOpsAsync_CreateAsksTheLoginDatabaseFirstAndCreatesNothingBeforeThe
 
 TEST(CharacterOpsAsync_CreateStagesOneHolderOfThreeRealmReadsWithThePetIdOnlyOnce)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
 
     FakeConnection query(CharacterDatabase);
@@ -235,6 +240,8 @@ TEST(CharacterOpsAsync_CreateStagesOneHolderOfThreeRealmReadsWithThePetIdOnlyOnc
 
 TEST(CharacterOpsAsync_DeleteStagesOneHolderOfEveryReadItsTransactionNeeds)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
 
     FakeConnection query(CharacterDatabase);
@@ -464,6 +471,8 @@ TEST(CharacterOpsAsync_DeleteMailCursorGivesEachMailItsOwnItemRunAndNobodyElseS)
 
 TEST(CharacterOpsAsync_CustomizeStagesOneHolderOfTwoAndEscapesNoName)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
 
     FakeConnection query(CharacterDatabase);

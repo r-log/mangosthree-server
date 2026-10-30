@@ -36,6 +36,7 @@
 /// induced-failure run), not by a unit test that would have to survive its own abort.
 
 #include "TestHarness.h"
+#include "InstalledSessionRegistry.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
@@ -359,6 +360,8 @@ TEST(TickGuard_PasswordHashComparisonIgnoresCaseLikeTheColumn)
 /// same call with a seated, playerless session crashed in ChatHandler::SendSysMessage.
 TEST(TickGuard_AccountPasswordRepliesAreDroppedWhenTheRequesterIsGone)
 {
+    InstalledSessionRegistry sessions;
+
     const ObjectGuid requester(HIGHGUID_PLAYER, uint32(42));
 
     ChatHandler::FinishAccountPasswordCommand(17, 1, requester, false, AOR_NAME_NOT_EXIST);
