@@ -3633,18 +3633,19 @@ bool Map::GetReachableRandomPosition(Unit* unit, float& x, float& y, float& z, f
 
     bool isFlying = false;
     bool isSwimming = true;
-    switch (unit->GetTypeId())
+    if (Player* player = unit->ToPlayer())
     {
-        case TYPEID_PLAYER:
-            isFlying = static_cast<Player*>(unit)->IsFlying();
-            break;
-        case TYPEID_UNIT:
-            isFlying = static_cast<Creature*>(unit)->IsFlying();
-            isSwimming = static_cast<Creature*>(unit)->IsSwimming();
-            break;
-        default:
-            sLog.outError("Map::GetReachableRandomPosition> Unsupported unit type is passed!");
-            return false;
+        isFlying = player->IsFlying();
+    }
+    else if (Creature* creature = unit->ToCreature())
+    {
+        isFlying = creature->IsFlying();
+        isSwimming = creature->IsSwimming();
+    }
+    else
+    {
+        sLog.outError("Map::GetReachableRandomPosition> Unsupported unit type is passed!");
+        return false;
     }
 
     if (radius < 0.1f)

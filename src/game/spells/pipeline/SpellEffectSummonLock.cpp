@@ -879,14 +879,14 @@ bool Spell::DoSummonPossessed(CreatureSummonPositions& list, SummonPropertiesEnt
 
     uint32 const& creatureEntry = effect->EffectMiscValue_0;
 
-    Unit* newUnit = m_caster->TakePossessOf(m_spellInfo, prop, effect, list[0].x, list[0].y, list[0].z, m_caster->Where().Facing());
-    if (!newUnit)
+    Creature* newCreature = m_caster->TakePossessOf(m_spellInfo, prop, effect, list[0].x, list[0].y, list[0].z, m_caster->Where().Facing());
+    if (!newCreature)
     {
         sLog.outError("Spell::DoSummonPossessed: creature entry %d for spell %u could not be summoned.", creatureEntry, m_spellInfo->ID);
         return false;
     }
 
-    list[0].creature = static_cast<Creature*>(newUnit);
+    list[0].creature = newCreature;
 
     // Notify Summoner
     if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && m_originalCaster->AI())

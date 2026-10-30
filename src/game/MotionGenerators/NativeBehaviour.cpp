@@ -541,7 +541,7 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
     {
         return;
     }
-    Creature* creaturePtr = owner.GetTypeId() == TYPEID_UNIT ? static_cast<Creature*>(&owner) : NULL;
+    Creature* creaturePtr = owner.ToCreature();
     const uint8 mine = creaturePtr ? Motion::Effect::OwnerCreature : Motion::Effect::OwnerPlayer;
     for (size_t i = 0; i < effects.size(); ++i)
     {

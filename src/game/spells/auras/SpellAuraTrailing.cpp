@@ -203,8 +203,9 @@ void Aura::HandleAuraAddMechanicAbilities(bool apply, bool Real)
     }
 
     Unit* target = GetTarget();
+    Player* player = target ? target->ToPlayer() : NULL;
 
-    if (!target || target->GetTypeId() != TYPEID_PLAYER)    // only players should be affected by this aura
+    if (!player)    // only players should be affected by this aura
     {
         return;
     }
@@ -225,7 +226,7 @@ void Aura::HandleAuraAddMechanicAbilities(bool apply, bool Real)
         for (int i = 0; i < MAX_OVERRIDE_SPELLS; ++i)
             if (uint32 spellId = spellSet->Spells[i])
             {
-                static_cast<Player*>(target)->addSpell(spellId, true, false, false, false);
+                player->addSpell(spellId, true, false, false, false);
             }
 
         target->SetUInt16Value(PLAYER_FIELD_BYTES2, 0, i_OverrideSetId);
@@ -236,7 +237,7 @@ void Aura::HandleAuraAddMechanicAbilities(bool apply, bool Real)
         for (int i = 0; i < MAX_OVERRIDE_SPELLS; ++i)
             if (uint32 spellId = spellSet->Spells[i])
             {
-                static_cast<Player*>(target)->removeSpell(spellId, false , false, false);
+                player->removeSpell(spellId, false , false, false);
             }
     }
 }

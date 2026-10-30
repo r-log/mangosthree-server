@@ -1847,10 +1847,10 @@ void Unit::Uncharm()
         charm->RemoveSpellsCausingAura(SPELL_AURA_MOD_POSSESS_PET);
 
         // TODO:: find a way to get rid of this bad hack to remove Raise ally aura
-        if (charm->GetTypeId() == TYPEID_UNIT)
+        if (Creature* charmCreature = charm->ToCreature())
         {
             uint32 createdBySpellId = charm->GetUInt32Value(UNIT_CREATED_BY_SPELL);
-            if (static_cast<Creature*>(charm)->IsTemporarySummon() && createdBySpellId)
+            if (charmCreature->IsTemporarySummon() && createdBySpellId)
             {
                 RemoveAurasDueToSpell(createdBySpellId);
             }
@@ -4171,7 +4171,7 @@ void Unit::SendCollisionHeightUpdate(float height)
 }
 
 // This will create a new creature and set the current unit as the controller of that new creature
-Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry const* /*summonProp*/, SpellEffectEntry const* spellEffect, float x, float y, float z, float ang)
+Creature* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry const* /*summonProp*/, SpellEffectEntry const* spellEffect, float x, float y, float z, float ang)
 {
     int32 const& creatureEntry = spellEffect->EffectMiscValue_0;
     CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(creatureEntry);
@@ -4218,7 +4218,7 @@ Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry co
     SetCharmGuid(pCreature->GetObjectGuid());                           // save guid of charmed creature
 
     pCreature->SetSummonProperties(TEMPSPAWN_CORPSE_TIMED_DESPAWN, 5000); // set 5s corpse decay
-    GetMap()->Add(static_cast<Creature*>(pCreature));                   // create the creature in the client
+    GetMap()->Add<Creature>(pCreature);                                 // create the creature in the client
 
     // Give the control to the player
     if (player)
@@ -4280,11 +4280,7 @@ bool Unit::TakePossessOf(Unit* possessed)
 
     SetCharm(possessed);
 
-    Creature* possessedCreature = NULL;
-    if (possessed->GetTypeId() == TYPEID_UNIT)
-    {
-        possessedCreature = static_cast<Creature *>(possessed);
-    }
+    Creature* possessedCreature = possessed->ToCreature();
 
     // A BODY THAT WAS SITTING CANNOT BE STEERED (live test 2026-09-22, B1 bonus): mind-control
     // an AFK creature and the possessor gets the camera and the mover but no right-click turn,
@@ -4333,9 +4329,9 @@ bool Unit::TakePossessOf(Unit* possessed)
     {
         possessedCreature->AIM_Initialize();
     }
-    else if (possessed->GetTypeId() == TYPEID_PLAYER)
+    else if (Player* possessedPlayer = possessed->ToPlayer())
     {
-        static_cast<Player*>(possessed)->SetClientControl(possessed, 0);
+        possessedPlayer->SetClientControl(possessed, 0);
     }
     return true;
 }
@@ -4419,9 +4415,8 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
     possessed->DeleteThreatList();
     possessed->GetHostileRefManager().deleteReferences();
 
-    if (possessed->GetTypeId() == TYPEID_PLAYER)
+    if (Player* possessedPlayer = possessed->ToPlayer())
     {
-        Player* possessedPlayer = static_cast<Player *>(possessed);
         possessedPlayer->setFactionForRace(possessedPlayer->getRace());
         if (!possessedPlayer->IsTaxiFlying())   // a possessed passenger: the flight went on under the possession, and its landing or abort grants
         {

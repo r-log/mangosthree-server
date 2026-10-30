@@ -437,11 +437,11 @@ bool ChatHandler::HandleMmapTestHeight(char* args)
         unit = player;
     }
 
-    if (unit->GetTypeId() == TYPEID_UNIT)
+    if (Creature* creature = unit->ToCreature())
     {
         if (radius < 0.1f)
         {
-            radius = static_cast<Creature*>(unit)->GetRespawnRadius();
+            radius = creature->GetRespawnRadius();
         }
     }
     else

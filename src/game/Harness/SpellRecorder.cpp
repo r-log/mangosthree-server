@@ -132,10 +132,10 @@ namespace Harness
         // A player's cooldowns: the stored keys, never HasSpellCooldown (which compares the end
         // with time(NULL), a clock the stepped world does not move). `auto const&`: the map's
         // type is a row type of the state-ownership gate, and nothing here needs to spell it.
-        if (unit->GetTypeId() == TYPEID_PLAYER)
+        if (Player* player = unit->ToPlayer())
         {
             std::set<uint32> keys;
-            auto const& cooldowns = static_cast<Player*>(unit)->GetSpellCooldownMgr().GetSpellCooldownMap();
+            auto const& cooldowns = player->GetSpellCooldownMgr().GetSpellCooldownMap();
             for (auto c = cooldowns.begin(); c != cooldowns.end(); ++c)
             {
                 keys.insert(c->first);
@@ -143,12 +143,12 @@ namespace Harness
             s.sets.push_back(std::make_pair(k + "cooldowns", keys));
         }
 
-        // A creature's own cooldown model (decoupling D11 PR 2, scenario 938): the stored keys of
-        // the spell map and of the category map, never their values -- the spell map holds the
-        // wall-clock end, the category map the wall-clock start (CreatureSpellCooldown.cpp:44-82).
-        if (m_watch.creatureCooldowns && unit->GetTypeId() == TYPEID_UNIT)
+        // A creature's own cooldown model: the stored keys of the spell map and of the category
+        // map, never their values -- the spell map holds the wall-clock end, the category map the
+        // wall-clock start.
+        Creature const* c = unit->ToCreature();
+        if (m_watch.creatureCooldowns && c)
         {
-            Creature const* c = static_cast<Creature const*>(unit);
             std::set<uint32> spells, categories;
             for (auto i = c->m_CreatureSpellCooldowns.begin(); i != c->m_CreatureSpellCooldowns.end(); ++i)
             {

@@ -672,9 +672,9 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
         init.Launch();
 
         // Despawn if passenger was accessory
-        if (passenger->GetTypeId() == TYPEID_UNIT && m_accessoryGuids.find(passenger->GetObjectGuid()) != m_accessoryGuids.end())
+        Creature* cPassenger = passenger->ToCreature();
+        if (cPassenger && m_accessoryGuids.find(passenger->GetObjectGuid()) != m_accessoryGuids.end())
         {
-            Creature* cPassenger = static_cast<Creature*>(passenger);
             // TODO Same TODO as in VehicleInfo::RemoveAccessoriesFromMap
             cPassenger->ForcedDespawn(5000);
             m_accessoryGuids.erase(passenger->GetObjectGuid());
