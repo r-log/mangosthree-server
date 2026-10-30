@@ -228,7 +228,7 @@ A layer is done when its gate enforces its rule on a clean clone, and it is fini
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
 see. The counters are **ratchets against regression only, not finish lines**: the method counts (ctest `player_methods`, `unit_methods`, `world_session_methods` and `object_mgr_methods`, `method_count.py --all --gate` at Player 908, Unit 675, WorldSession 172, ObjectMgr 255, lowered in the PR that cuts them), R1, M1,
 the downcast counts (ctest `player_downcasts`, `creature_downcasts` and `pet_downcasts`, `downcast_count.py --gate` at
-0 C-style casts in `src/game`; ctest `total_downcasts` at 519, the
+0 C-style casts in `src/game`; ctest `total_downcasts` at 518, the
 C-style casts, the `static_cast`s and the calls of the checked downcasts `ToPlayer()`, `ToCreature()` and `ToPet()`
 together, so a cast rewritten as a checked downcast leaves it where it was and a new downcast of any kind but
 `dynamic_cast` fails it; ctest `static_downcasts` at 2, the two inside `ToPet`, which test `IsPet()` first; ctest
