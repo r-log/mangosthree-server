@@ -106,7 +106,7 @@ class SpellCooldownMgr
         static uint32 const infinityCooldownDelay = MONTH; // used for set "infinity cooldowns" for spells and check
         static uint32 const infinityCooldownDelayCheck = MONTH / 2;
 
-        /// Sends the owner's one-spell clear for `spellId`: `SendClearCooldown(spellId, owner)`.
+        /// Sends the owner's one-spell clear for `spellId`.
         typedef std::function<void(uint32 spellId)> ClearSink;
         /// The item prototype store's lookup: `ObjectMgr::GetItemPrototype`.
         typedef std::function<ItemPrototype const*(uint32 itemId)> ItemPrototypeLookup;

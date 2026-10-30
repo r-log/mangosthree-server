@@ -314,6 +314,7 @@ struct SpellEntryExt;
 struct CreatureInfo;
 struct GroupCallbacks;
 struct ClientCallbacks;
+struct CooldownSinks;
 
 class Aura;
 class SpellAuraHolder;
@@ -3439,43 +3440,42 @@ class Unit : public WorldObject
         void SetCurrentCastedSpell(Spell* pSpell);
         virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, uint32 /*unTimeMs*/) { }
 
-    protected:
-        /**
-         * Starts a spell's cooldown and its category's; AddGameObject calls it for an object whose
-         * spell stays disabled while the object stands.
-         * Does nothing here; Player stores both cooldowns in its manager.
-         */
-        virtual void AddSpellAndCategoryCooldowns(SpellEntry const* /*spellInfo*/, uint32 /*itemId*/,
-                                                  Spell* /*spell*/ = NULL, bool /*infinityCooldown*/ = false) { }
-        /**
-         * Starts a spell's cooldown and its category's and reports the cooldown event; RemoveGameObject
-         * calls it when an object whose spell stayed disabled goes.
-         * Does nothing here; Player stores both cooldowns and reports the event to the callback its
-         * session installed, and the session sends it.
-         */
-        virtual void SendCooldownEvent(SpellEntry const* /*spellInfo*/, uint32 /*itemId*/ = 0,
-                                       Spell* /*spell*/ = NULL) { }
-        /**
-         * Ends a spell's cooldown; the Lightning Overload proc ends the cooldown of the spell it casts.
-         * Does nothing here; Player removes it from its manager and, with update, tells its client.
-         */
-        virtual void RemoveSpellCooldown(uint32 /*spell_id*/, bool /*update*/ = false) { }
-
     public:
+        /**
+         * Starts a spell's cooldown and its category's; a cast, an aura and AddGameObject (for an
+         * object whose spell stays disabled while the object stands) call it.
+         * A player stores both cooldowns in its manager; a unit that is not a player does nothing.
+         */
+        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell = NULL,
+                                          bool infinityCooldown = false);
+        /**
+         * Starts a spell's cooldown and its category's and reports the cooldown event; an aura and
+         * RemoveGameObject (when an object whose spell stayed disabled goes) call it.
+         * A player stores both cooldowns and reports the event to the callback its session installed,
+         * and the session sends it; a unit that is not a player does nothing.
+         */
+        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, Spell* spell = NULL);
+        /**
+         * Ends a spell's cooldown; procs, spell handlers and a GM command end one.
+         * A player removes it from its manager and, with update, tells its client; a unit that is not
+         * a player does nothing.
+         */
+        void RemoveSpellCooldown(uint32 spell_id, bool update = false);
         /**
          * Ends the cooldown of every spell of a category; the Glyph of Ice Block, Sword and Board
          * and Freezing Fog procs end one.
-         * Does nothing here; Player removes them from its manager and, with update, tells its client.
+         * A player removes them from its manager and, with update, tells its client; a unit that is
+         * not a player does nothing.
          */
-        virtual void RemoveSpellCategoryCooldown(uint32 /*cat*/, bool /*update*/ = false) { }
+        void RemoveSpellCategoryCooldown(uint32 cat, bool update = false);
+        /**
+         * Starts the cooldown of the potion used in combat; ClearInCombat and a potion's cast call it.
+         * A player, out of combat, sends the cooldown event of the last potion it used and forgets the
+         * potion; a unit that is not a player does nothing.
+         */
+        void UpdatePotionCooldown(Spell* spell = NULL);
 
     protected:
-        /**
-         * Starts the cooldown of the potion used in combat; ClearInCombat calls it when combat ends.
-         * Does nothing here; Player, out of combat, sends the cooldown event of the last potion it used
-         * and forgets the potion.
-         */
-        virtual void UpdatePotionCooldown(Spell* /*spell*/ = NULL) { }
         /**
          * Adds combo points on a target; ProcDamageAndSpellFor adds one to a warrior whose target
          * dodged, with the Overpower window it opens.
@@ -4222,6 +4222,11 @@ class Unit : public WorldObject
         GroupCallbacks const* m_groupCallbacks;
         // The player's own-client callbacks, NULL for a unit that is not a player
         ClientCallbacks const* m_clientCallbacks;
+        // The player's cooldown callbacks, NULL for a unit that is not a player
+        CooldownSinks const* m_cooldownCallbacks;
+        // The last health or mana potion the player used in combat, which blocks the next until
+        // combat ends; 0 for none
+        uint32 m_lastPotionId;
         // The melee swing error the player's client was last told, 0 for none
         uint8 m_lastSwingError;
         // The player's spell modifiers, NULL for a unit that is not a player

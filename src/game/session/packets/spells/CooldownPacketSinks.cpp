@@ -29,7 +29,7 @@
 
 void InstallCooldownPacketSinks(Player& player)
 {
-    Player::CooldownSinks sinks;
+    CooldownSinks sinks;
     sinks.event = CooldownEventToSession(&player);
     sinks.cleared = CooldownsClearedToSession(&player);
     player.SetCooldownSinks(sinks);

@@ -28,12 +28,12 @@
  * @brief The character's side of its spell cooldowns (spells/SpellCooldownMgr).
  *
  * SpellCooldownMgr holds the cooldown map and the rules over it and never sees the character.
- * The wrappers here read and write the character for it: the clock, the ranged attack time, the
- * auto-repeat check, the item prototype store, the cooldown spell mods, the one-spell clear, the
- * login loop and the potion bookkeeping. Each input is read just before the one call into the
- * manager; each write is a callback the manager calls at the write. The forwarders whose inputs
- * are plain expressions (the clock, the guid, a stored callback) stay inline in Player.h, and the
- * cooldown event and the clear of every cooldown go to the session's callbacks in CooldownSinks.
+ * The wrappers here read and write the character for it: the clock, the one-spell clear of the
+ * arena reset and the login loop. Each input is read just before the one call into the manager;
+ * each write is a callback the manager calls at the write. A cast's cooldowns and the potion's are
+ * Unit's (Unit.cpp), the forwarders whose inputs are plain expressions (the clock, the guid, a
+ * stored callback) stay inline in Player.h, and the cooldown event and the clear of every cooldown
+ * go to the session's callbacks in CooldownSinks.
  */
 
 #include "Player.h"
@@ -47,22 +47,7 @@
 
 namespace
 {
-    /// What SpellCooldownMgr::AddSpellAndCategoryCooldowns needs from the character, read just
-    /// before the call. The spell mods apply to the value the manager hands them.
-    SpellCooldownMgr::CastInputs ReadCastInputs(Player* player, SpellEntry const* spellInfo)
-    {
-        SpellCooldownMgr::CastInputs inputs;
-        inputs.itemPrototype = ObjectMgr::GetItemPrototype;
-        inputs.autoRepeatRanged = IsAutoRepeatRangedSpell(spellInfo);
-        inputs.rangedAttackTime = player->GetAttackTime(RANGED_ATTACK);
-        inputs.applyCooldownMod = [player](uint32 spellId, int32& cooldown)
-        {
-            player->GetSpellMods()->ApplySpellMod(spellId, SPELLMOD_COOLDOWN, cooldown);
-        };
-        return inputs;
-    }
-
-    /// The one-spell clear SpellCooldownMgr::RemoveSpellCooldown reports.
+    /// The one-spell clear SpellCooldownMgr::RemoveArenaSpellCooldowns reports.
     SpellCooldownMgr::ClearSink ClearCooldownSink(Player* player)
     {
         return [player](uint32 spellId)
@@ -70,32 +55,6 @@ namespace
             player->SendClearCooldown(spellId, player);
         };
     }
-}
-
-void Player::AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* /*spell*/, bool infinityCooldown)
-{
-    time_t now = time(NULL);
-    SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo);
-
-    m_spellCooldownMgr.AddSpellAndCategoryCooldowns(spellInfo, itemId, now, inputs, infinityCooldown);
-}
-
-void Player::SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, Spell* /*spell*/)
-{
-    time_t now = time(NULL);
-    SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo);
-
-    m_spellCooldownMgr.SendCooldownEvent(spellInfo, itemId, now, inputs, GetObjectGuid(), m_cooldownSinks.event);
-}
-
-void Player::RemoveSpellCooldown(uint32 spell_id, bool update)
-{
-    m_spellCooldownMgr.RemoveSpellCooldown(spell_id, update, ClearCooldownSink(this));
-}
-
-void Player::RemoveSpellCategoryCooldown(uint32 cat, bool update)
-{
-    m_spellCooldownMgr.RemoveSpellCategoryCooldown(cat, update, ClearCooldownSink(this));
 }
 
 void Player::RemoveArenaSpellCooldowns()
@@ -117,33 +76,4 @@ void Player::_LoadSpellCooldowns(std::vector<SpellCooldownRow> const& rows)
         }
 
     }
-}
-
-void Player::UpdatePotionCooldown(Spell* spell)
-{
-    // no potion used in combat or still in combat
-    if (!GetLastPotionId() || IsInCombat())
-    {
-        return;
-    }
-
-    // Call not from spell cast, send cooldown event for item spells if no in combat
-    if (!spell)
-    {
-        // spell/item pair let set proper cooldown (except nonexistent charged spell cooldown spellmods for potions)
-        if (ItemPrototype const* proto = ObjectMgr::GetItemPrototype(GetLastPotionId()))
-            for (int idx = 0; idx < 5; ++idx)
-                if (proto->Spells[idx].SpellId && proto->Spells[idx].SpellTrigger == ITEM_SPELLTRIGGER_ON_USE)
-                    if (SpellEntry const* spellInfo = sSpellStore.LookupEntry(proto->Spells[idx].SpellId))
-                    {
-                        SendCooldownEvent(spellInfo, GetLastPotionId());
-                    }
-    }
-    // from spell cases (m_lastPotionId set in Spell::SendSpellCooldown)
-    else
-    {
-        SendCooldownEvent(spell->m_spellInfo, GetLastPotionId(), spell);
-    }
-
-    SetLastPotionId(0);
 }
