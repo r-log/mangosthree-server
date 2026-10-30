@@ -203,9 +203,9 @@ static SpellHandlerOutcome<void> AuraDummyApplyGeneric46637(AuraDummyApplyGeneri
 /// SPELLFAMILY_GENERIC, AT APPLY 46699: Requires No Ammo
 static SpellHandlerOutcome<void> AuraDummyApplyGeneric46699(AuraDummyApplyGenericContext& ctx)
 {
-    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = ctx.target->ToPlayer())
         // not use ammo and not allow use
-        ((Player*)ctx.target)->RemoveAmmo();
+        targetPlayer->RemoveAmmo();
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -295,9 +295,9 @@ static SpellHandlerOutcome<void> AuraDummyApplyGeneric63624(AuraDummyApplyGeneri
 static SpellHandlerOutcome<void> AuraDummyApplyGeneric63651(AuraDummyApplyGenericContext& ctx)
 {
     // Teach Learn Talent Specialization Switches, remove
-    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = ctx.target->ToPlayer())
     {
-        ((Player*)ctx.target)->removeSpell(63680);
+        targetPlayer->removeSpell(63680);
     }
     return SpellHandlerOutcome<void>::Return();
 }
@@ -1213,17 +1213,17 @@ static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric58204(AuraDummyApply
 /// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 58205: LK Intro VO
 static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric58205(AuraDummyApplyRemoveContext& ctx)
 {
-    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = ctx.target->ToPlayer())
     {
         // Play part 2
         if (ctx.apply)
         {
-            ctx.target->PlayDirectSound(14971, (Player*)ctx.target);
+            ctx.target->PlayDirectSound(14971, targetPlayer);
         }
         // Play part 3
         else
         {
-            ctx.target->PlayDirectSound(14972, (Player*)ctx.target);
+            ctx.target->PlayDirectSound(14972, targetPlayer);
         }
     }
     return SpellHandlerOutcome<void>::Return();

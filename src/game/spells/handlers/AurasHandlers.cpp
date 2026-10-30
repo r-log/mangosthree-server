@@ -47,12 +47,13 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGeneric812(AuraTriggerSpellCont
 {
     ctx.trigger_spell_id = 25779;           // Mana Burn
 
-    if (ctx.aura->GetTarget()->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = ctx.aura->GetTarget()->ToCreature();
+    if (!targetCreature)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    ctx.triggerTarget = ((Creature*)ctx.aura->GetTarget())->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 0, ctx.trigger_spell_id, SELECT_FLAG_POWER_MANA);
+    ctx.triggerTarget = targetCreature->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 0, ctx.trigger_spell_id, SELECT_FLAG_POWER_MANA);
     if (!ctx.triggerTarget)
     {
         return SpellHandlerOutcome<void>::Return();
@@ -333,11 +334,11 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGenericTeslaPassive(AuraTrigger
 {
     // X-Tesla-Passive is casted by Tesla on Tesla with original caster X, so: caster = X, target = Tesla
     Unit* pCaster = ctx.aura->GetCaster();
-    if (pCaster && pCaster->GetTypeId() == TYPEID_UNIT)
+    if (Creature* casterCreature = pCaster ? pCaster->ToCreature() : NULL)
     {
         if (pCaster->getVictim() && !InReach(*pCaster, *ctx.target, 60.0f))
         {
-            if (Unit* pTarget = ((Creature*)pCaster)->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0))
+            if (Unit* pTarget = casterCreature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0))
             {
                 ctx.target->CastSpell(pTarget, 28099, false);// Shock
             }
@@ -408,12 +409,10 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGeneric30427(AuraTriggerSpellCo
         return SpellHandlerOutcome<void>::Return();
     }
     // move loot to player inventory and despawn target
-    if (caster->GetTypeId() == TYPEID_PLAYER &&
-            ctx.triggerTarget->GetTypeId() == TYPEID_UNIT &&
-            ctx.triggerTarget->GetCreatureType() == CREATURE_TYPE_GAS_CLOUD)
+    Player* player = caster->ToPlayer();
+    Creature* creature = player ? ctx.triggerTarget->ToCreature() : NULL;
+    if (creature && creature->GetCreatureType() == CREATURE_TYPE_GAS_CLOUD)
     {
-        Player* player = (Player*)caster;
-        Creature* creature = (Creature*)ctx.triggerTarget;
         // missing Lootid has been reported on startup - just return
         if (!creature->GetCreatureInfo()->SkinningLootId)
         {
@@ -547,9 +546,10 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGeneric34229(AuraTriggerSpellCo
 /// 36573: Vision Guide
 static SpellHandlerOutcome<void> AuraTriggerSpellGeneric36573(AuraTriggerSpellContext& ctx)
 {
-    if (ctx.aura->GetAuraTicks() == 10 && ctx.target->GetTypeId() == TYPEID_PLAYER)
+    Player* targetPlayer = ctx.target->ToPlayer();
+    if (ctx.aura->GetAuraTicks() == 10 && targetPlayer)
     {
-        ((Player*)ctx.target)->AreaExploredOrEventHappens(10525);
+        targetPlayer->AreaExploredOrEventHappens(10525);
         ctx.target->RemoveAurasDueToSpell(36573);
     }
 
@@ -1458,9 +1458,10 @@ static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericSummonGauntletMobs(
 /// one body for 2 labels: 49555: Corpse Explode, 59807: Corpse Explode
 static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericCorpseExplode(AuraPeriodicDummyTickContext& ctx)
 {
-    if (ctx.aura->GetAuraTicks() == 3 && ctx.target->GetTypeId() == TYPEID_UNIT)
+    Creature* targetCreature = ctx.target->ToCreature();
+    if (ctx.aura->GetAuraTicks() == 3 && targetCreature)
     {
-        ((Creature*)ctx.target)->ForcedDespawn();
+        targetCreature->ForcedDespawn();
     }
     if (ctx.aura->GetAuraTicks() != 2)
     {

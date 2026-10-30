@@ -142,9 +142,10 @@ int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster)
     {
         int32 maxduration = GetSpellMaxDuration(spellInfo);
 
-        if (duration != maxduration && caster->GetTypeId() == TYPEID_PLAYER)
+        Player const* casterPlayer = caster->ToPlayer();
+        if (duration != maxduration && casterPlayer)
         {
-            duration += int32((maxduration - duration) * ((Player*)caster)->GetComboPoints() / 5);
+            duration += int32((maxduration - duration) * casterPlayer->GetComboPoints() / 5);
         }
 
         if (SpellModMgr* modOwner = caster->GetSpellMods())
@@ -179,8 +180,8 @@ uint32 GetSpellCastTime(SpellEntry const* spellInfo, Spell const* spell)
         }
 
         // spell targeted to non-trading trade slot item instant at trade success apply
-        if (spell->GetCaster()->GetTypeId() == TYPEID_PLAYER)
-            if (TradeData* my_trade = ((Player*)(spell->GetCaster()))->GetTradeData())
+        if (Player* casterPlayer = spell->GetCaster()->ToPlayer())
+            if (TradeData* my_trade = casterPlayer->GetTradeData())
                 if (Item* nonTrade = my_trade->GetTraderData()->GetItem(TRADE_SLOT_NONTRADED))
                     if (nonTrade == spell->m_targets.getItemTarget())
                     {
