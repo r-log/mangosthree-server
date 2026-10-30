@@ -63,6 +63,7 @@
 #include "WorldSession.h"
 #include "session/handlers/social/CalendarHandlers.h"
 #include "session/handlers/social/MailHandlers.h"
+#include "session/handlers/spells/SpellHandlers.h"
 #include "persistence/characters/social/ArenaTeamRepository.h"
 #include "persistence/characters/social/GuildRepository.h"
 
@@ -363,7 +364,7 @@ TEST(CalendarMailAsync_OpeningAWrappedItemStagesTheGiftRowAndReFindsNothingWhenT
     {
         TickGuard::Scope scope;
 
-        WorldSession::QueueOpenWrappedItemRead(kAccountId, proto::SessionId(1), SenderGuid(), ItemGuid());
+        SpellHandlers::QueueOpenWrappedItemRead(kAccountId, proto::SessionId(1), SenderGuid(), ItemGuid());
 
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(query.executed.size(), size_t(0));

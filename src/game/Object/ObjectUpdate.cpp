@@ -762,17 +762,6 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                 {
                     uint32 send_value = m_uint32Values[index];
 
-                    /* If the creature is NOT fully looted */
-                    if (!creature->loot.isLooted())
-                        /* If the lootable flag is NOT set */
-                        if (!(send_value & UNIT_DYNFLAG_LOOTABLE))
-                        {
-                            /* Update it on the creature */
-                            const_cast<Creature*>(creature)->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
-                            /* Update it in the packet */
-                            send_value = send_value | UNIT_DYNFLAG_LOOTABLE;
-                        }
-
                     /* If we're not allowed to loot the target, destroy the lootable flag */
                     if (!target->isAllowedToLoot(creature))
                         if (send_value & UNIT_DYNFLAG_LOOTABLE)

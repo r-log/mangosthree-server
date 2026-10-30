@@ -75,8 +75,8 @@
 /// - processed PROCESS_INPLACE: the CMSG_ATTACKSWING, CMSG_ATTACKSTOP, CMSG_SETSHEATHED,
 ///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID,
 ///   CMSG_LOW_LEVEL_RAID_USER, CMSG_GUILD_AUTO_DECLINE_TOGGLE, CMSG_OBJECT_UPDATE_FAILED,
-///   CMSG_UI_TIME_REQUEST and CMSG_REQUEST_HOTFIX rows;
-/// - processed PROCESS_THREADSAFE: the six taxi rows;
+///   CMSG_UI_TIME_REQUEST, CMSG_REQUEST_HOTFIX and CMSG_GET_MIRRORIMAGE_DATA rows;
+/// - processed PROCESS_THREADSAFE: the six taxi rows and the CMSG_CAST_SPELL and CMSG_CANCEL_CAST rows;
 /// - of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT: the CMSG_CANCEL_TRADE row;
 /// - of status STATUS_AUTHED: the CMSG_VOICE_SESSION_ENABLE, CMSG_SET_ACTIVE_VOICE_CHANNEL,
 ///   CMSG_WARDEN_DATA, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE, CMSG_CHAR_DELETE,
@@ -130,6 +130,7 @@
 #include "session/handlers/social/TicketHandlers.h"
 #include "session/handlers/social/VoiceChatHandlers.h"
 #include "session/handlers/social/WhoHandlers.h"
+#include "session/handlers/spells/SpellHandlers.h"
 
 #include <cstring>
 #include <type_traits>
@@ -2752,4 +2753,77 @@ TEST(OpcodeDispatch_ClientRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_REQUEST_HOTFIX].packetProcessing, PROCESS_INPLACE);
     CHECK_EQ(opcodeTable[CMSG_SET_TAXI_BENCHMARK_MODE].status, STATUS_AUTHED);
     CHECK_EQ(opcodeTable[CMSG_SET_TAXI_BENCHMARK_MODE].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_SpellRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_USE_ITEM].handler == &OpcodeThunk<&SpellHandlers::HandleUseItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleUseItem>), 1);
+    CHECK(opcodeTable[CMSG_OPEN_ITEM].handler == &OpcodeThunk<&SpellHandlers::HandleOpenItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleOpenItem>), 1);
+    CHECK(opcodeTable[CMSG_GAMEOBJ_USE].handler == &OpcodeThunk<&SpellHandlers::HandleGameObjectUse>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleGameObjectUse>), 1);
+    CHECK(opcodeTable[CMSG_CAST_SPELL].handler == &OpcodeThunk<&SpellHandlers::HandleCastSpell>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleCastSpell>), 1);
+    CHECK(opcodeTable[CMSG_CANCEL_CAST].handler == &OpcodeThunk<&SpellHandlers::HandleCancelCast>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleCancelCast>), 1);
+    CHECK(opcodeTable[CMSG_CANCEL_AURA].handler == &OpcodeThunk<&SpellHandlers::HandleCancelAura>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleCancelAura>), 1);
+    CHECK(opcodeTable[CMSG_CANCEL_CHANNELLING].handler == &OpcodeThunk<&SpellHandlers::HandleCancelChanneling>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleCancelChanneling>), 1);
+    CHECK(opcodeTable[CMSG_PET_CANCEL_AURA].handler == &OpcodeThunk<&SpellHandlers::HandlePetCancelAura>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandlePetCancelAura>), 1);
+    CHECK(opcodeTable[CMSG_CANCEL_AUTO_REPEAT_SPELL].handler == &OpcodeThunk<&SpellHandlers::HandleCancelAutoRepeatSpell>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleCancelAutoRepeatSpell>), 1);
+    // The growth aura's handler has an empty body, so identical code folding can give its thunk the
+    // address of another empty handler's: only its row is checked.
+    CHECK(opcodeTable[CMSG_CANCEL_GROWTH_AURA].handler == &OpcodeThunk<&SpellHandlers::HandleCancelGrowthAura>);
+    CHECK(opcodeTable[CMSG_SELF_RES].handler == &OpcodeThunk<&SpellHandlers::HandleSelfRes>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleSelfRes>), 1);
+    CHECK(opcodeTable[CMSG_SPELLCLICK].handler == &OpcodeThunk<&SpellHandlers::HandleSpellClick>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleSpellClick>), 1);
+    CHECK(opcodeTable[CMSG_GET_MIRRORIMAGE_DATA].handler == &OpcodeThunk<&SpellHandlers::HandleGetMirrorImageData>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleGetMirrorImageData>), 1);
+    CHECK(opcodeTable[CMSG_TOTEM_DESTROYED].handler == &OpcodeThunk<&SpellHandlers::HandleTotemDestroyed>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleTotemDestroyed>), 1);
+    CHECK(opcodeTable[CMSG_GAMEOBJ_REPORT_USE].handler == &OpcodeThunk<&SpellHandlers::HandleGameObjectReportUse>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SpellHandlers::HandleGameObjectReportUse>), 1);
+}
+
+TEST(OpcodeDispatch_SpellRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_USE_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_USE_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_OPEN_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_OPEN_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GAMEOBJ_USE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GAMEOBJ_USE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CAST_SPELL].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CAST_SPELL].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_CAST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_CAST].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_AURA].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_AURA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_CHANNELLING].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_CHANNELLING].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_CANCEL_AURA].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_CANCEL_AURA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_AUTO_REPEAT_SPELL].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_AUTO_REPEAT_SPELL].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_GROWTH_AURA].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_GROWTH_AURA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SELF_RES].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SELF_RES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SPELLCLICK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SPELLCLICK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GET_MIRRORIMAGE_DATA].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GET_MIRRORIMAGE_DATA].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_TOTEM_DESTROYED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_TOTEM_DESTROYED].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GAMEOBJ_REPORT_USE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GAMEOBJ_REPORT_USE].packetProcessing, PROCESS_THREADUNSAFE);
 }

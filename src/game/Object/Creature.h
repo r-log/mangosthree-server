@@ -270,7 +270,6 @@ class Creature : public Unit
 
         bool IsImmuneToSpell(SpellEntry const* spellInfo, bool castOnSelf) override;
         bool IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex index, bool castOnSelf) const override;
-        void SetLootStatus(CreatureLootStatus status);
         bool IsTappedBy(Player* plr) const;
 
         bool IsElite() const
@@ -586,7 +585,6 @@ class Creature : public Unit
         uint32 m_lootMoney;
         ObjectGuid m_lootRecipientGuid;                     // player who will have rights for looting if m_lootGroupRecipient==0 or group disbanded
         uint32 m_lootGroupRecipientId;                      // group who will have rights for looting if set and exist
-        CreatureLootStatus m_lootStatus;                    // loot status (used to know when we could loot, pickpocket or skin)
 
         /// Timers
         uint32 m_corpseDecayTimer;                          // (msecs)timer for death or corpse disappearance

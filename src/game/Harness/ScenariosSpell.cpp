@@ -534,7 +534,7 @@ namespace Harness
         Recorder const& Rec() const override { return m_rec; }
 
         /**
-         * The CAST_SPELL handler's calls (SpellHandler.cpp, WorldSession::HandleCastSpellOpcode)
+         * The CAST_SPELL handler's calls (SpellHandlers.cpp, SpellHandlers::HandleCastSpell)
          * for a player casting at a unit, in window `window`: the spellbook check (HasActiveSpell,
          * not passive), the rank chosen for the target's level (SelectAuraRankForLevel), then
          * `new Spell(caster, info, false, caster guid, NULL)` with the cast count and glyph index
