@@ -39,7 +39,7 @@ struct CooldownEventFact;
 struct CooldownsClearedFact;
 
 /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-/// where the player is created: twenty-nine facts out, one read in.
+/// where the player is created: thirty-five facts out, one read in.
 struct ClientCallbacks
 {
     SwingOutOfReachSink swingOutOfReach;
@@ -48,6 +48,12 @@ struct ClientCallbacks
     AutoRepeatCancelledSink autoRepeatCancelled;
     CurrentPetSink currentPet;
     PetActionBarClearedSink petActionBarCleared;
+    PetModeSink petMode;
+    PetSpellLearnedSink petSpellLearned;
+    PetSpellRemovedSink petSpellRemoved;
+    PetActionFeedbackSink petActionFeedback;
+    PetTalkSink petTalk;
+    PetAiReactionSink petAiReaction;
     StandStateSink standState;
     PartyKillLogSink partyKillLog;
     DurabilityDeathSink durabilityDeath;

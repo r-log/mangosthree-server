@@ -33,6 +33,7 @@
 #include "session/packets/entities/CurrencyPackets.h"
 #include "session/packets/entities/PetActionBarPacket.h"
 #include "session/packets/entities/PetGuidsPacket.h"
+#include "session/packets/entities/PetPackets.h"
 #include "session/packets/entities/PvpCreditPacket.h"
 #include "session/packets/entities/ReputationPackets.h"
 #include "session/packets/entities/RunePackets.h"
@@ -81,6 +82,12 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.autoRepeatCancelled = FactToSession(owner, &BuildCancelAutoRepeatPacket);
     callbacks.currentPet = FactToSession(owner, &BuildPetGuidsPacket);
     callbacks.petActionBarCleared = FactToSession(owner, &BuildPetActionBarClearedPacket);
+    callbacks.petMode = FactToSession(owner, &BuildPetModePacket);
+    callbacks.petSpellLearned = FactToSession(owner, &BuildPetLearnedSpellPacket);
+    callbacks.petSpellRemoved = FactToSession(owner, &BuildPetRemovedSpellPacket);
+    callbacks.petActionFeedback = FactToSession(owner, &BuildPetActionFeedbackPacket);
+    callbacks.petTalk = FactToSession(owner, &BuildPetActionSoundPacket);
+    callbacks.petAiReaction = FactToSession(owner, &BuildPetAiReactionPacket);
     callbacks.standState = FactToSession(owner, &BuildStandStateUpdatePacket);
     callbacks.durabilityDeath = FactToSession(owner, &BuildDurabilityDeathPacket);
     callbacks.pvpCredit = FactToSession(owner, &BuildPvpCreditPacket);

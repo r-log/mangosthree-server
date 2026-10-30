@@ -205,7 +205,9 @@ armor specialization spell fits it, its combo points and its combo target: `FitA
 What `Unit` tells a player's own client (its attack or auto-repeat spell cancelled, its pet's guid, its stand state,
 a changed melee swing error, the possess action bar, the pet action bar removed) and what a possession does to its
 camera, it reports through the client callbacks the player points it at; a unit that is not a player has none and
-tells nothing. `RemovePet` is `Unit`'s own. What `Unit` asks of a player's group, whether another player sees it
+tells nothing. What a pet tells its owner's client (its mode, its learned and removed spells, its action feedback,
+its sound and its hostile reaction) goes through its owner's client callbacks (`GetClientCallbacks`), and an owner
+that is not a player has none. `RemovePet` is `Unit`'s own. What `Unit` asks of a player's group, whether another player sees it
 through its stealth (`IsGroupVisibleFor`) and a random raid member near it for Prayer of Mending
 (`GetNextRandomRaidMember`), it asks through the group callbacks; the group answers (`Group.cpp`). The cooldowns a cast, an aura, a proc or the end of combat start or end are
 `Unit`'s too (`AddSpellAndCategoryCooldowns`, `SendCooldownEvent`, `RemoveSpellCooldown`,
@@ -221,7 +223,7 @@ mangosd installs, and a dungeon records the kill credited to a player itself (`D
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
 see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 908, Unit 657, WorldSession 189, ObjectMgr 255), R1, M1,
-the downcast counts (ctest `player_downcasts` and `creature_downcasts`, `downcast_count.py --gate` at 496 and 205 C-style
+the downcast counts (ctest `player_downcasts` and `creature_downcasts`, `downcast_count.py --gate` at 489 and 205 C-style
 casts in `src/game`, lowered in the PR that cuts them) and the database-call count.
 
 | Layer | Rule | Gate |

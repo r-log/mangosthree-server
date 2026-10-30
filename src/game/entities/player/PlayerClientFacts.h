@@ -71,6 +71,45 @@ struct PetActionBarClearedFact
 {
 };
 
+/// The player's pet `pet` is in the mode `modeFlags` (its PetModeFlags).
+struct PetModeFact
+{
+    ObjectGuid pet;
+    uint32 modeFlags;
+};
+
+/// The player's pet learned the spell `spellId`.
+struct PetSpellLearnedFact
+{
+    uint32 spellId;
+};
+
+/// The player's pet no longer knows the spell `spellId`.
+struct PetSpellRemovedFact
+{
+    uint32 spellId;
+};
+
+/// The player's pet could not do what it was told; `message` is the client's feedback code.
+struct PetActionFeedbackFact
+{
+    uint8 message;
+};
+
+/// The player's pet `pet` plays the sound `talk` (its PetTalk).
+struct PetTalkFact
+{
+    ObjectGuid pet;
+    uint32 talk;
+};
+
+/// The player's pet `pet` shows the reaction `reaction` (its AiReaction).
+struct PetAiReactionFact
+{
+    ObjectGuid pet;
+    uint32 reaction;
+};
+
 /// The player's stand state is now `state`.
 struct StandStateFact
 {
@@ -145,6 +184,12 @@ typedef std::function<void(CombatCancelledFact const&)> CombatCancelledSink;
 typedef std::function<void(AutoRepeatCancelledFact const&)> AutoRepeatCancelledSink;
 typedef std::function<void(CurrentPetFact const&)> CurrentPetSink;
 typedef std::function<void(PetActionBarClearedFact const&)> PetActionBarClearedSink;
+typedef std::function<void(PetModeFact const&)> PetModeSink;
+typedef std::function<void(PetSpellLearnedFact const&)> PetSpellLearnedSink;
+typedef std::function<void(PetSpellRemovedFact const&)> PetSpellRemovedSink;
+typedef std::function<void(PetActionFeedbackFact const&)> PetActionFeedbackSink;
+typedef std::function<void(PetTalkFact const&)> PetTalkSink;
+typedef std::function<void(PetAiReactionFact const&)> PetAiReactionSink;
 typedef std::function<void(StandStateFact const&)> StandStateSink;
 typedef std::function<void(PartyKillLogFact const&)> PartyKillLogSink;
 typedef std::function<void(DurabilityDeathFact const&)> DurabilityDeathSink;

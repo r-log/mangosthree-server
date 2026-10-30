@@ -3323,14 +3323,17 @@ SpellModMgr* Unit::GetSpellMods() const
 void Unit::SendPetActionFeedback(uint8 msg)
 {
     Unit* owner = GetOwner();
-    if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
+    if (!owner)
     {
         return;
     }
 
-    WorldPacket data(SMSG_PET_ACTION_FEEDBACK, 1);
-    data << uint8(msg);
-    ((Player*)owner)->GetSession()->SendPacket(&data);
+    if (ClientCallbacks const* client = owner->GetClientCallbacks())
+    {
+        PetActionFeedbackFact fact;
+        fact.message = msg;
+        ReportClientFact(client->petActionFeedback, fact);
+    }
 }
 
 /**
@@ -3341,15 +3344,18 @@ void Unit::SendPetActionFeedback(uint8 msg)
 void Unit::SendPetTalk(uint32 pettalk)
 {
     Unit* owner = GetOwner();
-    if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
+    if (!owner)
     {
         return;
     }
 
-    WorldPacket data(SMSG_PET_ACTION_SOUND, 8 + 4);
-    data << GetObjectGuid();
-    data << uint32(pettalk);
-    ((Player*)owner)->GetSession()->SendPacket(&data);
+    if (ClientCallbacks const* client = owner->GetClientCallbacks())
+    {
+        PetTalkFact fact;
+        fact.pet = GetObjectGuid();
+        fact.talk = pettalk;
+        ReportClientFact(client->petTalk, fact);
+    }
 }
 
 /**
@@ -3358,15 +3364,18 @@ void Unit::SendPetTalk(uint32 pettalk)
 void Unit::SendPetAIReaction()
 {
     Unit* owner = GetOwner();
-    if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
+    if (!owner)
     {
         return;
     }
 
-    WorldPacket data(SMSG_AI_REACTION, 8 + 4);
-    data << GetObjectGuid();
-    data << uint32(AI_REACTION_HOSTILE);
-    ((Player*)owner)->GetSession()->SendPacket(&data);
+    if (ClientCallbacks const* client = owner->GetClientCallbacks())
+    {
+        PetAiReactionFact fact;
+        fact.pet = GetObjectGuid();
+        fact.reaction = AI_REACTION_HOSTILE;
+        ReportClientFact(client->petAiReaction, fact);
+    }
 }
 
 ///----------End of Pet responses methods----------
