@@ -198,7 +198,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
  */
 MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackType attType, int32 crit_chance, int32 miss_chance, int32 dodge_chance, int32 parry_chance, int32 block_chance) const
 {
-    if (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->IsInEvadeMode())
+    if (pVictim->IsInEvadeMode())
     {
         return MELEE_HIT_EVADE;
     }
@@ -900,7 +900,7 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* pVictim, SpellEntry const* spell)
 SpellMissInfo Unit::SpellHitResult(Unit* pVictim, SpellEntry const* spell, bool CanReflect, SpellHitFor hitFor)
 {
     // Return evade for units in evade mode
-    if (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->IsInEvadeMode())
+    if (pVictim->IsInEvadeMode())
     {
         return SPELL_MISS_EVADE;
     }
@@ -1644,20 +1644,10 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
         return false;
     }
 
-    // nobody can attack GM in GM-mode
-    if (victim->GetTypeId() == TYPEID_PLAYER)
+    // nobody can attack a game master in GM mode or an evading creature
+    if (victim->isGameMaster() || victim->IsInEvadeMode())
     {
-        if (victim->isGameMaster())
-        {
-            return false;
-        }
-    }
-    else
-    {
-        if (((Creature*)victim)->IsInEvadeMode())
-        {
-            return false;
-        }
+        return false;
     }
 
     // remove SPELL_AURA_MOD_UNATTACKABLE at attack (in case non-interruptible spells stun aura applied also that not let attack)

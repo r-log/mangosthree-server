@@ -1122,7 +1122,7 @@ void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
     }
 
     // Evade target
-    if (target->GetTypeId() == TYPEID_UNIT && ((Creature*)target)->IsInEvadeMode())
+    if (target->IsInEvadeMode())
     {
         return;
     }

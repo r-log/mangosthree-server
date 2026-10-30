@@ -809,7 +809,7 @@ void Unit::CalculateHealAbsorb(const uint32 heal, uint32* absorb)
  */
 void Unit::DealDamageMods(Unit* pVictim, uint32& damage, uint32* absorb)
 {
-    if (!pVictim->IsAlive() || pVictim->IsTaxiFlying() || (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->IsInEvadeMode()))
+    if (!pVictim->IsAlive() || pVictim->IsTaxiFlying() || pVictim->IsInEvadeMode())
     {
         if (absorb)
         {
@@ -979,7 +979,7 @@ void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss)
         return;
     }
 
-    if (!pVictim->IsAlive() || pVictim->IsTaxiFlying() || (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->IsInEvadeMode()))
+    if (!pVictim->IsAlive() || pVictim->IsTaxiFlying() || pVictim->IsInEvadeMode())
     {
         return;
     }
