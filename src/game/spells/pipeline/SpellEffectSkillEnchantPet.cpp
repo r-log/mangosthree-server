@@ -70,7 +70,8 @@ void Spell::EffectLearnSpell(SpellEffectEntry const* effect)
         return;
     }
 
-    if (unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* player = unitTarget->ToPlayer();
+    if (!player)
     {
         if (m_caster->GetTypeId() == TYPEID_PLAYER)
         {
@@ -79,8 +80,6 @@ void Spell::EffectLearnSpell(SpellEffectEntry const* effect)
 
         return;
     }
-
-    Player* player = (Player*)unitTarget;
 
     uint32 spellToLearn = ((m_spellInfo->ID==SPELL_ID_GENERIC_LEARN) || (m_spellInfo->ID==SPELL_ID_GENERIC_LEARN_PET)) ? damage : effect->EffectTriggerSpell;
     player->learnSpell(spellToLearn, false);
@@ -593,12 +592,11 @@ void Spell::EffectEnchantItemPrismatic(SpellEffectEntry const* effect)
 
 void Spell::EffectEnchantItemTmp(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* p_caster = m_caster->ToPlayer();
+    if (!p_caster)
     {
         return;
     }
-
-    Player* p_caster = (Player*)m_caster;
 
     // Rockbiter Weapon
     SpellClassOptionsEntry const* classOptions = m_spellInfo->GetSpellClassOptions();
@@ -978,12 +976,11 @@ void Spell::EffectSummonPet(SpellEffectEntry const* effect)
  */
 void Spell::EffectLearnPetSpell(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* _player = m_caster->ToPlayer();
+    if (!_player)
     {
         return;
     }
-
-    Player* _player = (Player*)m_caster;
 
     Pet* pet = _player->GetPet();
     if (!pet)

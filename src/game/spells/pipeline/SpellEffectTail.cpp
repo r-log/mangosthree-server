@@ -100,11 +100,11 @@ void Spell::EffectDispelMechanic(SpellEffectEntry const* effect)
  */
 void Spell::EffectSummonDeadPet(SpellEffectEntry const* /*effect*/)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* _player = m_caster->ToPlayer();
+    if (!_player)
     {
         return;
     }
-    Player* _player = (Player*)m_caster;
     Pet* pet = _player->GetPet();
     if (!pet)
     {
@@ -740,12 +740,11 @@ void Spell::EffectQuestFail(SpellEffectEntry const* effect)
 
 void Spell::EffectActivateRune(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* plr = m_caster->ToPlayer();
+    if (!plr)
     {
         return;
     }
-
-    Player* plr = (Player*)m_caster;
 
     if (plr->getClass() != CLASS_DEATH_KNIGHT)
     {
@@ -847,12 +846,11 @@ void Spell::EffectActivateSpec(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectBind(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* player = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!player)
     {
         return;
     }
-
-    Player* player = (Player*)unitTarget;
 
     uint32 area_id = uint32(effect->EffectMiscValue_0);
     WorldLocation loc;
@@ -907,12 +905,11 @@ void Spell::EffectBind(SpellEffectEntry const* effect)
 
 void Spell::EffectRestoreItemCharges(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* player = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!player)
     {
         return;
     }
-
-    Player* player = (Player*)unitTarget;
 
     ItemPrototype const* itemProto = ObjectMgr::GetItemPrototype(effect->EffectItemType);
     if (!itemProto)
@@ -962,12 +959,11 @@ void Spell::EffectRedirectThreat(SpellEffectEntry const* effect)
 
 void Spell::EffectTeachTaxiNode(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* player = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!player)
     {
         return;
     }
-
-    Player* player = (Player*)unitTarget;
 
     uint32 taxiNodeId = effect->EffectMiscValue_0;
     if (!sTaxiNodesStore.LookupEntry(taxiNodeId))

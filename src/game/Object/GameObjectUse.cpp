@@ -120,12 +120,11 @@ void GameObject::Use(Unit* user)
         }
         case GAMEOBJECT_TYPE_QUESTGIVER:                    // 2
         {
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             if (!sScriptHooks.OnGossipHello(player, this))
             {
@@ -226,12 +225,11 @@ void GameObject::Use(Unit* user)
                 return;
             }
 
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             // a chair may have n slots. we have to calculate their positions and teleport the player to the nearest one
 
@@ -380,12 +378,11 @@ void GameObject::Use(Unit* user)
                 return;
             }
 
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             if (info->camera.cinematicId)
             {
@@ -401,12 +398,11 @@ void GameObject::Use(Unit* user)
         }
         case GAMEOBJECT_TYPE_FISHINGNODE:                   // 17 fishing bobber
         {
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             if (player->GetObjectGuid() != GetOwnerGuid())
             {
@@ -515,12 +511,11 @@ void GameObject::Use(Unit* user)
         }
         case GAMEOBJECT_TYPE_SUMMONING_RITUAL:              // 18
         {
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             Unit* owner = GetOwner();
 
@@ -655,12 +650,11 @@ void GameObject::Use(Unit* user)
         {
             GameObjectInfo const* info = GetGOInfo();
 
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             Player* targetPlayer = sPlayerRegistry.Find(player->GetSelectionGuid());
 
@@ -696,12 +690,11 @@ void GameObject::Use(Unit* user)
         }
         case GAMEOBJECT_TYPE_FLAGSTAND:                     // 24
         {
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             if (player->CanUseBattleGroundObject())
             {
@@ -725,12 +718,11 @@ void GameObject::Use(Unit* user)
         }
         case GAMEOBJECT_TYPE_FISHINGHOLE:                   // 25
         {
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             player->SendLoot(GetObjectGuid(), LOOT_FISHINGHOLE);
             player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_FISH_IN_GAMEOBJECT, GetGOInfo()->id);
@@ -738,12 +730,11 @@ void GameObject::Use(Unit* user)
         }
         case GAMEOBJECT_TYPE_FLAGDROP:                      // 26
         {
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             if (player->CanUseBattleGroundObject())
             {
@@ -794,12 +785,11 @@ void GameObject::Use(Unit* user)
                 return;
             }
 
-            if (user->GetTypeId() != TYPEID_PLAYER)
+            Player* player = user->ToPlayer();
+            if (!player)
             {
                 return;
             }
-
-            Player* player = (Player*)user;
 
             // fallback, will always work
             player->TeleportTo(GetMapId(), Where().X(), Where().Y(), Where().Z(), Where().Facing(), TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);

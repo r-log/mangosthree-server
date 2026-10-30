@@ -2535,12 +2535,12 @@ bool Spell::IgnoreItemRequirements() const
  */
 SpellCastResult Spell::CheckItems()
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* p_caster = m_caster->ToPlayer();
+    if (!p_caster)
     {
         return SPELL_CAST_OK;
     }
 
-    Player* p_caster = (Player*)m_caster;
     bool isScrollItem = false;
     bool isVellumTarget = false;
 

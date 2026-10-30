@@ -340,12 +340,11 @@ void Aura::HandleAuraConvertRune(bool apply, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* plr = GetTarget()->ToPlayer();
+    if (!plr)
     {
         return;
     }
-
-    Player* plr = (Player*)GetTarget();
 
     if (plr->getClass() != CLASS_DEATH_KNIGHT)
     {

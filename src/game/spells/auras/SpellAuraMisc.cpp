@@ -548,12 +548,11 @@ void Aura::HandleAuraRetainComboPoints(bool apply, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* target = GetTarget()->ToPlayer();
+    if (!target)
     {
         return;
     }
-
-    Player* target = (Player*)GetTarget();
 
     // combo points was added in SPELL_EFFECT_ADD_COMBO_POINTS handler
     // remove only if aura expire by time (in case combo points amount change aura removed without combo points lost)

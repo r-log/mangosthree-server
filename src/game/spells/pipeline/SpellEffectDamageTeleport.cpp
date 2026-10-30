@@ -606,12 +606,11 @@ void Spell::EffectTriggerRitualOfSummoning(SpellEffectEntry const* effect)
 
 void Spell::EffectClearQuest(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* player = m_caster->ToPlayer();
+    if (!player)
     {
         return;
     }
-
-    Player* player = (Player*)m_caster;
 
     uint32 quest_id = effect->EffectMiscValue_0;
 

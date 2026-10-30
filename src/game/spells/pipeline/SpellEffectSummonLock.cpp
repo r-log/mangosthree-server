@@ -107,13 +107,12 @@ void Spell::SendLoot(ObjectGuid guid, LootType loottype, LockType lockType)
  */
 void Spell::EffectOpenLock(SpellEffectEntry const* effect)
 {
-    if (!m_caster || m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* player = m_caster ? m_caster->ToPlayer() : NULL;
+    if (!player)
     {
         DEBUG_LOG("WORLD: Open Lock - No Player Caster!");
         return;
     }
-
-    Player* player = (Player*)m_caster;
 
     uint32 lockId = 0;
     ObjectGuid guid;
@@ -213,12 +212,11 @@ void Spell::EffectOpenLock(SpellEffectEntry const* effect)
  */
 void Spell::EffectSummonChangeItem(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* player = m_caster->ToPlayer();
+    if (!player)
     {
         return;
     }
-
-    Player* player = (Player*)m_caster;
 
     // applied only to using item
     if (!m_CastItem)
@@ -253,11 +251,11 @@ void Spell::EffectSummonChangeItem(SpellEffectEntry const* effect)
  */
 void Spell::EffectProficiency(SpellEffectEntry const* /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* p_target = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!p_target)
     {
         return;
     }
-    Player *p_target = (Player*)unitTarget;
 
     SpellEquippedItemsEntry const* eqItems = m_spellInfo->GetSpellEquippedItems();
 
