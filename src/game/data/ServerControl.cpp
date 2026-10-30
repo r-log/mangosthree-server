@@ -32,7 +32,7 @@ namespace
 {
     std::atomic<ServerControl*> s_installed(NULL);
     std::atomic<bool> s_stopped(false);
-    std::atomic<uint8> s_exitCode(uint8(SHUTDOWN_EXIT_CODE));
+    std::atomic<uint8> s_exitCode{uint8(SHUTDOWN_EXIT_CODE)};
 
     ServerControl& BaseControl()
     {
