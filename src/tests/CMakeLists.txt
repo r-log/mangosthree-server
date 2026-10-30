@@ -528,11 +528,11 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME player_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate c_style_player=3 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate c_style_player=0 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME creature_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate c_style_creature=5 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate c_style_creature=0 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME pet_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
@@ -540,7 +540,11 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME total_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate downcasts=526 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate downcasts=521 ${CMAKE_SOURCE_DIR}/src/game)
+
+    add_test(NAME const_casts
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
+            --gate const_cast=2 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME static_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
