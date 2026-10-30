@@ -1368,13 +1368,13 @@ bool ChatHandler::HandleNpcChangeEntryCommand(char* args)
     }
 
     Unit* unit = getSelectedUnit();
-    if (!unit || unit->GetTypeId() != TYPEID_UNIT)
+    Creature* creature = unit ? unit->ToCreature() : NULL;
+    if (!creature)
     {
         SendSysMessage(LANG_SELECT_CREATURE);
         SetSentErrorMessage(true);
         return false;
     }
-    Creature* creature = (Creature*)unit;
     if (creature->UpdateEntry(newEntryNum))
     {
         SendSysMessage(LANG_DONE);

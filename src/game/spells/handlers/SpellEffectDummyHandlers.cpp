@@ -274,12 +274,11 @@ static SpellHandlerOutcome<void> EffectDummyGenericSixDemonBag(SpellEffectDummyG
 /// 15998: Capture Worg Pup; 29435: Capture Female Kaliri Hatchling: a creature target despawns; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericCaptureWorgPupKaliriHatchling(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* creatureTarget = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!creatureTarget)
     {
         return SpellHandlerOutcome<void>::Return();
     }
-
-    Creature* creatureTarget = (Creature*)ctx.unitTarget;
 
     creatureTarget->ForcedDespawn();
     return SpellHandlerOutcome<void>::Return();
@@ -1494,12 +1493,11 @@ static SpellHandlerOutcome<void> EffectDummyGenericSpectralBlast(SpellEffectDumm
 /// itself; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericCompleteRaptorCapture(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* creatureTarget = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!creatureTarget)
     {
         return SpellHandlerOutcome<void>::Return();
     }
-
-    Creature* creatureTarget = (Creature*)ctx.unitTarget;
 
     creatureTarget->ForcedDespawn();
 
@@ -1512,12 +1510,11 @@ static SpellHandlerOutcome<void> EffectDummyGenericCompleteRaptorCapture(SpellEf
 /// itself; the effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericConvertingSentry(SpellEffectDummyGenericContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* creatureTarget = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!creatureTarget)
     {
         return SpellHandlerOutcome<void>::Return();
     }
-
-    Creature* creatureTarget = (Creature*)ctx.unitTarget;
 
     creatureTarget->ForcedDespawn();
 

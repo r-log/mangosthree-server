@@ -90,12 +90,12 @@ void Spell::EffectApplyAura(SpellEffectEntry const* effect)
 
 void Spell::EffectUnlearnSpecialization(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* _player = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!_player)
     {
         return;
     }
 
-    Player *_player = (Player*)unitTarget;
     uint32 spellToUnlearn = effect->EffectTriggerSpell;
 
     _player->removeSpell(spellToUnlearn);
@@ -497,12 +497,11 @@ void Spell::EffectHealthLeech(SpellEffectEntry const* effect)
  */
 void Spell::DoCreateItem(SpellEffectEntry const* effect, uint32 itemtype)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* player = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!player)
     {
         return;
     }
-
-    Player* player = (Player*)unitTarget;
 
     uint32 newitemid = itemtype;
     ItemPrototype const* pProto = ObjectMgr::GetItemPrototype(newitemid);
@@ -618,11 +617,11 @@ void Spell::EffectCreateItem(SpellEffectEntry const* effect)
 
 void Spell::EffectCreateItem2(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* player = m_caster->ToPlayer();
+    if (!player)
     {
         return;
     }
-    Player* player = (Player*)m_caster;
 
     // explicit item (possible fake)
     uint32 item_id = effect->EffectItemType;
@@ -654,11 +653,11 @@ void Spell::EffectCreateItem2(SpellEffectEntry const* effect)
 
 void Spell::EffectCreateRandomItem(SpellEffectEntry const* /*effect*/)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* player = m_caster->ToPlayer();
+    if (!player)
     {
         return;
     }
-    Player* player = (Player*)m_caster;
 
     // create some random items
     player->AutoStoreLoot(NULL, m_spellInfo->ID, LootTemplates_Spell);

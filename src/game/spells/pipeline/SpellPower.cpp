@@ -223,12 +223,11 @@ void Spell::TakePower()
 
 SpellCastResult Spell::CheckRunePower()
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* plr = m_caster->ToPlayer();
+    if (!plr)
     {
         return SPELL_CAST_OK;
     }
-
-    Player* plr = (Player*)m_caster;
 
     if (plr->getClass() != CLASS_DEATH_KNIGHT)
     {
@@ -285,12 +284,11 @@ SpellCastResult Spell::CheckRunePower()
 
 void Spell::TakeRunePower(bool hit)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* plr = m_caster->ToPlayer();
+    if (!plr)
     {
         return;
     }
-
-    Player* plr = (Player*)m_caster;
 
     if (plr->getClass() != CLASS_DEATH_KNIGHT)
     {

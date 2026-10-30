@@ -508,12 +508,11 @@ void Spell::EffectActivateObject(SpellEffectEntry const* effect)
 
 void Spell::EffectApplyGlyph(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* player = m_caster->ToPlayer();
+    if (!player)
     {
         return;
     }
-
-    Player* player = (Player*)m_caster;
 
     // glyph sockets level requirement
     uint8 minLevel = 0;
@@ -568,12 +567,12 @@ void Spell::EffectApplyGlyph(SpellEffectEntry const* effect)
 void Spell::EffectEnchantHeldItem(SpellEffectEntry const* effect)
 {
     // this is only item spell effect applied to main-hand weapon of target player (players in area)
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* item_owner = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!item_owner)
     {
         return;
     }
 
-    Player* item_owner = (Player*)unitTarget;
     Item* item = item_owner->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
 
     if (!item)
@@ -626,12 +625,12 @@ void Spell::EffectEnchantHeldItem(SpellEffectEntry const* effect)
  */
 void Spell::EffectDisEnchant(SpellEffectEntry const* /*effect*/)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* p_caster = m_caster->ToPlayer();
+    if (!p_caster)
     {
         return;
     }
 
-    Player* p_caster = (Player*)m_caster;
     if (!itemTarget || !itemTarget->GetProto()->DisenchantID)
     {
         return;
@@ -651,12 +650,11 @@ void Spell::EffectDisEnchant(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectInebriate(SpellEffectEntry const* /*effect*/)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* player = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!player)
     {
         return;
     }
-
-    Player* player = (Player*)unitTarget;
 
     uint8 drunkValue = player->GetDrunkValue() + (uint8)damage;
     if (drunkValue > 100)
@@ -677,12 +675,11 @@ void Spell::EffectInebriate(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectFeedPet(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* _player = m_caster->ToPlayer();
+    if (!_player)
     {
         return;
     }
-
-    Player* _player = (Player*)m_caster;
 
     Item* foodItem = m_targets.getItemTarget();
     if (!foodItem)
@@ -749,12 +746,12 @@ void Spell::EffectDismissPet(SpellEffectEntry const* /*effect*/)
  */
 void Spell::EffectSummonRaidMarker(SpellEffectEntry const* effect)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    Player* player = m_caster->ToPlayer();
+    if (!player)
     {
         return;
     }
 
-    Player* player = (Player*)m_caster;
     Group* group = player->GetGroup();
     if (!group)
     {
@@ -1130,12 +1127,11 @@ void Spell::EffectLeapBack(SpellEffectEntry const* effect)
  */
 void Spell::EffectReputation(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* _player = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!_player)
     {
         return;
     }
-
-    Player* _player = (Player*)unitTarget;
 
     int32  rep_change = m_currentBasePoints[effect->EffectIndex];
     uint32 faction_id = effect->EffectMiscValue_0;

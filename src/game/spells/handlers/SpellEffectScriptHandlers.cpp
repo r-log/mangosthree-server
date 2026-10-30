@@ -997,12 +997,11 @@ static SpellHandlerOutcome<void> EffectScriptGeneric44364(SpellEffectScriptConte
 /// 44455: Character Script Effect Reverse Cast
 static SpellHandlerOutcome<void> EffectScriptGeneric44455(SpellEffectScriptContext& ctx)
 {
-    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    Creature* pTarget = ctx.unitTarget ? ctx.unitTarget->ToCreature() : NULL;
+    if (!pTarget)
     {
         return SpellHandlerOutcome<void>::Return();
     }
-
-    Creature* pTarget = (Creature*)ctx.unitTarget;
 
     if (const SpellEntry *pSpell = sSpellStore.LookupEntry(ctx.effect->CalculateSimpleValue()))
     {
