@@ -3691,6 +3691,18 @@ class Unit : public WorldObject
          */
         virtual bool IsLoading() const { return false; }
         /**
+         * @return whether this unit is a game master: IsTargetableForAttack never offers it as a
+         * target, threat, hostility and spell targets pass it over, and it sees every unit in any
+         * phase; false here; Player answers from its game master flag
+         */
+        virtual bool isGameMaster() const { return false; }
+        /**
+         * @return the transport this unit rides: IsVisibleForOrDetect sees a player that rides the
+         * same one even out of the world, and a mount aura is not cast on it; NULL here; Player
+         * returns its own
+         */
+        virtual Transport* GetTransport() const { return NULL; }
+        /**
          * Moves the unit to a position, telling its map; Update's pending commit, the end of a
          * spline, a creature's short teleport and a possessed creature's own movement call it.
          * @param teleport true when the move is a teleport
@@ -3859,20 +3871,10 @@ class Unit : public WorldObject
 
     protected:
         /**
-         * @return whether this unit is a game master, whom IsTargetableForAttack never offers as a
-         * target: false here; Player answers from its game master flag
-         */
-        virtual bool isGameMaster() const { return false; }
-        /**
          * @return whether this unit's session is logging it out: IsVisibleForOrDetect then does not
          * see it by its transport; false here; Player asks its session
          */
         virtual bool IsLoggingOut() const { return false; }
-        /**
-         * @return the transport this unit rides, on which IsVisibleForOrDetect sees a player that
-         * rides the same one even out of the world: NULL here; Player returns its own
-         */
-        virtual Transport* GetTransport() const { return NULL; }
         /**
          * @param p the player that looks at this unit
          * @return whether P sees this unit through its stealth under the group visibility

@@ -27,9 +27,10 @@
 /// whether its session is loading it or logging it out, the transport it rides, whether a group
 /// member sees it through stealth, and its drunk value.
 ///
-/// Unit declares five of the six protected: its own checks ask them, and a call through a Unit
-/// reference from outside does not compile. The loading question is public, since the aura and
-/// spell code asks it too. A Unit that is not a Player answers with Unit's defaults: a Creature
+/// Unit declares three of the six protected: its own checks ask them, and a call through a Unit
+/// reference from outside does not compile. The game master, loading and transport questions are
+/// public, since the combat, aura and spell code asks them too. A Unit that is not a Player answers
+/// with Unit's defaults: a Creature
 /// probe (no map, no AI, no auras) makes the six public with using-declarations and is asked
 /// through its own reference. The static_asserts pin Unit's declarations through the probe, that
 /// Player declares five of the six public with Unit's exact signature, and which references a call
@@ -144,11 +145,12 @@ template struct GroupVisibleThroughPlayer<decltype(&Player::IsGroupVisibleFor), 
 static_assert(std::is_same<decltype(&Player::GetDrunkValue), uint16 (Player::*)() const>::value,
               "Player returns its own drunk value");
 
-static_assert(!decltype(CallsGameMaster<Unit>(0))::value
-              && !decltype(CallsLoggingOut<Unit>(0))::value && !decltype(CallsTransport<Unit>(0))::value
-              && !decltype(CallsGroupVisible<Unit>(0))::value && !decltype(CallsDrunkValue<Unit>(0))::value,
-              "Unit's five protected ones: a call through a Unit does not compile");
-static_assert(decltype(CallsLoading<Unit>(0))::value, "Unit's loading question is public: a call through a Unit compiles");
+static_assert(!decltype(CallsLoggingOut<Unit>(0))::value && !decltype(CallsGroupVisible<Unit>(0))::value
+              && !decltype(CallsDrunkValue<Unit>(0))::value,
+              "Unit's three protected ones: a call through a Unit does not compile");
+static_assert(decltype(CallsGameMaster<Unit>(0))::value && decltype(CallsLoading<Unit>(0))::value
+              && decltype(CallsTransport<Unit>(0))::value,
+              "Unit's game master, loading and transport questions are public: a call through a Unit compiles");
 static_assert(decltype(CallsGameMaster<Player>(0))::value && decltype(CallsLoading<Player>(0))::value
               && decltype(CallsLoggingOut<Player>(0))::value && decltype(CallsTransport<Player>(0))::value
               && decltype(CallsDrunkValue<Player>(0))::value,
