@@ -1449,7 +1449,6 @@ void Creature::SetLootRecipient(Unit* unit)
         m_lootRecipientGuid.Clear();
         m_lootGroupRecipientId = 0;
         RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED);
-        RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED_BY_PLAYER);
         return;
     }
 
@@ -1475,7 +1474,6 @@ void Creature::SetLootRecipient(Unit* unit)
     }
 
     SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED);
-    SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED_BY_PLAYER);
 }
 
 /**
@@ -2099,41 +2097,6 @@ bool Creature::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectInd
     }
 
     return Unit::IsImmuneToSpellEffect(spellInfo, index, castOnSelf);
-}
-
-// Set loot status. Also handle remove corpse timer
-void Creature::SetLootStatus(CreatureLootStatus status)
-{
-    if (status <= m_lootStatus)
-    {
-        return;
-    }
-
-    m_lootStatus = status;
-    switch (status)
-    {
-        case CREATURE_LOOT_STATUS_LOOTED:
-            if (m_creatureInfo->SkinningLootId)
-            {
-                SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
-            }
-            else
-            {
-                RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
-            }
-            break;
-        case CREATURE_LOOT_STATUS_SKINNED:
-            m_corpseDecayTimer = 0; // remove corpse at next update
-            RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
-            RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
-            break;
-        case CREATURE_LOOT_STATUS_SKIN_AVAILABLE:
-            SetFlag(UNIT_FIELD_FLAGS, UNIT_DYNFLAG_LOOTABLE);
-            RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
-            break;
-        default:
-            break;
-    }
 }
 
 // simple tap system return true if player or his group tapped the creature

@@ -762,17 +762,6 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                 {
                     uint32 send_value = m_uint32Values[index];
 
-                    /* If the creature is NOT fully looted */
-                    if (!creature->loot.isLooted())
-                        /* If the lootable flag is NOT set */
-                        if (!(send_value & UNIT_DYNFLAG_LOOTABLE))
-                        {
-                            /* Update it on the creature */
-                            const_cast<Creature*>(creature)->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
-                            /* Update it in the packet */
-                            send_value = send_value | UNIT_DYNFLAG_LOOTABLE;
-                        }
-
                     /* If we're not allowed to loot the target, destroy the lootable flag */
                     if (!target->isAllowedToLoot(creature))
                         if (send_value & UNIT_DYNFLAG_LOOTABLE)
@@ -780,13 +769,11 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                             send_value = send_value & ~UNIT_DYNFLAG_LOOTABLE;
                         }
 
-                    /* If we are allowed to loot it and mob is tapped by us, destroy the tapped flag */
-                    bool is_tapped = target->IsTappedByMeOrMyGroup(creature);
-
-                    /* If the creature has tapped flag but is tapped by us, remove the flag */
-                    if (send_value & UNIT_DYNFLAG_TAPPED && is_tapped)
+                    /* A tapped creature is tapped by this viewer when the viewer or its group holds the tap;
+                       the client greys the name of a tapped creature only when it is not */
+                    if ((send_value & UNIT_DYNFLAG_TAPPED) && target->IsTappedByMeOrMyGroup(creature))
                     {
-                        send_value = send_value & ~UNIT_DYNFLAG_TAPPED;
+                        send_value |= UNIT_DYNFLAG_TAPPED_BY_PLAYER;
                     }
 
                     *data << send_value;
