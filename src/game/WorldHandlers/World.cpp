@@ -137,9 +137,14 @@
 #include "persistence/world/BroadcastDataRepository.h"
 
 
-
-volatile bool World::m_stopEvent = false;
-uint8 World::m_ExitCode = SHUTDOWN_EXIT_CODE;
+namespace
+{
+    /// Stops the process when a guid generator runs out of guids.
+    void StopOnGuidOverflow()
+    {
+        ServerControl::StopNow(ERROR_EXIT_CODE);
+    }
+}
 
 std::atomic<uint32> World::m_worldLoopCounter{0};
 
@@ -180,6 +185,8 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
 
     SessionRegistry::Install(&m_sessions);
     WorldBroadcast::Install(this);
+    ServerControl::Install(this);
+    InstallGuidOverflowHandler(&StopOnGuidOverflow);
 }
 
 /// World destructor
@@ -204,6 +211,12 @@ World::~World()
     if (broadcast != this)
     {
         WorldBroadcast::Install(broadcast);
+    }
+
+    ServerControl* control = ServerControl::Install(NULL);
+    if (control != this)
+    {
+        ServerControl::Install(control);
     }
 
     MMAP::MMapFactory::clear();
@@ -1340,7 +1353,7 @@ void World::ApplyOffMapAuraUpdates()
     }
 }
 /// Ban an account or ban an IP address, duration_secs if it is positive used, otherwise permban
-BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_secs, std::string reason, const std::string& author)
+BanReturn World::Ban(BanMode mode, std::string nameOrIP, uint32 duration_secs, std::string reason, std::string const& author)
 {
     BanRepository::EscapeString(nameOrIP);
     BanRepository::EscapeString(reason);
@@ -1402,7 +1415,7 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
 }
 
 /// Remove a ban from an account or IP address
-bool World::RemoveBanAccount(BanMode mode, std::string nameOrIP)
+bool World::RemoveBan(BanMode mode, std::string nameOrIP)
 {
     if (mode == BAN_IP)
     {
@@ -1442,14 +1455,14 @@ void World::_UpdateGameTime()
     WorldGameTime::Set(thisTime);
 
     ///- if there is a shutdown timer
-    if (!m_stopEvent && m_ShutdownTimer > 0 && elapsed > 0)
+    if (!ServerControl::IsStopped() && m_ShutdownTimer > 0 && elapsed > 0)
     {
-        ///- ... and it is overdue, stop the world (set m_stopEvent)
+        ///- ... and it is overdue, stop the world
         if (m_ShutdownTimer <= elapsed)
         {
             if (!(m_ShutdownMask & SHUTDOWN_MASK_IDLE) || m_sessions.ActiveAndQueuedCount() == 0)
             {
-                m_stopEvent = true;
+                ServerControl::StopNow(ServerControl::ExitCode());
             }                         // exist code already set
             else
             {
@@ -1461,30 +1474,30 @@ void World::_UpdateGameTime()
         {
             m_ShutdownTimer -= elapsed;
 
-            ShutdownMsg();
+            ShutdownMessage();
         }
     }
 }
 
 /// Shutdown the server
-void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
+void World::Shutdown(uint32 time, uint32 options, uint8 exitcode)
 {
     // ignore if server shutdown at next tick
-    if (m_stopEvent)
+    if (ServerControl::IsStopped())
     {
         return;
     }
 
     m_ShutdownMask = options;
-    m_ExitCode = exitcode;
+    ServerControl::SetExitCode(exitcode);
 
-    ///- If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
+    ///- If the shutdown time is 0, stop the world (except if shutdown is 'idle' with remaining sessions)
     if (time == 0)
     {
         if (!(options & SHUTDOWN_MASK_IDLE) || m_sessions.ActiveAndQueuedCount() == 0)
         {
                 m_sessions.SaveAllPlayers();      // save all players.
-                m_stopEvent = true;                                // exist code already set
+                ServerControl::StopNow(exitcode);
         }
         else
         {
@@ -1495,12 +1508,12 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     else
     {
         m_ShutdownTimer = time;
-        ShutdownMsg(true);
+        ShutdownMessage(true);
     }
 }
 
 /// Display a shutdown message to the user(s)
-void World::ShutdownMsg(bool show /*= false*/, Player* player /*= NULL*/)
+void World::ShutdownMessage(bool show /*= false*/, Player* player /*= NULL*/)
 {
     // not show messages for idle shutdown mode
     if (m_ShutdownMask & SHUTDOWN_MASK_IDLE)
@@ -1526,10 +1539,10 @@ void World::ShutdownMsg(bool show /*= false*/, Player* player /*= NULL*/)
 }
 
 /// Cancel a planned server shutdown
-void World::ShutdownCancel()
+void World::CancelShutdown()
 {
     // nothing cancel or too later
-    if (!m_ShutdownTimer || m_stopEvent)
+    if (!m_ShutdownTimer || ServerControl::IsStopped())
     {
         return;
     }
@@ -1538,7 +1551,7 @@ void World::ShutdownCancel()
 
     m_ShutdownMask = 0;
     m_ShutdownTimer = 0;
-    m_ExitCode = SHUTDOWN_EXIT_CODE;                       // to default value
+    ServerControl::SetExitCode(SHUTDOWN_EXIT_CODE);
     SendServerMessage(msgid);
 
     DEBUG_LOG("Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART) ? "restart" : "shutdown");

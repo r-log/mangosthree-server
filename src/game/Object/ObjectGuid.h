@@ -310,6 +310,14 @@ class PackedGuid
         ByteBuffer m_packedGuid;
 };
 
+/// What a guid generator does when it runs out of guids, after logging it. The world installs one
+/// that stops the process.
+typedef void (*GuidOverflowHandler)();
+/// Installs `handler` and answers the one it replaces (NULL for none).
+GuidOverflowHandler InstallGuidOverflowHandler(GuidOverflowHandler handler);
+/// Calls the installed overflow handler, if any.
+void GuidOverflow();
+
 template<HighGuid high>
 class ObjectGuidGenerator
 {

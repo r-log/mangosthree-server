@@ -42,7 +42,7 @@
 #include "WorldSession.h"
 #include "Opcodes.h"
 #include "Log.h"
-#include "World.h"
+#include "data/ServerControl.h"
 #include "session/SessionRegistry.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
@@ -347,7 +347,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
 
         uint32 linecount = 0;
         /* The MOTD itself */
-        std::string str_motd = sWorld.GetMotd();
+        std::string str_motd = sServerControl.Motd();
         /* Used for tracking our position within the MOTD while iterating through it */
         std::string::size_type pos = 0, nextpos;
 
@@ -611,9 +611,9 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     }
 
     /* If the server is shutting down, show shutdown time remaining */
-    if (sWorld.IsShutdowning())
+    if (sServerControl.IsShuttingDown())
     {
-        sWorld.ShutdownMsg(true, pCurrChar);
+        sServerControl.ShutdownMessage(true, pCurrChar);
     }
 
     /* If player should have all taxi paths, give them to the player */
