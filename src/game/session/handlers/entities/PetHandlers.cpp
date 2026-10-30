@@ -871,7 +871,7 @@ void PetHandlers::HandleDismissCritter(WorldSession& session, WorldPacket& recvD
     recvData >> guid;
 
     DEBUG_LOG("WORLD: Received CMSG_DISMISS_CRITTER for %s", guid.GetString().c_str());
-    Unit* pet = session.GetPlayer()->GetMap()->GetAnyTypeCreature(guid);
+    Creature* pet = session.GetPlayer()->GetMap()->GetAnyTypeCreature(guid);
     if (!pet)
     {
         DEBUG_LOG("Vanitypet %s does not exist - Player %s (guid %u, account: %u) attempted to dismiss it (possibly lagged out)",
@@ -879,12 +879,9 @@ void PetHandlers::HandleDismissCritter(WorldSession& session, WorldPacket& recvD
         return;
     }
 
-    if (session.GetPlayer()->GetCritterGuid() == guid)
+    if (session.GetPlayer()->GetCritterGuid() == guid && pet->IsTemporarySummon())
     {
-        if (pet->GetTypeId() == TYPEID_UNIT && ((Creature*)pet)->IsTemporarySummon())
-        {
-            ((TemporarySummon*)pet)->UnSummon();
-        }
+        static_cast<TemporarySummon*>(pet)->UnSummon();
     }
 }
 

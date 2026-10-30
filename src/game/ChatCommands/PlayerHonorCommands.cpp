@@ -87,9 +87,12 @@ bool ChatHandler::HandleHonorAddKillCommand(char* /*args*/)
     }
 
     // check online security
-    if (target->GetTypeId() == TYPEID_PLAYER && HasLowerSecurity((Player*)target))
+    if (Player* targetPlayer = target->ToPlayer())
     {
-        return false;
+        if (HasLowerSecurity(targetPlayer))
+        {
+            return false;
+        }
     }
 
     m_session->GetPlayer()->RewardHonor(target, 1);

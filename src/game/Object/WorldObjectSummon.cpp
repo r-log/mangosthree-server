@@ -172,9 +172,12 @@ Creature* WorldObject::SummonCreature(uint32 id, float x, float y, float z, floa
 
     pCreature->Summon(spwtype, despwtime);                  // Also initializes the AI and MMGen
 
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->AI())
+    if (Creature* summoner = ToCreature())
     {
-        ((Creature*)this)->AI()->JustSummoned(pCreature);
+        if (CreatureAI* ai = summoner->AI())
+        {
+            ai->JustSummoned(pCreature);
+        }
     }
 
     // Creature Linking, Initial load is handled like respawn

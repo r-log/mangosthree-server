@@ -809,9 +809,10 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             }
 
             // a summoner or owner that has left the map is no target
-            if (caster->GetTypeId() == TYPEID_UNIT && ((Creature*)caster)->IsTemporarySummon())
+            Creature* casterCreature = caster->ToCreature();
+            if (casterCreature && casterCreature->IsTemporarySummon())
             {
-                if (Unit* summoner = ((TemporarySummon*)(Creature*)caster)->GetSummoner())
+                if (Unit* summoner = static_cast<TemporarySummon*>(casterCreature)->GetSummoner())
                 {
                     targetUnitMap.push_back(summoner);
                 }

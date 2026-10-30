@@ -188,9 +188,12 @@ namespace MaNGOS
                 return 0;
             }
 
-            if (u->GetTypeId() == TYPEID_UNIT && ((Creature*)u)->IsElite())
+            if (Creature const* creature = u->ToCreature())
             {
-                xp_gain *= 2;
+                if (creature->IsElite())
+                {
+                    xp_gain *= 2;
+                }
             }
 
             return (uint32)(xp_gain * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_KILL));

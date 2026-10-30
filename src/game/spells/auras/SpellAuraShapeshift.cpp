@@ -743,7 +743,8 @@ void Aura::HandleChannelDeathItem(bool apply, bool Real)
 
         Unit* victim = GetTarget();
         Unit* caster = GetCaster();
-        if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+        Player* casterPlayer = caster ? caster->ToPlayer() : NULL;
+        if (!casterPlayer)
         {
             return;
         }
@@ -752,8 +753,9 @@ void Aura::HandleChannelDeathItem(bool apply, bool Real)
         if (m_spellEffect->EffectItemType == 6265)
         {
             // Only from non-grey units
-            if (!((Player*)caster)->isHonorOrXPTarget(victim) ||
-                    (victim->GetTypeId() == TYPEID_UNIT && !((Player*)caster)->isAllowedToLoot((Creature*)victim)))
+            Creature* victimCreature = victim->ToCreature();
+            if (!casterPlayer->isHonorOrXPTarget(victim) ||
+                    (victimCreature && !casterPlayer->isAllowedToLoot(victimCreature)))
             {
                 return;
             }
@@ -764,19 +766,19 @@ void Aura::HandleChannelDeathItem(bool apply, bool Real)
         uint32 count = m_modifier.m_amount;
 
         ItemPosCountVec dest;
-        InventoryResult msg = ((Player*)caster)->CanStoreNewItem( NULL_BAG, NULL_SLOT, dest, m_spellEffect->EffectItemType, count, &noSpaceForCount);
+        InventoryResult msg = casterPlayer->CanStoreNewItem( NULL_BAG, NULL_SLOT, dest, m_spellEffect->EffectItemType, count, &noSpaceForCount);
         if (msg != EQUIP_ERR_OK)
         {
             count -= noSpaceForCount;
-            ((Player*)caster)->SendEquipError( msg, NULL, NULL, m_spellEffect->EffectItemType );
+            casterPlayer->SendEquipError( msg, NULL, NULL, m_spellEffect->EffectItemType );
             if (count == 0)
             {
                 return;
             }
         }
 
-        Item* newitem = ((Player*)caster)->StoreNewItem(dest, m_spellEffect->EffectItemType, true);
-        ((Player*)caster)->SendNewItem(newitem, count, true, true);
+        Item* newitem = casterPlayer->StoreNewItem(dest, m_spellEffect->EffectItemType, true);
+        casterPlayer->SendNewItem(newitem, count, true, true);
 
         // Soul Shard (glyph bonus)
         if (m_spellEffect->EffectItemType == 6265)

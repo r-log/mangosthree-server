@@ -514,9 +514,12 @@ bool ScriptAction::HandleScriptStep()
 
             bool failQuest = false;
             // Creature must be alive for giving credit
-            if (pWorldObject && pWorldObject->GetTypeId() == TYPEID_UNIT && !((Creature*)pWorldObject)->IsAlive())
+            if (Creature const* creature = pWorldObject ? pWorldObject->ToCreature() : NULL)
             {
-                failQuest = true;
+                if (!creature->IsAlive())
+                {
+                    failQuest = true;
+                }
             }
             else if (m_script->questExplored.distance != 0 && !InReach(*pWorldObject, *pPlayer, float(m_script->questExplored.distance)))
             {
