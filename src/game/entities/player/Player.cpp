@@ -3805,7 +3805,7 @@ void Player::SendDirectMessage(WorldPacket* data) const
 }
 
 /**
- * @brief Decoupling D5a: whether the player's session is still loading.
+ * @brief Whether the player's session is still loading it.
  */
 bool Player::IsLoading() const
 {

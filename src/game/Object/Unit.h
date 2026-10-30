@@ -3672,16 +3672,22 @@ class Unit : public WorldObject
          * told nothing and remembers nothing.
          */
         void ReportSwingError(uint8 swingError);
+
+    public:
         /**
-         * The security level of the account playing this unit; a game master in GM mode sees a player
-         * whose level is not above its own.
-         * @return 0 here, a player's level; IsVisibleForOrDetect asks only when both units are
-         * players, so the default is not observed there; Player returns what the query its session
+         * The security level of the account playing this unit: a game master in GM mode sees a
+         * player whose level is not above its own, and a pet keeps its talents for an administrator.
+         * @return 0 here, a unit that is not a player; Player returns what the query its session
          * installed reads
          */
         virtual uint32 GetAccountSecurityLevel() const { return 0; }
-
-    public:
+        /**
+         * @return whether this unit's session is still loading it: AddSpellAuraHolder then adds an
+         * aura to it while it is dead, IsVisibleForOrDetect does not see it by its transport, and
+         * the periodic auras, the cast result and some spell effects skip what they send; false
+         * here; Player asks its session
+         */
+        virtual bool IsLoading() const { return false; }
         /**
          * Moves the unit to a position, telling its map; Update's pending commit, the end of a
          * spline, a creature's short teleport and a possessed creature's own movement call it.
@@ -3855,12 +3861,6 @@ class Unit : public WorldObject
          * target: false here; Player answers from its game master flag
          */
         virtual bool isGameMaster() const { return false; }
-        /**
-         * @return whether this unit's session is still loading it: AddSpellAuraHolder then adds an
-         * aura to it while it is dead, and IsVisibleForOrDetect does not see it by its transport;
-         * false here; Player asks its session
-         */
-        virtual bool IsLoading() const { return false; }
         /**
          * @return whether this unit's session is logging it out: IsVisibleForOrDetect then does not
          * see it by its transport; false here; Player asks its session

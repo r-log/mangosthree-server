@@ -81,7 +81,7 @@ void Spell::SendCastResult(SpellCastResult result)
         return;
     }
 
-    if (((Player*)m_caster)->IsLoading()) // don't send cast results at loading time
+    if (m_caster->IsLoading()) // don't send cast results at loading time
     {
         return;
     }

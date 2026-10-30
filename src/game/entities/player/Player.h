@@ -3994,9 +3994,9 @@ class Player : public Unit
         // reaches it
         void CastPassiveSpellsForAuraState(AuraState flag) override;
 
-        // The security level of the account playing this player, which Unit's GM visibility rule
-        // compares: what the query its session installed reads at this call; private, so only a call
-        // through Unit reaches it
+        // The security level of the account playing this player, which Unit's GM visibility rule and
+        // a pet's talent reset compare: what the query its session installed reads at this call;
+        // private, so only a call through Unit reaches it
         uint32 GetAccountSecurityLevel() const override final
         {
             MANGOS_ASSERT(m_clientSinks.securityLevel);
