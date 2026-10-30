@@ -152,7 +152,7 @@ bool Unit::IsHostileTo(Unit const* unit) const
     }
 
     // PvC forced reaction and reputation case
-    if (Player* testerPlayer = tester->ToPlayer())
+    if (Player const* testerPlayer = tester->ToPlayer())
     {
         if (target_faction->Faction)
         {
@@ -171,7 +171,7 @@ bool Unit::IsHostileTo(Unit const* unit) const
         }
     }
     // CvP forced reaction and reputation case
-    else if (Player* targetPlayer = target->ToPlayer())
+    else if (Player const* targetPlayer = target->ToPlayer())
     {
         if (tester_faction->Faction)
         {
