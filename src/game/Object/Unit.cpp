@@ -129,6 +129,8 @@ Unit::Unit() :
     m_vehicleInfo(NULL),
     m_groupCallbacks(NULL),
     m_clientCallbacks(NULL),
+    m_cooldownCallbacks(NULL),
+    m_lastPotionId(0),
     m_lastSwingError(0),
     m_spellMods(NULL),
     m_ThreatManager(this),
@@ -1276,6 +1278,148 @@ Spell* Unit::FindCurrentSpellBySpellId(uint32 spell_id) const
             return m_currentSpells[i];
         }
     return NULL;
+}
+
+namespace
+{
+    /// What SpellCooldownMgr::AddSpellAndCategoryCooldowns needs from the player, read just
+    /// before the call. The spell mods apply to the value the manager hands them.
+    SpellCooldownMgr::CastInputs ReadCastInputs(Unit* unit, SpellEntry const* spellInfo)
+    {
+        SpellCooldownMgr::CastInputs inputs;
+        inputs.itemPrototype = ObjectMgr::GetItemPrototype;
+        inputs.autoRepeatRanged = IsAutoRepeatRangedSpell(spellInfo);
+        inputs.rangedAttackTime = unit->GetAttackTime(RANGED_ATTACK);
+        inputs.applyCooldownMod = [unit](uint32 spellId, int32& cooldown)
+        {
+            unit->GetSpellMods()->ApplySpellMod(spellId, SPELLMOD_COOLDOWN, cooldown);
+        };
+        return inputs;
+    }
+
+    /// The one-spell clear SpellCooldownMgr::RemoveSpellCooldown reports: that spell's cooldown
+    /// cleared, through the player's cleared-cooldowns callback.
+    SpellCooldownMgr::ClearSink ClearCooldownSink(Unit* unit, CooldownSinks const* sinks)
+    {
+        return [unit, sinks](uint32 spellId)
+        {
+            CooldownsClearedFact fact;
+            fact.owner = unit->GetObjectGuid();
+            fact.spellIds.push_back(spellId);
+            MANGOS_ASSERT(sinks->cleared);
+            sinks->cleared(fact);
+        };
+    }
+}
+
+/**
+ * @brief Starts a player's spell cooldown and its category's.
+ *
+ * @param spellInfo The spell.
+ * @param itemId The item that cast it, 0 for none.
+ * @param infinityCooldown True to hold the cooldown until it is removed.
+ */
+void Unit::AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* /*spell*/, bool infinityCooldown)
+{
+    if (!m_cooldownCallbacks)
+    {
+        return;
+    }
+
+    time_t now = time(NULL);
+    SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo);
+
+    m_spellCooldownMgr.AddSpellAndCategoryCooldowns(spellInfo, itemId, now, inputs, infinityCooldown);
+}
+
+/**
+ * @brief Starts a player's spell cooldown and its category's and reports the cooldown event.
+ *
+ * @param spellInfo The spell.
+ * @param itemId The item that cast it, 0 for none.
+ */
+void Unit::SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, Spell* /*spell*/)
+{
+    if (!m_cooldownCallbacks)
+    {
+        return;
+    }
+
+    time_t now = time(NULL);
+    SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo);
+
+    m_spellCooldownMgr.SendCooldownEvent(spellInfo, itemId, now, inputs, GetObjectGuid(), m_cooldownCallbacks->event);
+}
+
+/**
+ * @brief Ends a player's spell cooldown.
+ *
+ * @param spell_id The spell.
+ * @param update True to tell the player's client.
+ */
+void Unit::RemoveSpellCooldown(uint32 spell_id, bool update)
+{
+    if (!m_cooldownCallbacks)
+    {
+        return;
+    }
+
+    m_spellCooldownMgr.RemoveSpellCooldown(spell_id, update, ClearCooldownSink(this, m_cooldownCallbacks));
+}
+
+/**
+ * @brief Ends the cooldown of every spell of a category for a player.
+ *
+ * @param cat The spell category.
+ * @param update True to tell the player's client.
+ */
+void Unit::RemoveSpellCategoryCooldown(uint32 cat, bool update)
+{
+    if (!m_cooldownCallbacks)
+    {
+        return;
+    }
+
+    m_spellCooldownMgr.RemoveSpellCategoryCooldown(cat, update, ClearCooldownSink(this, m_cooldownCallbacks));
+}
+
+/**
+ * @brief Starts the cooldown of the potion a player used in combat, once combat has ended.
+ *
+ * @param spell The potion's cast, NULL when combat ends.
+ */
+void Unit::UpdatePotionCooldown(Spell* spell)
+{
+    if (!m_cooldownCallbacks)
+    {
+        return;
+    }
+
+    // no potion used in combat or still in combat
+    if (!m_lastPotionId || IsInCombat())
+    {
+        return;
+    }
+
+    // Call not from spell cast, send cooldown event for item spells if no in combat
+    if (!spell)
+    {
+        // spell/item pair let set proper cooldown (except nonexistent charged spell cooldown spellmods for potions)
+        if (ItemPrototype const* proto = ObjectMgr::GetItemPrototype(m_lastPotionId))
+            for (int idx = 0; idx < 5; ++idx)
+                if (proto->Spells[idx].SpellId && proto->Spells[idx].SpellTrigger == ITEM_SPELLTRIGGER_ON_USE)
+                    if (SpellEntry const* spellInfo = sSpellStore.LookupEntry(proto->Spells[idx].SpellId))
+                    {
+                        SendCooldownEvent(spellInfo, m_lastPotionId);
+                    }
+    }
+    // from spell cases (m_lastPotionId set in Spell::SendSpellCooldown)
+    else
+    {
+        SendCooldownEvent(spell->m_spellInfo, m_lastPotionId, spell);
+    }
+
+    m_lastPotionId = 0;
 }
 
 /**

@@ -488,7 +488,6 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
     m_dungeonDifficulty = DUNGEON_DIFFICULTY_NORMAL;
     m_raidDifficulty = RAID_DIFFICULTY_10MAN_NORMAL;
 
-    m_lastPotionId = 0;
 
     // Initialize aura base modifiers
     for (int i = 0; i < BASEMOD_END; ++i)
@@ -541,6 +540,8 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
     m_groupCallbacks = &m_groupSinks;
     // Unit tells the player's own client through the callbacks this player holds
     m_clientCallbacks = &m_clientSinks;
+    // Unit starts and ends the player's cooldowns through the callbacks this player holds
+    m_cooldownCallbacks = &m_cooldownSinks;
     // Unit reaches the player's spell modifiers, and those of its pets and totems, through this pointer
     m_spellMods = &m_spellModMgr;
 }
@@ -599,6 +600,8 @@ Player::~Player()
     m_groupCallbacks = NULL;
     // Last: the cleanups above still tell the player's own client through these callbacks
     m_clientCallbacks = NULL;
+    // Last: the cleanups above may still end the player's cooldowns through these callbacks
+    m_cooldownCallbacks = NULL;
     // Last: the cleanups above may still read the player's spell modifiers through this pointer
     m_spellMods = NULL;
 }

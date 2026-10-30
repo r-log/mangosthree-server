@@ -2183,12 +2183,11 @@ class Player : public Unit
         void AddSpellMod(Aura* aura, bool apply);
 
         // Spell cooldowns (delegated to m_spellCooldownMgr): the clock is read here (time(NULL)) and
-        // handed in. AddSpellAndCategoryCooldowns, SendCooldownEvent, RemoveSpellCooldown,
-        // RemoveSpellCategoryCooldown, RemoveArenaSpellCooldowns, _LoadSpellCooldowns and
-        // UpdatePotionCooldown build the manager's inputs or callbacks and live in
-        // spells/PlayerSpellCooldown.cpp; the cooldown event and the clear of every cooldown go to
-        // the session through the CooldownSinks it installed. The cooldown map and
-        // AddSpellCooldown are called on the manager directly.
+        // handed in. RemoveArenaSpellCooldowns and _LoadSpellCooldowns build the manager's inputs or
+        // callbacks and live in spells/PlayerSpellCooldown.cpp; Unit starts and ends a cast's
+        // cooldowns and the potion's through the CooldownSinks this player points it at. The
+        // cooldown event and the clear of every cooldown go to the session through the CooldownSinks
+        // it installed. The cooldown map and AddSpellCooldown are called on the manager directly.
         SpellCooldownMgr& GetSpellCooldownMgr() { return m_spellCooldownMgr; }
         SpellCooldownMgr const& GetSpellCooldownMgr() const { return m_spellCooldownMgr; }
         static uint32 const infinityCooldownDelay = SpellCooldownMgr::infinityCooldownDelay; // used for set "infinity cooldowns" for spells and check
@@ -2196,11 +2195,6 @@ class Player : public Unit
 
         /// Where the cooldown event and the clear of every cooldown go: the session's callbacks,
         /// installed once by InstallPlayerPacketSinks where the player is created.
-        struct CooldownSinks
-        {
-            CooldownEventSink event;
-            CooldownsClearedSink cleared;
-        };
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientSinks = callbacks; }
@@ -2238,20 +2232,8 @@ class Player : public Unit
         // Get the delay for a spell cooldown
         time_t GetSpellCooldownDelay(uint32 spell_id) const { return m_spellCooldownMgr.GetSpellCooldownDelay(spell_id, time(NULL)); }
 
-        // Add spell and category cooldowns
-        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell = NULL, bool infinityCooldown = false) override;
-
-        // Send a cooldown event to the client
-        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, Spell* spell = NULL) override;
-
         // Prohibit a spell school for a specific duration
         void ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs) override;
-
-        // Remove a spell cooldown
-        void RemoveSpellCooldown(uint32 spell_id, bool update = false) override;
-
-        // Remove a spell category cooldown
-        void RemoveSpellCategoryCooldown(uint32 cat, bool update) override;
 
         // Send a clear cooldown message to the client
         void SendClearCooldown(uint32 spell_id, Unit* target);
@@ -2282,7 +2264,6 @@ class Player : public Unit
         void _SaveSpellCooldowns() { m_spellCooldownMgr.SaveToDB(GetGUIDLow(), time(NULL)); }
         void SetLastPotionId(uint32 item_id) { m_lastPotionId = item_id; }
         uint32 GetLastPotionId() { return m_lastPotionId; }
-        void UpdatePotionCooldown(Spell* spell) override;
 
         void setResurrectRequestData(Unit* caster, uint32 health, uint32 mana);
         void setResurrectRequestDataToGhoul(Unit* caster);
@@ -3884,7 +3865,6 @@ class Player : public Unit
         // Talents and specs: the per-spec talent maps, primary trees, active spec and spec count,
         // free and used points, and the last paid reset's cost and time
         TalentMgr m_talentMgr;
-        uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
         CooldownSinks m_cooldownSinks;
         ClientCallbacks m_clientSinks;
         GroupCallbacks m_groupSinks;

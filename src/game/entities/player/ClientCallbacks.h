@@ -33,6 +33,11 @@
 #include "RuneMgr.h"
 #include "SocialList.h"
 
+#include <functional>
+
+struct CooldownEventFact;
+struct CooldownsClearedFact;
+
 /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
 /// where the player is created: twenty-six facts out, one read in.
 struct ClientCallbacks
@@ -64,6 +69,15 @@ struct ClientCallbacks
     QuestCompleteSink questComplete;
     SystemMessageSink systemMessage;
     SecurityLevelQuery securityLevel;
+};
+
+/// Where the player's cooldown event and cleared cooldowns go: the session's callbacks, installed
+/// once by InstallPlayerPacketSinks where the player is created. The two are SpellCooldownMgr's
+/// CooldownEventSink and CooldownsClearedSink.
+struct CooldownSinks
+{
+    std::function<void(CooldownEventFact const&)> event;
+    std::function<void(CooldownsClearedFact const&)> cleared;
 };
 
 /// The callbacks `callbacks` points to; NULL (a unit that is not a player, or a player whose
