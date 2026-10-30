@@ -59,7 +59,6 @@ src/game/ChatCommands/CommunicationCommands.cpp -> src/game/WorldHandlers/World.
 src/game/ChatCommands/CreatureCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/DebugCommands.cpp -> src/game/Harness/Harness.h
 src/game/ChatCommands/LookupCommands.cpp -> src/game/WorldHandlers/World.h
-src/game/ChatCommands/MMapCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/MiscellanousCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/PlayerMiscCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/ReloadCommands.cpp -> src/game/WorldHandlers/World.h
@@ -313,7 +312,6 @@ src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/proto/WorldPacket.h
 src/game/Server/DBCStores.cpp -> src/game/spells/auras/SpellAuraDefines.h
 src/game/Server/WorldGateway.cpp -> src/game/WorldHandlers/World.h
-src/game/Server/WorldNetwork.cpp -> src/game/WorldHandlers/World.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/Server/DBCStores.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/data/GameConfig.h
 src/game/Tools/PlayerDump.cpp -> src/game/Object/CharacterCache.h
@@ -435,7 +433,6 @@ src/game/WorldHandlers/Map.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/MapManager.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/MoveMap.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/PetitionsHandler.cpp -> src/game/WorldHandlers/World.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/Creature.h

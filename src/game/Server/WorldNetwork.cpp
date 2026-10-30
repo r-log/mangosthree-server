@@ -27,7 +27,7 @@
 #include "WorldNetwork.h"
 
 #include "ClientConnection.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Config/Config.h"
 #include "Log/Log.h"
 #include "OpcodeTable.h"
@@ -81,7 +81,7 @@ bool WorldNetwork::LoadRedirectConfiguration(const std::string& bindIp)
     // of mep that bakes the tiles, and it is read from there the way a .tile is.
     // It used to be Redirect.SecretFile, a path an operator could point anywhere
     // -- including at last generation's key, which patches no client anyone has.
-    const std::string secretFile = sWorld.GetDataPath() + "keys/server.secret";
+    const std::string secretFile = sGameConfig.GetDataPath() + "keys/server.secret";
 
     if (!m_signer.LoadFromFile(secretFile))
     {

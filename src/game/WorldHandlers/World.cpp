@@ -237,8 +237,8 @@ void World::SetInitialWorldSettings()
     ///- Point the terrain engine at the baked tiles. Nothing else tells it where they
     ///  are, and without this every height, liquid and sight query answers "no data"
     ///  while the server otherwise starts perfectly.
-    world::terrain::FusedTerrain::SetTileDir(m_dataPath + "tiles");
-    world::terrain::GoModelStore::Instance().SetDirectory(m_dataPath + "gomodels");
+    world::terrain::FusedTerrain::SetTileDir(sGameConfig.GetDataPath() + "tiles");
+    world::terrain::GoModelStore::Instance().SetDirectory(sGameConfig.GetDataPath() + "gomodels");
 
     ///- Check the existence of the map files for all races start areas.
     if (!MapManager::ExistMapAndVMap(0, -6240.32f, 331.033f) ||                     // Dwarf/ Gnome
@@ -253,7 +253,7 @@ void World::SetInitialWorldSettings()
             (getConfig(CONFIG_UINT32_EXPANSION) >= EXPANSION_WOTLK &&
               !MapManager::ExistMapAndVMap(609, 2355.84f, -5664.77f)))              // Death Knight
     {
-        sLog.outError("Baked tiles not found in '%stiles'. Run 'mep bake' against a 4.3.4 client, or correct DataDir in mangosd.conf.", m_dataPath.c_str());
+        sLog.outError("Baked tiles not found in '%stiles'. Run 'mep bake' against a 4.3.4 client, or correct DataDir in mangosd.conf.", sGameConfig.GetDataPath().c_str());
         Log::WaitBeforeContinueIfNeed();
         exit(1);
     }
@@ -280,10 +280,10 @@ void World::SetInitialWorldSettings()
 
     ///- Load the DBC files
     sLog.outString("Initialize DBC data stores...");
-    LoadDBCStores(m_dataPath);
+    LoadDBCStores(sGameConfig.GetDataPath());
     DetectDBCLang();
     sObjectMgr.SetDBCLocaleIndex(GetDefaultDbcLocale());    // Get once for all the locale index of DBC language (console/broadcasts)
-    LoadDB2Stores(m_dataPath);
+    LoadDB2Stores(sGameConfig.GetDataPath());
 
     sLog.outString("Loading SpellTemplate...");
     sObjectMgr.LoadSpellTemplate();
@@ -901,7 +901,7 @@ void World::showFooter()
 void World::DetectDBCLang()
 {
     // get the DBC Locale
-    int uLocale = ReadDBCLocale(m_dataPath);
+    int uLocale = ReadDBCLocale(sGameConfig.GetDataPath());
 
     if (uLocale == -1)
     {

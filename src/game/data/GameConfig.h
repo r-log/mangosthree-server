@@ -29,6 +29,9 @@
 #include "Platform/Define.h"
 #include "Common/Locales.h"
 
+#include <set>
+#include <string>
+
 #define MAX_VISIBILITY_DISTANCE     333.0f                  // max distance for visible object show, limited in 333 yards
 #define DEFAULT_VISIBILITY_DISTANCE 90.0f                   // default visible distance, 90 yards on continents
 #define DEFAULT_VISIBILITY_INSTANCE 120.0f                  // default visible distance in instances, 120 yards
@@ -448,6 +451,13 @@ class GameConfig
             return lvl > 60 ? 300 + ((lvl - 60) * 75) / 10 : lvl * 5;
         }
 
+        /// The directory the client data is read from (DBC, DB2, tiles, keys), with a trailing separator
+        std::string GetDataPath() const { return m_dataPath; }
+        /// Whether every grid of map `id` is loaded at start-up and kept loaded
+        bool IsForceLoadMap(uint32 id) const { return m_forceLoadMapIds.find(id) != m_forceLoadMapIds.end(); }
+        /// Turns movement maps on or off at run time, as the `.mmap` command does
+        void SetMMapEnabled(bool enabled) { setConfig(CONFIG_BOOL_MMAP_ENABLED, enabled); }
+
         /// The locale DBC strings are read in
         LocaleConstant GetDefaultDbcLocale() const { return m_defaultDbcLocale; }
         /// The given locale if its DBC strings are loaded, else the default one
@@ -478,6 +488,8 @@ class GameConfig
         void setConfig(eConfigInt32Values index, int32 value) { m_configInt32Values[index] = value; }
         void setConfig(eConfigBoolValues index, bool value) { m_configBoolValues[index] = value; }
 
+        void SetDataPath(std::string const& path) { m_dataPath = path; }
+        void AddForceLoadMap(uint32 id) { m_forceLoadMapIds.insert(id); }
         void SetDefaultDbcLocale(LocaleConstant locale) { m_defaultDbcLocale = locale; }
         void SetAvailableDbcLocaleMask(uint32 mask) { m_availableDbcLocaleMask = mask; }
 
@@ -511,6 +523,8 @@ class GameConfig
         int32 m_configInt32Values[CONFIG_INT32_VALUE_COUNT];
         float m_configFloatValues[CONFIG_FLOAT_VALUE_COUNT];
         bool m_configBoolValues[CONFIG_BOOL_VALUE_COUNT];
+        std::string m_dataPath;
+        std::set<uint32> m_forceLoadMapIds;
         LocaleConstant m_defaultDbcLocale;                  // from config for one from loaded DBC locales
         uint32 m_availableDbcLocaleMask;                    // by loaded DBC
 
