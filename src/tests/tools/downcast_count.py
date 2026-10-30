@@ -28,7 +28,7 @@ python3 src/tests/tools/downcast_count.py src/game
 python3 src/tests/tools/downcast_count.py --self-test
 python3 src/tests/tools/downcast_count.py --list subtype_sites src/game
 python3 src/tests/tools/downcast_count.py --gate subtype_sites=0 src/game
-python3 src/tests/tools/downcast_count.py --gate downcasts=733 src/game
+python3 src/tests/tools/downcast_count.py --gate downcasts=709 src/game
 
 --list <class> prints one `file:line: text` line per occurrence of that class (so the number of
 printed lines equals the class's occurrence count) and still prints the counts.
