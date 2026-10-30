@@ -252,7 +252,7 @@ bool Unit::IsFriendlyTo(Unit const* unit) const
     }
 
     // special cases (Duel)
-    Player* testerPlayer = tester->ToPlayer();
+    Player const* testerPlayer = tester->ToPlayer();
     if (testerPlayer && target->GetTypeId() == TYPEID_PLAYER)
     {
         Player const* pTester = testerPlayer;
