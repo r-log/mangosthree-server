@@ -171,8 +171,8 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
-**Today (`Unit`, 654 member functions, grouped roughly by defining file and name):** combat 175, auras 113, spell
-casting 72, lifecycle and update 80, movement 81, stats and power 72, pets/charm/summons 57, visibility 4. The target
+**Today (`Unit`, 654 member functions, grouped roughly by defining file and name):** combat 177, auras 113, spell
+casting 72, lifecycle and update 78, movement 81, stats and power 72, pets/charm/summons 57, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
 **Today (player-only code in `Unit`):** Unit's 16 files hold 11 `(Player*)this` casts and 196 `TYPEID_PLAYER` tests;
@@ -209,8 +209,9 @@ What `Unit` tells a player's own client (its attack or auto-repeat spell cancell
 a changed melee swing error) it reports through the client callbacks the player points it at; a unit that is not a
 player has none and tells nothing.
 The aura bodies live in `spells/auras/`, beside the aura storage (`spells/AuraContainer.h`).
-The combat bodies, the threat managers and the leaf math live in `combat/`; `Object/Unit.cpp` still
-holds `DealDamage`, `DealHeal` and the kill credit, which need headers `combat/` does not include.
+The combat bodies, the threat managers and the leaf math live in `combat/`. A kill and a heal tell battlegrounds,
+outdoor PvP and groups through the hooks in `data/` (`BattleGroundHooks`, `OutdoorPvPHooks`, `GroupHooks`), which
+mangosd installs, and a dungeon records the kill credited to a player itself (`DungeonMap::CreditCreatureKill`).
 
 ## 4. The finish line per layer: the layout gate matches this page
 
@@ -391,7 +392,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
 | 13 | `Unit`: 11 `(Player*)this` casts, 196 player type tests, 54 Player-only virtuals | Unit reopen |
-| 14 | Some of Unit's combat bodies are in `Object/Unit.cpp`: `DealDamage`, `DealHeal` and the kill credit | Unit reopen (combat) |
+| 14 | Unit's combat bodies are in `combat/`; `Object/Unit.cpp` keeps `CanAttackByItself` (a vehicle-control question), the random target selection (targeting), the PvP flags (entity state) and `ApplyAttackTimePercentMod` (a stat modifier) | closed (#186) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds eighteen stores (its README lists them), the generic record stores `KeyedRecordStore` and `MultiRecordStore`, `TextPool`, `GameConfig`, the script hook interface `ScriptHooks`, the command hook interface `CommandHooks` and the database script hook interface `DbScriptHooks`, while `ObjectMgr` is still in `Object/` and holds the conditions, the creature templates and their spells, the game object addons and the item templates in `KeyedRecordStore`s; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds the builders under `session/packets/`, the combat handler class under `session/handlers/combat/`, the client and warden handler classes under `session/handlers/connection/`, the vendor, loot, auction and trade handler classes under `session/handlers/economy/`, the skill, enchant, pet, taxi, query, item, NPC, quest, character, character customize, death and player handler classes under `session/handlers/entities/`, the map handler class under `session/handlers/maps/`, the pvp handler class under `session/handlers/pvp/` and the LFG, contact list, GM ticket, petition, chat channel, voice chat, chat, mail, calendar, group, guild and who handler classes under `session/handlers/social/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
 | 17 | 2,356 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory, peer and header on 2026-09-29 |
