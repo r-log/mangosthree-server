@@ -311,7 +311,12 @@ static SpellHandlerOutcome<void> EffectTeleportUnitsUltrasafeTransporter(SpellEf
             case 5:
                 // Transform
             {
-                if (((Player*)ctx.m_caster)->GetTeam() == ALLIANCE)
+                Player* player = ctx.m_caster->ToPlayer();
+                if (!player)
+                {
+                    break;
+                }
+                if (player->GetTeam() == ALLIANCE)
                 {
                     ctx.m_caster->CastSpell(ctx.m_caster, 36897, true);
                 }
@@ -359,7 +364,12 @@ static SpellHandlerOutcome<void> EffectTeleportUnitsDimensionalRipperArea52(Spel
             case 4:
                 // Transform
             {
-                if (((Player*)ctx.m_caster)->GetTeam() == ALLIANCE)
+                Player* player = ctx.m_caster->ToPlayer();
+                if (!player)
+                {
+                    break;
+                }
+                if (player->GetTeam() == ALLIANCE)
                 {
                     ctx.m_caster->CastSpell(ctx.m_caster, 36897, true);
                 }

@@ -1306,7 +1306,8 @@ SpellCastResult Spell::CheckCast(bool strict)
                 }
 
                 uint32 plClass = m_caster->getClass();
-                if (plClass == CLASS_HUNTER)
+                Player* hunter = m_caster->ToPlayer();
+                if (hunter && plClass == CLASS_HUNTER)
                 {
                     // Cata Call Pet 1..5 spells (883, 83242, 83243,
                     // 83244, 83245) encode the target slot in
@@ -1356,7 +1357,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     }
 
                     Pet* dbPet = new Pet;
-                    if (dbPet->LoadPetFromDB((Player*)m_caster, 0, 0, false, callSlot))
+                    if (dbPet->LoadPetFromDB(hunter, 0, 0, false, callSlot))
                     {
                         return SPELL_CAST_OK;
                     }

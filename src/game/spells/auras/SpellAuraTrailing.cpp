@@ -265,8 +265,12 @@ void Aura::HandleAuraMirrorImage(bool apply, bool Real)
         return;
     }
 
-    // Target of aura should always be creature (ref Spell::CheckCast)
-    Creature* pCreature = (Creature*)GetTarget();
+    // only a creature takes a mirror image (Spell::CheckCast); on any other unit a GM gave it to, the aura does nothing
+    Creature* pCreature = GetTarget()->ToCreature();
+    if (!pCreature)
+    {
+        return;
+    }
 
     if (apply)
     {
