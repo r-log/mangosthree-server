@@ -222,7 +222,8 @@ mangosd installs, and a dungeon records the kill credited to a player itself (`D
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
 see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 908, Unit 657, WorldSession 189, ObjectMgr 255), R1, M1,
-the downcast counts and the database-call count.
+the downcast counts (ctest `player_downcasts` and `creature_downcasts`, `downcast_count.py --gate` at 560 and 329 C-style
+casts in `src/game`, lowered in the PR that cuts them) and the database-call count.
 
 | Layer | Rule | Gate |
 |---|---|---|
