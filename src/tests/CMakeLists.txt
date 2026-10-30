@@ -528,11 +528,11 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME player_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate c_style_player=306 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate c_style_player=300 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME creature_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate c_style_creature=153 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate c_style_creature=151 ${CMAKE_SOURCE_DIR}/src/game)
 
     add_test(NAME pet_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py

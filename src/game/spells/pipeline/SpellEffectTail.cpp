@@ -763,9 +763,9 @@ void Spell::EffectTitanGrip(SpellEffectEntry const* effect)
     {
         sLog.outError("Spell::EffectTitanGrip: Spell %u has unexpected EffectMiscValue '%u'", m_spellInfo->ID, effect->EffectMiscValue_0);
     }
-    if (unitTarget && unitTarget->GetTypeId() == TYPEID_PLAYER)
+    Player* plr = m_caster->ToPlayer();
+    if (plr && unitTarget && unitTarget->GetTypeId() == TYPEID_PLAYER)
     {
-        Player* plr = (Player*)m_caster;
         plr->SetCanTitanGrip(true);
         if (plr->HasTwoHandWeaponInOneHand() && !plr->HasAura(49152))
         {
@@ -1071,7 +1071,8 @@ void Spell::EffectGravityPull(SpellEffectEntry const* effect)
 
 void Spell::EffectCreateTamedPet(SpellEffectEntry const* effect)
 {
-    if (!unitTarget || unitTarget->getClass() != CLASS_HUNTER)
+    Player* hunter = unitTarget ? unitTarget->ToPlayer() : NULL;
+    if (!hunter || hunter->getClass() != CLASS_HUNTER)
     {
         return;
     }
@@ -1135,6 +1136,6 @@ void Spell::EffectCreateTamedPet(SpellEffectEntry const* effect)
     m_caster->SetPet(newTamedPet);
 
     newTamedPet->SavePetToDB(PET_SAVE_AS_CURRENT);
-    ((Player*)unitTarget)->PetSpellInitialize();
+    hunter->PetSpellInitialize();
 }
 

@@ -1915,7 +1915,10 @@ static SpellHandlerOutcome<void> EffectScriptGeneric50742(SpellEffectScriptConte
     }
 
     ctx.m_caster->CastSpell(ctx.unitTarget, 50747, true);
-    ((Creature*)ctx.m_caster)->ForcedDespawn();
+    if (Creature* caster = ctx.m_caster->ToCreature())
+    {
+        caster->ForcedDespawn();
+    }
     return SpellHandlerOutcome<void>::Return();
 }
 

@@ -1825,7 +1825,10 @@ static SpellHandlerOutcome<void> EffectDummyGenericTheGreatmothersSoulcatcher(Sp
             if (const SpellEntry *pSpellCredit = sSpellStore.LookupEntry(pSpellEffect->EffectTriggerSpell))
                 if (SpellEffectEntry const* pSpellCreditEffect = pSpellCredit->GetSpellEffect(EFFECT_INDEX_0))
                 {
-                    ((Player*)ctx.m_caster)->KilledMonsterCredit(pSpellCreditEffect->EffectMiscValue_0);
+                    if (Player* player = ctx.m_caster->ToPlayer())
+                    {
+                        player->KilledMonsterCredit(pSpellCreditEffect->EffectMiscValue_0);
+                    }
                 }
 
         ((Creature*)ctx.unitTarget)->ForcedDespawn();
