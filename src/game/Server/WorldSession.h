@@ -647,6 +647,13 @@ class WorldSession
             AckTotalsCounters() : seen(0), matched(0), mismatched(0), resent(0), tombstone(0), stale(0), future(0), wrongGuid(0), unverified(0), teleporting(0) {}
         };
         static AckTotalsCounters const& AckTotals();
+        /// The caller passes the matching pair of members for one outcome; this bumps
+        /// the session's plain counter and the process-wide atomic one together. The
+        /// total is bumped through an atomic: several maps run on worker threads at
+        /// once, so the process-wide total is written concurrently from different
+        /// sessions, while a session's own counters stay single-threaded (one session
+        /// lives on one map).
+        void CountAck(uint32 AckCounters::*field, std::atomic<uint32> AckTotalsCounters::*total);
 
         /// The units this client may move and the one it has selected: fed by control
         /// transitions through Player::SetClientControl, read by
@@ -717,14 +724,6 @@ class WorldSession
         static bool FindRequesterPlayer(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
                                         WorldSession*& session, Player*& player);
 
-        void HandleMountSpecialAnimOpcode(WorldPacket& recvdata);
-
-        void HandleMoveTeleportAckOpcode(WorldPacket& recvPacket);
-        /// Every movement ack the registry has a layout for: decoded,
-        /// matched against the mover's pending change, relocated on a match, and answered
-        /// with the observer packet the matrix names. The teleport ack has its own.
-        void HandleMovementAck(WorldPacket& recv_data);
-
         void HandlePingOpcode(WorldPacket& recvPacket);
         void HandleKeepAliveOpcode(WorldPacket& recvPacket);
         void HandleTimeSyncResp(WorldPacket& recv_data);
@@ -733,14 +732,8 @@ class WorldSession
 
         void SendGMTicketStatusUpdate(GMTicketStatus statusCode);
 
-        // Movement Handler
-        void HandleMoveWorldportAckOpcode(WorldPacket& recvPacket);
-        void HandleMoveWorldportAckOpcode();                // for server-side calls
-
-        void HandleMovementOpcodes(WorldPacket& recvPacket);
-        void HandleSetActiveMoverOpcode(WorldPacket& recv_data);
-        void HandleMoveNotActiveMoverOpcode(WorldPacket& recv_data);
-        void HandleMoveTimeSkippedOpcode(WorldPacket& recv_data);
+        /// Finalizes a far teleport after the client acknowledges the worldport.
+        void HandleMoveWorldportAckOpcode();
 
         void HandleDismissControlledVehicle(WorldPacket& recvPacket);
         void HandleRequestVehicleExit(WorldPacket& recvPacket);
@@ -757,8 +750,6 @@ class WorldSession
         void SendPlayerNotFoundNotice(const std::string& name);
         void SendWrongFactionNotice();
 
-        void HandleSummonResponseOpcode(WorldPacket& recv_data);
-
         // Hotfix replies
         void SendItemDb2Reply(uint32 entry);
         void SendItemSparseDb2Reply(uint32 entry);
@@ -766,23 +757,7 @@ class WorldSession
         // Reforge
         void SendReforgeResult(bool success);
 
-        /// A validated movement word applied to the mover: the store, the transport handling,
-        /// the relocation and the edges read off the word (the mount's lift-off). Public only
-        /// so the headless harness can drive the real thing rather than a copy of it -- the
-        /// mount-pet rule is decided in here and nowhere else, and a scenario re-implementing
-        /// the edge would prove its own copy and not the handler. Every real caller is one of
-        /// this session's own movement opcode handlers.
-        void HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo);
-
     private:
-        bool VerifyMovementInfo(MovementInfo const& movementInfo) const;
-        /// The caller passes the matching pair of members for one outcome; this bumps
-        /// the session's plain counter and the process-wide atomic one together. The
-        /// total is bumped through an atomic: several maps run on worker threads at
-        /// once, so the process-wide total is written concurrently from different
-        /// sessions, while a session's own counters stay single-threaded (one session
-        /// lives on one map).
-        void CountAck(uint32 AckCounters::*field, std::atomic<uint32> AckTotalsCounters::*total);
 
         void ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* packet);
 

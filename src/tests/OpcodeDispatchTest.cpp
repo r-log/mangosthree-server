@@ -28,10 +28,9 @@
 /// session it is given, with the packet it is given. A socketless session, built as the GM
 /// harness builds one, answers a CMSG_PING handed to the CMSG_PING row with one SMSG_PONG through
 /// its sink, carrying the ping's sequence; the row consumes the whole packet. The slots no row
-/// names hold the thunk of Handle_NULL, every slot bound to one handler holds one address, and
-/// the row of an overloaded handler name holds the overload that takes the packet. A row bound to
-/// a handler class's static entry point holds the thunk of that static and reaches it the same
-/// way: the CMSG_ATTACKSWING row reads a swing at an empty guid to its end and, the guid naming no
+/// names hold the thunk of Handle_NULL and every slot bound to one handler holds one address. A
+/// row bound to a handler class's static entry point holds the thunk of that static and reaches it
+/// the same way: the CMSG_ATTACKSWING row reads a swing at an empty guid to its end and, the guid naming no
 /// unit, returns before it reads the player, sending nothing. The CMSG_SELL_ITEM row reads a sale
 /// of an empty item guid to its end and returns at that guid before it reads the player, sending
 /// nothing. The CMSG_ARENA_TEAM_INVITE row reads an invite to team 0 of an empty name to its end
@@ -75,8 +74,12 @@
 /// - processed PROCESS_INPLACE: the CMSG_ATTACKSWING, CMSG_ATTACKSTOP, CMSG_SETSHEATHED,
 ///   CMSG_CREATURE_QUERY, CMSG_GAMEOBJECT_QUERY, CMSG_QUESTGIVER_STATUS_QUERY, CMSG_LOW_LEVEL_RAID,
 ///   CMSG_LOW_LEVEL_RAID_USER, CMSG_GUILD_AUTO_DECLINE_TOGGLE, CMSG_OBJECT_UPDATE_FAILED,
-///   CMSG_UI_TIME_REQUEST, CMSG_REQUEST_HOTFIX and CMSG_GET_MIRRORIMAGE_DATA rows;
-/// - processed PROCESS_THREADSAFE: the six taxi rows and the CMSG_CAST_SPELL and CMSG_CANCEL_CAST rows;
+///   CMSG_UI_TIME_REQUEST, CMSG_REQUEST_HOTFIX, CMSG_GET_MIRRORIMAGE_DATA and CMSG_MOVE_TIME_SKIPPED
+///   rows;
+/// - processed PROCESS_THREADSAFE: the six taxi rows, the CMSG_CAST_SPELL and CMSG_CANCEL_CAST rows,
+///   the 27 movement rows, the 18 movement ack rows and the CMSG_MOVE_TELEPORT_ACK,
+///   CMSG_SET_ACTIVE_MOVER and CMSG_MOVE_NOT_ACTIVE_MOVER rows;
+/// - of status STATUS_TRANSFER: the MSG_MOVE_WORLDPORT_ACK row;
 /// - of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT: the CMSG_CANCEL_TRADE row;
 /// - of status STATUS_AUTHED: the CMSG_VOICE_SESSION_ENABLE, CMSG_SET_ACTIVE_VOICE_CHANNEL,
 ///   CMSG_WARDEN_DATA, CMSG_NAME_QUERY, CMSG_CHAR_ENUM, CMSG_CHAR_CREATE, CMSG_CHAR_DELETE,
@@ -105,6 +108,7 @@
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/entities/EnchantHandlers.h"
 #include "session/handlers/entities/ItemHandlers.h"
+#include "session/handlers/entities/MovementHandlers.h"
 #include "session/handlers/entities/NpcHandlers.h"
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/PlayerHandlers.h"
@@ -340,15 +344,7 @@ TEST(OpcodeDispatch_RowsOfOneHandlerShareOneAddress)
 {
     InitializeOpcodes();
 
-    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&WorldSession::HandleMovementOpcodes>), 27);
-}
-
-TEST(OpcodeDispatch_OverloadedHandlerNameBindsThePacketOverload)
-{
-    InitializeOpcodes();
-
-    CHECK(opcodeTable[MSG_MOVE_WORLDPORT_ACK].handler
-          == &OpcodeThunk<static_cast<void (WorldSession::*)(WorldPacket&)>(&WorldSession::HandleMoveWorldportAckOpcode)>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMovement>), 27);
 }
 
 TEST(OpcodeDispatch_FreeFunctionRowReachesItsHandlerWithThePacket)
@@ -2826,4 +2822,53 @@ TEST(OpcodeDispatch_SpellRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_TOTEM_DESTROYED].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_GAMEOBJ_REPORT_USE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_GAMEOBJ_REPORT_USE].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_MovementRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[MSG_MOVE_WORLDPORT_ACK].handler == &OpcodeThunk<&MovementHandlers::HandleMoveWorldportAck>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveWorldportAck>), 1);
+    CHECK(opcodeTable[CMSG_MOVE_TELEPORT_ACK].handler == &OpcodeThunk<&MovementHandlers::HandleMoveTeleportAck>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveTeleportAck>), 1);
+    CHECK(opcodeTable[CMSG_MOVE_START_FORWARD].handler == &OpcodeThunk<&MovementHandlers::HandleMovement>);
+    CHECK(opcodeTable[MSG_MOVE_HEARTBEAT].handler == &OpcodeThunk<&MovementHandlers::HandleMovement>);
+    CHECK(opcodeTable[CMSG_FORCE_RUN_SPEED_CHANGE_ACK].handler == &OpcodeThunk<&MovementHandlers::HandleMovementAck>);
+    CHECK(opcodeTable[CMSG_MOVE_SET_COLLISION_HGT_ACK].handler == &OpcodeThunk<&MovementHandlers::HandleMovementAck>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMovementAck>), 18);
+    CHECK(opcodeTable[CMSG_SET_ACTIVE_MOVER].handler == &OpcodeThunk<&MovementHandlers::HandleSetActiveMover>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleSetActiveMover>), 1);
+    CHECK(opcodeTable[CMSG_MOVE_NOT_ACTIVE_MOVER].handler == &OpcodeThunk<&MovementHandlers::HandleMoveNotActiveMover>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveNotActiveMover>), 1);
+    CHECK(opcodeTable[CMSG_MOVE_TIME_SKIPPED].handler == &OpcodeThunk<&MovementHandlers::HandleMoveTimeSkipped>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveTimeSkipped>), 1);
+    CHECK(opcodeTable[CMSG_MOUNTSPECIAL_ANIM].handler == &OpcodeThunk<&MovementHandlers::HandleMountSpecialAnim>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMountSpecialAnim>), 1);
+    CHECK(opcodeTable[CMSG_SUMMON_RESPONSE].handler == &OpcodeThunk<&MovementHandlers::HandleSummonResponse>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleSummonResponse>), 1);
+}
+
+TEST(OpcodeDispatch_MovementRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[MSG_MOVE_WORLDPORT_ACK].status, STATUS_TRANSFER);
+    CHECK_EQ(opcodeTable[MSG_MOVE_WORLDPORT_ACK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_TELEPORT_ACK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_TELEPORT_ACK].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_START_FORWARD].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_START_FORWARD].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[CMSG_FORCE_RUN_SPEED_CHANGE_ACK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_FORCE_RUN_SPEED_CHANGE_ACK].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_ACTIVE_MOVER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_ACTIVE_MOVER].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_NOT_ACTIVE_MOVER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_NOT_ACTIVE_MOVER].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_TIME_SKIPPED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_TIME_SKIPPED].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_MOUNTSPECIAL_ANIM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_MOUNTSPECIAL_ANIM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SUMMON_RESPONSE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SUMMON_RESPONSE].packetProcessing, PROCESS_THREADUNSAFE);
 }

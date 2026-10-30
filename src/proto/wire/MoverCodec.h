@@ -37,7 +37,7 @@ namespace Wire
     /// guid, in two different masked-guid orders per opcode.
     ///
     /// Provenance: CMSG_SET_ACTIVE_MOVER -- the tree's own handler
-    /// (HandleSetActiveMoverOpcode), CPP's SetActiveMover::Read, and the real-client
+    /// (HandleSetActiveMover), CPP's SetActiveMover::Read, and the real-client
     /// families golden. SMSG_MOVE_SET_ACTIVE_MOVER -- CPP's MoveSetActiveMover::Write
     /// and the client's reader sub_140374180 through lift_client_reader.py, which
     /// agreed with it exactly; no writer in this tree sends one yet, so it has no

@@ -40,6 +40,7 @@
 #include "Log.h"
 #include "TaxiRoute.h"
 #include "movement/MoveSpline.h"
+#include "session/handlers/entities/MovementHandlers.h"
 
 #include <cmath>
 #include <cstdio>
@@ -162,7 +163,7 @@ namespace Harness
         }
 
         /// ONE MOVEMENT WORD, DOWN THE HANDLER THE CLIENT'S OWN PACKETS GO DOWN:
-        /// WorldSession::HandleMoverRelocation with the flags under test and the place he
+        /// MovementHandlers::HandleMoverRelocation with the flags under test and the place he
         /// already stands, so nothing moves and only the word changes. The mount's lift-off
         /// edge is decided in there and nowhere else, so a scenario that re-implemented the
         /// edge would be proving its own copy of it.
@@ -171,7 +172,7 @@ namespace Harness
             MovementInfo word = p->ClientStatus();
             word.SetMovementFlags(MovementFlags(flags));
             word.ChangePosition(p->Where().X(), p->Where().Y(), p->Where().Z(), p->Where().Facing());
-            p->GetSession()->HandleMoverRelocation(p, word);
+            MovementHandlers::HandleMoverRelocation(*p->GetSession(), p, word);
         }
     }
 
@@ -890,7 +891,7 @@ namespace Harness
      * reported the half #116 got wrong: a flying mount despawned the pet THE MOMENT IT WAS
      * SUMMONED, where retail keeps it until the rider actually leaves the ground. So the despawn
      * is no longer on the aura's apply at all -- Unit::Mount keeps the pet on both kinds of
-     * mount now -- and the trigger moved to WorldSession::HandleMoverRelocation, which fires it
+     * mount now -- and the trigger moved to MovementHandlers::HandleMoverRelocation, which fires it
      * on the first movement word that carries MOVEFLAG_FLYING while its sender is mounted.
      * Phase 4 casts the same spell 32235 with the gate from phase 3 still open, so this time it
      * really can fly, and reads three things: the pet is STILL OUT once the mount has landed

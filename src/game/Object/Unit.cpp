@@ -2301,7 +2301,7 @@ void Unit::Mount(uint32 mount, uint32 spellId, bool canFly)
             // AND THE FLYING ARM DOES NOT DESPAWN ANYTHING HERE (live test 2026-09-22, C4/T7):
             // retail's trigger is LIFT-OFF, not mounting, and #116 hung it on the aura's apply,
             // so the pet vanished the instant a flying mount was summoned. The despawn moved to
-            // WorldSession::HandleMoverRelocation, where the first movement word carrying
+            // MovementHandlers::HandleMoverRelocation, where the first movement word carrying
             // MOVEFLAG_FLYING under a mount is what fires it. `canFly` is still resolved and
             // handed down because it is the one thing that says whether this mount can ever
             // lift off at all, and it is what the harness reads to prove the rule; the pet

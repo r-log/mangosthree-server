@@ -870,7 +870,7 @@ void SpellHandlers::HandleSpellClick(WorldSession& session, WorldPacket& recv_da
             }
             else
             {
-                sLog.outError("WorldSession::HandleSpellClick: npc_spell_click with entry %u has 0 in spell_id. Not handled custom case?", unit->GetEntry());
+                sLog.outError("SpellHandlers::HandleSpellClick: npc_spell_click with entry %u has 0 in spell_id. Not handled custom case?", unit->GetEntry());
             }
         }
     }

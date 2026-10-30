@@ -59,10 +59,10 @@ namespace Wire
     void EncodeTeleport(ByteBuffer& out, Teleport const& v);
     DecodeResult DecodeTeleport(ByteBuffer& in, Teleport& out);
 
-    /// CMSG_MOVE_TELEPORT_ACK (HandleMoveTeleportAckOpcode): counter, time,
+    /// CMSG_MOVE_TELEPORT_ACK (HandleMoveTeleportAck): counter, time,
     /// then a masked guid.
     ///
-    /// Provenance: the tree's own handler (WorldSession::HandleMoveTeleportAckOpcode),
+    /// Provenance: the tree's own handler (MovementHandlers::HandleMoveTeleportAck),
     /// CPP's MoveTeleportAck::Read, and the real-client families golden x3 -- the
     /// client built those three, so they are the order's ground truth.
     struct TeleportAck

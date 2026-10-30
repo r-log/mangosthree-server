@@ -65,7 +65,7 @@ namespace WireParity
         // Rejected's fallback when RowIndex finds neither a registry layout nor a
         // family for the opcode: nothing in the tree exercises this today (every
         // opcode Rejected is called for -- MovementInfo::Read's, and
-        // HandleMoveTeleportAckOpcode's -- has a row), but a rejection must count
+        // HandleMoveTeleportAck's -- has a row), but a rejection must count
         // somewhere rather than be dropped silently.
         struct UnknownOpcode
         {

@@ -52,7 +52,7 @@ OWNER_HEADER = 'src/game/Object/Unit.h'
 OWNER_FILE = 'src/game/Object/UnitMovementStatus.cpp'
 MEMBER = 'm_movementInfo'
 OPERATIONS = (
-    ('AcceptClientStatus', ('src/game/WorldHandlers/MovementHandler.cpp', 'src/game/Harness/', 'src/tests/')),
+    ('AcceptClientStatus', ('src/game/session/handlers/entities/MovementHandlers.cpp', 'src/game/Harness/', 'src/tests/')),
     ('ResetClientWord', ('src/game/spells/auras/SpellAuraControl.cpp', 'src/game/Object/UnitSpeed.cpp',
                          'src/game/entities/player/Player.cpp', 'src/tests/')),
     ('ClearClientFall', ('src/game/entities/player/Player.cpp',)),
@@ -204,7 +204,7 @@ def self_test():
         OWNER_HEADER: UNIT_H,
         OWNER_FILE: OWNER,
         'src/game/movement/MovementInfo.h': INFO_H,
-        'src/game/WorldHandlers/MovementHandler.cpp': 'void h(Unit* u) { u->AcceptClientStatus(1); }\n',
+        'src/game/session/handlers/entities/MovementHandlers.cpp': 'void h(Unit* u) { u->AcceptClientStatus(1); }\n',
         'src/game/Harness/S.cpp': 'void s(Unit* u) { u->AcceptClientStatus(2); }\n',
         'src/tests/T.cpp': 'void t(Unit& u) { u.AcceptClientStatus(3); u.ResetClientWord(0); }\n',
         'src/game/spells/auras/SpellAuraControl.cpp': 'void a(Unit* u) { u->ResetClientWord(0); }\n',

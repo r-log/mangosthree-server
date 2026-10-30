@@ -1681,7 +1681,7 @@ void Player::SendTeleportPacket(float oldX, float oldY, float oldZ, float oldO)
     params.hasTransport = !transportGuid.IsEmpty();
     params.transportGuid = transportGuid.GetRawValue();
     // The packet names the destination; the player stays where it was until the ack
-    // lands (HandleMoveTeleportAckOpcode moves it), as before.
+    // lands (MovementHandlers::HandleMoveTeleportAck moves it), as before.
     std::vector<Motion::Emission> const emissions = m_motion->Apply(Motion::TeleportChange(params), GameTime::GetGameTimeMS());
     Place().MoveTo(oldX, oldY, oldZ, oldO);
     SendEmissions(emissions);
@@ -1835,7 +1835,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
         SetFallInformation(0, z);
 
-        // code for finish transfer called in WorldSession::HandleMovementOpcodes()
+        // code for finish transfer called in MovementHandlers::HandleMovement
         // at client packet CMSG_MOVE_TELEPORT_ACK
         SetSemaphoreTeleportNear(true);
         // near teleport, triggering send CMSG_MOVE_TELEPORT_ACK from client at landing

@@ -3308,8 +3308,8 @@ namespace Harness
     /// charmer was a player, and this creature answered yes to that. Stunned, it therefore:
     ///   1. had its word zeroed WHOLE by Aura::HandleAuraModStun -- the word, not a
     ///      mask -- with nothing to put it back, because the only restoring path is
-    ///      WorldSession::HandleMoverRelocation's `else // creature charmed` branch
-    ///      (MovementHandler.cpp:983-988) and it is reached from a movement packet or an ack,
+    ///      MovementHandlers::HandleMoverRelocation's `else // creature charmed` branch
+    ///      and it is reached from a movement packet or an ack,
     ///      neither of which a unit with no client will ever send;
     ///   2. was client-rooted by MotionMaster::ProjectClientRoot, which for a unit the server
     ///      drives means nothing: a stunned plain creature is STOPPED, not rooted.

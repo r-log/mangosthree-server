@@ -149,7 +149,7 @@ TEST(GuidCodec_packed_guid_is_a_mask_byte_then_the_bytes_low_to_high)
 TEST(MoverCodec_active_mover_has_one_order_per_opcode)
 {
     // SMSG (CPP's MoveSetActiveMover::Write): mask 5,7,3,6,0,4,1,2 / bytes 6,2,3,0,5,7,1,4.
-    // CMSG (the tree's HandleSetActiveMoverOpcode, CPP's SetActiveMover::Read):
+    // CMSG (the tree's HandleSetActiveMover, CPP's SetActiveMover::Read):
     // mask 7,2,1,0,4,5,6,3 / bytes 3,2,4,0,5,1,6,7.
     Wire::ActiveMover v;
     v.guid = kGuid;
@@ -386,7 +386,7 @@ TEST(TeleportCodec_transport_and_vehicle_branches_round_trip)
 
 TEST(TeleportCodec_ack_is_counter_time_then_the_masked_guid)
 {
-    // HandleMoveTeleportAckOpcode and CPP's MoveTeleportAck::Read: uint32
+    // HandleMoveTeleportAck and CPP's MoveTeleportAck::Read: uint32
     // counter, uint32 time, mask 5,0,1,6,3,7,2,4, bytes 4,2,7,6,5,1,3,0.
     Wire::TeleportAck v;
     v.counter = 1; v.time = 1000; v.guid = kGuid;
