@@ -5418,10 +5418,10 @@ void Player::SetClientControl(Unit* target, uint8 allowMove)
     }
 }
 
-Unit* Player::GetMover() const
+Unit const* Player::GetMover() const
 {
-    Unit* selected = GetSession() ? GetSession()->SelectedMover() : NULL;
-    return selected ? selected : const_cast<Player*>(this);
+    Unit const* selected = GetSession() ? GetSession()->SelectedMover() : NULL;
+    return selected ? selected : this;
 }
 
 bool Player::IsSelfMover() const

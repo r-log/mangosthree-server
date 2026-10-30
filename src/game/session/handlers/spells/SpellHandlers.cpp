@@ -42,6 +42,16 @@
 #include "spells/auras/SpellAuras.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 
+namespace
+{
+    /// The unit this client moves: the one it has selected, or its player when nothing is selected.
+    Unit* ClientMover(WorldSession& session)
+    {
+        Unit* selected = session.SelectedMover();
+        return selected ? selected : session.GetPlayer();
+    }
+}
+
 /**
  * @brief Handles use-item requests and casts the item's use spell.
  *
@@ -467,7 +477,7 @@ void SpellHandlers::HandleCastSpell(WorldSession& session, WorldPacket& recvPack
     recvPacket >> cast_flags;                           // flags (if 0x02 - some additional data are received)
 
     // ignore for remote control state (for player case)
-    Unit* mover = session.GetPlayer()->GetMover();
+    Unit* mover = ClientMover(session);
     if (mover != session.GetPlayer() && mover->GetTypeId() == TYPEID_PLAYER)
     {
         recvPacket.rpos(recvPacket.wpos());                 // prevent spam at ignore packet
@@ -581,7 +591,7 @@ void SpellHandlers::HandleCancelCast(WorldSession& session, WorldPacket& recvPac
     recvPacket >> spellId;
 
     // ignore for remote control state (for player case)
-    Unit* mover = session.GetPlayer()->GetMover();
+    Unit* mover = ClientMover(session);
     if (mover != session.GetPlayer() && mover->GetTypeId() == TYPEID_PLAYER)
     {
         return;
@@ -748,7 +758,7 @@ void SpellHandlers::HandleCancelAutoRepeatSpell(WorldSession& session, WorldPack
 {
     // cancel and prepare for deleting
     // do not send SMSG_CANCEL_AUTO_REPEAT! client will send this Opcode again (loop)
-    session.GetPlayer()->GetMover()->InterruptSpell(CURRENT_AUTOREPEAT_SPELL, true, false);
+    ClientMover(session)->InterruptSpell(CURRENT_AUTOREPEAT_SPELL, true, false);
 }
 
 /**
@@ -761,7 +771,7 @@ void SpellHandlers::HandleCancelChanneling(WorldSession& session, WorldPacket& r
     recv_data.read_skip<uint32>();                          // spellid, not used
 
     // ignore for remote control state (for player case)
-    Unit* mover = session.GetPlayer()->GetMover();
+    Unit* mover = ClientMover(session);
     if (mover != session.GetPlayer() && mover->GetTypeId() == TYPEID_PLAYER)
     {
         return;
