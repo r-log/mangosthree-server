@@ -233,8 +233,10 @@ together, so a cast rewritten as a checked downcast leaves it where it was and a
 `dynamic_cast` fails it; ctest `static_downcasts` at 2, the two inside `ToPet`, which test `IsPet()` first; ctest
 `dynamic_downcasts` at 12, the waypoint commands' six that ask whether a creature is a
 waypoint marker and the harness's six that ask for its own AI or summon; ctest `const_casts` at 2, the values block
-setting the loot flag on the creature it describes and `Player::GetMover() const` answering with the player itself)
-and the database-call count.
+setting the loot flag on the creature it describes and `Player::GetMover() const` answering with the player itself),
+the database-call count, and ctest `manager_isolation`, which also holds the managers and the stores (its manager
+list, every file under `data/`, `SpellMgr` and `SocialMgr`) at no singleton reference but their own accessor: a
+manager or a store takes its dependencies in the constructor, or the read as a parameter.
 
 | Layer | Rule | Gate |
 |---|---|---|

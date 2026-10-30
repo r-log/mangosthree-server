@@ -3002,7 +3002,8 @@ bool SpellMgr::IsSpellValid(SpellEntry const* spellInfo, std::vector<std::string
  * @param player The player attempting the cast, if any.
  * @return The spell cast failure code, or SPELL_CAST_OK when allowed.
  */
-SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spellInfo, uint32 map_id, uint32 zone_id, uint32 area_id, Player const* player)
+SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spellInfo, uint32 map_id, uint32 zone_id, uint32 area_id, Player const* player,
+                                                         SpellAreaConditionCheck const& meetsCondition)
 {
     // normal case
     int32 areaGroupId = spellInfo->GetAreaGroupId();
@@ -3058,7 +3059,7 @@ SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spell
     {
         for (SpellAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
         {
-            if (itr->second.IsFitToRequirements(player, zone_id, area_id))
+            if (itr->second.IsFitToRequirements(player, zone_id, area_id, meetsCondition))
             {
                 return SPELL_CAST_OK;
             }
@@ -3660,13 +3661,14 @@ DiminishingReturnsType GetDiminishingReturnsGroupType(DiminishingGroup group)
  * @param player The player being evaluated.
  * @param newZone The current zone identifier.
  * @param newArea The current area identifier.
+ * @param meetsCondition Whether the player meets a condition.
  * @return true if all requirements are met; otherwise, false.
  */
-bool SpellArea::IsFitToRequirements(Player const* player, uint32 newZone, uint32 newArea) const
+bool SpellArea::IsFitToRequirements(Player const* player, uint32 newZone, uint32 newArea, SpellAreaConditionCheck const& meetsCondition) const
 {
     if (conditionId)
     {
-        if (!player || !sObjectMgr.IsPlayerMeetToCondition(conditionId, player, player->GetMap(), NULL, CONDITION_FROM_SPELL_AREA))
+        if (!player || !meetsCondition(conditionId))
         {
             return false;
         }
@@ -3748,12 +3750,13 @@ bool SpellArea::IsFitToRequirements(Player const* player, uint32 newZone, uint32
  * @param newZone The current zone identifier.
  * @param newArea The current area identifier.
  * @param onlyApply true to skip aura removal when requirements fail.
+ * @param meetsCondition Whether the player meets a condition.
  */
-void SpellArea::ApplyOrRemoveSpellIfCan(Player* player, uint32 newZone, uint32 newArea, bool onlyApply) const
+void SpellArea::ApplyOrRemoveSpellIfCan(Player* player, uint32 newZone, uint32 newArea, bool onlyApply, SpellAreaConditionCheck const& meetsCondition) const
 {
     MANGOS_ASSERT(player);
 
-    if (IsFitToRequirements(player, newZone, newArea))
+    if (IsFitToRequirements(player, newZone, newArea, meetsCondition))
     {
         if (autocast && !player->HasAura(spellId))
         {

@@ -484,6 +484,90 @@ if(VIOLATIONS)
         "Pass what the manager needs as parameters (guid, name, time, a lookup); comments are not exempt.")
 endif()
 
+set(STORE_FILES
+    spells/data/SpellMgr.h
+    spells/data/SpellMgr.cpp
+    entities/player/social/SocialMgr.h
+    entities/player/social/SocialMgr.cpp
+)
+file(GLOB DATA_FILES LIST_DIRECTORIES false RELATIVE "${GAME_DIR}" "${GAME_DIR}/data/*.h" "${GAME_DIR}/data/*.cpp")
+list(APPEND STORE_FILES ${DATA_FILES})
+
+set(SINGLETON_RE "${WORD_START}s([A-Z][A-Za-z0-9_]*)?(Mgr|Manager|Registry|World)${WORD_END}")
+set(INSTANCE_RE "${WORD_START}[A-Za-z_][A-Za-z0-9_]*(<[^<>]*>)?::Instance[ \t]*\\(")
+
+function(singleton_hits TEXT BASE OUT_VAR)
+    splice_lines("${TEXT}" SPLICED)
+    blank_literals("${SPLICED}" CODE)
+    string(REPLACE "*/" "${COMMENT_END}" CODE "${CODE}")
+    string(REGEX REPLACE "/\\*[^${COMMENT_END}]*${COMMENT_END}" " " CODE "${CODE}")
+    string(REGEX REPLACE "//[^\n]*" "" CODE "${CODE}")
+    string(REPLACE ";" "${SEMI}" CODE "${CODE}")
+    set(FOUND "")
+    string(REGEX MATCHALL "${SINGLETON_RE}" HITS "${CODE}")
+    foreach(HIT IN LISTS HITS)
+        string(REGEX MATCH "s[A-Z][A-Za-z0-9_]*" NAME "${HIT}")
+        if(NOT NAME STREQUAL "s${BASE}")
+            list(APPEND FOUND "${NAME}")
+        endif()
+    endforeach()
+    string(REGEX MATCHALL "${INSTANCE_RE}" HITS "${CODE}")
+    foreach(HIT IN LISTS HITS)
+        string(REGEX MATCH "([A-Za-z_][A-Za-z0-9_]*)(<([^<>]*)>)?::Instance" NAME "${HIT}")
+        set(CLASS "${CMAKE_MATCH_1}")
+        string(STRIP "${CMAKE_MATCH_3}" ARG)
+        if(NOT CLASS STREQUAL "${BASE}" AND NOT ARG STREQUAL "${BASE}")
+            list(APPEND FOUND "${NAME}()")
+        endif()
+    endforeach()
+    set(${OUT_VAR} "${FOUND}" PARENT_SCOPE)
+endfunction()
+
+function(expect_singletons LABEL TEXT BASE EXPECTED)
+    singleton_hits("${TEXT}" "${BASE}" HITS)
+    list(LENGTH HITS GOT)
+    if(NOT GOT EQUAL EXPECTED)
+        message(FATAL_ERROR
+            "ManagerIsolation self-test failed (singletons, ${LABEL}): '${TEXT}' gave ${GOT} hit(s), expected ${EXPECTED}: ${HITS}")
+    endif()
+endfunction()
+
+expect_singletons("a manager accessor" "Player* p = sObjectMgr.GetPlayer(g);" "SocialMgr" 1)
+expect_singletons("a registry accessor" "sPlayerRegistry.Find(g);" "SocialMgr" 1)
+expect_singletons("the world" "sWorld.GetMotd();" "SocialMgr" 1)
+expect_singletons("the file's own accessor" "sSocialMgr.SendSocialList(*this);" "SocialMgr" 0)
+expect_singletons("a singleton's instance" "MaNGOS::Singleton<ObjectMgr>::Instance().Load();" "SpellMgr" 1)
+expect_singletons("the file's own instance" "#define sSpellMgr SpellMgr::Instance()" "SpellMgr" 0)
+expect_singletons("the file's own singleton" "#define sGameConfig MaNGOS::Singleton<GameConfig>::Instance()" "GameConfig" 0)
+expect_singletons("a comment is not code" "// sObjectMgr\n/* sWorld */ int x;" "SpellMgr" 0)
+expect_singletons("a literal is not code" "Log(\"sObjectMgr\");" "SpellMgr" 0)
+expect_singletons("the configuration, a store and the log are not counted"
+    "sGameConfig.getConfig(x); sSpellStore.LookupEntry(1); sLog.outError(x);" "SpellMgr" 0)
+expect_singletons("longer names are not accessors" "sObjectMgrX y; mysObjectMgr z;" "SpellMgr" 0)
+
+set(SINGLETON_VIOLATIONS "")
+set(SINGLETON_SCANNED 0)
+foreach(FILE_REL IN LISTS MANAGER_FILES STORE_FILES)
+    if(NOT EXISTS "${GAME_DIR}/${FILE_REL}")
+        list(APPEND SINGLETON_VIOLATIONS "${FILE_REL}: listed in STORE_FILES but does not exist")
+        continue()
+    endif()
+    get_filename_component(BASE "${FILE_REL}" NAME_WE)
+    file(READ "${GAME_DIR}/${FILE_REL}" CONTENT)
+    singleton_hits("${CONTENT}" "${BASE}" HITS)
+    foreach(HIT IN LISTS HITS)
+        list(APPEND SINGLETON_VIOLATIONS "${FILE_REL}: ${HIT}")
+    endforeach()
+    math(EXPR SINGLETON_SCANNED "${SINGLETON_SCANNED} + 1")
+endforeach()
+gate_require_scanned(ManagerIsolation "${SINGLETON_SCANNED}" "manager and store files")
+if(SINGLETON_VIOLATIONS)
+    string(REPLACE ";" "\n  " REPORT "${SINGLETON_VIOLATIONS}")
+    message(FATAL_ERROR
+        "A manager or a store reaches a singleton (#143):\n  ${REPORT}\n"
+        "Take the dependency in the constructor, or the read as a parameter from the caller.")
+endif()
+
 
 # Decoupling D4k (social review M-1): a manager's member functions are defined in manager files.
 # The rules above are per FILE, so a member declared in a manager header but defined in an owner
@@ -635,6 +719,6 @@ if(DEFINITION_VIOLATIONS)
 endif()
 list(LENGTH OWNER_DEFINED OWNER_DEFINED_COUNT)
 
-message(STATUS "manager isolation: ${FILE_COUNT} files clean, ${OWNER_COUNT} owner files, "
+message(STATUS "manager isolation: ${FILE_COUNT} files clean, ${SINGLETON_SCANNED} manager and store files reach no singleton, ${OWNER_COUNT} owner files, "
     "all ${PRESENT_COUNT} files under ${LISTED_DIR}/ listed; ${MANAGER_CLASS_COUNT} manager classes, no member "
     "defined outside the manager files in ${SCANNED} files but the ${OWNER_DEFINED_COUNT} in OWNER_DEFINED; self-test OK")

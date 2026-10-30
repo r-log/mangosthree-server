@@ -820,20 +820,20 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
     SpellAreaForAreaMapBounds saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(zone);
     for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
     {
-        itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, true);
+        itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, true, SpellAreaConditionCheckFor(this));
     }
     if (area != zone)
     {
         saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(area);
         for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
         {
-            itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, true);
+            itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, true, SpellAreaConditionCheckFor(this));
         }
     }
     saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(0);
     for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
     {
-        itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, true);
+        itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, true, SpellAreaConditionCheckFor(this));
     }
 
     UpdateForQuestWorldObjects();
@@ -1113,20 +1113,20 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
         SpellAreaForAreaMapBounds saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(zone);
         for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
         {
-            itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, false);
+            itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, false, SpellAreaConditionCheckFor(this));
         }
         if (area != zone)
         {
             saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(area);
             for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
             {
-                itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, false);
+                itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, false, SpellAreaConditionCheckFor(this));
             }
         }
         saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(0);
         for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
         {
-            itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, false);
+            itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, false, SpellAreaConditionCheckFor(this));
         }
     }
 

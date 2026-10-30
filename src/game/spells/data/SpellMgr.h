@@ -34,6 +34,7 @@
 #include "Utilities/Errors.h"
 #include "Platform/Define.h"
 #include <cstring>
+#include <functional>
 #include "SharedDefines.h"
 #include "spells/auras/SpellAuraDefines.h"
 #include "DBCStructure.h"
@@ -1075,6 +1076,10 @@ class PetAura
 };
 typedef std::map<uint32, PetAura> SpellPetAuraMap;
 
+/// Whether the player a spell area is checked for meets the condition `conditionId`. The caller,
+/// which knows the player and may read the conditions, answers.
+typedef std::function<bool(uint32 conditionId)> SpellAreaConditionCheck;
+
 struct SpellArea
 {
     uint32 spellId;
@@ -1089,8 +1094,8 @@ struct SpellArea
     bool autocast;                                          // if true then auto applied at area enter, in other case just allowed to cast
 
     // helpers
-    bool IsFitToRequirements(Player const* player, uint32 newZone, uint32 newArea) const;
-    void ApplyOrRemoveSpellIfCan(Player* player, uint32 newZone, uint32 newArea, bool onlyApply) const;
+    bool IsFitToRequirements(Player const* player, uint32 newZone, uint32 newArea, SpellAreaConditionCheck const& meetsCondition) const;
+    void ApplyOrRemoveSpellIfCan(Player* player, uint32 newZone, uint32 newArea, bool onlyApply, SpellAreaConditionCheck const& meetsCondition) const;
 };
 
 typedef std::multimap < uint32 /*applySpellId*/, SpellArea > SpellAreaMap;
@@ -1487,7 +1492,8 @@ class SpellMgr
             return NULL;
         }
 
-        SpellCastResult GetSpellAllowedInLocationError(SpellEntry const* spellInfo, uint32 map_id, uint32 zone_id, uint32 area_id, Player const* player = NULL);
+        SpellCastResult GetSpellAllowedInLocationError(SpellEntry const* spellInfo, uint32 map_id, uint32 zone_id, uint32 area_id, Player const* player,
+                                                       SpellAreaConditionCheck const& meetsCondition);
 
         SpellAreaMapBounds GetSpellAreaMapBounds(uint32 spell_id) const
         {
