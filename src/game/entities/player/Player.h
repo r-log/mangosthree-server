@@ -3677,6 +3677,9 @@ class Player : public Unit
         bool IsGhouled() const { return m_isGhouled; }
         void SetGhouled(bool enable) { m_isGhouled = enable; }
     protected:
+        /// The ghost run rate while the player is a ghost, from the battleground or the world
+        /// setting; 1 otherwise.
+        float StateSpeedFactor() const override;
 
         uint32 m_contestedPvPTimer; // Timer for contested PvP state
 

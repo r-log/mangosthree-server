@@ -455,7 +455,7 @@ class Creature : public Unit
         void CallAssistance();
         void SetNoCallAssistance(bool val) { m_AlreadyCallAssistance = val; }
         void SetNoSearchAssistance(bool val) { m_AlreadySearchedAssistance = val; }
-        bool HasSearchedAssistance() { return m_AlreadySearchedAssistance; }
+        bool HasSearchedAssistance() const { return m_AlreadySearchedAssistance; }
         bool CanAssistTo(const Unit* u, const Unit* enemy, bool checkfaction = true) const;
         bool CanInitiateAttack();
 
@@ -545,6 +545,15 @@ class Creature : public Unit
         /// Relocates the creature through its map's creature relocation.
         /// @return true
         bool SetPosition(float x, float y, float z, float orientation, bool teleport = false) override;
+
+        // The creature's part of Unit's combat flow, defined in CreatureCombat.cpp
+        void AnchorCombat() override;
+        void AttackStarted() override;
+        void AttackStopped() override;
+        void CombatStopped() override;
+        void EnteredCombat(Unit* enemy) override;
+        void LeftCombat() override;
+        float StateSpeedFactor() const override;
 
         bool MeetsSelectAttackingRequirement(Unit* pTarget, SpellEntry const* pSpellInfo, uint32 selectFlags) const;
 
