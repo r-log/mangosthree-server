@@ -988,6 +988,8 @@ bool SpellEvent::IsDeletable() const
  */
 SpellCastResult Spell::CanOpenLock(SpellEffectIndex effIndex, uint32 lockId, SkillType& skillId, int32& reqSkillValue, int32& skillValue)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     if (!lockId)                                            // possible case for GO and maybe for items.
     {
         return SPELL_CAST_OK;
@@ -1041,11 +1043,11 @@ SpellCastResult Spell::CanOpenLock(SpellEffectIndex effIndex, uint32 lockId, Ski
                     // MAX_SKILL_TYPE - skill value Scales with caster level
                     if (skillId == MAX_SKILL_TYPE)
                     {
-                        skillValue = m_CastItem || m_caster->GetTypeId() != TYPEID_PLAYER ? 0 : m_caster->getLevel() * 5;
+                        skillValue = m_CastItem || !casterPlayer ? 0 : m_caster->getLevel() * 5;
                     }
                     else
                     {
-                        skillValue = m_CastItem || m_caster->GetTypeId() != TYPEID_PLAYER ? 0 : ((Player*)m_caster)->GetSkillValue(skillId);
+                        skillValue = m_CastItem || !casterPlayer ? 0 : casterPlayer->GetSkillValue(skillId);
                     }
 
                     skillValue += spellSkillBonus;

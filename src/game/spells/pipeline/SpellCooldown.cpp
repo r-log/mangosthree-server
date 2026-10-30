@@ -120,9 +120,9 @@ void Spell::TriggerGlobalCooldown()
     {
         m_caster->GetCharmInfo()->GetGlobalCooldownMgr().AddGlobalCooldown(m_spellInfo, gcd);
     }
-    else if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    else if (Player* casterPlayer = m_caster->ToPlayer())
     {
-        ((Player*)m_caster)->GetGlobalCooldownMgr().AddGlobalCooldown(m_spellInfo, gcd);
+        casterPlayer->GetGlobalCooldownMgr().AddGlobalCooldown(m_spellInfo, gcd);
     }
 }
 
@@ -147,8 +147,8 @@ void Spell::CancelGlobalCooldown()
     {
         m_caster->GetCharmInfo()->GetGlobalCooldownMgr().CancelGlobalCooldown(m_spellInfo);
     }
-    else if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    else if (Player* casterPlayer = m_caster->ToPlayer())
     {
-        ((Player*)m_caster)->GetGlobalCooldownMgr().CancelGlobalCooldown(m_spellInfo);
+        casterPlayer->GetGlobalCooldownMgr().CancelGlobalCooldown(m_spellInfo);
     }
 }

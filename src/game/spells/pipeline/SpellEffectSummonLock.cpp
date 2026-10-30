@@ -788,6 +788,8 @@ bool Spell::DoSummonGuardian(CreatureSummonPositions& list, SummonPropertiesEntr
 
 bool Spell::DoSummonTotem(SpellEffectEntry const* effect, uint8 slot_dbc)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     // DBC store slots starting from 1, with no slot 0 value)
     int slot = slot_dbc ? slot_dbc - 1 : TOTEM_SLOT_NONE;
 
@@ -840,7 +842,7 @@ bool Spell::DoSummonTotem(SpellEffectEntry const* effect, uint8 slot_dbc)
 
     pTotem->SetUInt32Value(UNIT_CREATED_BY_SPELL, m_spellInfo->ID);
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (casterPlayer)
     {
         pTotem->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP_ATTACKABLE);
     }
@@ -856,14 +858,14 @@ bool Spell::DoSummonTotem(SpellEffectEntry const* effect, uint8 slot_dbc)
     }
 
     // sending SMSG_TOTEM_CREATED before add to map (done in Summon)
-    if (slot < MAX_TOTEM_SLOT && m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (slot < MAX_TOTEM_SLOT && casterPlayer)
     {
         WorldPacket data(SMSG_TOTEM_CREATED, 1 + 8 + 4 + 4);
         data << uint8(slot);
         data << pTotem->GetObjectGuid();
         data << uint32(m_duration);
         data << uint32(m_spellInfo->ID);
-        ((Player*)m_caster)->SendDirectMessage(&data);
+        casterPlayer->SendDirectMessage(&data);
     }
 
     pTotem->Summon(m_caster);

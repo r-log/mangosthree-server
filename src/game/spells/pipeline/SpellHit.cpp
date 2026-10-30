@@ -68,6 +68,8 @@
  */
 void Spell::DoAllEffectOnTarget(TargetInfo* target)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     if (target->processed)                                  // Check target
     {
         return;
@@ -226,10 +228,10 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         }
 
         // trigger weapon enchants for weapon based spells; exclude spells that stop attack, because may break CC
-        if (m_caster->GetTypeId() == TYPEID_PLAYER && m_spellInfo->GetEquippedItemClass() == ITEM_CLASS_WEAPON &&
+        if (casterPlayer && m_spellInfo->GetEquippedItemClass() == ITEM_CLASS_WEAPON &&
             !m_spellInfo->HasAttribute(SPELL_ATTR_STOP_ATTACK_TARGET))
         {
-            ((Player*)m_caster)->CastItemCombatSpell(unitTarget, m_attackType);
+            casterPlayer->CastItemCombatSpell(unitTarget, m_attackType);
         }
 
         // Haunt (NOTE: for avoid use additional field damage stored in dummy value (replace unused 100%)

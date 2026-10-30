@@ -453,12 +453,12 @@ void Spell::EffectTransmitted(SpellEffectEntry const* effect)
 
 void Spell::EffectProspecting(SpellEffectEntry const* /*effect*/)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER || !itemTarget)
+    Player* p_caster = m_caster->ToPlayer();
+    if (!p_caster || !itemTarget)
     {
         return;
     }
 
-    Player* p_caster = (Player*)m_caster;
 
     if (sGameConfig.getConfig(CONFIG_BOOL_SKILL_PROSPECTING))
     {
@@ -467,17 +467,17 @@ void Spell::EffectProspecting(SpellEffectEntry const* /*effect*/)
         p_caster->UpdateGatherSkill(SKILL_JEWELCRAFTING, SkillValue, reqSkillValue);
     }
 
-    ((Player*)m_caster)->SendLoot(itemTarget->GetObjectGuid(), LOOT_PROSPECTING);
+    p_caster->SendLoot(itemTarget->GetObjectGuid(), LOOT_PROSPECTING);
 }
 
 void Spell::EffectMilling(SpellEffectEntry const* /*effect*/)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER || !itemTarget)
+    Player* p_caster = m_caster->ToPlayer();
+    if (!p_caster || !itemTarget)
     {
         return;
     }
 
-    Player* p_caster = (Player*)m_caster;
 
     if (sGameConfig.getConfig(CONFIG_BOOL_SKILL_MILLING))
     {
@@ -486,7 +486,7 @@ void Spell::EffectMilling(SpellEffectEntry const* /*effect*/)
         p_caster->UpdateGatherSkill(SKILL_INSCRIPTION, SkillValue, reqSkillValue);
     }
 
-    ((Player*)m_caster)->SendLoot(itemTarget->GetObjectGuid(), LOOT_MILLING);
+    p_caster->SendLoot(itemTarget->GetObjectGuid(), LOOT_MILLING);
 }
 
 void Spell::EffectSkill(SpellEffectEntry const* /*effect*/)
@@ -527,13 +527,15 @@ void Spell::EffectSpiritHeal(SpellEffectEntry const* /*effect*/)
 // remove insignia spell effect
 void Spell::EffectSkinPlayerCorpse(SpellEffectEntry const* /*effect*/)
 {
+    Player* const casterPlayer = m_caster->ToPlayer();
+
     DEBUG_LOG("Effect: SkinPlayerCorpse");
-    if ((m_caster->GetTypeId() != TYPEID_PLAYER) || (unitTarget->GetTypeId() != TYPEID_PLAYER) || (unitTarget->IsAlive()))
+    if ((!casterPlayer) || (unitTarget->GetTypeId() != TYPEID_PLAYER) || (unitTarget->IsAlive()))
     {
         return;
     }
 
-    ((Player*)unitTarget)->RemovedInsignia((Player*)m_caster);
+    ((Player*)unitTarget)->RemovedInsignia(casterPlayer);
 }
 
 void Spell::EffectStealBeneficialBuff(SpellEffectEntry const* effect)
