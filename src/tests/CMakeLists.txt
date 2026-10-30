@@ -187,6 +187,7 @@ set(SRC_GRP_TESTS
     CreatureCreditAnswersTest.cpp
     KillCreditHooksTest.cpp
     UnitItemQuestionsTest.cpp
+    UnitAiQuestionTest.cpp
     UnitFactionAndBattleGroundActionsTest.cpp
     UnitProcOneOffActionsTest.cpp
     UnitTalentRankTest.cpp
@@ -526,7 +527,7 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME creature_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
-            --gate c_style_creature=321 ${CMAKE_SOURCE_DIR}/src/game)
+            --gate c_style_creature=245 ${CMAKE_SOURCE_DIR}/src/game)
 
     # Decoupling D7a: the synchronous-call inventory is a hint generator, not a ratchet, so
     # only its own scanner is gated -- an inventory that miscounts is worse than none.

@@ -1234,7 +1234,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericCastOozeZapWhenEnergized(Spel
     }
 
     ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
-    ((Creature*)ctx.unitTarget)->AI()->AttackStart(ctx.m_caster);
+    ctx.unitTarget->AI()->AttackStart(ctx.m_caster);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -1924,7 +1924,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericImpaleLeviroth(SpellEffectDum
     // Cosmetic - Underwater Blood (no sound)
     ctx.unitTarget->CastSpell(ctx.unitTarget, 47172, true);
 
-    ((Creature*)ctx.unitTarget)->AI()->AttackStart(ctx.m_caster);
+    ctx.unitTarget->AI()->AttackStart(ctx.m_caster);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -2366,9 +2366,9 @@ static SpellHandlerOutcome<void> EffectDummyGenericTormentorsIncense(SpellEffect
     }
 
     // This might not be the best way, and effect may need some adjustment. Removal of any aura from surrounding dummy creatures?
-    if (((Creature*)ctx.unitTarget)->AI())
+    if (ctx.unitTarget->AI())
     {
-        ((Creature*)ctx.unitTarget)->AI()->AttackStart(ctx.m_caster);
+        ctx.unitTarget->AI()->AttackStart(ctx.m_caster);
     }
 
     return SpellHandlerOutcome<void>::Return();

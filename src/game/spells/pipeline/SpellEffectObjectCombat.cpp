@@ -208,13 +208,13 @@ void Spell::EffectSummonObjectWild(SpellEffectEntry const* effect)
 
     pGameObj->SummonLinkedTrapIfAny();
 
-    if (m_caster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_caster)->AI())
+    if (m_caster->GetTypeId() == TYPEID_UNIT && m_caster->AI())
     {
-        ((Creature*)m_caster)->AI()->JustSummoned(pGameObj);
+        m_caster->AI()->JustSummoned(pGameObj);
     }
-    if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_originalCaster)->AI())
+    if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && m_originalCaster->AI())
     {
-        ((Creature*)m_originalCaster)->AI()->JustSummoned(pGameObj);
+        m_originalCaster->AI()->JustSummoned(pGameObj);
     }
 }
 
@@ -845,13 +845,13 @@ void Spell::EffectSummonObject(SpellEffectEntry const* effect)
 
     pGameObj->SummonLinkedTrapIfAny();
 
-    if (m_caster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_caster)->AI())
+    if (m_caster->GetTypeId() == TYPEID_UNIT && m_caster->AI())
     {
-        ((Creature*)m_caster)->AI()->JustSummoned(pGameObj);
+        m_caster->AI()->JustSummoned(pGameObj);
     }
-    if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_originalCaster)->AI())
+    if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && m_originalCaster->AI())
     {
-        ((Creature*)m_originalCaster)->AI()->JustSummoned(pGameObj);
+        m_originalCaster->AI()->JustSummoned(pGameObj);
     }
 }
 

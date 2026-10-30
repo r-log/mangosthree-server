@@ -319,6 +319,7 @@ struct CooldownSinks;
 class Aura;
 class SpellAuraHolder;
 class Creature;
+class CreatureAI;
 class Spell;
 class SpellModMgr;
 class DynamicObject;
@@ -3974,6 +3975,11 @@ class Unit : public WorldObject
          * @return NULL here; Player returns the item its inventory holds under that guid, or NULL
          */
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }
+        /**
+         * The AI that drives this unit; the combat, the spell code and the scripts tell it what happened.
+         * @return NULL here, a player is driven by its client; Creature returns its own
+         */
+        virtual CreatureAI* AI() { return NULL; }
         /**
          * The weapon this unit attacks with; the melee and spell damage, the attack power and the
          * proc handlers ask it.

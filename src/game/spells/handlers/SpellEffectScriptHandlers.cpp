@@ -2499,7 +2499,7 @@ static SpellHandlerOutcome<void> EffectScriptGeneric62488(SpellEffectScriptConte
 
     if (ctx.m_caster->getVictim())
     {
-        ((Creature*)ctx.unitTarget)->AI()->AttackStart(ctx.m_caster->getVictim());
+        ctx.unitTarget->AI()->AttackStart(ctx.m_caster->getVictim());
     }
     return SpellHandlerOutcome<void>::Return();
 }

@@ -833,14 +833,14 @@ void Unit::DealDamageMods(Unit* pVictim, uint32& damage, uint32* absorb)
     uint32 originalDamage = damage;
 
     // Script Event damage Deal
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->AI())
+    if (GetTypeId() == TYPEID_UNIT && AI())
     {
-        ((Creature*)this)->AI()->DamageDeal(pVictim, damage);
+        AI()->DamageDeal(pVictim, damage);
     }
     // Script Event damage taken
-    if (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->AI())
+    if (pVictim->GetTypeId() == TYPEID_UNIT && pVictim->AI())
     {
-        ((Creature*)pVictim)->AI()->DamageTaken(this, damage);
+        pVictim->AI()->DamageTaken(this, damage);
     }
 
     if (absorb && originalDamage > damage)
@@ -1369,9 +1369,9 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         }
 
         // Call KilledUnit for creatures
-        if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->AI())
+        if (GetTypeId() == TYPEID_UNIT && AI())
         {
-            ((Creature*)this)->AI()->KilledUnit(pVictim);
+            AI()->KilledUnit(pVictim);
         }
 
         if (Creature* killer = ToCreature())
@@ -1591,9 +1591,9 @@ struct PetOwnerKilledUnitHelper
     {
         if (pTarget->GetTypeId() == TYPEID_UNIT)
         {
-            if (((Creature*)pTarget)->AI())
+            if (pTarget->AI())
             {
-                ((Creature*)pTarget)->AI()->OwnerKilledUnit(m_victim);
+                pTarget->AI()->OwnerKilledUnit(m_victim);
             }
         }
     }
@@ -1656,9 +1656,9 @@ void Unit::JustKilledCreature(Creature* victim, Player* responsiblePlayer)
     }
     else if (pOwner && pOwner->GetTypeId() == TYPEID_UNIT)
     {
-        if (((Creature*)pOwner)->AI())
+        if (pOwner->AI())
         {
-            ((Creature*)pOwner)->AI()->SummonedCreatureJustDied(victim);
+            pOwner->AI()->SummonedCreatureJustDied(victim);
         }
     }
 
@@ -1770,9 +1770,9 @@ int32 Unit::DealHeal(Unit* pVictim, uint32 addhealth, SpellEntry const* spellPro
     }
 
     // Script Event HealedBy
-    if (pVictim->GetTypeId() == TYPEID_UNIT && ((Creature*)pVictim)->AI())
+    if (pVictim->GetTypeId() == TYPEID_UNIT && pVictim->AI())
     {
-        ((Creature*)pVictim)->AI()->HealedBy(this, addhealth);
+        pVictim->AI()->HealedBy(this, addhealth);
     }
 
     return gain;

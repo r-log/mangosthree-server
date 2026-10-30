@@ -566,13 +566,13 @@ void Spell::EffectSummonType(SpellEffectEntry const* effect)
             m_caster->GetMap()->Add(itr->creature);
 
             // Notify Summoner
-            if (m_caster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_caster)->AI())
+            if (m_caster->GetTypeId() == TYPEID_UNIT && m_caster->AI())
             {
-                ((Creature*)m_caster)->AI()->JustSummoned(itr->creature);
+                m_caster->AI()->JustSummoned(itr->creature);
             }
-            if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_originalCaster)->AI())
+            if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && m_originalCaster->AI())
             {
-                ((Creature*)m_originalCaster)->AI()->JustSummoned(itr->creature);
+                m_originalCaster->AI()->JustSummoned(itr->creature);
             }
 
         }
@@ -605,9 +605,9 @@ bool Spell::DoSummonWild(CreatureSummonPositions& list, SummonPropertiesEntry co
             // summon->SetCreatorGuid(m_caster->GetObjectGuid());
 
             // Notify original caster if not done already
-            if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_originalCaster)->AI())
+            if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && m_originalCaster->AI())
             {
-                ((Creature*)m_originalCaster)->AI()->JustSummoned(summon);
+                m_originalCaster->AI()->JustSummoned(summon);
             }
         }
         else
@@ -887,9 +887,9 @@ bool Spell::DoSummonPossessed(CreatureSummonPositions& list, SummonPropertiesEnt
     list[0].creature = static_cast<Creature*>(newUnit);
 
     // Notify Summoner
-    if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_originalCaster)->AI())
+    if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && m_originalCaster->AI())
     {
-        ((Creature*)m_originalCaster)->AI()->JustSummoned(list[0].creature);
+        m_originalCaster->AI()->JustSummoned(list[0].creature);
     }
 
     return true;
@@ -994,20 +994,20 @@ bool Spell::DoSummonPet(SpellEffectEntry const* effect)
     {
         // Notify Summoner
         if (m_originalCaster && (m_originalCaster != m_caster)
-            && (m_originalCaster->GetTypeId() == TYPEID_UNIT) && ((Creature*)m_originalCaster)->AI())
+            && (m_originalCaster->GetTypeId() == TYPEID_UNIT) && m_originalCaster->AI())
         {
-            ((Creature*)m_originalCaster)->AI()->JustSummoned(spawnCreature);
+            m_originalCaster->AI()->JustSummoned(spawnCreature);
             if (m_originalCaster->IsInCombat() && !(spawnCreature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PASSIVE)))
             {
-                ((Creature*)spawnCreature)->AI()->AttackStart(m_originalCaster->getAttackerForHelper());
+                spawnCreature->AI()->AttackStart(m_originalCaster->getAttackerForHelper());
             }
         }
-        else if ((m_caster->GetTypeId() == TYPEID_UNIT) && ((Creature*)m_caster)->AI())
+        else if ((m_caster->GetTypeId() == TYPEID_UNIT) && m_caster->AI())
         {
-            ((Creature*)m_caster)->AI()->JustSummoned(spawnCreature);
+            m_caster->AI()->JustSummoned(spawnCreature);
             if (m_caster->IsInCombat() && !(spawnCreature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PASSIVE)))
             {
-                ((Creature*)spawnCreature)->AI()->AttackStart(m_caster->getAttackerForHelper());
+                spawnCreature->AI()->AttackStart(m_caster->getAttackerForHelper());
             }
         }
     }
@@ -1062,9 +1062,9 @@ bool Spell::DoSummonVehicle(CreatureSummonPositions& list, SummonPropertiesEntry
     }
 
     // Notify Summoner
-    if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_originalCaster)->AI())
+    if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && m_originalCaster->AI())
     {
-        ((Creature*)m_originalCaster)->AI()->JustSummoned(spawnCreature);
+        m_originalCaster->AI()->JustSummoned(spawnCreature);
     }
     return true;
 }
