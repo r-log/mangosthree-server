@@ -243,12 +243,11 @@ void Aura::HandleAuraAddMechanicAbilities(bool apply, bool Real)
 
 void Aura::HandleAuraOpenStable(bool apply, bool Real)
 {
-    if (!Real || GetTarget()->GetTypeId() != TYPEID_PLAYER || !GetTarget()->IsInWorld())
+    Player* player = GetTarget()->ToPlayer();
+    if (!Real || !player || !GetTarget()->IsInWorld())
     {
         return;
     }
-
-    Player* player = (Player*)GetTarget();
 
     if (apply)
     {
@@ -316,7 +315,8 @@ void Aura::HandleMirrorName(bool apply, bool Real)
     Unit* caster = GetCaster();
     Unit* target = GetTarget();
 
-    if (!target || !caster || target->GetTypeId() != TYPEID_UNIT)
+    Creature* targetCreature = target ? target->ToCreature() : NULL;
+    if (!targetCreature || !caster)
     {
         return;
     }
@@ -327,7 +327,7 @@ void Aura::HandleMirrorName(bool apply, bool Real)
     }
     else
     {
-        CreatureInfo const* cinfo = ((Creature*)target)->GetCreatureInfo();
+        CreatureInfo const* cinfo = targetCreature->GetCreatureInfo();
         if (!cinfo)
         {
             return;
@@ -429,28 +429,31 @@ void Aura::HandleAuraSafeFall(bool Apply, bool Real)
     // implemented in WorldSession::HandleMovementOpcodes
 
     // only special case
-    if (Apply && Real && GetId() == 32474 && GetTarget()->GetTypeId() == TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (Apply && Real && GetId() == 32474 && targetPlayer)
     {
-        ((Player*)GetTarget())->ActivateTaxiPathTo(506, GetId());
+        targetPlayer->ActivateTaxiPathTo(506, GetId());
     }
 }
 
 void Aura::HandleModIncreaseSpellPowerPct(bool apply, bool Real)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)GetTarget())->UpdateSpellDamageAndHealingBonus();
+    targetPlayer->UpdateSpellDamageAndHealingBonus();
 }
 
 void Aura::HandleOverrideSpellPowerByAp(bool apply, bool Real)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)GetTarget())->UpdateSpellDamageAndHealingBonus();
+    targetPlayer->UpdateSpellDamageAndHealingBonus();
 }

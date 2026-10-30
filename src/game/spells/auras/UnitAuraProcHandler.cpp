@@ -1826,8 +1826,9 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             else if (auraSpellInfo->ID == 71761)            // Deep Freeze Immunity State
             {
                 // spell applied only to permanent immunes to stun targets (bosses)
-                if (pVictim->GetTypeId() != TYPEID_UNIT ||
-                        (((Creature*)pVictim)->GetCreatureInfo()->MechanicImmuneMask & (1 << (MECHANIC_STUN - 1))) == 0)
+                Creature* victimCreature = pVictim->ToCreature();
+                if (!victimCreature ||
+                        (victimCreature->GetCreatureInfo()->MechanicImmuneMask & (1 << (MECHANIC_STUN - 1))) == 0)
                     return SPELL_AURA_PROC_FAILED;
             }
             else if (auraSpellInfo->SpellIconID == 2947)     // Fingers of Frost
@@ -2606,7 +2607,8 @@ SpellAuraProcResult Unit::HandleMendingAuraProc(Unit* /*pVictim*/, uint32 /*dama
             radius = GetSpellMaxRange(sSpellRangeStore.LookupEntry(spellProto->RangeIndex));
         }
 
-        if (Player* caster = ((Player*)triggeredByAura->GetCaster()))
+        Unit* auraCaster = triggeredByAura->GetCaster();
+        if (Player* caster = auraCaster ? auraCaster->ToPlayer() : NULL)
         {
             caster->GetSpellMods()->ApplySpellMod(spellProto->ID, SPELLMOD_RADIUS, radius);
 

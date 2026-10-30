@@ -2139,9 +2139,8 @@ void Unit::UpdateAuraForGroup(uint8 slot)
     {
         ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).aura, GroupAuraFact{GROUP_UPDATE_FLAG_AURAS, slot});
     }
-    else if (IsPet())
+    else if (Pet* pet = ToPet(this))
     {
-        Pet* pet = ((Pet*)this);
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();

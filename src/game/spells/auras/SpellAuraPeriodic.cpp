@@ -404,7 +404,8 @@ void Aura::HandlePeriodicDamage(bool apply, bool Real)
                 // Rupture
                 if (classOptions->SpellClassMask & UI64LIT(0x000000000000100000))
                 {
-                    if (caster->GetTypeId() != TYPEID_PLAYER)
+                    Player* casterPlayer = caster->ToPlayer();
+                    if (!casterPlayer)
                     {
                         break;
                     }
@@ -414,7 +415,7 @@ void Aura::HandlePeriodicDamage(bool apply, bool Real)
                     // 4 points: ${($m1+$b1*4+0.03428571*$AP)*7} damage over 14 secs
                     // 5 points: ${($m1+$b1*5+0.0375*$AP)*8} damage over 16 secs
                     float AP_per_combo[6] = {0.0f, 0.015f, 0.024f, 0.03f, 0.03428571f, 0.0375f};
-                    uint8 cp = ((Player*)caster)->GetComboPoints();
+                    uint8 cp = casterPlayer->GetComboPoints();
                     if (cp > 5) cp = 5;
                     {
                         m_modifier.m_amount += int32(caster->GetTotalAttackPowerValue(BASE_ATTACK) * AP_per_combo[cp]);
@@ -741,7 +742,8 @@ void Aura::HandleModPercentStat(bool apply, bool /*Real*/)
  */
 void Aura::HandleModSpellDamagePercentFromStat(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -749,7 +751,7 @@ void Aura::HandleModSpellDamagePercentFromStat(bool /*apply*/, bool /*Real*/)
     // Magic damage modifiers implemented in Unit::SpellDamageBonusDone
     // This information for client side use only
     // Recalculate bonus
-    ((Player*)GetTarget())->UpdateSpellDamageAndHealingBonus();
+    targetPlayer->UpdateSpellDamageAndHealingBonus();
 }
 
 /**
@@ -760,13 +762,14 @@ void Aura::HandleModSpellDamagePercentFromStat(bool /*apply*/, bool /*Real*/)
  */
 void Aura::HandleModSpellHealingPercentFromStat(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
     // Recalculate bonus
-    ((Player*)GetTarget())->UpdateSpellDamageAndHealingBonus();
+    targetPlayer->UpdateSpellDamageAndHealingBonus();
 }
 
 void Aura::HandleAuraModDispelResist(bool apply, bool Real)
@@ -784,7 +787,8 @@ void Aura::HandleAuraModDispelResist(bool apply, bool Real)
 
 void Aura::HandleModSpellDamagePercentFromAttackPower(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -792,18 +796,19 @@ void Aura::HandleModSpellDamagePercentFromAttackPower(bool /*apply*/, bool /*Rea
     // Magic damage modifiers implemented in Unit::SpellDamageBonusDone
     // This information for client side use only
     // Recalculate bonus
-    ((Player*)GetTarget())->UpdateSpellDamageAndHealingBonus();
+    targetPlayer->UpdateSpellDamageAndHealingBonus();
 }
 
 void Aura::HandleModSpellHealingPercentFromAttackPower(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
     // Recalculate bonus
-    ((Player*)GetTarget())->UpdateSpellDamageAndHealingBonus();
+    targetPlayer->UpdateSpellDamageAndHealingBonus();
 }
 
 /**
@@ -814,13 +819,14 @@ void Aura::HandleModSpellHealingPercentFromAttackPower(bool /*apply*/, bool /*Re
  */
 void Aura::HandleModHealingDone(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
     // implemented in Unit::SpellHealingBonusDone
     // this information is for client side only
-    ((Player*)GetTarget())->UpdateSpellDamageAndHealingBonus();
+    targetPlayer->UpdateSpellDamageAndHealingBonus();
 }
 
 /**
@@ -955,9 +961,10 @@ void Aura::HandleModPowerRegen(bool apply, bool Real)       // drinking
 
     m_periodicTimer = 5000;
 
-    if (GetTarget()->GetTypeId() == TYPEID_PLAYER && m_modifier.m_miscvalue == POWER_MANA)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (targetPlayer && m_modifier.m_miscvalue == POWER_MANA)
     {
-        ((Player*)GetTarget())->UpdateManaRegen();
+        targetPlayer->UpdateManaRegen();
     }
 
     m_isPeriodic = apply;
@@ -977,7 +984,8 @@ void Aura::HandleModPowerRegenPCT(bool /*apply*/, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -985,7 +993,7 @@ void Aura::HandleModPowerRegenPCT(bool /*apply*/, bool Real)
     // Update manaregen value
     if (m_modifier.m_miscvalue == POWER_MANA)
     {
-        ((Player*)GetTarget())->UpdateManaRegen();
+        targetPlayer->UpdateManaRegen();
     }
 }
 
@@ -997,13 +1005,14 @@ void Aura::HandleModManaRegen(bool /*apply*/, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
     // Note: an increase in regen does NOT cause threat.
-    ((Player*)GetTarget())->UpdateManaRegen();
+    targetPlayer->UpdateManaRegen();
 }
 
 void Aura::HandleComprehendLanguage(bool apply, bool /*Real*/)
@@ -1138,12 +1147,13 @@ void Aura::HandleAuraIncreaseBaseHealthPercent(bool apply, bool /*Real*/)
 
 void Aura::HandleAuraModParryPercent(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)GetTarget())->UpdateParryPercentage();
+    targetPlayer->UpdateParryPercentage();
 }
 
 /**
@@ -1154,12 +1164,13 @@ void Aura::HandleAuraModParryPercent(bool /*apply*/, bool /*Real*/)
  */
 void Aura::HandleAuraModDodgePercent(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)GetTarget())->UpdateDodgePercentage();
+    targetPlayer->UpdateDodgePercentage();
     // sLog.outError("BONUS DODGE CHANCE: + %f", float(m_modifier.m_amount));
 }
 
@@ -1171,12 +1182,13 @@ void Aura::HandleAuraModDodgePercent(bool /*apply*/, bool /*Real*/)
  */
 void Aura::HandleAuraModBlockChancePercent(bool /*apply*/, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)GetTarget())->UpdateBlockPercentage();
+    targetPlayer->UpdateBlockPercentage();
     // sLog.outError("BONUS BLOCK CHANCE: + %f", float(m_modifier.m_amount));
 }
 
@@ -1194,12 +1206,13 @@ void Aura::HandleAuraModRegenInterrupt(bool /*apply*/, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
 
-    ((Player*)GetTarget())->UpdateManaRegen();
+    targetPlayer->UpdateManaRegen();
 }
 
 /**
@@ -1274,9 +1287,9 @@ void Aura::HandleModHitChance(bool apply, bool /*Real*/)
  */
 void Aura::HandleModSpellHitChance(bool apply, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = GetTarget()->ToPlayer())
     {
-        ((Player*)GetTarget())->UpdateSpellHitChances();
+        targetPlayer->UpdateSpellHitChances();
     }
     else
     {
@@ -1298,9 +1311,9 @@ void Aura::HandleModSpellCritChance(bool apply, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = GetTarget()->ToPlayer())
     {
-        ((Player*)GetTarget())->UpdateAllSpellCritChances();
+        targetPlayer->UpdateAllSpellCritChances();
     }
     else
     {
@@ -1322,7 +1335,8 @@ void Aura::HandleModSpellCritChanceShool(bool /*apply*/, bool Real)
         return;
     }
 
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -1330,7 +1344,7 @@ void Aura::HandleModSpellCritChanceShool(bool /*apply*/, bool Real)
     for (int school = SPELL_SCHOOL_NORMAL; school < MAX_SPELL_SCHOOL; ++school)
         if (m_modifier.m_miscvalue & (1 << school))
         {
-            ((Player*)GetTarget())->UpdateSpellCritChance(school);
+            targetPlayer->UpdateSpellCritChance(school);
         }
 }
 
@@ -1486,12 +1500,13 @@ void Aura::HandleModDamageDone(bool apply, bool Real)
     Unit* target = GetTarget();
 
     // apply item specific bonuses for already equipped weapon
-    if (Real && target->GetTypeId() == TYPEID_PLAYER)
+    Player* targetPlayer = target->ToPlayer();
+    if (Real && targetPlayer)
     {
         for (int i = 0; i < MAX_ATTACK; ++i)
-            if (Item* pItem = ((Player*)target)->GetWeaponForAttack(WeaponAttackType(i), true, false))
+            if (Item* pItem = targetPlayer->GetWeaponForAttack(WeaponAttackType(i), true, false))
             {
-                ((Player*)target)->_ApplyWeaponDependentAuraDamageMod(pItem, WeaponAttackType(i), this, apply);
+                targetPlayer->_ApplyWeaponDependentAuraDamageMod(pItem, WeaponAttackType(i), this, apply);
             }
     }
 
@@ -1592,12 +1607,13 @@ void Aura::HandleModDamagePercentDone(bool apply, bool Real)
     Unit* target = GetTarget();
 
     // apply item specific bonuses for already equipped weapon
-    if (Real && target->GetTypeId() == TYPEID_PLAYER)
+    Player* targetPlayer = target->ToPlayer();
+    if (Real && targetPlayer)
     {
         for (int i = 0; i < MAX_ATTACK; ++i)
-            if (Item* pItem = ((Player*)target)->GetWeaponForAttack(WeaponAttackType(i), true, false))
+            if (Item* pItem = targetPlayer->GetWeaponForAttack(WeaponAttackType(i), true, false))
             {
-                ((Player*)target)->_ApplyWeaponDependentAuraDamageMod(pItem, WeaponAttackType(i), this, apply);
+                targetPlayer->_ApplyWeaponDependentAuraDamageMod(pItem, WeaponAttackType(i), this, apply);
             }
     }
 

@@ -117,9 +117,9 @@ void Aura::HandleAuraMastery(bool apply, bool Real)
 
 void Aura::HandleAuraModBlockCritChance(bool apply, bool Real)
 {
-    if (GetTarget()->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = GetTarget()->ToPlayer())
     {
-        ((Player*)GetTarget())->ApplyModUInt32Value(PLAYER_SHIELD_BLOCK_CRIT_PERCENTAGE, m_modifier.m_amount, apply);
+        targetPlayer->ApplyModUInt32Value(PLAYER_SHIELD_BLOCK_CRIT_PERCENTAGE, m_modifier.m_amount, apply);
     }
 }
 

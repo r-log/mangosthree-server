@@ -217,9 +217,9 @@ void Aura::HandleAuraHover(bool apply, bool Real)
 void Aura::HandleWaterBreathing(bool /*apply*/, bool /*Real*/)
 {
     // update timers in client
-    if (GetTarget()->GetTypeId() == TYPEID_PLAYER)
+    if (Player* targetPlayer = GetTarget()->ToPlayer())
     {
-        ((Player*)GetTarget())->UpdateMirrorTimers();
+        targetPlayer->UpdateMirrorTimers();
     }
 }
 
@@ -247,6 +247,7 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
 
     uint32 modelid = 0;
     Unit* target = GetTarget();
+    Player* const targetPlayer = target->ToPlayer();
 
     // remove SPELL_AURA_EMPATHY
     target->RemoveSpellsCausingAura(SPELL_AURA_EMPATHY);
@@ -256,7 +257,7 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
         // i will asume that creatures will always take the defined model from the dbc
         // since no field in creature_templates describes wether an alliance or
         // horde modelid should be used at shapeshifting
-        if (target->GetTypeId() != TYPEID_PLAYER)
+        if (!targetPlayer)
         {
             modelid = ssEntry->CreatureDisplayID_0;
         }
@@ -409,7 +410,7 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
                 {
                     uint32 Rage_val = 0;
                     // Stance mastery + Tactical mastery (both passive, and last have aura only in defense stance, but need apply at any stance switch)
-                    if (Player* targetPlayer = target->ToPlayer())
+                    if (targetPlayer)
                     {
                         PlayerSpellMap const& sp_list = targetPlayer->GetSpellMap();
                         for (PlayerSpellMap::const_iterator itr = sp_list.begin(); itr != sp_list.end(); ++itr)
@@ -441,13 +442,13 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
 
         // a form can give the player a new castbar with some spells.. this is a clientside process..
         // serverside just needs to register the new spells so that player isn't kicked as cheater
-        if (target->GetTypeId() == TYPEID_PLAYER)
+        if (targetPlayer)
         {
             for (uint32 i = 0; i < 8; ++i)
             {
                 if (ssEntry->PresetSpellID[i])
                 {
-                    ((Player*)target)->addSpell(ssEntry->PresetSpellID[i], true, false, false, false);
+                    targetPlayer->addSpell(ssEntry->PresetSpellID[i], true, false, false, false);
                 }
             }
         }
@@ -488,13 +489,13 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
         }
 
         // look at the comment in apply-part
-        if (target->GetTypeId() == TYPEID_PLAYER)
+        if (targetPlayer)
         {
             for (uint32 i = 0; i < 8; ++i)
             {
                 if (ssEntry->PresetSpellID[i])
                 {
-                    ((Player*)target)->removeSpell(ssEntry->PresetSpellID[i], false, false, false);
+                    targetPlayer->removeSpell(ssEntry->PresetSpellID[i], false, false, false);
                 }
             }
         }
@@ -504,15 +505,15 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
     // add/remove the shapeshift aura's boosts
     HandleShapeshiftBoosts(apply);
 
-    if (target->GetTypeId() == TYPEID_PLAYER)
+    if (targetPlayer)
     {
-        ((Player*)target)->InitDataForForm();
+        targetPlayer->InitDataForForm();
     }
 
     // update form-dependent armor specializations
-    if (target->GetTypeId() == TYPEID_PLAYER && target->getClass() == CLASS_DRUID)
+    if (targetPlayer && target->getClass() == CLASS_DRUID)
     {
-        ((Player*)target)->UpdateArmorSpecializations();
+        targetPlayer->UpdateArmorSpecializations();
     }
 }
 
@@ -570,9 +571,10 @@ void Aura::HandleAuraTransform(bool apply, bool Real)
             target->SetDisplayId(model_id);
 
             // creature case, need to update equipment if additional provided
-            if (ci && target->GetTypeId() == TYPEID_UNIT)
+            Creature* targetCreature = target->ToCreature();
+            if (ci && targetCreature)
             {
-                ((Creature*)target)->LoadEquipment(ci->EquipmentTemplateId, false);
+                targetCreature->LoadEquipment(ci->EquipmentTemplateId, false);
             }
 
             // Dragonmaw Illusion (set mount model also)
@@ -589,13 +591,14 @@ void Aura::HandleAuraTransform(bool apply, bool Real)
         }
 
         // polymorph case
-        if (Real && target->GetTypeId() == TYPEID_PLAYER && target->IsPolymorphed())
+        Player* targetPlayer = target->ToPlayer();
+        if (Real && targetPlayer && target->IsPolymorphed())
         {
             // for players, start regeneration after 1s (in polymorph fast regeneration case)
             // only if caster is Player (after patch 2.4.2)
             if (GetCasterGuid().IsPlayer())
             {
-                ((Player*)target)->setRegenTimer(1 * IN_MILLISECONDS);
+                targetPlayer->setRegenTimer(1 * IN_MILLISECONDS);
             }
 
             // dismount polymorphed target (after patch 2.4.2)
@@ -665,7 +668,8 @@ void Aura::HandleAuraTransform(bool apply, bool Real)
  */
 void Aura::HandleForceReaction(bool apply, bool Real)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* player = GetTarget()->ToPlayer();
+    if (!player)
     {
         return;
     }
@@ -675,7 +679,6 @@ void Aura::HandleForceReaction(bool apply, bool Real)
         return;
     }
 
-    Player* player = (Player*)GetTarget();
 
     uint32 faction_id = m_modifier.m_miscvalue;
     ReputationRank faction_rank = ReputationRank(m_modifier.m_amount);
@@ -698,7 +701,8 @@ void Aura::HandleForceReaction(bool apply, bool Real)
  */
 void Aura::HandleAuraModSkill(bool apply, bool /*Real*/)
 {
-    if (GetTarget()->GetTypeId() != TYPEID_PLAYER)
+    Player* targetPlayer = GetTarget()->ToPlayer();
+    if (!targetPlayer)
     {
         return;
     }
@@ -713,7 +717,7 @@ void Aura::HandleAuraModSkill(bool apply, bool /*Real*/)
         return;
     }
 
-    ((Player*)GetTarget())->ModifySkillBonus(prot, (apply ? points : -points), m_modifier.m_auraname == SPELL_AURA_MOD_SKILL_TALENT);
+    targetPlayer->ModifySkillBonus(prot, (apply ? points : -points), m_modifier.m_auraname == SPELL_AURA_MOD_SKILL_TALENT);
 }
 
 /**
