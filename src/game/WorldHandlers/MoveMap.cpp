@@ -218,7 +218,7 @@ namespace MMAP
 
     bool MMapFactory::IsPathfindingForceEnabled(const Unit* unit)
     {
-        if (const Creature* pCreature = dynamic_cast<const Creature*>(unit))
+        if (const Creature* pCreature = unit ? unit->ToCreature() : NULL)
         {
             if (const CreatureInfo* pInfo = pCreature->GetCreatureInfo())
             {
@@ -234,7 +234,7 @@ namespace MMAP
 
     bool MMapFactory::IsPathfindingForceDisabled(const Unit* unit)
     {
-        if (const Creature* pCreature = dynamic_cast<const Creature*>(unit))
+        if (const Creature* pCreature = unit ? unit->ToCreature() : NULL)
         {
             if (const CreatureInfo* pInfo = pCreature->GetCreatureInfo())
             {
