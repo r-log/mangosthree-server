@@ -351,6 +351,8 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId, uint32 me
 
     uint32 gossipOptionId = menu_item.m_gOptionId;
     ObjectGuid guid = pSource->GetObjectGuid();
+    // a game object offers no option past the quest giver's, so the creature-only options below have a creature
+    Creature* const sourceCreature = pSource->ToCreature();
     uint32 moneyTake = menu_item.m_gBoxMoney;
 
     // if this function called and player have money for pay MoneyTake or cheating, proccess both cases
@@ -411,8 +413,7 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId, uint32 me
         case GOSSIP_OPTION_SPIRITHEALER:
             if (IsDead())
             {
-                Creature* pSourceAsCreature = reinterpret_cast<Creature*>(pSource);
-                pSourceAsCreature->CastSpell(pSourceAsCreature, 17251, true, NULL, NULL, GetObjectGuid());
+                sourceCreature->CastSpell(sourceCreature, 17251, true, NULL, NULL, GetObjectGuid());
             }
             break;
         case GOSSIP_OPTION_QUESTGIVER:
@@ -438,7 +439,7 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId, uint32 me
             SendPetSkillWipeConfirm();
             break;
         case GOSSIP_OPTION_TAXIVENDOR:
-            GetSession()->SendTaxiMenu(((Creature*)pSource));
+            GetSession()->SendTaxiMenu(sourceCreature);
             break;
         case GOSSIP_OPTION_INNKEEPER:
             PlayerTalkClass->CloseGossip();
@@ -456,7 +457,7 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId, uint32 me
             GetSession()->SendTabardVendorActivate(guid);
             break;
         case GOSSIP_OPTION_AUCTIONEER:
-            GetSession()->SendAuctionHello(((Creature*)pSource));
+            GetSession()->SendAuctionHello(sourceCreature);
             break;
         case GOSSIP_OPTION_MAILBOX:
             PlayerTalkClass->CloseGossip();
@@ -567,9 +568,9 @@ uint32 Player::GetGossipTextId(uint32 menuId, WorldObject* pSource)
  */
 uint32 Player::GetDefaultGossipMenuForSource(WorldObject* pSource)
 {
-    if (pSource->GetTypeId() == TYPEID_UNIT)
+    if (Creature* sourceCreature = pSource->ToCreature())
     {
-        return ((Creature*)pSource)->GetCreatureInfo()->GossipMenuId;
+        return sourceCreature->GetCreatureInfo()->GossipMenuId;
     }
     else if (pSource->GetTypeId() == TYPEID_GAMEOBJECT)
     {

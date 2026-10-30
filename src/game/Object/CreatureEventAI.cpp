@@ -991,9 +991,9 @@ void CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
         case ACTION_T_CAST_EVENT:           //16
             if (Unit* target = GetTargetByType(action.cast_event.target, pActionInvoker, pAIEventSender, reportTargetError, 0, SELECT_FLAG_PLAYER))
             {
-                if (target->GetTypeId() == TYPEID_PLAYER)
+                if (Player* targetPlayer = target->ToPlayer())
                 {
-                    ((Player*)target)->CastedCreatureOrGO(action.cast_event.creatureId, m_creature->GetObjectGuid(), action.cast_event.spellId);
+                    targetPlayer->CastedCreatureOrGO(action.cast_event.creatureId, m_creature->GetObjectGuid(), action.cast_event.spellId);
                 }
             }
             else if (reportTargetError)
@@ -1100,9 +1100,9 @@ void CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
                         temp->GroupEventHappens(action.quest_event_all.questId, m_creature);
                     }
             }
-            else if (pActionInvoker && pActionInvoker->GetTypeId() == TYPEID_PLAYER)
+            else if (Player* invokerPlayer = pActionInvoker ? pActionInvoker->ToPlayer() : NULL)
             {
-                ((Player*)pActionInvoker)->GroupEventHappens(action.quest_event_all.questId, m_creature);
+                invokerPlayer->GroupEventHappens(action.quest_event_all.questId, m_creature);
             }
             break;
         case ACTION_T_CAST_EVENT_ALL:       //27

@@ -261,13 +261,14 @@ int32 Player::CalculateReputationGain(ReputationSource source, int32 rep, int32 
 // Calculates how many reputation points player gains in victim's enemy factions
 void Player::RewardReputation(Unit* pVictim, float rate)
 {
-    if (!pVictim || pVictim->GetTypeId() == TYPEID_PLAYER)
+    Creature* victimCreature = pVictim ? pVictim->ToCreature() : NULL;
+    if (!victimCreature)
     {
         return;
     }
 
     // used current difficulty creature entry instead normal version (GetEntry())
-    ReputationOnKillEntry const* Rep = sObjectMgr.GetReputationOnKillEntry(((Creature*)pVictim)->GetCreatureInfo()->Entry);
+    ReputationOnKillEntry const* Rep = sObjectMgr.GetReputationOnKillEntry(victimCreature->GetCreatureInfo()->Entry);
 
     if (!Rep)
     {

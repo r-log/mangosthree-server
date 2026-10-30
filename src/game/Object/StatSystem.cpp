@@ -468,15 +468,15 @@ void Player::CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, fl
             break;
     }
 
-    float const att_speed = GetAPMultiplier(attType, normalized);                        // E2a
-    float const modifierBaseValue = GetModifierValue(unitMod, BASE_VALUE);               // E2a
-    float const modifierBasePct = GetModifierValue(unitMod, BASE_PCT);                   // E2a
-    float const modifierTotalValue = GetModifierValue(unitMod, TOTAL_VALUE);             // E2a
-    float const modifierTotalPct = GetModifierValue(unitMod, TOTAL_PCT);                 // E2a
-    float const totalAttackPower = GetTotalAttackPowerValue(attType);                    // E2a
-    float const weaponMinDamage = GetWeaponDamageRange(attType, MINDAMAGE);              // E2a
-    float const weaponMaxDamage = GetWeaponDamageRange(attType, MAXDAMAGE);              // E2a
-    bool const isInFeralForm = IsInFeralForm();                                          // E2a
+    float const att_speed = GetAPMultiplier(attType, normalized);
+    float const modifierBaseValue = GetModifierValue(unitMod, BASE_VALUE);
+    float const modifierBasePct = GetModifierValue(unitMod, BASE_PCT);
+    float const modifierTotalValue = GetModifierValue(unitMod, TOTAL_VALUE);
+    float const modifierTotalPct = GetModifierValue(unitMod, TOTAL_PCT);
+    float const totalAttackPower = GetTotalAttackPowerValue(attType);
+    float const weaponMinDamage = GetWeaponDamageRange(attType, MINDAMAGE);
+    float const weaponMaxDamage = GetWeaponDamageRange(attType, MAXDAMAGE);
+    bool const isInFeralForm = IsInFeralForm();
 
     ShapeshiftForm shapeshiftForm = FORM_NONE;
     uint32 attackTime = 0;
@@ -484,15 +484,15 @@ void Player::CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, fl
     float ammoDPS = 0.0f;
     if (isInFeralForm)
     {
-        attackTime = GetAttackTime(attType);                                             // E2a, kept under its original branch
-        shapeshiftForm = GetShapeshiftForm();                                            // E2a, kept under its original branch
+        attackTime = GetAttackTime(attType);
+        shapeshiftForm = GetShapeshiftForm();
     }
     else
     {
-        canUseEquippedWeapon = CanUseEquippedWeapon(attType);                            // E2a, kept under its original branch
+        canUseEquippedWeapon = CanUseEquippedWeapon(attType);
         if (canUseEquippedWeapon && attType == RANGED_ATTACK)
         {
-            ammoDPS = GetAmmoDPS();                                                      // E2a, kept under its original branch
+            ammoDPS = GetAmmoDPS();
         }
     }
 

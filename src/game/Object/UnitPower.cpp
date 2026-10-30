@@ -162,9 +162,8 @@ void Unit::SetPowerByIndex(uint32 powerIndex, int32 val)
     {
         ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_CUR_POWER});
     }
-    else if (IsPet())
+    else if (Pet* pet = ToPet(this))
     {
-        Pet* pet = ((Pet*)this);
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
@@ -214,9 +213,8 @@ void Unit::SetMaxPowerByIndex(uint32 powerIndex, int32 val)
     {
         ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_MAX_POWER});
     }
-    else if (IsPet())
+    else if (Pet* pet = ToPet(this))
     {
-        Pet* pet = ((Pet*)this);
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
@@ -249,9 +247,8 @@ void Unit::ApplyPowerMod(Powers power, uint32 val, bool apply)
     {
         ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_CUR_POWER});
     }
-    else if (IsPet())
+    else if (Pet* pet = ToPet(this))
     {
-        Pet* pet = ((Pet*)this);
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
@@ -300,7 +297,10 @@ uint32 Unit::GetCreatePowers(Powers power) const
             {
                 return POWER_FOCUS_DEFAULT;
             }
-            return (GetTypeId() == TYPEID_PLAYER || !IsPet() || ((Pet const*)this)->getPetType() != HUNTER_PET ? 0 : POWER_FOCUS_DEFAULT);
+            {
+                Pet const* pet = ToPet(this);
+                return (!pet || pet->getPetType() != HUNTER_PET ? 0 : POWER_FOCUS_DEFAULT);
+            }
         case POWER_ENERGY:      return POWER_ENERGY_DEFAULT;
         case POWER_RUNE:        return (GetTypeId() == TYPEID_PLAYER && getClass() == CLASS_DEATH_KNIGHT ? POWER_RUNE_DEFAULT : 0);
         case POWER_RUNIC_POWER: return (GetTypeId() == TYPEID_PLAYER && getClass() == CLASS_DEATH_KNIGHT ? POWER_RUNIC_POWER_DEFAULT : 0);

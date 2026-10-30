@@ -144,9 +144,10 @@ inline void BeforeVisibilityDestroy(T* /*t*/, Player* /*p*/)
 template<>
 inline void BeforeVisibilityDestroy<Creature>(Creature* t, Player* p)
 {
-    if (p->GetPetGuid() == t->GetObjectGuid() && t->IsPet())
+    Pet* pet = ToPet(t);
+    if (pet && p->GetPetGuid() == t->GetObjectGuid())
     {
-        ((Pet*)t)->Unsummon(PET_SAVE_REAGENTS);
+        pet->Unsummon(PET_SAVE_REAGENTS);
     }
 }
 

@@ -688,7 +688,7 @@ void MaNGOS::PlayerListSearcher<Check>::Visit(PlayerMapType& m)
 }
 
 template<class Builder>
-void MaNGOS::LocalizedPacketDo<Builder>::operator()(Player* p)
+void MaNGOS::LocalizedPacketDo<Builder>::operator()(Player const* p)
 {
     int32 loc_idx = p->GetSession()->GetSessionDbLocaleIndex();
     uint32 cache_idx = loc_idx + 1;

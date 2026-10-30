@@ -118,20 +118,17 @@ namespace
             in.victim.noPvpCredit = uVictim->HasAuraType(SPELL_AURA_NO_PVP_CREDIT);
             in.victim.guid = uVictim->GetObjectGuid();
 
-            if (in.victim.isPlayer)
+            if (Player* pVictim = uVictim->ToPlayer())
             {
-                in.victim.bgTeam = ((Player*)uVictim)->GetBGTeam();
-
-                Player* pVictim = (Player*)uVictim;
+                in.victim.bgTeam = pVictim->GetBGTeam();
                 in.victim.team = pVictim->GetTeam();
                 in.victim.level = pVictim->getLevel();
                 in.victim.classId = pVictim->getClass();
                 in.victim.race = pVictim->getRace();
                 in.victim.chosenTitle = pVictim->GetUInt32Value(PLAYER_CHOSEN_TITLE);
             }
-            else
+            else if (Creature* cVictim = uVictim->ToCreature())
             {
-                Creature* cVictim = (Creature*)uVictim;
                 in.victim.racialLeader = cVictim->IsRacialLeader();
             }
         }
