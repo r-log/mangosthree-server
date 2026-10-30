@@ -124,7 +124,7 @@ through the repositories in `persistence/`. Game `.cpp` files hold 856 calls in 
   (`persistence/characters/spells/`), and it reports a cooldown event and the clear of every cooldown as typed facts,
   which `session/packets/spells/` builds into the two packets.
 - `QuestCompletePacket` builds the quest-complete fact the player reports, in `session/packets/quests/`. The
-  owner-side global `SocialMgr` reports each
+  owner-side `SocialMgr`, which the world builds with the player registry it finds characters in, reports each
   friend status fact to the own client of each player it goes to, and `session/packets/entities/` builds the packet.
 - `CheckStateOwnership`'s cooldown, honor, pet, rune, currency, reputation and social rows allow the opcodes to the
   session's builders, not to the managers; `SocialList.cpp` keeps a debug log line that names its contact list's. The cooldown row holds `SMSG_COOLDOWN_EVENT`
@@ -170,7 +170,7 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `AchievementMgr` (`WorldHandlers/`) | `entities/player/` |
 | `QuestCompletePacket` (`session/packets/quests/`, the builder of the player's quest-complete fact) | stays |
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
-| `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
+| `SocialMgr` (realm-wide, built by the world with the player registry, tells every friend lister about a status change; it holds no player's state) | `social/` |
 
 **Today (`Unit`, 673 member functions, grouped roughly by defining file and name):** combat 189, auras 113, spell
 casting 73, lifecycle and update 82, movement 83, stats and power 72, pets/charm/summons 57, visibility 4. The target

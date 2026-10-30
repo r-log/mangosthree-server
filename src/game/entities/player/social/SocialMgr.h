@@ -29,12 +29,12 @@
 #include <string>
 #include <map>
 #include <vector>
-#include "Policies/Singleton.h"
 #include "Database/DatabaseEnv.h"
 #include "ObjectGuid.h"
 #include "SocialList.h"                                     // PlayerSocial, FriendInfo, the enums and the facts
 
 class Player;
+class PlayerRegistry;
 struct SocialRow;
 
 typedef std::map<uint32, PlayerSocial> SocialMap;
@@ -43,34 +43,46 @@ typedef std::map<uint32, PlayerSocial> SocialMap;
  * @brief The global over every loaded character's social list, the owner side of
  * `social/SocialList`.
  *
- * It is cross-character, so it stays a global and is not a member of the character: it owns the
- * map of lists (created at login by LoadFromDB, which keeps the loop over the rows and hands each
- * row to PlayerSocial::LoadRow; erased at logout), finds other characters through the registry,
+ * It is cross-character, so it is not a member of the character: it owns the map of lists
+ * (created at login by LoadFromDB, which keeps the loop over the rows and hands each row to
+ * PlayerSocial::LoadRow; erased at logout), finds other characters through the player registry it
+ * is built with,
  * reads what the verdict and the list need from them, and reports each friend status fact to the
  * own client of each recipient. The rules it applies live in `SocialList`: the online-visibility
  * verdict (IsFriendVisibleOnline) and the friend status fact (MakeFriendStatusFact).
  *
  * PlayerSocial befriends this class (`friend class SocialMgr`), which grants write access to every
  * list's private map; it only reads through it (GetFriendInfo reads the requester's note,
- * BroadcastToFriendListers each lister's flags; LoadFromDB goes through LoadRow).
+ * BroadcastToFriendListers each lister's flags, SendSocialList the owner's guid; LoadFromDB goes
+ * through LoadRow). The world builds the manager and installs it; the code reaches it through
+ * sSocialMgr.
  */
 class SocialMgr
 {
     public:
-        SocialMgr();
+        explicit SocialMgr(PlayerRegistry& players);
         ~SocialMgr();
+
+        /// The installed social manager; asserts when none is installed.
+        static SocialMgr& Installed();
+        /// Installs `mgr` and answers the one it replaces (NULL for none).
+        static SocialMgr* Install(SocialMgr* mgr);
+
         // Misc
         void RemovePlayerSocial(uint32 guid) { m_socialMap.erase(guid); }
 
         void GetFriendInfo(Player* player, uint32 friendGUID, FriendInfo& friendInfo);
+        /// Tells the owner of `social`, when it is online, its contact list.
+        void SendSocialList(PlayerSocial& social);
         // Packet management
         void SendFriendStatus(Player* player, FriendsResult result, ObjectGuid friend_guid, bool broadcast);
         void BroadcastToFriendListers(Player* player, FriendStatusFact const& fact);
         // Loading
         PlayerSocial* LoadFromDB(std::vector<SocialRow> const& rows, ObjectGuid guid);
     private:
+        PlayerRegistry& m_players;
         SocialMap m_socialMap;
 };
 
-#define sSocialMgr MaNGOS::Singleton<SocialMgr>::Instance()
+#define sSocialMgr SocialMgr::Installed()
 #endif
