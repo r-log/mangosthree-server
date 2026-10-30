@@ -1105,7 +1105,12 @@ static SpellHandlerOutcome<void> EffectScriptGeneric44811(SpellEffectScriptConte
     // If the player can't be teleported, send him a notification
     if (ctx.unitTarget->HasAura(44867))
     {
-        ((Player*)ctx.unitTarget)->GetSession()->SendNotification(LANG_FAIL_ENTER_SPECTRAL_REALM);
+        if (ClientCallbacks const* client = ctx.unitTarget->GetClientCallbacks())
+        {
+            NotificationFact fact;
+            fact.entry = LANG_FAIL_ENTER_SPECTRAL_REALM;
+            ReportClientFact(client->notification, fact);
+        }
         return SpellHandlerOutcome<void>::Return();
     }
 

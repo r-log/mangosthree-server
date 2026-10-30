@@ -133,6 +133,22 @@ namespace
         return fact;
     }
 
+    SpiritHealerConfirmFact HealerAsks(ObjectGuid healer)
+    {
+        SpiritHealerConfirmFact fact;
+        fact.healer = healer;
+        return fact;
+    }
+
+    SummonRequestFact Summon(ObjectGuid summoner, uint32 zone, uint32 autoDeclineMs)
+    {
+        SummonRequestFact fact;
+        fact.summoner = summoner;
+        fact.zone = zone;
+        fact.autoDeclineMs = autoDeclineMs;
+        return fact;
+    }
+
     StandStateFact Stand(uint8 state)
     {
         StandStateFact fact;
@@ -376,6 +392,8 @@ namespace
         ReportClientFact(callbacks.contactList, OneContact());
         ReportClientFact(callbacks.friendStatus, StatusOf(FRIEND_ONLINE));
         ReportClientFact(callbacks.questComplete, QuestDone());
+        ReportClientFact(callbacks.spiritHealerConfirm, HealerAsks(kCreature));
+        ReportClientFact(callbacks.summonRequest, Summon(kPlayer, 1519, 120000));
     }
 
     const char* const kEach[] =
@@ -410,6 +428,8 @@ namespace
         "6017:070000000100000007000000000000000100000068690004ef0500005500000008000000",
         "0717:02070000000000000004ef0500005500000008000000",
         "55a4:010000000000000096000000c2010000156700000000000040",
+        "4917:2a000000b80b30f1",
+        "2a07:0000f00000000000ef050000c0d40100",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -516,6 +536,20 @@ TEST(PlayerClientPackets_PetSpellBytes)
 TEST(PlayerClientPackets_PetActionFeedbackBytes)
 {
     CHECK_STR(Built(&BuildPetActionFeedbackPacket, Feedback(2)), "0807:02");
+}
+
+// SMSG_SPIRIT_HEALER_CONFIRM (0x4917): the healer's raw guid as a uint64.
+TEST(PlayerClientPackets_SpiritHealerConfirmBytes)
+{
+    CHECK_STR(Built(&BuildSpiritHealerConfirmPacket, HealerAsks(kCreature)), "4917:2a000000b80b30f1");
+}
+
+// SMSG_SUMMON_REQUEST (0x2A07): the summoner's raw guid as a uint64, its zone (1519, Stormwind
+// City: ef 05 00 00), then the auto-decline time in milliseconds (120000: c0 d4 01 00).
+TEST(PlayerClientPackets_SummonRequestBytes)
+{
+    CHECK_STR(Built(&BuildSummonRequestPacket, Summon(kPlayer, 1519, 120000)),
+              "2a07:0000f00000000000ef050000c0d40100");
 }
 
 // SMSG_PET_ACTION_SOUND (0x4324) and SMSG_AI_REACTION (0x0637): the pet's raw guid as a uint64,
@@ -678,8 +712,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 30u);
-    for (size_t i = 0; i < 30; ++i)
+    REQUIRE(session.sent.size() == 32u);
+    for (size_t i = 0; i < 32; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -699,9 +733,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 30u);
-    REQUIRE(second.sent.size() == 30u);
-    for (size_t i = 0; i < 30; ++i)
+    REQUIRE(first.sent.size() == 32u);
+    REQUIRE(second.sent.size() == 32u);
+    for (size_t i = 0; i < 32; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);

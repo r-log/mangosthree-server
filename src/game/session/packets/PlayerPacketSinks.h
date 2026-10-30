@@ -41,6 +41,7 @@
 #include "session/packets/entities/StandStatePacket.h"
 #include "session/packets/quests/QuestCompletePacket.h"
 #include "session/packets/spells/AutoRepeatPackets.h"
+#include "session/packets/spells/SpellEffectPackets.h"
 
 class Player;
 
@@ -106,6 +107,8 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.contactList = FactToSession(owner, &BuildContactListPacket);
     callbacks.friendStatus = FactToSession(owner, &BuildFriendStatusPacket);
     callbacks.questComplete = FactToSession(owner, &BuildQuestCompletePacket);
+    callbacks.spiritHealerConfirm = FactToSession(owner, &BuildSpiritHealerConfirmPacket);
+    callbacks.summonRequest = FactToSession(owner, &BuildSummonRequestPacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }
