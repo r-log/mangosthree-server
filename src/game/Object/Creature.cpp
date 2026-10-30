@@ -33,7 +33,7 @@
 #include "LivingWorldAnchorPolicy.h"
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
-#include "World.h"
+#include "data/WorldBroadcast.h"
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "ObjectMgr.h"
@@ -2716,7 +2716,7 @@ bool Creature::LoadCreatureAddon(bool reload)
  */
 void Creature::SendZoneUnderAttackMessage(Player* attacker)
 {
-    sWorld.SendZoneUnderAttackMessage(GetTerrain()->GetZoneId(Where().X(), Where().Y(), Where().Z()), attacker->GetTeam() == ALLIANCE ? HORDE : ALLIANCE);
+    sWorldBroadcast.ZoneUnderAttack(GetTerrain()->GetZoneId(Where().X(), Where().Y(), Where().Z()), attacker->GetTeam() == ALLIANCE ? HORDE : ALLIANCE);
 }
 
 /**

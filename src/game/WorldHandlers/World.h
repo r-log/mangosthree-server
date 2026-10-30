@@ -48,6 +48,7 @@
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "session/SessionRegistry.h"
+#include "data/WorldBroadcast.h"
 
 #include <map>
 #include <set>
@@ -141,18 +142,6 @@ struct CliCommandHolder
     ~CliCommandHolder() { delete[] m_command; }
 };
 
-/// World-thread work raised inside the map phase, applied after the barrier.
-struct AfterMapPhasePost
-{
-    enum Kind { DEFENSE_MESSAGE, ZONE_UNDER_ATTACK, GRAVEYARD_LINK_TEAM };
-
-    Kind kind;
-    uint32 zoneId;
-    int32 textId;
-    Team team;
-    uint32 graveyardId;
-};
-
 /// The posts made by map threads during the map phase; locked because any map thread may post.
 class AfterMapPhaseQueue
 {
@@ -166,7 +155,7 @@ class AfterMapPhaseQueue
 };
 
 /// The World
-class World
+class World : public WorldBroadcast
 {
     public:
         static std::atomic<uint32> m_worldLoopCounter;
@@ -206,15 +195,13 @@ class World
         void SetInitialWorldSettings();
         void LoadConfigSettings(bool reload = false);
 
-        void SendWorldText(int32 string_id, ...);
-        void SendWorldTextV(int32 string_id, va_list* args);
-        /// Sends `packet` to every player in the world whose account is at least `minSec`, through the
-        /// session registry; the code below the session layer, which may not reach the registry, calls this.
-        void SendGlobalMessage(WorldPacket* packet, AccountTypes minSec = SEC_PLAYER) { m_sessions.Broadcast(*packet, minSec); }
+        void WorldTextV(int32 stringId, va_list* args) override;
         void SendServerMessage(ServerMessageType type, const char* text = "", Player* player = NULL);
-        void SendZoneUnderAttackMessage(uint32 zoneId, Team team);
-        void SendDefenseMessage(uint32 zoneId, int32 textId);
-        bool PostAfterMapPhase(AfterMapPhasePost const& post);
+        void ZoneUnderAttack(uint32 zoneId, Team team) override;
+        void DefenseMessage(uint32 zoneId, int32 textId) override;
+        bool PostAfterMapPhase(AfterMapPhasePost const& post) override;
+        void RealmFirstAchievement(char const* name, ObjectGuid guid, uint32 achievementId) override;
+        void WorldStateChanged(uint32 field, uint32 value) override;
 
         /// Are we in the middle of a shutdown?
         bool IsShutdowning() const { return m_ShutdownTimer > 0; }

@@ -37,7 +37,7 @@
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Database/DatabaseEnv.h"
-#include "World.h"
+#include "data/WorldBroadcast.h"
 #include "data/GameConfig.h"
 #include "spells/data/SpellMgr.h"
 #include "ArenaTeam.h"
@@ -290,6 +290,15 @@ void AchievementMgr::LoadFromDB(std::vector<LoginAchievementRow> const& achievem
     }
 }
 
+void AchievementMgr::BuildServerFirstAchievementPacket(WorldPacket& data, char const* name, ObjectGuid guid, uint32 achievementId)
+{
+    data.Initialize(SMSG_SERVER_FIRST_ACHIEVEMENT, strlen(name) + 1 + 8 + 4 + 4);
+    data << name;
+    data << guid;
+    data << uint32(achievementId);
+    data << uint32(0);                                      // 1=link supplied string as player name, 0=display plain string
+}
+
 void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement)
 {
     if (GetPlayer()->GetSession()->PlayerLoading())
@@ -309,12 +318,7 @@ void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement)
     if (achievement->Flags & (ACHIEVEMENT_FLAG_REALM_FIRST_KILL | ACHIEVEMENT_FLAG_REALM_FIRST_REACH))
     {
         // broadcast realm first reached
-        WorldPacket data(SMSG_SERVER_FIRST_ACHIEVEMENT, strlen(GetPlayer()->GetName()) + 1 + 8 + 4 + 4);
-        data << GetPlayer()->GetName();
-        data << GetPlayer()->GetObjectGuid();
-        data << uint32(achievement->ID);
-        data << uint32(0);                                  // 1=link supplied string as player name, 0=display plain string
-        sWorld.SendGlobalMessage(&data);
+        sWorldBroadcast.RealmFirstAchievement(GetPlayer()->GetName(), GetPlayer()->GetObjectGuid(), achievement->ID);
     }
     // if player is in world he can tell his friends about new achievement
     else if (GetPlayer()->IsInWorld())

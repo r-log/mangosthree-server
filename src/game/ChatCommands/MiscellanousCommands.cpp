@@ -38,7 +38,7 @@
 #include "ObjectMgr.h"
 #include "ScriptMgr.h"
 #include "Language.h"
-#include "World.h"
+#include "data/WorldBroadcast.h"
 #include "BattleGroundMgr.h"
 #include "PlayerDump.h"
 #include "Player.h"
@@ -118,7 +118,7 @@ bool ChatHandler::HandleLoadScriptsCommand(char* args)
     switch (sScriptMgr.LoadScriptLibrary(args))
     {
         case SCRIPT_LOAD_OK:
-            sWorld.SendWorldText(LANG_SCRIPTS_RELOADED_ANNOUNCE);
+            sWorldBroadcast.WorldText(LANG_SCRIPTS_RELOADED_ANNOUNCE);
             SendSysMessage(LANG_SCRIPTS_RELOADED_OK);
             break;
         case SCRIPT_LOAD_ERR_NOT_FOUND:

@@ -45,7 +45,7 @@
 #include <sstream>
 #include <map>
 #include "GameEventMgr.h"
-#include "World.h"
+#include "data/WorldBroadcast.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "Creature.h"
@@ -748,7 +748,7 @@ void GameEventMgr::ApplyNewEvent(uint16 event_id, bool resume)
 
     if (sGameConfig.getConfig(CONFIG_BOOL_EVENT_ANNOUNCE))
     {
-        sWorld.SendWorldText(LANG_EVENTMESSAGE, mGameEvent[event_id].description.c_str());
+        sWorldBroadcast.WorldText(LANG_EVENTMESSAGE, mGameEvent[event_id].description.c_str());
     }
 
     sLog.outString("GameEvent %u \"%s\" started.", event_id, mGameEvent[event_id].description.c_str());
@@ -1053,9 +1053,7 @@ void GameEventMgr::UpdateWorldStates(uint16 event_id, bool Activate)
             BattlemasterListEntry const* bl = sBattlemasterListStore.LookupEntry(bgTypeId);
             if (bl && bl->HolidayWorldState)
             {
-                WorldPacket data;
-                sBattleGroundMgr.BuildUpdateWorldStatePacket(&data, bl->HolidayWorldState, Activate ? 1 : 0);
-                sWorld.SendGlobalMessage(&data);
+                sWorldBroadcast.WorldStateChanged(bl->HolidayWorldState, Activate ? 1 : 0);
             }
         }
     }

@@ -179,6 +179,7 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
     sGameConfig.Reset();
 
     SessionRegistry::Install(&m_sessions);
+    WorldBroadcast::Install(this);
 }
 
 /// World destructor
@@ -197,6 +198,12 @@ World::~World()
     if (installed != &m_sessions)
     {
         SessionRegistry::Install(installed);
+    }
+
+    WorldBroadcast* broadcast = WorldBroadcast::Install(NULL);
+    if (broadcast != this)
+    {
+        WorldBroadcast::Install(broadcast);
     }
 
     MMAP::MMapFactory::clear();
@@ -776,7 +783,7 @@ void World::SetInitialWorldSettings()
     sLog.outString("Starting BattleGround System");
     sBattleGroundMgr.SetWorldTextSink([this](int32 textId, va_list* args)
     {
-        SendWorldTextV(textId, args);
+        WorldTextV(textId, args);
     });
     sBattleGroundMgr.CreateInitialBattleGrounds();
     if (getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
@@ -792,7 +799,7 @@ void World::SetInitialWorldSettings()
     sLog.outString("Starting Outdoor PvP System");
     sOutdoorPvPMgr.SetDefenseMessageSink([this](uint32 zoneId, int32 textId)
     {
-        SendDefenseMessage(zoneId, textId);
+        DefenseMessage(zoneId, textId);
     });
     sOutdoorPvPMgr.InitOutdoorPvP();
 
@@ -1162,17 +1169,8 @@ namespace MaNGOS
     };
 }                                                           // namespace MaNGOS
 
-/// Sends a system message to all players
-void World::SendWorldText(int32 string_id, ...)
-{
-    va_list ap;
-    va_start(ap, string_id);
-    SendWorldTextV(string_id, &ap);
-    va_end(ap);
-}
-
 /// Sends a system message, formatted with `args`, to all players
-void World::SendWorldTextV(int32 string_id, va_list* args)
+void World::WorldTextV(int32 string_id, va_list* args)
 {
     MaNGOS::WorldWorldTextBuilder wt_builder(string_id, args);
     MaNGOS::LocalizedPacketListDo<MaNGOS::WorldWorldTextBuilder> wt_do(wt_builder);
@@ -1207,7 +1205,7 @@ void World::SendServerMessage(ServerMessageType type, const char* text /*=""*/, 
 }
 
 /// Sends a zone under attack message to all players not in an instance
-void World::SendZoneUnderAttackMessage(uint32 zoneId, Team team)
+void World::ZoneUnderAttack(uint32 zoneId, Team team)
 {
     AfterMapPhasePost const post = { AfterMapPhasePost::ZONE_UNDER_ATTACK, zoneId, 0, team, 0 };
     if (m_afterMapPhase.Post(post))
@@ -1232,7 +1230,7 @@ void World::SendZoneUnderAttackMessage(uint32 zoneId, Team team)
 }
 
 /// Sends a world defense message to all players not in an instance
-void World::SendDefenseMessage(uint32 zoneId, int32 textId)
+void World::DefenseMessage(uint32 zoneId, int32 textId)
 {
     AfterMapPhasePost const post = { AfterMapPhasePost::DEFENSE_MESSAGE, zoneId, textId, TEAM_NONE, 0 };
     if (m_afterMapPhase.Post(post))
@@ -1285,6 +1283,22 @@ bool World::PostAfterMapPhase(AfterMapPhasePost const& post)
     return m_afterMapPhase.Post(post);
 }
 
+/// Tells every client that the player `name` is the realm's first to earn `achievementId`
+void World::RealmFirstAchievement(char const* name, ObjectGuid guid, uint32 achievementId)
+{
+    WorldPacket data;
+    AchievementMgr::BuildServerFirstAchievementPacket(data, name, guid, achievementId);
+    m_sessions.Broadcast(data);
+}
+
+/// Tells every client that the world state `field` is now `value`
+void World::WorldStateChanged(uint32 field, uint32 value)
+{
+    WorldPacket data;
+    sBattleGroundMgr.BuildUpdateWorldStatePacket(&data, field, value);
+    m_sessions.Broadcast(data);
+}
+
 void World::ApplyAfterMapPhasePosts()
 {
     std::vector<AfterMapPhasePost> const posts = m_afterMapPhase.Take();
@@ -1293,10 +1307,10 @@ void World::ApplyAfterMapPhasePosts()
         switch (itr->kind)
         {
             case AfterMapPhasePost::DEFENSE_MESSAGE:
-                SendDefenseMessage(itr->zoneId, itr->textId);
+                DefenseMessage(itr->zoneId, itr->textId);
                 break;
             case AfterMapPhasePost::ZONE_UNDER_ATTACK:
-                SendZoneUnderAttackMessage(itr->zoneId, itr->team);
+                ZoneUnderAttack(itr->zoneId, itr->team);
                 break;
             case AfterMapPhasePost::GRAVEYARD_LINK_TEAM:
                 sObjectMgr.SetGraveYardLinkTeam(itr->graveyardId, itr->zoneId, itr->team);
@@ -1992,7 +2006,7 @@ void World::AutoBroadcast()
 {
     if (m_broadcastList.size() == 1)
     {
-        SendWorldText(LANG_AUTOBROADCAST, m_broadcastList[0].text.c_str());
+        WorldText(LANG_AUTOBROADCAST, m_broadcastList[0].text.c_str());
     }
     else
     {
@@ -2005,6 +2019,6 @@ void World::AutoBroadcast()
                 break;
             }
         }
-        SendWorldText(LANG_AUTOBROADCAST, it->text.c_str());
+        WorldText(LANG_AUTOBROADCAST, it->text.c_str());
     }
 }

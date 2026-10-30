@@ -40,7 +40,7 @@
 #include "ObjectMgr.h"
 #include "Creature.h"
 #include "Player.h"
-#include "World.h"
+#include "data/WorldBroadcast.h"
 #include "session/SessionRegistry.h"
 #include "WorldSession.h"
 #include "persistence/login/AccountRepository.h"
@@ -58,7 +58,7 @@ bool ChatHandler::HandleAnnounceCommand(char* args)
         return false;
     }
 
-    sWorld.SendWorldText(LANG_SYSTEMMESSAGE, args);
+    sWorldBroadcast.WorldText(LANG_SYSTEMMESSAGE, args);
     return true;
 }
 
