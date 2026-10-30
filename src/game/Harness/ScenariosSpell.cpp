@@ -1562,7 +1562,8 @@ namespace Harness
     /**
      * S939 `spell-periodic-off-map`: S932's priest and cougar, with the priest gone to another map
      * between the cast and the first tick. He casts Shadow Word: Pain (589) at the silenced cougar,
-     * again a tenth of a second later while the hit roll misses (each step draws its own seeded roll),
+     * again a tenth of a second later while the hit roll misses (each step draws its own seeded roll;
+     * the missed attempt's global cooldown is cancelled by call),
      * then moves to Northshire Valley on Eastern Kingdoms (map 0) the way Scenario::SpawnPlayer places
      * a player: the map's own removal, then SetMap and Map::Add. A harness player never logged in (no
      * social list), so the worldport's arrival packets are not his to send. The aura keeps ticking on
@@ -1668,6 +1669,11 @@ namespace Harness
                 if (attempt == 0)
                 {
                     m_rec.Open("cast");
+                }
+                else
+                {
+                    // the missed attempt's global cooldown would refuse this one
+                    p->GetGlobalCooldownMgr().CancelGlobalCooldown(sSpellStore.LookupEntry(SWP));
                 }
                 const std::string procSelf = ProcHolders(p), procTarget = ProcHolders(target);
                 if (!procSelf.empty() || !procTarget.empty())
