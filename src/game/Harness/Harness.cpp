@@ -36,6 +36,7 @@
 #include "WorldClock.h"
 #include "RNGen.h"
 #include "World.h"
+#include "session/SessionRegistry.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
@@ -257,7 +258,7 @@ namespace Harness
                 return false;
             }
         }
-        if (uint32 n = sWorld.GetActiveSessionCount())
+        if (uint32 n = sSessionRegistry.ActiveCount())
         {
             sLog.outString("MVTEST refused: %u session(s) online; a run steps the world and its seconds, and a client's respawn and aura stamps would straddle the step back (run from the console on an empty realm)", n);
             m_queue.clear();
@@ -352,7 +353,7 @@ namespace Harness
         // C3: a tick has passed, so the one thing that could have changed under us is
         // re-asked. Everything else Start checked is a property of the queue it built,
         // and nothing may touch that queue while a read is pending.
-        if (uint32 n = sWorld.GetActiveSessionCount())
+        if (uint32 n = sSessionRegistry.ActiveCount())
         {
             sLog.outString("MVTEST refused: %u session(s) online; a run steps the world and its seconds, and a client's respawn and aura stamps would straddle the step back (run from the console on an empty realm)", n);
             m_queue.clear();

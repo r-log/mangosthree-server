@@ -37,7 +37,7 @@
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
-#include "World.h"
+#include "session/SessionRegistry.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "Creature.h"
@@ -90,7 +90,7 @@ void WorldSession::SendPetitionQueryOpcode(ObjectGuid petitionguid)
 void WorldSession::SendPetitionQueryCallback(std::optional<PetitionDetailsRow> const& row, uint32 accountId,
                                              proto::SessionId sessionId, ObjectGuid petitionguid)
 {
-    WorldSession* session = sWorld.FindSession(accountId);
+    WorldSession* session = sSessionRegistry.Find(accountId);
     if (!session || session->GetSessionId() != sessionId)
     {
         return;

@@ -58,7 +58,6 @@ src/game/ChatCommands/BanAndKickCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/CommunicationCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/CreatureCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/DebugCommands.cpp -> src/game/Harness/Harness.h
-src/game/ChatCommands/LookupCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/MiscellanousCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/PlayerMiscCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/ReloadCommands.cpp -> src/game/WorldHandlers/World.h
@@ -311,7 +310,6 @@ src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/proto/WorldPacket.h
 src/game/Server/DBCStores.cpp -> src/game/spells/auras/SpellAuraDefines.h
-src/game/Server/WorldGateway.cpp -> src/game/WorldHandlers/World.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/Server/DBCStores.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/data/GameConfig.h
 src/game/Tools/PlayerDump.cpp -> src/game/Object/CharacterCache.h
@@ -433,7 +431,6 @@ src/game/WorldHandlers/Map.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/MapManager.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/PetitionsHandler.cpp -> src/game/WorldHandlers/World.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/Creature.h
 # reached through PoolManager.h before #509
@@ -454,7 +451,6 @@ src/game/WorldHandlers/WaypointManager.cpp -> src/game/WorldHandlers/GridMap.h
 src/game/WorldHandlers/Weather.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Weather.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Weather.cpp -> src/proto/WorldPacket.h
-src/game/WorldHandlers/WorldSessionMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/combat [combat] -> src/game/MotionGenerators/MotionMaster.h
 src/game/combat [combat] -> src/game/Object/Creature.h
 src/game/combat [combat] -> src/game/Object/CreatureAI.h
@@ -517,7 +513,6 @@ src/game/entities/player/Player.cpp -> src/proto/Opcodes.h
 src/game/entities/player/Player.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/Player.cpp -> src/proto/wire/MoverCodec.h
 src/game/entities/player/PlayerRegistry.cpp -> src/game/Server/WorldSession.h
-src/game/entities/player/PlayerRegistry.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/combat [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/combat [entities] -> src/game/Object/Formulas.h
 # reached through ObjectMgr.h before #512
@@ -683,8 +678,6 @@ src/game/entities/player/world/PlayerZone.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/world/PlayerZone.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/world/PlayerZone.cpp -> src/proto/Opcodes.h
 src/game/entities/player/world/PlayerZone.cpp -> src/proto/WorldPacket.h
-# The rename and the customize tell every client to drop the renamed character's cached data: sWorld.InvalidatePlayerDataToAllClient.
-src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h
 src/game/spells/auras [spells] -> src/game/MotionGenerators/MotionMaster.h
 src/game/spells/auras [spells] -> src/game/Object/Creature.h
@@ -886,4 +879,3 @@ src/game/spells/pipeline/SpellTargeting.cpp -> src/game/entities/player/PlayerRe
 src/game/spells/pipeline/SpellTargeting.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/UnitSpellBonus.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/UnitSpellBonus.cpp -> src/game/spells/auras/SpellAuras.h
-src/modules/SD3/include/precompiled.h -> src/game/WorldHandlers/World.h

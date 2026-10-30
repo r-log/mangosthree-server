@@ -43,6 +43,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "World.h"
+#include "session/SessionRegistry.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
@@ -87,7 +88,7 @@
  */
 WorldSession* WorldSession::FindRequesterSession(uint32 accountId, proto::SessionId sessionId)
 {
-    WorldSession* session = sWorld.FindSession(accountId);
+    WorldSession* session = sSessionRegistry.Find(accountId);
     if (!session || session->GetSessionId() != sessionId)
     {
         return NULL;

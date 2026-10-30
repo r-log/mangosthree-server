@@ -117,7 +117,7 @@ namespace Harness
      * own step, and, on a bare map, from no loaded grids; a run refuses to start while
      * any session is online -- the mode exists for the headless launcher.
      *
-     * A run started from a chat command is processed in UpdateSessions, before the maps'
+     * A run started from a chat command is processed in the session update, before the maps'
      * update of its tick, and one from the console after it, so a GM-started run pins a
      * different tick phase and is not bit-comparable with a launcher run.
      */

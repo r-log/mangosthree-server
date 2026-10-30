@@ -47,6 +47,7 @@
 /// paths that CAN be entered (CalendarMgr::WriteEventToDB, ArenaTeam::AddMember).
 
 #include "TestHarness.h"
+#include "InstalledSessionRegistry.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
@@ -193,6 +194,8 @@ TEST(CalendarMailAsync_SendMailToAnOfflineReceiverBindsTheSubjectAndTheBody)
 
 TEST(CalendarMailAsync_SendMailStagesTheOfflineMailboxCountAndDropsItWhenTheSenderIsGone)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
 
     FakeConnection query(CharacterDatabase);
@@ -236,6 +239,8 @@ TEST(CalendarMailAsync_SendMailStagesTheOfflineMailboxCountAndDropsItWhenTheSend
 
 TEST(CalendarMailAsync_TheCalendarInviteTakesTheOfflineInviteeFromTheCacheAndOnlyAsksForTheIgnoreFlag)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
     CacheTheOfflineCharacter();
 
@@ -345,6 +350,8 @@ TEST(CalendarMailAsync_TheCalendarEventWritesBindTheirTitleAndDescription)
 
 TEST(CalendarMailAsync_OpeningAWrappedItemStagesTheGiftRowAndReFindsNothingWhenTheOwnerIsGone)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
 
     FakeConnection query(CharacterDatabase);

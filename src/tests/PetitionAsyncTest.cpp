@@ -38,6 +38,7 @@
 /// asserted instead.
 
 #include "TestHarness.h"
+#include "InstalledSessionRegistry.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
@@ -73,6 +74,8 @@ namespace
 
 TEST(PetitionAsync_SignStagesOneHolderOfThreeStatementsAndWaitsForNone)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
 
     FakeConnection query(CharacterDatabase);
@@ -134,6 +137,8 @@ TEST(PetitionAsync_SignOutcomeNamesWhichOfTheTwoHappened)
 
 TEST(PetitionAsync_BuyReadsBeforeItChargesAndAFailedRevalidationWritesNothing)
 {
+    InstalledSessionRegistry sessions;
+
     TickGuard::ResetViolations();
 
     FakeConnection query(CharacterDatabase);

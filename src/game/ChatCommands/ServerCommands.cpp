@@ -38,6 +38,7 @@
 #include "Chat.h"
 #include "Language.h"
 #include "World.h"
+#include "session/SessionRegistry.h"
 #include "Config.h"
 #include "Version.h"
 #include "Common/ServerDefines.h"
@@ -65,10 +66,10 @@
  */
 bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
 {
-    uint32 activeClientsNum = sWorld.GetActiveSessionCount();
-    uint32 queuedClientsNum = sWorld.GetQueuedSessionCount();
-    uint32 maxActiveClientsNum = sWorld.GetMaxActiveSessionCount();
-    uint32 maxQueuedClientsNum = sWorld.GetMaxQueuedSessionCount();
+    uint32 activeClientsNum = sSessionRegistry.ActiveCount();
+    uint32 queuedClientsNum = sSessionRegistry.QueuedCount();
+    uint32 maxActiveClientsNum = sSessionRegistry.MaxActiveCount();
+    uint32 maxQueuedClientsNum = sSessionRegistry.MaxQueuedCount();
     std::string str = secsToTimeString(sWorld.GetUptime());
     uint32 updateTime = sWorldUpdateTime.GetLastUpdateTime();
 
@@ -122,7 +123,7 @@ bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
     uint32 sessionCount = 0;
     uint32 acquiredCount = 0;
     Motion::TimeBaseCounters counters;
-    for (auto const& entry : sWorld.GetAllSessions())
+    for (auto const& entry : sSessionRegistry.All())
     {
         WorldSession* session = entry.second;
         if (!session)
@@ -152,7 +153,7 @@ bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
     uint32 sessions = 0, members = 0, selected = 0;
     WorldSession::AckCounters acks;
     Motion::StateCounters state;
-    for (auto const& entry : sWorld.GetAllSessions())
+    for (auto const& entry : sSessionRegistry.All())
     {
         WorldSession* session = entry.second;
         if (!session)
@@ -549,23 +550,23 @@ bool ChatHandler::HandleServerPLimitCommand(char* args)
         int val;
         if (strncmp(param, "player", l) == 0)
         {
-            sWorld.SetPlayerLimit(-SEC_PLAYER);
+            sSessionRegistry.SetPlayerLimit(-SEC_PLAYER);
         }
         else if (strncmp(param, "moderator", l) == 0)
         {
-            sWorld.SetPlayerLimit(-SEC_MODERATOR);
+            sSessionRegistry.SetPlayerLimit(-SEC_MODERATOR);
         }
         else if (strncmp(param, "gamemaster", l) == 0)
         {
-            sWorld.SetPlayerLimit(-SEC_GAMEMASTER);
+            sSessionRegistry.SetPlayerLimit(-SEC_GAMEMASTER);
         }
         else if (strncmp(param, "administrator", l) == 0)
         {
-            sWorld.SetPlayerLimit(-SEC_ADMINISTRATOR);
+            sSessionRegistry.SetPlayerLimit(-SEC_ADMINISTRATOR);
         }
         else if (strncmp(param, "reset", l) == 0)
         {
-            sWorld.SetPlayerLimit(sConfig.GetIntDefault("PlayerLimit", DEFAULT_PLAYER_LIMIT));
+            sSessionRegistry.SetPlayerLimit(sConfig.GetIntDefault("PlayerLimit", DEFAULT_PLAYER_LIMIT));
         }
         else if (ExtractInt32(&param, val))
         {
@@ -574,7 +575,7 @@ bool ChatHandler::HandleServerPLimitCommand(char* args)
                 val = -SEC_ADMINISTRATOR;
             }
 
-            sWorld.SetPlayerLimit(val);
+            sSessionRegistry.SetPlayerLimit(val);
         }
         else
         {
@@ -582,14 +583,14 @@ bool ChatHandler::HandleServerPLimitCommand(char* args)
         }
 
         // kick all low security level players
-        if (sWorld.GetPlayerAmountLimit() > SEC_PLAYER)
+        if (sSessionRegistry.PlayerAmountLimit() > SEC_PLAYER)
         {
-            sWorld.KickAllLess(sWorld.GetPlayerSecurityLimit());
+            sSessionRegistry.KickAllLess(sSessionRegistry.PlayerSecurityLimit());
         }
     }
 
-    uint32 pLimit = sWorld.GetPlayerAmountLimit();
-    AccountTypes allowedAccountType = sWorld.GetPlayerSecurityLimit();
+    uint32 pLimit = sSessionRegistry.PlayerAmountLimit();
+    AccountTypes allowedAccountType = sSessionRegistry.PlayerSecurityLimit();
     char const* secName;
     switch (allowedAccountType)
     {

@@ -41,6 +41,7 @@
 #include "Common/ServerDefines.h"
 #include "Timer.h"
 #include "World.h"
+#include "session/SessionRegistry.h"
 #include "WorldClock.h"
 #include "WorldSession.h"
 #include "movement/WireParity.h"
@@ -254,7 +255,7 @@ void Master::PublishConsoleStatus(uint32 diff)
     // Before the early-out below: the window title is owned by the OS rather
     // than by the console frame, so it is kept current even when the
     // full-screen UI is switched off and there is no status bar to publish to.
-    UpdateConsoleTitle(sWorld.GetActiveSessionCount(),
+    UpdateConsoleTitle(sSessionRegistry.ActiveCount(),
                        sWorldNetwork.GetOpenConnectionCount());
 #endif
 
@@ -267,12 +268,12 @@ void Master::PublishConsoleStatus(uint32 diff)
     const uint32 uptime = sWorld.GetUptime();
     char buf[64];
 
-    snprintf(buf, sizeof(buf), "%u / %u", sWorld.GetActiveSessionCount(),
-             sWorld.GetPlayerAmountLimit());
+    snprintf(buf, sizeof(buf), "%u / %u", sSessionRegistry.ActiveCount(),
+             sSessionRegistry.PlayerAmountLimit());
     ui.SetStatus(0, "Players", buf);
 
-    ui.SetStatus(1, "Queue", std::to_string(sWorld.GetQueuedSessionCount()),
-                 sWorld.GetQueuedSessionCount() ? MaNGOS::Console::STYLE_WARN
+    ui.SetStatus(1, "Queue", std::to_string(sSessionRegistry.QueuedCount()),
+                 sSessionRegistry.QueuedCount() ? MaNGOS::Console::STYLE_WARN
                                                 : MaNGOS::Console::STYLE_NORMAL);
 
     snprintf(buf, sizeof(buf), "%u ms", diff);
@@ -345,10 +346,10 @@ void Master::ShutdownWorld()
     // are drained, sessions must be drained before the listener goes away, and
     // the listener must be gone before the maps they live on are unloaded.
     sLog.outString("[shutdown] saving and kicking all players");
-    sWorld.KickAll();
+    sSessionRegistry.KickAll();
 
     sLog.outString("[shutdown] draining remaining sessions");
-    sWorld.UpdateSessions(1);
+    sSessionRegistry.Update(1);
 
     // The wire-parity shadow's tally, while the sessions are drained and every
     // singleton and the logger are still alive; static destruction is too late.

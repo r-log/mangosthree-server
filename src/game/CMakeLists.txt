@@ -181,6 +181,9 @@ source_group("References" FILES ${SRC_GRP_REFERENCES})
 file(GLOB SRC_GRP_SERVER Server/*.cpp Server/*.h)
 source_group("Server" FILES ${SRC_GRP_SERVER})
 
+file(GLOB SRC_GRP_SESSION session/*.cpp session/*.h)
+source_group("Session" FILES ${SRC_GRP_SESSION})
+
 file(GLOB SRC_GRP_SESSION_HANDLERS_COMBAT session/handlers/combat/*.cpp session/handlers/combat/*.h)
 source_group("Session\\Handlers\\Combat" FILES ${SRC_GRP_SESSION_HANDLERS_COMBAT})
 
@@ -308,6 +311,7 @@ add_library(game STATIC
     ${SRC_GRP_PERSISTENCE_WORLD_WAYPOINTS}
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
+    ${SRC_GRP_SESSION}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}
     ${SRC_GRP_SESSION_HANDLERS_CONNECTION}
     ${SRC_GRP_SESSION_HANDLERS_ECONOMY}

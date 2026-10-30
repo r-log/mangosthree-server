@@ -38,7 +38,7 @@
 #include "WorldSession.h"
 #include "Opcodes.h"
 #include "Log.h"
-#include "World.h"
+#include "session/SessionRegistry.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "DBCStores.h"
@@ -202,7 +202,7 @@ void CharacterCustomizeHandlers::HandleChangePlayerNameCallback(std::optional<Re
     data << newname;
     session->SendPacket(&data);
 
-    sWorld.InvalidatePlayerDataToAllClient(guid);
+    sSessionRegistry.InvalidatePlayerData(guid);
 }
 
 void CharacterCustomizeHandlers::HandleSetPlayerDeclinedNames(WorldSession& session, WorldPacket& recv_data)
@@ -487,7 +487,7 @@ void CharacterCustomizeHandlers::HandleCharCustomizeCallback(std::unique_ptr<Sql
     data << uint8(request.facialHair);
     session->SendPacket(&data);
 
-    sWorld.InvalidatePlayerDataToAllClient(guid);
+    sSessionRegistry.InvalidatePlayerData(guid);
 }
 
 void CharacterCustomizeHandlers::HandleEquipmentSetSave(WorldSession& session, WorldPacket& recv_data)

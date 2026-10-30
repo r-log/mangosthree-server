@@ -388,12 +388,12 @@ namespace loadtest
         //       bit false, bit false                        -> flags 0x00
         //       uint8 status                                     payload 2
         //
-        //   accepted (WorldSessionMgr.cpp, AddSession)
+        //   accepted (SessionRegistry.cpp, List)
         //       bit false (queue), bit true (account info)  -> flags 0x40
         //       uint32, uint8 expansion, uint32, uint8 expansion,
         //       uint32, uint8 billing flags, uint8 status        payload 17
         //
-        //   queued (WorldSessionMgr.cpp, AddQueuedSession)
+        //   queued (SessionRegistry.cpp, AddQueued)
         //       bit true (queue), bit false (unk), bit true (account info)
         //                                                   -> flags 0xA0
         //       ... same block ..., uint8 status, uint32 position payload 21

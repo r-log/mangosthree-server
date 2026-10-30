@@ -66,8 +66,6 @@ class PlayerRegistry : public MaNGOS::Singleton<PlayerRegistry>
         /// Disconnect a player by GUID, if online.
         void Kick(ObjectGuid guid) const;
 
-        /// Persist every online player. Used by the periodic save and shutdown.
-        void SaveAll() const;
 
         void Add(Player* player);
         void Remove(Player* player);

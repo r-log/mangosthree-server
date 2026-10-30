@@ -39,7 +39,7 @@
  * clock. Replaces the legacy `clientTime + GetLatency()` guess.
  *
  * Thread-safety is the world tick's, not this class's: a session's clock is
- * touched from the session phase (World::UpdateSessions, the world thread)
+ * touched from the session phase (SessionRegistry::Update, the world thread)
  * and the map phase (Map::Update on a worker, behind MapUpdater::wait) and
  * never from both at once, and no handler runs on the network thread. A
  * change to that ordering is what would break this, not a change here.

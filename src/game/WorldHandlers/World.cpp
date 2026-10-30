@@ -161,14 +161,11 @@ std::atomic<uint32> World::m_worldLoopCounter{0};
  */
 World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
 {
-    m_playerLimit = 0;
     m_allowMovement = true;
     m_ShutdownMask = 0;
     m_ShutdownTimer = 0;
     WorldGameTime::Set(time(NULL));
     m_startTime = WorldGameTime::Get();
-    m_maxActiveSessionCount = 0;
-    m_maxQueuedSessionCount = 0;
     m_NextCurrencyReset = 0;
     m_NextDailyQuestReset = 0;
     m_NextWeeklyQuestReset = 0;
@@ -180,6 +177,8 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
     sGameConfig.SetAvailableDbcLocaleMask(0);
 
     sGameConfig.Reset();
+
+    SessionRegistry::Install(&m_sessions);
 }
 
 /// World destructor
@@ -189,20 +188,15 @@ World::~World()
 
     // it is assumed that no other thread is accessing this data when the destructor is called.  therefore, no locks are necessary
 
-    ///- Empty the kicked session set
-    for (auto const session : m_sessions)
-    {
-        delete session.second;
-    }
-
     for (auto const cliCommand : m_cliCommandQueue)
     {
         delete cliCommand;
     }
 
-    for (auto const session : m_sessionAddQueue)
+    SessionRegistry* installed = SessionRegistry::Install(NULL);
+    if (installed != &m_sessions)
     {
-        delete session;
+        SessionRegistry::Install(installed);
     }
 
     MMAP::MMapFactory::clear();
@@ -211,8 +205,8 @@ World::~World()
 /// Cleanups before world stop
 void World::CleanupsBeforeStop()
 {
-    KickAll();                                       // save and kick all players
-    UpdateSessions(1);                               // real players unload required UpdateSessions call
+    m_sessions.KickAll();                            // save and kick all players
+    m_sessions.Update(1);                            // real players unload required a session update
     sBattleGroundMgr.DeleteAllBattleGrounds();       // unload battleground templates before different singletons destroyed
 }
 
@@ -1045,7 +1039,7 @@ void World::Update(uint32 diff)
     }
 
     /// <li> Handle session updates
-    UpdateSessions(diff);
+    m_sessions.Update(diff);
 
     /// <li> Drop redirects whose client never opened its second world stream.
     /// Sessions withdraw their own on retry and on logout, so this only ever
@@ -1057,7 +1051,7 @@ void World::Update(uint32 diff)
     if (m_timers[WUPDATE_UPTIME].Passed())
     {
         uint32 tmpDiff = uint32(WorldGameTime::Get() - m_startTime);
-        uint32 maxClientsNum = GetMaxActiveSessionCount();
+        uint32 maxClientsNum = m_sessions.MaxActiveCount();
 
         m_timers[WUPDATE_UPTIME].Reset();
         RealmRepository::SetUptime(tmpDiff, maxClientsNum, realmID, uint64(m_startTime));
@@ -1182,7 +1176,7 @@ void World::SendWorldTextV(int32 string_id, va_list* args)
 {
     MaNGOS::WorldWorldTextBuilder wt_builder(string_id, args);
     MaNGOS::LocalizedPacketListDo<MaNGOS::WorldWorldTextBuilder> wt_do(wt_builder);
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (SessionMap::const_iterator itr = m_sessions.All().begin(); itr != m_sessions.All().end(); ++itr)
     {
         if (WorldSession* session = itr->second)
         {
@@ -1190,26 +1184,6 @@ void World::SendWorldTextV(int32 string_id, va_list* args)
             if (player && player->IsInWorld())
             {
                 wt_do(player);
-            }
-        }
-    }
-}
-
-/// Sends a packet to all players with optional account access level restrictions
-void World::SendGlobalMessage(WorldPacket* packet, AccountTypes minSec)
-{
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
-    {
-        if (WorldSession* session = itr->second)
-        {
-            if (session->GetSecurity() < minSec)
-            {
-                continue;
-            }
-            Player* player = session->GetPlayer();
-            if (player && player->IsInWorld())
-            {
-                session->SendPacket(packet);
             }
         }
     }
@@ -1228,7 +1202,7 @@ void World::SendServerMessage(ServerMessageType type, const char* text /*=""*/, 
     }
     else
     {
-        SendGlobalMessage(&data);
+        m_sessions.Broadcast(data);
     }
 }
 
@@ -1244,7 +1218,7 @@ void World::SendZoneUnderAttackMessage(uint32 zoneId, Team team)
     WorldPacket data(SMSG_ZONE_UNDER_ATTACK, 4);
     data << uint32(zoneId);
 
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (SessionMap::const_iterator itr = m_sessions.All().begin(); itr != m_sessions.All().end(); ++itr)
     {
         if (WorldSession* session = itr->second)
         {
@@ -1266,7 +1240,7 @@ void World::SendDefenseMessage(uint32 zoneId, int32 textId)
         return;
     }
 
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (SessionMap::const_iterator itr = m_sessions.All().begin(); itr != m_sessions.All().end(); ++itr)
     {
         if (WorldSession* session = itr->second)
         {
@@ -1351,30 +1325,6 @@ void World::ApplyOffMapAuraUpdates()
         }
     }
 }
-/// Kick (and save) all players
-void World::KickAll()
-{
-    m_QueuedSessions.clear();                               // prevent send queue update packet and login queued sessions
-
-    // session not removed at kick and will removed in next update tick
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
-    {
-        itr->second->KickPlayer();
-    }
-}
-
-/// Kick (and save) all players with security level less `sec`
-void World::KickAllLess(AccountTypes sec)
-{
-    // session not removed at kick and will removed in next update tick
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
-        if (WorldSession* session = itr->second)
-            if (session->GetSecurity() < sec)
-            {
-                session->KickPlayer();
-            }
-}
-
 /// Ban an account or ban an IP address, duration_secs if it is positive used, otherwise permban
 BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_secs, std::string reason, const std::string& author)
 {
@@ -1427,7 +1377,7 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
             BanRepository::InsertAccountBan(account, duration_secs, safe_author, reason);
         }
 
-        if (WorldSession* sess = FindSession(account))
+        if (WorldSession* sess = m_sessions.Find(account))
             if (std::string(sess->GetPlayerName()) != author)
             {
                 sess->KickPlayer();
@@ -1483,7 +1433,7 @@ void World::_UpdateGameTime()
         ///- ... and it is overdue, stop the world (set m_stopEvent)
         if (m_ShutdownTimer <= elapsed)
         {
-            if (!(m_ShutdownMask & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
+            if (!(m_ShutdownMask & SHUTDOWN_MASK_IDLE) || m_sessions.ActiveAndQueuedCount() == 0)
             {
                 m_stopEvent = true;
             }                         // exist code already set
@@ -1517,9 +1467,9 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     ///- If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
     if (time == 0)
     {
-        if (!(options & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
+        if (!(options & SHUTDOWN_MASK_IDLE) || m_sessions.ActiveAndQueuedCount() == 0)
         {
-                sPlayerRegistry.SaveAll();        // save all players.
+                m_sessions.SaveAllPlayers();      // save all players.
                 m_stopEvent = true;                                // exist code already set
         }
         else
@@ -1578,40 +1528,6 @@ void World::ShutdownCancel()
     SendServerMessage(msgid);
 
     DEBUG_LOG("Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART) ? "restart" : "shutdown");
-}
-
-/**
- * @brief Updates all active sessions and integrates newly queued ones.
- *
- * @param diff The elapsed world update time in milliseconds.
- */
-void World::UpdateSessions(uint32 /*diff*/)
-{
-    ///- Add new sessions
-    {
-        std::lock_guard<std::mutex> guard(m_sessionAddQueueLock);
-
-        std::for_each(m_sessionAddQueue.begin(), m_sessionAddQueue.end(), [&](WorldSession *session) { AddSession_(session); });
-
-        m_sessionAddQueue.clear();
-    }
-
-    ///- Then send an update signal to remaining ones
-    for (SessionMap::iterator itr = m_sessions.begin(), next; itr != m_sessions.end(); itr = next)
-    {
-        next = itr;
-        ++next;
-        ///- and remove not active sessions from the list
-        WorldSession* pSession = itr->second;
-        WorldSessionFilter updater(pSession);
-
-        if (!pSession->Update(updater))
-        {
-            RemoveQueuedSession(pSession);
-            m_sessions.erase(itr);
-            delete pSession;
-        }
-    }
 }
 
 // This handles the issued and queued CLI commands
@@ -1941,7 +1857,7 @@ void World::ResetDailyQuests()
 {
     DETAIL_LOG("Daily quests reset for all characters.");
     QuestStatusRepository::DeleteEveryDaily();
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (SessionMap::const_iterator itr = m_sessions.All().begin(); itr != m_sessions.All().end(); ++itr)
         if (itr->second->GetPlayer())
         {
             itr->second->GetPlayer()->ResetDailyQuestStatus();
@@ -1960,7 +1876,7 @@ void World::ResetWeeklyQuests()
 {
     DETAIL_LOG("Weekly quests reset for all characters.");
     QuestStatusRepository::DeleteEveryWeekly();
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (SessionMap::const_iterator itr = m_sessions.All().begin(); itr != m_sessions.All().end(); ++itr)
         if (itr->second->GetPlayer())
         {
             itr->second->GetPlayer()->GetQuestStatusMgr().ResetWeeklyQuestStatus();
@@ -1980,7 +1896,7 @@ void World::ResetMonthlyQuests()
     DETAIL_LOG("Monthly quests reset for all characters.");
     QuestStatusRepository::TruncateMonthly();
 
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (SessionMap::const_iterator itr = m_sessions.All().begin(); itr != m_sessions.All().end(); ++itr)
         if (itr->second->GetPlayer())
         {
             itr->second->GetPlayer()->GetQuestStatusMgr().ResetMonthlyQuestStatus();
@@ -1993,7 +1909,7 @@ void World::ResetCurrencyWeekCounts()
 {
     CurrencyRepository::ResetEveryWeekCount();
 
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (SessionMap::const_iterator itr = m_sessions.All().begin(); itr != m_sessions.All().end(); ++itr)
         if (itr->second->GetPlayer())
         {
             itr->second->GetPlayer()->ResetCurrencyWeekCounts();
@@ -2014,49 +1930,6 @@ void World::ResetCurrencyWeekCounts()
     SavedVariablesRepository::SetNextCurrencyReset(uint64(m_NextCurrencyReset));
 }
 
-/**
- * @brief Sets the player access limit and updates the realm list if needed.
- *
- * @param limit The new player limit or security gate value.
- * @param needUpdate Whether the database row should be considered for update.
- */
-void World::SetPlayerLimit(int32 limit, bool needUpdate)
-{
-    if (limit < -SEC_ADMINISTRATOR)
-    {
-        limit = -SEC_ADMINISTRATOR;
-    }
-
-    // lock update need
-    bool db_update_need = needUpdate || (limit < 0) != (m_playerLimit < 0) || (limit < 0 && m_playerLimit < 0 && limit != m_playerLimit);
-
-    m_playerLimit = limit;
-
-    if (db_update_need)
-        RealmRepository::SetAllowedSecurityLevel(uint32(GetPlayerSecurityLimit()), realmID);
-}
-
-/**
- * @brief Updates the recorded peak active and queued session counters.
- */
-void World::UpdateMaxSessionCounters()
-{
-    m_maxActiveSessionCount = std::max(m_maxActiveSessionCount, uint32(m_sessions.size() - m_QueuedSessions.size()));
-    m_maxQueuedSessionCount = std::max(m_maxQueuedSessionCount, uint32(m_QueuedSessions.size()));
-}
-
-
-/**
- * @brief Invalidates cached player data for all connected clients.
- *
- * @param guid The player guid to invalidate.
- */
-void World::InvalidatePlayerDataToAllClient(ObjectGuid guid)
-{
-    WorldPacket data(SMSG_INVALIDATE_PLAYER, 8);
-    data << guid;
-    SendGlobalMessage(&data);
-}
 
 /**
  * @brief Loads automatic broadcast messages and their weights from the database.

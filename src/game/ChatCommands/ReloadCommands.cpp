@@ -40,6 +40,7 @@
 #include "spells/data/SpellMgr.h"
 #include "DisableMgr.h"
 #include "World.h"
+#include "session/SessionRegistry.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -83,7 +84,7 @@ void ChatHandler::SendGlobalSysMessage(const char* str, AccountTypes minSec)
         }
 
         BuildMessageChatPacket(data, CHAT_MSG_SYSTEM, line, LANG_UNIVERSAL, CHAT_TAG_NONE, senderGuid);
-        sWorld.SendGlobalMessage(&data, minSec);
+        sSessionRegistry.Broadcast(data, minSec);
     }
 
     delete[] buf;
