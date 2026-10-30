@@ -78,7 +78,7 @@
 #include "HonorMgr.h"   // HonorMgr is held by value on Player; owns daily-kill rollover + RewardHonor calculation
 #include "CurrencyMgr.h" // CurrencyMgr is held by value on Player; brings in PlayerCurrency struct + PlayerCurrencyState/Flag enums + PlayerCurrenciesMap typedef
 #include "RuneMgr.h"    // RuneMgr is held by value on Player; brings in RuneType/RuneInfo/Runes + owns death-knight rune state
-#include "PlayerClientFacts.h" // the facts and callbacks of the player's own client
+#include "ClientCallbacks.h" // the facts and callbacks of the player's own client
 #include "entities/GroupUpdateFacts.h" // the facts and callbacks of the player's group updates
 #include "spells/SpellModMgr.h" // SpellModMgr is held by value on Player; brings in the spell modifier fact and its sink
 
@@ -2072,14 +2072,13 @@ class Player : public Unit
 
         // Initialize pet spells
         void PetSpellInitialize();
-        void SendPetGUIDs() override;
         void CharmSpellInitialize();
 
         // Initialize possess spells
         void PossessSpellInitialize() override;
 
         // Remove the pet action bar
-        void RemovePetActionBar() override { ReportClientFact(m_clientCallbacks.petActionBarCleared, PetActionBarClearedFact()); }
+        void RemovePetActionBar() override { ReportClientFact(m_clientSinks.petActionBarCleared, PetActionBarClearedFact()); }
 
         // Check if the player has a specific spell
         bool HasSpell(uint32 spell) const override;
@@ -2204,55 +2203,25 @@ class Player : public Unit
         };
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
-        /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-        /// where the player is created: twenty-four facts out, one read in.
-        struct ClientCallbacks
-        {
-            SwingOutOfReachSink swingOutOfReach;
-            SwingBadFacingSink swingBadFacing;
-            CombatCancelledSink combatCancelled;
-            AutoRepeatCancelledSink autoRepeatCancelled;
-            CurrentPetSink currentPet;
-            PetActionBarClearedSink petActionBarCleared;
-            StandStateSink standState;
-            PvpCreditSink pvpCredit;
-            RuneConvertedSink runeConverted;
-            RunesResyncedSink runesResynced;
-            RunePowerAddedSink runePowerAdded;
-            CurrencySetSink currencySet;
-            CurrencyWeekCapSink currencyWeekCap;
-            CurrencyWeekResetSink currencyWeekReset;
-            CurrencyListSink currencyList;
-            ForcedReactionsSink forcedReactions;
-            FactionStandingSink factionStanding;
-            InitialReputationsSink initialReputations;
-            FactionVisibleSink factionVisible;
-            FactionAtWarSink factionAtWar;
-            ContactListSink contactList;
-            FriendStatusSink friendStatus;
-            QuestCompleteSink questComplete;
-            SystemMessageSink systemMessage;
-            SecurityLevelQuery securityLevel;
-        };
-        void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }
+        void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientSinks = callbacks; }
 
         /// Tells the player's own client its contact list, which its social list reports.
-        void ReportContactList(ContactListFact const& fact) const { ReportClientFact(m_clientCallbacks.contactList, fact); }
+        void ReportContactList(ContactListFact const& fact) const { ReportClientFact(m_clientSinks.contactList, fact); }
         /// Tells the player's own client a contact's change, which SocialMgr reports.
-        void ReportFriendStatus(FriendStatusFact const& fact) const { ReportClientFact(m_clientCallbacks.friendStatus, fact); }
+        void ReportFriendStatus(FriendStatusFact const& fact) const { ReportClientFact(m_clientSinks.friendStatus, fact); }
         /// Sends the player's own client the string table entry `entry` as a system message.
         void ReportSystemMessage(int32 entry) const
         {
             SystemMessageFact fact;
             fact.entry = entry;
-            ReportClientFact(m_clientCallbacks.systemMessage, fact);
+            ReportClientFact(m_clientSinks.systemMessage, fact);
         }
         /// Sends the player's own client `text` as a system message.
         void ReportSystemText(std::string const& text) const
         {
             SystemMessageFact fact;
             fact.text = text;
-            ReportClientFact(m_clientCallbacks.systemMessage, fact);
+            ReportClientFact(m_clientSinks.systemMessage, fact);
         }
 
         /// What the session installs for the player's group, once, by InstallPlayerPacketSinks where
@@ -2710,25 +2679,9 @@ class Player : public Unit
         void DestroyForPlayer(Player* target, bool anim = false) const override;
         void SendLogXPGain(uint32 GivenXP, Unit* victim, uint32 RestXP);
 
-        // Get the last swing error message
-        uint8 LastSwingErrorMsg() const
-        {
-            return m_swingErrorMsg;
-        }
-
-        // Set the swing error message
-        void SwingErrorMsg(uint8 val)
-        {
-            m_swingErrorMsg = val;
-        }
-
         // Notifiers for various attack swing errors
         void SendAttackSwingCantAttack();
-        void SendAttackSwingCancelAttack() override;
         void SendAttackSwingDeadTarget();
-        void SendAttackSwingNotInRange();
-        void SendAttackSwingBadFacingAttack();
-        void SendAutoRepeatCancel(Unit* target) override;
         void SendExplorationExperience(uint32 Area, uint32 Experience);
 
         // Send dungeon difficulty
@@ -2967,8 +2920,8 @@ class Player : public Unit
         void SetFactionAtWar(RepListID repListID, bool on);
 
         // Send the forced reactions, and the whole reputation list (login)
-        void SendForceReactions() { m_reputationMgr.SendForceReactions(m_clientCallbacks.forcedReactions); }
-        void SendInitialReputations() { m_reputationMgr.SendInitialReputations(m_clientCallbacks.initialReputations); }
+        void SendForceReactions() { m_reputationMgr.SendForceReactions(m_clientSinks.forcedReactions); }
+        void SendInitialReputations() { m_reputationMgr.SendInitialReputations(m_clientSinks.initialReputations); }
 
         // Build the reputation list, then load the saved rows (NULL: no rows, the list alone).
         // Public, unlike the other _Load* members: the harness's LoginReputations
@@ -3012,7 +2965,7 @@ class Player : public Unit
         void SetCurrencyCount(uint32 id, uint32 count);
         void SendCurrencyWeekCap(uint32 id) const;
         void SendCurrencyWeekCap(CurrencyTypesEntry const * currency) const;
-        void ResetCurrencyWeekCounts() { m_currencyMgr.ResetWeekCounts(m_clientCallbacks.currencyWeekReset); }
+        void ResetCurrencyWeekCounts() { m_currencyMgr.ResetWeekCounts(m_clientSinks.currencyWeekReset); }
 
         /*********************************************************/
         /***                  PVP SYSTEM                       ***/
@@ -3727,11 +3680,11 @@ class Player : public Unit
         void UpdateRuneRegen(RuneType rune);
         void UpdateRuneRegen();
         void AddRuneByAuraEffect(uint8 index, RuneType newType, Aura const* aura);
-        void RemoveRunesByAuraEffect(Aura const* aura) { m_runeMgr.RemoveRunesByAuraEffect(aura, m_clientCallbacks.runeConverted); }
+        void RemoveRunesByAuraEffect(Aura const* aura) { m_runeMgr.RemoveRunesByAuraEffect(aura, m_clientSinks.runeConverted); }
         void RestoreBaseRune(uint8 index);
-        void ConvertRune(uint8 index, RuneType newType) { m_runeMgr.ConvertRune(index, newType, m_clientCallbacks.runeConverted); }
-        void ResyncRunes() { m_runeMgr.ResyncRunes(m_clientCallbacks.runesResynced); }
-        void AddRunePower(uint8 index) { m_runeMgr.AddRunePower(index, m_clientCallbacks.runePowerAdded); }
+        void ConvertRune(uint8 index, RuneType newType) { m_runeMgr.ConvertRune(index, newType, m_clientSinks.runeConverted); }
+        void ResyncRunes() { m_runeMgr.ResyncRunes(m_clientSinks.runesResynced); }
+        void AddRunePower(uint8 index) { m_runeMgr.AddRunePower(index, m_clientSinks.runePowerAdded); }
         void InitRunes();
 
         AchievementMgr const& GetAchievementMgr() const { return *m_achievementMgr; }
@@ -3933,7 +3886,7 @@ class Player : public Unit
         TalentMgr m_talentMgr;
         uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
         CooldownSinks m_cooldownSinks;
-        ClientCallbacks m_clientCallbacks;
+        ClientCallbacks m_clientSinks;
         GroupCallbacks m_groupSinks;
         SpellModChangedSink m_spellModSink;
         uint32 m_GuildIdInvited; // Guild ID invited
@@ -3997,7 +3950,6 @@ class Player : public Unit
         bool m_canBlock;
         bool m_canDualWield;
         bool m_canTitanGrip;
-        uint8 m_swingErrorMsg;
         float m_ammoDPS;
 
         //////////////////// Rest SystemPlayerSpell
@@ -4070,21 +4022,13 @@ class Player : public Unit
         // reaches it
         void CastPassiveSpellsForAuraState(AuraState flag) override;
 
-        // Tells the client the stand state Unit's SetStandState set; private, so only a call through
-        // Unit reaches it
-        void SendStandStateUpdate(uint8 state) override;
-
-        // Tells the client a melee swing error that differs from the last one told and remembers it,
-        // which Unit's UpdateMeleeAttackingState reports; private, so only a call through Unit reaches it
-        void ReportSwingError(uint8 swingError) override;
-
         // The security level of the account playing this player, which Unit's GM visibility rule
         // compares: what the query its session installed reads at this call; private, so only a call
         // through Unit reaches it
         uint32 GetAccountSecurityLevel() const override final
         {
-            MANGOS_ASSERT(m_clientCallbacks.securityLevel);
-            return m_clientCallbacks.securityLevel();
+            MANGOS_ASSERT(m_clientSinks.securityLevel);
+            return m_clientSinks.securityLevel();
         }
 
         // Teleports the player a short way on its own map, keeping its transport, combat and pet, which

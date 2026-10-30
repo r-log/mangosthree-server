@@ -52,7 +52,7 @@ namespace
     /// character -- the session's loading flag, read at each notice decision as
     /// ReputationMgr::SendVisible/SendAtWar read GetSession()->PlayerLoading(), and the two client
     /// callbacks the session installed.
-    ReputationMgr::FlagNotify ReputationNotify(Player const* player, Player::ClientCallbacks const& client)
+    ReputationMgr::FlagNotify ReputationNotify(Player const* player, ClientCallbacks const& client)
     {
         ReputationMgr::FlagNotify notify;
         notify.playerLoading = [player]()
@@ -85,7 +85,7 @@ namespace
     /// and the standings, both to the client callbacks the session installed, the quest check for
     /// a changed faction (ReputationChanged), and the achievement criteria updates (the
     /// character's AchievementMgr, with the manager's type and faction id).
-    ReputationMgr::ChangeSinks ReputationSinks(Player* player, Player::ClientCallbacks const& client)
+    ReputationMgr::ChangeSinks ReputationSinks(Player* player, ClientCallbacks const& client)
     {
         ReputationMgr::ChangeSinks sinks;
         sinks.notify = ReputationNotify(player, client);
@@ -110,7 +110,7 @@ namespace
  */
 void Player::SetReputation(FactionEntry const* factionEntry, int32 standing)
 {
-    m_reputationMgr.SetReputation(factionEntry, standing, ReputationInputs(), ReputationSinks(this, m_clientCallbacks));
+    m_reputationMgr.SetReputation(factionEntry, standing, ReputationInputs(), ReputationSinks(this, m_clientSinks));
 }
 
 /**
@@ -121,7 +121,7 @@ void Player::SetReputation(FactionEntry const* factionEntry, int32 standing)
  */
 void Player::ModifyReputation(FactionEntry const* factionEntry, int32 standing)
 {
-    m_reputationMgr.ModifyReputation(factionEntry, standing, ReputationInputs(), ReputationSinks(this, m_clientCallbacks));
+    m_reputationMgr.ModifyReputation(factionEntry, standing, ReputationInputs(), ReputationSinks(this, m_clientSinks));
 }
 
 /**
@@ -131,7 +131,7 @@ void Player::ModifyReputation(FactionEntry const* factionEntry, int32 standing)
  */
 void Player::SetFactionVisible(FactionTemplateEntry const* factionTemplateEntry)
 {
-    m_reputationMgr.SetVisible(factionTemplateEntry, ReputationNotify(this, m_clientCallbacks));
+    m_reputationMgr.SetVisible(factionTemplateEntry, ReputationNotify(this, m_clientSinks));
 }
 
 /**
@@ -141,7 +141,7 @@ void Player::SetFactionVisible(FactionTemplateEntry const* factionTemplateEntry)
  */
 void Player::SetFactionVisible(FactionEntry const* factionEntry)
 {
-    m_reputationMgr.SetVisible(factionEntry, ReputationNotify(this, m_clientCallbacks));
+    m_reputationMgr.SetVisible(factionEntry, ReputationNotify(this, m_clientSinks));
 }
 
 /**
@@ -152,7 +152,7 @@ void Player::SetFactionVisible(FactionEntry const* factionEntry)
  */
 void Player::SetFactionAtWar(RepListID repListID, bool on)
 {
-    m_reputationMgr.SetAtWar(repListID, on, ReputationNotify(this, m_clientCallbacks));
+    m_reputationMgr.SetAtWar(repListID, on, ReputationNotify(this, m_clientSinks));
 }
 
 /**
@@ -168,7 +168,7 @@ void Player::_LoadReputations(std::vector<ReputationRow> const& rows)
 
     if (!rows.empty())
     {
-        ReputationMgr::FlagNotify notify = ReputationNotify(this, m_clientCallbacks);
+        ReputationMgr::FlagNotify notify = ReputationNotify(this, m_clientSinks);
         for (ReputationRow const& row : rows)
         {
             m_reputationMgr.LoadRow(row, notify);

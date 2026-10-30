@@ -96,13 +96,13 @@ uint32 Player::GetCurrencyWeekCap(CurrencyTypesEntry const* currency) const
 
 void Player::SendCurrencies() const
 {
-    m_currencyMgr.SendAll(sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP), m_clientCallbacks.currencyList);
+    m_currencyMgr.SendAll(sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP), m_clientSinks.currencyList);
 }
 
 void Player::ModifyCurrencyCount(uint32 id, int32 count, bool modifyWeek, bool modifySeason, bool ignoreMultipliers)
 {
     CurrencyMgr::CurrencyInputs const inputs = ReadCurrencyInputs(this);
-    CurrencyMgr::ModifySinks const sinks = ModifyCurrencySinks(this, m_clientCallbacks.currencySet, m_clientCallbacks.currencyWeekCap);
+    CurrencyMgr::ModifySinks const sinks = ModifyCurrencySinks(this, m_clientSinks.currencySet, m_clientSinks.currencyWeekCap);
 
     m_currencyMgr.ModifyCount(id, count, modifyWeek, modifySeason, ignoreMultipliers, inputs, sinks);
 }
@@ -110,19 +110,19 @@ void Player::ModifyCurrencyCount(uint32 id, int32 count, bool modifyWeek, bool m
 void Player::SetCurrencyCount(uint32 id, uint32 count)
 {
     CurrencyMgr::CurrencyInputs const inputs = ReadCurrencyInputs(this);
-    CurrencyMgr::ModifySinks const sinks = ModifyCurrencySinks(this, m_clientCallbacks.currencySet, m_clientCallbacks.currencyWeekCap);
+    CurrencyMgr::ModifySinks const sinks = ModifyCurrencySinks(this, m_clientSinks.currencySet, m_clientSinks.currencyWeekCap);
 
     m_currencyMgr.SetCount(id, count, inputs, sinks);
 }
 
 void Player::SendCurrencyWeekCap(uint32 id) const
 {
-    m_currencyMgr.SendWeekCap(id, ReadCurrencyInputs(this), m_clientCallbacks.currencyWeekCap);
+    m_currencyMgr.SendWeekCap(id, ReadCurrencyInputs(this), m_clientSinks.currencyWeekCap);
 }
 
 void Player::SendCurrencyWeekCap(CurrencyTypesEntry const* currency) const
 {
-    m_currencyMgr.SendWeekCap(currency, ReadCurrencyInputs(this), m_clientCallbacks.currencyWeekCap);
+    m_currencyMgr.SendWeekCap(currency, ReadCurrencyInputs(this), m_clientSinks.currencyWeekCap);
 }
 
 void Player::_LoadCurrencies(std::vector<CurrencyRow> const& rows)

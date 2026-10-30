@@ -171,7 +171,7 @@ void Player::UpdateHonorKills()
 bool Player::RewardHonor(Unit* pVictim, uint32 groupsize, float honor)
 {
     HonorMgr::HonorInputs const inputs = ReadHonorInputs(this, pVictim);
-    HonorMgr::RewardSinks const sinks = HonorRewardSinks(this, m_clientCallbacks.pvpCredit);
+    HonorMgr::RewardSinks const sinks = HonorRewardSinks(this, m_clientSinks.pvpCredit);
 
     return m_honorMgr.Reward(groupsize, honor, inputs, sinks);
 }

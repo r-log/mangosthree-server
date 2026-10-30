@@ -86,7 +86,7 @@ set(MANAGER_FILES
     spells/SpellModMgr.h
     spells/SpellModMgr.cpp
     entities/player/PlayerClientFacts.h
-    entities/player/talents/GlyphMgr.h                      # decoupling D4k
+    entities/player/talents/GlyphMgr.h                     # decoupling D4k
     entities/player/talents/GlyphMgr.cpp                    # decoupling D4k
     entities/player/pets/PetMgr.h                           # decoupling D4k
     entities/player/pets/PetMgr.cpp                         # decoupling D4k
@@ -108,6 +108,7 @@ set(OWNER_FILES
     entities/player/README.md
     entities/player/Player.h
     entities/player/Player.cpp
+    entities/player/ClientCallbacks.h
     entities/player/PlayerRegistry.h
     entities/player/PlayerRegistry.cpp
     entities/player/persistence/PlayerLoad.cpp

@@ -313,6 +313,7 @@ struct SpellEntry;
 struct SpellEntryExt;
 struct CreatureInfo;
 struct GroupCallbacks;
+struct ClientCallbacks;
 
 class Aura;
 class SpellAuraHolder;
@@ -1353,6 +1354,21 @@ class Unit : public WorldObject
          * \see OpcodesList
          */
         void SendMeleeAttackStop(Unit* victim);
+        /**
+         * Tells the client its melee and ranged attack is cancelled; CombatStop and StopAttackFaction
+         * call it on a player.
+         * A player reports the cancel to the callback its session installed, and the session sends
+         * SMSG_CANCEL_COMBAT; a unit that is not a player has no client and is told nothing.
+         */
+        void SendAttackSwingCancelAttack();
+        /**
+         * Tells the client its auto-repeat spell is cancelled; InterruptSpell calls it on a player
+         * when it interrupts the auto-repeat spell.
+         * @param target the unit whose guid the packet carries
+         * A player reports the cancel and the target's guid to the callback its session installed, and
+         * the session sends SMSG_CANCEL_AUTO_REPEAT; a unit that is not a player is told nothing.
+         */
+        void SendAutoRepeatCancel(Unit* target);
         /**
          * Sends a packet to the client informing it that melee attacks are starting
          * @param pVictim the target that we attack with melee
@@ -3553,42 +3569,28 @@ class Unit : public WorldObject
          */
         virtual void CastPassiveSpellsForAuraState(AuraState /*flag*/) { }
         /**
-         * Tells the client its melee and ranged attack is cancelled; CombatStop and StopAttackFaction
-         * call it on a player.
-         * Does nothing here; Player reports the cancel to the callback its session installed, and the
-         * session sends SMSG_CANCEL_COMBAT.
+         * Tells the client the guid of its pet; SetPet calls it when it sets a pet.
+         * A player with a pet reports the pet's guid to the callback its session installed, and the
+         * session sends SMSG_PET_GUIDS; a unit that is not a player has no client and is told nothing.
          */
-        virtual void SendAttackSwingCancelAttack() { }
+        void SendPetGUIDs();
         /**
-         * Tells the client its auto-repeat spell is cancelled; InterruptSpell calls it on a player
-         * when it interrupts the auto-repeat spell.
-         * @param target the unit whose guid the packet carries
-         * Does nothing here; Player reports the cancel and the target's guid to the callback its session
-         * installed, and the session sends SMSG_CANCEL_AUTO_REPEAT.
-         */
-        virtual void SendAutoRepeatCancel(Unit* /*target*/) { }
-        /**
-         * Tells the client the guid of its pet; SetPet calls it on a player when it sets a pet.
-         * Does nothing here; Player, when it has a pet, reports the pet's guid to the callback its session
-         * installed, and the session sends SMSG_PET_GUIDS.
-         */
-        virtual void SendPetGUIDs() { }
-        /**
-         * Tells the client its stand state; SetStandState calls it on a player when it sets the state.
+         * Tells the client its stand state; SetStandState calls it when it sets the state.
          * @param state the stand state set
-         * Does nothing here; Player reports the state to the callback its session installed, and the
-         * session sends SMSG_STANDSTATE_UPDATE.
+         * A player reports the state to the callback its session installed, and the session sends
+         * SMSG_STANDSTATE_UPDATE; a unit that is not a player is told nothing.
          */
-        virtual void SendStandStateUpdate(uint8 /*state*/) { }
+        void SendStandStateUpdate(uint8 state);
         /**
          * Tells the client a changed melee swing error and remembers it; UpdateMeleeAttackingState
          * calls it after each melee attack update.
          * @param swingError 0 for none, 1 out of reach, 2 facing the wrong way
-         * Does nothing here; Player, when the error differs from the last one it told, reports it to the
-         * callback its session installed, and the session sends SMSG_ATTACKSWING_NOTINRANGE for 1 or
-         * SMSG_ATTACKSWING_BADFACING for 2; Player remembers the error.
+         * A player, when the error differs from the last one it was told, reports it to the callback its
+         * session installed, and the session sends SMSG_ATTACKSWING_NOTINRANGE for 1 or
+         * SMSG_ATTACKSWING_BADFACING for 2; the error is remembered. A unit that is not a player is
+         * told nothing and remembers nothing.
          */
-        virtual void ReportSwingError(uint8 /*swingError*/) { }
+        void ReportSwingError(uint8 swingError);
         /**
          * The security level of the account playing this unit; a game master in GM mode sees a player
          * whose level is not above its own.
@@ -4218,6 +4220,10 @@ class Unit : public WorldObject
         VehicleInfo* m_vehicleInfo;
         // The player's group callbacks, NULL for a unit that is not a player
         GroupCallbacks const* m_groupCallbacks;
+        // The player's own-client callbacks, NULL for a unit that is not a player
+        ClientCallbacks const* m_clientCallbacks;
+        // The melee swing error the player's client was last told, 0 for none
+        uint8 m_lastSwingError;
         // The player's spell modifiers, NULL for a unit that is not a player
         SpellModMgr* m_spellMods;
         void DisableSpline();

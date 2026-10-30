@@ -2513,7 +2513,7 @@ void Player::SendQuestReward(Quest const* pQuest, uint32 xp, uint32 money, bool 
     fact.launchGossip = false;                  // the CHOOSE_REWARD handler sends the follow-up itself
     fact.useQuestReward = offerNextQuest;
 
-    ReportClientFact(m_clientCallbacks.questComplete, fact);
+    ReportClientFact(m_clientSinks.questComplete, fact);
 }
 
 /**
