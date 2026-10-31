@@ -75,6 +75,7 @@
 #include "ProgressBar.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/maps/InstanceRepository.h"
+#include "PoolSpawner.h"
 #include <cstdarg>
 
 
@@ -270,7 +271,7 @@ void MapPersistentState::InitPools()
     if (!GetSpawnedPoolData().IsInitialized())
     {
         GetSpawnedPoolData().SetInitialized();
-        sPoolMgr.Initialize(this);                          // init pool system data for map persistent state
+        sPoolSpawner.Initialize(this);                          // init pool system data for map persistent state
         sGameEventMgr.Initialize(this);                     // init pool system data for map persistent state
     }
 }

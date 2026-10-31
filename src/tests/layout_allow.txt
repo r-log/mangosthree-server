@@ -116,6 +116,8 @@ src/game/Object [entities] -> src/game/WorldHandlers/InstanceData.h
 src/game/Object [entities] -> src/game/WorldHandlers/Map.h
 src/game/Object [entities] -> src/game/WorldHandlers/MapManager.h
 src/game/Object [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+# the pool spawner left PoolManager (data) in #658
+src/game/Object [entities] -> src/game/WorldHandlers/PoolSpawner.h
 src/game/Object [entities] -> src/game/WorldHandlers/TransportMap.h
 src/game/Object [entities] -> src/game/WorldHandlers/Transports.h
 src/game/Object [entities] -> src/game/combat/HostileRefManager.h
@@ -357,6 +359,8 @@ src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #511
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MassMailMgr.h
+# the pool spawner left PoolManager (data) in #658; the event runtime that spawns pools leaves for app
+src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/PoolSpawner.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/WorldHandlers/UpdateData.h
@@ -403,13 +407,6 @@ src/game/WorldHandlers/MapManager.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/WorldHandlers/MassMailMgr.cpp -> src/game/entities/player/PlayerRegistry.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/Creature.h
-# reached through PoolManager.h before #509
-src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/GameObject.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/Map.h
-src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillExtraItems.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/game/entities/player/Player.h

@@ -57,6 +57,7 @@
 #include "PlayerRegistry.h"
 #include "ObjectLookup.h"
 #include "persistence/world/spawns/SpawnRepository.h"
+#include "PoolSpawner.h"
 
 enum
 {
@@ -352,7 +353,7 @@ void GameObject::Delete()
 
     if (uint16 poolid = sPoolMgr.IsPartOfAPool<GameObject>(GetGUIDLow()))
     {
-        sPoolMgr.UpdatePool<GameObject>(*GetMap()->GetPersistentState(), poolid, GetGUIDLow());
+        sPoolSpawner.UpdatePool<GameObject>(*GetMap()->GetPersistentState(), poolid, GetGUIDLow());
     }
     else
     {

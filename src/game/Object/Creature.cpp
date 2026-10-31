@@ -72,6 +72,7 @@
 #include "MotionMaster.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 #include "UnitDisableSubject.h"
+#include "PoolSpawner.h"
 
 /**
  * @brief Executes a delayed forced-despawn event.
@@ -246,7 +247,7 @@ void Creature::RemoveCorpse()
     // since pool system can fail to roll unspawned object, this one can remain spawned, so must set respawn nevertheless
     if (uint16 poolid = sPoolMgr.IsPartOfAPool<Creature>(GetGUIDLow()))
     {
-        sPoolMgr.UpdatePool<Creature>(*GetMap()->GetPersistentState(), poolid, GetGUIDLow());
+        sPoolSpawner.UpdatePool<Creature>(*GetMap()->GetPersistentState(), poolid, GetGUIDLow());
     }
 
     if (!IsInWorld())                            // can be despawned by update pool

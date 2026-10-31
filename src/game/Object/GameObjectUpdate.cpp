@@ -39,6 +39,7 @@
 #include "CellImpl.h"
 #include "Util.h"
 #include "GameObjectAI.h"
+#include "PoolSpawner.h"
 #include <memory>
 
 /**
@@ -352,7 +353,7 @@ void GameObject::Update(uint32 update_diff, uint32 p_time)
             // if part of pool, let pool system schedule new spawn instead of just scheduling respawn
             if (uint16 poolid = sPoolMgr.IsPartOfAPool<GameObject>(GetGUIDLow()))
             {
-                sPoolMgr.UpdatePool<GameObject>(*GetMap()->GetPersistentState(), poolid, GetGUIDLow());
+                sPoolSpawner.UpdatePool<GameObject>(*GetMap()->GetPersistentState(), poolid, GetGUIDLow());
             }
 
             // can be not in world at pool despawn
