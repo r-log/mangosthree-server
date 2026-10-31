@@ -557,13 +557,37 @@ if(PCH)
     add_cxx_pch(domain pchdomain.h)
 endif()
 
-configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/AuctionHouseBot/ahbot.conf.dist)
+set(SESSION_SOURCES
+    WorldHandlers/AccountMgr.cpp
+    WorldHandlers/AccountMgr.h
+    WorldHandlers/ArenaTeamHandler.cpp
+    WorldHandlers/AuctionHouseHandler.cpp
+    WorldHandlers/CalendarHandler.cpp
+    WorldHandlers/CalendarHandler.h
+    WorldHandlers/CharacterHandler.cpp
+    WorldHandlers/ChatHandler.cpp
+    WorldHandlers/GMTicketHandler.cpp
+    WorldHandlers/GroupHandler.cpp
+    WorldHandlers/GuildHandler.cpp
+    WorldHandlers/ItemHandler.cpp
+    WorldHandlers/ItemHandlerEnchant.cpp
+    WorldHandlers/ItemHandlerVendor.cpp
+    WorldHandlers/LFGHandler.cpp
+    WorldHandlers/LFGPackets.h
+    WorldHandlers/LootHandler.cpp
+    WorldHandlers/NPCHandler.cpp
+    WorldHandlers/PetHandler.cpp
+    WorldHandlers/PetitionsHandler.cpp
+    WorldHandlers/QueryHandler.cpp
+    WorldHandlers/QuestHandler.cpp
+    WorldHandlers/TaxiHandler.cpp
+    WorldHandlers/TradeHandler.cpp
+)
+list(TRANSFORM SESSION_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+list(REMOVE_ITEM SRC_GRP_WORLD_HANDLERS ${SESSION_SOURCES})
 
-add_library(game STATIC
-    ${SRC_GRP_AHBOT}
+add_library(session STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround/BattleGroundHandler.cpp
-    ${SRC_GRP_CHAT_COMMANDS}
-    ${SRC_GRP_HARNESS}
     ${SRC_GRP_SERVER}
     ${SRC_GRP_SESSION}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}
@@ -580,6 +604,35 @@ add_library(game STATIC
     ${SRC_GRP_SESSION_PACKETS_ENTITIES}
     ${SRC_GRP_SESSION_PACKETS_QUESTS}
     ${SRC_GRP_SESSION_PACKETS_SPELLS}
+    ${SESSION_SOURCES}
+)
+
+target_include_directories(session
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        Server
+        WorldHandlers
+)
+
+if(MSVC)
+    target_compile_options(session PRIVATE /permissive-)
+endif()
+
+target_link_libraries(session
+    PUBLIC
+        domain
+)
+
+if(PCH)
+    add_cxx_pch(session pchsession.h)
+endif()
+
+configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/AuctionHouseBot/ahbot.conf.dist)
+
+add_library(game STATIC
+    ${SRC_GRP_AHBOT}
+    ${SRC_GRP_CHAT_COMMANDS}
+    ${SRC_GRP_HARNESS}
     ${SRC_GRP_TOOL}
     ${SRC_GRP_WORLD_HANDLERS}
 )
@@ -590,7 +643,6 @@ target_include_directories(game
         AuctionHouseBot
         ChatCommands
         Harness
-        Server
         Tools
         WorldHandlers
 )
@@ -601,6 +653,7 @@ endif()
 
 target_link_libraries(game
     PUBLIC
+        session
         domain
         data
         persistence
