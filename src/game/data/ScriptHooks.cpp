@@ -56,6 +56,11 @@ char const* ScriptHooks::GetScriptLibraryVersion()
     return NULL;
 }
 
+bool ScriptHooks::ServesScript(char const* /*name*/)
+{
+    return false;
+}
+
 CreatureAI* ScriptHooks::GetCreatureAI(Creature* /*pCreature*/)
 {
     return NULL;

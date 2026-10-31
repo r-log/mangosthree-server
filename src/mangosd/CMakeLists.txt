@@ -3,6 +3,8 @@ set(SRC_GRP_MAIN
   AntiFreezeService.h
   CliService.cpp
   CliService.h
+  LegacyScripts.cpp
+  LegacyScripts.h
   Master.cpp
   Master.h
   Service.h
@@ -38,6 +40,7 @@ target_link_libraries(mangosd
     PRIVATE
         game
         proto
+        scripts
         Threads::Threads
         $<$<BOOL:${SCRIPT_LIB_SD3}>:scripts_legacy>
 )

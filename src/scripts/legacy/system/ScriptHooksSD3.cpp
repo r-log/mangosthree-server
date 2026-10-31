@@ -50,6 +50,11 @@ namespace
                 return SD3::GetScriptLibraryVersion();
             }
 
+            bool ServesScript(char const* name) override
+            {
+                return SD3::ServesScript(name);
+            }
+
             CreatureAI* GetCreatureAI(Creature* pCreature) override
             {
                 return SD3::GetCreatureAI(pCreature);

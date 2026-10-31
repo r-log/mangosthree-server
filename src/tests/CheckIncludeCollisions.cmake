@@ -33,12 +33,13 @@ gate_require_source_root(IncludeCollisions)
 # parser self-test compares like with like.
 get_filename_component(SOURCE_ROOT "${SOURCE_ROOT}" ABSOLUTE)
 
-# "<target>|<its CMakeLists.txt, relative to SOURCE_ROOT>|<targets it inherits include directories from>"
+# "<target>|<its CMakeLists.txt, relative to SOURCE_ROOT>|<targets it inherits include directories from, comma-separated>"
 set(COLLISION_TARGETS
     "game|src/game/CMakeLists.txt|"
-    "mangos_tests|src/tests/CMakeLists.txt|game"
+    "scripts|src/scripts/CMakeLists.txt|game"
+    "mangos_tests|src/tests/CMakeLists.txt|game,scripts"
     "scripts_legacy|src/scripts/legacy/CMakeLists.txt|game"
-    "mangosd|src/mangosd/CMakeLists.txt|scripts_legacy")
+    "mangosd|src/mangosd/CMakeLists.txt|scripts,scripts_legacy")
 
 set(HEADER_EXTENSIONS h hh hpp hxx inl inc ipp)
 
@@ -230,7 +231,12 @@ foreach(ROW IN LISTS COLLISION_TARGETS)
     if(NOT INHERITS)
         gate_require_scanned(IncludeCollisions "${OWN_COUNT}" "include directories of ${TARGET} in ${CMAKELISTS_REL}")
     endif()
-    set(DIRS_${TARGET} ${DIRS_${INHERITS}} ${OWN_DIRS})
+    string(REPLACE "," ";" PARENTS "${INHERITS}")
+    set(DIRS_${TARGET} "")
+    foreach(PARENT IN LISTS PARENTS)
+        list(APPEND DIRS_${TARGET} ${DIRS_${PARENT}})
+    endforeach()
+    list(APPEND DIRS_${TARGET} ${OWN_DIRS})
     list(REMOVE_DUPLICATES DIRS_${TARGET})
     set(ENTRIES "")
     foreach(DIR IN LISTS DIRS_${TARGET})

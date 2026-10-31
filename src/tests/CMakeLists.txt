@@ -254,6 +254,7 @@ set(SRC_GRP_TESTS
     LfgDungeonEntranceStoreTest.cpp
     DbScriptStoreTest.cpp
     ScriptNameStoreTest.cpp
+    DispatcherTest.cpp
     ScriptHooksTest.cpp
     VendorItemProblemTest.cpp
     TransportBoardingTest.cpp
@@ -307,6 +308,7 @@ target_compile_definitions(mangos_tests
 target_link_libraries(mangos_tests
     PRIVATE
         game
+        scripts
         motion
         proto
         shared_db

@@ -126,6 +126,13 @@ TEST(ScriptHooks_TheBaseAnswersWhatAServerWithNoScriptLibraryAnswers)
     CHECK_EQ(sScriptHooks.GetDialogStatus((Player*)NULL, (GameObject*)NULL), uint32(DIALOG_STATUS_UNDEFINED));
 }
 
+TEST(ScriptHooks_TheBaseServesNoScriptName)
+{
+    InstalledHooks base(NULL);
+    CHECK(!sScriptHooks.ServesScript("npc_any"));
+    CHECK(!sScriptHooks.ServesScript(""));
+}
+
 TEST(ScriptHooks_AnInstalledObjectAnswersUntilTheReplacedHooksArePutBack)
 {
     RecordingHooks hooks;

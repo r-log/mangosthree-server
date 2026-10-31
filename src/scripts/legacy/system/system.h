@@ -76,11 +76,6 @@ class SystemMgr
         typedef std::unordered_map<uint32, std::vector<ScriptPointMove> > PointMoveMap;
 
         /**
-         * @brief Loads script texts from the database.
-         */
-        void LoadScriptTexts();
-
-        /**
          * @brief Loads custom script texts from the database.
          */
         void LoadScriptTextsCustom();
