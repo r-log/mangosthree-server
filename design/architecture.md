@@ -19,7 +19,7 @@ only `src/shared`; session includes it 116 times, the motion layer 23 times (8 f
 | scripts | `scripts/` (#83): `surface/`, what a script may call; `dispatch/`, the one implementation of the hook interface in `data/` through which the core reaches the scripts; `content/`, the new scripts; `legacy/`, SD3. `ChatCommands/`, the command-dispatch half of `Chat`, `CommandMgr`, `ScriptMgr` | everything below app; a file in `content/` only the surface |
 | session | `session/`: `WorldSession`, `OpcodeTable`, gateway, `handlers/<domain>/` and `handlers/connection/`, `packets/<domain>/`, the message builders split from `Chat` | domain, data, motion, proto, persistence, foundation |
 | domain | peers: `entities/`, `spells/`, `combat/`, `maps/`, `ai/`, `social/`, `pvp/`, `economy/` | data, motion, persistence, foundation (**not** proto) |
-| data | `data/`: DBC/DB2 and SQL stores, `ObjectMgr`'s stores, `QuestDef`, `SharedDefines`, pools, events, the read-only configuration interface (#143), the script hook interface (`ScriptHooks`, what the core calls on the script library, #83), the command hook interface (`CommandHooks`, what the core asks of the GM command system, #83), the database script hook interface (`DbScriptHooks`, what the domain asks of the database script engine, #83), the chat packet builder the world installs (`ChatPacketBuilder`, #83), the world broadcast the world installs (`WorldBroadcast`, what the code below the world tells every client in it, #143), the server control the world installs (`ServerControl`, the operator's handle on the server and the process's stop request, #143), the reset schedule the world installs (`ResetSchedule`, when the periodic resets next happen, #143) | persistence, foundation |
+| data | `data/`: DBC/DB2 and SQL stores, `ObjectMgr`'s stores, the spell tables (`spells/data/`) and the aura vocabulary (`SpellAuraDefines`), `QuestDef`, `SharedDefines`, pools, events, the read-only configuration interface (#143), the script hook interface (`ScriptHooks`, what the core calls on the script library, #83), the command hook interface (`CommandHooks`, what the core asks of the GM command system, #83), the database script hook interface (`DbScriptHooks`, what the domain asks of the database script engine, #83), the chat packet builder the world installs (`ChatPacketBuilder`, #83), the world broadcast the world installs (`WorldBroadcast`, what the code below the world tells every client in it, #143), the server control the world installs (`ServerControl`, the operator's handle on the server and the process's stop request, #143), the reset schedule the world installs (`ResetSchedule`, when the periodic resets next happen, #143) | persistence, foundation |
 | motion | `src/motion` (the kernel), `movement/` (splines and the movement record) | proto, foundation |
 | proto | `src/proto` (the wire: `WorldPacket`, `Opcodes`, codecs) | foundation |
 | persistence | `src/shared/Database` (the driver), `persistence/<domain>/` (repositories: namespaces of free functions that return plain rows) | foundation |
@@ -53,7 +53,7 @@ directory stands in for it until `Object/`, `WorldHandlers/` and `References/` d
 directory and header. A new file of a listed peer in a listed directory that includes a listed header adds no key, so
 a file can split inside its directory; a new key fails. Only two seams are gated, `entities/player` and
 `spells/aura`, from both sides: an include into either from another peer directory and from the seam's own peer
-(`Object/Unit.cpp` -> `Player.h`, 34 lines; `SpellMgr.h` -> `SpellAuraDefines.h`, 16 lines; the 2026-09-28 decision)
+(`Object/Unit.cpp` -> `Player.h`, 34 lines; the 2026-09-28 decision)
 is listed per includer file and header and cannot grow, and so is an include against the table. Such a line may
 change its includer file in the PR that deletes the old one or removes the include from it, only within the same layer pair and header; a change of
 layer pair or header is a new edge. A file that reached a header only through a header a PR cuts may include it directly in that
@@ -503,7 +503,7 @@ RULES = [
  (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig)', 'app'),
  (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
  (r'^game/session/', 'session'),
- (r'^game/data/', 'data'),
+ (r'^game/data/|^game/spells/data/|^game/spells/auras/SpellAuraDefines\.', 'data'),
  (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
  (r'^game/spells/', 'spells'),
  (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),

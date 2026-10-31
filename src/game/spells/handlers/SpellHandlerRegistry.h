@@ -184,7 +184,7 @@ enum SpellHandlerSite
     SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_DEATH_KNIGHT = 58,
     /// `Spell::EffectScriptEffect`, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_GENERIC = 59,
-    /// `SpellMgr::GetSpellAllowedInLocationError`, after the battleground checks: its `switch (spellInfo->ID)`.
+    /// `GetSpellAllowedInLocationError`, after the battleground checks: its `switch (spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_ALLOWED_IN_LOCATION = 60,
     /// `Unit::SpellDamageBonusTaken`, the loop over the dummy auras: its `switch ((*i)->GetId())`.
     SPELL_HANDLER_SITE_UNIT_SPELL_DAMAGE_TAKEN = 61,

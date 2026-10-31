@@ -64,6 +64,7 @@
 #include "DisableMgr.h"
 #include "spells/handlers/SpellTargetingHandlers.h"
 #include "spells/data/SpellTables.h"
+#include "spells/pipeline/SpellRules.h"
 
 /**
  * @brief Checks whether a spell matches the quest tame spell pattern.
@@ -1146,7 +1147,7 @@ void Spell::SelectMountByAreaAndSkill(Unit* target, SpellEntry const* parentSpel
         target->GetTerrain()->GetZoneAndAreaId(zone, area, target->Where().X(), target->Where().Y(), target->Where().Z());
 
         Player const* locationPlayer = target->GetCharmerOrOwnerPlayerOrPlayerItself();
-        SpellCastResult locRes = sSpellMgr.GetSpellAllowedInLocationError(pSpell, target->GetMapId(), zone, area, locationPlayer,
+        SpellCastResult locRes = GetSpellAllowedInLocationError(pSpell, target->GetMapId(), zone, area, locationPlayer,
                                  SpellAreaConditionCheckFor(locationPlayer));
         if (locRes != SPELL_CAST_OK || !targetPlayer->CanStartFlyInArea(target->GetMapId(), zone, area))
         {

@@ -114,7 +114,7 @@ RULES = [
     (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig)', 'app'),
     (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
     (r'^game/session/', 'session'),
-    (r'^game/data/', 'data'),
+    (r'^game/data/|^game/spells/data/|^game/spells/auras/SpellAuraDefines\.', 'data'),
     (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
     (r'^game/spells/', 'spells'),
     (r'^game/WorldHandlers/(\w*Handler\w*|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
@@ -1084,31 +1084,31 @@ def self_test():
         t[new] = tree[old] if text is None else text
         return t
 
-    sp, sd = 'src/game/spells/pipeline/Spell.cpp', 'src/game/spells/data/Spell.cpp'
-    pk, dk = SELF_ALLOW[2], ('src/game/spells/data [spells]', 'src/game/Object/Unit.h')
+    sp, sd = 'src/game/spells/pipeline/Spell.cpp', 'src/game/spells/effects/Spell.cpp'
+    pk, dk = SELF_ALLOW[2], ('src/game/spells/effects [spells]', 'src/game/Object/Unit.h')
     moved_sp = rename(SELF_TREE, sp, sd)
     renamed('renamed: an includer moved to another directory carries its lines', moved_sp, SELF_ALLOW, [(sp, sd)], 0,
             ['1 renamed file(s): 2 list line(s) carried to new paths, 0 of them to more than one key',
              '  carried: src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h  =>  '
-             'src/game/spells/data/Spell.cpp -> src/proto/WorldPacket.h',
+             'src/game/spells/effects/Spell.cpp -> src/proto/WorldPacket.h',
              '  carried: src/game/spells/pipeline [spells] -> src/game/Object/Unit.h  =>  '
-             'src/game/spells/data [spells] -> src/game/Object/Unit.h', 'CheckLayout: OK: 4 list lines'])
+             'src/game/spells/effects [spells] -> src/game/Object/Unit.h', 'CheckLayout: OK: 4 list lines'])
     run('renamed: the same tree with no map fails', moved_sp, SELF_ALLOW, 1,
-        ['  src/game/spells/data [spells] -> src/game/Object/Unit.h   [sideways: spells -> entities]',
+        ['  src/game/spells/effects [spells] -> src/game/Object/Unit.h   [sideways: spells -> entities]',
          '  moved: replace the old line src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h with '
-         'src/game/spells/data/Spell.cpp -> src/proto/WorldPacket.h'])
+         'src/game/spells/effects/Spell.cpp -> src/proto/WorldPacket.h'])
     pl, px = 'src/game/entities/player/Player.h', 'src/game/entities/player/core/Player.h'
     renamed('renamed: a header moved carries the lines naming it', rename(SELF_TREE, pl, px), SELF_ALLOW, [(pl, px)], 0,
             ['  carried: src/game/Maps/Map.cpp -> src/game/entities/player/Player.h  =>  src/game/Maps/Map.cpp -> '
              'src/game/entities/player/core/Player.h', 'CheckLayout: OK'])
     renamed('renamed: a moved file with a new include fails',
             rename(SELF_TREE, sp, sd, SELF_TREE[sp] + '#include "Map.h"\n'), SELF_ALLOW, [(sp, sd)], 1,
-            '  src/game/spells/data [spells] -> src/game/Maps/Map.h   [sideways: spells -> maps]')
+            '  src/game/spells/effects [spells] -> src/game/Maps/Map.h   [sideways: spells -> maps]')
     two = dict(SELF_TREE, **{'src/game/spells/pipeline/SpellHit.cpp': '#include "Unit.h"\n'})
     renamed('renamed: a sideways key split over two directories names both', rename(two, sp, sd), SELF_ALLOW,
             [(sp, sd)], 0, ['2 list line(s) carried to new paths, 1 of them to more than one key',
                             '  fan-out: src/game/spells/pipeline [spells] -> src/game/Object/Unit.h  =>  '
-                            'src/game/spells/data [spells] -> src/game/Object/Unit.h | src/game/spells/pipeline '
+                            'src/game/spells/effects [spells] -> src/game/Object/Unit.h | src/game/spells/pipeline '
                             '[spells] -> src/game/Object/Unit.h', 'CheckLayout: OK: 5 list lines'])
     renamed('renamed: an old path still in the tree fails', dict(moved_sp, **{sp: SELF_TREE[sp]}), SELF_ALLOW,
             [(sp, sd)], 1, 'renames.txt:2: the old path src/game/spells/pipeline/Spell.cpp is still in the tree')
@@ -1116,7 +1116,7 @@ def self_test():
             [(sp, sd), ('src/game/Maps/Gone.cpp', 'src/game/Maps/Elsewhere.cpp')], 1,
             'renames.txt:3: the new path src/game/Maps/Elsewhere.cpp is not in the tree')
     renamed('renamed: a malformed or repeated map line fails', moved_sp, SELF_ALLOW,
-            [(sp, sd), sp + ' ' + sd, (sp, 'src/game/spells/data/Other.cpp')], 1,
+            [(sp, sd), sp + ' ' + sd, (sp, 'src/game/spells/effects/Other.cpp')], 1,
             ['renames.txt:3: not "<old path> -> <new path>"', 'renames.txt:4: a path renamed twice'])
     mh, mb = 'src/shared/Common.cpp', 'src/shared/CommonInit.cpp'
     renamed('renamed: a map entry no list line uses is reported', rename(moved_sp, mh, mb), SELF_ALLOW,
@@ -1158,6 +1158,8 @@ def self_test():
                        ('realmd/Main.cpp', 'shared/Database/Database.h', None),
                        ('game/Object/Unit.cpp', 'game/spells/auras/SpellAuras.h', ('seam', ('entities', 'spells/aura'))),
                        ('game/spells/auras/SpellAuras.cpp', 'game/spells/data/SpellMgr.h', None),
+                       ('game/spells/data/SpellMgr.h', 'game/spells/auras/SpellAuraDefines.h', None),
+                       ('game/spells/data/SpellMgr.cpp', 'game/Object/Unit.h', ('against', ('data', 'domain'))),
                        ('game/Maps/Map.cpp', 'game/Object/Creature.h', ('sideways', ('maps', 'entities'))),
                        ('game/Object/ObjectGuid.cpp', 'game/Object/ObjectMgr.h', ('against', ('foundation', 'data'))),
                        ('game/AuctionHouseBot/AuctionHouseBot.cpp', 'game/Object/Unit.h', None),
@@ -1178,7 +1180,7 @@ def self_test():
         SEAM_SAME_PEER = flag
         for a, b, want in [('game/Object/Bag.cpp', 'game/entities/player/Player.h',
                             ('seam', ('entities', 'entities/player')) if flag else None),
-                           ('game/spells/data/SpellMgr.h', 'game/spells/auras/SpellAuraDefines.h',
+                           ('game/spells/pipeline/Spell.cpp', 'game/spells/auras/SpellAuras.h',
                             ('seam', ('spells', 'spells/aura')) if flag else None),
                            ('game/entities/player/Player.cpp', 'game/entities/player/Player.h', None),
                            ('game/spells/auras/SpellAuras.cpp', 'game/spells/auras/SpellAuras.h', None),

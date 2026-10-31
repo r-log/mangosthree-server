@@ -683,6 +683,86 @@ enum SpellAttributesEx10
 };
 
 /**
+ * @brief Spell interrupt flags
+ *
+ * Flags that determine what can interrupt a spell cast.
+ */
+enum SpellInterruptFlags
+{
+    SPELL_INTERRUPT_FLAG_MOVEMENT = 0x01,    ///< Interrupted by movement
+    SPELL_INTERRUPT_FLAG_DAMAGE = 0x02,      ///< Interrupted by damage
+    SPELL_INTERRUPT_FLAG_INTERRUPT = 0x04,   ///< Interrupted by interrupt ability
+    SPELL_INTERRUPT_FLAG_AUTOATTACK = 0x08,  ///< Interrupted by auto-attack
+    SPELL_INTERRUPT_FLAG_ABORT_ON_DMG = 0x10 ///< Complete interrupt on direct damage
+    // SPELL_INTERRUPT_UNK             = 0x20               // unk, 564 of 727 spells having this spell start with "Glyph"
+};
+
+/**
+ * @brief Spell channel interrupt flags
+ *
+ * Flags that determine what can interrupt a channeled spell.
+ */
+enum SpellChannelInterruptFlags
+{
+    CHANNEL_FLAG_DAMAGE = 0x0002,   ///< Interrupted by damage
+    CHANNEL_FLAG_MOVEMENT = 0x0008, ///< Interrupted by movement
+    CHANNEL_FLAG_TURNING = 0x0010,  ///< Interrupted by turning
+    CHANNEL_FLAG_DAMAGE2 = 0x0080,  ///< Interrupted by damage (secondary)
+    CHANNEL_FLAG_DELAY = 0x4000     ///< Interrupted by delay
+};
+
+/**
+ * @brief Spell aura interrupt flags
+ *
+ * Flags that determine what can interrupt an aura effect.
+ */
+enum SpellAuraInterruptFlags
+{
+    AURA_INTERRUPT_FLAG_UNK0 = 0x00000001,                     ///< Unknown (removed when getting hit by a negative spell?)
+    AURA_INTERRUPT_FLAG_DAMAGE = 0x00000002,                   ///< Removed by any damage
+    AURA_INTERRUPT_FLAG_UNK2 = 0x00000004,                     ///< Unknown
+    AURA_INTERRUPT_FLAG_MOVE = 0x00000008,                     ///< Removed by any movement
+    AURA_INTERRUPT_FLAG_TURNING = 0x00000010,                  ///< Removed by any turning
+    AURA_INTERRUPT_FLAG_ENTER_COMBAT = 0x00000020,             ///< Removed by entering combat
+    AURA_INTERRUPT_FLAG_NOT_MOUNTED = 0x00000040,              ///< Removed by unmounting
+    AURA_INTERRUPT_FLAG_NOT_ABOVEWATER = 0x00000080,           ///< Removed by entering water
+    AURA_INTERRUPT_FLAG_NOT_UNDERWATER = 0x00000100,           ///< Removed by leaving water
+    AURA_INTERRUPT_FLAG_NOT_SHEATHED = 0x00000200,             ///< Removed by unsheathing
+    AURA_INTERRUPT_FLAG_TALK = 0x00000400,                     ///< Unknown
+    AURA_INTERRUPT_FLAG_USE = 0x00000800,                      ///< Unknown
+    AURA_INTERRUPT_FLAG_MELEE_ATTACK = 0x00001000,             ///< Removed by melee attacks
+    AURA_INTERRUPT_FLAG_UNK13 = 0x00002000,                    ///< Unknown
+    AURA_INTERRUPT_FLAG_UNK14 = 0x00004000,                    ///< Unknown
+    AURA_INTERRUPT_FLAG_UNK15 = 0x00008000,                    ///< Unknown (removed by casting a spell?)
+    AURA_INTERRUPT_FLAG_UNK16 = 0x00010000,                    ///< Unknown
+    AURA_INTERRUPT_FLAG_MOUNTING = 0x00020000,                 ///< Removed by mounting
+    AURA_INTERRUPT_FLAG_NOT_SEATED = 0x00040000,               ///< Removed by standing up (used by food, drink, sleep, Fake Death)
+    AURA_INTERRUPT_FLAG_CHANGE_MAP = 0x00080000,               ///< Removed by leaving map/getting teleported
+    AURA_INTERRUPT_FLAG_IMMUNE_OR_LOST_SELECTION = 0x00100000, ///< Removed by invulnerability or lost selection
+    AURA_INTERRUPT_FLAG_UNK21 = 0x00200000,                    ///< Unknown
+    AURA_INTERRUPT_FLAG_UNK22 = 0x00400000,                    ///< Unknown
+    AURA_INTERRUPT_FLAG_ENTER_PVP_COMBAT = 0x00800000,         ///< Removed by entering PvP combat
+    AURA_INTERRUPT_FLAG_DIRECT_DAMAGE = 0x01000000,            ///< Removed by any direct damage
+    AURA_INTERRUPT_FLAG_UNK25 = 0x02000000,                    ///< 25
+    AURA_INTERRUPT_FLAG_UNK26 = 0x04000000,                    ///< 26
+    AURA_INTERRUPT_FLAG_DAMAGE2 = 0x08000000,                  ///< 27   removed by damage spells + removed by damage, other than .. (diseases, Censure)
+    AURA_INTERRUPT_FLAG_ENTER_COMBAT2 = 0x10000000,            ///< 28
+    AURA_INTERRUPT_FLAG_UNK29 = 0x20000000,                    ///< 29
+    AURA_INTERRUPT_FLAG_UNK30 = 0x40000000,                    ///< 30
+    AURA_INTERRUPT_FLAG_UNK31 = 0x80000000,                    ///< 31
+};
+
+/**
+ * @brief Spell facing flags enumeration
+ *
+ * Flags that determine facing requirements for spells.
+ */
+enum SpellFacingFlags
+{
+    SPELL_FACING_FLAG_INFRONT = 0x0001 ///< Target must be in front
+};
+
+/**
  * @brief Spell modifier operation enumeration
  *
  * Defines the different operations that can be modified on spells.
@@ -2818,6 +2898,8 @@ enum TrainerType                                            // this is important
 #define BASE_MAXDAMAGE 2.0f
 #define BASE_ATTACK_TIME 2000
 #define BASE_BLOCK_DAMAGE_PERCENT 30
+
+#define SCALE_SPELLPOWER_HEALING        1.88f
 
 /**
  *  byte value (UNIT_FIELD_BYTES_2,0)

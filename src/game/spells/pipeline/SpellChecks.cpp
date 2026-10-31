@@ -71,6 +71,7 @@
 #include "DisableMgr.h"
 #include "spells/handlers/SpellChecksHandlers.h"
 #include "spells/data/SpellTables.h"
+#include "spells/pipeline/SpellRules.h"
 
 /**
  * @brief Validates whether the spell can currently be cast.
@@ -507,7 +508,7 @@ SpellCastResult Spell::CheckCast(bool strict)
     m_caster->GetTerrain()->GetZoneAndAreaId(zone, area, m_caster->Where().X(), m_caster->Where().Y(), m_caster->Where().Z());
 
     Player const* locationPlayer = m_caster->GetCharmerOrOwnerPlayerOrPlayerItself();
-    SpellCastResult locRes = sSpellMgr.GetSpellAllowedInLocationError(m_spellInfo, m_caster->GetMapId(), zone, area, locationPlayer,
+    SpellCastResult locRes = GetSpellAllowedInLocationError(m_spellInfo, m_caster->GetMapId(), zone, area, locationPlayer,
                              SpellAreaConditionCheckFor(locationPlayer));
     if (locRes != SPELL_CAST_OK)
     {

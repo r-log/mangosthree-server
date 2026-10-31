@@ -33,13 +33,13 @@ class Player;
 
 /**
  * @file SpellMgrHandlers.h
- * @brief The `SpellMgr::GetSpellAllowedInLocationError` site of the spell handler registry.
+ * @brief The `GetSpellAllowedInLocationError` site of the spell handler registry.
  *
  * The handlers are file-static functions in SpellMgrHandlers.cpp; this header holds what the registry and
  * tests see.
  */
 
-/// What the bodies of `SpellMgr::GetSpellAllowedInLocationError`'s switch read: the map and the player.
+/// What the bodies of `GetSpellAllowedInLocationError`'s switch read: the map and the player.
 struct SpellAllowedInLocationContext
 {
     SpellAllowedInLocationContext(uint32 const& mapIdParameter, Player const* const& playerParameter)
@@ -49,7 +49,7 @@ struct SpellAllowedInLocationContext
     Player const* const& player;    ///< the function's parameter `Player const* player`, which may be NULL
 };
 
-/// `SpellMgr::GetSpellAllowedInLocationError`, after the battleground checks: its `switch (spellInfo->ID)`. Every
+/// `GetSpellAllowedInLocationError`, after the battleground checks: its `switch (spellInfo->ID)`. Every
 /// label answers the check's result; a miss goes on to the check's `return SPELL_CAST_OK;`.
 struct SpellAllowedInLocationSite
 {
@@ -58,7 +58,7 @@ struct SpellAllowedInLocationSite
     typedef SpellAllowedInLocationContext Context;
 };
 
-/// Registers every `SpellMgr::GetSpellAllowedInLocationError` handler on `registry` (defined in SpellMgrHandlers.cpp).
+/// Registers every `GetSpellAllowedInLocationError` handler on `registry` (defined in SpellMgrHandlers.cpp).
 /// Returns the number of rows it registered; a row whose key was taken does not change the table, so a caller
 /// that registers on an empty table and finds fewer keys than rows has a duplicate.
 uint32 RegisterSpellMgrHandlers(SpellHandlerRegistry& registry);
