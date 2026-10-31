@@ -63,6 +63,7 @@
 #include "persistence/world/creatures/CreatureEquipmentRepository.h"
 #include "persistence/world/creatures/CreatureModelInfoRepository.h"
 #include "persistence/world/creatures/CreatureTemplateRepository.h"
+#include "persistence/world/creatures/VehicleAccessoryRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
 
 static_assert(int(CREATURE_TEMPLATE_DIFFICULTY_COLUMNS) == int(MAX_DIFFICULTY - 1), "a creature template row holds every difficulty entry");

@@ -45,8 +45,6 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "DBCStores.h"
-#include "ProgressBar.h"
-#include "persistence/world/creatures/VehicleAccessoryRepository.h"
 #include "Util.h"
 #include "MotionGenerators/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
