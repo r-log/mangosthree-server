@@ -49,6 +49,7 @@
 #include "Database/TickGuard.h"
 #include "CharacterCache.h"
 #include "Guild.h"
+#include "Mail.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -342,7 +343,7 @@ TEST(GuildAsync_ExpiredMailSweepStagesOneHolderOfTwoAndReturnsNothingBeforeTheAn
 
         // serverUp: the mail-timer call from inside World::Update, which is the one that
         // used to block the tick twice per expired mail.
-        sObjectMgr.ReturnOrDeleteOldMails(true);
+        ReturnOrDeleteOldMails(true);
 
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(query.executed.size(), size_t(0));
@@ -423,7 +424,7 @@ TEST(GuildAsync_ExpiredMailCursorGivesEachMailItsOwnItemRunAndNobodyElseS)
         holder->SetResult(1, items);
     }
 
-    ObjectMgr::ReturnOrDeleteOldMailsCallback(std::move(holder), /*basetime*/ 1000, /*serverUp*/ true);
+    ReturnOrDeleteOldMailsCallback(std::move(holder), /*basetime*/ 1000, /*serverUp*/ true);
 
     // Mail 5's row was stepped over: nobody deleted it and nobody re-owned it.
     CHECK(!Recorded(async, "DELETE FROM `item_instance` WHERE `guid` = '51'"));
