@@ -353,9 +353,10 @@ compile-and-pass, it fails to link. A library cannot lie about its dependencies.
 |---|---|---|
 | foundation | `shared`, `mangos_crypto`, `terrain`, `geometry` | `Threads`, `utf8`; crypto stands alone |
 | persistence (driver) | `shared_db` | `shared`, MySQL |
+| persistence (repositories: `persistence/`, and `Server/GameGlobals`, the database globals) | `persistence` | `shared_db` |
 | proto | `proto` | `shared`, `mangos_crypto` |
 | motion | `motion` | `proto` |
-| data, domain, session, `persistence/<domain>/`, and the app and scripts files inside `src/game` | **`game`**, one library: 40 globbed directories, 399k lines, one precompiled header | `shared_db`, `terrain`, `geometry`, `proto`, `motion`, Detour and zlib |
+| data, domain, session, and the app and scripts files inside `src/game` | **`game`**, one library: 50 globbed directories, 407k lines, one precompiled header | `persistence`, `terrain`, `geometry`, `proto`, `motion`, Detour and zlib |
 | scripts (the dispatcher, `src/scripts/dispatch/`) | `scripts` | `game` |
 | scripts (SD3, `src/scripts/legacy/`) | `scripts_legacy` | `game` |
 | app | `mangosd` | `game`, `proto`, `scripts`, whose dispatcher it installs, and `scripts_legacy` when SD3 is built |
