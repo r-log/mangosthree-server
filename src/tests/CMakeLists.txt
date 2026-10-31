@@ -255,6 +255,7 @@ set(SRC_GRP_TESTS
     DbScriptStoreTest.cpp
     ScriptNameStoreTest.cpp
     DispatcherTest.cpp
+    ScriptIdsTest.cpp
     ScriptHooksTest.cpp
     VendorItemProblemTest.cpp
     TransportBoardingTest.cpp
@@ -508,6 +509,24 @@ add_test(NAME layout
         -DLAYOUT_PYTHON=${Python3_EXECUTABLE}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckLayout.cmake)
 
+if(MSVC)
+    get_filename_component(SCRIPT_SURFACE_LINKER_DIR "${CMAKE_LINKER}" DIRECTORY)
+    find_program(SCRIPT_SURFACE_DUMPBIN NAMES dumpbin HINTS "${SCRIPT_SURFACE_LINKER_DIR}")
+    set(SCRIPT_SURFACE_SYMBOL_FORMAT dumpbin)
+    set(SCRIPT_SURFACE_SYMBOL_TOOL "${SCRIPT_SURFACE_DUMPBIN}")
+else()
+    set(SCRIPT_SURFACE_SYMBOL_FORMAT nm)
+    set(SCRIPT_SURFACE_SYMBOL_TOOL "${CMAKE_NM}")
+endif()
+add_test(NAME script_surface
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -DSCRIPT_SURFACE_PYTHON=${Python3_EXECUTABLE}
+        -DSYMBOL_FORMAT=${SCRIPT_SURFACE_SYMBOL_FORMAT}
+        -DSYMBOL_TOOL=${SCRIPT_SURFACE_SYMBOL_TOOL}
+        "-DCORE_LIBS=$<TARGET_FILE:game>|$<TARGET_FILE:shared>|$<TARGET_FILE:shared_db>|$<TARGET_FILE:proto>|$<TARGET_FILE:motion>|$<TARGET_FILE:terrain>|$<TARGET_FILE:mangos_crypto>"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckScriptSurface.cmake)
+
 add_test(NAME raw_rand
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
@@ -610,6 +629,9 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME raw_rand_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/raw_rand.py --self-test)
+
+    add_test(NAME script_surface_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/script_surface.py --self-test)
 
     add_test(NAME movement_writers_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/movement_writers.py --self-test)
