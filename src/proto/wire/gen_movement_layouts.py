@@ -85,7 +85,7 @@ for i in range(8):
 EXTRAS = {
     "MovementSetCollisionHeight":    ["ExtraTwoBits", "ExtraFloat"],   # MovementPacketSender::SendHeightChangeToMover
     "MovementSetCollisionHeightAck": ["ExtraFloat", "ExtraTwoBits"],   # WorldSession::HandleSetCollisionHeightAck
-    "ChangeSeatsOnControlledVehicle":                                 # WorldSession::HandleChangeSeatsOnControlledVehicle
+    "ChangeSeatsOnControlledVehicle":                                 # VehicleHandlers::HandleChangeSeatsOnControlledVehicle
         ["ByteParam"] + ["Guid2Bit%d" % i for i in (2, 4, 7, 6, 5, 0, 1, 3)]
                       + ["Guid2Byte%d" % i for i in (6, 1, 2, 5, 3, 0, 4, 7)],
 }

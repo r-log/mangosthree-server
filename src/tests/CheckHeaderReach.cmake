@@ -116,6 +116,7 @@ set(REACH_RULES
     "session/handlers/entities/SkillHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/entities/TaxiHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/entities/MovementHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
+    "session/handlers/entities/VehicleHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/spells/SpellHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/maps/MapHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/pvp/PvpHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h,BattleGround/BattleGround.h,BattleGround/BattleGroundMgr.h,Object/ArenaTeam.h"
