@@ -72,9 +72,7 @@
 #include "OutdoorPvP/OutdoorPvPMgr.h"
 #include "Group.h"
 #include "dispatch/Dispatcher.h"
-#ifdef ENABLE_SD3
-#include "system/ScriptDevMgr.h"
-#endif
+#include "LegacyScripts.h"
 #include "persistence/login/RealmRepository.h"
 
 
@@ -355,11 +353,7 @@ int main(int argc, char** argv)
     ///- Catch termination signals
     hook_signals();
 
-#ifdef ENABLE_SD3
-    static Script::Dispatcher scripts(&SD3::GetScriptHooks());
-#else
-    static Script::Dispatcher scripts(NULL);
-#endif
+    static Script::Dispatcher scripts(LegacyScriptHooks());
     ScriptHooks::Install(&scripts);
     CommandHooks::Install(&ChatHandler::GetCommandHooks());
     DbScriptHooks::Install(&ScriptMgr::GetDbScriptHooks());

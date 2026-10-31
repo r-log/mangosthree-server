@@ -3,6 +3,8 @@ set(SRC_GRP_MAIN
   AntiFreezeService.h
   CliService.cpp
   CliService.h
+  LegacyScripts.cpp
+  LegacyScripts.h
   Master.cpp
   Master.h
   Service.h
