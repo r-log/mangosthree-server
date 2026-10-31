@@ -207,6 +207,9 @@ enum ItemDynFlags
  */
 bool ItemCanGoIntoBag(ItemPrototype const* proto, ItemPrototype const* pBagProto);
 
+/// Whether the unit meets an item's use-target rule: a creature of the rule's entry, alive or dead as the rule says.
+bool IsFitToRequirements(ItemRequiredTarget const& target, Unit* pUnitTarget);
+
 class Item : public Object
 {
     public:

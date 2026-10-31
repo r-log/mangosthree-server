@@ -307,6 +307,101 @@ source_group("Tool" FILES ${SRC_GRP_TOOL})
 file(GLOB SRC_GRP_WORLD_HANDLERS WorldHandlers/*.cpp WorldHandlers/*.h)
 source_group("World\\Handlers" FILES ${SRC_GRP_WORLD_HANDLERS})
 
+set(DATA_SOURCES
+    Object/CharacterCache.cpp
+    Object/CharacterCache.h
+    Object/ItemEnchantmentMgr.cpp
+    Object/ItemEnchantmentMgr.h
+    Object/ItemPrototype.cpp
+    Object/ItemPrototype.h
+    Object/LivingWorldAnchorPolicy.h
+    Object/LootStore.cpp
+    Object/LootStore.h
+    Object/ObjectGuid.cpp
+    Object/ObjectMgr.cpp
+    Object/ObjectMgr.h
+    Object/ObjectMgrAreaTrigger.cpp
+    Object/ObjectMgrCreatures.cpp
+    Object/ObjectMgrDungeonFinder.cpp
+    Object/ObjectMgrGameObjectInfo.cpp
+    Object/ObjectMgrGameObjects.cpp
+    Object/ObjectMgrGameTele.cpp
+    Object/ObjectMgrGossipMenu.cpp
+    Object/ObjectMgrGraveyard.cpp
+    Object/ObjectMgrInstanceData.cpp
+    Object/ObjectMgrItems.cpp
+    Object/ObjectMgrLocaleStrings.cpp
+    Object/ObjectMgrLocales.cpp
+    Object/ObjectMgrNameCheck.cpp
+    Object/ObjectMgrPlayerInfo.cpp
+    Object/ObjectMgrQuestRelations.cpp
+    Object/ObjectMgrQuests.cpp
+    Object/ObjectMgrReputation.cpp
+    Object/ObjectMgrSpellData.cpp
+    Object/ObjectMgrTaxi.cpp
+    Object/ObjectMgrText.cpp
+    Object/ObjectMgrTrainerVendor.cpp
+    Object/TaxiDestinationsString.h
+    Object/TaxiRoute.h
+    Server/DB2Stores.cpp
+    Server/DB2Stores.h
+    Server/DB2Structure.h
+    Server/DB2Structure_reference.h
+    Server/DB2fmt.h
+    Server/DBCEnums.h
+    Server/DBCStores.cpp
+    Server/DBCStores.h
+    Server/DBCStructure.cpp
+    Server/DBCStructure.h
+    Server/DBCStructure_reference.h
+    Server/DBCfmt.h
+    Server/Path.h
+    Server/SharedDefines.h
+    Tools/Language.h
+    WorldHandlers/CreatureLinkingMgr.cpp
+    WorldHandlers/CreatureLinkingMgr.h
+    WorldHandlers/DisableMgr.cpp
+    WorldHandlers/DisableMgr.h
+    WorldHandlers/GameEventMgr.cpp
+    WorldHandlers/GameEventMgr.h
+    WorldHandlers/PoolManager.cpp
+    WorldHandlers/PoolManager.h
+    WorldHandlers/QuestDef.cpp
+    WorldHandlers/QuestDef.h
+    WorldHandlers/WaypointManager.cpp
+    WorldHandlers/WaypointManager.h
+    spells/auras/SpellAuraDefines.h
+)
+list(TRANSFORM DATA_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+foreach(_group SRC_GRP_OBJECT SRC_GRP_SERVER SRC_GRP_TOOL SRC_GRP_WORLD_HANDLERS SRC_GRP_SPELLS_AURAS)
+    list(REMOVE_ITEM ${_group} ${DATA_SOURCES})
+endforeach()
+
+add_library(data STATIC
+    ${SRC_GRP_DATA}
+    ${SRC_GRP_SPELLS_DATA}
+    ${DATA_SOURCES}
+)
+
+target_include_directories(data
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        Object
+        Server
+        Time
+        Tools
+        WorldHandlers
+)
+
+if(MSVC)
+    target_compile_options(data PRIVATE /permissive-)
+endif()
+
+target_link_libraries(data
+    PUBLIC
+        persistence
+)
+
 configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/AuctionHouseBot/ahbot.conf.dist)
 
 add_library(game STATIC
@@ -314,7 +409,6 @@ add_library(game STATIC
     ${SRC_GRP_BATTLEGROUND}
     ${SRC_GRP_CHAT_COMMANDS}
     ${SRC_GRP_COMBAT}
-    ${SRC_GRP_DATA}
     ${SRC_GRP_ENTITIES}
     ${SRC_GRP_ENTITIES_PLAYER}
     ${SRC_GRP_ENTITIES_PLAYER_COMBAT}
@@ -354,7 +448,6 @@ add_library(game STATIC
     ${SRC_GRP_SOCIAL}
     ${SRC_GRP_SPELLS}
     ${SRC_GRP_SPELLS_AURAS}
-    ${SRC_GRP_SPELLS_DATA}
     ${SRC_GRP_SPELLS_HANDLERS}
     ${SRC_GRP_SPELLS_PIPELINE}
     ${SRC_GRP_TIME}
@@ -394,13 +487,12 @@ target_include_directories(game
 )
 
 if(MSVC)
-    # Strict conformance: the compiler then checks non-dependent names in template bodies at
-    # definition time, as gcc and clang do, so the local build proves what the clang CI job proves.
     target_compile_options(game PRIVATE /permissive-)
 endif()
 
 target_link_libraries(game
     PUBLIC
+        data
         persistence
         terrain
         geometry

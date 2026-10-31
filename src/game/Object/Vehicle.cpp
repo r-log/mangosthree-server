@@ -65,64 +65,6 @@ uint32 VehicleMoveFlags2(VehicleEntry const& entry)
     return flags2;
 }
 
-void ObjectMgr::LoadVehicleAccessory()
-{
-    TableRead<VehicleAccessoryRow> read = VehicleAccessoryRepository::QueryVehicleAccessories();
-    if (read.Unreadable())
-    {
-        sLog.outError("Error loading `vehicle_accessory` table: %s\n", TableReadReason(read.status));
-        Log::WaitBeforeContinueIfNeed();
-        exit(1);
-    }
-
-    uint32 loaded = 0;
-    if (read.status == TableReadStatus::Empty)
-    {
-        sLog.outError("vehicle_accessory table is empty!\n");
-    }
-    else
-    {
-        m_vehicleAccessories.Clear();
-        BarGoLink bar(read.rows.size());
-        for (VehicleAccessoryRow const& row : read.rows)
-        {
-            bar.step();
-            VehicleAccessory accessory;
-            accessory.vehicleEntry = row.vehicleEntry;
-            accessory.seatId = row.seat;
-            accessory.passengerEntry = row.accessoryEntry;
-            m_vehicleAccessories.Add(accessory.vehicleEntry, accessory);
-        }
-        loaded = uint32(read.rows.size());
-    }
-
-    sLog.outString(">> Loaded %u vehicle accessories", loaded);
-    sLog.outString();
-
-    // Check content: every row read, in the order read, the rows of a vehicle already erased included
-    for (VehicleAccessoryRow const& row : read.rows)
-    {
-        if (!ObjectMgr::GetCreatureTemplate(row.vehicleEntry))
-        {
-            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where vehicle_entry is invalid, skip vehicle.", row.vehicleEntry, row.seat, row.accessoryEntry);
-            m_vehicleAccessories.Erase(row.vehicleEntry);
-            continue;
-        }
-        if (!ObjectMgr::GetCreatureTemplate(row.accessoryEntry))
-        {
-            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where accessory_entry is invalid, skip vehicle.", row.vehicleEntry, row.seat, row.accessoryEntry);
-            m_vehicleAccessories.Erase(row.vehicleEntry);
-            continue;
-        }
-        if (row.seat >= MAX_VEHICLE_SEAT)
-        {
-            sLog.outErrorDb("Table `vehicle_accessory` has entry (vehicle entry: %u, seat %u, passenger %u) where seat is invalid (must be between 0 and %u), skip vehicle.", row.vehicleEntry, row.seat, row.accessoryEntry, MAX_VEHICLE_SEAT - 1);
-            m_vehicleAccessories.Erase(row.vehicleEntry);
-            continue;
-        }
-    }
-}
-
 /*
  * Constructor of VehicleInfo
  *
