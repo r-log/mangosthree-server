@@ -39,7 +39,6 @@
 #include "Policies/Singleton.h"
 
 #include "Log.h"
-#include "MapManager.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
@@ -63,7 +62,6 @@
 #include <cstdarg>
 #include <limits>
 #include <set>
-#include "CorpseManager.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterSaveRepository.h"
 #include "persistence/characters/economy/AuctionRepository.h"
@@ -91,8 +89,6 @@ static_assert(int(STRING_ROW_LOCALES) == int(MAX_LOCALE) - 1, "a string row hold
 
 
 // Temporary startup accumulator for LivingWorld observability (written during LoadActiveEntities(NULL) only)
-static ObjectMgr::LivingWorldStartupStats s_livingWorldStats;
-static bool s_livingWorldStartupPass = false;
 
 /**
  * @brief Normalizes a player name to the server's canonical casing.
@@ -934,47 +930,6 @@ std::string ObjectMgr::GeneratePetName(uint32 entry)
 }
 
 /**
- * @brief Loads persistent corpse records from the character database.
- */
-void ObjectMgr::LoadCorpses()
-{
-    uint32 count = 0;
-    std::vector<CorpseDataRow> rows = CorpseRepository::QueryCorpses();
-
-    if (rows.empty())
-    {
-        BarGoLink bar(1);
-        bar.step();
-        sLog.outString(">> Loaded %u corpses", count);
-        sLog.outString();
-        return;
-    }
-
-    BarGoLink bar(rows.size());
-
-    for (CorpseDataRow const& row : rows)
-    {
-        bar.step();
-
-        uint32 guid = row.guid;
-
-        Corpse* corpse = new Corpse;
-        if (!corpse->LoadFromDB(guid, row))
-        {
-            delete corpse;
-            continue;
-        }
-
-        sCorpseManager.Add(corpse);
-
-        ++count;
-    }
-
-    sLog.outString(">> Loaded %u corpses", count);
-    sLog.outString();
-}
-
-/**
  * @brief Loads point-of-interest definitions used by NPC map markers.
  */
 void ObjectMgr::LoadPointsOfInterest()
@@ -1360,7 +1315,7 @@ int ObjectMgr::GetOrNewIndexForLocale(LocaleConstant loc)
  * @param entry The string entry id.
  * @param text The printf-style error text.
  */
-inline void _DoStringError(int32 entry, char const* text, ...)
+void LogTextEntryError(int32 entry, char const* text, ...)
 {
     MANGOS_ASSERT(text);
 
@@ -1472,12 +1427,12 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
 
         if (entry == 0)
         {
-            _DoStringError(start_value, "Table `%s` contain reserved entry 0, ignored.", table);
+            LogTextEntryError(start_value, "Table `%s` contain reserved entry 0, ignored.", table);
             continue;
         }
         else if (entry < start_value || entry >= end_value)
         {
-            _DoStringError(start_value, "Table `%s` contain entry %i out of allowed range (%d - %d), ignored.", table, entry, min_value, max_value);
+            LogTextEntryError(start_value, "Table `%s` contain entry %i out of allowed range (%d - %d), ignored.", table, entry, min_value, max_value);
             continue;
         }
 
@@ -1485,7 +1440,7 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
 
         if (!data.Content.empty())
         {
-            _DoStringError(entry, "Table `%s` contain data for already loaded entry  %i (from another table?), ignored.", table, entry);
+            LogTextEntryError(entry, "Table `%s` contain data for already loaded entry  %i (from another table?), ignored.", table, entry);
             continue;
         }
 
@@ -1524,25 +1479,25 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
 
             if (data.SoundId && !sSoundEntriesStore.LookupEntry(data.SoundId))
             {
-                _DoStringError(entry, "Entry %i in table `%s` has soundId %u but sound does not exist.", entry, table, data.SoundId);
+                LogTextEntryError(entry, "Entry %i in table `%s` has soundId %u but sound does not exist.", entry, table, data.SoundId);
                 data.SoundId = 0;
             }
 
             if (!GetLanguageDescByID(data.LanguageId))
             {
-                _DoStringError(entry, "Entry %i in table `%s` using Language %u but Language does not exist.", entry, table, uint32(data.LanguageId));
+                LogTextEntryError(entry, "Entry %i in table `%s` using Language %u but Language does not exist.", entry, table, uint32(data.LanguageId));
                 data.LanguageId = LANG_UNIVERSAL;
             }
 
             if (data.Type > CHAT_TYPE_ZONE_YELL)
             {
-                _DoStringError(entry, "Entry %i in table `%s` has Type %u but this Chat Type does not exist.", entry, table, data.Type);
+                LogTextEntryError(entry, "Entry %i in table `%s` has Type %u but this Chat Type does not exist.", entry, table, data.Type);
                 data.Type = CHAT_TYPE_SAY;
             }
 
             if (data.Emote && !sEmotesStore.LookupEntry(data.Emote))
             {
-                _DoStringError(entry, "Entry %i in table `%s` has Emote %u but emote does not exist.", entry, table, data.Emote);
+                LogTextEntryError(entry, "Entry %i in table `%s` has Emote %u but emote does not exist.", entry, table, data.Emote);
                 data.Emote = EMOTE_ONESHOT_NONE;
             }
         }
@@ -1587,7 +1542,7 @@ const char* ObjectMgr::GetMangosString(int32 entry, int locale_idx) const
         }
     }
 
-    _DoStringError(entry, "Entry %i not found but requested", entry);
+    LogTextEntryError(entry, "Entry %i not found but requested", entry);
 
     return "<error>";
 }
@@ -2663,152 +2618,6 @@ void ObjectMgr::LoadMailLevelRewards()
     sLog.outString(">> Loaded %u level dependent mail rewards,", count);
 }
 
-/* This function is supposed to take care of three things:
- *  1) Load Transports on Map or on Continents
- *  2) Load Active Npcs on Map or Continents
- *  3) Load Everything dependend on config setting LoadAllGridsOnMaps
- *
- *  This function is currently WIP, hence parts exist only as draft.
- */
-ObjectMgr::LivingWorldStartupStats ObjectMgr::LoadActiveEntities(Map* _map)
-{
-    // Special case on startup - load continents
-    if (!_map)
-    {
-        s_livingWorldStats = ObjectMgr::LivingWorldStartupStats();
-        s_livingWorldStartupPass = true;
-
-        uint32 continents[] = {0, 1, 369, 530, 571};
-
-        for (int i = 0; i < countof(continents); ++i)
-        {
-            _map = sMapMgr.FindMap(continents[i]);
-            if (!_map)
-            {
-                _map = sMapMgr.CreateMap(continents[i], NULL);
-            }
-
-            if (_map)
-            {
-                LoadActiveEntities(_map);
-            }
-            else
-            {
-                sLog.outError("ObjectMgr::LoadActiveEntities - Unable to create Map %u", continents[i]);
-            }
-        }
-
-        s_livingWorldStartupPass = false;
-        return s_livingWorldStats;
-    }
-
-    bool collectLivingWorldStats = s_livingWorldStartupPass;
-    bool forceLoad = sGameConfig.IsForceLoadMap(_map->GetId());
-
-    uint32 mapTransportCount = 0;
-    uint32 forceLoadRequests = 0;
-    uint32 uniqueGridCount = 0;
-    uint32 newlyLoaded = 0;
-    uint32 alreadyLoaded = 0;
-    uint32 activeCreatureGuids = 0;
-
-    std::set<std::pair<uint32, uint32> > uniqueGrids;
-
-    if (collectLivingWorldStats)
-    {
-        MapManager::TransportsByMapType::const_iterator transportMapItr = sMapMgr.m_TransportsByMap.find(_map->GetId());
-        if (transportMapItr != sMapMgr.m_TransportsByMap.end())
-        {
-            mapTransportCount = uint32(transportMapItr->second.size());
-        }
-
-        std::pair<ActiveCreatureGuidsOnMap::const_iterator, ActiveCreatureGuidsOnMap::const_iterator> activeBounds = m_activeCreatures.equal_range(_map->GetId());
-        for (ActiveCreatureGuidsOnMap::const_iterator itr = activeBounds.first; itr != activeBounds.second; ++itr)
-        {
-            ++activeCreatureGuids;
-        }
-    }
-
-    // Load active objects for _map
-    if (forceLoad)
-    {
-        for (CreatureDataMap::const_iterator itr = mCreatureDataMap.begin(); itr != mCreatureDataMap.end(); ++itr)
-        {
-            if (itr->second.mapid == _map->GetId())
-            {
-                if (collectLivingWorldStats)
-                {
-                    ++forceLoadRequests;
-                    GridPair gridPair = MaNGOS::ComputeGridPair(itr->second.posX, itr->second.posY);
-                    uniqueGrids.insert(std::make_pair(gridPair.x_coord, gridPair.y_coord));
-
-                    if (_map->IsLoaded(itr->second.posX, itr->second.posY))
-                    {
-                        ++alreadyLoaded;
-                    }
-                    else
-                    {
-                        ++newlyLoaded;
-                    }
-                }
-
-                _map->ForceLoadGrid(itr->second.posX, itr->second.posY);
-            }
-        }
-    }
-    else                                                    // Normal case - Load all npcs that are active
-    {
-        std::pair<ActiveCreatureGuidsOnMap::const_iterator, ActiveCreatureGuidsOnMap::const_iterator> bounds = m_activeCreatures.equal_range(_map->GetId());
-        for (ActiveCreatureGuidsOnMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
-        {
-            CreatureData const& data = mCreatureDataMap[itr->second];
-            if (collectLivingWorldStats)
-            {
-                ++forceLoadRequests;
-                GridPair gridPair = MaNGOS::ComputeGridPair(data.posX, data.posY);
-                uniqueGrids.insert(std::make_pair(gridPair.x_coord, gridPair.y_coord));
-
-                if (_map->IsLoaded(data.posX, data.posY))
-                {
-                    ++alreadyLoaded;
-                }
-                else
-                {
-                    ++newlyLoaded;
-                }
-            }
-
-            _map->ForceLoadGrid(data.posX, data.posY);
-        }
-    }
-
-    if (collectLivingWorldStats)
-    {
-        uniqueGridCount = uint32(uniqueGrids.size());
-
-        s_livingWorldStats.totalUniqueGrids += uniqueGridCount;
-        s_livingWorldStats.totalNewlyLoaded += newlyLoaded;
-        s_livingWorldStats.totalMapTransports += mapTransportCount;
-        if (forceLoad)
-        {
-            ++s_livingWorldStats.forcedMaps;
-        }
-
-        if (forceLoad)
-        {
-            sLog.outString("[LivingWorld] map %u: force-load=ON, creature-rows=%u, ForceLoadGrid-requests=%u, unique-grids=%u, newly-loaded=%u (explicit-locks-set), already-loaded=%u, extra-active-creatures=%u, map-transports=%u",
-                           _map->GetId(), forceLoadRequests, forceLoadRequests, uniqueGridCount, newlyLoaded, alreadyLoaded, activeCreatureGuids, mapTransportCount);
-        }
-        else
-        {
-            sLog.outString("[LivingWorld] map %u: force-load=OFF, extra-active-creatures=%u, ForceLoadGrid-requests=%u, unique-grids=%u, newly-loaded=%u (explicit-locks-set), already-loaded=%u, map-transports=%u",
-                           _map->GetId(), activeCreatureGuids, forceLoadRequests, uniqueGridCount, newlyLoaded, alreadyLoaded, mapTransportCount);
-        }
-    }
-
-    return ObjectMgr::LivingWorldStartupStats();
-}
-
 void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint8 type, uint32 maxcount, uint32 incrtime, uint32 extendedcost)
 {
     VendorItemData& vList = m_mCacheVendorItemMap[entry];
@@ -3281,209 +3090,6 @@ Quest const* GetQuestTemplateStore(uint32 entry)
 MangosStringLocale const* GetMangosStringData(int32 entry)
 {
     return sObjectMgr.GetMangosStringLocale(entry);
-}
-
-/**
- * @brief Evaluates whether a creature spawn matches the current search criteria.
- *
- * @param dataPair The creature data pair being tested.
- * @return true if the search can stop early; otherwise, false.
- */
-bool FindCreatureData::operator()(CreatureDataPair const& dataPair)
-{
-    // skip wrong entry ids
-    if (i_id && dataPair.second.id != i_id)
-    {
-        return false;
-    }
-
-    if (!i_anyData)
-    {
-        i_anyData = &dataPair;
-    }
-
-    // without player we can't find more stricted cases, so use fouded
-    if (!i_player)
-    {
-        return true;
-    }
-
-    // skip diff. map cases
-    if (dataPair.second.mapid != i_player->GetMapId())
-    {
-        return false;
-    }
-
-    float new_dist = i_player->Where().DistanceTo(Geometry::Vector2(dataPair.second.posX, dataPair.second.posY));
-
-    if (!i_mapData || new_dist < i_mapDist)
-    {
-        i_mapData = &dataPair;
-        i_mapDist = new_dist;
-    }
-
-    // skip not spawned (in any state),
-    uint16 pool_id = sPoolMgr.IsPartOfAPool<Creature>(dataPair.first);
-    if (pool_id && !i_player->GetMap()->GetPersistentState()->IsSpawnedPoolObject<Creature>(dataPair.first))
-    {
-        return false;
-    }
-
-    if (!i_spawnedData || new_dist < i_spawnedDist)
-    {
-        i_spawnedData = &dataPair;
-        i_spawnedDist = new_dist;
-    }
-
-    return false;
-}
-
-bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target /*=NULL*/)
-{
-    MangosStringLocale const* data = sObjectMgr.GetMangosStringLocale(entry);
-
-    if (!data)
-    {
-        _DoStringError(entry, "DoScriptText with source %s could not find text entry %i.", source->GetGuidStr().c_str(), entry);
-        return false;
-    }
-
-    if (data->SoundId)
-    {
-        if (data->Type == CHAT_TYPE_ZONE_YELL)
-        {
-            source->GetMap()->PlayDirectSoundToMap(data->SoundId, source->GetTerrain()->GetZoneId(source->Where().X(), source->Where().Y(), source->Where().Z()));
-        }
-        else if (data->Type == CHAT_TYPE_WHISPER || data->Type == CHAT_TYPE_BOSS_WHISPER)
-        {
-            // An error will be displayed for the text
-            if (Player const* targetPlayer = target ? target->ToPlayer() : NULL)
-            {
-                source->PlayDirectSound(data->SoundId, targetPlayer);
-            }
-        }
-        else
-        {
-            source->PlayDirectSound(data->SoundId);
-        }
-    }
-
-    if (data->Emote)
-    {
-        if (source->GetTypeId() == TYPEID_UNIT || source->GetTypeId() == TYPEID_PLAYER)
-        {
-            ((Unit*)source)->HandleEmote(data->Emote);
-        }
-        else
-        {
-            _DoStringError(entry, "DoDisplayText entry %i tried to process emote for invalid source %s", entry, source->GetGuidStr().c_str());
-            return false;
-        }
-    }
-
-    if ((data->Type == CHAT_TYPE_WHISPER || data->Type == CHAT_TYPE_BOSS_WHISPER) && (!target || target->GetTypeId() != TYPEID_PLAYER))
-    {
-        _DoStringError(entry, "DoDisplayText entry %i can not whisper without target unit (TYPEID_PLAYER).", entry);
-        return false;
-    }
-
-    source->MonsterText(data, target);
-    return true;
-}
-
-/**
- * @brief Gets the best matching creature spawn data found by the search.
- *
- * @return The selected creature data pair, or null if none matched.
- */
-CreatureDataPair const* FindCreatureData::GetResult() const
-{
-    if (i_spawnedData)
-    {
-        return i_spawnedData;
-    }
-
-    if (i_mapData)
-    {
-        return i_mapData;
-    }
-
-    return i_anyData;
-}
-
-/**
- * @brief Evaluates whether a gameobject spawn matches the current search criteria.
- *
- * @param dataPair The gameobject data pair being tested.
- * @return true if the search can stop early; otherwise, false.
- */
-bool FindGOData::operator()(GameObjectDataPair const& dataPair)
-{
-    // skip wrong entry ids
-    if (i_id && dataPair.second.id != i_id)
-    {
-        return false;
-    }
-
-    if (!i_anyData)
-    {
-        i_anyData = &dataPair;
-    }
-
-    // without player we can't find more stricted cases, so use fouded
-    if (!i_player)
-    {
-        return true;
-    }
-
-    // skip diff. map cases
-    if (dataPair.second.mapid != i_player->GetMapId())
-    {
-        return false;
-    }
-
-    float new_dist = i_player->Where().DistanceTo(Geometry::Vector2(dataPair.second.posX, dataPair.second.posY));
-
-    if (!i_mapData || new_dist < i_mapDist)
-    {
-        i_mapData = &dataPair;
-        i_mapDist = new_dist;
-    }
-
-    // skip not spawned (in any state)
-    uint16 pool_id = sPoolMgr.IsPartOfAPool<GameObject>(dataPair.first);
-    if (pool_id && !i_player->GetMap()->GetPersistentState()->IsSpawnedPoolObject<GameObject>(dataPair.first))
-    {
-        return false;
-    }
-
-    if (!i_spawnedData || new_dist < i_spawnedDist)
-    {
-        i_spawnedData = &dataPair;
-        i_spawnedDist = new_dist;
-    }
-
-    return false;
-}
-
-/**
- * @brief Gets the best matching gameobject spawn data found by the search.
- *
- * @return The selected gameobject data pair, or null if none matched.
- */
-GameObjectDataPair const* FindGOData::GetResult() const
-{
-    if (i_mapData)
-    {
-        return i_mapData;
-    }
-
-    if (i_spawnedData)
-    {
-        return i_spawnedData;
-    }
-
-    return i_anyData;
 }
 
 void ObjectMgr::LoadHotfixData()

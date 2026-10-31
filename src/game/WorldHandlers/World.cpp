@@ -579,7 +579,7 @@ void World::SetInitialWorldSettings()
     sObjectMgr.LoadPetLevelInfo();
 
     sLog.outString("Loading Player Corpses...");
-    sObjectMgr.LoadCorpses();
+    sCorpseManager.LoadCorpses();
 
     sLog.outString("Loading Player level dependent mail rewards...");
     sObjectMgr.LoadMailLevelRewards();
@@ -869,14 +869,9 @@ void World::SetInitialWorldSettings()
     uint32 nextGameEvent = sGameEventMgr.Initialize();
     m_timers[WUPDATE_EVENTS].SetInterval(nextGameEvent);    // depend on next event
 
-    // ToDo: requires fix after the latest updates
-    //sLog.outString("Loading grids for active creatures or transports...");
-    //sObjectMgr.LoadActiveEntities(NULL);
-    //sLog.outString();
-
     sLog.outString("Loading grids for active creatures or transports...");
     uint32 loadContinentsBegin = GameTime::GetGameTimeMS();
-    ObjectMgr::LivingWorldStartupStats lwStats = sObjectMgr.LoadActiveEntities(NULL);
+    MapManager::LivingWorldStartupStats lwStats = sMapMgr.LoadContinentActiveEntities();
     uint32 loadContinentsMs = GetMSTimeDiffToNow(loadContinentsBegin);
     sLog.outString("[LivingWorld] startup summary: maps-forced=%u, total-unique-grids=%u, total-newly-loaded=%u, total-map-transports=%u, LoadContinents=%u ms",
                    lwStats.forcedMaps, lwStats.totalUniqueGrids, lwStats.totalNewlyLoaded, lwStats.totalMapTransports, loadContinentsMs);

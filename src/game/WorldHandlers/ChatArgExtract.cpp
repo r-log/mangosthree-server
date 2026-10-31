@@ -40,6 +40,7 @@
 #include "AccountMgr.h"
 #include "DBCStores.h"
 #include "Util.h"
+#include "SpawnFinders.h"
 
 /**
  * Function skip all whitespaces in args string

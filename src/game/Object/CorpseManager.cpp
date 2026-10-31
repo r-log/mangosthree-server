@@ -33,6 +33,8 @@
 #include "MapManager.h"
 #include "ObjectMgr.h"
 #include "data/GameConfig.h"
+#include "persistence/characters/maps/CorpseRepository.h"
+#include "Utilities/ProgressBar.h"
 
 #include <ctime>
 #include <forward_list>
@@ -256,4 +258,45 @@ void CorpseManager::RemoveOldCorpses()
     {
         ConvertCorpseForPlayer(owner);
     }
+}
+
+/**
+ * @brief Loads persistent corpse records from the character database.
+ */
+void CorpseManager::LoadCorpses()
+{
+    uint32 count = 0;
+    std::vector<CorpseDataRow> rows = CorpseRepository::QueryCorpses();
+
+    if (rows.empty())
+    {
+        BarGoLink bar(1);
+        bar.step();
+        sLog.outString(">> Loaded %u corpses", count);
+        sLog.outString();
+        return;
+    }
+
+    BarGoLink bar(rows.size());
+
+    for (CorpseDataRow const& row : rows)
+    {
+        bar.step();
+
+        uint32 guid = row.guid;
+
+        Corpse* corpse = new Corpse;
+        if (!corpse->LoadFromDB(guid, row))
+        {
+            delete corpse;
+            continue;
+        }
+
+        Add(corpse);
+
+        ++count;
+    }
+
+    sLog.outString(">> Loaded %u corpses", count);
+    sLog.outString();
 }

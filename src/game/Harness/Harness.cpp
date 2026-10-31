@@ -166,7 +166,7 @@ namespace Harness
     void Runner::ResetGrids()
     {
         // Boot force-loads the grids of map 1's always-active creatures
-        // (ObjectMgr::LoadActiveEntities); a bare map skips their spawns but still loads
+        // (MapManager::LoadActiveEntities); a bare map skips their spawns but still loads
         // their terrain, vmap and mmap tiles, and those grids' unload timers start in real
         // time at boot. A run starting after a real-time delay that differs between two
         // launches would then see a boot-loaded grid near the scenario area unload at a

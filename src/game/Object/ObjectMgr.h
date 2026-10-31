@@ -159,6 +159,10 @@ struct AreaTrigger
 
 static_assert(MAX_DB_SCRIPT_STRING_ID < INT32_MAX, "Must scope with int32 range");
 
+/// Logs an error about a text entry in the log of the entry's range: the script library's, the event
+/// AI's, the core's or the database scripts'.
+void LogTextEntryError(int32 entry, char const* format, ...) ATTR_PRINTF(2, 3);
+
 struct MangosStringLocale
 {
     MangosStringLocale() : SoundId(0), Type(0), LanguageId(LANG_UNIVERSAL), Emote(0) { }
@@ -173,48 +177,8 @@ struct MangosStringLocale
 typedef std::unordered_map<uint32, CreatureData> CreatureDataMap;
 typedef CreatureDataMap::value_type CreatureDataPair;
 
-class FindCreatureData
-{
-    public:
-        FindCreatureData(uint32 id, Player* player) : i_id(id), i_player(player),
-            i_anyData(NULL), i_mapData(NULL), i_mapDist(0.0f), i_spawnedData(NULL), i_spawnedDist(0.0f) {}
-
-        bool operator()(CreatureDataPair const& dataPair);
-        CreatureDataPair const* GetResult() const;
-
-    private:
-        uint32 i_id;
-        Player* i_player;
-
-        CreatureDataPair const* i_anyData;
-        CreatureDataPair const* i_mapData;
-        float i_mapDist;
-        CreatureDataPair const* i_spawnedData;
-        float i_spawnedDist;
-};
-
 typedef std::unordered_map<uint32, GameObjectData> GameObjectDataMap;
 typedef GameObjectDataMap::value_type GameObjectDataPair;
-
-class FindGOData
-{
-    public:
-        FindGOData(uint32 id, Player* player) : i_id(id), i_player(player),
-            i_anyData(NULL), i_mapData(NULL), i_mapDist(0.0f), i_spawnedData(NULL), i_spawnedDist(0.0f) {}
-
-        bool operator()(GameObjectDataPair const& dataPair);
-        GameObjectDataPair const* GetResult() const;
-
-    private:
-        uint32 i_id;
-        Player* i_player;
-
-        GameObjectDataPair const* i_anyData;
-        GameObjectDataPair const* i_mapData;
-        float i_mapDist;
-        GameObjectDataPair const* i_spawnedData;
-        float i_spawnedDist;
-};
 
 typedef std::unordered_map<uint32, CreatureLocale> CreatureLocaleMap;
 typedef std::unordered_map<uint32, GameObjectLocale> GameObjectLocaleMap;
@@ -810,7 +774,6 @@ class ObjectMgr
         void LoadExplorationBaseXP();
         void LoadPetNames();
         void LoadPetNumber();
-        void LoadCorpses();
         void LoadFishingBaseSkillLevel();
 
         void LoadReputationRewardRate();
@@ -846,17 +809,6 @@ class ObjectMgr
         {
             LoadTrainers("npc_trainer", false);
         }
-
-        struct LivingWorldStartupStats
-        {
-            uint32 forcedMaps = 0;
-            uint32 totalUniqueGrids = 0;
-            uint32 totalNewlyLoaded = 0;
-            uint32 totalMapTransports = 0;
-        };
-
-        /// @param _map Map* of the map for which to load active entities. If NULL active entities on continents are loaded
-        LivingWorldStartupStats LoadActiveEntities(Map* _map);
 
         void LoadVehicleAccessory();
 
@@ -1551,9 +1503,6 @@ class ObjectMgr
 /// The spell-area condition check for `player`: whether it meets a condition, asked of the conditions
 /// the object manager loads.
 std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const* player);
-
-/// generic text function
- bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target = NULL);
 
 /// The display a creature of the template shows: the game event's model, then the spawn's override,
 /// then one of the template's models (a random one where it has several and the model data allows

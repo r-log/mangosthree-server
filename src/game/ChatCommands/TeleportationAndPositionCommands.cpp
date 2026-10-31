@@ -47,6 +47,7 @@
 #include "WorldSession.h"
 #include "MotionMaster.h"
 #include "persistence/world/spawns/SpawnRepository.h"
+#include "SpawnFinders.h"
 
 #ifdef _DEBUG_VMAPS
 #endif
