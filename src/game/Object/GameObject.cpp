@@ -31,6 +31,7 @@
 #include "Geometry/Quat.h"
 #include "QuestDef.h"
 #include "ObjectMgr.h"
+#include "Group.h"
 #include "PoolManager.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"
@@ -1336,7 +1337,7 @@ void GameObject::StopGroupLoot()
         return;
     }
 
-    if (Group* group = sObjectMgr.GetGroupById(m_groupLootId))
+    if (Group* group = sGroupRegistry.Find(m_groupLootId))
     {
         group->EndRoll();
     }
@@ -1363,7 +1364,7 @@ Player* GameObject::GetOriginalLootRecipient() const
 Group* GameObject::GetGroupLootRecipient() const
 {
     // original recipient group if set and not disbanded
-    return m_lootGroupRecipientId ? sObjectMgr.GetGroupById(m_lootGroupRecipientId) : NULL;
+    return m_lootGroupRecipientId ? sGroupRegistry.Find(m_lootGroupRecipientId) : NULL;
 }
 
 /**

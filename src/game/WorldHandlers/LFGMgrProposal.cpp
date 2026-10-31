@@ -42,6 +42,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "ObjectMgr.h"
+#include "social/GroupRegistry.h"
 #include "spells/auras/SpellAuras.h"
 #include "SharedDefines.h"
 #include "Util.h"
@@ -551,7 +552,7 @@ void LFGMgr::DetachFromGroup(Group* pGroup, ObjectGuid plrGuid)
 
     if (willDisband)
     {
-        sObjectMgr.RemoveGroup(pGroup);
+        sGroupRegistry.Remove(pGroup);
         delete pGroup;
     }
 }
@@ -605,7 +606,7 @@ bool LFGMgr::CreateDungeonGroup(LFGProposal* proposal)
     ObjectGuid const hostGuid = PickHostGroup(*proposal);
     if (!hostGuid.IsEmpty())
     {
-        pGroup = sObjectMgr.GetGroupById(hostGuid.GetCounter());
+        pGroup = sGroupRegistry.Find(hostGuid.GetCounter());
     }
 
     if (!pGroup)
@@ -640,7 +641,7 @@ bool LFGMgr::CreateDungeonGroup(LFGProposal* proposal)
             delete pGroup;
             return false;
         }
-        sObjectMgr.AddGroup(pGroup);
+        sGroupRegistry.Add(pGroup);
     }
 
     // From here on, lifecycle hooks fired by the removes/adds below must not
@@ -1598,7 +1599,7 @@ void LFGMgr::OnDungeonEncounterComplete(Map* pMap)
             continue;
         }
 
-        Group* pGroup = sObjectMgr.GetGroupById(itr->GetCounter());
+        Group* pGroup = sGroupRegistry.Find(itr->GetCounter());
         if (!pGroup)
         {
             continue;
@@ -1809,7 +1810,7 @@ void LFGMgr::FinishBootVote(ObjectGuid groupGuid, bool succeeded)
         }
     }
 
-    Group* pGroup = sObjectMgr.GetGroupById(groupGuid.GetCounter());
+    Group* pGroup = sGroupRegistry.Find(groupGuid.GetCounter());
     uint32 const votesNeeded = LFGBootLogic::RequiredVotes(pGroup && pGroup->isLFRGroup());
 
     // Broadcast BEFORE touching the group: this is what closes the popup on
@@ -1876,7 +1877,7 @@ void LFGMgr::FinishBootVote(ObjectGuid groupGuid, bool succeeded)
         if (!groupSurvived)
         {
             // group->Disband(); already disbanded in RemoveMember
-            sObjectMgr.RemoveGroup(pGroup);
+            sGroupRegistry.Remove(pGroup);
             delete pGroup;
             // RemoveMember sets the player's group pointer to NULL
         }
@@ -1946,7 +1947,7 @@ void LFGMgr::CancelBootVote(ObjectGuid groupGuid)
         }
     }
 
-    Group* pGroup = sObjectMgr.GetGroupById(groupGuid.GetCounter());
+    Group* pGroup = sGroupRegistry.Find(groupGuid.GetCounter());
     uint32 const votesNeeded = LFGBootLogic::RequiredVotes(pGroup && pGroup->isLFRGroup());
 
     for (proposalAnswerMap::const_iterator ansItr = boot.answers.begin();

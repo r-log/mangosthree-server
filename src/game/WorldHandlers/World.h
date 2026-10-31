@@ -52,6 +52,8 @@
 #include "data/ServerControl.h"
 #include "data/ResetSchedule.h"
 #include "SocialMgr.h"
+#include "social/ArenaTeamRegistry.h"
+#include "social/GroupRegistry.h"
 
 #include <map>
 #include <set>
@@ -324,6 +326,8 @@ class World : public WorldBroadcast, public ServerControl
         ResetSchedule m_resets;
 
         SocialMgr m_social;
+        GroupRegistry m_groups;
+        ArenaTeamRegistry m_arenaTeams;
 
 
         void ApplyAfterMapPhasePosts();

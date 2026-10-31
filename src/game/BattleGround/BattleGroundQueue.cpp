@@ -514,7 +514,7 @@ void BattleGroundQueue::RemovePlayer(ObjectGuid guid, bool decreaseInvitedCount)
     // if player leaves queue and he is invited to rated arena match, then he have to loose
     if (group->IsInvitedToBGInstanceGUID && group->IsRated && decreaseInvitedCount)
     {
-        ArenaTeam* at = sObjectMgr.GetArenaTeamById(group->ArenaTeamId);
+        ArenaTeam* at = sArenaTeamRegistry.Find(group->ArenaTeamId);
         if (at)
         {
             DEBUG_LOG("UPDATING memberLost's personal arena rating for %s by opponents rating: %u", guid.GetString().c_str(), group->OpponentsTeamRating);

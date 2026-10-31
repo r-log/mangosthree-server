@@ -46,6 +46,8 @@ set(REACH_RULES
     "data/ServerControl.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,session/SessionRegistry.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/WorldBroadcast.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,session/SessionRegistry.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "session/SessionRegistry.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "social/GroupRegistry.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,WorldHandlers/Group.h,WorldHandlers/MapPersistentStateMgr.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "social/ArenaTeamRegistry.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Object/ArenaTeam.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "entities/GroupUpdateFacts.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,proto/WorldPacket.h,WorldHandlers/Group.h"
     "spells/SpellCooldownMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,spells/auras/SpellAuras.h,spells/data/SpellMgr.h,proto/WorldPacket.h,spells/pipeline/Spell.h"
     "spells/SpellCooldownMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,spells/auras/SpellAuras.h,spells/data/SpellMgr.h,spells/pipeline/Spell.h,proto/WorldPacket.h,proto/Opcodes.h,Database/DatabaseEnv.h"

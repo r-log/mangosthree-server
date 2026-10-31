@@ -35,6 +35,7 @@
 #include "WorldSession.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "social/GroupRegistry.h"
 #include "Pet.h"
 #include "AchievementMgr.h"
 #include "Player.h"
@@ -246,7 +247,7 @@ void GroupHandlers::HandleGroupInviteResponse(WorldSession& session, WorldPacket
             }
             if (group->Create(group->GetLeaderGuid(), group->GetLeaderName()))
             {
-                sObjectMgr.AddGroup(group);
+                sGroupRegistry.Add(group);
             }
             else
             {

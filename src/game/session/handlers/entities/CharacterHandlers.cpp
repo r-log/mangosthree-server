@@ -39,6 +39,7 @@
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "social/ArenaTeamRegistry.h"
 #include "Pet.h"
 #include "DBCStores.h"
 #include "AchievementMgr.h"
@@ -655,7 +656,7 @@ void CharacterHandlers::HandleCharDelete(WorldSession& session, WorldPacket& rec
     }
 
     // is arena team captain
-    if (sObjectMgr.GetArenaTeamByCaptain(guid))
+    if (sArenaTeamRegistry.FindByCaptain(guid))
     {
         SendCharDeleteResult(&session, CHAR_DELETE_FAILED_ARENA_CAPTAIN);
         return;
@@ -737,7 +738,7 @@ void CharacterHandlers::HandleCharDeleteCallback(std::unique_ptr<SqlQueryHolder>
         return;
     }
 
-    if (sObjectMgr.GetArenaTeamByCaptain(guid))
+    if (sArenaTeamRegistry.FindByCaptain(guid))
     {
         SendCharDeleteResult(session, CHAR_DELETE_FAILED_ARENA_CAPTAIN);
         return;

@@ -490,6 +490,10 @@ set(STORE_FILES
     spells/data/SpellMgr.cpp
     entities/player/social/SocialMgr.h
     entities/player/social/SocialMgr.cpp
+    social/ArenaTeamRegistry.h
+    social/ArenaTeamRegistry.cpp
+    social/GroupRegistry.h
+    social/GroupRegistry.cpp
 )
 file(GLOB DATA_FILES LIST_DIRECTORIES false RELATIVE "${GAME_DIR}" "${GAME_DIR}/data/*.h" "${GAME_DIR}/data/*.cpp")
 list(APPEND STORE_FILES ${DATA_FILES})

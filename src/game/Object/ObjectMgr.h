@@ -535,10 +535,6 @@ class ObjectMgr
 
         typedef std::unordered_map<uint32, Item*> ItemMap;
 
-        typedef std::unordered_map<uint32, Group*> GroupMap;
-
-        typedef std::unordered_map<uint32, ArenaTeam*> ArenaTeamMap;
-
         typedef std::unordered_map<uint32, Quest*> QuestMap;
 
         typedef std::unordered_map<uint32, AreaTrigger> AreaTriggerMap;
@@ -551,19 +547,6 @@ class ObjectMgr
 
         void LoadGameobjectInfo();
         void AddGameobjectInfo(GameObjectInfo* goinfo);
-
-        void PackGroupIds();
-        Group* GetGroupById(uint32 id) const;
-        void AddGroup(Group* group);
-        void RemoveGroup(Group* group);
-
-        ArenaTeam* GetArenaTeamById(uint32 arenateamid) const;
-        ArenaTeam* GetArenaTeamByName(const std::string& arenateamname) const;
-        ArenaTeam* GetArenaTeamByCaptain(ObjectGuid guid) const;
-        void AddArenaTeam(ArenaTeam* arenaTeam);
-        void RemoveArenaTeam(uint32 Id);
-        ArenaTeamMap::iterator GetArenaTeamMapBegin() { return mArenaTeamMap.begin(); }
-        ArenaTeamMap::iterator GetArenaTeamMapEnd()   { return mArenaTeamMap.end(); }
 
         CreatureModelInfo const* GetCreatureModelRandomGender(uint32 display_id) const;
         uint32 GetCreatureModelAlternativeModel(uint32 modelId) const;
@@ -764,8 +747,6 @@ class ObjectMgr
         static InstanceTemplate const* GetInstanceTemplate(uint32 map);             ///< Lookup in the instance template store
 
         // Loading functions
-        void LoadArenaTeams();
-        void LoadGroups();
         void LoadQuests();
         void LoadQuestRelations()
         {
@@ -1439,9 +1420,6 @@ class ObjectMgr
 
         typedef std::multimap<uint32, CreatureModelRace> CreatureModelRaceMap;
         typedef std::pair<CreatureModelRaceMap::const_iterator, CreatureModelRaceMap::const_iterator> CreatureModelRaceMapBounds;
-
-        GroupMap            mGroupMap;
-        ArenaTeamMap        mArenaTeamMap;
 
         QuestAreaTriggerMap mQuestAreaTriggerMap;
         TavernAreaTriggerSet mTavernAreaTriggerSet;

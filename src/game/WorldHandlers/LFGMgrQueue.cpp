@@ -36,6 +36,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "ObjectMgr.h"
+#include "social/GroupRegistry.h"
 #include "SharedDefines.h"
 #include "WorldSession.h"
 #include "data/GameConfig.h"
@@ -468,7 +469,7 @@ void LFGMgr::OnGroupMemberAdded(ObjectGuid groupGuid, ObjectGuid playerGuid)
     // A roster change invalidates anything this group had pending.
     if (m_roleCheckMap.count(groupGuid))
     {
-        if (Group* pGroup = sObjectMgr.GetGroupById(groupGuid.GetCounter()))
+        if (Group* pGroup = sGroupRegistry.Find(groupGuid.GetCounter()))
         {
             PerformRoleCheck(NULL, pGroup, 0);   // aborts the check and notifies everyone
         }
@@ -504,7 +505,7 @@ void LFGMgr::OnGroupMemberRemoved(ObjectGuid groupGuid, ObjectGuid playerGuid,
 
     if (m_roleCheckMap.count(groupGuid))
     {
-        if (Group* pGroup = sObjectMgr.GetGroupById(groupGuid.GetCounter()))
+        if (Group* pGroup = sGroupRegistry.Find(groupGuid.GetCounter()))
         {
             PerformRoleCheck(NULL, pGroup, 0);
         }

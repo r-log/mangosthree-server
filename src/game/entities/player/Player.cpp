@@ -3447,7 +3447,7 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
     // the player was uninvited already on logout so just remove from group
     if (std::optional<uint32> groupId = CharacterDeleteRepository::DeleteGroupId(holder.get()))
     {
-        if (Group* group = sObjectMgr.GetGroupById(*groupId))
+        if (Group* group = sGroupRegistry.Find(*groupId))
         {
             RemoveFromGroup(group, playerguid, playerguid, "");
         }

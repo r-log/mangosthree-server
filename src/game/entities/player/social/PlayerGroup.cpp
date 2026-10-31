@@ -76,7 +76,7 @@ void Player::UninviteFromGroup()
         if (group->IsCreated())
         {
             group->Disband(true);
-            sObjectMgr.RemoveGroup(group);
+            sGroupRegistry.Remove(group);
         }
         else
         {
@@ -109,7 +109,7 @@ void Player::RemoveFromGroup(Group* group, ObjectGuid guid, ObjectGuid kicker,
         else if (group->RemoveMember(guid, 0) <= 1)
         {
             // group->Disband(); already disbanded in RemoveMember
-            sObjectMgr.RemoveGroup(group);
+            sGroupRegistry.Remove(group);
             delete group;
             // RemoveMember sets the player's group pointer to NULL
         }

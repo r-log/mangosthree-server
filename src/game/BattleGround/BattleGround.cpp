@@ -852,8 +852,8 @@ void BattleGround::RemovePlayerAtLeave(ObjectGuid guid, bool Transport, bool Sen
                 if (isRated() && GetStatus() == STATUS_IN_PROGRESS)
                 {
                     // left a rated match while the encounter was in progress, consider as loser
-                    ArenaTeam* winner_arena_team = sObjectMgr.GetArenaTeamById(GetArenaTeamIdForTeam(GetOtherTeam(team)));
-                    ArenaTeam* loser_arena_team = sObjectMgr.GetArenaTeamById(GetArenaTeamIdForTeam(team));
+                    ArenaTeam* winner_arena_team = sArenaTeamRegistry.Find(GetArenaTeamIdForTeam(GetOtherTeam(team)));
+                    ArenaTeam* loser_arena_team = sArenaTeamRegistry.Find(GetArenaTeamIdForTeam(team));
                     if (winner_arena_team && loser_arena_team)
                     {
                         loser_arena_team->MemberLost(plr, winner_arena_team->GetRating());
@@ -876,8 +876,8 @@ void BattleGround::RemovePlayerAtLeave(ObjectGuid guid, bool Transport, bool Sen
             if (isRated() && GetStatus() == STATUS_IN_PROGRESS)
             {
                 // left a rated match while the encounter was in progress, consider as loser
-                ArenaTeam* others_arena_team = sObjectMgr.GetArenaTeamById(GetArenaTeamIdForTeam(GetOtherTeam(team)));
-                ArenaTeam* players_arena_team = sObjectMgr.GetArenaTeamById(GetArenaTeamIdForTeam(team));
+                ArenaTeam* others_arena_team = sArenaTeamRegistry.Find(GetArenaTeamIdForTeam(GetOtherTeam(team)));
+                ArenaTeam* players_arena_team = sArenaTeamRegistry.Find(GetArenaTeamIdForTeam(team));
                 if (others_arena_team && players_arena_team)
                 {
                     players_arena_team->OfflineMemberLost(guid, others_arena_team->GetRating());

@@ -217,7 +217,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
             continue;
         }
 
-        if (ArenaTeam* at = sObjectMgr.GetArenaTeamById(arena_team_id))
+        if (ArenaTeam* at = sArenaTeamRegistry.Find(arena_team_id))
             if (at->HaveMember(GetObjectGuid()))
             {
                 continue;

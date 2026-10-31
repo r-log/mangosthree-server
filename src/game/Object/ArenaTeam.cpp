@@ -28,6 +28,7 @@
 #include <map>
 #include "WorldPacket.h"
 #include "ObjectMgr.h"
+#include "social/ArenaTeamRegistry.h"
 #include "ObjectGuid.h"
 #include "ArenaTeam.h"
 #include "CharacterCache.h"
@@ -116,7 +117,7 @@ bool ArenaTeam::Create(ObjectGuid captainGuid, ArenaType type, std::string arena
     {
         return false;
     }
-    if (sObjectMgr.GetArenaTeamByName(arenaTeamName))       // arena team with this name already exist
+    if (sArenaTeamRegistry.FindByName(arenaTeamName))       // arena team with this name already exist
     {
         return false;
     }
@@ -418,7 +419,7 @@ void ArenaTeam::Disband(WorldSession* session)
     }
 
     ArenaTeamRepository::Disband(m_TeamId);
-    sObjectMgr.RemoveArenaTeam(m_TeamId);
+    sArenaTeamRegistry.Remove(m_TeamId);
 }
 
 void ArenaTeam::Roster(WorldSession* session)
@@ -712,8 +713,8 @@ void ArenaTeam::FinishGame(int32 mod)
     m_stats.games_season += 1;
     // update team's rank
     m_stats.rank = 1;
-    ObjectMgr::ArenaTeamMap::const_iterator i = sObjectMgr.GetArenaTeamMapBegin();
-    for (; i != sObjectMgr.GetArenaTeamMapEnd(); ++i)
+    ArenaTeamRegistry::ArenaTeamMap::const_iterator i = sArenaTeamRegistry.All().begin();
+    for (; i != sArenaTeamRegistry.All().end(); ++i)
     {
         if (i->second->GetType() == this->m_Type && i->second->GetStats().rating > m_stats.rating)
         {

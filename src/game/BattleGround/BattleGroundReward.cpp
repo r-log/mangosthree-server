@@ -209,8 +209,8 @@ void BattleGround::EndBattleGround(Team winner)
     {
         if (winner != TEAM_NONE)
         {
-            winner_arena_team = sObjectMgr.GetArenaTeamById(GetArenaTeamIdForTeam(winner));
-            loser_arena_team = sObjectMgr.GetArenaTeamById(GetArenaTeamIdForTeam(GetOtherTeam(winner)));
+            winner_arena_team = sArenaTeamRegistry.Find(GetArenaTeamIdForTeam(winner));
+            loser_arena_team = sArenaTeamRegistry.Find(GetArenaTeamIdForTeam(GetOtherTeam(winner)));
             if (winner_arena_team && loser_arena_team)
             {
                 loser_rating = loser_arena_team->GetStats().rating;

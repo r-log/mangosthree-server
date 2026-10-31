@@ -183,6 +183,8 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_social(sPlayerRegistry)
     SessionRegistry::Install(&m_sessions);
     ResetSchedule::Install(&m_resets);
     SocialMgr::Install(&m_social);
+    GroupRegistry::Install(&m_groups);
+    ArenaTeamRegistry::Install(&m_arenaTeams);
     WorldBroadcast::Install(this);
     ServerControl::Install(this);
     InstallGuidOverflowHandler(&StopOnGuidOverflow);
@@ -222,6 +224,18 @@ World::~World()
     if (social != &m_social)
     {
         SocialMgr::Install(social);
+    }
+
+    GroupRegistry* groups = GroupRegistry::Install(NULL);
+    if (groups != &m_groups)
+    {
+        GroupRegistry::Install(groups);
+    }
+
+    ArenaTeamRegistry* arenaTeams = ArenaTeamRegistry::Install(NULL);
+    if (arenaTeams != &m_arenaTeams)
+    {
+        ArenaTeamRegistry::Install(arenaTeams);
     }
 
     ResetSchedule const* resets = ResetSchedule::Install(NULL);
@@ -334,7 +348,7 @@ void World::SetInitialWorldSettings()
     sMapPersistentStateMgr.PackInstances();
 
     sLog.outString("Packing groups...");
-    sObjectMgr.PackGroupIds();                              // must be after CleanupInstances
+    GroupRegistry::PackIds();                               // must be after CleanupInstances
 
     ///- Init highest guids before any guid using table loading to prevent using not initialized guids in some code.
     sObjectMgr.SetHighestGuids();                           // must be after packing instances
@@ -650,10 +664,10 @@ void World::SetInitialWorldSettings()
     sGuildMgr.LoadGuilds();
 
     sLog.outString("Loading ArenaTeams...");
-    sObjectMgr.LoadArenaTeams();
+    m_arenaTeams.Load();
 
     sLog.outString("Loading Groups...");
-    sObjectMgr.LoadGroups();
+    m_groups.Load();
 
     sCalendarMgr.LoadCalendarsFromDB();
 
@@ -1926,7 +1940,7 @@ void World::ResetCurrencyWeekCounts()
             itr->second->GetPlayer()->ResetCurrencyWeekCounts();
         }
 
-    for(ObjectMgr::ArenaTeamMap::iterator titr = sObjectMgr.GetArenaTeamMapBegin(); titr != sObjectMgr.GetArenaTeamMapEnd(); ++titr)
+    for (ArenaTeamRegistry::ArenaTeamMap::const_iterator titr = m_arenaTeams.All().begin(); titr != m_arenaTeams.All().end(); ++titr)
     {
         if (ArenaTeam * at = titr->second)
         {

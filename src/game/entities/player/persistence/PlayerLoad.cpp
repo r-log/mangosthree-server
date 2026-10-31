@@ -117,7 +117,7 @@ void Player::_LoadArenaTeamInfo(std::vector<LoginArenaTeamInfoRow> const& rows)
         uint32 wons_season     = row.wonsSeason;
         uint32 personal_rating = row.personalRating;
 
-        ArenaTeam* aTeam = sObjectMgr.GetArenaTeamById(arenateamid);
+        ArenaTeam* aTeam = sArenaTeamRegistry.Find(arenateamid);
         if (!aTeam)
         {
             sLog.outError("Player::_LoadArenaTeamInfo: couldn't load arenateam %u", arenateamid);
@@ -1092,7 +1092,7 @@ void Player::_LoadGroup(std::optional<uint32> const& memberGroupId)
     {
         uint32 groupId = *memberGroupId;
 
-        if (Group* group = sObjectMgr.GetGroupById(groupId))
+        if (Group* group = sGroupRegistry.Find(groupId))
         {
             uint8 subgroup = group->GetMemberGroup(GetObjectGuid());
             SetGroup(group, subgroup);

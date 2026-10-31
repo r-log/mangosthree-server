@@ -226,6 +226,9 @@ source_group("Session\\Packets\\Quests" FILES ${SRC_GRP_SESSION_PACKETS_QUESTS})
 file(GLOB SRC_GRP_SESSION_PACKETS_SPELLS session/packets/spells/*.cpp session/packets/spells/*.h)
 source_group("Session\\Packets\\Spells" FILES ${SRC_GRP_SESSION_PACKETS_SPELLS})
 
+file(GLOB SRC_GRP_SOCIAL social/*.cpp social/*.h)
+source_group("Social" FILES ${SRC_GRP_SOCIAL})
+
 file(GLOB SRC_GRP_SPELLS spells/*.cpp spells/*.h)
 source_group("Spells" FILES ${SRC_GRP_SPELLS})
 
@@ -329,6 +332,7 @@ add_library(game STATIC
     ${SRC_GRP_SESSION_PACKETS_ENTITIES}
     ${SRC_GRP_SESSION_PACKETS_QUESTS}
     ${SRC_GRP_SESSION_PACKETS_SPELLS}
+    ${SRC_GRP_SOCIAL}
     ${SRC_GRP_SPELLS}
     ${SRC_GRP_SPELLS_AURAS}
     ${SRC_GRP_SPELLS_DATA}

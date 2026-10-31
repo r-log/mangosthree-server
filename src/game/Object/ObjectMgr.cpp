@@ -44,7 +44,6 @@
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
 #include "Group.h"
-#include "ArenaTeam.h"
 #include "CharacterCache.h"
 #include "ProgressBar.h"
 #include "Language.h"
@@ -269,17 +268,6 @@ ObjectMgr::~ObjectMgr()
         }
     }
 
-    // free objects
-    for (GroupMap::iterator itr = mGroupMap.begin(); itr != mGroupMap.end(); ++itr)
-    {
-        delete itr->second;
-    }
-
-    for (ArenaTeamMap::iterator itr = mArenaTeamMap.begin(); itr != mArenaTeamMap.end(); ++itr)
-    {
-        delete itr->second;
-    }
-
     for (CacheVendorItemMap::iterator itr = m_mCacheVendorTemplateItemMap.begin(); itr != m_mCacheVendorTemplateItemMap.end(); ++itr)
     {
         itr->second.Clear();
@@ -294,56 +282,6 @@ ObjectMgr::~ObjectMgr()
     {
         itr->second.Clear();
     }
-}
-
-/**
- * @brief Finds a loaded group by its identifier.
- *
- * @param id The group id.
- * @return The matching group, or null if not found.
- */
-Group* ObjectMgr::GetGroupById(uint32 id) const
-{
-    GroupMap::const_iterator itr = mGroupMap.find(id);
-    if (itr != mGroupMap.end())
-    {
-        return itr->second;
-    }
-
-    return NULL;
-}
-
-ArenaTeam* ObjectMgr::GetArenaTeamById(uint32 arenateamid) const
-{
-    ArenaTeamMap::const_iterator itr = mArenaTeamMap.find(arenateamid);
-    if (itr != mArenaTeamMap.end())
-    {
-        return itr->second;
-    }
-
-    return NULL;
-}
-
-ArenaTeam* ObjectMgr::GetArenaTeamByName(const std::string& arenateamname) const
-{
-    for (ArenaTeamMap::const_iterator itr = mArenaTeamMap.begin(); itr != mArenaTeamMap.end(); ++itr)
-        if (itr->second->GetName() == arenateamname)
-        {
-            return itr->second;
-        }
-
-    return NULL;
-}
-
-ArenaTeam* ObjectMgr::GetArenaTeamByCaptain(ObjectGuid guid) const
-{
-    for (ArenaTeamMap::const_iterator itr = mArenaTeamMap.begin(); itr != mArenaTeamMap.end(); ++itr)
-        if (itr->second->GetCaptainGuid() == guid)
-        {
-            return itr->second;
-        }
-
-    return NULL;
 }
 
 
@@ -976,57 +914,6 @@ void ObjectMgr::LoadTavernAreaTriggers()
     }
 
     sLog.outString(">> Loaded %u tavern triggers", count);
-    sLog.outString();
-}
-
-/**
- * @brief Renumbers group ids into a compact sequential range.
- */
-void ObjectMgr::PackGroupIds()
-{
-    // this routine renumbers groups in such a way so they start from 1 and go up
-
-    // obtain set of all groups
-    std::set<uint32> groupIds;
-
-    // all valid ids are in the instance table
-    // any associations to ids not in this table are assumed to be
-    // cleaned already in CleanupInstances
-    std::vector<GroupIdRow> rows = GroupRepository::QueryGroupIds();
-    if (!rows.empty())
-    {
-        for (GroupIdRow const& row : rows)
-        {
-            uint32 id = row.groupId;
-
-            if (id == 0)
-            {
-                GroupRepository::DeleteInvalidGroup(id);
-                continue;
-            }
-
-            groupIds.insert(id);
-        }
-    }
-
-    BarGoLink bar(groupIds.size() + 1);
-    bar.step();
-
-    uint32 groupId = 1;
-    // we do assume std::set is sorted properly on integer value
-    for (std::set<uint32>::iterator i = groupIds.begin(); i != groupIds.end(); ++i)
-    {
-        if (*i != groupId)
-        {
-            // remap group id
-            GroupRepository::RenumberGroup(groupId, *i);
-        }
-
-        ++groupId;
-        bar.step();
-    }
-
-    sLog.outString(">> Group Ids remapped, next group id is %u", groupId);
     sLog.outString();
 }
 
@@ -3538,36 +3425,6 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     }
 
     return true;
-}
-
-/**
- * @brief Registers a loaded group in the object manager.
- *
- * @param group The group to add.
- */
-void ObjectMgr::AddGroup(Group* group)
-{
-    mGroupMap[group->GetId()] = group ;
-}
-
-/**
- * @brief Unregisters a loaded group from the object manager.
- *
- * @param group The group to remove.
- */
-void ObjectMgr::RemoveGroup(Group* group)
-{
-    mGroupMap.erase(group->GetId());
-}
-
-void ObjectMgr::AddArenaTeam(ArenaTeam* arenaTeam)
-{
-    mArenaTeamMap[arenaTeam->GetId()] = arenaTeam;
-}
-
-void ObjectMgr::RemoveArenaTeam(uint32 Id)
-{
-    mArenaTeamMap.erase(Id);
 }
 
 // Functions for scripting access

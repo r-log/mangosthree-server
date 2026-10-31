@@ -38,14 +38,13 @@ These directories **dissolve**:
   groups to social; the threat managers are in `combat/`. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 305 include lines go against the table.
+**Today:** 275 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 127 | `WorldPacket.h` 79, `Opcodes.h` 47 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
 | domain -> session | 82 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
-| any -> app | 26 | `World.h`: scripts 10, session 7, domain 5, data 3, foundation 1 | `Creature.cpp`, `WorldGateway.cpp`, `ObjectMgr.cpp` |
-| data -> domain | 58 | `MapManager.h` 5, `MapPersistentStateMgr.h` 5, `SpellMgr.h` 5, `Creature.h` 5 | `ObjectMgr.cpp`, `GameEventMgr.cpp`, `CreatureLinkingMgr.cpp` |
+| data -> domain | 54 | `MapManager.h` 5, `SpellMgr.h` 5, `Creature.h` 5, `Player.h` 4 | `ObjectMgr.cpp`, `GameEventMgr.cpp`, `CreatureLinkingMgr.cpp` |
 | rest | 12 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 3; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` -> `WorldPacket.h` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
 
 The domain directories are peers. Include lines that cross between them are allowed, but they cannot spread: they are
@@ -226,7 +225,7 @@ mangosd installs, and a dungeon records the kill credited to a player itself (`D
 
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
-see. The counters are **ratchets against regression only, not finish lines**: the method counts (ctest `player_methods`, `unit_methods`, `world_session_methods` and `object_mgr_methods`, `method_count.py --all --gate` at Player 908, Unit 675, WorldSession 153, ObjectMgr 255, lowered in the PR that cuts them), R1, M1,
+see. The counters are **ratchets against regression only, not finish lines**: the method counts (ctest `player_methods`, `unit_methods`, `world_session_methods` and `object_mgr_methods`, `method_count.py --all --gate` at Player 908, Unit 675, WorldSession 153, ObjectMgr 242, lowered in the PR that cuts them), R1, M1,
 the downcast counts (ctest `player_downcasts`, `creature_downcasts` and `pet_downcasts`, `downcast_count.py --gate` at
 0 C-style casts in `src/game`; ctest `total_downcasts` at 518, the
 C-style casts, the `static_cast`s and the calls of the checked downcasts `ToPlayer()`, `ToCreature()` and `ToPet()`
@@ -407,7 +406,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 2 | domain -> session: 82 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` is included by nothing below app. `GameConfig` holds the configuration whole (the data path, the force-loaded maps and the `.mmap` switch included), `session/SessionRegistry` the sessions, `data/WorldBroadcast` what is told every client, `data/ServerControl` the operator's handle and the stop request, and `data/ResetSchedule` the periodic reset times; a guid generator that runs out calls the overflow handler the world installs (`ObjectGuid.h`), and a character delete refreshes the realm character count itself. The layout gate holds it: a new line fails | closed (#143) |
 | 4 | `ScriptMgr.h` and `Chat.h` included below scripts 0 times (`Chat.h` 23 times when #83 began): a map runs its database script steps and the domain starts its events through `data/DbScriptHooks`, which `mangosd` installs; the session builds the chat packets and system messages, the domain builds its chat packets through `data/ChatPacketBuilder` and reports a player's system messages as a client fact, and the GM commands are reached through `data/CommandHooks` | closed for the includes (#83); the domain's chat packets become facts with row 1 |
-| 5 | data -> domain: 58 lines, in the loaders and managers that act on live objects; `ObjectMgr.h` reaches no domain header (its `CheckHeaderReach` row) | #121, when content needs it |
+| 5 | data -> domain: 54 lines, in the loaders and managers that act on live objects (the groups and arena teams moved out to the `social/` registries); `ObjectMgr.h` reaches no domain header (its `CheckHeaderReach` row) | #121, when content needs it |
 | 6 | `game/movement/` includes nothing above motion (0 lines) | closed (#81): `CheckMotionBoundary` covers `src/motion` and `game/movement/` |
 | 7 | `PlayerDump` and `CharacterDatabaseCleaner` (7 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
 | 8 | 0 database calls outside persistence | closed: `CheckDatabaseCalls` keeps it at 0 |
@@ -509,7 +508,7 @@ RULES = [
  (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
  (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|Path\.|BareMap|Weather)', 'maps'),
  (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
- (r'^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),
+ (r'^game/social/|^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),
  (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
  (r'^game/Object/(AuctionHouseMgr|LootMgr|ItemEnchantmentMgr)|^game/WorldHandlers/Skill(Discovery|ExtraItems)', 'economy'),
  (r'^game/(entities|Object|MotionGenerators)/|^game/WorldHandlers/Achievement', 'entities')]
