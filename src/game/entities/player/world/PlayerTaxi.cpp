@@ -55,7 +55,7 @@ void PlayerTaxi::InitTaxiNodes(uint32 race, uint32 chrClass, uint8 level)
 {
     InitTaxiNodesForClass(chrClass);
     InitTaxiNodesForRace(race);
-    InitTaxiNodesForFaction(Player::TeamForRace(race));
+    InitTaxiNodesForFaction(TeamForRace(race));
     InitTaxiNodesForLvl(level);
 }
 

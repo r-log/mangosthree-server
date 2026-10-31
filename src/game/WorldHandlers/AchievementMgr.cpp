@@ -842,7 +842,7 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
                     if (achievIdByArenaSlot[j] == achievement->ID)
                     {
                         BattleGround* bg = GetPlayer()->GetBattleGround();
-                        if (!bg || !bg->isArena() || ArenaTeam::GetSlotByType(bg->GetArenaType()) != j)
+                        if (!bg || !bg->isArena() || GetArenaSlotByType(bg->GetArenaType()) != j)
                         {
                             notfit = true;
                         }

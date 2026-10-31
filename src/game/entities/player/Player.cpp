@@ -3899,31 +3899,6 @@ void Player::SetCinematicFlyover(std::unique_ptr<CinematicFlyover> flyover)
 }
 
 /**
- * @brief Gets the faction team associated with a race.
- *
- * @param race The race identifier to evaluate.
- * @return The team assigned to the race.
- */
-Team Player::TeamForRace(uint8 race)
-{
-    ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(race);
-    if (!rEntry)
-    {
-        sLog.outError("Race %u not found in DBC: wrong DBC files?", uint32(race));
-        return ALLIANCE;
-    }
-
-    switch (rEntry->BaseLanguage)
-    {
-        case 7: return ALLIANCE;
-        case 1: return HORDE;
-    }
-
-    sLog.outError("Race %u have wrong teamid %u in DBC: wrong DBC files?", uint32(race), rEntry->BaseLanguage);
-    return TEAM_NONE;
-}
-
-/**
  * @brief Gets the faction template associated with a race.
  *
  * @param race The race identifier to evaluate.

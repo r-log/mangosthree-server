@@ -37,6 +37,7 @@
 #include "Server/WorldSession.h"
 #include "entities/player/PlayerRegistry.h"
 #include "Object/CharacterCache.h"
+#include "Server/DBCStores.h"
 #include "entities/player/social/SocialMgr.h"
 
 /**
@@ -86,7 +87,7 @@ void ContactHandlers::HandleAddFriend(WorldSession& session, WorldPacket& recv_d
         return;
     }
 
-    CompleteAddFriend(session, cached->guid, Player::TeamForRace(cached->race), friendNote);
+    CompleteAddFriend(session, cached->guid, TeamForRace(cached->race), friendNote);
 }
 
 /**

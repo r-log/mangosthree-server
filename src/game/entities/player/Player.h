@@ -230,24 +230,6 @@ enum ActionButtonUpdateState
     ACTIONBUTTON_DELETED        = 3
 };
 
-/**
- * @brief Action button type enumeration
- */
-enum ActionButtonType
-{
-    ACTION_BUTTON_SPELL = 0x00,                                   ///< Spell button
-    ACTION_BUTTON_C = 0x01,                                       ///< Click button
-    ACTION_BUTTON_EQSET = 0x20,
-    ACTION_BUTTON_EXPANDABLE = 0x30,
-    ACTION_BUTTON_MACRO = 0x40,                                   ///< Macro button
-    ACTION_BUTTON_CMACRO = ACTION_BUTTON_C | ACTION_BUTTON_MACRO, ///< Click macro button
-    ACTION_BUTTON_ITEM = 0x80                                     ///< Item button
-};
-
-#define ACTION_BUTTON_ACTION(X) (uint32(X) & 0x00FFFFFF)
-#define ACTION_BUTTON_TYPE(X)   ((uint32(X) & 0xFF000000) >> 24)
-#define MAX_ACTION_BUTTON_ACTION_VALUE (0x00FFFFFF+1)
-
 // Structure to hold action button information
 struct ActionButton
 {
@@ -279,17 +261,7 @@ struct ActionButton
     }
 };
 
-// some action button indexes used in code or clarify structure
-enum ActionButtonIndex
-{
-    ACTION_BUTTON_SHAMAN_TOTEMS_BAR = 132,
-};
-
-#define  MAX_ACTION_BUTTONS     144                         // checked in 3.2.0
-
 typedef std::map<uint8, ActionButton> ActionButtonList;
-
-// GlyphUpdateState and Glyph struct moved to GlyphMgr.h (2026-05-12).
 
 // Structure to hold PvP info
 struct PvPInfo
@@ -2298,7 +2270,6 @@ class Player : public Unit
             m_cinematic = cine;
         }
 
-        static bool IsActionButtonDataValid(uint8 button, uint32 action, uint8 type, Player* player, bool msg = true);
         ActionButton* addActionButton(uint8 spec, uint8 button, uint32 action, uint8 type);
         void removeActionButton(uint8 spec, uint8 button);
         void SendInitialActionButtons() const;
@@ -2839,9 +2810,6 @@ class Player : public Unit
 
         // Check area exploration and outdoor status
         void CheckAreaExploreAndOutdoor();
-
-        // Get the team for a specific race
-        static Team TeamForRace(uint8 race);
 
         // Get the player's team
         Team GetTeam() const { return m_team; }

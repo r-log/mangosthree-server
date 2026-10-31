@@ -29,7 +29,6 @@
  */
 
 #include "ObjectMgr.h"
-#include "Player.h"
 #include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
@@ -431,7 +430,7 @@ void ObjectMgr::LoadPlayerInfo()
                 uint32 action = row.action;
                 uint8 action_type = row.type;
 
-                if (!Player::IsActionButtonDataValid(action_button, action, action_type, NULL))
+                if (!IsActionButtonDataValid(action_button, action, action_type, NULL))
                 {
                     continue;
                 }

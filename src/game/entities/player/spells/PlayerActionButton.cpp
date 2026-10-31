@@ -89,113 +89,6 @@ void Player::SendLockActionButtons() const
 }
 
 /**
- * @brief Validates action bar data before it is stored or loaded.
- *
- * @param button The action bar button index.
- * @param action The action identifier assigned to the button.
- * @param type The action button type.
- * @param player The player being validated for, or null for template data.
- * @return True if the action button data is valid; otherwise, false.
- */
-bool Player::IsActionButtonDataValid(uint8 button, uint32 action, uint8 type, Player* player, bool msg)
-{
-    if (button >= MAX_ACTION_BUTTONS)
-    {
-        if (msg)
-        {
-            if (player)
-                sLog.outError("Action %u not added into button %u for player %s: button must be < %u", action, button, player->GetName(), MAX_ACTION_BUTTONS);
-            else
-            {
-                sLog.outError("Table `playercreateinfo_action` have action %u into button %u : button must be < %u", action, button, MAX_ACTION_BUTTONS);
-            }
-        }
-        return false;
-    }
-
-    if (action >= MAX_ACTION_BUTTON_ACTION_VALUE)
-    {
-        if (msg)
-        {
-            if (player)
-                sLog.outError("Action %u not added into button %u for player %s: action must be < %u", action, button, player->GetName(), MAX_ACTION_BUTTON_ACTION_VALUE);
-            else
-            {
-                sLog.outError("Table `playercreateinfo_action` have action %u into button %u : action must be < %u", action, button, MAX_ACTION_BUTTON_ACTION_VALUE);
-            }
-        }
-        return false;
-    }
-
-    switch (type)
-    {
-        case ACTION_BUTTON_SPELL:
-        {
-            SpellEntry const* spellProto = sSpellStore.LookupEntry(action);
-            if (!spellProto)
-            {
-                if (msg)
-                {
-                    if (player)
-                        sLog.outError("Spell action %u not added into button %u for player %s: spell not exist", action, button, player->GetName());
-                    else
-                    {
-                        sLog.outError("Table `playercreateinfo_action` have spell action %u into button %u: spell not exist", action, button);
-                    }
-                }
-                return false;
-            }
-
-            if (player)
-            {
-                if (!player->HasSpell(spellProto->ID))
-                {
-                    if (msg)
-                        sLog.outError("Spell action %u not added into button %u for player %s: player don't known this spell", action, button, player->GetName());
-                    return false;
-                }
-                else if (IsPassiveSpell(spellProto))
-                {
-                    if (msg)
-                        sLog.outError("Spell action %u not added into button %u for player %s: spell is passive", action, button, player->GetName());
-                    return false;
-                }
-                // current range for button of totem bar is from ACTION_BUTTON_SHAMAN_TOTEMS_BAR to (but not including) ACTION_BUTTON_SHAMAN_TOTEMS_BAR + 12
-                else if (button >= ACTION_BUTTON_SHAMAN_TOTEMS_BAR && button < (ACTION_BUTTON_SHAMAN_TOTEMS_BAR + 12)
-                         && !spellProto->HasAttribute(SPELL_ATTR_EX7_TOTEM_SPELL))
-                {
-                    if (msg)
-                        sLog.outError("Spell action %u not added into button %u for player %s: attempt to add non totem spell to totem bar", action, button, player->GetName());
-                    return false;
-                }
-            }
-            break;
-        }
-        case ACTION_BUTTON_ITEM:
-        {
-            if (!ObjectMgr::GetItemPrototype(action))
-            {
-                if (msg)
-                {
-                    if (player)
-                        sLog.outError("Item action %u not added into button %u for player %s: item not exist", action, button, player->GetName());
-                    else
-                    {
-                        sLog.outError("Table `playercreateinfo_action` have item action %u into button %u: item not exist", action, button);
-                    }
-                }
-                return false;
-            }
-            break;
-        }
-        default:
-            break;                                          // other cases not checked at this moment
-    }
-
-    return true;
-}
-
-/**
  * @brief Adds or updates an action bar button entry.
  *
  * @param button The action bar button index.
@@ -206,7 +99,8 @@ bool Player::IsActionButtonDataValid(uint8 button, uint32 action, uint8 type, Pl
 ActionButton* Player::addActionButton(uint8 spec, uint8 button, uint32 action, uint8 type)
 {
     // check action only for active spec (so not check at copy/load passive spec)
-    if (spec == m_talentMgr.ActiveSpec() && !IsActionButtonDataValid(button, action, type, this))
+    ActionButtonOwner const owner = { GetName(), [this](uint32 spellId) { return HasSpell(spellId); } };
+    if (spec == m_talentMgr.ActiveSpec() && !IsActionButtonDataValid(button, action, type, &owner))
     {
         return NULL;
     }

@@ -104,7 +104,7 @@ uint32 Player::GetRankFromDB(ObjectGuid guid)
 
 uint32 Player::GetArenaTeamIdFromDB(ObjectGuid guid, ArenaType type)
 {
-    const uint8 slot = ArenaTeam::GetSlotByType(type);
+    const uint8 slot = GetArenaSlotByType(type);
     if (slot >= MAX_ARENA_SLOT)
     {
         return 0;

@@ -33,6 +33,7 @@
 #include <vector>
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
+#include "data/ArenaSlots.h"
 #include "social/ArenaTeamRegistry.h"
 
 struct ArenaTeamRow;
@@ -125,7 +126,6 @@ struct ArenaTeamStats
     uint32 rank;
 };
 
-#define MAX_ARENA_SLOT 3                                    // 0..2 slots
 
 class ArenaTeam
 {
@@ -140,9 +140,7 @@ class ArenaTeam
 
         uint32 GetId() const              { return m_TeamId; }
         ArenaType GetType() const         { return m_Type; }
-        uint8  GetSlot() const            { return GetSlotByType(GetType()); }
-        static uint8 GetSlotByType(ArenaType type);
-        static ArenaType GetTypeBySlot(uint8 slot);
+        uint8  GetSlot() const            { return GetArenaSlotByType(GetType()); }
         ObjectGuid GetCaptainGuid() const { return m_CaptainGuid; }
         std::string GetName() const       { return m_Name; }
         const ArenaTeamStats& GetStats() const { return m_stats; }

@@ -338,7 +338,7 @@ Team ObjectMgr::GetPlayerTeamByGUID(ObjectGuid guid) const
     // prevent DB access for online player
     if (Player* player = GetPlayer(guid))
     {
-        return Player::TeamForRace(player->getRace());
+        return TeamForRace(player->getRace());
     }
 
     return sCharacterCache.GetTeam(guid);

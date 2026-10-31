@@ -126,7 +126,7 @@ void PvpHandlers::HandleArenaTeamCreate(WorldSession& session, WorldPacket& recv
     recv_data >> slot >> iconcolor >> bordercolor >> border >> background >> icon;
     name = recv_data.ReadString(recv_data.ReadBits(8));
 
-    ArenaType type = ArenaTeam::GetTypeBySlot(slot);
+    ArenaType type = GetArenaTypeBySlot(slot);
     if (!IsArenaTypeValid(type))
     {
         return;
@@ -1195,7 +1195,7 @@ void PvpHandlers::HandleBattlemasterJoinArena(WorldSession& session, WorldPacket
         return;
     }
 
-    ArenaType arenatype = ArenaTeam::GetTypeBySlot(arenaslot);
+    ArenaType arenatype = GetArenaTypeBySlot(arenaslot);
     uint32 arenaRating = 0;
 
     if (!IsArenaTypeValid(arenatype))

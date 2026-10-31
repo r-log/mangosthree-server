@@ -32,12 +32,13 @@
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
-#include "ArenaTeam.h"
 #include "CharacterCache.h"
+#include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
 #include "ObjectGuid.h"
 #include "Player.h"
+#include "data/ArenaSlots.h"
 
 #include <atomic>
 #include <string>
@@ -111,8 +112,8 @@ TEST(CharacterCache_AnswersByGuidAndByNameWithoutRegardToCase)
     // race->team mapping applied to the CACHED race, which is the whole of what
     // ObjectMgr::GetPlayerTeamByGUID's SELECT ever contributed -- asserted against that
     // same mapping, because ChrRaces is a DBC this binary does not load.
-    CHECK_EQ(int(sCharacterCache.GetTeam(AldorGuid())), int(Player::TeamForRace(RACE_HUMAN)));
-    CHECK_EQ(int(sCharacterCache.GetTeam(NaaruGuid())), int(Player::TeamForRace(RACE_ORC)));
+    CHECK_EQ(int(sCharacterCache.GetTeam(AldorGuid())), int(TeamForRace(RACE_HUMAN)));
+    CHECK_EQ(int(sCharacterCache.GetTeam(NaaruGuid())), int(TeamForRace(RACE_ORC)));
     CHECK_EQ(int(sCharacterCache.GetTeam(UnknownGuid())), int(TEAM_NONE));
     CHECK_EQ(sCharacterCache.GetAccountId(NaaruGuid()), 9u);
     CHECK_EQ(sCharacterCache.GetAccountId(UnknownGuid()), 0u);
@@ -413,7 +414,7 @@ TEST(CharacterCache_TheLookupsAnswerInsideATickWithoutTouchingTheDatabase)
         CHECK_EQ(Player::GetRankFromDB(AldorGuid()), 3u);
         CHECK(Player::GetGuildGuidFromDB(AldorGuid()) == ObjectGuid(HIGHGUID_GUILD, uint32(11)));
 
-        sCharacterCache.UpdateArenaTeam(NaaruGuid(), ArenaTeam::GetSlotByType(ARENA_TYPE_3v3), 88);
+        sCharacterCache.UpdateArenaTeam(NaaruGuid(), GetArenaSlotByType(ARENA_TYPE_3v3), 88);
         CHECK_EQ(Player::GetArenaTeamIdFromDB(NaaruGuid(), ARENA_TYPE_3v3), 88u);
         CHECK_EQ(Player::GetArenaTeamIdFromDB(NaaruGuid(), ARENA_TYPE_2v2), 0u);
 

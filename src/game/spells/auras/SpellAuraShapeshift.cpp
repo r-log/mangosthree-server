@@ -264,7 +264,7 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
         else
         {
             // players are a bit different since the dbc has seldomly an horde modelid
-            if (Player::TeamForRace(target->getRace()) == HORDE)
+            if (TeamForRace(target->getRace()) == HORDE)
             {
                 if (ssEntry->CreatureDisplayID_1)
                 {

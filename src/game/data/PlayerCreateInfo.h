@@ -26,10 +26,50 @@
 #ifndef MANGOS_H_PLAYERCREATEINFO
 #define MANGOS_H_PLAYERCREATEINFO
 
+#include <functional>
 #include <list>
 
 #include "Platform/Define.h"
 #include "SharedDefines.h"
+
+/**
+ * @brief Action button type enumeration
+ */
+enum ActionButtonType
+{
+    ACTION_BUTTON_SPELL = 0x00,                                   ///< Spell button
+    ACTION_BUTTON_C = 0x01,                                       ///< Click button
+    ACTION_BUTTON_EQSET = 0x20,
+    ACTION_BUTTON_EXPANDABLE = 0x30,
+    ACTION_BUTTON_MACRO = 0x40,                                   ///< Macro button
+    ACTION_BUTTON_CMACRO = ACTION_BUTTON_C | ACTION_BUTTON_MACRO, ///< Click macro button
+    ACTION_BUTTON_ITEM = 0x80                                     ///< Item button
+};
+
+#define ACTION_BUTTON_ACTION(X) (uint32(X) & 0x00FFFFFF)
+#define ACTION_BUTTON_TYPE(X)   ((uint32(X) & 0xFF000000) >> 24)
+#define MAX_ACTION_BUTTON_ACTION_VALUE (0x00FFFFFF+1)
+
+// some action button indexes used in code or clarify structure
+enum ActionButtonIndex
+{
+    ACTION_BUTTON_SHAMAN_TOTEMS_BAR = 132,
+};
+
+#define MAX_ACTION_BUTTONS 144
+
+/// The player an action button is checked for: its name, for the log, and whether it knows a spell.
+struct ActionButtonOwner
+{
+    char const* name;
+    std::function<bool(uint32 spellId)> knowsSpell;
+};
+
+/// Whether an action button's data is valid: the button and the action in range and the spell or
+/// item it names in the client's or the world's data. For an owner, a spell must also be one it
+/// knows, not passive, and a totem spell on the totem bar; with none, the button is a
+/// `playercreateinfo_action` row. `msg` logs why a button is not valid.
+bool IsActionButtonDataValid(uint8 button, uint32 action, uint8 type, ActionButtonOwner const* owner, bool msg = true);
 
 struct PlayerCreateInfoItem
 {
