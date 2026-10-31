@@ -286,8 +286,8 @@ ObjectMgr::~ObjectMgr()
 
 
 /**
- * The five lookups below answer a character that is not logged in from CharacterCache, which
- * holds the `characters` rows in memory; the three keyed by guid read the logged-in player first.
+ * The five lookups below answer from CharacterCache, which holds the `characters` rows in memory
+ * and is kept current while the characters are online.
  */
 
 // name must be checked to correctness (if received) before call this function
@@ -311,13 +311,6 @@ ObjectGuid ObjectMgr::GetPlayerGuidByName(std::string name) const
  */
 bool ObjectMgr::GetPlayerNameByGUID(ObjectGuid guid, std::string& name) const
 {
-    // prevent DB access for online player
-    if (Player* player = GetPlayer(guid))
-    {
-        name = player->GetName();
-        return true;
-    }
-
     if (CharacterCacheRef entry = sCharacterCache.GetByGuid(guid))
     {
         name = entry->name;
@@ -335,12 +328,6 @@ bool ObjectMgr::GetPlayerNameByGUID(ObjectGuid guid, std::string& name) const
  */
 Team ObjectMgr::GetPlayerTeamByGUID(ObjectGuid guid) const
 {
-    // prevent DB access for online player
-    if (Player* player = GetPlayer(guid))
-    {
-        return TeamForRace(player->getRace());
-    }
-
     return sCharacterCache.GetTeam(guid);
 }
 
@@ -355,12 +342,6 @@ uint32 ObjectMgr::GetPlayerAccountIdByGUID(ObjectGuid guid) const
     if (!guid.IsPlayer())
     {
         return 0;
-    }
-
-    // prevent DB access for online player
-    if (Player* player = GetPlayer(guid))
-    {
-        return player->GetSession()->GetAccountId();
     }
 
     return sCharacterCache.GetAccountId(guid);
