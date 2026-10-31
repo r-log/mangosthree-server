@@ -27,6 +27,7 @@
 #define WORLD_PVP_MGR_H
 
 #include "Platform/Define.h"
+#include "SharedDefines.h"
 #include "Common/TimeConstants.h"
 #include <map>
 #include <mutex>
@@ -40,22 +41,6 @@
 enum
 {
     TIMER_OPVP_MGR_UPDATE = MINUTE * IN_MILLISECONDS ///< Update interval for outdoor PvP manager (1 minute)
-};
-
-/**
- * @brief Outdoor PvP type identifiers
- */
-enum OutdoorPvPTypes
-{
-    OPVP_ID_SI = 0, ///< Silithus outdoor PvP
-    OPVP_ID_EP,     ///< Eastern Plaguelands outdoor PvP
-    OPVP_ID_HP,
-    OPVP_ID_ZM,
-    OPVP_ID_TF,
-    OPVP_ID_NA,
-    OPVP_ID_GH,
-
-    MAX_OPVP_ID    ///< Maximum outdoor PvP ID
 };
 
 /**

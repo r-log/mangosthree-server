@@ -3923,6 +3923,20 @@ enum PetSaveMode
 };
 
 // indexes of BattlemasterList.dbc
+/// The outdoor PvP zones the server scripts; the disables table names one by this value.
+enum OutdoorPvPTypes
+{
+    OPVP_ID_SI = 0, ///< Silithus outdoor PvP
+    OPVP_ID_EP,     ///< Eastern Plaguelands outdoor PvP
+    OPVP_ID_HP,
+    OPVP_ID_ZM,
+    OPVP_ID_TF,
+    OPVP_ID_NA,
+    OPVP_ID_GH,
+
+    MAX_OPVP_ID    ///< Maximum outdoor PvP ID
+};
+
 enum BattleGroundTypeId
 {
     BATTLEGROUND_TYPE_NONE     = 0,

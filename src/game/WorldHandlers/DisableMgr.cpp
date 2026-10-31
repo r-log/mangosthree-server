@@ -42,9 +42,7 @@
 #include "DisableMgr.h"
 #include "ObjectMgr.h"
 #include "DBCStores.h"
-#include "OutdoorPvPMgr.h"
 #include "data/GameConfig.h"
-#include "BattleGroundMgr.h"
 #include "persistence/world/DisableDataRepository.h"
 
 namespace DisableMgr
@@ -216,7 +214,7 @@ void LoadDisables()
                 break;
             }
             case DISABLE_TYPE_BATTLEGROUND:
-                if (!sBattleGroundMgr.GetBattleGroundTemplate(BattleGroundTypeId(entry)))
+                if (!sBattlemasterListStore.LookupEntry(entry))
                 {
                     ERROR_DB_STRICT_LOG("Battleground entry %u from `disables` doesn't exist in dbc, skipped.", entry);
                     continue;

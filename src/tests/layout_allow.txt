@@ -348,8 +348,6 @@ src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/CreatureAI.h
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/WorldHandlers/Map.h
 # reached through ObjectMgr.h before #511
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/WorldHandlers/DisableMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
-src/game/WorldHandlers/DisableMgr.cpp -> src/game/OutdoorPvP/OutdoorPvPMgr.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/Object/Creature.h
