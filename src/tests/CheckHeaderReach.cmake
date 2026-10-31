@@ -7,6 +7,7 @@ gate_require_source_root(HeaderReach)
 set(GAME_DIR "${SOURCE_ROOT}/src/game")
 set(MOTION_DIR "${SOURCE_ROOT}/src/motion")
 get_filename_component(MOTION_DIR "${MOTION_DIR}" REALPATH)
+set(MOVEMENT_DIR "${MOTION_DIR}/movement")
 
 set(INCLUDE_DIRS "")
 foreach(TOP IN ITEMS "${GAME_DIR}" "${SOURCE_ROOT}/src/shared" "${SOURCE_ROOT}/src/proto" "${MOTION_DIR}")
