@@ -22,7 +22,24 @@
 
 #include "ProgressBar.h"
 
-class Unit;
+/// The one a spell disable is checked for: its kind, its map and, read only for a spell disabled by
+/// area, the area it stands in.
+class DisableSubject
+{
+    public:
+        enum Kind
+        {
+            PLAYER,
+            CREATURE,
+            PET
+        };
+
+        virtual ~DisableSubject() {}
+
+        virtual Kind GetKind() const = 0;
+        virtual uint32 GetMapId() const = 0;
+        virtual uint32 GetAreaId() const = 0;
+};
 
 enum DisableType
 {
@@ -62,11 +79,13 @@ enum SpawnDisableTypes
 namespace DisableMgr
 {
     void LoadDisables();
-    bool IsDisabledFor(DisableType type, uint32 entry, Unit const* unit = NULL, uint8 flags = 0);
+    /// Whether `entry` of `type` is disabled with no one to check it for; `flags` are the spell or
+    /// collision bits asked about.
+    bool IsDisabledFor(DisableType type, uint32 entry, uint8 flags = 0);
+    /// Whether spell `spellId` is disabled for `subject`: by its kind, then by the row's maps and areas.
+    bool IsSpellDisabledFor(uint32 spellId, DisableSubject const& subject);
     void CheckQuestDisables();
-    // Per-map collision disables from the `disables` table. The bits used to be
-    // declared inside the vmap library and reached from here only because it happened
-    // to be linked; they are a server rule, so they are declared with the rule.
+    // Per-map collision disables from the `disables` table.
     enum CollisionDisableFlags
     {
         COLLISION_DISABLE_AREAFLAG      = 0x1,

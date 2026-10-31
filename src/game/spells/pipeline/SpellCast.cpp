@@ -63,6 +63,7 @@
 #include "DisableMgr.h"
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"
+#include "UnitDisableSubject.h"
 
 /**
  * @brief Prepares the spell cast, validates conditions, and starts cast processing.
@@ -124,7 +125,7 @@ void Spell::SpellStart(SpellCastTargets const* targets, Aura* triggeredByAura)
         return;
     }
 
-    if (DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, m_caster))
+    if (DisableMgr::IsSpellDisabledFor(m_spellInfo->ID, UnitDisableSubject(*m_caster)))
     {
         SendCastResult(SPELL_FAILED_SPELL_UNAVAILABLE);
         finish(false);

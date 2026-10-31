@@ -367,7 +367,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     break;
                 }
 
-                if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, NULL, SPELL_ATTR_EX2_IGNORE_LOS) && !HasLineOfSight(*prev, **next))
+                if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, SPELL_ATTR_EX2_IGNORE_LOS) && !HasLineOfSight(*prev, **next))
                 {
                     ++next;
                     continue;
@@ -466,7 +466,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                         break;
                     }
 
-                    if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, NULL, SPELL_ATTR_EX2_IGNORE_LOS) && !HasLineOfSight(*prev, **next))
+                    if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, SPELL_ATTR_EX2_IGNORE_LOS) && !HasLineOfSight(*prev, **next))
                     {
                         ++next;
                         continue;
@@ -1278,7 +1278,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                         break;
                     }
 
-                    if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, NULL, SPELL_ATTR_EX2_IGNORE_LOS) && !HasLineOfSight(*prev, **next))
+                    if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, SPELL_ATTR_EX2_IGNORE_LOS) && !HasLineOfSight(*prev, **next))
                     {
                         ++next;
                         continue;
