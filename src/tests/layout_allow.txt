@@ -63,6 +63,8 @@ src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/proto/WorldPacket.h
 src/game/ChatCommands/AHBotCommands.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
 src/game/ChatCommands/DebugCommands.cpp -> src/game/Harness/Harness.h
+# the operator's start and stop of an event; the scheduler is app (#660)
+src/game/ChatCommands/EventCommands.cpp -> src/game/WorldHandlers/GameEventScheduler.h
 src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/GridMap.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/Map.h
@@ -343,18 +345,6 @@ src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/ChannelMgr.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Chat.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
-src/game/WorldHandlers/GameEventMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers/GameEventMgr.cpp -> src/game/Object/Creature.h
-# reached through ObjectMgr.h before #509
-src/game/WorldHandlers/GameEventMgr.cpp -> src/game/Object/GameObject.h
-src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapManager.h
-# reached through ObjectMgr.h before #511
-src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/MassMailMgr.h
-# the pool spawner left PoolManager (data) in #658; the event runtime that spawns pools leaves for app
-src/game/WorldHandlers/GameEventMgr.cpp -> src/game/WorldHandlers/PoolSpawner.h
-src/game/WorldHandlers/GameEventMgr.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/entities/player/PlayerRegistry.h
