@@ -368,7 +368,6 @@ src/game/WorldHandlers/InstanceData.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/LFGMgr.h -> src/game/WorldHandlers/LFGPackets.h
 src/game/WorldHandlers/LFGMgrProposal.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/LFGMgrProposal.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/LFGMgrProposal.cpp -> src/game/entities/player/PlayerRegistry.h

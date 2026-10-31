@@ -28,79 +28,23 @@
 
 /**
  * @file LFGPackets.h
- * @brief 4.3.4 (build 15595) LFG packet layer -- flat and bit-packed.
+ * @brief 4.3.4 (build 15595) dungeon finder packets: the builders of the
+ * outgoing packets, flat and bit-packed, and the readers of the incoming ones.
  *
- * Phase 3a's flat (disp1) builders were transcribed from the client's own
- * reader functions in client-truth/binary/Wow-64.c and independently
- * re-verified against the live IDA database during implementation.
- * Phase 3b adds the six bit-packed disp2 SMSG builders (QUEUE_STATUS,
- * UPDATE_STATUS, JOIN_RESULT, PROPOSAL_UPDATE, SLOT_INVALID,
- * UPDATE_STATUS_NONE) and the CMSG readers, verified directly against the
- * live IDA database and cross-checked against tc-preservation's 4.3.4
- * packet layer (reference, not blueprint -- see each function's own
- * comment for its evidence trail). SMSG_LFG_SEARCH_RESULTS is NOT DECODED
- * and is not implemented in either phase.
+ * The builders follow the client's own reader functions; each builder's comment
+ * names its evidence. SMSG_LFG_SEARCH_RESULTS is not decoded and not built.
  *
- * Deliberately self-contained: only WorldPacket.h and the standard library.
- * LFGMgr.h pulls in Group.h (BattleGround.h, LootMgr.h, ...), which the
- * mangos_tests binary does not link (see src/tests/CMakeLists.txt) -- so a
- * builder namespace that needs to be unit-testable cannot live there. Callers
- * translate LFGMgr's richer structures into the plain data below at the call
- * site; nothing in this header knows about Player, Group, or WorldSession.
+ * The data the builders write is in social/LfgPacketData.h, which the dungeon
+ * finder fills; the incoming requests are declared here beside their readers.
+ * Nothing in this header knows about Player, Group, or WorldSession.
  */
 
 #include "WorldPacket.h"
+#include "social/LfgPacketData.h"
 
 #include <array>
 #include <string>
 #include <vector>
-
-/// 4.3.4 ticket kind carried by RideTicket::type. Value 2 is intentionally
-/// absent -- confirmed against tc-preservation's RideType, not a typo.
-enum RideType
-{
-    RIDE_TYPE_NONE          = 0,
-    RIDE_TYPE_BATTLEGROUNDS = 1,
-    RIDE_TYPE_LFG           = 3
-};
-
-/**
- * 4.3.4 queue ticket -- replaces the bare ObjectGuid the WotLK-era code used
- * to identify a dungeon-finder request (analysis section 3.3). Not consumed
- * by any packet in this file: every disp1 packet here still carries a raw
- * GUID. Introduced now because the bit-packed disp2 packets (Phase 3b) never
- * write it as a block -- each interleaves its four fields with its own bit
- * and byte runs -- so the struct has to exist before those builders do.
- */
-struct RideTicket
-{
-    int32 time = 0;                ///< queue join time
-    RideType type = RIDE_TYPE_NONE;
-    uint32 id = 0;                 ///< queue / ticket id
-    uint64 requesterGuid = 0;      ///< player or group guid, raw
-};
-
-/// Wire layout for a single dungeon-finder lock reason. Shared by
-/// SMSG_LFG_PLAYER_INFO and SMSG_LFG_PARTY_INFO, both of which write
-/// Slot, Reason, SubReason1, SubReason2 via the client's common lock-list
-/// reader (sub_1407021A0). SMSG_LFG_JOIN_RESULT (Phase 3b) uses a different
-/// field order and must not reuse this struct.
-struct LFGLockedDungeon
-{
-    uint32 slot = 0;
-    uint32 reason = 0;
-    uint32 subReason1 = 0;        ///< required item level, for gear locks
-    uint32 subReason2 = 0;        ///< current item level, for gear locks
-};
-
-/// A single dungeon-finder reward item or currency payout.
-struct LFGRewardItem
-{
-    uint32 id = 0;                ///< item id, or currency id when isCurrency
-    uint32 displayId = 0;         ///< 0 for currency
-    uint32 quantity = 0;
-    bool isCurrency = false;
-};
 
 namespace LFGPacketDetail
 {
@@ -152,24 +96,6 @@ namespace LFGPackets
     // ---------------------------------------------------------------------
     // SMSG_LFG_ROLE_CHECK_UPDATE (0x0336) -- sub_1406FF4C0
     // ---------------------------------------------------------------------
-
-    /// One role-check participant. The leader MUST be first in
-    /// RoleCheckUpdate::members -- the client has no other way to tell.
-    struct LFGRoleCheckMember
-    {
-        uint64 guid = 0;           ///< raw, not packed
-        bool roleCheckComplete = false;
-        uint32 rolesDesired = 0;   ///< bit1 tank, bit2 healer, bit3 dps
-        uint8 level = 0;
-    };
-
-    struct RoleCheckUpdate
-    {
-        uint32 status = 0;         ///< LfgRoleCheckState
-        bool isBeginning = false;  ///< nonzero shows the role-check UI
-        std::vector<uint32> dungeons;               ///< resolved dungeon entries
-        std::vector<LFGRoleCheckMember> members;    ///< leader first
-    };
 
     /// Builds SMSG_LFG_ROLE_CHECK_UPDATE. False (and `out` untouched) if
     /// dungeons or members exceeds the wire uint8 count.
@@ -326,15 +252,6 @@ namespace LFGPackets
     // SMSG_LFG_PLAYER_REWARD (0x6834) -- sub_1406FF8B0
     // ---------------------------------------------------------------------
 
-    struct PlayerReward
-    {
-        uint32 queuedSlot = 0;       ///< random dungeon entry
-        uint32 actualSlot = 0;       ///< actual dungeon entry
-        uint32 rewardMoney = 0;
-        uint32 addedXp = 0;
-        std::vector<LFGRewardItem> items;
-    };
-
     /// Builds SMSG_LFG_PLAYER_REWARD. False (and `out` untouched) if items
     /// exceeds the wire uint8 count.
     inline bool BuildPlayerReward(WorldPacket& out, PlayerReward const& data)
@@ -399,45 +316,6 @@ namespace LFGPackets
     // ---------------------------------------------------------------------
     // SMSG_LFG_PLAYER_INFO (0x4B36) -- sub_140704CB0 / lock list sub_1407021A0
     // ---------------------------------------------------------------------
-
-    /// One Call to Arms shortage-role reward tier. When roleMask is 0 the
-    /// client's reader skips the rest of the iteration entirely (confirmed
-    /// at Wow-64.c:1829314) -- money/xp/items below must not be written for
-    /// a zero-mask tier. This is the opposite of TrinityCore, which always
-    /// writes three placeholder zero fields; following TC's shape here
-    /// would desynchronise the stream.
-    struct LFGShortageReward
-    {
-        uint32 roleMask = 0;         ///< 0 => tier absent, nothing else written
-        uint32 money = 0;
-        uint32 xp = 0;
-        std::vector<LFGRewardItem> items;
-    };
-
-    /// One random-dungeon reward entry (client struct LFGEntryInfo).
-    struct LFGRandomDungeonEntry
-    {
-        uint32 slot = 0;
-        bool firstReward = false;
-        uint32 completionQuantity = 0;
-        uint32 completionLimit = 0;
-        uint32 completionCurrencyId = 0;
-        uint32 specificQuantity = 0;
-        uint32 specificLimit = 0;
-        uint32 overallQuantity = 0;
-        uint32 overallLimit = 0;
-        uint32 purseWeeklyQuantity = 0;
-        uint32 purseWeeklyLimit = 0;
-        uint32 purseQuantity = 0;
-        uint32 purseLimit = 0;
-        uint32 quantity = 0;
-        uint32 completedMask = 0;
-        bool shortageEligible = false;
-        std::array<LFGShortageReward, 3> shortageTiers;   ///< severity: rare, uncommon, plentiful
-        uint32 rewardMoney = 0;
-        uint32 rewardXp = 0;
-        std::vector<LFGRewardItem> items;
-    };
 
     struct PlayerInfo
     {
@@ -579,17 +457,6 @@ namespace LFGPackets
     // SMSG_LFG_QUEUE_STATUS (0x78B4) -- sub_1403680E0 / read sub_140360010
     // ---------------------------------------------------------------------
 
-    struct QueueStatus
-    {
-        RideTicket ticket;
-        uint32 slot = 0;
-        int32 avgWaitTimeMe = 0;
-        int32 avgWaitTime = 0;
-        std::array<int32, 3> avgWaitTimeByRole{};
-        std::array<uint8, 3> lastNeeded{};
-        uint32 queuedTime = 0;
-    };
-
     /// Builds SMSG_LFG_QUEUE_STATUS. Fixed shape, always succeeds. Bit
     /// region is exactly the ticket GUID's 8 mask bits (matches the plan's
     /// "SMSG_LFG_QUEUE_STATUS = 8" total) -- confirmed by hand-tracing
@@ -636,19 +503,6 @@ namespace LFGPackets
     // ---------------------------------------------------------------------
     // SMSG_LFG_UPDATE_STATUS (0x31A4) -- sub_14039B8C0 / read sub_140395EE0
     // ---------------------------------------------------------------------
-
-    struct UpdateStatus
-    {
-        RideTicket ticket;
-        uint8 reason = 0;
-        std::vector<uint32> slots;
-        std::string comment;          ///< wire length is a 9-bit count, max 511
-        std::array<uint8, 3> needs{}; ///< tank/healer/damage still wanted
-        bool isParty = false;
-        bool joined = false;
-        bool lfgJoined = false;
-        bool queued = false;
-    };
 
     /// Builds SMSG_LFG_UPDATE_STATUS. False (and `out` untouched) if slots
     /// or comment exceed their wire bit-count fields (24 and 9 bits).
@@ -713,70 +567,8 @@ namespace LFGPackets
     }
 
     // ---------------------------------------------------------------------
-    // SMSG_LFG_UPDATE_STATUS flag derivation
-    // ---------------------------------------------------------------------
-
-    /// Joined/Queued/LfgJoined wire bits for SMSG_LFG_UPDATE_STATUS, derived
-    /// from the update reason and player state exactly as tc-preservation's
-    /// 4.3.4 LFGHandler.cpp:336-386 does. Numeric constants mirror LFGMgr.h's
-    /// LfgUpdateType / LFGState, kept in sync by hand (precedent:
-    /// LFGLockReason.h) because this header must stay game-lib-free.
-    struct UpdateFlags
-    {
-        bool joined = false;
-        bool queued = false;
-        bool lfgJoined = false;
-    };
-
-    inline UpdateFlags DeriveUpdateFlags(uint8 reason, uint8 state)
-    {
-        UpdateFlags flags;
-        switch (reason)
-        {
-            case 24:                              // JOIN_INITIAL
-            case 3:                               // JOIN_RAIDBROWSER
-            case 14:                              // PROPOSAL_BEGIN
-                flags.joined = true;
-                break;
-            case 6:                               // JOIN (rolecheck begins)
-            case 13:                              // ADDED_TO_QUEUE
-                flags.joined = true;
-                flags.queued = true;
-                break;
-            case 15:                              // UPDATE_STATUS
-                flags.joined = state != 1 && state != 0 && state != 5 && state != 6;
-                flags.queued = state == 2 || state == 7;
-                break;
-            default:
-                break;
-        }
-
-        flags.lfgJoined = reason != 8;            // REMOVED_FROM_QUEUE
-        return flags;
-    }
-
-    // ---------------------------------------------------------------------
     // SMSG_LFG_JOIN_RESULT (0x38B6) -- sub_1403C11F0 / read sub_1403BFF40
     // ---------------------------------------------------------------------
-
-    /// One blacklisted-dungeon lock reason inside a JoinResultBlacklist
-    /// entry. Field order (Reason, SubReason1, SubReason2, Slot) is NOT
-    /// the same as LFGLockedDungeon's (Slot, Reason, SubReason1,
-    /// SubReason2) -- confirmed against tc-preservation and flagged
-    /// already by 3a's own comment on LFGLockedDungeon above.
-    struct JoinResultBlacklistSlot
-    {
-        uint32 slot = 0;
-        uint32 reason = 0;
-        uint32 subReason1 = 0;
-        uint32 subReason2 = 0;
-    };
-
-    struct JoinResultBlacklist
-    {
-        uint64 guid = 0;              ///< player or group guid, packed
-        std::vector<JoinResultBlacklistSlot> slots;
-    };
 
     struct JoinResult
     {
@@ -879,28 +671,6 @@ namespace LFGPackets
     // ---------------------------------------------------------------------
     // SMSG_LFG_PROPOSAL_UPDATE (0x7DA6) -- sub_1403AE020 / read sub_14039E750
     // ---------------------------------------------------------------------
-
-    struct ProposalUpdatePlayer
-    {
-        uint32 roles = 0;
-        bool me = false;
-        bool sameParty = false;
-        bool myParty = false;
-        bool responded = false;
-        bool accepted = false;
-    };
-
-    struct ProposalUpdate
-    {
-        RideTicket ticket;
-        uint64 instanceId = 0;        ///< dungeon instance map guid, packed
-        uint32 proposalId = 0;
-        uint32 slot = 0;
-        int8 state = 0;
-        uint32 completedMask = 0;
-        bool proposalSilent = false;
-        std::vector<ProposalUpdatePlayer> players;
-    };
 
     /// Builds SMSG_LFG_PROPOSAL_UPDATE. False (and `out` untouched) if
     /// players exceeds its 23-bit wire count. Bit region totals
