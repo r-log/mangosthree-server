@@ -67,8 +67,8 @@ class PlayerSession
         virtual bool PlayerLogout() const = 0;
         virtual bool PlayerLogoutWithSave() const = 0;
         virtual bool isLogingOut() const = 0;
-        virtual time_t MuteTime() const = 0;
-        virtual void SetMuteTime(time_t muteTime) = 0;
+        time_t MuteTime() const { return m_muteTime; }
+        void SetMuteTime(time_t muteTime) { m_muteTime = muteTime; }
 
         // The units this client moves, and its clock.
         virtual Motion::Authority& Movers() = 0;
@@ -114,6 +114,12 @@ class PlayerSession
         virtual void SendArenaTeamCommandResult(uint32 team_action, const std::string& team, const std::string& player, uint32 error_id) = 0;
         virtual void BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data) = 0;
         virtual void DoLootRelease(ObjectGuid lguid) = 0;
+
+    protected:
+        explicit PlayerSession(time_t muteTime) : m_muteTime(muteTime) {}
+
+    private:
+        time_t m_muteTime;                                  // the account's mute expiry
 };
 
 #endif

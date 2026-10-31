@@ -175,7 +175,7 @@ void GMTicket::_Close(GMTicketStatus statusCode) const
 
     if (pPlayer && statusCode != GM_TICKET_STATUS_DO_NOTHING)
     {
-        WorldSession::Of(*pPlayer)->SendGMTicketStatusUpdate(statusCode);
+        SessionOf(*pPlayer)->SendGMTicketStatusUpdate(statusCode);
     }
 }
 
@@ -264,7 +264,7 @@ void GMTicketMgr::DeleteAll()
     {
         if (Player* owner = sPlayerRegistry.Find(itr->first))
         {
-            WorldSession::Of(*owner)->SendGMTicketGetTicket(0x0A);
+            SessionOf(*owner)->SendGMTicketGetTicket(0x0A);
         }
     }
     TicketRepository::DeleteAll();

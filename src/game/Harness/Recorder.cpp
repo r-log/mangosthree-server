@@ -82,7 +82,7 @@ namespace Harness
         m_active = player && player->GetSession();
         if (m_active)
         {
-            WorldSession::Of(*player)->SetSocketlessSink(&Recorder::Sink, this);
+            SessionOf(*player)->SetSocketlessSink(&Recorder::Sink, this);
         }
     }
 
@@ -115,7 +115,7 @@ namespace Harness
         CloseWindow();
         if (Player* p = Resolve())
         {
-            if (WorldSession* s = WorldSession::Of(*p))
+            if (WorldSession* s = SessionOf(*p))
             {
                 s->SetSocketlessSink(NULL, NULL);
             }

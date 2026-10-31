@@ -195,7 +195,7 @@ namespace
             ~ChannelMember()
             {
                 CleanupChannels();
-                WorldSession::Of(*this)->SetPlayer(nullptr);
+                SessionOf(*this)->SetPlayer(nullptr);
                 sPlayerRegistry.Remove(this);
                 Object::RemoveFromWorld();
                 delete[] m_uint32Values;

@@ -44,11 +44,11 @@ namespace
         {
             if (fact.entry)
             {
-                SendSystemMessage(*WorldSession::Of(*player), fact.entry);
+                SendSystemMessage(*SessionOf(*player), fact.entry);
             }
             else
             {
-                SendSystemMessage(*WorldSession::Of(*player), fact.text.c_str());
+                SendSystemMessage(*SessionOf(*player), fact.text.c_str());
             }
         };
     }

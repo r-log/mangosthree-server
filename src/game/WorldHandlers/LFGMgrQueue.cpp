@@ -261,7 +261,7 @@ void LFGMgr::JoinLFG(uint32 roles, std::set<uint32> dungeons, std::string commen
     // If our result is not ERR_LFG_OK, send join result now with err message
     if (result != ERR_LFG_OK)
     {
-        WorldSession::Of(*plr)->SendLfgJoinResult(result, 0, RideTicket(), blacklist);
+        SessionOf(*plr)->SendLfgJoinResult(result, 0, RideTicket(), blacklist);
         return;
     }
 
@@ -345,7 +345,7 @@ void LFGMgr::JoinLFG(uint32 roles, std::set<uint32> dungeons, std::string commen
         m_playerStatusMap[guid] = plrStatus;
         SendLfgUpdate(guid, plrStatus, false);
 
-        WorldSession::Of(*plr)->SendLfgJoinResult(ERR_LFG_OK, 0, ticket, {});
+        SessionOf(*plr)->SendLfgJoinResult(ERR_LFG_OK, 0, ticket, {});
 
         AddToQueue(guid);
         SendQueueStatusFor(guid);

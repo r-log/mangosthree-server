@@ -471,7 +471,7 @@ bool ChatHandler::HandleAccountSetGmLevelCommand(char* args)
     if (targetPlayer)
     {
         ChatHandler(targetPlayer).PSendSysMessage(LANG_YOURS_SECURITY_CHANGED, GetNameLink().c_str(), gm);
-        WorldSession::Of(*targetPlayer)->SetSecurity(AccountTypes(gm));
+        SessionOf(*targetPlayer)->SetSecurity(AccountTypes(gm));
     }
 
     PSendSysMessage(LANG_YOU_CHANGE_SECURITY, targetAccountName.c_str(), gm);

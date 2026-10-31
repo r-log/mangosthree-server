@@ -90,7 +90,7 @@ void AuctionHandlers::SendAuctionCancelledToBidderMail(AuctionEntry* auction)
 
         if (bidder)
         {
-            WorldSession::Of(*bidder)->SendAuctionRemovedNotification(auction);
+            SessionOf(*bidder)->SendAuctionRemovedNotification(auction);
         }
 
         MailDraft(msgAuctionCancelledSubject.str(), "")     // TODO: fix body

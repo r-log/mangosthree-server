@@ -168,7 +168,7 @@ void WorldSession::SendAuctionOutbiddedMail(AuctionEntry* auction)
 
         if (oldBidder)
         {
-            WorldSession::Of(*oldBidder)->SendAuctionBidderNotification(auction);
+            SessionOf(*oldBidder)->SendAuctionBidderNotification(auction);
         }
 
         MailDraft(msgAuctionOutbiddedSubject.str(), "")     // TODO: fix body

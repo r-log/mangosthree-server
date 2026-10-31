@@ -281,7 +281,7 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
                            std::shared_ptr<SessionMailbox> mailbox,
                            AccountTypes sec, uint8 expansion, time_t mute_time,
                            LocaleConstant locale, const BigNumber& sessionKey) :
-    m_muteTime(mute_time), _player(NULL), m_Socket(std::move(links)),
+    PlayerSession(mute_time), _player(NULL), m_Socket(std::move(links)),
     m_mailbox(mailbox ? std::move(mailbox) : std::make_shared<SessionMailbox>()),
     m_sessionKey(sessionKey), m_secondStreamAttempts(0),
     m_sessionId(proto::INVALID_SESSION_ID),
@@ -297,7 +297,7 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
     }
 }
 
-WorldSession* WorldSession::Of(Player const& player)
+WorldSession* SessionOf(Player const& player)
 {
     return static_cast<WorldSession*>(player.GetSession());
 }

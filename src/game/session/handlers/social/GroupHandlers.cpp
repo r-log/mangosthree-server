@@ -142,7 +142,7 @@ void GroupHandlers::HandleGroupInvite(WorldSession& session, WorldPacket& recv_d
         session.SendPartyResult(PARTY_OP_INVITE, membername, ERR_ALREADY_IN_GROUP_S);
 
         // tell the player that they were invited but it failed as they were already in a group
-        WorldSession::Of(*player)->SendGroupInvite(player, true);
+        SessionOf(*player)->SendGroupInvite(player, true);
 
         return;
     }
@@ -190,7 +190,7 @@ void GroupHandlers::HandleGroupInvite(WorldSession& session, WorldPacket& recv_d
         }
     }
 
-    WorldSession::Of(*player)->SendGroupInvite(session.GetPlayer());
+    SessionOf(*player)->SendGroupInvite(session.GetPlayer());
     session.SendPartyResult(PARTY_OP_INVITE, membername, ERR_PARTY_RESULT_OK);
 }
 

@@ -320,9 +320,6 @@ class WorldSession final : public PlayerSession
          */
         ~WorldSession();
 
-        /// The session of `player` (NULL when it has none): a player's session is always a world session.
-        static WorldSession* Of(Player const& player);
-
         /**
          * @brief Check if player is loading
          * @return True if loading
@@ -594,10 +591,6 @@ class WorldSession final : public PlayerSession
 
         void DoLootRelease(ObjectGuid lguid) override;
 
-        // Account mute time
-        time_t MuteTime() const override { return m_muteTime; }
-        void SetMuteTime(time_t muteTime) override { m_muteTime = muteTime; }
-
         // Locales
         LocaleConstant GetSessionDbcLocale() const override
         {
@@ -762,7 +755,6 @@ class WorldSession final : public PlayerSession
         void LogUnprocessedTail(WorldPacket* packet);
 
         uint32 m_GUIDLow;                                   // set logged or recently logout player (while m_playerRecentlyLogout set)
-        time_t m_muteTime;
         Player* _player;
         std::shared_ptr<proto::SessionLinks> m_Socket;
         std::shared_ptr<SessionMailbox> m_mailbox;
@@ -828,5 +820,9 @@ class WorldSession final : public PlayerSession
         TutorialDataState m_tutorialState;
         AddonsList m_addonsList;
 };
+
+/// The world session of `player` (NULL when it has none): a player's session is always a world session.
+WorldSession* SessionOf(Player const& player);
+
 #endif
 /// @}
