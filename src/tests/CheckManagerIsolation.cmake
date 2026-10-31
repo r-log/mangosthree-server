@@ -111,6 +111,8 @@ set(OWNER_FILES
     entities/player/ClientCallbacks.h
     entities/player/inventory/ItemCallbacks.h
     entities/player/PlayerRegistry.h
+    entities/player/PlayerConditions.h
+    entities/player/PlayerConditions.cpp
     entities/player/PlayerRegistry.cpp
     entities/player/persistence/PlayerLoad.cpp
     entities/player/persistence/PlayerLoadFromDB.cpp

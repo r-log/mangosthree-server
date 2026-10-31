@@ -157,6 +157,8 @@ src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Creature.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Creature.cpp -> src/proto/Opcodes.h
 src/game/Object/Creature.cpp -> src/proto/WorldPacket.h
+# the condition evaluator left ObjectMgr.cpp (data) in #655
+src/game/Object/CreatureEventAI.cpp -> src/game/entities/player/PlayerConditions.h
 # reached through GridNotifiersImpl.h before #572
 src/game/Object/CreatureEventAI.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through GridNotifiersImpl.h before #572
@@ -202,21 +204,13 @@ src/game/Object/ItemEnchantment.cpp -> src/proto/WorldPacket.h
 src/game/Object/ItemPersistence.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/LootMgr.cpp -> src/game/entities/player/Player.h
+# the condition evaluator left ObjectMgr.cpp (data) in #655
+src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerConditions.h
 src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Object.h -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectGuid.cpp -> src/game/Object/ObjectMgr.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/ObjectMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/AchievementMgr.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/CellImpl.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/GridNotifiers.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Group.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/InstanceData.h
-# reached through ObjectMgr.h before #511
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/GridMap.h
 # reached through ObjectMgr.h before #512
@@ -480,6 +474,8 @@ src/game/entities/player [entities] -> src/game/WorldHandlers/MapManager.h
 src/game/entities/player [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/entities/player [entities] -> src/game/WorldHandlers/TransportMap.h
 src/game/entities/player [entities] -> src/game/WorldHandlers/Transports.h
+# the condition evaluator left ObjectMgr.cpp (data) in #655
+src/game/entities/player [entities] -> src/game/spells/AuraQueries.h
 # Player holds the spell modifier manager by value (Player.h).
 src/game/entities/player [entities] -> src/game/spells/SpellModMgr.h
 src/game/entities/player [entities] -> src/game/spells/pipeline/Spell.h
@@ -842,6 +838,8 @@ src/game/spells/pipeline/SpellPackets.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellPower.cpp -> src/game/entities/player/Player.h
+# the condition evaluator left ObjectMgr.cpp (data) in #655
+src/game/spells/pipeline/SpellRules.cpp -> src/game/entities/player/PlayerConditions.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellTargeting.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellTargeting.cpp -> src/game/entities/player/PlayerRegistry.h

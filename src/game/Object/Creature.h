@@ -84,18 +84,6 @@ enum SplineFlags
     SPLINEFLAG_FLYING       = 0x00002000,
 };
 
-// Enums used by StringTextData::Type (CreatureEventAI)
-enum ChatType
-{
-    CHAT_TYPE_SAY               = 0,
-    CHAT_TYPE_YELL              = 1,
-    CHAT_TYPE_TEXT_EMOTE        = 2,
-    CHAT_TYPE_BOSS_EMOTE        = 3,
-    CHAT_TYPE_WHISPER           = 4,
-    CHAT_TYPE_BOSS_WHISPER      = 5,
-    CHAT_TYPE_ZONE_YELL         = 6
-};
-
 // Selection method used by SelectAttackingTarget
 enum AttackingTarget
 {

@@ -41,6 +41,7 @@
 #include "Totem.h"
 #include "spells/auras/SpellAuras.h"
 #include "persistence/characters/inventory/ItemRepository.h"
+#include "PlayerConditions.h"
 
 namespace
 {
@@ -854,7 +855,7 @@ void SpellHandlers::HandleSpellClick(WorldSession& session, WorldPacket& recv_da
     SpellClickInfoMapBounds clickPair = sObjectMgr.GetSpellClickInfoMapBounds(unit->GetEntry());
     for (SpellClickInfoMap::const_iterator itr = clickPair.first; itr != clickPair.second; ++itr)
     {
-        if (itr->second.IsFitToRequirements(session.GetPlayer(), unit))
+        if (IsFitToRequirements(itr->second, session.GetPlayer(), unit))
         {
             if (sScriptHooks.OnNpcSpellClick(session.GetPlayer(), unit, itr->second.spellId))
             {

@@ -45,6 +45,9 @@ int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster);
 SpellCastResult GetSpellAllowedInLocationError(SpellEntry const* spellInfo, uint32 map_id, uint32 zone_id, uint32 area_id, Player const* player,
                                                SpellAreaConditionCheck const& meetsCondition);
 
+/// The spell-area condition check for `player`: whether it meets a condition of the conditions table.
+SpellAreaConditionCheck SpellAreaConditionCheckFor(Player const* player);
+
 /// Whether the player meets a spell-area row in the zone and area.
 bool IsFitToRequirements(SpellArea const& spellArea, Player const* player, uint32 newZone, uint32 newArea, SpellAreaConditionCheck const& meetsCondition);
 

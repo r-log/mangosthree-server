@@ -28,6 +28,7 @@
 
 #include "Platform/Define.h"
 #include <cassert>
+#include <string>
 
 #ifndef MANGOS
 #define MANGOS
@@ -2915,6 +2916,26 @@ enum SheathState
 };
 
 #define MAX_SHEATH_STATE    3
+
+/// The type of a text entry: how a creature or a script says it.
+enum ChatType
+{
+    CHAT_TYPE_SAY               = 0,
+    CHAT_TYPE_YELL              = 1,
+    CHAT_TYPE_TEXT_EMOTE        = 2,
+    CHAT_TYPE_BOSS_EMOTE        = 3,
+    CHAT_TYPE_WHISPER           = 4,
+    CHAT_TYPE_BOSS_WHISPER      = 5,
+    CHAT_TYPE_ZONE_YELL         = 6
+};
+
+/// The five declined forms of a name, for the clients that decline names.
+#define MAX_DECLINED_NAME_CASES 5
+
+struct DeclinedName
+{
+    std::string name[MAX_DECLINED_NAME_CASES];
+};
 
 // CreatureType.dbc
 /// Non Player Character flags

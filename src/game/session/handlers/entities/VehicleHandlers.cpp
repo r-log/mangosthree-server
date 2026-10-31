@@ -32,6 +32,7 @@
 #include "Player.h"
 #include "Vehicle.h"
 #include "ObjectMgr.h"
+#include "PlayerConditions.h"
 
 void VehicleHandlers::HandleDismissControlledVehicle(WorldSession& session, WorldPacket& recvPacket)
 {
@@ -156,7 +157,7 @@ void VehicleHandlers::HandleChangeSeatsOnControlledVehicle(WorldSession& session
 
         SpellClickInfoMapBounds clickPair = sObjectMgr.GetSpellClickInfoMapBounds(destVehicle->GetEntry());
         for (SpellClickInfoMap::const_iterator itr = clickPair.first; itr != clickPair.second; ++itr)
-            if (itr->second.IsFitToRequirements(session.GetPlayer(), destVehicle->ToCreature()))
+            if (IsFitToRequirements(itr->second, session.GetPlayer(), destVehicle->ToCreature()))
             {
                 session.GetPlayer()->CastSpell(destVehicle, itr->second.spellId, true);
             }
