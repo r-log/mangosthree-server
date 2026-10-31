@@ -272,7 +272,13 @@ void MapPersistentState::InitPools()
     {
         GetSpawnedPoolData().SetInitialized();
         sPoolSpawner.Initialize(this);                          // init pool system data for map persistent state
-        sGameEventMgr.Initialize(this);                     // init pool system data for map persistent state
+        // At map persistent state creating need only apply pool spawn modifications
+        // other data is global and will be auto-apply
+        for (GameEventMgr::ActiveEvents::const_iterator event_itr = sGameEventMgr.GetActiveEventList().begin(); event_itr != sGameEventMgr.GetActiveEventList().end(); ++event_itr)
+            for (GameEventMgr::IdList::const_iterator pool_itr = sGameEventMgr.GetEventSpawnPoolIds()[*event_itr].begin(); pool_itr != sGameEventMgr.GetEventSpawnPoolIds()[*event_itr].end(); ++pool_itr)
+            {
+                sPoolSpawner.InitSpawnPool(*this, *pool_itr);
+            }
     }
 }
 

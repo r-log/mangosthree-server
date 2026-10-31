@@ -136,6 +136,7 @@
 #include "persistence/login/BanRepository.h"
 #include "persistence/login/RealmRepository.h"
 #include "persistence/world/BroadcastDataRepository.h"
+#include "GameEventScheduler.h"
 
 
 namespace
@@ -866,7 +867,7 @@ void World::SetInitialWorldSettings()
     InitCurrencyResetTime();
 
     sLog.outString("Starting Game Event system...");
-    uint32 nextGameEvent = sGameEventMgr.Initialize();
+    uint32 nextGameEvent = sGameEventScheduler.Initialize();
     m_timers[WUPDATE_EVENTS].SetInterval(nextGameEvent);    // depend on next event
 
     sLog.outString("Loading grids for active creatures or transports...");
@@ -1132,7 +1133,7 @@ void World::Update(uint32 diff)
     if (m_timers[WUPDATE_EVENTS].Passed())
     {
         m_timers[WUPDATE_EVENTS].Reset();                   // to give time for Update() to be processed
-        uint32 nextGameEvent = sGameEventMgr.Update();
+        uint32 nextGameEvent = sGameEventScheduler.Update();
         m_timers[WUPDATE_EVENTS].SetInterval(nextGameEvent);
         m_timers[WUPDATE_EVENTS].Reset();
     }
