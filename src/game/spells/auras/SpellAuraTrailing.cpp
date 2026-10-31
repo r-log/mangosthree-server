@@ -59,6 +59,7 @@
 #include "GridNotifiersImpl.h"
 #include "Vehicle.h"
 #include "Language.h"
+#include "spells/pipeline/SpellRules.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -419,7 +420,7 @@ void Aura::HandlePhase(bool apply, bool Real)
 
             for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
             {
-                itr->second->ApplyOrRemoveSpellIfCan(targetPlayer, zone, area, false, SpellAreaConditionCheckFor(targetPlayer));
+                ApplyOrRemoveSpellIfCan(*itr->second, targetPlayer, zone, area, false, SpellAreaConditionCheckFor(targetPlayer));
             }
         }
     }

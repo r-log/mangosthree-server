@@ -49,6 +49,7 @@
 #include "Vehicle.h"
 #include "CharacterCache.h"
 #include "DisableMgr.h"
+#include "spells/pipeline/SpellRules.h"
 
 #include <cmath>
 
@@ -398,7 +399,7 @@ void Player::UpdateZoneDependentAuras()
     SpellAreaForAreaMapBounds saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(m_zoneUpdateId);
     for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
     {
-        itr->second->ApplyOrRemoveSpellIfCan(this, m_zoneUpdateId, 0, true, SpellAreaConditionCheckFor(this));
+        ApplyOrRemoveSpellIfCan(*itr->second, this, m_zoneUpdateId, 0, true, SpellAreaConditionCheckFor(this));
     }
 }
 
@@ -411,7 +412,7 @@ void Player::UpdateAreaDependentAuras()
     for (SpellAuraHolderMap::iterator iter = m_auras.Holders().begin(); iter != m_auras.Holders().end();)
     {
         // use m_zoneUpdateId for speed: UpdateArea called from UpdateZone or instead UpdateZone in both cases m_zoneUpdateId up-to-date
-        if (sSpellMgr.GetSpellAllowedInLocationError(iter->second->GetSpellProto(), GetMapId(), m_zoneUpdateId, m_areaUpdateId, this, SpellAreaConditionCheckFor(this)) != SPELL_CAST_OK)
+        if (GetSpellAllowedInLocationError(iter->second->GetSpellProto(), GetMapId(), m_zoneUpdateId, m_areaUpdateId, this, SpellAreaConditionCheckFor(this)) != SPELL_CAST_OK)
         {
             RemoveSpellAuraHolder(iter->second);
             iter = m_auras.Holders().begin();
@@ -426,7 +427,7 @@ void Player::UpdateAreaDependentAuras()
     SpellAreaForAreaMapBounds saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(m_areaUpdateId);
     for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
     {
-        itr->second->ApplyOrRemoveSpellIfCan(this, m_zoneUpdateId, m_areaUpdateId, true, SpellAreaConditionCheckFor(this));
+        ApplyOrRemoveSpellIfCan(*itr->second, this, m_zoneUpdateId, m_areaUpdateId, true, SpellAreaConditionCheckFor(this));
     }
 }
 
@@ -439,7 +440,7 @@ struct UpdateZoneDependentPetsHelper
         if (pet && !pet->isControlled())
             if (uint32 spell_id = unit->GetUInt32Value(UNIT_CREATED_BY_SPELL))
                 if (SpellEntry const* spellEntry = sSpellStore.LookupEntry(spell_id))
-                    if (sSpellMgr.GetSpellAllowedInLocationError(spellEntry, owner->GetMapId(), zone_id, area_id, owner, SpellAreaConditionCheckFor(owner)) != SPELL_CAST_OK)
+                    if (GetSpellAllowedInLocationError(spellEntry, owner->GetMapId(), zone_id, area_id, owner, SpellAreaConditionCheckFor(owner)) != SPELL_CAST_OK)
                     {
                         pet->Unsummon(PET_SAVE_AS_DELETED, owner);
                     }

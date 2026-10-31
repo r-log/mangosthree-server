@@ -44,9 +44,6 @@
 #include <string>
 #include <vector>
 
-class Player;
-class Spell;
-class Unit;
 struct CreatureInfo;
 enum class TableReadStatus;
 
@@ -109,9 +106,9 @@ bool IsCoreHandledMasteryProc(uint32 auraSpellId);
 /// The resurrection a Soulstone Resurrection aura grants; 0 for an aura the table does not hold.
 uint32 GetSoulstoneResurrectionSpell(uint32 auraSpellId);
 /**
- * Returns the effective cast time for the specified spell.
+ * Returns the cast time a spell's record gives it, before any caster.
  */
-uint32 GetSpellCastTime(SpellEntry const* spellInfo, Spell const* spell = NULL);
+uint32 GetSpellCastTime(SpellEntry const* spellInfo);
 
 /**
  * Returns the cast time used when calculating spell coefficient bonuses.
@@ -159,11 +156,6 @@ int32 GetSpellDuration(SpellEntry const* spellInfo);
  * Returns the maximum duration of the specified spell.
  */
 int32 GetSpellMaxDuration(SpellEntry const* spellInfo);
-
-/**
- * Calculates the spell duration after caster-based modifiers are applied.
- */
-int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster = NULL);
 
 /**
  * Returns the maximum number of aura ticks produced by the specified spell.
@@ -1092,10 +1084,6 @@ struct SpellArea
     Gender gender;                                          // can be applied only to gender
     bool questStartCanActive;                               // if true then quest start can be active (not only rewarded)
     bool autocast;                                          // if true then auto applied at area enter, in other case just allowed to cast
-
-    // helpers
-    bool IsFitToRequirements(Player const* player, uint32 newZone, uint32 newArea, SpellAreaConditionCheck const& meetsCondition) const;
-    void ApplyOrRemoveSpellIfCan(Player* player, uint32 newZone, uint32 newArea, bool onlyApply, SpellAreaConditionCheck const& meetsCondition) const;
 };
 
 typedef std::multimap < uint32 /*applySpellId*/, SpellArea > SpellAreaMap;
@@ -1491,9 +1479,6 @@ class SpellMgr
             }
             return NULL;
         }
-
-        SpellCastResult GetSpellAllowedInLocationError(SpellEntry const* spellInfo, uint32 map_id, uint32 zone_id, uint32 area_id, Player const* player,
-                                                       SpellAreaConditionCheck const& meetsCondition);
 
         SpellAreaMapBounds GetSpellAreaMapBounds(uint32 spell_id) const
         {

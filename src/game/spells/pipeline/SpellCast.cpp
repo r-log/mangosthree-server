@@ -62,6 +62,7 @@
 #include "DB2Stores.h"
 #include "DisableMgr.h"
 #include "spells/data/SpellTables.h"
+#include "spells/pipeline/SpellRules.h"
 
 /**
  * @brief Prepares the spell cast, validates conditions, and starts cast processing.

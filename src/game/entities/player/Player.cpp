@@ -5880,7 +5880,7 @@ bool Player::CanStartFlyInArea(uint32 mapid, uint32 zone, uint32 area) const
         return true;
     }
 
-    // continent checked in SpellMgr::GetSpellAllowedInLocationError at cast and area update
+    // continent checked in GetSpellAllowedInLocationError at cast and area update
     uint32 v_map = GetVirtualMapForMapAndZone(mapid, zone);
 
     // switch all known flying maps

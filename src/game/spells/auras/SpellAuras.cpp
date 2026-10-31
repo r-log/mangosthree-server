@@ -79,6 +79,7 @@
 #include "Language.h"
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/data/SpellTables.h"
+#include "spells/pipeline/SpellRules.h"
 
 #define NULL_AURA_SLOT 0xFF
 
