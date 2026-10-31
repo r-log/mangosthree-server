@@ -6172,7 +6172,6 @@ legacy/scripts/kalimdor/silithus.cpp override Reset
 legacy/scripts/kalimdor/silithus.cpp override SpellHit
 legacy/scripts/kalimdor/silithus.cpp override SummonedMovementInform
 legacy/scripts/kalimdor/silithus.cpp override UpdateAI
-legacy/scripts/kalimdor/silithus.cpp singleton sObjectMgr
 legacy/scripts/kalimdor/stonetalon_mountains.cpp call AI
 legacy/scripts/kalimdor/stonetalon_mountains.cpp call AttackStart
 legacy/scripts/kalimdor/stonetalon_mountains.cpp call GetMap
