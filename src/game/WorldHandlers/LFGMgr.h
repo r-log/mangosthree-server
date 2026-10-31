@@ -34,7 +34,7 @@
 #include "LFGBootLogic.h"
 #include "LFGEmpowerment.h"
 #include "LFGRewardLogic.h"
-#include "LFGPackets.h"
+#include "social/LfgPacketData.h"
 #include "Policies/Singleton.h"
 #include "Group.h"
 #include <set>
