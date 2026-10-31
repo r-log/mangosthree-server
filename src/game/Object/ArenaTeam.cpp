@@ -611,34 +611,6 @@ void ArenaTeam::BroadcastEvent(ArenaTeamEvents event, ObjectGuid guid, char cons
     DEBUG_LOG("WORLD: Sent SMSG_ARENA_TEAM_EVENT");
 }
 
-uint8 ArenaTeam::GetSlotByType(ArenaType type)
-{
-    switch (type)
-    {
-        case ARENA_TYPE_2v2: return 0;
-        case ARENA_TYPE_3v3: return 1;
-        case ARENA_TYPE_5v5: return 2;
-        default:
-            break;
-    }
-    sLog.outError("FATAL: Unknown arena team type %u for some arena team", type);
-    return 0xFF;
-}
-
-ArenaType ArenaTeam::GetTypeBySlot(uint8 slot)
-{
-    switch (slot)
-    {
-        case 0: return ARENA_TYPE_2v2;
-        case 1: return ARENA_TYPE_3v3;
-        case 2: return ARENA_TYPE_5v5;
-        default:
-            break;
-    }
-    sLog.outError("FATAL: Unknown arena team slot %u for some arena team", slot);
-    return ArenaType(0xFF);
-}
-
 uint32 ArenaTeam::GetPoints(uint32 MemberRating)
 {
     // returns how many points would be awarded with this team type with this rating

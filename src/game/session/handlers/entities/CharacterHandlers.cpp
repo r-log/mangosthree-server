@@ -149,7 +149,7 @@ uint8 CharacterHandlers::CharCreateChecksInMemory(WorldSession* session, CharCre
         {
             bool disabled = false;
 
-            Team team = Player::TeamForRace(request.race);
+            Team team = TeamForRace(request.race);
             switch (team)
             {
                 case ALLIANCE: disabled = mask & (1 << 0); break;
@@ -417,7 +417,7 @@ void CharacterHandlers::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder>
         std::vector<CreateAccountCharacterRow> accountChars = CharacterRepository::CreateAccountCharacters(holder.get());
         if (!accountChars.empty())
         {
-            Team team_ = Player::TeamForRace(race_);
+            Team team_ = TeamForRace(race_);
 
             size_t next = 0;
             CreateAccountCharacterRow const* accountChar = &accountChars[next];
@@ -454,7 +454,7 @@ void CharacterHandlers::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder>
             // TODO: what to if account already has characters of both races?
             if (!AllowTwoSideAccounts)
             {
-                if (acc_race == 0 || Player::TeamForRace(acc_race) != team_)
+                if (acc_race == 0 || TeamForRace(acc_race) != team_)
                 {
                     SendCharCreateResult(session, CHAR_CREATE_PVP_TEAMS_VIOLATION);
                     return;

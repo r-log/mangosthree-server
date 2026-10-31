@@ -568,7 +568,7 @@ void CalendarHandlers::HandleCalendarEventInvite(WorldSession& session, WorldPac
 void CalendarHandlers::ResolveCalendarInvitee(CharacterCacheEntry const& cached, CalendarInviteRequest& request)
 {
     request.inviteeGuid = cached.guid;
-    request.inviteeTeam = Player::TeamForRace(cached.race);
+    request.inviteeTeam = TeamForRace(cached.race);
     request.inviteeGuildId = cached.guildId;
 }
 

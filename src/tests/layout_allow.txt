@@ -132,8 +132,6 @@ src/game/Object/Bag.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Calendar.cpp -> src/game/entities/player/Player.h
 src/game/Object/Camera.cpp -> src/game/entities/player/Player.h
-src/game/Object/CharacterCache.cpp -> src/game/Object/ArenaTeam.h
-src/game/Object/CharacterCache.cpp -> src/game/entities/player/Player.h
 src/game/Object/CinematicFlyover.cpp -> src/game/entities/player/Player.h
 src/game/Object/Corpse.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -205,8 +203,6 @@ src/game/Object/ObjectMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/GridMap.h
-# reached through ObjectMgr.h before #512
-src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrQuestRelations.cpp -> src/game/Object/LootMgr.h
 src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/UpdateData.h

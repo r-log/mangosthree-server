@@ -594,7 +594,7 @@ if(Python3_Interpreter_FOUND)
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --self-test)
 
     add_test(NAME player_methods
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 908
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 906
             --class Player --header ${CMAKE_SOURCE_DIR}/src/game/entities/player/Player.h)
 
     add_test(NAME unit_methods

@@ -121,6 +121,11 @@ AreaTableEntry const* GetAreaEntryByAreaFlagAndMap(uint32 area_flag, uint32 map_
  */
 uint32 GetVirtualMapForMapAndZone(uint32 mapid, uint32 zoneId);
 
+/**
+ * Returns the team of a race, from its base language in ChrRaces.dbc.
+ */
+Team TeamForRace(uint8 race);
+
 enum ContentLevels
 {
     CONTENT_1_60 = 0,

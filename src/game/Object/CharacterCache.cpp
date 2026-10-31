@@ -25,12 +25,12 @@
 
 #include "CharacterCache.h"
 
-#include "ArenaTeam.h"
+#include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Player.h"
 #include "ProgressBar.h"
 #include "Util.h"
+#include "data/ArenaSlots.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/social/ArenaTeamRepository.h"
 #include "persistence/characters/social/GuildRepository.h"
@@ -332,7 +332,7 @@ void CharacterCache::LoadFromDB()
                 continue;                                   // an arena row with no character
             }
 
-            const uint8 slot = ArenaTeam::GetSlotByType(ArenaType(row.type));
+            const uint8 slot = GetArenaSlotByType(ArenaType(row.type));
             if (slot >= CHARACTER_CACHE_ARENA_SLOTS)
             {
                 continue;                                   // GetSlotByType has already logged it
@@ -380,7 +380,7 @@ Team CharacterCache::GetTeam(ObjectGuid guid) const
 {
     if (CharacterCacheRef entry = GetByGuid(guid))
     {
-        return Player::TeamForRace(entry->race);
+        return TeamForRace(entry->race);
     }
 
     return TEAM_NONE;

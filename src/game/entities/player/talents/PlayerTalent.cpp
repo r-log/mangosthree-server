@@ -693,12 +693,13 @@ void Player::ActivateSpec(uint8 specNum)
 
     // recheck action buttons (not checked at loading/spec copy)
     ActionButtonList const& currentActionButtonList = m_actionButtons[m_talentMgr.ActiveSpec()];
+    ActionButtonOwner const owner = { GetName(), [this](uint32 spellId) { return HasSpell(spellId); } };
     for (ActionButtonList::const_iterator itr = currentActionButtonList.begin(); itr != currentActionButtonList.end();)
     {
         if (itr->second.uState != ACTIONBUTTON_DELETED)
         {
             // remove broken without any output (it can be not correct because talents not copied at spec creating)
-            if (!IsActionButtonDataValid(itr->first, itr->second.GetAction(), itr->second.GetType(), this, false))
+            if (!IsActionButtonDataValid(itr->first, itr->second.GetAction(), itr->second.GetType(), &owner, false))
             {
                 removeActionButton(m_talentMgr.ActiveSpec(), itr->first);
                 itr = currentActionButtonList.begin();

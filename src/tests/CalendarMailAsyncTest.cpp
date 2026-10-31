@@ -433,7 +433,7 @@ TEST(CalendarMailAsync_ArenaAddMemberTakesAnOfflineMemberFromTheCacheAndQueuesTh
     // is what keeps Player::GetArenaTeamIdFromDB answering correctly for the next join).
     CharacterCacheRef cached = sCharacterCache.GetByGuid(ReceiverGuid());
     REQUIRE(cached != NULL);
-    CHECK_EQ(cached->arenaTeamId[ArenaTeam::GetSlotByType(ARENA_TYPE_2v2)], kArenaTeamId);
+    CHECK_EQ(cached->arenaTeamId[GetArenaSlotByType(ARENA_TYPE_2v2)], kArenaTeamId);
 
     CharacterDatabase.ExecuteQueuedForTest();
     REQUIRE(async.executed.size() == size_t(1));
