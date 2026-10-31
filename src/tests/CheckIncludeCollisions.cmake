@@ -36,7 +36,8 @@ get_filename_component(SOURCE_ROOT "${SOURCE_ROOT}" ABSOLUTE)
 # "<target>|<its CMakeLists.txt, relative to SOURCE_ROOT>|<targets it inherits include directories from, comma-separated>"
 set(COLLISION_TARGETS
     "persistence|src/game/CMakeLists.txt|"
-    "game|src/game/CMakeLists.txt|persistence"
+    "data|src/game/CMakeLists.txt|persistence"
+    "game|src/game/CMakeLists.txt|data,persistence"
     "scripts|src/scripts/CMakeLists.txt|game"
     "mangos_tests|src/tests/CMakeLists.txt|game,scripts"
     "scripts_legacy|src/scripts/legacy/CMakeLists.txt|game"

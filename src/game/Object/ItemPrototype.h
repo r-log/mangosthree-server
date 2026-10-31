@@ -818,9 +818,6 @@ struct ItemRequiredTarget
     ItemRequiredTarget(ItemRequiredTargetType uiType, uint32 uiTargetEntry) : m_uiType(uiType), m_uiTargetEntry(uiTargetEntry) {}
     ItemRequiredTargetType m_uiType;
     uint32 m_uiTargetEntry;
-
-    // helpers
-    bool IsFitToRequirements(Unit* pUnitTarget) const;
 };
 
 #endif
