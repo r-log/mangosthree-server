@@ -64,6 +64,7 @@
 #include "wire/MovementSequences.h"
 #include "WorldSession.h"
 #include "Player.h"
+#include "session/packets/entities/UpdateObjectPacket.h"
 #include "ObjectMgr.h"
 #include "DBCStores.h"
 #include "ObjectLookup.h"
@@ -450,6 +451,13 @@ void WorldSession::LogUnprocessedTail(WorldPacket* packet)
                   LookupOpcodeName(packet->GetOpcode()),
                   packet->GetOpcode(),
                   packet->rpos(), packet->wpos());
+}
+
+void WorldSession::SendUpdateObjects(UpdateData const& data)
+{
+    WorldPacket packet;
+    BuildUpdateObjectPacket(data, &packet);
+    SendPacket(&packet);
 }
 
 bool WorldSession::HandleMapInput()

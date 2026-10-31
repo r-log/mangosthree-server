@@ -29,8 +29,6 @@
 #include "ByteBuffer.h"
 #include "ObjectGuid.h"
 
-class WorldPacket;
-
 enum ObjectUpdateType
 {
     UPDATETYPE_VALUES               = 0,
@@ -68,36 +66,33 @@ class UpdateData
         void AddOutOfRangeGUID(ObjectGuid const& guid);
         void AddUpdateBlock() { ++m_blockCount; }
         ByteBuffer& GetBuffer() { return m_data; }
-        bool BuildPacket(WorldPacket* packet);
+        ByteBuffer const& GetBuffer() const { return m_data; }
         bool HasData() { return m_blockCount > 0 || !m_outOfRangeGUIDs.empty(); }
         void Clear();
 
         GuidSet const& GetOutOfRangeGUIDs() const { return m_outOfRangeGUIDs; }
 
         void SetMapId(uint32 mapId) { m_map = mapId; }
+        uint32 GetMapId() const { return m_map; }
+        uint32 GetBlockCount() const { return m_blockCount; }
 
     protected:
 
         /**
          * @brief The map this update belongs to.
          *
-         * uint32, because that is what a map id IS everywhere else in the tree:
+         * uint32, because that is what a map id is everywhere else in the tree:
          * Object::GetMapId(), GridMap, BattleGround and MapPersistentState all
-         * return uint32, and every caller here passes one straight through. This
-         * used to be uint16, so every one of those calls narrowed silently at
-         * the constructor -- an implicit conversion the compiler is not required
-         * to say anything about.
+         * return uint32, and every caller here passes one straight through.
          *
-         * The narrowing that remains is the one on the wire, in BuildPacket, and
-         * it is deliberate, visible and checked. See the note there: what the
-         * 15595 client actually reads for this field is NOT pinned, and it has
-         * to be before any map id above 65535 exists.
+         * The narrowing is the one on the wire, in the update packet's builder
+         * (BuildUpdateObjectPacket), and it is deliberate, visible and checked.
+         * See the note there: the field is 16 bits, and a map id above 65535
+         * does not fit it.
          */
         uint32 m_map;
         uint32 m_blockCount;
         GuidSet m_outOfRangeGUIDs;
         ByteBuffer m_data;
-
-        void Compress(void* dst, uint32* dst_size, void* src, int src_size);
 };
 #endif

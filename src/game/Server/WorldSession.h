@@ -74,6 +74,7 @@ class Item;
 class Object;
 class Player;
 class Unit;
+class UpdateData;
 class WorldPacket;
 class SqlQueryHolder;
 class LoginQueryHolder;
@@ -354,6 +355,7 @@ class WorldSession final : public PlayerSession
         void SendAddonsInfo();
 
         void SendPacket(WorldPacket const* packet) override;
+        void SendUpdateObjects(UpdateData const& data) override;
         void SendNotification(const char* format, ...) override ATTR_PRINTF(2, 3);
         void SendNotification(int32 string_id, ...) override;
         void SendPetNameInvalid(uint32 error, const std::string& name, DeclinedName* declinedName);

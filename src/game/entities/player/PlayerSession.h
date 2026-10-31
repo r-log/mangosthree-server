@@ -39,6 +39,7 @@
 class Creature;
 class Player;
 class Unit;
+class UpdateData;
 class WorldPacket;
 
 namespace Motion
@@ -87,6 +88,8 @@ class PlayerSession
 
         // What the client is sent.
         virtual void SendPacket(WorldPacket const* packet) = 0;
+        /// Sends `data`'s accumulated object updates as one update packet.
+        virtual void SendUpdateObjects(UpdateData const& data) = 0;
         virtual void SendNotification(const char* format, ...) ATTR_PRINTF(2, 3) = 0;
         virtual void SendNotification(int32 string_id, ...) = 0;
         virtual void SendAreaTriggerMessage(const char* text, ...) ATTR_PRINTF(2, 3) = 0;
