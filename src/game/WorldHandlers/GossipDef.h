@@ -84,7 +84,7 @@ typedef std::vector<QuestMenuItem> QuestMenuItemList;
 class GossipMenu
 {
     public:
-        explicit GossipMenu(PlayerSession* session);
+        GossipMenu(PlayerSession* session, int localeIndex);
         ~GossipMenu();
 
         void AddMenuItem(uint8 Icon, const std::string& Message, bool Coded = false);
@@ -147,6 +147,7 @@ class GossipMenu
 
     private:
         PlayerSession* m_session;                    // Session associated with the gossip menu
+        int m_localeIndex;                           // the session's database locale, for the menu's texts
 };
 
 /**
@@ -185,6 +186,36 @@ class QuestMenu
 /**
  * Class representing a player menu, which includes both gossip and quest menus.
  */
+/// What a player's menus send the player's own client: the gossip and quest-giver dialogues, the points of
+/// interest and the talking boxes, one call per packet. The session installs the notices that send them
+/// at start-up; this base sends nothing.
+class GossipNotices
+{
+    public:
+        virtual ~GossipNotices();
+
+        virtual void SendGossipMenu(PlayerSession& session, GossipMenu const& gossipMenu, QuestMenu const& questMenu, uint32 TitleTextId, ObjectGuid objectGuid);
+        virtual void CloseGossip(PlayerSession& session);
+        virtual void SendPointOfInterest(PlayerSession& session, float X, float Y, uint32 Icon, uint32 Flags, uint32 Data, char const* locName);
+        virtual void SendPointOfInterest(PlayerSession& session, uint32 poi_id);
+        virtual void SendTalking(PlayerSession& session, uint32 textID);
+        virtual void SendTalking(PlayerSession& session, char const* title, char const* text);
+        virtual void SendQuestGiverQuestList(PlayerSession& session, QuestMenu const& questMenu, QEmote eEmote, const std::string& Title, ObjectGuid npcGUID);
+        virtual void SendQuestGiverStatus(PlayerSession& session, uint32 questStatus, ObjectGuid npcGUID);
+        virtual void SendQuestGiverQuestDetails(PlayerSession& session, Quest const* pQuest, ObjectGuid guid, bool ActivateAccept);
+        virtual void SendQuestQueryResponse(PlayerSession& session, Quest const* pQuest);
+        virtual void SendQuestGiverOfferReward(PlayerSession& session, Quest const* pQuest, ObjectGuid npcGUID, bool EnableNext);
+        virtual void SendQuestGiverRequestItems(PlayerSession& session, Quest const* pQuest, ObjectGuid npcGUID, bool Completable, bool CloseOnCancel);
+
+        /// The installed notices, or the base when none are installed.
+        static GossipNotices& Installed();
+        /// Installs `notices` and answers the ones it replaces (NULL for the base). NULL installs the
+        /// base. Installed once at start-up, before the world loads.
+        static GossipNotices* Install(GossipNotices* notices);
+};
+
+#define sGossipNotices GossipNotices::Installed()
+
 class PlayerMenu
 {
     private:
@@ -192,7 +223,7 @@ class PlayerMenu
         QuestMenu  mQuestMenu;                      // Quest menu
 
     public:
-        explicit PlayerMenu(PlayerSession* Session);
+        PlayerMenu(PlayerSession* Session, int localeIndex);
         ~PlayerMenu();
 
         GossipMenu& GetGossipMenu() { return mGossipMenu; }

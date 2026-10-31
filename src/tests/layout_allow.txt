@@ -153,7 +153,6 @@ src/game/Object/CinematicFlyover.cpp -> src/game/entities/player/Player.h
 src/game/Object/Corpse.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/Object/Corpse.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/Creature.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/Object/Creature.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through GridNotifiersImpl.h before #572
@@ -429,7 +428,6 @@ src/game/entities/player [entities] -> src/game/spells/AuraQueries.h
 # Player holds the spell modifier manager by value (Player.h).
 src/game/entities/player [entities] -> src/game/spells/SpellModMgr.h
 src/game/entities/player [entities] -> src/game/spells/pipeline/Spell.h
-src/game/entities/player/Player.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/entities/player/Player.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/Player.cpp -> src/proto/Opcodes.h
@@ -465,7 +463,6 @@ src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/GridNo
 src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Group.h
 src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/InstanceData.h
 src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/interaction/PlayerLoot.cpp -> src/proto/Opcodes.h
 src/game/entities/player/interaction/PlayerLoot.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/interaction/PlayerMail.cpp -> src/proto/Opcodes.h
@@ -526,7 +523,6 @@ src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Mail.h
 src/game/entities/player/quests [entities] -> src/game/WorldHandlers/MapManager.h
 # moved from spells/data/SpellMgr.h in #651
 src/game/entities/player/quests [entities] -> src/game/spells/pipeline/SpellRules.h
-src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/Opcodes.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/WorldPacket.h
@@ -705,6 +701,8 @@ src/game/spells/pipeline [spells] -> src/game/Object/UnitDisableSubject.h
 src/game/spells/pipeline [spells] -> src/game/Object/Vehicle.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/AchievementMgr.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/CellImpl.h
+# a quest-offering spell opens the player's quest dialogue; the menus (GossipDef) are entities
+src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GossipDef.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GridDefines.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GridNotifiers.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
@@ -754,7 +752,6 @@ src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/entities/player/P
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/proto/WorldPacket.h
-src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/proto/Opcodes.h

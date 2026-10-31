@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "session/ManagerNotices.h"
+#include "session/ClientNotices.h"
 
 #include "AuctionHouseMgr.h"
 #include "CalendarHandler.h"
@@ -31,6 +31,7 @@
 #include "LFGMgr.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "session/packets/entities/GossipPackets.h"
 
 namespace
 {
@@ -70,13 +71,15 @@ namespace
     };
 }
 
-void InstallManagerNotices()
+void InstallClientNotices()
 {
     static SessionLfgNotices lfg;
     static SessionTicketNotices tickets;
     static SessionAuctionNotices auctions;
+    static SessionGossipNotices gossip;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
+    GossipNotices::Install(&gossip);
     InstallCalendarNotices();
 }

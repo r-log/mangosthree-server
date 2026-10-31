@@ -23,11 +23,11 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef MANGOS_H_MANAGERNOTICES
-#define MANGOS_H_MANAGERNOTICES
+#ifndef MANGOS_H_CLIENTNOTICES
+#define MANGOS_H_CLIENTNOTICES
 
-/// Installs the notices through which the dungeon finder, the ticket manager, the auction house and
-/// the calendar report what a client is told; each sends the session's packet.
-void InstallManagerNotices();
+/// Installs the notices through which the dungeon finder, the ticket manager, the auction house, the
+/// calendar and a player's menus report what a client is told; each sends the session's packet.
+void InstallClientNotices();
 
 #endif
