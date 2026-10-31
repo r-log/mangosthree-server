@@ -730,14 +730,10 @@ void Aura::HandleInvisibility(bool apply, bool Real)
 
         target->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_IMMUNE_OR_LOST_SELECTION);
 
-        Player* targetPlayer = target->ToPlayer();
-        if (Real && targetPlayer)
+        // apply glow vision
+        if (Real && target->GetTypeId() == TYPEID_PLAYER)
         {
-            if (targetPlayer->GetMover() == NULL) // check if the player doesnt have a mover, when player is hidden during MC of creature
-            {
-                // apply glow vision
-                target->SetByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
-            }
+            target->SetByteFlag(PLAYER_FIELD_BYTES2, 3, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
         }
 
         // apply only if not in GM invisibility and not stealth
