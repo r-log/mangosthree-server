@@ -196,6 +196,7 @@ template <class T>
 /**
  * @brief Chooses one spawn candidate from the pool group.
  *
+ * @param group The pool group to roll from.
  * @param spawns The spawned state tracker.
  * @param triggerFrom The guid that triggered the respawn cycle.
  * @return The selected pool object, or null if none can be chosen.
@@ -243,6 +244,7 @@ template<class T>
 /**
  * @brief Despawns pooled objects of a given type.
  *
+ * @param group The pool group whose members are despawned.
  * @param mapState The persistent state owning the spawns.
  * @param guid Optional specific guid to despawn.
  */
@@ -353,6 +355,7 @@ template <class T>
 /**
  * @brief Spawns objects from the pool group up to its configured limit.
  *
+ * @param group The pool group to spawn from.
  * @param mapState The persistent state receiving the spawns.
  * @param limit The desired spawn limit.
  * @param triggerFrom The guid that triggered the respawn cycle.
