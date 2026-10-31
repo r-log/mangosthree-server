@@ -211,15 +211,11 @@ src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectMgrCreatures.cpp -> src/game/Object/LivingWorldAnchorPolicy.h
 src/game/Object/ObjectMgrCreatures.cpp -> src/game/spells/data/SpellMgr.h
-src/game/Object/ObjectMgrGameObjects.cpp -> src/game/WorldHandlers/GridDefines.h
-src/game/Object/ObjectMgrGameObjects.cpp -> src/game/WorldHandlers/MapManager.h
-src/game/Object/ObjectMgrGameTele.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/GridMap.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrItems.cpp -> src/game/Object/ItemEnchantmentMgr.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/spells/data/SpellMgr.h
-src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
@@ -424,8 +420,6 @@ src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillExtraItems.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/proto/WorldPacket.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers/WaypointManager.cpp -> src/game/WorldHandlers/GridDefines.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/WaypointManager.cpp -> src/game/WorldHandlers/GridMap.h
 src/game/WorldHandlers/Weather.cpp -> src/game/Server/WorldSession.h

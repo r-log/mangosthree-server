@@ -35,7 +35,7 @@
 #include "Policies/Singleton.h"
 
 #include "Log.h"
-#include "MapManager.h"
+#include "data/MapGeometry.h"
 #include "ObjectGuid.h"
 #include "data/GameConfig.h"
 #include "ProgressBar.h"
@@ -234,7 +234,7 @@ void ObjectMgr::LoadPlayerInfo()
             }
 
             // accept DB data only for valid position (and non instanceable)
-            if (!MapManager::IsValidMapCoord(mapId, positionX, positionY, positionZ, orientation))
+            if (!MaNGOS::IsValidMapPosition(mapId, positionX, positionY, positionZ, orientation))
             {
                 sLog.outErrorDb("Wrong home position for class %u race %u pair in `playercreateinfo` table, ignoring.", current_class, current_race);
                 continue;

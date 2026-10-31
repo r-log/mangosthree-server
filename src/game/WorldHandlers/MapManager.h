@@ -115,21 +115,21 @@ class MapManager : public MaNGOS::Singleton<MapManager>
         void UnloadAll();
 
         static bool ExistMapAndVMap(uint32 mapid, float x, float y);
-        static bool IsValidMAP(uint32 mapid);
+        static bool IsValidMAP(uint32 mapid) { return MaNGOS::IsValidMapId(mapid); }
 
         static bool IsValidMapCoord(uint32 mapid, float x, float y)
         {
-            return IsValidMAP(mapid) && MaNGOS::IsValidMapCoord(x, y);
+            return MaNGOS::IsValidMapPosition(mapid, x, y);
         }
 
         static bool IsValidMapCoord(uint32 mapid, float x, float y, float z)
         {
-            return IsValidMAP(mapid) && MaNGOS::IsValidMapCoord(x, y, z);
+            return MaNGOS::IsValidMapPosition(mapid, x, y, z);
         }
 
         static bool IsValidMapCoord(uint32 mapid, float x, float y, float z, float o)
         {
-            return IsValidMAP(mapid) && MaNGOS::IsValidMapCoord(x, y, z, o);
+            return MaNGOS::IsValidMapPosition(mapid, x, y, z, o);
         }
 
         static bool IsValidMapCoord(WorldLocation const& loc)
