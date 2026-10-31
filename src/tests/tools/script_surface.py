@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """script_surface.py [--root <repo root>] --check [--symbols <nm|dumpbin> <tool>] [--core-lib <lib>]... [--content-object <obj>]...
+script_surface.py [--root <repo root>] --generate
 script_surface.py --self-test
 
 CheckScriptSurface: what a new script may reach (design/architecture.md, sections 4 and 7).
@@ -13,8 +14,19 @@ CheckScriptSurface: what a new script may reach (design/architecture.md, section
      --defined-only -g) or dumpbin (/symbols, and /linkermember:1).
   4. No file outside src/scripts/legacy/ includes a legacy header, except src/mangosd/LegacyScripts.cpp,
      which hands the legacy library's hooks to the dispatcher.
-  5. It refuses when it finds no surface header, and when it is given core libraries and reads no
-     defined symbol from one of them.
+  5. The legacy reach only shrinks: src/tests/script_legacy_reach.txt holds one line per (legacy file,
+     kind, core name), and a line the tree does not have yet fails, as does a listed line the tree no
+     longer has. The kinds: call (`->n(` or `.n(`), free (`n(`), override (a declaration marked
+     override), include (a header outside src/scripts/legacy/), singleton (`s...` defined by the core)
+     and downcast (a cast to a pointer to a core class). The core names are those its headers under
+     src/game, src/shared, src/proto and src/motion call with parentheses, declare as classes or
+     define as singletons, without the C++ keywords and the common standard library names. Matching is
+     by name, so a legacy name the core also has counts; a line goes with its file. --generate writes
+     the whole list when there is none, and otherwise drops the lines the tree no longer has and never
+     adds one, so a new reach has to be typed into the list by hand.
+  6. It refuses when it finds no surface header, when it parses no core name, when the list is
+     missing or empty while legacy files exist, and when it is given core libraries and reads no
+     defined symbol from one of them. An empty list with no legacy file is the end state, and passes.
 
 Quoted includes resolve as layout_gate.py resolves them; a quoted include it cannot resolve fails.
 With no content files and no content objects, rules 1 and 3 have nothing to check, which the
@@ -55,6 +67,7 @@ import tempfile
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import case_labels  # noqa: E402
 import layout_gate  # noqa: E402
 
 SURFACE = 'scripts/surface/'
@@ -69,6 +82,31 @@ ALLOWED_STD = frozenset((
     'optional', 'set', 'string', 'string_view', 'tuple', 'type_traits', 'unordered_map', 'unordered_set',
     'utility', 'vector'))
 ANGLE_RX = re.compile(r'\s*#\s*include\s*<([^>]+)>')
+
+RATCHET_REL = 'src/tests/script_legacy_reach.txt'
+CORE_DIRS = ('game/', 'shared/', 'proto/', 'motion/')
+HEADER_EXTENSIONS = ('.h', '.hpp', '.inl')
+KINDS = ('call', 'free', 'override', 'include', 'singleton', 'downcast')
+NOT_NAMES = frozenset((
+    'if', 'for', 'while', 'switch', 'return', 'sizeof', 'catch', 'case', 'new', 'delete', 'defined',
+    'static_cast', 'dynamic_cast', 'reinterpret_cast', 'const_cast', 'operator', 'typeid', 'decltype',
+    'alignof', 'noexcept', 'static_assert', 'void', 'bool', 'char', 'int', 'long', 'short', 'unsigned',
+    'signed', 'float', 'double', 'int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64',
+    'size_t', 'time_t',
+    'begin', 'end', 'rbegin', 'rend', 'size', 'empty', 'clear', 'find', 'insert', 'erase', 'at', 'count',
+    'front', 'back', 'push_back', 'push_front', 'pop_back', 'pop_front', 'emplace', 'emplace_back',
+    'resize', 'reserve', 'swap', 'data', 'c_str', 'length', 'substr', 'append', 'compare', 'reset', 'get',
+    'release', 'first', 'second', 'make_pair', 'sort', 'min', 'max', 'abs', 'fabs', 'sqrt', 'pow', 'floor',
+    'ceil', 'sin', 'cos', 'atan2', 'memset', 'memcpy', 'strcmp', 'strlen', 'sprintf', 'snprintf', 'printf',
+    'assert', 'rand', 'srand', 'time', 'lower_bound', 'upper_bound', 'equal_range', 'remove', 'unique'))
+NAME_CALL_RX = re.compile(r'\b([A-Za-z_]\w*)\s*\(')
+MEMBER_CALL_RX = re.compile(r'(?:->|\.)\s*([A-Za-z_]\w*)\s*\(')
+FREE_CALL_RX = re.compile(r'(?<![\w.:>~])([A-Za-z_]\w*)\s*\(')
+OVERRIDE_RX = re.compile(r'\b([A-Za-z_]\w*)\s*\([^;{}()]*\)[^;{}()]*\boverride\b')
+CLASS_RX = re.compile(r'\b(?:class|struct)\s+(?:MANGOS_DLL_\w+\s+)?([A-Za-z_]\w*)\s*(?:final\s*)?[:{]')
+SINGLETON_DEFINE_RX = re.compile(r'^[ \t]*#[ \t]*define[ \t]+(s[A-Z]\w*)\b', re.M)
+SINGLETON_RX = re.compile(r'\b(s[A-Z]\w*)\b')
+CAST_RX = re.compile(r'\(\s*(?:const\s+)?([A-Z]\w*)\s*\*\s*\)|\b(?:static|dynamic|reinterpret|const)_cast\s*<\s*(?:const\s+)?([A-Z]\w*)\s*\*')
 
 
 class GateError(Exception):
@@ -160,6 +198,121 @@ def check_includes(root):
     return errors, len(surface), len(content)
 
 
+def core_vocabulary(root):
+    """The names the core declares in its headers: what is called with parentheses, the classes, and
+    the singleton accessors (`#define s...`)."""
+    src = os.path.join(root, 'src')
+    functions, classes, singletons = set(), set(), set()
+    for f in layout_gate.list_files(src):
+        if not f.startswith(CORE_DIRS) or not f.endswith(HEADER_EXTENSIONS):
+            continue
+        with open(os.path.join(src, f), encoding='utf-8', errors='replace') as fh:
+            raw = fh.read()
+        clean = case_labels.blank(raw)
+        functions.update(m.group(1) for m in NAME_CALL_RX.finditer(clean))
+        classes.update(m.group(1) for m in CLASS_RX.finditer(clean))
+        singletons.update(m.group(1) for m in SINGLETON_DEFINE_RX.finditer(raw))
+    functions -= NOT_NAMES
+    return functions, classes, singletons
+
+
+def legacy_reach(root):
+    """One line per (legacy file, kind, name): how each legacy file reaches the core, and the number
+    of legacy files."""
+    src = os.path.join(root, 'src')
+    functions, classes, singletons = core_vocabulary(root)
+    if not functions or not classes or not singletons:
+        raise GateError('parsed no core vocabulary from the headers under src/%s -- a ratchet that knows no '
+                        'core name holds nothing' % ', src/'.join(CORE_DIRS))
+    files = layout_gate.list_files(src)
+    dep = os.path.join(root, 'dep')
+    dep_files = ['dep/' + x for x in layout_gate.list_files(dep)] if os.path.isdir(dep) else []
+    src_lower = {x.lower(): x for x in files}
+    src_index, dep_index = layout_gate.Index(files), layout_gate.Index(dep_files)
+    templates = layout_gate.list_templates(src)
+    legacy = [f for f in files if f.startswith(LEGACY)]
+    lines = set()
+    for f in legacy:
+        name = 'legacy/' + f[len(LEGACY):]
+        with open(os.path.join(src, f), encoding='utf-8', errors='replace') as fh:
+            raw = fh.read()
+        clean = case_labels.blank(raw)
+        found = set()
+        for kind, spelling in includes(os.path.join(src, f)):
+            if kind != 'quoted':
+                continue
+            try:
+                how, t = layout_gate.resolve(f, spelling, src_index, src_lower, dep_index, templates)
+            except layout_gate.GateError:
+                continue
+            if how == 'tree' and not t.startswith(LEGACY):
+                found.add(('include', t))
+        overridden = set()
+        for ln in clean.splitlines():
+            for m in OVERRIDE_RX.finditer(ln):
+                if m.group(1) in functions:
+                    found.add(('override', m.group(1)))
+                    overridden.add((ln, m.group(1)))
+            for m in MEMBER_CALL_RX.finditer(ln):
+                if m.group(1) in functions:
+                    found.add(('call', m.group(1)))
+            for m in FREE_CALL_RX.finditer(ln):
+                if m.group(1) in functions and (ln, m.group(1)) not in overridden:
+                    found.add(('free', m.group(1)))
+        found.update(('singleton', m.group(1)) for m in SINGLETON_RX.finditer(clean) if m.group(1) in singletons)
+        for m in CAST_RX.finditer(clean):
+            cls = m.group(1) or m.group(2)
+            if cls in classes:
+                found.add(('downcast', cls))
+        lines.update('%s %s %s' % (name, kind, n) for kind, n in found)
+    return lines, len(legacy)
+
+
+def read_ratchet(path):
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding='utf-8') as fh:
+        return set(ln.strip() for ln in fh if ln.strip() and not ln.startswith('#'))
+
+
+def write_ratchet(path, lines):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8', newline='\n') as fh:
+        for ln in sorted(lines):
+            fh.write(ln + '\n')
+
+
+def ratchet_totals(lines):
+    kinds = {k: 0 for k in KINDS}
+    files = set()
+    for ln in lines:
+        f, kind, _ = ln.split(' ', 2)
+        kinds[kind] = kinds.get(kind, 0) + 1
+        files.add(f)
+    return '%d reach lines over %d legacy files (%s)' % (len(lines), len(files), ', '.join(
+        '%s %d' % (k, kinds[k]) for k in KINDS))
+
+
+def ratchet_errors(current, listed, legacy_count):
+    """Rule 5: the legacy reach can only shrink."""
+    errors = []
+    if listed is None:
+        return ['%s does not exist: run script_surface.py --generate once' % RATCHET_REL]
+    if not listed and legacy_count:
+        return ['%s is empty while %d legacy files exist -- a ratchet that lists nothing holds nothing'
+                % (RATCHET_REL, legacy_count)]
+    listed_files = set(ln.split(' ', 1)[0] for ln in listed)
+    for ln in sorted(current - listed):
+        if ln.split(' ', 1)[0] in listed_files:
+            errors.append('legacy reach grew: %s -- reach the core through the surface instead' % ln)
+        else:
+            errors.append('a legacy file not on the list reaches the core: %s -- new code goes under '
+                          'src/scripts/content/' % ln)
+    for ln in sorted(listed - current):
+        errors.append('stale ratchet line (the reach is gone): %s -- delete it, or run --generate' % ln)
+    return errors
+
+
 def parse_nm(text, undefined):
     """The symbols nm prints: with -u the undefined ones, with --defined-only -g the defined ones but the
     weak ones, which are inline and template instantiations every object may carry."""
@@ -225,8 +378,11 @@ def symbol_errors(content_undefined, core_defined):
     return errors
 
 
-def check(root, symbols, core_libs, content_objects, out=print):
+def check(root, symbols, core_libs, content_objects, out=print, ratchet=None):
     errors, surface_count, content_count = check_includes(root)
+    reach, legacy_count = legacy_reach(root)
+    path = ratchet or os.path.join(root, *RATCHET_REL.split('/'))
+    errors += ratchet_errors(reach, read_ratchet(path), legacy_count)
     core_defined = {}
     content_undefined = {}
     if core_libs:
@@ -245,9 +401,23 @@ def check(root, symbols, core_libs, content_objects, out=print):
     for e in errors:
         out('CheckScriptSurface: ' + e)
     out('script_surface: %d surface headers, %d content files, %d content objects against %d core libraries '
-        '(%d defined symbols)' % (surface_count, content_count, len(content_objects), len(core_defined),
-                                  sum(len(s) for s in core_defined.values())))
+        '(%d defined symbols); legacy: %s' % (surface_count, content_count, len(content_objects), len(core_defined),
+                                             sum(len(s) for s in core_defined.values()), ratchet_totals(reach)))
     return 1 if errors else 0
+
+
+def generate(root, out=print, ratchet=None):
+    """Writes the ratchet: the whole reach when no list exists, otherwise the listed lines that are
+    still true, so it only ever shrinks."""
+    reach, legacy_count = legacy_reach(root)
+    path = ratchet or os.path.join(root, *RATCHET_REL.split('/'))
+    listed = read_ratchet(path)
+    lines = reach if listed is None else listed & reach
+    write_ratchet(path, lines)
+    out('script_surface: wrote %s: %s%s' % (path, ratchet_totals(lines),
+                                           '' if listed is None else ' (%d stale lines dropped, %d new ones not added)'
+                                           % (len(listed - reach), len(reach - listed))))
+    return 0
 
 
 def self_test():
@@ -267,7 +437,7 @@ def self_test():
         'src/game/Server/SharedDefines.h': '#include "Platform/Define.h"\n',
         'src/game/Server/DBCEnums.h': '',
         'src/game/Object/ObjectGuid.h': '#include "Platform/Define.h"\n',
-        'src/game/Object/Unit.h': '#include "ObjectGuid.h"\n',
+        'src/game/Object/Unit.h': '#include "ObjectGuid.h"\nclass Unit\n{\n    public:\n        void Kill();\n};\n#define sUnits Units()\n',
         'src/scripts/surface/Ids.h': '#include "Platform/Define.h"\n#include <functional>\n',
         'src/scripts/surface/Units.h': '#include "surface/Ids.h"\n#include "SharedDefines.h"\n',
         'src/scripts/surface/detail/Guids.h': '#include "surface/Ids.h"\n#include "ObjectGuid.h"\n',
@@ -287,6 +457,7 @@ def self_test():
         root = tree(files)
         lines = []
         try:
+            write_ratchet(os.path.join(root, *RATCHET_REL.split('/')), legacy_reach(root)[0])
             got = check(root, None, [], [], out=lines.append)
         except GateError as e:
             got, lines = 1, [str(e)]
@@ -316,6 +487,58 @@ def self_test():
                                          'src/scripts/content/deadmines/boss.cpp': ''}, 1, 'found no surface header')
     expect('an include the tree does not have fails', {'src/scripts/content/deadmines/boss.cpp': '#include "nowhere.h"\n'}, 1,
            'names a header the tree does not have')
+
+    ratchet_base = dict(base)
+    ratchet_base.update({
+        'src/game/Object/Unit.h': '#include "ObjectGuid.h"\nclass Unit\n{\n    public:\n        void Kill();\n        void Heal();\n};\n#define sUnits Units()\n',
+        'src/game/Object/Creature.h': 'class Creature : public Unit\n{\n};\n',
+        'src/scripts/legacy/scripts/boss_a.cpp': '#include "Unit.h"\nvoid A(Unit* u)\n{\n    u->Kill();\n    ((Creature*)u)->Kill();\n    sUnits;\n}\n',
+        'src/scripts/legacy/scripts/boss_b.cpp': 'void B(Unit* u)\n{\n    u->Heal();\n}\n',
+    })
+
+    def ratchet_case(label, listed, changes, want, needle=None, gen=False):
+        files = dict(ratchet_base)
+        files.update(changes)
+        root = tree({k: v for k, v in files.items() if v is not None})
+        path = os.path.join(root, *RATCHET_REL.split('/'))
+        if listed is not None:
+            write_ratchet(path, listed)
+        lines = []
+        try:
+            if gen:
+                generate(root, out=lines.append)
+                got = sorted(read_ratchet(path))
+            else:
+                got = check(root, None, [], [], out=lines.append)
+        except GateError as e:
+            got, lines = 1, [str(e)]
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+        text = '\n'.join(lines)
+        if got != want or (needle and needle not in text):
+            failures.append('%s: got %r (want %r)%s\n%s' % (label, got, want, ', missing "%s"' % needle if needle else '', text))
+
+    full = ['legacy/scripts/boss_a.cpp call Kill', 'legacy/scripts/boss_a.cpp downcast Creature',
+            'legacy/scripts/boss_a.cpp include game/Object/Unit.h', 'legacy/scripts/boss_a.cpp singleton sUnits',
+            'legacy/scripts/boss_b.cpp call Heal', 'legacy/system/ScriptDevMgr.h include game/Object/Unit.h']
+    ratchet_case('the listed reach passes', full, {}, 0, 'legacy: 6 reach lines over 3 legacy files')
+    ratchet_case('a grown reach fails', full, {'src/scripts/legacy/scripts/boss_b.cpp': 'void B(Unit* u)\n{\n    u->Heal();\n    u->Kill();\n}\n'},
+                 1, 'legacy reach grew: legacy/scripts/boss_b.cpp call Kill')
+    ratchet_case('a stale line fails', full, {'src/scripts/legacy/scripts/boss_b.cpp': 'void B()\n{\n}\n'}, 1,
+                 'stale ratchet line (the reach is gone): legacy/scripts/boss_b.cpp call Heal')
+    ratchet_case('a new legacy file fails', full, {'src/scripts/legacy/scripts/boss_c.cpp': 'void C(Unit* u)\n{\n    u->Kill();\n}\n'},
+                 1, 'a legacy file not on the list reaches the core: legacy/scripts/boss_c.cpp call Kill')
+    ratchet_case('an empty ratchet with legacy files refuses', [], {}, 1, 'is empty while 4 legacy files exist')
+    ratchet_case('a missing ratchet fails', None, {}, 1, 'does not exist')
+    ratchet_case('an empty ratchet with no legacy files passes', [], {'src/scripts/legacy/scripts/boss_a.cpp': None,
+                                                                       'src/scripts/legacy/scripts/boss_b.cpp': None,
+                                                                       'src/scripts/legacy/system/ScriptDevMgr.h': None,
+                                                                       'src/scripts/legacy/include/sc_creature.h': None,
+                                                                       'src/mangosd/LegacyScripts.cpp': ''}, 0)
+    ratchet_case('--generate drops a stale line and never adds a new one', full + ['legacy/scripts/boss_b.cpp call Gone'],
+                 {'src/scripts/legacy/scripts/boss_b.cpp': 'void B(Unit* u)\n{\n    u->Heal();\n    u->Kill();\n}\n'},
+                 full, gen=True)
+    ratchet_case('--generate with no list writes the whole reach', None, {}, sorted(full), gen=True)
 
     nm_u = '                 U _ZN4Unit4KillEv\n                 U _Znwm\n'
     nm_defined = ('0000000000000010 T _ZN4Unit4KillEv\n0000000000000000 B g_counter\n                 U memcpy\n'
@@ -356,10 +579,17 @@ def main(argv):
     ap.add_argument('--content-object', action='append', default=[], help='an object file of a new script')
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('--check', action='store_true')
+    g.add_argument('--generate', action='store_true', help='write the legacy ratchet: only ever shrinks it')
     g.add_argument('--self-test', action='store_true')
     args = ap.parse_args(argv[1:])
     if args.self_test:
         return self_test()
+    if args.generate:
+        try:
+            return generate(os.path.abspath(args.root))
+        except (GateError, layout_gate.GateError) as e:
+            print('CheckScriptSurface: ' + str(e))
+            return 1
     if args.symbols and args.symbols[0] not in ('nm', 'dumpbin'):
         ap.error('--symbols takes nm or dumpbin')
     try:

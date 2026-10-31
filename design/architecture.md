@@ -246,7 +246,7 @@ manager or a store takes its dependencies in the constructor, or the read as a p
 | data | no domain, session or scripts header | `CheckLayout`; a `CheckHeaderReach` row for `ObjectMgr.h` |
 | domain | no `WorldPacket.h`, `Opcodes.h`, `WorldSession.h` or `*Database.`; the directories are peers under the ratchet; gated seams `entities/player` and `spells/aura`; managers never name `Player` | `CheckLayout`, `CheckManagerIsolation`, `CheckHeaderReach`, `CheckSessionSeam`, `CheckSpatialBoundary`, `CheckBlockedMasks`; `CheckStateOwnership` re-pointed at the session and persistence files |
 | session | builds the packets; never includes scripts or app | `CheckLayout`; `CheckStateOwnership` (who may spell an opcode) |
-| scripts | new content reaches only the surface; legacy reaches the core only through its compatibility layer, listed line by line, which can only shrink | `CheckMotionMasterShim` (legacy `MotionMaster` calls); `CheckScriptSurface`: what new content and the surface headers include, the core symbols content objects refer to, and that nothing outside legacy includes a legacy header, the legacy reach to be listed next (#83) |
+| scripts | new content reaches only the surface; legacy reaches the core only through its compatibility layer, listed line by line, which can only shrink | `CheckMotionMasterShim` (legacy `MotionMaster` calls); `CheckScriptSurface`: what new content and the surface headers include, the core symbols content objects refer to, and that nothing outside legacy includes a legacy header, and the legacy reach, one line per legacy file, kind and core name in `src/tests/script_legacy_reach.txt`, which can only shrink (15,220 lines over 440 files at the start, #83) |
 
 ## 5. The threads, and who owns what
 
