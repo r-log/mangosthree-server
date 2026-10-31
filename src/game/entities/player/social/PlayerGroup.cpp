@@ -34,7 +34,6 @@
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
-#include "social/GroupRegistry.h"
 #include "Group.h"
 #include "LFGBootLogic.h"
 #include "LFGMgr.h"

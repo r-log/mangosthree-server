@@ -61,7 +61,6 @@
 #include "BattleGroundRB.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
-#include "social/ArenaTeamRegistry.h"
 #include "DBCStores.h"
 #include "ProgressBar.h"
 #include "ArenaTeam.h"

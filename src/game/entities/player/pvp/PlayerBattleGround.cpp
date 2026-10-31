@@ -34,7 +34,6 @@
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
-#include "social/ArenaTeamRegistry.h"
 #include "Group.h"
 #include "Pet.h"
 #include "Util.h"

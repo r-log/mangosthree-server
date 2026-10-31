@@ -40,7 +40,6 @@
 #include "MapPersistentStateMgr.h"
 #include "GridNotifiers.h"
 #include "ObjectMgr.h"
-#include "social/ArenaTeamRegistry.h"
 #include "Pet.h"
 #include "Util.h"
 #include "Transports.h"

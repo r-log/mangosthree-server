@@ -48,8 +48,6 @@
 #include "MapPersistentStateMgr.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
-#include "social/ArenaTeamRegistry.h"
-#include "social/GroupRegistry.h"
 #include "Bag.h"
 #include "CorpseManager.h"
 #include "Group.h"

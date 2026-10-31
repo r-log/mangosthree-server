@@ -31,7 +31,7 @@
 #include "Geometry/Quat.h"
 #include "QuestDef.h"
 #include "ObjectMgr.h"
-#include "social/GroupRegistry.h"
+#include "Group.h"
 #include "PoolManager.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"

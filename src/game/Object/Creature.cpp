@@ -37,7 +37,7 @@
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "ObjectMgr.h"
-#include "social/GroupRegistry.h"
+#include "Group.h"
 #include "data/ScriptNameStore.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"

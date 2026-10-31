@@ -195,7 +195,6 @@ src/game/Object/ObjectGuid.cpp -> src/game/Object/ObjectMgr.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
-src/game/Object/ObjectMgr.cpp -> src/game/Object/ArenaTeam.h
 src/game/Object/ObjectMgr.cpp -> src/game/Object/CorpseManager.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/AchievementMgr.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/CellImpl.h
@@ -217,10 +216,6 @@ src/game/Object/ObjectMgrGameObjects.cpp -> src/game/WorldHandlers/MapManager.h
 src/game/Object/ObjectMgrGameTele.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/GridMap.h
-src/game/Object/ObjectMgrInstanceData.cpp -> src/game/Object/ArenaTeam.h
-src/game/Object/ObjectMgrInstanceData.cpp -> src/game/WorldHandlers/Group.h
-# reached through ObjectMgr.h before #511
-src/game/Object/ObjectMgrInstanceData.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrItems.cpp -> src/game/Object/ItemEnchantmentMgr.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/spells/data/SpellMgr.h

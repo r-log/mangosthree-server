@@ -43,7 +43,6 @@
 #include "BattleGroundIC.h"
 #include "BattleGroundRB.h"
 #include "ObjectMgr.h"
-#include "social/ArenaTeamRegistry.h"
 #include "DBCStores.h"
 #include "ProgressBar.h"
 #include "ArenaTeam.h"

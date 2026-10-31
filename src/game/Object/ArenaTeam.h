@@ -33,6 +33,7 @@
 #include <vector>
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
+#include "social/ArenaTeamRegistry.h"
 
 struct ArenaTeamRow;
 struct ArenaTeamMemberRow;

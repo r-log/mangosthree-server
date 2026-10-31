@@ -62,6 +62,7 @@
 #include "ObjectGuid.h"
 #include "GroupReference.h"
 #include "GroupRefManager.h"
+#include "social/GroupRegistry.h"
 #include "BattleGround.h"
 #include "LootMgr.h"
 #include "DBCEnums.h"

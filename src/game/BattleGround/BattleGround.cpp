@@ -50,7 +50,6 @@
 #include "Group.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
-#include "social/ArenaTeamRegistry.h"
 #include "WorldPacket.h"
 #include "GridNotifiersImpl.h"
 #include "data/ChatPacketBuilder.h"
