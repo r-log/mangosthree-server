@@ -401,3 +401,56 @@ void WorldObject::SendGameObjectCustomAnim(ObjectGuid guid, uint32 animId /*= 0*
     data << uint32(animId);
     SendMessageToSet(&data, true);
 }
+
+bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target /*=NULL*/)
+{
+    MangosStringLocale const* data = sObjectMgr.GetMangosStringLocale(entry);
+
+    if (!data)
+    {
+        LogTextEntryError(entry, "DoScriptText with source %s could not find text entry %i.", source->GetGuidStr().c_str(), entry);
+        return false;
+    }
+
+    if (data->SoundId)
+    {
+        if (data->Type == CHAT_TYPE_ZONE_YELL)
+        {
+            source->GetMap()->PlayDirectSoundToMap(data->SoundId, source->GetTerrain()->GetZoneId(source->Where().X(), source->Where().Y(), source->Where().Z()));
+        }
+        else if (data->Type == CHAT_TYPE_WHISPER || data->Type == CHAT_TYPE_BOSS_WHISPER)
+        {
+            // An error will be displayed for the text
+            if (Player const* targetPlayer = target ? target->ToPlayer() : NULL)
+            {
+                source->PlayDirectSound(data->SoundId, targetPlayer);
+            }
+        }
+        else
+        {
+            source->PlayDirectSound(data->SoundId);
+        }
+    }
+
+    if (data->Emote)
+    {
+        if (source->GetTypeId() == TYPEID_UNIT || source->GetTypeId() == TYPEID_PLAYER)
+        {
+            ((Unit*)source)->HandleEmote(data->Emote);
+        }
+        else
+        {
+            LogTextEntryError(entry, "DoDisplayText entry %i tried to process emote for invalid source %s", entry, source->GetGuidStr().c_str());
+            return false;
+        }
+    }
+
+    if ((data->Type == CHAT_TYPE_WHISPER || data->Type == CHAT_TYPE_BOSS_WHISPER) && (!target || target->GetTypeId() != TYPEID_PLAYER))
+    {
+        LogTextEntryError(entry, "DoDisplayText entry %i can not whisper without target unit (TYPEID_PLAYER).", entry);
+        return false;
+    }
+
+    source->MonsterText(data, target);
+    return true;
+}

@@ -149,6 +149,22 @@ class MapManager : public MaNGOS::Singleton<MapManager>
 
         void InitializeVisibilityDistanceInfo();
 
+        /// What the start-up pass over the continents loaded for the living world.
+        struct LivingWorldStartupStats
+        {
+            uint32 forcedMaps = 0;
+            uint32 totalUniqueGrids = 0;
+            uint32 totalNewlyLoaded = 0;
+            uint32 totalMapTransports = 0;
+        };
+
+        /// Loads the grids of the continents' active creatures, every creature's on a force-loaded
+        /// continent, creating the continents that are not loaded, and logs what each loaded.
+        LivingWorldStartupStats LoadContinentActiveEntities();
+
+        /// Loads the grids of the map's active creatures, every creature's when the map is force-loaded.
+        void LoadActiveEntities(Map& map);
+
         /* statistics */
         uint32 GetNumInstances();
         uint32 GetNumPlayersInInstances();
@@ -185,6 +201,9 @@ class MapManager : public MaNGOS::Singleton<MapManager>
 
         void InitStateMachine();
         void DeleteStateMachine();
+
+        /// LoadActiveEntities for one map; with `stats`, it also counts what it loads into them and logs it.
+        void LoadActiveEntities(Map& map, LivingWorldStartupStats* stats);
 
         Map* CreateInstance(uint32 id, Player* player);
         DungeonMap* CreateDungeonMap(uint32 id, uint32 InstanceId, Difficulty difficulty, DungeonPersistentState* save = NULL);

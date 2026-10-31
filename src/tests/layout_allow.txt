@@ -208,14 +208,12 @@ src/game/Object/ObjectGuid.cpp -> src/game/Object/ObjectMgr.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
-src/game/Object/ObjectMgr.cpp -> src/game/Object/CorpseManager.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/AchievementMgr.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/CellImpl.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/GridNotifiers.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Group.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/InstanceData.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #511
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h

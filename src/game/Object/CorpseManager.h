@@ -91,6 +91,9 @@ class CorpseManager : public MaNGOS::Singleton<CorpseManager>
         /// Expire bones that have outlived their delay.
         void RemoveOldCorpses();
 
+        /// Loads every saved corpse from the character database and tracks it.
+        void LoadCorpses();
+
     private:
 
         CorpseManager() = default;

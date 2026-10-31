@@ -849,6 +849,11 @@ Geometry::Vector3 RandomGroundPointNear(WorldObject const& obj, Geometry::Vector
                                         float distance, float minDist = 0.0f, float const* ori = NULL);
 void FindFreeSpotNear(WorldObject const& anchor, WorldObject const* searcher, float& x, float& y, float& z,
                       float searcher_bounding_radius, float distance2d, float absAngle);
+
+/// Plays a text entry from `source`: its sound and its emote, then the text, said, yelled or whispered
+/// to `target` by the entry's type. Logs an error and answers false for an unknown entry, an emote from
+/// an object that cannot emote, or a whisper with no player to receive it.
+bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target = NULL);
 /// The free-spot search around an explicit centre: the anchor supplies the map, the phase, the
 /// frame, its own extent and the grid area; `center` supplies every position the search is laid
 /// out around, so a live position (a target mid-spline) actually moves the spot. A centre equal
