@@ -582,9 +582,12 @@ set(SESSION_SOURCES
     WorldHandlers/QuestHandler.cpp
     WorldHandlers/TaxiHandler.cpp
     WorldHandlers/TradeHandler.cpp
+    Tools/PlayerDump.cpp
+    Tools/PlayerDump.h
 )
 list(TRANSFORM SESSION_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 list(REMOVE_ITEM SRC_GRP_WORLD_HANDLERS ${SESSION_SOURCES})
+list(REMOVE_ITEM SRC_GRP_TOOL ${SESSION_SOURCES})
 
 add_library(session STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround/BattleGroundHandler.cpp
