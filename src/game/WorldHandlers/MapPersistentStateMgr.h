@@ -38,7 +38,7 @@
 #include "DBCEnums.h"
 #include "DBCStores.h"
 #include "ObjectGuid.h"
-#include "PoolManager.h"
+#include "PoolSpawner.h"
 #include "data/CellObjectGuids.h"
 
 #include <mutex>
