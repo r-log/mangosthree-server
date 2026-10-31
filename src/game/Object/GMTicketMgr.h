@@ -32,9 +32,10 @@
 #include "Database/DatabaseEnv.h"
 #include "Util.h"
 #include "ObjectGuid.h"
-#include "WorldSession.h"
 #include "SharedDefines.h"
 #include <map>
+
+class Player;
 
 enum GMTicketResponse
 {
@@ -96,6 +97,34 @@ enum GMTicketResponse
  *
  * \todo Log conversations between GM and the player receiving help.
  */
+/// What the ticket manager tells a player's client: a ticket's status changed, and the ticket's
+/// status to show. The session installs the notices that send them at start-up; this base sends nothing.
+class TicketNotices
+{
+    public:
+        virtual ~TicketNotices();
+
+        virtual void StatusUpdate(Player& player, GMTicketStatus status);
+        virtual void GetTicket(Player& player, uint32 status);
+
+        /// The installed notices, or the base when none are installed.
+        static TicketNotices& Installed();
+        /// Installs `notices` and answers the ones it replaces (NULL for the base). NULL installs the
+        /// base. Installed once at start-up, before the world loads.
+        static TicketNotices* Install(TicketNotices* notices);
+};
+
+#define sTicketNotices TicketNotices::Installed()
+
+/// A player's answers to the GM survey: the survey, one answer per question (0 past the last one
+/// answered) and the closing comment.
+struct GMSurveyAnswers
+{
+    uint32 surveyId = 0;
+    uint8 answers[10] = {};
+    std::string comment;
+};
+
 class GMTicket
 {
     public:
@@ -180,7 +209,7 @@ class GMTicket
          * @param recvData the packet we received with answers to the survey
          * \todo Implement saving this to DB
          */
-        void SaveSurveyData(WorldPacket& recvData) const;
+        void SaveSurveyData(GMSurveyAnswers const& survey) const;
         /**
          * Close this ticket so that the window showing in the client for the \ref Player
          * disappears.

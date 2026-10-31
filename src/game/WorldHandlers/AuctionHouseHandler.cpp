@@ -25,9 +25,8 @@
 
 /**
  * @file AuctionHouseHandler.cpp
- * @brief Defines six WorldSession members: SendAuctionHello, SendAuctionCommandResult, SendAuctionBidderNotification,
- * SendAuctionOwnerNotification and SendAuctionRemovedNotification, which send the client its auction packets, and
- * the static SendAuctionOutbiddedMail, which mails an outbid bidder their bid back and notifies the bidder if online.
+ * @brief Defines five WorldSession members: SendAuctionHello, SendAuctionCommandResult, SendAuctionBidderNotification,
+ * SendAuctionOwnerNotification and SendAuctionRemovedNotification, which send the client its auction packets.
  */
 
 #include <sstream>
@@ -148,31 +147,3 @@ void WorldSession::SendAuctionRemovedNotification(AuctionEntry* auction)
     SendPacket(&data);
 }
 
-// this function sends mail to old bidder
-void WorldSession::SendAuctionOutbiddedMail(AuctionEntry* auction)
-{
-    ObjectGuid oldBidder_guid = ObjectGuid(HIGHGUID_PLAYER, auction->bidder);
-    Player* oldBidder = sPlayerRegistry.Find(oldBidder_guid);
-
-    uint32 oldBidder_accId = 0;
-    if (!oldBidder)
-    {
-        oldBidder_accId = sObjectMgr.GetPlayerAccountIdByGUID(oldBidder_guid);
-    }
-
-    // old bidder exist
-    if (oldBidder || oldBidder_accId)
-    {
-        std::ostringstream msgAuctionOutbiddedSubject;
-        msgAuctionOutbiddedSubject << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_OUTBIDDED << ":" << auction->Id << ":" << auction->itemCount;
-
-        if (oldBidder)
-        {
-            SessionOf(*oldBidder)->SendAuctionBidderNotification(auction);
-        }
-
-        MailDraft(msgAuctionOutbiddedSubject.str(), "")     // TODO: fix body
-        .SetMoney(auction->bid)
-        .SendMailTo(MailReceiver(oldBidder, oldBidder_guid), auction, MAIL_CHECK_MASK_COPIED);
-    }
-}

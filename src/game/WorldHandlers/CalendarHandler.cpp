@@ -34,6 +34,7 @@
 #include "Opcodes.h"
 #include "MapPersistentStateMgr.h"
 #include "Calendar.h"
+#include "CalendarHandler.h"
 #include "CharacterCache.h"
 #include "ObjectMgr.h"
 #include "SocialMgr.h"
@@ -45,11 +46,25 @@
 #include "persistence/characters/social/CalendarRepository.h"
 #include "persistence/characters/social/SocialRepository.h"
 
-//////////////////////////////////////////////////////////////////////////
-// Send function
-//////////////////////////////////////////////////////////////////////////
+namespace
+{
+    /// The calendar's notices, each sent to the clients it concerns.
+    class SessionCalendarNotices : public CalendarNotices
+    {
+        public:
+            void EventInvite(CalendarInvite const* invite) override;
+            void EventInviteAlert(CalendarInvite const* invite) override;
+            void CommandResult(Player* player, CalendarError err, char const* param) override;
+            void EventRemovedAlert(CalendarEvent const* event) override;
+            void Event(Player* player, CalendarEvent const* event, uint32 sendType) override;
+            void EventInviteRemoveAlert(Player* player, CalendarEvent const* event, CalendarInviteStatus status) override;
+            void EventInviteRemove(CalendarInvite const* invite, uint32 flags) override;
+            void RaidLockoutRemove(Player* player, DungeonPersistentState const* save) override;
+            void RaidLockoutAdd(Player* player, DungeonPersistentState const* save) override;
+    };
+}
 
-void CalendarMgr::SendCalendarEventInviteAlert(CalendarInvite const* invite)
+void SessionCalendarNotices::EventInviteAlert(CalendarInvite const* invite)
 {
     DEBUG_LOG("WORLD: SMSG_CALENDAR_EVENT_INVITE_ALERT");
 
@@ -97,7 +112,7 @@ void CalendarMgr::SendCalendarEventInviteAlert(CalendarInvite const* invite)
     }
 }
 
-void CalendarMgr::SendCalendarEventInvite(CalendarInvite const* invite)
+void SessionCalendarNotices::EventInvite(CalendarInvite const* invite)
 {
     CalendarEvent const* event = invite->GetCalendarEvent();
 
@@ -144,7 +159,7 @@ void CalendarMgr::SendCalendarEventInvite(CalendarInvite const* invite)
     }
 }
 
-void CalendarMgr::SendCalendarCommandResult(Player* player, CalendarError err, char const* param /*= NULL*/)
+void SessionCalendarNotices::CommandResult(Player* player, CalendarError err, char const* param /*= NULL*/)
 {
     if (!player)
     {
@@ -172,7 +187,7 @@ void CalendarMgr::SendCalendarCommandResult(Player* player, CalendarError err, c
     player->SendDirectMessage(&data);
 }
 
-void CalendarMgr::SendCalendarEventRemovedAlert(CalendarEvent const* event)
+void SessionCalendarNotices::EventRemovedAlert(CalendarEvent const* event)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_REMOVED_ALERT");
     WorldPacket data(SMSG_CALENDAR_EVENT_REMOVED_ALERT, 1 + 8 + 1);
@@ -183,7 +198,7 @@ void CalendarMgr::SendCalendarEventRemovedAlert(CalendarEvent const* event)
     SendPacketToAllEventRelatives(data, event);
 }
 
-void CalendarMgr::SendCalendarEvent(Player* player, CalendarEvent const* event, uint32 sendType)
+void SessionCalendarNotices::Event(Player* player, CalendarEvent const* event, uint32 sendType)
 {
     if (!player || !event)
     {
@@ -242,7 +257,7 @@ void CalendarMgr::SendCalendarEvent(Player* player, CalendarEvent const* event, 
     player->SendDirectMessage(&data);
 }
 
-void CalendarMgr::SendCalendarEventInviteRemove(CalendarInvite const* invite, uint32 flags)
+void SessionCalendarNotices::EventInviteRemove(CalendarInvite const* invite, uint32 flags)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_INVITE_REMOVED");
 
@@ -257,7 +272,7 @@ void CalendarMgr::SendCalendarEventInviteRemove(CalendarInvite const* invite, ui
     SendPacketToAllEventRelatives(data, event);
 }
 
-void CalendarMgr::SendCalendarEventInviteRemoveAlert(Player* player, CalendarEvent const* event, CalendarInviteStatus status)
+void SessionCalendarNotices::EventInviteRemoveAlert(Player* player, CalendarEvent const* event, CalendarInviteStatus status)
 {
     if (player)
     {
@@ -272,7 +287,7 @@ void CalendarMgr::SendCalendarEventInviteRemoveAlert(Player* player, CalendarEve
     }
 }
 
-void CalendarMgr::SendCalendarEventStatus(CalendarInvite const* invite)
+void SendCalendarEventStatus(CalendarInvite const* invite)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_STATUS");
     WorldPacket data(SMSG_CALENDAR_EVENT_STATUS, 8 + 8 + 4 + 4 + 1 + 1 + 4);
@@ -289,7 +304,7 @@ void CalendarMgr::SendCalendarEventStatus(CalendarInvite const* invite)
     SendPacketToAllEventRelatives(data, event);
 }
 
-void CalendarMgr::SendCalendarClearPendingAction(Player* player)
+void SendCalendarClearPendingAction(Player* player)
 {
     if (player)
     {
@@ -299,7 +314,7 @@ void CalendarMgr::SendCalendarClearPendingAction(Player* player)
     }
 }
 
-void CalendarMgr::SendCalendarEventModeratorStatusAlert(CalendarInvite const* invite)
+void SendCalendarEventModeratorStatusAlert(CalendarInvite const* invite)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_MODERATOR_STATUS_ALERT");
     CalendarEvent const* event = invite->GetCalendarEvent();
@@ -312,7 +327,7 @@ void CalendarMgr::SendCalendarEventModeratorStatusAlert(CalendarInvite const* in
     SendPacketToAllEventRelatives(data, event);
 }
 
-void CalendarMgr::SendCalendarEventUpdateAlert(CalendarEvent const* event, time_t oldEventTime)
+void SendCalendarEventUpdateAlert(CalendarEvent const* event, time_t oldEventTime)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_UPDATED_ALERT");
     WorldPacket data(SMSG_CALENDAR_EVENT_UPDATED_ALERT, 1 + 8 + 4 + 4 + 4 + 1 + 4 + event->Title.size() + 1); // +1 for the string's NUL terminator
@@ -334,7 +349,7 @@ void CalendarMgr::SendCalendarEventUpdateAlert(CalendarEvent const* event, time_
     SendPacketToAllEventRelatives(data, event);
 }
 
-void CalendarMgr::SendPacketToAllEventRelatives(WorldPacket packet, CalendarEvent const* event)
+void SendPacketToAllEventRelatives(WorldPacket packet, CalendarEvent const* event)
 {
     // Send packet to all guild members
     if (event->IsGuildEvent() || event->IsGuildAnnouncement())
@@ -353,7 +368,7 @@ void CalendarMgr::SendPacketToAllEventRelatives(WorldPacket packet, CalendarEven
             }
 }
 
-void CalendarMgr::SendCalendarRaidLockoutRemove(Player* player, DungeonPersistentState const* save)
+void SessionCalendarNotices::RaidLockoutRemove(Player* player, DungeonPersistentState const* save)
 {
     if (!save || !player)
     {
@@ -372,7 +387,7 @@ void CalendarMgr::SendCalendarRaidLockoutRemove(Player* player, DungeonPersisten
     player->SendDirectMessage(&data);
 }
 
-void CalendarMgr::SendCalendarRaidLockoutAdd(Player* player, DungeonPersistentState const* save)
+void SessionCalendarNotices::RaidLockoutAdd(Player* player, DungeonPersistentState const* save)
 {
     if (!save || !player)
     {
@@ -390,4 +405,10 @@ void CalendarMgr::SendCalendarRaidLockoutAdd(Player* player, DungeonPersistentSt
     data << uint64(save->GetInstanceId());
     //data.hexlike();
     player->SendDirectMessage(&data);
+}
+
+void InstallCalendarNotices()
+{
+    static SessionCalendarNotices notices;
+    CalendarNotices::Install(&notices);
 }

@@ -32,6 +32,8 @@
 #include "LFGCallToArmsLogic.h"
 #include "LFGLockReason.h"
 #include "LFGMgr.h"
+
+#include <atomic>
 #include "LFGRoleAssignment.h"
 #include "Log.h"
 #include "AchievementMgr.h"
@@ -39,7 +41,6 @@
 #include "PlayerRegistry.h"
 #include "ObjectMgr.h"
 #include "SharedDefines.h"
-#include "WorldSession.h"
 #include "data/GameConfig.h"
 
 
@@ -1106,7 +1107,7 @@ void LFGMgr::SendQueueStatusFor(ObjectGuid guid)
                 break;
         }
 
-        SessionOf(*pPlayer)->SendLfgQueueStatus(status);
+        sLfgNotices.QueueStatus(*pPlayer, status);
     }
 }
 
@@ -1169,3 +1170,68 @@ bool LFGMgr::CanPerformSelectedRoles(uint8 playerClass, uint8 roles)
     return true;
 }
 
+namespace
+{
+    std::atomic<LfgNotices*> s_lfgNoticesInstalled(NULL);
+
+    LfgNotices& BaseLfgNotices()
+    {
+        static LfgNotices notices;
+        return notices;
+    }
+}
+
+LfgNotices::~LfgNotices()
+{
+}
+
+void LfgNotices::UpdateStatus(Player& /*player*/, LFGPackets::UpdateStatus const& /*status*/)
+{
+}
+
+void LfgNotices::QueueStatus(Player& /*player*/, LFGPackets::QueueStatus const& /*status*/)
+{
+}
+
+void LfgNotices::RoleCheckUpdate(Player& /*player*/, LFGPackets::RoleCheckUpdate const& /*roleCheck*/)
+{
+}
+
+void LfgNotices::RoleChosen(Player& /*player*/, uint64 /*rawGuid*/, uint32 /*roles*/)
+{
+}
+
+void LfgNotices::ProposalUpdate(Player& /*player*/, LFGPackets::ProposalUpdate const& /*proposal*/)
+{
+}
+
+void LfgNotices::TeleportError(Player& /*player*/, uint8 /*error*/)
+{
+}
+
+void LfgNotices::PlayerReward(Player& /*player*/, LFGPackets::PlayerReward const& /*reward*/)
+{
+}
+
+void LfgNotices::BootProposalUpdate(Player& /*player*/, LFGBoot const& /*boot*/, uint32 /*votesNeeded*/)
+{
+}
+
+void LfgNotices::OfferContinue(Player& /*player*/, uint32 /*dungeonEntry*/)
+{
+}
+
+void LfgNotices::JoinResult(Player& /*player*/, LfgJoinResult /*result*/, uint8 /*resultDetail*/, RideTicket const& /*ticket*/, std::vector<LFGPackets::JoinResultBlacklist> const& /*blacklist*/)
+{
+}
+
+LfgNotices& LfgNotices::Installed()
+{
+    LfgNotices* notices = s_lfgNoticesInstalled.load(std::memory_order_acquire);
+    return notices ? *notices : BaseLfgNotices();
+}
+
+LfgNotices* LfgNotices::Install(LfgNotices* notices)
+{
+    return s_lfgNoticesInstalled.exchange(notices, std::memory_order_acq_rel);
+}

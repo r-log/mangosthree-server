@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <atomic>
 #include "AuctionHouseMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
@@ -46,7 +47,6 @@
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "Mail.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/economy/AuctionRepository.h"
@@ -60,6 +60,35 @@
  * \file
  */
 
+
+/// Mails an outbid bidder their bid back, and tells the bidder when online.
+static void SendAuctionOutbiddedMail(AuctionEntry* auction)
+{
+    ObjectGuid oldBidder_guid = ObjectGuid(HIGHGUID_PLAYER, auction->bidder);
+    Player* oldBidder = sPlayerRegistry.Find(oldBidder_guid);
+
+    uint32 oldBidder_accId = 0;
+    if (!oldBidder)
+    {
+        oldBidder_accId = sObjectMgr.GetPlayerAccountIdByGUID(oldBidder_guid);
+    }
+
+    // old bidder exist
+    if (oldBidder || oldBidder_accId)
+    {
+        std::ostringstream msgAuctionOutbiddedSubject;
+        msgAuctionOutbiddedSubject << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_OUTBIDDED << ":" << auction->Id << ":" << auction->itemCount;
+
+        if (oldBidder)
+        {
+            sAuctionNotices.BidderNotification(*oldBidder, auction);
+        }
+
+        MailDraft(msgAuctionOutbiddedSubject.str(), "")     // TODO: fix body
+        .SetMoney(auction->bid)
+        .SendMailTo(MailReceiver(oldBidder, oldBidder_guid), auction, MAIL_CHECK_MASK_COPIED);
+    }
+}
 
 /**
  * @brief Initializes the auction house manager.
@@ -247,7 +276,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
 
     if (auction_owner)
     {
-        SessionOf(*auction_owner)->SendAuctionOwnerNotification(auction);
+        sAuctionNotices.OwnerNotification(*auction_owner, auction);
     }
 
     // receiver exist
@@ -268,7 +297,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
 
         if (bidder)
         {
-            SessionOf(*bidder)->SendAuctionBidderNotification(auction);
+            sAuctionNotices.BidderNotification(*bidder, auction);
             // FIXME: for offline player need also
             bidder->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_WON_AUCTIONS, 1);
         }
@@ -372,7 +401,7 @@ void AuctionHouseMgr::SendAuctionExpiredMail(AuctionEntry* auction)
 
         if (owner)
         {
-            SessionOf(*owner)->SendAuctionOwnerNotification(auction);
+            sAuctionNotices.OwnerNotification(*owner, auction);
         }
 
         RemoveAItem(auction->itemGuidLow);                  // we have to remove the item, before we delete it !!
@@ -1071,10 +1100,10 @@ bool AuctionSorter::operator()(const AuctionEntry* auc1, const AuctionEntry* auc
  * @param count Receives the number of appended entries.
  * @param totalcount Receives the total number of matching entries.
  */
-void WorldSession::BuildListAuctionItems(std::vector<AuctionEntry*> const& auctions, WorldPacket& data, std::wstring const& wsearchedname, uint32 listfrom, uint32 levelmin,
+void BuildListAuctionItems(Player& player, std::vector<AuctionEntry*> const& auctions, WorldPacket& data, std::wstring const& wsearchedname, uint32 listfrom, uint32 levelmin,
         uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, uint32& count, uint32& totalcount, bool isFull)
 {
-    int loc_idx = _player->GetSession()->GetSessionDbLocaleIndex();
+    int loc_idx = player.GetSession()->GetSessionDbLocaleIndex();
 
     for (std::vector<AuctionEntry*>::const_iterator itr = auctions.begin(); itr != auctions.end(); ++itr)
     {
@@ -1125,7 +1154,7 @@ void WorldSession::BuildListAuctionItems(std::vector<AuctionEntry*> const& aucti
 
             if (usable != 0x00)
             {
-                if (_player->CanUseItem(item) != EQUIP_ERR_OK)
+                if (player.CanUseItem(item) != EQUIP_ERR_OK)
                 {
                     continue;
                 }
@@ -1140,7 +1169,7 @@ void WorldSession::BuildListAuctionItems(std::vector<AuctionEntry*> const& aucti
                             continue;
                         }
 
-                        if (_player->HasSpell(spellEff->EffectTriggerSpell))
+                        if (player.HasSpell(spellEff->EffectTriggerSpell))
                         {
                             continue;
                         }
@@ -1395,7 +1424,7 @@ bool AuctionEntry::UpdateBid(uint64 newbid, Player* newbidder /*=NULL*/)
 
         if (bidder)                                     // return money to old bidder if present
         {
-            WorldSession::SendAuctionOutbiddedMail(this);
+            SendAuctionOutbiddedMail(this);
         }
     }
 
@@ -1406,7 +1435,7 @@ bool AuctionEntry::UpdateBid(uint64 newbid, Player* newbidder /*=NULL*/)
     {
         if (auction_owner)
         {
-            SessionOf(*auction_owner)->SendAuctionOwnerNotification(this);
+            sAuctionNotices.OwnerNotification(*auction_owner, this);
         }
 
         // after this update we should save player's money ...
@@ -1427,3 +1456,37 @@ bool AuctionEntry::UpdateBid(uint64 newbid, Player* newbidder /*=NULL*/)
 }
 
 /** @} */
+
+namespace
+{
+    std::atomic<AuctionNotices*> s_auctionNoticesInstalled(NULL);
+
+    AuctionNotices& BaseAuctionNotices()
+    {
+        static AuctionNotices notices;
+        return notices;
+    }
+}
+
+AuctionNotices::~AuctionNotices()
+{
+}
+
+void AuctionNotices::OwnerNotification(Player& /*player*/, AuctionEntry* /*auction*/)
+{
+}
+
+void AuctionNotices::BidderNotification(Player& /*player*/, AuctionEntry* /*auction*/)
+{
+}
+
+AuctionNotices& AuctionNotices::Installed()
+{
+    AuctionNotices* notices = s_auctionNoticesInstalled.load(std::memory_order_acquire);
+    return notices ? *notices : BaseAuctionNotices();
+}
+
+AuctionNotices* AuctionNotices::Install(AuctionNotices* notices)
+{
+    return s_auctionNoticesInstalled.exchange(notices, std::memory_order_acq_rel);
+}

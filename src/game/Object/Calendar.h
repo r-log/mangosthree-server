@@ -239,6 +239,32 @@ class CalendarInvite
 typedef std::map<uint64, CalendarEvent> CalendarEventStore;
 
 // CalendarMgr class is the main class to handle events and their invites
+/// What the calendar tells the clients its events and invites concern, one call per notice. The
+/// session installs the notices that send them at start-up; this base sends nothing.
+class CalendarNotices
+{
+    public:
+        virtual ~CalendarNotices();
+
+        virtual void EventInvite(CalendarInvite const* invite);
+        virtual void EventInviteAlert(CalendarInvite const* invite);
+        virtual void CommandResult(Player* player, CalendarError err, char const* param);
+        virtual void EventRemovedAlert(CalendarEvent const* event);
+        virtual void Event(Player* player, CalendarEvent const* event, uint32 sendType);
+        virtual void EventInviteRemoveAlert(Player* player, CalendarEvent const* event, CalendarInviteStatus status);
+        virtual void EventInviteRemove(CalendarInvite const* invite, uint32 flags);
+        virtual void RaidLockoutRemove(Player* player, DungeonPersistentState const* save);
+        virtual void RaidLockoutAdd(Player* player, DungeonPersistentState const* save);
+
+        /// The installed notices, or the base when none are installed.
+        static CalendarNotices& Installed();
+        /// Installs `notices` and answers the ones it replaces (NULL for the base). NULL installs the
+        /// base. Installed once at start-up, before the world loads.
+        static CalendarNotices* Install(CalendarNotices* notices);
+};
+
+#define sCalendarNotices CalendarNotices::Installed()
+
 class CalendarMgr
 {
     public:
@@ -283,7 +309,7 @@ class CalendarMgr
         /// The UPDATE twin of WriteEventToDB, for an event whose fields have just changed.
         static void WriteEventUpdateToDB(CalendarEvent const& event);
 
-        // send data to client function
+        // what the clients are told, through the installed calendar notices
         void SendCalendarEventInvite(CalendarInvite const* invite);
         void SendCalendarEventInviteAlert(CalendarInvite const* invite);
         void SendCalendarCommandResult(Player* player, CalendarError err, char const* param = NULL);
@@ -291,14 +317,8 @@ class CalendarMgr
         void SendCalendarEvent(Player* player, CalendarEvent const* event, uint32 sendType);
         void SendCalendarEventInviteRemoveAlert(Player* player, CalendarEvent const* event, CalendarInviteStatus status);
         void SendCalendarEventInviteRemove(CalendarInvite const* invite, uint32 flags);
-        void SendCalendarEventStatus(CalendarInvite const* invite);
-        void SendCalendarClearPendingAction(Player* player);
-        void SendCalendarEventModeratorStatusAlert(CalendarInvite const* invite);
-        void SendCalendarEventUpdateAlert(CalendarEvent const* event, time_t oldEventTime);
         void SendCalendarRaidLockoutRemove(Player* player, DungeonPersistentState const* save);
         void SendCalendarRaidLockoutAdd(Player* player, DungeonPersistentState const* save);
-
-        void SendPacketToAllEventRelatives(WorldPacket packet, CalendarEvent const* event);
 
     private:
         uint64 GetNewEventId() { return ++m_MaxEventId; }

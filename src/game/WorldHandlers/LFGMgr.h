@@ -420,6 +420,33 @@ struct LFGBoot
 
 // End Section: Structures
 
+/// What the dungeon finder tells a player's client, one call per notice. The session installs the
+/// notices that send them at start-up; this base sends nothing.
+class LfgNotices
+{
+    public:
+        virtual ~LfgNotices();
+
+        virtual void UpdateStatus(Player& player, LFGPackets::UpdateStatus const& status);
+        virtual void QueueStatus(Player& player, LFGPackets::QueueStatus const& status);
+        virtual void RoleCheckUpdate(Player& player, LFGPackets::RoleCheckUpdate const& roleCheck);
+        virtual void RoleChosen(Player& player, uint64 rawGuid, uint32 roles);
+        virtual void ProposalUpdate(Player& player, LFGPackets::ProposalUpdate const& proposal);
+        virtual void TeleportError(Player& player, uint8 error);
+        virtual void PlayerReward(Player& player, LFGPackets::PlayerReward const& reward);
+        virtual void BootProposalUpdate(Player& player, LFGBoot const& boot, uint32 votesNeeded);
+        virtual void OfferContinue(Player& player, uint32 dungeonEntry);
+        virtual void JoinResult(Player& player, LfgJoinResult result, uint8 resultDetail, RideTicket const& ticket, std::vector<LFGPackets::JoinResultBlacklist> const& blacklist);
+
+        /// The installed notices, or the base when none are installed.
+        static LfgNotices& Installed();
+        /// Installs `notices` and answers the ones it replaces (NULL for the base). NULL installs the
+        /// base. Installed once at start-up, before the world loads.
+        static LfgNotices* Install(LfgNotices* notices);
+};
+
+#define sLfgNotices LfgNotices::Installed()
+
 class LFGMgr
 {
 public:
