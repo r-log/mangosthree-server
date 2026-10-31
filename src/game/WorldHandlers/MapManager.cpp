@@ -426,19 +426,6 @@ bool MapManager::ExistMapAndVMap(uint32 mapid, float x, float y)
 }
 
 /**
- * @brief Checks whether a map id is valid for loading.
- *
- * @param mapid The map id.
- * @return true if the map is valid; otherwise false.
- */
-bool MapManager::IsValidMAP(uint32 mapid)
-{
-    MapEntry const* mEntry = sMapStore.LookupEntry(mapid);
-    return mEntry && (!mEntry->IsDungeon() || ObjectMgr::GetInstanceTemplate(mapid));
-    // TODO: add check for battleground template
-}
-
-/**
  * @brief Unloads all maps and terrain data.
  */
 void MapManager::UnloadAll()

@@ -36,8 +36,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
-#include "MapManager.h"
-#include "GridDefines.h"
+#include "data/MapGeometry.h"
 #include "DisableMgr.h"
 #include "persistence/world/spawns/GameObjectAddonRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
@@ -180,7 +179,7 @@ void ObjectMgr::LoadGameObjects()
             continue;
         }
 
-        if (!MapManager::IsValidMapCoord(data.mapid, data.posX, data.posY, data.posZ, data.orientation))
+        if (!MaNGOS::IsValidMapPosition(data.mapid, data.posX, data.posY, data.posZ, data.orientation))
         {
             sLog.outErrorDb("Table `gameobject` have gameobject (GUID: %u Entry: %u) with invalid coordinates, skip", guid, data.id);
             continue;

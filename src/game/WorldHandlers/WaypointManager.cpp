@@ -30,7 +30,7 @@
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
 #include "GridMap.h"
-#include "GridDefines.h"
+#include "data/MapGeometry.h"
 #include "DBCStores.h"
 #include "data/DbScriptStore.h"
 #include "persistence/world/spawns/SpawnRepository.h"

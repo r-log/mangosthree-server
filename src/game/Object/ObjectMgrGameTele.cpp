@@ -33,7 +33,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
 #include "Log.h"
-#include "MapManager.h"
+#include "data/MapGeometry.h"
 #include "ProgressBar.h"
 #include "Util.h"
 #include "persistence/world/maps/MapDataRepository.h"
@@ -74,7 +74,7 @@ void ObjectMgr::LoadGameTele()
         gt.mapId          = row.map;
         gt.name           = row.name;
 
-        if (!MapManager::IsValidMapCoord(gt.mapId, gt.position_x, gt.position_y, gt.position_z, gt.orientation))
+        if (!MaNGOS::IsValidMapPosition(gt.mapId, gt.position_x, gt.position_y, gt.position_z, gt.orientation))
         {
             sLog.outErrorDb("Wrong position for id %u (name: %s) in `game_tele` table, ignoring.", id, gt.name.c_str());
             continue;
