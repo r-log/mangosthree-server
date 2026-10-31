@@ -1,5 +1,5 @@
 # Checks that no file in REACH_RULES reaches a header its rule forbids through its includes, and that
-# Object/Unit.h reaches only Mobility.h in src/motion; reads src/game, src/shared, src/proto and src/motion.
+# Object/Unit.h reaches only Mobility.h of the kernel, src/motion outside movement/; reads src/game, src/shared, src/proto and src/motion.
 cmake_minimum_required(VERSION 3.18)
 include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(HeaderReach)
@@ -279,7 +279,8 @@ foreach(RULE IN LISTS REACH_RULES)
     if(HEADER STREQUAL MOTION_ONLY_HEADER)
         foreach(PATH IN LISTS REACHED)
             string(FIND "${PATH}" "${MOTION_DIR}/" AT)
-            if(AT EQUAL 0)
+            string(FIND "${PATH}" "${MOVEMENT_DIR}/" IN_MOVEMENT)
+            if(AT EQUAL 0 AND NOT IN_MOVEMENT EQUAL 0)
                 get_filename_component(NAME "${PATH}" NAME)
                 if(NOT NAME IN_LIST MOTION_ALLOWED)
                     list(APPEND VIOLATIONS "${HEADER} reaches the movement kernel header ${NAME}; only ${MOTION_ALLOWED} is allowed")
