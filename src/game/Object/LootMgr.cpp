@@ -37,6 +37,7 @@
 #include "DBCStores.h"
 #include "PlayerRegistry.h"
 #include "persistence/world/economy/LootDataRepository.h"
+#include "PlayerConditions.h"
 
 static eConfigFloatValues const qualityToRate[MAX_ITEM_QUALITY] =
 {
@@ -527,7 +528,7 @@ LootItem::LootItem(uint32 itemid_, uint8 type_, uint32 count_, uint32 randomSuff
 bool LootItem::AllowedForPlayer(Player const* player, WorldObject const* lootTarget) const
 {
     // DB conditions check
-    if (conditionId && !sObjectMgr.IsPlayerMeetToCondition(conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_LOOT))
+    if (conditionId && !IsPlayerMeetToCondition(conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_LOOT))
     {
         return false;
     }
@@ -1379,12 +1380,12 @@ bool LootTemplate::LootGroup::HasConditionalDrop() const
 bool LootTemplate::LootGroup::HasConditionalDropForPlayer(Player const* player, WorldObject const* lootTarget) const
 {
     for (LootStoreItemList::const_iterator i = ExplicitlyChanced.begin(); i != ExplicitlyChanced.end(); ++i)
-        if (i->conditionId && sObjectMgr.IsPlayerMeetToCondition(i->conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_LOOT))
+        if (i->conditionId && IsPlayerMeetToCondition(i->conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_LOOT))
         {
             return true;
         }
     for (LootStoreItemList::const_iterator i = EqualChanced.begin(); i != EqualChanced.end(); ++i)
-        if (i->conditionId && sObjectMgr.IsPlayerMeetToCondition(i->conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_LOOT))
+        if (i->conditionId && IsPlayerMeetToCondition(i->conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_LOOT))
         {
             return true;
         }
@@ -1559,7 +1560,7 @@ void LootTemplate::Process(Loot& loot, LootStore const& store, bool rate, uint8 
             }
 
             // Check condition
-            if (i->conditionId && !sObjectMgr.IsPlayerMeetToCondition(i->conditionId, NULL, NULL, loot.GetLootTarget(), CONDITION_FROM_REFERING_LOOT))
+            if (i->conditionId && !IsPlayerMeetToCondition(i->conditionId, NULL, NULL, loot.GetLootTarget(), CONDITION_FROM_REFERING_LOOT))
             {
                 continue;
             }
@@ -1745,7 +1746,7 @@ bool LootTemplate::HasConditionalDropForPlayer(LootTemplateMap const& store, Pla
         {
             if (i->conditionId)
             {
-                if (sObjectMgr.IsPlayerMeetToCondition(i->conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_REFERING_LOOT))
+                if (IsPlayerMeetToCondition(i->conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_REFERING_LOOT))
                 {
                     return true;
                 }
@@ -1763,7 +1764,7 @@ bool LootTemplate::HasConditionalDropForPlayer(LootTemplateMap const& store, Pla
                 return true;
             }
         }
-        else if (i->conditionId && sObjectMgr.IsPlayerMeetToCondition(i->conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_LOOT))
+        else if (i->conditionId && IsPlayerMeetToCondition(i->conditionId, player, player->GetMap(), lootTarget, CONDITION_FROM_LOOT))
         {
             return true;
         }

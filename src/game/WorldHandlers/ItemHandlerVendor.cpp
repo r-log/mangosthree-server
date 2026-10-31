@@ -35,6 +35,7 @@
 #include "DBCStores.h"
 #include "Player.h"
 #include "data/CommandHooks.h"
+#include "PlayerConditions.h"
 
 /**
  * @file ItemHandlerVendor.cpp
@@ -121,7 +122,7 @@ void WorldSession::SendListInventory(ObjectGuid vendorguid)
                         continue;
                     }
 
-                    if (crItem->conditionId && !sObjectMgr.IsPlayerMeetToCondition(crItem->conditionId, _player, pCreature->GetMap(), pCreature, CONDITION_FROM_VENDOR))
+                    if (crItem->conditionId && !IsPlayerMeetToCondition(crItem->conditionId, _player, pCreature->GetMap(), pCreature, CONDITION_FROM_VENDOR))
                     {
                         continue;
                     }

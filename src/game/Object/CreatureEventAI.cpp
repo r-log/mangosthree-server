@@ -42,6 +42,7 @@
 #include "InstanceData.h"
 #include "Language.h"
 #include "MotionMaster.h"
+#include "PlayerConditions.h"
 
 /**
  * @brief Updates the repeat timer for an EventAI event.
@@ -2045,7 +2046,7 @@ void CreatureEventAI::ReceiveEmote(Player* pPlayer, uint32 text_emote)
             }
 
             PlayerCondition pcon(0, itr->Event.receive_emote.condition, itr->Event.receive_emote.conditionValue1, itr->Event.receive_emote.conditionValue2);
-            if (pcon.Meets(pPlayer, m_creature->GetMap(), m_creature, CONDITION_FROM_EVENTAI))
+            if (Meets(pcon, pPlayer, m_creature->GetMap(), m_creature, CONDITION_FROM_EVENTAI))
             {
                 DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "CreatureEventAI: ReceiveEmote CreatureEventAI: Condition ok, processing");
                 ProcessEvent(*itr, pPlayer);

@@ -109,9 +109,6 @@ struct SpellClickInfo
     bool   questStartCanActive;                             // if true then quest start can be active (not only rewarded)
     uint8 castFlags;
     uint16 conditionId;                                     // intends to replace questStart, questEnd, questStartCanActive
-
-    // helpers
-    bool IsFitToRequirements(Player const* player, Creature const* clickedCreature) const;
 };
 
 typedef std::multimap<uint32 /*npcEntry*/, SpellClickInfo> SpellClickInfoMap;
@@ -347,11 +344,10 @@ class PlayerCondition
 
         static bool CanBeUsedWithoutPlayer(uint16 entry);
 
-        // Checks if the player meets the condition
-        bool Meets(Player const* pPlayer, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
+        /// The condition's entry in the conditions table.
+        uint16 GetEntry() const { return m_entry; }
 
     private:
-        bool CheckParamRequirements(Player const* pPlayer, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
         uint16 m_entry;                                     // entry of the condition
 
     public:
@@ -1136,7 +1132,6 @@ class ObjectMgr
         LocaleConstant GetLocaleForIndex(int i);
 
         // Check if a player meets condition conditionId
-        bool IsPlayerMeetToCondition(uint16 conditionId, Player const* pPlayer, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
 
         void GetConditions(uint32 conditionId, std::vector<PlayerCondition const*>& out) const;
 
@@ -1499,10 +1494,6 @@ class ObjectMgr
 };
 
 #define sObjectMgr MaNGOS::Singleton<ObjectMgr>::Instance()
-
-/// The spell-area condition check for `player`: whether it meets a condition, asked of the conditions
-/// the object manager loads.
-std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const* player);
 
 /// The display a creature of the template shows: the game event's model, then the spawn's override,
 /// then one of the template's models (a random one where it has several and the model data allows

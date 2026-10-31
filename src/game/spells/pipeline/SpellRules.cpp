@@ -30,6 +30,7 @@
 #include "spells/SpellModMgr.h"
 #include "spells/handlers/SpellMgrHandlers.h"
 #include "spells/pipeline/Spell.h"
+#include "PlayerConditions.h"
 
 /**
  * @brief Calculates the effective spell duration for a caster.
@@ -379,4 +380,15 @@ void ApplyOrRemoveSpellIfCan(SpellArea const& spellArea, Player* player, uint32 
     {
         player->RemoveAurasDueToSpell(spellArea.spellId);
     }
+}
+
+/**
+ * @brief The spell-area condition check for a player: whether it meets a condition.
+ */
+std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const* player)
+{
+    return [player](uint32 conditionId)
+    {
+        return IsPlayerMeetToCondition(conditionId, player, player->GetMap(), NULL, CONDITION_FROM_SPELL_AREA);
+    };
 }
