@@ -29,7 +29,7 @@
  */
 
 #include "ObjectMgr.h"
-#include "LootMgr.h"
+#include "LootStore.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "ProgressBar.h"

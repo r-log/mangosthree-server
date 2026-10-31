@@ -215,8 +215,6 @@ src/game/Object/Object.h -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectGuid.cpp -> src/game/Object/ObjectMgr.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
-# reached through ObjectMgr.h before #512
-src/game/Object/ObjectMgrQuestRelations.cpp -> src/game/Object/LootMgr.h
 src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectUpdate.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectUpdate.cpp -> src/proto/Opcodes.h
