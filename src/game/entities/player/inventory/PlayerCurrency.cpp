@@ -41,7 +41,6 @@
 
 #include "Player.h"
 #include "data/GameConfig.h"
-#include "WorldSession.h"
 #include "Database/DatabaseEnv.h"                           // QueryResult: the login loop fetches and advances it
 #include "persistence/characters/inventory/CurrencyRepository.h"
 

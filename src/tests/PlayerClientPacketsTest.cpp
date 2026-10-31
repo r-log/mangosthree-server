@@ -828,7 +828,7 @@ namespace
 
             ~SeatedPlayer()
             {
-                GetSession()->SetPlayer(nullptr);
+                WorldSession::Of(*this)->SetPlayer(nullptr);
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
             }

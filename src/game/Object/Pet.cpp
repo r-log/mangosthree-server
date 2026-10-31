@@ -37,8 +37,9 @@
 #include "spells/data/SpellMgr.h"
 #include "Unit.h"
 #include "Util.h"
-#include "WorldSession.h"
 #include "data/GameConfig.h"
+#include "Map.h"
+#include "Group.h"
 
 /**
  * @brief Creates a pet instance of the specified type.

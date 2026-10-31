@@ -34,7 +34,6 @@
 #include "spells/data/SpellMgr.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"

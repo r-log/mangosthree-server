@@ -247,7 +247,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
 
     if (auction_owner)
     {
-        auction_owner->GetSession()->SendAuctionOwnerNotification(auction);
+        WorldSession::Of(*auction_owner)->SendAuctionOwnerNotification(auction);
     }
 
     // receiver exist
@@ -268,7 +268,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
 
         if (bidder)
         {
-            bidder->GetSession()->SendAuctionBidderNotification(auction);
+            WorldSession::Of(*bidder)->SendAuctionBidderNotification(auction);
             // FIXME: for offline player need also
             bidder->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_WON_AUCTIONS, 1);
         }
@@ -372,7 +372,7 @@ void AuctionHouseMgr::SendAuctionExpiredMail(AuctionEntry* auction)
 
         if (owner)
         {
-            owner->GetSession()->SendAuctionOwnerNotification(auction);
+            WorldSession::Of(*owner)->SendAuctionOwnerNotification(auction);
         }
 
         RemoveAItem(auction->itemGuidLow);                  // we have to remove the item, before we delete it !!
@@ -1406,7 +1406,7 @@ bool AuctionEntry::UpdateBid(uint64 newbid, Player* newbidder /*=NULL*/)
     {
         if (auction_owner)
         {
-            auction_owner->GetSession()->SendAuctionOwnerNotification(this);
+            WorldSession::Of(*auction_owner)->SendAuctionOwnerNotification(this);
         }
 
         // after this update we should save player's money ...

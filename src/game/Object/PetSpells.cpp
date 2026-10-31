@@ -35,7 +35,6 @@
 #include "spells/auras/SpellAuras.h"
 #include "Unit.h"
 #include "Util.h"
-#include "WorldSession.h"
 #include "WorldGameTime.h"
 
 /**

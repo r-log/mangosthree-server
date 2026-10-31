@@ -46,6 +46,7 @@
 #include "MotionGenerators/MoveSplineInit.h"
 #include "GameTime.h"
 #include "MotionMaster.h"
+#include "WorldSession.h"
 #include <fstream>
 #include <map>
 #include <typeinfo>

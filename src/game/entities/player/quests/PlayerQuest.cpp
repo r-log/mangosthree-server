@@ -41,9 +41,9 @@
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
+#include "QuestGiverStatus.h"
 #include "GossipDef.h"
 #include "UpdateData.h"
 #include "MapManager.h"
@@ -2677,7 +2677,7 @@ void Player::SendQuestGiverStatusMultiple()
 
             if (dialogStatus > DIALOG_STATUS_REWARD_REP)
             {
-                dialogStatus = GetSession()->getDialogStatus(this, questgiver, DIALOG_STATUS_NONE);
+                dialogStatus = QuestGiverDialogStatus(this, questgiver, DIALOG_STATUS_NONE);
             }
 
             data << questgiver->GetObjectGuid();
@@ -2702,7 +2702,7 @@ void Player::SendQuestGiverStatusMultiple()
 
             if (dialogStatus > DIALOG_STATUS_REWARD_REP)
             {
-                dialogStatus = GetSession()->getDialogStatus(this, questgiver, DIALOG_STATUS_NONE);
+                dialogStatus = QuestGiverDialogStatus(this, questgiver, DIALOG_STATUS_NONE);
             }
 
             data << questgiver->GetObjectGuid();

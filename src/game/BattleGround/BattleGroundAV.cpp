@@ -52,7 +52,6 @@
 #include "WorldPacket.h"
 // TODO REMOVE this when graveyard handling for pvp is updated
 #include "DBCStores.h"
-#include "WorldSession.h"
 
 /**
  * @brief Constructor for BattleGroundAV.

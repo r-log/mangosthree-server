@@ -1236,7 +1236,7 @@ void PvpHandlers::HandleBattlemasterJoinArena(WorldSession& session, WorldPacket
     ArenaTeam* at = sArenaTeamRegistry.Find(ateamId);
     if (!at)
     {
-        session.GetPlayer()->GetSession()->SendNotInArenaTeamPacket(arenatype);
+        session.SendNotInArenaTeamPacket(arenatype);
         return;
     }
     // get the team rating for queue

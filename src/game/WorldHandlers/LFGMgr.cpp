@@ -1106,7 +1106,7 @@ void LFGMgr::SendQueueStatusFor(ObjectGuid guid)
                 break;
         }
 
-        pPlayer->GetSession()->SendLfgQueueStatus(status);
+        WorldSession::Of(*pPlayer)->SendLfgQueueStatus(status);
     }
 }
 

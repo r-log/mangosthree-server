@@ -981,7 +981,7 @@ void ChatHandler::LoadCommandTable()
 
 ChatHandler::ChatHandler(WorldSession* session) : m_session(session), sentErrorMessage(false) {}
 
-ChatHandler::ChatHandler(Player* player) : m_session(player->GetSession()), sentErrorMessage(false) {}
+ChatHandler::ChatHandler(Player* player) : m_session(WorldSession::Of(*player)), sentErrorMessage(false) {}
 
 ChatHandler::~ChatHandler() {}
 
@@ -1159,7 +1159,7 @@ bool ChatHandler::HasLowerSecurity(Player* target, ObjectGuid guid, bool strong)
 
     if (target)
     {
-        target_session = target->GetSession();
+        target_session = WorldSession::Of(*target);
     }
     else
     {

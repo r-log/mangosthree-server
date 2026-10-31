@@ -297,6 +297,11 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
     }
 }
 
+WorldSession* WorldSession::Of(Player const& player)
+{
+    return static_cast<WorldSession*>(player.GetSession());
+}
+
 /// WorldSession destructor
 WorldSession::~WorldSession()
 {
@@ -445,6 +450,12 @@ void WorldSession::LogUnprocessedTail(WorldPacket* packet)
                   LookupOpcodeName(packet->GetOpcode()),
                   packet->GetOpcode(),
                   packet->rpos(), packet->wpos());
+}
+
+bool WorldSession::HandleMapInput()
+{
+    MapSessionFilter filter(this);
+    return Update(filter);
 }
 
 /// Update the WorldSession (triggered by World update)

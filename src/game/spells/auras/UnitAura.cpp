@@ -43,6 +43,8 @@
 #include <math.h>
 #include <stdarg.h>
 #include "spells/data/SpellTables.h"
+#include "Map.h"
+#include "Group.h"
 
 /**
  * @brief Sums all aura modifiers of a given type.

@@ -29,7 +29,6 @@
 #include "ObjectGuid.h"
 #include "WorldPacket.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldSession.h"
 
 /**
  * @file ItemEnchantment.cpp

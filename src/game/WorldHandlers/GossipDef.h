@@ -34,7 +34,7 @@
 #include "data/GossipRecords.h"
 #include "ObjectGuid.h"
 
-class WorldSession;
+class PlayerSession;
 
 #define GOSSIP_MAX_MENU_ITEMS       32                      // client supports showing max 32 items
 #define DEFAULT_GOSSIP_MESSAGE      0xffffff
@@ -84,7 +84,7 @@ typedef std::vector<QuestMenuItem> QuestMenuItemList;
 class GossipMenu
 {
     public:
-        explicit GossipMenu(WorldSession* session);
+        explicit GossipMenu(PlayerSession* session);
         ~GossipMenu();
 
         void AddMenuItem(uint8 Icon, const std::string& Message, bool Coded = false);
@@ -137,7 +137,7 @@ class GossipMenu
 
         void ClearMenu();
 
-        WorldSession* GetMenuSession() const { return m_session; }
+        PlayerSession* GetMenuSession() const { return m_session; }
 
     protected:
         GossipMenuItemList      m_gItems;           // List of gossip menu items
@@ -146,7 +146,7 @@ class GossipMenu
         uint32 m_gMenuId;                           // Gossip menu ID
 
     private:
-        WorldSession* m_session;                    // Session associated with the gossip menu
+        PlayerSession* m_session;                    // Session associated with the gossip menu
 };
 
 /**
@@ -192,13 +192,13 @@ class PlayerMenu
         QuestMenu  mQuestMenu;                      // Quest menu
 
     public:
-        explicit PlayerMenu(WorldSession* Session);
+        explicit PlayerMenu(PlayerSession* Session);
         ~PlayerMenu();
 
         GossipMenu& GetGossipMenu() { return mGossipMenu; }
         QuestMenu& GetQuestMenu() { return mQuestMenu; }
 
-        WorldSession* GetMenuSession() const { return mGossipMenu.GetMenuSession(); }
+        PlayerSession* GetMenuSession() const { return mGossipMenu.GetMenuSession(); }
 
         bool Empty() const { return mGossipMenu.Empty() && mQuestMenu.Empty(); }
 

@@ -45,6 +45,7 @@
 #include "CorpseManager.h"
 #include "MotionMaster.h"
 #include "PlayerConditions.h"
+#include "Group.h"
 
 // /////////////////////////////////////////////////////////
 //              DB SCRIPT ENGINE

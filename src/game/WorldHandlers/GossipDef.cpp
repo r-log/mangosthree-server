@@ -52,12 +52,11 @@
 #include "Player.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "Formulas.h"
 #include "data/GameConfig.h"
 
 // Constructor for GossipMenu, initializes the session and reserves space for menu items
-GossipMenu::GossipMenu(WorldSession* session) : m_session(session)
+GossipMenu::GossipMenu(PlayerSession* session) : m_session(session)
 {
     m_gItems.reserve(16); // can be set for max from most often sizes to speedup push_back and less memory use
     m_gMenuId = 0;
@@ -168,7 +167,7 @@ void GossipMenu::ClearMenu()
 }
 
 // Constructor for PlayerMenu, initializes the gossip menu
-PlayerMenu::PlayerMenu(WorldSession* session) : mGossipMenu(session)
+PlayerMenu::PlayerMenu(PlayerSession* session) : mGossipMenu(session)
 {
 }
 

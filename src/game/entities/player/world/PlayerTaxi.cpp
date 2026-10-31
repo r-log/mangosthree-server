@@ -38,7 +38,6 @@
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "ObjectMgr.h"
 #include "spells/pipeline/Spell.h"

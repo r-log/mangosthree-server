@@ -46,7 +46,6 @@
 #include <set>
 #include "GridNotifiers.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "UpdateData.h"
 #include "Map.h"
 #include "Transports.h"
@@ -163,7 +162,7 @@ void MessageDeliverer::Visit(CameraMapType& m)
                 continue;
             }
 
-            if (WorldSession* session = owner->GetSession())
+            if (PlayerSession* session = owner->GetSession())
             {
                 session->SendPacket(i_message);
             }
@@ -187,7 +186,7 @@ void MessageDelivererExcept::Visit(CameraMapType& m)
             continue;
         }
 
-        if (WorldSession* session = owner->GetSession())
+        if (PlayerSession* session = owner->GetSession())
         {
             session->SendPacket(i_message);
         }
@@ -208,7 +207,7 @@ void ObjectMessageDeliverer::Visit(CameraMapType& m)
             continue;
         }
 
-        if (WorldSession* session = iter->getSource()->GetOwner()->GetSession())
+        if (PlayerSession* session = iter->getSource()->GetOwner()->GetSession())
         {
             session->SendPacket(i_message);
         }
@@ -235,7 +234,7 @@ void MessageDistDeliverer::Visit(CameraMapType& m)
                 continue;
             }
 
-            if (WorldSession* session = owner->GetSession())
+            if (PlayerSession* session = owner->GetSession())
             {
                 session->SendPacket(i_message);
             }
@@ -259,7 +258,7 @@ void ObjectMessageDistDeliverer::Visit(CameraMapType& m)
                 continue;
             }
 
-            if (WorldSession* session = iter->getSource()->GetOwner()->GetSession())
+            if (PlayerSession* session = iter->getSource()->GetOwner()->GetSession())
             {
                 session->SendPacket(i_message);
             }

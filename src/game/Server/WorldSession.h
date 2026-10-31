@@ -49,6 +49,7 @@
 #include "IWorldGateway.h"
 #include "TimeBase.h"
 #include "Authority.h"
+#include "PlayerSession.h"
 
 #include <atomic>
 #include <chrono>
@@ -291,7 +292,7 @@ class WorldSessionFilter : public PacketFilter
  *
  * Player session in the World.
  */
-class WorldSession
+class WorldSession final : public PlayerSession
 {
     public:
         /**
@@ -319,11 +320,14 @@ class WorldSession
          */
         ~WorldSession();
 
+        /// The session of `player` (NULL when it has none): a player's session is always a world session.
+        static WorldSession* Of(Player const& player);
+
         /**
          * @brief Check if player is loading
          * @return True if loading
          */
-        bool PlayerLoading() const
+        bool PlayerLoading() const override
         {
             return m_playerLoading;
         }
@@ -332,7 +336,7 @@ class WorldSession
          * @brief Check if player is logging out
          * @return True if logging out
          */
-        bool PlayerLogout() const
+        bool PlayerLogout() const override
         {
             return m_playerLogout;
         }
@@ -341,7 +345,7 @@ class WorldSession
          * @brief Check if player is logging out with save
          * @return True if logging out with save
          */
-        bool PlayerLogoutWithSave() const
+        bool PlayerLogoutWithSave() const override
         {
             return m_playerLogout && m_playerSave;
         }
@@ -352,9 +356,9 @@ class WorldSession
         void ReadAddonsInfo(ByteBuffer &data);
         void SendAddonsInfo();
 
-        void SendPacket(WorldPacket const* packet);
-        void SendNotification(const char* format, ...) ATTR_PRINTF(2, 3);
-        void SendNotification(int32 string_id, ...);
+        void SendPacket(WorldPacket const* packet) override;
+        void SendNotification(const char* format, ...) override ATTR_PRINTF(2, 3);
+        void SendNotification(int32 string_id, ...) override;
         void SendPetNameInvalid(uint32 error, const std::string& name, DeclinedName* declinedName);
         void SendLfgJoinResult(LfgJoinResult result, uint8 resultDetail,
                                RideTicket const& ticket,
@@ -374,8 +378,8 @@ class WorldSession
                              PartyResult res, uint32 val = 0,
                              ObjectGuid guid = ObjectGuid());
         void SendGroupInvite(Player* player, bool alreadyInGroup = false);
-        void SendAreaTriggerMessage(const char* Text, ...) ATTR_PRINTF(2, 3);
-        void SendTransferAborted(uint32 mapid, uint8 reason, uint8 arg = 0);
+        void SendAreaTriggerMessage(const char* Text, ...) override ATTR_PRINTF(2, 3);
+        void SendTransferAborted(uint32 mapid, uint8 reason, uint8 arg = 0) override;
         void SendSetPhaseShift(uint32 phaseMask, uint32 mapId = 0);
         void SendQueryTimeResponse();
 
@@ -419,7 +423,7 @@ class WorldSession
         /// The client refused or failed to act on the redirect we sent.
         void HandleConnectToFailed(WorldPacket& recvPacket);
 
-        AccountTypes GetSecurity() const
+        AccountTypes GetSecurity() const override
         {
             return _security;
         }
@@ -427,15 +431,15 @@ class WorldSession
         /// proof is hashed over it, so it is kept rather than looked up again.
         const std::string& GetAccountName() const { return m_accountName; }
 
-        uint32 GetAccountId() const
+        uint32 GetAccountId() const override
         {
             return _accountId;
         }
-        Player* GetPlayer() const
+        Player* GetPlayer() const override
         {
             return _player;
         }
-        char const* GetPlayerName() const;
+        char const* GetPlayerName() const override;
         void SetSecurity(AccountTypes security)
         {
             _security = security;
@@ -463,7 +467,7 @@ class WorldSession
             m_socketlessSink = sink;
             m_socketlessSinkContext = context;
         }
-        uint8 Expansion() const { return m_expansion; }
+        uint8 Expansion() const override { return m_expansion; }
 
         /// Session in auth.queue currently
         void SetInQueue(bool state)
@@ -472,7 +476,7 @@ class WorldSession
         }
 
         /// Is the user engaged in a log out process?
-        bool isLogingOut() const
+        bool isLogingOut() const override
         {
             return _logoutTime || m_playerLogout;
         }
@@ -489,12 +493,14 @@ class WorldSession
             return (_logoutTime > 0 && currTime >= _logoutTime + 20);
         }
 
-        void LogoutPlayer(bool Save);
-        void KickPlayer();
+        void LogoutPlayer(bool Save) override;
+        void KickPlayer() override;
 
         void QueuePacket(WorldPacket* new_packet);
 
         bool Update(PacketFilter& updater);
+        /// Runs the client's packets that the map worker owns, through a MapSessionFilter.
+        bool HandleMapInput() override;
 
         /// Handle the authentication waiting queue (to be completed)
         void SendAuthWaitQue(uint32 position);
@@ -503,41 +509,41 @@ class WorldSession
         void SendNameQueryOpcodeFromDB(ObjectGuid guid);
         static void SendNameQueryOpcodeFromDBCallBack(std::optional<CharacterNameRow> const& row, uint32 accountId, proto::SessionId sessionId);
 
-        void SendTrainerList(ObjectGuid guid);
+        void SendTrainerList(ObjectGuid guid) override;
         void SendTrainerList(ObjectGuid guid, const std::string& strTitle);
 
-        void SendListInventory(ObjectGuid guid);
+        void SendListInventory(ObjectGuid guid) override;
         bool CheckBanker(ObjectGuid guid);
-        void SendShowBank(ObjectGuid guid);
-        void SendShowMailBox(ObjectGuid guid);
-        void SendTabardVendorActivate(ObjectGuid guid);
+        void SendShowBank(ObjectGuid guid) override;
+        void SendShowMailBox(ObjectGuid guid) override;
+        void SendTabardVendorActivate(ObjectGuid guid) override;
         void SendSpiritResurrect();
         void SendBindPoint(Creature* npc);
         void SendGMTicketGetTicket(uint32 status, GMTicket* ticket = NULL);
 
-        void SendBattlegGroundList(ObjectGuid guid, BattleGroundTypeId bgTypeId);
+        void SendBattlegGroundList(ObjectGuid guid, BattleGroundTypeId bgTypeId) override;
 
-        void SendTradeStatus(TradeStatus status);
-        void SendUpdateTrade(bool trader_state = true);
-        void SendCancelTrade();
+        void SendTradeStatus(TradeStatus status) override;
+        void SendUpdateTrade(bool trader_state = true) override;
+        void SendCancelTrade() override;
 
-        void SendPetitionQueryOpcode(ObjectGuid petitionguid);
+        void SendPetitionQueryOpcode(ObjectGuid petitionguid) override;
 
         // pet
         void SendPetNameQuery(ObjectGuid guid, uint32 petnumber);
-        void SendStablePet(ObjectGuid guid);
+        void SendStablePet(ObjectGuid guid) override;
         void SendStableResult(uint8 res);
 
         // Account Data
         AccountData* GetAccountData(AccountDataType type) { return &m_accountData[type]; }
         void SetAccountData(AccountDataType type, time_t time_, const std::string& data);
         void SendAccountDataTimes(uint32 mask);
-        void SendLoadCUFProfiles();                         ///< raid-frame profiles; client blocks its raid UI until this arrives
+        void SendLoadCUFProfiles() override;                ///< raid-frame profiles; client blocks its raid UI until this arrives
         void LoadGlobalAccountData();
         void LoadAccountData(std::vector<AccountDataRow> const& rows, uint32 mask);
         void LoadTutorialsData();
         void SendTutorialsData();
-        void SaveTutorialsData();
+        void SaveTutorialsData() override;
         uint32 GetTutorialInt(uint32 intId)
         {
             return m_Tutorials[intId];
@@ -556,7 +562,7 @@ class WorldSession
         }
 
         // auction
-        void SendAuctionHello(Unit* unit);
+        void SendAuctionHello(Unit* unit) override;
         void SendAuctionCommandResult(AuctionEntry* auc, AuctionAction Action, AuctionError ErrorCode, InventoryResult invError = EQUIP_ERR_OK);
         void SendAuctionBidderNotification(AuctionEntry* auction);
         void SendAuctionOwnerNotification(AuctionEntry* auction);
@@ -566,41 +572,42 @@ class WorldSession
                                    uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, uint32& count, uint32& totalcount, bool isFull);
 
         // Item Enchantment
-        void SendEnchantmentLog(ObjectGuid targetGuid, ObjectGuid casterGuid, uint32 itemId, uint32 enchantId);
-        void SendItemEnchantTimeUpdate(ObjectGuid playerGuid, ObjectGuid itemGuid, uint32 slot, uint32 duration);
+        void SendEnchantmentLog(ObjectGuid targetGuid, ObjectGuid casterGuid, uint32 itemId, uint32 enchantId) override;
+        void SendItemEnchantTimeUpdate(ObjectGuid playerGuid, ObjectGuid itemGuid, uint32 slot, uint32 duration) override;
 
         // Taxi
         void SendTaxiStatus(ObjectGuid guid);
-        void SendTaxiMenu(Creature* unit);
+        void SendTaxiMenu(Creature* unit) override;
         /// Starts a player's taxi flight over the whole route (the source first); the mount is the takeoff's.
-        void SendDoFlight(uint32 mountDisplayId, std::vector<uint32> const& route, uint32 startNode = 0);
-        bool SendLearnNewTaxiNode(Creature* unit);
-        void SendActivateTaxiReply(ActivateTaxiReply reply);
+        void SendDoFlight(uint32 mountDisplayId, std::vector<uint32> const& route, uint32 startNode = 0) override;
+        bool SendLearnNewTaxiNode(Creature* unit) override;
+        void SendActivateTaxiReply(ActivateTaxiReply reply) override;
 
         // Guild/Arena Team
         void SendGuildCommandResult(uint32 typecmd, const std::string& str, uint32 cmdresult);
-        void SendArenaTeamCommandResult(uint32 team_action, const std::string& team, const std::string& player, uint32 error_id);
+        void SendArenaTeamCommandResult(uint32 team_action, const std::string& team, const std::string& player, uint32 error_id) override;
         void SendNotInArenaTeamPacket(uint8 type);
-        void SendPetitionShowList(ObjectGuid guid);
+        void SendPetitionShowList(ObjectGuid guid) override;
         void SendSaveGuildEmblem(uint32 msg);
 
-        void BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data);
+        void BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data) override;
 
-        void DoLootRelease(ObjectGuid lguid);
+        void DoLootRelease(ObjectGuid lguid) override;
 
         // Account mute time
-        time_t m_muteTime;
+        time_t MuteTime() const override { return m_muteTime; }
+        void SetMuteTime(time_t muteTime) override { m_muteTime = muteTime; }
 
         // Locales
-        LocaleConstant GetSessionDbcLocale() const
+        LocaleConstant GetSessionDbcLocale() const override
         {
             return m_sessionDbcLocale;
         }
-        int GetSessionDbLocaleIndex() const
+        int GetSessionDbLocaleIndex() const override
         {
             return m_sessionDbLocaleIndex;
         }
-        const char* GetMangosString(int32 entry) const;
+        const char* GetMangosString(int32 entry) const override;
 
         /**
          * @brief The round trip the client last reported for one world stream.
@@ -658,12 +665,12 @@ class WorldSession
         /// The units this client may move and the one it has selected: fed by control
         /// transitions through Player::SetClientControl, read by
         /// every inbound movement handler. Map-phase state like the packets it judges.
-        Motion::Authority&       Movers()       { return m_movers; }
-        Motion::Authority const& Movers() const { return m_movers; }
+        Motion::Authority&       Movers() override { return m_movers; }
+        Motion::Authority const& Movers() const override { return m_movers; }
         /// The selected unit, resolved through MemberUnit; NULL when nothing is
         /// selected or the member is gone. The
         /// player's own guid resolves whether or not the player is in the world.
-        Unit* SelectedMover();
+        Unit* SelectedMover() override;
         /// Any guid the session may name -- the player itself whether or not it is in
         /// the world (a far transfer keeps its membership, and its in-flight packets
         /// take the teleporting path), another member only while the player is in the
@@ -671,18 +678,16 @@ class WorldSession
         Unit* MemberUnit(ObjectGuid guid);
         /// A control transition's membership half: the unit's kernel mode, its
         /// mover session and the set change together; the packets are SetClientControl's.
-        void GrantMover(Unit* unit, uint32 now);
-        void RevokeMover(Unit* unit, uint32 now);
+        void GrantMover(Unit* unit, uint32 now) override;
+        void RevokeMover(Unit* unit, uint32 now) override;
         /// Logout: every member revoked, the set cleared.
         void RevokeAllMovers(uint32 now);
-
-        uint32 getDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
 
         /// The session's clock model: the delta between the
         /// client's millisecond tick and the server's, learned from time-sync
         /// pairs, used to rebase every inbound movement timestamp.
-        Motion::TimeBase& TimeBase() { return m_timeBase; }
-        Motion::TimeBase const& TimeBase() const { return m_timeBase; }
+        Motion::TimeBase& TimeBase() override { return m_timeBase; }
+        Motion::TimeBase const& TimeBase() const override { return m_timeBase; }
 
     public:                                                 // opcodes handlers
 
@@ -757,6 +762,7 @@ class WorldSession
         void LogUnprocessedTail(WorldPacket* packet);
 
         uint32 m_GUIDLow;                                   // set logged or recently logout player (while m_playerRecentlyLogout set)
+        time_t m_muteTime;
         Player* _player;
         std::shared_ptr<proto::SessionLinks> m_Socket;
         std::shared_ptr<SessionMailbox> m_mailbox;
