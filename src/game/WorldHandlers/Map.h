@@ -69,7 +69,7 @@
 #include "Utilities/TypeList.h"
 #include "data/DbScriptHooks.h"
 #include "data/ScriptNameStore.h"
-#include "CreatureLinkingMgr.h"
+#include "CreatureLinkingHolder.h"
 #include "DynamicCollision.h"
 
 #include <bitset>

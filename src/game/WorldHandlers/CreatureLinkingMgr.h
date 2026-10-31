@@ -25,12 +25,11 @@
 
 /**
  * @addtogroup npc_linking System to link groups of NPCs together
- * This NPC-linking system in MaNGOS consists of 2 files:
- * - CreatureLinkingMgr.h
- * - CreatureLinkingMgr.cpp
+ * This NPC-linking system in MaNGOS consists of 4 files:
+ * - CreatureLinkingMgr.h and CreatureLinkingMgr.cpp: the links loaded from the database
+ * - CreatureLinkingHolder.h and CreatureLinkingHolder.cpp: the holder of the linked npcs for every map
  * as well of
  * - hooks in Creature.cpp, to trigger actions
- * - holder of the linked npcs for every map
  *
  * @{
  *
@@ -47,12 +46,7 @@
 #include "Platform/Define.h"
 #include <map>
 #include "Policies/Singleton.h"
-#include "ObjectGuid.h"
 #include <functional>
-
-class Unit;
-class Creature;
-class Map;
 
 // enum on which Events an action for linked NPCs can trigger
 enum CreatureLinkingEvent
@@ -102,6 +96,20 @@ struct CreatureLinkingInfo
     uint16 searchRange: 16;
 };
 
+/// The map id of a link by guid, which is not bound to a map.
+const uint32 INVALID_MAP_ID = 0xFFFFFFFF;
+
+// Linked actions and corresponding flags
+enum CreatureLinkingEventMask
+{
+    EVENT_MASK_ON_AGGRO     = FLAG_AGGRO_ON_AGGRO,
+    EVENT_MASK_ON_EVADE     = FLAG_RESPAWN_ON_EVADE | FLAG_DESPAWN_ON_EVADE,
+    EVENT_MASK_ON_DIE       = FLAG_DESPAWN_ON_DEATH | FLAG_SELFKILL_ON_DEATH | FLAG_RESPAWN_ON_DEATH | FLAG_FOLLOW,
+    EVENT_MASK_ON_RESPAWN   = FLAG_RESPAWN_ON_RESPAWN | FLAG_DESPAWN_ON_RESPAWN | FLAG_FOLLOW,
+    EVENT_MASK_TRIGGER_TO   = FLAG_TO_AGGRO_ON_AGGRO | FLAG_TO_RESPAWN_ON_EVADE | FLAG_FOLLOW,
+    EVENT_MASK_ON_DESPAWN   = FLAG_DESPAWN_ON_DESPAWN,
+};
+
 /**
  * A class to represent the static information of linking NPCs together
  */
@@ -115,19 +123,18 @@ class CreatureLinkingMgr
         void LoadFromDB();
 
     public:                                                 // Accessors
-        // This functions checks if the NPC triggers actions for other NPCs
-        bool IsLinkedEventTrigger(Creature* pCreature) const;
+        // This functions checks if the NPC (entry, low guid, map) triggers actions for other NPCs
+        bool IsLinkedEventTrigger(uint32 entry, uint32 lowGuid, uint32 mapId) const;
 
-        // This function checks if the NPC is a master NPC.
-        bool IsLinkedMaster(Creature* pCreature) const;
+        // This function checks if the NPC entry is a master NPC.
+        bool IsLinkedMaster(uint32 entry) const;
 
         // This function checks if the spawning of this NPC is dependend on other NPCs
-        bool IsSpawnedByLinkedMob(Creature* pCreature) const;
+        bool IsSpawnedByLinkedMob(uint32 entry, uint32 lowGuid, uint32 mapId) const;
         bool IsSpawnedByLinkedMob(CreatureLinkingInfo const* pInfo) const;
 
         // This gives the information of a linked NPC (describes action when its ActionTrigger triggers)
         // Depends of the map
-        CreatureLinkingInfo const* GetLinkedTriggerInformation(Creature* pCreature) const;
         CreatureLinkingInfo const* GetLinkedTriggerInformation(uint32 entry, uint32 lowGuid, uint32 mapId) const;
 
     private:
@@ -145,75 +152,6 @@ class CreatureLinkingMgr
 
         // Check-routine
         static bool IsLinkingEntryValid(uint32 slaveEntry, CreatureLinkingInfo* pInfo, bool byEntry);
-};
-
-/**
- * A class to represent the dynamic information of linking NPCs together
- *
- * Every map has an instance of this class as member, in which the dynamic information (GUIDs) are stored
- */
-
-class CreatureLinkingHolder
-{
-    public:                                                 // Constructors
-        CreatureLinkingHolder() {}
-
-    public:                                                 // Accessors
-        // Function to add slave-NPCs to the holder
-        void AddSlaveToHolder(Creature* pCreature);
-
-        // Function to add master-NPCs to the holder
-        void AddMasterToHolder(Creature* pCreature);
-
-        // Function to process actions for linked NPCs
-        void DoCreatureLinkingEvent(CreatureLinkingEvent eventType, Creature* pSource, Unit* pEnemy = NULL);
-
-        // Function to check if a passive spawning condition is met
-        bool CanSpawn(Creature* pCreature) const;
-
-        // This function lets a slave refollow his master
-        bool TryFollowMaster(Creature* pCreature);
-
-    private:
-        // Structure associated to a master (entry case)
-        struct InfoAndGuids
-        {
-            uint16 linkingFlag: 16;
-            uint16 searchRange: 16;
-            GuidList linkedGuids;
-        };
-        // Structure associated to a master (guid case)
-        struct InfoAndGuid
-        {
-            uint16 linkingFlag;
-            ObjectGuid linkedGuid;
-        };
-
-        typedef std::multimap < uint32 /*masterEntryOrGuid*/, InfoAndGuids > HolderMap;
-        typedef std::pair<HolderMap::iterator, HolderMap::iterator> HolderMapBounds;
-        typedef std::multimap < uint32 /*Entry*/, ObjectGuid > BossGuidMap;
-        typedef std::pair<BossGuidMap::const_iterator, BossGuidMap::const_iterator> BossGuidMapBounds;
-
-        // Helper function, to process a slave list
-        void ProcessSlaveGuidList(CreatureLinkingEvent eventType, Creature* pSource, uint32 flag, uint16 searchRange, GuidList& slaveGuidList, Unit* pEnemy);
-        // Helper function, to process a single slave
-        void ProcessSlave(CreatureLinkingEvent eventType, Creature* pSource, uint32 flag, Creature* pSlave, Unit* pEnemy);
-        // Helper function to set following
-        void SetFollowing(Creature* pWho, Creature* pWhom);
-        // Helper function to return if a slave is in range of a boss
-        bool IsSlaveInRangeOfBoss(Creature const* pSlave, Creature const* pBoss, uint16 searchRange) const;
-        bool IsSlaveInRangeOfBoss(Creature const* pBoss, float slaveX, float slaveY, uint16 searchRange) const;
-        // Another helper function
-        bool IsRespawnReady(uint32 dbLowGuid, Map* _map) const;
-        // Helper function for recursive spawning-checks of an additional linked
-        bool CanSpawn(uint32 lowGuid, Map* _map, CreatureLinkingInfo const* pInfo, float sx, float sy) const;
-
-        // Storage of Data (boss, flag, searchRange, GuidList) for action triggering
-        HolderMap m_holderMap;
-        // Storage of Data (boss, flag, slave-guid)
-        HolderMap m_holderGuidMap;
-        // boss_entry, guid for reverse action triggering and check alive
-        BossGuidMap m_masterGuid;
 };
 
 #define sCreatureLinkingMgr MaNGOS::Singleton<CreatureLinkingMgr>::Instance()
