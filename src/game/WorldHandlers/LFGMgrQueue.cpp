@@ -563,7 +563,7 @@ void LFGMgr::ApplyRemovalPenalty(ObjectGuid playerGuid, uint8 removeMethod,
     // An offline leaver simply gets nothing -- the auras only exist on a
     // live player, and the run they walked out of is over for them either
     // way.
-    Player* pPlayer = sObjectMgr.GetPlayer(playerGuid);
+    Player* pPlayer = sPlayerRegistry.Find(playerGuid);
     if (!pPlayer)
     {
         return;

@@ -41,6 +41,7 @@
 
 #include "precompiled.h"
 #include "ObjectMgr.h"
+#include "PlayerRegistry.h"
 
 /*###
 ## npc_anachronos_the_ancient
@@ -891,7 +892,7 @@ struct npc_solenor_the_slayer : public CreatureScript
             m_creature->GetMotionMaster()->Clear(false);
             m_creature->GetMotionMaster()->MoveIdle();
             m_creature->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
-            Player * player = sObjectMgr.GetPlayer(playerGuid);
+            Player * player = sPlayerRegistry.Find(playerGuid);
             m_creature->SetFacingToObject(player);
             m_bTransform = true;
         }

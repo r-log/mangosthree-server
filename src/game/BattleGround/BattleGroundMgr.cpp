@@ -45,6 +45,7 @@
 #include <set>
 #include "SharedDefines.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "BattleGroundMgr.h"
 #include "BattleGroundAV.h"
 #include "BattleGroundAB.h"
@@ -511,7 +512,7 @@ void BattleGroundMgr::BuildPvpLogDataPacket(WorldPacket* data, BattleGround* bg)
     for (BattleGround::BattleGroundScoreMap::const_iterator itr = bg->GetPlayerScoresBegin(); itr != bg->GetPlayerScoresEnd(); ++itr)
     {
         ObjectGuid memberGuid = itr->first;
-        Player* player = sObjectMgr.GetPlayer(itr->first);
+        Player* player = sPlayerRegistry.Find(itr->first);
         const BattleGroundScore* score = itr->second;
 
         data->WriteBit(0);                  // unk1

@@ -846,7 +846,7 @@ void CalendarHandlers::HandleCalendarEventStatus(WorldSession& session, WorldPac
 
             CalendarRepository::SetInviteStatus(invite->InviteId, status, uint32(invite->LastUpdateTime));
             sCalendarMgr.SendCalendarEventStatus(invite);
-            sCalendarMgr.SendCalendarClearPendingAction(sObjectMgr.GetPlayer(invitee));
+            sCalendarMgr.SendCalendarClearPendingAction(sPlayerRegistry.Find(invitee));
         }
         else
         {

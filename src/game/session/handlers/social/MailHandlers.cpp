@@ -38,6 +38,7 @@
 #include "Item.h"
 #include "AchievementMgr.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -243,7 +244,7 @@ void MailHandlers::HandleSendMail(WorldSession& session, WorldPacket& recv_data)
         return;
     }
 
-    if (!sObjectMgr.GetPlayer(request.receiverGuid))
+    if (!sPlayerRegistry.Find(request.receiverGuid))
     {
         // An offline receiver's mailbox count is not cached, so it is read from the database
         // and ProcessSendMail runs a tick later, from the continuation.
@@ -387,7 +388,7 @@ void MailHandlers::ProcessSendMail(WorldSession& session, MailSendRequest const&
         return;
     }
 
-    Player* receive = sObjectMgr.GetPlayer(rc);
+    Player* receive = sPlayerRegistry.Find(rc);
 
     Team rc_team;
     uint8 mails_count = 0;                                  // do not allow to send to one player more than 100 mails
@@ -729,7 +730,7 @@ void MailHandlers::HandleMailTakeItem(WorldSession& session, WorldPacket& recv_d
         if (m->COD > 0)                                     // if there is COD, take COD money from player and send them to sender by mail
         {
             ObjectGuid sender_guid = ObjectGuid(HIGHGUID_PLAYER, m->sender);
-            Player* sender = sObjectMgr.GetPlayer(sender_guid);
+            Player* sender = sPlayerRegistry.Find(sender_guid);
 
             uint32 sender_accId = 0;
 

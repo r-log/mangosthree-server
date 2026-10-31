@@ -27,6 +27,7 @@
 #include <sstream>
 #include "Corpse.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "ObjectGuid.h"
 #include "Database/DatabaseEnv.h"
@@ -327,7 +328,7 @@ bool Corpse::IsVisibleForInState(Player const* u, WorldObject const* viewPoint, 
  */
 bool Corpse::IsHostileTo(Unit const* unit) const
 {
-    if (Player* owner = sObjectMgr.GetPlayer(GetOwnerGuid()))
+    if (Player* owner = sPlayerRegistry.Find(GetOwnerGuid()))
     {
         return owner->IsHostileTo(unit);
     }
@@ -345,7 +346,7 @@ bool Corpse::IsHostileTo(Unit const* unit) const
  */
 bool Corpse::IsFriendlyTo(Unit const* unit) const
 {
-    if (Player* owner = sObjectMgr.GetPlayer(GetOwnerGuid()))
+    if (Player* owner = sPlayerRegistry.Find(GetOwnerGuid()))
     {
         return owner->IsFriendlyTo(unit);
     }

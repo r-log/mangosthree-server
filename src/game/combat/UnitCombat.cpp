@@ -36,6 +36,7 @@
 #include "spells/data/SpellMgr.h"
 #include "QuestDef.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "Creature.h"
 #include "MotionMaster.h"
 #include "spells/pipeline/Spell.h"
@@ -1934,7 +1935,7 @@ void Unit::ClearComboPointHolders()
     {
         uint32 lowguid = *m_ComboPointHolders.begin();
 
-        Player* plr = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, lowguid));
+        Player* plr = sPlayerRegistry.Find(ObjectGuid(HIGHGUID_PLAYER, lowguid));
         if (plr && plr->GetComboTargetGuid() == GetObjectGuid())// recheck for safe
         {
             plr->ClearComboPoints();                         // remove also guid from m_ComboPointHolders;

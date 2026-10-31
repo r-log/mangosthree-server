@@ -42,6 +42,7 @@
 #include "ObjectGuid.h"
 #include "AchievementMgr.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
@@ -179,12 +180,12 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
     }
 
     ObjectGuid bidder_guid = ObjectGuid(HIGHGUID_PLAYER, auction->bidder);
-    Player* bidder = sObjectMgr.GetPlayer(bidder_guid);
+    Player* bidder = sPlayerRegistry.Find(bidder_guid);
 
     uint32 bidder_accId = 0;
 
     ObjectGuid ownerGuid = ObjectGuid(HIGHGUID_PLAYER, auction->owner);
-    Player* auction_owner = sObjectMgr.GetPlayer(ownerGuid);
+    Player* auction_owner = sPlayerRegistry.Find(ownerGuid);
 
     // data for gm.log
     if (sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
@@ -232,7 +233,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
                                               // The owner may have logged in or out since; the name is
                                               // resolved from the registry again, exactly as it would have
                                               // been on the old same-tick path (C3).
-                                              Player* owner = sObjectMgr.GetPlayer(logOwnerGuid);
+                                              Player* owner = sPlayerRegistry.Find(logOwnerGuid);
                                               WriteAuctionWonGmLog(logAccId, bidderName, logOwnerGuid, owner,
                                                                    logItemTemplate, logItemCount, logBid);
                                           });
@@ -299,7 +300,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
 void AuctionHouseMgr::SendAuctionSuccessfulMail(AuctionEntry* auction)
 {
     ObjectGuid owner_guid = ObjectGuid(HIGHGUID_PLAYER, auction->owner);
-    Player* owner = sObjectMgr.GetPlayer(owner_guid);
+    Player* owner = sPlayerRegistry.Find(owner_guid);
 
     uint32 owner_accId = 0;
     if (!owner)
@@ -355,7 +356,7 @@ void AuctionHouseMgr::SendAuctionExpiredMail(AuctionEntry* auction)
     }
 
     ObjectGuid owner_guid = ObjectGuid(HIGHGUID_PLAYER, auction->owner);
-    Player* owner = sObjectMgr.GetPlayer(owner_guid);
+    Player* owner = sPlayerRegistry.Find(owner_guid);
 
     uint32 owner_accId = 0;
     if (!owner)
@@ -1373,7 +1374,7 @@ void AuctionEntry::AuctionBidWinning(Player* newbidder)
  */
 bool AuctionEntry::UpdateBid(uint64 newbid, Player* newbidder /*=NULL*/)
 {
-    Player* auction_owner = owner ? sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, owner)) : NULL;
+    Player* auction_owner = owner ? sPlayerRegistry.Find(ObjectGuid(HIGHGUID_PLAYER, owner)) : NULL;
 
     // bid can't be greater buyout
     if (buyout && newbid > buyout)

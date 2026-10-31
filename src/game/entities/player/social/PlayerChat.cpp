@@ -25,6 +25,7 @@
 
 #include <string>
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
 #include "GMTicketMgr.h"
@@ -124,7 +125,7 @@ void Player::LogWhisper(const std::string& text, ObjectGuid receiver)
     }
     else
     {
-        Player* pRecvPlayer = sObjectMgr.GetPlayer(receiver);
+        Player* pRecvPlayer = sPlayerRegistry.Find(receiver);
         if (pRecvPlayer && pRecvPlayer->GetSession()->GetSecurity() >= SEC_GAMEMASTER)
         {
             isSomeoneGM = true;
@@ -147,7 +148,7 @@ void Player::LogWhisper(const std::string& text, ObjectGuid receiver)
  */
 void Player::Whisper(const std::string& text, uint32 language, ObjectGuid receiver)
 {
-    Player* rPlayer = sObjectMgr.GetPlayer(receiver);
+    Player* rPlayer = sPlayerRegistry.Find(receiver);
 
     WorldPacket data;
     BuildChatPacket(data, CHAT_MSG_WHISPER, text.c_str(), Language(language), GetChatTag(), GetObjectGuid(), GetName());

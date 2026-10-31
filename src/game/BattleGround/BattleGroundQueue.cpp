@@ -28,6 +28,7 @@
 #include <cstdio>
 #include "SharedDefines.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "BattleGroundMgr.h"
 #include "BattleGroundAV.h"
 #include "BattleGroundAB.h"
@@ -433,8 +434,6 @@ uint32 BattleGroundQueue::GetAverageQueueWaitTime(GroupQueueInfo* ginfo, BattleG
  */
 void BattleGroundQueue::RemovePlayer(ObjectGuid guid, bool decreaseInvitedCount)
 {
-    // Player *plr = sObjectMgr.GetPlayer(guid);
-
     int32 bracket_id = -1;                                  // signed for proper for-loop finish
     QueuedPlayersMap::iterator itr;
 
@@ -518,7 +517,7 @@ void BattleGroundQueue::RemovePlayer(ObjectGuid guid, bool decreaseInvitedCount)
         if (at)
         {
             DEBUG_LOG("UPDATING memberLost's personal arena rating for %s by opponents rating: %u", guid.GetString().c_str(), group->OpponentsTeamRating);
-            Player* plr = sObjectMgr.GetPlayer(guid);
+            Player* plr = sPlayerRegistry.Find(guid);
             if (plr)
             {
                 at->MemberLost(plr, group->OpponentsTeamRating);
@@ -544,7 +543,7 @@ void BattleGroundQueue::RemovePlayer(ObjectGuid guid, bool decreaseInvitedCount)
     {
         // remove next player, this is recursive
         // first send removal information
-        if (Player* plr2 = sObjectMgr.GetPlayer(group->Players.begin()->first))
+        if (Player* plr2 = sPlayerRegistry.Find(group->Players.begin()->first))
         {
             BattleGround* bg = sBattleGroundMgr.GetBattleGroundTemplate(group->BgTypeId);
             BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BGQueueTypeId(group->BgTypeId, group->arenaType);
@@ -642,7 +641,7 @@ bool BattleGroundQueue::InviteGroupToBG(GroupQueueInfo* ginfo, BattleGround* bg,
         for (GroupQueueInfoPlayers::iterator itr = ginfo->Players.begin(); itr != ginfo->Players.end(); ++itr)
         {
             // get the player
-            Player* plr = sObjectMgr.GetPlayer(itr->first);
+            Player* plr = sPlayerRegistry.Find(itr->first);
             // if offline, skip him, this should not happen - player is removed from queue when he logs out
             if (!plr)
             {
@@ -1312,7 +1311,7 @@ void BattleGroundQueue::Update(BattleGroundTypeId bgTypeId, BattleGroundBracketI
  */
 bool BGQueueInviteEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
 {
-    Player* plr = sObjectMgr.GetPlayer(m_PlayerGuid);
+    Player* plr = sPlayerRegistry.Find(m_PlayerGuid);
     // player logged off (we should do nothing, he is correctly removed from queue in another procedure)
     if (!plr)
     {
@@ -1378,7 +1377,7 @@ void BGQueueInviteEvent::Abort(uint64 /*e_time*/)
  */
 bool BGQueueRemoveEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
 {
-    Player* plr = sObjectMgr.GetPlayer(m_PlayerGuid);
+    Player* plr = sPlayerRegistry.Find(m_PlayerGuid);
     if (!plr)
     {
         // player logged off (we should do nothing, he is correctly removed from queue in another procedure)

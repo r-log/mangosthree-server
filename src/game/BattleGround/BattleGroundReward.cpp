@@ -26,6 +26,7 @@
 #include <string>
 #include "AchievementMgr.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "BattleGround.h"
 #include "BattleGroundMgr.h"
 #include "Language.h"
@@ -59,7 +60,7 @@ void BattleGround::RewardHonorToTeam(uint32 Honor, Team teamId)
             continue;
         }
 
-        Player* plr = sObjectMgr.GetPlayer(itr->first);
+        Player* plr = sPlayerRegistry.Find(itr->first);
 
         if (!plr)
         {
@@ -102,7 +103,7 @@ void BattleGround::RewardReputationToTeam(uint32 faction_id, uint32 Reputation, 
             continue;
         }
 
-        Player* plr = sObjectMgr.GetPlayer(itr->first);
+        Player* plr = sPlayerRegistry.Find(itr->first);
 
         if (!plr)
         {
@@ -255,7 +256,7 @@ void BattleGround::EndBattleGround(Team winner)
             continue;
         }
 
-        Player* plr = sObjectMgr.GetPlayer(itr->first);
+        Player* plr = sPlayerRegistry.Find(itr->first);
         if (!plr)
         {
             sLog.outError("BattleGround:EndBattleGround %s not found!", itr->first.GetString().c_str());

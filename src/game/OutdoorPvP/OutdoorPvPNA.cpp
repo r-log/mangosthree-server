@@ -32,6 +32,7 @@
 #include "Creature.h"
 #include "GameObject.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 
 OutdoorPvPNA::OutdoorPvPNA() : OutdoorPvP(),
     m_zoneOwner(TEAM_NONE),
@@ -573,7 +574,7 @@ void OutdoorPvPNA::RespawnSoldier()
             continue;
         }
 
-        if (Player* player = sObjectMgr.GetPlayer(itr->first))
+        if (Player* player = sPlayerRegistry.Find(itr->first))
         {
             // summon a soldier replacement in the order they were set in the deque. delete the element after summon
             const HalaaSoldiersSpawns& location = m_deadSoldiers.front();

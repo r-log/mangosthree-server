@@ -30,6 +30,7 @@
 #include "ObjectMgr.h"
 #include "Bag.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "DBCStores.h"
 #include "data/ScriptNameStore.h"
 #include "ObjectGuid.h"
@@ -479,7 +480,7 @@ ItemPrototype const* Item::GetProto() const
  */
 Player* Item::GetOwner()const
 {
-    return sObjectMgr.GetPlayer(GetOwnerGuid());
+    return sPlayerRegistry.Find(GetOwnerGuid());
 }
 
 /**

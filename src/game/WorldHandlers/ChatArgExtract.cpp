@@ -35,6 +35,7 @@
 #include "ObjectMgr.h"
 #include "GameObject.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "WorldSession.h"
 #include "AccountMgr.h"
 #include "DBCStores.h"
@@ -1079,7 +1080,7 @@ ObjectGuid ChatHandler::ExtractGuidFromLink(char** text)
                 return ObjectGuid();
             }
 
-            if (Player* player = sObjectMgr.GetPlayer(name.c_str()))
+            if (Player* player = sPlayerRegistry.FindByName(name.c_str()))
             {
                 return player->GetObjectGuid();
             }
@@ -1194,7 +1195,7 @@ bool ChatHandler::ExtractLocationFromLink(char** text, uint32& mapid, float& x, 
                 return false;
             }
 
-            if (Player* player = sObjectMgr.GetPlayer(name.c_str()))
+            if (Player* player = sPlayerRegistry.FindByName(name.c_str()))
             {
                 mapid = player->GetMapId();
                 x = player->Where().X();
@@ -1463,7 +1464,7 @@ bool ChatHandler::ExtractPlayerTarget(char** args, Player** player /*= NULL*/, O
             return false;
         }
 
-        Player* pl = sObjectMgr.GetPlayer(name.c_str());
+        Player* pl = sPlayerRegistry.FindByName(name.c_str());
 
         // if allowed player pointer
         if (player)

@@ -100,7 +100,7 @@ void MemberSlot::ChangeRank(uint32 newRank)
 {
     RankId = newRank;
 
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     // If player not online data in data field will be loaded from guild tabs no need to update it !!
     if (player)
     {
@@ -238,7 +238,7 @@ void Guild::CreateDefaultGuildRanks(int locale_idx)
  */
 bool Guild::AddMember(ObjectGuid plGuid, uint32 plRank)
 {
-    Player* pl = sObjectMgr.GetPlayer(plGuid);
+    Player* pl = sPlayerRegistry.Find(plGuid);
     if (pl)
     {
         if (pl->GetGuildId() != 0)
@@ -674,7 +674,7 @@ bool Guild::DelMember(ObjectGuid guid, bool isDisbanding)
         SetLeader(newLeaderGUID);
 
         // If player not online data in data field will be loaded from guild tabs no need to update it !!
-        if (Player* newLeader = sObjectMgr.GetPlayer(newLeaderGUID))
+        if (Player* newLeader = sPlayerRegistry.Find(newLeaderGUID))
         {
             newLeader->SetRank(GR_GUILDMASTER);
         }
@@ -689,7 +689,7 @@ bool Guild::DelMember(ObjectGuid guid, bool isDisbanding)
 
     members.erase(lowguid);
 
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     // If player not online data in data field will be loaded from guild tabs no need to update it !!
     if (player)
     {

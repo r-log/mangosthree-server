@@ -303,7 +303,7 @@ void GuildHandlers::HandleGuildDecline(WorldSession& session, WorldPacket& recvP
         return;
     }
 
-    if (Player* inviter = sObjectMgr.GetPlayer(session.GetPlayer()->GetGuildInviterGuid()))
+    if (Player* inviter = sPlayerRegistry.Find(session.GetPlayer()->GetGuildInviterGuid()))
     {
         inviter->SendGuildDeclined(session.GetPlayer()->GetName(), recvPacket.GetOpcode() == CMSG_GUILD_AUTO_DECLINE);
     }

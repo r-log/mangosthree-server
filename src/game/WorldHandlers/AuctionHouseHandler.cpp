@@ -37,6 +37,7 @@
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "AuctionHouseMgr.h"
 #include "Mail.h"
 
@@ -151,7 +152,7 @@ void WorldSession::SendAuctionRemovedNotification(AuctionEntry* auction)
 void WorldSession::SendAuctionOutbiddedMail(AuctionEntry* auction)
 {
     ObjectGuid oldBidder_guid = ObjectGuid(HIGHGUID_PLAYER, auction->bidder);
-    Player* oldBidder = sObjectMgr.GetPlayer(oldBidder_guid);
+    Player* oldBidder = sPlayerRegistry.Find(oldBidder_guid);
 
     uint32 oldBidder_accId = 0;
     if (!oldBidder)

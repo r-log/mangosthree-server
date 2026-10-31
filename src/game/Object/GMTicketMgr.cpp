@@ -35,6 +35,7 @@
 #include "ProgressBar.h"
 #include "Policies/Singleton.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "persistence/characters/social/TicketRepository.h"
 
 static_assert(int(GM_SURVEY_ROW_ANSWERS) == 10, "the saved survey row's answers");
@@ -168,7 +169,7 @@ void GMTicket::Close() const
  */
 void GMTicket::_Close(GMTicketStatus statusCode) const
 {
-    Player* pPlayer = sObjectMgr.GetPlayer(m_guid);
+    Player* pPlayer = sPlayerRegistry.Find(m_guid);
 
     TicketRepository::Resolve(m_guid.GetCounter());
 
@@ -261,7 +262,7 @@ void GMTicketMgr::DeleteAll()
 {
     for (GMTicketMap::const_iterator itr = m_GMTicketMap.begin(); itr != m_GMTicketMap.end(); ++itr)
     {
-        if (Player* owner = sObjectMgr.GetPlayer(itr->first))
+        if (Player* owner = sPlayerRegistry.Find(itr->first))
         {
             owner->GetSession()->SendGMTicketGetTicket(0x0A);
         }

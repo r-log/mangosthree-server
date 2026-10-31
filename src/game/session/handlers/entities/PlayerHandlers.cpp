@@ -33,6 +33,7 @@
 #include "Log.h"
 #include "AchievementMgr.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "data/GameConfig.h"
 #include "CinematicFlyover.h"
 #include "CUFProfile.h"
@@ -403,7 +404,7 @@ void PlayerHandlers::HandleInspect(WorldSession& session, WorldPacket& recv_data
     recv_data >> guid;
     DEBUG_LOG("Inspected guid is %s", guid.GetString().c_str());
 
-    Player* plr = sObjectMgr.GetPlayer(guid);
+    Player* plr = sPlayerRegistry.Find(guid);
     if (!plr)                                               // wrong player
     {
         return;
@@ -456,7 +457,7 @@ void PlayerHandlers::HandleInspectHonorStats(WorldSession& session, WorldPacket&
     recv_data.ReadGuidMask<1, 5, 7, 3, 2, 4, 0, 6>(guid);
     recv_data.ReadGuidBytes<4, 7, 0, 5, 1, 6, 2, 3>(guid);
 
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     if (!player)
     {
         sLog.outError("PlayerHandlers::HandleInspectHonorStats: player not found");
@@ -491,7 +492,7 @@ void PlayerHandlers::HandleQueryInspectAchievements(WorldSession& session, World
 
     recv_data >> guid.ReadAsPacked();
 
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     if (!player)
     {
         return;

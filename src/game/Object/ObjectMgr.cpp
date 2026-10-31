@@ -63,7 +63,6 @@
 #include <cstdarg>
 #include <limits>
 #include <set>
-#include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterSaveRepository.h"
@@ -381,23 +380,6 @@ GameObjectInfo const* ObjectMgr::GetGameObjectInfo(uint32 id) { return sObjectMg
  * @return The addon, or null if missing.
  */
 GameObjectDataAddon const* ObjectMgr::GetGameObjectAddon(uint32 lowguid) { return sObjectMgr.m_gameObjectAddons.Find(lowguid); }
-
-/**
- * @brief Finds an online player by name.
- *
- * @param name The player name.
- * @return The matching player, or null if not found.
- */
-Player* ObjectMgr::GetPlayer(const char* name) { return sPlayerRegistry.FindByName(name); }
-
-/**
- * @brief Finds a player by GUID.
- *
- * @param guid The player GUID.
- * @param inWorld true to restrict the search to players currently in world.
- * @return The matching player, or null if not found.
- */
-Player* ObjectMgr::GetPlayer(ObjectGuid guid, bool inWorld /*=true*/) { return sPlayerRegistry.Find(guid, inWorld); }
 
 std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const* player)
 {

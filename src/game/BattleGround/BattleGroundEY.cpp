@@ -25,6 +25,7 @@
 
 #include "Object.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "BattleGround.h"
 #include "BattleGroundEY.h"
 #include "ObjectMgr.h"
@@ -89,7 +90,7 @@ void BattleGroundEY::Update(uint32 diff)
     {
         if (m_felReaverFlagTimer < diff)
         {
-            Player* flagCarrier = sObjectMgr.GetPlayer(GetFlagCarrierGuid());
+            Player* flagCarrier = sPlayerRegistry.Find(GetFlagCarrierGuid());
             if (flagCarrier)
             {
                 if (m_towerOwner[NODE_FEL_REAVER_RUINS] == flagCarrier->GetTeam())
