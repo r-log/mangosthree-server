@@ -451,9 +451,7 @@ bool TransportMap::Add(Player* passenger)
         passenger->BuildCreateUpdateBlockForPlayer(&data, passenger);
     }
 
-    WorldPacket packet;
-    data.BuildPacket(&packet);
-    passenger->GetSession()->SendPacket(&packet);
+    passenger->GetSession()->SendUpdateObjects(data);
 
     // And the OTHER ships on the water she is crossing. His client is drawing that map, so
     // they are his to see, and no sweep of his will ever reach them: he is not on it.
@@ -743,9 +741,7 @@ void TransportMap::SendCrewMemberCreate(Creature* crew)
         UpdateData data(WorldMapIdOf(m_vessel));
         crew->BuildCreateUpdateBlockForPlayer(&data, observer);
 
-        WorldPacket packet;
-        data.BuildPacket(&packet);
-        observer->SendDirectMessage(&packet);
+        observer->GetSession()->SendUpdateObjects(data);
     }
 }
 
@@ -767,9 +763,7 @@ void TransportMap::AnnounceVessel(Transport* vessel, Player* observer)
         hull->AppendCrewCreateBlocks(data, observer);
     }
 
-    WorldPacket packet;
-    data.BuildPacket(&packet);
-    observer->SendDirectMessage(&packet);
+    observer->GetSession()->SendUpdateObjects(data);
 }
 
 void TransportMap::RetractVessel(Transport* vessel, Player* observer)
@@ -790,9 +784,7 @@ void TransportMap::RetractVessel(Transport* vessel, Player* observer)
 
     vessel->BuildOutOfRangeUpdateBlock(&data);
 
-    WorldPacket packet;
-    data.BuildPacket(&packet);
-    observer->SendDirectMessage(&packet);
+    observer->GetSession()->SendUpdateObjects(data);
 }
 
 void TransportMap::CollectRelaySources(WorldObject const* viewer, float visibility,

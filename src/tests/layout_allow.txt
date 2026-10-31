@@ -141,7 +141,6 @@ src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/AuctionHouseMgr.cpp -> src/proto/WorldPacket.h
-src/game/Object/Bag.cpp -> src/game/WorldHandlers/UpdateData.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Bag.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
@@ -204,14 +203,11 @@ src/game/Object/LootMgr.cpp -> src/game/entities/player/Player.h
 # the condition evaluator left ObjectMgr.cpp (data) in #655
 src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerConditions.h
 src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/Object.h -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectUpdate.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectUpdate.cpp -> src/proto/Opcodes.h
 src/game/Object/ObjectUpdate.cpp -> src/proto/WorldPacket.h
-src/game/Object/ObjectValues.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectValues.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Pet.cpp -> src/game/entities/player/Player.h
@@ -308,6 +304,8 @@ src/game/WorldHandlers [maps] -> src/game/Object/Pet.h
 src/game/WorldHandlers [maps] -> src/game/Object/Unit.h
 src/game/WorldHandlers [maps] -> src/game/WorldHandlers/Group.h
 src/game/WorldHandlers [maps] -> src/game/WorldHandlers/LFGMgr.h
+# a visibility notifier holds its viewer's update accumulator by value; the accumulator (UpdateData) is entities
+src/game/WorldHandlers [maps] -> src/game/WorldHandlers/UpdateData.h
 src/game/WorldHandlers [social] -> src/game/BattleGround/BattleGround.h
 src/game/WorldHandlers [social] -> src/game/Object/AuctionHouseMgr.h
 src/game/WorldHandlers [social] -> src/game/Object/DynamicObject.h
@@ -329,12 +327,9 @@ src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/social/SocialList
 src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Chat.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
-src/game/WorldHandlers/GridNotifiers.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/proto/WorldPacket.h
-src/game/WorldHandlers/GridNotifiers.h -> src/game/WorldHandlers/UpdateData.h
 src/game/WorldHandlers/GridNotifiers.h -> src/game/entities/player/Player.h
-src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/WorldHandlers/UpdateData.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Group.cpp -> src/game/entities/player/Player.h
@@ -428,7 +423,6 @@ src/game/entities/player [entities] -> src/game/spells/AuraQueries.h
 # Player holds the spell modifier manager by value (Player.h).
 src/game/entities/player [entities] -> src/game/spells/SpellModMgr.h
 src/game/entities/player [entities] -> src/game/spells/pipeline/Spell.h
-src/game/entities/player/Player.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/entities/player/Player.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/Player.cpp -> src/proto/Opcodes.h
 src/game/entities/player/Player.cpp -> src/proto/WorldPacket.h
@@ -523,7 +517,6 @@ src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Mail.h
 src/game/entities/player/quests [entities] -> src/game/WorldHandlers/MapManager.h
 # moved from spells/data/SpellMgr.h in #651
 src/game/entities/player/quests [entities] -> src/game/spells/pipeline/SpellRules.h
-src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/Opcodes.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/social [entities] -> src/game/Object/Formulas.h
@@ -569,7 +562,6 @@ src/game/entities/player/world/PlayerMirror.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/world/PlayerMovement.cpp -> src/proto/Opcodes.h
 src/game/entities/player/world/PlayerTaxi.cpp -> src/proto/Opcodes.h
 src/game/entities/player/world/PlayerTaxi.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/world/PlayerVisibility.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/entities/player/world/PlayerZone.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/world/PlayerZone.cpp -> src/proto/Opcodes.h
 src/game/entities/player/world/PlayerZone.cpp -> src/proto/WorldPacket.h

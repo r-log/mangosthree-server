@@ -2789,7 +2789,6 @@ void Player::UpdateForQuestWorldObjects()
     }
 
     UpdateData udata(GetClientMapId());
-    WorldPacket packet;
     for (GuidSet::const_iterator itr = m_clientGUIDs.begin(); itr != m_clientGUIDs.end(); ++itr)
     {
         if (itr->IsGameObject())
@@ -2824,8 +2823,7 @@ void Player::UpdateForQuestWorldObjects()
             }
         }
     }
-    udata.BuildPacket(&packet);
-    GetSession()->SendPacket(&packet);
+    GetSession()->SendUpdateObjects(udata);
 }
 
 void Player::SetDailyQuestStatus(uint32 quest_id)

@@ -1891,9 +1891,7 @@ void Map::SendInitSelf(Player* player)
     // build data for self presence in world at own client (one time for map)
     player->BuildCreateUpdateBlockForPlayer(&data, player);
 
-    WorldPacket packet;
-    data.BuildPacket(&packet);
-    player->GetSession()->SendPacket(&packet);
+    player->GetSession()->SendUpdateObjects(data);
 }
 
 /**
@@ -1963,16 +1961,13 @@ void Map::SendRemoveTransports(Player* player)
             (*i)->BuildOutOfRangeUpdateBlock(&transData);
         }
 
-    WorldPacket packet;
-    transData.BuildPacket(&packet);
-
-    // Prevent sending transport maps in player update object
-    if (packet.ReadUInt16() != player->GetClientMapId())
+    // Prevent sending transport maps in player update object: the update names its map in 16 bits
+    if (uint16(transData.GetMapId()) != player->GetClientMapId())
     {
         return;
     }
 
-    player->GetSession()->SendPacket(&packet);
+    player->GetSession()->SendUpdateObjects(transData);
 }
 
 /**
@@ -3236,12 +3231,9 @@ void Map::SendObjectUpdates()
         obj->BuildUpdateData(update_players);
     }
 
-    WorldPacket packet;                                     // here we allocate a std::vector with a size of 0x10000
     for (UpdateDataMapType::iterator iter = update_players.begin(); iter != update_players.end(); ++iter)
     {
-        iter->second.BuildPacket(&packet);
-        iter->first->GetSession()->SendPacket(&packet);
-        packet.clear();                                     // clean the string
+        iter->first->GetSession()->SendUpdateObjects(iter->second);
     }
 }
 

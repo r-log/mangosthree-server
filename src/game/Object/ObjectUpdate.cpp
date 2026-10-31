@@ -76,12 +76,9 @@ void Object::SendForcedObjectUpdate()
     BuildUpdateData(update_players);
     RemoveFromClientUpdateList();
 
-    WorldPacket packet;                                     // here we allocate a std::vector with a size of 0x10000
     for (UpdateDataMapType::iterator iter = update_players.begin(); iter != update_players.end(); ++iter)
     {
-        iter->second.BuildPacket(&packet);
-        iter->first->GetSession()->SendPacket(&packet);
-        packet.clear();                                     // clean the string
+        iter->first->GetSession()->SendUpdateObjects(iter->second);
     }
 }
 
@@ -163,11 +160,9 @@ void Object::SendCreateUpdateToPlayer(Player* player)
 {
     // send create update to player
     UpdateData upd(player->GetClientMapId());
-    WorldPacket packet;
 
     BuildCreateUpdateBlockForPlayer(&upd, player);
-    upd.BuildPacket(&packet);
-    player->GetSession()->SendPacket(&packet);
+    player->GetSession()->SendUpdateObjects(upd);
 }
 
 /**
