@@ -318,6 +318,11 @@ GuidOverflowHandler InstallGuidOverflowHandler(GuidOverflowHandler handler);
 /// Calls the installed overflow handler, if any.
 void GuidOverflow();
 
+/// Finds a player's name by guid, for GetString. The world installs one at start-up.
+typedef bool (*PlayerNameResolver)(ObjectGuid guid, std::string& name);
+/// Installs `resolver` and answers the one it replaces (NULL for none).
+PlayerNameResolver InstallPlayerNameResolver(PlayerNameResolver resolver);
+
 template<HighGuid high>
 class ObjectGuidGenerator
 {

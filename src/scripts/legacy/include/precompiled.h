@@ -36,7 +36,6 @@
 #include "system/ScriptDevMgr.h"
 #include "ScriptMgr.h"
 #include "Object.h"
-#include "ObjectGuid.h"
 #include "Unit.h"
 // Decoupling D3d fallout: Unit.h now only forward-declares MotionMaster; every script that
 // calls GetMotionMaster() (hundreds do) needs the complete type, so it is named here once

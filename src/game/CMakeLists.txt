@@ -317,7 +317,6 @@ set(DATA_SOURCES
     Object/LivingWorldAnchorPolicy.h
     Object/LootStore.cpp
     Object/LootStore.h
-    Object/ObjectGuid.cpp
     Object/ObjectMgr.cpp
     Object/ObjectMgr.h
     Object/ObjectMgrAreaTrigger.cpp

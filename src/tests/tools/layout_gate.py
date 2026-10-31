@@ -109,7 +109,7 @@ import tempfile
 RULES = [
     (r'^(tools|genrev)/|^game/pchdef', None), (r'^tests/', 'tests'), (r'^realmd/', 'realmd'), (r'^mangosd/', 'app'),
     (r'^shared/Database/|^game/persistence/|^game/Server/GameGlobals|^game/Tools/(PlayerDump|CharacterDatabaseCleaner)', 'persistence'),
-    (r'^shared/|^game/Time/|^game/Object/ObjectGuid\.', 'foundation'), (r'^proto/', 'proto'), (r'^(motion|game/movement)/', 'motion'),
+    (r'^shared/|^game/Time/', 'foundation'), (r'^proto/', 'proto'), (r'^(motion|game/movement)/', 'motion'),
     (r'^scripts/|^game/ChatCommands/|^game/WorldHandlers/(Chat\.|ChatArgExtract|ChatHelp|CommandMgr|ScriptMgr|ScriptAction)', 'scripts'),
     (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig|GameEventScheduler)', 'app'),
     (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
@@ -1161,7 +1161,7 @@ def self_test():
                        ('game/spells/data/SpellMgr.h', 'game/spells/auras/SpellAuraDefines.h', None),
                        ('game/spells/data/SpellMgr.cpp', 'game/Object/Unit.h', ('against', ('data', 'domain'))),
                        ('game/Maps/Map.cpp', 'game/Object/Creature.h', ('sideways', ('maps', 'entities'))),
-                       ('game/Object/ObjectGuid.cpp', 'game/Object/ObjectMgr.h', ('against', ('foundation', 'data'))),
+                       ('shared/Utilities/ObjectGuid.cpp', 'game/Object/ObjectMgr.h', ('against', ('foundation', 'data'))),
                        ('game/AuctionHouseBot/AuctionHouseBot.cpp', 'game/Object/Unit.h', None),
                        ('tests/X.cpp', 'game/Harness/Harness.h', None),
                        ('game/Server/WorldSession.cpp', 'game/WorldHandlers/World.h', ('against', ('session', 'app'))),

@@ -37,7 +37,7 @@
 #include "WorldHandlers/AchievementMgr.h"
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
-#include "Object/ObjectGuid.h"
+#include "ObjectGuid.h"
 #include "Server/WorldSession.h"
 #include "Object/Item.h"
 #include "Object/LootMgr.h"
