@@ -295,7 +295,7 @@ void GroupHandlers::HandleGroupUninviteGuid(WorldSession& session, WorldPacket& 
     // can't uninvite yourself
     if (guid == session.GetPlayer()->GetObjectGuid())
     {
-        sLog.outError("WorldSession::HandleGroupUninviteGuidOpcode: leader %s tried to uninvite himself from the group.", session.GetPlayer()->GetGuidStr().c_str());
+        sLog.outError("GroupHandlers::HandleGroupUninviteGuid: leader %s tried to uninvite himself from the group.", session.GetPlayer()->GetGuidStr().c_str());
         return;
     }
 

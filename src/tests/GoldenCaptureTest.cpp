@@ -350,7 +350,7 @@ TEST(GoldenCapture_families_server_built_lines_fail_only_where_the_legacy_writer
     // goes only to the observers around the mover, so there was nothing to capture. The
     // live gate's two-bot pair (an observer holding nearby while a walker is knocked back)
     // did capture one, and the shadow judged it under the lifted layout: decoded whole and
-    // re-encoded exact. So the relay (MovementHandler.cpp, `data << movementInfo`) is not
+    // re-encoded exact. So the relay (MovementHandlers.cpp, `data << movementInfo`) is not
     // WotLK-shaped after all, and the collision-height writer below is the one known
     // server-side failure that remains.
     loadtest::ReplayReport report;

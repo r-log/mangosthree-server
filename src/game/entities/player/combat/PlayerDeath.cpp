@@ -350,7 +350,7 @@ Corpse* Player::GetCorpse() const
 void Player::RepopAtGraveyard()
 {
     // note: this can be called also when the player is alive
-    // for example from WorldSession::HandleMovementOpcodes
+    // for example from MovementHandlers::HandleMovement
 
     // THE ANCHOR, not the placement. Aboard, this is the map the ship sails and her own
     // waypoint estimate: a hull carries no area table, so asking the map underfoot yields

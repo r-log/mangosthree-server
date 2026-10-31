@@ -427,7 +427,7 @@ void Aura::HandlePhase(bool apply, bool Real)
 
 void Aura::HandleAuraSafeFall(bool Apply, bool Real)
 {
-    // implemented in WorldSession::HandleMovementOpcodes
+    // implemented in MovementHandlers::HandleMovement
 
     // only special case
     Player* targetPlayer = GetTarget()->ToPlayer();

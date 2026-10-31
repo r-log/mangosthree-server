@@ -45,8 +45,8 @@ class WorldPacket;
  *    counted `inexact`: the decode was sound, and the writer or the encoder
  *    disagrees.
  *  - Rejected: a packet the registry's codec could not decode.
- *    MovementInfo::Read, HandleMoveTeleportAckOpcode and
- *    HandleSetActiveMoverOpcode count it and throw, and WorldSession::Update
+ *    MovementInfo::Read, HandleMoveTeleportAck and
+ *    HandleSetActiveMover count it and throw, and WorldSession::Update
  *    logs it and, by config, kicks. Counted whether or not the shadow is on.
  *  - BridgeCheck: under the shadow, whether MovementBridge's ToWire, given the
  *    record FromWire just filled in, reproduces the status the codec decoded.

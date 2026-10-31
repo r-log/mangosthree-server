@@ -44,6 +44,7 @@
 #include "Map.h"
 #include "MapManager.h"
 #include "MapPhase.h"
+#include "session/handlers/entities/MovementHandlers.h"
 
 #include <cmath>
 #include <cstdio>
@@ -2270,7 +2271,7 @@ namespace Harness
      *    (UnitCombat.cpp:640-700) -- recorded as it falls. The stun (MOD_STUN) is taken off by call
      *    before the second cast, so nothing waits out its four seconds.
      *  - the player mover: one movement word down the handler the client's own packets go down
-     *    (WorldSession::HandleMoverRelocation) with MOVEFLAG_FORWARD and a place one yard west; the
+     *    (MovementHandlers::HandleMoverRelocation) with MOVEFLAG_FORWARD and a place one yard west; the
      *    cast's own update sees the caster off the cast position (SpellCast.cpp:935-951) and, as
      *    Smite's SpellInterrupts row carries SPELL_INTERRUPT_FLAG_MOVEMENT, cancels it. A second
      *    word, no flags, stops him.
@@ -2441,7 +2442,7 @@ namespace Harness
                 MovementInfo word = p->ClientStatus();
                 word.SetMovementFlags(MOVEFLAG_FORWARD);
                 word.ChangePosition(p->Where().X() - 1.0f, p->Where().Y(), p->Where().Z(), p->Where().Facing());
-                p->GetSession()->HandleMoverRelocation(p, word);
+                MovementHandlers::HandleMoverRelocation(*p->GetSession(), p, word);
                 m_rec.Note("one movement word: MOVEFLAG_FORWARD, one yard west");
                 m_rec.Open("move+tick");
                 st->ran[4] = true;
@@ -2456,7 +2457,7 @@ namespace Harness
                 MovementInfo word = p->ClientStatus();
                 word.SetMovementFlags(MOVEFLAG_NONE);
                 word.ChangePosition(p->Where().X(), p->Where().Y(), p->Where().Z(), p->Where().Facing());
-                p->GetSession()->HandleMoverRelocation(p, word);
+                MovementHandlers::HandleMoverRelocation(*p->GetSession(), p, word);
                 m_rec.Note("generic slot " + st->slot2After + "; one movement word: no flags, where he stands");
                 m_rec.Open("stop+tick");
             });

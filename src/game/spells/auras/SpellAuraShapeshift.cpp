@@ -137,7 +137,7 @@ void Aura::HandleAuraMounted(bool apply, bool Real)
         // the lookup returned null, RemoveAurasByCasterSpell was never called,
         // SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED stayed on the player, and
         // SetCanFly(false) never propagated to the client on dismount.
-        // Compare Spell.cpp:7924 and MovementHandler.cpp:259, which also
+        // Compare Spell.cpp:7924 and WorldSession::HandleMoveWorldportAckOpcode, which also
         // feed GetMountCapability with EffectMiscValueB.
         if (MountCapabilityEntry const* mountCapability = target->GetMountCapability(uint32(GetMiscBValue())))
         {

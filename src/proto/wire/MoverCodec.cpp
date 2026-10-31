@@ -34,7 +34,7 @@ namespace
 {
     const uint8 kSetMask[8]  = { 5, 7, 3, 6, 0, 4, 1, 2 };   // SMSG_MOVE_SET_ACTIVE_MOVER (CPP MoveSetActiveMover::Write)
     const uint8 kSetBytes[8] = { 6, 2, 3, 0, 5, 7, 1, 4 };
-    const uint8 kAckMask[8]  = { 7, 2, 1, 0, 4, 5, 6, 3 };   // CMSG_SET_ACTIVE_MOVER (HandleSetActiveMoverOpcode, CPP SetActiveMover::Read)
+    const uint8 kAckMask[8]  = { 7, 2, 1, 0, 4, 5, 6, 3 };   // CMSG_SET_ACTIVE_MOVER (HandleSetActiveMover, CPP SetActiveMover::Read)
     const uint8 kAckBytes[8] = { 3, 2, 4, 0, 5, 1, 6, 7 };
 }
 
