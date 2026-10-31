@@ -33,12 +33,12 @@
 #include "ByteBuffer.h"
 #include "ObjectGuid.h"
 #include "Utilities/LinkedReference/RefManager.h"
+#include "LootStore.h"
 
 #include <map>
 #include <vector>
 
 class Player;
-class LootStore;
 class WorldObject;
 
 #define MAX_NR_LOOT_ITEMS 16
@@ -53,14 +53,6 @@ enum PermissionTypes
     MASTER_PERMISSION = 2,
     OWNER_PERMISSION  = 3,                                  // for single player only loots
     NONE_PERMISSION   = 4
-};
-
-enum LootItemType
-{
-    LOOT_ITEM_TYPE_ITEM         = 0,
-    LOOT_ITEM_TYPE_CURRENCY     = 1,
-    LOOTITEM_TYPE_CONDITIONNAL  = 3,
-    LOOTITEM_TYPE_CURRENCY      = 4,
 };
 
 enum LootType
@@ -89,29 +81,6 @@ enum LootSlotType
     LOOT_SLOT_REQS    = 3,                                  // can't be looted (error message about missing reqs)
     LOOT_SLOT_OWNER   = 4,                                  // ignore binding confirmation and etc, for single player looting
     MAX_LOOT_SLOT_TYPE                                      // custom, use for mark skipped from show items
-};
-
-struct LootStoreItem
-{
-    uint32  itemid;                                         // id of the item
-    uint8   type;                                           // 0 = item, 1 = currency
-    float   chance;                                         // always positive, chance to drop for both quest and non-quest items, chance to be used for refs
-    int32   mincountOrRef;                                  // mincount for drop items (positive) or minus referenced TemplateleId (negative)
-    uint8   maxcount;                                       // max drop count for the item (mincountOrRef positive) or Ref multiplicator (mincountOrRef negative)
-    uint8   group       : 7;
-    bool    needs_quest : 1;                                // quest drop (negative ChanceOrQuestChance in DB)
-    uint16  conditionId : 16;                               // additional loot condition Id
-
-    // Constructor, converting ChanceOrQuestChance -> (chance, needs_quest)
-    // displayid is filled in IsValid() which must be called after
-    LootStoreItem(uint32 _itemid, uint8 _type, float _chanceOrQuestChance, int8 _group, uint16 _conditionId, int32 _mincountOrRef, uint32 _maxcount)
-        : itemid(_itemid), type(_type), chance(fabs(_chanceOrQuestChance)), mincountOrRef(_mincountOrRef),
-          maxcount(_maxcount), group(_group), needs_quest(_chanceOrQuestChance < 0), conditionId(_conditionId)
-    {}
-
-    bool Roll(bool rate) const;                             // Checks if the entry takes it's chance (at loot generation)
-    bool IsValid(LootStore const& store, uint32 entry) const;
-    // Checks correctness of values
 };
 
 struct LootItem
@@ -156,76 +125,9 @@ struct QuestItem
 };
 
 struct Loot;
-class LootTemplate;
 
 typedef std::vector<QuestItem> QuestItemList;
 typedef std::map<uint32, QuestItemList*> QuestItemMap;
-typedef std::vector<LootStoreItem> LootStoreItemList;
-typedef std::unordered_map<uint32, LootTemplate*> LootTemplateMap;
-
-typedef std::set<uint32> LootIdSet;
-
-class LootStore
-{
-    public:
-        explicit LootStore(char const* name, char const* entryName, bool ratesAllowed)
-            : m_name(name), m_entryName(entryName), m_ratesAllowed(ratesAllowed) {}
-        virtual ~LootStore() { Clear(); }
-
-        void Verify() const;
-
-        void LoadAndCollectLootIds(LootIdSet& ids_set);
-        void CheckLootRefs(LootIdSet* ref_set = NULL) const;// check existence reference and remove it from ref_set
-        void ReportUnusedIds(LootIdSet const& ids_set) const;
-        void ReportNotExistedId(uint32 id) const;
-
-        bool HaveLootFor(uint32 loot_id) const { return m_LootTemplates.find(loot_id) != m_LootTemplates.end(); }
-        bool HaveQuestLootFor(uint32 loot_id) const;
-        bool HaveQuestLootForPlayer(uint32 loot_id, Player* player) const;
-        bool HaveConditionalLootFor(uint32 loot_id) const;
-        bool HaveConditionalLootForPlayer(uint32 loot_id, Player* player, WorldObject const* lootTarget) const;
-
-        LootTemplate const* GetLootFor(uint32 loot_id) const;
-
-        char const* GetName() const { return m_name; }
-        char const* GetEntryName() const { return m_entryName; }
-        bool IsRatesAllowed() const { return m_ratesAllowed; }
-    protected:
-        void LoadLootTable();
-        void Clear();
-    private:
-        LootTemplateMap m_LootTemplates;
-        char const* m_name;
-        char const* m_entryName;
-        bool m_ratesAllowed;
-};
-
-class LootTemplate
-{
-        class LootGroup;                                   // A set of loot definitions for items (refs are not allowed inside)
-        typedef std::vector<LootGroup> LootGroups;
-
-    public:
-        // Adds an entry to the group (at loading stage)
-        void AddEntry(LootStoreItem& item);
-        // Rolls for every item in the template and adds the rolled items the the loot
-        void Process(Loot& loot, LootStore const& store, bool rate, uint8 GroupId = 0) const;
-
-        // True if template includes at least 1 quest drop entry
-        bool HasQuestDrop(LootTemplateMap const& store, uint8 GroupId = 0) const;
-        // True if template includes at least 1 quest drop for an active quest of the player
-        bool HasQuestDropForPlayer(LootTemplateMap const& store, Player const* player, uint8 GroupId = 0) const;
-        bool HasConditionalDrop(LootTemplateMap const& store, uint8 groupId = 0) const;
-        bool HasConditionalDropForPlayer(LootTemplateMap const& store, Player const* player, WorldObject const* lootTarget, uint8 groupId = 0) const;
-
-        // Checks integrity of the template
-        void Verify(LootStore const& store, uint32 Id) const;
-        void CheckLootRefs(LootIdSet* ref_set) const;
-    private:
-        LootStoreItemList Entries;                          // not grouped only
-        LootGroups        Groups;                           // groups have own (optimised) processing, grouped entries go there
-};
-
 //=====================================================
 
 class LootValidatorRef :  public Reference<Loot, LootValidatorRef>
@@ -366,6 +268,11 @@ struct Loot
         WorldObject const* m_lootTarget;
 };
 
+/// Whether the loot `loot_id` of `store` holds an entry for an active quest of the player.
+bool HaveQuestLootForPlayer(LootStore const& store, uint32 loot_id, Player* player);
+/// Whether the loot `loot_id` of `store` holds a conditional entry the player meets.
+bool HaveConditionalLootForPlayer(LootStore const& store, uint32 loot_id, Player* player, WorldObject const* lootTarget);
+
 struct LootView
 {
     Loot& loot;
@@ -374,87 +281,5 @@ struct LootView
     LootView(Loot& _loot, Player* _viewer, PermissionTypes _permission = ALL_PERMISSION)
         : loot(_loot), viewer(_viewer), permission(_permission) {}
 };
-
-extern LootStore LootTemplates_Creature;
-extern LootStore LootTemplates_Fishing;
-extern LootStore LootTemplates_Gameobject;
-extern LootStore LootTemplates_Item;
-extern LootStore LootTemplates_Mail;
-extern LootStore LootTemplates_Milling;
-extern LootStore LootTemplates_Pickpocketing;
-extern LootStore LootTemplates_Skinning;
-extern LootStore LootTemplates_Disenchant;
-extern LootStore LootTemplates_Prospecting;
-extern LootStore LootTemplates_Spell;
-
-/**
- * Loads creature loot templates.
- */
-void LoadLootTemplates_Creature();
-
-/**
- * Loads fishing loot templates.
- */
-void LoadLootTemplates_Fishing();
-
-/**
- * Loads gameobject loot templates.
- */
-void LoadLootTemplates_Gameobject();
-
-/**
- * Loads item loot templates.
- */
-void LoadLootTemplates_Item();
-
-/**
- * Loads mail loot templates.
- */
-void LoadLootTemplates_Mail();
-
-/**
- * Loads milling loot templates.
- */
-void LoadLootTemplates_Milling();
-
-/**
- * Loads pickpocketing loot templates.
- */
-void LoadLootTemplates_Pickpocketing();
-
-/**
- * Loads skinning loot templates.
- */
-void LoadLootTemplates_Skinning();
-
-/**
- * Loads disenchant loot templates.
- */
-void LoadLootTemplates_Disenchant();
-void LoadLootTemplates_Prospecting();
-
-void LoadLootTemplates_Spell();
-
-/**
- * Loads reference loot templates used by other loot tables.
- */
-void LoadLootTemplates_Reference();
-
-inline void LoadLootTables()
-{
-    LoadLootTemplates_Creature();
-    LoadLootTemplates_Fishing();
-    LoadLootTemplates_Gameobject();
-    LoadLootTemplates_Item();
-    LoadLootTemplates_Mail();
-    LoadLootTemplates_Milling();
-    LoadLootTemplates_Pickpocketing();
-    LoadLootTemplates_Skinning();
-    LoadLootTemplates_Disenchant();
-    LoadLootTemplates_Prospecting();
-    LoadLootTemplates_Spell();
-
-    LoadLootTemplates_Reference();
-}
 
 #endif
