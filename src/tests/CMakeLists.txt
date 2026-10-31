@@ -293,7 +293,7 @@ add_executable(mangos_tests ${SRC_GRP_TESTS})
 
 target_include_directories(mangos_tests
     PRIVATE
-        ${CMAKE_SOURCE_DIR}/src/game/movement
+        ${CMAKE_SOURCE_DIR}/src/motion/movement
         ${CMAKE_SOURCE_DIR}/src/realmd
         ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src)
 

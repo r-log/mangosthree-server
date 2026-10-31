@@ -159,6 +159,16 @@ else()
 endif()
 source_group("Services" FILES ${SRC_GRP_SVC})
 
+set(SRC_GRP_TIME
+  Time/GameTime.cpp
+  Time/GameTime.h
+  Time/UpdateTime.cpp
+  Time/UpdateTime.h
+  Time/WorldGameTime.cpp
+  Time/WorldGameTime.h
+)
+source_group("Time" FILES ${SRC_GRP_TIME})
+
 set(SRC_GRP_UTILITIES
   Utilities/ByteBuffer.cpp
   Utilities/ByteBuffer.h
@@ -202,6 +212,7 @@ set(TGT_INCL
   LockedQueue
   Log
   Threading
+  Time
   Utilities
   Utilities/LinkedReference
   Win
@@ -228,6 +239,7 @@ add_library(shared STATIC
     ${SRC_GRP_PLATFORM}
     ${SRC_GRP_POLICIES}
     ${SRC_GRP_SVC}
+    ${SRC_GRP_TIME}
     ${SRC_GRP_UTILITIES}
     ${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.h
 )

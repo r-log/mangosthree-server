@@ -37,7 +37,8 @@ get_filename_component(SOURCE_ROOT "${SOURCE_ROOT}" ABSOLUTE)
 set(COLLISION_TARGETS
     "persistence|src/game/CMakeLists.txt|"
     "data|src/game/CMakeLists.txt|persistence"
-    "game|src/game/CMakeLists.txt|data,persistence"
+    "domain|src/game/CMakeLists.txt|data,persistence"
+    "game|src/game/CMakeLists.txt|domain,data,persistence"
     "scripts|src/scripts/CMakeLists.txt|game"
     "mangos_tests|src/tests/CMakeLists.txt|game,scripts"
     "scripts_legacy|src/scripts/legacy/CMakeLists.txt|game"

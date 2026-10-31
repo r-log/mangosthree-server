@@ -36,7 +36,33 @@ set(SRC_GRP_MOTION
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 
-add_library(motion STATIC ${SRC_GRP_MOTION})
+set(SRC_GRP_MOVEMENT
+    movement/JumpArc.h
+    movement/MonsterMovePacket.cpp
+    movement/MonsterMovePacket.h
+    movement/MonsterMovePath.h
+    movement/MonsterMoveStop.h
+    movement/MoveSpline.cpp
+    movement/MoveSpline.h
+    movement/MoveSplineFlag.h
+    movement/MoveSplineInitArgs.h
+    movement/MovementBridge.cpp
+    movement/MovementBridge.h
+    movement/MovementInfo.cpp
+    movement/MovementInfo.h
+    movement/WireParity.cpp
+    movement/WireParity.h
+    movement/packet_builder.cpp
+    movement/packet_builder.h
+    movement/spline.cpp
+    movement/spline.h
+    movement/spline.impl.h
+    movement/typedefs.h
+    movement/util.cpp
+)
+source_group("motion\\movement" FILES ${SRC_GRP_MOVEMENT})
+
+add_library(motion STATIC ${SRC_GRP_MOTION} ${SRC_GRP_MOVEMENT})
 
 target_include_directories(motion
     PUBLIC

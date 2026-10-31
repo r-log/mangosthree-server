@@ -107,9 +107,9 @@ import tempfile
 
 # Section 1's directory table, paths relative to src/: the first matching row wins, None excludes.
 RULES = [
-    (r'^(tools|genrev)/|^game/pchdef', None), (r'^tests/', 'tests'), (r'^realmd/', 'realmd'), (r'^mangosd/', 'app'),
+    (r'^(tools|genrev)/|^game/pch', None), (r'^tests/', 'tests'), (r'^realmd/', 'realmd'), (r'^mangosd/', 'app'),
     (r'^shared/Database/|^game/persistence/|^game/Server/GameGlobals|^game/Tools/(PlayerDump|CharacterDatabaseCleaner)', 'persistence'),
-    (r'^shared/|^game/Time/', 'foundation'), (r'^proto/', 'proto'), (r'^(motion|game/movement)/', 'motion'),
+    (r'^shared/', 'foundation'), (r'^proto/', 'proto'), (r'^motion/', 'motion'),
     (r'^scripts/|^game/ChatCommands/|^game/WorldHandlers/(Chat\.|ChatArgExtract|ChatHelp|CommandMgr|ScriptMgr|ScriptAction)', 'scripts'),
     (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig|GameEventScheduler)', 'app'),
     (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
@@ -815,10 +815,10 @@ def self_test():
         SELF_ALLOW, 1, 'src/shared/Use.cpp: #include "Foo.h" is ambiguous, 2 files under src/ end with it '
                        '(src/game/Maps/Foo.h, src/game/Object/foo.h)')
     run('two candidates, one in the includer\'s top dir, fail',
-        dict(SELF_TREE, **{'src/proto/NewCodec.h': '', 'src/game/movement/NewCodec.h': '',
+        dict(SELF_TREE, **{'src/proto/NewCodec.h': '', 'src/motion/movement/NewCodec.h': '',
                            'src/game/Maps/Map.h': '#include "Common.h"\n#include "NewCodec.h"\n'}),
         SELF_ALLOW, 1, 'src/game/Maps/Map.h: #include "NewCodec.h" is ambiguous, 2 files under src/ end with it '
-                       '(src/game/movement/NewCodec.h, src/proto/NewCodec.h)')
+                       '(src/motion/movement/NewCodec.h, src/proto/NewCodec.h)')
     run('a malformed list line fails', SELF_TREE, format_allow(SELF_ALLOW) + 'src/x.cpp src/y.h\n', 1,
         'not "<includer> -> <header>"')
     run('a line listed twice fails', SELF_TREE, format_allow(SELF_ALLOW) + '%s -> %s\n' % SELF_ALLOW[0], 1,

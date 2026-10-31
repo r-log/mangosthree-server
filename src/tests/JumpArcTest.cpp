@@ -37,7 +37,7 @@ using namespace Movement::JumpArc;
 
 namespace
 {
-    /// The client's gravity (Movement::gravity, src/game/movement/util.cpp:61), written out
+    /// The client's gravity (Movement::gravity, src/motion/movement/util.cpp:61), written out
     /// rather than linked: this file is pure and util.cpp is not in the test target.
     const float kGravity = 19.29110527038574f;
 

@@ -46,7 +46,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import case_labels  # noqa: E402
 
-SCOPE = ('src/game/', 'src/tests/', 'src/scripts/', 'src/mangosd/')
+SCOPE = ('src/game/', 'src/motion/', 'src/tests/', 'src/scripts/', 'src/mangosd/')
 EXTENSIONS = ('.h', '.hpp', '.cpp', '.inl', '.inc')
 OWNER_HEADER = 'src/game/Object/Unit.h'
 OWNER_FILE = 'src/game/Object/UnitMovementStatus.cpp'
@@ -203,7 +203,7 @@ def self_test():
     base = {
         OWNER_HEADER: UNIT_H,
         OWNER_FILE: OWNER,
-        'src/game/movement/MovementInfo.h': INFO_H,
+        'src/motion/movement/MovementInfo.h': INFO_H,
         'src/game/session/handlers/entities/MovementHandlers.cpp': 'void h(Unit* u) { u->AcceptClientStatus(1); }\n',
         'src/game/Harness/S.cpp': 'void s(Unit* u) { u->AcceptClientStatus(2); }\n',
         'src/tests/T.cpp': 'void t(Unit& u) { u.AcceptClientStatus(3); u.ResetClientWord(0); }\n',
@@ -240,10 +240,10 @@ def self_test():
     expect('a second mention in the header fails', dict(base, **{OWNER_HEADER: UNIT_H.replace('};', '        int f() { return m_movementInfo.x; }\n};')}), 1)
     expect('an operation called from elsewhere fails', dict(base, **{'src/game/Object/Pet.cpp': 'void p(Unit* u) { u->ResetClientWord(0); }\n'}), 1)
     expect('a stale row fails', dict(base, **{'src/game/Object/UnitSpeed.cpp': 'void Unit::f() {}\n'}), 1)
-    expect('a third friend fails', dict(base, **{'src/game/movement/MovementInfo.h': INFO_H.replace('};', '        friend class Unit;\n};')}), 1)
+    expect('a third friend fails', dict(base, **{'src/motion/movement/MovementInfo.h': INFO_H.replace('};', '        friend class Unit;\n};')}), 1)
     expect('a const_cast fails', dict(base, **{'src/game/Object/ObjectUpdate.cpp': 'void o(Unit const* u) { MovementInfo& m = const_cast<MovementInfo&>(u->ClientStatus()); }\n'}), 1)
     expect('a missing owner file fails', {k: v for k, v in base.items() if k != OWNER_FILE}, 1)
-    expect('no MovementInfo class fails', {k: v for k, v in base.items() if k != 'src/game/movement/MovementInfo.h'}, 1)
+    expect('no MovementInfo class fails', {k: v for k, v in base.items() if k != 'src/motion/movement/MovementInfo.h'}, 1)
     expect('an empty scan fails', {'src/other/A.cpp': 'int x;\n'}, 1)
 
     for f in failures:

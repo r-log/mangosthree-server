@@ -2,7 +2,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(MotionBoundary)
 
 set(KERNEL_DIR "${SOURCE_ROOT}/src/motion")
-set(MOTION_DIRS "${KERNEL_DIR}" "${SOURCE_ROOT}/src/game/movement")
+set(MOTION_DIRS "${KERNEL_DIR}")
 
 set(MOTION_SOURCES "")
 foreach(MOTION_DIR IN LISTS MOTION_DIRS)
@@ -58,7 +58,8 @@ foreach(FILE_PATH IN LISTS MOTION_SOURCES)
 
     set(PATTERNS ${FORBIDDEN_PATTERNS})
     string(FIND "${FILE_PATH}" "${KERNEL_DIR}/" IN_KERNEL)
-    if(IN_KERNEL EQUAL 0)
+    string(FIND "${FILE_PATH}" "${KERNEL_DIR}/movement/" IN_MOVEMENT)
+    if(IN_KERNEL EQUAL 0 AND NOT IN_MOVEMENT EQUAL 0)
         list(APPEND PATTERNS ${KERNEL_PATTERNS})
     endif()
 
