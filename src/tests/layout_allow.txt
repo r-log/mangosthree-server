@@ -217,8 +217,6 @@ src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrQuestRelations.cpp -> src/game/Object/LootMgr.h
 src/game/Object/ObjectMgrQuests.cpp -> src/game/spells/data/SpellMgr.h
-# reached through ObjectMgr.h before #512
-src/game/Object/ObjectMgrTaxi.cpp -> src/game/Object/Creature.h
 src/game/Object/ObjectMgrTrainerVendor.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectUpdate.cpp -> src/game/entities/player/Player.h

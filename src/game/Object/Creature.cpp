@@ -582,66 +582,7 @@ bool Creature::UpdateEntry(uint32 Entry, Team team, const CreatureData* data /*=
  */
 uint32 Creature::ChooseDisplayId(const CreatureInfo* cinfo, const CreatureData* data /*= NULL*/, GameEventCreatureData const* eventData /*=NULL*/)
 {
-    // Use creature event model explicit, override any other static models
-    if (eventData && eventData->modelid)
-    {
-        return eventData->modelid;
-    }
-
-    // Use creature model explicit, override template (creature.modelid)
-    if (data && data->modelid_override)
-    {
-        return data->modelid_override;
-    }
-
-    // use defaults from the template
-    uint32 display_id = 0;
-
-    // models may be categorized as (in this order):
-    // if mod4 && mod3 && mod2 && mod1  use any, by 25%-chance (other gender is selected and replaced after this function)
-    // if mod3 && mod2 && mod1          use mod3 unless mod2 has modelid_alt_model (then all by 33%-chance)
-    // if mod2                          use mod2 unless mod2 has modelid_alt_model (then both by 50%-chance)
-    // if mod1                          use mod1
-
-    // The follow decision tree needs to be updated if MAX_CREATURE_MODEL is changed.
-    static_assert(MAX_CREATURE_MODEL == 4, "Need to update model selection code for new or removed model fields");
-
-    // model selected here may be replaced with other_gender using own function
-
-    if (cinfo->ModelId[3] && cinfo->ModelId[2] && cinfo->ModelId[1] && cinfo->ModelId[0])
-    {
-        display_id = cinfo->ModelId[urand(0, 3)];
-    }
-    else if (cinfo->ModelId[2] && cinfo->ModelId[1] && cinfo->ModelId[0])
-    {
-        uint32 modelid_tmp = sObjectMgr.GetCreatureModelAlternativeModel(cinfo->ModelId[1]);
-        display_id = modelid_tmp ? cinfo->ModelId[urand(0, 2)] : cinfo->ModelId[2];
-    }
-    else if (cinfo->ModelId[1])
-    {
-        // We use this to eliminate invisible models vs. "dummy" models (infernals, etc).
-        // Where it's expected to select one of two, model must have a alternative model defined (alternative model is normally the same as defined in ModelId1).
-        // Same pattern is used in the above model selection, but the result may be ModelId3 and not ModelId2 as here.
-        uint32 modelid_tmp = sObjectMgr.GetCreatureModelAlternativeModel(cinfo->ModelId[1]);
-        display_id = modelid_tmp ? cinfo->ModelId[urand(0, 1)] : cinfo->ModelId[1];
-    }
-    else if (cinfo->ModelId[0])
-    {
-        display_id = cinfo->ModelId[0];
-    }
-
-    // fail safe, we use creature entry 1 and make error
-    if (!display_id)
-    {
-        sLog.outErrorDb("Call customer support, ChooseDisplayId can not select native model for creature entry %u, model from creature entry 1 will be used instead.", cinfo->Entry);
-
-        if (const CreatureInfo* creatureDefault = ObjectMgr::GetCreatureTemplate(1))
-        {
-            display_id = creatureDefault->ModelId[0];
-        }
-    }
-
-    return display_id;
+    return ChooseCreatureDisplayId(cinfo, data, eventData);
 }
 
 /**

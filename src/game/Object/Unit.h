@@ -176,12 +176,6 @@ enum SpellFacingFlags
     SPELL_FACING_FLAG_INFRONT = 0x0001 ///< Target must be in front
 };
 
-#define BASE_MELEERANGE_OFFSET 1.33f
-#define BASE_MINDAMAGE 1.0f
-#define BASE_MAXDAMAGE 2.0f
-#define BASE_ATTACK_TIME 2000
-#define BASE_BLOCK_DAMAGE_PERCENT 30
-
 #define SCALE_SPELLPOWER_HEALING        1.88f
 
 /* byte flag value not exist in 1.12, moved/merged in (UNIT_FIELD_BYTES_1,3), in post-1.x it's in (UNIT_FIELD_BYTES_1,2)
@@ -210,21 +204,6 @@ enum UnitBytes1_Flags
     UNIT_BYTE1_FLAG_UNTRACKABLE  = 0x04,
     UNIT_BYTE1_FLAG_ALL          = 0xFF
 };
-
-/**
- *  byte value (UNIT_FIELD_BYTES_2,0)
- */
-enum SheathState
-{
-    /// non prepared weapon
-    SHEATH_STATE_UNARMED  = 0,
-    /// prepared melee weapon
-    SHEATH_STATE_MELEE    = 1,
-    /// prepared ranged weapon
-    SHEATH_STATE_RANGED   = 2
-};
-
-#define MAX_SHEATH_STATE    3
 
 // byte flags value (UNIT_FIELD_BYTES_2,1)
 enum UnitPVPStateFlags
