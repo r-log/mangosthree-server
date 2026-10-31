@@ -48,6 +48,7 @@ class InstanceData;
 class Group;
 class BattleGround;
 class Map;
+class TerrainFacts;
 
 struct GridMapFileHeader
 {
@@ -300,6 +301,9 @@ class TerrainManager : public MaNGOS::Singleton<TerrainManager>
         static uint32 GetAreaIdByAreaFlag(uint16 areaflag, uint32 map_id);
         static uint32 GetZoneIdByAreaFlag(uint16 areaflag, uint32 map_id);
         static void GetZoneAndAreaIdByAreaFlag(uint32& zoneid, uint32& areaid, uint16 areaflag, uint32 map_id);
+
+        /// The terrain facts the data layer asks, answered from the terrain this manager loads.
+        static TerrainFacts& GetTerrainFacts();
 
     private:
         TerrainManager();

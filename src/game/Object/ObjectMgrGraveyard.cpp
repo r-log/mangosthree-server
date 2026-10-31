@@ -29,7 +29,7 @@
  */
 
 #include "ObjectMgr.h"
-#include "GridMap.h"
+#include "data/TerrainFacts.h"
 #include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
@@ -130,7 +130,7 @@ void ObjectMgr::LoadGraveyardZones()
 WorldSafeLocsEntry const* ObjectMgr::GetClosestGraveYard(float x, float y, float z, uint32 MapId, Team team)
 {
     // search for zone associated closest graveyard
-    uint32 zoneId = sTerrainMgr.GetZoneId(MapId, x, y, z);
+    uint32 zoneId = sTerrainFacts.ZoneId(MapId, x, y, z);
 
     // Simulate std. algorithm:
     //   found some graveyard associated to (ghost_zone,ghost_map)

@@ -61,6 +61,7 @@
 #include "data/GameConfig.h"
 #include "Policies/Singleton.h"
 #include "Util.h"
+#include "data/TerrainFacts.h"
 
 char const* MAP_MAGIC         = "MAPS";
 char const* MAP_VERSION_MAGIC = "v1.5";
@@ -702,4 +703,28 @@ void TerrainManager::GetZoneAndAreaIdByAreaFlag(uint32& zoneid, uint32& areaid, 
 
     areaid = entry ? entry->ID : 0;
     zoneid = entry ? ((entry->ParentAreaID != 0) ? entry->ParentAreaID : entry->ID) : 0;
+}
+
+namespace
+{
+    /// The terrain facts over the loaded terrain.
+    class TerrainManagerFacts : public TerrainFacts
+    {
+        public:
+            uint32 ZoneId(uint32 mapId, float x, float y, float z) const override
+            {
+                return sTerrainMgr.GetZoneId(mapId, x, y, z);
+            }
+
+            std::optional<float> StaticFloor(uint32 mapId, float x, float y, float z) const override
+            {
+                return sTerrainMgr.LoadTerrain(mapId)->StaticFloor(x, y, z);
+            }
+    };
+}
+
+TerrainFacts& TerrainManager::GetTerrainFacts()
+{
+    static TerrainManagerFacts facts;
+    return facts;
 }

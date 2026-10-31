@@ -68,9 +68,11 @@
 #include "data/BattleGroundHooks.h"
 #include "data/OutdoorPvPHooks.h"
 #include "data/GroupHooks.h"
+#include "data/TerrainFacts.h"
 #include "BattleGround/BattleGroundMgr.h"
 #include "OutdoorPvP/OutdoorPvPMgr.h"
 #include "Group.h"
+#include "GridMap.h"
 #include "dispatch/Dispatcher.h"
 #include "LegacyScripts.h"
 #include "persistence/login/RealmRepository.h"
@@ -360,6 +362,7 @@ int main(int argc, char** argv)
     BattleGroundHooks::Install(&BattleGroundMgr::GetBattleGroundHooks());
     OutdoorPvPHooks::Install(&OutdoorPvPMgr::GetOutdoorPvPHooks());
     GroupHooks::Install(&Group::GetGroupHooks());
+    TerrainFacts::Install(&TerrainManager::GetTerrainFacts());
 
     // Databases, world, listener and background services all live in Master. It
     // runs the world loop on this thread and returns once the world has stopped

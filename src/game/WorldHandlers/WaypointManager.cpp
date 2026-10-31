@@ -29,7 +29,7 @@
 #include "Policies/Singleton.h"
 #include "ProgressBar.h"
 #include "ObjectMgr.h"
-#include "GridMap.h"
+#include "data/TerrainFacts.h"
 #include "data/MapGeometry.h"
 #include "DBCStores.h"
 #include "data/DbScriptStore.h"
@@ -179,8 +179,7 @@ void WaypointManager::Load()
 
                 if (spawn)
                 {
-                    const auto wpFloor = sTerrainMgr.LoadTerrain(spawn->map)
-                                            ->StaticFloor(node.x, node.y, node.z);
+                    const auto wpFloor = sTerrainFacts.StaticFloor(spawn->map, node.x, node.y, node.z);
                     node.z = wpFloor ? *wpFloor : node.z;
                 }
 

@@ -216,8 +216,6 @@ src/game/Object/ObjectGuid.cpp -> src/game/Object/ObjectMgr.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through ObjectMgr.h before #512
-src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/GridMap.h
-# reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrQuestRelations.cpp -> src/game/Object/LootMgr.h
 src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/UpdateData.h
 src/game/Object/ObjectUpdate.cpp -> src/game/entities/player/Player.h
@@ -394,8 +392,6 @@ src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillExtraItems.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/proto/WorldPacket.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers/WaypointManager.cpp -> src/game/WorldHandlers/GridMap.h
 src/game/WorldHandlers/Weather.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Weather.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Weather.cpp -> src/proto/WorldPacket.h
