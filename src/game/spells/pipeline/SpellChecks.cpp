@@ -1401,7 +1401,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     return SPELL_FAILED_BAD_TARGETS;
                 }
 
-                Player* target = sObjectMgr.GetPlayer(m_caster->GetSelectionGuid());
+                Player* target = sPlayerRegistry.Find(m_caster->GetSelectionGuid());
                 if (!target || (casterPlayer) == target || !target->IsInSameRaidWith(casterPlayer))
                 {
                     return SPELL_FAILED_BAD_TARGETS;

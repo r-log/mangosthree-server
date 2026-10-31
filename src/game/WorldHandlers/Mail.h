@@ -47,12 +47,14 @@
 #include <vector>
 #include "ObjectGuid.h"
 #include <map>
+#include <memory>
 
 struct AuctionEntry;
 class Item;
 class Object;
 class Player;
 class CalendarEvent;
+class SqlQueryHolder;
 
 #define MAIL_BODY_ITEM_TEMPLATE 8383                        ///< - plain letter, A Dusty Unsent Letter: 889
 /// The maximal amount of items a mail can contain.
@@ -394,6 +396,16 @@ struct Mail
      */
     void prepareTemplateItems(Player* receiver);            ///< called from _LoadMails for generate mailTemplateBase items not generated for offline player
 };
+
+/// The expired-mail sweep, on the mail timer inside World::Update and at start-up: it returns the
+/// expired mails that hold items to their senders and deletes the rest, and at start-up first deletes
+/// the expired mails with no item and no body. A mail whose receiver is online is left alone while
+/// the server is up. It stages its two reads; the returns and deletes happen in
+/// ReturnOrDeleteOldMailsCallback a tick later.
+void ReturnOrDeleteOldMails(bool serverUp);
+
+/// Returns or deletes the expired mails once both reads of ReturnOrDeleteOldMails have answered.
+void ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> holder, uint64 basetime, bool serverUp);
 
 #endif
 /*! @} */

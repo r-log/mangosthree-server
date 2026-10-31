@@ -58,6 +58,7 @@
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "session/packets/chat/SystemMessage.h"
 #include "data/CommandHooks.h"
 #include "GridNotifiersImpl.h"
@@ -1752,7 +1753,7 @@ Player* ChatHandler::getSelectedPlayer()
         return m_session->GetPlayer();
     }
 
-    return sObjectMgr.GetPlayer(guid);
+    return sPlayerRegistry.Find(guid);
 }
 
 /**

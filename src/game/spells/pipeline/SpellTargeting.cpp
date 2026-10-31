@@ -1560,7 +1560,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     break;
                 case SPELL_EFFECT_SUMMON_PLAYER:
                     if (m_caster->GetTypeId() == TYPEID_PLAYER && m_caster->GetSelectionGuid())
-                        if (Player* target = sObjectMgr.GetPlayer(m_caster->GetSelectionGuid()))
+                        if (Player* target = sPlayerRegistry.Find(m_caster->GetSelectionGuid()))
                         {
                             targetUnitMap.push_back(target);
                         }

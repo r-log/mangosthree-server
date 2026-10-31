@@ -80,6 +80,7 @@
 #include "data/ChatPacketBuilder.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
+#include "Mail.h"
 #include "MassMailMgr.h"
 #include "LootMgr.h"
 #include "ItemEnchantmentMgr.h"
@@ -703,7 +704,7 @@ void World::SetInitialWorldSettings()
 
     ///- Handle outdated emails (delete/return)
     sLog.outString("Returning old mails...");
-    sObjectMgr.ReturnOrDeleteOldMails(false);
+    ReturnOrDeleteOldMails(false);
 
     ///- Load and initialize DBScripts Engine
     sLog.outString("Loading DB-Scripts Engine...");
@@ -1060,7 +1061,7 @@ void World::Update(uint32 diff)
         if (++mail_timer > mail_timer_expires)
         {
             mail_timer = 0;
-            sObjectMgr.ReturnOrDeleteOldMails(true);
+            ReturnOrDeleteOldMails(true);
         }
 
         ///- Handle expired auctions

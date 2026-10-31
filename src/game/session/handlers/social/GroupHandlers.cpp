@@ -82,7 +82,7 @@ void GroupHandlers::HandleGroupInvite(WorldSession& session, WorldPacket& recv_d
         return;
     }
 
-    Player* player = sObjectMgr.GetPlayer(membername.c_str());
+    Player* player = sPlayerRegistry.FindByName(membername.c_str());
 
     // no player or cheat self-invite
     if (!player || player == session.GetPlayer())
@@ -236,7 +236,7 @@ void GroupHandlers::HandleGroupInviteResponse(WorldSession& session, WorldPacket
             return;
         }
 
-        Player* leader = sObjectMgr.GetPlayer(group->GetLeaderGuid());
+        Player* leader = sPlayerRegistry.Find(group->GetLeaderGuid());
 
         // forming a new group, create it
         if (!group->IsCreated())
@@ -267,7 +267,7 @@ void GroupHandlers::HandleGroupInviteResponse(WorldSession& session, WorldPacket
         session.GetPlayer()->UninviteFromGroup();
 
         // remember leader if online
-        Player* leader = sObjectMgr.GetPlayer(group->GetLeaderGuid());
+        Player* leader = sPlayerRegistry.Find(group->GetLeaderGuid());
         if (!leader || !leader->GetSession())
         {
             return;
@@ -378,7 +378,7 @@ void GroupHandlers::HandleGroupSetLeader(WorldSession& session, WorldPacket& rec
         return;
     }
 
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
 
     /** error handling **/
     if (!player || !group->IsLeader(session.GetPlayer()->GetObjectGuid()) || player->GetGroup() != group)
@@ -852,7 +852,7 @@ void GroupHandlers::HandleGroupChangeSubGroup(WorldSession& session, WorldPacket
     /********************/
 
     // everything is fine, do it
-    if (Player* player = sObjectMgr.GetPlayer(name.c_str()))
+    if (Player* player = sPlayerRegistry.FindByName(name.c_str()))
     {
         group->ChangeMembersGroup(player, groupNr);
     }

@@ -29,6 +29,7 @@
 #include "Object.h"
 #include "GameObject.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "WorldSession.h"
 #include "Map.h"
 
@@ -98,7 +99,7 @@ void OutdoorPvP::SendUpdateWorldState(uint32 field, uint32 value)
             continue;
         }
 
-        if (Player* player = sObjectMgr.GetPlayer(itr->first))
+        if (Player* player = sPlayerRegistry.Find(itr->first))
         {
             player->SendUpdateWorldState(field, value);
         }
@@ -197,7 +198,7 @@ void OutdoorPvP::BuffTeam(Team team, uint32 spellId, bool remove /*= false*/)
             continue;
         }
 
-        Player* player = sObjectMgr.GetPlayer(itr->first);
+        Player* player = sPlayerRegistry.Find(itr->first);
         if (player && player->GetTeam() == team)
         {
             if (remove)

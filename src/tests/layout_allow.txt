@@ -33,22 +33,30 @@ src/game/BattleGround/BattleGroundBE.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundBE.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundDS.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundEY.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/BattleGround/BattleGroundEY.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGroundEY.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundHandler.cpp -> src/game/Server/WorldSession.h
 src/game/BattleGround/BattleGroundHandler.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundIC.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundMgr.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/BattleGround/BattleGroundMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGroundMgr.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/Server/WorldSession.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/BattleGround/BattleGroundQueue.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundRB.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundRL.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundRL.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundRV.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGroundReward.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundSA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
@@ -122,18 +130,26 @@ src/game/Object [social] -> src/game/Object/Bag.h
 src/game/Object [social] -> src/game/Object/Item.h
 src/game/Object/ArenaTeam.cpp -> src/game/Server/WorldSession.h
 src/game/Object/ArenaTeam.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/Object/ArenaTeam.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ArenaTeam.cpp -> src/proto/WorldPacket.h
 src/game/Object/AuctionHouseMgr.cpp -> src/game/Server/WorldSession.h
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/AuctionHouseMgr.cpp -> src/proto/WorldPacket.h
 src/game/Object/Bag.cpp -> src/game/WorldHandlers/UpdateData.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Bag.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Calendar.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/Object/Calendar.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Camera.cpp -> src/game/entities/player/Player.h
 src/game/Object/CinematicFlyover.cpp -> src/game/entities/player/Player.h
 src/game/Object/Corpse.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/Object/Corpse.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Creature.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/Object/Creature.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
@@ -146,6 +162,8 @@ src/game/Object/CreatureEventAI.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through GridNotifiersImpl.h before #572
 src/game/Object/DynamicObject.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GMTicketMgr.h -> src/game/Server/WorldSession.h
 src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through GridNotifiersImpl.h before #572
@@ -173,6 +191,8 @@ src/game/Object/GuildBank.cpp -> src/proto/WorldPacket.h
 src/game/Object/Item.cpp -> src/game/Server/WorldSession.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Item.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/Object/Item.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Item.cpp -> src/proto/WorldPacket.h
 src/game/Object/ItemEnchantment.cpp -> src/game/Server/WorldSession.h
 # reached through ObjectMgr.h before #512
@@ -195,11 +215,9 @@ src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/GridNotifiers.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Group.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/InstanceData.h
-src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/Mail.h
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapManager.h
 # reached through ObjectMgr.h before #511
 src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/Object/ObjectMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/GridMap.h
@@ -255,15 +273,21 @@ src/game/OutdoorPvP [pvp] -> src/game/Object/Object.h
 src/game/OutdoorPvP [pvp] -> src/game/WorldHandlers/Map.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/Server/WorldSession.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPHP.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPHP.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPSI.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPSI.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/proto/WorldPacket.h
@@ -318,6 +342,8 @@ src/game/WorldHandlers/AchievementCriteriaRequirement.cpp -> src/game/entities/p
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Channel.cpp -> src/game/Server/WorldSession.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/social/SocialList.h
 src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
@@ -357,11 +383,15 @@ src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Group.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Group.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/WorldHandlers/Group.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Group.cpp -> src/proto/Opcodes.h
 src/game/WorldHandlers/Group.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/GroupInstance.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GroupInstance.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/GroupMemberState.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/WorldHandlers/GroupMemberState.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/InstanceData.cpp -> src/proto/Opcodes.h
 src/game/WorldHandlers/InstanceData.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/InstanceData.h -> src/proto/WorldPacket.h
@@ -377,11 +407,15 @@ src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Mail.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/WorldHandlers/Mail.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Map.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Map.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/MapManager.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/WorldHandlers/MassMailMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/Creature.h
 # reached through PoolManager.h before #509
@@ -413,6 +447,8 @@ src/game/combat/CreatureThreat.cpp -> src/game/entities/player/Player.h
 src/game/combat/CreatureThreat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/combat/ThreatManager.cpp -> src/game/entities/player/Player.h
 src/game/combat/UnitCombat.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/combat/UnitCombat.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/combat/UnitCombat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/combat/UnitCombat.cpp -> src/proto/Opcodes.h
 src/game/combat/UnitCombat.cpp -> src/proto/WorldPacket.h
@@ -717,6 +753,8 @@ src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/p
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/Server/WorldSession.h
 # The bodies cast a unit to a player for player-only methods; it goes with the Unit page's row 13 casts.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/entities/player/PlayerRegistry.h
 # The bodies read the target's aura holders and auras through their public getters (the spell id, the spell entry, the caster or its guid, the stack amount, the aura at an effect index, its modifier and ticks) and refresh a holder; it goes when those reads become queries on the unit.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/spells/auras/SpellAuras.h
 # The location bodies ask the player for its battleground and whether it is in a battleground or an arena; retires with the Unit page's row 13 successor.

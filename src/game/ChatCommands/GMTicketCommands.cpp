@@ -153,7 +153,7 @@ bool ChatHandler::HandleTicketCloseCommand(char* args)
 
     // Get Player
     // Can be nullptr if player is offline
-    Player* pPlayer = sObjectMgr.GetPlayer(target_guid);
+    Player* pPlayer = sPlayerRegistry.Find(target_guid);
 
     // Get Player name
     std::string target_name;
@@ -268,7 +268,7 @@ bool ChatHandler::HandleTicketDeleteCommand(char* args)
         sTicketMgr.Delete(guid);
 
         // notify player
-        if (Player* pl = sObjectMgr.GetPlayer(guid))
+        if (Player* pl = sPlayerRegistry.Find(guid))
         {
             pl->GetSession()->SendGMTicketGetTicket(0x0A);
             PSendSysMessage(LANG_COMMAND_TICKETPLAYERDEL, GetNameLink(pl).c_str());
@@ -359,7 +359,7 @@ bool ChatHandler::HandleTicketOnlineListCommand(char* args)
     for (uint16 i = 0; i < sTicketMgr.GetTicketCount(); ++i)
     {
         GMTicket* ticket = sTicketMgr.GetGMTicketByOrderPos(i);
-        if (Player* player = sObjectMgr.GetPlayer(ticket->GetPlayerGuid(), true))
+        if (Player* player = sPlayerRegistry.Find(ticket->GetPlayerGuid(), true))
         {
             ++count;
             if (i < sGameConfig.getConfig(CONFIG_UINT32_GM_TICKET_LIST_SIZE))
@@ -509,7 +509,7 @@ bool ChatHandler::HandleTicketRespondCommand(char* args)
 
     // Get Player
     // Can be nullptr if player is offline
-    Player* target = sObjectMgr.GetPlayer(target_guid);
+    Player* target = sPlayerRegistry.Find(target_guid);
 
     // Get Player name
     std::string target_name;
@@ -666,7 +666,7 @@ bool ChatHandler::HandleTickerSurveyClose(char* args)
     ticket->CloseWithSurvey();
 
     //This needs to be before we delete the ticket
-    Player* pPlayer = sObjectMgr.GetPlayer(ticket->GetPlayerGuid());
+    Player* pPlayer = sPlayerRegistry.Find(ticket->GetPlayerGuid());
 
     //For now we can't close tickets for offline players, TODO
     if (!pPlayer)

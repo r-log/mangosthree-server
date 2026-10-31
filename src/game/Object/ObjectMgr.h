@@ -736,8 +736,6 @@ class ObjectMgr
         // Static wrappers for various accessors
         static GameObjectInfo const* GetGameObjectInfo(uint32 id);                  ///< Lookup in the game object template store
         static GameObjectDataAddon const* GetGameObjectAddon(uint32 lowguid);       ///< Lookup in the game object addon store
-        static Player* GetPlayer(const char* name);                                 ///< Wrapper for sPlayerRegistry.FindByName
-        static Player* GetPlayer(ObjectGuid guid, bool inWorld = true);             ///< Wrapper for sPlayerRegistry.Find
         static CreatureInfo const* GetCreatureTemplate(uint32 id);                  ///< Lookup in the creature template store
         static CreatureModelInfo const* GetCreatureModelInfo(uint32 modelid);       ///< Lookup in the creature model info store
         static CreatureTemplateSpells const* GetCreatureTemplateSpells(uint32 entry); ///< Lookup in the creature template spells store
@@ -878,12 +876,6 @@ class ObjectMgr
             return m_fishingBaseSkill.Get(entry);
         }
 
-        // The expired-mail sweep. It runs on the mail timer inside World::Update as well as
-        // at start-up, so it stages its two reads and the returns and deletes happen in the
-        // continuation a tick later (decoupling D7f).
-        void ReturnOrDeleteOldMails(bool serverUp);
-        static void ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> holder,
-                                                   uint64 basetime, bool serverUp);
 
         void SetHighestGuids();
 

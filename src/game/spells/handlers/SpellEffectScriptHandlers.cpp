@@ -48,6 +48,7 @@
 #include "WorldHandlers/SkillDiscovery.h"
 #include "spells/auras/SpellAuras.h"
 #include "entities/player/Player.h"
+#include "entities/player/PlayerRegistry.h"
 #include <iterator>
 
 /// 8856: Bending Shinbone
@@ -1861,7 +1862,7 @@ static SpellHandlerOutcome<void> EffectScriptGeneric50238(SpellEffectScriptConte
 
         if (pSummon->GetSummonerGuid().IsPlayer())
         {
-            if (Player* pSummoner = sObjectMgr.GetPlayer(pSummon->GetSummonerGuid()))
+            if (Player* pSummoner = sPlayerRegistry.Find(pSummon->GetSummonerGuid()))
             {
                 pSummoner->CastSpell(pSummoner, ctx.effect->CalculateSimpleValue(), true);
             }

@@ -91,7 +91,7 @@ void CalendarMgr::SendCalendarEventInviteAlert(CalendarInvite const* invite)
             guild->BroadcastPacket(&data);
         }
     }
-    else if (Player* player = sObjectMgr.GetPlayer(invite->InviteeGuid))
+    else if (Player* player = sPlayerRegistry.Find(invite->InviteeGuid))
     {
         player->SendDirectMessage(&data);
     }
@@ -110,7 +110,7 @@ void CalendarMgr::SendCalendarEventInvite(CalendarInvite const* invite)
         eventId = event->EventId;
     }
 
-    Player* player = sObjectMgr.GetPlayer(invite->InviteeGuid);
+    Player* player = sPlayerRegistry.Find(invite->InviteeGuid);
 
     uint8 level = player ? player->getLevel() : Player::GetLevelFromDB(invite->InviteeGuid);
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_INVITE");
@@ -133,7 +133,7 @@ void CalendarMgr::SendCalendarEventInvite(CalendarInvite const* invite)
     //data.hexlike();
     if (preInvite)
     {
-        if (Player* sender = sObjectMgr.GetPlayer(invite->SenderGuid))
+        if (Player* sender = sPlayerRegistry.Find(invite->SenderGuid))
         {
             sender->SendDirectMessage(&data);
         }
@@ -220,7 +220,7 @@ void CalendarMgr::SendCalendarEvent(Player* player, CalendarEvent const* event, 
     {
         CalendarInvite const* invite = itr->second;
         ObjectGuid inviteeGuid = invite->InviteeGuid;
-        Player* invitee = sObjectMgr.GetPlayer(inviteeGuid);
+        Player* invitee = sPlayerRegistry.Find(inviteeGuid);
 
         uint8 inviteeLevel = invitee ? invitee->getLevel() : Player::GetLevelFromDB(inviteeGuid);
         uint32 inviteeGuildId = invitee ? invitee->GetGuildId() : Player::GetGuildIdFromDB(inviteeGuid);
@@ -346,7 +346,7 @@ void CalendarMgr::SendPacketToAllEventRelatives(WorldPacket packet, CalendarEven
     // Send packet to all invitees if event is non-guild, in other case only to non-guild invitees (packet was broadcasted for them)
     CalendarInviteMap const* cInvMap = event->GetInviteMap();
     for (CalendarInviteMap::const_iterator itr = cInvMap->begin(); itr != cInvMap->end(); ++itr)
-        if (Player* player = sObjectMgr.GetPlayer(itr->second->InviteeGuid))
+        if (Player* player = sPlayerRegistry.Find(itr->second->InviteeGuid))
             if (!event->IsGuildEvent() || (event->IsGuildEvent() && player->GetGuildId() != event->GuildId))
             {
                 player->SendDirectMessage(&packet);

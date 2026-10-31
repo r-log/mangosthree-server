@@ -4412,7 +4412,7 @@ void Player::RemovePetitionsAndSigns(ObjectGuid guid, std::vector<PetitionSignat
             ObjectGuid petitionguid = ObjectGuid(HIGHGUID_ITEM, sign.petitionGuid);
 
             // send update if charter owner in game
-            Player* owner = sObjectMgr.GetPlayer(ownerguid);
+            Player* owner = sPlayerRegistry.Find(ownerguid);
             if (owner)
             {
                 owner->GetSession()->SendPetitionQueryOpcode(petitionguid);

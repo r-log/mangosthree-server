@@ -30,6 +30,7 @@
 #include "Mail.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "ProgressBar.h"
 #include "persistence/characters/social/CalendarRepository.h"
 
@@ -98,7 +99,7 @@ void CalendarEvent::RemoveInviteByItr(CalendarInviteMap::iterator inviteItr)
 
     if (!IsGuildEvent())
     {
-        sCalendarMgr.SendCalendarEventInviteRemoveAlert(sObjectMgr.GetPlayer(inviteItr->second->InviteeGuid), this, CALENDAR_STATUS_REMOVED);
+        sCalendarMgr.SendCalendarEventInviteRemoveAlert(sPlayerRegistry.Find(inviteItr->second->InviteeGuid), this, CALENDAR_STATUS_REMOVED);
     }
 
     sCalendarMgr.SendCalendarEventInviteRemove(inviteItr->second, Flags);
@@ -247,7 +248,7 @@ CalendarInvite::CalendarInvite(CalendarEvent* event, uint64 inviteId, ObjectGuid
 void CalendarMgr::GetPlayerEventsList(ObjectGuid const& guid, CalendarEventsList& calEventList)
 {
     uint32 guildId = 0;
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     if (player)
     {
         guildId = player->GetGuildId();
@@ -308,7 +309,7 @@ void CalendarMgr::GetPlayerInvitesList(ObjectGuid const& guid, CalendarInvitesLi
 CalendarEvent* CalendarMgr::AddEvent(ObjectGuid const& guid, std::string title, std::string description, uint32 type, uint32 repeatable,
                                      uint32 maxInvites, int32 dungeonId, time_t eventTime, time_t unkTime, uint32 flags)
 {
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     if (!player)
     {
         return NULL;
@@ -451,7 +452,7 @@ void CalendarMgr::RemoveEvent(uint64 eventId, Player* remover)
 // return value is the CalendarInvite pointer on success
 CalendarInvite* CalendarMgr::AddInvite(CalendarEvent* event, ObjectGuid const& senderGuid, ObjectGuid const& inviteeGuid, CalendarInviteStatus status, CalendarModerationRank rank, std::string text, time_t statusTime)
 {
-    Player* sender = sObjectMgr.GetPlayer(senderGuid);
+    Player* sender = sPlayerRegistry.Find(senderGuid);
     if (!event || !sender)
     {
         return NULL;
@@ -522,7 +523,7 @@ CalendarInvite* CalendarMgr::AddInvite(CalendarEvent* event, ObjectGuid const& s
 // require valid eventId/inviteId and correct right for the remover.
 bool CalendarMgr::RemoveInvite(uint64 eventId, uint64 inviteId, ObjectGuid const& removerGuid)
 {
-    Player* remover = sObjectMgr.GetPlayer(removerGuid);
+    Player* remover = sPlayerRegistry.Find(removerGuid);
     CalendarEventStore::iterator citr = m_EventStore.find(eventId);
     if (citr == m_EventStore.end())
     {
@@ -573,7 +574,7 @@ uint32 CalendarMgr::GetPlayerNumPending(ObjectGuid const& guid)
 // copy event to another date (all invitee is copied too but their status are reseted)
 void CalendarMgr::CopyEvent(uint64 eventId, time_t newTime, ObjectGuid const& guid)
 {
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     CalendarEvent* event = GetEventById(eventId);
     if (!event)
     {

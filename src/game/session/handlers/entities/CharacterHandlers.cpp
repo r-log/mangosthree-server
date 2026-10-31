@@ -45,6 +45,7 @@
 #include "AchievementMgr.h"
 #include "CharacterCache.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "CinematicFlyover.h"
 #include "session/packets/PlayerPacketSinks.h"
 #include "Guild.h"
@@ -643,7 +644,7 @@ void CharacterHandlers::HandleCharDelete(WorldSession& session, WorldPacket& rec
     recv_data >> guid;
 
     // can't delete loaded character
-    if (sObjectMgr.GetPlayer(guid))
+    if (sPlayerRegistry.Find(guid))
     {
         return;
     }
@@ -727,7 +728,7 @@ void CharacterHandlers::HandleCharDeleteCallback(std::unique_ptr<SqlQueryHolder>
     // tick has a login in flight with no Player in the registry yet. Without this the delete
     // would go through under it and the login would seat a character on rows that are being
     // deleted. The session simply keeps the character; the client can delete it after logout.
-    if (sObjectMgr.GetPlayer(guid) || session->PlayerLoading())
+    if (sPlayerRegistry.Find(guid) || session->PlayerLoading())
     {
         return;
     }

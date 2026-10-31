@@ -50,6 +50,7 @@
 #include "SocialList.h"
 #include "data/ChatPacketBuilder.h"
 #include "WorldSession.h"
+#include "PlayerRegistry.h"
 
 Channel::Channel(const std::string& name, uint32 channel_id)
     : m_announce(true), m_moderate(false), m_name(name), m_flags(0), m_channelId(channel_id)
@@ -240,7 +241,7 @@ void Channel::KickOrBan(Player* player, const char* targetName, bool ban)
         return;
     }
 
-    Player* target = sObjectMgr.GetPlayer(targetName);
+    Player* target = sPlayerRegistry.FindByName(targetName);
     if (!target)
     {
         WorldPacket data;
@@ -318,7 +319,7 @@ void Channel::UnBan(Player* player, const char* targetName)
         return;
     }
 
-    Player* target = sObjectMgr.GetPlayer(targetName);
+    Player* target = sPlayerRegistry.FindByName(targetName);
     if (!target)
     {
         WorldPacket data;
@@ -406,7 +407,7 @@ void Channel::SetMode(Player* player, const char* targetName, bool moderator, bo
         return;
     }
 
-    Player* target = sObjectMgr.GetPlayer(targetName);
+    Player* target = sPlayerRegistry.FindByName(targetName);
     if (!target)
     {
         WorldPacket data;
@@ -516,7 +517,7 @@ void Channel::SetOwner(Player* player, const char* targetName)
         return;
     }
 
-    Player* target = sObjectMgr.GetPlayer(targetName);
+    Player* target = sPlayerRegistry.FindByName(targetName);
     if (!target)
     {
         WorldPacket data;
@@ -601,7 +602,7 @@ void Channel::List(Player* player)
     uint32 count = 0;
     for (PlayerList::const_iterator i = m_players.begin(); i != m_players.end(); ++i)
     {
-        Player* plr = sObjectMgr.GetPlayer(i->first);
+        Player* plr = sPlayerRegistry.Find(i->first);
 
         // PLAYER can't see MODERATOR, GAME MASTER, ADMINISTRATOR characters
         // MODERATOR, GAME MASTER, ADMINISTRATOR can see all
@@ -769,7 +770,7 @@ void Channel::Invite(Player* player, const char* targetName)
         return;
     }
 
-    Player* target = sObjectMgr.GetPlayer(targetName);
+    Player* target = sPlayerRegistry.FindByName(targetName);
     if (!target)
     {
         WorldPacket data;
@@ -826,7 +827,7 @@ void Channel::SendToAll(WorldPacket* data, ObjectGuid guid)
 {
     for (PlayerList::const_iterator i = m_players.begin(); i != m_players.end(); ++i)
     {
-        if (Player* plr = sObjectMgr.GetPlayer(i->first))
+        if (Player* plr = sPlayerRegistry.Find(i->first))
         {
             if (!guid || !plr->GetSocial()->HasIgnore(guid))
             {
@@ -844,7 +845,7 @@ void Channel::SendToAll(WorldPacket* data, ObjectGuid guid)
  */
 void Channel::SendToOne(WorldPacket* data, ObjectGuid who)
 {
-    if (Player* plr = ObjectMgr::GetPlayer(who))
+    if (Player* plr = sPlayerRegistry.Find(who))
     {
         plr->GetSession()->SendPacket(data);
     }

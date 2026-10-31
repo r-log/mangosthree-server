@@ -891,7 +891,7 @@ struct npc_solenor_the_slayer : public CreatureScript
             m_creature->GetMotionMaster()->Clear(false);
             m_creature->GetMotionMaster()->MoveIdle();
             m_creature->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
-            Player * player = sObjectMgr.GetPlayer(playerGuid);
+            Player * player = m_creature->GetMap()->GetPlayer(playerGuid);
             m_creature->SetFacingToObject(player);
             m_bTransform = true;
         }

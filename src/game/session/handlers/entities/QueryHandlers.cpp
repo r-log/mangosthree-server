@@ -36,6 +36,7 @@
 #include "Object/Corpse.h"
 #include "Server/DBCStores.h"
 #include "entities/player/Player.h"
+#include "entities/player/PlayerRegistry.h"
 #include "data/GossipRecords.h"
 #include "WorldHandlers/MapManager.h"
 #include "WorldHandlers/Map.h"
@@ -51,7 +52,7 @@ void QueryHandlers::HandleNameQuery(WorldSession& session, WorldPacket& recv_dat
 
     recv_data >> guid;
 
-    Player* pChar = sObjectMgr.GetPlayer(guid);
+    Player* pChar = sPlayerRegistry.Find(guid);
 
     if (pChar)
     {

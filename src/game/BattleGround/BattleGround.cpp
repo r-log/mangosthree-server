@@ -456,7 +456,7 @@ void BattleGround::Update(uint32 diff)
             {
                 for (BattleGroundPlayerMap::const_iterator itr = GetPlayers().begin(); itr != GetPlayers().end(); ++itr)
                 {
-                    if (Player* player = sObjectMgr.GetPlayer(itr->first))
+                    if (Player* player = sPlayerRegistry.Find(itr->first))
                     {
                         float x, y, z, o;
                         GetTeamStartLoc(player->GetTeam(), x, y, z, o);
@@ -486,7 +486,7 @@ void BattleGround::Update(uint32 diff)
             data << uint32(countdownMaxForBGType);
 
             for (BattleGroundPlayerMap::const_iterator itr = GetPlayers().begin(); itr != GetPlayers().end(); ++itr)
-                if (Player* player = sObjectMgr.GetPlayer(itr->first))
+                if (Player* player = sPlayerRegistry.Find(itr->first))
                 {
                     player->GetSession()->SendPacket(&data);
                 }
@@ -538,7 +538,7 @@ void BattleGround::Update(uint32 diff)
             {
                 for (BattleGroundPlayerMap::const_iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
                 {
-                    if (Player* player = sObjectMgr.GetPlayer(itr->first))
+                    if (Player* player = sPlayerRegistry.Find(itr->first))
                     {
                         player->RemoveAurasDueToSpell(SPELL_ARENA_PREPARATION);
                     }
@@ -552,7 +552,7 @@ void BattleGround::Update(uint32 diff)
 
                 for (BattleGroundPlayerMap::const_iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
                 {
-                    if (Player* plr = sObjectMgr.GetPlayer(itr->first))
+                    if (Player* plr = sPlayerRegistry.Find(itr->first))
                     {
                         plr->RemoveAurasDueToSpell(SPELL_PREPARATION);
                     }
@@ -632,7 +632,7 @@ void BattleGround::SendPacketToAll(WorldPacket* packet)
             continue;
         }
 
-        if (Player* plr = sObjectMgr.GetPlayer(itr->first))
+        if (Player* plr = sPlayerRegistry.Find(itr->first))
         {
             plr->GetSession()->SendPacket(packet);
         }
@@ -659,7 +659,7 @@ void BattleGround::SendPacketToTeam(Team teamId, WorldPacket* packet, Player* se
             continue;
         }
 
-        Player* plr = sObjectMgr.GetPlayer(itr->first);
+        Player* plr = sPlayerRegistry.Find(itr->first);
         if (!plr)
         {
             sLog.outError("BattleGround:SendPacketToTeam: %s not found!", itr->first.GetString().c_str());
@@ -711,7 +711,7 @@ void BattleGround::PlaySoundToTeam(uint32 SoundID, Team teamId)
             continue;
         }
 
-        Player* plr = sObjectMgr.GetPlayer(itr->first);
+        Player* plr = sPlayerRegistry.Find(itr->first);
         if (!plr)
         {
             sLog.outError("BattleGround:PlaySoundToTeam: %s not found!", itr->first.GetString().c_str());
@@ -746,7 +746,7 @@ void BattleGround::CastSpellOnTeam(uint32 SpellID, Team teamId)
             continue;
         }
 
-        Player* plr = sObjectMgr.GetPlayer(itr->first);
+        Player* plr = sPlayerRegistry.Find(itr->first);
 
         if (!plr)
         {
@@ -804,7 +804,7 @@ void BattleGround::RemovePlayerAtLeave(ObjectGuid guid, bool Transport, bool Sen
         m_PlayerScores.erase(itr2);
     }
 
-    Player* plr = sObjectMgr.GetPlayer(guid);
+    Player* plr = sPlayerRegistry.Find(guid);
 
     if (plr)
     {
@@ -1420,7 +1420,7 @@ void BattleGround::HandleKillPlayer(Player* player, Player* killer)
 
         for (BattleGroundPlayerMap::const_iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
         {
-            Player* plr = sObjectMgr.GetPlayer(itr->first);
+            Player* plr = sPlayerRegistry.Find(itr->first);
 
             if (!plr || plr == killer)
             {
@@ -1507,7 +1507,7 @@ uint32 BattleGround::GetAlivePlayersCountByTeam(Team team) const
     {
         if (itr->second.PlayerTeam == team)
         {
-            Player* pl = sObjectMgr.GetPlayer(itr->first);
+            Player* pl = sPlayerRegistry.Find(itr->first);
             if (pl && pl->IsAlive())
             {
                 ++count;

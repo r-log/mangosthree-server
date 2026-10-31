@@ -52,7 +52,6 @@
 #include "spells/auras/SpellAuras.h"
 #include "Util.h"
 #include "WaypointManager.h"
-#include "Mail.h"
 #include "InstanceData.h"
 #include "DB2Structure.h"
 #include "DB2Stores.h"
@@ -64,7 +63,6 @@
 #include <cstdarg>
 #include <limits>
 #include <set>
-#include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "persistence/characters/CharacterRepository.h"
 #include "persistence/characters/CharacterSaveRepository.h"
@@ -286,8 +284,8 @@ ObjectMgr::~ObjectMgr()
 
 
 /**
- * The five lookups below answer a character that is not logged in from CharacterCache, which
- * holds the `characters` rows in memory; the three keyed by guid read the logged-in player first.
+ * The five lookups below answer from CharacterCache, which holds the `characters` rows in memory
+ * and is kept current while the characters are online.
  */
 
 // name must be checked to correctness (if received) before call this function
@@ -311,13 +309,6 @@ ObjectGuid ObjectMgr::GetPlayerGuidByName(std::string name) const
  */
 bool ObjectMgr::GetPlayerNameByGUID(ObjectGuid guid, std::string& name) const
 {
-    // prevent DB access for online player
-    if (Player* player = GetPlayer(guid))
-    {
-        name = player->GetName();
-        return true;
-    }
-
     if (CharacterCacheRef entry = sCharacterCache.GetByGuid(guid))
     {
         name = entry->name;
@@ -335,12 +326,6 @@ bool ObjectMgr::GetPlayerNameByGUID(ObjectGuid guid, std::string& name) const
  */
 Team ObjectMgr::GetPlayerTeamByGUID(ObjectGuid guid) const
 {
-    // prevent DB access for online player
-    if (Player* player = GetPlayer(guid))
-    {
-        return TeamForRace(player->getRace());
-    }
-
     return sCharacterCache.GetTeam(guid);
 }
 
@@ -355,12 +340,6 @@ uint32 ObjectMgr::GetPlayerAccountIdByGUID(ObjectGuid guid) const
     if (!guid.IsPlayer())
     {
         return 0;
-    }
-
-    // prevent DB access for online player
-    if (Player* player = GetPlayer(guid))
-    {
-        return player->GetSession()->GetAccountId();
     }
 
     return sCharacterCache.GetAccountId(guid);
@@ -401,23 +380,6 @@ GameObjectInfo const* ObjectMgr::GetGameObjectInfo(uint32 id) { return sObjectMg
  * @return The addon, or null if missing.
  */
 GameObjectDataAddon const* ObjectMgr::GetGameObjectAddon(uint32 lowguid) { return sObjectMgr.m_gameObjectAddons.Find(lowguid); }
-
-/**
- * @brief Finds an online player by name.
- *
- * @param name The player name.
- * @return The matching player, or null if not found.
- */
-Player* ObjectMgr::GetPlayer(const char* name) { return sPlayerRegistry.FindByName(name); }
-
-/**
- * @brief Finds a player by GUID.
- *
- * @param guid The player GUID.
- * @param inWorld true to restrict the search to players currently in world.
- * @return The matching player, or null if not found.
- */
-Player* ObjectMgr::GetPlayer(ObjectGuid guid, bool inWorld /*=true*/) { return sPlayerRegistry.Find(guid, inWorld); }
 
 std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const* player)
 {
@@ -657,160 +619,6 @@ GossipText const* ObjectMgr::GetGossipText(uint32 Text_ID) const
         return &itr->second;
     }
     return NULL;
-}
-
-// not very fast function but it is called only once a day, or on starting-up
-/// @param serverUp true if the server is already running, false when the server is started
-void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
-{
-    time_t curTime = time(NULL);
-    tm lt;
-    lt = safe_localtime(curTime);
-    uint64 basetime(curTime);
-    sLog.outString("Returning mails current time: hour: %d, minute: %d, second: %d ", lt.tm_hour, lt.tm_min, lt.tm_sec);
-
-    // delete all old mails without item and without body immediately, if starting server
-    if (!serverUp)
-    {
-        MailRepository::DeleteEmptyExpiredMails((uint64)basetime);
-    }
-
-    // Runs at start-up and on the daily mail timer inside World::Update, so both reads are staged here and the expired
-    // mails' returns and deletes happen in the callback. Slot 1 reads the expired mails' items in one join ordered by
-    // `mail_id`; the callback walks it as a cursor beside the mail rows, since both results ascend in that key.
-    MailRepository::QueueExpiredMailReads((uint64)basetime, [basetime, serverUp](SqlQueryHolder* h)
-                                          {
-                                              ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder>(h),
-                                                                                        basetime, serverUp);
-                                          });
-}
-
-/**
- * @brief Returns or deletes the expired mails, once both reads have answered.
- *
- * Walks slot 1 as a cursor beside the mail rows. Every write it makes goes through PExecute, so nothing here runs a
- * synchronous database call.
- *
- * @param holder   The two staged reads.
- * @param basetime The expiry cut-off the reads were staged with, which the returned mails'
- *                 new expiry and delivery times are computed from -- captured rather than
- *                 recomputed, so a mail cannot be given a window that disagrees with the
- *                 set it was selected in.
- * @param serverUp The flag the caller passed, verbatim: it decides whether a mail whose
- *                 receiver is online is left alone.
- */
-void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> holder, uint64 basetime, bool serverUp)
-{
-    std::vector<ExpiredMailRow> mails = MailRepository::ExpiredMails(holder.get());
-    std::vector<ExpiredMailItemRow> mailItems = MailRepository::ExpiredMailItems(holder.get());
-
-    if (mails.empty())
-    {
-        BarGoLink bar(1);
-        bar.step();
-        sLog.outString(">> Only expired mails (need to be return or delete) or DB table `mail` is empty.");
-        sLog.outString();
-        return;                                             // no mail needs to be returned or deleted
-    }
-
-    // std::ostringstream delitems, delmails; // will be here for optimization
-    // bool deletemail = false, deleteitem = false;
-    // delitems << "DELETE FROM `item_instance` WHERE `guid` IN ( ";
-    // delmails << "DELETE FROM `mail` WHERE `id` IN ( "
-
-    BarGoLink bar(mails.size());
-    uint32 count = 0;
-
-    /// The item cursor: the next item row to read.
-    size_t nextItem = 0;
-
-    for (ExpiredMailRow const& mail : mails)
-    {
-        bar.step();
-
-        Mail* m = new Mail;
-        m->messageID = mail.id;
-
-        // Step over the item rows of any mail EARLIER than this one: a mail whose items
-        // were not consumed (its receiver was online) left its run standing.
-        while (nextItem < mailItems.size() && mailItems[nextItem].mailId < m->messageID)
-        {
-            ++nextItem;
-        }
-
-        m->messageType = mail.messageType;
-        m->sender = mail.sender;
-        m->receiverGuid = ObjectGuid(HIGHGUID_PLAYER, mail.receiver);
-        bool has_items = mail.hasItems;
-        m->expire_time = (time_t)mail.expireTime;
-        m->deliver_time = 0;
-        m->COD = mail.cod;
-        m->checked = mail.checked;
-        m->mailTemplateId = mail.mailTemplateId;
-
-        Player* pl = 0;
-        if (serverUp)
-        {
-            pl = GetPlayer(m->receiverGuid);
-        }
-        if (pl)
-        {
-            // this code will run very improbably (the time is between 4 and 5 am, in game is online a player, who has old mail
-            // his in mailbox and he has already listed his mails )
-            delete m;
-            continue;
-        }
-        // delete or return mail:
-        if (has_items)
-        {
-            // This mail's own run of the joined item rows: contiguous, because both
-            // reads ascend in `mail_id`.
-            while (nextItem < mailItems.size())
-            {
-                ExpiredMailItemRow const& mailItem = mailItems[nextItem];
-                if (mailItem.mailId != m->messageID)
-                {
-                    break;
-                }
-
-                m->AddItem(mailItem.itemGuid, mailItem.itemTemplate);
-
-                ++nextItem;
-            }
-            // if it is mail from non-player, or if it's already return mail, it shouldn't be returned, but deleted
-            if (m->messageType != MAIL_NORMAL || (m->checked & (MAIL_CHECK_MASK_COD_PAYMENT | MAIL_CHECK_MASK_RETURNED)))
-            {
-                // mail open and then not returned
-                for (MailItemInfoVec::iterator itr2 = m->items.begin(); itr2 != m->items.end(); ++itr2)
-                {
-                    MailRepository::DeleteExpiredMailItem(itr2->item_guid);
-                }
-            }
-            else
-            {
-                // mail will be returned:
-                MailRepository::ReturnExpiredMail(m->receiverGuid.GetCounter(), m->sender, (uint64)(basetime + 30 * DAY), (uint64)basetime,
-                                                  MAIL_CHECK_MASK_RETURNED, m->messageID);
-                for (MailItemInfoVec::iterator itr2 = m->items.begin(); itr2 != m->items.end(); ++itr2)
-                {
-                    // update receiver in mail items for its proper delivery, and in instance_item for avoid lost item at sender delete
-                    MailRepository::SetReturnedItemReceiver(m->sender, itr2->item_guid);
-                    MailRepository::SetReturnedItemOwner(m->sender, itr2->item_guid);
-                }
-                delete m;
-                continue;
-            }
-        }
-
-        // deletemail = true;
-        // delmails << m->messageID << ", ";
-        MailRepository::DeleteMailRow(m->messageID);
-        delete m;
-        ++count;
-    }
-
-    sLog.outString(">> Loaded %u mails", count);
-    sLog.outString();
 }
 
 /**

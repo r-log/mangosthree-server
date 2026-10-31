@@ -606,7 +606,7 @@ if(Python3_Interpreter_FOUND)
             --class WorldSession --header ${CMAKE_SOURCE_DIR}/src/game/Server/WorldSession.h)
 
     add_test(NAME object_mgr_methods
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 242
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 238
             --class ObjectMgr --header ${CMAKE_SOURCE_DIR}/src/game/Object/ObjectMgr.h)
 
     # Decoupling D4k: a character manager never stores a callback. The check reads the managers

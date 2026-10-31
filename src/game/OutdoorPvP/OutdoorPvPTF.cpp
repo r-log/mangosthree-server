@@ -31,6 +31,7 @@
 #include "Object.h"
 #include "GameObject.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 
 OutdoorPvPTF::OutdoorPvPTF() : OutdoorPvP(),
     m_zoneWorldState(WORLD_STATE_TF_TOWERS_CONTROLLED),
@@ -317,7 +318,7 @@ void OutdoorPvPTF::UnlockZone()
             continue;
         }
 
-        if (Player* player = sObjectMgr.GetPlayer(itr->first))
+        if (Player* player = sPlayerRegistry.Find(itr->first))
         {
             ResetTowers(player);
             break;

@@ -39,6 +39,7 @@
 #include "Object/ObjectGuid.h"
 #include "WorldHandlers/AchievementMgr.h"
 #include "entities/player/Player.h"
+#include "entities/player/PlayerRegistry.h"
 #include "Object/AuctionHouseMgr.h"
 #include "WorldHandlers/Mail.h"
 #include "Utilities/Util.h"
@@ -73,7 +74,7 @@ void AuctionHandlers::HandleAuctionHello(WorldSession& session, WorldPacket& rec
 void AuctionHandlers::SendAuctionCancelledToBidderMail(AuctionEntry* auction)
 {
     ObjectGuid bidder_guid = ObjectGuid(HIGHGUID_PLAYER, auction->bidder);
-    Player* bidder = sObjectMgr.GetPlayer(bidder_guid);
+    Player* bidder = sPlayerRegistry.Find(bidder_guid);
 
     uint32 bidder_accId = 0;
     if (!bidder)
@@ -335,7 +336,7 @@ void AuctionHandlers::HandleAuctionPlaceBid(WorldSession& session, WorldPacket& 
     ObjectGuid ownerGuid = ObjectGuid(HIGHGUID_PLAYER, auction->owner);
 
     // impossible have online own another character (use this for speedup check in case online owner)
-    Player* auction_owner = sObjectMgr.GetPlayer(ownerGuid);
+    Player* auction_owner = sPlayerRegistry.Find(ownerGuid);
     if (!auction_owner && sObjectMgr.GetPlayerAccountIdByGUID(ownerGuid) == pl->GetSession()->GetAccountId())
     {
         // you can not bid your another character auction:

@@ -61,7 +61,7 @@ void PvpHandlers::HandleInspectArenaTeams(WorldSession& session, WorldPacket& re
     recv_data >> guid;
     DEBUG_LOG("Inspect Arena stats %s", guid.GetString().c_str());
 
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     if (!player)
     {
         return;
@@ -695,12 +695,12 @@ void PvpHandlers::HandleBattleGroundPlayerPositions(WorldSession& session, World
     {
         case BATTLEGROUND_WS:
         {
-            if ((flagCarrierA = sObjectMgr.GetPlayer(((BattleGroundWS*)bg)->GetAllianceFlagCarrierGuid())))
+            if ((flagCarrierA = sPlayerRegistry.Find(((BattleGroundWS*)bg)->GetAllianceFlagCarrierGuid())))
             {
                 ++flagCarrierCountH;
             }
 
-            if ((flagCarrierH = sObjectMgr.GetPlayer(((BattleGroundWS*)bg)->GetHordeFlagCarrierGuid())))
+            if ((flagCarrierH = sPlayerRegistry.Find(((BattleGroundWS*)bg)->GetHordeFlagCarrierGuid())))
             {
                 ++flagCarrierCountH;
             }
@@ -708,7 +708,7 @@ void PvpHandlers::HandleBattleGroundPlayerPositions(WorldSession& session, World
         }
         case BATTLEGROUND_EY:
         {
-            if ((flagCarrierH = sObjectMgr.GetPlayer(((BattleGroundEY*)bg)->GetFlagCarrierGuid())))
+            if ((flagCarrierH = sPlayerRegistry.Find(((BattleGroundEY*)bg)->GetFlagCarrierGuid())))
             {
                 ++flagCarrierCountH;
             }
@@ -1313,7 +1313,7 @@ void PvpHandlers::HandleReportPvPAFK(WorldSession& session, WorldPacket& recv_da
 {
     ObjectGuid playerGuid;
     recv_data >> playerGuid;
-    Player* reportedPlayer = sObjectMgr.GetPlayer(playerGuid);
+    Player* reportedPlayer = sPlayerRegistry.Find(playerGuid);
 
     if (!reportedPlayer)
     {

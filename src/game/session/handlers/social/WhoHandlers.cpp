@@ -310,7 +310,7 @@ void WhoHandlers::HandleWhois(WorldSession& session, WorldPacket& recv_data)
         return;
     }
 
-    Player* plr = sObjectMgr.GetPlayer(charname.c_str());
+    Player* plr = sPlayerRegistry.FindByName(charname.c_str());
 
     if (!plr)
     {

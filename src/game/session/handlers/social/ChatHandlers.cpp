@@ -45,6 +45,7 @@
 #include "GuildMgr.h"
 #include "AchievementMgr.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "spells/auras/SpellAuras.h"
 #include "Language.h"
 #include "Util.h"
@@ -298,7 +299,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
                 }
             }
 
-            Player* player = sObjectMgr.GetPlayer(to.c_str());
+            Player* player = sPlayerRegistry.FindByName(to.c_str());
             uint32 tSecurity = session.GetSecurity();
             uint32 pSecurity = player ? player->GetSession()->GetSecurity() : SEC_PLAYER;
             if (!player || (tSecurity == SEC_PLAYER && pSecurity > SEC_PLAYER && !player->isAcceptWhispers()))
@@ -779,7 +780,7 @@ void ChatHandlers::HandleAddonMessagechat(WorldSession& session, WorldPacket& re
                 break;
             }
 
-            Player* receiver = sObjectMgr.GetPlayer(targetName.c_str());
+            Player* receiver = sPlayerRegistry.FindByName(targetName.c_str());
             if (!receiver)
             {
                 break;
@@ -964,7 +965,7 @@ void ChatHandlers::HandleChatIgnored(WorldSession& session, WorldPacket& recv_da
     recv_data.ReadGuidMask<2, 5, 6, 4, 7, 0, 1, 3>(iguid);
     recv_data.ReadGuidBytes<0, 6, 5, 1, 4, 3, 7, 2>(iguid);
 
-    Player* player = sObjectMgr.GetPlayer(iguid);
+    Player* player = sPlayerRegistry.Find(iguid);
     if (!player || !player->GetSession())
     {
         return;

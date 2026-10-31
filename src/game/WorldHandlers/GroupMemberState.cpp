@@ -25,6 +25,7 @@
 
 #include "Platform/Define.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "Group.h"
@@ -93,7 +94,7 @@ bool Group::_addMember(ObjectGuid guid, const char* name, bool isAssistant, uint
         return false;
     }
 
-    Player* player = sObjectMgr.GetPlayer(guid, false);
+    Player* player = sPlayerRegistry.Find(guid, false);
 
     uint32 lastMap = 0;
     if (player && player->IsInWorld())
@@ -170,7 +171,7 @@ bool Group::_addMember(ObjectGuid guid, const char* name, bool isAssistant, uint
  */
 bool Group::_removeMember(ObjectGuid guid)
 {
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
     if (player)
     {
         // if we are removing player from battleground raid
@@ -248,7 +249,7 @@ void Group::_setLeader(ObjectGuid guid)
         // from the new leader
         GroupRepository::DeleteBindsReplacedByLeader(leader_lowguid, slot_lowguid);
 
-        Player* player = sObjectMgr.GetPlayer(slot->guid);
+        Player* player = sPlayerRegistry.Find(slot->guid);
 
         if (player)
         {
@@ -331,7 +332,7 @@ void Group::_removeRolls(ObjectGuid guid)
 
 void Group::_updateLeaderFlag(const bool remove /*= false*/)
 {
-    if (Player* player = sObjectMgr.GetPlayer(m_leaderGuid))
+    if (Player* player = sPlayerRegistry.Find(m_leaderGuid))
     {
         player->UpdateGroupLeaderFlag(remove);
     }
@@ -490,7 +491,7 @@ void Group::ChangeMembersGroup(ObjectGuid guid, uint8 group)
         return;
     }
 
-    Player* player = sObjectMgr.GetPlayer(guid);
+    Player* player = sPlayerRegistry.Find(guid);
 
     if (!player)
     {

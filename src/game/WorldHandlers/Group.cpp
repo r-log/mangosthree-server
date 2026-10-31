@@ -53,6 +53,7 @@
 #include "WorldSession.h"
 #include "AchievementMgr.h"
 #include "Player.h"
+#include "PlayerRegistry.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
@@ -201,7 +202,7 @@ bool Group::Create(ObjectGuid guid, const char* name)
     {
         m_Id = sObjectMgr.GenerateGroupLowGuid();
 
-        Player* leader = sObjectMgr.GetPlayer(guid);
+        Player* leader = sPlayerRegistry.Find(guid);
         if (leader)
         {
             m_dungeonDifficulty = leader->GetDungeonDifficulty();
@@ -371,7 +372,7 @@ void Group::ConvertToRaid()
 
     // update quest related GO states (quest activity dependent from raid membership)
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
-        if (Player* player = sObjectMgr.GetPlayer(citr->guid))
+        if (Player* player = sPlayerRegistry.Find(citr->guid))
         {
             player->UpdateForQuestWorldObjects();
         }
@@ -416,7 +417,7 @@ ObjectGuid Group::_resummonMarker(uint8 slot, ObjectGuid skip)
             continue;
         }
 
-        Player* host = sObjectMgr.GetPlayer(citr->guid);
+        Player* host = sPlayerRegistry.Find(citr->guid);
         if (!host || !host->IsInWorld() || host->GetMapId() != marker.mapId)
         {
             continue;
@@ -482,7 +483,7 @@ void Group::ClearRaidMarker(uint8 slot)
     {
         if (m_markers[i].spellId)
         {
-            Player* owner = sObjectMgr.GetPlayer(m_markers[i].owner);
+            Player* owner = sPlayerRegistry.Find(m_markers[i].owner);
             if (owner)
             {
                 owner->RemoveDynObject(m_markers[i].spellId);
@@ -607,7 +608,7 @@ void Group::ConvertToParty()
         citr->group     = 0;
         citr->assistant = false;
 
-        Player* player = sObjectMgr.GetPlayer(citr->guid);
+        Player* player = sPlayerRegistry.Find(citr->guid);
         if (player && player->GetGroup() == this)
         {
             player->GetGroupRef().setSubGroup(0);
@@ -626,7 +627,7 @@ void Group::ConvertToParty()
     // update quest related GO states (quest activity dependent from raid membership)
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
     {
-        Player* player = sObjectMgr.GetPlayer(citr->guid);
+        Player* player = sPlayerRegistry.Find(citr->guid);
         if (player)
         {
             player->UpdateForQuestWorldObjects();
@@ -765,7 +766,7 @@ bool Group::AddMember(ObjectGuid guid, const char* name)
 
     SendUpdate();
 
-    if (Player* player = sObjectMgr.GetPlayer(guid))
+    if (Player* player = sPlayerRegistry.Find(guid))
     {
         if (!IsLeader(player->GetObjectGuid()) && !isBGGroup())
         {
@@ -823,7 +824,7 @@ uint32 Group::RemoveMember(ObjectGuid guid, uint8 removeMethod)
             sLFGMgr.OnGroupLeaderChanged(GetObjectGuid(), m_memberSlots.front().guid);
         }
 
-        if (Player* player = sObjectMgr.GetPlayer(guid))
+        if (Player* player = sPlayerRegistry.Find(guid))
         {
             // quest related GO state dependent from raid membership
             if (isRaidGroup())
@@ -919,7 +920,7 @@ void Group::Disband(bool hideDestroy)
 
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
     {
-        player = sObjectMgr.GetPlayer(citr->guid);
+        player = sPlayerRegistry.Find(citr->guid);
         if (!player)
         {
             continue;
@@ -1017,7 +1018,7 @@ void Group::SendLootStartRoll(uint32 CountDown, uint32 mapid, const Roll& r)
 
     for (Roll::PlayerVote::const_iterator itr = r.playerVote.begin(); itr != r.playerVote.end(); ++itr)
     {
-        Player* p = sObjectMgr.GetPlayer(itr->first);
+        Player* p = sPlayerRegistry.Find(itr->first);
         if (!p || !p->GetSession())
         {
             continue;
@@ -1059,7 +1060,7 @@ void Group::SendLootRoll(ObjectGuid const& targetGuid, uint32 rollNumber, uint8 
 
     for (Roll::PlayerVote::const_iterator itr = r.playerVote.begin(); itr != r.playerVote.end(); ++itr)
     {
-        Player* p = sObjectMgr.GetPlayer(itr->first);
+        Player* p = sPlayerRegistry.Find(itr->first);
         if (!p || !p->GetSession())
         {
             continue;
@@ -1094,7 +1095,7 @@ void Group::SendLootRollWon(ObjectGuid const& targetGuid, uint32 rollNumber, Rol
 
     for (Roll::PlayerVote::const_iterator itr = r.playerVote.begin(); itr != r.playerVote.end(); ++itr)
     {
-        Player* p = sObjectMgr.GetPlayer(itr->first);
+        Player* p = sPlayerRegistry.Find(itr->first);
         if (!p || !p->GetSession())
         {
             continue;
@@ -1123,7 +1124,7 @@ void Group::SendLootAllPassed(Roll const& r)
 
     for (Roll::PlayerVote::const_iterator itr = r.playerVote.begin(); itr != r.playerVote.end(); ++itr)
     {
-        Player* p = sObjectMgr.GetPlayer(itr->first);
+        Player* p = sPlayerRegistry.Find(itr->first);
         if (!p || !p->GetSession())
         {
             continue;
@@ -1499,7 +1500,7 @@ void Group::CountTheRoll(Rolls::iterator& rollI)
                 }
             }
             SendLootRollWon(maxguid, maxresul, ROLL_NEED, *roll);
-            player = sObjectMgr.GetPlayer(maxguid);
+            player = sPlayerRegistry.Find(maxguid);
 
             if (player && player->GetSession())
             {
@@ -1553,7 +1554,7 @@ void Group::CountTheRoll(Rolls::iterator& rollI)
                 }
             }
             SendLootRollWon(maxguid, maxresul, rollvote, *roll);
-            player = sObjectMgr.GetPlayer(maxguid);
+            player = sPlayerRegistry.Find(maxguid);
 
             if (player && player->GetSession())
             {
@@ -1767,7 +1768,7 @@ void Group::SendUpdate()
 
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
     {
-        Player* player = sObjectMgr.GetPlayer(citr->guid);
+        Player* player = sPlayerRegistry.Find(citr->guid);
         if (!player || !player->GetSession() || player->GetGroup() != this)
         {
             continue;
@@ -1798,7 +1799,7 @@ void Group::SendUpdate()
             {
                 continue;
             }
-            Player* member = sObjectMgr.GetPlayer(citr2->guid);
+            Player* member = sPlayerRegistry.Find(citr2->guid);
             uint8 onlineState = (member) ? MEMBER_STATUS_ONLINE : MEMBER_STATUS_OFFLINE;
             onlineState = onlineState | ((isBGGroup()) ? MEMBER_STATUS_PVP : 0);
 
@@ -1902,7 +1903,7 @@ void Group::OfflineReadyCheck()
 {
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
     {
-        Player* pl = sObjectMgr.GetPlayer(citr->guid);
+        Player* pl = sPlayerRegistry.Find(citr->guid);
         if (!pl || !pl->GetSession())
         {
             WorldPacket data(MSG_RAID_READY_CHECK_CONFIRM, 9);
