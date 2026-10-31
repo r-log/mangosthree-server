@@ -51,6 +51,7 @@
 #include "entities/player/PlayerRegistry.h"
 #include "DBCStores.h"
 #include "Creature.h"
+#include "social/ArenaTeamRegistry.h"
 
 void PvpHandlers::HandleInspectArenaTeams(WorldSession& session, WorldPacket& recv_data)
 {
@@ -80,7 +81,7 @@ void PvpHandlers::HandleInspectArenaTeams(WorldSession& session, WorldPacket& re
     {
         if (uint32 a_id = player->GetArenaTeamId(i))
         {
-            if (ArenaTeam* arenaTeam = sObjectMgr.GetArenaTeamById(a_id))
+            if (ArenaTeam* arenaTeam = sArenaTeamRegistry.Find(a_id))
             {
                 arenaTeam->InspectStats(&session, player->GetObjectGuid());
             }
@@ -95,7 +96,7 @@ void PvpHandlers::HandleArenaTeamQuery(WorldSession& session, WorldPacket& recv_
     uint32 ArenaTeamId;
     recv_data >> ArenaTeamId;
 
-    if (ArenaTeam* arenateam = sObjectMgr.GetArenaTeamById(ArenaTeamId))
+    if (ArenaTeam* arenateam = sArenaTeamRegistry.Find(ArenaTeamId))
     {
         arenateam->Query(&session);
         arenateam->Stats(&session);
@@ -109,7 +110,7 @@ void PvpHandlers::HandleArenaTeamRoster(WorldSession& session, WorldPacket& recv
     uint32 ArenaTeamId;                                     // arena team id
     recv_data >> ArenaTeamId;
 
-    if (ArenaTeam* arenateam = sObjectMgr.GetArenaTeamById(ArenaTeamId))
+    if (ArenaTeam* arenateam = sArenaTeamRegistry.Find(ArenaTeamId))
     {
         arenateam->Roster(&session);
     }
@@ -148,7 +149,7 @@ void PvpHandlers::HandleArenaTeamCreate(WorldSession& session, WorldPacket& recv
         return;
     }
 
-    if (sObjectMgr.GetArenaTeamByName(name))
+    if (sArenaTeamRegistry.FindByName(name))
     {
         session.SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, name, "", ERR_ARENA_TEAM_NAME_EXISTS_S);
         return;
@@ -165,7 +166,7 @@ void PvpHandlers::HandleArenaTeamCreate(WorldSession& session, WorldPacket& recv
     at->SetEmblem(background, icon, iconcolor, border, bordercolor);
 
     // register team and add captain
-    sObjectMgr.AddArenaTeam(at);
+    sArenaTeamRegistry.Add(at);
     DEBUG_LOG("PvpHandlers::HandleArenaTeamCreate: arena team added to objmrg");
 }
 
@@ -202,7 +203,7 @@ void PvpHandlers::HandleArenaTeamInvite(WorldSession& session, WorldPacket& recv
         return;
     }
 
-    ArenaTeam* arenateam = sObjectMgr.GetArenaTeamById(ArenaTeamId);
+    ArenaTeam* arenateam = sArenaTeamRegistry.Find(ArenaTeamId);
     if (!arenateam)
     {
         session.SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, "", "", ERR_ARENA_TEAM_PLAYER_NOT_IN_TEAM);
@@ -261,7 +262,7 @@ void PvpHandlers::HandleArenaTeamAccept(WorldSession& session, WorldPacket & /*r
 {
     DEBUG_LOG("CMSG_ARENA_TEAM_ACCEPT");                    // empty opcode
 
-    ArenaTeam* at = sObjectMgr.GetArenaTeamById(session.GetPlayer()->GetArenaTeamIdInvited());
+    ArenaTeam* at = sArenaTeamRegistry.Find(session.GetPlayer()->GetArenaTeamIdInvited());
     if (!at)
     {
         return;
@@ -307,7 +308,7 @@ void PvpHandlers::HandleArenaTeamLeave(WorldSession& session, WorldPacket& recv_
     uint32 ArenaTeamId;                                     // arena team id
     recv_data >> ArenaTeamId;
 
-    ArenaTeam* at = sObjectMgr.GetArenaTeamById(ArenaTeamId);
+    ArenaTeam* at = sArenaTeamRegistry.Find(ArenaTeamId);
     if (!at)
     {
         return;
@@ -344,7 +345,7 @@ void PvpHandlers::HandleArenaTeamDisband(WorldSession& session, WorldPacket& rec
     uint32 ArenaTeamId;                                     // arena team id
     recv_data >> ArenaTeamId;
 
-    if (ArenaTeam* at = sObjectMgr.GetArenaTeamById(ArenaTeamId))
+    if (ArenaTeam* at = sArenaTeamRegistry.Find(ArenaTeamId))
     {
         if (at->GetCaptainGuid() != session.GetPlayer()->GetObjectGuid())
         {
@@ -371,7 +372,7 @@ void PvpHandlers::HandleArenaTeamRemove(WorldSession& session, WorldPacket& recv
     recv_data >> ArenaTeamId;
     recv_data >> name;
 
-    ArenaTeam* at = sObjectMgr.GetArenaTeamById(ArenaTeamId);
+    ArenaTeam* at = sArenaTeamRegistry.Find(ArenaTeamId);
     if (!at)                                                // arena team not found
     {
         return;
@@ -417,7 +418,7 @@ void PvpHandlers::HandleArenaTeamLeader(WorldSession& session, WorldPacket& recv
     recv_data >> ArenaTeamId;
     recv_data >> name;
 
-    ArenaTeam* at = sObjectMgr.GetArenaTeamById(ArenaTeamId);
+    ArenaTeam* at = sArenaTeamRegistry.Find(ArenaTeamId);
     if (!at)                                                // arena team not found
     {
         return;
@@ -977,7 +978,7 @@ void PvpHandlers::HandleBattleFieldPort(WorldSession& session, WorldPacket& recv
             // if player leaves rated arena match before match start, it is counted as he played but he lost
             if (ginfo.IsRated && ginfo.IsInvitedToBGInstanceGUID)
             {
-                ArenaTeam* at = sObjectMgr.GetArenaTeamById(ginfo.ArenaTeamId);
+                ArenaTeam* at = sArenaTeamRegistry.Find(ginfo.ArenaTeamId);
                 if (at)
                 {
                     DEBUG_LOG("UPDATING memberLost's personal arena rating for %s by opponents rating: %u, because he has left queue!", session.GetPlayer()->GetGuidStr().c_str(), ginfo.OpponentsTeamRating);
@@ -1232,7 +1233,7 @@ void PvpHandlers::HandleBattlemasterJoinArena(WorldSession& session, WorldPacket
 
     uint32 ateamId = session.GetPlayer()->GetArenaTeamId(arenaslot);
     // check real arena team existence only here (if it was moved to group->CanJoin .. () then we would have to get it twice)
-    ArenaTeam* at = sObjectMgr.GetArenaTeamById(ateamId);
+    ArenaTeam* at = sArenaTeamRegistry.Find(ateamId);
     if (!at)
     {
         session.GetPlayer()->GetSession()->SendNotInArenaTeamPacket(arenatype);

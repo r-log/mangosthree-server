@@ -61,6 +61,7 @@
 #include "BattleGroundRB.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
+#include "social/ArenaTeamRegistry.h"
 #include "DBCStores.h"
 #include "ProgressBar.h"
 #include "ArenaTeam.h"
@@ -495,7 +496,7 @@ void BattleGroundMgr::BuildPvpLogDataPacket(WorldPacket* data, BattleGround* bg)
         // it seems this must be according to BG_WINNER_A/H and _NOT_ BG_TEAM_A/H
         for (int8 i = 0; i < PVP_TEAM_COUNT; ++i)
         {
-            if (ArenaTeam* at = sObjectMgr.GetArenaTeamById(bg->m_ArenaTeamIds[i]))
+            if (ArenaTeam* at = sArenaTeamRegistry.Find(bg->m_ArenaTeamIds[i]))
             {
                 data->WriteBits(at->GetName().length(), 8);
             }
@@ -628,7 +629,7 @@ void BattleGroundMgr::BuildPvpLogDataPacket(WorldPacket* data, BattleGround* bg)
     {
         for (int8 i = 0; i < PVP_TEAM_COUNT; ++i)
         {
-            if (ArenaTeam* at = sObjectMgr.GetArenaTeamById(bg->m_ArenaTeamIds[i]))
+            if (ArenaTeam* at = sArenaTeamRegistry.Find(bg->m_ArenaTeamIds[i]))
             {
                 data->append(at->GetName().data(), at->GetName().length());
             }

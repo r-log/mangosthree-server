@@ -141,6 +141,8 @@ set(CONVERTED_FILES
     src/game/Object/ObjectMgrGossipMenu.cpp
     src/game/Object/ObjectMgrGraveyard.cpp
     src/game/Object/ObjectMgrInstanceData.cpp
+    src/game/social/ArenaTeamRegistry.cpp
+    src/game/social/GroupRegistry.cpp
     src/game/Object/ObjectMgrItems.cpp
     src/game/Object/ObjectMgrLocales.cpp
     src/game/Object/ObjectMgrNameCheck.cpp

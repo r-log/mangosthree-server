@@ -156,8 +156,8 @@ Group::~Group()
         delete(r);
     }
 
-    // it is undefined whether objectmgr (which stores the groups) or instancesavemgr
-    // will be unloaded first so we must be prepared for both cases
+    // the group registry and the persistent state manager may be destroyed in either order,
+    // so both are handled
     // this may unload some dungeon persistent state
     for (uint8 i = 0; i < MAX_DIFFICULTY; ++i)
     {
@@ -325,6 +325,33 @@ bool Group::LoadMemberFromDB(uint32 guidLow, uint8 subgroup, bool assistant, uin
     SubGroupCounterIncrease(subgroup);
 
     return true;
+}
+
+/**
+ * @brief Binds the group to the dungeon instance a stored group-instance bind names.
+ *
+ * @param row The stored bind.
+ */
+void Group::LoadInstanceBindFromDB(GroupInstanceBindRow const& row)
+{
+    uint32 mapId = row.map;
+    Difficulty diff = (Difficulty)row.difficulty;
+
+    MapEntry const* mapEntry = sMapStore.LookupEntry(mapId);
+    if (!mapEntry || !mapEntry->IsDungeon())
+    {
+        sLog.outErrorDb("Incorrect entry in group_instance table : no dungeon map %d", mapId);
+        return;
+    }
+
+    if (diff >= (mapEntry->IsRaid() ? MAX_RAID_DIFFICULTY : MAX_DUNGEON_DIFFICULTY))
+    {
+        sLog.outErrorDb("Wrong dungeon difficulty use in group_instance table: %d", diff + 1);
+        diff = REGULAR_DIFFICULTY;                          // default for both difficaly types
+    }
+
+    DungeonPersistentState* state = (DungeonPersistentState*)sMapPersistentStateMgr.AddPersistentState(mapEntry, row.instance, Difficulty(diff), (time_t)row.resettime, (row.leaderPermanentBindCount == 0), true, true, row.encountersMask);
+    BindToInstance(state, row.permanent, true);
 }
 
 /**

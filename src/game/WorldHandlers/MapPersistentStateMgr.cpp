@@ -818,7 +818,7 @@ MapPersistentStateManager::~MapPersistentStateManager()
 
 /*
 - adding instance into manager
-- called from DungeonMap::Add, _LoadBoundInstances, LoadGroups
+- called from DungeonMap::Add, _LoadBoundInstances, Group::LoadInstanceBindFromDB
 */
 MapPersistentState* MapPersistentStateManager::AddPersistentState(MapEntry const* mapEntry, uint32 instanceId, Difficulty difficulty, time_t resetTime, bool canReset, bool load /*=false*/, bool initPools /*= true*/, uint32 completedEncountersMask /*= 0*/)
 {

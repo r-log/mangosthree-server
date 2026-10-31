@@ -34,6 +34,7 @@
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
+#include "social/ArenaTeamRegistry.h"
 #include "Group.h"
 #include "Pet.h"
 #include "Util.h"
@@ -100,7 +101,7 @@ void Player::LeaveAllArenaTeams(ObjectGuid guid)
     for (uint8 slot = 0; slot < CHARACTER_CACHE_ARENA_SLOTS; ++slot)
     {
         if (uint32 at_id = cached->arenaTeamId[slot])
-            if (ArenaTeam* at = sObjectMgr.GetArenaTeamById(at_id))
+            if (ArenaTeam* at = sArenaTeamRegistry.Find(at_id))
             {
                 at->DelMember(guid);
             }

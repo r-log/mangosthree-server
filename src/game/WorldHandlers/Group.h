@@ -77,6 +77,7 @@ class Map;
 class BattleGround;
 class DungeonPersistentState;
 struct GroupDataRow;
+struct GroupInstanceBindRow;
 class Unit;
 class GroupHooks;
 
@@ -309,6 +310,7 @@ class Group
         bool   Create(ObjectGuid guid, const char* name);
         bool   LoadGroupFromDB(GroupDataRow const& row);
         bool   LoadMemberFromDB(uint32 guidLow, uint8 subgroup, bool assistant, uint8 roles = 0);
+        void   LoadInstanceBindFromDB(GroupInstanceBindRow const& row);
         bool   AddInvite(Player* player);
         uint32 RemoveInvite(Player* player);
         void   RemoveAllInvites();

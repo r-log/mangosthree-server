@@ -40,6 +40,7 @@
 #include "Calendar.h"
 #include "CharacterCache.h"
 #include "ObjectMgr.h"
+#include "social/ArenaTeamRegistry.h"
 #include "SocialMgr.h"
 #include "data/GameConfig.h"
 #include "Guild.h"
@@ -302,7 +303,7 @@ void CalendarHandlers::HandleCalendarArenaTeam(WorldSession& session, WorldPacke
     uint32 areanTeamId;
     recv_data >> areanTeamId;
 
-    if (ArenaTeam* team = sObjectMgr.GetArenaTeamById(areanTeamId))
+    if (ArenaTeam* team = sArenaTeamRegistry.Find(areanTeamId))
     {
         // The reply is the team's roster -- every member's guid and level. The
         // id comes from the packet, so answering one the sender does not belong
