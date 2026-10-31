@@ -665,8 +665,6 @@ src/game/spells/handlers/SpellChecksHandlers.cpp -> src/game/entities/player/Pla
 src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/entities/player/Player.h
 # The Cloak of Shadows body reads the aura holders, the origin's own edge; retires when the Cloak of Shadows read becomes a query on the unit that answers holders without the aura header.
 src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/spells/auras/SpellAuras.h
-# The Spirit Healer Res body sends through the caster's session; dies with the same fix, which hands the session a fact instead.
-src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/game/Server/WorldSession.h
 # Casts for player-only methods; retires with the Unit page's row 13 successor.
 src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/game/entities/player/Player.h
 # The Pygmy Oil body reads the shrink aura holder's stack amount, the origin's own edge; retires when the stack count becomes a query on the unit that answers a number without the aura header.
@@ -677,8 +675,6 @@ src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/Opcodes.h
 src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/WorldPacket.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
-# The one notification sent to a player who can't enter the spectral realm goes through the player's session; it goes with the fix that moves spell packets out to the session (page row 9).
-src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/Server/WorldSession.h
 # The bodies cast a unit to a player for player-only methods; it goes with the Unit page's row 13 casts.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653

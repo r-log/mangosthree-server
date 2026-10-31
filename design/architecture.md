@@ -17,7 +17,7 @@ only `src/shared`; session includes it 116 times, the motion layer 23 times (8 f
 |---|---|---|
 | app | `mangosd/`, the world tick (`World`), `Harness/` | everything |
 | scripts | `scripts/` (#83): `surface/`, what a script may call; `dispatch/`, the one implementation of the hook interface in `data/` through which the core reaches the scripts; `content/`, the new scripts; `legacy/`, SD3. `ChatCommands/`, the command-dispatch half of `Chat`, `CommandMgr`, `ScriptMgr` | everything below app; a file in `content/` only the surface |
-| session | `session/`: `WorldSession`, `OpcodeTable`, gateway, `handlers/<domain>/` and `handlers/connection/`, `packets/<domain>/`, the message builders split from `Chat` | domain, data, motion, proto, persistence, foundation |
+| session | `session/`: `WorldSession`, `OpcodeTable`, gateway, `handlers/<domain>/` and `handlers/connection/`, `packets/<domain>/`, the message builders split from `Chat`, and `BattleGround/BattleGroundHandler.cpp` (the battleground list's sender) | domain, data, motion, proto, persistence, foundation |
 | domain | peers: `entities/`, `spells/`, `combat/`, `maps/`, `ai/`, `social/`, `pvp/`, `economy/` | data, motion, persistence, foundation (**not** proto) |
 | data | `data/`: DBC/DB2 and SQL stores, `ObjectMgr`'s stores, the spell tables (`spells/data/`) and the aura vocabulary (`SpellAuraDefines`), `QuestDef`, `SharedDefines`, pools, events, the read-only configuration interface (#143), the script hook interface (`ScriptHooks`, what the core calls on the script library, #83), the command hook interface (`CommandHooks`, what the core asks of the GM command system, #83), the database script hook interface (`DbScriptHooks`, what the domain asks of the database script engine, #83), the chat packet builder the world installs (`ChatPacketBuilder`, #83), the world broadcast the world installs (`WorldBroadcast`, what the code below the world tells every client in it, #143), the server control the world installs (`ServerControl`, the operator's handle on the server and the process's stop request, #143), the reset schedule the world installs (`ResetSchedule`, when the periodic resets next happen, #143) | persistence, foundation |
 | motion | `src/motion` (the kernel), `movement/` (splines and the movement record) | proto, foundation |
@@ -38,12 +38,12 @@ These directories **dissolve**:
   groups to social; the threat managers are in `combat/`. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 219 include lines go against the table.
+**Today:** 158 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 127 | `WorldPacket.h` 79, `Opcodes.h` 47 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
-| domain -> session | 81 | `WorldSession.h` 66, `UpdateData.h` 10, `GossipDef.h` 5 | `Player.cpp`, `PlayerQuest.cpp`, `Unit.cpp` |
+| domain -> session | 20 | `UpdateData.h` 10, `GossipDef.h` 5, `WorldSession.h` 5 | `Bag.cpp`, `Creature.cpp`, `AuctionHouseMgr.cpp` |
 | rest | 11 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h`/`GameEventScheduler.h` 4; `PlayerDump`/`CharacterDatabaseCleaner` 7 | |
 
 The domain directories are peers. Include lines that cross between them are allowed, but they cannot spread: they are
@@ -406,7 +406,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | # | Today, against the target | Closed by |
 |---|---|---|
 | 1 | domain -> proto: 127 lines; 215 `WorldPacket data(` sites in the domain tier; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
-| 2 | domain -> session: 81 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
+| 2 | domain -> session: 20 lines (`UpdateData.h` 10, `GossipDef.h` 5, `WorldSession.h` 5: the dungeon finder's, the ticket manager's and the auction house's notices). A player holds its session through `entities/player/PlayerSession`, which the world session implements; code above the domain reaches the world session's own members through `WorldSession::Of` | the domain target (phase 5): the managers' notices, then `GossipDef` and `UpdateData` |
 | 3 | `World.h` is included by nothing below app. `GameConfig` holds the configuration whole (the data path, the force-loaded maps and the `.mmap` switch included), `session/SessionRegistry` the sessions, `data/WorldBroadcast` what is told every client, `data/ServerControl` the operator's handle and the stop request, and `data/ResetSchedule` the periodic reset times; a guid generator that runs out calls the overflow handler the world installs (`ObjectGuid.h`), and a character delete refreshes the realm character count itself. The layout gate holds it: a new line fails | closed (#143) |
 | 4 | `ScriptMgr.h` and `Chat.h` included below scripts 0 times (`Chat.h` 23 times when #83 began): a map runs its database script steps and the domain starts its events through `data/DbScriptHooks`, which `mangosd` installs; the session builds the chat packets and system messages, the domain builds its chat packets through `data/ChatPacketBuilder` and reports a player's system messages as a client fact, and the GM commands are reached through `data/CommandHooks` | closed for the includes (#83); the domain's chat packets become facts with row 1 |
 | 5 | data -> domain: 0 lines. The runtimes moved beside their peers (`PoolSpawner`, `CreatureLinkingHolder`, `GameEventScheduler`, `PlayerConditions`, `SpellRules`), the tables stayed (`PoolManager`, `CreatureLinkingMgr`, `GameEventMgr`, `LootStore`), and the data layer asks the domain through installed facts (`TerrainFacts`) and subjects (`DisableSubject`). `data` is its own target | closed (phase 5); the store moves (`ObjectMgr`'s tables into `data/` stores) when content needs them |

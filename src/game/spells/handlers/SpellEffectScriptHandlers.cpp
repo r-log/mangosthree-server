@@ -36,7 +36,6 @@
 #include "Object/Pet.h"
 #include "Object/TemporarySummon.h"
 #include "Server/DBCStores.h"
-#include "Server/WorldSession.h"
 #include "Tools/Language.h"
 #include "Utilities/MathDefines.h"
 #include "Utilities/Util.h"

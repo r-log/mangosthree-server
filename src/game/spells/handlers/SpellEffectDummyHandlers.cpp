@@ -40,7 +40,6 @@
 #include "Object/Pet.h"
 #include "spells/data/SpellMgr.h"
 #include "Server/DBCStores.h"
-#include "Server/WorldSession.h"
 #include "Utilities/Util.h"
 #include "entities/player/Player.h"
 #include "Opcodes.h"
