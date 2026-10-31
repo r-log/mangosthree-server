@@ -8,9 +8,9 @@
 # IS NUL-terminated, and no core calls that overload at all -- every one of them uses
 # the two-iterator form.
 #
-# src/modules/SD3 is ours (vendored from mangos/ScriptDev3) but carries 240k lines of
+# src/scripts/legacy is ours (SD3, vendored from mangos/ScriptDev3) but carries 240k lines of
 # inherited scripts that have not been triaged; it stays excluded until they are.
 # Everything else under src/ -- realmd included -- is analysed.
 exclude_paths:
   - "dep/**"
-  - "src/modules/SD3/**"
+  - "src/scripts/legacy/**"

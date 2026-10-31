@@ -45,7 +45,7 @@ file(GLOB_RECURSE SOURCES
 set(SCANNED 0)
 
 foreach(FILE_PATH IN LISTS SOURCES)
-    if(FILE_PATH MATCHES "/src/modules/" OR FILE_PATH MATCHES "CheckCryptoIsOurs")
+    if(FILE_PATH MATCHES "/src/scripts/" OR FILE_PATH MATCHES "CheckCryptoIsOurs")
         continue()
     endif()
 

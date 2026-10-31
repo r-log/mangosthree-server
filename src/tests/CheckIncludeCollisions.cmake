@@ -37,8 +37,8 @@ get_filename_component(SOURCE_ROOT "${SOURCE_ROOT}" ABSOLUTE)
 set(COLLISION_TARGETS
     "game|src/game/CMakeLists.txt|"
     "mangos_tests|src/tests/CMakeLists.txt|game"
-    "mangosscript|src/modules/SD3/CMakeLists.txt|game"
-    "mangosd|src/mangosd/CMakeLists.txt|mangosscript")
+    "scripts_legacy|src/scripts/legacy/CMakeLists.txt|game"
+    "mangosd|src/mangosd/CMakeLists.txt|scripts_legacy")
 
 set(HEADER_EXTENSIONS h hh hpp hxx inl inc ipp)
 

@@ -25,7 +25,7 @@ assert_row_type("a row type" "std::vector<CharacterEnumRow> rows = CharacterRepo
 assert_row_type("a field of another name" "UpdateField* update = object->GetField();" OFF)
 assert_row_type("a holder" "void HandlePlayerLoginCallback(SqlQueryHolder* holder);" OFF)
 
-set(ROOTS "${SOURCE_ROOT}/src/game" "${SOURCE_ROOT}/src/modules" "${SOURCE_ROOT}/src/shared")
+set(ROOTS "${SOURCE_ROOT}/src/game" "${SOURCE_ROOT}/src/scripts" "${SOURCE_ROOT}/src/shared")
 set(SOURCES "")
 foreach(ROOT_DIR IN LISTS ROOTS)
     if(NOT IS_DIRECTORY "${ROOT_DIR}")

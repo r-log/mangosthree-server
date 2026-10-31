@@ -41,7 +41,7 @@ assert_db_call("a doc comment" "/// CharacterDatabase.AsyncPQuery calls it throu
 assert_db_call("a trailing comment" "Save()   // CharacterDatabase.Execute ran here" OFF)
 assert_db_call("a block comment line" " * CharacterDatabase.DirectExecute(sql) blocks" OFF)
 
-set(ROOTS "${SOURCE_ROOT}/src/game" "${SOURCE_ROOT}/src/modules" "${SOURCE_ROOT}/src/shared" "${SOURCE_ROOT}/src/mangosd")
+set(ROOTS "${SOURCE_ROOT}/src/game" "${SOURCE_ROOT}/src/scripts" "${SOURCE_ROOT}/src/shared" "${SOURCE_ROOT}/src/mangosd")
 set(SOURCES "")
 foreach(ROOT_DIR IN LISTS ROOTS)
     if(NOT IS_DIRECTORY "${ROOT_DIR}")

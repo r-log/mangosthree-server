@@ -46,7 +46,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import case_labels  # noqa: E402
 
-SCOPE = ('src/game/', 'src/tests/', 'src/modules/', 'src/mangosd/')
+SCOPE = ('src/game/', 'src/tests/', 'src/scripts/', 'src/mangosd/')
 EXTENSIONS = ('.h', '.hpp', '.cpp', '.inl', '.inc')
 OWNER_HEADER = 'src/game/Object/Unit.h'
 OWNER_FILE = 'src/game/Object/UnitMovementStatus.cpp'

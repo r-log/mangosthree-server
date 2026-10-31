@@ -1,6 +1,6 @@
 # MotionMaster Facade
 
-The facade `MotionMaster` is the movement kernel campaign's shim for the vendored scripts: the entry points below are the whole of what `src/modules/SD3` calls, they keep their meaning through the campaign's phases, and `src/tests/CheckMotionMasterShim.cmake` fails `ctest` (which CI runs) when a script calls anything else.
+The facade `MotionMaster` is the movement kernel campaign's shim for the vendored scripts: the entry points below are the whole of what `src/scripts/legacy` calls, they keep their meaning through the campaign's phases, and `src/tests/CheckMotionMasterShim.cmake` fails `ctest` (which CI runs) when a script calls anything else.
 
 | Entry Point | Count |
 |---|---|
@@ -23,7 +23,7 @@ The facade `MotionMaster` is the movement kernel campaign's shim for the vendore
 | MoveFleeing | 1 |
 | Inhibit | 1 |
 
-Counted 2026-09-18 on `feat/movement-one-vocabulary` with `grep -rhoE "GetMotionMaster\(\)->[A-Za-z_]+" src/modules/SD3 | sort | uniq -c`. `Inhibit`/`Uninhibit` (P5-A Task 4) joined the promise with `grizzly_hills.cpp`'s stun: the one script that names itself as a source of the kernel's block instead of writing a unit-state bit itself. The gate lists 18 entry points; `MoveRandom`, a method the facade never had, left the list in P5-C.
+Counted 2026-09-18 on `feat/movement-one-vocabulary` with `grep -rhoE "GetMotionMaster\(\)->[A-Za-z_]+" src/scripts/legacy | sort | uniq -c`. `Inhibit`/`Uninhibit` (P5-A Task 4) joined the promise with `grizzly_hills.cpp`'s stun: the one script that names itself as a source of the kernel's block instead of writing a unit-state bit itself. The gate lists 18 entry points; `MoveRandom`, a method the facade never had, left the list in P5-C.
 
 A script's `Inhibit`/`Uninhibit` pair must balance: a source it never releases holds the creature until it dies (death releases the aura and script sources, `Motion::Mobility::DropDomain`).
 
