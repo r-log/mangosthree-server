@@ -33,6 +33,7 @@
 #include <string>
 #include "WorldPacket.h"
 #include "GMTicketMgr.h"
+#include "WorldSession.h"
 
 /**
  * @brief Send ticket status to client

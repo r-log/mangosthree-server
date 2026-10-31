@@ -95,6 +95,7 @@
 #include "SocialList.h"     // the contact list and friend status facts of the player's own client
 #include "SharedDefines.h"
 #include "data/PlayerCreateInfo.h"
+#include "PlayerSession.h"
 
 #include<string>
 #include<vector>
@@ -145,7 +146,7 @@ struct AreaTrigger;
 
 // Decoupling D3: named by pointer or reference only. The .cpp files that use them include them.
 class SqlQueryHolder;
-class WorldSession;
+class PlayerSession;
 struct TrainerSpell;
 class Group;
 class BattleGround;
@@ -871,7 +872,7 @@ class Player : public Unit
         friend void Item::AddToUpdateQueueOf(Player* player);
         friend void Item::RemoveFromUpdateQueueOf(Player* player);
     public:
-        explicit Player(WorldSession* session);
+        explicit Player(PlayerSession* session);
         ~Player();
 
         void CleanupsBeforeDelete() override;
@@ -2608,15 +2609,9 @@ class Player : public Unit
         Cell const& GetCurrentCell() const { return m_currentCell; }
         void SetCurrentCell(Cell const& cell) { m_currentCell = cell; }
 
-        WorldSession* GetSession() const
+        PlayerSession* GetSession() const
         {
             return m_session;
-        }
-
-        // Set the player's session
-        void SetSession(WorldSession* s)
-        {
-            m_session = s;
         }
 
         // Build the create update block for the player
@@ -3861,7 +3856,7 @@ class Player : public Unit
         uint32 m_resurrectHealth, m_resurrectMana; // Resurrect health and mana
         bool m_resurrectToGhoul;
 
-        WorldSession* m_session; // Player session
+        PlayerSession* m_session; // Player session
 
         typedef std::list<Channel*> JoinedChannelsList;
         JoinedChannelsList m_channels; // List of joined channels

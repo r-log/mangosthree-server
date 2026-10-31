@@ -49,7 +49,6 @@
 #include "data/GameConfig.h"
 #include "SocialList.h"
 #include "data/ChatPacketBuilder.h"
-#include "WorldSession.h"
 #include "PlayerRegistry.h"
 
 Channel::Channel(const std::string& name, uint32 channel_id)

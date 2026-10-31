@@ -28,7 +28,7 @@
 #include "TemporarySummon.h"
 #include "Log.h"
 #include "CreatureAI.h"
-#include "WorldSession.h"
+#include "Authority.h"
 
 /**
  * @brief Creates a temporary summon instance.

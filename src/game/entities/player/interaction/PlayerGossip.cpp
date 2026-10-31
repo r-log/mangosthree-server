@@ -29,7 +29,6 @@
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GossipDef.h"

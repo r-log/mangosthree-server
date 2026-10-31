@@ -56,6 +56,7 @@
 #include "Util.h"
 #include "DB2Stores.h"
 #include "DisableMgr.h"
+#include "Map.h"
 
 extern pEffect SpellEffects[TOTAL_SPELL_EFFECTS];
 

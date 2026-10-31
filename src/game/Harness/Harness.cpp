@@ -640,7 +640,7 @@ namespace Harness
             {
                 // Replaced: another object answers the guid. That says our player was replaced
                 // IN THE REGISTRY -- it does NOT say he died. He may be alive and in the map
-                // this instant, and Map::Update calls plr->GetSession()->Update(...) for every
+                // this instant, and Map::Update calls SessionOf(*plr)->Update(...) for every
                 // in-world player on it (Map.cpp:913-923), so deleting this session would hand
                 // a live player a freed one on the very next tick. A leaked session is bad; a
                 // live player holding a freed session is worse, so THE SESSION IS LEFT ALONE,

@@ -31,8 +31,8 @@
 #include "Player.h"
 #include "data/GameConfig.h"
 #include "PlayerRegistry.h"
-#include "WorldSession.h"
 #include "persistence/characters/social/SocialRepository.h"
+#include "GridMap.h"
 
 
 namespace

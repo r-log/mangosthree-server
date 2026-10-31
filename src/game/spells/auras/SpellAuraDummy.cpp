@@ -46,7 +46,6 @@
 #include "Platform/Define.h"
 #include "Common/TimeConstants.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldSession.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
@@ -62,6 +61,7 @@
 #include "Language.h"
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/pipeline/SpellRules.h"
+#include "GridMap.h"
 
 #define NULL_AURA_SLOT 0xFF
 

@@ -43,6 +43,7 @@
 #include "GMTicketMgr.h"
 #include "Mail.h"
 #include "PlayerRegistry.h"
+#include "WorldSession.h"
 
 // show ticket (helper)
 void ChatHandler::ShowTicket(GMTicket const* ticket)
@@ -270,7 +271,7 @@ bool ChatHandler::HandleTicketDeleteCommand(char* args)
         // notify player
         if (Player* pl = sPlayerRegistry.Find(guid))
         {
-            pl->GetSession()->SendGMTicketGetTicket(0x0A);
+            SessionOf(*pl)->SendGMTicketGetTicket(0x0A);
             PSendSysMessage(LANG_COMMAND_TICKETPLAYERDEL, GetNameLink(pl).c_str());
         }
         else
@@ -296,7 +297,7 @@ bool ChatHandler::HandleTicketDeleteCommand(char* args)
     // notify players about ticket deleting
     if (target)
     {
-        target->GetSession()->SendGMTicketGetTicket(0x0A);
+        SessionOf(*target)->SendGMTicketGetTicket(0x0A);
     }
 
     std::string nameLink = playerLink(target_name);

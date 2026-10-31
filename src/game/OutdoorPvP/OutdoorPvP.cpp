@@ -30,8 +30,8 @@
 #include "GameObject.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
-#include "WorldSession.h"
 #include "Map.h"
+#include "Group.h"
 
 void ZonePlayerSet::Insert(ObjectGuid guid, bool isMainZone)
 {

@@ -36,7 +36,6 @@
 #include "WorldPacket.h"
 #include "Log.h"
 #include "Util.h"
-#include "WorldSession.h"
 #include "Database/DatabaseEnv.h"
 #include "persistence/world/maps/MapDataRepository.h"
 

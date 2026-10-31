@@ -42,6 +42,7 @@ set(REACH_RULES
     "entities/player/spells/RuneMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,spells/auras/SpellAuras.h,spells/data/SpellMgr.h,proto/WorldPacket.h"
     "entities/player/spells/RuneMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h,spells/auras/SpellAuras.h,spells/data/SpellMgr.h"
     "entities/player/PlayerClientFacts.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,proto/WorldPacket.h"
+    "entities/player/PlayerSession.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,proto/WorldPacket.h,WorldHandlers/LFGMgr.h,Object/Calendar.h,Object/AuctionHouseMgr.h,Object/GMTicketMgr.h"
     "data/ResetSchedule.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,session/SessionRegistry.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/ServerControl.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,session/SessionRegistry.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/WorldBroadcast.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,session/SessionRegistry.h,Database/DatabaseEnv.h,proto/WorldPacket.h"

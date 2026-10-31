@@ -42,6 +42,7 @@
 #include "movement/MoveSpline.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
+#include "Map.h"
 
 #include <math.h>
 #include <stdarg.h>

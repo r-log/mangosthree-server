@@ -2442,7 +2442,7 @@ namespace Harness
                 MovementInfo word = p->ClientStatus();
                 word.SetMovementFlags(MOVEFLAG_FORWARD);
                 word.ChangePosition(p->Where().X() - 1.0f, p->Where().Y(), p->Where().Z(), p->Where().Facing());
-                MovementHandlers::HandleMoverRelocation(*p->GetSession(), p, word);
+                MovementHandlers::HandleMoverRelocation(*SessionOf(*p), p, word);
                 m_rec.Note("one movement word: MOVEFLAG_FORWARD, one yard west");
                 m_rec.Open("move+tick");
                 st->ran[4] = true;
@@ -2457,7 +2457,7 @@ namespace Harness
                 MovementInfo word = p->ClientStatus();
                 word.SetMovementFlags(MOVEFLAG_NONE);
                 word.ChangePosition(p->Where().X(), p->Where().Y(), p->Where().Z(), p->Where().Facing());
-                MovementHandlers::HandleMoverRelocation(*p->GetSession(), p, word);
+                MovementHandlers::HandleMoverRelocation(*SessionOf(*p), p, word);
                 m_rec.Note("generic slot " + st->slot2After + "; one movement word: no flags, where he stands");
                 m_rec.Open("stop+tick");
             });

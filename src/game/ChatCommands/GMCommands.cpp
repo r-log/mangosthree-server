@@ -88,8 +88,8 @@ bool ChatHandler::HandlePInfoCommand(char* args)
         total_player_time = target->GetTotalPlayedTime();
         level = target->getLevel();
         // Both, because the client measures and displays both.
-        latencyHome  = target->GetSession()->GetLatency(proto::LinkSlot::Zero);
-        latencyWorld = target->GetSession()->GetLatency(proto::LinkSlot::One);
+        latencyHome  = SessionOf(*target)->GetLatency(proto::LinkSlot::Zero);
+        latencyWorld = SessionOf(*target)->GetLatency(proto::LinkSlot::One);
     }
     // get additional information from DB
     else
@@ -156,9 +156,9 @@ bool ChatHandler::HandlePInfoCommand(char* args)
         PSendSysMessage("Clock: delta %u ms, rtt %u ms, samples %u, slewed %u, jumped %u, too old %u, unknown %u, fallbacks %u, %s, bad packets %u",
                         timeBase.Delta(), timeBase.LastRtt(), counters.samples, counters.slewed, counters.jumped,
                         counters.tooOld, counters.unknownCounter, counters.fallbacks,
-                        timeBase.Acquired(now) ? "acquired" : "not acquired", target->GetSession()->GetBadPacketCount());
+                        timeBase.Acquired(now) ? "acquired" : "not acquired", SessionOf(*target)->GetBadPacketCount());
 
-        WorldSession::AckCounters const& acks = target->GetSession()->GetAckCounters();
+        WorldSession::AckCounters const& acks = SessionOf(*target)->GetAckCounters();
         std::string pending;
         std::vector<Motion::PendingChange> const entries = target->MotionState().Pending().All();
         for (size_t i = 0; i < entries.size(); ++i)

@@ -1546,7 +1546,7 @@ namespace Harness
         /// a different question.
         bool OwnMover(Player* p)
         {
-            WorldSession* s = p->GetSession();
+            WorldSession* s = SessionOf(*p);
             return s && s->Movers().IsMember(p->GetObjectGuid().GetRawValue()) && p->MoverSession() == s;
         }
 

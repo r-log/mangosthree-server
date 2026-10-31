@@ -73,7 +73,7 @@
 
 struct ItemPrototype;
 
-class WorldSession;
+class PlayerSession;
 class Map;
 class BattleGround;
 class DungeonPersistentState;
@@ -525,7 +525,7 @@ class Group
         bool InCombatToInstance(uint32 instanceId);
         void ResetInstances(InstanceResetMethod method, bool isRaid, Player* SendMsgTo);
 
-        void SendTargetIconList(WorldSession* session);
+        void SendTargetIconList(PlayerSession* session);
         void SendUpdate();
         void UpdatePlayerOutOfRange(Player* pPlayer);
         // ignore: GUID of player that will be ignored

@@ -373,7 +373,7 @@ void LFGMgr::SendProposalUpdateToPlayer(ObjectGuid plrGuid, LFGProposal const& p
         data.players.push_back(member);
     }
 
-    pPlayer->GetSession()->SendLfgProposalUpdate(data);
+    SessionOf(*pPlayer)->SendLfgProposalUpdate(data);
 }
 
 bool LFGMgr::IsProposalSameGroup(LFGProposal const& proposal)
@@ -782,7 +782,7 @@ bool LFGMgr::TeleportPlayer(Player* pPlayer, bool out, bool automatic, uint32 du
         ? sLfgDungeonsStore.LookupEntry(dungeonID) : NULL;
     if (!dungeon || dungeon->mapID <= 0)
     {
-        pPlayer->GetSession()->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
+        SessionOf(*pPlayer)->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
         return false;
     }
 
@@ -792,7 +792,7 @@ bool LFGMgr::TeleportPlayer(Player* pPlayer, bool out, bool automatic, uint32 du
     {
         if (pPlayer->GetMapId() != mapID)
         {
-            pPlayer->GetSession()->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
+            SessionOf(*pPlayer)->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
             return false;
         }
 
@@ -802,13 +802,13 @@ bool LFGMgr::TeleportPlayer(Player* pPlayer, bool out, bool automatic, uint32 du
         if (entryPoint.mapid == 0 && entryPoint.coord_x == 0.0f &&
             entryPoint.coord_y == 0.0f && entryPoint.coord_z == 0.0f)
         {
-            pPlayer->GetSession()->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
+            SessionOf(*pPlayer)->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
             return false;
         }
 
         if (!pPlayer->TeleportToBGEntryPoint())
         {
-            pPlayer->GetSession()->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
+            SessionOf(*pPlayer)->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
             return false;
         }
 
@@ -863,7 +863,7 @@ bool LFGMgr::TeleportPlayer(Player* pPlayer, bool out, bool automatic, uint32 du
 
     if (err != LFG_TELEPORTERROR_OK)
     {
-        pPlayer->GetSession()->SendLfgTeleportError(uint8(err));
+        SessionOf(*pPlayer)->SendLfgTeleportError(uint8(err));
         return false;
     }
 
@@ -922,7 +922,7 @@ bool LFGMgr::TeleportPlayer(Player* pPlayer, bool out, bool automatic, uint32 du
         }
         else
         {
-            pPlayer->GetSession()->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
+            SessionOf(*pPlayer)->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
             return false;
         }
     }
@@ -931,7 +931,7 @@ bool LFGMgr::TeleportPlayer(Player* pPlayer, bool out, bool automatic, uint32 du
 
     if (!pPlayer->TeleportTo(mapID, x, y, z, o))
     {
-        pPlayer->GetSession()->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
+        SessionOf(*pPlayer)->SendLfgTeleportError(uint8(LFG_TELEPORTERROR_INVALID_LOCATION));
         return false;
     }
 
@@ -1480,7 +1480,7 @@ void LFGMgr::RewardDungeonCompletion(Player* pPlayer, LFGGroupStatus const& stat
     reward.rewardMoney = money;
     reward.addedXp = xp;
 
-    pPlayer->GetSession()->SendLfgPlayerReward(reward);
+    SessionOf(*pPlayer)->SendLfgPlayerReward(reward);
 }
 
 uint32 LFGMgr::CountSoloJoinedMembers(LFGGroupStatus const& status)
@@ -1699,7 +1699,7 @@ void LFGMgr::AttemptToKickPlayer(Group* pGroup, ObjectGuid guid, ObjectGuid kick
     {
         if (Player* pMember = sPlayerRegistry.Find(itr->first))
         {
-            pMember->GetSession()->SendLfgBootProposalUpdate(boot, votesNeeded);
+            SessionOf(*pMember)->SendLfgBootProposalUpdate(boot, votesNeeded);
         }
     }
 }
@@ -1776,7 +1776,7 @@ void LFGMgr::CastVote(Player* pPlayer, bool vote)
     {
         if (Player* pMember = sPlayerRegistry.Find(pIt->first))
         {
-            pMember->GetSession()->SendLfgBootProposalUpdate(boot, votesNeeded);
+            SessionOf(*pMember)->SendLfgBootProposalUpdate(boot, votesNeeded);
         }
     }
 }
@@ -1822,7 +1822,7 @@ void LFGMgr::FinishBootVote(ObjectGuid groupGuid, bool succeeded)
     {
         if (Player* pMember = sPlayerRegistry.Find(ansItr->first))
         {
-            pMember->GetSession()->SendLfgBootProposalUpdate(boot, votesNeeded);
+            SessionOf(*pMember)->SendLfgBootProposalUpdate(boot, votesNeeded);
         }
     }
 
@@ -1887,7 +1887,7 @@ void LFGMgr::FinishBootVote(ObjectGuid groupGuid, bool succeeded)
         {
             if (Player* pLeader = sPlayerRegistry.Find(pGroup->GetLeaderGuid()))
             {
-                pLeader->GetSession()->SendLfgOfferContinue(
+                SessionOf(*pLeader)->SendLfgOfferContinue(
                     GetDungeonEntry(status->dungeonID));
             }
         }
@@ -1955,7 +1955,7 @@ void LFGMgr::CancelBootVote(ObjectGuid groupGuid)
     {
         if (Player* pMember = sPlayerRegistry.Find(ansItr->first))
         {
-            pMember->GetSession()->SendLfgBootProposalUpdate(boot, votesNeeded);
+            SessionOf(*pMember)->SendLfgBootProposalUpdate(boot, votesNeeded);
         }
     }
 }
@@ -1983,7 +1983,7 @@ void LFGMgr::SendRoleChosen(ObjectGuid plrGuid, ObjectGuid confirmedGuid, uint8 
 
     if (pPlayer)
     {
-        pPlayer->GetSession()->SendLfgRoleChosen(confirmedGuid.GetRawValue(), uint32(roles));
+        SessionOf(*pPlayer)->SendLfgRoleChosen(confirmedGuid.GetRawValue(), uint32(roles));
     }
 }
 
@@ -1993,7 +1993,7 @@ void LFGMgr::SendRoleCheckUpdate(ObjectGuid plrGuid, LFGPackets::RoleCheckUpdate
 
     if (pPlayer)
     {
-        pPlayer->GetSession()->SendLfgRoleCheckUpdate(update);
+        SessionOf(*pPlayer)->SendLfgRoleCheckUpdate(update);
     }
 }
 
@@ -2035,7 +2035,7 @@ void LFGMgr::SendLfgUpdate(ObjectGuid plrGuid, LFGPlayerStatus status, bool isGr
     out.queued = flags.queued;
     out.lfgJoined = flags.lfgJoined;
 
-    pPlayer->GetSession()->SendLfgUpdateStatus(out);
+    SessionOf(*pPlayer)->SendLfgUpdateStatus(out);
 }
 
 void LFGMgr::SendLfgJoinResult(ObjectGuid plrGuid, LfgJoinResult result, uint8 resultDetail,
@@ -2046,7 +2046,7 @@ void LFGMgr::SendLfgJoinResult(ObjectGuid plrGuid, LfgJoinResult result, uint8 r
 
     if (pPlayer)
     {
-        pPlayer->GetSession()->SendLfgJoinResult(result, resultDetail, ticket, blacklist);
+        SessionOf(*pPlayer)->SendLfgJoinResult(result, resultDetail, ticket, blacklist);
     }
 }
 

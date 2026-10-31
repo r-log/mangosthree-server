@@ -30,7 +30,6 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -44,6 +43,7 @@
 #include "DB2Stores.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
+#include "Map.h"
 
 #include <cmath>
 // If players are too far way of duel flag... then player loose the duel

@@ -50,7 +50,6 @@
 #include <string>
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "AchievementMgr.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
@@ -1714,7 +1713,7 @@ void Group::GetDataForXPAtKill(Unit const* victim, uint32& count, uint32& sum_le
  *
  * @param session The session receiving the icon list.
  */
-void Group::SendTargetIconList(WorldSession* session)
+void Group::SendTargetIconList(PlayerSession* session)
 {
     if (!session)
     {

@@ -71,7 +71,7 @@ class CreatureAI;
 class Group;
 class Quest;
 class Player;
-class WorldSession;
+class PlayerSession;
 
 struct GameEventCreatureData;
 struct CreatureDataAddon;

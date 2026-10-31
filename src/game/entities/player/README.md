@@ -1,11 +1,11 @@
 # The character (`Player`)
 
-`Player.h` and `Player.cpp` hold the class itself: construction, the update loop, the fields and the glue between the parts below. `PlayerRegistry` finds the online characters by guid or name. `PlayerConditions` evaluates the conditions table's conditions for a player, and the spell click rule built on them. Everything else the character does lives in one directory per concern:
+`Player.h` and `Player.cpp` hold the class itself: construction, the update loop, the fields and the glue between the parts below. `PlayerRegistry` finds the online characters by guid or name. `PlayerConditions` evaluates the conditions table's conditions for a player, and the spell click rule built on them. `PlayerSession` is what the character holds its session through: what the session answers and what it sends the character's own client; the world session implements it. Everything else the character does lives in one directory per concern:
 
 | Directory | Concern |
 |---|---|
 | `persistence/` | loading the character from the database, saving it, and offline lookups through the character cache |
-| `quests/` | the quest log, quest status and the rules for taking and completing a quest |
+| `quests/` | the quest log, quest status, the rules for taking and completing a quest, and the mark a quest giver shows (`QuestGiverStatus`) |
 | `talents/` | talents, specs and glyphs |
 | `spells/` | the spell book, spell modifiers, learning, action buttons, cooldowns and runes |
 | `inventory/` | items: storage, equipping and its stat effects, enchants and gems, equipment sets, durability, gear score, and currencies |

@@ -60,6 +60,7 @@
 #include "Util.h"
 #include "DB2Stores.h"
 #include "DisableMgr.h"
+#include "Map.h"
 
 /**
  * @brief Applies all pending spell effects to a unit target entry.

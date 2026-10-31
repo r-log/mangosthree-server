@@ -59,6 +59,7 @@
 #include "Util.h"
 #include "DB2Stores.h"
 #include "DisableMgr.h"
+#include "Map.h"
 
 /**
  * @brief Builds the spell target lists for each active effect.

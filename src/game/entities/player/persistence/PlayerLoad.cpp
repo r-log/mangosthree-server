@@ -41,7 +41,6 @@
 #include "spells/data/SpellMgr.h"
 #include "WorldGameTime.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "MapManager.h"

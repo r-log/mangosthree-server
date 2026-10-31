@@ -28,7 +28,6 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "data/GameConfig.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiers.h"
@@ -43,6 +42,7 @@
 #include "Vehicle.h"
 #include "DisableMgr.h"
 #include "persistence/characters/social/ReputationRepository.h"
+#include "Map.h"
 
 #include <cmath>
 

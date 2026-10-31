@@ -49,6 +49,7 @@
 #include "data/ScriptHooks.h"
 #include <memory>
 #include "PlayerRegistry.h"
+#include "Group.h"
 
 /**
  * @file GameObjectUse.cpp

@@ -113,7 +113,7 @@ RULES = [
     (r'^scripts/|^game/ChatCommands/|^game/WorldHandlers/(Chat\.|ChatArgExtract|ChatHelp|CommandMgr|ScriptMgr|ScriptAction)', 'scripts'),
     (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig|GameEventScheduler)', 'app'),
     (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
-    (r'^game/session/', 'session'),
+    (r'^game/session/|^game/BattleGround/BattleGroundHandler\.', 'session'),
     (r'^game/data/|^game/spells/data/|^game/spells/auras/SpellAuraDefines\.', 'data'),
     (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy|LootStore)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
     (r'^game/spells/', 'spells'),

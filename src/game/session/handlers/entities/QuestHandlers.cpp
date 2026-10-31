@@ -41,6 +41,7 @@
 #include "QuestDef.h"
 #include "PlayerRegistry.h"
 #include "data/ScriptHooks.h"
+#include "QuestGiverStatus.h"
 #include "Group.h"
 #include "persistence/characters/quests/QuestTrackerRepository.h"
 
@@ -72,7 +73,7 @@ void QuestHandlers::HandleQuestgiverStatusQuery(WorldSession& session, WorldPack
 
                 if (dialogStatus > DIALOG_STATUS_REWARD_REP)
                 {
-                    dialogStatus = session.getDialogStatus(session.GetPlayer(), cr_questgiver, DIALOG_STATUS_NONE);
+                    dialogStatus = QuestGiverDialogStatus(session.GetPlayer(), cr_questgiver, DIALOG_STATUS_NONE);
                 }
             }
             break;
@@ -84,7 +85,7 @@ void QuestHandlers::HandleQuestgiverStatusQuery(WorldSession& session, WorldPack
 
             if (dialogStatus > DIALOG_STATUS_REWARD_REP)
             {
-                dialogStatus = session.getDialogStatus(session.GetPlayer(), go_questgiver, DIALOG_STATUS_NONE);
+                dialogStatus = QuestGiverDialogStatus(session.GetPlayer(), go_questgiver, DIALOG_STATUS_NONE);
             }
 
             break;

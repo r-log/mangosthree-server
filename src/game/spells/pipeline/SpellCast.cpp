@@ -64,6 +64,7 @@
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"
 #include "UnitDisableSubject.h"
+#include "Map.h"
 
 /**
  * @brief Prepares the spell cast, validates conditions, and starts cast processing.

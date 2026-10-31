@@ -391,14 +391,14 @@ class Guild
         bool LoadRanksFromDB(std::vector<GuildRankRow> const& rankRows, size_t& next);
         bool LoadMembersFromDB(std::vector<GuildMemberDataRow> const& memberRows, size_t& next);
 
-        void BroadcastToGuild(WorldSession* session, const std::string& msg, uint32 language = LANG_UNIVERSAL);
-        void BroadcastAddonToGuild(WorldSession* session, const std::string& msg, const std::string& prefix);
-        void BroadcastToOfficers(WorldSession* session, const std::string& msg, uint32 language = LANG_UNIVERSAL);
-        void BroadcastAddonToOfficers(WorldSession* session, const std::string& msg, const std::string& prefix);
+        void BroadcastToGuild(PlayerSession* session, const std::string& msg, uint32 language = LANG_UNIVERSAL);
+        void BroadcastAddonToGuild(PlayerSession* session, const std::string& msg, const std::string& prefix);
+        void BroadcastToOfficers(PlayerSession* session, const std::string& msg, uint32 language = LANG_UNIVERSAL);
+        void BroadcastAddonToOfficers(PlayerSession* session, const std::string& msg, const std::string& prefix);
         void BroadcastPacketToRank(WorldPacket* packet, uint32 rankId);
         void BroadcastPacket(WorldPacket* packet);
         // for calendar
-        void MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 maxLevel, uint32 minRank);
+        void MassInviteToEvent(PlayerSession* session, uint32 minLevel, uint32 maxLevel, uint32 minRank);
 
         void BroadcastEvent(GuildEvents event, ObjectGuid guid, char const* str1 = NULL, char const* str2 = NULL, char const* str3 = NULL);
         void BroadcastEvent(GuildEvents event, char const* str1 = NULL, char const* str2 = NULL, char const* str3 = NULL)
@@ -465,29 +465,29 @@ class Guild
             return NULL;
         }
 
-        void Roster(WorldSession* session = NULL);          // NULL = broadcast
-        void Query(WorldSession* session);
-        void QueryRanks(WorldSession* session);
+        void Roster(PlayerSession* session = NULL);          // NULL = broadcast
+        void Query(PlayerSession* session);
+        void QueryRanks(PlayerSession* session);
 
         // Guild EventLog
         void   LoadGuildEventLogFromDB();
-        void   DisplayGuildEventLog(WorldSession* session);
+        void   DisplayGuildEventLog(PlayerSession* session);
         void   LogGuildEvent(uint8 EventType, ObjectGuid playerGuid1, ObjectGuid playerGuid2 = ObjectGuid(), uint8 newRank = 0);
 
         // ** Guild bank **
         // Content & item deposit/withdraw
-        void   DisplayGuildBankContent(WorldSession* session, uint8 TabId);
-        void   DisplayGuildBankMoneyUpdate(WorldSession* session);
+        void   DisplayGuildBankContent(PlayerSession* session, uint8 TabId);
+        void   DisplayGuildBankMoneyUpdate(PlayerSession* session);
 
         void   SwapItems(Player* pl, uint8 BankTab, uint8 BankTabSlot, uint8 BankTabDst, uint8 BankTabSlotDst, uint32 SplitedAmount);
         void   MoveFromBankToChar(Player* pl, uint8 BankTab, uint8 BankTabSlot, uint8 PlayerBag, uint8 PlayerSlot, uint32 SplitedAmount);
         void   MoveFromCharToBank(Player* pl, uint8 PlayerBag, uint8 PlayerSlot, uint8 BankTab, uint8 BankTabSlot, uint32 SplitedAmount);
 
         // Tabs
-        void   DisplayGuildBankTabsInfo(WorldSession* session);
+        void   DisplayGuildBankTabsInfo(PlayerSession* session);
         void   CreateNewBankTab();
         void   SetGuildBankTabText(uint8 TabId, std::string text);
-        void   SendGuildBankTabText(WorldSession* session, uint8 TabId);
+        void   SendGuildBankTabText(PlayerSession* session, uint8 TabId);
         void   SetGuildBankTabInfo(uint8 TabId, std::string name, std::string icon);
         uint8  GetPurchasedTabs() const { return m_TabListMap.size(); }
         uint32 GetBankRights(uint32 rankId, uint8 TabId) const;
@@ -496,7 +496,7 @@ class Guild
         // Load
         void   LoadGuildBankFromDB();
         // Money deposit/withdraw
-        void   SendMoneyInfo(WorldSession* session, uint32 LowGuid);
+        void   SendMoneyInfo(PlayerSession* session, uint32 LowGuid);
         bool   MemberMoneyWithdraw(uint64 amount, uint32 LowGuid);
         uint64 GetGuildBankMoney() { return m_GuildBankMoney; }
         void   SetBankMoney(int64 money);
@@ -512,7 +512,7 @@ class Guild
         bool   LoadBankRightsFromDB(std::vector<GuildBankRightRow> const& rightRows, size_t& next);
         // Guild Bank Event Logs
         void   LoadGuildBankEventLogFromDB();
-        void   DisplayGuildBankLogs(WorldSession* session, uint8 TabId);
+        void   DisplayGuildBankLogs(PlayerSession* session, uint8 TabId);
         void   LogBankEvent(uint8 EventType, uint8 TabId, uint32 PlayerGuidLow, uint32 ItemOrMoney, uint8 ItemStackCount = 0, uint8 DestTabId = 0);
         bool   AddGBankItemToDB(uint32 GuildId, uint32 BankTab , uint32 BankTabSlot , uint32 GUIDLow, uint32 Entry);
 
