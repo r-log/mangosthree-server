@@ -43,6 +43,7 @@
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
+#include "InstalledArenaTeamRegistry.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
 #include "Database/TickGuard.h"
@@ -287,6 +288,7 @@ TEST(GuildAsync_TheSignResultPacketIsTheSameBytesFromAGuidAsFromThePlayer)
 TEST(GuildAsync_LeaveAllArenaTeamsReadsTheCachedSlotsAndNotTheDatabase)
 {
     TickGuard::ResetViolations();
+    InstalledArenaTeamRegistry teams;
     sCharacterCache.Clear();
 
     CharacterCacheEntry entry;
@@ -307,7 +309,7 @@ TEST(GuildAsync_LeaveAllArenaTeamsReadsTheCachedSlotsAndNotTheDatabase)
     {
         TickGuard::Scope scope;
 
-        // No arena team with those ids is loaded in this binary, so the loop finds nothing
+        // No arena team with those ids is in the test's registry, so the loop finds nothing
         // to leave -- which is the point: the SELECT that used to decide which teams to
         // walk is gone, and what remains touches no connection at all.
         Player::LeaveAllArenaTeams(MemberGuid());
