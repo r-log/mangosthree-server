@@ -41,10 +41,8 @@
 #include <set>
 #include "DisableMgr.h"
 #include "ObjectMgr.h"
-#include "Creature.h"
 #include "DBCStores.h"
 #include "OutdoorPvPMgr.h"
-#include "Player.h"
 #include "data/GameConfig.h"
 #include "BattleGroundMgr.h"
 #include "persistence/world/DisableDataRepository.h"
@@ -357,15 +355,14 @@ void CheckQuestDisables()
 }
 
 /**
- * @brief Checks whether a feature entry is disabled for the given runtime context.
+ * @brief Checks whether a feature entry is disabled, with no one to check it for.
  *
  * @param type The disable category.
  * @param entry The entry identifier to test.
- * @param unit The contextual unit, when applicable.
  * @param flags Additional disable flags to test.
- * @return true if the entry is disabled in the provided context; otherwise false.
+ * @return true if the entry is disabled; otherwise false.
  */
-bool IsDisabledFor(DisableType type, uint32 entry, Unit const* unit, uint8 flags)
+bool IsDisabledFor(DisableType type, uint32 entry, uint8 flags)
 {
     MANGOS_ASSERT(type < MAX_DISABLE_TYPES);
     if (m_DisableMap[type].empty())
@@ -384,43 +381,7 @@ bool IsDisabledFor(DisableType type, uint32 entry, Unit const* unit, uint8 flags
         case DISABLE_TYPE_SPELL:
         {
             uint8 spellFlags = itr->second.flags;
-            if (unit)
-            {
-                if ((spellFlags & SPELL_DISABLE_PLAYER && unit->GetTypeId() == TYPEID_PLAYER) ||
-                    (unit->GetTypeId() == TYPEID_UNIT && ((unit->ToCreature()->IsPet() && spellFlags & SPELL_DISABLE_PET) || spellFlags & SPELL_DISABLE_CREATURE)))
-                {
-                    if (spellFlags & SPELL_DISABLE_MAP)
-                    {
-                        std::set<uint32> const& mapIds = itr->second.params[0];
-                        if (mapIds.find(unit->GetMapId()) != mapIds.end())
-                        {
-                            return true;                                        // Spell is disabled on current map
-                        }
-
-                        if (!(spellFlags & SPELL_DISABLE_AREA))
-                        {
-                            return false;                                       // Spell is disabled on another map, but not this one, return false
-                        }
-
-                        // Spell is disabled in an area, but not explicitly our current mapId. Continue processing.
-                    }
-
-                    if (spellFlags & SPELL_DISABLE_AREA)
-                    {
-                        std::set<uint32> const& areaIds = itr->second.params[1];
-                        if (areaIds.find(unit->GetTerrain()->GetAreaId(unit->Where().X(), unit->Where().Y(), unit->Where().Z())) != areaIds.end())
-                        {
-                            return true;                                        // Spell is disabled in this area
-                        }
-                        return false;                                           // Spell is disabled in another area, but not this one, return false
-                    }
-                    else
-                        return true;                                            // Spell disabled for all maps
-                }
-
-                return false;
-            }
-            else if (spellFlags & SPELL_DISABLE_DEPRECATED_SPELL)    // call not from spellcast
+            if (spellFlags & SPELL_DISABLE_DEPRECATED_SPELL)    // call not from spellcast
             {
                 return true;
             }
@@ -432,41 +393,7 @@ bool IsDisabledFor(DisableType type, uint32 entry, Unit const* unit, uint8 flags
             break;
         }
         case DISABLE_TYPE_MAP:
-            if (Player const* player = unit->ToPlayer())
-            {
-                // [-ZERO]
-                //MapEntry const* mapEntry = sMapStore.LookupEntry(entry);
-                //if (mapEntry->IsDungeon())
-                //{
-                //    uint8 disabledModes = itr->second.flags;
-                //    Difficulty targetDifficulty = player->GetDifficulty(mapEntry->IsRaid());
-                //    GetDownscaledMapDifficultyData(entry, targetDifficulty);
-                //    switch (targetDifficulty)
-                //    {
-                //        case DUNGEON_DIFFICULTY_NORMAL:
-                //            return (disabledModes & DUNGEON_STATUSFLAG_NORMAL) != 0;
-                //        case DUNGEON_DIFFICULTY_HEROIC:
-                //            return (disabledModes & DUNGEON_STATUSFLAG_HEROIC) != 0;
-                //        case RAID_DIFFICULTY_10MAN_HEROIC:
-                //            return (disabledModes & RAID_STATUSFLAG_10MAN_HEROIC) != 0;
-                //        case RAID_DIFFICULTY_25MAN_HEROIC:
-                //            return (disabledModes & RAID_STATUSFLAG_25MAN_HEROIC) != 0;
-                //    }
-                //}
-                //else if (mapEntry->map_type == MAP_COMMON)
-                return true;
-            }
-            return false;
         case DISABLE_TYPE_QUEST:
-            if (!unit)
-            {
-                return true;
-            }
-            if (Player const* player = unit->ToPlayer())
-            {
-                return !player->isGameMaster();
-            }
-            return true;
         case DISABLE_TYPE_BATTLEGROUND:
         case DISABLE_TYPE_OUTDOORPVP:
         case DISABLE_TYPE_ACHIEVEMENT_CRITERIA:
@@ -482,6 +409,63 @@ bool IsDisabledFor(DisableType type, uint32 entry, Unit const* unit, uint8 flags
 }
 
 /**
+ * @brief Checks whether a spell is disabled for a subject: by its kind, then by the row's maps and areas.
+ *
+ * @param spellId The spell identifier.
+ * @param subject The one the spell is checked for.
+ * @return true if the spell is disabled for the subject; otherwise false.
+ */
+bool IsSpellDisabledFor(uint32 spellId, DisableSubject const& subject)
+{
+    if (m_DisableMap[DISABLE_TYPE_SPELL].empty())
+    {
+        return false;
+    }
+
+    DisableTypeMap::iterator itr = m_DisableMap[DISABLE_TYPE_SPELL].find(spellId);
+    if (itr == m_DisableMap[DISABLE_TYPE_SPELL].end())    // not disabled
+    {
+        return false;
+    }
+
+    uint8 spellFlags = itr->second.flags;
+    DisableSubject::Kind kind = subject.GetKind();
+    if ((spellFlags & SPELL_DISABLE_PLAYER && kind == DisableSubject::PLAYER) ||
+        (kind != DisableSubject::PLAYER && ((kind == DisableSubject::PET && spellFlags & SPELL_DISABLE_PET) || spellFlags & SPELL_DISABLE_CREATURE)))
+    {
+        if (spellFlags & SPELL_DISABLE_MAP)
+        {
+            std::set<uint32> const& mapIds = itr->second.params[0];
+            if (mapIds.find(subject.GetMapId()) != mapIds.end())
+            {
+                return true;                                        // Spell is disabled on current map
+            }
+
+            if (!(spellFlags & SPELL_DISABLE_AREA))
+            {
+                return false;                                       // Spell is disabled on another map, but not this one, return false
+            }
+
+            // Spell is disabled in an area, but not explicitly our current mapId. Continue processing.
+        }
+
+        if (spellFlags & SPELL_DISABLE_AREA)
+        {
+            std::set<uint32> const& areaIds = itr->second.params[1];
+            if (areaIds.find(subject.GetAreaId()) != areaIds.end())
+            {
+                return true;                                        // Spell is disabled in this area
+            }
+            return false;                                           // Spell is disabled in another area, but not this one, return false
+        }
+        else
+            return true;                                            // Spell disabled for all maps
+    }
+
+    return false;
+}
+
+/**
  * @brief Checks whether VMAP processing is disabled for a specific entry and flag set.
  *
  * @param entry The map or model entry.
@@ -490,7 +474,7 @@ bool IsDisabledFor(DisableType type, uint32 entry, Unit const* unit, uint8 flags
  */
 bool IsVMAPDisabledFor(uint32 entry, uint8 flags)
 {
-    return IsDisabledFor(DISABLE_TYPE_VMAP, entry, NULL, flags);
+    return IsDisabledFor(DISABLE_TYPE_VMAP, entry, flags);
 }
 
 /**

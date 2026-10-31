@@ -71,6 +71,7 @@
 #include "PlayerRegistry.h"
 #include "MotionMaster.h"
 #include "persistence/world/spawns/SpawnRepository.h"
+#include "UnitDisableSubject.h"
 
 /**
  * @brief Executes a delayed forced-despawn event.
@@ -2709,7 +2710,7 @@ bool Creature::MeetsSelectAttackingRequirement(Unit* pTarget, SpellEntry const* 
         return false;
     }
 
-    if (pSpellInfo && selectFlags & SELECT_FLAG_IN_LOS && !DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, pSpellInfo->ID, pTarget, SPELL_DISABLE_LOS) && !HasLineOfSight(*this, *pTarget))
+    if (pSpellInfo && selectFlags & SELECT_FLAG_IN_LOS && !DisableMgr::IsSpellDisabledFor(pSpellInfo->ID, UnitDisableSubject(*pTarget)) && !HasLineOfSight(*this, *pTarget))
     {
         return false;
     }

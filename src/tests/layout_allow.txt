@@ -349,10 +349,7 @@ src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/WorldHandlers/Map.h
 # reached through ObjectMgr.h before #511
 src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/DisableMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers/DisableMgr.cpp -> src/game/Object/Creature.h
 src/game/WorldHandlers/DisableMgr.cpp -> src/game/OutdoorPvP/OutdoorPvPMgr.h
-src/game/WorldHandlers/DisableMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/Object/Creature.h
@@ -775,6 +772,8 @@ src/game/spells/pipeline [spells] -> src/game/Object/Pet.h
 src/game/spells/pipeline [spells] -> src/game/Object/TemporarySummon.h
 src/game/spells/pipeline [spells] -> src/game/Object/Totem.h
 src/game/spells/pipeline [spells] -> src/game/Object/Unit.h
+# the spell-disable subject left DisableMgr.cpp (data) in #656
+src/game/spells/pipeline [spells] -> src/game/Object/UnitDisableSubject.h
 src/game/spells/pipeline [spells] -> src/game/Object/Vehicle.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/AchievementMgr.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/CellImpl.h

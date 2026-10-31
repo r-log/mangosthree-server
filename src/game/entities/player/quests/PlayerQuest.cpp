@@ -327,7 +327,7 @@ Quest const* Player::GetNextQuest(ObjectGuid guid, Quest const* pQuest)
  */
 bool Player::CanSeeStartQuest(Quest const* pQuest) const
 {
-    if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_QUEST, pQuest->GetQuestId(), this) &&
+    if ((isGameMaster() || !DisableMgr::IsDisabledFor(DISABLE_TYPE_QUEST, pQuest->GetQuestId())) &&
         SatisfyQuestClass(pQuest, false) && SatisfyQuestRace(pQuest, false) && SatisfyQuestSkill(pQuest, false) &&
         SatisfyQuestExclusiveGroup(pQuest, false) && SatisfyQuestReputation(pQuest, false) &&
         SatisfyQuestPreviousQuest(pQuest, false) && SatisfyQuestNextChain(pQuest, false) &&
@@ -354,7 +354,7 @@ bool Player::CanSeeStartQuest(Quest const* pQuest) const
  */
 bool Player::CanTakeQuest(Quest const* pQuest, bool msg) const
 {
-    return !DisableMgr::IsDisabledFor(DISABLE_TYPE_QUEST, pQuest->GetQuestId(), this) &&
+    return (isGameMaster() || !DisableMgr::IsDisabledFor(DISABLE_TYPE_QUEST, pQuest->GetQuestId())) &&
            SatisfyQuestStatus(pQuest, msg) && SatisfyQuestExclusiveGroup(pQuest, msg) &&
            SatisfyQuestClass(pQuest, msg) && SatisfyQuestRace(pQuest, msg) && SatisfyQuestLevel(pQuest, msg) &&
            SatisfyQuestSkill(pQuest, msg) && SatisfyQuestReputation(pQuest, msg) &&

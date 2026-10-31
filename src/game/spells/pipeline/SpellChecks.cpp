@@ -274,7 +274,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                 return SPELL_FAILED_BAD_TARGETS;
             }
 
-            if (!m_IsTriggeredSpell && !DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, NULL, SPELL_ATTR_EX2_IGNORE_LOS) && !LineOfSightExemptions::Has(m_spellInfo->ID) && !HasLineOfSight(*m_caster, *target))
+            if (!m_IsTriggeredSpell && !DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, SPELL_ATTR_EX2_IGNORE_LOS) && !LineOfSightExemptions::Has(m_spellInfo->ID) && !HasLineOfSight(*m_caster, *target))
             {
                 return SPELL_FAILED_LINE_OF_SIGHT;
             }

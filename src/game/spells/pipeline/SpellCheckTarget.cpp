@@ -206,7 +206,7 @@ bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff)
     }
 
     // Check targets for LOS visibility (except spells without range limitations )
-    if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, NULL, SPELL_ATTR_EX2_IGNORE_LOS))
+    if (!DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->ID, SPELL_ATTR_EX2_IGNORE_LOS))
     {
         switch(spellEffect->Effect)
         {
