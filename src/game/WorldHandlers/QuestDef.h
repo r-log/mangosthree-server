@@ -227,7 +227,7 @@ class Quest
         friend class ObjectMgr;
     public:
         Quest(QuestTemplateRow const& row);
-        uint32 XPValue(Player* pPlayer) const;
+        uint32 XPValue(uint32 level) const;
 
         uint32 GetQuestFlags() const { return m_QuestFlags; }
         bool HasQuestFlag(QuestFlags flag) const { return (m_QuestFlags & flag) != 0; }

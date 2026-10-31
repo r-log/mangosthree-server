@@ -115,7 +115,7 @@ RULES = [
     (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
     (r'^game/session/', 'session'),
     (r'^game/data/', 'data'),
-    (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
+    (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
     (r'^game/spells/', 'spells'),
     (r'^game/WorldHandlers/(\w*Handler\w*|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
     (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
@@ -123,7 +123,7 @@ RULES = [
     (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
     (r'^game/social/|^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),
     (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
-    (r'^game/Object/(AuctionHouseMgr|LootMgr|ItemEnchantmentMgr)|^game/WorldHandlers/Skill(Discovery|ExtraItems)', 'economy'),
+    (r'^game/Object/(AuctionHouseMgr|LootMgr)|^game/WorldHandlers/Skill(Discovery|ExtraItems)', 'economy'),
     (r'^game/(entities|Object|MotionGenerators)/|^game/WorldHandlers/Achievement', 'entities')]
 DOMAIN = {'entities', 'spells', 'combat', 'maps', 'ai', 'social', 'pvp', 'economy'}
 ORDER = ['app', 'scripts', 'session', 'domain', 'data', 'motion', 'proto', 'persistence', 'foundation']

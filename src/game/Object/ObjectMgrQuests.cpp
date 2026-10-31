@@ -32,7 +32,7 @@
 #include <string>
 #include <map>
 #include "ObjectMgr.h"
-#include "ReputationMgr.h"
+#include "data/ReputationRecords.h"
 #include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
@@ -253,10 +253,10 @@ void ObjectMgr::LoadQuests()
             // no changes, quest can't be done for this requirement
         }
 
-        if (qinfo->RequiredMinRepValue && qinfo->RequiredMinRepValue > ReputationMgr::Reputation_Cap)
+        if (qinfo->RequiredMinRepValue && qinfo->RequiredMinRepValue > REPUTATION_CAP)
         {
             sLog.outErrorDb("Quest %u has `RequiredMinRepValue` = %d but max reputation is %u, quest can't be done.",
-                            qinfo->GetQuestId(), qinfo->RequiredMinRepValue, ReputationMgr::Reputation_Cap);
+                            qinfo->GetQuestId(), qinfo->RequiredMinRepValue, REPUTATION_CAP);
             // no changes, quest can't be done for this requirement
         }
 

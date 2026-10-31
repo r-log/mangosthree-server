@@ -212,8 +212,8 @@ class ReputationMgr
         void SaveToDB(uint32 ownerGuidLow);
     public:                                                 // statics
         static const int32 PointsInRank[MAX_REPUTATION_RANK];
-        static const int32 Reputation_Cap    =  42999;
-        static const int32 Reputation_Bottom = -42000;
+        static const int32 Reputation_Cap    = REPUTATION_CAP;
+        static const int32 Reputation_Bottom = REPUTATION_BOTTOM;
 
         static ReputationRank ReputationToRank(int32 standing);
     public:                                                 // accessors

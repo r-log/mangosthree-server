@@ -971,7 +971,7 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
     m_questStatusMgr.Entry(quest_id);
 
     // Used for client inform but rewarded only in case not max level
-    uint32 xp = QuestRewardRules::Xp(pQuest->XPValue(this), sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+    uint32 xp = QuestRewardRules::Xp(pQuest->XPValue(getLevel()), sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
 
     // What the quest-complete packet shows: what was credited here, not recomputed after it.
     // The XP is what GiveXP gave and logged (the quest-XP auras applied, 0 when it gave none).

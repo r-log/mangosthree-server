@@ -629,7 +629,7 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* pQuest, ObjectGuid guid
         data << pQuest->GetRewOrReqMoney();
     }
 
-    data << pQuest->XPValue(GetMenuSession()->GetPlayer());
+    data << pQuest->XPValue(GetMenuSession()->GetPlayer()->getLevel());
 
     data << pQuest->GetCharTitleId();                       // CharTitleId, new 2.4.0, player gets this title (id from CharTitles)
     data << uint32(0);                                      // unk, unused 10 * GetRewHonorAddition ?
@@ -1065,7 +1065,7 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* pQuest, ObjectGuid npcGU
     }
 
     // xp
-    data << uint32(pQuest->XPValue(GetMenuSession()->GetPlayer()));
+    data << uint32(pQuest->XPValue(GetMenuSession()->GetPlayer()->getLevel()));
 
     data << uint32(pQuest->GetCharTitleId());   // character title
     data << uint32(0);                          // unk, unused 10 * GetRewHonorAddition ?

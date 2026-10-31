@@ -97,7 +97,6 @@ src/game/Object [entities] -> src/game/Maps/MapPhase.h
 src/game/Object [entities] -> src/game/Object/CreatureAI.h
 src/game/Object [entities] -> src/game/Object/CreatureAISelector.h
 src/game/Object [entities] -> src/game/Object/GameObjectAI.h
-src/game/Object [entities] -> src/game/Object/ItemEnchantmentMgr.h
 src/game/Object [entities] -> src/game/Object/LootMgr.h
 src/game/Object [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
 src/game/Object [entities] -> src/game/WorldHandlers/Cell.h
@@ -209,19 +208,14 @@ src/game/Object/ObjectMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object/ObjectMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/ObjectMgr.cpp -> src/game/spells/data/SpellMgr.h
-src/game/Object/ObjectMgrCreatures.cpp -> src/game/Object/LivingWorldAnchorPolicy.h
 src/game/Object/ObjectMgrCreatures.cpp -> src/game/spells/data/SpellMgr.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrGraveyard.cpp -> src/game/WorldHandlers/GridMap.h
-# reached through ObjectMgr.h before #512
-src/game/Object/ObjectMgrItems.cpp -> src/game/Object/ItemEnchantmentMgr.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/spells/data/SpellMgr.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrPlayerInfo.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrQuestRelations.cpp -> src/game/Object/LootMgr.h
-# reached through ObjectMgr.h before #512
-src/game/Object/ObjectMgrQuests.cpp -> src/game/entities/player/social/ReputationMgr.h
 src/game/Object/ObjectMgrQuests.cpp -> src/game/spells/data/SpellMgr.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ObjectMgrTaxi.cpp -> src/game/Object/Creature.h
@@ -415,7 +409,6 @@ src/game/WorldHandlers/PoolManager.cpp -> src/game/Object/GameObject.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/Map.h
 src/game/WorldHandlers/PoolManager.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/WorldHandlers/QuestDef.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillExtraItems.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/game/entities/player/Player.h
