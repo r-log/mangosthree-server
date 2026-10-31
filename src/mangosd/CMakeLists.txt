@@ -38,6 +38,7 @@ target_link_libraries(mangosd
     PRIVATE
         game
         proto
+        scripts
         Threads::Threads
         $<$<BOOL:${SCRIPT_LIB_SD3}>:scripts_legacy>
 )

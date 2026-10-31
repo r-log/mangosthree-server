@@ -11,10 +11,10 @@ add_subdirectory(genrev)
 
 if(BUILD_MANGOSD OR WITH_TESTS OR WITH_NET_TESTS)
     add_subdirectory(game)
+    add_subdirectory(scripts)
 endif()
 
 if(BUILD_MANGOSD)
-    add_subdirectory(scripts)
     add_subdirectory(mangosd)
 endif()
 

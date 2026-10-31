@@ -71,6 +71,7 @@
 #include "BattleGround/BattleGroundMgr.h"
 #include "OutdoorPvP/OutdoorPvPMgr.h"
 #include "Group.h"
+#include "dispatch/Dispatcher.h"
 #ifdef ENABLE_SD3
 #include "system/ScriptDevMgr.h"
 #endif
@@ -355,8 +356,11 @@ int main(int argc, char** argv)
     hook_signals();
 
 #ifdef ENABLE_SD3
-    ScriptHooks::Install(&SD3::GetScriptHooks());
+    static Script::Dispatcher scripts(&SD3::GetScriptHooks());
+#else
+    static Script::Dispatcher scripts(NULL);
 #endif
+    ScriptHooks::Install(&scripts);
     CommandHooks::Install(&ChatHandler::GetCommandHooks());
     DbScriptHooks::Install(&ScriptMgr::GetDbScriptHooks());
     BattleGroundHooks::Install(&BattleGroundMgr::GetBattleGroundHooks());

@@ -47,15 +47,6 @@ SystemMgr& SystemMgr::Instance()
 }
 
 /**
- * @brief Loads script texts from the database.
- */
-void SystemMgr::LoadScriptTexts()
-{
-    outstring_log("[SD3]: Loading Script Texts...");
-    LoadMangosStrings(WorldDatabase, "script_texts", TEXT_SOURCE_TEXT_START, TEXT_SOURCE_TEXT_END, true);
-}
-
-/**
  * @brief Loads custom script texts from the database.
  */
 void SystemMgr::LoadScriptTextsCustom()

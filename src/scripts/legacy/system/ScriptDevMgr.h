@@ -59,6 +59,7 @@ class SD3
         static void FreeScriptLibrary();
         static void InitScriptLibrary();
         static char const* GetScriptLibraryVersion();
+        static bool ServesScript(char const* name);
         /// SD3's answers to the core's script hooks, for `mangosd` to install.
         static ScriptHooks& GetScriptHooks();
 

@@ -356,14 +356,15 @@ compile-and-pass, it fails to link. A library cannot lie about its dependencies.
 | proto | `proto` | `shared`, `mangos_crypto` |
 | motion | `motion` | `proto` |
 | data, domain, session, `persistence/<domain>/`, and the app and scripts files inside `src/game` | **`game`**, one library: 40 globbed directories, 399k lines, one precompiled header | `shared_db`, `terrain`, `geometry`, `proto`, `motion`, Detour and zlib |
+| scripts (the dispatcher, `src/scripts/dispatch/`) | `scripts` | `game` |
 | scripts (SD3, `src/scripts/legacy/`) | `scripts_legacy` | `game` |
-| app | `mangosd` | `game`, `proto`, and `scripts_legacy` when the scripts are built, whose hooks it installs |
-| tests | `mangos_tests` | `game`, `motion`, `proto` |
+| app | `mangosd` | `game`, `proto`, `scripts`, whose dispatcher it installs, and `scripts_legacy` when SD3 is built |
+| tests | `mangos_tests` | `game`, `scripts`, `motion`, `proto` |
 
 The only layer boundary the linker checks today is the one around `motion` and `proto`; every include the gate counts
 as against the rule in section 1 lives inside `game`, where the linker sees one target. `game` does not link
-`scripts_legacy`: the core calls the scripts through the hook interface (`data/ScriptHooks.h`), and `mangosd` links
-`scripts_legacy` and installs SD3's hooks at start-up.
+`scripts_legacy`: the core calls the scripts through the hook interface (`data/ScriptHooks.h`), and `mangosd` installs
+the dispatcher at start-up, which hands each hook to SD3 when SD3 is built.
 
 The sizes, by target layer (from `layers.py files`, lines of `.h`/`.cpp`): scripts 264k (SD3 and `ChatCommands`),
 entities 98k, spells 65k, session 39k, data 39k, app 37k (with the harness), social 21k, pvp 20k, maps 19k,
@@ -377,11 +378,11 @@ faked. The domain tier splits as one library first (its directories are peers wi
 1. `data`: after rows 5 and 7 (77 lines into the domain, 3 into session).
 2. `domain`: after rows 1, 2 and 3 (proto, session, `World.h`).
 3. `session`: after the `World.h` and script edges it holds.
-4. `scripts`: the `scripts` target is born at the seam (#83) with the surface and the dispatcher, new code with no
-   upward edge; `ChatCommands`, the command half of `Chat`, `CommandMgr` and `ScriptMgr` join it as `commands/` and
-   `dbscripts/` once #143 removes their `World.h` lines. New scripts build in `scripts_content`, which links only
+4. `scripts`: the `scripts` target holds the dispatcher (#83), new code with no upward edge, and the surface joins
+   it; `ChatCommands`, the command half of `Chat`, `CommandMgr` and `ScriptMgr` join it as `commands/` and
+   `dbscripts/`, now that #143 removed their `World.h` lines. New scripts build in `scripts_content`, which links only
    `scripts` and has no precompiled header. SD3 builds as `scripts_legacy` from `src/scripts/legacy/`, optional as now,
-   and hands its hooks to the dispatcher. `game` already reaches the scripts only through the hook interface (#83).
+   and the dispatcher hands it each hook. `game` already reaches the scripts only through the hook interface (#83).
 5. `app`: `World`, the harness and the auction bot move to `mangosd` or a `world` library; `game` no longer exists.
 
 Each split PR moves the layer's `file(GLOB)` lines into the new target's `CMakeLists.txt`, gives it its own

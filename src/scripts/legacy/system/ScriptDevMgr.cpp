@@ -47,7 +47,6 @@ void FillSpellSummary();
  */
 void LoadSD3Bindings()
 {
-    pSystemMgr.LoadScriptTexts();
     pSystemMgr.LoadScriptTextsCustom();
     pSystemMgr.LoadScriptGossipTexts();
     pSystemMgr.LoadScriptWaypoints();
@@ -230,16 +229,18 @@ void SD3::InitScriptLibrary()
 
     AddScripts();
 
-    // Check existence scripts for all registered by core script names
-    for (uint32 i = 1; i < GetScriptIdsCount(); ++i)
-    {
-        if (!m_scripts[i])
-        {
-            script_error_log("[SD3]: No script found for ScriptName '%s'.", GetScriptName(i));
-        }
-    }
-
     outstring_log(">> Loaded %i C++ Scripts.", num_sc_scripts);
+}
+
+/**
+ * @brief Tells whether a script serves a bound script name.
+ * @param name The bound script name.
+ * @return true if a script is registered for the name.
+ */
+bool SD3::ServesScript(char const* name)
+{
+    uint32 id = GetScriptId(name);
+    return id && id < m_scripts.size() && m_scripts[id];
 }
 
 /**

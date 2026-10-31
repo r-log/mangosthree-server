@@ -51,8 +51,8 @@ class Unit;
  * auras, and the AI and instance data of a scripted creature, object or map. Each hook answers
  * whether a script handled the call, or what the script made. This base answers what a server with
  * no script library answers: false, NULL, and DIALOG_STATUS_UNDEFINED for a dialog status; it starts
- * and frees nothing and has no version. The core calls the installed hooks through sScriptHooks;
- * until hooks are installed, it calls this base.
+ * and frees nothing, has no version and serves no script name. The core calls the installed hooks
+ * through sScriptHooks; until hooks are installed, it calls this base.
  */
 class ScriptHooks
 {
@@ -62,6 +62,8 @@ class ScriptHooks
         virtual void InitScriptLibrary();
         virtual void FreeScriptLibrary();
         virtual char const* GetScriptLibraryVersion();
+        /// Whether a script of this library serves the bound script name `name`.
+        virtual bool ServesScript(char const* name);
 
         virtual CreatureAI* GetCreatureAI(Creature* pCreature);
         virtual GameObjectAI* GetGameObjectAI(GameObject* pGo);
