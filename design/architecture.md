@@ -31,19 +31,19 @@ only `src/shared`; session includes it 116 times, the motion layer 23 times (8 f
 These directories **dissolve**:
 - `Object/` (137 files): 64 to entities, 28 to data, 25 to ai, 10 to social, 6 to economy, 2 to combat and 2 to
   foundation (`ObjectGuid`, now in `src/shared/Utilities`).
-- `WorldHandlers/` (132 files): 31 to session (the 24 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
-  `AccountMgr`), 40 to maps, 26 to social, 12 to scripts, 12 to data, 4 to
-  economy, 4 to entities (achievements) and 3 to app.
+- `WorldHandlers/` (133 files): 26 to session (the handler files, `UpdateData`, `LFGPackets`, `AccountMgr`), 43 to
+  maps, 26 to social, 11 to scripts, 12 to data, 4 to economy, 6 to entities (achievements and the player's menus,
+  `GossipDef`) and 5 to app.
 - `Server/`: 11 files to session, 15 to data and `GameGlobals` to persistence. `References/`: maps to maps,
   groups to social; the threat managers are in `combat/`. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 153 include lines go against the table.
+**Today:** 148 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 127 | `WorldPacket.h` 79, `Opcodes.h` 47 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
-| domain -> session | 15 | `UpdateData.h` 10, `GossipDef.h` 5 | `Bag.cpp`, `Creature.cpp`, `Object.h` |
+| domain -> session | 10 | `UpdateData.h` 10 | `Bag.cpp`, `Object.h`, `ObjectUpdate.cpp` |
 | rest | 11 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h`/`GameEventScheduler.h` 4; `PlayerDump`/`CharacterDatabaseCleaner` 7 | |
 
 The domain directories are peers. Include lines that cross between them are allowed, but they cannot spread: they are
@@ -406,7 +406,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | # | Today, against the target | Closed by |
 |---|---|---|
 | 1 | domain -> proto: 127 lines; 215 `WorldPacket data(` sites in the domain tier; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
-| 2 | domain -> session: 15 lines (`UpdateData.h` 10, `GossipDef.h` 5). A player holds its session through `entities/player/PlayerSession`, which the world session implements; code above the domain reaches the world session's own members through `SessionOf`. The dungeon finder, the ticket manager, the auction house and the calendar tell clients through notices declared beside each (`LfgNotices`, `TicketNotices`, `AuctionNotices`, `CalendarNotices`), which the session installs (`InstallManagerNotices`) | the domain target (phase 5): `GossipDef`, then `UpdateData` |
+| 2 | domain -> session: 10 lines (`UpdateData.h`). A player holds its session through `entities/player/PlayerSession`, which the world session implements; code above the domain reaches the world session's own members through `SessionOf`. The dungeon finder, the ticket manager, the auction house and the calendar tell clients through notices declared beside each (`LfgNotices`, `TicketNotices`, `AuctionNotices`, `CalendarNotices`), and a player's menus (`GossipDef`, entities) through `GossipNotices`, all of which the session installs (`InstallClientNotices`) | the domain target (phase 5): `UpdateData` |
 | 3 | `World.h` is included by nothing below app. `GameConfig` holds the configuration whole (the data path, the force-loaded maps and the `.mmap` switch included), `session/SessionRegistry` the sessions, `data/WorldBroadcast` what is told every client, `data/ServerControl` the operator's handle and the stop request, and `data/ResetSchedule` the periodic reset times; a guid generator that runs out calls the overflow handler the world installs (`ObjectGuid.h`), and a character delete refreshes the realm character count itself. The layout gate holds it: a new line fails | closed (#143) |
 | 4 | `ScriptMgr.h` and `Chat.h` included below scripts 0 times (`Chat.h` 23 times when #83 began): a map runs its database script steps and the domain starts its events through `data/DbScriptHooks`, which `mangosd` installs; the session builds the chat packets and system messages, the domain builds its chat packets through `data/ChatPacketBuilder` and reports a player's system messages as a client fact, and the GM commands are reached through `data/CommandHooks` | closed for the includes (#83); the domain's chat packets become facts with row 1 |
 | 5 | data -> domain: 0 lines. The runtimes moved beside their peers (`PoolSpawner`, `CreatureLinkingHolder`, `GameEventScheduler`, `PlayerConditions`, `SpellRules`), the tables stayed (`PoolManager`, `CreatureLinkingMgr`, `GameEventMgr`, `LootStore`), and the data layer asks the domain through installed facts (`TerrainFacts`) and subjects (`DisableSubject`). `data` is its own target | closed (phase 5); the store moves (`ObjectMgr`'s tables into `data/` stores) when content needs them |
@@ -506,14 +506,14 @@ RULES = [
  (r'^game/data/|^game/spells/data/|^game/spells/auras/SpellAuraDefines\.', 'data'),
  (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy|LootStore)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
  (r'^game/spells/', 'spells'),
- (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
+ (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|AccountMgr|UpdateData|LFGPackets)\.', 'session'),
  (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
  (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|Path\.|BareMap|Weather|PoolSpawner|CreatureLinkingHolder)', 'maps'),
  (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
  (r'^game/social/|^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),
  (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
  (r'^game/Object/(AuctionHouseMgr|LootMgr)|^game/WorldHandlers/Skill(Discovery|ExtraItems)', 'economy'),
- (r'^game/(entities|Object|MotionGenerators)/|^game/WorldHandlers/Achievement', 'entities')]
+ (r'^game/(entities|Object|MotionGenerators)/|^game/WorldHandlers/(Achievement|GossipDef)', 'entities')]
 DOMAIN = {'entities', 'spells', 'combat', 'maps', 'ai', 'social', 'pvp', 'economy'}
 ORDER = ['app', 'scripts', 'session', 'domain', 'data', 'motion', 'proto', 'persistence', 'foundation']
 MAY = {l: set(ORDER[i + 1:]) for i, l in enumerate(ORDER)}          # a layer may include every layer below it,

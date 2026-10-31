@@ -406,7 +406,7 @@ Player::Player(PlayerSession* session): Unit(), m_currencyMgr(), m_honorMgr(time
 
     m_cinematic = 0;
 
-    PlayerTalkClass = new PlayerMenu(GetSession());
+    PlayerTalkClass = new PlayerMenu(GetSession(), GetSession()->GetSessionDbLocaleIndex());
     m_currentBuybackSlot = BUYBACK_SLOT_START;
 
     m_DailyQuestChanged = false;

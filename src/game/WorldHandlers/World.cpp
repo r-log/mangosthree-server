@@ -137,7 +137,7 @@
 #include "persistence/login/RealmRepository.h"
 #include "persistence/world/BroadcastDataRepository.h"
 #include "GameEventScheduler.h"
-#include "session/ManagerNotices.h"
+#include "session/ClientNotices.h"
 
 
 namespace
@@ -198,7 +198,7 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_social(sPlayerRegistry)
     ServerControl::Install(this);
     InstallGuidOverflowHandler(&StopOnGuidOverflow);
     InstallPlayerNameResolver(&FindPlayerName);
-    InstallManagerNotices();
+    InstallClientNotices();
 }
 
 /// World destructor
