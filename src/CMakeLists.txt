@@ -14,7 +14,7 @@ if(BUILD_MANGOSD OR WITH_TESTS OR WITH_NET_TESTS)
 endif()
 
 if(BUILD_MANGOSD)
-    add_subdirectory(modules)
+    add_subdirectory(scripts)
     add_subdirectory(mangosd)
 endif()
 

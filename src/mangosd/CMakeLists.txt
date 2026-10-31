@@ -39,7 +39,7 @@ target_link_libraries(mangosd
         game
         proto
         Threads::Threads
-        $<$<BOOL:${SCRIPT_LIB_SD3}>:mangosscript>
+        $<$<BOOL:${SCRIPT_LIB_SD3}>:scripts_legacy>
 )
 
 install(

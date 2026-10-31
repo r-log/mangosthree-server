@@ -359,11 +359,11 @@ def self_test():
              'src/game/Object/Unit.cpp': 'Unit::Unit() :\n    m_groupCallbacks(NULL),\n    m_x(0)\n{\n}\n'}
     expect_check('the three installed sites pass', three, 0)
     expect_check('a fourth site without the install fails',
-                 dict(three, **{'src/modules/SD3/a.cpp': 'Player* p = new Player(s);\np->Create();\n'}), 1)
+                 dict(three, **{'src/scripts/legacy/a.cpp': 'Player* p = new Player(s);\np->Create();\n'}), 1)
     expect_check('a fourth installed site fails until SITES is raised',
-                 dict(three, **{'src/modules/SD3/a.cpp': good}), 1)
+                 dict(three, **{'src/scripts/legacy/a.cpp': good}), 1)
     expect_check('a fourth installed site passes with SITES raised',
-                 dict(three, **{'src/modules/SD3/a.cpp': good}), 0, expected=4)
+                 dict(three, **{'src/scripts/legacy/a.cpp': good}), 0, expected=4)
     expect_check('a removed site fails until SITES is lowered', {'src/game/Harness/Scenario.cpp': good}, 1)
     expect_check('an empty scan fails', {'other/A.cpp': good}, 1)
     expect_check('the tools are not read', dict(three, **{'src/tests/tools/x.inc': 'Player* p = new Player(s);\n'}), 0)

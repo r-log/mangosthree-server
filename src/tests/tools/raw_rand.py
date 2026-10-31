@@ -169,7 +169,7 @@ def self_test():
     expect_check('a second seed fails', {SEED_FILE: 'void f()\n{\n    srand(1);\n    srand(2);\n}\n'}, 1)
     expect_check('a comment mention passes', dict(seed, **{'src/game/A.h': '/// draws from rand() no more\n'}), 0)
     expect_check('urand passes', dict(seed, **{'src/game/A.inl': 'uint32 x = urand(0, 3);\n'}), 0)
-    expect_check('outside src/game is not read', dict(seed, **{'src/modules/SD3/a.cpp': 'int x = rand();\n'}), 0)
+    expect_check('outside src/game is not read', dict(seed, **{'src/scripts/legacy/a.cpp': 'int x = rand();\n'}), 0)
     expect_check('an empty scan fails', {'src/other/A.cpp': 'int x;\n'}, 1)
     expect_check('another extension is not read', dict(seed, **{'src/game/A.txt': 'rand()\n'}), 0)
 

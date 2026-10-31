@@ -6,10 +6,10 @@ set(ALLOWED
     MoveRandomAroundPoint MovementExpired MoveJump MoveFlyOrLand Initialize
     MoveFleeing ActiveKind IsChasing IsPatrolling Inhibit Uninhibit)
 list(LENGTH ALLOWED ALLOWED_COUNT)
-file(GLOB_RECURSE SD3_SOURCES "${SOURCE_ROOT}/src/modules/SD3/*.cpp" "${SOURCE_ROOT}/src/modules/SD3/*.h")
+file(GLOB_RECURSE SD3_SOURCES "${SOURCE_ROOT}/src/scripts/legacy/*.cpp" "${SOURCE_ROOT}/src/scripts/legacy/*.h")
 list(LENGTH SD3_SOURCES SD3_COUNT)
 if(SD3_COUNT EQUAL 0)
-    message(FATAL_ERROR "Motion shim gate found no SD3 sources under ${SOURCE_ROOT}/src/modules/SD3 -- gate is inert")
+    message(FATAL_ERROR "Motion shim gate found no SD3 sources under ${SOURCE_ROOT}/src/scripts/legacy -- gate is inert")
 endif()
 set(STRAYS "")
 set(SEEN "")
@@ -35,7 +35,7 @@ if(STRAYS)
     string(REPLACE ";" "\n  " PRETTY "${STRAYS}")
     message(FATAL_ERROR
         "MotionMaster entry point outside the shim promise:\n  ${PRETTY}\n\n"
-        "src/modules/SD3 may call only the facade entry points listed in\n"
+        "src/scripts/legacy may call only the facade entry points listed in\n"
         "src/tests/CheckMotionMasterShim.cmake (design v2 section 9). Either route the\n"
         "script through one of them or widen the list in the same commit, with the\n"
         "README in src/game/MotionGenerators updated.")

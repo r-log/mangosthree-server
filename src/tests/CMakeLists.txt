@@ -325,9 +325,9 @@ if(NOT "game" IN_LIST MANGOS_TESTS_LINKS)
 endif()
 
 get_target_property(GAME_LINKS game LINK_LIBRARIES)
-string(FIND "${GAME_LINKS}" "mangosscript" GAME_LINKS_SCRIPTS)
+string(FIND "${GAME_LINKS}" "scripts_legacy" GAME_LINKS_SCRIPTS)
 if(NOT GAME_LINKS_SCRIPTS EQUAL -1)
-    message(FATAL_ERROR "the game library links mangosscript; mangosd links it and installs its ScriptHooks")
+    message(FATAL_ERROR "the game library links scripts_legacy; mangosd links it and installs its ScriptHooks")
 endif()
 
 if(WITH_CRYPTO_TESTS)
@@ -492,7 +492,7 @@ add_test(NAME after_map_phase_drain
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckAfterMapPhaseDrain.cmake)
 
-# Decoupling D4l: no two include directories of game, mangos_tests, mangosd or mangosscript offer
+# No two include directories of game, mangos_tests, mangosd or scripts_legacy offer
 # a header under the same spelling, so no include is resolved by directory order.
 add_test(NAME include_collisions
     COMMAND ${CMAKE_COMMAND}
