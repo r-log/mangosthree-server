@@ -1072,11 +1072,11 @@ bool Creature::Create(uint32 guidlow, CreatureCreatePos& cPos, CreatureInfo cons
     }
 
     // Add to CreatureLinkingHolder if needed
-    if (sCreatureLinkingMgr.GetLinkedTriggerInformation(this))
+    if (sCreatureLinkingMgr.GetLinkedTriggerInformation(GetEntry(), GetGUIDLow(), GetMapId()))
     {
         cPos.GetMap()->GetCreatureLinkingHolder()->AddSlaveToHolder(this);
     }
-    if (sCreatureLinkingMgr.IsLinkedEventTrigger(this))
+    if (sCreatureLinkingMgr.IsLinkedEventTrigger(GetEntry(), GetGUIDLow(), GetMapId()))
     {
         m_isCreatureLinkingTrigger = true;
         cPos.GetMap()->GetCreatureLinkingHolder()->AddMasterToHolder(this);
@@ -1627,7 +1627,7 @@ bool Creature::LoadFromDB(uint32 guidlow, Map* map)
         }
     }
 
-    if (sCreatureLinkingMgr.IsSpawnedByLinkedMob(this))
+    if (sCreatureLinkingMgr.IsSpawnedByLinkedMob(GetEntry(), GetGUIDLow(), GetMapId()))
     {
         m_isSpawningLinked = true;
         if (m_deathState == ALIVE && !GetMap()->GetCreatureLinkingHolder()->CanSpawn(this))

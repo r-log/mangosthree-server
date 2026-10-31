@@ -343,13 +343,6 @@ src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/ChannelMgr.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Chat.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
-src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/MotionGenerators/MotionMaster.h
-src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/Creature.h
-src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/Object/CreatureAI.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/WorldHandlers/Map.h
-# reached through ObjectMgr.h before #511
-src/game/WorldHandlers/CreatureLinkingMgr.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/BattleGround/BattleGroundMgr.h
 # reached through ObjectMgr.h before #512
 src/game/WorldHandlers/GameEventMgr.cpp -> src/game/Object/Creature.h

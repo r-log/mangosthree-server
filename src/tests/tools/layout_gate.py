@@ -119,7 +119,7 @@ RULES = [
     (r'^game/spells/', 'spells'),
     (r'^game/WorldHandlers/(\w*Handler\w*|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
     (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
-    (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|BareMap|Weather|PoolSpawner)', 'maps'),
+    (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|BareMap|Weather|PoolSpawner|CreatureLinkingHolder)', 'maps'),
     (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
     (r'^game/social/|^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),
     (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
