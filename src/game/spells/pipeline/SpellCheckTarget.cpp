@@ -59,6 +59,7 @@
 #include "Vehicle.h"
 #include "DisableMgr.h"
 #include "spells/handlers/SpellCheckTargetHandlers.h"
+#include "Map.h"
 
 /**
  * @brief Checks whether a target matches the spell's creature type restrictions.

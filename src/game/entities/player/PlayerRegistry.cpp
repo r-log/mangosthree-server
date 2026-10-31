@@ -26,7 +26,6 @@
 #include "PlayerRegistry.h"
 
 #include "Player.h"
-#include "WorldSession.h"
 
 #include <cstring>
 
@@ -73,7 +72,7 @@ void PlayerRegistry::Kick(ObjectGuid guid) const
     // kick, and would be invisible to the filtered lookup.
     if (Player* player = Find(guid, false))
     {
-        WorldSession* session = player->GetSession();
+        PlayerSession* session = player->GetSession();
         session->KickPlayer();          // mark for removal at the next session update
         session->LogoutPlayer(false);   // and log out now rather than waiting for it
     }

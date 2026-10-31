@@ -45,7 +45,6 @@
 #include "ChannelMgr.h"
 #include "Policies/Singleton.h"
 #include "data/GameConfig.h"
-#include "WorldSession.h"
 
 
 /**

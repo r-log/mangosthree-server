@@ -32,7 +32,6 @@
 #include "data/GameConfig.h"
 #include "Item.h"
 #include "Player.h"
-#include "WorldSession.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "Util.h"
@@ -51,7 +50,7 @@
 // Guild Bank part
 // *************************************************
 // Bank content related
-void Guild::DisplayGuildBankContent(WorldSession* session, uint8 TabId)
+void Guild::DisplayGuildBankContent(PlayerSession* session, uint8 TabId)
 {
     if (TabId >= GetPurchasedTabs())
     {
@@ -97,7 +96,7 @@ void Guild::DisplayGuildBankContent(WorldSession* session, uint8 TabId)
     DEBUG_LOG("WORLD: Sent (SMSG_GUILD_BANK_LIST), tabid %u itemCount %u", TabId, itemCount);
 }
 
-void Guild::DisplayGuildBankMoneyUpdate(WorldSession* session)
+void Guild::DisplayGuildBankMoneyUpdate(PlayerSession* session)
 {
     WorldPacket data(SMSG_GUILD_BANK_LIST, 8 + 1 + 4 + 1 + 1);
     data.WriteBit(0);
@@ -236,7 +235,7 @@ Item* Guild::GetItem(uint8 TabId, uint8 SlotId)
 // *************************************************
 // Tab related
 
-void Guild::DisplayGuildBankTabsInfo(WorldSession* session)
+void Guild::DisplayGuildBankTabsInfo(PlayerSession* session)
 {
     WorldPacket data(SMSG_GUILD_BANK_LIST, 500);
     data.WriteBit(0);
@@ -385,7 +384,7 @@ void Guild::LoadGuildBankFromDB()
 // *************************************************
 // Money deposit/withdraw related
 
-void Guild::SendMoneyInfo(WorldSession* session, uint32 LowGuid)
+void Guild::SendMoneyInfo(PlayerSession* session, uint32 LowGuid)
 {
     WorldPacket data(SMSG_GUILD_BANK_MONEY_WITHDRAWN, 8);
     data << uint64(GetMemberMoneyWithdrawRem(LowGuid));
@@ -730,7 +729,7 @@ void Guild::LoadGuildBankEventLogFromDB()
     }
 }
 
-void Guild::DisplayGuildBankLogs(WorldSession* session, uint8 TabId)
+void Guild::DisplayGuildBankLogs(PlayerSession* session, uint8 TabId)
 {
     if (TabId > GUILD_BANK_MAX_TABS)
     {
@@ -1162,7 +1161,7 @@ void Guild::SetGuildBankTabText(uint8 TabId, std::string text)
     SendGuildBankTabText(NULL, TabId);
 }
 
-void Guild::SendGuildBankTabText(WorldSession* session, uint8 TabId)
+void Guild::SendGuildBankTabText(PlayerSession* session, uint8 TabId)
 {
     GuildBankTab const* tab = m_TabListMap[TabId];
 

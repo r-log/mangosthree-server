@@ -95,7 +95,7 @@ enum PhaseMasks
 
 class WorldPacket;
 class UpdateData;
-class WorldSession;
+class PlayerSession;
 class Creature;
 class GameObject;
 class Player;

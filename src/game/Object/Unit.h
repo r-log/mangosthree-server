@@ -228,7 +228,7 @@ class PetAura;
 class Totem;
 class Transport;
 class VehicleInfo;
-class WorldSession;
+class PlayerSession;
 
 struct SpellImmune
 {
@@ -4126,8 +4126,8 @@ class Unit : public WorldObject
         void AssertSpellSeamOwner() const;
         /// The session whose client moves this unit: a player's own from its login
         /// grant, a possessor's for a possessed creature, NULL for a server-driven unit.
-        WorldSession* MoverSession() const { return m_moverSession; }
-        void SetMoverSession(WorldSession* session) { m_moverSession = session; }
+        PlayerSession* MoverSession() const { return m_moverSession; }
+        void SetMoverSession(PlayerSession* session) { m_moverSession = session; }
         /// Does a CLIENT drive this unit's movement? A player always does -- his client owns his
         /// word and resends it, whether or not a grant is live (a taxi flight and a battleground
         /// countdown both revoke his mover). Any other unit does only while a session actually
@@ -4300,7 +4300,7 @@ class Unit : public WorldObject
         // Protected, not private: Player::Player() sets its own mode directly.
         std::unique_ptr<Motion::State> m_motion;
         uint32        m_motionDropped;
-        WorldSession* m_moverSession;
+        PlayerSession* m_moverSession;
         Motion::Kinematics InitialKinematics() const;
 
     private:

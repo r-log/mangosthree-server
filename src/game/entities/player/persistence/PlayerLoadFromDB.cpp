@@ -33,7 +33,6 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "data/GameConfig.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "MapManager.h"

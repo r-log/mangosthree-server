@@ -107,7 +107,7 @@ void TicketHandlers::HandleGMTicketUpdateText(WorldSession& session, WorldPacket
         {
             if (player->GetSession()->GetSecurity() >= SEC_GAMEMASTER && player->isAcceptTickets())
             {
-                SendSystemMessageFormat(*player->GetSession(), LANG_COMMAND_TICKETUPDATED, session.GetPlayer()->GetName(), ticket->GetId());
+                SendSystemMessageFormat(*SessionOf(*player), LANG_COMMAND_TICKETUPDATED, session.GetPlayer()->GetName(), ticket->GetId());
 
             }
         }
@@ -192,7 +192,7 @@ void TicketHandlers::HandleGMTicketCreate(WorldSession& session, WorldPacket& re
         {
             if (player->GetSession()->GetSecurity() >= SEC_GAMEMASTER && player->isAcceptTickets())
             {
-                SendSystemMessageFormat(*player->GetSession(), LANG_COMMAND_TICKETNEW, session.GetPlayer()->GetName(), ticket->GetId());
+                SendSystemMessageFormat(*SessionOf(*player), LANG_COMMAND_TICKETNEW, session.GetPlayer()->GetName(), ticket->GetId());
             }
         }
     );

@@ -65,6 +65,7 @@
 #include "spells/handlers/SpellTargetingHandlers.h"
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"
+#include "Map.h"
 
 /**
  * @brief Checks whether a spell matches the quest tame spell pattern.

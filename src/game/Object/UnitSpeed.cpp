@@ -40,6 +40,7 @@
 #include "GameTime.h"
 #include "MotionMaster.h"
 #include "State.h"
+#include "Map.h"
 
 #include <math.h>
 #include <stdarg.h>

@@ -39,7 +39,7 @@
 struct ArenaTeamRow;
 struct ArenaTeamMemberRow;
 class WorldPacket;
-class WorldSession;
+class PlayerSession;
 class Player;
 
 enum ArenaTeamCommandTypes
@@ -134,7 +134,7 @@ class ArenaTeam
         ~ArenaTeam();
 
         bool Create(ObjectGuid captainGuid, ArenaType type, std::string arenaTeamName);
-        void Disband(WorldSession* session);
+        void Disband(PlayerSession* session);
 
         typedef std::list<ArenaTeamMember> MemberList;
 
@@ -204,10 +204,10 @@ class ArenaTeam
             BroadcastEvent(event, ObjectGuid(), str1, str2, str3);
         }
 
-        void Roster(WorldSession* session);
-        void Query(WorldSession* session);
-        void Stats(WorldSession* session);
-        void InspectStats(WorldSession* session, ObjectGuid guid);
+        void Roster(PlayerSession* session);
+        void Query(PlayerSession* session);
+        void Stats(PlayerSession* session);
+        void InspectStats(PlayerSession* session, ObjectGuid guid);
 
         uint32 GetPoints(uint32 MemberRating);
         float GetChanceAgainst(uint32 own_rating, uint32 enemy_rating);
@@ -225,7 +225,7 @@ class ArenaTeam
         void FinishGame(int32 mod);
 
         // Calendar
-        void MassInviteToEvent(WorldSession* session);
+        void MassInviteToEvent(PlayerSession* session);
 
     protected:
 

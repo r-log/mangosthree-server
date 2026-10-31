@@ -51,6 +51,7 @@
 #include <map>
 #include <typeinfo>
 #include "persistence/world/spawns/SpawnRepository.h"
+#include "WorldSession.h"
 
 /// Helper function
 inline Creature* Helper_CreateWaypointFor(Creature* wpOwner, WaypointPathOrigin wpOrigin, int32 pathId, uint32 wpId, WaypointNode const* wpNode, CreatureInfo const* waypointInfo)

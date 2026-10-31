@@ -37,7 +37,7 @@
 #include "WorldPacket.h"
 #include "Database/DatabaseEnv.h"
 #include "ItemEnchantmentMgr.h"
-#include "WorldSession.h"
+#include "Map.h"
 
 /**
  * @brief Applies item set bonuses when an item is equipped.

@@ -49,8 +49,10 @@
 #include "MotionGenerators/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
 #include "TemporarySummon.h"
-#include "WorldSession.h"
 #include "MotionMaster.h"
+#include "Map.h"
+#include "Group.h"
+#include "WorldPacket.h"
 
 uint32 VehicleMoveFlags2(VehicleEntry const& entry)
 {

@@ -51,6 +51,7 @@
 #include "MotionMaster.h"
 #include "persistence/world/creatures/CreatureDataRepository.h"
 #include "persistence/world/spawns/SpawnRepository.h"
+#include "WorldSession.h"
 
 #ifdef _DEBUG_VMAPS
 #endif

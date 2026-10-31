@@ -34,8 +34,8 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "DBCStores.h"
+#include "Group.h"
 
 /**
  * @brief Updates durations for items tracked by the player.

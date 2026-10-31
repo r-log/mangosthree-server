@@ -66,7 +66,7 @@
 #include "Creature.h"
 #include "Player.h"
 
-class WorldSession;
+class PlayerSession;
 class WorldPacket;
 class DynamicObj;
 class Item;

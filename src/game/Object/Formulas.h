@@ -31,6 +31,7 @@
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "Creature.h"
+#include "GridMap.h"
 
 namespace MaNGOS
 {

@@ -31,7 +31,6 @@
 #include "Opcodes.h"
 #include "data/GameConfig.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"

@@ -88,7 +88,7 @@ namespace Harness
         /// Both halves of the client's mover membership, as ScenariosControl.cpp reads them.
         bool OwnMover(Player* p)
         {
-            WorldSession* s = p->GetSession();
+            WorldSession* s = SessionOf(*p);
             return s && s->Movers().IsMember(p->GetObjectGuid().GetRawValue()) && p->MoverSession() == s;
         }
 
@@ -172,7 +172,7 @@ namespace Harness
             MovementInfo word = p->ClientStatus();
             word.SetMovementFlags(MovementFlags(flags));
             word.ChangePosition(p->Where().X(), p->Where().Y(), p->Where().Z(), p->Where().Facing());
-            MovementHandlers::HandleMoverRelocation(*p->GetSession(), p, word);
+            MovementHandlers::HandleMoverRelocation(*SessionOf(*p), p, word);
         }
     }
 

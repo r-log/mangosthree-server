@@ -35,8 +35,8 @@
 #include "data/GameConfig.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
-#include "WorldSession.h"
 #include "persistence/characters/social/ArenaTeamRepository.h"
+#include "Map.h"
 
 void ArenaTeamMember::ModifyPersonalRating(Player* plr, int32 mod, uint32 slot)
 {
@@ -404,7 +404,7 @@ void ArenaTeam::DelMember(ObjectGuid guid)
     sCharacterCache.UpdateArenaTeam(guid, GetSlot(), 0);
 }
 
-void ArenaTeam::Disband(WorldSession* session)
+void ArenaTeam::Disband(PlayerSession* session)
 {
     // event
     if (session)
@@ -423,7 +423,7 @@ void ArenaTeam::Disband(WorldSession* session)
     sArenaTeamRegistry.Remove(m_TeamId);
 }
 
-void ArenaTeam::Roster(WorldSession* session)
+void ArenaTeam::Roster(PlayerSession* session)
 {
     uint8 unk308 = 0;
 
@@ -459,7 +459,7 @@ void ArenaTeam::Roster(WorldSession* session)
     DEBUG_LOG("WORLD: Sent SMSG_ARENA_TEAM_ROSTER");
 }
 
-void ArenaTeam::Query(WorldSession* session)
+void ArenaTeam::Query(PlayerSession* session)
 {
     WorldPacket data(SMSG_ARENA_TEAM_QUERY_RESPONSE, 4 * 7 + GetName().size() + 1);
     data << uint32(GetId());                                // team id
@@ -474,7 +474,7 @@ void ArenaTeam::Query(WorldSession* session)
     DEBUG_LOG("WORLD: Sent SMSG_ARENA_TEAM_QUERY_RESPONSE");
 }
 
-void ArenaTeam::Stats(WorldSession* session)
+void ArenaTeam::Stats(PlayerSession* session)
 {
     WorldPacket data(SMSG_ARENA_TEAM_STATS, 4 * 7);
     data << uint32(GetId());                                // team id
@@ -501,7 +501,7 @@ void ArenaTeam::NotifyStatsChanged()
     }
 }
 
-void ArenaTeam::InspectStats(WorldSession* session, ObjectGuid guid)
+void ArenaTeam::InspectStats(PlayerSession* session, ObjectGuid guid)
 {
     ArenaTeamMember* member = GetMember(guid);
     if (!member)
@@ -888,7 +888,7 @@ bool ArenaTeam::IsFighting() const
 }
 
 // add new arena event to all already connected team members
-void ArenaTeam::MassInviteToEvent(WorldSession* session)
+void ArenaTeam::MassInviteToEvent(PlayerSession* session)
 {
     uint32 count = 0;
 

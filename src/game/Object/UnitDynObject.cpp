@@ -49,6 +49,7 @@
 #include <stdarg.h>
 #include "DynamicObject.h"
 #include "GameObject.h"
+#include "Map.h"
 
 /**
  * @brief Registers a dynamic object owned by the unit.

@@ -30,7 +30,6 @@
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"

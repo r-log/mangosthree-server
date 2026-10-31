@@ -39,7 +39,6 @@
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "UpdateMask.h"
 #include "CinematicFlyover.h"
 #include "QuestDef.h"
@@ -86,6 +85,8 @@
 #include "persistence/characters/mail/MailRepository.h"
 #include "persistence/characters/social/PetitionRepository.h"
 #include "persistence/characters/social/TicketRepository.h"
+#include "Authority.h"
+#include "TimeBase.h"
 
 #include <cmath>
 
@@ -318,7 +319,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(NULL)), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr()
+Player::Player(PlayerSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(NULL)), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr()
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -4273,9 +4274,9 @@ void Player::UpdateSpeakTime()
         {
             // prevent overwrite mute time, if message send just before mutes set, for example.
             time_t new_mute = current + sGameConfig.getConfig(CONFIG_UINT32_CHATFLOOD_MUTE_TIME);
-            if (GetSession()->m_muteTime < new_mute)
+            if (GetSession()->MuteTime() < new_mute)
             {
-                GetSession()->m_muteTime = new_mute;
+                GetSession()->SetMuteTime(new_mute);
             }
 
             m_speakCount = 0;
@@ -4296,7 +4297,7 @@ void Player::UpdateSpeakTime()
  */
 bool Player::CanSpeak() const
 {
-    return  GetSession()->m_muteTime <= time(NULL);
+    return  GetSession()->MuteTime() <= time(NULL);
 }
 
 /*********************************************************/

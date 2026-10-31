@@ -113,12 +113,15 @@ set(OWNER_FILES
     entities/player/PlayerRegistry.h
     entities/player/PlayerConditions.h
     entities/player/PlayerConditions.cpp
+    entities/player/PlayerSession.h
     entities/player/PlayerRegistry.cpp
     entities/player/persistence/PlayerLoad.cpp
     entities/player/persistence/PlayerLoadFromDB.cpp
     entities/player/persistence/PlayerSave.cpp
     entities/player/persistence/PlayerDbLookup.cpp
     entities/player/quests/PlayerQuest.cpp
+    entities/player/quests/QuestGiverStatus.h
+    entities/player/quests/QuestGiverStatus.cpp
     entities/player/talents/PlayerTalent.cpp
     entities/player/talents/PlayerGlyph.cpp                 # decoupling D4k: drives talents/GlyphMgr
     entities/player/spells/PlayerSpell.cpp

@@ -42,6 +42,7 @@
 #include "CharacterCache.h"
 #include "DisableMgr.h"
 #include "persistence/characters/CharacterRepository.h"
+#include "GridMap.h"
 
 #include <cmath>
 

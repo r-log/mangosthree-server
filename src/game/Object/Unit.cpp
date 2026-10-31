@@ -35,7 +35,6 @@
 #include "State.h"
 #include "Log.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
@@ -70,6 +69,7 @@
 #include "Writers.h"
 #include "Transports.h"
 #include "TransportMap.h"
+#include "Group.h"
 
 #include <math.h>
 #include <stdarg.h>

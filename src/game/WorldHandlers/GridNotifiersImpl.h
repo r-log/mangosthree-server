@@ -30,7 +30,6 @@
 #include "WorldPacket.h"
 #include "Corpse.h"
 #include "Player.h"
-#include "WorldSession.h"
 #include "UpdateData.h"
 #include "CreatureAI.h"
 #include "DBCEnums.h"

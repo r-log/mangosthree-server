@@ -130,7 +130,7 @@ bool ChatHandler::HandleMuteCommand(char* args)
 
     if (target)
     {
-        target->GetSession()->m_muteTime = mutetime;
+        target->GetSession()->SetMuteTime(mutetime);
     }
 
     AccountRepository::SetMuteTime(uint64(mutetime), account_id);
@@ -188,7 +188,7 @@ bool ChatHandler::HandleUnmuteCommand(char* args)
             return false;
         }
 
-        target->GetSession()->m_muteTime = 0;
+        target->GetSession()->SetMuteTime(0);
     }
 
     AccountRepository::ClearMuteTime(account_id);
@@ -423,7 +423,7 @@ bool ChatHandler::HandleSendMessageCommand(char* args)
         return false;
     }
 
-    WorldSession* rPlayerSession = rPlayer->GetSession();
+    WorldSession* rPlayerSession = SessionOf(*rPlayer);
 
     ///- Check that he is not logging out.
     if (rPlayerSession->isLogingOut())

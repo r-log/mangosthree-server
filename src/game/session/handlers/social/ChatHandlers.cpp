@@ -209,7 +209,7 @@ void ChatHandlers::HandleMessagechat(WorldSession& session, WorldPacket& recv_da
             {
                 if (!session.GetPlayer()->CanSpeak())
                 {
-                    std::string timeStr = secsToTimeString(session.m_muteTime - time(NULL));
+                    std::string timeStr = secsToTimeString(session.MuteTime() - time(NULL));
                     session.SendNotification(session.GetMangosString(LANG_WAIT_BEFORE_SPEAKING), timeStr.c_str());
                     return;
                 }
@@ -891,7 +891,7 @@ void ChatHandlers::HandleTextEmote(WorldSession& session, WorldPacket& recv_data
 
     if (!session.GetPlayer()->CanSpeak())
     {
-        std::string timeStr = secsToTimeString(session.m_muteTime - time(NULL));
+        std::string timeStr = secsToTimeString(session.MuteTime() - time(NULL));
         session.SendNotification(session.GetMangosString(LANG_WAIT_BEFORE_SPEAKING), timeStr.c_str());
         return;
     }

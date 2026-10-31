@@ -27,7 +27,6 @@
 #include <set>
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "Player.h"
 #include "Opcodes.h"
 #include "ObjectMgr.h"
@@ -43,6 +42,7 @@
 #include "PlayerRegistry.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/social/GuildRepository.h"
+#include "GridMap.h"
 
 static_assert(int(GUILD_MEMBER_DATA_ROW_TABS) == int(GUILD_BANK_MAX_TABS), "a guild member row holds every bank tab");
 
@@ -165,7 +165,7 @@ bool Guild::Create(Player* leader, std::string gname)
         return false;
     }
 
-    WorldSession* lSession = leader->GetSession();
+    PlayerSession* lSession = leader->GetSession();
     if (!lSession)
     {
         return false;
@@ -737,7 +737,7 @@ bool Guild::ChangeMemberRank(ObjectGuid guid, uint8 newRank)
  * @param msg The message text.
  * @param language The chat language identifier.
  */
-void Guild::BroadcastToGuild(WorldSession* session, const std::string& msg, uint32 language)
+void Guild::BroadcastToGuild(PlayerSession* session, const std::string& msg, uint32 language)
 {
     if (!session)
     {
@@ -764,7 +764,7 @@ void Guild::BroadcastToGuild(WorldSession* session, const std::string& msg, uint
     }
 }
 
-void Guild::BroadcastAddonToGuild(WorldSession* session, const std::string& msg, const std::string& prefix)
+void Guild::BroadcastAddonToGuild(PlayerSession* session, const std::string& msg, const std::string& prefix)
 {
     if (session && session->GetPlayer() && HasRankRight(session->GetPlayer()->GetRank(), GR_RIGHT_GCHATSPEAK))
     {
@@ -790,7 +790,7 @@ void Guild::BroadcastAddonToGuild(WorldSession* session, const std::string& msg,
  * @param msg The message text.
  * @param language The chat language identifier.
  */
-void Guild::BroadcastToOfficers(WorldSession* session, const std::string& msg, uint32 language)
+void Guild::BroadcastToOfficers(PlayerSession* session, const std::string& msg, uint32 language)
 {
     if (!session)
     {
@@ -817,7 +817,7 @@ void Guild::BroadcastToOfficers(WorldSession* session, const std::string& msg, u
     }
 }
 
-void Guild::BroadcastAddonToOfficers(WorldSession* session, const std::string& msg, const std::string& prefix)
+void Guild::BroadcastAddonToOfficers(PlayerSession* session, const std::string& msg, const std::string& prefix)
 {
     if (session && session->GetPlayer() && HasRankRight(session->GetPlayer()->GetRank(), GR_RIGHT_OFFCHATSPEAK))
     {
@@ -875,7 +875,7 @@ void Guild::BroadcastPacketToRank(WorldPacket* packet, uint32 rankId)
 }
 
 // add new event to all already connected guild memebers
-void Guild::MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 maxLevel, uint32 minRank)
+void Guild::MassInviteToEvent(PlayerSession* session, uint32 minLevel, uint32 maxLevel, uint32 minRank)
 {
     uint32 count = 0;
 
@@ -940,7 +940,7 @@ void Guild::Disband()
  *
  * @param session The target session, or null to broadcast.
  */
-void Guild::Roster(WorldSession* session /*= NULL*/)
+void Guild::Roster(PlayerSession* session /*= NULL*/)
 {
     ByteBuffer buffer;
 
@@ -1041,7 +1041,7 @@ void Guild::Roster(WorldSession* session /*= NULL*/)
  *
  * @param session The session requesting guild information.
  */
-void Guild::Query(WorldSession* session)
+void Guild::Query(PlayerSession* session)
 {
     WorldPacket data(SMSG_GUILD_QUERY_RESPONSE, (8 * 32 + 200)); // we can only guess size
 
@@ -1097,7 +1097,7 @@ void Guild::Query(WorldSession* session)
     DEBUG_LOG("WORLD: Sent (SMSG_GUILD_QUERY_RESPONSE)");
 }
 
-void Guild::QueryRanks(WorldSession* session)
+void Guild::QueryRanks(PlayerSession* session)
 {
     WorldPacket data(SMSG_GUILD_QUERY_RANKS_RESULT, (4 * 2 * 8 + 4 * 3 + 1) * m_Ranks.size()); // we can only guess size
 
@@ -1178,7 +1178,7 @@ uint32 Guild::GetAccountsNumber()
  *
  * @param session The session receiving the event log.
  */
-void Guild::DisplayGuildEventLog(WorldSession* session)
+void Guild::DisplayGuildEventLog(PlayerSession* session)
 {
     // Sending result
     ByteBuffer buffer;
