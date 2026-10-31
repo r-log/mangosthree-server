@@ -25,7 +25,7 @@
 
 #include "Platform/Define.h"
 #include <algorithm>
-#include <cstring>
+#include <atomic>
 #include <ctime>
 #include <string>
 #include "Database/DatabaseEnv.h"
@@ -42,50 +42,22 @@ static_assert(int(GM_SURVEY_ROW_ANSWERS) == 10, "the saved survey row's answers"
 
 
 /**
- * @brief Stores GM survey answers from a received packet.
+ * @brief Stores a player's GM survey answers.
  *
- * @param recvData The packet containing survey responses and optional comments.
+ * @param survey The survey, its answers and the closing comment.
  */
-void GMTicket::SaveSurveyData(WorldPacket& recvData) const
+void GMTicket::SaveSurveyData(GMSurveyAnswers const& survey) const
 {
-    uint32 surveyId;
-    recvData >> surveyId;                                  // GMSurveyCurrentSurvey.dbc
-    DEBUG_LOG("SURVEY: surveyId = %u", surveyId);
-
-    uint8 result[10];
-    memset(result, 0, sizeof(result));
-    for (int i = 0; i < 10; ++i)
-    {
-        uint32 questionID;
-        recvData >> questionID;                            // GMSurveyQuestions.dbc
-        if (!questionID)
-        {
-            break;
-        }
-
-        uint8 value;
-        std::string unk_text;
-        recvData >> value;                                 // answer
-        recvData >> unk_text;                              // comment per question
-
-        result[i] = value;
-        DEBUG_LOG("SURVEY: ID %u, value %u, text %s", questionID, value, unk_text.c_str());
-    }
-
-    std::string comment;
-    recvData >> comment;                                   // additional comment
-    DEBUG_LOG("SURVEY: comment %s", comment.c_str());
-
     // Save survey data to database, the comment bound.
     GMSurveyRow row;
     row.guid       = m_guid.GetCounter();
     row.ticketId   = m_ticketId;
-    row.mainSurvey = surveyId;
+    row.mainSurvey = survey.surveyId;
     for (int i = 0; i < 10; ++i)
     {
-        row.answers[i] = result[i];
+        row.answers[i] = survey.answers[i];
     }
-    row.comment    = comment;
+    row.comment    = survey.comment;
     TicketRepository::InsertSurvey(row);
 }
 
@@ -175,7 +147,7 @@ void GMTicket::_Close(GMTicketStatus statusCode) const
 
     if (pPlayer && statusCode != GM_TICKET_STATUS_DO_NOTHING)
     {
-        SessionOf(*pPlayer)->SendGMTicketStatusUpdate(statusCode);
+        sTicketNotices.StatusUpdate(*pPlayer, statusCode);
     }
 }
 
@@ -264,10 +236,44 @@ void GMTicketMgr::DeleteAll()
     {
         if (Player* owner = sPlayerRegistry.Find(itr->first))
         {
-            SessionOf(*owner)->SendGMTicketGetTicket(0x0A);
+            sTicketNotices.GetTicket(*owner, 0x0A);
         }
     }
     TicketRepository::DeleteAll();
     m_GMTicketIdMap.clear();
     m_GMTicketMap.clear();
+}
+
+namespace
+{
+    std::atomic<TicketNotices*> s_ticketNoticesInstalled(NULL);
+
+    TicketNotices& BaseTicketNotices()
+    {
+        static TicketNotices notices;
+        return notices;
+    }
+}
+
+TicketNotices::~TicketNotices()
+{
+}
+
+void TicketNotices::StatusUpdate(Player& /*player*/, GMTicketStatus /*status*/)
+{
+}
+
+void TicketNotices::GetTicket(Player& /*player*/, uint32 /*status*/)
+{
+}
+
+TicketNotices& TicketNotices::Installed()
+{
+    TicketNotices* notices = s_ticketNoticesInstalled.load(std::memory_order_acquire);
+    return notices ? *notices : BaseTicketNotices();
+}
+
+TicketNotices* TicketNotices::Install(TicketNotices* notices)
+{
+    return s_ticketNoticesInstalled.exchange(notices, std::memory_order_acq_rel);
 }

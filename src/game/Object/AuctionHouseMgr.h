@@ -46,6 +46,8 @@
 #include "Common/TimeConstants.h"
 #include <ctime>
 #include <map>
+#include <vector>
+#include <string>
 #include "DBCStructure.h"
 
 /** \addtogroup auctionhouse
@@ -194,6 +196,31 @@ enum AuctionHouseType
 };
 
 #define MAX_AUCTION_HOUSE_TYPE 3
+
+/// What the auction house tells a player's client: one of the player's auctions sold or was bid on,
+/// and the player was outbid. The session installs the notices that send them at start-up; this base
+/// sends nothing.
+class AuctionNotices
+{
+    public:
+        virtual ~AuctionNotices();
+
+        virtual void OwnerNotification(Player& player, AuctionEntry* auction);
+        virtual void BidderNotification(Player& player, AuctionEntry* auction);
+
+        /// The installed notices, or the base when none are installed.
+        static AuctionNotices& Installed();
+        /// Installs `notices` and answers the ones it replaces (NULL for the base). NULL installs the
+        /// base. Installed once at start-up, before the world loads.
+        static AuctionNotices* Install(AuctionNotices* notices);
+};
+
+#define sAuctionNotices AuctionNotices::Installed()
+
+/// Appends to `data` the auctions of `auctions` that `player` sees under the search filters, from
+/// `listfrom`: `count` the entries appended, `totalcount` the entries that matched.
+void BuildListAuctionItems(Player& player, std::vector<AuctionEntry*> const& auctions, WorldPacket& data, std::wstring const& searchedname, uint32 listfrom, uint32 levelmin,
+                           uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, uint32& count, uint32& totalcount, bool isFull);
 
 class AuctionHouseMgr
 {

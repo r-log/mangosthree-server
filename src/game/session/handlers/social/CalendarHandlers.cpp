@@ -38,6 +38,7 @@
 #include "Opcodes.h"
 #include "MapPersistentStateMgr.h"
 #include "Calendar.h"
+#include "CalendarHandler.h"
 #include "CharacterCache.h"
 #include "ObjectMgr.h"
 #include "social/ArenaTeamRegistry.h"
@@ -289,7 +290,7 @@ void CalendarHandlers::HandleCalendarEventSignup(WorldSession& session, WorldPac
 
         CalendarInviteStatus status = tentative ? CALENDAR_STATUS_TENTATIVE : CALENDAR_STATUS_SIGNED_UP;
         sCalendarMgr.AddInvite(event, guid, guid, CalendarInviteStatus(status), CALENDAR_RANK_PLAYER, "", time(NULL));
-        sCalendarMgr.SendCalendarClearPendingAction(session.GetPlayer());
+        SendCalendarClearPendingAction(session.GetPlayer());
     }
     else
     {
@@ -453,7 +454,7 @@ void CalendarHandlers::HandleCalendarUpdateEvent(WorldSession& session, WorldPac
         event->Title = title;
         event->Description = description;
 
-        sCalendarMgr.SendCalendarEventUpdateAlert(event, oldEventTime);
+        SendCalendarEventUpdateAlert(event, oldEventTime);
 
         // The title and the description are bound, not escaped, so the write takes no
         // connection lock on the world thread. It writes the six columns this handler
@@ -764,8 +765,8 @@ void CalendarHandlers::HandleCalendarEventRsvp(WorldSession& session, WorldPacke
             invite->LastUpdateTime = time(NULL);
 
             CalendarRepository::SetInviteReply(invite->InviteId, status, uint32(invite->LastUpdateTime));
-            sCalendarMgr.SendCalendarEventStatus(invite);
-            sCalendarMgr.SendCalendarClearPendingAction(session.GetPlayer());
+            SendCalendarEventStatus(invite);
+            SendCalendarClearPendingAction(session.GetPlayer());
         }
         else
         {
@@ -845,8 +846,8 @@ void CalendarHandlers::HandleCalendarEventStatus(WorldSession& session, WorldPac
             invite->LastUpdateTime = time(NULL);            // not sure if we should set response time when moderator changes invite status
 
             CalendarRepository::SetInviteStatus(invite->InviteId, status, uint32(invite->LastUpdateTime));
-            sCalendarMgr.SendCalendarEventStatus(invite);
-            sCalendarMgr.SendCalendarClearPendingAction(sPlayerRegistry.Find(invitee));
+            SendCalendarEventStatus(invite);
+            SendCalendarClearPendingAction(sPlayerRegistry.Find(invitee));
         }
         else
         {
@@ -904,7 +905,7 @@ void CalendarHandlers::HandleCalendarEventModeratorStatus(WorldSession& session,
 
             CalendarRepository::SetInviteRank(invite->InviteId, rank);
             invite->Rank = CalendarModerationRank(rank);
-            sCalendarMgr.SendCalendarEventModeratorStatusAlert(invite);
+            SendCalendarEventModeratorStatusAlert(invite);
         }
         else
         {

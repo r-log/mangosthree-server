@@ -26,6 +26,8 @@
 #include <sstream>
 #include <string>
 #include "Calendar.h"
+
+#include <atomic>
 #include "Guild.h"
 #include "Mail.h"
 #include "ObjectMgr.h"
@@ -859,4 +861,110 @@ bool CalendarMgr::CanAddInviteTo(ObjectGuid const& guid)
     }
 
     return true;
+}
+
+void CalendarMgr::SendCalendarEventInvite(CalendarInvite const* invite)
+{
+    sCalendarNotices.EventInvite(invite);
+}
+
+void CalendarMgr::SendCalendarEventInviteAlert(CalendarInvite const* invite)
+{
+    sCalendarNotices.EventInviteAlert(invite);
+}
+
+void CalendarMgr::SendCalendarCommandResult(Player* player, CalendarError err, char const* param)
+{
+    sCalendarNotices.CommandResult(player, err, param);
+}
+
+void CalendarMgr::SendCalendarEventRemovedAlert(CalendarEvent const* event)
+{
+    sCalendarNotices.EventRemovedAlert(event);
+}
+
+void CalendarMgr::SendCalendarEvent(Player* player, CalendarEvent const* event, uint32 sendType)
+{
+    sCalendarNotices.Event(player, event, sendType);
+}
+
+void CalendarMgr::SendCalendarEventInviteRemoveAlert(Player* player, CalendarEvent const* event, CalendarInviteStatus status)
+{
+    sCalendarNotices.EventInviteRemoveAlert(player, event, status);
+}
+
+void CalendarMgr::SendCalendarEventInviteRemove(CalendarInvite const* invite, uint32 flags)
+{
+    sCalendarNotices.EventInviteRemove(invite, flags);
+}
+
+void CalendarMgr::SendCalendarRaidLockoutRemove(Player* player, DungeonPersistentState const* save)
+{
+    sCalendarNotices.RaidLockoutRemove(player, save);
+}
+
+void CalendarMgr::SendCalendarRaidLockoutAdd(Player* player, DungeonPersistentState const* save)
+{
+    sCalendarNotices.RaidLockoutAdd(player, save);
+}
+namespace
+{
+    std::atomic<CalendarNotices*> s_calendarNoticesInstalled(NULL);
+
+    CalendarNotices& BaseCalendarNotices()
+    {
+        static CalendarNotices notices;
+        return notices;
+    }
+}
+
+CalendarNotices::~CalendarNotices()
+{
+}
+
+void CalendarNotices::EventInvite(CalendarInvite const* /*invite*/)
+{
+}
+
+void CalendarNotices::EventInviteAlert(CalendarInvite const* /*invite*/)
+{
+}
+
+void CalendarNotices::CommandResult(Player* /*player*/, CalendarError /*err*/, char const* /*param*/)
+{
+}
+
+void CalendarNotices::EventRemovedAlert(CalendarEvent const* /*event*/)
+{
+}
+
+void CalendarNotices::Event(Player* /*player*/, CalendarEvent const* /*event*/, uint32 /*sendType*/)
+{
+}
+
+void CalendarNotices::EventInviteRemoveAlert(Player* /*player*/, CalendarEvent const* /*event*/, CalendarInviteStatus /*status*/)
+{
+}
+
+void CalendarNotices::EventInviteRemove(CalendarInvite const* /*invite*/, uint32 /*flags*/)
+{
+}
+
+void CalendarNotices::RaidLockoutRemove(Player* /*player*/, DungeonPersistentState const* /*save*/)
+{
+}
+
+void CalendarNotices::RaidLockoutAdd(Player* /*player*/, DungeonPersistentState const* /*save*/)
+{
+}
+
+CalendarNotices& CalendarNotices::Installed()
+{
+    CalendarNotices* notices = s_calendarNoticesInstalled.load(std::memory_order_acquire);
+    return notices ? *notices : BaseCalendarNotices();
+}
+
+CalendarNotices* CalendarNotices::Install(CalendarNotices* notices)
+{
+    return s_calendarNoticesInstalled.exchange(notices, std::memory_order_acq_rel);
 }

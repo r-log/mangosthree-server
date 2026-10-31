@@ -215,6 +215,40 @@ void TicketHandlers::HandleGMTicketSystemStatus(WorldSession& session, WorldPack
     session.SendPacket(&data);
 }
 
+namespace
+{
+    /// Reads the survey the client submits: the survey, up to ten answers each with its comment, and
+    /// the closing comment.
+    GMSurveyAnswers ReadSurvey(WorldPacket& recvData)
+    {
+        GMSurveyAnswers survey;
+        recvData >> survey.surveyId;                           // GMSurveyCurrentSurvey.dbc
+        DEBUG_LOG("SURVEY: surveyId = %u", survey.surveyId);
+
+        for (int i = 0; i < 10; ++i)
+        {
+            uint32 questionID;
+            recvData >> questionID;                            // GMSurveyQuestions.dbc
+            if (!questionID)
+            {
+                break;
+            }
+
+            uint8 value;
+            std::string unk_text;
+            recvData >> value;                                 // answer
+            recvData >> unk_text;                              // comment per question
+
+            survey.answers[i] = value;
+            DEBUG_LOG("SURVEY: ID %u, value %u, text %s", questionID, value, unk_text.c_str());
+        }
+
+        recvData >> survey.comment;                            // additional comment
+        DEBUG_LOG("SURVEY: comment %s", survey.comment.c_str());
+        return survey;
+    }
+}
+
 /**
  * @brief Handle ticket survey submission (CMSG_GMSURVEY_SUBMIT)
  * @param recv_data World packet containing survey responses
@@ -235,7 +269,7 @@ void TicketHandlers::HandleGMTicketSurveySubmit(WorldSession& session, WorldPack
         return;
     }
 
-    ticket->SaveSurveyData(recv_data);
+    ticket->SaveSurveyData(ReadSurvey(recv_data));
 
     // Delete the ticket now that the survey is done
     sTicketMgr.Delete(session.GetPlayer()->GetObjectGuid());

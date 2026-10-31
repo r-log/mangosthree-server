@@ -652,7 +652,7 @@ void AuctionHandlers::HandleAuctionListItems(WorldSession& session, WorldPacket&
 
     wstrToLower(wsearchedname);
 
-    session.BuildListAuctionItems(auctions, data, wsearchedname, listfrom, levelmin, levelmax, usable,
+    BuildListAuctionItems(*session.GetPlayer(), auctions, data, wsearchedname, listfrom, levelmin, levelmax, usable,
                           auctionSlotID, auctionMainCategory, auctionSubCategory, quality, count, totalcount, isFull);
 
     data.put<uint32>(0, count);
