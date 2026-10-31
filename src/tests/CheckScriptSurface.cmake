@@ -44,6 +44,10 @@ if(NOT SCRIPT_SURFACE_RESULT EQUAL 0)
         "surface instead.\n"
         "  - a file outside src/scripts/legacy/ including a legacy header: only the legacy library and "
         "src/mangosd/LegacyScripts.cpp include it.\n"
+        "  - legacy reach grew, or a new legacy file reaches the core: write the code under "
+        "src/scripts/content/ against the surface; legacy only shrinks.\n"
+        "  - a stale ratchet line: the reach is gone; delete the line from src/tests/script_legacy_reach.txt "
+        "(or run --generate, which only drops lines).\n"
         "  - no surface header, or no symbol read from a core library: the tree or the build is not where the "
         "gate looks; fix the path, do not skip the gate.")
 endif()
