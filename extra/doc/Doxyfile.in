@@ -667,7 +667,7 @@ INPUT                  = @TOP_SRCDIR@/src/shared/ \
                          @TOP_SRCDIR@/src/game/ \
                          @TOP_SRCDIR@/src/game/AuctionHouseBot/ \
                          @TOP_SRCDIR@/src/game/BattleGround/ \
-                         @TOP_SRCDIR@/src/game/movement/ \
+                         @TOP_SRCDIR@/src/motion/movement/ \
                          @TOP_SRCDIR@/src/game/OutdoorPvP/ \
                          @TOP_SRCDIR@/src/realmd/ \
                          @TOP_SRCDIR@/src/mangosd/ \

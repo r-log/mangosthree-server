@@ -61,9 +61,6 @@ source_group("Harness" FILES ${SRC_GRP_HARNESS})
 file(GLOB SRC_GRP_MOTION_GEN MotionGenerators/*.cpp MotionGenerators/*.h)
 source_group("Motion generators" FILES ${SRC_GRP_MOTION_GEN})
 
-file(GLOB SRC_GRP_MOVEMENT movement/*.cpp movement/*.h)
-source_group("Movement" FILES ${SRC_GRP_MOVEMENT})
-
 file(GLOB SRC_GRP_OBJECT Object/*.cpp Object/*.h)
 source_group("Object" FILES ${SRC_GRP_OBJECT})
 
@@ -298,9 +295,6 @@ source_group("Spells\\Handlers" FILES ${SRC_GRP_SPELLS_HANDLERS})
 file(GLOB SRC_GRP_SPELLS_PIPELINE spells/pipeline/*.cpp spells/pipeline/*.h)
 source_group("Spells\\Pipeline" FILES ${SRC_GRP_SPELLS_PIPELINE})
 
-file(GLOB SRC_GRP_TIME Time/*.cpp Time/*.h)
-source_group("Time" FILES ${SRC_GRP_TIME})
-
 file(GLOB SRC_GRP_TOOL Tools/*.cpp Tools/*.h)
 source_group("Tool" FILES ${SRC_GRP_TOOL})
 
@@ -387,7 +381,6 @@ target_include_directories(data
         ${CMAKE_CURRENT_SOURCE_DIR}
         Object
         Server
-        Time
         Tools
         WorldHandlers
 )
@@ -401,12 +394,96 @@ target_link_libraries(data
         persistence
 )
 
-configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/AuctionHouseBot/ahbot.conf.dist)
+set(DOMAIN_SOURCES
+    WorldHandlers/AchievementCriteriaRequirement.cpp
+    WorldHandlers/AchievementGlobalMgr.cpp
+    WorldHandlers/AchievementMgr.cpp
+    WorldHandlers/AchievementMgr.h
+    WorldHandlers/BareMap.h
+    WorldHandlers/Cell.h
+    WorldHandlers/CellImpl.h
+    WorldHandlers/Channel.cpp
+    WorldHandlers/Channel.h
+    WorldHandlers/ChannelMgr.cpp
+    WorldHandlers/ChannelMgr.h
+    WorldHandlers/CreatureLinkingHolder.cpp
+    WorldHandlers/CreatureLinkingHolder.h
+    WorldHandlers/DynamicCollision.cpp
+    WorldHandlers/DynamicCollision.h
+    WorldHandlers/GameObjectModel.cpp
+    WorldHandlers/GameObjectModel.h
+    WorldHandlers/GameObjectModelOwner.cpp
+    WorldHandlers/GossipDef.cpp
+    WorldHandlers/GossipDef.h
+    WorldHandlers/GridDefines.h
+    WorldHandlers/GridMap.cpp
+    WorldHandlers/GridMap.h
+    WorldHandlers/GridNotifiers.cpp
+    WorldHandlers/GridNotifiers.h
+    WorldHandlers/GridNotifiersImpl.h
+    WorldHandlers/GridStates.cpp
+    WorldHandlers/GridStates.h
+    WorldHandlers/Group.cpp
+    WorldHandlers/Group.h
+    WorldHandlers/GroupInstance.cpp
+    WorldHandlers/GroupMemberState.cpp
+    WorldHandlers/GuildMgr.cpp
+    WorldHandlers/GuildMgr.h
+    WorldHandlers/InstanceData.cpp
+    WorldHandlers/InstanceData.h
+    WorldHandlers/InstanceDataCache.cpp
+    WorldHandlers/InstanceDataCache.h
+    WorldHandlers/LFGBootLogic.h
+    WorldHandlers/LFGCallToArmsLogic.h
+    WorldHandlers/LFGDungeonResolution.h
+    WorldHandlers/LFGEmpowerment.h
+    WorldHandlers/LFGLockReason.h
+    WorldHandlers/LFGMgr.cpp
+    WorldHandlers/LFGMgr.h
+    WorldHandlers/LFGMgrProposal.cpp
+    WorldHandlers/LFGMgrQueue.cpp
+    WorldHandlers/LFGProposalLogic.h
+    WorldHandlers/LFGRewardLogic.h
+    WorldHandlers/LFGRoleAssignment.h
+    WorldHandlers/LineOfSightExemptions.cpp
+    WorldHandlers/LineOfSightExemptions.h
+    WorldHandlers/Mail.cpp
+    WorldHandlers/Mail.h
+    WorldHandlers/Map.cpp
+    WorldHandlers/Map.h
+    WorldHandlers/MapManager.cpp
+    WorldHandlers/MapManager.h
+    WorldHandlers/MapPersistentStateMgr.cpp
+    WorldHandlers/MapPersistentStateMgr.h
+    WorldHandlers/MassMailMgr.cpp
+    WorldHandlers/MassMailMgr.h
+    WorldHandlers/MoveMap.cpp
+    WorldHandlers/MoveMap.h
+    WorldHandlers/MoveMapSharedDefines.h
+    WorldHandlers/ObjectGridLoader.cpp
+    WorldHandlers/ObjectGridLoader.h
+    WorldHandlers/PoolSpawner.cpp
+    WorldHandlers/PoolSpawner.h
+    WorldHandlers/SkillDiscovery.cpp
+    WorldHandlers/SkillDiscovery.h
+    WorldHandlers/SkillExtraItems.cpp
+    WorldHandlers/SkillExtraItems.h
+    WorldHandlers/TransportMap.cpp
+    WorldHandlers/TransportMap.h
+    WorldHandlers/Transports.cpp
+    WorldHandlers/Transports.h
+    WorldHandlers/UpdateData.cpp
+    WorldHandlers/UpdateData.h
+    WorldHandlers/Weather.cpp
+    WorldHandlers/Weather.h
+)
+list(TRANSFORM DOMAIN_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+list(REMOVE_ITEM SRC_GRP_WORLD_HANDLERS ${DOMAIN_SOURCES})
+set(DOMAIN_BATTLEGROUND ${SRC_GRP_BATTLEGROUND})
+list(REMOVE_ITEM DOMAIN_BATTLEGROUND ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround/BattleGroundHandler.cpp)
 
-add_library(game STATIC
-    ${SRC_GRP_AHBOT}
-    ${SRC_GRP_BATTLEGROUND}
-    ${SRC_GRP_CHAT_COMMANDS}
+add_library(domain STATIC
+    ${DOMAIN_BATTLEGROUND}
     ${SRC_GRP_COMBAT}
     ${SRC_GRP_ENTITIES}
     ${SRC_GRP_ENTITIES_PLAYER}
@@ -422,12 +499,71 @@ add_library(game STATIC
     ${SRC_GRP_ENTITIES_PLAYER_TALENTS}
     ${SRC_GRP_ENTITIES_PLAYER_WORLD}
     ${SRC_GRP_MAP_THREAD}
-    ${SRC_GRP_HARNESS}
     ${SRC_GRP_MOTION_GEN}
-    ${SRC_GRP_MOVEMENT}
     ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
     ${SRC_GRP_REFERENCES}
+    ${SRC_GRP_SOCIAL}
+    ${SRC_GRP_SPELLS}
+    ${SRC_GRP_SPELLS_AURAS}
+    ${SRC_GRP_SPELLS_HANDLERS}
+    ${SRC_GRP_SPELLS_PIPELINE}
+    ${DOMAIN_SOURCES}
+)
+
+target_include_directories(domain
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        BattleGround
+        ${CMAKE_CURRENT_SOURCE_DIR}/combat
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/combat
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/interaction
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/inventory
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/persistence
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/pets
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/pvp
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/quests
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/social
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/spells
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/talents
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
+        Maps
+        MotionGenerators
+        Object
+        OutdoorPvP
+        References
+        WorldHandlers
+)
+
+if(MSVC)
+    target_compile_options(domain PRIVATE /permissive-)
+endif()
+
+target_link_libraries(domain
+    PUBLIC
+        data
+        persistence
+        terrain
+        geometry
+        shared_db
+        proto
+        motion
+        RecastNavigation::Detour
+        ZLIB::ZLIB
+)
+
+if(PCH)
+    add_cxx_pch(domain pchdomain.h)
+endif()
+
+configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/AuctionHouseBot/ahbot.conf.dist)
+
+add_library(game STATIC
+    ${SRC_GRP_AHBOT}
+    ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround/BattleGroundHandler.cpp
+    ${SRC_GRP_CHAT_COMMANDS}
+    ${SRC_GRP_HARNESS}
     ${SRC_GRP_SERVER}
     ${SRC_GRP_SESSION}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}
@@ -444,12 +580,6 @@ add_library(game STATIC
     ${SRC_GRP_SESSION_PACKETS_ENTITIES}
     ${SRC_GRP_SESSION_PACKETS_QUESTS}
     ${SRC_GRP_SESSION_PACKETS_SPELLS}
-    ${SRC_GRP_SOCIAL}
-    ${SRC_GRP_SPELLS}
-    ${SRC_GRP_SPELLS_AURAS}
-    ${SRC_GRP_SPELLS_HANDLERS}
-    ${SRC_GRP_SPELLS_PIPELINE}
-    ${SRC_GRP_TIME}
     ${SRC_GRP_TOOL}
     ${SRC_GRP_WORLD_HANDLERS}
 )
@@ -458,29 +588,9 @@ target_include_directories(game
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         AuctionHouseBot
-        BattleGround
         ChatCommands
-        ${CMAKE_CURRENT_SOURCE_DIR}/combat
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/combat
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/interaction
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/inventory
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/persistence
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/pets
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/pvp
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/quests
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/social
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/spells
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/talents
-        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
         Harness
-        Maps
-        MotionGenerators
-        Object
-        OutdoorPvP
-        References
         Server
-        Time
         Tools
         WorldHandlers
 )
@@ -491,6 +601,7 @@ endif()
 
 target_link_libraries(game
     PUBLIC
+        domain
         data
         persistence
         terrain
