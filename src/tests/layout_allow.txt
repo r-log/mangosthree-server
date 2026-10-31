@@ -212,7 +212,6 @@ src/game/Object/LootMgr.cpp -> src/game/entities/player/Player.h
 src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerConditions.h
 src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Object.h -> src/game/WorldHandlers/UpdateData.h
-src/game/Object/ObjectGuid.cpp -> src/game/Object/ObjectMgr.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/UpdateData.h

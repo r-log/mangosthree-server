@@ -146,6 +146,12 @@ namespace
     {
         ServerControl::StopNow(ERROR_EXIT_CODE);
     }
+
+    /// Finds a player's name by guid in the character data ObjectMgr holds.
+    bool FindPlayerName(ObjectGuid guid, std::string& name)
+    {
+        return sObjectMgr.GetPlayerNameByGUID(guid, name);
+    }
 }
 
 std::atomic<uint32> World::m_worldLoopCounter{0};
@@ -190,6 +196,7 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_social(sPlayerRegistry)
     WorldBroadcast::Install(this);
     ServerControl::Install(this);
     InstallGuidOverflowHandler(&StopOnGuidOverflow);
+    InstallPlayerNameResolver(&FindPlayerName);
 }
 
 /// World destructor

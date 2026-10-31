@@ -166,6 +166,8 @@ set(SRC_GRP_UTILITIES
   Utilities/ProgressBar.cpp
   Utilities/IdList.h
   Utilities/MathDefines.h
+  Utilities/ObjectGuid.cpp
+  Utilities/ObjectGuid.h
   Utilities/PackedValues.h
   Utilities/ProgressBar.h
   Utilities/ProgressBarRender.h

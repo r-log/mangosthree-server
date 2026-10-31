@@ -234,7 +234,6 @@ legacy/include/precompiled.h include game/Object/CreatureAI.h
 legacy/include/precompiled.h include game/Object/GameObject.h
 legacy/include/precompiled.h include game/Object/GameObjectAI.h
 legacy/include/precompiled.h include game/Object/Object.h
-legacy/include/precompiled.h include game/Object/ObjectGuid.h
 legacy/include/precompiled.h include game/Object/Unit.h
 legacy/include/precompiled.h include game/WorldHandlers/ScriptMgr.h
 legacy/include/precompiled.h include game/spells/auras/SpellAuras.h

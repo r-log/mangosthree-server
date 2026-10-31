@@ -32,7 +32,7 @@
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "Server/WorldSession.h"
-#include "Object/ObjectGuid.h"
+#include "ObjectGuid.h"
 #include "WorldHandlers/UpdateData.h"
 #include "entities/player/Player.h"
 

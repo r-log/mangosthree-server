@@ -26,7 +26,7 @@
 #include <string>
 #include "ObjectGuid.h"
 
-#include "ObjectMgr.h"
+#include "Log/Log.h"
 
 #include <atomic>
 #include <sstream>
@@ -34,6 +34,7 @@
 namespace
 {
     std::atomic<GuidOverflowHandler> s_overflowHandler(NULL);
+    std::atomic<PlayerNameResolver> s_nameResolver(NULL);
 }
 
 GuidOverflowHandler InstallGuidOverflowHandler(GuidOverflowHandler handler)
@@ -47,6 +48,11 @@ void GuidOverflow()
     {
         handler();
     }
+}
+
+PlayerNameResolver InstallPlayerNameResolver(PlayerNameResolver resolver)
+{
+    return s_nameResolver.exchange(resolver, std::memory_order_acq_rel);
 }
 
 /**
@@ -90,7 +96,8 @@ std::string ObjectGuid::GetString() const
     if (IsPlayer())
     {
         std::string name;
-        if (sObjectMgr.GetPlayerNameByGUID(*this, name))
+        PlayerNameResolver resolve = s_nameResolver.load(std::memory_order_acquire);
+        if (resolve && resolve(*this, name))
         {
             str << " " << name;
         }
