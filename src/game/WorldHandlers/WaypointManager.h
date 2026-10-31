@@ -227,5 +227,4 @@ class WaypointManager
 
 #define sWaypointMgr MaNGOS::Singleton<WaypointManager>::Instance()
 
-
 #endif
