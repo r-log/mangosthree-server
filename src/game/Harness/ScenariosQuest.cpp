@@ -529,7 +529,7 @@ namespace Harness
                 st->repBefore = p->GetReputationMgr().GetReputation(72);
                 st->held57524Before = p->GetInventoryMgr().GetItemCount(57524);
                 st->held858Before = p->GetInventoryMgr().GetItemCount(858);
-                st->xpExpected = uint32(q->XPValue(p) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+                st->xpExpected = uint32(q->XPValue(p->getLevel()) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
 
                 m_rec.Open("reward");
                 st->rewardRan = true;
@@ -926,7 +926,7 @@ namespace Harness
                 st->repBefore = p->GetReputationMgr().GetReputation(69);
                 st->held5399Before = p->GetInventoryMgr().GetItemCount(5399);
                 st->held961Before = p->GetInventoryMgr().GetItemCount(961);
-                st->xpExpected = uint32(q->XPValue(p) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+                st->xpExpected = uint32(q->XPValue(p->getLevel()) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
                 st->rewardRan = Reward(p, q, 1, p, p->GetObjectGuid(), "canReward", "reward", st->canReward);
                 st->askPackets = m_rec.CountIn("canReward");
                 st->moneyAfter = p->GetMoney();
@@ -1535,7 +1535,7 @@ namespace Harness
                 st->moneyBefore = p->GetMoney();
                 st->xpBefore = p->GetUInt32Value(PLAYER_XP);
                 st->levelBefore = p->getLevel();
-                st->xpExpected = uint32(q->XPValue(p) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+                st->xpExpected = uint32(q->XPValue(p->getLevel()) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
                 st->rewardRan = Reward(p, q, 0, p, p->GetObjectGuid(), "canReward", "reward", st->canReward);
                 st->freeAfter = p->GetTalentMgr().FreePoints();
                 st->talentUpdates = m_rec.CountIn("reward", SMSG_TALENT_UPDATE);

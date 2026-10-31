@@ -24,8 +24,8 @@
 #ifndef MANGOS_LIVING_WORLD_ANCHOR_POLICY_H
 #define MANGOS_LIVING_WORLD_ANCHOR_POLICY_H
 
-#include "Creature.h"             // CreatureInfo, CREATURE_ELITE_WORLDBOSS, CREATURE_ELITE_NORMAL
-#include "Unit.h"                 // UNIT_NPC_FLAG_FLIGHTMASTER, UNIT_NPC_FLAG_GOSSIP
+#include "data/CreatureRecords.h" // CreatureInfo
+#include "SharedDefines.h"        // CREATURE_ELITE_WORLDBOSS, CREATURE_ELITE_NORMAL, UNIT_NPC_FLAG_FLIGHTMASTER, UNIT_NPC_FLAG_GOSSIP
 #include "Server/DBCStructure.h"  // MapEntry
 #include "Server/DBCStores.h"     // sFactionTemplateStore, FactionTemplateEntry
 #include "Server/DBCEnums.h"      // FactionMasks

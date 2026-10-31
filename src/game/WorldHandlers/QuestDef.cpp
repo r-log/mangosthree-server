@@ -45,7 +45,6 @@
 
 #include "QuestDef.h"
 #include "Database/DatabaseEnv.h"
-#include "Player.h"
 #include "data/GameConfig.h"
 #include "DBCStores.h"
 #include "persistence/world/quests/QuestDataRepository.h"
@@ -306,14 +305,14 @@ Quest::Quest(QuestTemplateRow const& row)
  * @param pPlayer The player receiving the quest reward.
  * @return uint32 The adjusted quest experience reward.
  */
-uint32 Quest::XPValue(Player* pPlayer) const
+uint32 Quest::XPValue(uint32 level) const
 {
-    if (pPlayer)
+    if (level)
     {
         uint32 realXP = 0;
         uint32 xpMultiplier = 0;
         int32 baseLevel = 0;
-        int32 playerLevel = pPlayer->getLevel();
+        int32 playerLevel = int32(level);
 
         // formula can possibly be organized better, using less if's and simplify some.
 

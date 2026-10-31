@@ -73,6 +73,7 @@
 #include <map>
 #include <limits>
 
+struct GameEventCreatureData;
 class Group;
 class ArenaTeam;
 class Item;
@@ -1561,6 +1562,11 @@ std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const*
 
 /// generic text function
  bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target = NULL);
+
+/// The display a creature of the template shows: the game event's model, then the spawn's override,
+/// then one of the template's models (a random one where it has several and the model data allows
+/// it), and creature 1's first model when the template has none.
+uint32 ChooseCreatureDisplayId(CreatureInfo const* cinfo, CreatureData const* data = NULL, GameEventCreatureData const* eventData = NULL);
 
 // scripting access functions
  bool LoadMangosStrings(DatabaseType& db, char const* table, int32 start_value = MAX_CREATURE_AI_TEXT_STRING_ID, int32 end_value = std::numeric_limits<int32>::min(), bool extra_content = false);

@@ -29,7 +29,6 @@
  */
 
 #include "ObjectMgr.h"
-#include "Creature.h"
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
 #include "DBCStores.h"
@@ -161,7 +160,7 @@ uint32 ObjectMgr::GetTaxiMountDisplayId(uint32 id, Team team, bool allowed_alt_t
         return 0;
     }
 
-    uint16 mount_id = Creature::ChooseDisplayId(mount_info);
+    uint16 mount_id = ChooseCreatureDisplayId(mount_info);
     if (!mount_id)
     {
         return 0;

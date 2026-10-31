@@ -29,6 +29,10 @@
 #include "Platform/Define.h"
 #include "SharedDefines.h"
 
+/// The highest and the lowest standing a faction can have.
+const int32 REPUTATION_CAP    =  42999;
+const int32 REPUTATION_BOTTOM = -42000;
+
 /// A reputation spillover row (the world database's spillover template): the factions that also
 /// receive a change to one faction, each with its rate and the highest rank it still gains at.
 struct RepSpilloverTemplate

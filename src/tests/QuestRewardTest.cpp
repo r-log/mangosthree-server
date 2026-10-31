@@ -41,7 +41,7 @@
 ///     QuestStatusMgr::MarkRewarded;
 ///   - `GetRewChoiceItemsCount() > 0` then `RewChoiceItemId[reward]` / `RewChoiceItemCount[reward]`:
 ///     QuestRewardRules::ChosenItem;
-///   - `uint32(XPValue(this) * Rate.XP.Quest)`: QuestRewardRules::Xp;
+///   - `uint32(XPValue(getLevel()) * Rate.XP.Quest)`: QuestRewardRules::Xp;
 ///   - `uint32(RewMoneyMaxLevel * Rate.Drop.Money)`, replaced by `RewOrReqMoney` when
 ///     `RewOrReqMoney > int32(money)`: QuestRewardRules::MaxLevelMoney;
 ///   - `RewOrReqMoney < 0 && money < uint64(-RewOrReqMoney)` -> false:

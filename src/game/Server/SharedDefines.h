@@ -2813,6 +2813,27 @@ enum TrainerType                                            // this is important
 
 #define MAX_TRAINER_TYPE 4
 
+#define BASE_MELEERANGE_OFFSET 1.33f
+#define BASE_MINDAMAGE 1.0f
+#define BASE_MAXDAMAGE 2.0f
+#define BASE_ATTACK_TIME 2000
+#define BASE_BLOCK_DAMAGE_PERCENT 30
+
+/**
+ *  byte value (UNIT_FIELD_BYTES_2,0)
+ */
+enum SheathState
+{
+    /// non prepared weapon
+    SHEATH_STATE_UNARMED  = 0,
+    /// prepared melee weapon
+    SHEATH_STATE_MELEE    = 1,
+    /// prepared ranged weapon
+    SHEATH_STATE_RANGED   = 2
+};
+
+#define MAX_SHEATH_STATE    3
+
 // CreatureType.dbc
 /// Non Player Character flags
 enum NPCFlags
