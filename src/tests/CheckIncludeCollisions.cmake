@@ -39,9 +39,9 @@ set(COLLISION_TARGETS
     "data|src/game/CMakeLists.txt|persistence"
     "domain|src/game/CMakeLists.txt|data,persistence"
     "session|src/game/CMakeLists.txt|domain,data,persistence"
-    "game|src/game/CMakeLists.txt|scripts,session,domain,data,persistence"
+    "world|src/game/CMakeLists.txt|scripts,session,domain,data,persistence"
     "scripts|src/scripts/CMakeLists.txt|session,domain,data,persistence"
-    "mangos_tests|src/tests/CMakeLists.txt|game,scripts"
+    "mangos_tests|src/tests/CMakeLists.txt|world,scripts"
     "scripts_legacy|src/scripts/legacy/CMakeLists.txt|scripts,session,domain,data,persistence"
     "mangosd|src/mangosd/CMakeLists.txt|scripts,scripts_legacy")
 

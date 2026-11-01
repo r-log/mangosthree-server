@@ -38,7 +38,7 @@ target_compile_definitions(mangosd
 
 target_link_libraries(mangosd
     PRIVATE
-        game
+        world
         proto
         scripts
         Threads::Threads

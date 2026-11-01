@@ -649,14 +649,14 @@ set(GAME_SCRIPTS_SOURCES ${SRC_GRP_CHAT_COMMANDS} ${SCRIPTS_SOURCES} PARENT_SCOP
 
 configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/AuctionHouseBot/ahbot.conf.dist)
 
-add_library(game STATIC
+add_library(world STATIC
     ${SRC_GRP_AHBOT}
     ${SRC_GRP_HARNESS}
     ${SRC_GRP_TOOL}
     ${SRC_GRP_WORLD_HANDLERS}
 )
 
-target_include_directories(game
+target_include_directories(world
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         AuctionHouseBot
@@ -666,10 +666,10 @@ target_include_directories(game
 )
 
 if(MSVC)
-    target_compile_options(game PRIVATE /permissive-)
+    target_compile_options(world PRIVATE /permissive-)
 endif()
 
-target_link_libraries(game
+target_link_libraries(world
     PUBLIC
         scripts
         session
@@ -686,7 +686,7 @@ target_link_libraries(game
 )
 
 if(PCH)
-    add_cxx_pch(game pchdef.h pchdef.cpp)
+    add_cxx_pch(world pchworld.h)
 endif()
 
 install(
