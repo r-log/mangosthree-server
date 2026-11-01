@@ -28,8 +28,7 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/player/combat/PlayerCombatNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -68,8 +67,7 @@ void Player::CheckDuelDistance(time_t currTime)
         {
             duel->outOfBound = currTime;
 
-            WorldPacket data(SMSG_DUEL_OUTOFBOUNDS, 0);
-            GetSession()->SendPacket(&data);
+            sPlayerCombatNotices.DuelOutOfBounds(*this);
         }
     }
     else
@@ -78,8 +76,7 @@ void Player::CheckDuelDistance(time_t currTime)
         {
             duel->outOfBound = 0;
 
-            WorldPacket data(SMSG_DUEL_INBOUNDS, 0);
-            GetSession()->SendPacket(&data);
+            sPlayerCombatNotices.DuelInBounds(*this);
         }
         else if (currTime >= (duel->outOfBound + 10))
         {
@@ -119,19 +116,7 @@ void Player::DuelComplete(DuelCompleteType type)
         return;
     }
 
-    WorldPacket data(SMSG_DUEL_COMPLETE, (1));
-    data << (uint8)((type != DUEL_INTERRUPTED) ? 1 : 0);
-    GetSession()->SendPacket(&data);
-    opponent->GetSession()->SendPacket(&data);
-
-    if (type != DUEL_INTERRUPTED)
-    {
-        data.Initialize(SMSG_DUEL_WINNER, (1 + 20));          // we guess size
-        data << (uint8)((type == DUEL_WON) ? 0 : 1);          // 0 = just won; 1 = fled
-        data << opponent->GetName();
-        data << GetName();
-        SendMessageToSet(&data, true);
-    }
+    sPlayerCombatNotices.DuelCompleted(*this, *opponent, type);
 
     if (type == DUEL_WON)
     {
@@ -211,7 +196,5 @@ void Player::DuelComplete(DuelCompleteType type)
 
 void Player::SendDuelCountdown(uint32 counter)
 {
-    WorldPacket data(SMSG_DUEL_COUNTDOWN, 4);
-    data << uint32(counter);                                // seconds
-    GetSession()->SendPacket(&data);
+    sPlayerCombatNotices.DuelCountdown(*this, counter);
 }

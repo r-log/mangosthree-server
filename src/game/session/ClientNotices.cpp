@@ -36,6 +36,7 @@
 #include "session/packets/entities/AchievementPackets.h"
 #include "session/packets/entities/GossipPackets.h"
 #include "session/packets/entities/MotionPackets.h"
+#include "session/packets/entities/PlayerCombatPackets.h"
 #include "session/packets/entities/WorldObjectPackets.h"
 #include "session/packets/maps/MapPackets.h"
 #include "session/packets/pvp/BattleGroundPackets.h"
@@ -105,6 +106,7 @@ void InstallClientNotices()
     static SessionAchievementNotices achievements;
     static SessionMotionNotices motion;
     static SessionWorldObjectNotices worldObjects;
+    static SessionPlayerCombatNotices playerCombat;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -123,5 +125,6 @@ void InstallClientNotices()
     AchievementNotices::Install(&achievements);
     MotionNotices::Install(&motion);
     WorldObjectNotices::Install(&worldObjects);
+    PlayerCombatNotices::Install(&playerCombat);
     InstallCalendarNotices();
 }
