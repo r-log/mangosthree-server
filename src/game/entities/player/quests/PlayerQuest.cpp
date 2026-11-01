@@ -37,10 +37,9 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
+#include "entities/player/quests/QuestNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "QuestGiverStatus.h"
@@ -681,18 +680,6 @@ bool Player::CanRewardQuest(Quest const* pQuest, uint32 reward, bool msg) const
 }
 
 /**
- * @brief Sends a pet taming failure reason to the client.
- *
- * @param reason The taming failure reason code.
- */
-void Player::SendPetTameFailure(PetTameFailureReason reason)
-{
-    WorldPacket data(SMSG_PET_TAME_FAILURE, 1);
-    data << uint8(reason);
-    GetSession()->SendPacket(&data);
-}
-
-/**
  * @brief Adds a quest to the player's log and initializes its tracking state.
  *
  * @param pQuest The quest to add.
@@ -1272,8 +1259,7 @@ bool Player::SatisfyQuestLog(bool msg) const
 
     if (msg)
     {
-        WorldPacket data(SMSG_QUESTLOG_FULL, 0);
-        GetSession()->SendPacket(&data);
+        sQuestNotices.QuestLogFull(*this);
         DEBUG_LOG("WORLD: Sent SMSG_QUESTLOG_FULL");
     }
     return false;
@@ -2483,9 +2469,7 @@ void Player::SendQuestCompleteEvent(uint32 quest_id)
 {
     if (quest_id)
     {
-        WorldPacket data(SMSG_QUESTUPDATE_COMPLETE, 4);
-        data << uint32(quest_id);
-        GetSession()->SendPacket(&data);
+        sQuestNotices.QuestCompleteEvent(*this, quest_id);
         DEBUG_LOG("WORLD: Sent SMSG_QUESTUPDATE_COMPLETE quest = %u", quest_id);
     }
 }
@@ -2526,10 +2510,7 @@ void Player::SendQuestFailed(uint32 quest_id, InventoryResult reason)
 {
     if (quest_id)
     {
-        WorldPacket data(SMSG_QUESTGIVER_QUEST_FAILED, 4 + 4);
-        data << uint32(quest_id);
-        data << uint32(reason);                             // failed reason (valid reasons: 4, 16, 50, 17, 74, other values show default message)
-        GetSession()->SendPacket(&data);
+        sQuestNotices.QuestFailed(*this, quest_id, reason);
         DEBUG_LOG("WORLD: Sent SMSG_QUESTGIVER_QUEST_FAILED");
     }
 }
@@ -2543,9 +2524,7 @@ void Player::SendQuestTimerFailed(uint32 quest_id)
 {
     if (quest_id)
     {
-        WorldPacket data(SMSG_QUESTUPDATE_FAILEDTIMER, 4);
-        data << uint32(quest_id);
-        GetSession()->SendPacket(&data);
+        sQuestNotices.QuestTimerFailed(*this, quest_id);
         DEBUG_LOG("WORLD: Sent SMSG_QUESTUPDATE_FAILEDTIMER");
     }
 }
@@ -2557,9 +2536,7 @@ void Player::SendQuestTimerFailed(uint32 quest_id)
  */
 void Player::SendCanTakeQuestResponse(uint32 msg) const
 {
-    WorldPacket data(SMSG_QUESTGIVER_QUEST_INVALID, 4);
-    data << uint32(msg);
-    GetSession()->SendPacket(&data);
+    sQuestNotices.QuestInvalid(*this, msg);
     DEBUG_LOG("WORLD: Sent SMSG_QUESTGIVER_QUEST_INVALID");
 }
 
@@ -2573,15 +2550,7 @@ void Player::SendQuestConfirmAccept(const Quest* pQuest, Player* pReceiver)
 {
     if (pReceiver)
     {
-        int loc_idx = pReceiver->GetSession()->GetSessionDbLocaleIndex();
-        std::string title = pQuest->GetTitle();
-        sObjectMgr.GetQuestLocaleStrings(pQuest->GetQuestId(), loc_idx, &title);
-
-        WorldPacket data(SMSG_QUEST_CONFIRM_ACCEPT, (4 + title.size() + 8));
-        data << uint32(pQuest->GetQuestId());
-        data << title;
-        data << GetObjectGuid();
-        pReceiver->GetSession()->SendPacket(&data);
+        sQuestNotices.QuestConfirmAccept(*pReceiver, *pQuest, GetObjectGuid());
 
         DEBUG_LOG("WORLD: Sent SMSG_QUEST_CONFIRM_ACCEPT");
     }
@@ -2597,10 +2566,7 @@ void Player::SendPushToPartyResponse(Player* pPlayer, uint32 msg)
 {
     if (pPlayer)
     {
-        WorldPacket data(MSG_QUEST_PUSH_RESULT, (8 + 1));
-        data << pPlayer->GetObjectGuid();
-        data << uint8(msg);                                 // valid values: 0-8
-        GetSession()->SendPacket(&data);
+        sQuestNotices.QuestPushResult(*this, pPlayer->GetObjectGuid(), uint8(msg));
         DEBUG_LOG("WORLD: Sent MSG_QUEST_PUSH_RESULT");
     }
 }
@@ -2624,14 +2590,8 @@ void Player::SendQuestUpdateAddCreatureOrGo(Quest const* pQuest, ObjectGuid guid
         entry = (-entry) | 0x80000000;
     }
 
-    WorldPacket data(SMSG_QUESTUPDATE_ADD_KILL, (4 * 4 + 8));
     DEBUG_LOG("WORLD: Sent SMSG_QUESTUPDATE_ADD_KILL");
-    data << uint32(pQuest->GetQuestId());
-    data << uint32(entry);
-    data << uint32(count);
-    data << uint32(pQuest->ReqCreatureOrGOCount[ creatureOrGO_idx ]);
-    data << guid;
-    GetSession()->SendPacket(&data);
+    sQuestNotices.QuestKillCredited(*this, pQuest->GetQuestId(), uint32(entry), uint32(count), uint32(pQuest->ReqCreatureOrGOCount[ creatureOrGO_idx ]), guid);
 
     uint16 log_slot = FindQuestSlot(pQuest->GetQuestId());
     if (log_slot < MAX_QUEST_LOG_SIZE)
@@ -2650,11 +2610,8 @@ void Player::SendQuestGiverStatusMultiple()
         return;
     }
 
-    uint32 count = 0;
     uint32 dialogStatus = DIALOG_STATUS_NONE;
-
-    WorldPacket data(SMSG_QUESTGIVER_STATUS_MULTIPLE, 4);
-    data << uint32(count);                                  // placeholder
+    std::vector<QuestGiverStatusEntry> statuses;
 
     for (GuidSet::const_iterator itr = m_clientGUIDs.begin(); itr != m_clientGUIDs.end(); ++itr)
     {
@@ -2680,9 +2637,10 @@ void Player::SendQuestGiverStatusMultiple()
                 dialogStatus = QuestGiverDialogStatus(this, questgiver, DIALOG_STATUS_NONE);
             }
 
-            data << questgiver->GetObjectGuid();
-            data << dialogStatus;
-            ++count;
+            QuestGiverStatusEntry status;
+            status.guid = questgiver->GetObjectGuid();
+            status.status = dialogStatus;
+            statuses.push_back(status);
         }
         else if (itr->IsGameObject())
         {
@@ -2705,14 +2663,14 @@ void Player::SendQuestGiverStatusMultiple()
                 dialogStatus = QuestGiverDialogStatus(this, questgiver, DIALOG_STATUS_NONE);
             }
 
-            data << questgiver->GetObjectGuid();
-            data << dialogStatus;
-            ++count;
+            QuestGiverStatusEntry status;
+            status.guid = questgiver->GetObjectGuid();
+            status.status = dialogStatus;
+            statuses.push_back(status);
         }
     }
 
-    data.put<uint32>(0, count);                             // write real count
-    GetSession()->SendPacket(&data);
+    sQuestNotices.QuestGiverStatuses(*this, statuses);
 }
 
 /**

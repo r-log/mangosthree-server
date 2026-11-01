@@ -122,6 +122,8 @@ set(OWNER_FILES
     entities/player/quests/PlayerQuest.cpp
     entities/player/quests/QuestGiverStatus.h
     entities/player/quests/QuestGiverStatus.cpp
+    entities/player/quests/QuestNotices.h
+    entities/player/quests/QuestNotices.cpp
     entities/player/talents/PlayerTalent.cpp
     entities/player/talents/PlayerGlyph.cpp                 # decoupling D4k: drives talents/GlyphMgr
     entities/player/spells/PlayerSpell.cpp
