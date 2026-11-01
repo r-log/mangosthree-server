@@ -103,6 +103,8 @@ class Unit;
 class Group;
 class Map;
 class UpdateMask;
+struct MovementUpdate;
+struct UpdateValues;
 class InstanceData;
 class TerrainInfo;
 class TransportInfo;
@@ -573,8 +575,11 @@ class Object
 
         virtual void _SetCreateBits(UpdateMask* updateMask, Player* target) const;
 
-        void BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const;
-        void BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* updateMask, Player* target) const;
+        /// Captures the movement part of a create block with `updateFlags` into `out`, as it stands now.
+        void CaptureMovementUpdate(uint16 updateFlags, MovementUpdate& out) const;
+        /// Collects into `out` the values a block of `updatetype` shows `target`: first the mask bits the
+        /// viewer's rules add, then the mask and each value it names as `target` sees it.
+        void CollectValuesUpdate(uint8 updatetype, UpdateMask* updateMask, Player* target, UpdateValues& out) const;
         void BuildUpdateDataForPlayer(Player* pl, UpdateDataMapType& update_players);
 
         uint16 m_objectType;

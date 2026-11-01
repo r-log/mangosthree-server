@@ -50,7 +50,6 @@
 #include "Utilities/Errors.h"
 #include "Platform/Define.h"
 #include "UpdateData.h"
-#include "ByteBuffer.h"
 #include "ObjectGuid.h"
 
 /**
@@ -59,7 +58,7 @@
  * Initializes an empty update data accumulator with zero blocks.
  * Data buffers are allocated as needed during block accumulation.
  */
-UpdateData::UpdateData(uint32 map) : m_map(map), m_blockCount(0)
+UpdateData::UpdateData(uint32 map) : m_map(map)
 {
 }
 
@@ -92,16 +91,14 @@ void UpdateData::AddOutOfRangeGUID(ObjectGuid const& guid)
  * @brief Clear all accumulated data
  *
  * Resets the UpdateData to empty state:
- * - Clears update data buffer
+ * - Clears the update blocks
  * - Clears out-of-range GUID set
- * - Resets block counter to 0
  *
  * Called after the packet is built and sent.
  */
 void UpdateData::Clear()
 {
-    m_data.clear();
+    m_blocks.clear();
     m_outOfRangeGUIDs.clear();
-    m_blockCount = 0;
     m_map = 0;
 }

@@ -24,6 +24,7 @@
  */
 
 #include "Utilities/Errors.h"
+#include <memory>
 #include <vector>
 #include "Object.h"
 #include "SharedDefines.h"
@@ -35,6 +36,7 @@
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "UpdateData.h"
+#include "MovementUpdate.h"
 #include "UpdateMask.h"
 #include "Util.h"
 #include "Log.h"
@@ -43,7 +45,6 @@
 #include "GridNotifiersImpl.h"
 #include "ObjectPosSelector.h"
 #include "TemporarySummon.h"
-#include "movement/packet_builder.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
 
@@ -134,18 +135,20 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) c
 
     // DEBUG_LOG("BuildCreateUpdate: update-type: %u, object-type: %u got updateFlags: %X", updatetype, m_objectTypeId, updateFlags);
 
-    ByteBuffer& buf = data->GetBuffer();
-    buf << uint8(updatetype);
-    buf << GetPackGUID();
-    buf << uint8(m_objectTypeId);
+    UpdateBlock block;
+    block.type = updatetype;
+    block.guid = GetObjectGuid();
+    block.objectTypeId = m_objectTypeId;
 
-    BuildMovementUpdate(&buf, updateFlags);
+    std::shared_ptr<MovementUpdate> movement = std::make_shared<MovementUpdate>();
+    CaptureMovementUpdate(updateFlags, *movement);
+    block.movement = movement;
 
     UpdateMask updateMask;
     updateMask.SetCount(m_valuesCount);
     _SetCreateBits(&updateMask, target);
-    BuildValuesUpdate(updatetype, &buf, &updateMask, target);
-    data->AddUpdateBlock();
+    CollectValuesUpdate(updatetype, &updateMask, target, block.values);
+    data->AddBlock(block);
 }
 
 /**
@@ -174,18 +177,17 @@ void Object::SendCreateUpdateToPlayer(Player* player)
  */
 void Object::BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target) const
 {
-    ByteBuffer& buf = data->GetBuffer();
-
-    buf << uint8(UPDATETYPE_VALUES);
-    buf << GetPackGUID();
+    UpdateBlock block;
+    block.type = UPDATETYPE_VALUES;
+    block.guid = GetObjectGuid();
 
     UpdateMask updateMask;
     updateMask.SetCount(m_valuesCount);
 
     _SetUpdateBits(&updateMask, target);
-    BuildValuesUpdate(UPDATETYPE_VALUES, &buf, &updateMask, target);
+    CollectValuesUpdate(UPDATETYPE_VALUES, &updateMask, target, block.values);
 
-    data->AddUpdateBlock();
+    data->AddBlock(block);
 }
 
 /**
@@ -215,13 +217,13 @@ void Object::DestroyForPlayer(Player* target, bool anim) const
 }
 
 /**
- * @brief Build movement update block
- * @param data Byte buffer to write to
- * @param updateFlags Update flags
+ * @brief Captures the movement part of a create block
+ * @param updateFlags The block's update flags
+ * @param out Receives the part
  *
- * Builds the movement data portion of the update packet.
- * Includes position, orientation, movement flags, and speeds
- * for living objects, or just position for static objects.
+ * Reads what the block's flags show: a unit's movement status (aboard a vessel, with the vessel's
+ * guid and the deck coordinates as the transport offset), its spline and speeds, the object's pose,
+ * the unit's victim and vehicle, a game object's rotation and a transport's path progress.
  */
 namespace
 {
@@ -241,78 +243,47 @@ namespace
     }
 }
 
-void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
+void Object::CaptureMovementUpdate(uint16 updateFlags, MovementUpdate& out) const
 {
-    ObjectGuid Guid = GetObjectGuid();
+    out.guid = GetObjectGuid();
+    out.flags = updateFlags;
 
-    // ABOARD, THERE IS NO WORLD POSITION TO SEND. Our coordinates are the vessel's map's,
-    // and the client has never heard of that map -- no WDT, no terrain, no id it would
-    // accept. It gets the vessel's guid and those same coordinates as an offset, which is
-    // the only thing it can compose a position from.
     Transport* const vessel = DeckVesselOf(this);
-
-    data->WriteBit(false);
-    data->WriteBit(false);
-    data->WriteBit(updateFlags & UPDATEFLAG_ROTATION);
-    data->WriteBit(updateFlags & UPDATEFLAG_ANIM_KITS);               // AnimKits
-    data->WriteBit(updateFlags & UPDATEFLAG_HAS_ATTACKING_TARGET);
-    data->WriteBit(updateFlags & UPDATEFLAG_SELF);
-    data->WriteBit(updateFlags & UPDATEFLAG_VEHICLE);
-    data->WriteBit(updateFlags & UPDATEFLAG_LIVING);
-    data->WriteBits(0, 24);                                     // Byte Counter
-    data->WriteBit(false);
-    data->WriteBit(updateFlags & UPDATEFLAG_POSITION);                // flags & UPDATEFLAG_HAS_POSITION Game Object Position
-    data->WriteBit(updateFlags & UPDATEFLAG_HAS_POSITION);            // Stationary Position
-    data->WriteBit(updateFlags & UPDATEFLAG_TRANSPORT_ARR);
-    data->WriteBit(false);
-    data->WriteBit(updateFlags & UPDATEFLAG_TRANSPORT);
-
-    bool hasTransport = false,
-        isSplineEnabled = false,
-        hasPitch = false,
-        hasFallData = false,
-        hasFallDirection = false,
-        hasElevation = false,
-        hasOrientation = !isType(TYPEMASK_ITEM),
-        hasTimeStamp = true,
-        hasTransportTime2 = false,
-        hasVehicleId = false;
-    MovementInfo status;
+    out.aboard = vessel != NULL;
+    out.hasOrientation = !isType(TYPEMASK_ITEM);
 
     if (isType(TYPEMASK_UNIT))
     {
         Unit const* unit = (Unit const*)this;
 
-        status = unit->WireStatus();
+        out.status = unit->WireStatus();
         if (vessel)
         {
-            // Aboard, the status carries the vessel's guid and our deck coordinates as the
-            // offset; only this copy does, so nothing names the vessel once the unit is off her.
-            status.SetTransportData(vessel->GetObjectGuid(), unit->Where().X(),
-                                    unit->Where().Y(), unit->Where().Z(),
-                                    unit->Where().Facing(), 0, -1);
+            out.status.SetTransportData(vessel->GetObjectGuid(), unit->Where().X(),
+                                        unit->Where().Y(), unit->Where().Z(),
+                                        unit->Where().Facing(), 0, -1);
         }
 
-        hasTransport = !status.GetTransportGuid().IsEmpty();
-        isSplineEnabled = unit->IsSplineEnabled();
+        out.hasTransport = !out.status.GetTransportGuid().IsEmpty();
+        out.isSplineEnabled = unit->IsSplineEnabled();
 
         if (GetTypeId() == TYPEID_PLAYER)
         {
             // use flags received from client as they are more correct
-            hasPitch = status.GetStatusInfo().hasPitch;
-            hasFallData = status.GetStatusInfo().hasFallData;
-            hasFallDirection = status.GetStatusInfo().hasFallDirection;
-            hasElevation = status.GetStatusInfo().hasSplineElevation;
-            hasTransportTime2 = status.GetStatusInfo().hasTransportTime2;
-            hasVehicleId = status.GetStatusInfo().hasVehicleId;
+            out.hasPitch = out.status.GetStatusInfo().hasPitch;
+            out.hasFallData = out.status.GetStatusInfo().hasFallData;
+            out.hasFallDirection = out.status.GetStatusInfo().hasFallDirection;
+            out.hasElevation = out.status.GetStatusInfo().hasSplineElevation;
+            out.hasTransportTime2 = out.status.GetStatusInfo().hasTransportTime2;
+            out.hasVehicleId = out.status.GetStatusInfo().hasVehicleId;
         }
         else
         {
-            hasPitch = status.HasMovementFlag(MovementFlags(MOVEFLAG_SWIMMING | MOVEFLAG_FLYING)) ||
-                            status.HasMovementFlag2(MOVEFLAG2_ALLOW_PITCHING);
-            hasFallData = status.HasMovementFlag2(MOVEFLAG2_INTERP_TURNING);
-            hasFallDirection = status.HasMovementFlag(MOVEFLAG_FALLING);
-            hasElevation = status.HasMovementFlag(MOVEFLAG_SPLINE_ELEVATION);
+            out.hasPitch = out.status.HasMovementFlag(MovementFlags(MOVEFLAG_SWIMMING | MOVEFLAG_FLYING)) ||
+                           out.status.HasMovementFlag2(MOVEFLAG2_ALLOW_PITCHING);
+            out.hasFallData = out.status.HasMovementFlag2(MOVEFLAG2_INTERP_TURNING);
+            out.hasFallDirection = out.status.HasMovementFlag(MOVEFLAG_FALLING);
+            out.hasElevation = out.status.HasMovementFlag(MOVEFLAG_SPLINE_ELEVATION);
         }
     }
 
@@ -320,263 +291,44 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
     {
         Unit const* unit = (Unit const*)this;
 
-        data->WriteBit(!status.GetMovementFlags());
-        data->WriteBit(!hasOrientation);
-
-        data->WriteGuidMask<7, 3, 2>(Guid);
-
-        if (status.GetMovementFlags())
+        if (out.isSplineEnabled)
         {
-            data->WriteBits(status.GetMovementFlags(), 30);
+            out.spline = *unit->movespline;
         }
 
-        data->WriteBit(false);
-        data->WriteBit(!hasPitch);
-        data->WriteBit(isSplineEnabled);
-        data->WriteBit(hasFallData);
-        data->WriteBit(!hasElevation);
-        data->WriteGuidMask<5>(Guid);
-        data->WriteBit(hasTransport);
-        data->WriteBit(!hasTimeStamp);
-
-        if (hasTransport)
+        for (int i = 0; i < MAX_MOVE_TYPE; ++i)
         {
-            ObjectGuid tGuid = status.GetTransportGuid();
-
-            data->WriteGuidMask<1>(tGuid);
-            data->WriteBit(hasTransportTime2);
-            data->WriteGuidMask<4, 0, 6>(tGuid);
-            data->WriteBit(hasVehicleId);
-            data->WriteGuidMask<7, 5, 3, 2>(tGuid);
+            out.speeds[i] = unit->GetSpeed(UnitMoveType(i));
         }
 
-        data->WriteGuidMask<4>(Guid);
-
-        if (isSplineEnabled)
-        {
-            Movement::PacketBuilder::WriteCreateBits(*unit->movespline, *data);
-        }
-
-        data->WriteGuidMask<6>(Guid);
-
-        if (hasFallData)
-        {
-            data->WriteBit(hasFallDirection);
-        }
-
-        data->WriteGuidMask<0, 1>(Guid);
-        data->WriteBit(false);    // Unknown 4.3.3
-        data->WriteBit(!status.GetMovementFlags2());
-
-        if (status.GetMovementFlags2())
-        {
-            data->WriteBits(status.GetMovementFlags2(), 12);
-        }
+        out.gameTime = GameTime::GetGameTimeMS();
     }
 
-    // used only with GO's, placeholder
-    if (updateFlags & UPDATEFLAG_POSITION)
+    if (updateFlags & (UPDATEFLAG_LIVING | UPDATEFLAG_VEHICLE | UPDATEFLAG_HAS_POSITION))
     {
-        ObjectGuid transGuid;
-        data->WriteGuidMask<5>(transGuid);
-        data->WriteBit(hasVehicleId);
-        data->WriteGuidMask<0, 3, 6, 1, 4, 2>(transGuid);
-        data->WriteBit(hasTransportTime2);
-        data->WriteGuidMask<7>(transGuid);
+        WorldObject const* object = (WorldObject const*)this;
+        out.x = object->Where().X();
+        out.y = object->Where().Y();
+        out.z = object->Where().Z();
+        out.facing = object->Where().Facing();
     }
 
     if (updateFlags & UPDATEFLAG_HAS_ATTACKING_TARGET)
     {
-        ObjectGuid guid;
         if (Unit* victim = ((Unit*)this)->getVictim())
         {
-            guid = victim->GetObjectGuid();
+            out.victim = victim->GetObjectGuid();
         }
-
-        data->WriteGuidMask<2, 7, 0, 4, 5, 6, 1, 3>(guid);
-    }
-
-    if (updateFlags & UPDATEFLAG_ANIM_KITS)
-    {
-        data->WriteBit(true);   // hasAnimKit0 == false
-        data->WriteBit(true);   // hasAnimKit1 == false
-        data->WriteBit(true);   // hasAnimKit2 == false
-    }
-
-    data->FlushBits();
-
-    if (updateFlags & UPDATEFLAG_LIVING)
-    {
-        Unit const* unit = (Unit const*)this;
-
-        data->WriteGuidBytes<4>(Guid);
-
-        *data << float(unit->GetSpeed(MOVE_RUN_BACK));
-
-        if (hasFallData)
-        {
-            if (hasFallDirection)
-            {
-                // 15595 client reads horizontal speed, then jump direction sin/cos
-                *data << float(status.GetJumpInfo().xyspeed);
-                *data << float(status.GetJumpInfo().sinAngle);
-                *data << float(status.GetJumpInfo().cosAngle);
-            }
-
-            *data << uint32(status.GetFallTime());
-            *data << float(status.GetJumpInfo().velocity);
-        }
-
-        *data << float(unit->GetSpeed(MOVE_SWIM_BACK));
-
-        if (hasElevation)
-        {
-            *data << float(status.GetSplineElevation());
-        }
-
-        if (isSplineEnabled)
-        {
-            Movement::PacketBuilder::WriteCreateBytes(*unit->movespline, *data);
-        }
-
-        *data << float(vessel ? 0.0f : unit->Where().Z());
-        data->WriteGuidBytes<5>(Guid);
-
-        if (hasTransport)
-        {
-            ObjectGuid tGuid = status.GetTransportGuid();
-
-            data->WriteGuidBytes<5, 7>(tGuid);
-            *data << uint32(status.GetTransportTime());
-            *data << float(Geometry::Placement::NormalizeOrientation(status.GetTransportPos()->o));
-
-            if (hasTransportTime2)
-            {
-                *data << uint32(status.GetTransportTime2());
-            }
-
-            *data << float(status.GetTransportPos()->y);
-            *data << float(status.GetTransportPos()->x);
-            data->WriteGuidBytes<3>(tGuid);
-            *data << float(status.GetTransportPos()->z);
-            data->WriteGuidBytes<0>(tGuid);
-
-            if (hasVehicleId)
-            {
-                // The vehicle id has been its own field since P2-B; the legacy
-                // reader used to store it into the fall time.
-                *data << uint32(status.GetVehicleId());
-            }
-
-            *data << int8(status.GetTransportSeat());
-            data->WriteGuidBytes<1, 6, 2, 4>(tGuid);
-        }
-
-        *data << float(vessel ? 0.0f : unit->Where().X());
-        *data << float(unit->GetSpeed(MOVE_PITCH_RATE));
-        data->WriteGuidBytes<3, 0>(Guid);
-        *data << float(unit->GetSpeed(MOVE_SWIM));
-        *data << float(vessel ? 0.0f : unit->Where().Y());
-        data->WriteGuidBytes<7, 1, 2>(Guid);
-        *data << float(unit->GetSpeed(MOVE_WALK));
-
-        *data << uint32(GameTime::GetGameTimeMS());
-
-        *data << float(unit->GetSpeed(MOVE_FLIGHT_BACK));
-        data->WriteGuidBytes<6>(Guid);
-        *data << float(unit->GetSpeed(MOVE_TURN_RATE));
-
-        if (hasOrientation)
-        {
-            *data << float(Geometry::Placement::NormalizeOrientation(unit->Where().Facing()));
-        }
-
-        *data << float(unit->GetSpeed(MOVE_RUN));
-
-        if (hasPitch)
-        {
-            *data << float(status.GetPitch());
-        }
-
-        *data << float(unit->GetSpeed(MOVE_FLIGHT));
     }
 
     if (updateFlags & UPDATEFLAG_VEHICLE)
     {
-        *data << float(Geometry::Placement::NormalizeOrientation(((WorldObject*)this)->Where().Facing()));
-        *data << uint32(((Unit*)this)->GetVehicleInfo()->GetVehicleEntry()->ID); // vehicle id
-    }
-
-    // used only with GO's, placeholder
-    if (updateFlags & UPDATEFLAG_POSITION)
-    {
-        ObjectGuid transGuid;
-
-        data->WriteGuidBytes<0, 5>(transGuid);
-        if (hasVehicleId)
-        {
-            *data << uint32(0);
-        }
-
-        data->WriteGuidBytes<3>(transGuid);
-        *data << float(0.0f);   // x offset
-        data->WriteGuidBytes<4, 6, 1>(transGuid);
-        *data << uint32(0);     // transport time
-        *data << float(0.0f);   // y offset
-        data->WriteGuidBytes<2, 7>(transGuid);
-        *data << float(0.0f);   // z offset
-        *data << int8(-1);      // transport seat
-        *data << float(0.0f);   // o offset
-
-        if (hasTransportTime2)
-        {
-            *data << uint32(0);
-        }
+        out.vehicleId = ((Unit*)this)->GetVehicleInfo()->GetVehicleEntry()->ID;
     }
 
     if (updateFlags & UPDATEFLAG_ROTATION)
     {
-        *data << int64(((GameObject*)this)->GetPackedWorldRotation());
-    }
-
-    if (updateFlags & UPDATEFLAG_TRANSPORT_ARR)
-    {
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << uint8(0);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-        *data << float(0.0f);
-    }
-
-    if (updateFlags & UPDATEFLAG_HAS_POSITION)
-    {
-        *data << float(Geometry::Placement::NormalizeOrientation(((WorldObject*)this)->Where().Facing()));
-        *data << float(vessel ? 0.0f : ((WorldObject*)this)->Where().X());
-        *data << float(vessel ? 0.0f : ((WorldObject*)this)->Where().Y());
-        *data << float(vessel ? 0.0f : ((WorldObject*)this)->Where().Z());
-    }
-
-    if (updateFlags & UPDATEFLAG_HAS_ATTACKING_TARGET)
-    {
-        ObjectGuid guid;
-        if (Unit* victim = ((Unit*)this)->getVictim())
-        {
-            guid = victim->GetObjectGuid();
-        }
-
-        data->WriteGuidBytes<4, 0, 3, 5, 7, 6, 2, 1>(guid);
+        out.rotation = ((GameObject*)this)->GetPackedWorldRotation();
     }
 
     if (updateFlags & UPDATEFLAG_TRANSPORT)
@@ -588,26 +340,26 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
         if (isType(TYPEMASK_GAMEOBJECT)
             && ((GameObject*)this)->GetGoType() == GAMEOBJECT_TYPE_MO_TRANSPORT)
         {
-            *data << uint32(((Transport*)this)->GetPathProgress());
+            out.transportTime = ((Transport*)this)->GetPathProgress();
         }
         else
         {
-            *data << uint32(GameTime::GetGameTimeMS());       // ms time
+            out.transportTime = GameTime::GetGameTimeMS();
         }
     }
 }
 
 /**
- * @brief Build values update data
+ * @brief Collect values update data
  * @param updatetype Update type (create or values)
- * @param data Byte buffer to write to
  * @param updateMask Update mask indicating which fields changed
  * @param target Target player
+ * @param out Receives the mask and the values
  *
- * Builds the actual field value data for the update packet.
- * Handles special cases for gameobjects and units.
+ * Collects the field values a block shows the target, after the viewer's rules: the fields a
+ * game object or a unit shows each viewer differently, and the floats sent as integers.
  */
-void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* updateMask, Player* target) const
+void Object::CollectValuesUpdate(uint8 updatetype, UpdateMask* updateMask, Player* target, UpdateValues& out) const
 {
     if (!target)
     {
@@ -667,8 +419,9 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
 
     MANGOS_ASSERT(updateMask && updateMask->GetCount() == m_valuesCount);
 
-    *data << (uint8)updateMask->GetBlockCount();
-    data->append(updateMask->GetMask(), updateMask->GetLength());
+    out.shown = true;
+    out.blockCount = uint8(updateMask->GetBlockCount());
+    out.mask.assign(updateMask->GetMask(), updateMask->GetMask() + updateMask->GetLength());
 
     // 2 specialized loops for speed optimization in non-unit case
     if (Unit const* unit = ToUnit())                        // unit (creature/player) case
@@ -706,7 +459,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                         }
                     }
 
-                    *data << uint32(appendValue);
+                    out.values.push_back(uint32(appendValue));
                 }
                 else if (index == UNIT_FIELD_AURASTATE)
                 {
@@ -715,23 +468,23 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                         // IsPerCasterAuraState set if related pet caster aura state set already
                         if (unit->HasAuraStateForCaster(AURA_STATE_CONFLAGRATE, target->GetObjectGuid()))
                         {
-                            *data << m_uint32Values[index];
+                            out.values.push_back(m_uint32Values[index]);
                         }
                         else
                         {
-                            *data << (m_uint32Values[index] & ~(1 << (AURA_STATE_CONFLAGRATE - 1)));
+                            out.values.push_back(m_uint32Values[index] & ~(1 << (AURA_STATE_CONFLAGRATE - 1)));
                         }
                     }
                     else
                     {
-                        *data << m_uint32Values[index];
+                        out.values.push_back(m_uint32Values[index]);
                     }
                 }
                 // FIXME: Some values at server stored in float format but must be sent to client in uint32 format
                 else if (index >= UNIT_FIELD_BASEATTACKTIME && index <= UNIT_FIELD_RANGEDATTACKTIME)
                 {
                     // convert from float to uint32 and send
-                    *data << uint32(m_floatValues[index] < 0 ? 0 : m_floatValues[index]);
+                    out.values.push_back(uint32(m_floatValues[index] < 0 ? 0 : m_floatValues[index]));
                 }
 
                 // there are some float values which may be negative or can't get negative due to other checks
@@ -740,13 +493,13 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                          (index >= UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE  && index <= (UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE + 6)) ||
                          (index >= UNIT_FIELD_POSSTAT0 && index <= UNIT_FIELD_POSSTAT4))
                 {
-                    *data << uint32(m_floatValues[index]);
+                    out.values.push_back(uint32(m_floatValues[index]));
                 }
 
                 // Gamemasters should be always able to select units - remove not selectable flag
                 else if (index == UNIT_FIELD_FLAGS && target->isGameMaster())
                 {
-                    *data << (m_uint32Values[index] & ~UNIT_FLAG_NOT_SELECTABLE);
+                    out.values.push_back(m_uint32Values[index] & ~UNIT_FLAG_NOT_SELECTABLE);
                 }
                 /* Hide loot animation for players that aren't permitted to loot the corpse */
                 else if (index == UNIT_DYNAMIC_FLAGS && creature)
@@ -767,12 +520,12 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                         send_value |= UNIT_DYNFLAG_TAPPED_BY_PLAYER;
                     }
 
-                    *data << send_value;
+                    out.values.push_back(send_value);
                 }
                 else
                 {
                     // send in current format (float as float, uint32 as uint32)
-                    *data << m_uint32Values[index];
+                    out.values.push_back(m_uint32Values[index]);
                 }
             }
         }
@@ -795,44 +548,40 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                         {
                             case GAMEOBJECT_TYPE_QUESTGIVER:
                                 // GO also seen with GO_DYNFLAG_LO_SPARKLE explicit, relation/reason unclear (192861)
-                                *data << uint16(GO_DYNFLAG_LO_ACTIVATE);
-                                *data << uint16(-1);
+                                out.values.push_back(uint32(uint16(GO_DYNFLAG_LO_ACTIVATE)) | 0xFFFF0000);
                                 break;
                             case GAMEOBJECT_TYPE_CHEST:
                             case GAMEOBJECT_TYPE_GENERIC:
                             case GAMEOBJECT_TYPE_SPELL_FOCUS:
                             case GAMEOBJECT_TYPE_GOOBER:
-                                *data << uint16(GO_DYNFLAG_LO_ACTIVATE | GO_DYNFLAG_LO_SPARKLE);
-                                *data << uint16(-1);
+                                out.values.push_back(uint32(uint16(GO_DYNFLAG_LO_ACTIVATE | GO_DYNFLAG_LO_SPARKLE)) | 0xFFFF0000);
                                 break;
                             default:
                                 // unknown, not happen.
-                                *data << uint16(0);
-                                *data << uint16(-1);
+                                out.values.push_back(0xFFFF0000);
                                 break;
                         }
                     }
                     else
                     {
                         // disable quest object
-                        *data << uint16(0);
-                        *data << uint16(-1);
+                        out.values.push_back(0xFFFF0000);
                     }
                 }
                 else if (index == GAMEOBJECT_BYTES_1)
                 {
                     if (((GameObject*)this)->GetGOInfo()->type == GAMEOBJECT_TYPE_TRANSPORT)
                     {
-                        *data << uint32(m_uint32Values[index] | GO_STATE_TRANSPORT_SPEC);
+                        out.values.push_back(uint32(m_uint32Values[index] | GO_STATE_TRANSPORT_SPEC));
                     }
                     else
                     {
-                        *data << uint32(m_uint32Values[index]);
+                        out.values.push_back(uint32(m_uint32Values[index]));
                     }
                 }
                 else
                 {
-                    *data << m_uint32Values[index];          // other cases
+                    out.values.push_back(m_uint32Values[index]);           // other cases
                 }
             }
         }
@@ -844,7 +593,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
             if (updateMask->GetBit(index))
             {
                 // send in current format (float as float, uint32 as uint32)
-                *data << m_uint32Values[index];
+                out.values.push_back(m_uint32Values[index]);
             }
         }
     }
