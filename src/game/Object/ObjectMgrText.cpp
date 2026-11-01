@@ -36,7 +36,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 #include "persistence/world/items/PageTextRepository.h"
 

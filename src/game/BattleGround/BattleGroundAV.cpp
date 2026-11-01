@@ -48,7 +48,7 @@
 #include "BattleGroundMgr.h"
 #include "Creature.h"
 #include "GameObject.h"
-#include "Language.h"
+#include "data/Language.h"
 // TODO REMOVE this when graveyard handling for pvp is updated
 #include "DBCStores.h"
 

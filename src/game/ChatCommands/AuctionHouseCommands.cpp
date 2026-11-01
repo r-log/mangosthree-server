@@ -35,7 +35,7 @@
 
 #include "Utilities/Errors.h"
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Player.h"
 #include "DBCStores.h"
 #include "ObjectMgr.h"

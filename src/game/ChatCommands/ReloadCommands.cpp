@@ -36,7 +36,7 @@
 
 #include "Chat.h"
 #include "AchievementMgr.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "spells/data/SpellMgr.h"
 #include "DisableMgr.h"
 #include "data/ServerControl.h"

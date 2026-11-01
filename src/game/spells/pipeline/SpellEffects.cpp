@@ -30,7 +30,7 @@
 #include "spells/pipeline/Spell.h"
 #include "Group.h"
 #include "SharedDefines.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "Geometry/Vector3.h"

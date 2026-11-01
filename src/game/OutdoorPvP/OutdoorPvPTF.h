@@ -30,7 +30,7 @@
 #include "Common/TimeConstants.h"
 #include <list>
 #include "OutdoorPvP.h"
-#include "Language.h"
+#include "data/Language.h"
 
 enum
 {

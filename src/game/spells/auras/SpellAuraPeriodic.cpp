@@ -57,7 +57,7 @@
 #include "Policies/Singleton.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "spells/handlers/AuraPeriodicHandlers.h"
 #include "spells/data/SpellTables.h"
 

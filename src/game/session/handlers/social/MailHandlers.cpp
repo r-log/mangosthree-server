@@ -28,7 +28,7 @@
 #include <string>
 #include <utility>
 #include "Mail.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Log.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"

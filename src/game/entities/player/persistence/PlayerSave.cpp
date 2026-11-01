@@ -28,7 +28,7 @@
 #include <vector>
 #include "Player.h"
 #include "TransportMap.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "spells/data/SpellMgr.h"

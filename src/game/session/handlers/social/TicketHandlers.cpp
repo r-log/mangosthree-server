@@ -28,7 +28,7 @@
 #include "Common/ServerDefines.h"
 #include "Platform/Define.h"
 #include <string>
-#include "Tools/Language.h"
+#include "data/Language.h"
 #include "WorldPacket.h"
 #include "Server/WorldSession.h"
 #include "Server/OpcodeTable.h"

@@ -26,7 +26,7 @@
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundRL.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Log.h"
 
 BattleGroundRL::BattleGroundRL()

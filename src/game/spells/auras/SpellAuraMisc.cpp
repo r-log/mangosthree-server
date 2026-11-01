@@ -57,7 +57,7 @@
 #include "Creature.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
-#include "Language.h"
+#include "data/Language.h"
 
 #define NULL_AURA_SLOT 0xFF
 

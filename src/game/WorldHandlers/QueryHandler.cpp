@@ -32,7 +32,7 @@
 #include "Platform/Define.h"
 #include <string>
 #include <ctime>
-#include "Language.h"
+#include "data/Language.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Opcodes.h"

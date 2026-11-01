@@ -36,7 +36,7 @@
 #include <string>
 #include "Chat.h"
 #include "DatabaseEnv.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "ObjectMgr.h"
 #include "Creature.h"
 #include "Player.h"

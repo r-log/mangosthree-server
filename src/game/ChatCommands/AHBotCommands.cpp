@@ -36,7 +36,7 @@
  */
 
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "AuctionBotControl.h"
 
  /**********************************************************************

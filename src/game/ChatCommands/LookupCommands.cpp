@@ -43,7 +43,7 @@
 #include "Player.h"
 #include "PoolManager.h"
 #include "DBCStores.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "AccountMgr.h"
 #include "GameEventMgr.h"
 #include "session/SessionRegistry.h"

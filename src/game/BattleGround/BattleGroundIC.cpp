@@ -26,7 +26,7 @@
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundIC.h"
-#include "Language.h"
+#include "data/Language.h"
 
 BattleGroundIC::BattleGroundIC()
 {

@@ -36,7 +36,7 @@
 
 #include <string>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "MapManager.h"
 #include "InstanceData.h"
 #include "Player.h"

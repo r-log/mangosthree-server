@@ -37,7 +37,7 @@
 #include <string>
 #include <list>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "WaypointManager.h"
 #include "TemporarySummon.h"
 #include "MoveMap.h"

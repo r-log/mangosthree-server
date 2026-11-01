@@ -44,7 +44,7 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "DBCStores.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "data/GameConfig.h"
 #include "AccountMgr.h"
 #include "WorldSession.h"

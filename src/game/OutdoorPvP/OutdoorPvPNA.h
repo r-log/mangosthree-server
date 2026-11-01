@@ -30,7 +30,7 @@
 #include <list>
 #include <queue>
 #include "OutdoorPvP.h"
-#include "Language.h"
+#include "data/Language.h"
 
 enum
 {

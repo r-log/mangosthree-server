@@ -42,7 +42,7 @@
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
 #include "ProgressBar.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "PoolManager.h"
 #include "GameEventMgr.h"
 #include "Util.h"

@@ -36,7 +36,7 @@
 #include <algorithm>
 #include <string>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "data/GameConfig.h"

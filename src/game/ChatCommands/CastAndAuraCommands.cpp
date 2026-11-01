@@ -35,7 +35,7 @@
 
 #include <string>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "Creature.h"

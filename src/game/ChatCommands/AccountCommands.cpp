@@ -40,7 +40,7 @@
 #include <type_traits>
 #include "data/GameConfig.h"
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "AccountMgr.h"
 #include "DatabaseEnv.h"
 #include "Player.h"

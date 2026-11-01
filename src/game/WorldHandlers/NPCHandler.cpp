@@ -32,7 +32,7 @@
 #include "Platform/Define.h"
 #include <string>
 #include <algorithm>
-#include "Language.h"
+#include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"

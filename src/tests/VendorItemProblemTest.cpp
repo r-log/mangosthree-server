@@ -30,7 +30,7 @@
 
 #include "TestHarness.h"
 #include "ObjectMgr.h"
-#include "Language.h"
+#include "data/Language.h"
 
 #include <vector>
 

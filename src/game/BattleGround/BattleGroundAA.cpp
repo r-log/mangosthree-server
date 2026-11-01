@@ -26,7 +26,7 @@
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundAA.h"
-#include "Language.h"
+#include "data/Language.h"
 
 BattleGroundAA::BattleGroundAA()
 {

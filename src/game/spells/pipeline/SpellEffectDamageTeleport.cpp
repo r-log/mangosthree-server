@@ -40,7 +40,7 @@
 #include "Group.h"
 #include "SharedDefines.h"
 #include "GameObject.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Util.h"
 #include "data/DbScriptStore.h"
 #include "GridNotifiersImpl.h"

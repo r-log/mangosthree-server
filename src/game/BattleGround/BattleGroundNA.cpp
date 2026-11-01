@@ -26,7 +26,7 @@
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundNA.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Log.h"
 
 BattleGroundNA::BattleGroundNA()

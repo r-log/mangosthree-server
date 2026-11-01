@@ -40,7 +40,7 @@
 #include "SharedDefines.h"
 #include "Policies/Singleton.h"
 #include "ObjectGuid.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "CommandMgr.h"
 #include "ObjectMgr.h"
 #include "ProgressBar.h"

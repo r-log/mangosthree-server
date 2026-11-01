@@ -43,7 +43,7 @@
 #include "BattleGround.h"
 #include "BattleGroundMgr.h"
 #include "Creature.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "ArenaTeam.h"
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"

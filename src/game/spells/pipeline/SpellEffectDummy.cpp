@@ -43,7 +43,7 @@
 #include "SharedDefines.h"
 #include "Creature.h"
 #include "Totem.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Util.h"
 #include "data/DbScriptStore.h"
 #include "data/ScriptHooks.h"

@@ -57,7 +57,7 @@
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "Vehicle.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "spells/pipeline/SpellRules.h"
 #include "GridMap.h"
 

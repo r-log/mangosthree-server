@@ -24,7 +24,7 @@
  */
 
 #include "OutdoorPvP.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "ObjectMgr.h"
 #include "Object.h"
 #include "GameObject.h"

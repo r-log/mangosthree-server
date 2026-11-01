@@ -58,7 +58,7 @@
 #include "data/ScriptHooks.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/pipeline/SpellRules.h"
 #include "GridMap.h"

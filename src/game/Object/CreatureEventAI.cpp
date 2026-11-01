@@ -40,7 +40,7 @@
 #include "GridNotifiersImpl.h"
 #include "spells/auras/SpellAuras.h"
 #include "InstanceData.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "MotionMaster.h"
 #include "PlayerConditions.h"
 

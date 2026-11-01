@@ -34,7 +34,7 @@
  */
 
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "ObjectLookup.h"
 #include "Geometry/Vector3.h"
 #include "WorldSession.h"

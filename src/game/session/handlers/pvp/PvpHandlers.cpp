@@ -42,7 +42,7 @@
 #include "BattleGround/BattleGroundEY.h"
 #include "BattleGround/BattleGroundWS.h"
 #include "session/packets/pvp/BattleGroundPackets.h"
-#include "Tools/Language.h"
+#include "data/Language.h"
 #include "data/ScriptHooks.h"
 #include "data/GameConfig.h"
 #include "WorldHandlers/DisableMgr.h"

@@ -158,10 +158,10 @@ state_allow(reputation src/game/persistence/characters/CharacterDeleteRepository
 state_allow(reputation src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADREPUTATION), handed to Player::_LoadReputations"
     NAMES character_reputation)
-state_allow(reputation src/game/Tools/PlayerDump.cpp
+state_allow(reputation src/game/session/PlayerDump.cpp
     WHY "character dump: the dumped-table list and its doc comment"
     NAMES character_reputation)
-state_allow(reputation src/game/Tools/PlayerDump.h
+state_allow(reputation src/game/session/PlayerDump.h
     WHY "character dump: the table-type doc comment"
     NAMES character_reputation)
 state_allow(reputation src/game/Harness/Trace.cpp
@@ -216,13 +216,13 @@ state_allow(achievement src/game/persistence/characters/CharacterRepository.cpp
 state_allow(achievement src/game/WorldHandlers/AchievementGlobalMgr.cpp
     WHY "realm-wide start-up checks (LoadCompletedAchievements, ReportOrphanedCriteriaProgress)"
     NAMES character_achievement character_achievement_progress)
-state_allow(achievement src/game/Tools/CharacterDatabaseCleaner.cpp
+state_allow(achievement src/game/WorldHandlers/CharacterDatabaseCleaner.cpp
     WHY "realm-wide cleanup (CleanCharacterAchievementProgress's CheckUnique)"
     NAMES character_achievement_progress)
-state_allow(achievement src/game/Tools/PlayerDump.cpp
+state_allow(achievement src/game/session/PlayerDump.cpp
     WHY "character dump: the dumped-table list"
     NAMES character_achievement character_achievement_progress)
-state_allow(achievement src/game/Tools/PlayerDump.h
+state_allow(achievement src/game/session/PlayerDump.h
     WHY "character dump: the table-type doc comment"
     NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/game/Harness/Trace.h
@@ -282,10 +282,10 @@ state_allow(cooldown src/game/persistence/characters/CharacterDeleteRepository.c
 state_allow(cooldown src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS), handed to the owner's per-row load"
     NAMES character_spell_cooldown)
-state_allow(cooldown src/game/Tools/PlayerDump.cpp
+state_allow(cooldown src/game/session/PlayerDump.cpp
     WHY "character dump: the dumped-table list"
     NAMES character_spell_cooldown)
-state_allow(cooldown src/game/Tools/PlayerDump.h
+state_allow(cooldown src/game/session/PlayerDump.h
     WHY "character dump: the table-type doc comment"
     NAMES character_spell_cooldown)
 state_allow(cooldown src/tests/SpellCooldownMgrTest.cpp
@@ -349,10 +349,10 @@ state_allow(glyph src/game/persistence/characters/CharacterDeleteRepository.cpp
 state_allow(glyph src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADGLYPHS), handed to the owner's per-row load"
     NAMES character_glyphs)
-state_allow(glyph src/game/Tools/PlayerDump.cpp
+state_allow(glyph src/game/session/PlayerDump.cpp
     WHY "character dump: the dumped-table list"
     NAMES character_glyphs)
-state_allow(glyph src/game/Tools/PlayerDump.h
+state_allow(glyph src/game/session/PlayerDump.h
     WHY "character dump: the table-type doc comment"
     NAMES character_glyphs)
 state_allow(glyph src/tests/GlyphMgrTest.cpp

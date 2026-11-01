@@ -30,7 +30,7 @@
 #include <atomic>
 #include <list>
 #include "OutdoorPvP.h"
-#include "Language.h"
+#include "data/Language.h"
 
 /**
  * @brief Eastern Plaguelands outdoor PvP constants

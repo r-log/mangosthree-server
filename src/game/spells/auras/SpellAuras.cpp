@@ -76,7 +76,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"

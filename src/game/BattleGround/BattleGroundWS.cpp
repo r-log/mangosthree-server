@@ -48,7 +48,7 @@
 #include "ObjectMgr.h"
 #include "DBCStores.h"
 #include "BattleGroundMgr.h"
-#include "Language.h"
+#include "data/Language.h"
 
 /**
  * @brief Constructor for BattleGroundWS.

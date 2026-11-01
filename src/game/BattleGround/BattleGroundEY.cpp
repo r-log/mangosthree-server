@@ -32,7 +32,7 @@
 #include "DBCStores.h"
 #include "GameObject.h"
 #include "BattleGroundMgr.h"
-#include "Language.h"
+#include "data/Language.h"
 
 BattleGroundEY::BattleGroundEY(): m_flagState(), m_towersAlliance(0), m_towersHorde(0), m_honorTicks(0), m_flagRespawnTimer(0), m_resourceUpdateTimer(0), m_felReaverFlagTimer(0)
 {

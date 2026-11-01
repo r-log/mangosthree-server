@@ -80,7 +80,7 @@
 #include "Weather.h"
 #include "LFGMgr.h"
 #include "DisableMgr.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "CommandMgr.h"
 #include "Version.h"
 #include "UpdateTime.h"
