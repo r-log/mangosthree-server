@@ -67,7 +67,6 @@
 #include "Player.h"
 
 class PlayerSession;
-class WorldPacket;
 class DynamicObj;
 class Item;
 class GameObject;
@@ -186,7 +185,8 @@ class SpellCastTargets
         /// @param caster Unit casting the spell
         /// @return SpellCastTargetsReader for deserialization
         SpellCastTargetsReader ReadForCaster(Unit* caster) { return SpellCastTargetsReader(*this, caster); }
-        void ReadAdditionalData(WorldPacket& data, uint8& cast_flags);
+        /// Sets the elevation and the speed the client aimed the cast's trajectory with.
+        void SetTrajectory(float elevation, float speed) { m_elevation = elevation; m_speed = speed; }
 
         /// @brief Assignment operator
         /// @param target Source targets to copy

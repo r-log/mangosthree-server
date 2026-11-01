@@ -42,6 +42,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 #include "PlayerConditions.h"
+#include "session/handlers/spells/CastTargetsReader.h"
 
 namespace
 {
@@ -186,7 +187,7 @@ void SpellHandlers::HandleUseItem(WorldSession& session, WorldPacket& recvPacket
 
     targets.Update(pUser);
 
-    targets.ReadAdditionalData(recvPacket, cast_flags);
+    ReadAdditionalCastData(recvPacket, cast_flags, targets);
 
     if (!pItem->IsTargetValidForItemUse(targets.getUnitTarget()))
     {
@@ -561,7 +562,7 @@ void SpellHandlers::HandleCastSpell(WorldSession& session, WorldPacket& recvPack
 
     recvPacket >> targets.ReadForCaster(mover);
 
-    targets.ReadAdditionalData(recvPacket, cast_flags);
+    ReadAdditionalCastData(recvPacket, cast_flags, targets);
 
     // auto-selection buff level base at target level (in spellInfo)
     if (Unit* target = targets.getUnitTarget())

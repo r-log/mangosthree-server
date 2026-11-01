@@ -583,7 +583,6 @@ src/game/spells/pipeline [spells] -> src/game/WorldHandlers/Transports.h
 src/game/spells/pipeline [spells] -> src/game/combat/SpellBonus.h
 src/game/spells/pipeline [spells] -> src/game/combat/WeaponDamage.h
 src/game/spells/pipeline/Spell.cpp -> src/game/entities/player/Player.h
-src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/Spell.h -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellCast.cpp -> src/game/entities/player/Player.h

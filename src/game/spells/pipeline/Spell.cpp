@@ -48,7 +48,6 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/pipeline/SpellNotices.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
 #include "GridNotifiersImpl.h"
 #include "Log.h"
 #include "ObjectMgr.h"
@@ -395,44 +394,6 @@ void SpellCastTargets::write(ByteBuffer& data) const
     if (m_targetMask & TARGET_FLAG_STRING)
     {
         data << m_strTarget;
-    }
-}
-
-void SpellCastTargets::ReadAdditionalData(WorldPacket& data, uint8& cast_flags)
-{
-    if (cast_flags & 0x02)              // has trajectory data
-    {
-        data >> m_elevation >> m_speed;
-
-        bool hasMovementData;
-        data >> hasMovementData;
-        if (hasMovementData)
-        {
-            MovementInfo mi;
-            data >> mi;
-            setSource(mi.GetPos()->x, mi.GetPos()->y, mi.GetPos()->z);
-        }
-    }
-    else if (cast_flags & 0x08)         // has archaeology weight
-    {
-        uint32 count;
-        uint8 type;
-        data >> count;
-        for (uint32 i = 0; i < count; ++i)
-        {
-            data >> type;
-            switch (type)
-            {
-                case 1:                         // Fragments
-                    data >> Unused<uint32>();   // Currency entry
-                    data >> Unused<uint32>();   // Currency count
-                    break;
-                case 2:                         // Keystones
-                    data >> Unused<uint32>();   // Item entry
-                    data >> Unused<uint32>();   // Item count
-                    break;
-            }
-        }
     }
 }
 
