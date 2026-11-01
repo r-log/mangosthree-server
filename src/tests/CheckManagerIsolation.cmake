@@ -152,6 +152,8 @@ set(OWNER_FILES
     entities/player/combat/PlayerStats.cpp
     entities/player/combat/PlayerRegen.cpp
     entities/player/combat/PlayerReward.cpp
+    entities/player/combat/PlayerCombatNotices.h
+    entities/player/combat/PlayerCombatNotices.cpp
     entities/player/pvp/PlayerPvP.cpp
     entities/player/pvp/PlayerBattleGround.cpp
     entities/player/pvp/PlayerHonor.cpp                     # decoupling D4k: drives pvp/HonorMgr
