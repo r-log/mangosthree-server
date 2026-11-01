@@ -8,7 +8,7 @@
 // The on-disk header and the NAV_* area bits are the SERVER's, included rather than
 // copied. A struct that is written here and read there must have exactly one
 // declaration, or the two drift and the drift is silent.
-#include "MoveMapSharedDefines.h"
+#include "Maps/MoveMapSharedDefines.h"
 
 #include "DetourNavMesh.h"
 #include "DetourNavMeshBuilder.h"

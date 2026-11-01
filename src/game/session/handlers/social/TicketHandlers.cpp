@@ -33,7 +33,7 @@
 #include "session/WorldSession.h"
 #include "session/OpcodeTable.h"
 #include "Log/Log.h"
-#include "Object/GMTicketMgr.h"
+#include "social/GMTicketMgr.h"
 #include "entities/player/PlayerRegistry.h"
 #include "entities/player/Player.h"
 #include "session/packets/chat/SystemMessage.h"

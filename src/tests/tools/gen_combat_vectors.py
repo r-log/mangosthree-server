@@ -547,7 +547,7 @@ def calculate_min_max_damage(att_type, attack_speed_multiplier, modifier_base_va
                              total_attack_power, weapon_min_damage, weapon_max_damage,
                              is_in_feral_form, shapeshift_form, can_use_equipped_weapon,
                              attack_time, ammo_dps, base_min_damage, base_max_damage):
-    """Player::CalculateMinMaxDamage -- src/game/Object/StatSystem.cpp:448-509 at ce20c27db.
+    """Player::CalculateMinMaxDamage -- src/game/combat/StatSystem.cpp:448-509 at ce20c27db.
 
     GetAPMultiplier(attType, normalized) -> attack_speed_multiplier, the four
     GetModifierValue(unitMod, ...) reads -> modifier_*, GetTotalAttackPowerValue(attType)

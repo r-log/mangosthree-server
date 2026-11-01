@@ -40,9 +40,9 @@
 #include "ObjectGuid.h"
 #include "session/WorldSession.h"
 #include "Object/Item.h"
-#include "Object/LootMgr.h"
+#include "economy/LootMgr.h"
 #include "Object/Object.h"
-#include "WorldHandlers/Group.h"
+#include "social/Group.h"
 #include "Object/Unit.h"
 #include "data/dbc/DBCStores.h"
 

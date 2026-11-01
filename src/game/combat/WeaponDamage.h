@@ -34,7 +34,7 @@ namespace Combat
     /**
      * @brief Calculates the player's minimum and maximum weapon damage.
      *
-     * Player::CalculateMinMaxDamage, src/game/Object/StatSystem.cpp:448-509 at ce20c27db,
+     * Player::CalculateMinMaxDamage, src/game/combat/StatSystem.cpp:448-509 at ce20c27db,
      * moved verbatim. The member's opening switch only chooses WHICH UnitMods the four
      * GetModifierValue reads use, so it stays on Player and the four values arrive here
      * already read; `normalized` likewise only feeds GetAPMultiplier, whose result is

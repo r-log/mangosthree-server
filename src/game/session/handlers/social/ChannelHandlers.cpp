@@ -27,7 +27,7 @@
 
 #include <string>
 #include "data/world/ObjectMgr.h"
-#include "WorldHandlers/ChannelMgr.h"
+#include "social/ChannelMgr.h"
 #include "session/WorldSession.h"
 #include "session/OpcodeTable.h"
 

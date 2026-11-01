@@ -1,6 +1,9 @@
 file(GLOB SRC_GRP_AHBOT AuctionHouseBot/*.cpp AuctionHouseBot/*.h)
 source_group("AhBot" FILES ${SRC_GRP_AHBOT})
 
+file(GLOB SRC_GRP_AI ai/*.cpp ai/*.h)
+source_group("AI" FILES ${SRC_GRP_AI})
+
 file(GLOB SRC_GRP_APP app/*.cpp app/*.h)
 source_group("App" FILES ${SRC_GRP_APP})
 
@@ -25,8 +28,14 @@ source_group("Data\\World" FILES ${SRC_GRP_DATA_WORLD})
 file(GLOB SRC_GRP_DBSCRIPTS dbscripts/*.cpp dbscripts/*.h)
 source_group("Database Scripts" FILES ${SRC_GRP_DBSCRIPTS})
 
+file(GLOB SRC_GRP_ECONOMY economy/*.cpp economy/*.h)
+source_group("Economy" FILES ${SRC_GRP_ECONOMY})
+
 file(GLOB SRC_GRP_ENTITIES entities/*.cpp entities/*.h)
 source_group("Entities" FILES ${SRC_GRP_ENTITIES})
+
+file(GLOB SRC_GRP_ENTITIES_MOTION entities/motion/*.cpp entities/motion/*.h)
+source_group("Entities\\Motion" FILES ${SRC_GRP_ENTITIES_MOTION})
 
 file(GLOB SRC_GRP_ENTITIES_PLAYER entities/player/*.cpp entities/player/*.h)
 source_group("Entities\\Player" FILES ${SRC_GRP_ENTITIES_PLAYER})
@@ -69,9 +78,6 @@ source_group("Map Threading" FILES ${SRC_GRP_MAP_THREAD})
 
 file(GLOB SRC_GRP_HARNESS Harness/*.cpp Harness/*.h)
 source_group("Harness" FILES ${SRC_GRP_HARNESS})
-
-file(GLOB SRC_GRP_MOTION_GEN MotionGenerators/*.cpp MotionGenerators/*.h)
-source_group("Motion generators" FILES ${SRC_GRP_MOTION_GEN})
 
 file(GLOB SRC_GRP_OBJECT Object/*.cpp Object/*.h)
 source_group("Object" FILES ${SRC_GRP_OBJECT})
@@ -236,9 +242,6 @@ target_link_libraries(persistence
         shared_db
 )
 
-file(GLOB SRC_GRP_REFERENCES References/*.cpp References/*.h)
-source_group("References" FILES ${SRC_GRP_REFERENCES})
-
 file(GLOB SRC_GRP_SESSION session/*.cpp session/*.h)
 source_group("Session" FILES ${SRC_GRP_SESSION})
 
@@ -342,90 +345,16 @@ set(DOMAIN_SOURCES
     WorldHandlers/AchievementGlobalMgr.cpp
     WorldHandlers/AchievementMgr.cpp
     WorldHandlers/AchievementMgr.h
-    WorldHandlers/BareMap.h
-    WorldHandlers/Cell.h
-    WorldHandlers/CellImpl.h
-    WorldHandlers/Channel.cpp
-    WorldHandlers/Channel.h
-    WorldHandlers/ChannelMgr.cpp
-    WorldHandlers/ChannelMgr.h
-    WorldHandlers/CreatureLinkingHolder.cpp
-    WorldHandlers/CreatureLinkingHolder.h
-    WorldHandlers/DynamicCollision.cpp
-    WorldHandlers/DynamicCollision.h
-    WorldHandlers/GameObjectModel.cpp
-    WorldHandlers/GameObjectModel.h
-    WorldHandlers/GameObjectModelOwner.cpp
-    WorldHandlers/GossipDef.cpp
-    WorldHandlers/GossipDef.h
-    WorldHandlers/GridDefines.h
-    WorldHandlers/GridMap.cpp
-    WorldHandlers/GridMap.h
-    WorldHandlers/GridNotifiers.cpp
-    WorldHandlers/GridNotifiers.h
-    WorldHandlers/GridNotifiersImpl.h
-    WorldHandlers/GridStates.cpp
-    WorldHandlers/GridStates.h
-    WorldHandlers/Group.cpp
-    WorldHandlers/Group.h
-    WorldHandlers/GroupInstance.cpp
-    WorldHandlers/GroupMemberState.cpp
-    WorldHandlers/GuildMgr.cpp
-    WorldHandlers/GuildMgr.h
-    WorldHandlers/InstanceData.cpp
-    WorldHandlers/InstanceData.h
-    WorldHandlers/InstanceDataCache.cpp
-    WorldHandlers/InstanceDataCache.h
-    WorldHandlers/LFGBootLogic.h
-    WorldHandlers/LFGCallToArmsLogic.h
-    WorldHandlers/LFGDungeonResolution.h
-    WorldHandlers/LFGEmpowerment.h
-    WorldHandlers/LFGLockReason.h
-    WorldHandlers/LFGMgr.cpp
-    WorldHandlers/LFGMgr.h
-    WorldHandlers/LFGMgrProposal.cpp
-    WorldHandlers/LFGMgrQueue.cpp
-    WorldHandlers/LFGProposalLogic.h
-    WorldHandlers/LFGRewardLogic.h
-    WorldHandlers/LFGRoleAssignment.h
-    WorldHandlers/LineOfSightExemptions.cpp
-    WorldHandlers/LineOfSightExemptions.h
-    WorldHandlers/Mail.cpp
-    WorldHandlers/Mail.h
-    WorldHandlers/Map.cpp
-    WorldHandlers/Map.h
-    WorldHandlers/MapManager.cpp
-    WorldHandlers/MapManager.h
-    WorldHandlers/MapPersistentStateMgr.cpp
-    WorldHandlers/MapPersistentStateMgr.h
-    WorldHandlers/MassMailMgr.cpp
-    WorldHandlers/MassMailMgr.h
-    WorldHandlers/MoveMap.cpp
-    WorldHandlers/MoveMap.h
-    WorldHandlers/MoveMapSharedDefines.h
-    WorldHandlers/ObjectGridLoader.cpp
-    WorldHandlers/ObjectGridLoader.h
-    WorldHandlers/PoolSpawner.cpp
-    WorldHandlers/PoolSpawner.h
-    WorldHandlers/SkillDiscovery.cpp
-    WorldHandlers/SkillDiscovery.h
-    WorldHandlers/SkillExtraItems.cpp
-    WorldHandlers/SkillExtraItems.h
-    WorldHandlers/TransportMap.cpp
-    WorldHandlers/TransportMap.h
-    WorldHandlers/Transports.cpp
-    WorldHandlers/Transports.h
-    WorldHandlers/UpdateData.cpp
-    WorldHandlers/UpdateData.h
-    WorldHandlers/Weather.cpp
-    WorldHandlers/Weather.h
 )
 list(TRANSFORM DOMAIN_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 
 add_library(domain STATIC
+    ${SRC_GRP_AI}
     ${SRC_GRP_BATTLEGROUND}
     ${SRC_GRP_COMBAT}
+    ${SRC_GRP_ECONOMY}
     ${SRC_GRP_ENTITIES}
+    ${SRC_GRP_ENTITIES_MOTION}
     ${SRC_GRP_ENTITIES_PLAYER}
     ${SRC_GRP_ENTITIES_PLAYER_COMBAT}
     ${SRC_GRP_ENTITIES_PLAYER_INTERACTION}
@@ -439,10 +368,8 @@ add_library(domain STATIC
     ${SRC_GRP_ENTITIES_PLAYER_TALENTS}
     ${SRC_GRP_ENTITIES_PLAYER_WORLD}
     ${SRC_GRP_MAP_THREAD}
-    ${SRC_GRP_MOTION_GEN}
     ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
-    ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SOCIAL}
     ${SRC_GRP_SPELLS}
     ${SRC_GRP_SPELLS_AURAS}
@@ -455,7 +382,11 @@ target_include_directories(domain
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         BattleGround
+        ai
         ${CMAKE_CURRENT_SOURCE_DIR}/combat
+        economy
+        entities
+        entities/motion
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/combat
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/interaction
@@ -469,11 +400,10 @@ target_include_directories(domain
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/talents
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
         Maps
-        MotionGenerators
         Object
         OutdoorPvP
-        References
         WorldHandlers
+        social
 )
 
 if(MSVC)

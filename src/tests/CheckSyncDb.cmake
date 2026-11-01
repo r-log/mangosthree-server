@@ -172,34 +172,34 @@ set(CONVERTED_FILES
     src/game/spells/data/SpellMgrData.cpp
     src/game/spells/data/SpellMgrPet.cpp
     src/game/spells/data/SpellMgrProc.cpp
-    src/game/Object/CreatureEventAIMgr.cpp
-    src/game/Object/LootMgr.cpp
+    src/game/ai/CreatureEventAIMgr.cpp
+    src/game/economy/LootMgr.cpp
     src/game/data/world/ItemEnchantmentMgr.cpp
-    src/game/WorldHandlers/SkillDiscovery.cpp
-    src/game/WorldHandlers/SkillExtraItems.cpp
-    src/game/WorldHandlers/Transports.cpp
-    src/game/WorldHandlers/Weather.cpp
+    src/game/economy/SkillDiscovery.cpp
+    src/game/economy/SkillExtraItems.cpp
+    src/game/Maps/Transports.cpp
+    src/game/Maps/Weather.cpp
     src/game/BattleGround/BattleGroundMgrUtil.cpp
     src/game/session/handlers/entities/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
-    src/game/Object/Guild.cpp
-    src/game/Object/GuildRank.cpp
+    src/game/social/Guild.cpp
+    src/game/social/GuildRank.cpp
     src/game/entities/player/pvp/PlayerBattleGround.cpp
     src/game/session/handlers/social/CalendarHandler.cpp
-    src/game/Object/Calendar.cpp
-    src/game/WorldHandlers/Mail.cpp
+    src/game/social/Calendar.cpp
+    src/game/social/Mail.cpp
     src/game/session/handlers/social/MailHandlers.cpp
     src/game/session/handlers/spells/SpellHandlers.cpp
-    src/game/Object/ArenaTeam.cpp
+    src/game/social/ArenaTeam.cpp
     src/game/persistence/characters/social/ArenaTeamRepository.h
     src/game/persistence/characters/social/ArenaTeamRepository.cpp
-    src/game/Object/GuildBank.cpp
+    src/game/social/GuildBank.cpp
     src/game/ChatCommands/Chat.cpp
     src/game/Harness/Harness.cpp
-    src/game/WorldHandlers/Map.cpp
-    src/game/WorldHandlers/InstanceData.cpp
-    src/game/WorldHandlers/InstanceDataCache.cpp
-    src/game/WorldHandlers/MapPersistentStateMgr.cpp
+    src/game/Maps/Map.cpp
+    src/game/Maps/InstanceData.cpp
+    src/game/Maps/InstanceDataCache.cpp
+    src/game/Maps/MapPersistentStateMgr.cpp
     src/game/BattleGround/BattleGroundReward.cpp
     src/game/BattleGround/BattleGroundMgr.cpp
     src/game/session/handlers/entities/PetHandler.cpp
@@ -211,8 +211,8 @@ set(CONVERTED_FILES
     src/game/session/handlers/pvp/PvpHandlers.cpp
     src/game/session/handlers/connection/ClientHandlers.cpp
     src/game/entities/player/social/SocialMgr.cpp
-    src/game/Object/GMTicketMgr.cpp
-    src/game/Object/AuctionHouseMgr.cpp
+    src/game/social/GMTicketMgr.cpp
+    src/game/economy/AuctionHouseMgr.cpp
     src/game/session/AccountMgr.cpp
     src/game/ChatCommands/AccountCommands.cpp
     src/game/entities/player/quests/QuestStatusMgr.h

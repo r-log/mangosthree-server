@@ -42,7 +42,7 @@
 #include "spells/pipeline/Spell.h"
 #include "AchievementMgr.h"
 #include "DBCStores.h"
-#include "MotionGenerators/MoveSplineInit.h"
+#include "entities/motion/MoveSplineInit.h"
 #include "MotionMaster.h"
 
 #include <cmath>

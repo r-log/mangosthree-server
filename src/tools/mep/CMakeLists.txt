@@ -51,7 +51,6 @@ target_include_directories(extractor_data
     PUBLIC
         ${CMAKE_SOURCE_DIR}/src/shared
         ${CMAKE_SOURCE_DIR}/src/game
-        ${CMAKE_SOURCE_DIR}/src/game/WorldHandlers
 )
 
 target_link_libraries(extractor_data

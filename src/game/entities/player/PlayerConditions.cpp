@@ -35,7 +35,7 @@
 #include "InstanceData.h"
 #include "Log.h"
 #include "MapPersistentStateMgr.h"
-#include "MotionGenerators/MotionMaster.h"
+#include "entities/motion/MotionMaster.h"
 #include "Player.h"
 #include "data/GameConfig.h"
 #include "spells/AuraQueries.h"
