@@ -524,7 +524,7 @@ add_test(NAME script_surface
         -DSCRIPT_SURFACE_PYTHON=${Python3_EXECUTABLE}
         -DSYMBOL_FORMAT=${SCRIPT_SURFACE_SYMBOL_FORMAT}
         -DSYMBOL_TOOL=${SCRIPT_SURFACE_SYMBOL_TOOL}
-        "-DCORE_LIBS=$<TARGET_FILE:game>|$<TARGET_FILE:shared>|$<TARGET_FILE:shared_db>|$<TARGET_FILE:proto>|$<TARGET_FILE:motion>|$<TARGET_FILE:terrain>|$<TARGET_FILE:mangos_crypto>"
+        "-DCORE_LIBS=$<TARGET_FILE:game>|$<TARGET_FILE:session>|$<TARGET_FILE:domain>|$<TARGET_FILE:data>|$<TARGET_FILE:persistence>|$<TARGET_FILE:shared>|$<TARGET_FILE:shared_db>|$<TARGET_FILE:proto>|$<TARGET_FILE:motion>|$<TARGET_FILE:terrain>|$<TARGET_FILE:mangos_crypto>"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckScriptSurface.cmake)
 
 add_test(NAME raw_rand
