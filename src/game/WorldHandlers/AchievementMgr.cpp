@@ -24,13 +24,13 @@
 #include "Common/ServerDefines.h"
 #include "Utilities/Errors.h"
 #include "Platform/Define.h"
+#include <atomic>
 #include <cstring>
 #include <ctime>
 #include <string>
 #include "AchievementMgr.h"
 #include "DBCStores.h"
 #include "Player.h"
-#include "WorldPacket.h"
 #include "DBCEnums.h"
 #include "GameEventMgr.h"
 #include "ObjectMgr.h"
@@ -45,41 +45,77 @@
 #include "Mail.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "data/Language.h"
 #include "MapManager.h"
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundAB.h"
 #include "Map.h"
 #include "DBCStructure.h"
-#include "data/ChatPacketBuilder.h"
 
 #include "Policies/Singleton.h"
 #include "persistence/characters/achievements/AchievementRepository.h"
 #include "persistence/characters/CharacterRepository.h"
 
 
-namespace MaNGOS
+namespace
 {
-    class AchievementChatBuilder
+    /// Collects the players a fan-out reaches, in the order it reaches them.
+    struct Listeners
     {
-        public:
-            AchievementChatBuilder(Player const& pl, ChatMsg msgtype, int32 textId, uint32 ach_id)
-                : i_player(pl), i_msgtype(msgtype), i_textId(textId), i_achievementId(ach_id) {}
-            void operator()(WorldPacket& data, int32 loc_idx)
-            {
-                char const* text = sObjectMgr.GetMangosString(i_textId, loc_idx);
+        std::vector<Player const*> players;
 
-                BuildChatPacket(data, i_msgtype, text, LANG_UNIVERSAL, i_player.GetChatTag(),  i_player.GetObjectGuid(), NULL, i_player.GetObjectGuid(), NULL, NULL,
-                    i_achievementId);
-            }
-
-        private:
-            Player const& i_player;
-            ChatMsg i_msgtype;
-            int32 i_textId;
-            uint32 i_achievementId;
+        void operator()(Player const* player)
+        {
+            players.push_back(player);
+        }
     };
-}                                                           // namespace MaNGOS
+
+    std::atomic<AchievementNotices*> s_achievementNoticesInstalled(NULL);
+
+    AchievementNotices& BaseAchievementNotices()
+    {
+        static AchievementNotices notices;
+        return notices;
+    }
+}
+
+AchievementNotices::~AchievementNotices()
+{
+}
+
+void AchievementNotices::EarnedSaid(Player const& /*earner*/, ChatMsg /*msgtype*/, uint32 /*achievementId*/, std::vector<Player const*> const& /*listeners*/)
+{
+}
+
+void AchievementNotices::Earned(Player& /*earner*/, uint32 /*achievementId*/, float /*range*/)
+{
+}
+
+void AchievementNotices::CriteriaUpdated(Player& /*player*/, uint32 /*criteriaId*/, CriteriaProgress const& /*progress*/)
+{
+}
+
+void AchievementNotices::CriteriaDeleted(Player& /*player*/, uint32 /*criteriaId*/)
+{
+}
+
+void AchievementNotices::AchievementDeleted(Player& /*player*/, uint32 /*achievementId*/)
+{
+}
+
+void AchievementNotices::AllData(Player& /*player*/)
+{
+}
+
+AchievementNotices& AchievementNotices::Installed()
+{
+    AchievementNotices* notices = s_achievementNoticesInstalled.load(std::memory_order_acquire);
+    return notices ? *notices : BaseAchievementNotices();
+}
+
+AchievementNotices* AchievementNotices::Install(AchievementNotices* notices)
+{
+    return s_achievementNoticesInstalled.exchange(notices, std::memory_order_acq_rel);
+}
 
 AchievementMgr::AchievementMgr(Player* player)
 {
@@ -94,16 +130,12 @@ void AchievementMgr::Reset()
 {
     for (CompletedAchievementMap::const_iterator iter = m_completedAchievements.begin(); iter != m_completedAchievements.end(); ++iter)
     {
-        WorldPacket data(SMSG_ACHIEVEMENT_DELETED, 4);
-        data << uint32(iter->first);
-        m_player->SendDirectMessage(&data);
+        sAchievementNotices.AchievementDeleted(*m_player, iter->first);
     }
 
     for (CriteriaProgressMap::const_iterator iter = m_criteriaProgress.begin(); iter != m_criteriaProgress.end(); ++iter)
     {
-        WorldPacket data(SMSG_CRITERIA_DELETED, 4);
-        data << uint32(iter->first);
-        m_player->SendDirectMessage(&data);
+        sAchievementNotices.CriteriaDeleted(*m_player, iter->first);
     }
 
     m_completedAchievements.clear();
@@ -290,15 +322,6 @@ void AchievementMgr::LoadFromDB(std::vector<LoginAchievementRow> const& achievem
     }
 }
 
-void AchievementMgr::BuildServerFirstAchievementPacket(WorldPacket& data, char const* name, ObjectGuid guid, uint32 achievementId)
-{
-    data.Initialize(SMSG_SERVER_FIRST_ACHIEVEMENT, strlen(name) + 1 + 8 + 4 + 4);
-    data << name;
-    data << guid;
-    data << uint32(achievementId);
-    data << uint32(0);                                      // 1=link supplied string as player name, 0=display plain string
-}
-
 void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement)
 {
     if (GetPlayer()->GetSession()->PlayerLoading())
@@ -310,9 +333,9 @@ void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement)
 
     if (Guild* guild = sGuildMgr.GetGuildById(GetPlayer()->GetGuildId()))
     {
-        MaNGOS::AchievementChatBuilder say_builder(*GetPlayer(), CHAT_MSG_GUILD_ACHIEVEMENT, LANG_ACHIEVEMENT_EARNED, achievement->ID);
-        MaNGOS::LocalizedPacketDo<MaNGOS::AchievementChatBuilder> say_do(say_builder);
-        guild->BroadcastWorker(say_do, GetPlayer());
+        Listeners hearers;
+        guild->BroadcastWorker(hearers, GetPlayer());
+        sAchievementNotices.EarnedSaid(*GetPlayer(), CHAT_MSG_GUILD_ACHIEVEMENT, achievement->ID, hearers.players);
     }
 
     if (achievement->Flags & (ACHIEVEMENT_FLAG_REALM_FIRST_KILL | ACHIEVEMENT_FLAG_REALM_FIRST_REACH))
@@ -323,36 +346,19 @@ void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement)
     // if player is in world he can tell his friends about new achievement
     else if (GetPlayer()->IsInWorld())
     {
-        MaNGOS::AchievementChatBuilder say_builder(*GetPlayer(), CHAT_MSG_ACHIEVEMENT, LANG_ACHIEVEMENT_EARNED, achievement->ID);
-        MaNGOS::LocalizedPacketDo<MaNGOS::AchievementChatBuilder> say_do(say_builder);
-        MaNGOS::CameraDistWorker<MaNGOS::LocalizedPacketDo<MaNGOS::AchievementChatBuilder> > say_worker(GetPlayer(), sGameConfig.getConfig(CONFIG_FLOAT_LISTEN_RANGE_SAY), say_do);
+        Listeners hearers;
+        MaNGOS::CameraDistWorker<Listeners> worker(GetPlayer(), sGameConfig.getConfig(CONFIG_FLOAT_LISTEN_RANGE_SAY), hearers);
 
-        Cell::VisitWorldObjects(GetPlayer(), say_worker, sGameConfig.getConfig(CONFIG_FLOAT_LISTEN_RANGE_SAY));
+        Cell::VisitWorldObjects(GetPlayer(), worker, sGameConfig.getConfig(CONFIG_FLOAT_LISTEN_RANGE_SAY));
+        sAchievementNotices.EarnedSaid(*GetPlayer(), CHAT_MSG_ACHIEVEMENT, achievement->ID, hearers.players);
     }
 
-    WorldPacket data(SMSG_ACHIEVEMENT_EARNED, 8 + 4 + 8);
-    data << GetPlayer()->GetPackGUID();
-    data << uint32(achievement->ID);
-    data << uint32(secsToTimeBitFields(time(NULL)));
-    data << uint32(0);
-    GetPlayer()->SendMessageToSetInRange(&data, sGameConfig.getConfig(CONFIG_FLOAT_LISTEN_RANGE_SAY), true);
+    sAchievementNotices.Earned(*GetPlayer(), achievement->ID, sGameConfig.getConfig(CONFIG_FLOAT_LISTEN_RANGE_SAY));
 }
 
 void AchievementMgr::SendCriteriaUpdate(uint32 id, CriteriaProgress const* progress)
 {
-    WorldPacket data(SMSG_CRITERIA_UPDATE, 8 + 4 + 8);
-    data << uint32(id);
-
-    time_t now = time(NULL);
-    // the counter is packed like a packed Guid
-    data.appendPackGUID(progress->counter);
-
-    data << GetPlayer()->GetPackGUID();
-    data << uint32(progress->timedCriteriaFailed ? 1 : 0);
-    data << uint32(secsToTimeBitFields(now));
-    data << uint32(now - progress->date);                   // timer 1
-    data << uint32(now - progress->date);                   // timer 2
-    GetPlayer()->SendDirectMessage(&data);
+    sAchievementNotices.CriteriaUpdated(*GetPlayer(), id, *progress);
 }
 
 /*
@@ -2071,9 +2077,7 @@ void AchievementMgr::SetCriteriaProgress(AchievementCriteriaEntry const* criteri
     {
         if (progress->counter < max_value)
         {
-            WorldPacket data(SMSG_CRITERIA_DELETED, 4);
-            data << uint32(criteria->ID);
-            m_player->SendDirectMessage(&data);
+            sAchievementNotices.CriteriaDeleted(*m_player, criteria->ID);
         }
 
         if (HasAchievement(achievement->ID))
@@ -2186,9 +2190,7 @@ void AchievementMgr::IncompletedAchievement(AchievementEntry const* achievement)
         return;
     }
 
-    WorldPacket data(SMSG_ACHIEVEMENT_DELETED, 4);
-    data << uint32(achievement->ID);
-    m_player->SendDirectMessage(&data);
+    sAchievementNotices.AchievementDeleted(*m_player, achievement->ID);
 
     if (!itr->second.changed)                               // complete state saved
         AchievementRepository::DeleteCompleted(GetPlayer()->GetGUIDLow(), achievement->ID);
@@ -2218,149 +2220,5 @@ void AchievementMgr::IncompletedAchievement(AchievementEntry const* achievement)
 
 void AchievementMgr::SendAllAchievementData()
 {
-    // since we don't know the exact size of the packed GUIDs this is just an approximation
-    WorldPacket data(SMSG_ALL_ACHIEVEMENT_DATA, 4 * 2 + m_completedAchievements.size() * 4 * 2 + m_completedAchievements.size() * 7 * 4);
-
-    ObjectGuid guid = m_player->GetObjectGuid();
-
-    data.WriteBits(m_criteriaProgress.size(), 21);
-
-    for (CriteriaProgressMap::const_iterator iter = m_criteriaProgress.begin(); iter!=m_criteriaProgress.end(); ++iter)
-    {
-        ObjectGuid counter = ObjectGuid(uint64(iter->second.counter));
-
-        data.WriteGuidMask<4>(guid);
-        data.WriteGuidMask<3>(counter);
-        data.WriteGuidMask<5>(guid);
-        data.WriteGuidMask<0, 6>(counter);
-        data.WriteGuidMask<3, 0>(guid);
-
-        data.WriteGuidMask<4>(counter);
-        data.WriteGuidMask<2>(guid);
-        data.WriteGuidMask<7>(counter);
-        data.WriteGuidMask<7>(guid);
-        uint8 flags = 0;                                        // Seems always 0
-        data.WriteBits(flags, 2);
-        data.WriteGuidMask<6>(guid);
-
-        data.WriteGuidMask<2, 1, 5>(counter);
-        data.WriteGuidMask<1>(guid);
-    }
-
-    data.WriteBits(m_completedAchievements.size(), 23);
-
-    time_t now = time(NULL);
-    for (CriteriaProgressMap::const_iterator iter = m_criteriaProgress.begin(); iter != m_criteriaProgress.end(); ++iter)
-    {
-        ObjectGuid counter = ObjectGuid(uint64(iter->second.counter));
-
-        data.WriteGuidBytes<3>(guid);
-        data.WriteGuidBytes<5, 6>(counter);
-        data.WriteGuidBytes<4, 6>(guid);
-        data.WriteGuidBytes<2>(counter);
-
-        data << uint32(now - iter->second.date);               // Timer 2
-
-        data.WriteGuidBytes<2>(guid);
-
-        data << uint32(iter->first);
-
-        data.WriteGuidBytes<5>(guid);
-        data.WriteGuidBytes<0, 3, 1, 4>(counter);
-        data.WriteGuidBytes<0, 7>(guid);
-        data.WriteGuidBytes<7>(counter);
-
-        data << uint32(now - iter->second.date);               // Timer 1
-        data << uint32(secsToTimeBitFields(now));
-
-        data.WriteGuidBytes<1>(guid);
-    }
-
-    for (CompletedAchievementMap::const_iterator iter = m_completedAchievements.begin(); iter != m_completedAchievements.end(); ++iter)
-    {
-        data << uint32(iter->first);
-        data << uint32(secsToTimeBitFields(iter->second.date));
-    }
-
-    GetPlayer()->GetSession()->SendPacket(&data);
-}
-
-void AchievementMgr::SendRespondInspectAchievements(Player* player)
-{
-    // since we don't know the exact size of the packed GUIDs this is just an approximation
-    WorldPacket data(SMSG_RESPOND_INSPECT_ACHIEVEMENTS, 4 + 4 * 2 + m_completedAchievements.size() * 4 * 2 + m_completedAchievements.size() * 7 * 4);
-
-    ObjectGuid targetGuid = m_player->GetObjectGuid();
-    ObjectGuid guid = m_player->GetObjectGuid();
-
-    data.WriteGuidMask<7, 4, 1>(targetGuid);
-
-    data.WriteBits(m_completedAchievements.size(), 23);
-
-    data.WriteGuidMask<0, 3>(targetGuid);
-
-    data.WriteBits(m_criteriaProgress.size(), 21);
-
-    data.WriteGuidMask<2>(targetGuid);
-
-    for (CriteriaProgressMap::const_iterator iter = m_criteriaProgress.begin(); iter != m_criteriaProgress.end(); ++iter)
-    {
-        ObjectGuid counter = ObjectGuid(uint64(iter->second.counter));
-
-        data.WriteGuidMask<5, 3>(guid);
-        data.WriteGuidMask<1, 4, 2>(counter);
-        data.WriteGuidMask<6>(guid);
-        data.WriteGuidMask<0>(counter);
-        data.WriteGuidMask<4, 1, 2>(guid);
-        data.WriteGuidMask<3, 7>(counter);
-
-        uint8 flags = 0;                                    // Seems always 0
-        data.WriteBits(flags, 2);
-
-        data.WriteGuidMask<0>(guid);
-        data.WriteGuidMask<5, 6>(counter);
-        data.WriteGuidMask<7>(guid);
-    }
-
-    data.WriteGuidMask<6, 5>(targetGuid);
-
-    time_t now = time(NULL);
-    for (CriteriaProgressMap::const_iterator iter = m_criteriaProgress.begin(); iter != m_criteriaProgress.end(); ++iter)
-    {
-        ObjectGuid counter = ObjectGuid(uint64(iter->second.counter));
-
-        data.WriteGuidBytes<3>(counter);
-        data.WriteGuidBytes<4>(guid);
-
-        data << uint32(now - iter->second.date);            // Timer 1
-
-        data.WriteGuidBytes<1>(counter);
-
-        data << uint32(secsToTimeBitFields(now));
-
-        data.WriteGuidBytes<3, 7>(guid);
-        data.WriteGuidBytes<5>(counter);
-        data.WriteGuidBytes<0>(guid);
-        data.WriteGuidBytes<4, 2, 6, 7>(counter);
-        data.WriteGuidBytes<6>(guid);
-
-        data << uint32(iter->first);
-        data << uint32(now - iter->second.date);            // Timer 2
-
-        data.WriteGuidBytes<1, 5>(guid);
-        data.WriteGuidBytes<0>(counter);
-        data.WriteGuidBytes<2>(guid);
-    }
-
-    data.WriteGuidBytes<1, 6, 3, 0, 2>(targetGuid);
-
-    for (CompletedAchievementMap::const_iterator iter = m_completedAchievements.begin(); iter != m_completedAchievements.end(); ++iter)
-    {
-        data << uint32(iter->first);
-        data << uint32(secsToTimeBitFields(iter->second.date));
-    }
-
-    data.WriteGuidBytes<7, 4, 5>(targetGuid);
-
-    player->GetSession()->SendPacket(&data);
+    sAchievementNotices.AllData(*m_player);
 }

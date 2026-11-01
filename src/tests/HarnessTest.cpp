@@ -174,7 +174,7 @@ namespace
         return Harness::Trace::PacketRecord(opcode, "OP", p.contents(), p.size(), false, TestRoles());
     }
 
-    /// AchievementMgr::SendCriteriaUpdate, statement for statement.
+    /// BuildCriteriaUpdatePacket, statement for statement.
     WorldPacket CriteriaUpdate(uint32 id, uint64 counter, uint64 player, bool failed, uint32 now, uint32 date)
     {
         WorldPacket data(SMSG_CRITERIA_UPDATE, 8 + 4 + 8);
@@ -269,7 +269,7 @@ TEST(HarnessTrace_a_decoder_refuses_bytes_that_do_not_end_where_the_writer_does)
 
 TEST(HarnessTrace_achievement_earned_keeps_the_id_and_drops_the_date)
 {
-    // AchievementMgr::SendAchievementEarned
+    // BuildAchievementEarnedPacket
     WorldPacket data(SMSG_ACHIEVEMENT_EARNED, 8 + 4 + 8);
     data.appendPackGUID(kSelf);                       // GetPlayer()->GetPackGUID()
     data << uint32(889);

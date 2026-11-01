@@ -43,6 +43,7 @@
 #include "ObjectLookup.h"
 #include "DBCStores.h"
 #include "session/packets/chat/SystemMessage.h"
+#include "session/packets/entities/AchievementPackets.h"
 #include "WorldSession.h"
 
 /**
@@ -508,5 +509,5 @@ void PlayerHandlers::HandleQueryInspectAchievements(WorldSession& session, World
         return;
     }
 
-    player->GetAchievementMgr().SendRespondInspectAchievements(session.GetPlayer());
+    SendRespondInspectAchievements(*session.GetPlayer(), *player);
 }

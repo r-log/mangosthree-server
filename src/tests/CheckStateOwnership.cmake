@@ -194,10 +194,13 @@ state_row(achievement
             CompletedAchievementMap)
 
 state_allow(achievement src/game/WorldHandlers/AchievementMgr.cpp
-    WHY "the owner: builds its packets, and its load's log line names the progress table"
+    WHY "the owner: its load's log line names the progress table"
+    NAMES character_achievement_progress)
+state_allow(achievement src/game/session/packets/entities/AchievementPackets.cpp
+    WHY "the session's builders of the owner's packets: the earned achievement, a criteria's progress, the inspect answer, every achievement, the realm first and the deletions"
     NAMES SMSG_ACHIEVEMENT_EARNED SMSG_CRITERIA_UPDATE SMSG_RESPOND_INSPECT_ACHIEVEMENTS
           SMSG_ALL_ACHIEVEMENT_DATA SMSG_SERVER_FIRST_ACHIEVEMENT SMSG_CRITERIA_DELETED
-          SMSG_ACHIEVEMENT_DELETED character_achievement_progress)
+          SMSG_ACHIEVEMENT_DELETED)
 state_allow(achievement src/game/WorldHandlers/AchievementMgr.h
     WHY "realm-wide check: AchievementGlobalMgr::ReportOrphanedCriteriaProgress's doc comment, in the owner's header"
     NAMES character_achievement_progress)

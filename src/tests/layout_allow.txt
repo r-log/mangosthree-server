@@ -286,7 +286,6 @@ src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapManager.h
 src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/WorldHandlers/AchievementCriteriaRequirement.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/AchievementMgr.cpp -> src/proto/WorldPacket.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/social/SocialList.h

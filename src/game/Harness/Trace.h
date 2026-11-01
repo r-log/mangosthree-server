@@ -106,10 +106,10 @@ namespace Harness
         // flags or the result. On success `out` holds the record's fields; on failure it is untouched and
         // the caller records the packet as undecoded, by its size alone.
 
-        /// SMSG_CRITERIA_UPDATE (AchievementMgr::SendCriteriaUpdate): criteria id, the packed
+        /// SMSG_CRITERIA_UPDATE (BuildCriteriaUpdatePacket): criteria id, the packed
         /// counter, the earner's packed guid, the failed flag; the date and both timers dropped.
         bool DecodeCriteriaUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_ACHIEVEMENT_EARNED (AchievementMgr::SendAchievementEarned): the earner's packed
+        /// SMSG_ACHIEVEMENT_EARNED (BuildAchievementEarnedPacket): the earner's packed
         /// guid, the achievement id and the trailing word; the date dropped.
         bool DecodeAchievementEarned(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_SPELL_START and SMSG_SPELL_GO (BuildSpellStartPacket / BuildSpellGoPacket, SpellCastPackets.cpp): the caster

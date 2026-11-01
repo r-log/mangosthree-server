@@ -99,7 +99,7 @@ namespace Harness
         /// Every packet of `opcode` recorded, in any window.
         uint32 CountAll(uint16 opcode) const;
         /// The criteria id of every criteria-update packet recorded, in order: its first word, as
-        /// AchievementMgr::SendCriteriaUpdate writes it. The families' noPersistence maps each
+        /// BuildCriteriaUpdatePacket writes it. The families' noPersistence maps each
         /// through the criteria store (UnmodelledCriteriaTypes) so the achievement closure checks
         /// itself against what the run really fired.
         std::vector<uint32> FiredCriteriaIds() const;

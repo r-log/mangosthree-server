@@ -77,6 +77,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Chat.h"
 #include "session/packets/chat/MessageChatPacket.h"
+#include "session/packets/entities/AchievementPackets.h"
 #include "session/packets/maps/WorldStatePackets.h"
 #include "data/ChatPacketBuilder.h"
 #include "DBCStores.h"
@@ -1332,7 +1333,7 @@ bool World::PostAfterMapPhase(AfterMapPhasePost const& post)
 void World::RealmFirstAchievement(char const* name, ObjectGuid guid, uint32 achievementId)
 {
     WorldPacket data;
-    AchievementMgr::BuildServerFirstAchievementPacket(data, name, guid, achievementId);
+    BuildServerFirstAchievementPacket(data, name, guid, achievementId);
     m_sessions.Broadcast(data);
 }
 
