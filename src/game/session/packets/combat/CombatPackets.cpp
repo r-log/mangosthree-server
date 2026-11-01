@@ -42,8 +42,8 @@ void BuildAttackStartPacket(WorldPacket& packet, Unit const& attacker, Unit cons
 void BuildAttackStopPacket(WorldPacket& packet, Unit const& attacker, Unit const& victim)
 {
     packet.Initialize(SMSG_ATTACKSTOP, 4 + 16);
-    packet << attacker.GetPackGUID();
-    packet << victim.GetPackGUID();                         // can be 0x00...
+    packet << attacker.GetObjectGuid().WriteAsPacked();
+    packet << victim.GetObjectGuid().WriteAsPacked();                         // can be 0x00...
     packet << uint32(0);                                    // can be 0x1
 }
 
@@ -53,8 +53,8 @@ void BuildSpellNonMeleeDamageLogPacket(WorldPacket& packet, SpellNonMeleeDamage 
     uint32 overkill = log.damage > targetHealth ? log.damage - targetHealth : 0;
 
     packet.Initialize(SMSG_SPELLNONMELEEDAMAGELOG, 16 + 4 + 4 + 4 + 1 + 4 + 4 + 1 + 1 + 4 + 4 + 1);
-    packet << log.target->GetPackGUID();
-    packet << log.attacker->GetPackGUID();
+    packet << log.target->GetObjectGuid().WriteAsPacked();
+    packet << log.attacker->GetObjectGuid().WriteAsPacked();
     packet << uint32(log.SpellID);
     packet << uint32(log.damage);                           // damage amount
     packet << uint32(overkill);                             // overkill
@@ -74,7 +74,7 @@ bool BuildPeriodicAuraLogPacket(WorldPacket& packet, SpellPeriodicAuraLogInfo co
     Modifier const* mod = aura->GetModifier();
 
     packet.Initialize(SMSG_PERIODICAURALOG, 30);
-    packet << aura->GetTarget()->GetPackGUID();
+    packet << aura->GetTarget()->GetObjectGuid().WriteAsPacked();
     packet << aura->GetCasterGuid().WriteAsPacked();
     packet << uint32(aura->GetId());                        // spellId
     packet << uint32(1);                                    // count
@@ -142,8 +142,8 @@ void BuildAttackerStateUpdatePacket(WorldPacket& packet, CalcDamageInfo const& d
     uint32 count = 1;
     packet.Initialize(SMSG_ATTACKERSTATEUPDATE, 16 + 45);
     packet << (uint32)damageInfo.HitInfo;
-    packet << damageInfo.attacker->GetPackGUID();
-    packet << damageInfo.target->GetPackGUID();
+    packet << damageInfo.attacker->GetObjectGuid().WriteAsPacked();
+    packet << damageInfo.target->GetObjectGuid().WriteAsPacked();
     packet << (uint32)(damageInfo.damage);                  // Full damage
     packet << uint32(overkill);                             // overkill value
     packet << uint8(count);                                 // Sub damage count
@@ -209,8 +209,8 @@ void BuildAttackerStateUpdatePacket(WorldPacket& packet, CalcDamageInfo const& d
 void BuildSpellHealLogPacket(WorldPacket& packet, Unit const& healer, Unit const& victim, uint32 spellId, uint32 damage, uint32 overHeal, bool critical, uint32 absorb)
 {
     packet.Initialize(SMSG_SPELLHEALLOG, 8 + 8 + 4 + 4 + 1);
-    packet << victim.GetPackGUID();
-    packet << healer.GetPackGUID();
+    packet << victim.GetObjectGuid().WriteAsPacked();
+    packet << healer.GetObjectGuid().WriteAsPacked();
     packet << uint32(spellId);
     packet << uint32(damage);
     packet << uint32(overHeal);
@@ -236,7 +236,7 @@ void BuildThreatUpdatePacket(WorldPacket& packet, Unit const& owner)
     ThreatList const& tlist = owner.GetThreatManager().getThreatList();
     uint32 count = tlist.size();
     packet.Initialize(SMSG_THREAT_UPDATE, 8 + count * 8);
-    packet << owner.GetPackGUID();
+    packet << owner.GetObjectGuid().WriteAsPacked();
     packet << uint32(count);
     for (ThreatList::const_iterator itr = tlist.begin(); itr != tlist.end(); ++itr)
     {
@@ -250,7 +250,7 @@ void BuildHighestThreatUpdatePacket(WorldPacket& packet, Unit const& owner, Host
     ThreatList const& tlist = owner.GetThreatManager().getThreatList();
     uint32 count = tlist.size();
     packet.Initialize(SMSG_HIGHEST_THREAT_UPDATE, 8 + 8 + count * 8);
-    packet << owner.GetPackGUID();
+    packet << owner.GetObjectGuid().WriteAsPacked();
     packet << highest.getUnitGuid().WriteAsPacked();
     packet << uint32(count);
     for (ThreatList::const_iterator itr = tlist.begin(); itr != tlist.end(); ++itr)
@@ -263,13 +263,13 @@ void BuildHighestThreatUpdatePacket(WorldPacket& packet, Unit const& owner, Host
 void BuildThreatClearPacket(WorldPacket& packet, Unit const& owner)
 {
     packet.Initialize(SMSG_THREAT_CLEAR, 8);
-    packet << owner.GetPackGUID();
+    packet << owner.GetObjectGuid().WriteAsPacked();
 }
 
 void BuildThreatRemovePacket(WorldPacket& packet, Unit const& owner, HostileReference const& removed)
 {
     packet.Initialize(SMSG_THREAT_REMOVE, 8 + 8);
-    packet << owner.GetPackGUID();
+    packet << owner.GetObjectGuid().WriteAsPacked();
     packet << removed.getUnitGuid().WriteAsPacked();
 }
 

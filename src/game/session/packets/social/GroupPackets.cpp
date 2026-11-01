@@ -220,7 +220,7 @@ void BuildPartyMemberStatsChangedPacket(WorldPacket& packet, Player& player)
         }
 
     packet.Initialize(SMSG_PARTY_MEMBER_STATS, 8 + 4 + byteCount);
-    packet << player.GetPackGUID();
+    packet << player.GetObjectGuid().WriteAsPacked();
     packet << uint32(mask);
 
     if (mask & GROUP_UPDATE_FLAG_STATUS)

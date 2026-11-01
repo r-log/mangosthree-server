@@ -148,8 +148,8 @@ void CombatHandlers::HandleSetSheathed(WorldSession& session, WorldPacket& recv_
 void CombatHandlers::SendAttackStop(WorldSession& session, Unit const* enemy)
 {
     WorldPacket data(SMSG_ATTACKSTOP, (4 + 20));            // we guess size
-    data << session.GetPlayer()->GetPackGUID();
-    data << (enemy ? enemy->GetPackGUID() : PackedGuid());  // must be packed guid
+    data << session.GetPlayer()->GetObjectGuid().WriteAsPacked();
+    data << (enemy ? enemy->GetObjectGuid() : ObjectGuid()).WriteAsPacked();  // must be packed guid
     data << uint32(0);                                      // unk, can be 1 also
     session.SendPacket(&data);
 }

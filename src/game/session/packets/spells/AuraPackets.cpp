@@ -81,7 +81,7 @@ namespace
 void BuildAuraUpdatePacket(WorldPacket& packet, SpellAuraHolder const& holder, bool removed)
 {
     packet.Initialize(SMSG_AURA_UPDATE);
-    packet << holder.GetTarget()->GetPackGUID();
+    packet << holder.GetTarget()->GetObjectGuid().WriteAsPacked();
 
     if (removed)
     {
@@ -97,7 +97,7 @@ void BuildAuraUpdatePacket(WorldPacket& packet, SpellAuraHolder const& holder, b
 void BuildAuraUpdateAllPacket(WorldPacket& packet, Unit const& target)
 {
     packet.Initialize(SMSG_AURA_UPDATE_ALL);
-    packet << target.GetPackGUID();
+    packet << target.GetObjectGuid().WriteAsPacked();
 
     Unit::VisibleAuraMap const& visibleAuras = target.GetVisibleAuras();
     for (Unit::VisibleAuraMap::const_iterator itr = visibleAuras.begin(); itr != visibleAuras.end(); ++itr)

@@ -32,7 +32,6 @@
 #include "Utilities/MathDefines.h"
 #include <ctime>
 #include <vector>
-#include "ByteBuffer.h"
 #include "UpdateFields.h"
 #include "UpdateData.h"
 #include "ObjectGuid.h"
@@ -261,12 +260,6 @@ class Object
          * @return Low 32 bits of the GUID counter
          */
         uint32 GetGUIDLow() const { return GetObjectGuid().GetCounter(); }
-
-        /**
-         * @brief Get the packed GUID representation
-         * @return Reference to packed GUID for network transmission
-         */
-        PackedGuid const& GetPackGUID() const { return m_PackGUID; }
 
         /**
          * @brief Get the GUID as a string
@@ -604,7 +597,6 @@ class Object
         bool m_inWorld;
         bool m_itsNewObject;
 
-        PackedGuid m_PackGUID;
 
         Object(const Object&);                              // prevent generation copy constructor
         Object& operator=(Object const&);                   // prevent generation assigment operator

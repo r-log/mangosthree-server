@@ -56,7 +56,7 @@ void WorldSession::SendNameQueryOpcode(Player* p)
 
     // guess size
     WorldPacket data(SMSG_NAME_QUERY_RESPONSE, (8 + 1 + 1 + 1 + 1 + 1 + 10));
-    data << p->GetPackGUID();                               // player guid
+    data << p->GetObjectGuid().WriteAsPacked();                               // player guid
     data << uint8(0);                                       // added in 3.1; if > 1, then end of packet
     data << p->GetName();                                   // played name
     data << uint8(0);                                       // realm name for cross realm BG usage

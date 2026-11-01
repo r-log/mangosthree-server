@@ -180,7 +180,7 @@ namespace
         WorldPacket data(SMSG_CRITERIA_UPDATE, 8 + 4 + 8);
         data << uint32(id);
         data.appendPackGUID(counter);
-        data.appendPackGUID(player);                 // GetPlayer()->GetPackGUID()
+        data.appendPackGUID(player);                 // GetPlayer()->GetObjectGuid().WriteAsPacked()
         data << uint32(failed ? 1 : 0);
         data << uint32(now);                         // secsToTimeBitFields(now)
         data << uint32(now - date);                  // timer 1
@@ -271,7 +271,7 @@ TEST(HarnessTrace_achievement_earned_keeps_the_id_and_drops_the_date)
 {
     // BuildAchievementEarnedPacket
     WorldPacket data(SMSG_ACHIEVEMENT_EARNED, 8 + 4 + 8);
-    data.appendPackGUID(kSelf);                       // GetPlayer()->GetPackGUID()
+    data.appendPackGUID(kSelf);                       // GetPlayer()->GetObjectGuid().WriteAsPacked()
     data << uint32(889);
     data << uint32(0x0BADF00D);                       // secsToTimeBitFields(time(NULL))
     data << uint32(0);
@@ -673,8 +673,8 @@ namespace
                             uint8 extend)
     {
         WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16 + 4 + 4 + 4 + 1 + 4 + 4 + 1 + 1 + 4 + 4 + 1));
-        data.appendPackGUID(target);                  // log->target->GetPackGUID()
-        data.appendPackGUID(attacker);                // log->attacker->GetPackGUID()
+        data.appendPackGUID(target);                  // log->target->GetObjectGuid().WriteAsPacked()
+        data.appendPackGUID(attacker);                // log->attacker->GetObjectGuid().WriteAsPacked()
         data << uint32(spell);
         data << uint32(damage);
         data << uint32(overkill);
@@ -713,7 +713,7 @@ namespace
     WorldPacket PowerUpdate(uint64 unit, uint8 power, uint32 value)
     {
         WorldPacket data(SMSG_POWER_UPDATE);
-        data.appendPackGUID(unit);                    // GetPackGUID()
+        data.appendPackGUID(unit);                    // GetObjectGuid().WriteAsPacked()
         data << uint32(1);
         data << uint8(power);
         data << uint32(value);
@@ -724,7 +724,7 @@ namespace
     WorldPacket Interrupted(uint16 opcode, uint64 caster, uint8 castCount, uint32 spell, uint8 result)
     {
         WorldPacket data(opcode, (8 + 4 + 1));
-        data.appendPackGUID(caster);                  // m_caster->GetPackGUID()
+        data.appendPackGUID(caster);                  // m_caster->GetObjectGuid().WriteAsPacked()
         data << uint8(castCount);
         data << uint32(spell);
         data << uint8(result);
@@ -956,7 +956,7 @@ namespace
     WorldPacket PeriodicHead(uint64 target, uint64 caster, uint32 spell, uint32 aura)
     {
         WorldPacket data(SMSG_PERIODICAURALOG, 30);
-        data.appendPackGUID(target);                  // aura->GetTarget()->GetPackGUID()
+        data.appendPackGUID(target);                  // aura->GetTarget()->GetObjectGuid().WriteAsPacked()
         data.appendPackGUID(caster);                  // aura->GetCasterGuid().WriteAsPacked()
         data << uint32(spell);
         data << uint32(1);                            // count
@@ -968,8 +968,8 @@ namespace
     WorldPacket HealLog(uint64 target, uint64 caster, uint32 spell, uint32 heal, uint32 overheal, uint32 absorb, uint8 critical)
     {
         WorldPacket data(SMSG_SPELLHEALLOG, (8 + 8 + 4 + 4 + 1));
-        data.appendPackGUID(target);                  // pVictim->GetPackGUID()
-        data.appendPackGUID(caster);                  // GetPackGUID()
+        data.appendPackGUID(target);                  // pVictim->GetObjectGuid().WriteAsPacked()
+        data.appendPackGUID(caster);                  // GetObjectGuid().WriteAsPacked()
         data << uint32(spell);
         data << uint32(heal);
         data << uint32(overheal);

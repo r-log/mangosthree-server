@@ -340,7 +340,7 @@ bool ChatHandler::HandleDebugRecvOpcodeCommand(char* /*args*/)
         }
         else if (type == "pguid")
         {
-            *data << unit->GetPackGUID();
+            *data << unit->GetObjectGuid().WriteAsPacked();
         }
         else if (type == "guid")
         {
@@ -348,7 +348,7 @@ bool ChatHandler::HandleDebugRecvOpcodeCommand(char* /*args*/)
         }
         else if (type == "mypguid")
         {
-            *data << m_session->GetPlayer()->GetPackGUID();
+            *data << m_session->GetPlayer()->GetObjectGuid().WriteAsPacked();
         }
         else if (type == "myguid")
         {
@@ -453,7 +453,7 @@ bool ChatHandler::HandleDebugSendOpcodeCommand(char* /*args*/)
         }
         else if (type == "pguid")
         {
-            data << unit->GetPackGUID();
+            data << unit->GetObjectGuid().WriteAsPacked();
         }
         else if (type == "guid")
         {
@@ -461,7 +461,7 @@ bool ChatHandler::HandleDebugSendOpcodeCommand(char* /*args*/)
         }
         else if (type == "mypguid")
         {
-            data << m_session->GetPlayer()->GetPackGUID();
+            data << m_session->GetPlayer()->GetObjectGuid().WriteAsPacked();
         }
         else if (type == "myguid")
         {
