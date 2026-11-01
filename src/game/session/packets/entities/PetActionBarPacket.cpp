@@ -42,8 +42,16 @@ void BuildPossessBarPacket(WorldPacket& packet, ObjectGuid charm, CharmInfo& cha
     packet << uint32(0);
     packet << uint32(0);
 
-    charmInfo.BuildActionBar(&packet);
+    WriteActionBar(packet, charmInfo);
 
     packet << uint8(0);                                       // spells count
     packet << uint8(0);                                       // cooldowns count
+}
+
+void WriteActionBar(WorldPacket& packet, CharmInfo const& info)
+{
+    for (uint32 i = 0; i < MAX_UNIT_ACTION_BAR_INDEX; ++i)
+    {
+        packet << uint32(info.GetActionBarEntry(i)->packedData);
+    }
 }

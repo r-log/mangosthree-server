@@ -48,6 +48,7 @@ class SessionPlayerSpellNotices : public PlayerSpellNotices
         void TalentsInvoluntarilyReset(Player const& player, bool pet) override;
         void TalentWipeConfirm(Player const& player, ObjectGuid source, uint32 cost) override;
         void PetUnlearnConfirm(Player const& player, ObjectGuid pet, uint32 cost) override;
+        void TalentsShown(Player const& player, bool pet) override;
 };
 
 #endif

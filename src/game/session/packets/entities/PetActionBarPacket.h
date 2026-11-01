@@ -40,4 +40,7 @@ void BuildPetActionBarClearedPacket(WorldPacket& packet, PetActionBarClearedFact
 /// cooldowns.
 void BuildPossessBarPacket(WorldPacket& packet, ObjectGuid charm, CharmInfo& charmInfo);
 
+/// Writes `info`'s action bar: each button's packed action and type.
+void WriteActionBar(WorldPacket& packet, CharmInfo const& info);
+
 #endif

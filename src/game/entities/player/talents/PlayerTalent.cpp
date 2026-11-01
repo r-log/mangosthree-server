@@ -28,10 +28,8 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "entities/player/spells/PlayerSpellNotices.h"
-#include "WorldPacket.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -379,156 +377,6 @@ void Player::LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRa
     DETAIL_LOG("PetTalentID: %u Rank: %u Spell: %u\n", talentId, talentRank, spellid);
 }
 
-void Player::BuildPlayerTalentsInfoData(WorldPacket* data)
-{
-    *data << uint32(m_talentMgr.FreePoints());              // unspentTalentPoints
-    *data << uint8(m_talentMgr.SpecsCount());               // talent group count (0, 1 or 2)
-    *data << uint8(m_talentMgr.ActiveSpec());               // talent group index (0 or 1)
-
-    if (m_talentMgr.SpecsCount())
-    {
-        if (m_talentMgr.SpecsCount() > MAX_TALENT_SPEC_COUNT)
-        {
-            m_talentMgr.SetSpecsCount(MAX_TALENT_SPEC_COUNT);
-        }
-
-        // loop through all specs (only 1 for now)
-        for (uint32 specIdx = 0; specIdx < m_talentMgr.SpecsCount(); ++specIdx)
-        {
-            *data << uint32(m_talentMgr.PrimaryTree(specIdx));
-            uint8 talentIdCount = 0;
-            size_t pos = data->wpos();
-            *data << uint8(talentIdCount);                  // [PH], talentIdCount
-
-            // find class talent tabs (all players have 3 talent tabs)
-            uint32 const* talentTabIds = GetTalentTabPages(getClass());
-
-            for (uint32 i = 0; i < MAX_TALENT_TABS; ++i)
-            {
-                uint32 talentTabId = talentTabIds[i];
-                for (PlayerTalentMap::iterator iter = m_talentMgr.Talents(specIdx).begin(); iter != m_talentMgr.Talents(specIdx).end(); ++iter)
-                {
-                    PlayerTalent talent = (*iter).second;
-
-                    if (talent.state == PLAYERSPELL_REMOVED)
-                    {
-                        continue;
-                    }
-
-                    // skip another tab talents
-                    if (talent.talentEntry->TabID != talentTabId)
-                    {
-                        continue;
-                    }
-
-                    *data << uint32(talent.talentEntry->ID);  // Talent.dbc
-                    *data << uint8(talent.currentRank);     // talentMaxRank (0-4)
-
-                    ++talentIdCount;
-                }
-            }
-
-            data->put<uint8>(pos, talentIdCount);           // put real count
-
-            *data << uint8(MAX_GLYPH_SLOT_INDEX);           // glyphs count
-
-            // GlyphProperties.dbc
-            for (uint8 i = 0; i < MAX_GLYPH_SLOT_INDEX; ++i)
-            {
-                *data << uint16(m_glyphMgr.GetGlyph(specIdx, i));
-            }
-        }
-    }
-}
-
-void Player::BuildPetTalentsInfoData(WorldPacket* data)
-{
-    uint32 unspentTalentPoints = 0;
-    size_t pointsPos = data->wpos();
-    *data << uint32(unspentTalentPoints);                   // [PH], unspentTalentPoints
-
-    uint8 talentIdCount = 0;
-    size_t countPos = data->wpos();
-    *data << uint8(talentIdCount);                          // [PH], talentIdCount
-
-    Pet* pet = GetPet();
-    if (!pet)
-    {
-        return;
-    }
-
-    unspentTalentPoints = pet->GetFreeTalentPoints();
-
-    data->put<uint32>(pointsPos, unspentTalentPoints);      // put real points
-
-    CreatureInfo const* ci = pet->GetCreatureInfo();
-    if (!ci)
-    {
-        return;
-    }
-
-    CreatureFamilyEntry const* pet_family = sCreatureFamilyStore.LookupEntry(ci->Family);
-    if (!pet_family || pet_family->PetTalentType < 0)
-    {
-        return;
-    }
-
-    for (uint32 talentTabId = 1; talentTabId < sTalentTabStore.GetNumRows(); ++talentTabId)
-    {
-        TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentTabId);
-        if (!talentTabInfo)
-        {
-            continue;
-        }
-
-        if (!((1 << pet_family->PetTalentType) & talentTabInfo->PetTalentMask))
-        {
-            continue;
-        }
-
-        for (uint32 talentId = 0; talentId < sTalentStore.GetNumRows(); ++talentId)
-        {
-            TalentEntry const* talentInfo = sTalentStore.LookupEntry(talentId);
-            if (!talentInfo)
-            {
-                continue;
-            }
-
-            // skip another tab talents
-            if (talentInfo->TabID != talentTabId)
-            {
-                continue;
-            }
-
-            // find max talent rank
-            int32 curtalent_maxrank = -1;
-            for (int32 k = 4; k > -1; --k)
-            {
-                if (talentInfo->SpellRank[k] && pet->HasSpell(talentInfo->SpellRank[k]))
-                {
-                    curtalent_maxrank = k;
-                    break;
-                }
-            }
-
-            // not learned talent
-            if (curtalent_maxrank < 0)
-            {
-                continue;
-            }
-
-            *data << uint32(talentInfo->ID);          // Talent.dbc
-            *data << uint8(curtalent_maxrank);              // talentMaxRank (0-4)
-
-            ++talentIdCount;
-        }
-
-        data->put<uint8>(countPos, talentIdCount);          // put real count
-
-        break;
-    }
-}
-
 /**
  * @brief Tells the client its talents were reset by something other than itself.
  *
@@ -550,17 +398,12 @@ void Player::SendTalentsInvoluntarilyReset(bool pet)
 
 void Player::SendTalentsInfoData(bool pet)
 {
-    WorldPacket data(SMSG_TALENT_UPDATE, 50);
-    data << uint8(pet ? 1 : 0);
-    if (pet)
+    sPlayerSpellNotices.TalentsShown(*this, pet);
+
+    if (!pet && m_talentMgr.SpecsCount() > MAX_TALENT_SPEC_COUNT)
     {
-        BuildPetTalentsInfoData(&data);
+        m_talentMgr.SetSpecsCount(MAX_TALENT_SPEC_COUNT);
     }
-    else
-    {
-        BuildPlayerTalentsInfoData(&data);
-    }
-    GetSession()->SendPacket(&data);
 }
 
 void Player::ActivateSpec(uint8 specNum)

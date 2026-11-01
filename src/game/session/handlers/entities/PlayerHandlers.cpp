@@ -44,6 +44,7 @@
 #include "DBCStores.h"
 #include "session/packets/chat/SystemMessage.h"
 #include "session/packets/entities/AchievementPackets.h"
+#include "session/packets/entities/TalentPackets.h"
 #include "WorldSession.h"
 
 /**
@@ -426,7 +427,7 @@ void PlayerHandlers::HandleInspect(WorldSession& session, WorldPacket& recv_data
 
     if (sGameConfig.getConfig(CONFIG_BOOL_TALENTS_INSPECTING) || session.GetPlayer()->isGameMaster())
     {
-        plr->BuildPlayerTalentsInfoData(&data);
+        WriteTalentsInfo(data, *plr);
     }
     else
     {
@@ -435,7 +436,7 @@ void PlayerHandlers::HandleInspect(WorldSession& session, WorldPacket& recv_data
         data << uint8(0);                                   // talentGroupIndex
     }
 
-    plr->BuildEnchantmentsInfoData(&data);
+    WriteEnchantmentsInfo(data, *plr);
     if (Guild* guild = sGuildMgr.GetGuildById(plr->GetGuildId()))
     {
         data << guild->GetObjectGuid();

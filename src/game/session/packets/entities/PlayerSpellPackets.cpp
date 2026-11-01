@@ -30,6 +30,8 @@
 #include "Opcodes.h"
 #include "Player.h"
 #include "WorldPacket.h"
+#include "session/packets/entities/PetActionBarPacket.h"
+#include "session/packets/entities/TalentPackets.h"
 #include "session/packets/spells/CooldownPackets.h"
 #include "spells/SpellCooldownMgr.h"
 
@@ -204,7 +206,7 @@ void SessionPlayerSpellNotices::PetSpellsShown(Player const& player, Pet& pet)
     data << uint8(charmInfo.GetReactState()) << uint8(charmInfo.GetCommandState()) << uint16(0);
 
     // action bar loop
-    charmInfo.BuildActionBar(&data);
+    WriteActionBar(data, charmInfo);
 
     size_t spellsCountPos = data.wpos();
 
@@ -273,7 +275,7 @@ void SessionPlayerSpellNotices::CharmSpellsShown(Player const& player, ObjectGui
         data << uint8(0) << uint8(0) << uint16(0);
     }
 
-    info.BuildActionBar(&data);
+    WriteActionBar(data, info);
 
     data << uint8(charmSpellCount);
 
@@ -321,5 +323,20 @@ void SessionPlayerSpellNotices::PetUnlearnConfirm(Player const& player, ObjectGu
     WorldPacket data(SMSG_PET_UNLEARN_CONFIRM, (8 + 4));
     data << ObjectGuid(pet);
     data << uint32(cost);
+    player.SendDirectMessage(&data);
+}
+
+void SessionPlayerSpellNotices::TalentsShown(Player const& player, bool pet)
+{
+    WorldPacket data(SMSG_TALENT_UPDATE, 50);
+    data << uint8(pet ? 1 : 0);
+    if (pet)
+    {
+        WritePetTalentsInfo(data, player);
+    }
+    else
+    {
+        WriteTalentsInfo(data, player);
+    }
     player.SendDirectMessage(&data);
 }

@@ -103,6 +103,10 @@ void PlayerSpellNotices::PetUnlearnConfirm(Player const& /*player*/, ObjectGuid 
 {
 }
 
+void PlayerSpellNotices::TalentsShown(Player const& /*player*/, bool /*pet*/)
+{
+}
+
 PlayerSpellNotices& PlayerSpellNotices::Installed()
 {
     PlayerSpellNotices* notices = s_playerSpellNoticesInstalled.load(std::memory_order_acquire);

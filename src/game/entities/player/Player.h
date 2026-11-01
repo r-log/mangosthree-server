@@ -1520,7 +1520,6 @@ class Player : public Unit
 
         // Send enchantment durations to the client
         void SendEnchantmentDurations();
-        void BuildEnchantmentsInfoData(WorldPacket* data);
         void AddItemDurations(Item* item);
 
         // Remove item durations
@@ -2099,13 +2098,12 @@ class Player : public Unit
         // and the spec count are read and set on it directly.
         TalentMgr& GetTalentMgr() { return m_talentMgr; }
         TalentMgr const& GetTalentMgr() const { return m_talentMgr; }
+        GlyphMgr const& GetGlyphMgr() const { return m_glyphMgr; }
 
         // Update the player's free talent points
         void UpdateFreeTalentPoints(bool resetIfNeed = true);
         bool resetTalents(bool no_cost = false, bool all_specs = false);
         void InitTalentForLevel();
-        void BuildPlayerTalentsInfoData(WorldPacket* data);
-        void BuildPetTalentsInfoData(WorldPacket* data);
         void SendTalentsInfoData(bool pet);
         void SendTalentsInvoluntarilyReset(bool pet);
         bool LearnTalent(uint32 talentId, uint32 talentRank);
