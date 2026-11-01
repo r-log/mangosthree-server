@@ -29,6 +29,7 @@
 #include "ObjectGuid.h"
 #include "WorldPacket.h"
 #include "session/packets/social/ArenaTeamPackets.h"
+#include "session/packets/social/ChannelPackets.h"
 #include "session/packets/social/GuildPackets.h"
 
 #include <string>
@@ -83,4 +84,64 @@ TEST(SocialPackets_GuildEventBytes)
     CHECK_STR(Hex(packet), "0705:0900");
     BuildGuildEventPacket(packet, GE_PROMOTION, ObjectGuid(), "a", "b", "c");
     CHECK_STR(Hex(packet), "0705:0103610062006300");
+}
+
+// SMSG_CHANNEL_NOTIFY (0x0825): the type, the channel's name with its 0 byte, then the fields the type
+// carries.
+TEST(SocialPackets_ChannelNotifyBytes)
+{
+    // A player guid, counter 7: raw 0x0000000000000007; another, counter 9.
+    const ObjectGuid player(HIGHGUID_PLAYER, uint32(7));
+    const ObjectGuid other(HIGHGUID_PLAYER, uint32(9));
+    WorldPacket packet;
+    ChannelNotice notice;
+
+    // "ab" 616200; a guid.
+    notice.type = CHAT_JOINED_NOTICE;
+    notice.guid = player;
+    BuildChannelNotifyPacket(packet, "ab", notice);
+    CHECK_STR(Hex(packet), "0825:006162000700000000000000");
+
+    // No tail.
+    notice = ChannelNotice();
+    notice.type = CHAT_NOT_MEMBER_NOTICE;
+    BuildChannelNotifyPacket(packet, "ab", notice);
+    CHECK_STR(Hex(packet), "0825:05616200");
+
+    // The channel's flags, its id, then 0.
+    notice = ChannelNotice();
+    notice.type = CHAT_YOU_JOINED_NOTICE;
+    notice.flags = 0x18;
+    notice.channelId = 2;
+    BuildChannelNotifyPacket(packet, "ab", notice);
+    CHECK_STR(Hex(packet), "0825:02616200" "18" "02000000" "00000000");
+
+    // The channel's id, then 0.
+    notice.type = CHAT_YOU_LEFT_NOTICE;
+    BuildChannelNotifyPacket(packet, "ab", notice);
+    CHECK_STR(Hex(packet), "0825:03616200" "02000000" "00");
+
+    // The guid, the old flags, then the new.
+    notice = ChannelNotice();
+    notice.type = CHAT_MODE_CHANGE_NOTICE;
+    notice.guid = player;
+    notice.oldFlags = 0x00;
+    notice.flags = 0x02;
+    BuildChannelNotifyPacket(packet, "ab", notice);
+    CHECK_STR(Hex(packet), "0825:0c616200" "0700000000000000" "00" "02");
+
+    // The target, then who kicked it.
+    notice = ChannelNotice();
+    notice.type = CHAT_PLAYER_KICKED_NOTICE;
+    notice.guid = player;
+    notice.source = other;
+    BuildChannelNotifyPacket(packet, "ab", notice);
+    CHECK_STR(Hex(packet), "0825:12616200" "0700000000000000" "0900000000000000");
+
+    // A name.
+    notice = ChannelNotice();
+    notice.type = CHAT_PLAYER_NOT_FOUND_NOTICE;
+    notice.name = "xy";
+    BuildChannelNotifyPacket(packet, "ab", notice);
+    CHECK_STR(Hex(packet), "0825:09616200787900");
 }
