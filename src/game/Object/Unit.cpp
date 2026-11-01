@@ -34,7 +34,6 @@
 #include "MotionMaster.h"
 #include "State.h"
 #include "Log.h"
-#include "WorldPacket.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
@@ -3269,19 +3268,6 @@ void CharmInfo::LoadPetActionBar(const std::string& data)
         {
             SetActionBar(index, 0, ACT_DISABLED);
         }
-    }
-}
-
-/**
- * @brief Serializes the action bar into a packet.
- *
- * @param data The packet being populated.
- */
-void CharmInfo::BuildActionBar(WorldPacket* data)
-{
-    for (uint32 i = 0; i < MAX_UNIT_ACTION_BAR_INDEX; ++i)
-    {
-        *data << uint32(PetActionBar[i].packedData);
     }
 }
 

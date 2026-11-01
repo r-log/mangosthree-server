@@ -194,7 +194,6 @@ src/game/Object/Totem.cpp -> src/game/entities/player/Player.h
 src/game/Object/Unit.cpp -> src/game/entities/player/Player.h
 src/game/Object/Unit.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Unit.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/Object/Unit.cpp -> src/proto/WorldPacket.h
 src/game/Object/Unit.h -> src/game/spells/AuraContainer.h
 src/game/Object/UnitVisibility.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitVisibility.cpp -> src/game/spells/auras/SpellAuras.h
@@ -382,7 +381,6 @@ src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Group.h
 src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/GuildMgr.h
 src/game/entities/player/inventory [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/inventory/PlayerItemEnchant.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGroundMgr.h
 src/game/entities/player/persistence [entities] -> src/game/Object/ArenaTeam.h
@@ -434,8 +432,6 @@ src/game/entities/player/spells [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/spells/PlayerRune.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/talents [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/talents/PlayerTalent.cpp -> src/proto/Opcodes.h
-src/game/entities/player/talents/PlayerTalent.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/world [entities] -> src/game/OutdoorPvP/OutdoorPvPMgr.h
 src/game/entities/player/world [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/world [entities] -> src/game/WorldHandlers/Group.h

@@ -33,7 +33,6 @@
 #include "Bag.h"
 #include "Log.h"
 #include "entities/player/inventory/InventoryNotices.h"
-#include "WorldPacket.h"
 #include "DBCStores.h"
 #include "Group.h"
 
@@ -868,49 +867,3 @@ void Player::SendNewItem(Item* item, uint32 count, bool received, bool created, 
     sInventoryNotices.ItemPushed(*this, *item, count, received, created, m_inventoryMgr.GetItemCount(item->GetEntry()), broadcast && GetGroup() ? GetGroup() : NULL);
 }
 
-void Player::BuildEnchantmentsInfoData(WorldPacket* data)
-{
-    uint32 slotUsedMask = 0;
-    size_t slotUsedMaskPos = data->wpos();
-    *data << uint32(slotUsedMask);                          // slotUsedMask < 0x80000
-
-    for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-    {
-        Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-
-        if (!item)
-        {
-            continue;
-        }
-
-        slotUsedMask |= (1 << i);
-
-        *data << uint32(item->GetEntry());                  // item entry
-
-        uint16 enchantmentMask = 0;
-        size_t enchantmentMaskPos = data->wpos();
-        *data << uint16(enchantmentMask);                   // enchantmentMask < 0x1000
-
-        for (uint32 j = 0; j < MAX_ENCHANTMENT_SLOT; ++j)
-        {
-            uint32 enchId = item->GetEnchantmentId(EnchantmentSlot(j));
-
-            if (!enchId)
-            {
-                continue;
-            }
-
-            enchantmentMask |= (1 << j);
-
-            *data << uint16(enchId);                        // enchantmentId?
-        }
-
-        data->put<uint16>(enchantmentMaskPos, enchantmentMask);
-
-        *data << uint16(item->GetItemRandomPropertyId());
-        *data << item->GetGuidValue(ITEM_FIELD_CREATOR).WriteAsPacked();
-        *data << uint32(item->GetItemSuffixFactor());
-    }
-
-    data->put<uint32>(slotUsedMaskPos, slotUsedMask);
-}

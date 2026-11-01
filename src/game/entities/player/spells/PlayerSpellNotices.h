@@ -33,7 +33,7 @@
 
 #include <vector>
 
-class CharmInfo;
+struct CharmInfo;
 class Pet;
 class Player;
 
@@ -79,6 +79,8 @@ class PlayerSpellNotices
         virtual void TalentWipeConfirm(Player const& player, ObjectGuid source, uint32 cost);
         /// `player` is asked to confirm resetting its pet `pet`'s talents for `cost`.
         virtual void PetUnlearnConfirm(Player const& player, ObjectGuid pet, uint32 cost);
+        /// `player` is told its talents and glyphs, or its pet's talents when `pet` is true.
+        virtual void TalentsShown(Player const& player, bool pet);
 
         /// The installed notices, or the base when none are installed.
         static PlayerSpellNotices& Installed();
