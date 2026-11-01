@@ -124,7 +124,6 @@ src/game/Object/ArenaTeam.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/AuctionHouseMgr.cpp -> src/proto/WorldPacket.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Bag.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512

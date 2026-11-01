@@ -58,7 +58,6 @@
 class Item;
 class Player;
 class Unit;
-class WorldPacket;
 
 #define MIN_AUCTION_TIME (12*HOUR)
 #define MAX_AUCTION_SORT 12
@@ -111,7 +110,6 @@ struct AuctionEntry
     uint32 GetHouseFaction() const { return auctionHouseEntry->FactionID; }
     uint64 GetAuctionCut() const;
     uint64 GetAuctionOutBid() const;
-    bool BuildAuctionInfo(WorldPacket& data) const;
     void DeleteFromDB() const;
     void SaveToDB() const;
     void AuctionBidWinning(Player* bidder = NULL);
@@ -162,9 +160,12 @@ class AuctionHouseObject
 
         void Update();
 
-        void BuildListBidderItems(WorldPacket& data, Player* player, uint32& count, uint32& totalcount);
-        void BuildListOwnerItems(WorldPacket& data, Player* player, uint32& count, uint32& totalcount);
-        void BuildListPendingSales(WorldPacket& data, Player* player, uint32& count);
+        /// Adds to `out` the auctions the player `bidderLow` bids on, the pending sales left out.
+        void CollectBidderItems(uint32 bidderLow, std::vector<AuctionEntry*>& out) const;
+        /// Adds to `out` the auctions the player `ownerLow` owns, the pending sales left out.
+        void CollectOwnerItems(uint32 ownerLow, std::vector<AuctionEntry*>& out) const;
+        /// Adds to `out` the pending sales of the player `ownerLow`.
+        void CollectPendingSales(uint32 ownerLow, std::vector<AuctionEntry*>& out) const;
 
         AuctionEntry* AddAuction(AuctionHouseEntry const* auctionHouseEntry, Item* newItem, uint32 etime, uint64 bid, uint64 buyout = 0, uint64 deposit = 0, Player* pl = NULL);
     private:
@@ -217,10 +218,10 @@ class AuctionNotices
 
 #define sAuctionNotices AuctionNotices::Installed()
 
-/// Appends to `data` the auctions of `auctions` that `player` sees under the search filters, from
-/// `listfrom`: `count` the entries appended, `totalcount` the entries that matched.
-void BuildListAuctionItems(Player& player, std::vector<AuctionEntry*> const& auctions, WorldPacket& data, std::wstring const& searchedname, uint32 listfrom, uint32 levelmin,
-                           uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, uint32& count, uint32& totalcount, bool isFull);
+/// Adds to `selected` the auctions of `auctions` that `player` sees under the search filters, at most
+/// 50 from `listfrom` (every listed one when `isFull`); `totalcount` counts the entries that matched.
+void SelectAuctionItems(Player& player, std::vector<AuctionEntry*> const& auctions, std::wstring const& searchedname, uint32 listfrom, uint32 levelmin,
+                        uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, bool isFull, std::vector<AuctionEntry*>& selected, uint32& totalcount);
 
 class AuctionHouseMgr
 {

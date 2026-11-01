@@ -41,6 +41,7 @@
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
 #include "Object/AuctionHouseMgr.h"
+#include "session/packets/economy/AuctionPackets.h"
 #include "WorldHandlers/Mail.h"
 #include "Utilities/Util.h"
 #include "data/CommandHooks.h"
@@ -511,14 +512,23 @@ void AuctionHandlers::HandleAuctionListBidderItems(WorldSession& session, WorldP
         uint32 outbiddedAuctionId;
         recv_data >> outbiddedAuctionId;
         AuctionEntry* auction = auctionHouse->GetAuction(outbiddedAuctionId);
-        if (auction && auction->BuildAuctionInfo(data))
+        if (auction && WriteAuctionInfo(data, *auction))
         {
             ++totalcount;
             ++count;
         }
     }
 
-    auctionHouse->BuildListBidderItems(data, pl, count, totalcount);
+    std::vector<AuctionEntry*> bids;
+    auctionHouse->CollectBidderItems(pl->GetGUIDLow(), bids);
+    for (std::vector<AuctionEntry*>::const_iterator itr = bids.begin(); itr != bids.end(); ++itr)
+    {
+        if (WriteAuctionInfo(data, **itr))
+        {
+            ++count;
+        }
+        ++totalcount;
+    }
     data.put<uint32>(0, count);                             // add count to placeholder
     data << uint32(totalcount);
     data << uint32(300);                                    // unk 2.3.0 delay for next isFull request?
@@ -558,7 +568,16 @@ void AuctionHandlers::HandleAuctionListOwnerItems(WorldSession& session, WorldPa
     uint32 count = 0;
     uint32 totalcount = 0;
 
-    auctionHouse->BuildListOwnerItems(data, session.GetPlayer(), count, totalcount);
+    std::vector<AuctionEntry*> owned;
+    auctionHouse->CollectOwnerItems(session.GetPlayer()->GetGUIDLow(), owned);
+    for (std::vector<AuctionEntry*>::const_iterator itr = owned.begin(); itr != owned.end(); ++itr)
+    {
+        if (WriteAuctionInfo(data, **itr))
+        {
+            ++count;
+        }
+        ++totalcount;
+    }
     data.put<uint32>(0, count);
     data << uint32(totalcount);
     data << uint32(300);                                    // 2.3.0 delay for next isFull request?
@@ -652,8 +671,14 @@ void AuctionHandlers::HandleAuctionListItems(WorldSession& session, WorldPacket&
 
     wstrToLower(wsearchedname);
 
-    BuildListAuctionItems(*session.GetPlayer(), auctions, data, wsearchedname, listfrom, levelmin, levelmax, usable,
-                          auctionSlotID, auctionMainCategory, auctionSubCategory, quality, count, totalcount, isFull);
+    std::vector<AuctionEntry*> selected;
+    SelectAuctionItems(*session.GetPlayer(), auctions, wsearchedname, listfrom, levelmin, levelmax, usable,
+                       auctionSlotID, auctionMainCategory, auctionSubCategory, quality, isFull, selected, totalcount);
+    for (std::vector<AuctionEntry*>::const_iterator itr = selected.begin(); itr != selected.end(); ++itr)
+    {
+        WriteAuctionInfo(data, **itr);
+    }
+    count = uint32(selected.size());
 
     data.put<uint32>(0, count);
     data << uint32(totalcount);
@@ -684,7 +709,13 @@ void AuctionHandlers::HandleAuctionListPendingSales(WorldSession& session, World
     // pending list include all auction house entries for character
     for (int i = 0; i < MAX_AUCTION_HOUSE_TYPE; ++i)
     {
-        sAuctionMgr.GetAuctionsMap(AuctionHouseType(i))->BuildListPendingSales(data, session.GetPlayer(), count);
+        std::vector<AuctionEntry*> pending;
+        sAuctionMgr.GetAuctionsMap(AuctionHouseType(i))->CollectPendingSales(session.GetPlayer()->GetGUIDLow(), pending);
+        for (std::vector<AuctionEntry*>::const_iterator itr = pending.begin(); itr != pending.end(); ++itr)
+        {
+            WritePendingSale(data, **itr);
+            ++count;
+        }
     }
 
     data.put<uint32>(0, count);

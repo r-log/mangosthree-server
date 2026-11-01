@@ -46,7 +46,6 @@
 #include "PlayerRegistry.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
 #include "Mail.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/economy/AuctionRepository.h"
@@ -815,14 +814,12 @@ void AuctionHouseObject::Update()
 }
 
 /**
- * @brief Builds the list of auctions the player is currently bidding on.
+ * @brief Collects the auctions whose bidder is the player `bidderLow`, the pending sales left out.
  *
- * @param data The packet buffer to append to.
- * @param player The player requesting the list.
- * @param count Receives the number of appended entries.
- * @param totalcount Receives the total number of matching entries.
+ * @param bidderLow The player's low guid.
+ * @param out Receives the auctions, in the house's order.
  */
-void AuctionHouseObject::BuildListBidderItems(WorldPacket& data, Player* player, uint32& count, uint32& totalcount)
+void AuctionHouseObject::CollectBidderItems(uint32 bidderLow, std::vector<AuctionEntry*>& out) const
 {
     for (AuctionEntryMap::const_iterator itr = AuctionsMap.begin(); itr != AuctionsMap.end(); ++itr)
     {
@@ -831,26 +828,20 @@ void AuctionHouseObject::BuildListBidderItems(WorldPacket& data, Player* player,
         {
             continue;
         }
-        if (Aentry->bidder == player->GetGUIDLow())
+        if (Aentry->bidder == bidderLow)
         {
-            if (itr->second->BuildAuctionInfo(data))
-            {
-                ++count;
-            }
-            ++totalcount;
+            out.push_back(Aentry);
         }
     }
 }
 
 /**
- * @brief Builds the list of auctions owned by the player.
+ * @brief Collects the auctions whose owner is the player `ownerLow`, the pending sales left out.
  *
- * @param data The packet buffer to append to.
- * @param player The player requesting the list.
- * @param count Receives the number of appended entries.
- * @param totalcount Receives the total number of matching entries.
+ * @param ownerLow The player's low guid.
+ * @param out Receives the auctions, in the house's order.
  */
-void AuctionHouseObject::BuildListOwnerItems(WorldPacket& data, Player* player, uint32& count, uint32& totalcount)
+void AuctionHouseObject::CollectOwnerItems(uint32 ownerLow, std::vector<AuctionEntry*>& out) const
 {
     for (AuctionEntryMap::const_iterator itr = AuctionsMap.begin(); itr != AuctionsMap.end(); ++itr)
     {
@@ -859,13 +850,9 @@ void AuctionHouseObject::BuildListOwnerItems(WorldPacket& data, Player* player, 
         {
             continue;
         }
-        if (Aentry->owner == player->GetGUIDLow())
+        if (Aentry->owner == ownerLow)
         {
-            if (Aentry->BuildAuctionInfo(data))
-            {
-                ++count;
-            }
-            ++totalcount;
+            out.push_back(Aentry);
         }
     }
 }
@@ -1084,9 +1071,8 @@ bool AuctionSorter::operator()(const AuctionEntry* auc1, const AuctionEntry* auc
 }
 
 /**
- * @brief Builds the filtered public auction browse list.
+ * @brief Selects the auctions of the filtered public browse list.
  *
- * @param data The packet buffer to append to.
  * @param player The player requesting the list.
  * @param wsearchedname The search string in wide-character form.
  * @param listfrom The starting result offset.
@@ -1097,11 +1083,12 @@ bool AuctionSorter::operator()(const AuctionEntry* auc1, const AuctionEntry* auc
  * @param itemClass The item class filter.
  * @param itemSubClass The item subclass filter.
  * @param quality The minimum quality filter.
- * @param count Receives the number of appended entries.
+ * @param isFull True to select every listed auction, unfiltered.
+ * @param selected Receives the selected auctions, in the list's order: at most 50 from `listfrom` unless `isFull`.
  * @param totalcount Receives the total number of matching entries.
  */
-void BuildListAuctionItems(Player& player, std::vector<AuctionEntry*> const& auctions, WorldPacket& data, std::wstring const& wsearchedname, uint32 listfrom, uint32 levelmin,
-        uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, uint32& count, uint32& totalcount, bool isFull)
+void SelectAuctionItems(Player& player, std::vector<AuctionEntry*> const& auctions, std::wstring const& wsearchedname, uint32 listfrom, uint32 levelmin,
+        uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, bool isFull, std::vector<AuctionEntry*>& selected, uint32& totalcount)
 {
     int loc_idx = player.GetSession()->GetSessionDbLocaleIndex();
 
@@ -1120,8 +1107,7 @@ void BuildListAuctionItems(Player& player, std::vector<AuctionEntry*> const& auc
 
         if (isFull)
         {
-            ++count;
-            Aentry->BuildAuctionInfo(data);
+            selected.push_back(Aentry);
         }
         else
         {
@@ -1185,10 +1171,9 @@ void BuildListAuctionItems(Player& player, std::vector<AuctionEntry*> const& auc
                 continue;
             }
 
-            if (count < 50 && totalcount >= listfrom)
+            if (selected.size() < 50 && totalcount >= listfrom)
             {
-                ++count;
-                Aentry->BuildAuctionInfo(data);
+                selected.push_back(Aentry);
             }
         }
 
@@ -1196,7 +1181,14 @@ void BuildListAuctionItems(Player& player, std::vector<AuctionEntry*> const& auc
     }
 }
 
-void AuctionHouseObject::BuildListPendingSales(WorldPacket& data, Player* player, uint32& count)
+/**
+ * @brief Collects the pending sales of the player `ownerLow`: its sold auctions whose money is on the
+ * way.
+ *
+ * @param ownerLow The player's low guid.
+ * @param out Receives the auctions, in the house's order.
+ */
+void AuctionHouseObject::CollectPendingSales(uint32 ownerLow, std::vector<AuctionEntry*>& out) const
 {
     for (AuctionEntryMap::const_iterator itr = AuctionsMap.begin(); itr != AuctionsMap.end(); ++itr)
     {
@@ -1205,23 +1197,9 @@ void AuctionHouseObject::BuildListPendingSales(WorldPacket& data, Player* player
         {
             continue;
         }
-        if (Aentry->owner == player->GetGUIDLow())
+        if (Aentry->owner == ownerLow)
         {
-            std::ostringstream str1;
-            str1 << Aentry->itemTemplate << ":" << Aentry->itemRandomPropertyId << ":" << AUCTION_SUCCESSFUL << ":" << Aentry->Id << ":" << Aentry->itemCount;
-
-            std::ostringstream str2;
-            str2.width(16);
-            str2 << std::right << std::hex << Aentry->bidder << std::dec << ":";
-            str2 << Aentry->bid << ":" << Aentry->buyout << ":" << Aentry->deposit << ":" << Aentry->GetAuctionCut();
-
-            data << str1.str();                             // string "%d:%d:%d:%d:%d" -> itemId, ItemRandomPropertyId, 2, auctionId, unk1 (stack size?, unused)
-            data << str2.str();                             // string "%16I64X:%d:%d:%d:%d" -> bidderGuid, bid, buyout, deposit, auctionCut
-            data << uint64(97250);                          // unk1
-            data << uint32(68);                             // unk2
-            float timeLeft = float(Aentry->moneyDeliveryTime - time(NULL)) / float(DAY);
-            data << float(timeLeft);                        // time left
-            ++count;
+            out.push_back(Aentry);
         }
     }
 }
@@ -1281,45 +1259,6 @@ AuctionEntry* AuctionHouseObject::AddAuction(AuctionHouseEntry const* auctionHou
     CharacterTransaction::Commit();
 
     return AH;
-}
-
-/**
- * @brief Serializes auction information into a packet.
- *
- * @param data The packet buffer to append to.
- * @return true if the auction item data was available; otherwise, false.
- */
-bool AuctionEntry::BuildAuctionInfo(WorldPacket& data) const
-{
-    Item* pItem = sAuctionMgr.GetAItem(itemGuidLow);
-    if (!pItem)
-    {
-        sLog.outError("auction to item, that doesn't exist !!!!");
-        return false;
-    }
-    data << uint32(Id);
-    data << uint32(pItem->GetEntry());
-
-    for (uint8 i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
-    {
-        data << uint32(pItem->GetEnchantmentId(EnchantmentSlot(i)));
-        data << uint32(pItem->GetEnchantmentDuration(EnchantmentSlot(i)));
-        data << uint32(pItem->GetEnchantmentCharges(EnchantmentSlot(i)));
-    }
-
-    data << uint32(pItem->GetItemRandomPropertyId());       // random item property id
-    data << uint32(pItem->GetItemSuffixFactor());           // SuffixFactor
-    data << uint32(pItem->GetCount());                      // item->count
-    data << uint32(pItem->GetSpellCharges());               // item->charge FFFFFFF
-    data << uint32(0);                                      // item flags (dynamic?) (0x04 no lockId?)
-    data << ObjectGuid(HIGHGUID_PLAYER, owner);             // Auction->owner
-    data << uint64(startbid);                               // Auction->startbid (not sure if useful)
-    data << uint64(bid ? GetAuctionOutBid() : 0);           // minimal outbid
-    data << uint64(buyout);                                 // auction->buyout
-    data << uint32((expireTime - time(NULL))*IN_MILLISECONDS); // time left
-    data << ObjectGuid(HIGHGUID_PLAYER, bidder);            // auction->bidder current
-    data << uint64(bid);                                    // current bid
-    return true;
 }
 
 /**
