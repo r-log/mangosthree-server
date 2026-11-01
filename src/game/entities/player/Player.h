@@ -3315,7 +3315,7 @@ class Player : public Unit
         bool HasMovementFlag(MovementFlags f) const;
 
         // Update fall information if needed
-        void UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode);
+        void UpdateFallInformationIfNeed(MovementInfo const& minfo, bool landed);
 
         // Set fall information
         void SetFallInformation(uint32 time, float z)

@@ -170,6 +170,8 @@ set(OWNER_FILES
     entities/player/social/SocialMgr.h                      # decoupling D4k: the global over every list; drives social/SocialList
     entities/player/social/SocialMgr.cpp                    # decoupling D4k: the global over every list; drives social/SocialList
     entities/player/world/PlayerMovement.cpp
+    entities/player/world/PlayerWorldNotices.h
+    entities/player/world/PlayerWorldNotices.cpp
     entities/player/world/PlayerZone.cpp
     entities/player/world/PlayerAreaTrigger.cpp
     entities/player/world/PlayerInstance.cpp

@@ -227,7 +227,7 @@ void MovementHandlers::HandleMovement(WorldSession& session, WorldPacket& recv_d
 
     if (plMover)
     {
-        plMover->UpdateFallInformationIfNeed(movementInfo, opcode);
+        plMover->UpdateFallInformationIfNeed(movementInfo, opcode == CMSG_MOVE_FALL_LAND);
     }
 
     // stop some emotes at player move
