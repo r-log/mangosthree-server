@@ -27,8 +27,7 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/player/inventory/InventoryNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -323,12 +322,7 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorGuid, uint32 vendorslot, uin
 
     uint32 new_count = pCreature->UpdateVendorItemCurrentCount(crItem, totalCount);
 
-    WorldPacket data(SMSG_BUY_ITEM, 8 + 4 + 4 + 4);
-    data << pCreature->GetObjectGuid();
-    data << uint32(vendorslot + 1);                 // numbered from 1 at client
-    data << uint32(crItem->maxcount > 0 ? new_count : 0xFFFFFFFF);
-    data << uint32(count);
-    GetSession()->SendPacket(&data);
+    sInventoryNotices.ItemBought(*this, pCreature->GetObjectGuid(), vendorslot, crItem->maxcount > 0 ? new_count : 0xFFFFFFFF, count);
 
     SendNewItem(pItem, totalCount, true, false, false);
 

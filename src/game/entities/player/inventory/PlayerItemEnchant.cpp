@@ -32,7 +32,7 @@
 #include "Player.h"
 #include "Bag.h"
 #include "Log.h"
-#include "Opcodes.h"
+#include "entities/player/inventory/InventoryNotices.h"
 #include "WorldPacket.h"
 #include "DBCStores.h"
 #include "Group.h"
@@ -865,29 +865,7 @@ void Player::SendNewItem(Item* item, uint32 count, bool received, bool created, 
         return;
     }
 
-    // last check 2.0.10
-    WorldPacket data(SMSG_ITEM_PUSH_RESULT, (8 + 4 + 4 + 4 + 1 + 4 + 4 + 4 + 4 + 4));
-    data << GetObjectGuid();                                // player GUID
-    data << uint32(received);                               // 0=looted, 1=from npc
-    data << uint32(created);                                // 0=received, 1=created
-    data << uint32(1);                                      // IsShowChatMessage
-    data << uint8(item->GetBagSlot());                      // bagslot
-    // item slot, but when added to stack: 0xFFFFFFFF
-    data << uint32((item->GetCount() == count) ? item->GetSlot() : -1);
-    data << uint32(item->GetEntry());                       // item id
-    data << uint32(item->GetItemSuffixFactor());            // SuffixFactor
-    data << uint32(item->GetItemRandomPropertyId());        // random item property id
-    data << uint32(count);                                  // count of items
-    data << uint32(m_inventoryMgr.GetItemCount(item->GetEntry()));         // count of items in inventory
-
-    if (broadcast && GetGroup())
-    {
-        GetGroup()->BroadcastPacket(&data, true);
-    }
-    else
-    {
-        GetSession()->SendPacket(&data);
-    }
+    sInventoryNotices.ItemPushed(*this, *item, count, received, created, m_inventoryMgr.GetItemCount(item->GetEntry()), broadcast && GetGroup() ? GetGroup() : NULL);
 }
 
 void Player::BuildEnchantmentsInfoData(WorldPacket* data)

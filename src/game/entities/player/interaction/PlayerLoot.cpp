@@ -27,9 +27,8 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
+#include "entities/player/inventory/InventoryNotices.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "InstanceData.h"
@@ -96,10 +95,7 @@ void Player::RemovedInsignia(Player* looterPlr)
  */
 void Player::SendLootRelease(ObjectGuid guid)
 {
-    WorldPacket data(SMSG_LOOT_RELEASE_RESPONSE, (8 + 1));
-    data << guid;
-    data << uint8(1);
-    SendDirectMessage(&data);
+    sInventoryNotices.LootReleased(*this, guid);
 }
 
 /**
@@ -521,11 +517,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
     // need know merged fishing/corpse loot type for achievements
     loot->loot_type = loot_type;
 
-    WorldPacket data(SMSG_LOOT_RESPONSE, (9 + 50));         // we guess size
-    data << ObjectGuid(guid);
-    data << uint8(loot_type);
-    data << LootView(*loot, this, permission);
-    SendDirectMessage(&data);
+    sInventoryNotices.LootShown(*this, guid, loot_type, *loot, permission);
 
     // add 'this' player as one of the players that are looting 'loot'
     if (permission != NONE_PERMISSION)
@@ -544,8 +536,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
  */
 void Player::SendNotifyLootMoneyRemoved()
 {
-    WorldPacket data(SMSG_LOOT_CLEAR_MONEY, 0);
-    GetSession()->SendPacket(&data);
+    sInventoryNotices.LootMoneyCleared(*this);
 }
 
 /**
@@ -555,7 +546,5 @@ void Player::SendNotifyLootMoneyRemoved()
  */
 void Player::SendNotifyLootItemRemoved(uint8 lootSlot, bool currency)
 {
-    WorldPacket data(currency ? SMSG_LOOT_CURRENCY_REMOVED : SMSG_LOOT_REMOVED, 1);
-    data << uint8(lootSlot);
-    GetSession()->SendPacket(&data);
+    sInventoryNotices.LootSlotRemoved(*this, lootSlot, currency);
 }

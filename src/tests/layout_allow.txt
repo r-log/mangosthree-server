@@ -376,12 +376,6 @@ src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/GridNo
 src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Group.h
 src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/InstanceData.h
 src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/interaction/PlayerLoot.cpp -> src/proto/Opcodes.h
-src/game/entities/player/interaction/PlayerLoot.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/interaction/PlayerMail.cpp -> src/proto/Opcodes.h
-src/game/entities/player/interaction/PlayerMail.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/interaction/PlayerVendor.cpp -> src/proto/Opcodes.h
-src/game/entities/player/interaction/PlayerVendor.cpp -> src/proto/WorldPacket.h
 # reached through WorldSession.h before #666
 src/game/entities/player/inventory [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/inventory [entities] -> src/game/Object/Guild.h
@@ -390,13 +384,8 @@ src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/GridNoti
 src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Group.h
 src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/GuildMgr.h
 src/game/entities/player/inventory [entities] -> src/game/spells/pipeline/Spell.h
-src/game/entities/player/inventory/PlayerEquipmentSet.cpp -> src/proto/Opcodes.h
-src/game/entities/player/inventory/PlayerEquipmentSet.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/inventory/PlayerItemEnchant.cpp -> src/proto/Opcodes.h
 src/game/entities/player/inventory/PlayerItemEnchant.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/inventory/PlayerItemStorage.cpp -> src/proto/Opcodes.h
-src/game/entities/player/inventory/PlayerItemStorage.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGroundMgr.h
 src/game/entities/player/persistence [entities] -> src/game/Object/ArenaTeam.h

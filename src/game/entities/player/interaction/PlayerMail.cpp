@@ -27,8 +27,7 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/player/inventory/InventoryNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -75,20 +74,7 @@ void Player::RemoveMail(uint32 id)
  */
 void Player::SendMailResult(uint32 mailId, MailResponseType mailAction, MailResponseResult mailError, uint32 equipError, uint32 item_guid, uint32 item_count)
 {
-    WorldPacket data(SMSG_SEND_MAIL_RESULT, (4 + 4 + 4 + (mailError == MAIL_ERR_EQUIP_ERROR ? 4 : (mailAction == MAIL_ITEM_TAKEN ? 4 + 4 : 0))));
-    data << (uint32) mailId;
-    data << (uint32) mailAction;
-    data << (uint32) mailError;
-    if (mailError == MAIL_ERR_EQUIP_ERROR)
-    {
-        data << (uint32) equipError;
-    }
-    else if (mailAction == MAIL_ITEM_TAKEN)
-    {
-        data << (uint32) item_guid;                         // item guid low?
-        data << (uint32) item_count;                        // item count?
-    }
-    GetSession()->SendPacket(&data);
+    sInventoryNotices.MailResult(*this, mailId, mailAction, mailError, equipError, item_guid, item_count);
 }
 
 /**
@@ -97,9 +83,7 @@ void Player::SendMailResult(uint32 mailId, MailResponseType mailAction, MailResp
 void Player::SendNewMail()
 {
     // deliver undelivered mail
-    WorldPacket data(SMSG_RECEIVED_MAIL, 4);
-    data << float(0.0f);
-    GetSession()->SendPacket(&data);
+    sInventoryNotices.MailReceived(*this);
 }
 
 /**

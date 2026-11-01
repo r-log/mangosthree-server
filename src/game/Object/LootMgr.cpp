@@ -225,7 +225,7 @@ bool LootItem::AllowedForPlayer(Player const* player, WorldObject const* lootTar
  * @param condition_ok true if loot conditions were already validated.
  * @return The slot type visible to the viewer.
  */
-LootSlotType LootItem::GetSlotTypeForSharedLoot(PermissionTypes permission, Player* viewer, WorldObject const* lootTarget, bool condition_ok /*= false*/) const
+LootSlotType LootItem::GetSlotTypeForSharedLoot(PermissionTypes permission, Player const* viewer, WorldObject const* lootTarget, bool condition_ok /*= false*/) const
 {
     // ignore currencies, looted items, FFA (each player get own copy) and not allowed items
     if (currency || is_looted || freeforall || (conditionId && !condition_ok) || !AllowedForPlayer(viewer, lootTarget))
