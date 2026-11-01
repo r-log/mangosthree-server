@@ -112,7 +112,7 @@ namespace Harness
         /// SMSG_ACHIEVEMENT_EARNED (AchievementMgr::SendAchievementEarned): the earner's packed
         /// guid, the achievement id and the trailing word; the date dropped.
         bool DecodeAchievementEarned(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_SPELL_START and SMSG_SPELL_GO (Spell::SendSpellStart / SendSpellGo): the caster
+        /// SMSG_SPELL_START and SMSG_SPELL_GO (BuildSpellStartPacket / BuildSpellGoPacket, SpellCastPackets.cpp): the caster
         /// item-or-caster and caster roles, the spell id, the cast flags, START's cast time, GO's
         /// hit and miss lists as roles, the target mask with its unit or object target as a role,
         /// and -- when the mask names an item (TARGET_FLAG_ITEM or TARGET_FLAG_TRADE_ITEM) -- the
@@ -152,11 +152,11 @@ namespace Harness
         /// Unit::setPowerType, Unit.cpp:2967-2972): the unit's packed guid as a role, the count,
         /// then each (power type, value).
         bool DecodePowerUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_SPELL_FAILURE and SMSG_SPELL_FAILED_OTHER (Spell::SendInterrupted,
-        /// SpellPackets.cpp:749-760, one layout for both): the caster's packed guid as a role,
+        /// SMSG_SPELL_FAILURE and SMSG_SPELL_FAILED_OTHER (BuildSpellFailurePacket,
+        /// SpellCastPackets.cpp, one layout for both): the caster's packed guid as a role,
         /// the cast count (dropped, as SPELL_START drops it), the spell and the result.
         bool DecodeSpellFailure(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_CAST_FAILED (Spell::SendCastResult, SpellPackets.cpp:121-221): the cast count
+        /// SMSG_CAST_FAILED (BuildCastFailedPacket, SpellCastPackets.cpp): the cast count
         /// (dropped), the spell, the result, then the result's own tail -- a spell focus, an area,
         /// totems, an item class -- as `tail=<n>` and its FNV.
         bool DecodeCastFailed(uint8 const* data, size_t size, std::string& out);
@@ -165,7 +165,7 @@ namespace Harness
         // and the rest of the note's list (section 3(a)). Each is laid out from the server's own
         // builder, cited below, and accounts for every byte: the payload must end where the
         // writer's layout ends. Guids read as roles. SMSG_PET_CAST_FAILED is the pet form of
-        // Spell::SendCastResult, one layout with SMSG_CAST_FAILED, and DecodeCastFailed reads it.
+        // BuildCastFailedPacket, one layout with SMSG_CAST_FAILED, and DecodeCastFailed reads it.
 
         /// SMSG_PERIODICAURALOG (BuildPeriodicAuraLogPacket, CombatPackets.cpp): the target's and
         /// the caster's packed guids as roles, the spell, the count (the writer's 1), the aura
@@ -250,13 +250,13 @@ namespace Harness
         /// with 1 -- the guid as a role and the counter, which counts that unit's forced changes and
         /// is no clock.
         bool DecodeForceMoveRoot(bool root, uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_CHANNEL_START (Spell::SendChannelStart, SpellPackets.cpp:870-889): the caster's
+        /// SMSG_CHANNEL_START (BuildChannelStartPacket, SpellCastPackets.cpp): the caster's
         /// packed guid as a role, the spell, the channel's duration and the two zero flag bytes.
         bool DecodeChannelStart(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_CHANNEL_UPDATE (Spell::SendChannelUpdate, SpellPackets.cpp:825-827): the caster's
+        /// SMSG_CHANNEL_UPDATE (BuildChannelUpdatePacket, SpellCastPackets.cpp): the caster's
         /// packed guid as a role and the channel's remaining milliseconds (the stepped clock's).
         bool DecodeChannelUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_SPELLLOGEXECUTE (Spell::SendLogExecute, SpellPackets.cpp:587-738): the caster's (or
+        /// SMSG_SPELLLOGEXECUTE (BuildSpellLogExecutePacket, SpellCastPackets.cpp): the caster's (or
         /// for a creature caster the target's) packed guid as a role, the spell, the effect count
         /// (the writer's 1), the effect, the target count (1), then the effect's own fields -- a
         /// unit's packed guid as a role followed by its words for POWER_DRAIN, POWER_BURN,

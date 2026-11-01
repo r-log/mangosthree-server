@@ -518,8 +518,10 @@ class Spell
 
         void DoCreateItem(SpellEffectEntry const* effect, uint32 itemtype);
 
-        void WriteSpellGoTargets(WorldPacket* data);
-        void WriteAmmoToPacket(WorldPacket* data);
+        /// Classifies the targets for the spell go: a unit no effect applies to is an immune miss, and
+        /// the effects of the hit units join the mask of those that must stay alive, which a spell
+        /// that does not channel clears.
+        void ClassifyGoTargets();
 
         template<typename T> WorldObject* FindCorpseUsing();
 
@@ -536,7 +538,6 @@ class Spell
         void SendChannelUpdate(uint32 time);
         void SendChannelStart(uint32 duration);
         void SendResurrectRequest(Player* target);
-        void SendPlaySpellVisual(uint32 SpellID);
 
         void HandleEffects(Unit* pUnitTarget, Item* pItemTarget, GameObject* pGOTarget, SpellEffectIndex i, float DamageMultiplier = 1.0);
         void HandleThreatSpells();
@@ -576,6 +577,8 @@ class Spell
         uint64 GetDelayStart() const { return m_delayStart; }
         void SetDelayStart(uint64 m_time) { m_delayStart = m_time; }
         uint64 GetDelayMoment() const { return m_delayMoment; }
+        uint32 GetTimer() const { return m_timer; }
+        uint8 GetRunesState() const { return m_runesState; }
 
         bool IsNeedSendToClient() const;                    // use for hide spell cast for client in case when cast not have client side affect (animation or log entries)
         bool IsTriggeredSpellWithRedundentCastTime() const; // use for ignore some spell data for triggered spells like cast time, some triggered spells have redundent copy data from main spell for client use purpose
@@ -723,6 +726,7 @@ class Spell
         // Spell target subsystem
         //*****************************************
         // Targets store structures and data
+    public:
         struct TargetInfo
         {
             ObjectGuid targetGUID;
@@ -734,8 +738,10 @@ class Spell
             uint8  effectMask: 8;
             bool   processed: 1;
         };
+    protected:
         uint8 m_needAliveTargetMask;                        // Mask req. alive targets
 
+    public:
         struct GOTargetInfo
         {
             ObjectGuid targetGUID;
@@ -744,6 +750,7 @@ class Spell
             bool   processed: 1;
         };
 
+    protected:
         struct ItemTargetInfo
         {
             Item*  item;
@@ -752,8 +759,12 @@ class Spell
 
     public:
         typedef std::list<TargetInfo>     TargetList;
-    protected:
         typedef std::list<GOTargetInfo>   GOTargetList;
+
+        TargetList const& GetUnitTargets() const { return m_UniqueTargetInfo; }
+        GOTargetList const& GetGOTargets() const { return m_UniqueGOTargetInfo; }
+
+    protected:
         typedef std::list<ItemTargetInfo> ItemTargetList;
 
         TargetList     m_UniqueTargetInfo;

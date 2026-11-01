@@ -46,9 +46,8 @@
 
 #include "spells/pipeline/Spell.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
 #include "GridNotifiersImpl.h"
-#include "Opcodes.h"
+#include "spells/pipeline/SpellNotices.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
@@ -104,90 +103,7 @@ void Spell::SendCastResult(Player* caster, SpellEntry const* spellInfo, uint8 ca
         return;
     }
 
-    WorldPacket data(isPetCastResult ? SMSG_PET_CAST_FAILED : SMSG_CAST_FAILED, (4 + 1 + 2));
-    data << uint8(cast_count);                              // single cast or multi 2.3 (0/1)
-    data << uint32(spellInfo->ID);
-    data << uint8(!IsPassiveSpell(spellInfo) ? result : SPELL_FAILED_DONT_REPORT); // do not report failed passive spells
-    switch (result)
-    {
-        case SPELL_FAILED_NOT_READY:
-            data << uint32(0);                              // unknown, value 1 seen for 14177 (update cooldowns on client flag)
-            break;
-        case SPELL_FAILED_REQUIRES_SPELL_FOCUS:
-            data << uint32(spellInfo->GetRequiresSpellFocus());
-            break;
-        case SPELL_FAILED_REQUIRES_AREA:                    // AreaTable.dbc id
-            data << uint32(GetSpellRequiredAreaId(spellInfo->ID));
-            break;
-        case SPELL_FAILED_TOTEMS:
-            {
-                SpellTotemsEntry const* totems = spellInfo->GetSpellTotems();
-                for(int i = 0; i < MAX_SPELL_TOTEMS; ++i)
-                    if (totems && totems->Totem[i])
-                    {
-                        data << uint32(totems->Totem[i]);
-                    }
-            }
-            break;
-        case SPELL_FAILED_TOTEM_CATEGORY:
-            {
-                SpellTotemsEntry const* totems = spellInfo->GetSpellTotems();
-                for(int i = 0; i < MAX_SPELL_TOTEM_CATEGORIES; ++i)
-                    if (totems && totems->RequiredTotemCategoryID[i])
-                    {
-                        data << uint32(totems->RequiredTotemCategoryID[i]);
-                    }
-            }
-            break;
-        case SPELL_FAILED_EQUIPPED_ITEM_CLASS:
-            {
-                SpellEquippedItemsEntry const* eqItems = spellInfo->GetSpellEquippedItems();
-                data << uint32(eqItems ? eqItems->EquippedItemClass : -1);
-                data << uint32(eqItems ? eqItems->EquippedItemSubclass : 0);
-                //data << uint32(eqItems ? eqItems->EquippedItemInventoryTypeMask : 0);
-            }
-            break;
-        case SPELL_FAILED_EQUIPPED_ITEM_CLASS_MAINHAND:
-        case SPELL_FAILED_EQUIPPED_ITEM_CLASS_OFFHAND:
-        {
-            SpellEquippedItemsEntry const* eqItems = spellInfo->GetSpellEquippedItems();
-            data << uint32(eqItems ? eqItems->EquippedItemClass : -1);
-            data << uint32(eqItems ? eqItems->EquippedItemSubclass : 0);
-            break;
-        }
-        case SPELL_FAILED_PREVENTED_BY_MECHANIC:
-            data << uint32(0);                              // SpellMechanic.dbc id
-            break;
-        case SPELL_FAILED_CUSTOM_ERROR:
-            data << uint32(0);                              // custom error id (see enum SpellCastResultCustom)
-            break;
-        case SPELL_FAILED_NEED_EXOTIC_AMMO:
-        {
-            SpellEquippedItemsEntry const* eqItems = spellInfo->GetSpellEquippedItems();
-            data << uint32(eqItems ? eqItems->EquippedItemSubclass : 0);// seems correct...
-            break;
-        }
-        case SPELL_FAILED_REAGENTS:
-            data << uint32(0);                              // item id
-            break;
-        case SPELL_FAILED_NEED_MORE_ITEMS:
-            data << uint32(0);                              // item id
-            data << uint32(0);                              // item count?
-            break;
-        case SPELL_FAILED_MIN_SKILL:
-            data << uint32(0);                              // SkillLine.dbc id
-            data << uint32(0);                              // required skill value
-            break;
-        case SPELL_FAILED_TOO_MANY_OF_ITEM:
-            data << uint32(0);                              // ItemLimitCategory.dbc id
-            break;
-        case SPELL_FAILED_FISHING_TOO_LOW:
-            data << uint32(0);                              // required fishing skill
-            break;
-        default:
-            break;
-    }
-    caster->SendDirectMessage(&data);
+    sSpellNotices.CastResult(*caster, spellInfo, cast_count, result, isPetCastResult);
 }
 
 /**
@@ -218,89 +134,25 @@ void Spell::SendSpellStart()
             castFlags |= CAST_FLAG_HEAL_PREDICTION;
         }
 
-    WorldPacket data(SMSG_SPELL_START, (8 + 8 + 4 + 4 + 2));
-    if (m_CastItem)
-    {
-        data << m_CastItem->GetPackGUID();
-    }
-    else
-    {
-        data << m_caster->GetPackGUID();
-    }
-
-    data << m_caster->GetPackGUID();
-    data << uint8(m_cast_count);                            // pending spell cast
-    data << uint32(m_spellInfo->ID);                        // spellId
-    data << uint32(castFlags);                              // cast flags
-    data << uint32(m_timer);                                // delay?
-    data << uint32(m_casttime);                             // m_casttime
-
-    data << m_targets;
-
-    if (castFlags & CAST_FLAG_PREDICTED_POWER)              // predicted power
-    {
-        data << uint32(m_caster->GetPower(Powers(m_spellInfo->PowerType)));
-    }
-
-    if (castFlags & CAST_FLAG_PREDICTED_RUNES)              // predicted runes
-    {
-        if (Player* caster = m_caster->ToPlayer())
-        {
-
-            data << uint8(m_runesState);
-            data << uint8(caster->GetRuneMgr().GetRunesState());
-            for (uint8 i = 0; i < MAX_RUNES; ++i)
-            {
-                data << uint8(caster->GetRuneMgr().GetRuneCooldownFraction(i));
-            }
-        }
-        else
-        {
-            data << uint8(0);
-            data << uint8(0);
-            for (uint8 i = 0; i < MAX_RUNES; ++i)
-            {
-                data << uint8(0);
-            }
-        }
-    }
-
-    if (castFlags & CAST_FLAG_AMMO)                         // projectile info
-    {
-        WriteAmmoToPacket(&data);
-    }
-
-    if (castFlags & CAST_FLAG_IMMUNITY)                     // cast immunity
-    {
-        data << uint32(0);                                  // used for SetCastSchoolImmunities
-        data << uint32(0);                                  // used for SetCastImmunities
-    }
-
+    SpellHealPrediction prediction;
     if (castFlags & CAST_FLAG_HEAL_PREDICTION)
     {
-        uint8 type = DOT;
-        int32 amt = 0;
+        prediction.type = DOT;
         for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
         {
             if (m_spellInfo->GetSpellEffectIdByIndex(SpellEffectIndex(i)) == SPELL_EFFECT_HEAL || m_spellInfo->GetSpellEffectIdByIndex(SpellEffectIndex(i)) == SPELL_EFFECT_HEAL_PCT)
             {
-                type = 0;
+                prediction.type = 0;
                 Unit* target = m_targets.getUnitTarget() ? m_targets.getUnitTarget() : m_caster;
-                amt = CalculateDamage(SpellEffectIndex(i), target);
+                int32 amt = CalculateDamage(SpellEffectIndex(i), target);
                 amt = m_caster->SpellHealingBonusDone(target, m_spellInfo, amt, HEAL);
+                prediction.amount = uint32(amt);
                 break;
             }
         }
-
-        data << uint32(amt);
-        data << uint8(type);
-        if (type == DOT)
-        {
-            data << m_caster->GetPackGUID();
-        }
     }
 
-    m_caster->SendMessageToSet(&data, true);
+    sSpellNotices.SpellStart(*this, castFlags, prediction);
 }
 
 /**
@@ -328,219 +180,28 @@ void Spell::SendSpellGo()
         castFlags |= CAST_FLAG_PREDICTED_RUNES;             // rune cooldowns list
     }
 
-    WorldPacket data(SMSG_SPELL_GO, 50);                    // guess size
-
-    if (m_CastItem)
-    {
-        data << m_CastItem->GetPackGUID();
-    }
-    else
-    {
-        data << m_caster->GetPackGUID();
-    }
-
-    data << m_caster->GetPackGUID();
-    data << uint8(m_cast_count);                            // pending spell cast?
-    data << uint32(m_spellInfo->ID);                        // spellId
-    data << uint32(castFlags);                              // cast flags
-    data << uint32(m_timer);
-    data << uint32(GameTime::GetGameTimeMS());              // timestamp
-
-    WriteSpellGoTargets(&data);
-
-    data << m_targets;
-
-    if (castFlags & CAST_FLAG_PREDICTED_POWER)              // predicted power
-    {
-        data << uint32(m_caster->GetPower(Powers(m_spellInfo->PowerType)));
-    }
-
-    if (castFlags & CAST_FLAG_PREDICTED_RUNES)              // predicted runes
-    {
-        if (Player* caster = m_caster->ToPlayer())
-        {
-
-            data << uint8(m_runesState);
-            data << uint8(caster->GetRuneMgr().GetRunesState());
-            for (uint8 i = 0; i < MAX_RUNES; ++i)
-            {
-                data << uint8(255 - ((caster->GetRuneMgr().GetRuneCooldown(i) / REGEN_TIME_FULL) * 51));
-            }
-        }
-        else
-        {
-            data << uint8(0);
-            data << uint8(0);
-            for (uint8 i = 0; i < MAX_RUNES; ++i)
-            {
-                data << uint8(0);
-            }
-        }
-    }
-
-    if (castFlags & CAST_FLAG_ADJUST_MISSILE)               // adjust missile trajectory duration
-    {
-        data << float(m_targets.GetElevation());
-        data << uint32(m_delayMoment);
-    }
-
-    if (castFlags & CAST_FLAG_AMMO)                         // projectile info
-    {
-        WriteAmmoToPacket(&data);
-    }
-
-    if (castFlags & CAST_FLAG_VISUAL_CHAIN)                 // spell visual chain effect
-    {
-        data << uint32(0);                                  // SpellVisual.dbc id?
-        data << uint32(0);                                  // overrides previous field if > 0 and violencelevel client cvar < 2
-    }
-
-    if (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION)
-    {
-        data << uint8(0);                                   // The value increase for each time, can remind of a cast count for the spell
-    }
-
-    if (m_targets.m_targetMask & TARGET_FLAG_VISUAL_CHAIN)  // probably used (or can be used) with CAST_FLAG_VISUAL_CHAIN flag
-    {
-        data << uint32(0);                                  // count
-
-        // for(int = 0; i < count; ++i)
-        //{
-        //    // position and guid?
-        //    data << float(0) << float(0) << float(0) << uint64(0);
-        //}
-    }
-
-    m_caster->SendMessageToSet(&data, true);
+    ClassifyGoTargets();
+    sSpellNotices.SpellGo(*this, castFlags);
 }
 
-/**
- * @brief Writes projectile display and inventory type data into a packet.
- *
- * @param data The packet being populated.
- */
-void Spell::WriteAmmoToPacket(WorldPacket* data)
+
+void Spell::ClassifyGoTargets()
 {
-    uint32 ammoInventoryType = 0;
-    uint32 ammoDisplayID = 0;
-
-    if (Player* casterPlayer = m_caster->ToPlayer())
-    {
-        Item* pItem = casterPlayer->GetWeaponForAttack(RANGED_ATTACK);
-        if (pItem)
-        {
-            ammoInventoryType = pItem->GetProto()->InventoryType;
-            if (ammoInventoryType == INVTYPE_THROWN)
-            {
-                ammoDisplayID = pItem->GetProto()->DisplayInfoID;
-            }
-            else
-            {
-                if (m_caster->GetDummyAura(46699))      // Requires No Ammo
-                {
-                    ammoDisplayID = 5996;                   // normal arrow
-                    ammoInventoryType = INVTYPE_AMMO;
-                }
-            }
-        }
-    }
-    else
-    {
-        for (uint8 i = 0; i < MAX_VIRTUAL_ITEM_SLOT; ++i)
-        {
-            if (uint32 item_id = m_caster->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i))
-            {
-                if (ItemPrototype const* itemEntry = ObjectMgr::GetItemPrototype(item_id))
-                //if (ItemEntry const * itemEntry = sItemStore.LookupEntry(item_id))
-                {
-                    if (itemEntry->Class == ITEM_CLASS_WEAPON)
-                    {
-                        switch (itemEntry->SubClass)
-                        {
-                            case ITEM_SUBCLASS_WEAPON_THROWN:
-                                ammoDisplayID = itemEntry->DisplayInfoID;
-                                ammoInventoryType = itemEntry->InventoryType;
-                                break;
-                            case ITEM_SUBCLASS_WEAPON_BOW:
-                            case ITEM_SUBCLASS_WEAPON_CROSSBOW:
-                                ammoDisplayID = 5996;       // is this need fixing?
-                                ammoInventoryType = INVTYPE_AMMO;
-                                break;
-                            case ITEM_SUBCLASS_WEAPON_GUN:
-                                ammoDisplayID = 5998;       // is this need fixing?
-                                ammoInventoryType = INVTYPE_AMMO;
-                                break;
-                        }
-
-                        if (ammoDisplayID)
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    *data << uint32(ammoDisplayID);
-    *data << uint32(ammoInventoryType);
-}
-
-/**
- * @brief Writes spell target guids into the spell-go packet and updates alive-target tracking.
- *
- * @param data The packet being populated.
- */
-void Spell::WriteSpellGoTargets(WorldPacket* data)
-{
-    size_t count_pos = data->wpos();
-    *data << uint8(0);                                      // placeholder
-
     // This function also fill data for channeled spells:
     // m_needAliveTargetMask req for stop channeling if one target die
-    uint32 hit  = m_UniqueGOTargetInfo.size();              // Always hits on GO
-    uint32 miss = 0;
-
     for (TargetList::iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
     {
         if (ihit->effectMask == 0)                          // No effect apply - all immuned add state
         {
             // possibly SPELL_MISS_IMMUNE2 for this??
             ihit->missCondition = SPELL_MISS_IMMUNE2;
-            ++miss;
         }
         else if (ihit->missCondition == SPELL_MISS_NONE)    // Add only hits
         {
-            ++hit;
-            *data << ihit->targetGUID;
             m_needAliveTargetMask |= ihit->effectMask;
         }
-        else
-        {
-            ++miss;
-        }
     }
 
-    for (GOTargetList::const_iterator ighit = m_UniqueGOTargetInfo.begin(); ighit != m_UniqueGOTargetInfo.end(); ++ighit)
-    {
-        *data << ighit->targetGUID;                          // Always hits
-    }
-
-    data->put<uint8>(count_pos, hit);
-
-    *data << (uint8)miss;
-    for (TargetList::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
-    {
-        if (ihit->missCondition != SPELL_MISS_NONE)         // Add only miss
-        {
-            *data << ihit->targetGUID;
-            *data << uint8(ihit->missCondition);
-            if (ihit->missCondition == SPELL_MISS_REFLECT)
-            {
-                *data << uint8(ihit->reflectResult);
-            }
-        }
-    }
     // Reset m_needAliveTargetMask for non channeled spell
     if (!IsChanneledSpell(m_spellInfo))
     {
@@ -553,157 +214,7 @@ void Spell::WriteSpellGoTargets(WorldPacket* data)
  */
 void Spell::SendLogExecute()
 {
-    Unit* target = m_targets.getUnitTarget() ? m_targets.getUnitTarget() : m_caster;
-
-    WorldPacket data(SMSG_SPELLLOGEXECUTE, (8 + 4 + 4 + 4 + 4 + 8));
-
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
-    {
-        data << m_caster->GetPackGUID();
-    }
-    else
-    {
-        data << target->GetPackGUID();
-    }
-
-    data << uint32(m_spellInfo->ID);
-    uint32 count1 = 1;
-    data << uint32(count1);                                 // count1 (effect count?)
-    for (uint32 i = 0; i < count1; ++i)
-    {
-        SpellEffectEntry const* spellEffect = m_spellInfo->GetSpellEffect(EFFECT_INDEX_0);
-        data << uint32(spellEffect ? spellEffect->Effect : 0);// spell effect
-        uint32 count2 = 1;
-        data << uint32(count2);                             // count2 (target count?)
-        for (uint32 j = 0; j < count2; ++j)
-        {
-            if (!spellEffect)
-            {
-                continue;
-            }
-
-            switch(spellEffect->Effect)
-            {
-                case SPELL_EFFECT_POWER_DRAIN:
-                case SPELL_EFFECT_POWER_BURN:
-                    if (Unit* unit = m_targets.getUnitTarget())
-                    {
-                        data << unit->GetPackGUID();
-                    }
-                    else
-                    {
-                        data << uint8(0);
-                    }
-                    data << uint32(0);
-                    data << uint32(0);
-                    data << float(0);
-                    break;
-                case SPELL_EFFECT_ADD_EXTRA_ATTACKS:
-                    if (Unit* unit = m_targets.getUnitTarget())
-                    {
-                        data << unit->GetPackGUID();
-                    }
-                    else
-                    {
-                        data << uint8(0);
-                    }
-                    data << uint32(0);                      // count?
-                    break;
-                case SPELL_EFFECT_INTERRUPT_CAST:
-                    if (Unit* unit = m_targets.getUnitTarget())
-                    {
-                        data << unit->GetPackGUID();
-                    }
-                    else
-                    {
-                        data << uint8(0);
-                    }
-                    data << uint32(0);                      // spellid
-                    break;
-                case SPELL_EFFECT_DURABILITY_DAMAGE:
-                    if (Unit* unit = m_targets.getUnitTarget())
-                    {
-                        data << unit->GetPackGUID();
-                    }
-                    else
-                    {
-                        data << uint8(0);
-                    }
-                    data << uint32(0);
-                    data << uint32(0);
-                    break;
-                case SPELL_EFFECT_OPEN_LOCK:
-                    if (Item* item = m_targets.getItemTarget())
-                    {
-                        data << item->GetPackGUID();
-                    }
-                    else
-                    {
-                        data << uint8(0);
-                    }
-                    break;
-                case SPELL_EFFECT_CREATE_ITEM:
-                case SPELL_EFFECT_CREATE_RANDOM_ITEM:
-                case SPELL_EFFECT_CREATE_ITEM_2:
-                    data << uint32(spellEffect->EffectItemType);
-                    break;
-                case SPELL_EFFECT_SUMMON:
-                case SPELL_EFFECT_TRANS_DOOR:
-                case SPELL_EFFECT_SUMMON_PET:
-                case SPELL_EFFECT_SUMMON_OBJECT_WILD:
-                case SPELL_EFFECT_CREATE_HOUSE:
-                case SPELL_EFFECT_DUEL:
-                case SPELL_EFFECT_SUMMON_OBJECT_SLOT:
-                case SPELL_EFFECT_171:
-                    if (Unit* unit = m_targets.getUnitTarget())
-                    {
-                        data << unit->GetPackGUID();
-                    }
-                    else if (m_targets.getItemTargetGuid())
-                    {
-                        data << m_targets.getItemTargetGuid().WriteAsPacked();
-                    }
-                    else if (GameObject* go = m_targets.getGOTarget())
-                    {
-                        data << go->GetPackGUID();
-                    }
-                    else
-                    {
-                        data << uint8(0);                   // guid
-                    }
-                    break;
-                case SPELL_EFFECT_FEED_PET:
-                    data << uint32(m_targets.getItemTargetEntry());
-                    break;
-                case SPELL_EFFECT_DISMISS_PET:
-                    if (Unit* unit = m_targets.getUnitTarget())
-                    {
-                        data << unit->GetPackGUID();
-                    }
-                    else
-                    {
-                        data << uint8(0);
-                    }
-                    break;
-                case SPELL_EFFECT_RESURRECT:
-                case SPELL_EFFECT_RESURRECT_NEW:
-                case SPELL_EFFECT_MASS_RESSURECTION:
-                    if (Unit* unit = m_targets.getUnitTarget())
-                    {
-                        data << unit->GetPackGUID();
-                    }
-                    else
-                    {
-                        data << uint8(0);
-                    }
-                    break;
-                default:
-                    return;
-            }
-        }
-    }
-
-    m_caster->SendMessageToSet(&data, true);
+    sSpellNotices.LogExecute(*this);
 }
 
 /**
@@ -713,19 +224,7 @@ void Spell::SendLogExecute()
  */
 void Spell::SendInterrupted(uint8 result)
 {
-    WorldPacket data(SMSG_SPELL_FAILURE, (8 + 4 + 1));
-    data << m_caster->GetPackGUID();
-    data << uint8(m_cast_count);
-    data << uint32(m_spellInfo->ID);
-    data << uint8(result);
-    m_caster->SendMessageToSet(&data, true);
-
-    data.Initialize(SMSG_SPELL_FAILED_OTHER, (8 + 4));
-    data << m_caster->GetPackGUID();
-    data << uint8(m_cast_count);
-    data << uint32(m_spellInfo->ID);
-    data << uint8(result);
-    m_caster->SendMessageToSet(&data, true);
+    sSpellNotices.Interrupted(*this, result);
 }
 
 /**
@@ -791,10 +290,7 @@ void Spell::SendChannelUpdate(uint32 time)
         m_caster->SetUInt32Value(UNIT_CHANNEL_SPELL, 0);
     }
 
-    WorldPacket data(SMSG_CHANNEL_UPDATE, 8 + 4);
-    data << m_caster->GetPackGUID();
-    data << uint32(time);
-    m_caster->SendMessageToSet(&data, true);
+    sSpellNotices.ChannelUpdate(*this, time);
 }
 
 /**
@@ -836,27 +332,7 @@ void Spell::SendChannelStart(uint32 duration)
         }
     }
 
-    WorldPacket data(SMSG_CHANNEL_START, (8 + 4 + 4));
-    data << m_caster->GetPackGUID();
-    data << uint32(m_spellInfo->ID);
-    data << uint32(duration);
-    data << uint8(0);       // unk1
-    //if (unk1)
-    //{
-    //    data << uint32(0);
-    //    data << uint32(0);
-    //}
-    data << uint8(0);       // unk2
-    //if (unk2)
-    //{
-    //    data << ObjectGuid().WriteAsPacked();
-    //    data << uint32(0);
-    //    data << uint8(0);   // unk3
-    //    if (unk3 == 2)
-    //        data << ObjectGuid().WriteAsPacked();
-    //}
-
-    m_caster->SendMessageToSet(&data, true);
+    sSpellNotices.ChannelStart(*this, duration);
 
     m_timer = duration;
 
@@ -877,32 +353,5 @@ void Spell::SendResurrectRequest(Player* target)
 {
     // Both players and NPCs can resurrect using spells - have a look at creature 28487 for example
     // However, the packet structure differs slightly
-
-    const char* sentName = m_caster->GetTypeId() == TYPEID_PLAYER ? "" : m_caster->GetNameForLocaleIdx(target->GetSession()->GetSessionDbLocaleIndex());
-
-    WorldPacket data(SMSG_RESURRECT_REQUEST, (8 + 4 + strlen(sentName) + 1 + 1 + 1));
-    data << m_caster->GetObjectGuid();
-    data << uint32(strlen(sentName) + 1);
-
-    data << sentName;
-    data << uint8(0);
-
-    data << uint8(m_caster->GetTypeId() == TYPEID_PLAYER ? 0 : 1);
-    data << uint32(m_spellInfo->ID);
-
-    target->SendDirectMessage(&data);
-}
-
-void Spell::SendPlaySpellVisual(uint32 SpellID)
-{
-    Player* casterPlayer = m_caster->ToPlayer();
-    if (!casterPlayer)
-    {
-        return;
-    }
-
-    WorldPacket data;
-    m_caster->BuildSendPlayVisualPacket(&data, SpellID, false);
-
-    casterPlayer->SendDirectMessage(&data);
+    sSpellNotices.ResurrectRequest(*this, *target);
 }

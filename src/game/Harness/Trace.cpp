@@ -358,7 +358,7 @@ namespace Harness
             }
             else
             {
-                // Spell::WriteSpellGoTargets: the hits as raw guids, then the misses with their
+                // WriteSpellGoTargets (SpellCastPackets.cpp): the hits as raw guids, then the misses with their
                 // condition (and a reflect result after a reflect).
                 uint8 hits = 0;
                 if (!r.U8(hits)) { return false; }
@@ -1142,7 +1142,7 @@ namespace Harness
             char buf[160];
             snprintf(buf, sizeof(buf), "unit=%s spell=%u effects=%u effect=%u targets=%u", RoleOf(roles, unit), spell, count1, effect, count2);
             std::string text = buf;
-            // the words after a unit's guid, by effect (SpellPackets.cpp:617-730)
+            // the words after a unit's guid, by effect (BuildSpellLogExecutePacket, SpellCastPackets.cpp)
             int words = -1;
             bool guid = true;
             switch (effect)
