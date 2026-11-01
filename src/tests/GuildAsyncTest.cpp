@@ -56,6 +56,7 @@
 #include "Utilities/ProgressBar.h"
 #include "WorldPacket.h"
 #include "persistence/characters/social/GuildRepository.h"
+#include "session/packets/entities/PlayerPackets.h"
 
 #include <cstring>
 #include <memory>
@@ -273,7 +274,7 @@ TEST(GuildAsync_TheSignResultPacketIsTheSameBytesFromAGuidAsFromThePlayer)
     expected << uint32(PETITION_SIGN_OK);
 
     WorldPacket built;
-    Player::BuildPetitionSignResult(built, PetitionGuid(), SignerGuid(), PETITION_SIGN_OK);
+    BuildPetitionSignResultPacket(built, PetitionGuid(), SignerGuid(), PETITION_SIGN_OK);
 
     CHECK_EQ(uint32(built.GetOpcode()), uint32(expected.GetOpcode()));
     REQUIRE(built.size() == expected.size());
@@ -281,7 +282,7 @@ TEST(GuildAsync_TheSignResultPacketIsTheSameBytesFromAGuidAsFromThePlayer)
 
     // And it is not accidentally constant: a different code is a different packet.
     WorldPacket other;
-    Player::BuildPetitionSignResult(other, PetitionGuid(), SignerGuid(), PETITION_SIGN_ALREADY_SIGNED);
+    BuildPetitionSignResultPacket(other, PetitionGuid(), SignerGuid(), PETITION_SIGN_ALREADY_SIGNED);
     REQUIRE(other.size() == built.size());
     CHECK(memcmp(other.contents(), built.contents(), built.size()) != 0);
 }

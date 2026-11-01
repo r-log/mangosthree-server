@@ -108,6 +108,8 @@ set(OWNER_FILES
     entities/player/README.md
     entities/player/Player.h
     entities/player/Player.cpp
+    entities/player/PlayerNotices.h
+    entities/player/PlayerNotices.cpp
     entities/player/ClientCallbacks.h
     entities/player/inventory/ItemCallbacks.h
     entities/player/PlayerRegistry.h
