@@ -365,8 +365,6 @@ src/game/combat/UnitCombat.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/combat/UnitCombat.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/combat/UnitCombat.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/combat/UnitCombat.cpp -> src/proto/Opcodes.h
-src/game/combat/UnitCombat.cpp -> src/proto/WorldPacket.h
 src/game/combat/UnitDamage.cpp -> src/game/entities/player/Player.h
 src/game/combat/UnitDamage.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through ObjectMgr.h before #512
@@ -374,12 +372,8 @@ src/game/combat/UnitDiminishing.cpp -> src/game/entities/player/Player.h
 src/game/combat/UnitHostility.cpp -> src/game/entities/player/Player.h
 src/game/combat/UnitMeleeDamage.cpp -> src/game/entities/player/Player.h
 src/game/combat/UnitMeleeDamage.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/combat/UnitMeleeDamage.cpp -> src/proto/Opcodes.h
-src/game/combat/UnitMeleeDamage.cpp -> src/proto/WorldPacket.h
 # reached through ObjectMgr.h before #512
 src/game/combat/UnitThreat.cpp -> src/game/entities/player/Player.h
-src/game/combat/UnitThreat.cpp -> src/proto/Opcodes.h
-src/game/combat/UnitThreat.cpp -> src/proto/WorldPacket.h
 src/game/entities/player [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player [entities] -> src/game/Object/Guild.h
 src/game/entities/player [entities] -> src/game/OutdoorPvP/OutdoorPvP.h

@@ -138,13 +138,13 @@ namespace Harness
         // accounts for every byte: the first four require the payload to end where the writer's
         // layout ends; CAST_FAILED records its result-shaped tail as `tail=` and its FNV.
 
-        /// SMSG_SPELLNONMELEEDAMAGELOG (Unit::SendSpellNonMeleeDamageLog, Unit.cpp:2617-2631):
+        /// SMSG_SPELLNONMELEEDAMAGELOG (BuildSpellNonMeleeDamageLogPacket, CombatPackets.cpp):
         /// the target's and the attacker's packed guids as roles, the spell, the damage, the
         /// overkill, the school byte, the absorbed and resisted amounts, the physical-log and
         /// unused bytes, the blocked amount, the hit-info word and the extend flag. No clock, no
         /// counter: every field is kept.
         bool DecodeSpellDamageLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_SPELLLOGMISS (Unit::SendSpellMiss, Unit.cpp:2750-2758): the spell, the caster's
+        /// SMSG_SPELLLOGMISS (BuildSpellMissPacket, CombatPackets.cpp): the spell, the caster's
         /// raw guid as a role, the flag byte, the target count, then each target's raw guid as a
         /// role with its miss condition.
         bool DecodeSpellLogMiss(uint8 const* data, size_t size, Roles const& roles, std::string& out);
@@ -167,7 +167,7 @@ namespace Harness
         // writer's layout ends. Guids read as roles. SMSG_PET_CAST_FAILED is the pet form of
         // Spell::SendCastResult, one layout with SMSG_CAST_FAILED, and DecodeCastFailed reads it.
 
-        /// SMSG_PERIODICAURALOG (Unit::SendPeriodicAuraLog, Unit.cpp:2673-2712): the target's and
+        /// SMSG_PERIODICAURALOG (BuildPeriodicAuraLogPacket, CombatPackets.cpp): the target's and
         /// the caster's packed guids as roles, the spell, the count (the writer's 1), the aura
         /// type, then that type's own fields -- the damage, overkill, school, absorbed, resisted
         /// and critical byte for PERIODIC_DAMAGE and PERIODIC_DAMAGE_PERCENT; the amount,
@@ -176,7 +176,7 @@ namespace Harness
         /// multiplier (a float, printed as its bits) for PERIODIC_MANA_LEECH. Any other aura type
         /// is refused: the writer sends nothing for it.
         bool DecodePeriodicAuraLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_SPELLHEALLOG (Unit::SendHealSpellLog, Unit.cpp:3920-3928): the healed unit's and
+        /// SMSG_SPELLHEALLOG (BuildSpellHealLogPacket, CombatPackets.cpp): the healed unit's and
         /// the healer's packed guids as roles, the spell, the heal, the overheal, the absorbed
         /// amount, the critical byte and the unused byte.
         bool DecodeSpellHealLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
@@ -214,7 +214,7 @@ namespace Harness
         /// victim's and the caster's packed guids as roles, the dispel spell, the unused byte, the
         /// count, then each dispelled spell with its dispelled-or-cleansed byte.
         bool DecodeSpellDispelLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_PROCRESIST (Unit::SendSpellDamageResist, Unit.cpp:2779-2783): the caster's and the
+        /// SMSG_PROCRESIST (BuildProcResistPacket, CombatPackets.cpp): the caster's and the
         /// target's raw guids as roles, the spell and the log-format byte.
         bool DecodeProcResist(uint8 const* data, size_t size, Roles const& roles, std::string& out);
 
@@ -225,22 +225,22 @@ namespace Harness
         // the session's own sync sequence number, stepped every 10 s of the stepped clock) carry no
         // guid and no clock and are hashed whole.
 
-        /// SMSG_THREAT_UPDATE (Unit::SendThreatUpdate, UnitThreat.cpp:198-205): the unit's packed guid,
+        /// SMSG_THREAT_UPDATE (BuildThreatUpdatePacket, CombatPackets.cpp): the unit's packed guid,
         /// the count, then each (packed guid, threat) -- the guids as roles.
         bool DecodeThreatUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_HIGHEST_THREAT_UPDATE (Unit::SendHighestThreatUpdate, UnitThreat.cpp:216-224): the
+        /// SMSG_HIGHEST_THREAT_UPDATE (BuildHighestThreatUpdatePacket, CombatPackets.cpp): the
         /// unit's packed guid, the new highest's packed guid, then the count and the list as above.
         bool DecodeHighestThreatUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_THREAT_CLEAR (Unit::SendThreatClear, UnitThreat.cpp:232-233): the unit's packed guid.
+        /// SMSG_THREAT_CLEAR (BuildThreatClearPacket, CombatPackets.cpp): the unit's packed guid.
         bool DecodeThreatClear(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_THREAT_REMOVE (Unit::SendThreatRemove, UnitThreat.cpp:240-242): the unit's and the
+        /// SMSG_THREAT_REMOVE (BuildThreatRemovePacket, CombatPackets.cpp): the unit's and the
         /// removed hostile's packed guids.
         bool DecodeThreatRemove(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_AI_REACTION (Creature::SendAIReaction, Creature.cpp:2464-2467; Unit.cpp:5875-5877):
         /// the creature's raw guid as a role and the reaction.
         bool DecodeAiReaction(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_ATTACKSTOP (Unit::SendMeleeAttackStop, UnitCombat.cpp:469-472; CombatHandlers::
-        /// SendAttackStop, CombatHandlers.cpp:150-153): the attacker's and the victim's packed guids
+        /// SMSG_ATTACKSTOP (BuildAttackStopPacket, CombatPackets.cpp; CombatHandlers::SendAttackStop,
+        /// CombatHandlers.cpp): the attacker's and the victim's packed guids
         /// and the trailing word.
         bool DecodeAttackStop(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_FORCE_MOVE_ROOT and SMSG_FORCE_MOVE_UNROOT (the wire codec's MoveRoot and MoveUnroot

@@ -28,8 +28,7 @@
 #include "combat/MeleeChances.h"
 #include "combat/WeaponDamage.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "combat/CombatNotices.h"
 #include "ObjectMgr.h"
 #include "GridMap.h"
 #include "ObjectGuid.h"
@@ -437,12 +436,7 @@ float Unit::CalculateLevelPenalty(SpellEntry const* spellProto) const
  */
 void Unit::SendMeleeAttackStart(Unit* pVictim)
 {
-    WorldPacket data(SMSG_ATTACKSTART, 8 + 8);
-    data << GetObjectGuid();
-    data << pVictim->GetObjectGuid();
-
-    SendMessageToSet(&data, true);
-    DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Sent SMSG_ATTACKSTART: %s -> %s", GetGuidStr().c_str(), pVictim->GetGuidStr().c_str());
+    sCombatNotices.MeleeAttackStart(*this, *pVictim);
 }
 
 /**
@@ -457,11 +451,7 @@ void Unit::SendMeleeAttackStop(Unit* victim)
         return;
     }
 
-    WorldPacket data(SMSG_ATTACKSTOP, (4 + 16));            // we guess size
-    data << GetPackGUID();
-    data << victim->GetPackGUID();                          // can be 0x00...
-    data << uint32(0);                                      // can be 0x1
-    SendMessageToSet(&data, true);
+    sCombatNotices.MeleeAttackStop(*this, *victim);
     DETAIL_FILTER_LOG(LOG_FILTER_COMBAT, "%s %u stopped attacking %s %u", (GetTypeId() == TYPEID_PLAYER ? "player" : "creature"), GetGUIDLow(), (victim->GetTypeId() == TYPEID_PLAYER ? "player" : "creature"), victim->GetGUIDLow());
 
     /*if (victim->GetTypeId() == TYPEID_UNIT)
@@ -1347,24 +1337,7 @@ bool InMeleeReach(Unit const& attacker, Unit const& victim, float flat_mod)
  */
 void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
 {
-    uint32 targetHealth = log->target->GetHealth();
-    uint32 overkill = log->damage > targetHealth ? log->damage - targetHealth : 0;
-
-    WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16 + 4 + 4 + 4 + 1 + 4 + 4 + 1 + 1 + 4 + 4 + 1)); // we guess size
-    data << log->target->GetPackGUID();
-    data << log->attacker->GetPackGUID();
-    data << uint32(log->SpellID);
-    data << uint32(log->damage);                            // damage amount
-    data << uint32(overkill);                               // overkill
-    data << uint8(log->schoolMask);                         // damage school
-    data << uint32(log->absorb);                            // AbsorbedDamage
-    data << uint32(log->resist);                            // resist
-    data << uint8(log->physicalLog);                        // if 1, then client show spell name (example: %s's ranged shot hit %s for %u school or %s suffers %u school damage from %s's spell_name
-    data << uint8(log->unused);                             // unused
-    data << uint32(log->blocked);                           // blocked
-    data << uint32(log->HitInfo);
-    data << uint8(0);                                       // flag to use extend data
-    SendMessageToSet(&data, true);
+    sCombatNotices.SpellNonMeleeDamageLog(*this, *log);
 }
 
 /**
@@ -1403,49 +1376,7 @@ void Unit::SendSpellNonMeleeDamageLog(Unit* target, uint32 SpellID, uint32 Damag
  */
 void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
 {
-    Aura* aura = pInfo->aura;
-    Modifier* mod = aura->GetModifier();
-
-    WorldPacket data(SMSG_PERIODICAURALOG, 30);
-    data << aura->GetTarget()->GetPackGUID();
-    data << aura->GetCasterGuid().WriteAsPacked();
-    data << uint32(aura->GetId());                          // spellId
-    data << uint32(1);                                      // count
-    data << uint32(mod->m_auraname);                        // auraId
-    switch (mod->m_auraname)
-    {
-        case SPELL_AURA_PERIODIC_DAMAGE:
-        case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
-            data << uint32(pInfo->damage);                  // damage
-            data << uint32(pInfo->overDamage);              // overkill?
-            data << uint32(GetSpellSchoolMask(aura->GetSpellProto()));
-            data << uint32(pInfo->absorb);                  // absorb
-            data << uint32(pInfo->resist);                  // resist
-            data << uint8(pInfo->critical ? 1 : 0);         // new 3.1.2 critical flag
-            break;
-        case SPELL_AURA_PERIODIC_HEAL:
-        case SPELL_AURA_OBS_MOD_HEALTH:
-            data << uint32(pInfo->damage);                  // damage
-            data << uint32(pInfo->overDamage);              // overheal?
-            data << uint32(pInfo->absorb);                  // absorb
-            data << uint8(pInfo->critical ? 1 : 0);         // new 3.1.2 critical flag
-            break;
-        case SPELL_AURA_OBS_MOD_MANA:
-        case SPELL_AURA_PERIODIC_ENERGIZE:
-            data << uint32(mod->m_miscvalue);               // power type
-            data << uint32(pInfo->damage);                  // damage
-            break;
-        case SPELL_AURA_PERIODIC_MANA_LEECH:
-            data << uint32(mod->m_miscvalue);               // power type
-            data << uint32(pInfo->damage);                  // amount
-            data << float(pInfo->multiplier);               // gain multiplier
-            break;
-        default:
-            sLog.outError("Unit::SendPeriodicAuraLog: unknown aura %u", uint32(mod->m_auraname));
-            return;
-    }
-
-    aura->GetTarget()->SendMessageToSet(&data, true);
+    sCombatNotices.PeriodicAuraLog(*pInfo);
 }
 
 /**
@@ -1457,16 +1388,7 @@ void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
  */
 void Unit::SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo)
 {
-    WorldPacket data(SMSG_SPELLLOGMISS, (4 + 8 + 1 + 4 + 8 + 1));
-    data << uint32(spellID);
-    data << GetObjectGuid();
-    data << uint8(0);                                       // can be 0 or 1, flag
-    data << uint32(1);                                      // target count
-    // for(i = 0; i < target count; ++i)
-    data << target->GetObjectGuid();                        // target GUID
-    data << uint8(missInfo);
-    // end loop
-    SendMessageToSet(&data, true);
+    sCombatNotices.SpellMiss(*this, *target, spellID, missInfo);
 }
 
 /**
@@ -1478,20 +1400,12 @@ void Unit::SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo)
  * combat text entry and, when the local player is the target, raises
  * COMBAT_TEXT_UPDATE with the message type "SPELL_RESIST".
  *
- * Two flat uint64 GUIDs, not packed -- the client reads eight bytes for each.
- * The trailing byte is a log-format selector the client reads and discards.
- *
  * @param target The unit the spell was resisted by.
  * @param spellID The spell that was resisted.
  */
 void Unit::SendSpellDamageResist(Unit* target, uint32 spellID)
 {
-    WorldPacket data(SMSG_PROCRESIST, 8 + 8 + 4 + 1);
-    data << uint64(GetObjectGuid().GetRawValue());
-    data << uint64(target->GetObjectGuid().GetRawValue());
-    data << uint32(spellID);
-    data << uint8(0);                                       // log format: 0 default, 1 debug
-    SendMessageToSet(&data, true);
+    sCombatNotices.SpellDamageResist(*this, *target, spellID);
 }
 
 /**
@@ -1501,78 +1415,7 @@ void Unit::SendSpellDamageResist(Unit* target, uint32 spellID)
  */
 void Unit::SendAttackStateUpdate(CalcDamageInfo* damageInfo)
 {
-    DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Sending SMSG_ATTACKERSTATEUPDATE");
-
-    uint32 targetHealth = damageInfo->target->GetHealth();
-    uint32 overkill = damageInfo->damage > targetHealth ? damageInfo->damage - targetHealth : 0;
-
-    uint32 count = 1;
-    WorldPacket data(SMSG_ATTACKERSTATEUPDATE, (16 + 45));  // we guess size
-    data << (uint32)damageInfo->HitInfo;
-    data << damageInfo->attacker->GetPackGUID();
-    data << damageInfo->target->GetPackGUID();
-    data << (uint32)(damageInfo->damage);     // Full damage
-    data << uint32(overkill);                               // overkill value
-    data << uint8(count);                                   // Sub damage count
-
-    for (uint32 i = 0; i < count; ++i)
-    {
-        data << uint32(damageInfo->damageSchoolMask);       // School of sub damage
-        data << float(damageInfo->damage);                  // sub damage
-        data << uint32(damageInfo->damage);                 // Sub Damage
-    }
-
-    if (damageInfo->HitInfo & (HITINFO_ABSORB | HITINFO_ABSORB2))
-    {
-        for (uint32 i = 0; i < count; ++i)
-        {
-            data << uint32(damageInfo->absorb);             // Absorb
-        }
-    }
-
-    if (damageInfo->HitInfo & (HITINFO_RESIST | HITINFO_RESIST2))
-    {
-        for (uint32 i = 0; i < count; ++i)
-        {
-            data << uint32(damageInfo->resist);             // Resist
-        }
-    }
-
-    data << uint8(damageInfo->TargetState);
-    data << uint32(0);                                      // unknown, usually seen with -1, 0 and 1000
-    data << uint32(0);                                      // spell id, seen with heroic strike and disarm as examples.
-    // HITINFO_NOACTION normally set if spell
-
-    if (damageInfo->HitInfo & HITINFO_BLOCK)
-    {
-        data << uint32(damageInfo->blocked_amount);
-    }
-
-    if (damageInfo->HitInfo & HITINFO_UNK22)
-    {
-        data << uint32(0);                                  // count of some sort?
-    }
-
-    if (damageInfo->HitInfo & HITINFO_UNK0)
-    {
-        data << uint32(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        for (uint8 i = 0; i < 5; ++i)
-        {
-            data << float(0);
-            data << float(0);
-        }
-        data << uint32(0);
-    }
-
-    SendMessageToSet(&data, true);  /**/
+    sCombatNotices.AttackStateUpdate(*this, *damageInfo);
 }
 
 void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, uint8 /*SwingType*/, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, uint32 Resist, VictimState TargetState, uint32 BlockedAmount)
@@ -1815,17 +1658,7 @@ void Unit::RemoveAllAttackers()
  */
 void Unit::SendHealSpellLog(Unit* pVictim, uint32 SpellID, uint32 Damage, uint32 OverHeal, bool critical, uint32 absorb)
 {
-    // we guess size
-    WorldPacket data(SMSG_SPELLHEALLOG, (8 + 8 + 4 + 4 + 1));
-    data << pVictim->GetPackGUID();
-    data << GetPackGUID();
-    data << uint32(SpellID);
-    data << uint32(Damage);
-    data << uint32(OverHeal);
-    data << uint32(absorb);
-    data << uint8(critical ? 1 : 0);
-    data << uint8(0);                                       // unused in client?
-    SendMessageToSet(&data, true);
+    sCombatNotices.HealSpellLog(*this, *pVictim, SpellID, Damage, OverHeal, critical, absorb);
 }
 
 /**
