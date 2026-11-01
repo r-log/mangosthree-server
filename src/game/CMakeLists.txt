@@ -554,7 +554,6 @@ target_link_libraries(domain
         terrain
         geometry
         shared_db
-        proto
         motion
         RecastNavigation::Detour
         ZLIB::ZLIB
@@ -632,6 +631,7 @@ endif()
 target_link_libraries(session
     PUBLIC
         domain
+        proto
 )
 
 if(PCH)

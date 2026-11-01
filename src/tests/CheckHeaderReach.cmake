@@ -21,8 +21,12 @@ foreach(TOP IN ITEMS "${GAME_DIR}" "${SOURCE_ROOT}/src/shared" "${SOURCE_ROOT}/s
 endforeach()
 
 set(REACH_RULES
-    "entities/player/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,data/GossipRecords.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h,Database/DatabaseEnv.h"
-    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,entities/player/Player.h,Server/WorldSession.h,proto/WorldPacket.h,Server/Path.h"
+    "entities/player/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,data/GossipRecords.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h,Database/DatabaseEnv.h,proto/WorldPacket.h,proto/Opcodes.h"
+    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,entities/player/Player.h,Server/WorldSession.h,proto/WorldPacket.h,Server/Path.h,proto/Opcodes.h"
+    "Object/Object.h|proto/WorldPacket.h,proto/Opcodes.h"
+    "WorldHandlers/Map.h|proto/WorldPacket.h,proto/Opcodes.h"
+    "WorldHandlers/Group.h|proto/WorldPacket.h,proto/Opcodes.h"
+    "spells/pipeline/Spell.h|proto/WorldPacket.h,proto/Opcodes.h"
     "combat/ArmorReduction.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,spells/auras/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
     "combat/MeleeChances.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,spells/auras/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
     "combat/SpellBonus.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,spells/auras/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"

@@ -7,7 +7,7 @@ set(GAME_DIR "${SOURCE_ROOT}/src/game")
 
 set(SEAM_FILES
     "${GAME_DIR}/spells/auras/SpellAuraPeriodic.cpp"
-    "${GAME_DIR}/spells/pipeline/SpellPackets.cpp"
+    "${GAME_DIR}/spells/pipeline/SpellReports.cpp"
     "${GAME_DIR}/spells/auras/UnitAura.cpp"
     "${GAME_DIR}/Object/UnitVisibility.cpp")
 
@@ -66,7 +66,7 @@ foreach(FILE_PATH IN LISTS SEAM_FILES)
             list(APPEND VIOLATIONS "${FILE_PATH}:${LINE_NO}: GetSession(...) -- the seam forwards through Player instead")
         endif()
 
-        if(FILE_NAME STREQUAL "SpellPackets.cpp" AND LINE MATCHES "${SEND_PACKET_RE}")
+        if(FILE_NAME STREQUAL "SpellReports.cpp" AND LINE MATCHES "${SEND_PACKET_RE}")
             list(APPEND VIOLATIONS "${FILE_PATH}:${LINE_NO}: SendPacket(...) -- use Player::SendDirectMessage()")
         endif()
     endforeach()
