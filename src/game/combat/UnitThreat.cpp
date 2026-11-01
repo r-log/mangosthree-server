@@ -27,19 +27,17 @@
  * @file UnitThreat.cpp
  * @brief Unit's side of the threat/aggro system: whether a unit can hold a threat
  *        list, adding to and deleting it, the threat modifier, the second-choice
- *        test, target fixation, and the SMSG_THREAT_* packets.
+ *        test, target fixation, and the threat list's notices.
  *
- * Originally a pure file move out of Unit.cpp (bodies byte-identical, declarations
- * left in Unit.h). Since decoupling D5e (server #134) the three methods only a
- * Creature could execute -- SelectHostileTarget, TauntApply and TauntFadeOut -- live
- * on Creature, in CreatureThreat.cpp. What remains here is what a Player runs too.
+ * The three methods only a Creature runs -- SelectHostileTarget, TauntApply and
+ * TauntFadeOut -- are on Creature, in CreatureThreat.cpp; what is here a Player
+ * runs too.
  */
 
 #include "Utilities/Errors.h"
 #include "Unit.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "combat/CombatNotices.h"
 #include "ObjectMgr.h"
 #include "GridMap.h"
 #include "Player.h"
@@ -159,54 +157,26 @@ void Unit::FixateTarget(Unit* pVictim)
 
 void Unit::SendThreatUpdate()
 {
-    ThreatList const& tlist = GetThreatManager().getThreatList();
-    if (uint32 count = tlist.size())
+    if (!GetThreatManager().getThreatList().empty())
     {
-        DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Send SMSG_THREAT_UPDATE Message");
-        WorldPacket data(SMSG_THREAT_UPDATE, 8 + count * 8);
-        data << GetPackGUID();
-        data << uint32(count);
-        for (ThreatList::const_iterator itr = tlist.begin(); itr != tlist.end(); ++itr)
-        {
-            data << (*itr)->getUnitGuid().WriteAsPacked();
-            data << uint32((*itr)->getThreat());
-        }
-        SendMessageToSet(&data, false);
+        sCombatNotices.ThreatUpdate(*this);
     }
 }
 
 void Unit::SendHighestThreatUpdate(HostileReference* pHostilReference)
 {
-    ThreatList const& tlist = GetThreatManager().getThreatList();
-    if (uint32 count = tlist.size())
+    if (!GetThreatManager().getThreatList().empty())
     {
-        DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Send SMSG_HIGHEST_THREAT_UPDATE Message");
-        WorldPacket data(SMSG_HIGHEST_THREAT_UPDATE, 8 + 8 + count * 8);
-        data << GetPackGUID();
-        data << pHostilReference->getUnitGuid().WriteAsPacked();
-        data << uint32(count);
-        for (ThreatList::const_iterator itr = tlist.begin(); itr != tlist.end(); ++itr)
-        {
-            data << (*itr)->getUnitGuid().WriteAsPacked();
-            data << uint32((*itr)->getThreat());
-        }
-        SendMessageToSet(&data, false);
+        sCombatNotices.HighestThreatUpdate(*this, *pHostilReference);
     }
 }
 
 void Unit::SendThreatClear()
 {
-    DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Send SMSG_THREAT_CLEAR Message");
-    WorldPacket data(SMSG_THREAT_CLEAR, 8);
-    data << GetPackGUID();
-    SendMessageToSet(&data, false);
+    sCombatNotices.ThreatClear(*this);
 }
 
 void Unit::SendThreatRemove(HostileReference* pHostileReference)
 {
-    DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Send SMSG_THREAT_REMOVE Message");
-    WorldPacket data(SMSG_THREAT_REMOVE, 8 + 8);
-    data << GetPackGUID();
-    data << pHostileReference->getUnitGuid().WriteAsPacked();
-    SendMessageToSet(&data, false);
+    sCombatNotices.ThreatRemove(*this, *pHostileReference);
 }

@@ -28,8 +28,7 @@
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "combat/CombatNotices.h"
 #include "ObjectMgr.h"
 #include "GridMap.h"
 #include "ObjectGuid.h"
@@ -451,15 +450,7 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
                 uint32 targetHealth = GetHealth();
                 uint32 overkill = damage > targetHealth ? damage - targetHealth : 0;
 
-                WorldPacket data(SMSG_SPELLDAMAGESHIELD, (8 + 8 + 4 + 4 + 4 + 4));
-                data << pVictim->GetObjectGuid();
-                data << GetObjectGuid();
-                data << uint32(i_spellProto->ID);
-                data << uint32(damage);                  // Damage
-                data << uint32(overkill);                // Overkill
-                data << uint32(i_spellProto->SchoolMask);
-                data << uint32(resist);                  // Resist
-                pVictim->SendMessageToSet(&data, true);
+                sCombatNotices.DamageShield(*pVictim, *this, i_spellProto->ID, damage, overkill, i_spellProto->SchoolMask, resist);
 
                 pVictim->DealDamage(this, damage, 0, SPELL_DIRECT_DAMAGE, GetSpellSchoolMask(i_spellProto), i_spellProto, true);
 
