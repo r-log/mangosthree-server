@@ -273,7 +273,7 @@ class BattleGroundEY : public BattleGround
         void UpdateTeamScore(Team team);
         void EndBattleGround(Team winner) override;
         void UpdatePlayerScore(Player* source, uint32 type, uint32 value) override;
-        void FillInitialWorldStates(WorldPacket& data, uint32& count) override;
+        void FillInitialWorldStates(WorldStateList& states) override;
         void SetDroppedFlagGuid(ObjectGuid guid)     { m_DroppedFlagGuid = guid;}
         void ClearDroppedFlagGuid()                  { m_DroppedFlagGuid.Clear();}
         ObjectGuid const& GetDroppedFlagGuid() const { return m_DroppedFlagGuid;}

@@ -39,7 +39,7 @@ struct CooldownEventFact;
 struct CooldownsClearedFact;
 
 /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
-/// where the player is created: forty facts out, one read in.
+/// where the player is created: forty-two facts out, one read in.
 struct ClientCallbacks
 {
     SwingOutOfReachSink swingOutOfReach;
@@ -82,6 +82,8 @@ struct ClientCallbacks
     FishNotHookedSink fishNotHooked;
     MonsterWhisperSink monsterWhisper;
     SystemMessageSink systemMessage;
+    InitWorldStatesSink initWorldStates;
+    WorldStateUpdateSink worldStateUpdate;
     SecurityLevelQuery securityLevel;
 };
 

@@ -32,10 +32,10 @@
 #include "TestHarness.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPEP.h"
-#include "WorldPacket.h"
 
 #include <atomic>
 #include <type_traits>
+#include <vector>
 
 namespace
 {
@@ -103,15 +103,14 @@ TEST(PlaguelandsTowerCount_InitialWorldStatesCarryTheCounts)
     (script.*MemberOf(AllianceTowerCount())).store(2);
     (script.*MemberOf(HordeTowerCount())).store(3);
 
-    WorldPacket data;
-    uint32 count = 0;
-    script.FillInitialWorldStates(data, count);
+    WorldStateList states;
+    script.FillInitialWorldStates(states);
 
-    // The two counts, then the four towers' states, each a 4-byte state and a 4-byte value.
-    CHECK_EQ(count, uint32(6));
-    CHECK_EQ(data.size(), size_t(48));
-    CHECK_EQ(data.read<uint32>(0), uint32(WORLD_STATE_EP_TOWER_COUNT_ALLIANCE));
-    CHECK_EQ(data.read<uint32>(4), uint32(2));
-    CHECK_EQ(data.read<uint32>(8), uint32(WORLD_STATE_EP_TOWER_COUNT_HORDE));
-    CHECK_EQ(data.read<uint32>(12), uint32(3));
+    // The two counts, then the four towers' states.
+    std::vector<WorldStatePair> const& added = states.States();
+    REQUIRE(added.size() == 6u);
+    CHECK_EQ(added[0].state, uint32(WORLD_STATE_EP_TOWER_COUNT_ALLIANCE));
+    CHECK_EQ(added[0].value, uint32(2));
+    CHECK_EQ(added[1].state, uint32(WORLD_STATE_EP_TOWER_COUNT_HORDE));
+    CHECK_EQ(added[1].value, uint32(3));
 }

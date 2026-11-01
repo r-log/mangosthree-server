@@ -330,10 +330,9 @@ class BattleGroundAB : public BattleGround
         /**
          * @brief
          *
-         * @param data
-         * @param count
+         * @param states The list the world states are added to.
          */
-        void FillInitialWorldStates(WorldPacket& data, uint32& count) override;
+        void FillInitialWorldStates(WorldStateList& states) override;
 
         /* Nodes occupying */
         /**

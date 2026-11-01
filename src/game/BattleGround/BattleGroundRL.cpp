@@ -27,7 +27,6 @@
 #include "BattleGround.h"
 #include "BattleGroundRL.h"
 #include "Language.h"
-#include "WorldPacket.h"
 #include "Log.h"
 
 BattleGroundRL::BattleGroundRL()
@@ -100,9 +99,9 @@ bool BattleGroundRL::HandlePlayerUnderMap(Player* player)
     return true;
 }
 
-void BattleGroundRL::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void BattleGroundRL::FillInitialWorldStates(WorldStateList& states)
 {
-    FillInitialWorldState(data, count, 0xbb8, GetAlivePlayersCountByTeam(ALLIANCE));
-    FillInitialWorldState(data, count, 0xbb9, GetAlivePlayersCountByTeam(HORDE));
-    FillInitialWorldState(data, count, 0xbba, 1);
+    states.Add(0xbb8, GetAlivePlayersCountByTeam(ALLIANCE));
+    states.Add(0xbb9, GetAlivePlayersCountByTeam(HORDE));
+    states.Add(0xbba, 1);
 }

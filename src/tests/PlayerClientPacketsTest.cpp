@@ -330,6 +330,28 @@ namespace
         return fact;
     }
 
+    /// Map 0, zone 1519 (Stormwind City), area 4411: the arena season 9, the Wintergrasp state 1 and
+    /// the Blade's Edge Arena count -1, which the client reads as 0xFFFFFFFF.
+    InitWorldStatesFact StormwindStates()
+    {
+        InitWorldStatesFact fact;
+        fact.mapId = 0;
+        fact.zoneId = 1519;
+        fact.areaId = 4411;
+        fact.states.Add(0xC77, uint32(9));
+        fact.states.Add(0xED9, 1);
+        fact.states.Add(0x9F1, int32(-1));
+        return fact;
+    }
+
+    WorldStateUpdateFact StateIs(uint32 state, uint32 value)
+    {
+        WorldStateUpdateFact fact;
+        fact.state = state;
+        fact.value = value;
+        return fact;
+    }
+
     /// Stands in for the session: records "<opcode>:<hex>" per packet it is sent, and answers its
     /// account security level.
     struct FakeSession
@@ -395,6 +417,8 @@ namespace
         ReportClientFact(callbacks.spiritHealerConfirm, HealerAsks(kCreature));
         ReportClientFact(callbacks.summonRequest, Summon(kPlayer, 1519, 120000));
         ReportClientFact(callbacks.fishNotHooked, FishNotHookedFact());
+        ReportClientFact(callbacks.initWorldStates, StormwindStates());
+        ReportClientFact(callbacks.worldStateUpdate, StateIs(0x9F1, 4));
     }
 
     const char* const kEach[] =
@@ -432,6 +456,8 @@ namespace
         "4917:2a000000b80b30f1",
         "2a07:0000f00000000000ef050000c0d40100",
         "0a17:",
+        "4c15:00000000ef0500003b1100000300770c000009000000d90e000001000000f1090000ffffffff",
+        "4816:f10900000400000000",
     };
 
     /// The empty-callback case ends the process on its assertion, so it runs only when
@@ -709,6 +735,25 @@ TEST(PlayerClientPackets_FriendStatusBytes)
     CHECK_STR(Built(&BuildFriendStatusPacket, StatusOf(FRIEND_REMOVED)), "0717:050700000000000000");
 }
 
+// SMSG_INIT_WORLD_STATES (0x4C15): the map, the zone and the area as uint32s, the count of states as
+// a uint16, then each state and its value as uint32s.
+TEST(PlayerClientPackets_InitWorldStatesBytes)
+{
+    // 00000000 ef050000 3b110000 0300; 770c0000 09000000, d90e0000 01000000, f1090000 ffffffff.
+    CHECK_STR(Built(&BuildInitWorldStatesPacket, StormwindStates()),
+              "4c15:00000000ef0500003b1100000300770c000009000000d90e000001000000f1090000ffffffff");
+    InitWorldStatesFact none = StormwindStates();
+    none.states = WorldStateList();
+    CHECK_STR(Built(&BuildInitWorldStatesPacket, none), "4c15:00000000ef0500003b1100000000");
+}
+
+// SMSG_UPDATE_WORLD_STATE (0x4816): the state and the value as uint32s, then 0, the byte the client
+// reads as hidden.
+TEST(PlayerClientPackets_UpdateWorldStateBytes)
+{
+    CHECK_STR(Built(&BuildUpdateWorldStatePacket, StateIs(0x9F1, 4)), "4816:f10900000400000000");
+    CHECK_STR(Built(&BuildUpdateWorldStatePacket, StateIs(0xC77, 0xFFFFFFFF)), "4816:770c0000ffffffff00");
+}
 // The callbacks the session installs turn each fact into the packet above and send it to the
 // owner's session, each fact to its own packet.
 TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
@@ -720,8 +765,8 @@ TEST(PlayerClientPackets_InstalledCallbacksSendTheGoldenPackets)
     ClientCallbacks callbacks = ClientCallbacksToSession<ClientCallbacks>(&owner);
     ReportEach(callbacks);
 
-    REQUIRE(session.sent.size() == 33u);
-    for (size_t i = 0; i < 33; ++i)
+    REQUIRE(session.sent.size() == 35u);
+    for (size_t i = 0; i < 35; ++i)
     {
         CHECK_STR(session.sent[i], kEach[i]);
     }
@@ -741,9 +786,9 @@ TEST(PlayerClientPackets_InstalledCallbacksReadTheSessionAtEachSend)
     owner.session = &second;
     ReportEach(callbacks);
 
-    REQUIRE(first.sent.size() == 33u);
-    REQUIRE(second.sent.size() == 33u);
-    for (size_t i = 0; i < 33; ++i)
+    REQUIRE(first.sent.size() == 35u);
+    REQUIRE(second.sent.size() == 35u);
+    for (size_t i = 0; i < 35; ++i)
     {
         CHECK_STR(first.sent[i], kEach[i]);
         CHECK_STR(second.sent[i], kEach[i]);

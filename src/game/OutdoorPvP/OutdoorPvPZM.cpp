@@ -24,7 +24,6 @@
  */
 
 #include "OutdoorPvPZM.h"
-#include "WorldPacket.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "Object.h"
@@ -55,16 +54,16 @@ OutdoorPvPZM::OutdoorPvPZM() : OutdoorPvP(),
     sObjectMgr.SetGraveYardLinkTeam(GRAVEYARD_ID_TWIN_SPIRE, GRAVEYARD_ZONE_TWIN_SPIRE, TEAM_INVALID);
 }
 
-void OutdoorPvPZM::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void OutdoorPvPZM::FillInitialWorldStates(WorldStateList& states)
 {
-    FillInitialWorldState(data, count, m_scoutWorldStateAlliance, WORLD_STATE_ADD);
-    FillInitialWorldState(data, count, m_scoutWorldStateHorde, WORLD_STATE_ADD);
-    FillInitialWorldState(data, count, m_graveyardWorldState, WORLD_STATE_ADD);
+    states.Add(m_scoutWorldStateAlliance, WORLD_STATE_ADD);
+    states.Add(m_scoutWorldStateHorde, WORLD_STATE_ADD);
+    states.Add(m_graveyardWorldState, WORLD_STATE_ADD);
 
     for (uint8 i = 0; i < MAX_ZM_TOWERS; ++i)
     {
-        FillInitialWorldState(data, count, m_towerWorldState[i], WORLD_STATE_ADD);
-        FillInitialWorldState(data, count, m_towerMapState[i], WORLD_STATE_ADD);
+        states.Add(m_towerWorldState[i], WORLD_STATE_ADD);
+        states.Add(m_towerMapState[i], WORLD_STATE_ADD);
     }
 }
 

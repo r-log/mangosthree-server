@@ -25,7 +25,6 @@
 
 #include <list>
 #include "OutdoorPvPHP.h"
-#include "WorldPacket.h"
 #include "BattleGround.h"
 #include "Object.h"
 #include "GameObject.h"
@@ -45,16 +44,16 @@ OutdoorPvPHP::OutdoorPvPHP() : OutdoorPvP(),
     }
 }
 
-void OutdoorPvPHP::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void OutdoorPvPHP::FillInitialWorldStates(WorldStateList& states)
 {
-    FillInitialWorldState(data, count, WORLD_STATE_HP_TOWER_COUNT_ALLIANCE, m_towersAlliance);
-    FillInitialWorldState(data, count, WORLD_STATE_HP_TOWER_COUNT_HORDE, m_towersHorde);
-    FillInitialWorldState(data, count, WORLD_STATE_HP_TOWER_DISPLAY_A, WORLD_STATE_ADD);
-    FillInitialWorldState(data, count, WORLD_STATE_HP_TOWER_DISPLAY_H, WORLD_STATE_ADD);
+    states.Add(WORLD_STATE_HP_TOWER_COUNT_ALLIANCE, m_towersAlliance);
+    states.Add(WORLD_STATE_HP_TOWER_COUNT_HORDE, m_towersHorde);
+    states.Add(WORLD_STATE_HP_TOWER_DISPLAY_A, WORLD_STATE_ADD);
+    states.Add(WORLD_STATE_HP_TOWER_DISPLAY_H, WORLD_STATE_ADD);
 
     for (uint8 i = 0; i < MAX_HP_TOWERS; ++i)
     {
-        FillInitialWorldState(data, count, m_towerWorldState[i], WORLD_STATE_ADD);
+        states.Add(m_towerWorldState[i], WORLD_STATE_ADD);
     }
 }
 

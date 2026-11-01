@@ -3075,7 +3075,7 @@ class Player : public Unit
 
         // Send a direct message to the client
         void SendDirectMessage(WorldPacket* data) const;
-        void FillBGWeekendWorldStates(WorldPacket& data, uint32& count);
+        void FillBGWeekendWorldStates(WorldStateList& states);
 
         void SendAurasForTarget(Unit* target);
 

@@ -346,10 +346,9 @@ class BattleGroundWS : public BattleGround
         ObjectGuid const& GetDroppedFlagGuid(Team team) const { return m_DroppedFlagGuid[GetTeamIndexByTeamId(team)];}
         /**
          * @brief Fills the initial world states.
-         * @param data The world packet data.
-         * @param count The count of world states.
+         * @param states The list the world states are added to.
          */
-        void FillInitialWorldStates(WorldPacket& data, uint32& count) override;
+        void FillInitialWorldStates(WorldStateList& states) override;
         /**
          * @brief Gets the premature winner of the battleground.
          * @return Team The premature winner.

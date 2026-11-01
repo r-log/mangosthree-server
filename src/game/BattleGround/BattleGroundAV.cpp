@@ -49,7 +49,6 @@
 #include "Creature.h"
 #include "GameObject.h"
 #include "Language.h"
-#include "WorldPacket.h"
 // TODO REMOVE this when graveyard handling for pvp is updated
 #include "DBCStores.h"
 
@@ -870,10 +869,9 @@ void BattleGroundAV::EventPlayerAssaultsPoint(Player* player, BG_AV_Nodes node)
  * Sends all node state information to clients when they enter the battleground,
  * including node ownership, captured towers, and graveyard status.
  *
- * @param data The packet to write world state data to.
- * @param count Reference to the count of world state entries.
+ * @param states The list the world states are added to.
  */
-void BattleGroundAV::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void BattleGroundAV::FillInitialWorldStates(WorldStateList& states)
 {
     bool stateok;
     for (uint8 i = BG_AV_NODES_FIRSTAID_STATION; i < BG_AV_NODES_MAX; ++i)
@@ -881,41 +879,41 @@ void BattleGroundAV::FillInitialWorldStates(WorldPacket& data, uint32& count)
         for (uint8 j = 0; j < BG_AV_MAX_STATES; ++j)
         {
             stateok = (m_Nodes[i].State == j);
-            FillInitialWorldState(data, count, BG_AV_NodeWorldStates[i][GetWorldStateType(j, BG_AV_TEAM_ALLIANCE)],
-                                  m_Nodes[i].Owner == BG_AV_TEAM_ALLIANCE && stateok);
-            FillInitialWorldState(data, count, BG_AV_NodeWorldStates[i][GetWorldStateType(j, BG_AV_TEAM_HORDE)],
-                                  m_Nodes[i].Owner == BG_AV_TEAM_HORDE && stateok);
+            states.Add(BG_AV_NodeWorldStates[i][GetWorldStateType(j, BG_AV_TEAM_ALLIANCE)],
+                       m_Nodes[i].Owner == BG_AV_TEAM_ALLIANCE && stateok);
+            states.Add(BG_AV_NodeWorldStates[i][GetWorldStateType(j, BG_AV_TEAM_HORDE)],
+                       m_Nodes[i].Owner == BG_AV_TEAM_HORDE && stateok);
         }
     }
 
     if (m_Nodes[BG_AV_NODES_SNOWFALL_GRAVE].Owner == BG_AV_TEAM_NEUTRAL)    // cause neutral teams aren't handled generic
     {
-        FillInitialWorldState(data, count, AV_SNOWFALL_N, WORLD_STATE_ADD);
+        states.Add(AV_SNOWFALL_N, WORLD_STATE_ADD);
     }
 
-    FillInitialWorldState(data, count, BG_AV_Alliance_Score, m_TeamScores[TEAM_INDEX_ALLIANCE]);
-    FillInitialWorldState(data, count, BG_AV_Horde_Score,    m_TeamScores[TEAM_INDEX_HORDE]);
+    states.Add(BG_AV_Alliance_Score, m_TeamScores[TEAM_INDEX_ALLIANCE]);
+    states.Add(BG_AV_Horde_Score,    m_TeamScores[TEAM_INDEX_HORDE]);
     if (GetStatus() == STATUS_IN_PROGRESS)                  // only if game is running the teamscores are displayed
     {
-        FillInitialWorldState(data, count, BG_AV_SHOW_A_SCORE, WORLD_STATE_ADD);
-        FillInitialWorldState(data, count, BG_AV_SHOW_H_SCORE, WORLD_STATE_ADD);
+        states.Add(BG_AV_SHOW_A_SCORE, WORLD_STATE_ADD);
+        states.Add(BG_AV_SHOW_H_SCORE, WORLD_STATE_ADD);
     }
     else
     {
-        FillInitialWorldState(data, count, BG_AV_SHOW_A_SCORE, WORLD_STATE_REMOVE);
-        FillInitialWorldState(data, count, BG_AV_SHOW_H_SCORE, WORLD_STATE_REMOVE);
+        states.Add(BG_AV_SHOW_A_SCORE, WORLD_STATE_REMOVE);
+        states.Add(BG_AV_SHOW_H_SCORE, WORLD_STATE_REMOVE);
     }
 
-    FillInitialWorldState(data, count, BG_AV_MineWorldStates[BG_AV_NORTH_MINE][m_Mine_Owner[BG_AV_NORTH_MINE]], WORLD_STATE_ADD);
+    states.Add(BG_AV_MineWorldStates[BG_AV_NORTH_MINE][m_Mine_Owner[BG_AV_NORTH_MINE]], WORLD_STATE_ADD);
     if (m_Mine_Owner[BG_AV_NORTH_MINE] != m_Mine_PrevOwner[BG_AV_NORTH_MINE])
     {
-        FillInitialWorldState(data, count, BG_AV_MineWorldStates[BG_AV_NORTH_MINE][m_Mine_PrevOwner[BG_AV_NORTH_MINE]], WORLD_STATE_REMOVE);
+        states.Add(BG_AV_MineWorldStates[BG_AV_NORTH_MINE][m_Mine_PrevOwner[BG_AV_NORTH_MINE]], WORLD_STATE_REMOVE);
     }
 
-    FillInitialWorldState(data, count, BG_AV_MineWorldStates[BG_AV_SOUTH_MINE][m_Mine_Owner[BG_AV_SOUTH_MINE]], WORLD_STATE_ADD);
+    states.Add(BG_AV_MineWorldStates[BG_AV_SOUTH_MINE][m_Mine_Owner[BG_AV_SOUTH_MINE]], WORLD_STATE_ADD);
     if (m_Mine_Owner[BG_AV_SOUTH_MINE] != m_Mine_PrevOwner[BG_AV_SOUTH_MINE])
     {
-        FillInitialWorldState(data, count, BG_AV_MineWorldStates[BG_AV_SOUTH_MINE][m_Mine_PrevOwner[BG_AV_SOUTH_MINE]], WORLD_STATE_REMOVE);
+        states.Add(BG_AV_MineWorldStates[BG_AV_SOUTH_MINE][m_Mine_PrevOwner[BG_AV_SOUTH_MINE]], WORLD_STATE_REMOVE);
     }
 }
 

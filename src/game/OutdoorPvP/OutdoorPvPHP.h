@@ -160,7 +160,7 @@ class OutdoorPvPHP : public OutdoorPvP
 
         void HandlePlayerEnterZone(Player* player, bool isMainZone) override;
         void HandlePlayerLeaveZone(Player* player, bool isMainZone) override;
-        void FillInitialWorldStates(WorldPacket& data, uint32& count) override;
+        void FillInitialWorldStates(WorldStateList& states) override;
         void SendRemoveWorldStates(Player* player) override;
 
         bool HandleEvent(uint32 eventId, GameObject* go) override;
