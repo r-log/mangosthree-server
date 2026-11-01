@@ -1,14 +1,3 @@
-# Decoupling D5a: the aura and spell packet code asks Player, not the session, whether the
-# player is loading or logging out, and Player for direct sends. This gate holds the seam so a
-# later change cannot grow it back: SpellAuraPeriodic.cpp and UnitAura.cpp must not call
-# GetSession(...) at all; SpellPackets.cpp may call it only for GetSessionDbLocaleIndex() and
-# must not call SendPacket(...) (SendDirectMessage() replaces it); UnitVisibility.cpp must not
-# call it at all. None of the four files may call PlayerLoading(...) or
-# PlayerLogout(...) directly -- Player::IsLoading()/IsLoggingOut() replace them. Aliasing
-# (WorldSession* s = x->GetSession();) fails the GetSession rule by construction: the alias
-# expression still matches "GetSession[ \t]*\(".
-# Run standalone (-P), this script sees none of the top-level project's policies. The project
-# requires CMake >= 3.18, so that is also the floor here.
 cmake_minimum_required(VERSION 3.18)
 
 include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
@@ -16,7 +5,6 @@ gate_require_source_root(SessionSeam)
 
 set(GAME_DIR "${SOURCE_ROOT}/src/game")
 
-# file name -> path, in the order the brief lists them
 set(SEAM_FILES
     "${GAME_DIR}/spells/auras/SpellAuraPeriodic.cpp"
     "${GAME_DIR}/spells/pipeline/SpellPackets.cpp"
@@ -27,11 +15,7 @@ set(SESSION_CALL_RE "GetSession[ \t]*\\(")
 set(SEND_PACKET_RE "SendPacket[ \t]*\\(")
 set(PLAYER_LOADING_RE "PlayerLoading[ \t]*\\(")
 set(PLAYER_LOGOUT_RE "PlayerLogout[ \t]*\\(")
-set(LOCALE_ALLOW_RE "GetSession\\(\\)->GetSessionDbLocaleIndex\\(\\)")
 
-# Self-test: each regex is exercised against one positive and one negative string before the
-# scan runs. A broken regex fails the gate here, with FATAL_ERROR -- it never gets a chance to
-# silently pass the real scan below.
 function(assert_regex LABEL LINE PATTERN EXPECT_MATCH)
     if(LINE MATCHES "${PATTERN}")
         set(GOT ON)
@@ -58,43 +42,6 @@ assert_regex("PlayerLoading negative" "((Player*)x)->IsLoading()" "${PLAYER_LOAD
 assert_regex("PlayerLogout positive" "((Player*)x)->GetSession()->PlayerLogout()" "${PLAYER_LOGOUT_RE}" ON)
 assert_regex("PlayerLogout negative" "((Player*)x)->IsLoggingOut()" "${PLAYER_LOGOUT_RE}" OFF)
 
-assert_regex("locale allow matches its exact line" "target->GetSession()->GetSessionDbLocaleIndex()" "${LOCALE_ALLOW_RE}" ON)
-assert_regex("locale allow rejects a near-miss" "target->GetSession()->GetSessionDbLocaleIndex2()" "${LOCALE_ALLOW_RE}" OFF)
-
-# Whether a line calls GetSession(...) outside the one allowed idiom for its file. The allowed
-# text is removed first (string(REPLACE) takes every occurrence on the line, not just the
-# first), then the GetSession rule runs on what is left -- so a second, disallowed GetSession(...)
-# packed onto the same physical line as the allowed call is still caught. Checking the raw line
-# for "does it contain the allowed substring anywhere" (the bug this replaces) would shield that
-# second call: the substring test is true for the whole line even when GetSession appears twice.
-function(session_line_violates FILE_NAME LINE OUT_VAR)
-    set(RESULT OFF)
-    if(LINE MATCHES "${SESSION_CALL_RE}")
-        set(STRIPPED "${LINE}")
-        if(FILE_NAME STREQUAL "SpellPackets.cpp")
-            string(REPLACE "GetSession()->GetSessionDbLocaleIndex()" "" STRIPPED "${STRIPPED}")
-        endif()
-        if(STRIPPED MATCHES "${SESSION_CALL_RE}")
-            set(RESULT ON)
-        endif()
-    endif()
-    set(${OUT_VAR} "${RESULT}" PARENT_SCOPE)
-endfunction()
-
-session_line_violates("SpellPackets.cpp" "GetSession()->GetSessionDbLocaleIndex(); x->GetSession()->GetSecurity();" PACKED_VIOLATES)
-if(NOT PACKED_VIOLATES)
-    message(FATAL_ERROR
-        "SessionSeam self-test failed (a second GetSession(...) packed onto an allowed line): "
-        "expected a violation, got none")
-endif()
-
-session_line_violates("SpellPackets.cpp" "target->GetSession()->GetSessionDbLocaleIndex()" ALONE_VIOLATES)
-if(ALONE_VIOLATES)
-    message(FATAL_ERROR
-        "SessionSeam self-test failed (the allowed line alone): expected no violation, got one")
-endif()
-
-# The real scan.
 set(VIOLATIONS "")
 foreach(FILE_PATH IN LISTS SEAM_FILES)
     if(NOT EXISTS "${FILE_PATH}")
@@ -115,8 +62,7 @@ foreach(FILE_PATH IN LISTS SEAM_FILES)
             list(APPEND VIOLATIONS "${FILE_PATH}:${LINE_NO}: PlayerLogout(...) -- use Player::IsLoggingOut()")
         endif()
 
-        session_line_violates("${FILE_NAME}" "${LINE}" LINE_VIOLATES)
-        if(LINE_VIOLATES)
+        if(LINE MATCHES "${SESSION_CALL_RE}")
             list(APPEND VIOLATIONS "${FILE_PATH}:${LINE_NO}: GetSession(...) -- the seam forwards through Player instead")
         endif()
 
@@ -129,9 +75,9 @@ endforeach()
 if(VIOLATIONS)
     string(REPLACE ";" "\n  " REPORT "${VIOLATIONS}")
     message(FATAL_ERROR
-        "The spells<->session seam (decoupling D5a) is broken:\n  ${REPORT}\n"
+        "The spells<->session seam is broken:\n  ${REPORT}\n"
         "The aura and spell packet code asks Player (IsLoading/IsLoggingOut/SendDirectMessage),\n"
-        "not the session, with one named exception (the locale index).")
+        "not the session.")
 endif()
 
 message(STATUS "session seam: 4 files clean, self-test OK")

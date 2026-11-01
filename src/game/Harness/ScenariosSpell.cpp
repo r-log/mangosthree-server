@@ -2938,7 +2938,7 @@ namespace Harness
                 return true;
             }
 
-            /// Spell::SendSpellGo's fixed head and its hit and miss lists (as
+            /// BuildSpellGoPacket's fixed head and its hit and miss lists (as
             /// Trace::DecodeSpellCast reads them), then SpellCastTargets::write's mask.
             bool Mask(uint32& mask)
             {

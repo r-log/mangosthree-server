@@ -39,6 +39,7 @@
 #include "session/packets/social/ChannelPackets.h"
 #include "session/packets/social/GroupPackets.h"
 #include "session/packets/social/GuildPackets.h"
+#include "session/packets/spells/SpellCastPackets.h"
 
 namespace
 {
@@ -91,6 +92,7 @@ void InstallClientNotices()
     static SessionGroupNotices groups;
     static SessionGuildNotices guilds;
     static SessionChannelNotices channels;
+    static SessionSpellNotices spells;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -102,5 +104,6 @@ void InstallClientNotices()
     GroupNotices::Install(&groups);
     GuildNotices::Install(&guilds);
     ChannelNotices::Install(&channels);
+    SpellNotices::Install(&spells);
     InstallCalendarNotices();
 }

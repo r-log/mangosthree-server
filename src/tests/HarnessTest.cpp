@@ -280,7 +280,7 @@ TEST(HarnessTrace_achievement_earned_keeps_the_id_and_drops_the_date)
 
 TEST(HarnessTrace_spell_start_keeps_spell_flags_and_roles)
 {
-    // Spell::SendSpellStart for a self-cast, no item: caster twice, the cast count, the spell,
+    // BuildSpellStartPacket for a self-cast, no item: caster twice, the cast count, the spell,
     // the flags, m_timer, m_casttime, then SpellCastTargets::write with a unit target.
     WorldPacket data(SMSG_SPELL_START, 8 + 8 + 4 + 4 + 2);
     data.appendPackGUID(kSelf);
@@ -305,7 +305,7 @@ TEST(HarnessTrace_spell_start_keeps_spell_flags_and_roles)
 
 TEST(HarnessTrace_spell_go_keeps_the_hit_and_miss_roles_and_drops_the_timestamp)
 {
-    // Spell::SendSpellGo + WriteSpellGoTargets: two hits (self, giver), one reflected miss.
+    // BuildSpellGoPacket + WriteSpellGoTargets: two hits (self, giver), one reflected miss.
     WorldPacket a(SMSG_SPELL_GO, 50);
     a.appendPackGUID(kSelf);
     a.appendPackGUID(kSelf);
@@ -458,7 +458,7 @@ namespace
         return data;
     }
 
-    /// Spell::SendSpellGo's head for a self-cast with one hit and no miss, then
+    /// BuildSpellGoPacket's head for a self-cast with one hit and no miss, then
     /// SpellCastTargets::write's mask and, as the mask says, a unit target and an item target.
     WorldPacket SpellGoWithTargets(uint32 mask, uint64 unit, uint64 item, uint32 tail)
     {
@@ -720,7 +720,7 @@ namespace
         return data;
     }
 
-    /// Spell::SendInterrupted, SpellPackets.cpp:749-760: one layout for both opcodes.
+    /// BuildSpellFailurePacket, SpellCastPackets.cpp: one layout for both opcodes.
     WorldPacket Interrupted(uint16 opcode, uint64 caster, uint8 castCount, uint32 spell, uint8 result)
     {
         WorldPacket data(opcode, (8 + 4 + 1));
@@ -851,7 +851,7 @@ TEST(HarnessTrace_the_failure_packets_keep_spell_and_result_and_drop_the_cast_co
     longer << uint8(0);
     CHECK(!Harness::Trace::DecodeSpellFailure(longer.contents(), longer.size(), SpellRoles(), out));
 
-    // Spell::SendCastResult, SpellPackets.cpp:121-221: the cast count, the spell, the result, then
+    // BuildCastFailedPacket, SpellCastPackets.cpp: the cast count, the spell, the result, then
     // the result's own tail -- none for most results, a word for SPELL_FAILED_NOT_READY
     WorldPacket plain(SMSG_CAST_FAILED, (4 + 1 + 2));
     plain << uint8(1);
@@ -1185,7 +1185,7 @@ TEST(HarnessTrace_the_delay_the_dispel_and_the_resist_logs)
     CHECK_STR(SpellDecoded(SMSG_PROCRESIST, resist).c_str(), "OP caster=caster target=self spell=40739 format=1");
     CheckRefusesOneByteEitherWay(SMSG_PROCRESIST, resist, SpellRoles());
 
-    // Spell::SendCastResult's pet form, SpellPackets.cpp:121-129: one layout with CAST_FAILED
+    // BuildCastFailedPacket's pet form, SpellCastPackets.cpp: one layout with CAST_FAILED
     WorldPacket petFailed(SMSG_PET_CAST_FAILED, (4 + 1 + 2));
     petFailed << uint8(2);
     petFailed << uint32(3716);
@@ -1294,7 +1294,7 @@ TEST(HarnessTrace_the_channel_packets_and_the_log_execute)
     CHECK(Harness::Trace::RuleFor(SMSG_CHANNEL_START) == Rule::Decode);
     CHECK(Harness::Trace::RuleFor(SMSG_CHANNEL_UPDATE) == Rule::Decode);
     CHECK(Harness::Trace::RuleFor(SMSG_SPELLLOGEXECUTE) == Rule::Decode);
-    // Spell::SendChannelStart, SpellPackets.cpp:870-889
+    // BuildChannelStartPacket, SpellCastPackets.cpp
     WorldPacket start(SMSG_CHANNEL_START, (8 + 4 + 4));
     start.appendPackGUID(kSelf);
     start << uint32(1949);
@@ -1303,13 +1303,13 @@ TEST(HarnessTrace_the_channel_packets_and_the_log_execute)
     start << uint8(0);
     CHECK_STR(SpellDecoded(SMSG_CHANNEL_START, start).c_str(), "OP caster=self spell=1949 duration=15000 unk1=0 unk2=0");
     CheckRefusesOneByteEitherWay(SMSG_CHANNEL_START, start, SpellRoles());
-    // Spell::SendChannelUpdate, SpellPackets.cpp:825-827
+    // BuildChannelUpdatePacket, SpellCastPackets.cpp
     WorldPacket update(SMSG_CHANNEL_UPDATE, 8 + 4);
     update.appendPackGUID(kCaster);
     update << uint32(14800);
     CHECK_STR(SpellDecoded(SMSG_CHANNEL_UPDATE, update).c_str(), "OP caster=caster remaining=14800");
     CheckRefusesOneByteEitherWay(SMSG_CHANNEL_UPDATE, update, SpellRoles());
-    // Spell::SendLogExecute, SpellPackets.cpp:587-738: INTERRUPT_CAST names the target and a word
+    // BuildSpellLogExecutePacket, SpellCastPackets.cpp: INTERRUPT_CAST names the target and a word
     WorldPacket interrupt(SMSG_SPELLLOGEXECUTE, (8 + 4 + 4 + 4 + 4 + 8));
     interrupt.appendPackGUID(kSelf);             // a creature caster writes its target's guid
     interrupt << uint32(32747);
@@ -1372,7 +1372,7 @@ TEST(HarnessTrace_the_pet_spell_bar_reads_its_unit_and_refuses_a_clock)
 
 TEST(HarnessTrace_the_log_execute_reads_every_effect_branch)
 {
-    // Spell::SendLogExecute, SpellPackets.cpp:617-730: per effect, the unit's packed guid (or
+    // BuildSpellLogExecutePacket, SpellCastPackets.cpp: per effect, the unit's packed guid (or
     // none) and the words the branch writes -- each case its own distinct non-zero values, so a
     // branch that reads one word too few or too many is refused (the D11-2 task review's M-3)
     struct Case
