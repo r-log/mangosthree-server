@@ -48,7 +48,6 @@
 #include "GameObject.h"
 #include "BattleGroundMgr.h"
 #include "Language.h"
-#include "WorldPacket.h"
 #include "DBCStores.h"                                   // TODO REMOVE this when graveyard handling for pvp is updated
 
 /**
@@ -363,24 +362,23 @@ int32 BattleGroundAB::_GetNodeNameId(uint8 node)
  * Initializes all world state variables sent to clients when they enter the battleground,
  * including node icons, ownership states, team base counts, and resource scores.
  *
- * @param data The packet to write world state data to.
- * @param count Reference to the count of world state entries.
+ * @param states The list the world states are added to.
  */
-void BattleGroundAB::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void BattleGroundAB::FillInitialWorldStates(WorldStateList& states)
 {
     const uint8 plusArray[] = {0, 2, 3, 0, 1};
 
     // Node icons
     for (uint8 node = 0; node < BG_AB_NODES_MAX; ++node)
     {
-        FillInitialWorldState(data, count, BG_AB_OP_NODEICONS[node], m_Nodes[node] == 0);
+        states.Add(BG_AB_OP_NODEICONS[node], m_Nodes[node] == 0);
     }
 
     // Node occupied states
     for (uint8 node = 0; node < BG_AB_NODES_MAX; ++node)
         for (uint8 i = 1; i < BG_AB_NODES_MAX; ++i)
         {
-            FillInitialWorldState(data, count, BG_AB_OP_NODESTATES[node] + plusArray[i], m_Nodes[node] == i);
+            states.Add(BG_AB_OP_NODESTATES[node] + plusArray[i], m_Nodes[node] == i);
         }
 
     // How many bases each team owns
@@ -395,17 +393,17 @@ void BattleGroundAB::FillInitialWorldStates(WorldPacket& data, uint32& count)
             ++horde;
         }
 
-    FillInitialWorldState(data, count, BG_AB_OP_OCCUPIED_BASES_ALLY, ally);
-    FillInitialWorldState(data, count, BG_AB_OP_OCCUPIED_BASES_HORDE, horde);
+    states.Add(BG_AB_OP_OCCUPIED_BASES_ALLY, ally);
+    states.Add(BG_AB_OP_OCCUPIED_BASES_HORDE, horde);
 
     // Team scores
-    FillInitialWorldState(data, count, BG_AB_OP_RESOURCES_MAX,      BG_AB_MAX_TEAM_SCORE);
-    FillInitialWorldState(data, count, BG_AB_OP_RESOURCES_WARNING,  BG_AB_WARNING_NEAR_VICTORY_SCORE);
-    FillInitialWorldState(data, count, BG_AB_OP_RESOURCES_ALLY,     m_TeamScores[TEAM_INDEX_ALLIANCE]);
-    FillInitialWorldState(data, count, BG_AB_OP_RESOURCES_HORDE,    m_TeamScores[TEAM_INDEX_HORDE]);
+    states.Add(BG_AB_OP_RESOURCES_MAX,      BG_AB_MAX_TEAM_SCORE);
+    states.Add(BG_AB_OP_RESOURCES_WARNING,  BG_AB_WARNING_NEAR_VICTORY_SCORE);
+    states.Add(BG_AB_OP_RESOURCES_ALLY,     m_TeamScores[TEAM_INDEX_ALLIANCE]);
+    states.Add(BG_AB_OP_RESOURCES_HORDE,    m_TeamScores[TEAM_INDEX_HORDE]);
 
     // other unknown
-    FillInitialWorldState(data, count, 0x745, 0x2);         // 37 1861 unk
+    states.Add(0x745, 0x2);         // 37 1861 unk
 }
 
 /// <summary>

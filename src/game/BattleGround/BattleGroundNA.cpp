@@ -26,7 +26,6 @@
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundNA.h"
-#include "WorldPacket.h"
 #include "Language.h"
 #include "Log.h"
 
@@ -101,10 +100,10 @@ bool BattleGroundNA::HandlePlayerUnderMap(Player* player)
     return true;
 }
 
-void BattleGroundNA::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void BattleGroundNA::FillInitialWorldStates(WorldStateList& states)
 {
-    FillInitialWorldState(data, count, 0xa0f, GetAlivePlayersCountByTeam(ALLIANCE));
-    FillInitialWorldState(data, count, 0xa10, GetAlivePlayersCountByTeam(HORDE));
-    FillInitialWorldState(data, count, 0xa11, 1);
+    states.Add(0xa0f, GetAlivePlayersCountByTeam(ALLIANCE));
+    states.Add(0xa10, GetAlivePlayersCountByTeam(HORDE));
+    states.Add(0xa11, 1);
 }
 

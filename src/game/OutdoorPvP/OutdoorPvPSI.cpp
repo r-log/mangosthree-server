@@ -24,7 +24,6 @@
  */
 
 #include "OutdoorPvPSI.h"
-#include "WorldPacket.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "DBCStores.h"
@@ -39,11 +38,11 @@ OutdoorPvPSI::OutdoorPvPSI() : OutdoorPvP(),
 }
 
 // Send initial world states
-void OutdoorPvPSI::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void OutdoorPvPSI::FillInitialWorldStates(WorldStateList& states)
 {
-    FillInitialWorldState(data, count, WORLD_STATE_SI_GATHERED_A, m_resourcesAlliance);
-    FillInitialWorldState(data, count, WORLD_STATE_SI_GATHERED_H, m_resourcesHorde);
-    FillInitialWorldState(data, count, WORLD_STATE_SI_SILITHYST_MAX, MAX_SILITHYST);
+    states.Add(WORLD_STATE_SI_GATHERED_A, m_resourcesAlliance);
+    states.Add(WORLD_STATE_SI_GATHERED_H, m_resourcesHorde);
+    states.Add(WORLD_STATE_SI_SILITHYST_MAX, MAX_SILITHYST);
 }
 
 // Handle buffs when player enters the zone

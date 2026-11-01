@@ -62,7 +62,7 @@ bool Player::TeleportToBGEntryPoint()
     return TeleportTo(m_bgData.joinPos);
 }
 
-void Player::FillBGWeekendWorldStates(WorldPacket& data, uint32& count)
+void Player::FillBGWeekendWorldStates(WorldStateList& states)
 {
     for (uint32 i = 1; i < sBattlemasterListStore.GetNumRows(); ++i)
     {
@@ -71,11 +71,11 @@ void Player::FillBGWeekendWorldStates(WorldPacket& data, uint32& count)
         {
             if (BattleGroundMgr::IsBGWeekend(BattleGroundTypeId(bl->ID)))
             {
-                FillInitialWorldState(data, count, bl->HolidayWorldState, 1);
+                states.Add(bl->HolidayWorldState, 1);
             }
             else
             {
-                FillInitialWorldState(data, count, bl->HolidayWorldState, 0);
+                states.Add(bl->HolidayWorldState, 0);
             }
         }
     }

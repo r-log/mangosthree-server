@@ -33,9 +33,9 @@
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
 #include "OutdoorPvPMgr.h"
+#include "data/WorldStates.h"
 
 // forward declaration
-class WorldPacket;
 class WorldObject;
 class Player;
 class GameObject;
@@ -103,10 +103,9 @@ class OutdoorPvP
 
         /**
          * @brief Fill initial world states when zone is initialized
-         * @param data World packet to fill with state data
-         * @param count Count of world states added
+         * @param states The list the world states are added to.
          */
-        virtual void FillInitialWorldStates(WorldPacket& /*data*/, uint32& /*count*/) {}
+        virtual void FillInitialWorldStates(WorldStateList& /*states*/) {}
 
         /**
          * @brief Process capture event

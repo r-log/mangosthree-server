@@ -45,7 +45,7 @@ class BattleGroundRL : public BattleGround
 
         /* inherited from BattlegroundClass */
         void AddPlayer(Player* plr) override;
-        void FillInitialWorldStates(WorldPacket& d, uint32& count) override;
+        void FillInitialWorldStates(WorldStateList& states) override;
         void StartingEventOpenDoors() override;
 
         void RemovePlayer(Player* plr, ObjectGuid guid) override;

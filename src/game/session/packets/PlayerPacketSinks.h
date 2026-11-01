@@ -40,6 +40,7 @@
 #include "session/packets/entities/RunePackets.h"
 #include "session/packets/entities/SocialPackets.h"
 #include "session/packets/entities/StandStatePacket.h"
+#include "session/packets/maps/WorldStatePackets.h"
 #include "session/packets/quests/QuestCompletePacket.h"
 #include "session/packets/spells/AutoRepeatPackets.h"
 #include "session/packets/spells/SpellEffectPackets.h"
@@ -111,6 +112,8 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.spiritHealerConfirm = FactToSession(owner, &BuildSpiritHealerConfirmPacket);
     callbacks.summonRequest = FactToSession(owner, &BuildSummonRequestPacket);
     callbacks.fishNotHooked = FactToSession(owner, &BuildFishNotHookedPacket);
+    callbacks.initWorldStates = FactToSession(owner, &BuildInitWorldStatesPacket);
+    callbacks.worldStateUpdate = FactToSession(owner, &BuildUpdateWorldStatePacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }

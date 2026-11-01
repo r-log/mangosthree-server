@@ -56,7 +56,7 @@
 #include <list>
 #include "SharedDefines.h"
 #include "Map.h"
-#include "ByteBuffer.h"
+#include "data/WorldStates.h"
 #include "ObjectGuid.h"
 
 // magic event-numbers
@@ -836,10 +836,9 @@ class BattleGround
         /**
          * @brief Fills the initial world states.
          *
-         * @param data The world packet.
-         * @param count The count of world states.
+         * @param states The list the world states are added to.
          */
-        virtual void FillInitialWorldStates(WorldPacket& /*data*/, uint32& /*count*/) {}
+        virtual void FillInitialWorldStates(WorldStateList& /*states*/) {}
         /**
          * @brief
          *
@@ -1481,78 +1480,5 @@ class BattleGround
         float m_TeamStartLocZ[PVP_TEAM_COUNT]; /**< TODO */
         float m_TeamStartLocO[PVP_TEAM_COUNT]; /**< TODO */
 };
-
-// helper functions for world state list fill
-/**
- * @brief
- *
- * @param data
- * @param count
- * @param state
- * @param value
- */
-inline void FillInitialWorldState(ByteBuffer& data, uint32& count, uint32 state, uint32 value)
-{
-    data << uint32(state);
-    data << uint32(value);
-    ++count;
-}
-
-/**
- * @brief
- *
- * @param data
- * @param count
- * @param state
- * @param value
- */
-inline void FillInitialWorldState(ByteBuffer& data, uint32& count, uint32 state, int32 value)
-{
-    data << uint32(state);
-    data << int32(value);
-    ++count;
-}
-
-/**
- * @brief
- *
- * @param data
- * @param count
- * @param state
- * @param value
- */
-inline void FillInitialWorldState(ByteBuffer& data, uint32& count, uint32 state, bool value)
-{
-    data << uint32(state);
-    data << uint32(value ? 1 : 0);
-    ++count;
-}
-
-/**
- * @brief
- *
- */
-struct WorldStatePair
-{
-    uint32 state; /**< TODO */
-    uint32 value; /**< TODO */
-};
-
-/**
- * @brief
- *
- * @param data
- * @param count
- * @param array
- */
-inline void FillInitialWorldState(ByteBuffer& data, uint32& count, WorldStatePair const* array)
-{
-    for (WorldStatePair const* itr = array; itr->state; ++itr)
-    {
-        data << uint32(itr->state);
-        data << uint32(itr->value);
-        ++count;
-    }
-}
 
 #endif

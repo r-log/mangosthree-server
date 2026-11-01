@@ -48,7 +48,7 @@ class BattleGroundNA : public BattleGround
         void StartingEventOpenDoors() override;
 
         void RemovePlayer(Player* plr, ObjectGuid guid) override;
-        void FillInitialWorldStates(WorldPacket& d, uint32& count) override;
+        void FillInitialWorldStates(WorldStateList& states) override;
         void HandleKillPlayer(Player* player, Player* killer) override;
         bool HandlePlayerUnderMap(Player* plr) override;
 };

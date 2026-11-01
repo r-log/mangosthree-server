@@ -104,10 +104,9 @@ class OutdoorPvPSI : public OutdoorPvP
 
         /**
          * @brief Fill initial world states for Silithus
-         * @param data World packet to fill with state data
-         * @param count Count of world states added
+         * @param states The list the world states are added to.
          */
-        void FillInitialWorldStates(WorldPacket& data, uint32& count) override;
+        void FillInitialWorldStates(WorldStateList& states) override;
 
         /**
          * @brief Handle area trigger in Silithus

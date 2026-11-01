@@ -25,7 +25,6 @@
 
 #include <list>
 #include "OutdoorPvPNA.h"
-#include "WorldPacket.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "Object.h"
@@ -46,22 +45,22 @@ OutdoorPvPNA::OutdoorPvPNA() : OutdoorPvP(),
     sObjectMgr.SetGraveYardLinkTeam(GRAVEYARD_ID_HALAA, GRAVEYARD_ZONE_ID_HALAA, TEAM_INVALID);
 }
 
-void OutdoorPvPNA::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void OutdoorPvPNA::FillInitialWorldStates(WorldStateList& states)
 {
     if (m_zoneOwner != TEAM_NONE)
     {
-        FillInitialWorldState(data, count, m_zoneWorldState, WORLD_STATE_ADD);
+        states.Add(m_zoneWorldState, WORLD_STATE_ADD);
 
         // map states
         for (uint8 i = 0; i < MAX_NA_ROOSTS; ++i)
         {
-            FillInitialWorldState(data, count, m_roostWorldState[i], WORLD_STATE_ADD);
+            states.Add(m_roostWorldState[i], WORLD_STATE_ADD);
         }
     }
 
-    FillInitialWorldState(data, count, m_zoneMapState, WORLD_STATE_ADD);
-    FillInitialWorldState(data, count, WORLD_STATE_NA_GUARDS_MAX, MAX_NA_GUARDS);
-    FillInitialWorldState(data, count, WORLD_STATE_NA_GUARDS_LEFT, m_guardsLeft);
+    states.Add(m_zoneMapState, WORLD_STATE_ADD);
+    states.Add(WORLD_STATE_NA_GUARDS_MAX, MAX_NA_GUARDS);
+    states.Add(WORLD_STATE_NA_GUARDS_LEFT, m_guardsLeft);
 }
 
 void OutdoorPvPNA::SendRemoveWorldStates(Player* player)

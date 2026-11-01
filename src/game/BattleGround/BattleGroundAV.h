@@ -437,10 +437,9 @@ class BattleGroundAV : public BattleGround
         /**
          * @brief Fills the initial world states for the battleground.
          *
-         * @param data The world packet to fill.
-         * @param count The count of world states.
+         * @param states The list the world states are added to.
          */
-        void FillInitialWorldStates(WorldPacket& data, uint32& count) override;
+        void FillInitialWorldStates(WorldStateList& states) override;
 
                 /**
          * @brief Handles an area trigger.

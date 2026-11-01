@@ -48,7 +48,6 @@
 #include "ObjectMgr.h"
 #include "DBCStores.h"
 #include "BattleGroundMgr.h"
-#include "WorldPacket.h"
 #include "Language.h"
 
 /**
@@ -864,62 +863,61 @@ WorldSafeLocsEntry const* BattleGroundWS::GetClosestGraveYard(Player* player)
  * Sends all initial world state values to clients when they enter, including
  * flag positions, capture counts, and flag carrier information.
  *
- * @param data The packet to write world state data to.
- * @param count Reference to the count of world state entries.
+ * @param states The list the world states are added to.
  */
-void BattleGroundWS::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void BattleGroundWS::FillInitialWorldStates(WorldStateList& states)
 {
-    FillInitialWorldState(data, count, BG_WS_FLAG_CAPTURES_ALLIANCE, m_TeamScores[TEAM_INDEX_ALLIANCE]);
-    FillInitialWorldState(data, count, BG_WS_FLAG_CAPTURES_HORDE, m_TeamScores[TEAM_INDEX_HORDE]);
+    states.Add(BG_WS_FLAG_CAPTURES_ALLIANCE, m_TeamScores[TEAM_INDEX_ALLIANCE]);
+    states.Add(BG_WS_FLAG_CAPTURES_HORDE, m_TeamScores[TEAM_INDEX_HORDE]);
 
     if (m_FlagState[TEAM_INDEX_ALLIANCE] == BG_WS_FLAG_STATE_ON_GROUND)
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_UNK_ALLIANCE, -1);
+        states.Add(BG_WS_FLAG_UNK_ALLIANCE, -1);
     }
     else if (m_FlagState[TEAM_INDEX_ALLIANCE] == BG_WS_FLAG_STATE_ON_PLAYER)
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_UNK_ALLIANCE, 1);
+        states.Add(BG_WS_FLAG_UNK_ALLIANCE, 1);
     }
     else
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_UNK_ALLIANCE, 0);
+        states.Add(BG_WS_FLAG_UNK_ALLIANCE, 0);
     }
 
     if (m_FlagState[TEAM_INDEX_HORDE] == BG_WS_FLAG_STATE_ON_GROUND)
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_UNK_HORDE, -1);
+        states.Add(BG_WS_FLAG_UNK_HORDE, -1);
     }
     else if (m_FlagState[TEAM_INDEX_HORDE] == BG_WS_FLAG_STATE_ON_PLAYER)
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_UNK_HORDE, 1);
+        states.Add(BG_WS_FLAG_UNK_HORDE, 1);
     }
     else
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_UNK_HORDE, 0);
+        states.Add(BG_WS_FLAG_UNK_HORDE, 0);
     }
 
-    FillInitialWorldState(data, count, BG_WS_FLAG_CAPTURES_MAX, BG_WS_MAX_TEAM_SCORE);
+    states.Add(BG_WS_FLAG_CAPTURES_MAX, BG_WS_MAX_TEAM_SCORE);
 
     if (m_FlagState[TEAM_INDEX_HORDE] == BG_WS_FLAG_STATE_ON_PLAYER)
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_STATE_HORDE, 2);
+        states.Add(BG_WS_FLAG_STATE_HORDE, 2);
     }
     else
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_STATE_HORDE, 1);
+        states.Add(BG_WS_FLAG_STATE_HORDE, 1);
     }
 
     if (m_FlagState[TEAM_INDEX_ALLIANCE] == BG_WS_FLAG_STATE_ON_PLAYER)
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_STATE_ALLIANCE, 2);
+        states.Add(BG_WS_FLAG_STATE_ALLIANCE, 2);
     }
     else
     {
-        FillInitialWorldState(data, count, BG_WS_FLAG_STATE_ALLIANCE, 1);
+        states.Add(BG_WS_FLAG_STATE_ALLIANCE, 1);
     }
 
-    FillInitialWorldState(data, count, BG_WS_TIME_ENABLED, WORLD_STATE_ADD);
-    FillInitialWorldState(data, count, BG_WS_TIME_REMAINING, GetRemainingTimeInMinutes());
+    states.Add(BG_WS_TIME_ENABLED, WORLD_STATE_ADD);
+    states.Add(BG_WS_TIME_REMAINING, GetRemainingTimeInMinutes());
 }
 
 /**

@@ -29,6 +29,7 @@
 #include "Platform/Define.h"
 #include "Utilities/Errors.h"
 #include "ObjectGuid.h"
+#include "data/WorldStates.h"
 
 #include <functional>
 #include <string>
@@ -214,6 +215,23 @@ struct SystemMessageFact
     std::string text;
 };
 
+/// The player's client enters the zone `zoneId` and the area `areaId` of the map `mapId`; `states`
+/// are the world states it shows there.
+struct InitWorldStatesFact
+{
+    uint32 mapId = 0;
+    uint32 zoneId = 0;
+    uint32 areaId = 0;
+    WorldStateList states;
+};
+
+/// The world state `state` the player's client shows is now `value`.
+struct WorldStateUpdateFact
+{
+    uint32 state = 0;
+    uint32 value = 0;
+};
+
 typedef std::function<void(SwingOutOfReachFact const&)> SwingOutOfReachSink;
 typedef std::function<void(SwingBadFacingFact const&)> SwingBadFacingSink;
 typedef std::function<void(CombatCancelledFact const&)> CombatCancelledSink;
@@ -240,6 +258,8 @@ typedef std::function<void(NotificationFact const&)> NotificationSink;
 typedef std::function<void(FishNotHookedFact const&)> FishNotHookedSink;
 typedef std::function<void(MonsterWhisperFact const&)> MonsterWhisperSink;
 typedef std::function<void(SystemMessageFact const&)> SystemMessageSink;
+typedef std::function<void(InitWorldStatesFact const&)> InitWorldStatesSink;
+typedef std::function<void(WorldStateUpdateFact const&)> WorldStateUpdateSink;
 
 /// The account security level of the player's session, read at each call. An unsigned integer:
 /// the levels run from 0 to 4, and a caller comparing two of them with `<=` gets the answer the

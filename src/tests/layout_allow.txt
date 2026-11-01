@@ -24,30 +24,24 @@ src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/PlayerRegistr
 src/game/BattleGround/BattleGround.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundAA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundAB.cpp -> src/game/entities/player/Player.h
-src/game/BattleGround/BattleGroundAB.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundAV.cpp -> src/game/entities/player/Player.h
-src/game/BattleGround/BattleGroundAV.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundBE.cpp -> src/game/entities/player/Player.h
-src/game/BattleGround/BattleGroundBE.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundDS.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundEY.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/BattleGround/BattleGroundEY.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/BattleGround/BattleGroundEY.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundIC.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundMgr.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/BattleGround/BattleGroundMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGroundMgr.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/game/entities/player/Player.h
-src/game/BattleGround/BattleGroundNA.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundRB.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundRL.cpp -> src/game/entities/player/Player.h
-src/game/BattleGround/BattleGroundRL.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundRV.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
@@ -55,7 +49,6 @@ src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/PlayerR
 src/game/BattleGround/BattleGroundReward.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundSA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
-src/game/BattleGround/BattleGroundWS.cpp -> src/proto/WorldPacket.h
 src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/GridMap.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/Map.h
@@ -250,21 +243,15 @@ src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/game/entities/player/Player.h
-src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPHP.cpp -> src/game/entities/player/Player.h
-src/game/OutdoorPvP/OutdoorPvPHP.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/OutdoorPvP/OutdoorPvPNA.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPSI.cpp -> src/game/entities/player/Player.h
-src/game/OutdoorPvP/OutdoorPvPSI.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
-src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/proto/WorldPacket.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/Server/DBCStores.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/data/GameConfig.h
 src/game/Tools/PlayerDump.cpp -> src/game/Object/CharacterCache.h

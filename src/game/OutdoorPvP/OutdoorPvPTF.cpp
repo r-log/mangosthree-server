@@ -25,7 +25,6 @@
 
 #include <list>
 #include "OutdoorPvPTF.h"
-#include "WorldPacket.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "Object.h"
@@ -53,17 +52,17 @@ OutdoorPvPTF::OutdoorPvPTF() : OutdoorPvP(),
     }
 }
 
-void OutdoorPvPTF::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void OutdoorPvPTF::FillInitialWorldStates(WorldStateList& states)
 {
-    FillInitialWorldState(data, count, m_zoneWorldState, WORLD_STATE_ADD);
+    states.Add(m_zoneWorldState, WORLD_STATE_ADD);
     if (m_zoneWorldState == WORLD_STATE_TF_TOWERS_CONTROLLED)
     {
-        FillInitialWorldState(data, count, WORLD_STATE_TF_TOWER_COUNT_H, m_towersHorde);
-        FillInitialWorldState(data, count, WORLD_STATE_TF_TOWER_COUNT_A, m_towersAlliance);
+        states.Add(WORLD_STATE_TF_TOWER_COUNT_H, m_towersHorde);
+        states.Add(WORLD_STATE_TF_TOWER_COUNT_A, m_towersAlliance);
 
         for (uint8 i = 0; i < MAX_TF_TOWERS; ++i)
         {
-            FillInitialWorldState(data, count, m_towerWorldState[i], WORLD_STATE_ADD);
+            states.Add(m_towerWorldState[i], WORLD_STATE_ADD);
         }
     }
     else

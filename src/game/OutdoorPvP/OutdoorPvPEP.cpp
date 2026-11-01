@@ -25,7 +25,6 @@
 
 #include <list>
 #include "OutdoorPvPEP.h"
-#include "WorldPacket.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "Object.h"
@@ -54,17 +53,16 @@ OutdoorPvPEP::OutdoorPvPEP() : OutdoorPvP(),
 /**
  * @brief Appends the Eastern Plaguelands world states for a newly entering player.
  *
- * @param data The world-state packet being built.
- * @param count The number of world states appended.
+ * @param states The list the world states are added to.
  */
-void OutdoorPvPEP::FillInitialWorldStates(WorldPacket& data, uint32& count)
+void OutdoorPvPEP::FillInitialWorldStates(WorldStateList& states)
 {
-    FillInitialWorldState(data, count, WORLD_STATE_EP_TOWER_COUNT_ALLIANCE, m_towersAlliance);
-    FillInitialWorldState(data, count, WORLD_STATE_EP_TOWER_COUNT_HORDE, m_towersHorde);
+    states.Add(WORLD_STATE_EP_TOWER_COUNT_ALLIANCE, m_towersAlliance);
+    states.Add(WORLD_STATE_EP_TOWER_COUNT_HORDE, m_towersHorde);
 
     for (uint8 i = 0; i < MAX_EP_TOWERS; ++i)
     {
-        FillInitialWorldState(data, count, m_towerWorldState[i], WORLD_STATE_ADD);
+        states.Add(m_towerWorldState[i], WORLD_STATE_ADD);
     }
 }
 
