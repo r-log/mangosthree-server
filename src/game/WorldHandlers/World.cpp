@@ -77,6 +77,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Chat.h"
 #include "session/packets/chat/MessageChatPacket.h"
+#include "session/packets/maps/WorldStatePackets.h"
 #include "data/ChatPacketBuilder.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
@@ -1338,8 +1339,11 @@ void World::RealmFirstAchievement(char const* name, ObjectGuid guid, uint32 achi
 /// Tells every client that the world state `field` is now `value`
 void World::WorldStateChanged(uint32 field, uint32 value)
 {
+    WorldStateUpdateFact fact;
+    fact.state = field;
+    fact.value = value;
     WorldPacket data;
-    sBattleGroundMgr.BuildUpdateWorldStatePacket(&data, field, value);
+    BuildUpdateWorldStatePacket(data, fact);
     m_sessions.Broadcast(data);
 }
 

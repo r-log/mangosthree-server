@@ -33,6 +33,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "BattleGroundMgr.h"
+#include "session/packets/pvp/BattleGroundPackets.h"
 
 /**
  * @brief Sends the battleground list to the player.
@@ -46,6 +47,6 @@
 void WorldSession::SendBattlegGroundList(ObjectGuid guid, BattleGroundTypeId bgTypeId)
 {
     WorldPacket data;
-    sBattleGroundMgr.BuildBattleGroundListPacket(&data, guid, _player, bgTypeId);
+    BuildBattleGroundListPacket(data, guid, _player, bgTypeId);
     SendPacket(&data);
 }

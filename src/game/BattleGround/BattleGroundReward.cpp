@@ -35,7 +35,6 @@
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "Mail.h"
-#include "WorldPacket.h"
 #include "Formulas.h"
 #include "GridNotifiersImpl.h"
 #include "persistence/characters/pvp/BattleGroundStatsRepository.h"
@@ -131,9 +130,7 @@ void BattleGround::RewardReputationToTeam(uint32 faction_id, uint32 Reputation, 
 /// <param name="Value">The value.</param>
 void BattleGround::UpdateWorldState(uint32 Field, uint32 Value)
 {
-    WorldPacket data;
-    sBattleGroundMgr.BuildUpdateWorldStatePacket(&data, Field, Value);
-    SendPacketToAll(&data);
+    sBattleGroundNotices.WorldStateToAll(*this, Field, Value);
 }
 
 /// <summary>
@@ -144,9 +141,7 @@ void BattleGround::UpdateWorldState(uint32 Field, uint32 Value)
 /// <param name="Source">The source.</param>
 void BattleGround::UpdateWorldStateForPlayer(uint32 Field, uint32 Value, Player* Source)
 {
-    WorldPacket data;
-    sBattleGroundMgr.BuildUpdateWorldStatePacket(&data, Field, Value);
-    Source->GetSession()->SendPacket(&data);
+    Source->SendUpdateWorldState(Field, Value);
 }
 
 /// <summary>
@@ -161,7 +156,6 @@ void BattleGround::EndBattleGround(Team winner)
     ArenaTeam* loser_arena_team = NULL;
     uint32 loser_rating = 0;
     uint32 winner_rating = 0;
-    WorldPacket data;
     int32 winmsg_id = 0;
 
     uint32 bgScoresWinner = TEAM_INDEX_NEUTRAL;
@@ -352,12 +346,10 @@ void BattleGround::EndBattleGround(Team winner)
 
         BlockMovement(plr);
 
-        sBattleGroundMgr.BuildPvpLogDataPacket(&data, this);
-        plr->GetSession()->SendPacket(&data);
+        sBattleGroundNotices.PvpLog(*plr, *this);
 
         BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BGQueueTypeId(GetTypeID(), GetArenaType());
-        sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, this, plr, plr->GetBattleGroundQueueIndex(bgQueueTypeId), STATUS_IN_PROGRESS, TIME_TO_AUTOREMOVE, GetStartTime(), GetArenaType());
-        plr->GetSession()->SendPacket(&data);
+        sBattleGroundNotices.Status(*plr, this, plr->GetBattleGroundQueueIndex(bgQueueTypeId), STATUS_IN_PROGRESS, TIME_TO_AUTOREMOVE, GetStartTime(), GetArenaType());
         plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_BATTLEGROUND, 1);
     }
 

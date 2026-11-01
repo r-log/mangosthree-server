@@ -32,6 +32,7 @@
 #include "Player.h"
 #include "WorldSession.h"
 #include "session/packets/entities/GossipPackets.h"
+#include "session/packets/pvp/BattleGroundPackets.h"
 
 namespace
 {
@@ -77,9 +78,11 @@ void InstallClientNotices()
     static SessionTicketNotices tickets;
     static SessionAuctionNotices auctions;
     static SessionGossipNotices gossip;
+    static SessionBattleGroundNotices battlegrounds;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
     GossipNotices::Install(&gossip);
+    BattleGroundNotices::Install(&battlegrounds);
     InstallCalendarNotices();
 }

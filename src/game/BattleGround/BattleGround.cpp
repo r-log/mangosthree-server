@@ -480,15 +480,12 @@ void BattleGround::Update(uint32 diff)
         {
             uint32 countdownMaxForBGType = isArena() ? ARENA_COUNTDOWN_MAX : BATTLEGROUND_COUNTDOWN_MAX;
 
-            WorldPacket data(SMSG_START_TIMER, 4+4+4);
-            data << uint32(0);
-            data << uint32(countdownMaxForBGType - (m_StartTime / 1000));
-            data << uint32(countdownMaxForBGType);
+            uint32 const timeLeft = countdownMaxForBGType - (m_StartTime / 1000);
 
             for (BattleGroundPlayerMap::const_iterator itr = GetPlayers().begin(); itr != GetPlayers().end(); ++itr)
                 if (Player* player = sPlayerRegistry.Find(itr->first))
                 {
-                    player->GetSession()->SendPacket(&data);
+                    sBattleGroundNotices.StartTimer(*player, timeLeft, countdownMaxForBGType);
                 }
 
             m_CountdownTimer = 0;
@@ -690,9 +687,7 @@ void BattleGround::SendPacketToTeam(Team teamId, WorldPacket* packet, Player* se
 /// <param name="SoundID">The sound ID.</param>
 void BattleGround::PlaySoundToAll(uint32 SoundID)
 {
-    WorldPacket data;
-    sBattleGroundMgr.BuildPlaySoundPacket(&data, SoundID);
-    SendPacketToAll(&data);
+    sBattleGroundNotices.SoundToAll(*this, SoundID);
 }
 
 /// <summary>
@@ -702,8 +697,6 @@ void BattleGround::PlaySoundToAll(uint32 SoundID)
 /// <param name="teamId">The team id.</param>
 void BattleGround::PlaySoundToTeam(uint32 SoundID, Team teamId)
 {
-    WorldPacket data;
-
     for (BattleGroundPlayerMap::const_iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
     {
         if (itr->second.OfflineRemoveTime)
@@ -726,8 +719,7 @@ void BattleGround::PlaySoundToTeam(uint32 SoundID, Team teamId)
 
         if (team == teamId)
         {
-            sBattleGroundMgr.BuildPlaySoundPacket(&data, SoundID);
-            plr->GetSession()->SendPacket(&data);
+            sBattleGroundNotices.Sound(*plr, SoundID);
         }
     }
 }
@@ -862,9 +854,7 @@ void BattleGround::RemovePlayerAtLeave(ObjectGuid guid, bool Transport, bool Sen
             }
             if (SendPacket)
             {
-                WorldPacket data;
-                sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, this, plr, plr->GetBattleGroundQueueIndex(bgQueueTypeId), STATUS_NONE, 0, 0, ARENA_TYPE_NONE);
-                plr->GetSession()->SendPacket(&data);
+                sBattleGroundNotices.Status(*plr, this, plr->GetBattleGroundQueueIndex(bgQueueTypeId), STATUS_NONE, 0, 0, ARENA_TYPE_NONE);
             }
 
             // this call is important, because player, when joins to battleground, this method is not called, so it must be called when leaving bg
@@ -904,9 +894,7 @@ void BattleGround::RemovePlayerAtLeave(ObjectGuid guid, bool Transport, bool Sen
         }
 
         // Let others know
-        WorldPacket data;
-        sBattleGroundMgr.BuildPlayerLeftBattleGroundPacket(&data, guid);
-        SendPacketToTeam(team, &data, plr, false);
+        sBattleGroundNotices.PlayerLeft(*this, team, guid, plr);
     }
 
     if (plr)
@@ -1022,9 +1010,7 @@ void BattleGround::AddPlayer(Player* plr)
         UpdatePlayersCountByTeam(team, false); // +1 player
     }
 
-    WorldPacket data;
-    sBattleGroundMgr.BuildPlayerJoinedBattleGroundPacket(&data, plr);
-    SendPacketToTeam(team, &data, plr, false);
+    sBattleGroundNotices.PlayerJoined(*this, team, *plr);
 
     // add arena specific auras
     if (isArena())
@@ -1078,11 +1064,7 @@ void BattleGround::AddPlayer(Player* plr)
     if (GetStatus() == STATUS_WAIT_JOIN)                 // not started yet
     {
         int32 countdownMaxForBGType = isArena() ? ARENA_COUNTDOWN_MAX : BATTLEGROUND_COUNTDOWN_MAX;
-        WorldPacket data(SMSG_START_TIMER, 4+4+4);
-        data << uint32(0); // unk
-        data << uint32(countdownMaxForBGType - (m_StartTime / 1000));
-        data << uint32(countdownMaxForBGType);
-        plr->GetSession()->SendPacket(&data);
+        sBattleGroundNotices.StartTimer(*plr, uint32(countdownMaxForBGType - (m_StartTime / 1000)), uint32(countdownMaxForBGType));
     }
 
     plr->GetAchievementMgr().ResetAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HEALING_DONE, ACHIEVEMENT_CRITERIA_CONDITION_MAP, GetMapId());
@@ -1483,16 +1465,13 @@ void BattleGround::PlayerAddedToBGCheckIfBGIsRunning(Player* plr)
         return;
     }
 
-    WorldPacket data;
     BattleGroundQueueTypeId bgQueueTypeId = BattleGroundMgr::BGQueueTypeId(GetTypeID(), GetArenaType());
 
     BlockMovement(plr);
 
-    sBattleGroundMgr.BuildPvpLogDataPacket(&data, this);
-    plr->GetSession()->SendPacket(&data);
+    sBattleGroundNotices.PvpLog(*plr, *this);
 
-    sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, this, plr, plr->GetBattleGroundQueueIndex(bgQueueTypeId), STATUS_IN_PROGRESS, GetEndTime(), GetStartTime(), GetArenaType());
-    plr->GetSession()->SendPacket(&data);
+    sBattleGroundNotices.Status(*plr, this, plr->GetBattleGroundQueueIndex(bgQueueTypeId), STATUS_IN_PROGRESS, GetEndTime(), GetStartTime(), GetArenaType());
 }
 
 /// <summary>
