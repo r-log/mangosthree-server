@@ -608,7 +608,7 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME object_mgr_methods
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 235
-            --class ObjectMgr --header ${CMAKE_SOURCE_DIR}/src/game/Object/ObjectMgr.h)
+            --class ObjectMgr --header ${CMAKE_SOURCE_DIR}/src/game/data/world/ObjectMgr.h)
 
     # Decoupling D4k: a character manager never stores a callback. The check reads the managers
     # from CheckManagerIsolation.cmake's MANAGER_FILES and walks their headers with the method

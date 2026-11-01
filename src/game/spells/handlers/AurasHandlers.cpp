@@ -29,7 +29,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/pipeline/Spell.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 #include "WorldHandlers/CellImpl.h"
 #include "WorldHandlers/GridNotifiers.h"
 #include "WorldHandlers/GridNotifiersImpl.h"

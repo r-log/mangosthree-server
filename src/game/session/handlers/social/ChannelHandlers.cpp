@@ -26,7 +26,7 @@
 #include "session/handlers/social/ChannelHandlers.h"
 
 #include <string>
-#include "Object/ObjectMgr.h"
+#include "data/world/ObjectMgr.h"
 #include "WorldHandlers/ChannelMgr.h"
 #include "session/WorldSession.h"
 #include "session/OpcodeTable.h"

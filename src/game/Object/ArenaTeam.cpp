@@ -31,7 +31,7 @@
 #include "social/ArenaTeamRegistry.h"
 #include "ObjectGuid.h"
 #include "ArenaTeam.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "data/GameConfig.h"
 #include "Player.h"
 #include "PlayerRegistry.h"

@@ -108,13 +108,12 @@ import tempfile
 # Section 1's directory table, paths relative to src/: the first matching row wins, None excludes.
 RULES = [
     (r'^(tools|genrev)/|^game/pch', None), (r'^tests/', 'tests'), (r'^realmd/', 'realmd'), (r'^mangosd/', 'app'),
-    (r'^shared/Database/|^game/persistence/|^game/Server/GameGlobals', 'persistence'),
+    (r'^shared/Database/|^game/persistence/', 'persistence'),
     (r'^shared/', 'foundation'), (r'^proto/', 'proto'), (r'^motion/', 'motion'),
     (r'^scripts/|^game/(ChatCommands|dbscripts)/', 'scripts'),
     (r'^game/(Harness|AuctionHouseBot|app)/', 'app'),
     (r'^game/session/', 'session'),
-    (r'^game/data/|^game/spells/data/|^game/spells/auras/SpellAuraDefines\.', 'data'),
-    (r'^game/Server/|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy|LootStore)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
+    (r'^game/data/|^game/spells/data/', 'data'),
     (r'^game/spells/', 'spells'),
     (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
     (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|BareMap|Weather|PoolSpawner|CreatureLinkingHolder)', 'maps'),
@@ -921,8 +920,8 @@ def self_test():
         'new include edge(s) into a gated seam')
     run('rule 3: a move does not cross kinds (seam line, against includer)',
         dict(SELF_TREE, **{'src/game/Maps/Map.cpp': '#include "Map.h"\n#include "Unit.h"\n',
-                           'src/game/Server/DBCStores.cpp': '#include "Player.h"\n'}), SELF_ALLOW, 1,
-        ['  src/game/Server/DBCStores.cpp -> src/game/entities/player/Player.h   [against: data -> domain]',
+                           'src/game/data/dbc/DBCStores.cpp': '#include "Player.h"\n'}), SELF_ALLOW, 1,
+        ['  src/game/data/dbc/DBCStores.cpp -> src/game/entities/player/Player.h   [against: data -> domain]',
          '  src/game/Maps/Map.cpp -> src/game/entities/player/Player.h'], 'moved:')
     run('rule 3: a move does not cross headers (stale H1 line, new H2 edge)',
         dict(SELF_TREE, **{'src/proto/Opcodes.h': '#include "Common.h"\n',
@@ -937,8 +936,8 @@ def self_test():
         'moved:')
     run('rule 3: a move does not cross layer pairs (against)',
         dict(SELF_TREE, **{'src/game/spells/pipeline/Spell.cpp': '#include "Unit.h"\n',
-                           'src/game/Server/ObjectMgr.cpp': '#include "WorldPacket.h"\n'}), SELF_ALLOW, 1,
-        ['  src/game/Server/ObjectMgr.cpp -> src/proto/WorldPacket.h   [against: data -> proto] the header has 1 '
+                           'src/game/data/world/ObjectMgr.cpp': '#include "WorldPacket.h"\n'}), SELF_ALLOW, 1,
+        ['  src/game/data/world/ObjectMgr.cpp -> src/proto/WorldPacket.h   [against: data -> proto] the header has 1 '
          'data -> proto includer file(s) in the tree, 0 listed',
          '  src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h'], 'moved:')
     run('rule 3: a move does not cross layer pairs (seam)',
@@ -1150,22 +1149,22 @@ def self_test():
             'the list is not written while the rename map has errors', generate_too=True, written=reasoned_sp)
 
     for a, b, want in [('game/Object/Unit.cpp', 'proto/WorldPacket.h', ('against', ('domain', 'proto'))),
-                       ('game/Server/ObjectMgr.cpp', 'motion/State.h', ('against', ('data', 'motion'))),
+                       ('game/data/world/ObjectMgr.cpp', 'motion/State.h', ('against', ('data', 'motion'))),
                        ('motion/Kernel.cpp', 'shared/Database/Database.h', ('against', ('motion', 'persistence'))),
                        ('realmd/Main.cpp', 'proto/WorldPacket.h', ('against', ('realmd', 'proto'))),
                        ('realmd/Main.cpp', 'shared/Database/Database.h', None),
                        ('game/Object/Unit.cpp', 'game/spells/auras/SpellAuras.h', ('seam', ('entities', 'spells/aura'))),
                        ('game/spells/auras/SpellAuras.cpp', 'game/spells/data/SpellMgr.h', None),
-                       ('game/spells/data/SpellMgr.h', 'game/spells/auras/SpellAuraDefines.h', None),
+                       ('game/spells/data/SpellMgr.h', 'game/spells/data/SpellAuraDefines.h', None),
                        ('game/spells/data/SpellMgr.cpp', 'game/Object/Unit.h', ('against', ('data', 'domain'))),
                        ('game/Maps/Map.cpp', 'game/Object/Creature.h', ('sideways', ('maps', 'entities'))),
-                       ('shared/Utilities/ObjectGuid.cpp', 'game/Object/ObjectMgr.h', ('against', ('foundation', 'data'))),
+                       ('shared/Utilities/ObjectGuid.cpp', 'game/data/world/ObjectMgr.h', ('against', ('foundation', 'data'))),
                        ('game/AuctionHouseBot/AuctionHouseBot.cpp', 'game/Object/Unit.h', None),
                        ('tests/X.cpp', 'game/Harness/Harness.h', None),
                        ('game/session/WorldSession.cpp', 'game/app/World.h', ('against', ('session', 'app'))),
                        ('game/session/packets/spells/CooldownPackets.cpp', 'proto/WorldPacket.h', None),
                        ('game/session/packets/spells/CooldownPacketSinks.cpp', 'game/entities/player/Player.h', None),
-                       ('game/Object/ObjectMgr.h', 'game/data/MailLevelRewardStore.h', None),
+                       ('game/data/world/ObjectMgr.h', 'game/data/MailLevelRewardStore.h', None),
                        ('game/data/MailLevelRewardStore.cpp', 'game/Object/Unit.h', ('against', ('data', 'domain'))),
                        ('game/spells/SpellCooldownMgr.cpp', 'game/session/packets/spells/CooldownPackets.h',
                         ('against', ('domain', 'session'))),

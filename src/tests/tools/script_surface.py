@@ -434,8 +434,8 @@ def self_test():
 
     base = {
         'src/shared/Platform/Define.h': '#include <cstdint>\n',
-        'src/game/Server/SharedDefines.h': '#include "Platform/Define.h"\n',
-        'src/game/Server/DBCEnums.h': '',
+        'src/game/data/dbc/SharedDefines.h': '#include "Platform/Define.h"\n',
+        'src/game/data/dbc/DBCEnums.h': '',
         'src/game/Object/ObjectGuid.h': '#include "Platform/Define.h"\n',
         'src/game/Object/Unit.h': '#include "ObjectGuid.h"\nclass Unit\n{\n    public:\n        void Kill();\n};\n#define sUnits Units()\n',
         'src/scripts/surface/Ids.h': '#include "Platform/Define.h"\n#include <functional>\n',

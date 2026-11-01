@@ -27,7 +27,7 @@
 #define MANGOS_SPELLAURAS_H
 
 #include "spells/pipeline/Spell.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 #include "DBCEnums.h"
 #include "ObjectGuid.h"
 #include "Object.h"

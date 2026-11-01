@@ -41,7 +41,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "SharedDefines.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 #include "ObjectGuid.h"
 
 #include "DBCfmt.h"

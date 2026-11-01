@@ -49,7 +49,7 @@
 #include "Pet.h"
 #include "DBCStores.h"
 #include "AchievementMgr.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "Player.h"
 #include "CinematicFlyover.h"
 #include "session/packets/PlayerPacketSinks.h"

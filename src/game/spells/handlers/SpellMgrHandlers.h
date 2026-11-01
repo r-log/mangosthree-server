@@ -27,7 +27,7 @@
 #define MANGOSSERVER_SPELLS_HANDLERS_SPELLMGRHANDLERS_H
 
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Server/SharedDefines.h"
+#include "data/dbc/SharedDefines.h"
 
 class Player;
 

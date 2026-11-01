@@ -34,7 +34,7 @@
 #include "Object/Item.h"
 #include "Object/Bag.h"
 #include "Object/Creature.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 
 /**
  * @brief Sells an item stack to a vendor.

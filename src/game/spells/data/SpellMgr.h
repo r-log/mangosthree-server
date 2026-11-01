@@ -36,7 +36,7 @@
 #include <cstring>
 #include <functional>
 #include "SharedDefines.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 #include "DBCStructure.h"
 #include "data/SpellScriptTargetStore.h"
 

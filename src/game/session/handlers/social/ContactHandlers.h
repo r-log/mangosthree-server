@@ -27,7 +27,7 @@
 #define MANGOS_H_CONTACTHANDLERS
 
 #include <string>
-#include "Server/SharedDefines.h"
+#include "data/dbc/SharedDefines.h"
 
 class ObjectGuid;
 class WorldPacket;

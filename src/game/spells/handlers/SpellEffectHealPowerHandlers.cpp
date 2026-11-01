@@ -26,7 +26,7 @@
 #include "spells/handlers/SpellEffectHealPowerHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "entities/player/Player.h"
-#include "Server/SharedDefines.h"
+#include "data/dbc/SharedDefines.h"
 
 /// 9512: Restore Energy: the caster's levels above 40 shrink the energy by 2 each
 static SpellHandlerOutcome<void> EffectEnergizeRestoreEnergy(SpellEffectEnergizeContext& ctx)

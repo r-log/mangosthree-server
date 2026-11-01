@@ -27,7 +27,7 @@
 #define MANGOSSERVER_SPELLS_AURACONTAINER_H
 
 #include "Platform/Define.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 
 #include <list>
 #include <map>

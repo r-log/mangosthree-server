@@ -34,7 +34,7 @@
 #include "ObjectMgr.h"
 #include "Creature.h"
 #include "DBCStores.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "Item.h"
 #include "AchievementMgr.h"
 #include "Player.h"

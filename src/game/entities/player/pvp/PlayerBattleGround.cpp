@@ -46,7 +46,7 @@
 #include "DB2Stores.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 
 #include <cmath>
 /**

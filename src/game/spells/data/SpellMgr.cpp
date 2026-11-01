@@ -31,7 +31,7 @@
 #include <vector>
 #include "spells/data/SpellMgr.h"
 #include "ObjectMgr.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 #include "ProgressBar.h"
 #include "DBCStores.h"
 #include "persistence/world/spells/SpellDataRepository.h"

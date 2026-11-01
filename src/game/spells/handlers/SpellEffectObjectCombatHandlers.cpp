@@ -30,7 +30,7 @@
 #include "Common/TimeConstants.h"
 #include "Utilities/MathDefines.h"
 #include "Utilities/Util.h"
-#include "Server/SharedDefines.h"
+#include "data/dbc/SharedDefines.h"
 
 /// 24734 to 24790, the fifteen Wind Stone summons: the stone summons the templar, duke or royal the spell
 /// names (one of the four at random for the three Random spells), facing the caster, and is spent

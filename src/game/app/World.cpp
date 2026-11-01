@@ -68,7 +68,7 @@
 #include "AchievementMgr.h"
 #include "ArenaTeam.h"
 #include "AuctionHouseMgr.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "InstanceDataCache.h"
 #include "ObjectMgr.h"
 #include "CreatureEventAIMgr.h"

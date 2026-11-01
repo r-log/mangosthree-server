@@ -47,7 +47,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
 #include "Database/TickGuard.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "Guild.h"
 #include "Mail.h"
 #include "ObjectGuid.h"

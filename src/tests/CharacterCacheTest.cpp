@@ -32,7 +32,7 @@
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"

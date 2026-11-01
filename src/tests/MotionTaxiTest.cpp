@@ -30,8 +30,8 @@
 #include "TestHarness.h"
 #include "BehaviourModel.h"
 #include "TaxiMove.h"
-#include "../game/Object/TaxiDestinationsString.h"    // header-only: the suite links no game library
-#include "../game/Object/TaxiRoute.h"                 // same: TaxiResume is inline and TaxiRoute::Weld is never called here
+#include "../game/data/world/TaxiDestinationsString.h"    // header-only: the suite links no game library
+#include "../game/data/world/TaxiRoute.h"                 // same: TaxiResume is inline and TaxiRoute::Weld is never called here
 
 #include <vector>
 

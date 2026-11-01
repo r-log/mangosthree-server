@@ -54,7 +54,7 @@
 #include "data/Language.h"
 #include "spells/data/SpellMgr.h"
 #include "Calendar.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "GameTime.h"
 #include "Timer.h"
 #include "persistence/characters/CharacterRepository.h"

@@ -26,7 +26,7 @@
 #include "spells/handlers/SpellMgrHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "BattleGround/BattleGround.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 #include "entities/player/Player.h"
 
 /// 22564, 22563: Recall: only on Alterac Valley's map (30), in its battleground once that has begun

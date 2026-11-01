@@ -27,7 +27,7 @@
 
 #include <set>
 #include "session/WorldSession.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 #include "WorldHandlers/Group.h"
 #include "WorldHandlers/LFGMgr.h"
 #include "session/packets/social/LFGPackets.h"

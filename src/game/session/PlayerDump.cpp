@@ -58,7 +58,7 @@
 #include <set>
 #include <sstream>
 #include "PlayerDump.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "Database/DatabaseEnv.h"
 #include "UpdateFields.h"
 #include "ObjectMgr.h"

@@ -41,7 +41,7 @@
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "Creature.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 #include "Unit.h"
 #include "Player.h"
 #include "Log.h"

@@ -35,7 +35,7 @@
 #include "Util.h"
 #include "data/Language.h"
 #include "data/GameConfig.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "PlayerRegistry.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/social/GuildRepository.h"

@@ -44,7 +44,7 @@ namespace proto
      *
      * These are wire values, so they belong to the protocol rather than to the
      * game. Re-derived from this fork's own `AUTH_*` enum
-     * (src/game/Server/SharedDefines.h:3466 onward) -- NOT copied from
+     * (src/game/data/dbc/SharedDefines.h:3466 onward) -- NOT copied from
      * MangosTwo's proto::AuthStatus, even though the shared codes happen to
      * land on the same numbers. Cata's SMSG_AUTH_RESPONSE framing differs
      * regardless (see ClientConnection::SendAuthStatus): two WriteBits ahead

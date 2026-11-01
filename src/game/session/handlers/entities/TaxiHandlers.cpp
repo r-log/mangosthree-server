@@ -31,7 +31,7 @@
 #include "session/WorldSession.h"
 #include "Opcodes.h"
 #include "Log/Log.h"
-#include "Object/ObjectMgr.h"
+#include "data/world/ObjectMgr.h"
 #include "Object/Creature.h"
 #include "entities/player/Player.h"
 

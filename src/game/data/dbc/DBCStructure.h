@@ -36,7 +36,7 @@
 #include <set>
 #include <vector>
 
-// Path is a class template (Server/Path.h); the alias below only needs it declared, not
+// Path is a class template (data/dbc/Path.h); the alias below only needs it declared, not
 // defined, so callers that use TaxiPathNodeList's own methods
 // (resize, size, empty, set, operator[]) bring the complete type themselves.
 template < typename PathElem, typename PathNode >

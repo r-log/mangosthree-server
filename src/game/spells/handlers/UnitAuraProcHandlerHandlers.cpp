@@ -28,7 +28,7 @@
 #include "Object/Unit.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 #include "Utilities/Util.h"
 #include "Log.h"
 #include "Object/Creature.h"

@@ -35,7 +35,7 @@
 #include "Opcodes.h"
 #include "Log/Log.h"
 #include "data/GameConfig.h"
-#include "Object/ObjectMgr.h"
+#include "data/world/ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "WorldHandlers/AchievementMgr.h"
 #include "entities/player/Player.h"
