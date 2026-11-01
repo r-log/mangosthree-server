@@ -37,7 +37,7 @@
 #include <list>
 #include "Chat.h"
 #include "ObjectMgr.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Mail.h"
 #include "MassMailMgr.h"
 #include "Player.h"

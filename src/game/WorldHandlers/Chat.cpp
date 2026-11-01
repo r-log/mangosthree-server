@@ -47,7 +47,7 @@
 #include <string>
 #include <cstdarg>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
 #include "WorldPacket.h"

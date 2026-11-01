@@ -36,7 +36,7 @@
 #include "ProgressBar.h"
 
 #include "Item.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "Bag.h"

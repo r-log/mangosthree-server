@@ -62,7 +62,7 @@
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "MotionMaster.h"
 #include "spells/handlers/AuraControlHandlers.h"
 #include "spells/data/SpellTables.h"

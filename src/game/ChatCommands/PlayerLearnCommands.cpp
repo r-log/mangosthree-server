@@ -37,11 +37,11 @@
 #include <string>
 #include <cstdlib>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "DBCStores.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "WorldSession.h"

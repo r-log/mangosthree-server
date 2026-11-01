@@ -38,7 +38,7 @@
 #include "SharedDefines.h"
 #include "GameObject.h"
 #include "BattleGround/BattleGround.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Util.h"
 #include "data/DbScriptHooks.h"
 #include "GridNotifiersImpl.h"

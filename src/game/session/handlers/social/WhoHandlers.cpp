@@ -27,7 +27,7 @@
 
 #include "Platform/Define.h"
 #include <string>
-#include "Language.h"
+#include "data/Language.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "Log.h"

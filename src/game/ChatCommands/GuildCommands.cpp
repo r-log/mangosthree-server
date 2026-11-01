@@ -37,7 +37,7 @@
 #include <string>
 #include "Chat.h"
 #include "Player.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "GuildMgr.h"
 #include "Guild.h"
 

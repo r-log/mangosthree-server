@@ -29,7 +29,7 @@
 #include "PlayerRegistry.h"
 #include "BattleGround.h"
 #include "BattleGroundMgr.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "ArenaTeam.h"
 #include "data/GameConfig.h"
 #include "ObjectGuid.h"

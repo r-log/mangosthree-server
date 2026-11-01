@@ -35,7 +35,7 @@
 
 #include <list>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "data/GameConfig.h"
 #include "Creature.h"
 #include "MoveMap.h"

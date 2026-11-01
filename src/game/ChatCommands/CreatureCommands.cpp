@@ -37,7 +37,7 @@
 #include <string>
 #include "Chat.h"
 #include "CreatureEventAI.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "data/ServerControl.h"
 #include "data/GameConfig.h"
 #include "GridNotifiersImpl.h"

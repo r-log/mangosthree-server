@@ -29,7 +29,7 @@
 #include <string>
 #include <list>
 #include "Player.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
 #include "Log.h"

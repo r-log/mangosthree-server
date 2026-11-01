@@ -35,15 +35,15 @@ These directories **dissolve**:
   social, 11 to scripts, 12 to data, 4 to economy, 8 to entities (achievements, the player's menus, `GossipDef`, and
   the object update accumulator, `UpdateData`) and 5 to app.
 - `Server/`: 11 files to session, 15 to data and `GameGlobals` to persistence. `References/`: maps to maps,
-  groups to social; the threat managers are in `combat/`. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
+  groups to social; the threat managers are in `combat/`. `Tools/` is gone: the player dump is in `session/`, the
+  character database cleaner beside `World`, which calls it, and `Language.h` in `data/`.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 106 include lines go against the table.
+**Today:** 99 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
 | domain -> proto | 99 | `WorldPacket.h` 55, `Opcodes.h` 43, `MoverCodec.h` 1 | `Unit.cpp`, `Player.cpp`, `Creature.cpp` |
-| rest | 7 | `PlayerDump`/`CharacterDatabaseCleaner` 7 | |
 
 The domain directories are peers. Include lines that cross between them are allowed, but they cannot spread: they are
 a `CheckLayout` ratchet, keyed per includer directory, includer peer and header. The peer is the coupling unit; the
@@ -356,8 +356,8 @@ compile-and-pass, it fails to link. A library cannot lie about its dependencies.
 | motion | `motion` (with `movement/`) | `proto` |
 | data (`data/`, `spells/data/`, `ObjectMgr`'s files and the other data rows of section 1, listed in `src/game/CMakeLists.txt`) | `data`, no precompiled header | `persistence` |
 | domain (the directories it holds whole, the rest of `Object/` and the domain files of `BattleGround/` and `WorldHandlers/`, listed in `src/game/CMakeLists.txt`) | `domain`, its own precompiled header (`pchdomain.h`) | `data`, `persistence`, `terrain`, `geometry`, `proto`, `motion`, Detour and zlib |
-| session (`session/`, the session files of `Server/` and `WorldHandlers/`, listed in `src/game/CMakeLists.txt`, and the battleground list's sender) | `session`, its own precompiled header (`pchsession.h`); it also builds `Tools/PlayerDump`, which its character handler calls (row 7) | `domain` and what it links |
-| app (the world tick, `WorldConfig`, the game event scheduler, the harness and the auction bot, in `src/game`) and the character database cleaner `World` calls (row 7) | `world`, its own precompiled header (`pchworld.h`) | `scripts` and what it links |
+| session (`session/`, the session files of `Server/` and `WorldHandlers/`, listed in `src/game/CMakeLists.txt`, and the battleground list's sender) | `session`, its own precompiled header (`pchsession.h`), the player dump (`session/PlayerDump`) among it | `domain` and what it links |
+| app (the world tick, `WorldConfig`, the game event scheduler, the character database cleaner `World` calls, the harness and the auction bot, in `src/game`) | `world`, its own precompiled header (`pchworld.h`) | `scripts` and what it links |
 | scripts (the dispatcher and the surface in `src/scripts/`, the chat commands in `src/game/ChatCommands/`, and `Chat`, `CommandMgr` and `ScriptMgr` in `WorldHandlers/`, the last two listed in `src/game/CMakeLists.txt`) | `scripts`, its own precompiled header (`pchscripts.h`) | `session` and what it links |
 | scripts (SD3, `src/scripts/legacy/`) | `scripts_legacy` | `scripts` |
 | app | `mangosd` | `world`, `proto`, `scripts`, whose dispatcher it installs, and `scripts_legacy` when SD3 is built |
@@ -367,8 +367,7 @@ The layer boundaries the linker checks today are the ones around `motion` and `p
 and `scripts`: a file of one of those layers that calls into a layer above it does not link on the Linux runners,
 where `world` comes before `scripts`, `scripts` before `session`, `session` before `domain` and `domain` before `data`
 on the link line. The include lines the gate counts as against the rule in section 1 are
-domain -> proto, which the linker does not see (`proto` is a target below), and row 7's, from the player dump and the
-character database cleaner, which build in `session` and `world`. `world` does not link
+domain -> proto, which the linker does not see (`proto` is a target below). `world` does not link
 `scripts_legacy`: the core calls the scripts through the hook interface (`data/ScriptHooks.h`), and `mangosd` installs
 the dispatcher at start-up, which hands each hook to SD3 when SD3 is built.
 
@@ -418,7 +417,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 4 | `ScriptMgr.h` and `Chat.h` included below scripts 0 times (`Chat.h` 23 times when #83 began): a map runs its database script steps and the domain starts its events through `data/DbScriptHooks`, which `mangosd` installs; the session builds the chat packets and system messages, the domain builds its chat packets through `data/ChatPacketBuilder` and reports a player's system messages as a client fact, and the GM commands are reached through `data/CommandHooks` | closed for the includes (#83); the domain's chat packets become facts with row 1 |
 | 5 | data -> domain: 0 lines. The runtimes moved beside their peers (`PoolSpawner`, `CreatureLinkingHolder`, `GameEventScheduler`, `PlayerConditions`, `SpellRules`), the tables stayed (`PoolManager`, `CreatureLinkingMgr`, `GameEventMgr`, `LootStore`), and the data layer asks the domain through installed facts (`TerrainFacts`) and subjects (`DisableSubject`). `data` is its own target | closed (phase 5); the store moves (`ObjectMgr`'s tables into `data/` stores) when content needs them |
 | 6 | `src/motion/movement/` includes nothing above motion (0 lines) | closed (#81): `CheckMotionBoundary` covers `src/motion`, `movement/` included |
-| 7 | `PlayerDump` and `CharacterDatabaseCleaner` (7 lines) include above their layer; `ObjectGuid` is in `src/shared/Utilities` and names a player through the resolver the world installs | when content touches it; `ObjectGuid` closed (phase 5) |
+| 7 | `PlayerDump` is in `session/` and `CharacterDatabaseCleaner` beside `World`, the layers they build in, and `Language.h` in `data/`; `ObjectGuid` is in `src/shared/Utilities` and names a player through the resolver the world installs | closed (phase 6) |
 | 8 | 0 database calls outside persistence | closed: `CheckDatabaseCalls` keeps it at 0 |
 | 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); none calls the database; all twelve are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, `CurrencyMgr`, `SocialList`, `GlyphMgr`, `TalentMgr` and `QuestStatusMgr`, whose rows their repositories in `persistence/characters/` read and write). **Spells, Today:** `SpellCooldownMgr` calls no database (its rows go through its repository in `persistence/characters/spells/`) and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | closed for the database (#144: no manager calls it, each is tested from plain rows and its repository over the fake connection); the rest when the domain is next touched |
 | 10 | `CheckStateOwnership`'s achievement row: its owner, `AchievementMgr`, still builds its packets; `QuestCompletePacket` is in `session/packets/quests/` and builds the player's quest-complete fact | with `AchievementMgr`'s move (row 16) |
@@ -444,7 +443,7 @@ From the repository root, with Python 3 and Git Bash. `layers.py` is the script 
 section 1's directory table, written as code: `AuctionHouseBot/` is app (kept, section 7).
 
 - Where the files go: `python layers.py src files | grep ' game/Object/' | cut -d' ' -f1 | sort | uniq -c` (and
-  likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
+  likewise for `WorldHandlers/`, `Server/` and `References/`).
 - The edge tables: `python layers.py src against` (305, with the headers and the includers),
   `python layers.py src sideways` (2,357) and `python layers.py src edges` (every layer pair).
 - Packets and the database: `python layers.py src packets` (404 by layer and directory) and `python layers.py src db`
@@ -505,14 +504,14 @@ section 1's directory table, written as code: `AuctionHouseBot/` is app (kept, s
 import os, re, sys, collections
 RULES = [
  (r'^(tools|genrev)/|^game/pch', None), (r'^tests/', 'tests'), (r'^realmd/', 'realmd'), (r'^mangosd/', 'app'),
- (r'^shared/Database/|^game/persistence/|^game/Server/GameGlobals|^game/Tools/(PlayerDump|CharacterDatabaseCleaner)', 'persistence'),
+ (r'^shared/Database/|^game/persistence/|^game/Server/GameGlobals', 'persistence'),
  (r'^shared/', 'foundation'), (r'^proto/', 'proto'), (r'^motion/', 'motion'),
  (r'^scripts/|^game/ChatCommands/|^game/WorldHandlers/(Chat\.|ChatArgExtract|ChatHelp|CommandMgr|ScriptMgr|ScriptAction)', 'scripts'),
- (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig|GameEventScheduler)', 'app'),
+ (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig|GameEventScheduler|CharacterDatabaseCleaner)', 'app'),
  (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
  (r'^game/session/|^game/BattleGround/BattleGroundHandler\.', 'session'),
  (r'^game/data/|^game/spells/data/|^game/spells/auras/SpellAuraDefines\.', 'data'),
- (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy|LootStore)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
+ (r'^game/Server/|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy|LootStore)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
  (r'^game/spells/', 'spells'),
  (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|AccountMgr|LFGPackets)\.', 'session'),
  (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),

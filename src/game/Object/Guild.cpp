@@ -35,7 +35,7 @@
 #include "data/ChatPacketBuilder.h"
 #include "SocialList.h"
 #include "Util.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "data/GameConfig.h"
 #include "Calendar.h"
 #include "CharacterCache.h"

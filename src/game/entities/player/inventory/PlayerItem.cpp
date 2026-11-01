@@ -29,7 +29,7 @@
  */
 
 #include "Player.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "UpdateMask.h"

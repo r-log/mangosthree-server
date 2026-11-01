@@ -26,7 +26,7 @@
 #include "session/handlers/maps/MapHandlers.h"
 
 #include "Platform/Define.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "Log.h"

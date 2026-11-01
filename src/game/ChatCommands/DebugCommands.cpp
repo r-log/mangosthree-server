@@ -50,7 +50,7 @@
 #include "Log.h"
 #include "Unit.h"
 #include "GossipDef.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "BattleGround/BattleGroundMgr.h"
 #include <fstream>
 #include "ObjectLookup.h"

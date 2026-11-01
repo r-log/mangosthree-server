@@ -31,7 +31,7 @@
 #include "TaxiDestinationsString.h"
 #include "TaxiRoute.h"
 #include "Player.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "Opcodes.h"

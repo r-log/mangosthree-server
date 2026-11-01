@@ -28,7 +28,7 @@
 
 #include "Platform/Define.h"
 #include "OutdoorPvP.h"
-#include "Language.h"
+#include "data/Language.h"
 
 enum
 {

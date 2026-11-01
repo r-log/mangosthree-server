@@ -27,7 +27,7 @@
 #include "BattleGround.h"
 #include "BattleGroundMgr.h"
 #include "Creature.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "GridNotifiersImpl.h"

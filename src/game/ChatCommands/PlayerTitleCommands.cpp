@@ -26,7 +26,7 @@
 #include "Common/Locales.h"
 #include <string>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Player.h"
 #include "DBCStores.h"
 

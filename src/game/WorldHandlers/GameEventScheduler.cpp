@@ -38,7 +38,7 @@
 #include "Creature.h"
 #include "DBCStores.h"
 #include "GameObject.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Log.h"
 #include "MapManager.h"
 #include "MassMailMgr.h"

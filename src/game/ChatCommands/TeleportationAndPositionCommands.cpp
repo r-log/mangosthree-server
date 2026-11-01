@@ -38,7 +38,7 @@
 #include <string>
 #include "Chat.h"
 #include "ObjectMgr.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "data/GameConfig.h"
 #include "MapManager.h"
 #include "CellImpl.h"

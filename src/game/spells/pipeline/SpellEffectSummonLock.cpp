@@ -44,7 +44,7 @@
 #include "Totem.h"
 #include "CreatureAI.h"
 #include "BattleGround/BattleGround.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "Geometry/Vector3.h"

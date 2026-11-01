@@ -38,7 +38,7 @@
 #include <sstream>
 #include <string>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Geometry/Quat.h"
 #include "MapManager.h"
 #include "GameEventMgr.h"

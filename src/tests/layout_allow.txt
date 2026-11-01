@@ -249,13 +249,6 @@ src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
-src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/Server/DBCStores.h
-src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/data/GameConfig.h
-src/game/Tools/PlayerDump.cpp -> src/game/Object/CharacterCache.h
-src/game/Tools/PlayerDump.cpp -> src/game/Object/GMTicketMgr.h
-src/game/Tools/PlayerDump.cpp -> src/game/Object/ObjectMgr.h
-src/game/Tools/PlayerDump.cpp -> src/game/Object/UpdateFields.h
-src/game/Tools/PlayerDump.cpp -> src/game/WorldHandlers/AccountMgr.h
 src/game/WorldHandlers [entities] -> src/game/BattleGround/BattleGround.h
 src/game/WorldHandlers [entities] -> src/game/BattleGround/BattleGroundAB.h
 src/game/WorldHandlers [entities] -> src/game/Object/ArenaTeam.h

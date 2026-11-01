@@ -36,7 +36,7 @@
 
 #include <string>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "GameEventMgr.h"
 #include "Util.h"
 #include "data/ServerControl.h"

@@ -30,7 +30,7 @@
 
 #include <string>
 #include "Chat.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "WorldSession.h"
 #include "CommandMgr.h"
 

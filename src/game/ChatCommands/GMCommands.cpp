@@ -39,7 +39,7 @@
 #include "Chat.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "PlayerRegistry.h"
 #include "Player.h"
 #include "spells/data/SpellMgr.h"

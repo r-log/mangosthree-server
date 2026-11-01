@@ -45,7 +45,7 @@
 #include "Mail.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "MapManager.h"
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundAB.h"

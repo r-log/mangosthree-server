@@ -26,7 +26,7 @@
 #include <string>
 #include "Player.h"
 #include "PlayerRegistry.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "GMTicketMgr.h"
 #include "Log.h"

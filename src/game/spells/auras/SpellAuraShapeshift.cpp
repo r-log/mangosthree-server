@@ -58,7 +58,7 @@
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "Vehicle.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "spells/handlers/AuraShapeshiftHandlers.h"
 
 #define NULL_AURA_SLOT 0xFF

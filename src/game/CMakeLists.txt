@@ -301,9 +301,6 @@ source_group("Spells\\Handlers" FILES ${SRC_GRP_SPELLS_HANDLERS})
 file(GLOB SRC_GRP_SPELLS_PIPELINE spells/pipeline/*.cpp spells/pipeline/*.h)
 source_group("Spells\\Pipeline" FILES ${SRC_GRP_SPELLS_PIPELINE})
 
-file(GLOB SRC_GRP_TOOL Tools/*.cpp Tools/*.h)
-source_group("Tool" FILES ${SRC_GRP_TOOL})
-
 file(GLOB SRC_GRP_WORLD_HANDLERS WorldHandlers/*.cpp WorldHandlers/*.h)
 source_group("World\\Handlers" FILES ${SRC_GRP_WORLD_HANDLERS})
 
@@ -356,7 +353,6 @@ set(DATA_SOURCES
     Server/DBCfmt.h
     Server/Path.h
     Server/SharedDefines.h
-    Tools/Language.h
     WorldHandlers/CreatureLinkingMgr.cpp
     WorldHandlers/CreatureLinkingMgr.h
     WorldHandlers/DisableMgr.cpp
@@ -372,7 +368,7 @@ set(DATA_SOURCES
     spells/auras/SpellAuraDefines.h
 )
 list(TRANSFORM DATA_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-foreach(_group SRC_GRP_OBJECT SRC_GRP_SERVER SRC_GRP_TOOL SRC_GRP_WORLD_HANDLERS SRC_GRP_SPELLS_AURAS)
+foreach(_group SRC_GRP_OBJECT SRC_GRP_SERVER SRC_GRP_WORLD_HANDLERS SRC_GRP_SPELLS_AURAS)
     list(REMOVE_ITEM ${_group} ${DATA_SOURCES})
 endforeach()
 
@@ -387,7 +383,6 @@ target_include_directories(data
         ${CMAKE_CURRENT_SOURCE_DIR}
         Object
         Server
-        Tools
         WorldHandlers
 )
 
@@ -588,12 +583,9 @@ set(SESSION_SOURCES
     WorldHandlers/QuestHandler.cpp
     WorldHandlers/TaxiHandler.cpp
     WorldHandlers/TradeHandler.cpp
-    Tools/PlayerDump.cpp
-    Tools/PlayerDump.h
 )
 list(TRANSFORM SESSION_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 list(REMOVE_ITEM SRC_GRP_WORLD_HANDLERS ${SESSION_SOURCES})
-list(REMOVE_ITEM SRC_GRP_TOOL ${SESSION_SOURCES})
 
 add_library(session STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround/BattleGroundHandler.cpp
@@ -660,7 +652,6 @@ configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/Au
 add_library(world STATIC
     ${SRC_GRP_AHBOT}
     ${SRC_GRP_HARNESS}
-    ${SRC_GRP_TOOL}
     ${SRC_GRP_WORLD_HANDLERS}
 )
 
@@ -669,7 +660,6 @@ target_include_directories(world
         ${CMAKE_CURRENT_SOURCE_DIR}
         AuctionHouseBot
         Harness
-        Tools
         WorldHandlers
 )
 

@@ -37,7 +37,7 @@
 #include "Chat.h"
 #include "ObjectMgr.h"
 #include "GameObject.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Player.h"
 #include "PoolManager.h"
 #include "MapPersistentStateMgr.h"

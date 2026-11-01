@@ -26,7 +26,7 @@
 #ifndef MANGOS_H_BATTLEGROUNDEY
 #define MANGOS_H_BATTLEGROUNDEY
 
-#include "Language.h"
+#include "data/Language.h"
 
 class BattleGround;
 

@@ -47,7 +47,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "spells/auras/SpellAuras.h"
-#include "Language.h"
+#include "data/Language.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
