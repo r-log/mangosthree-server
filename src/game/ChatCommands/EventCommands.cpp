@@ -39,7 +39,7 @@
 #include "Language.h"
 #include "GameEventMgr.h"
 #include "Util.h"
-#include "GameEventScheduler.h"
+#include "data/ServerControl.h"
 
 /**
  * @brief Handler for HandleEventListCommand command.
@@ -199,7 +199,7 @@ bool ChatHandler::HandleEventStartCommand(char* args)
     }
 
     PSendSysMessage(LANG_EVENT_STARTED, event_id, eventData.description.c_str());
-    sGameEventScheduler.StartEvent(event_id, true);
+    sServerControl.StartEvent(event_id);
     return true;
 }
 
@@ -248,6 +248,6 @@ bool ChatHandler::HandleEventStopCommand(char* args)
     }
 
     PSendSysMessage(LANG_EVENT_STOPPED, event_id, eventData.description.c_str());
-    sGameEventScheduler.StopEvent(event_id, true);
+    sServerControl.StopEvent(event_id);
     return true;
 }

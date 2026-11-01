@@ -56,9 +56,6 @@ src/game/BattleGround/BattleGroundReward.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundSA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/proto/WorldPacket.h
-src/game/ChatCommands/DebugCommands.cpp -> src/game/Harness/Harness.h
-# the operator's start and stop of an event; the scheduler is app (#660)
-src/game/ChatCommands/EventCommands.cpp -> src/game/WorldHandlers/GameEventScheduler.h
 src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/GridMap.h
 src/game/MotionGenerators [entities] -> src/game/WorldHandlers/Map.h

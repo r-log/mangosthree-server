@@ -2039,3 +2039,28 @@ void World::AutoBroadcast()
         WorldText(LANG_AUTOBROADCAST, it->text.c_str());
     }
 }
+
+void World::StartEvent(uint16 eventId)
+{
+    sGameEventScheduler.StartEvent(eventId, true);
+}
+
+void World::StopEvent(uint16 eventId)
+{
+    sGameEventScheduler.StopEvent(eventId, true);
+}
+
+bool World::StartHarness(std::string const& what, uint32 seedBase)
+{
+    return sHarness.Start(what, seedBase);
+}
+
+std::string World::HarnessStatus() const
+{
+    return sHarness.Status();
+}
+
+uint32 World::HarnessSeedBase() const
+{
+    return Harness::kSeedBase;
+}

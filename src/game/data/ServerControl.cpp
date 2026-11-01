@@ -129,6 +129,29 @@ char const* ServerControl::DbVersion() const
     return "";
 }
 
+void ServerControl::StartEvent(uint16 /*eventId*/)
+{
+}
+
+void ServerControl::StopEvent(uint16 /*eventId*/)
+{
+}
+
+bool ServerControl::StartHarness(std::string const& /*what*/, uint32 /*seedBase*/)
+{
+    return false;
+}
+
+std::string ServerControl::HarnessStatus() const
+{
+    return std::string();
+}
+
+uint32 ServerControl::HarnessSeedBase() const
+{
+    return 0;
+}
+
 ServerControl& ServerControl::Installed()
 {
     ServerControl* control = s_installed.load(std::memory_order_acquire);

@@ -253,6 +253,11 @@ class World : public WorldBroadcast, public ServerControl
         // used World DB version
         void LoadDBVersion();
         char const* DbVersion() const override { return m_DBVersion.c_str(); }
+        void StartEvent(uint16 eventId) override;
+        void StopEvent(uint16 eventId) override;
+        bool StartHarness(std::string const& what, uint32 seedBase) override;
+        std::string HarnessStatus() const override;
+        uint32 HarnessSeedBase() const override;
 
         void LoadBroadcastStrings() override;
 

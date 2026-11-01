@@ -64,7 +64,7 @@
 #include "MapManager.h"
 #include "TransportMap.h"
 #include "Transports.h"
-#include "Harness.h"
+#include "data/ServerControl.h"
 #include "MotionMaster.h"
 #include "State.h"
 
@@ -2189,17 +2189,18 @@ bool ChatHandler::HandleDebugMovementScenarioCommand(char* args)
     }
     if (strcmp(what, "status") == 0)
     {
-        PSendSysMessage("harness: %s", sHarness.Status().c_str());
+        PSendSysMessage("harness: %s", sServerControl.HarnessStatus().c_str());
         return true;
     }
-    uint32 seedBase = Harness::kSeedBase;
-    if (!ExtractOptUInt32(&args, seedBase, Harness::kSeedBase))
+    uint32 const defaultSeedBase = sServerControl.HarnessSeedBase();
+    uint32 seedBase = defaultSeedBase;
+    if (!ExtractOptUInt32(&args, seedBase, defaultSeedBase))
     {
         return false;
     }
-    if (!sHarness.Start(what, seedBase))
+    if (!sServerControl.StartHarness(what, seedBase))
     {
-        PSendSysMessage("harness: could not start %s (%s)", what, sHarness.Status().c_str());
+        PSendSysMessage("harness: could not start %s (%s)", what, sServerControl.HarnessStatus().c_str());
         SetSentErrorMessage(true);
         return false;
     }
