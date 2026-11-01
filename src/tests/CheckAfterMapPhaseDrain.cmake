@@ -1,8 +1,8 @@
-# Checks that World::Update in src/game/WorldHandlers/World.cpp calls ApplyAfterMapPhasePosts() after sMapMgr.Update.
+# Checks that World::Update in src/game/app/World.cpp calls ApplyAfterMapPhasePosts() after sMapMgr.Update.
 include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(AfterMapPhaseDrain)
 
-set(WORLD_CPP "${SOURCE_ROOT}/src/game/WorldHandlers/World.cpp")
+set(WORLD_CPP "${SOURCE_ROOT}/src/game/app/World.cpp")
 if(NOT EXISTS "${WORLD_CPP}")
     message(FATAL_ERROR "after-phase drain: the world's source is missing: ${WORLD_CPP}")
 endif()

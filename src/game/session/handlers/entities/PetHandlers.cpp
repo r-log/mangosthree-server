@@ -29,7 +29,7 @@
 #include <string>
 #include <ctime>
 #include "WorldPacket.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "Object/ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Log/Log.h"

@@ -1,6 +1,9 @@
 file(GLOB SRC_GRP_AHBOT AuctionHouseBot/*.cpp AuctionHouseBot/*.h)
 source_group("AhBot" FILES ${SRC_GRP_AHBOT})
 
+file(GLOB SRC_GRP_APP app/*.cpp app/*.h)
+source_group("App" FILES ${SRC_GRP_APP})
+
 file(GLOB SRC_GRP_BATTLEGROUND BattleGround/*.cpp BattleGround/*.h)
 source_group("BattleGround" FILES ${SRC_GRP_BATTLEGROUND})
 
@@ -12,6 +15,9 @@ source_group("Combat" FILES ${SRC_GRP_COMBAT})
 
 file(GLOB SRC_GRP_DATA data/*.cpp data/*.h)
 source_group("Data" FILES ${SRC_GRP_DATA})
+
+file(GLOB SRC_GRP_DBSCRIPTS dbscripts/*.cpp dbscripts/*.h)
+source_group("Database Scripts" FILES ${SRC_GRP_DBSCRIPTS})
 
 file(GLOB SRC_GRP_ENTITIES entities/*.cpp entities/*.h)
 source_group("Entities" FILES ${SRC_GRP_ENTITIES})
@@ -307,9 +313,6 @@ source_group("Spells\\Handlers" FILES ${SRC_GRP_SPELLS_HANDLERS})
 file(GLOB SRC_GRP_SPELLS_PIPELINE spells/pipeline/*.cpp spells/pipeline/*.h)
 source_group("Spells\\Pipeline" FILES ${SRC_GRP_SPELLS_PIPELINE})
 
-file(GLOB SRC_GRP_WORLD_HANDLERS WorldHandlers/*.cpp WorldHandlers/*.h)
-source_group("World\\Handlers" FILES ${SRC_GRP_WORLD_HANDLERS})
-
 set(DATA_SOURCES
     Object/CharacterCache.cpp
     Object/CharacterCache.h
@@ -374,7 +377,7 @@ set(DATA_SOURCES
     spells/auras/SpellAuraDefines.h
 )
 list(TRANSFORM DATA_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-foreach(_group SRC_GRP_OBJECT SRC_GRP_SERVER SRC_GRP_WORLD_HANDLERS SRC_GRP_SPELLS_AURAS)
+foreach(_group SRC_GRP_OBJECT SRC_GRP_SERVER SRC_GRP_SPELLS_AURAS)
     list(REMOVE_ITEM ${_group} ${DATA_SOURCES})
 endforeach()
 
@@ -485,12 +488,9 @@ set(DOMAIN_SOURCES
     WorldHandlers/Weather.h
 )
 list(TRANSFORM DOMAIN_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-list(REMOVE_ITEM SRC_GRP_WORLD_HANDLERS ${DOMAIN_SOURCES})
-set(DOMAIN_BATTLEGROUND ${SRC_GRP_BATTLEGROUND})
-list(REMOVE_ITEM DOMAIN_BATTLEGROUND ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround/BattleGroundHandler.cpp)
 
 add_library(domain STATIC
-    ${DOMAIN_BATTLEGROUND}
+    ${SRC_GRP_BATTLEGROUND}
     ${SRC_GRP_COMBAT}
     ${SRC_GRP_ENTITIES}
     ${SRC_GRP_ENTITIES_PLAYER}
@@ -563,38 +563,7 @@ if(PCH)
     add_cxx_pch(domain pchdomain.h)
 endif()
 
-set(SESSION_SOURCES
-    WorldHandlers/AccountMgr.cpp
-    WorldHandlers/AccountMgr.h
-    WorldHandlers/ArenaTeamHandler.cpp
-    WorldHandlers/AuctionHouseHandler.cpp
-    WorldHandlers/CalendarHandler.cpp
-    WorldHandlers/CalendarHandler.h
-    WorldHandlers/CharacterHandler.cpp
-    WorldHandlers/ChatHandler.cpp
-    WorldHandlers/GMTicketHandler.cpp
-    WorldHandlers/GroupHandler.cpp
-    WorldHandlers/GuildHandler.cpp
-    WorldHandlers/ItemHandler.cpp
-    WorldHandlers/ItemHandlerEnchant.cpp
-    WorldHandlers/ItemHandlerVendor.cpp
-    WorldHandlers/LFGHandler.cpp
-    WorldHandlers/LFGPackets.h
-    WorldHandlers/LootHandler.cpp
-    WorldHandlers/NPCHandler.cpp
-    WorldHandlers/PetHandler.cpp
-    WorldHandlers/PetitionsHandler.cpp
-    WorldHandlers/QueryHandler.cpp
-    WorldHandlers/QuestHandler.cpp
-    WorldHandlers/TaxiHandler.cpp
-    WorldHandlers/TradeHandler.cpp
-)
-list(TRANSFORM SESSION_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-list(REMOVE_ITEM SRC_GRP_WORLD_HANDLERS ${SESSION_SOURCES})
-
 add_library(session STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround/BattleGroundHandler.cpp
-    ${SRC_GRP_SERVER}
     ${SRC_GRP_SESSION}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}
     ${SRC_GRP_SESSION_HANDLERS_CONNECTION}
@@ -614,14 +583,12 @@ add_library(session STATIC
     ${SRC_GRP_SESSION_PACKETS_QUESTS}
     ${SRC_GRP_SESSION_PACKETS_SOCIAL}
     ${SRC_GRP_SESSION_PACKETS_SPELLS}
-    ${SESSION_SOURCES}
 )
 
 target_include_directories(session
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        Server
-        WorldHandlers
+        session
 )
 
 if(MSVC)
@@ -638,29 +605,14 @@ if(PCH)
     add_cxx_pch(session pchsession.h)
 endif()
 
-set(SCRIPTS_SOURCES
-    WorldHandlers/Chat.cpp
-    WorldHandlers/Chat.h
-    WorldHandlers/ChatArgExtract.cpp
-    WorldHandlers/ChatHelp.cpp
-    WorldHandlers/CommandMgr.cpp
-    WorldHandlers/CommandMgr.h
-    WorldHandlers/ScriptAction.cpp
-    WorldHandlers/ScriptMgr.cpp
-    WorldHandlers/ScriptMgr.h
-    WorldHandlers/ScriptMgrBinding.cpp
-    WorldHandlers/ScriptMgrDbScripts.cpp
-)
-list(TRANSFORM SCRIPTS_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-list(REMOVE_ITEM SRC_GRP_WORLD_HANDLERS ${SCRIPTS_SOURCES})
-set(GAME_SCRIPTS_SOURCES ${SRC_GRP_CHAT_COMMANDS} ${SCRIPTS_SOURCES} PARENT_SCOPE)
+set(GAME_SCRIPTS_SOURCES ${SRC_GRP_CHAT_COMMANDS} ${SRC_GRP_DBSCRIPTS} PARENT_SCOPE)
 
 configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/AuctionHouseBot/ahbot.conf.dist)
 
 add_library(world STATIC
     ${SRC_GRP_AHBOT}
+    ${SRC_GRP_APP}
     ${SRC_GRP_HARNESS}
-    ${SRC_GRP_WORLD_HANDLERS}
 )
 
 target_include_directories(world
@@ -668,7 +620,7 @@ target_include_directories(world
         ${CMAKE_CURRENT_SOURCE_DIR}
         AuctionHouseBot
         Harness
-        WorldHandlers
+        app
 )
 
 if(MSVC)

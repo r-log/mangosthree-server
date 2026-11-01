@@ -27,7 +27,7 @@
 
 #include "Platform/Define.h"
 #include "WorldPacket.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "Log/Log.h"
 #include "Object/ObjectMgr.h"
 #include "entities/player/Player.h"

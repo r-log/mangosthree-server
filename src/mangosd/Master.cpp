@@ -37,7 +37,7 @@
 #include "Log.h"
 #include "MapManager.h"
 #include "MapPhase.h"
-#include "Server/WorldNetwork.h"
+#include "session/WorldNetwork.h"
 #include "Common/ServerDefines.h"
 #include "Timer.h"
 #include "World.h"

@@ -235,7 +235,7 @@ legacy/include/precompiled.h include game/Object/GameObject.h
 legacy/include/precompiled.h include game/Object/GameObjectAI.h
 legacy/include/precompiled.h include game/Object/Object.h
 legacy/include/precompiled.h include game/Object/Unit.h
-legacy/include/precompiled.h include game/WorldHandlers/ScriptMgr.h
+legacy/include/precompiled.h include game/dbscripts/ScriptMgr.h
 legacy/include/precompiled.h include game/spells/auras/SpellAuras.h
 legacy/include/precompiled.h include shared/Common/TimeConstants.h
 legacy/include/precompiled.h include shared/Utilities/MathDefines.h
@@ -342,8 +342,8 @@ legacy/include/sc_creature.h free DoFindFriendlyCC
 legacy/include/sc_creature.h free DoFindFriendlyMissingBuff
 legacy/include/sc_creature.h free DoSelectLowestHpFriendly
 legacy/include/sc_creature.h free SetCombatMovement
+legacy/include/sc_creature.h include game/ChatCommands/Chat.h
 legacy/include/sc_creature.h include game/Server/DBCStores.h
-legacy/include/sc_creature.h include game/WorldHandlers/Chat.h
 legacy/include/sc_creature.h override AttackStart
 legacy/include/sc_creature.h override AttackedBy
 legacy/include/sc_creature.h override CorpseRemoved
@@ -380,10 +380,10 @@ legacy/include/sc_gossip.h call SendGossipMenu
 legacy/include/sc_gossip.h call SendListInventory
 legacy/include/sc_gossip.h call SendTrainerList
 legacy/include/sc_gossip.h free GetSession
-legacy/include/sc_gossip.h include game/Server/WorldSession.h
 legacy/include/sc_gossip.h include game/WorldHandlers/GossipDef.h
 legacy/include/sc_gossip.h include game/WorldHandlers/QuestDef.h
 legacy/include/sc_gossip.h include game/entities/player/Player.h
+legacy/include/sc_gossip.h include game/session/WorldSession.h
 legacy/include/sc_grid_searchers.cpp call CellEnvStats
 legacy/include/sc_grid_searchers.cpp call GetMap
 legacy/include/sc_grid_searchers.cpp call GetMapId
@@ -7083,7 +7083,7 @@ legacy/scripts/maelstrom/kezan.cpp call SendNotification
 legacy/scripts/maelstrom/kezan.cpp call getGender
 legacy/scripts/maelstrom/kezan.cpp free Reset
 legacy/scripts/maelstrom/kezan.cpp free urand
-legacy/scripts/maelstrom/kezan.cpp include game/Server/WorldSession.h
+legacy/scripts/maelstrom/kezan.cpp include game/session/WorldSession.h
 legacy/scripts/maelstrom/kezan.cpp override OnQuestAccept
 legacy/scripts/maelstrom/kezan.cpp override Reset
 legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_amanitar.cpp call CastSpell
@@ -15180,7 +15180,7 @@ legacy/system/ScriptDevMgr.h free ServesScript
 legacy/system/ScriptDevMgr.h free Type
 legacy/system/ScriptDevMgr.h include game/Server/DBCStructure.h
 legacy/system/ScriptDevMgr.h include game/WorldHandlers/QuestDef.h
-legacy/system/ScriptDevMgr.h include game/WorldHandlers/ScriptMgr.h
+legacy/system/ScriptDevMgr.h include game/dbscripts/ScriptMgr.h
 legacy/system/ScriptDevMgr.h include shared/Common/ServerDefines.h
 legacy/system/ScriptDevMgr.h include shared/Common/TimeConstants.h
 legacy/system/ScriptDevMgr.h include shared/Platform/Define.h

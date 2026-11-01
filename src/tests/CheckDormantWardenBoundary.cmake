@@ -4,7 +4,7 @@ endif()
 include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(DormantWardenBoundary)
 
-set(OPCODE_TABLE "${SOURCE_ROOT}/src/game/Server/OpcodeTable.cpp")
+set(OPCODE_TABLE "${SOURCE_ROOT}/src/game/session/OpcodeTable.cpp")
 set(HANDLER_HEADER "${SOURCE_ROOT}/src/game/session/handlers/connection/WardenHandlers.h")
 set(HANDLER_SOURCE "${SOURCE_ROOT}/src/game/session/handlers/connection/WardenHandlers.cpp")
 

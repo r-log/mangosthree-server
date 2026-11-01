@@ -34,7 +34,7 @@
 #include "entities/player/Player.h"
 #include "data/GameConfig.h"
 #include "Object/ObjectMgr.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "entities/player/PlayerRegistry.h"
 #include "Object/CharacterCache.h"
 #include "Server/DBCStores.h"

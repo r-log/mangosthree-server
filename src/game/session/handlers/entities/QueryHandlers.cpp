@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 #include "WorldPacket.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "Opcodes.h"
 #include "Log/Log.h"
 #include "Object/ObjectMgr.h"

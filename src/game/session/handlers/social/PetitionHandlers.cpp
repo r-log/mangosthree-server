@@ -34,7 +34,7 @@
 #include "Database/SqlOperations.h"
 #include "persistence/characters/social/PetitionRepository.h"
 #include "WorldPacket.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "data/GameConfig.h"
 #include "Object/ObjectMgr.h"
 #include "Log/Log.h"

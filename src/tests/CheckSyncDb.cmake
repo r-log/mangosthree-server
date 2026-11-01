@@ -6,10 +6,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(SyncDb)
 
 set(CONVERTED_FILES
-    src/game/WorldHandlers/PetitionsHandler.cpp
+    src/game/session/handlers/social/PetitionsHandler.cpp
     src/game/entities/player/persistence/PlayerDbLookup.cpp
     src/game/Object/ObjectMgr.cpp
-    src/game/WorldHandlers/CharacterHandler.cpp
+    src/game/session/handlers/entities/CharacterHandler.cpp
     src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp
     src/game/entities/player/Player.cpp
     src/game/Object/PetDatabase.cpp
@@ -75,8 +75,8 @@ set(CONVERTED_FILES
     src/game/persistence/world/DbVersionRepository.cpp
     src/game/persistence/world/BroadcastDataRepository.h
     src/game/persistence/world/BroadcastDataRepository.cpp
-    src/game/WorldHandlers/World.cpp
-    src/game/WorldHandlers/WorldConfig.cpp
+    src/game/app/World.cpp
+    src/game/app/WorldConfig.cpp
     src/game/AuctionHouseBot/AuctionHouseBot.cpp
     src/game/persistence/world/CommandDataRepository.h
     src/game/persistence/world/CommandDataRepository.cpp
@@ -90,9 +90,9 @@ set(CONVERTED_FILES
     src/game/ChatCommands/ServerCommands.cpp
     src/game/ChatCommands/GMCommands.cpp
     src/game/ChatCommands/WaypointCommands.cpp
-    src/game/WorldHandlers/CommandMgr.cpp
-    src/game/WorldHandlers/ScriptMgrBinding.cpp
-    src/game/WorldHandlers/ScriptMgrDbScripts.cpp
+    src/game/ChatCommands/CommandMgr.cpp
+    src/game/dbscripts/ScriptMgrBinding.cpp
+    src/game/dbscripts/ScriptMgrDbScripts.cpp
     src/game/ChatCommands/ListCommands.cpp
     src/game/ChatCommands/LookupCommands.cpp
     src/game/ChatCommands/PlayerCommands.cpp
@@ -180,12 +180,12 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/Transports.cpp
     src/game/WorldHandlers/Weather.cpp
     src/game/BattleGround/BattleGroundMgrUtil.cpp
-    src/game/WorldHandlers/NPCHandler.cpp
+    src/game/session/handlers/entities/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
     src/game/Object/GuildRank.cpp
     src/game/entities/player/pvp/PlayerBattleGround.cpp
-    src/game/WorldHandlers/CalendarHandler.cpp
+    src/game/session/handlers/social/CalendarHandler.cpp
     src/game/Object/Calendar.cpp
     src/game/WorldHandlers/Mail.cpp
     src/game/session/handlers/social/MailHandlers.cpp
@@ -194,7 +194,7 @@ set(CONVERTED_FILES
     src/game/persistence/characters/social/ArenaTeamRepository.h
     src/game/persistence/characters/social/ArenaTeamRepository.cpp
     src/game/Object/GuildBank.cpp
-    src/game/WorldHandlers/Chat.cpp
+    src/game/ChatCommands/Chat.cpp
     src/game/Harness/Harness.cpp
     src/game/WorldHandlers/Map.cpp
     src/game/WorldHandlers/InstanceData.cpp
@@ -202,7 +202,7 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/MapPersistentStateMgr.cpp
     src/game/BattleGround/BattleGroundReward.cpp
     src/game/BattleGround/BattleGroundMgr.cpp
-    src/game/WorldHandlers/PetHandler.cpp
+    src/game/session/handlers/entities/PetHandler.cpp
     src/game/session/handlers/maps/MapHandlers.cpp
     src/game/session/handlers/entities/DeathHandlers.cpp
     src/game/session/handlers/entities/PlayerHandlers.cpp
@@ -213,7 +213,7 @@ set(CONVERTED_FILES
     src/game/entities/player/social/SocialMgr.cpp
     src/game/Object/GMTicketMgr.cpp
     src/game/Object/AuctionHouseMgr.cpp
-    src/game/WorldHandlers/AccountMgr.cpp
+    src/game/session/AccountMgr.cpp
     src/game/ChatCommands/AccountCommands.cpp
     src/game/entities/player/quests/QuestStatusMgr.h
     src/game/entities/player/quests/QuestStatusMgr.cpp
@@ -260,7 +260,7 @@ set(CONVERTED_FILES
 )
 
 set(ADMIN_SCOPE_FILES
-    src/game/WorldHandlers/Chat.cpp
+    src/game/ChatCommands/Chat.cpp
     src/tests/TickGuardTest.cpp)
 
 set(ALLOW_GuildRepository_cpp

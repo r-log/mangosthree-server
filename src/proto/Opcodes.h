@@ -33,7 +33,7 @@
 // The opcode numbers are wire format: they are what the 4.3.4 client puts on the
 // socket, so they belong to the protocol and not to the game. The dispatch table
 // that binds an opcode to a WorldSession member function is the game's business
-// and lives in game/Server/OpcodeTable.h.
+// and lives in game/session/OpcodeTable.h.
 //
 // Splitting the two also retires a long-standing landmine. This header used to
 // include WorldSession.h purely so that sizeof(OpcodeHandler) -- which embeds a

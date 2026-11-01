@@ -12,6 +12,7 @@ target_include_directories(scripts
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src/game/ChatCommands
+        ${CMAKE_SOURCE_DIR}/src/game/dbscripts
 )
 
 if(MSVC)

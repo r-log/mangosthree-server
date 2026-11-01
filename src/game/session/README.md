@@ -12,7 +12,7 @@ One directory per domain. A builder is a free function, `void BuildXPacket(World
 
 ## `handlers/`
 
-One stateless class per origin file, in its domain's directory or, for the requests of the client's connection itself, in `handlers/connection/` (combat's, made from two files, and pvp's, the class of both the arena team and the battleground files, are two exceptions, and the miscellaneous handlers a third: they are split by topic, each joining its domain's class for that topic), whose static entry points the rows of `Server/OpcodeTable.cpp` bind; `handlers/README.md` says what a handler class may keep and which gates hold it.
+One stateless class per origin file, in its domain's directory or, for the requests of the client's connection itself, in `handlers/connection/` (combat's, made from two files, and pvp's, the class of both the arena team and the battleground files, are two exceptions, and the miscellaneous handlers a third: they are split by topic, each joining its domain's class for that topic), whose static entry points the rows of `session/OpcodeTable.cpp` bind; `handlers/README.md` says what a handler class may keep and which gates hold it.
 
 ## What is here
 
