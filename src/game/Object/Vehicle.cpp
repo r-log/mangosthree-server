@@ -52,7 +52,7 @@
 #include "MotionMaster.h"
 #include "Map.h"
 #include "Group.h"
-#include "WorldPacket.h"
+#include "entities/WorldObjectNotices.h"
 
 uint32 VehicleMoveFlags2(VehicleEntry const& entry)
 {
@@ -441,8 +441,7 @@ void VehicleInfo::Board(Unit* passenger, uint8 seat)
     {
         pPlayer->RemovePet(PET_SAVE_AS_CURRENT);
 
-        WorldPacket data(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA);
-        pPlayer->GetSession()->SendPacket(&data);
+        sWorldObjectNotices.ExpectedRideVehicleAuraCancelled(*pPlayer);
 
         // SMSG_BREAK_TARGET (?)
     }

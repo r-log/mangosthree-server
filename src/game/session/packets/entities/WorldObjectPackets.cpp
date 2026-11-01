@@ -26,6 +26,7 @@
 #include "WorldObjectPackets.h"
 #include "Creature.h"
 #include "GameObject.h"
+#include "Item.h"
 #include "Opcodes.h"
 #include "Player.h"
 #include "Unit.h"
@@ -158,4 +159,78 @@ void SessionWorldObjectNotices::BuildingDamaged(GameObject const& building, Unit
     data << uint32(damage);
     data << uint32(spell);
     building.SendMessageToSet(&data, false);
+}
+
+void SessionWorldObjectNotices::AreaSpiritHealerTime(Player const& player, ObjectGuid healer, uint32 nextResurrectMs)
+{
+    WorldPacket data(SMSG_AREA_SPIRIT_HEALER_TIME, 8 + 4);
+    data << ObjectGuid(healer);
+    data << uint32(nextResurrectMs);
+    player.SendDirectMessage(&data);
+}
+
+void SessionWorldObjectNotices::GameObjectPageShown(Player const& player, ObjectGuid object)
+{
+    WorldPacket data(SMSG_GAMEOBJECT_PAGETEXT, 8);
+    data << ObjectGuid(object);
+    player.SendDirectMessage(&data);
+}
+
+void SessionWorldObjectNotices::FishEscaped(Player const& player)
+{
+    WorldPacket data(SMSG_FISH_ESCAPED, 0);
+    player.SendDirectMessage(&data);
+}
+
+void SessionWorldObjectNotices::BarberShopEnabled(Player const& player)
+{
+    WorldPacket data(SMSG_ENABLE_BARBER_SHOP, 0);
+    player.SendDirectMessage(&data);
+}
+
+void SessionWorldObjectNotices::ItemTimeUpdated(Player const& owner, ObjectGuid item, uint32 durationLeft)
+{
+    WorldPacket data(SMSG_ITEM_TIME_UPDATE, (8 + 4));
+    data << ObjectGuid(item);
+    data << uint32(durationLeft);
+    owner.SendDirectMessage(&data);
+}
+
+void SessionWorldObjectNotices::ItemSocketsUpdated(Player const& owner, Item const& item)
+{
+    WorldPacket data(SMSG_SOCKET_GEMS, 8 + 4 + 4 + 4 + 4);
+    data << item.GetObjectGuid();
+    for (uint32 i = SOCK_ENCHANTMENT_SLOT; i <= BONUS_ENCHANTMENT_SLOT; ++i)
+    {
+        data << uint32(item.GetEnchantmentId(EnchantmentSlot(i)));
+    }
+
+    owner.SendDirectMessage(&data);
+}
+
+void SessionWorldObjectNotices::ObjectDestroyed(Player const& target, ObjectGuid object, bool anim)
+{
+    WorldPacket data(SMSG_DESTROY_OBJECT, 9);
+    data << object;
+    data << uint8(anim ? 1 : 0);                            // WotLK (bool), may be despawn animation
+    target.SendDirectMessage(&data);
+}
+
+void SessionWorldObjectNotices::SpellCooldownsTold(Player const& player, ObjectGuid unit, uint8 flags, std::vector<SpellCooldownTime> const& cooldowns)
+{
+    WorldPacket data(SMSG_SPELL_COOLDOWN, (8 + 1 + cooldowns.size() * 8));
+    data << ObjectGuid(unit);
+    data << uint8(flags);
+    for (std::vector<SpellCooldownTime>::const_iterator itr = cooldowns.begin(); itr != cooldowns.end(); ++itr)
+    {
+        data << uint32(itr->spellId);
+        data << uint32(itr->remainingMs);
+    }
+    player.SendDirectMessage(&data);
+}
+
+void SessionWorldObjectNotices::ExpectedRideVehicleAuraCancelled(Player const& passenger)
+{
+    WorldPacket data(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA);
+    passenger.SendDirectMessage(&data);
 }

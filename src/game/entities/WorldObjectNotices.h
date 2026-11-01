@@ -30,17 +30,29 @@
 #include "Platform/Define.h"
 #include "SharedDefines.h"
 
+#include <vector>
+
 class Creature;
 class GameObject;
+class Item;
 class Player;
 class Unit;
 class WorldObject;
 
+/// A spell cooldown a client is told: the spell and the milliseconds left.
+struct SpellCooldownTime
+{
+    uint32 spellId = 0;
+    uint32 remainingMs = 0;
+};
+
 /**
- * What a world object shows the clients around it, one call per notice: its animations, sounds and
- * music, a unit's emote, power, mount and vehicle, a creature's reaction and a building's damage. The
- * object keeps when it is shown. The session installs the notices that send them at start-up; this
- * base sends nothing.
+ * What a world object shows the clients around it and tells one player's client, one call per notice:
+ * its animations, sounds and music, a unit's emote, power, mount and vehicle, a creature's reaction and
+ * a building's damage; a spirit healer's timer, a page text, a fishing result, a barber's chair, an
+ * item's time and gems, an object destroyed, a pet's cooldowns and a vehicle aura cancelled. The object
+ * keeps when it is shown. The session installs the notices that send them at start-up; this base sends
+ * nothing.
  */
 class WorldObjectNotices
 {
@@ -79,6 +91,24 @@ class WorldObjectNotices
         /// The units around `building`, but not `building` itself, are told `caster` (and the one that
         /// controls it) dealt it `damage` with the spell `spell`.
         virtual void BuildingDamaged(GameObject const& building, Unit& caster, uint32 damage, uint32 spell);
+        /// `player` is told the spirit healer `healer` resurrects in `nextResurrectMs` milliseconds.
+        virtual void AreaSpiritHealerTime(Player const& player, ObjectGuid healer, uint32 nextResurrectMs);
+        /// `player` is shown the page text of the game object `object`.
+        virtual void GameObjectPageShown(Player const& player, ObjectGuid object);
+        /// `player` is told its fish escaped.
+        virtual void FishEscaped(Player const& player);
+        /// `player` is told it sits in a barber's chair.
+        virtual void BarberShopEnabled(Player const& player);
+        /// `owner` is told its item `item` has `durationLeft` seconds left.
+        virtual void ItemTimeUpdated(Player const& owner, ObjectGuid item, uint32 durationLeft);
+        /// `owner` is told the gems socketed in `item` and its socket bonus.
+        virtual void ItemSocketsUpdated(Player const& owner, Item const& item);
+        /// `target` is told the object `object` is gone, with its despawn animation when `anim` is true.
+        virtual void ObjectDestroyed(Player const& target, ObjectGuid object, bool anim);
+        /// `player` is told the spell cooldowns `cooldowns` of the unit `unit`, with the flags `flags`.
+        virtual void SpellCooldownsTold(Player const& player, ObjectGuid unit, uint8 flags, std::vector<SpellCooldownTime> const& cooldowns);
+        /// `passenger` is told its expected ride vehicle aura is cancelled.
+        virtual void ExpectedRideVehicleAuraCancelled(Player const& passenger);
 
         /// The installed notices, or the base when none are installed.
         static WorldObjectNotices& Installed();

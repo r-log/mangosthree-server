@@ -27,7 +27,7 @@
 #include "Player.h"
 #include "DBCStores.h"
 #include "ObjectGuid.h"
-#include "WorldPacket.h"
+#include "entities/WorldObjectNotices.h"
 #include "Database/DatabaseEnv.h"
 
 /**
@@ -127,14 +127,7 @@ void Item::ClearEnchantment(EnchantmentSlot slot)
 
 void Item::SendUpdateSockets()
 {
-    WorldPacket data(SMSG_SOCKET_GEMS, 8 + 4 + 4 + 4 + 4);
-    data << GetObjectGuid();
-    for (uint32 i = SOCK_ENCHANTMENT_SLOT; i <= BONUS_ENCHANTMENT_SLOT; ++i)
-    {
-        data << uint32(GetEnchantmentId(EnchantmentSlot(i)));
-    }
-
-    GetOwner()->SendDirectMessage(&data);
+    sWorldObjectNotices.ItemSocketsUpdated(*GetOwner(), *this);
 }
 
 bool Item::GemsFitSockets() const
