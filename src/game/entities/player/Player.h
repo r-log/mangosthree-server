@@ -123,7 +123,6 @@ struct LoginAuraRow;
 struct LoginInventoryRow;
 struct LoginMailedItemRow;
 struct LoginItemLootRow;
-struct CharacterEnumRow;
 struct DeletedCharacterRow;
 struct PetitionSignatureRow;
 class Channel;
@@ -912,7 +911,6 @@ class Player : public Unit
 
         void Update(uint32 update_diff, uint32 time) override; // Update the player
 
-        static bool BuildEnumData(CharacterEnumRow const& row, ByteBuffer* data, ByteBuffer* buffer);
 
         void SetInWater(bool apply); // Set the player in water
 

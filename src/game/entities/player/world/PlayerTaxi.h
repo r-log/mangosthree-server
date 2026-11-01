@@ -36,7 +36,6 @@
 #include "DBCStructure.h"
 #include "SharedDefines.h"
 
-class ByteBuffer;
 struct FactionTemplateEntry;
 
 class Player; // forward declaration
@@ -78,7 +77,8 @@ class PlayerTaxi
             }
         }
 
-        void AppendTaximaskTo(ByteBuffer& data, bool all);
+        /// The known nodes: `TaxiMaskSize` bytes, a bit per node.
+        uint8 const* GetTaximask() const { return m_taximask; }
 
         // Destinations
         bool LoadTaxiDestinationsFromString(const std::string& values, Team team);

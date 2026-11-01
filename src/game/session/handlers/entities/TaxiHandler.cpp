@@ -36,6 +36,7 @@
 #include "UpdateMask.h"
 #include "Path.h"
 #include "MotionMaster.h"
+#include "session/packets/entities/TaxiPackets.h"
 
 /**
  * @brief Sends whether the nearest taxi node for a flight master is known to the player.
@@ -91,7 +92,7 @@ void WorldSession::SendTaxiMenu(Creature* unit)
     data << uint32(1);
     data << unit->GetObjectGuid();
     data << uint32(curloc);
-    GetPlayer()->m_taxi.AppendTaximaskTo(data, GetPlayer()->IsTaxiCheater());
+    WriteTaximask(data, GetPlayer()->m_taxi, GetPlayer()->IsTaxiCheater());
     SendPacket(&data);
 
     DEBUG_LOG("WORLD: Sent SMSG_SHOWTAXINODES");

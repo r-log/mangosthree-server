@@ -511,41 +511,33 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
 }
 
 /**
- * @brief Sends a heartbeat movement packet for the unit.
+ * @brief The movement record this unit shows the clients at `time`.
+ *
+ * On a world map it carries the unit's position. A transport map's coordinates are a deck's,
+ * and no client knows that map, so aboard a vessel the record carries the vessel's guid and
+ * the same coordinates as the transport offset, and no world position.
+ *
+ * @param time The record's time.
+ * @return The record, with the position the unit's pose holds.
  */
-void Unit::WriteMovementInfo(ByteBuffer& out, uint16 opcode, uint32 time) const
+MovementInfo Unit::WireMovementInfo(uint32 time) const
 {
-    // THE ONE PLACE THIS IS DECIDED, and it is decided at the instant of writing, from the
-    // map. An ordinary map: send what we have. A transport map: our coordinates ARE that
-    // map's, and the client has never heard of it -- no WDT, no terrain, no id it would
-    // accept -- so it gets no world position at all. It gets the vessel's guid and those
-    // same coordinates as an offset, which is the only thing it can compose a position from.
     Map* on = FindMap();
     TransportMap* hull = on ? on->AsTransport() : NULL;
     Transport* vessel = hull ? hull->Vessel() : NULL;
 
+    MovementInfo info = WireStatus();
+    info.UpdateTime(time);
     if (!vessel)
     {
-        // BOTH BRANCHES READ Where(), and the asymmetry was the bug. A pose set by
-        // Place().MoveTo -- how anything is teleported, minions across a deck boundary
-        // above all -- never reaches m_movementInfo, so writing that struct as-is sent
-        // the position the unit held BEFORE the move. Coming off a ship that is a
-        // deck-local coordinate in a world position field, and the client walks the pet
-        // to (-3, -8, 6) on the continent. Boarding was never affected, because the deck
-        // branch below had always taken its numbers from Where().
-        MovementInfo ashore = WireStatus();
-        ashore.UpdateTime(time);
-        ashore.ChangePosition(Where().X(), Where().Y(), Where().Z(), Where().Facing());
-        ashore.Write(out, opcode);
-        return;
+        info.ChangePosition(Where().X(), Where().Y(), Where().Z(), Where().Facing());
+        return info;
     }
 
-    MovementInfo onDeck = WireStatus();
-    onDeck.UpdateTime(time);
-    onDeck.SetTransportData(vessel->GetObjectGuid(), Where().X(), Where().Y(), Where().Z(),
-                            Where().Facing(), 0, -1);
-    onDeck.ChangePosition(0.0f, 0.0f, 0.0f, Where().Facing());
-    onDeck.Write(out, opcode);
+    info.SetTransportData(vessel->GetObjectGuid(), Where().X(), Where().Y(), Where().Z(),
+                          Where().Facing(), 0, -1);
+    info.ChangePosition(0.0f, 0.0f, 0.0f, Where().Facing());
+    return info;
 }
 
 void Unit::SendHeartBeat()

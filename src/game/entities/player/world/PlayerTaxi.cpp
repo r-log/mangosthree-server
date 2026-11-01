@@ -168,25 +168,6 @@ void PlayerTaxi::LoadTaxiMask(const char* data)
     }
 }
 
-void PlayerTaxi::AppendTaximaskTo(ByteBuffer& data, bool all)
-{
-    data << uint32(TaxiMaskSize);
-    if (all)
-    {
-        for (uint8 i = 0; i < TaxiMaskSize; ++i)
-        {
-            data << uint8(sTaxiNodesMask[i]);               // all existing nodes
-        }
-    }
-    else
-    {
-        for (uint8 i = 0; i < TaxiMaskSize; ++i)
-        {
-            data << uint8(m_taximask[i]);                   // known nodes
-        }
-    }
-}
-
 bool PlayerTaxi::LoadTaxiDestinationsFromString(const std::string& values, Team team)
 {
     ClearTaxiDestinations();
