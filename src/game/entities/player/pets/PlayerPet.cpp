@@ -257,3 +257,15 @@ void Player::ResummonPetTemporaryUnSummonedIfAny()
 
     m_petMgr.ResummonTemporaryUnsummonedIfAny(inputs);
 }
+
+/**
+ * @brief Sends a pet taming failure reason to the client.
+ *
+ * @param reason The taming failure reason code.
+ */
+void Player::SendPetTameFailure(PetTameFailureReason reason)
+{
+    WorldPacket data(SMSG_PET_TAME_FAILURE, 1);
+    data << uint8(reason);
+    GetSession()->SendPacket(&data);
+}

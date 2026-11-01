@@ -40,6 +40,7 @@
 #include "session/packets/entities/WorldObjectPackets.h"
 #include "session/packets/maps/MapPackets.h"
 #include "session/packets/pvp/BattleGroundPackets.h"
+#include "session/packets/quests/QuestPackets.h"
 #include "session/packets/social/ArenaTeamPackets.h"
 #include "session/packets/social/ChannelPackets.h"
 #include "session/packets/social/GroupPackets.h"
@@ -107,6 +108,7 @@ void InstallClientNotices()
     static SessionMotionNotices motion;
     static SessionWorldObjectNotices worldObjects;
     static SessionPlayerCombatNotices playerCombat;
+    static SessionQuestNotices quests;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -126,5 +128,6 @@ void InstallClientNotices()
     MotionNotices::Install(&motion);
     WorldObjectNotices::Install(&worldObjects);
     PlayerCombatNotices::Install(&playerCombat);
+    QuestNotices::Install(&quests);
     InstallCalendarNotices();
 }

@@ -436,8 +436,6 @@ src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Mail.h
 src/game/entities/player/quests [entities] -> src/game/WorldHandlers/MapManager.h
 # moved from spells/data/SpellMgr.h in #651
 src/game/entities/player/quests [entities] -> src/game/spells/pipeline/SpellRules.h
-src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/Opcodes.h
-src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/social [entities] -> src/game/Object/Formulas.h
 src/game/entities/player/social [entities] -> src/game/Object/GMTicketMgr.h
 src/game/entities/player/social [entities] -> src/game/WorldHandlers/Channel.h
