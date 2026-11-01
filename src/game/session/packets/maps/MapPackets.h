@@ -48,6 +48,7 @@ class SessionMapNotices : public MapNotices
         void WeatherFor(Player& player, WeatherState state, float grade) override;
         bool WeatherInZone(Map const& map, uint32 zoneId, WeatherState state, float grade) override;
         void SoundToMap(Map const& map, uint32 soundId, uint32 zoneId) override;
+        void MonsterYell(Map const& map, CreatureInfo const& cinfo, int32 textId, Language language, Unit const* target, uint32 senderLowGuid) override;
 };
 
 #endif

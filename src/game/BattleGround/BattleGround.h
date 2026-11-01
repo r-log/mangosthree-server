@@ -855,13 +855,18 @@ class BattleGround
          */
         void SendPacketToAll(WorldPacket* packet);
 
+        /// Calls `_do` with each player of the battleground who is online.
         template<class Do>
-        /**
-         * @brief
-         *
-         * @param _do
-         */
-        void BroadcastWorker(Do& _do);
+        void BroadcastWorker(Do& _do)
+        {
+            for (BattleGroundPlayerMap::const_iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
+            {
+                if (Player* plr = FindPlayer(itr->first))
+                {
+                    _do(plr);
+                }
+            }
+        }
 
         /**
          * @brief
@@ -1403,6 +1408,9 @@ class BattleGround
         bool   m_BuffChange; /**< TODO */
 
     private:
+        /// The online player `guid`, or NULL.
+        Player* FindPlayer(ObjectGuid guid) const;
+
         /* Battleground */
         BattleGroundTypeId m_TypeID; /**< TODO */
         BattleGroundTypeId m_RandomTypeID;

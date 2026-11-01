@@ -21,7 +21,6 @@ src/game/BattleGround [pvp] -> src/game/WorldHandlers/Map.h
 src/game/BattleGround [pvp] -> src/game/WorldHandlers/MapManager.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/BattleGround/BattleGround.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundAA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundAB.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundAV.cpp -> src/game/entities/player/Player.h

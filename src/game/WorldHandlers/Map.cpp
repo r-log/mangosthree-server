@@ -79,7 +79,6 @@
 #include "Maps/MapNotices.h"
 #include "MoveMap.h"
 #include "Calendar.h"
-#include "data/ChatPacketBuilder.h"
 #include "Weather.h"
 #include "LivingWorldCellEnvelope.h"
 #include "MotionMaster.h"
@@ -3262,40 +3261,6 @@ uint32 Map::GenerateLocalLowGuid(HighGuid guidhigh)
 }
 
 /**
- * Helper structure for building static chat information
- *
- */
-class StaticMonsterChatBuilder
-{
-    public:
-        StaticMonsterChatBuilder(CreatureInfo const* cInfo, ChatMsg msgtype, int32 textId, Language language, Unit const* target, uint32 senderLowGuid = 0)
-            : i_cInfo(cInfo), i_msgtype(msgtype), i_textId(textId), i_language(language), i_target(target)
-        {
-            // 0 lowguid not used in core, but accepted fine in this case by client
-            i_senderGuid = i_cInfo->GetObjectGuid(senderLowGuid);
-        }
-        void operator()(WorldPacket& data, int32 loc_idx)
-        {
-            char const* text = sObjectMgr.GetMangosString(i_textId, loc_idx);
-
-            char const* nameForLocale = i_cInfo->Name;
-            sObjectMgr.GetCreatureLocaleStrings(i_cInfo->Entry, loc_idx, &nameForLocale);
-
-            BuildChatPacket(data, i_msgtype, text, i_language, CHAT_TAG_NONE, i_senderGuid, nameForLocale, i_target ? i_target->GetObjectGuid() : ObjectGuid(),
-                i_target ? i_target->GetNameForLocaleIdx(loc_idx) : "");
-        }
-
-    private:
-        ObjectGuid i_senderGuid;
-        CreatureInfo const* i_cInfo;
-        ChatMsg i_msgtype;
-        int32 i_textId;
-        Language i_language;
-        Unit const* i_target;
-};
-
-
-/**
  * Function simulates yell of creature
  *
  * @param guid must be creature guid of whom to Simulate the yell, non-creature guids not supported at this moment
@@ -3336,14 +3301,7 @@ void Map::MonsterYellToMap(ObjectGuid guid, int32 textId, Language language, Uni
  */
 void Map::MonsterYellToMap(CreatureInfo const* cinfo, int32 textId, Language language, Unit const* target, uint32 senderLowGuid /*= 0*/) const
 {
-    StaticMonsterChatBuilder say_build(cinfo, CHAT_MSG_MONSTER_YELL, textId, language, target, senderLowGuid);
-    MaNGOS::LocalizedPacketDo<StaticMonsterChatBuilder> say_do(say_build);
-
-    Map::PlayerList const& pList = GetPlayers();
-    for (PlayerList::const_iterator itr = pList.begin(); itr != pList.end(); ++itr)
-    {
-        say_do(itr->getSource());
-    }
+    sMapNotices.MonsterYell(*this, *cinfo, textId, language, target, senderLowGuid);
 }
 
 /**
