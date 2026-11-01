@@ -24,8 +24,8 @@
  */
 
 // add here most rarely modified headers to speed up debug build compilation
-#ifndef GAME_PCH_H
-#define GAME_PCH_H
+#ifndef WORLD_PCH_H
+#define WORLD_PCH_H
 
 #include <map>
 #include <vector>

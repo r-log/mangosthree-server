@@ -308,7 +308,7 @@ target_compile_definitions(mangos_tests
 
 target_link_libraries(mangos_tests
     PRIVATE
-        game
+        world
         scripts
         motion
         proto
@@ -319,18 +319,15 @@ target_link_libraries(mangos_tests
         Threads::Threads
 )
 
-# Decoupling D1 (server #80): the test binary links the game library. Every decoupling PR's
-# tests stand on this; a tidy-up that drops the link takes them all out with it. Read the real
-# link set, not the text of this file.
 get_target_property(MANGOS_TESTS_LINKS mangos_tests LINK_LIBRARIES)
-if(NOT "game" IN_LIST MANGOS_TESTS_LINKS)
-    message(FATAL_ERROR "mangos_tests no longer links the game library (decoupling D1, server #80)")
+if(NOT "world" IN_LIST MANGOS_TESTS_LINKS)
+    message(FATAL_ERROR "mangos_tests no longer links the world library")
 endif()
 
-get_target_property(GAME_LINKS game LINK_LIBRARIES)
-string(FIND "${GAME_LINKS}" "scripts_legacy" GAME_LINKS_SCRIPTS)
-if(NOT GAME_LINKS_SCRIPTS EQUAL -1)
-    message(FATAL_ERROR "the game library links scripts_legacy; mangosd links it and installs its ScriptHooks")
+get_target_property(WORLD_LINKS world LINK_LIBRARIES)
+string(FIND "${WORLD_LINKS}" "scripts_legacy" WORLD_LINKS_SCRIPTS)
+if(NOT WORLD_LINKS_SCRIPTS EQUAL -1)
+    message(FATAL_ERROR "the world library links scripts_legacy; mangosd links it and installs its ScriptHooks")
 endif()
 
 if(WITH_CRYPTO_TESTS)
@@ -524,7 +521,7 @@ add_test(NAME script_surface
         -DSCRIPT_SURFACE_PYTHON=${Python3_EXECUTABLE}
         -DSYMBOL_FORMAT=${SCRIPT_SURFACE_SYMBOL_FORMAT}
         -DSYMBOL_TOOL=${SCRIPT_SURFACE_SYMBOL_TOOL}
-        "-DCORE_LIBS=$<TARGET_FILE:game>|$<TARGET_FILE:session>|$<TARGET_FILE:domain>|$<TARGET_FILE:data>|$<TARGET_FILE:persistence>|$<TARGET_FILE:shared>|$<TARGET_FILE:shared_db>|$<TARGET_FILE:proto>|$<TARGET_FILE:motion>|$<TARGET_FILE:terrain>|$<TARGET_FILE:mangos_crypto>"
+        "-DCORE_LIBS=$<TARGET_FILE:world>|$<TARGET_FILE:session>|$<TARGET_FILE:domain>|$<TARGET_FILE:data>|$<TARGET_FILE:persistence>|$<TARGET_FILE:shared>|$<TARGET_FILE:shared_db>|$<TARGET_FILE:proto>|$<TARGET_FILE:motion>|$<TARGET_FILE:terrain>|$<TARGET_FILE:mangos_crypto>"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckScriptSurface.cmake)
 
 add_test(NAME raw_rand
