@@ -2396,8 +2396,6 @@ class Player : public Unit
         // SMSG_PETITION_SIGN_RESULTS. The GUID form is the one a continuation uses: it
         // needs no Player, so the charter owner still hears about a signature whose signer
         // logged out while the request was in flight (decoupling D7f).
-        static void BuildPetitionSignResult(WorldPacket& data, ObjectGuid petitionGuid,
-                                            ObjectGuid signerGuid, uint32 result);
         void SendPetitionSignResult(ObjectGuid petitionGuid, ObjectGuid signerGuid, uint32 result);
         void SendPetitionSignResult(ObjectGuid petitionGuid, Player* player, uint32 result);
         void SendPetitionTurnInResult(uint32 result);

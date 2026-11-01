@@ -35,12 +35,12 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "data/ResetSchedule.h"
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"
-#include "WorldPacket.h"
+#include "entities/player/PlayerNotices.h"
+#include <array>
 #include "UpdateMask.h"
 #include "CinematicFlyover.h"
 #include "QuestDef.h"
@@ -1925,23 +1925,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             if (!GetSession()->PlayerLogout())
             {
                 // send transfer packet to display load screen
-                WorldPacket data(SMSG_TRANSFER_PENDING, (4 + 4 + 4));
-                data.WriteBit(0);       // unknown
-                if (m_transport)
-                {
-                    data.WriteBit(1);   // has transport
-                    // The map he is LEAVING, and that is the one the ship sails. Never her
-                    // own: the client has no terrain for it and dies in CMap::LoadWdt().
-                    data << uint32(m_transport->GetMapId());
-                    data << uint32(m_transport->GetEntry());
-                }
-                else
-                {
-                    data.WriteBit(0);   // has transport
-                }
-
-                data << uint32(mapid);
-                GetSession()->SendPacket(&data);
+                sPlayerNotices.TransferPending(*this, mapid, m_transport);
             }
 
             // remove from old map now
@@ -1978,32 +1962,14 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             if (!GetSession()->PlayerLogout())
             {
                 // transfer finished, inform client to start load
-                WorldPacket data(SMSG_NEW_WORLD, 20);
                 if (m_transport)
                 {
-                    data << float(transportPosition->x);
-                    data << float(transportPosition->o);
-                    data << float(transportPosition->y);
+                    sPlayerNotices.NewWorld(*this, mapid, transportPosition->x, transportPosition->y, transportPosition->z, transportPosition->o);
                 }
                 else
                 {
-                    data << float(final_x);
-                    data << float(Geometry::Placement::NormalizeOrientation(final_o));
-                    data << float(final_y);
+                    sPlayerNotices.NewWorld(*this, mapid, final_x, final_y, final_z, Geometry::Placement::NormalizeOrientation(final_o));
                 }
-
-                data << uint32(mapid);
-
-                if (m_transport)
-                {
-                    data << float(transportPosition->z);
-                }
-                else
-                {
-                    data << float(final_z);
-                }
-
-                GetSession()->SendPacket(&data);
                 SendSavedInstances();
             }
         }
@@ -2454,17 +2420,7 @@ void Player::SetGMVisible(bool on)
  */
 void Player::SendLogXPGain(uint32 GivenXP, Unit* victim, uint32 RestXP)
 {
-    WorldPacket data(SMSG_LOG_XPGAIN, 21);
-    data << (victim ? victim->GetObjectGuid() : ObjectGuid());// guid
-    data << uint32(GivenXP + RestXP);                       // given experience
-    data << uint8(victim ? 0 : 1);                          // 00-kill_xp type, 01-non_kill_xp type
-    if (victim)
-    {
-        data << uint32(GivenXP);                            // experience without rested bonus
-        data << float(1);                                   // 1 - none 0 - 100% group bonus output
-    }
-    data << uint8(0);                                       // new 2.4.0
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.XpGainLogged(*this, GivenXP, RestXP, victim ? victim->GetObjectGuid() : ObjectGuid());
 }
 
 /**
@@ -2565,22 +2521,12 @@ void Player::GiveLevel(uint32 level)
     sObjectMgr.GetPlayerClassLevelInfo(getClass(), level, basehp, basemana);
 
     // send levelup info to client
-    WorldPacket data(SMSG_LEVELUP_INFO, (4 + 4 + MAX_STORED_POWERS * 4 + MAX_STATS * 4));
-    data << uint32(level);
-    data << uint32(int32(basehp) - int32(GetCreateHealth()));
-    // for(int i = 0; i < MAX_POWERS; ++i)                  // Powers loop (0-4)
-    data << uint32(int32(basemana)   - int32(GetCreateMana()));
-    data << uint32(0);
-    data << uint32(0);
-    data << uint32(0);
-    data << uint32(0);
-    // end for
+    std::array<uint32, MAX_STATS> statGains;
     for (int i = STAT_STRENGTH; i < MAX_STATS; ++i)         // Stats loop (0-4)
     {
-        data << uint32(int32(info.stats[i]) - GetCreateStat(Stats(i)));
+        statGains[i] = uint32(int32(info.stats[i]) - GetCreateStat(Stats(i)));
     }
-
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.LevelUpInfoShown(*this, level, uint32(int32(basehp) - int32(GetCreateHealth())), uint32(int32(basemana)   - int32(GetCreateMana())), statGains);
 
     SetUInt32Value(PLAYER_NEXT_LEVEL_XP, sObjectMgr.GetXPForLevel(level));
 
@@ -3770,9 +3716,7 @@ bool Player::IsLoggingOut() const
  */
 void Player::SendCinematicStart(uint32 CinematicSequenceId)
 {
-    WorldPacket data(SMSG_TRIGGER_CINEMATIC, 4);
-    data << uint32(CinematicSequenceId);
-    SendDirectMessage(&data);
+    sPlayerNotices.CinematicStarted(*this, CinematicSequenceId);
 }
 
 /**
@@ -3782,9 +3726,7 @@ void Player::SendCinematicStart(uint32 CinematicSequenceId)
  */
 void Player::SendMovieStart(uint32 MovieId)
 {
-    WorldPacket data(SMSG_TRIGGER_MOVIE, 4);
-    data << uint32(MovieId);
-    SendDirectMessage(&data);
+    sPlayerNotices.MovieStarted(*this, MovieId);
 }
 
 /**
@@ -3879,10 +3821,7 @@ std::string Player::GetGuildName() const
 
 void Player::SendGuildDeclined(std::string name, bool autodecline)
 {
-    WorldPacket data(SMSG_GUILD_DECLINE, 10);
-    data << name;
-    data << uint8(autodecline);
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.GuildInviteDeclined(*this, name, autodecline);
 }
 
 /**
@@ -4012,9 +3951,7 @@ void Player::SendInitWorldStates(uint32 zoneid, uint32 areaid)
  */
 void Player::SetBindPoint(ObjectGuid guid)
 {
-    WorldPacket data(SMSG_BINDER_CONFIRM, 8);
-    data << ObjectGuid(guid);
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.BinderConfirmAsked(*this, guid);
 }
 
 /**
@@ -4257,10 +4194,7 @@ void Player::Customize(ObjectGuid guid, uint8 gender, uint8 skin, uint8 face, ui
  */
 void Player::SendExplorationExperience(uint32 Area, uint32 Experience)
 {
-    WorldPacket data(SMSG_EXPLORATION_EXPERIENCE, 8);
-    data << uint32(Area);
-    data << uint32(Experience);
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.ExplorationExperienceShown(*this, Area, Experience);
 }
 
 // send Proficiency
@@ -4547,11 +4481,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
     GetSocial()->SendSocialList();
 
     // Homebind
-    WorldPacket data(SMSG_BINDPOINTUPDATE, 5 * 4);
-    data << m_homebindX << m_homebindY << m_homebindZ;
-    data << (uint32) m_homebindMapId;
-    data << (uint32) m_homebindAreaId;
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.BindPointShown(*this, m_homebindX, m_homebindY, m_homebindZ, m_homebindMapId, m_homebindAreaId);
 
     // SMSG_SET_PROFICIENCY
     // SMSG_SET_PCT_SPELL_MODIFIER
@@ -4559,30 +4489,11 @@ void Player::SendInitialPacketsBeforeAddToMap()
 
     SendTalentsInfoData(false);
 
-    data.Initialize(SMSG_WORLD_SERVER_INFO, 1 + 1 + 4 + 4);
-    data.WriteBit(0);                                               // HasRestrictedLevel
-    data.WriteBit(0);                                               // HasRestrictedMoney
-    data.WriteBit(0);                                               // IneligibleForLoot
-
-    //if (IneligibleForLoot)
-    //    data << uint32(0);                                        // EncounterMask
-
-    data << uint8(0);                                               // IsOnTournamentRealm
-
-    //if (HasRestrictedMoney)
-    //    data << uint32(100000);                                   // RestrictedMoney (starter accounts)
-    //if (HasRestrictedLevel)
-    //    data << uint32(20);                                       // RestrictedLevel (starter accounts)
-
-    data << uint32(sResetSchedule.nextWeeklyQuestReset - WEEK);   // LastWeeklyReset (not instance reset)
-    data << uint32(GetMap()->GetDifficulty());
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.WorldServerInfoShown(*this, uint32(sResetSchedule.nextWeeklyQuestReset - WEEK), uint32(GetMap()->GetDifficulty()));
 
     SendInitialSpells();
 
-    data.Initialize(SMSG_SEND_UNLEARN_SPELLS, 4);
-    data << uint32(0);                                      // count, for(count) uint32;
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.UnlearnSpellsShown(*this);
 
     SendInitialActionButtons();
     SendInitialReputations();
@@ -4598,11 +4509,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
 
     m_achievementMgr->SendAllAchievementData();
 
-    data.Initialize(SMSG_LOGIN_SETTIMESPEED, 4 + 4 + 4);
-    data << uint32(secsToTimeBitFields(WorldGameTime::Get()));
-    data << (float)0.01666667f;                             // game speed
-    data << uint32(0);                                      // added in 3.1.2
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.LoginTimeSpeedShown(*this, WorldGameTime::Get());
 
     // SMSG_TALENTS_INFO x 2 for pet (unspent points and talents in separate packets...)
     // SMSG_PET_GUIDS
@@ -5588,10 +5495,7 @@ void Player::SetTitle(CharTitlesEntry const* title, bool lost)
         SetFlag(PLAYER__FIELD_KNOWN_TITLES + fieldIndexOffset, flag);
     }
 
-    WorldPacket data(SMSG_TITLE_EARNED, 4 + 4);
-    data << uint32(title->Mask_ID);
-    data << uint32(lost ? 0 : 1);                           // 1 - earned, 0 - lost
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.TitleEarned(*this, title->Mask_ID, lost);
 }
 
 /**
@@ -6570,33 +6474,9 @@ void Player::DoInteraction(ObjectGuid const& interactObjGuid)
 }
 
 
-/**
- * @brief Builds SMSG_PETITION_SIGN_RESULTS.
- *
- * The packet names the signer by GUID and carries no name, so it can be built for a signer
- * who is no longer online -- which is what lets the charter OWNER be told about a signature
- * whose signer logged out while the request was in flight (decoupling D7f). Split out so
- * the layout can be asserted without a Player.
- *
- * @param data        The packet to fill.
- * @param petitionGuid The charter.
- * @param signerGuid  The character the result is about.
- * @param result      One of the PETITION_SIGN_* codes.
- */
-void Player::BuildPetitionSignResult(WorldPacket& data, ObjectGuid petitionGuid,
-                                     ObjectGuid signerGuid, uint32 result)
-{
-    data.Initialize(SMSG_PETITION_SIGN_RESULTS, 8 + 8 + 4);
-    data << petitionGuid;
-    data << signerGuid;
-    data << uint32(result);
-}
-
 void Player::SendPetitionSignResult(ObjectGuid petitionGuid, ObjectGuid signerGuid, uint32 result)
 {
-    WorldPacket data;
-    BuildPetitionSignResult(data, petitionGuid, signerGuid, result);
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.PetitionSignResultShown(*this, petitionGuid, signerGuid, result);
 }
 
 void Player::SendPetitionSignResult(ObjectGuid petitionGuid, Player* player, uint32 result)
@@ -6606,7 +6486,5 @@ void Player::SendPetitionSignResult(ObjectGuid petitionGuid, Player* player, uin
 
 void Player::SendPetitionTurnInResult(uint32 result)
 {
-    WorldPacket data(SMSG_TURN_IN_PETITION_RESULTS, 4);
-    data << uint32(result);
-    GetSession()->SendPacket(&data);
+    sPlayerNotices.PetitionTurnInResultShown(*this, result);
 }
