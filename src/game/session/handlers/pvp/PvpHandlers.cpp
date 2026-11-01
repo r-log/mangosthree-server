@@ -42,6 +42,7 @@
 #include "BattleGround/BattleGroundEY.h"
 #include "BattleGround/BattleGroundWS.h"
 #include "session/packets/pvp/BattleGroundPackets.h"
+#include "session/packets/social/ArenaTeamPackets.h"
 #include "data/Language.h"
 #include "data/ScriptHooks.h"
 #include "data/GameConfig.h"
@@ -84,7 +85,12 @@ void PvpHandlers::HandleInspectArenaTeams(WorldSession& session, WorldPacket& re
         {
             if (ArenaTeam* arenaTeam = sArenaTeamRegistry.Find(a_id))
             {
-                arenaTeam->InspectStats(&session, player->GetObjectGuid());
+                if (ArenaTeamMember* member = arenaTeam->GetMember(player->GetObjectGuid()))
+                {
+                    WorldPacket data;
+                    BuildArenaTeamInspectPacket(data, *arenaTeam, *member);
+                    session.SendPacket(&data);
+                }
             }
         }
     }
@@ -99,8 +105,12 @@ void PvpHandlers::HandleArenaTeamQuery(WorldSession& session, WorldPacket& recv_
 
     if (ArenaTeam* arenateam = sArenaTeamRegistry.Find(ArenaTeamId))
     {
-        arenateam->Query(&session);
-        arenateam->Stats(&session);
+        WorldPacket data;
+        BuildArenaTeamQueryPacket(data, *arenateam);
+        session.SendPacket(&data);
+        DEBUG_LOG("WORLD: Sent SMSG_ARENA_TEAM_QUERY_RESPONSE");
+        BuildArenaTeamStatsPacket(data, *arenateam);
+        session.SendPacket(&data);
     }
 }
 
@@ -113,7 +123,10 @@ void PvpHandlers::HandleArenaTeamRoster(WorldSession& session, WorldPacket& recv
 
     if (ArenaTeam* arenateam = sArenaTeamRegistry.Find(ArenaTeamId))
     {
-        arenateam->Roster(&session);
+        WorldPacket data;
+        BuildArenaTeamRosterPacket(data, *arenateam);
+        session.SendPacket(&data);
+        DEBUG_LOG("WORLD: Sent SMSG_ARENA_TEAM_ROSTER");
     }
 }
 

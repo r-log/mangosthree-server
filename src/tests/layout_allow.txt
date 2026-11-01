@@ -122,7 +122,6 @@ src/game/Object [social] -> src/game/WorldHandlers/Map.h
 src/game/Object/ArenaTeam.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/Object/ArenaTeam.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/ArenaTeam.cpp -> src/proto/WorldPacket.h
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/PlayerRegistry.h

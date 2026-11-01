@@ -50,6 +50,7 @@
 #include "PlayerRegistry.h"
 #include "persistence/characters/social/CalendarRepository.h"
 #include "persistence/characters/social/SocialRepository.h"
+#include "session/packets/social/ArenaTeamPackets.h"
 
 void CalendarHandlers::HandleCalendarGetCalendar(WorldSession& session, WorldPacket& /*recv_data*/)
 {
@@ -315,7 +316,9 @@ void CalendarHandlers::HandleCalendarArenaTeam(WorldSession& session, WorldPacke
             return;
         }
 
-        team->MassInviteToEvent(&session);
+        WorldPacket data;
+        BuildArenaTeamCalendarInvitePacket(data, *team, session.GetPlayer()->GetObjectGuid());
+        session.SendPacket(&data);
     }
 }
 
