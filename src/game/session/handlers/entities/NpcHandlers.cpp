@@ -50,6 +50,7 @@
 #include "data/CommandHooks.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
+#include "session/packets/social/GuildBankPackets.h"
 
 /**
  * @brief Opens the tabard vendor interface for the selected NPC.
@@ -785,6 +786,6 @@ void NpcHandlers::HandleRepairItem(WorldSession& session, WorldPacket& recv_data
             return;
         }
         pGuild->LogBankEvent(GUILD_BANK_LOG_REPAIR_MONEY, 0, session.GetPlayer()->GetGUIDLow(), TotalCost);
-        pGuild->SendMoneyInfo(&session, session.GetPlayer()->GetGUIDLow());
+        SendGuildBankMoneyInfo(session, *pGuild, session.GetPlayer()->GetGUIDLow());
     }
 }
