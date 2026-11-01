@@ -99,6 +99,7 @@ One stateless class per origin file, in its domain's directory or, for the reque
 | `handlers/social/` | `TicketHandlers` | the client's GM ticket status request, a ticket's text updated, the ticket deleted, a ticket created, the ticket system status request, the survey after a closed ticket, the answer to a resolved ticket, a bug report or suggestion and a spam complaint |
 | `handlers/social/` | `VoiceChatHandlers` | the client's voice and microphone switches, active voice channel and a chat channel's voice button, each read and ignored |
 | `handlers/social/` | `WhoHandlers` | the client's who list and an administrator's whois, answered a tick later from the account's row |
+| `handlers/spells/` | `CastTargetsReader` | what an item use, a cast and a pet's cast carry after their targets: the trajectory and the caster's movement, whose position becomes the source, or the archaeology fragments and keystones, skipped |
 
 ## The layer and the threads
 

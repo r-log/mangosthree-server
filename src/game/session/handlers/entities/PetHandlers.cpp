@@ -41,6 +41,7 @@
 #include "Object/TemporarySummon.h"
 #include "MotionGenerators/MotionMaster.h"
 #include "persistence/characters/pets/PetRepository.h"
+#include "session/handlers/spells/CastTargetsReader.h"
 
 static_assert(int(PET_DECLINED_NAME_ROW_CASES) == int(MAX_DECLINED_NAME_CASES), "the saved row's declined forms");
 
@@ -660,7 +661,7 @@ void PetHandlers::HandlePetCastSpell(WorldSession& session, WorldPacket& recvPac
 
     recvPacket >> targets.ReadForCaster(pet);
 
-    targets.ReadAdditionalData(recvPacket, cast_flags);
+    ReadAdditionalCastData(recvPacket, cast_flags, targets);
 
     pet->GetMotionMaster()->ClearMovingLatches();
 
