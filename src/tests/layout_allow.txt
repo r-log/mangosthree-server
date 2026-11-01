@@ -307,7 +307,6 @@ src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/social/SocialList
 src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/GridNotifiers.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/GridNotifiers.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/proto/WorldPacket.h
@@ -321,9 +320,6 @@ src/game/WorldHandlers/GroupInstance.cpp -> src/game/entities/player/PlayerRegis
 src/game/WorldHandlers/GroupMemberState.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/WorldHandlers/GroupMemberState.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/InstanceData.cpp -> src/proto/Opcodes.h
-src/game/WorldHandlers/InstanceData.cpp -> src/proto/WorldPacket.h
-src/game/WorldHandlers/InstanceData.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/LFGMgrProposal.cpp -> src/game/entities/player/Player.h
@@ -344,9 +340,7 @@ src/game/WorldHandlers/MassMailMgr.cpp -> src/game/entities/player/PlayerRegistr
 src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillExtraItems.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/TransportMap.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Weather.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/Weather.cpp -> src/proto/WorldPacket.h
 src/game/combat [combat] -> src/game/MotionGenerators/MotionMaster.h
 src/game/combat [combat] -> src/game/Object/Creature.h
 src/game/combat [combat] -> src/game/Object/CreatureAI.h

@@ -41,7 +41,6 @@
 #include "MapPhase.h"
 #include "DBCStores.h"
 #include "MotionGenerators/MotionMaster.h"
-#include "WorldPacket.h"
 #include "Log.h"
 #include "terrain/GoModelStore.hpp"
 #include "CellImpl.h"

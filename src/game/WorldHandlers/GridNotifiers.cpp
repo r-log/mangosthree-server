@@ -45,7 +45,6 @@
 
 #include <set>
 #include "GridNotifiers.h"
-#include "WorldPacket.h"
 #include "UpdateData.h"
 #include "Map.h"
 #include "Transports.h"
