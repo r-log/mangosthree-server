@@ -49,7 +49,8 @@ enum ShutdownExitCode
 /**
  * The operator's handle on the server: the timed shutdown, the message of the day, whether objects
  * may move, the bans, the configuration and broadcast reloads, the uptime and the world database's
- * version; and the process's stop request, which any thread may raise. The world installs itself at
+ * version, a game event's start and stop, and the GM harness's runs; and the process's stop request,
+ * which any thread may raise. The world installs itself at
  * construction; the code below it calls the installed one through sServerControl. This base, installed
  * when nothing else is, runs no shutdown, bans nobody and reloads nothing.
  */
@@ -99,6 +100,18 @@ class ServerControl
         virtual uint32 Uptime() const;
         /// The world database's version.
         virtual char const* DbVersion() const;
+
+        /// Starts game event `eventId` now.
+        virtual void StartEvent(uint16 eventId);
+        /// Stops game event `eventId` now.
+        virtual void StopEvent(uint16 eventId);
+
+        /// Starts the harness scenarios `what` names with `seedBase`; false when they cannot start.
+        virtual bool StartHarness(std::string const& what, uint32 seedBase);
+        /// The harness's status line.
+        virtual std::string HarnessStatus() const;
+        /// The seed base the harness uses when the operator gives none.
+        virtual uint32 HarnessSeedBase() const;
 
         /// The installed control, or the base when none is installed.
         static ServerControl& Installed();
