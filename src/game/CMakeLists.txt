@@ -40,6 +40,9 @@ source_group("Entities\\Motion" FILES ${SRC_GRP_ENTITIES_MOTION})
 file(GLOB SRC_GRP_ENTITIES_PLAYER entities/player/*.cpp entities/player/*.h)
 source_group("Entities\\Player" FILES ${SRC_GRP_ENTITIES_PLAYER})
 
+file(GLOB SRC_GRP_ENTITIES_PLAYER_ACHIEVEMENTS entities/player/achievements/*.cpp entities/player/achievements/*.h)
+source_group("Entities\\Player\\Achievements" FILES ${SRC_GRP_ENTITIES_PLAYER_ACHIEVEMENTS})
+
 file(GLOB SRC_GRP_ENTITIES_PLAYER_COMBAT entities/player/combat/*.cpp entities/player/combat/*.h)
 source_group("Entities\\Player\\Combat" FILES ${SRC_GRP_ENTITIES_PLAYER_COMBAT})
 
@@ -337,14 +340,6 @@ target_link_libraries(data
         persistence
 )
 
-set(DOMAIN_SOURCES
-    WorldHandlers/AchievementCriteriaRequirement.cpp
-    WorldHandlers/AchievementGlobalMgr.cpp
-    WorldHandlers/AchievementMgr.cpp
-    WorldHandlers/AchievementMgr.h
-)
-list(TRANSFORM DOMAIN_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-
 add_library(domain STATIC
     ${SRC_GRP_AI}
     ${SRC_GRP_BATTLEGROUND}
@@ -353,6 +348,7 @@ add_library(domain STATIC
     ${SRC_GRP_ENTITIES}
     ${SRC_GRP_ENTITIES_MOTION}
     ${SRC_GRP_ENTITIES_PLAYER}
+    ${SRC_GRP_ENTITIES_PLAYER_ACHIEVEMENTS}
     ${SRC_GRP_ENTITIES_PLAYER_COMBAT}
     ${SRC_GRP_ENTITIES_PLAYER_INTERACTION}
     ${SRC_GRP_ENTITIES_PLAYER_INVENTORY}
@@ -371,7 +367,6 @@ add_library(domain STATIC
     ${SRC_GRP_SPELLS_AURAS}
     ${SRC_GRP_SPELLS_HANDLERS}
     ${SRC_GRP_SPELLS_PIPELINE}
-    ${DOMAIN_SOURCES}
 )
 
 target_include_directories(domain
@@ -384,6 +379,7 @@ target_include_directories(domain
         entities
         entities/motion
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/achievements
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/combat
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/interaction
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/inventory
@@ -397,7 +393,6 @@ target_include_directories(domain
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
         Maps
         OutdoorPvP
-        WorldHandlers
         social
 )
 

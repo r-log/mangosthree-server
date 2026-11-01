@@ -34,7 +34,7 @@
 #include "entities/Corpse.h"
 #include "entities/Creature.h"
 #include "entities/GameObject.h"
-#include "WorldHandlers/AchievementMgr.h"
+#include "entities/player/achievements/AchievementMgr.h"
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
 #include "ObjectGuid.h"

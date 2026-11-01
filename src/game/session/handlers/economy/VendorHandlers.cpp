@@ -29,7 +29,7 @@
 #include "WorldPacket.h"
 #include "session/WorldSession.h"
 #include "Log/Log.h"
-#include "WorldHandlers/AchievementMgr.h"
+#include "entities/player/achievements/AchievementMgr.h"
 #include "entities/player/Player.h"
 #include "entities/Item.h"
 #include "entities/Bag.h"
