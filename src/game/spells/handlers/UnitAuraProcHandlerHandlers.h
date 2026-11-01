@@ -189,14 +189,23 @@ struct HasteAuraProcRogueSite
     typedef HasteAuraProcContext Context;
 };
 
-/// What the body of `Unit::HandleSpellCritChanceAuraProc`'s per-spell switch reads and sets: the function's parameter
-/// `triggeredByAura` and two locals. The body sets the triggered spell and its target, and reads nothing of the unit.
+/// What the body of `Unit::HandleSpellCritChanceAuraProc`'s per-spell switch reads and sets: the unit, the function's
+/// parameter `triggeredByAura` and two locals. The body sets the triggered spell and its target. Built, it checks
+/// that this thread owns the unit (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct SpellCritChanceAuraProcContext
 {
-    SpellCritChanceAuraProcContext(Aura* const& triggeredByAuraParameter, uint32& triggeredSpellIdLocal,
+    SpellCritChanceAuraProcContext(Unit* thisUnit, Aura* const& triggeredByAuraParameter, uint32& triggeredSpellIdLocal,
                                    Unit*& targetLocal)
-        : triggeredByAura(triggeredByAuraParameter), triggered_spell_id(triggeredSpellIdLocal), target(targetLocal) {}
+        : unit(thisUnit), triggeredByAura(triggeredByAuraParameter), triggered_spell_id(triggeredSpellIdLocal),
+          target(targetLocal)
+    {
+        if (unit)
+        {
+            unit->AssertSpellSeamOwner();
+        }
+    }
 
+    Unit* const unit;                               ///< `this` in the case bodies
     Aura* const& triggeredByAura;                   ///< the function's parameter `Aura* triggeredByAura`
     uint32& triggered_spell_id;                     ///< the function's local `triggered_spell_id`, which the body sets
     Unit*& target;                                  ///< the function's local `target`, which the body sets

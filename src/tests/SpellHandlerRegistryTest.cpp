@@ -6753,7 +6753,7 @@ TEST(UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault)
     float mod = 1.0f;
     int32 total = 5;
     SpellDamageTakenContext spellCtx(NULL, BonusSpell(1), mod, aura.i);
-    SpellHealingDoneContext healCtx(total, aura.i);
+    SpellHealingDoneContext healCtx(NULL, total, aura.i);
     MeleeDamageTakenContext meleeCtx(NULL, mod, aura.i);
     for (uint32 spellId : { 12345u, 66063u, 34246u })
     {
@@ -6791,9 +6791,10 @@ TEST(UnitSpellBonusHandlers_TheContextsAliasTheirLocals)
     spellProto = BonusSpell(1);                                 // the parameter is read where it stands
     CHECK(spellCtx.spellProto == BonusSpell(1));
 
-    // The healing site: the flat bonus and the iterator.
+    // The healing site: `this`, the flat bonus and the iterator.
     int32 DoneTotal = 3;
-    SpellHealingDoneContext healCtx(DoneTotal, i);
+    SpellHealingDoneContext healCtx(self, DoneTotal, i);
+    CHECK(healCtx.unit == self);
     CHECK(&healCtx.DoneTotal == &DoneTotal);
     CHECK(&healCtx.i == &i);
     healCtx.DoneTotal += 4;
@@ -6885,7 +6886,7 @@ TEST(UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount)
         BonusAura aura(0, one.amount);
         AuraStorage const before = aura.storage;
         int32 DoneTotal = 10;
-        SpellHealingDoneContext ctx(DoneTotal, aura.i);
+        SpellHealingDoneContext ctx(NULL, DoneTotal, aura.i);
         CHECK(SpellHandlerRegistry::Game().Dispatch<SpellHealingDoneSite>(one.spellId, ctx).IsContinue());
         CHECK_EQ(DoneTotal, one.result);
         CHECK_EQ(BitsThatDiffer(aura.storage, before), 0);
@@ -7608,8 +7609,8 @@ namespace
         HasteProcLocals& operator=(HasteProcLocals const&) = delete;
     };
 
-    // `Unit::HandleSpellCritChanceAuraProc`'s parameter and locals as its dispatch binds them: no aura, the target the
-    // victim and nothing triggered yet.
+    // `Unit::HandleSpellCritChanceAuraProc`'s parameter and locals as its dispatch binds them, with the context over
+    // them for `unit`: no aura, the target the victim and nothing triggered yet.
     struct CritProcLocals
     {
         Aura* triggeredByAura;
@@ -7617,9 +7618,9 @@ namespace
         Unit* target;
         SpellCritChanceAuraProcContext ctx;
 
-        CritProcLocals()
+        explicit CritProcLocals(Unit* unit)
             : triggeredByAura(NULL), triggered_spell_id(0), target(ProcVictim()),
-              ctx(triggeredByAura, triggered_spell_id, target)
+              ctx(unit, triggeredByAura, triggered_spell_id, target)
         {
         }
 
@@ -7736,7 +7737,7 @@ TEST(UnitAuraProcHandlerHandlers_TheHasteCritAndTriggerSitesHoldTheirLabelsAndNo
     CHECK(haste.target == ProcVictim());
     CHECK_EQ(haste.basepoints0, int32(0));
 
-    CritProcLocals crit;
+    CritProcLocals crit(NULL);
     for (uint32 spellId : { 12345u, 13877u, 23780u, 7099u, 66063u })
     {
         CHECK(game.Dispatch<SpellCritChanceAuraProcMageSite>(spellId, crit.ctx).IsMiss());
@@ -7780,8 +7781,8 @@ TEST(UnitAuraProcHandlerHandlers_TheHasteCritAndTriggerContextsAliasTheFunctions
     haste.damage = 250;
     CHECK_EQ(haste.ctx.damage, uint32(250));
 
-    // The crit-chance context holds no unit: its one body reads only the aura.
-    CritProcLocals crit;
+    CritProcLocals crit(&creature);
+    CHECK(crit.ctx.unit == &creature);
     CHECK(&crit.ctx.triggeredByAura == &crit.triggeredByAura);
     CHECK(&crit.ctx.triggered_spell_id == &crit.triggered_spell_id);
     CHECK(&crit.ctx.target == &crit.target);
@@ -8033,8 +8034,9 @@ namespace
         return at == std::string::npos ? text : text.substr(at);
     }
 
-    /// Builds one of the five contexts that hold a unit over `unit`: 0 the dummy proc's, 1 the haste proc's, 2 the
-    /// proc trigger's, 3 the spell damage taken's, 4 the melee damage taken's.
+    /// Builds one of the seven contexts that hold a unit over `unit`: 0 the dummy proc's, 1 the haste proc's, 2 the
+    /// proc trigger's, 3 the spell damage taken's, 4 the melee damage taken's, 5 the spell crit chance proc's, 6 the
+    /// healing done's.
     void BuildContext(int which, Unit* unit)
     {
         SpellCooldownMgr cooldowns;
@@ -8084,22 +8086,20 @@ namespace
                 MeleeDamageTakenContext ctx(unit, mod, i);
                 break;
             }
+            case 5:
+            {
+                SpellCritChanceAuraProcContext ctx(unit, aura, triggered, target);
+                break;
+            }
+            case 6:
+            {
+                int32 total = 0;
+                SpellHealingDoneContext ctx(unit, total, i);
+                break;
+            }
             default:
                 break;
         }
-    }
-
-    /// Builds the two Unit-site contexts that hold no unit.
-    void BuildTheContextsWithNoUnit()
-    {
-        Aura* aura = NULL;
-        uint32 triggered = 0;
-        Unit* target = NULL;
-        int32 total = 0;
-        std::list<Aura*> auras;
-        std::list<Aura*>::const_iterator i = auras.begin();
-        SpellCritChanceAuraProcContext crit(aura, triggered, target);
-        SpellHealingDoneContext healing(total, i);
     }
 }
 
@@ -8185,16 +8185,13 @@ TEST(UnitSiteContexts_EachContextThatHoldsTheUnitChecksItWhenBuilt)
     // No scope is open on this thread, so the check counts without looking up the unit's vessel.
     REQUIRE(!MapPhase::UpdatesAMap());
 
-    // Built on a thread that updates no map, this one or another, each of the five counts one violation; with no
+    // Built on a thread that updates no map, this one or another, each of the seven counts one violation; with no
     // unit, none.
-    for (int which = 0; which < 5; ++which)
+    for (int which = 0; which < 7; ++which)
     {
         CHECK_EQ(ViolationsOnAnotherThread([&]() { BuildContext(which, &unit); }), 1u);
         CHECK_EQ(ViolationsOf([&]() { BuildContext(which, &unit); }), 1u);
         CHECK_EQ(ViolationsOnAnotherThread([&]() { BuildContext(which, NULL); }), 0u);
     }
-
-    // The two Unit-site contexts that hold no unit check nothing.
-    CHECK_EQ(ViolationsOnAnotherThread([&]() { BuildTheContextsWithNoUnit(); }), 0u);
 }
 #endif
