@@ -627,7 +627,7 @@ SpellAuraProcResult Unit::HandleSpellCritChanceAuraProc(Unit* pVictim, uint32 /*
     {
         case SPELLFAMILY_MAGE:
         {
-            SpellCritChanceAuraProcContext ctx(triggeredByAura, triggered_spell_id, target);
+            SpellCritChanceAuraProcContext ctx(this, triggeredByAura, triggered_spell_id, target);
             SpellHandlerOutcome<SpellAuraProcResult> outcome = SpellHandlerRegistry::Game().Dispatch<SpellCritChanceAuraProcMageSite>(triggeredByAuraSpell->ID, ctx);
             if (outcome.IsReturn())
             {

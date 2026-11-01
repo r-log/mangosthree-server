@@ -1162,7 +1162,7 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
             AuraList const& dummyList = owner->GetAurasByType(SPELL_AURA_DUMMY);
             for (AuraList::const_iterator i = dummyList.begin(); i != dummyList.end(); ++i)
             {
-                SpellHealingDoneContext ctx(DoneTotal, i);
+                SpellHealingDoneContext ctx(this, DoneTotal, i);
                 if (SpellHandlerRegistry::Game().Dispatch<SpellHealingDoneSite>((*i)->GetId(), ctx).IsLoopContinue())
                 {
                     continue;

@@ -71,13 +71,21 @@ struct SpellDamageTakenSite
     typedef SpellDamageTakenContext Context;
 };
 
-/// What the bodies of `Unit::SpellHealingBonusDone`'s Lifebloom dummy-aura switch read: the flat bonus they add
-/// to and the aura the loop stands at.
+/// What the bodies of `Unit::SpellHealingBonusDone`'s Lifebloom dummy-aura switch read: the unit, the flat bonus
+/// they add to and the aura the loop stands at. Built, it checks that this thread owns the unit
+/// (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct SpellHealingDoneContext
 {
-    SpellHealingDoneContext(int32& doneTotalLocal, std::list<Aura*>::const_iterator const& auraIterator)
-        : DoneTotal(doneTotalLocal), i(auraIterator) {}
+    SpellHealingDoneContext(Unit* thisUnit, int32& doneTotalLocal, std::list<Aura*>::const_iterator const& auraIterator)
+        : unit(thisUnit), DoneTotal(doneTotalLocal), i(auraIterator)
+    {
+        if (unit)
+        {
+            unit->AssertSpellSeamOwner();
+        }
+    }
 
+    Unit* const unit;                               ///< `this` in the case bodies
     int32& DoneTotal;                               ///< the function's local `int32 DoneTotal`, which bodies set
     std::list<Aura*>::const_iterator const& i;      ///< the loop's iterator over the owner's dummy auras
 };
