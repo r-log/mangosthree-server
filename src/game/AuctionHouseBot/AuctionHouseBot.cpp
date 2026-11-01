@@ -2569,3 +2569,28 @@ void AuctionHouseBot::Update()
         }
     }
 }
+
+namespace
+{
+    /// The bot's answers to its commands, read from and written to the bot and its configuration.
+    class BotControl : public AuctionBotControl
+    {
+        public:
+            void Rebuild(bool all) override { sAuctionBot.Rebuild(all); }
+            bool ReloadAllConfig() override { return sAuctionBot.ReloadAllConfig(); }
+            void PrepareStatusInfos(AuctionHouseBotStatusInfo& statusInfo) override { sAuctionBot.PrepareStatusInfos(statusInfo); }
+            void SetItemsAmount(uint32(&vals)[MAX_AUCTION_QUALITY]) override { sAuctionBot.SetItemsAmount(vals); }
+            void SetItemsAmountForQuality(AuctionQuality quality, uint32 val) override { sAuctionBot.SetItemsAmountForQuality(quality, val); }
+            void SetItemsRatio(uint32 al, uint32 ho, uint32 ne) override { sAuctionBot.SetItemsRatio(al, ho, ne); }
+            void SetItemsRatioForHouse(AuctionHouseType house, uint32 val) override { sAuctionBot.SetItemsRatioForHouse(house, val); }
+            uint32 ItemQualityAmount(AuctionQuality quality) const override { return sAuctionBotConfig.getConfigItemQualityAmount(quality); }
+            uint32 ItemAmountRatio(AuctionHouseType house) const override { return sAuctionBotConfig.getConfigItemAmountRatio(house); }
+            char const* HouseTypeName(AuctionHouseType house) const override { return AuctionBotConfig::GetHouseTypeName(house); }
+    };
+}
+
+AuctionBotControl& AuctionHouseBot::GetControl()
+{
+    static BotControl control;
+    return control;
+}

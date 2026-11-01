@@ -68,7 +68,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "PoolManager.h"
 #include "GameEventMgr.h"
-#include "AuctionHouseBot/AuctionHouseBot.h"
+#include "AuctionBotControl.h"
 #include "CommandMgr.h"
 #include "ObjectLookup.h"
 #include "persistence/world/CommandDataRepository.h"
