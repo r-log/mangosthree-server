@@ -33,7 +33,7 @@
 #include "PlayerRegistry.h"
 #include "Util.h"
 #include "WorldPacket.h"
-#include "data/ChatPacketBuilder.h"
+#include "session/packets/chat/MessageChatPacket.h"
 
 #include <ctime>
 
@@ -377,14 +377,14 @@ void SessionGuildNotices::Event(Guild& guild, GuildEvents event, ObjectGuid guid
 void SessionGuildNotices::Chat(Guild& guild, Player& speaker, std::string const& msg, uint32 language, bool officers)
 {
     WorldPacket data;
-    BuildChatPacket(data, officers ? CHAT_MSG_OFFICER : CHAT_MSG_GUILD, msg.c_str(), Language(language), speaker.GetChatTag(), speaker.GetObjectGuid(), speaker.GetName());
+    BuildMessageChatPacket(data, officers ? CHAT_MSG_OFFICER : CHAT_MSG_GUILD, msg.c_str(), Language(language), speaker.GetChatTag(), speaker.GetObjectGuid(), speaker.GetName());
     guild.SendToChatListeners(&data, speaker, officers);
 }
 
 void SessionGuildNotices::AddonChat(Guild& guild, Player& speaker, std::string const& msg, std::string const& prefix, bool officers)
 {
     WorldPacket data;
-    BuildChatPacket(data, officers ? CHAT_MSG_OFFICER : CHAT_MSG_GUILD, msg.c_str(), LANG_ADDON, CHAT_TAG_NONE, ObjectGuid(), NULL, ObjectGuid(), NULL, NULL, 0, prefix.c_str());
+    BuildMessageChatPacket(data, officers ? CHAT_MSG_OFFICER : CHAT_MSG_GUILD, msg.c_str(), LANG_ADDON, CHAT_TAG_NONE, ObjectGuid(), NULL, ObjectGuid(), NULL, NULL, 0, prefix.c_str());
     guild.SendToChatListeners(&data, speaker, officers);
 }
 

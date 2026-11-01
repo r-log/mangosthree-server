@@ -27,7 +27,7 @@
 #include "Opcodes.h"
 #include "Player.h"
 #include "WorldPacket.h"
-#include "data/ChatPacketBuilder.h"
+#include "session/packets/chat/MessageChatPacket.h"
 
 void BuildChannelNotifyPacket(WorldPacket& packet, std::string const& channelName, ChannelNotice const& notice)
 {
@@ -171,6 +171,6 @@ void SessionChannelNotices::UserListRemoved(Channel& channel, ObjectGuid who)
 void SessionChannelNotices::Said(Channel& channel, Player& speaker, char const* text, uint32 language, ObjectGuid ignoring)
 {
     WorldPacket data;
-    BuildChatPacket(data, CHAT_MSG_CHANNEL, text, Language(language), speaker.GetChatTag(), speaker.GetObjectGuid(), speaker.GetName(), ObjectGuid(), "", channel.GetName().c_str());
+    BuildMessageChatPacket(data, CHAT_MSG_CHANNEL, text, Language(language), speaker.GetChatTag(), speaker.GetObjectGuid(), speaker.GetName(), ObjectGuid(), "", channel.GetName().c_str());
     channel.SendToAll(&data, ignoring);
 }

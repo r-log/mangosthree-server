@@ -76,10 +76,10 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Chat.h"
+#include "session/packets/chat/LocalizedPackets.h"
 #include "session/packets/chat/MessageChatPacket.h"
 #include "session/packets/entities/AchievementPackets.h"
 #include "session/packets/maps/WorldStatePackets.h"
-#include "data/ChatPacketBuilder.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
 #include "Mail.h"
@@ -272,9 +272,6 @@ void World::CleanupsBeforeStop()
 /// Initialize the World
 void World::SetInitialWorldSettings()
 {
-    ///- The chat message builder of the code below the session
-    InstallChatPacketBuilder(&BuildMessageChatPacket);
-
     ///- Initialize the random number generator
     srand((unsigned int)time(NULL));
 

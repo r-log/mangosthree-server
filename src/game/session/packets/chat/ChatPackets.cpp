@@ -31,6 +31,7 @@
 #include "Player.h"
 #include "Unit.h"
 #include "WorldPacket.h"
+#include "session/packets/chat/LocalizedPackets.h"
 #include "session/packets/chat/MessageChatPacket.h"
 
 namespace MaNGOS

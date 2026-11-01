@@ -27,7 +27,6 @@
 #define MANGOS_GRIDNOTIFIERSIMPL_H
 
 #include "GridNotifiers.h"
-#include "WorldPacket.h"
 #include "Corpse.h"
 #include "Player.h"
 #include "UpdateData.h"
@@ -684,65 +683,6 @@ void MaNGOS::PlayerListSearcher<Check>::Visit(PlayerMapType& m)
             {
                 i_objects.push_back(itr->getSource());
             }
-}
-
-template<class Builder>
-void MaNGOS::LocalizedPacketDo<Builder>::operator()(Player const* p)
-{
-    int32 loc_idx = p->GetSession()->GetSessionDbLocaleIndex();
-    uint32 cache_idx = loc_idx + 1;
-    WorldPacket* data;
-
-    // create if not cached yet
-    if (i_data_cache.size() < cache_idx + 1 || !i_data_cache[cache_idx])
-    {
-        if (i_data_cache.size() < cache_idx + 1)
-        {
-            i_data_cache.resize(cache_idx + 1);
-        }
-
-        data = new WorldPacket();
-
-        i_builder(*data, loc_idx);
-
-        i_data_cache[cache_idx] = data;
-    }
-    else
-    {
-        data = i_data_cache[cache_idx];
-    }
-
-    p->SendDirectMessage(data);
-}
-
-template<class Builder>
-void MaNGOS::LocalizedPacketListDo<Builder>::operator()(Player* p)
-{
-    int32 loc_idx = p->GetSession()->GetSessionDbLocaleIndex();
-    uint32 cache_idx = loc_idx + 1;
-    WorldPacketList* data_list;
-
-    // create if not cached yet
-    if (i_data_cache.size() < cache_idx + 1 || i_data_cache[cache_idx].empty())
-    {
-        if (i_data_cache.size() < cache_idx + 1)
-        {
-            i_data_cache.resize(cache_idx + 1);
-        }
-
-        data_list = &i_data_cache[cache_idx];
-
-        i_builder(*data_list, loc_idx);
-    }
-    else
-    {
-        data_list = &i_data_cache[cache_idx];
-    }
-
-    for (size_t i = 0; i < data_list->size(); ++i)
-    {
-        p->SendDirectMessage((*data_list)[i]);
-    }
 }
 
 #endif                                                      // MANGOS_GRIDNOTIFIERSIMPL_H
