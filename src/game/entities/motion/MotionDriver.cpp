@@ -28,7 +28,7 @@
 #include "Unit.h"
 #include "data/GameConfig.h"
 #include "movement/MoveSpline.h"
-#include "MotionGenerators/MoveSplineInit.h"
+#include "entities/motion/MoveSplineInit.h"
 
 #include <cmath>
 

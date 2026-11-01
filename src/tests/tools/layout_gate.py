@@ -115,13 +115,13 @@ RULES = [
     (r'^game/session/', 'session'),
     (r'^game/data/|^game/spells/data/', 'data'),
     (r'^game/spells/', 'spells'),
-    (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
+    (r'^game/combat/', 'combat'),
     (r'^game/Maps/', 'maps'),
-    (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
+    (r'^game/ai/', 'ai'),
     (r'^game/social/', 'social'),
     (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
-    (r'^game/Object/(AuctionHouseMgr|LootMgr)|^game/WorldHandlers/Skill(Discovery|ExtraItems)', 'economy'),
-    (r'^game/(entities|Object|MotionGenerators)/|^game/WorldHandlers/(Achievement|GossipDef|UpdateData)', 'entities')]
+    (r'^game/economy/', 'economy'),
+    (r'^game/(entities|Object)/|^game/WorldHandlers/Achievement', 'entities')]
 DOMAIN = {'entities', 'spells', 'combat', 'maps', 'ai', 'social', 'pvp', 'economy'}
 ORDER = ['app', 'scripts', 'session', 'domain', 'data', 'motion', 'proto', 'persistence', 'foundation']
 MAY = {l: set(ORDER[i + 1:]) for i, l in enumerate(ORDER)}
@@ -843,10 +843,6 @@ def self_test():
         ['1 new sideways include key(s)', '  src/game/spells/handlers [spells] -> src/game/Object/Unit.h   '
          '[sideways: spells '
          '-> entities] included by src/game/spells/handlers/AuraDummyWarrior.cpp'])
-    run('rule 1: another peer in a listed directory, listed header, fails',
-        with_file('src/game/Object/GroupAI.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
-        '  src/game/Object [ai] -> src/game/Object/Unit.h   [sideways: ai -> entities] included by '
-        'src/game/Object/GroupAI.cpp')
     run('rule 1: a listed pair with no includer left is stale and fails',
         with_file('src/game/Maps/Map.cpp', '#include "Map.h"\n#include "Player.h"\n'), SELF_ALLOW, 1,
         ['1 allow-list line(s) name an edge that is gone', '  src/game/Maps [maps] -> src/game/Object/Unit.h'])

@@ -40,7 +40,7 @@
 #include "WorldHandlers/AchievementMgr.h"
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
-#include "Object/AuctionHouseMgr.h"
+#include "economy/AuctionHouseMgr.h"
 #include "session/packets/economy/AuctionPackets.h"
 #include "social/Mail.h"
 #include "Utilities/Util.h"

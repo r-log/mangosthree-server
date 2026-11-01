@@ -37,7 +37,7 @@
 #include "data/dbc/DBCStores.h"
 #include "entities/player/Player.h"
 #include "Object/Item.h"
-#include "WorldHandlers/UpdateData.h"
+#include "entities/UpdateData.h"
 
 /**
  * @brief Splits part of an item stack into another destination slot.

@@ -41,8 +41,8 @@
 #include "Utilities/Errors.h"
 #include "Utilities/Util.h"
 #include "movement/MoveSpline.h"
-#include "MotionGenerators/MoveSplineInit.h"
-#include "MotionGenerators/MoveSplineSpeed.h" // the one speed-mode selector, shared with the spline launch
+#include "entities/motion/MoveSplineInit.h"
+#include "entities/motion/MoveSplineSpeed.h" // the one speed-mode selector, shared with the spline launch
 #include "PatrolWelding.h"    // the kernel's weld bound (src/motion is on the include path, as BehaviourModel.h is)
 #include "TargetKinematics.h" // the kernel's pure velocity classifier
 

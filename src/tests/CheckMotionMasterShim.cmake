@@ -38,7 +38,7 @@ if(STRAYS)
         "src/scripts/legacy may call only the facade entry points listed in\n"
         "src/tests/CheckMotionMasterShim.cmake (design v2 section 9). Either route the\n"
         "script through one of them or widen the list in the same commit, with the\n"
-        "README in src/game/MotionGenerators updated.")
+        "README in src/game/entities/motion updated.")
 endif()
 list(REMOVE_DUPLICATES SEEN)
 list(LENGTH SEEN SEEN_COUNT)

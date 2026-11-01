@@ -48,7 +48,7 @@
 #include "data/GameConfig.h"
 #include "data/world/DisableMgr.h"
 #include "Time/GameTime.h"
-#include "MotionGenerators/MotionMaster.h"
+#include "entities/motion/MotionMaster.h"
 #include "entities/player/social/SocialMgr.h"
 #include "entities/player/PlayerRegistry.h"
 #include "DBCStores.h"

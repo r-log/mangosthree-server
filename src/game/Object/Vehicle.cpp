@@ -46,7 +46,7 @@
 #include "Player.h"
 #include "DBCStores.h"
 #include "Util.h"
-#include "MotionGenerators/MoveSplineInit.h"
+#include "entities/motion/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
 #include "TemporarySummon.h"
 #include "MotionMaster.h"
