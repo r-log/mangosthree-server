@@ -28,11 +28,10 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
+#include "entities/player/spells/PlayerSpellNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -170,16 +169,11 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
                 if (next_active_spell_id)
                 {
                     // update spell ranks in spellbook and action bar
-                    WorldPacket data(SMSG_SUPERCEDED_SPELL, 4 + 4);
-                    data << uint32(spell_id);
-                    data << uint32(next_active_spell_id);
-                    GetSession()->SendPacket(&data);
+                    sPlayerSpellNotices.SpellSuperseded(*this, spell_id, next_active_spell_id);
                 }
                 else
                 {
-                    WorldPacket data(SMSG_REMOVED_SPELL, 4);
-                    data << uint32(spell_id);
-                    GetSession()->SendPacket(&data);
+                    sPlayerSpellNotices.SpellRemoved(*this, spell_id);
                 }
             }
 
@@ -287,10 +281,7 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
                         {
                             if (IsInWorld())                // not send spell (re-/over-)learn packets at loading
                             {
-                                WorldPacket data(SMSG_SUPERCEDED_SPELL, 4 + 4);
-                                data << uint32(itr2->first);
-                                data << uint32(spell_id);
-                                GetSession()->SendPacket(&data);
+                                sPlayerSpellNotices.SpellSuperseded(*this, itr2->first, spell_id);
                             }
 
                             // mark old spell as disable (SMSG_SUPERCEDED_SPELL replace it in client by new)
@@ -305,10 +296,7 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
                         {
                             if (IsInWorld())                // not send spell (re-/over-)learn packets at loading
                             {
-                                WorldPacket data(SMSG_SUPERCEDED_SPELL, 4 + 4);
-                                data << uint32(spell_id);
-                                data << uint32(itr2->first);
-                                GetSession()->SendPacket(&data);
+                                sPlayerSpellNotices.SpellSuperseded(*this, spell_id, itr2->first);
                             }
 
                             // mark new spell as disable (not learned yet for client and will not learned)
@@ -542,10 +530,7 @@ void Player::learnSpell(uint32 spell_id, bool dependent)
     // prevent duplicated entires in spell book, also not send if not in world (loading)
     if (learning && IsInWorld())
     {
-        WorldPacket data(SMSG_LEARNED_SPELL, 6);
-        data << uint32(spell_id);
-        data << uint32(0);                                  // 3.3.3 unk
-        GetSession()->SendPacket(&data);
+        sPlayerSpellNotices.SpellLearned(*this, spell_id);
     }
 
     // learn all disabled higher ranks (recursive)
@@ -782,10 +767,7 @@ void Player::removeSpell(uint32 spell_id, bool disabled, bool learn_low_rank, bo
                     if (addSpell(prev_id, true, false, spell.dependent, spell.disabled))
                     {
                         // downgrade spell ranks in spellbook and action bar
-                        WorldPacket data(SMSG_SUPERCEDED_SPELL, 4 + 4);
-                        data << uint32(spell_id);
-                        data << uint32(prev_id);
-                        GetSession()->SendPacket(&data);
+                        sPlayerSpellNotices.SpellSuperseded(*this, spell_id, prev_id);
                         prev_activate = true;
                     }
                 }
@@ -820,9 +802,7 @@ void Player::removeSpell(uint32 spell_id, bool disabled, bool learn_low_rank, bo
     // remove from spell book if not replaced by lesser rank
     if (!prev_activate && sendUpdate)
     {
-        WorldPacket data(SMSG_REMOVED_SPELL, 4);
-        data << uint32(spell_id);
-        GetSession()->SendPacket(&data);
+        sPlayerSpellNotices.SpellRemoved(*this, spell_id);
     }
 
     if (IsInWorld())

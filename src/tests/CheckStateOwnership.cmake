@@ -276,9 +276,6 @@ state_allow(cooldown src/game/persistence/characters/spells/SpellCooldownReposit
 state_allow(cooldown src/game/session/packets/spells/CooldownPackets.cpp
     WHY "the session's builders of the owner's two facts: the cooldown event and the clear of every cooldown"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
-state_allow(cooldown src/game/entities/player/Player.cpp
-    WHY "the one-spell clear for the character or its pet (Player::SendClearCooldown)"
-    NAMES SMSG_CLEAR_COOLDOWNS)
 state_allow(cooldown src/game/persistence/characters/CharacterDeleteRepository.cpp
     WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
     NAMES character_spell_cooldown)

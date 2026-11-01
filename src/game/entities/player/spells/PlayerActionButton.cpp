@@ -27,9 +27,8 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "WorldPacket.h"
+#include "entities/player/spells/PlayerSpellNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -53,7 +52,8 @@ void Player::SendInitialActionButtons() const
 {
     DETAIL_LOG("Initializing Action Buttons for '%u' spec '%u'", GetGUIDLow(), m_talentMgr.ActiveSpec());
 
-    WorldPacket data(SMSG_ACTION_BUTTONS, 1 + (MAX_ACTION_BUTTONS * 4));
+    std::vector<uint32> packed;
+    packed.reserve(MAX_ACTION_BUTTONS);
     ActionButtonList const& currentActionButtonList = m_actionButtons[m_talentMgr.ActiveSpec()];
     for (uint8 button = 0; button < MAX_ACTION_BUTTONS; ++button)
     {
@@ -64,27 +64,22 @@ void Player::SendInitialActionButtons() const
         if (itr != currentActionButtonList.end() && itr->second.uState != ACTIONBUTTON_DELETED)
         {
             /* Send the data */
-            data << uint32(itr->second.packedData);
+            packed.push_back(itr->second.packedData);
         }
         else
         {
             /* Nothing to send, so just send 0 */
-            data << uint32(0);
+            packed.push_back(0);
         }
     }
-    data << uint8(1);                                       // talent spec amount (in packet)
-    GetSession()->SendPacket(&data);
+    sPlayerSpellNotices.ActionButtonsShown(*this, packed);
     DETAIL_LOG("Action Buttons for '%u' spec '%u' Initialized", GetGUIDLow(), m_talentMgr.ActiveSpec());
 }
 
 void Player::SendLockActionButtons() const
 {
     DETAIL_LOG("Locking Action Buttons for '%u' spec '%u'", GetGUIDLow(), m_talentMgr.ActiveSpec());
-    WorldPacket data(SMSG_ACTION_BUTTONS, 1);
-    // sending 2 locks actions bars, neither user can remove buttons, nor client removes buttons at spell unlearn
-    // they remain locked until server sends new action buttons
-    data << uint8(2);
-    GetSession()->SendPacket(&data);
+    sPlayerSpellNotices.ActionButtonsLocked(*this);
 }
 
 /**

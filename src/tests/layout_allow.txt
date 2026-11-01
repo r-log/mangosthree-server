@@ -451,11 +451,7 @@ src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGMgr.h
 src/game/entities/player/social [entities] -> src/game/WorldHandlers/Map.h
 src/game/entities/player/spells [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/spells [entities] -> src/game/spells/pipeline/Spell.h
-src/game/entities/player/spells/PlayerActionButton.cpp -> src/proto/Opcodes.h
-src/game/entities/player/spells/PlayerActionButton.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/spells/PlayerRune.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/spells/PlayerSpell.cpp -> src/proto/Opcodes.h
-src/game/entities/player/spells/PlayerSpell.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/talents [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/proto/Opcodes.h
