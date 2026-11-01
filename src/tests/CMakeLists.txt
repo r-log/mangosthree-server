@@ -179,6 +179,7 @@ set(SRC_GRP_TESTS
     PlayerClientPacketsTest.cpp
     BattleGroundPacketsTest.cpp
     MapPacketsTest.cpp
+    SocialPacketsTest.cpp
     GroupUpdateFactsTest.cpp
     SpellModMgrTest.cpp
     SpellModPacketsTest.cpp

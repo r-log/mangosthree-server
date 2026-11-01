@@ -163,6 +163,7 @@ class ArenaTeam
         size_t GetMaxMembersSize() const      { return size_t(GetType() * 2); }
         bool   Empty() const                  { return m_members.empty(); }
         MemberList::iterator m_membersBegin() { return m_members.begin(); }
+        MemberList const& GetMembers() const  { return m_members; }
         MemberList::iterator m_membersEnd()   { return m_members.end(); }
         bool HaveMember(ObjectGuid guid) const;
 
@@ -204,11 +205,6 @@ class ArenaTeam
             BroadcastEvent(event, ObjectGuid(), str1, str2, str3);
         }
 
-        void Roster(PlayerSession* session);
-        void Query(PlayerSession* session);
-        void Stats(PlayerSession* session);
-        void InspectStats(PlayerSession* session, ObjectGuid guid);
-
         uint32 GetPoints(uint32 MemberRating);
         float GetChanceAgainst(uint32 own_rating, uint32 enemy_rating);
         int32 WonAgainst(uint32 againstRating);
@@ -223,9 +219,6 @@ class ArenaTeam
 
         void FinishWeek();
         void FinishGame(int32 mod);
-
-        // Calendar
-        void MassInviteToEvent(PlayerSession* session);
 
     protected:
 
