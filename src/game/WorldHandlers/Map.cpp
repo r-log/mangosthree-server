@@ -76,6 +76,7 @@
 #include "DBCEnums.h"
 #include "MapPersistentStateMgr.h"
 #include "MapPhase.h"
+#include "Maps/MapNotices.h"
 #include "MoveMap.h"
 #include "Calendar.h"
 #include "data/ChatPacketBuilder.h"
@@ -2489,9 +2490,7 @@ bool DungeonMap::Add(Player* player)
                 // players also become permanently bound when they enter
                 if (groupBind->perm)
                 {
-                    WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 4);
-                    data << uint32(0);
-                    player->GetSession()->SendPacket(&data);
+                    sMapNotices.InstanceSaveCreated(*player);
                     player->BindToInstance(GetPersistanceState(), true);
                     sCalendarMgr.SendCalendarRaidLockoutAdd(player, GetPersistanceState());
                 }
@@ -2629,9 +2628,7 @@ void DungeonMap::PermBindAllPlayers(Player* player)
         if (!bind || !bind->perm)
         {
             plr->BindToInstance(GetPersistanceState(), true);
-            WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 4);
-            data << uint32(0);
-            plr->GetSession()->SendPacket(&data);
+            sMapNotices.InstanceSaveCreated(*plr);
             sCalendarMgr.SendCalendarRaidLockoutAdd(plr, GetPersistanceState());
         }
 
@@ -3357,16 +3354,7 @@ void Map::MonsterYellToMap(CreatureInfo const* cinfo, int32 textId, Language lan
  */
 void Map::PlayDirectSoundToMap(uint32 soundId, uint32 zoneId /*=0*/) const
 {
-    WorldPacket data(SMSG_PLAY_SOUND, 4);
-    data << uint32(soundId);
-    data << ObjectGuid();
-
-    Map::PlayerList const& pList = GetPlayers();
-    for (PlayerList::const_iterator itr = pList.begin(); itr != pList.end(); ++itr)
-        if (!zoneId || itr->getSource()->GetTerrain()->GetZoneId(itr->getSource()->Where().X(), itr->getSource()->Where().Y(), itr->getSource()->Where().Z()) == zoneId)
-        {
-            itr->getSource()->SendDirectMessage(&data);
-        }
+    sMapNotices.SoundToMap(*this, soundId, zoneId);
 }
 
 /**

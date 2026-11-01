@@ -28,7 +28,6 @@
 
 #include "Platform/Define.h"
 #include "ObjectGuid.h"
-#include "WorldPacket.h"
 #include "LootMgr.h"                                        ///< LootType
 
 class Map;

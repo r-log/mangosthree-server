@@ -33,7 +33,7 @@
 #include "Map.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
+#include "Maps/MapNotices.h"
 #include "Log.h"
 #include "Util.h"
 #include "Database/DatabaseEnv.h"
@@ -233,10 +233,7 @@ void Weather::SendWeatherUpdateToPlayer(Player* player)
 {
     NormalizeGrade();
 
-    WorldPacket data(SMSG_WEATHER, (4 + 4 + 1));
-
-    data << uint32(GetWeatherState()) << (float)m_grade << uint8(0);
-    player->GetSession()->SendPacket(&data);
+    sMapNotices.WeatherFor(*player, GetWeatherState(), m_grade);
 }
 
 // Send the new weather to all players in the zone
@@ -246,12 +243,8 @@ bool Weather::SendWeatherForPlayersInZone(Map const* _map)
 
     WeatherState state = GetWeatherState();
 
-    // To be sent packet
-    WorldPacket data(SMSG_WEATHER, (4 + 4 + 1));
-    data << uint32(state) << (float)m_grade << uint8(0);
-
-    ///- Send the weather packet to all players in this zone
-    if (!_map->SendToPlayersInZone(&data, m_zone))
+    ///- Tell the weather to all players in this zone
+    if (!sMapNotices.WeatherInZone(*_map, m_zone, state, m_grade))
     {
         return false;
     }

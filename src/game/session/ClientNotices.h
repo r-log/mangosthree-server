@@ -27,8 +27,8 @@
 #define MANGOS_H_CLIENTNOTICES
 
 /// Installs the notices through which the dungeon finder, the ticket manager, the auction house, the
-/// calendar, the battlegrounds, the fights and a player's menus report what a client is told; each
-/// sends the session's packet.
+/// calendar, the battlegrounds, the fights, the maps and a player's menus report what a client is told;
+/// each sends the session's packet.
 void InstallClientNotices();
 
 #endif
