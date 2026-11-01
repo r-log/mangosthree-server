@@ -54,6 +54,9 @@ void BuildChannelStartPacket(WorldPacket& packet, Spell const& spell, uint32 dur
 /// Initializes `packet` as the offer of `spell`'s caster, named `sentName` to the target, to
 /// resurrect it.
 void BuildResurrectRequestPacket(WorldPacket& packet, Spell const& spell, char const* sentName);
+/// Initializes `packet` as the pushback of `caster`'s cast by `delay` milliseconds: the caster's
+/// packed guid, then the delay.
+void BuildSpellDelayedPacket(WorldPacket& packet, ObjectGuid caster, int32 delay);
 
 /// The cast's notices, each built here: a player's own goes to its client, the others to the units
 /// around the caster.
@@ -68,6 +71,7 @@ class SessionSpellNotices : public SpellNotices
         void ChannelUpdate(Spell const& spell, uint32 time) override;
         void ChannelStart(Spell const& spell, uint32 duration) override;
         void ResurrectRequest(Spell const& spell, Player& target) override;
+        void CastDelayed(Spell const& spell, int32 delay) override;
 };
 
 #endif

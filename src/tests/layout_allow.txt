@@ -604,10 +604,6 @@ src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/spell
 src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/game/entities/player/Player.h
 # The Pygmy Oil body reads the shrink aura holder's stack amount, the origin's own edge; retires when the stack count becomes a query on the unit that answers a number without the aura header.
 src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/game/spells/auras/SpellAuras.h
-# The Spirit Healer Res body builds SMSG_SPIRIT_HEALER_CONFIRM for the caster's client; the origin's own edge; dies with the packets-out fix for spells (page row 9), whose builder in session/packets/spells/ takes the statement.
-src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/Opcodes.h
-# The Spirit Healer Res body builds SMSG_SPIRIT_HEALER_CONFIRM for the caster's client; the origin's own edge; dies with the packets-out fix for spells (page row 9), whose builder in session/packets/spells/ takes the statement.
-src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/WorldPacket.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
 # The bodies cast a unit to a player for player-only methods; it goes with the Unit page's row 13 casts.
@@ -663,7 +659,6 @@ src/game/spells/pipeline [spells] -> src/game/WorldHandlers/Transports.h
 src/game/spells/pipeline [spells] -> src/game/combat/SpellBonus.h
 src/game/spells/pipeline [spells] -> src/game/combat/WeaponDamage.h
 src/game/spells/pipeline/Spell.cpp -> src/game/entities/player/Player.h
-src/game/spells/pipeline/Spell.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/Spell.h -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/entities/player/Player.h
@@ -678,28 +673,18 @@ src/game/spells/pipeline/SpellChecks.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/proto/Opcodes.h
-src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellEffectDummy.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectDummy.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectHealPower.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectHealPower.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectObjectCombat.cpp -> src/game/entities/player/Player.h
-src/game/spells/pipeline/SpellEffectObjectCombat.cpp -> src/proto/Opcodes.h
-src/game/spells/pipeline/SpellEffectObjectCombat.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellEffectScript.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellEffectSkillEnchantPet.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectSkillEnchantPet.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/spells/pipeline/SpellEffectSkillEnchantPet.cpp -> src/proto/Opcodes.h
-src/game/spells/pipeline/SpellEffectSkillEnchantPet.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/proto/Opcodes.h
-src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/spells/pipeline/SpellEffectTail.cpp -> src/proto/Opcodes.h
-src/game/spells/pipeline/SpellEffectTail.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellHit.cpp -> src/game/entities/player/Player.h
 # reached through GridNotifiersImpl.h before #572
 src/game/spells/pipeline/SpellHit.cpp -> src/game/spells/auras/SpellAuras.h

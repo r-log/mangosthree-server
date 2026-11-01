@@ -200,7 +200,7 @@ namespace Harness
         /// is written only when its mask bit is set, XORed with 1 -- read back into the guid, as a
         /// role, then the count and the spell ids in the packet's order.
         bool DecodeClearCooldowns(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_SPELL_DELAYED (Spell::Delayed, Spell.cpp:674-676): the caster's packed guid as a
+        /// SMSG_SPELL_DELAYED (BuildSpellDelayedPacket, SpellCastPackets.cpp): the caster's packed guid as a
         /// role and the pushback in milliseconds.
         bool DecodeSpellDelayed(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_AURA_UPDATE_ALL (Player::SendAurasForTarget, Player.cpp:5018-5025, one record per
@@ -210,7 +210,7 @@ namespace Harness
         /// remaining duration when AFLAG_DURATION is set (the stepped world's milliseconds); and an
         /// amount for each effect bit when AFLAG_EFFECT_AMOUNT_SEND is set.
         bool DecodeAuraUpdateAll(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_SPELLDISPELLOG (Spell::EffectDispel, SpellEffectSkillEnchantPet.cpp:233-245): the
+        /// SMSG_SPELLDISPELLOG (BuildDispelLogPacket, SpellEffectPackets.cpp): the
         /// victim's and the caster's packed guids as roles, the dispel spell, the unused byte, the
         /// count, then each dispelled spell with its dispelled-or-cleansed byte.
         bool DecodeSpellDispelLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);

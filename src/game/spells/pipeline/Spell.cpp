@@ -46,10 +46,10 @@
 
 #include "Utilities/Errors.h"
 #include "spells/pipeline/Spell.h"
+#include "spells/pipeline/SpellNotices.h"
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
 #include "GridNotifiersImpl.h"
-#include "Opcodes.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
@@ -658,11 +658,7 @@ void Spell::Delayed()
 
     DETAIL_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Spell %u partially interrupted for (%d) ms at damage", m_spellInfo->ID, delaytime);
 
-    WorldPacket data(SMSG_SPELL_DELAYED, 8 + 4);
-    data << m_caster->GetPackGUID();
-    data << uint32(delaytime);
-
-    m_caster->SendMessageToSet(&data, true);
+    sSpellNotices.CastDelayed(*this, delaytime);
 }
 
 /**

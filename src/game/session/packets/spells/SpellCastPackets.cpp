@@ -584,6 +584,13 @@ void BuildResurrectRequestPacket(WorldPacket& packet, Spell const& spell, char c
     packet << uint32(spell.m_spellInfo->ID);
 }
 
+void BuildSpellDelayedPacket(WorldPacket& packet, ObjectGuid caster, int32 delay)
+{
+    packet.Initialize(SMSG_SPELL_DELAYED, 8 + 4);
+    packet << caster.WriteAsPacked();
+    packet << uint32(delay);
+}
+
 void SessionSpellNotices::CastResult(Player& caster, SpellEntry const* spellInfo, uint8 castCount, SpellCastResult result, bool isPetCastResult)
 {
     WorldPacket data;
@@ -646,4 +653,11 @@ void SessionSpellNotices::ResurrectRequest(Spell const& spell, Player& target)
     WorldPacket data;
     BuildResurrectRequestPacket(data, spell, sentName);
     target.SendDirectMessage(&data);
+}
+
+void SessionSpellNotices::CastDelayed(Spell const& spell, int32 delay)
+{
+    WorldPacket data;
+    BuildSpellDelayedPacket(data, spell.GetCaster()->GetObjectGuid(), delay);
+    spell.GetCaster()->SendMessageToSet(&data, true);
 }

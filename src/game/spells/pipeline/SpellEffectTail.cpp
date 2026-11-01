@@ -31,8 +31,7 @@
 #include <list>
 #include <ctime>
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
+#include "spells/pipeline/SpellEffectNotices.h"
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
@@ -194,9 +193,7 @@ void Spell::EffectBreakPlayerTargeting (SpellEffectEntry const* /*effect*/)
         return;
     }
 
-    WorldPacket data(SMSG_CLEAR_TARGET, 8);
-    data << unitTarget->GetObjectGuid();
-    unitTarget->SendMessageToSet(&data, false);
+    sSpellEffectNotices.ClearTarget(*unitTarget);
 }
 
 /**
@@ -599,21 +596,15 @@ void Spell::EffectStealBeneficialBuff(SpellEffectEntry const* effect)
         // Really try steal and send log
         if (!success_list.empty())
         {
-            int32 count = success_list.size();
-            WorldPacket data(SMSG_SPELLSTEALLOG, 8 + 8 + 4 + 1 + 4 + count * 5);
-            data << unitTarget->GetPackGUID();       // Victim GUID
-            data << m_caster->GetPackGUID();         // Caster GUID
-            data << uint32(m_spellInfo->ID);         // Dispell spell id
-            data << uint8(0);                        // not used
-            data << uint32(count);                   // count
+            std::vector<uint32> stolen;
+            stolen.reserve(success_list.size());
             for (SuccessList::iterator j = success_list.begin(); j != success_list.end(); ++j)
             {
                 SpellEntry const* spellInfo = sSpellStore.LookupEntry(j->first);
-                data << uint32(spellInfo->ID);       // Spell Id
-                data << uint8(0);                    // 0 - steals !=0 transfers
+                stolen.push_back(spellInfo->ID);
                 unitTarget->RemoveAurasDueToSpellBySteal(spellInfo->ID, j->second, m_caster);
             }
-            m_caster->SendMessageToSet(&data, true);
+            sSpellEffectNotices.StealLog(*this, *unitTarget, stolen);
         }
     }
 }
@@ -900,22 +891,9 @@ void Spell::EffectBind(SpellEffectEntry const* effect)
 
     player->SetHomebindToLocation(loc, area_id);
 
-    // binding
-    WorldPacket data(SMSG_BINDPOINTUPDATE, (4 + 4 + 4 + 4 + 4));
-    data << float(loc.coord_x);
-    data << float(loc.coord_y);
-    data << float(loc.coord_z);
-    data << uint32(loc.mapid);
-    data << uint32(area_id);
-    player->SendDirectMessage(&data);
+    sSpellEffectNotices.HomeBound(*player, m_caster->GetObjectGuid(), loc, area_id);
 
     DEBUG_LOG("New Home Position for %s: XYZ: %f %f %f on Map %u", player->GetGuidStr().c_str(), loc.coord_x, loc.coord_y, loc.coord_z, loc.mapid);
-
-    // zone update
-    data.Initialize(SMSG_PLAYERBOUND, 8 + 4);
-    data << m_caster->GetObjectGuid();
-    data << uint32(area_id);
-    player->SendDirectMessage(&data);
 }
 
 void Spell::EffectRestoreItemCharges(SpellEffectEntry const* effect)
@@ -990,13 +968,7 @@ void Spell::EffectTeachTaxiNode(SpellEffectEntry const* effect)
 
     if (player->m_taxi.SetTaximaskNode(taxiNodeId))
     {
-        WorldPacket data(SMSG_NEW_TAXI_PATH, 0);
-        player->SendDirectMessage(&data);
-
-        data.Initialize(SMSG_TAXINODE_STATUS, 9);
-        data << m_caster->GetObjectGuid();
-        data << uint8(1);
-        player->SendDirectMessage(&data);
+        sSpellEffectNotices.TaxiNodeLearned(*player, m_caster->GetObjectGuid());
     }
 }
 

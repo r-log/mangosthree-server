@@ -28,8 +28,7 @@
 #include "Utilities/MathDefines.h"
 #include <algorithm>
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
+#include "spells/pipeline/SpellEffectNotices.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
@@ -860,12 +859,7 @@ bool Spell::DoSummonTotem(SpellEffectEntry const* effect, uint8 slot_dbc)
     // sending SMSG_TOTEM_CREATED before add to map (done in Summon)
     if (slot < MAX_TOTEM_SLOT && casterPlayer)
     {
-        WorldPacket data(SMSG_TOTEM_CREATED, 1 + 8 + 4 + 4);
-        data << uint8(slot);
-        data << pTotem->GetObjectGuid();
-        data << uint32(m_duration);
-        data << uint32(m_spellInfo->ID);
-        casterPlayer->SendDirectMessage(&data);
+        sSpellEffectNotices.TotemCreated(*casterPlayer, uint8(slot), pTotem->GetObjectGuid(), uint32(m_duration), m_spellInfo->ID);
     }
 
     pTotem->Summon(m_caster);

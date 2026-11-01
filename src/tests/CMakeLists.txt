@@ -183,6 +183,7 @@ set(SRC_GRP_TESTS
     GroupUpdateFactsTest.cpp
     SpellModMgrTest.cpp
     SpellModPacketsTest.cpp
+    SpellEffectPacketsTest.cpp
     UnitSpellCooldownTest.cpp
     UnitCombatStatsTest.cpp
     UnitItemByGuidTest.cpp

@@ -88,6 +88,8 @@ class SpellNotices
         virtual void ChannelStart(Spell const& spell, uint32 duration);
         /// `target` is asked whether `spell`'s caster may resurrect it.
         virtual void ResurrectRequest(Spell const& spell, Player& target);
+        /// `spell`'s cast is pushed back by `delay` milliseconds.
+        virtual void CastDelayed(Spell const& spell, int32 delay);
 
         /// The installed notices, or the base when none are installed.
         static SpellNotices& Installed();

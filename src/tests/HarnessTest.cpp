@@ -1157,14 +1157,14 @@ TEST(HarnessTrace_the_cooldown_packets_read_their_owner_as_a_role)
 
 TEST(HarnessTrace_the_delay_the_dispel_and_the_resist_logs)
 {
-    // Spell::Delayed, Spell.cpp:674-676
+    // BuildSpellDelayedPacket, SpellCastPackets.cpp
     WorldPacket delayed(SMSG_SPELL_DELAYED, 8 + 4);
     delayed.appendPackGUID(kSelf);
     delayed << uint32(500);
     CHECK_STR(SpellDecoded(SMSG_SPELL_DELAYED, delayed).c_str(), "OP caster=self delay=500");
     CheckRefusesOneByteEitherWay(SMSG_SPELL_DELAYED, delayed, SpellRoles());
 
-    // Spell::EffectDispel, SpellEffectSkillEnchantPet.cpp:233-245
+    // BuildDispelLogPacket, SpellEffectPackets.cpp
     WorldPacket dispel(SMSG_SPELLDISPELLOG, 8 + 8 + 4 + 1 + 4 + 10);
     dispel.appendPackGUID(kTarget);
     dispel.appendPackGUID(kSelf);

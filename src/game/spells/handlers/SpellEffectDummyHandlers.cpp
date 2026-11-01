@@ -42,8 +42,6 @@
 #include "Server/DBCStores.h"
 #include "Utilities/Util.h"
 #include "entities/player/Player.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
 #include <algorithm>
 #include <ctime>
 #include <iterator>
