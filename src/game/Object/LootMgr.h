@@ -107,7 +107,7 @@ struct LootItem
 
     // Basic checks for player/item compatibility - if false no chance to see the item in the loot
     bool AllowedForPlayer(Player const* player, WorldObject const* lootTarget) const;
-    LootSlotType GetSlotTypeForSharedLoot(PermissionTypes permission, Player* viewer, WorldObject const* lootTarget, bool condition_ok = false) const;
+    LootSlotType GetSlotTypeForSharedLoot(PermissionTypes permission, Player const* viewer, WorldObject const* lootTarget, bool condition_ok = false) const;
 };
 
 typedef std::vector<LootItem> LootItemList;
@@ -276,9 +276,9 @@ bool HaveConditionalLootForPlayer(LootStore const& store, uint32 loot_id, Player
 struct LootView
 {
     Loot& loot;
-    Player* viewer;
+    Player const* viewer;
     PermissionTypes permission;
-    LootView(Loot& _loot, Player* _viewer, PermissionTypes _permission = ALL_PERMISSION)
+    LootView(Loot& _loot, Player const* _viewer, PermissionTypes _permission = ALL_PERMISSION)
         : loot(_loot), viewer(_viewer), permission(_permission) {}
 };
 

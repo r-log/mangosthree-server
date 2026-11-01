@@ -30,43 +30,12 @@
 
 #include "Player.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/player/inventory/InventoryNotices.h"
 #include "ObjectMgr.h"
 
 void Player::SendEquipmentSetList()
 {
-    uint32 count = 0;
-    WorldPacket data(SMSG_LOAD_EQUIPMENT_SET, 4);
-    size_t count_pos = data.wpos();
-    data << uint32(count);                                  // count placeholder
-    for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
-    {
-        if (itr->second.state == EQUIPMENT_SET_DELETED)
-        {
-            continue;
-        }
-        data.appendPackGUID(itr->second.Guid);
-        data << uint32(itr->first);
-        data << itr->second.Name;
-        data << itr->second.IconName;
-        for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-        {
-            // ignored slots stored in IgnoreMask, client wants "1" as raw GUID, so no HIGHGUID_ITEM
-            if (itr->second.IgnoreMask & (1 << i))
-            {
-                data << ObjectGuid(uint64(1)).WriteAsPacked();
-            }
-            else
-            {
-                data << ObjectGuid(HIGHGUID_ITEM, itr->second.Items[i]).WriteAsPacked();
-            }
-        }
-
-        ++count;                                            // client have limit but it checked at loading and set
-    }
-    data.put<uint32>(count_pos, count);
-    GetSession()->SendPacket(&data);
+    sInventoryNotices.EquipmentSetsShown(*this, m_EquipmentSets);
 }
 
 void Player::SetEquipmentSet(uint32 index, EquipmentSet eqset)
@@ -101,10 +70,7 @@ void Player::SetEquipmentSet(uint32 index, EquipmentSet eqset)
     {
         eqslot.Guid = sObjectMgr.GenerateEquipmentSetGuid();
 
-        WorldPacket data(SMSG_EQUIPMENT_SET_ID, 4 + 1);
-        data << uint32(index);
-        data.appendPackGUID(eqslot.Guid);
-        GetSession()->SendPacket(&data);
+        sInventoryNotices.EquipmentSetSaved(*this, index, eqslot.Guid);
     }
 
     eqslot.state = old_state == EQUIPMENT_SET_NEW ? EQUIPMENT_SET_NEW : EQUIPMENT_SET_CHANGED;
