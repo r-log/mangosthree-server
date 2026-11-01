@@ -115,7 +115,6 @@ class PlayerSession
         virtual void SendEnchantmentLog(ObjectGuid targetGuid, ObjectGuid casterGuid, uint32 itemId, uint32 enchantId) = 0;
         virtual void SendItemEnchantTimeUpdate(ObjectGuid playerGuid, ObjectGuid itemGuid, uint32 slot, uint32 duration) = 0;
         virtual void SendArenaTeamCommandResult(uint32 team_action, const std::string& team, const std::string& player, uint32 error_id) = 0;
-        virtual void BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data) = 0;
         virtual void DoLootRelease(ObjectGuid lguid) = 0;
 
     protected:
