@@ -4159,17 +4159,6 @@ bool Unit::HasWorgenForm() const
     return HasAuraType(SPELL_AURA_ALLOW_WORGEN_TRANSFORM);
 }
 
-void Unit::BuildSendPlayVisualPacket(WorldPacket* data, uint32 value, bool impact)
-{
-    data->Initialize(SMSG_PLAY_SPELL_VISUAL, 21);
-    *data << uint32(0);         // unk, seems always 0
-    *data << uint32(value);
-    *data << uint32(impact ? 1 : 0);
-
-    data->WriteGuidMask<4, 7, 5, 3, 1, 2, 0, 6>(GetObjectGuid());
-    data->WriteGuidBytes<0, 4, 1, 6, 7, 2, 3, 5>(GetObjectGuid());
-}
-
 void Unit::SendCollisionHeightUpdate(float height)
 {
     if (GetTypeId() != TYPEID_PLAYER)

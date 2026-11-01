@@ -4173,7 +4173,6 @@ class Unit : public WorldObject
         bool HasWorgenForm() const;
 
         // Packet builders
-        void BuildSendPlayVisualPacket(WorldPacket* data, uint32 value, bool impact);
 
         // Take possession of an unit (pet, creature, ...)
         bool TakePossessOf(Unit* possessed);
