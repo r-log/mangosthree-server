@@ -116,9 +116,9 @@ RULES = [
     (r'^game/data/|^game/spells/data/', 'data'),
     (r'^game/spells/', 'spells'),
     (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
-    (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|BareMap|Weather|PoolSpawner|CreatureLinkingHolder)', 'maps'),
+    (r'^game/Maps/', 'maps'),
     (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
-    (r'^game/social/|^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),
+    (r'^game/social/', 'social'),
     (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
     (r'^game/Object/(AuctionHouseMgr|LootMgr)|^game/WorldHandlers/Skill(Discovery|ExtraItems)', 'economy'),
     (r'^game/(entities|Object|MotionGenerators)/|^game/WorldHandlers/(Achievement|GossipDef|UpdateData)', 'entities')]
@@ -844,9 +844,9 @@ def self_test():
          '[sideways: spells '
          '-> entities] included by src/game/spells/handlers/AuraDummyWarrior.cpp'])
     run('rule 1: another peer in a listed directory, listed header, fails',
-        with_file('src/game/WorldHandlers/GroupSplit.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
-        '  src/game/WorldHandlers [social] -> src/game/Object/Unit.h   [sideways: social -> entities] included by '
-        'src/game/WorldHandlers/GroupSplit.cpp')
+        with_file('src/game/Object/GroupAI.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
+        '  src/game/Object [ai] -> src/game/Object/Unit.h   [sideways: ai -> entities] included by '
+        'src/game/Object/GroupAI.cpp')
     run('rule 1: a listed pair with no includer left is stale and fails',
         with_file('src/game/Maps/Map.cpp', '#include "Map.h"\n#include "Player.h"\n'), SELF_ALLOW, 1,
         ['1 allow-list line(s) name an edge that is gone', '  src/game/Maps [maps] -> src/game/Object/Unit.h'])

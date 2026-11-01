@@ -236,9 +236,6 @@ target_link_libraries(persistence
         shared_db
 )
 
-file(GLOB SRC_GRP_REFERENCES References/*.cpp References/*.h)
-source_group("References" FILES ${SRC_GRP_REFERENCES})
-
 file(GLOB SRC_GRP_SESSION session/*.cpp session/*.h)
 source_group("Session" FILES ${SRC_GRP_SESSION})
 
@@ -342,83 +339,14 @@ set(DOMAIN_SOURCES
     WorldHandlers/AchievementGlobalMgr.cpp
     WorldHandlers/AchievementMgr.cpp
     WorldHandlers/AchievementMgr.h
-    WorldHandlers/BareMap.h
-    WorldHandlers/Cell.h
-    WorldHandlers/CellImpl.h
-    WorldHandlers/Channel.cpp
-    WorldHandlers/Channel.h
-    WorldHandlers/ChannelMgr.cpp
-    WorldHandlers/ChannelMgr.h
-    WorldHandlers/CreatureLinkingHolder.cpp
-    WorldHandlers/CreatureLinkingHolder.h
-    WorldHandlers/DynamicCollision.cpp
-    WorldHandlers/DynamicCollision.h
-    WorldHandlers/GameObjectModel.cpp
-    WorldHandlers/GameObjectModel.h
-    WorldHandlers/GameObjectModelOwner.cpp
     WorldHandlers/GossipDef.cpp
     WorldHandlers/GossipDef.h
-    WorldHandlers/GridDefines.h
-    WorldHandlers/GridMap.cpp
-    WorldHandlers/GridMap.h
-    WorldHandlers/GridNotifiers.cpp
-    WorldHandlers/GridNotifiers.h
-    WorldHandlers/GridNotifiersImpl.h
-    WorldHandlers/GridStates.cpp
-    WorldHandlers/GridStates.h
-    WorldHandlers/Group.cpp
-    WorldHandlers/Group.h
-    WorldHandlers/GroupInstance.cpp
-    WorldHandlers/GroupMemberState.cpp
-    WorldHandlers/GuildMgr.cpp
-    WorldHandlers/GuildMgr.h
-    WorldHandlers/InstanceData.cpp
-    WorldHandlers/InstanceData.h
-    WorldHandlers/InstanceDataCache.cpp
-    WorldHandlers/InstanceDataCache.h
-    WorldHandlers/LFGBootLogic.h
-    WorldHandlers/LFGCallToArmsLogic.h
-    WorldHandlers/LFGDungeonResolution.h
-    WorldHandlers/LFGEmpowerment.h
-    WorldHandlers/LFGLockReason.h
-    WorldHandlers/LFGMgr.cpp
-    WorldHandlers/LFGMgr.h
-    WorldHandlers/LFGMgrProposal.cpp
-    WorldHandlers/LFGMgrQueue.cpp
-    WorldHandlers/LFGProposalLogic.h
-    WorldHandlers/LFGRewardLogic.h
-    WorldHandlers/LFGRoleAssignment.h
-    WorldHandlers/LineOfSightExemptions.cpp
-    WorldHandlers/LineOfSightExemptions.h
-    WorldHandlers/Mail.cpp
-    WorldHandlers/Mail.h
-    WorldHandlers/Map.cpp
-    WorldHandlers/Map.h
-    WorldHandlers/MapManager.cpp
-    WorldHandlers/MapManager.h
-    WorldHandlers/MapPersistentStateMgr.cpp
-    WorldHandlers/MapPersistentStateMgr.h
-    WorldHandlers/MassMailMgr.cpp
-    WorldHandlers/MassMailMgr.h
-    WorldHandlers/MoveMap.cpp
-    WorldHandlers/MoveMap.h
-    WorldHandlers/MoveMapSharedDefines.h
-    WorldHandlers/ObjectGridLoader.cpp
-    WorldHandlers/ObjectGridLoader.h
-    WorldHandlers/PoolSpawner.cpp
-    WorldHandlers/PoolSpawner.h
     WorldHandlers/SkillDiscovery.cpp
     WorldHandlers/SkillDiscovery.h
     WorldHandlers/SkillExtraItems.cpp
     WorldHandlers/SkillExtraItems.h
-    WorldHandlers/TransportMap.cpp
-    WorldHandlers/TransportMap.h
-    WorldHandlers/Transports.cpp
-    WorldHandlers/Transports.h
     WorldHandlers/UpdateData.cpp
     WorldHandlers/UpdateData.h
-    WorldHandlers/Weather.cpp
-    WorldHandlers/Weather.h
 )
 list(TRANSFORM DOMAIN_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 
@@ -442,7 +370,6 @@ add_library(domain STATIC
     ${SRC_GRP_MOTION_GEN}
     ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
-    ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SOCIAL}
     ${SRC_GRP_SPELLS}
     ${SRC_GRP_SPELLS_AURAS}
@@ -472,8 +399,8 @@ target_include_directories(domain
         MotionGenerators
         Object
         OutdoorPvP
-        References
         WorldHandlers
+        social
 )
 
 if(MSVC)

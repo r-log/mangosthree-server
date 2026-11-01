@@ -42,7 +42,7 @@
 #include "entities/player/PlayerRegistry.h"
 #include "Object/AuctionHouseMgr.h"
 #include "session/packets/economy/AuctionPackets.h"
-#include "WorldHandlers/Mail.h"
+#include "social/Mail.h"
 #include "Utilities/Util.h"
 #include "data/CommandHooks.h"
 #include "persistence/characters/CharacterTransaction.h"

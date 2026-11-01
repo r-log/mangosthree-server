@@ -36,7 +36,7 @@
 #include "session/packets/chat/SystemMessage.h"
 #include "Object/Object.h"
 #include "data/world/ObjectMgr.h"
-#include "Object/ArenaTeam.h"
+#include "social/ArenaTeam.h"
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundMgr.h"
 #include "BattleGround/BattleGroundEY.h"
