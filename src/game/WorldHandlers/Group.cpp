@@ -48,8 +48,7 @@
 #include "Platform/Define.h"
 #include "Common/TimeConstants.h"
 #include <string>
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "social/GroupNotices.h"
 #include "AchievementMgr.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
@@ -382,10 +381,7 @@ void Group::ConvertToRaid()
  */
 void Group::SendRaidMarkerUpdate()
 {
-    WorldPacket data(SMSG_RAID_MARKERS_CHANGED, 4);
-    data << uint32(m_markerMask);
-
-    BroadcastPacket(&data, true);
+    sGroupNotices.RaidMarkersChanged(*this);
 }
 
 /**
@@ -831,12 +827,9 @@ uint32 Group::RemoveMember(ObjectGuid guid, uint8 removeMethod)
                 player->UpdateForQuestWorldObjects();
             }
 
-            WorldPacket data;
-
             if (removeMethod == 1)
             {
-                data.Initialize(SMSG_GROUP_UNINVITE, 0);
-                player->GetSession()->SendPacket(&data);
+                sGroupNotices.Uninvited(*player);
             }
 
             // we already removed player from group and in player->GetGroup() is his original group!
@@ -846,10 +839,7 @@ uint32 Group::RemoveMember(ObjectGuid guid, uint8 removeMethod)
             }
             else
             {
-                data.Initialize(SMSG_GROUP_LIST, 1 + 1 + 1 + 1 + 8 + 4 + 4 + 8);
-                data << uint8(0x10) << uint8(0) << uint8(0) << uint8(0);
-                data << uint64(0) << uint32(0) << uint32(0) << uint64(0);
-                player->GetSession()->SendPacket(&data);
+                sGroupNotices.NoGroup(*player);
             }
 
             _homebindIfInstance(player);
@@ -857,9 +847,7 @@ uint32 Group::RemoveMember(ObjectGuid guid, uint8 removeMethod)
 
         if (leaderChanged)
         {
-            WorldPacket data(SMSG_GROUP_SET_LEADER, (m_memberSlots.front().name.size() + 1));
-            data << m_memberSlots.front().name;
-            BroadcastPacket(&data, true);
+            sGroupNotices.LeaderChanged(*this, m_memberSlots.front().name);
         }
 
         SendUpdate();
@@ -897,9 +885,7 @@ void Group::ChangeLeader(ObjectGuid guid)
 
     sLFGMgr.OnGroupLeaderChanged(GetObjectGuid(), guid);
 
-    WorldPacket data(SMSG_GROUP_SET_LEADER, slot->name.size() + 1);
-    data << slot->name;
-    BroadcastPacket(&data, true);
+    sGroupNotices.LeaderChanged(*this, slot->name);
     SendUpdate();
 }
 
@@ -955,11 +941,9 @@ void Group::Disband(bool hideDestroy)
             continue;
         }
 
-        WorldPacket data;
         if (!hideDestroy)
         {
-            data.Initialize(SMSG_GROUP_DESTROYED, 0);
-            player->GetSession()->SendPacket(&data);
+            sGroupNotices.Destroyed(*player);
         }
 
         // we already removed player from group and in player->GetGroup() is his original group, send update
@@ -969,10 +953,7 @@ void Group::Disband(bool hideDestroy)
         }
         else
         {
-            data.Initialize(SMSG_GROUP_LIST, 1 + 1 + 1 + 1 + 8 + 4 + 4 + 8);
-            data << uint8(0x10) << uint8(0) << uint8(0) << uint8(0);
-            data << uint64(0) << uint32(0) << uint32(0) << uint64(0);
-            player->GetSession()->SendPacket(&data);
+            sGroupNotices.NoGroup(*player);
         }
 
         _homebindIfInstance(player);
@@ -1001,20 +982,6 @@ void Group::Disband(bool hideDestroy)
 
 void Group::SendLootStartRoll(uint32 CountDown, uint32 mapid, const Roll& r)
 {
-    WorldPacket data(SMSG_LOOT_START_ROLL, (8 + 4 + 4 + 4 + 4 + 4 + 4 + 1));
-    data << r.lootedTargetGUID;                             // creature guid what we're looting
-    data << uint32(mapid);                                  // 3.3.3 mapid
-    data << uint32(r.itemSlot);                             // item slot in loot
-    data << uint32(r.itemid);                               // the itemEntryId for the item that shall be rolled for
-    data << uint32(r.itemRandomSuffix);                     // randomSuffix
-    data << uint32(r.itemRandomPropId);                     // item random property ID
-    data << uint32(r.itemCount);                            // items in stack
-    data << uint32(CountDown);                              // the countdown time to choose "need" or "greed"
-
-    size_t voteMaskPos = data.wpos();
-    data << uint8(0);                                       // roll type mask, allowed choices (placeholder)
-    data << uint8(r.totalPlayersRolling);
-
     for (Roll::PlayerVote::const_iterator itr = r.playerVote.begin(); itr != r.playerVote.end(); ++itr)
     {
         Player* p = sPlayerRegistry.Find(itr->first);
@@ -1029,10 +996,7 @@ void Group::SendLootStartRoll(uint32 CountDown, uint32 mapid, const Roll& r)
         }
 
         // dependent from player
-        RollVoteMask mask = r.GetVoteMaskFor(p);
-        data.put<uint8>(voteMaskPos, uint8(mask));
-
-        p->GetSession()->SendPacket(&data);
+        sGroupNotices.LootStartRoll(*p, r, CountDown, mapid, r.GetVoteMaskFor(p));
     }
 }
 
@@ -1046,30 +1010,7 @@ void Group::SendLootStartRoll(uint32 CountDown, uint32 mapid, const Roll& r)
  */
 void Group::SendLootRoll(ObjectGuid const& targetGuid, uint32 rollNumber, uint8 rollType, const Roll& r)
 {
-    WorldPacket data(SMSG_LOOT_ROLL, (8 + 4 + 8 + 4 + 4 + 4 + 1 + 1 + 1));
-    data << r.lootedTargetGUID;                             // creature guid what we're looting
-    data << uint32(r.itemSlot);                             // unknown, maybe amount of players, or item slot in loot
-    data << targetGuid;
-    data << uint32(r.itemid);                               // the itemEntryId for the item that shall be rolled for
-    data << uint32(r.itemRandomSuffix);                     // randomSuffix
-    data << uint32(r.itemRandomPropId);                     // Item random property ID
-    data << uint32(rollNumber);                             // 0: "Need for: [item name]", -1: "you passed on: [item name]"      Roll number
-    data << uint8(rollType);                                // 0: "Need for: [item name]" 0: "You have selected need for [item name] 1: need roll 2: greed roll
-    data << uint8(0);                                       // auto pass on loot
-
-    for (Roll::PlayerVote::const_iterator itr = r.playerVote.begin(); itr != r.playerVote.end(); ++itr)
-    {
-        Player* p = sPlayerRegistry.Find(itr->first);
-        if (!p || !p->GetSession())
-        {
-            continue;
-        }
-
-        if (itr->second != ROLL_NOT_VALID)
-        {
-            p->GetSession()->SendPacket(&data);
-        }
-    }
+    sGroupNotices.LootRoll(*this, r, targetGuid, rollNumber, rollType);
 }
 
 /**
@@ -1082,29 +1023,7 @@ void Group::SendLootRoll(ObjectGuid const& targetGuid, uint32 rollNumber, uint8 
  */
 void Group::SendLootRollWon(ObjectGuid const& targetGuid, uint32 rollNumber, RollVote rollType, const Roll& r)
 {
-    WorldPacket data(SMSG_LOOT_ROLL_WON, (8 + 4 + 4 + 4 + 4 + 8 + 1 + 1));
-    data << r.lootedTargetGUID;                             // creature guid what we're looting
-    data << uint32(r.itemSlot);                             // item slot in loot
-    data << uint32(r.itemid);                               // the itemEntryId for the item that shall be rolled for
-    data << uint32(r.itemRandomSuffix);                     // randomSuffix
-    data << uint32(r.itemRandomPropId);                     // Item random property
-    data << targetGuid;                                     // guid of the player who won.
-    data << uint32(rollNumber);                             // rollnumber related to SMSG_LOOT_ROLL
-    data << uint8(rollType);                                // Rolltype related to SMSG_LOOT_ROLL
-
-    for (Roll::PlayerVote::const_iterator itr = r.playerVote.begin(); itr != r.playerVote.end(); ++itr)
-    {
-        Player* p = sPlayerRegistry.Find(itr->first);
-        if (!p || !p->GetSession())
-        {
-            continue;
-        }
-
-        if (itr->second != ROLL_NOT_VALID)
-        {
-            p->GetSession()->SendPacket(&data);
-        }
-    }
+    sGroupNotices.LootRollWon(*this, r, targetGuid, rollNumber, rollType);
 }
 
 /**
@@ -1114,14 +1033,12 @@ void Group::SendLootRollWon(ObjectGuid const& targetGuid, uint32 rollNumber, Rol
  */
 void Group::SendLootAllPassed(Roll const& r)
 {
-    WorldPacket data(SMSG_LOOT_ALL_PASSED, (8 + 4 + 4 + 4 + 4));
-    data << r.lootedTargetGUID;                             // creature guid what we're looting
-    data << uint32(r.itemSlot);                             // item slot in loot
-    data << uint32(r.itemid);                               // The itemEntryId for the item that shall be rolled for
-    data << uint32(r.itemRandomPropId);                     // Item random property ID
-    data << uint32(r.itemRandomSuffix);                     // Item random suffix ID
+    sGroupNotices.LootAllPassed(*this, r);
+}
 
-    for (Roll::PlayerVote::const_iterator itr = r.playerVote.begin(); itr != r.playerVote.end(); ++itr)
+void Group::SendToRollVoters(WorldPacket* packet, Roll const& roll) const
+{
+    for (Roll::PlayerVote::const_iterator itr = roll.playerVote.begin(); itr != roll.playerVote.end(); ++itr)
     {
         Player* p = sPlayerRegistry.Find(itr->first);
         if (!p || !p->GetSession())
@@ -1131,7 +1048,7 @@ void Group::SendLootAllPassed(Roll const& r)
 
         if (itr->second != ROLL_NOT_VALID)
         {
-            p->GetSession()->SendPacket(&data);
+            p->GetSession()->SendPacket(packet);
         }
     }
 }
@@ -1236,11 +1153,7 @@ void Group::MasterLoot(WorldObject* pSource, Loot* loot)
         }
     }
 
-    uint32 real_count = 0;
-
-    WorldPacket data(SMSG_LOOT_MASTER_LIST, 330);
-    data << uint8(GetMembersCount());
-
+    std::vector<ObjectGuid> candidates;
     for (GroupReference* itr = GetFirstMember(); itr != NULL; itr = itr->next())
     {
         Player* looter = itr->getSource();
@@ -1251,21 +1164,21 @@ void Group::MasterLoot(WorldObject* pSource, Loot* loot)
 
         if (looter->Where().WithinDist(pSource->Where(), sGameConfig.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
         {
-            data << looter->GetObjectGuid();
-            ++real_count;
+            candidates.push_back(looter->GetObjectGuid());
         }
     }
 
-    data.put<uint8>(0, real_count);
-
+    std::vector<Player*> recipients;
     for (GroupReference* itr = GetFirstMember(); itr != NULL; itr = itr->next())
     {
         Player* looter = itr->getSource();
         if (looter->Where().WithinDist(pSource->Where(), sGameConfig.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
         {
-            looter->GetSession()->SendPacket(&data);
+            recipients.push_back(looter);
         }
     }
+
+    sGroupNotices.MasterLootList(candidates, recipients);
 }
 
 /**
@@ -1630,12 +1543,7 @@ void Group::SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid)
 
     m_targetIcons[id] = targetGuid;
 
-    WorldPacket data(MSG_RAID_TARGET_UPDATE, (1 + 8 + 1 + 8));
-    data << uint8(0);                                       // set targets
-    data << whoGuid;
-    data << uint8(id);
-    data << targetGuid;
-    BroadcastPacket(&data, true);
+    sGroupNotices.TargetIconSet(*this, whoGuid, id, targetGuid);
 }
 
 /**
@@ -1709,35 +1617,6 @@ void Group::GetDataForXPAtKill(Unit const* victim, uint32& count, uint32& sum_le
 }
 
 /**
- * @brief Sends the current raid target icon assignments to a session.
- *
- * @param session The session receiving the icon list.
- */
-void Group::SendTargetIconList(PlayerSession* session)
-{
-    if (!session)
-    {
-        return;
-    }
-
-    WorldPacket data(MSG_RAID_TARGET_UPDATE, (1 + TARGET_ICON_COUNT * 9));
-    data << uint8(1);                                       // list targets
-
-    for (int i = 0; i < TARGET_ICON_COUNT; ++i)
-    {
-        if (!m_targetIcons[i])
-        {
-            continue;
-        }
-
-        data << uint8(i);
-        data << m_targetIcons[i];
-    }
-
-    session->SendPacket(&data);
-}
-
-/**
  * Roster version stamped into SMSG_GROUP_LIST.
  *
  * The client drops a roster it has already seen: for a matching party GUID less
@@ -1772,55 +1651,12 @@ void Group::SendUpdate()
         {
             continue;
         }
-        // guess size
-        WorldPacket data(SMSG_GROUP_LIST, (1 + 1 + 1 + 1 + 8 + 4 + GetMembersCount() * 20));
         LFGGroupUpdateData lfgData;
         if (m_groupType & GROUPTYPE_LFD)
         {
             sLFGMgr.GetGroupUpdateData(GetObjectGuid(), citr->guid, lfgData);
         }
-        data << uint8(m_groupType);                         // group type (flags in 3.3)
-        data << uint8(citr->group);                         // groupid
-        data << uint8(GetFlags(*citr));                     // group flags
-        data << uint8(citr->roles);                         // your own assigned role
-        if (m_groupType & GROUPTYPE_LFD)
-        {
-            data << uint8(lfgData.state);                   // MyLfgFlags; 2 = finished
-            data << uint32(lfgData.dungeonEntry);           // LfgSlot; concrete Entry()
-            data << uint8(0);                               // LfgAborted; non-zero disables CanPartyLFGBackfill (sub_1406FB440)
-        }
-        data << GetObjectGuid();                            // group guid
-        data << uint32(sequence);                           // roster version; client drops anything it has already seen
-        data << uint32(GetMembersCount() - 1);
-        for (member_citerator citr2 = m_memberSlots.begin(); citr2 != m_memberSlots.end(); ++citr2)
-        {
-            if (citr->guid == citr2->guid)
-            {
-                continue;
-            }
-            Player* member = sPlayerRegistry.Find(citr2->guid);
-            uint8 onlineState = (member) ? MEMBER_STATUS_ONLINE : MEMBER_STATUS_OFFLINE;
-            onlineState = onlineState | ((isBGGroup()) ? MEMBER_STATUS_PVP : 0);
-
-            data << citr2->name;
-            data << citr2->guid;
-            data << uint8(onlineState);                     // online-state
-            data << uint8(citr2->group);                    // groupid
-            data << uint8(GetFlags(*citr2));                // group flags
-            data << uint8(citr2->roles);                    // assigned role
-        }
-
-        data << m_leaderGuid;                               // leader guid
-        if (GetMembersCount() - 1)
-        {
-            data << uint8(m_lootMethod);                    // loot method
-            data << m_looterGuid;                           // looter guid
-            data << uint8(m_lootThreshold);                 // loot threshold
-            data << uint8(m_dungeonDifficulty);             // Dungeon Difficulty
-            data << uint8(m_raidDifficulty);                // Raid Difficulty
-            data << uint8(0);                               // 3.3, dynamic difficulty?
-        }
-        player->GetSession()->SendPacket(&data);
+        sGroupNotices.GroupList(*this, *player, *citr, lfgData.state, lfgData.dungeonEntry, sequence);
     }
 }
 
@@ -1841,14 +1677,16 @@ void Group::UpdatePlayerOutOfRange(Player* pPlayer)
         return;
     }
 
-    WorldPacket data;
-    pPlayer->GetSession()->BuildPartyMemberStatsChangedPacket(pPlayer, &data);
+    sGroupNotices.PartyMemberStatsChanged(*this, *pPlayer);
+}
 
-    for (GroupReference* itr = GetFirstMember(); itr != NULL; itr = itr->next())
+void Group::SendToMembersNotSeeing(WorldPacket* packet, Player const& member) const
+{
+    for (GroupReference const* itr = GetFirstMember(); itr != NULL; itr = itr->next())
         if (Player* player = itr->getSource())
-            if (player != pPlayer && !player->HaveAtClient(pPlayer))
+            if (player != &member && !player->HaveAtClient(&member))
             {
-                player->GetSession()->SendPacket(&data);
+                player->GetSession()->SendPacket(packet);
             }
 }
 
@@ -1905,10 +1743,7 @@ void Group::OfflineReadyCheck()
         Player* pl = sPlayerRegistry.Find(citr->guid);
         if (!pl || !pl->GetSession())
         {
-            WorldPacket data(MSG_RAID_READY_CHECK_CONFIRM, 9);
-            data << citr->guid;
-            data << uint8(0);
-            BroadcastReadyCheck(&data);
+            sGroupNotices.ReadyCheckOffline(*this, citr->guid);
         }
     }
 }

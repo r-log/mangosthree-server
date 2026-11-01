@@ -586,8 +586,6 @@ class WorldSession final : public PlayerSession
         void SendPetitionShowList(ObjectGuid guid) override;
         void SendSaveGuildEmblem(uint32 msg);
 
-        void BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data) override;
-
         void DoLootRelease(ObjectGuid lguid) override;
 
         // Locales

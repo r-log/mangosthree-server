@@ -459,6 +459,23 @@ class Group
             member_citerator slot = _getMemberCSlot(guid);
             return slot == m_memberSlots.end() ? 0 : slot->roles;
         }
+        GroupFlagMask GetFlags(MemberSlot const& slot) const
+        {
+            uint8 flags = 0;
+            if (slot.assistant)
+            {
+                flags |= GROUP_ASSISTANT;
+            }
+            if (slot.guid == m_mainAssistantGuid)
+            {
+                flags |= GROUP_MAIN_ASSISTANT;
+            }
+            if (slot.guid == m_mainTankGuid)
+            {
+                flags |= GROUP_MAIN_TANK;
+            }
+            return GroupFlagMask(flags);
+        }
 
         void SetBattlegroundGroup(BattleGround* bg)
         {
@@ -515,6 +532,7 @@ class Group
         }
 
         void SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid);
+        ObjectGuid GetTargetIcon(uint8 id) const { return m_targetIcons[id]; }
 
         Difficulty GetDifficulty(bool isRaid) const { return isRaid ? m_raidDifficulty : m_dungeonDifficulty; }
         Difficulty GetDungeonDifficulty() const { return m_dungeonDifficulty; }
@@ -525,12 +543,15 @@ class Group
         bool InCombatToInstance(uint32 instanceId);
         void ResetInstances(InstanceResetMethod method, bool isRaid, Player* SendMsgTo);
 
-        void SendTargetIconList(PlayerSession* session);
         void SendUpdate();
         void UpdatePlayerOutOfRange(Player* pPlayer);
         // ignore: GUID of player that will be ignored
         void BroadcastPacket(WorldPacket* packet, bool ignorePlayersInBGRaid, int group = -1, ObjectGuid ignore = ObjectGuid());
         void BroadcastReadyCheck(WorldPacket* packet);
+        /// Sends `packet` to every online voter of `roll` whose vote is valid.
+        void SendToRollVoters(WorldPacket* packet, Roll const& roll) const;
+        /// Sends `packet` to every member other than `member` whose client does not see `member`.
+        void SendToMembersNotSeeing(WorldPacket* packet, Player const& member) const;
         void OfflineReadyCheck();
 
         void RewardGroupAtKill(Unit* pVictim, Player* player_tap);
@@ -641,24 +662,6 @@ class Group
 
         void CountTheRoll(Rolls::iterator& roll);           // iterator update to next, in CountRollVote if true
         bool CountRollVote(ObjectGuid const& playerGUID, Rolls::iterator& roll, RollVote vote);
-
-        GroupFlagMask GetFlags(MemberSlot const& slot) const
-        {
-            uint8 flags = 0;
-            if (slot.assistant)
-            {
-                flags |= GROUP_ASSISTANT;
-            }
-            if (slot.guid == m_mainAssistantGuid)
-            {
-                flags |= GROUP_MAIN_ASSISTANT;
-            }
-            if (slot.guid == m_mainTankGuid)
-            {
-                flags |= GROUP_MAIN_TANK;
-            }
-            return GroupFlagMask(flags);
-        }
 
         uint32              m_Id;                           // 0 for not created or BG groups
         MemberSlotList      m_memberSlots;

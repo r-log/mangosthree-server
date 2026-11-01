@@ -49,6 +49,7 @@
 #include "Vehicle.h"
 #include "Vehicle.h"
 #include "PlayerRegistry.h"
+#include "session/packets/social/GroupPackets.h"
 
 /**
  * @brief Handles a request to invite a player into a party.
@@ -590,7 +591,9 @@ void GroupHandlers::HandleRaidTargetUpdate(WorldSession& session, WorldPacket& r
     // everything is fine, do it
     if (x == 0xFF)                                          // target icon request
     {
-        group->SendTargetIconList(&session);
+        WorldPacket data;
+        BuildTargetIconListPacket(data, *group);
+        session.SendPacket(&data);
     }
     else                                                    // target icon update
     {
