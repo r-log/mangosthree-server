@@ -354,7 +354,7 @@ target_include_directories(scripts_legacy
 
 target_link_libraries(scripts_legacy
     PUBLIC
-        game
+        scripts
 )
 
 if(PCH)

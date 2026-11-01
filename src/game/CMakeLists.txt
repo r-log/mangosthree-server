@@ -630,11 +630,27 @@ if(PCH)
     add_cxx_pch(session pchsession.h)
 endif()
 
+set(SCRIPTS_SOURCES
+    WorldHandlers/Chat.cpp
+    WorldHandlers/Chat.h
+    WorldHandlers/ChatArgExtract.cpp
+    WorldHandlers/ChatHelp.cpp
+    WorldHandlers/CommandMgr.cpp
+    WorldHandlers/CommandMgr.h
+    WorldHandlers/ScriptAction.cpp
+    WorldHandlers/ScriptMgr.cpp
+    WorldHandlers/ScriptMgr.h
+    WorldHandlers/ScriptMgrBinding.cpp
+    WorldHandlers/ScriptMgrDbScripts.cpp
+)
+list(TRANSFORM SCRIPTS_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+list(REMOVE_ITEM SRC_GRP_WORLD_HANDLERS ${SCRIPTS_SOURCES})
+set(GAME_SCRIPTS_SOURCES ${SRC_GRP_CHAT_COMMANDS} ${SCRIPTS_SOURCES} PARENT_SCOPE)
+
 configure_file(AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/AuctionHouseBot/ahbot.conf.dist)
 
 add_library(game STATIC
     ${SRC_GRP_AHBOT}
-    ${SRC_GRP_CHAT_COMMANDS}
     ${SRC_GRP_HARNESS}
     ${SRC_GRP_TOOL}
     ${SRC_GRP_WORLD_HANDLERS}
@@ -644,7 +660,6 @@ target_include_directories(game
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         AuctionHouseBot
-        ChatCommands
         Harness
         Tools
         WorldHandlers
@@ -656,6 +671,7 @@ endif()
 
 target_link_libraries(game
     PUBLIC
+        scripts
         session
         domain
         data
