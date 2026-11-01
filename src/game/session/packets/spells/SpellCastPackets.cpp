@@ -24,6 +24,7 @@
  */
 
 #include "SpellCastPackets.h"
+#include "CastTargetsPacket.h"
 #include "DBCStores.h"
 #include "GameObject.h"
 #include "GameTime.h"
@@ -240,7 +241,7 @@ void BuildSpellStartPacket(WorldPacket& packet, Spell const& spell, uint32 castF
     packet << uint32(spell.GetTimer());                                // delay?
     packet << uint32(spell.GetCastTime());                             // cast time
 
-    packet << spell.m_targets;
+    WriteCastTargets(packet, spell.m_targets);
 
     if (castFlags & CAST_FLAG_PREDICTED_POWER)              // predicted power
     {
@@ -316,7 +317,7 @@ void BuildSpellGoPacket(WorldPacket& packet, Spell const& spell, uint32 castFlag
 
     WriteSpellGoTargets(packet, targets);
 
-    packet << spell.m_targets;
+    WriteCastTargets(packet, spell.m_targets);
 
     if (castFlags & CAST_FLAG_PREDICTED_POWER)              // predicted power
     {

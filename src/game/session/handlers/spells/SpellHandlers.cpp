@@ -183,7 +183,7 @@ void SpellHandlers::HandleUseItem(WorldSession& session, WorldPacket& recvPacket
 
     SpellCastTargets targets;
 
-    recvPacket >> targets.ReadForCaster(pUser);
+    ReadCastTargets(recvPacket, targets, pUser);
 
     targets.Update(pUser);
 
@@ -560,7 +560,7 @@ void SpellHandlers::HandleCastSpell(WorldSession& session, WorldPacket& recvPack
     // client provided targets
     SpellCastTargets targets;
 
-    recvPacket >> targets.ReadForCaster(mover);
+    ReadCastTargets(recvPacket, targets, mover);
 
     ReadAdditionalCastData(recvPacket, cast_flags, targets);
 

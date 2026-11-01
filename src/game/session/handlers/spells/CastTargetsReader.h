@@ -28,12 +28,20 @@
 
 #include "Platform/Define.h"
 
+class ByteBuffer;
 class SpellCastTargets;
+class Unit;
 class WorldPacket;
 
 /// Reads what a cast packet carries after its targets, as `castFlags` says: the trajectory's elevation
 /// and speed, then the caster's movement whose position becomes the source of `targets`; or the
 /// archaeology fragments and keystones, which are skipped.
 void ReadAdditionalCastData(WorldPacket& packet, uint8 castFlags, SpellCastTargets& targets);
+
+/// Reads a cast's targets as the client sends them into `targets`: the mask, then the unit, game
+/// object, item (a player's cast only), corpse, source, destination and string targets it names, and
+/// finds their objects for `caster`. A mask of the self flag alone targets the caster. Throws
+/// ByteBufferException when a source or a destination lies off every map.
+void ReadCastTargets(ByteBuffer& packet, SpellCastTargets& targets, Unit* caster);
 
 #endif

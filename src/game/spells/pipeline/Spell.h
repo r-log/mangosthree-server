@@ -145,46 +145,16 @@ namespace MaNGOS
     struct SpellNotifierCreatureAndPlayer;
 }
 
-class SpellCastTargets;
-
-/// @brief Reader helper for deserializing spell cast targets.
-///
-/// Provides a mechanism to read spell targets from network data while
-/// maintaining reference to the caster for context.
-struct SpellCastTargetsReader
-{
-    /// @brief Constructor
-    /// @param _targets Reference to SpellCastTargets to populate
-    /// @param _caster Pointer to the unit casting the spell
-    explicit SpellCastTargetsReader(SpellCastTargets& _targets, Unit* _caster) : targets(_targets), caster(_caster) {}
-
-    SpellCastTargets& targets;    /// Reference to the targets structure being populated
-    Unit* caster;                 /// Pointer to casting unit for context
-};
-
-/// @brief Spell cast targets container and serialization.
+/// @brief Spell cast targets container.
 ///
 /// Manages target selection for spells, including unit targets, game object targets,
-/// item targets, and location-based targets. Handles serialization to/from network packets.
+/// item targets, and location-based targets.
 class SpellCastTargets
 {
     public:
         SpellCastTargets();        /// Constructor initializes empty targets
         ~SpellCastTargets();       /// Destructor
 
-        /// @brief Deserialize targets from network data
-        /// @param data ByteBuffer containing serialized target data
-        /// @param caster Unit casting the spell (for target validation)
-        void read(ByteBuffer& data, Unit* caster);
-
-        /// @brief Serialize targets to network data
-        /// @param data ByteBuffer to write serialized targets
-        void write(ByteBuffer& data) const;
-
-        /// @brief Create a reader helper for deserialization
-        /// @param caster Unit casting the spell
-        /// @return SpellCastTargetsReader for deserialization
-        SpellCastTargetsReader ReadForCaster(Unit* caster) { return SpellCastTargetsReader(*this, caster); }
         /// Sets the elevation and the speed the client aimed the cast's trajectory with.
         void SetTrajectory(float elevation, float speed) { m_elevation = elevation; m_speed = speed; }
 
@@ -233,6 +203,19 @@ class SpellCastTargets
         }
 
         void setUnitTarget(Unit* target);
+        /// Targets the caster itself, as a cast sent with the self flag alone does: the caster's
+        /// position as the destination and the caster as the unit target; the mask stays as it is.
+        void SetSelfTarget(Unit* caster);
+        /// Sets the guid of a target the client named; `Update` finds the object.
+        void SetUnitTargetGuid(ObjectGuid guid) { m_unitTargetGUID = guid; }
+        void SetGOTargetGuid(ObjectGuid guid) { m_GOTargetGUID = guid; }
+        void SetItemTargetGuid(ObjectGuid guid) { m_itemTargetGUID = guid; }
+        void SetCorpseTargetGuid(ObjectGuid guid) { m_CorpseTargetGUID = guid; }
+        /// Sets the source the client sent: the vessel it stands on (an empty guid ashore) and its
+        /// coordinates, which are also the transport offset; the mask stays as it is.
+        void SetSourceAsSent(ObjectGuid transport, float x, float y, float z);
+        /// Sets the destination the client sent, as `SetSourceAsSent` sets the source.
+        void SetDestinationAsSent(ObjectGuid transport, float x, float y, float z);
         ObjectGuid getUnitTargetGuid() const { return m_unitTargetGUID; }
         Unit* getUnitTarget() const { return m_unitTarget; }
 
@@ -308,18 +291,6 @@ class SpellCastTargets
         float m_elevation;
         float m_speed;
 };
-
-inline ByteBuffer& operator<< (ByteBuffer& buf, SpellCastTargets const& targets)
-{
-    targets.write(buf);
-    return buf;
-}
-
-inline ByteBuffer& operator>> (ByteBuffer& buf, SpellCastTargetsReader const& targets)
-{
-    targets.targets.read(buf, targets.caster);
-    return buf;
-}
 
 enum SpellState
 {
