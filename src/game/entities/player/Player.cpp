@@ -75,7 +75,6 @@
 #include "Vehicle.h"
 #include "CharacterCache.h"
 #include "DisableMgr.h"
-#include "wire/MoverCodec.h"
 #include "MotionMaster.h"
 #include "State.h"
 #include "persistence/characters/CharacterDeleteRepository.h"
@@ -5229,17 +5228,15 @@ void Player::SetClientControl(Unit* target, uint8 allowMove)
     }
 
     const uint32 now = GameTime::GetGameTimeMS();
-    WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, 10);
-    Wire::ControlUpdate cu;
-    cu.guid = target->GetObjectGuid().GetRawValue();
-    cu.allowMove = allowMove;
-    Wire::EncodeControlUpdate(data, cu);
+    ControlUpdateFact control;
+    control.unit = target->GetObjectGuid();
+    control.allowMove = allowMove;
 
     if (!allowMove)
     {
         // Control taken (design v2 §8): the packet, then the revoke -- a new epoch
         // retires every pending change to a tombstone -- then the caller's behaviour.
-        GetSession()->SendPacket(&data);
+        ReportClientFact(m_clientSinks.controlUpdate, control);
         GetSession()->RevokeMover(target, now);
         return;
     }
@@ -5248,7 +5245,7 @@ void Player::SetClientControl(Unit* target, uint8 allowMove)
     // the grant, the control update, the active-mover set, and for this player's own
     // handback in the world a fresh time epoch (design v2 §6.3).
     GetSession()->GrantMover(target, now);
-    GetSession()->SendPacket(&data);
+    ReportClientFact(m_clientSinks.controlUpdate, control);
 
     // The reference core sends the active-mover set always; but a re-grant of
     // the body while a controlled unit is still selected (Add takes the
@@ -5257,11 +5254,9 @@ void Player::SetClientControl(Unit* target, uint8 allowMove)
     // when the grant actually took the selection.
     if (GetSession()->Movers().Selected() == target->GetObjectGuid().GetRawValue())
     {
-        WorldPacket active(SMSG_MOVE_SET_ACTIVE_MOVER, 9);
-        Wire::ActiveMover mover;
-        mover.guid = target->GetObjectGuid().GetRawValue();
-        Wire::EncodeActiveMover(active, SMSG_MOVE_SET_ACTIVE_MOVER, mover);
-        GetSession()->SendPacket(&active);
+        ActiveMoverFact active;
+        active.mover = target->GetObjectGuid();
+        ReportClientFact(m_clientSinks.activeMover, active);
     }
 
     if (target == this && IsInWorld())
@@ -6179,9 +6174,9 @@ void Player::SendTimeSync()
 {
     GetSession()->TimeBase().Requested(m_timeSyncCounter, GameTime::GetGameTimeMS());
 
-    WorldPacket data(SMSG_TIME_SYNC_REQ, 4);
-    data << uint32(m_timeSyncCounter++);
-    GetSession()->SendPacket(&data);
+    TimeSyncRequestFact request;
+    request.counter = m_timeSyncCounter++;
+    ReportClientFact(m_clientSinks.timeSyncRequest, request);
 
     // Schedule next sync in 10 sec
     m_timeSyncTimer = 10000;

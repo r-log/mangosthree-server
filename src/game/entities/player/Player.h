@@ -3349,9 +3349,9 @@ class Player : public Unit
         bool CanStartFlyInArea(uint32 mapid, uint32 zone, uint32 area) const;
 
         /// The one entry point of every control transition (spec §5): the control
-        /// update packet, the session's grant or revoke (membership, mover session,
-        /// kernel mode), SMSG_MOVE_SET_ACTIVE_MOVER on a grant, and the handback time
-        /// epoch when this player regains itself in the world.
+        /// update told to the client, the session's grant or revoke (membership, mover
+        /// session, kernel mode), the active mover told on a grant, and the handback
+        /// time epoch when this player regains itself in the world.
         void SetClientControl(Unit* target, uint8 allowMove) override;
         /// The unit this client has selected to move, resolved through the session;
         /// this player when nothing is selected.

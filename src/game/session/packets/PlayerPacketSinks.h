@@ -30,6 +30,7 @@
 #include "WorldPacket.h"
 #include "session/packets/combat/AttackSwingPackets.h"
 #include "session/packets/combat/KillPackets.h"
+#include "session/packets/entities/ClientControlPackets.h"
 #include "session/packets/entities/CurrencyPackets.h"
 #include "session/packets/entities/FishingPackets.h"
 #include "session/packets/entities/PetActionBarPacket.h"
@@ -114,6 +115,9 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     callbacks.fishNotHooked = FactToSession(owner, &BuildFishNotHookedPacket);
     callbacks.initWorldStates = FactToSession(owner, &BuildInitWorldStatesPacket);
     callbacks.worldStateUpdate = FactToSession(owner, &BuildUpdateWorldStatePacket);
+    callbacks.controlUpdate = FactToSession(owner, &BuildClientControlUpdatePacket);
+    callbacks.activeMover = FactToSession(owner, &BuildMoveSetActiveMoverPacket);
+    callbacks.timeSyncRequest = FactToSession(owner, &BuildTimeSyncRequestPacket);
     callbacks.securityLevel = SecurityLevelOfSession(owner);
     return callbacks;
 }
