@@ -24,24 +24,9 @@
  */
 
 /**
- * @file Spell.cpp
- * @brief Spell casting and effect implementation
- *
- * This file implements the Spell class which handles spell casting:
- * - Spell validation and casting requirements
- * - Spell effect execution (damage, healing, summon, etc.)
- * - Spell targeting and area effects
- * - Spell cooldowns and resource costs
- * - Spell interruption and pushback
- * - Spell aura application
- * - Spell hit/miss calculations
- *
- * Spells are the primary combat mechanic in WoW, encompassing
- * abilities, talents, and item effects.
- *
- * @see Spell for the spell class
- * @see SpellAura for spell auras
- * @see SpellMgr for spell management
+ * @file SpellReports.cpp
+ * @brief What a spell's cast reports to the spell notices: its result, its start and its go, its
+ * effect log, its interruption, its channel and a resurrection offer.
  */
 
 #include "spells/pipeline/Spell.h"

@@ -611,7 +611,7 @@ src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/spells/auras/SpellAuras
 src/game/spells/pipeline/SpellHit.cpp -> src/game/entities/player/Player.h
 # reached through GridNotifiersImpl.h before #572
 src/game/spells/pipeline/SpellHit.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/spells/pipeline/SpellPackets.cpp -> src/game/entities/player/Player.h
+src/game/spells/pipeline/SpellReports.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellPower.cpp -> src/game/entities/player/Player.h
 # the condition evaluator left ObjectMgr.cpp (data) in #655
 src/game/spells/pipeline/SpellRules.cpp -> src/game/entities/player/PlayerConditions.h

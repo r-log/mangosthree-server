@@ -643,6 +643,13 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME player_sinks
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/player_sinks.py
             --root ${CMAKE_SOURCE_DIR} --check)
+
+    add_test(NAME domain_packets_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/domain_packets.py --self-test)
+
+    add_test(NAME domain_packets
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/domain_packets.py
+            --root ${CMAKE_SOURCE_DIR} --check)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()
