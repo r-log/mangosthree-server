@@ -33,7 +33,6 @@
 #include "entities/WorldObjectNotices.h"
 #include "LivingWorldAnchorPolicy.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
 #include "data/WorldBroadcast.h"
 #include "data/GameConfig.h"
 #include "WorldGameTime.h"
@@ -46,7 +45,6 @@
 #include "Player.h"
 #include "GameEventMgr.h"
 #include "PoolManager.h"
-#include "Opcodes.h"
 #include "Log.h"
 #include "LootMgr.h"
 #include "MapManager.h"
@@ -3115,10 +3113,7 @@ void Creature::SendAreaSpiritHealerQueryOpcode(Player* pl)
     {
         next_resurrect = pcurSpell->GetCastedTime();
     }
-    WorldPacket data(SMSG_AREA_SPIRIT_HEALER_TIME, 8 + 4);
-    data << ObjectGuid(GetObjectGuid());
-    data << uint32(next_resurrect);
-    pl->SendDirectMessage(&data);
+    sWorldObjectNotices.AreaSpiritHealerTime(*pl, GetObjectGuid(), next_resurrect);
 }
 
 /**

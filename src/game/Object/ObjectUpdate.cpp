@@ -27,8 +27,7 @@
 #include <vector>
 #include "Object.h"
 #include "SharedDefines.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
+#include "entities/WorldObjectNotices.h"
 #include "Log.h"
 #include "Creature.h"
 #include "Player.h"
@@ -212,10 +211,7 @@ void Object::DestroyForPlayer(Player* target, bool anim) const
 {
     MANGOS_ASSERT(target);
 
-    WorldPacket data(SMSG_DESTROY_OBJECT, 9);
-    data << GetObjectGuid();
-    data << uint8(anim ? 1 : 0);                            // WotLK (bool), may be despawn animation
-    target->GetSession()->SendPacket(&data);
+    sWorldObjectNotices.ObjectDestroyed(*target, GetObjectGuid(), anim);
 }
 
 /**

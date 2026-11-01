@@ -28,8 +28,8 @@
 
 #include "entities/WorldObjectNotices.h"
 
-/// A world object's notices, each built here and sent through the object's own sends: to a single
-/// player when the notice names one, to the units around the object otherwise.
+/// A world object's notices, each built here: to the one player a notice names, to the units around
+/// the object otherwise.
 class SessionWorldObjectNotices : public WorldObjectNotices
 {
     public:
@@ -46,6 +46,15 @@ class SessionWorldObjectNotices : public WorldObjectNotices
         void VehicleRecIdChanged(Unit const& unit, uint32 entry) override;
         void AiReacted(Creature const& creature, AiReaction reaction) override;
         void BuildingDamaged(GameObject const& building, Unit& caster, uint32 damage, uint32 spell) override;
+        void AreaSpiritHealerTime(Player const& player, ObjectGuid healer, uint32 nextResurrectMs) override;
+        void GameObjectPageShown(Player const& player, ObjectGuid object) override;
+        void FishEscaped(Player const& player) override;
+        void BarberShopEnabled(Player const& player) override;
+        void ItemTimeUpdated(Player const& owner, ObjectGuid item, uint32 durationLeft) override;
+        void ItemSocketsUpdated(Player const& owner, Item const& item) override;
+        void ObjectDestroyed(Player const& target, ObjectGuid object, bool anim) override;
+        void SpellCooldownsTold(Player const& player, ObjectGuid unit, uint8 flags, std::vector<SpellCooldownTime> const& cooldowns) override;
+        void ExpectedRideVehicleAuraCancelled(Player const& passenger) override;
 };
 
 #endif

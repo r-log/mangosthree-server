@@ -140,8 +140,6 @@ src/game/Object/Creature.cpp -> src/game/entities/player/Player.h
 src/game/Object/Creature.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through GridNotifiersImpl.h before #572
 src/game/Object/Creature.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/Object/Creature.cpp -> src/proto/Opcodes.h
-src/game/Object/Creature.cpp -> src/proto/WorldPacket.h
 # the condition evaluator left ObjectMgr.cpp (data) in #655
 src/game/Object/CreatureEventAI.cpp -> src/game/entities/player/PlayerConditions.h
 # reached through GridNotifiersImpl.h before #572
@@ -155,8 +153,6 @@ src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through GridNotifiersImpl.h before #572
 src/game/Object/GameObject.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GameObjectUse.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/GameObjectUse.cpp -> src/proto/Opcodes.h
-src/game/Object/GameObjectUse.cpp -> src/proto/WorldPacket.h
 src/game/Object/GuardAI.cpp -> src/game/entities/player/Player.h
 src/game/Object/Guild.cpp -> src/game/entities/player/Player.h
 src/game/Object/Guild.cpp -> src/game/entities/player/PlayerRegistry.h
@@ -168,10 +164,8 @@ src/game/Object/GuildBank.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Item.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/Object/Item.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/Item.cpp -> src/proto/WorldPacket.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ItemEnchantment.cpp -> src/game/entities/player/Player.h
-src/game/Object/ItemEnchantment.cpp -> src/proto/WorldPacket.h
 # reached through ObjectMgr.h before #512
 src/game/Object/ItemPersistence.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
@@ -182,8 +176,6 @@ src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectLookup.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/ObjectUpdate.cpp -> src/game/entities/player/Player.h
-src/game/Object/ObjectUpdate.cpp -> src/proto/Opcodes.h
-src/game/Object/ObjectUpdate.cpp -> src/proto/WorldPacket.h
 src/game/Object/ObjectValues.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Pet.cpp -> src/game/entities/player/Player.h
@@ -195,7 +187,6 @@ src/game/Object/PetDatabase.cpp -> src/game/entities/player/pets/PlayerPetCache.
 src/game/Object/PetSpells.cpp -> src/game/entities/player/Player.h
 src/game/Object/PetSpells.cpp -> src/game/entities/player/pets/PlayerPetCache.h
 src/game/Object/PetSpells.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/Object/PetSpells.cpp -> src/proto/WorldPacket.h
 src/game/Object/StatSystem.cpp -> src/game/entities/player/Player.h
 src/game/Object/StatSystem.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/TemporarySummon.cpp -> src/game/entities/player/Player.h
@@ -209,8 +200,6 @@ src/game/Object/UnitVisibility.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitVisibility.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Vehicle.cpp -> src/game/entities/player/Player.h
-# reached through WorldSession.h before #666
-src/game/Object/Vehicle.cpp -> src/proto/WorldPacket.h
 src/game/Object/WorldObjectChat.cpp -> src/game/entities/player/Player.h
 src/game/Object/WorldObjectSummon.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP [pvp] -> src/game/Object/Creature.h

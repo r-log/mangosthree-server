@@ -35,8 +35,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/data/SpellMgr.h"
 #include "UpdateMask.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/WorldObjectNotices.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"
@@ -324,9 +323,7 @@ void GameObject::Use(Unit* user)
 
                 if (info->goober.pageId)                    // show page...
                 {
-                    WorldPacket data(SMSG_GAMEOBJECT_PAGETEXT, 8);
-                    data << ObjectGuid(GetObjectGuid());
-                    player->GetSession()->SendPacket(&data);
+                    sWorldObjectNotices.GameObjectPageShown(*player, GetObjectGuid());
                 }
                 else if (info->goober.gossipID)             // ...or gossip, if page does not exist
                 {
@@ -490,8 +487,7 @@ void GameObject::Use(Unit* user)
                         // fish escaped, can be deleted now
                         SetLootState(GO_JUST_DEACTIVATED);
 
-                        WorldPacket data(SMSG_FISH_ESCAPED, 0);
-                        player->GetSession()->SendPacket(&data);
+                        sWorldObjectNotices.FishEscaped(*player);
                     }
                     break;
                 }
@@ -501,8 +497,10 @@ void GameObject::Use(Unit* user)
                 {
                     SetLootState(GO_JUST_DEACTIVATED);
 
-                    WorldPacket data(SMSG_FISH_NOT_HOOKED, 0);
-                    player->GetSession()->SendPacket(&data);
+                    if (ClientCallbacks const* client = player->GetClientCallbacks())
+                    {
+                        ReportClientFact(client->fishNotHooked, FishNotHookedFact());
+                    }
                     break;
                 }
             }
@@ -797,8 +795,7 @@ void GameObject::Use(Unit* user)
             // fallback, will always work
             player->TeleportTo(GetMapId(), Where().X(), Where().Y(), Where().Z(), Where().Facing(), TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);
 
-            WorldPacket data(SMSG_ENABLE_BARBER_SHOP, 0);
-            player->GetSession()->SendPacket(&data);
+            sWorldObjectNotices.BarberShopEnabled(*player);
 
             player->SetStandState(UNIT_STAND_STATE_SIT_LOW_CHAIR + info->barberChair.chairheight);
             return;

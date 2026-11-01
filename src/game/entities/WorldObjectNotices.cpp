@@ -95,6 +95,42 @@ void WorldObjectNotices::BuildingDamaged(GameObject const& /*building*/, Unit& /
 {
 }
 
+void WorldObjectNotices::AreaSpiritHealerTime(Player const& /*player*/, ObjectGuid /*healer*/, uint32 /*nextResurrectMs*/)
+{
+}
+
+void WorldObjectNotices::GameObjectPageShown(Player const& /*player*/, ObjectGuid /*object*/)
+{
+}
+
+void WorldObjectNotices::FishEscaped(Player const& /*player*/)
+{
+}
+
+void WorldObjectNotices::BarberShopEnabled(Player const& /*player*/)
+{
+}
+
+void WorldObjectNotices::ItemTimeUpdated(Player const& /*owner*/, ObjectGuid /*item*/, uint32 /*durationLeft*/)
+{
+}
+
+void WorldObjectNotices::ItemSocketsUpdated(Player const& /*owner*/, Item const& /*item*/)
+{
+}
+
+void WorldObjectNotices::ObjectDestroyed(Player const& /*target*/, ObjectGuid /*object*/, bool /*anim*/)
+{
+}
+
+void WorldObjectNotices::SpellCooldownsTold(Player const& /*player*/, ObjectGuid /*unit*/, uint8 /*flags*/, std::vector<SpellCooldownTime> const& /*cooldowns*/)
+{
+}
+
+void WorldObjectNotices::ExpectedRideVehicleAuraCancelled(Player const& /*passenger*/)
+{
+}
+
 WorldObjectNotices& WorldObjectNotices::Installed()
 {
     WorldObjectNotices* notices = s_worldObjectNoticesInstalled.load(std::memory_order_acquire);

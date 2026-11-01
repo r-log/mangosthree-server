@@ -29,7 +29,7 @@
 #include "PlayerPetCache.h"
 #include "persistence/characters/pets/PetRepository.h"
 #include "Log.h"
-#include "WorldPacket.h"
+#include "entities/WorldObjectNotices.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"
@@ -62,9 +62,8 @@ void Pet::_LoadSpellCooldowns(PlayerPetCache const& cache)
     {
         time_t curTime = time(NULL);
 
-        WorldPacket data(SMSG_SPELL_COOLDOWN, (8 + 1 + rows.size() * 8));
-        data << ObjectGuid(GetObjectGuid());
-        data << uint8(0x0);                                 // flags (0x1, 0x2)
+        std::vector<SpellCooldownTime> cooldowns;
+        cooldowns.reserve(rows.size());
 
         for (size_t i = 0; i < rows.size(); ++i)
         {
@@ -83,8 +82,10 @@ void Pet::_LoadSpellCooldowns(PlayerPetCache const& cache)
                 continue;
             }
 
-            data << uint32(spell_id);
-            data << uint32(uint32(db_time - curTime)*IN_MILLISECONDS);
+            SpellCooldownTime cooldown;
+            cooldown.spellId = spell_id;
+            cooldown.remainingMs = uint32(uint32(db_time - curTime)*IN_MILLISECONDS);
+            cooldowns.push_back(cooldown);
 
             _AddCreatureSpellCooldown(spell_id, db_time);
 
@@ -95,7 +96,7 @@ void Pet::_LoadSpellCooldowns(PlayerPetCache const& cache)
         Player* ownerPlayer = owner ? owner->ToPlayer() : NULL;
         if (!m_CreatureSpellCooldowns.empty() && ownerPlayer)
         {
-            ownerPlayer->GetSession()->SendPacket(&data);
+            sWorldObjectNotices.SpellCooldownsTold(*ownerPlayer, GetObjectGuid(), 0x0, cooldowns);
         }
     }
 }

@@ -34,7 +34,7 @@
 #include "DBCStores.h"
 #include "data/ScriptNameStore.h"
 #include "ObjectGuid.h"
-#include "WorldPacket.h"
+#include "entities/WorldObjectNotices.h"
 #include "Database/DatabaseEnv.h"
 #include "ItemEnchantmentMgr.h"
 #include "Map.h"
@@ -836,10 +836,7 @@ void Item::SendTimeUpdate(Player* owner)
         return;
     }
 
-    WorldPacket data(SMSG_ITEM_TIME_UPDATE, (8 + 4));
-    data << ObjectGuid(GetObjectGuid());
-    data << uint32(duration);
-    owner->GetSession()->SendPacket(&data);
+    sWorldObjectNotices.ItemTimeUpdated(*owner, GetObjectGuid(), duration);
 }
 
 /**
