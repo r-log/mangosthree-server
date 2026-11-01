@@ -28,7 +28,7 @@
 
 /// Installs the notices through which the dungeon finder, the ticket manager, the auction house, the
 /// calendar, the battlegrounds, the fights, the maps, the arena teams, the groups, the guilds, the chat
-/// channels, the casts and a player's menus report what a client is told; each sends the session's
+/// channels, the casts, the spell effects and a player's menus report what a client is told; each sends the session's
 /// packet.
 void InstallClientNotices();
 

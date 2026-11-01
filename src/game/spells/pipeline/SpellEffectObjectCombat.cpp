@@ -28,8 +28,7 @@
 #include "Common/TimeConstants.h"
 #include "Utilities/MathDefines.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
+#include "spells/pipeline/SpellEffectNotices.h"
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
@@ -331,11 +330,7 @@ void Spell::EffectDuel(SpellEffectEntry const* effect)
     // END
 
     // Send request
-    WorldPacket data(SMSG_DUEL_REQUESTED, 8 + 8);
-    data << pGameObj->GetObjectGuid();
-    data << caster->GetObjectGuid();
-    caster->GetSession()->SendPacket(&data);
-    target->GetSession()->SendPacket(&data);
+    sSpellEffectNotices.DuelRequested(*caster, *target, pGameObj->GetObjectGuid());
 
     // create duel-info
     DuelInfo* duel   = new DuelInfo;

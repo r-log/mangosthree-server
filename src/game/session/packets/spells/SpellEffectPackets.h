@@ -27,6 +27,7 @@
 #define MANGOS_H_SPELLEFFECTPACKETS
 
 #include "PlayerClientFacts.h"
+#include "spells/pipeline/SpellEffectNotices.h"
 
 class WorldPacket;
 
@@ -35,5 +36,47 @@ void BuildSpiritHealerConfirmPacket(WorldPacket& packet, SpiritHealerConfirmFact
 /// Initializes `packet` as a summon request: the summoner's guid, its zone, then the time the
 /// client waits before it declines.
 void BuildSummonRequestPacket(WorldPacket& packet, SummonRequestFact const& fact);
+/// Initializes `packet` as the outright kill of `victim` by the spell `spellId`: the caster's guid
+/// (empty for an object's cast), the victim's, then the spell.
+void BuildInstaKillLogPacket(WorldPacket& packet, ObjectGuid caster, ObjectGuid victim, uint32 spellId);
+/// Initializes `packet` as the dispel log of the spell `spellId`, the steal log when `steal` is true:
+/// the victim's and the caster's packed guids, the spell, a zero byte, the count, then each spell
+/// taken with a zero byte.
+void BuildDispelLogPacket(WorldPacket& packet, bool steal, ObjectGuid victim, ObjectGuid caster, uint32 spellId, std::vector<uint32> const& spellIds);
+/// Initializes `packet` as the dispel the spell `spellId` failed: the caster's guid, the victim's,
+/// the spell, then each spell it failed to dispel.
+void BuildDispelFailedPacket(WorldPacket& packet, ObjectGuid caster, ObjectGuid victim, uint32 spellId, std::vector<uint32> const& spellIds);
+/// Initializes `packet` as the order to clear `target` as a target: its guid.
+void BuildClearTargetPacket(WorldPacket& packet, ObjectGuid target);
+/// Initializes `packet` as a duel request: the flag's guid, then the challenger's.
+void BuildDuelRequestedPacket(WorldPacket& packet, ObjectGuid flag, ObjectGuid challenger);
+/// Initializes `packet` as a totem created: its slot, its guid, its duration in milliseconds, then
+/// the spell that summoned it.
+void BuildTotemCreatedPacket(WorldPacket& packet, uint8 slot, ObjectGuid totem, uint32 duration, uint32 spellId);
+/// Initializes `packet` as a new taxi path learned; no payload.
+void BuildNewTaxiPathPacket(WorldPacket& packet);
+/// Initializes `packet` as the status of the flight master `source`'s node: its guid, then the status.
+void BuildTaxiNodeStatusPacket(WorldPacket& packet, ObjectGuid source, uint8 status);
+/// Initializes `packet` as the player's bind point: `home`'s coordinates, its map, then `areaId`.
+void BuildBindPointUpdatePacket(WorldPacket& packet, WorldLocation const& home, uint32 areaId);
+/// Initializes `packet` as the player bound by `binder` in the area `areaId`: the binder's guid,
+/// then the area.
+void BuildPlayerBoundPacket(WorldPacket& packet, ObjectGuid binder, uint32 areaId);
+
+/// The spell effects' notices, each built here: the logs go to the units around the caster, the
+/// cleared target to the units around the target, the rest to the player's own client.
+class SessionSpellEffectNotices : public SpellEffectNotices
+{
+    public:
+        void InstaKillLog(Spell const& spell, ObjectGuid casterGuid, Unit const& victim) override;
+        void DispelLog(Spell const& spell, Unit const& victim, std::vector<uint32> const& spellIds) override;
+        void DispelFailed(Spell const& spell, Unit const& victim, std::vector<uint32> const& spellIds) override;
+        void StealLog(Spell const& spell, Unit const& victim, std::vector<uint32> const& spellIds) override;
+        void ClearTarget(Unit const& target) override;
+        void DuelRequested(Player& challenger, Player& challenged, ObjectGuid flag) override;
+        void TotemCreated(Player& owner, uint8 slot, ObjectGuid totem, uint32 duration, uint32 spellId) override;
+        void TaxiNodeLearned(Player& player, ObjectGuid source) override;
+        void HomeBound(Player& player, ObjectGuid binder, WorldLocation const& home, uint32 areaId) override;
+};
 
 #endif

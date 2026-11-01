@@ -28,8 +28,7 @@
 #include "Common/TimeConstants.h"
 #include <algorithm>
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
+#include "spells/pipeline/SpellEffectNotices.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
@@ -107,11 +106,7 @@ void Spell::EffectInstaKill(SpellEffectEntry const* /*effect*/)
 
     WorldObject* caster = GetCastingObject();               // we need the original casting object
 
-    WorldPacket data(SMSG_SPELLINSTAKILLLOG, (8 + 8 + 4));
-    data << (caster && caster->GetTypeId() != TYPEID_GAMEOBJECT ? m_caster->GetObjectGuid() : ObjectGuid()); // Caster GUID
-    data << unitTarget->GetObjectGuid();                    // Victim GUID
-    data << uint32(m_spellInfo->ID);
-    m_caster->SendMessageToSet(&data, true);
+    sSpellEffectNotices.InstaKillLog(*this, caster && caster->GetTypeId() != TYPEID_GAMEOBJECT ? m_caster->GetObjectGuid() : ObjectGuid(), *unitTarget);
 
     m_caster->DealDamage(unitTarget, unitTarget->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, m_spellInfo, false);
 }

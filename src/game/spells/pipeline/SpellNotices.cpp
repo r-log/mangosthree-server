@@ -74,6 +74,10 @@ void SpellNotices::ResurrectRequest(Spell const& /*spell*/, Player& /*target*/)
 {
 }
 
+void SpellNotices::CastDelayed(Spell const& /*spell*/, int32 /*delay*/)
+{
+}
+
 SpellNotices& SpellNotices::Installed()
 {
     SpellNotices* notices = s_spellNoticesInstalled.load(std::memory_order_acquire);

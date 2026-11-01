@@ -33,8 +33,7 @@
 #include <algorithm>
 #include <ctime>
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
+#include "spells/pipeline/SpellEffectNotices.h"
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
@@ -147,7 +146,7 @@ void Spell::EffectDispel(SpellEffectEntry const* effect)
     if (!dispel_list.empty())
     {
         std::list<std::pair<SpellAuraHolder* , uint32> > success_list; // (spell_id,casterGuid)
-        std::list < uint32 > fail_list;                     // spell_id
+        std::vector<uint32> fail_list;                      // spell_id
 
         // some spells have effect value = 0 and all from its by meaning expect 1
         if (!damage)
@@ -210,21 +209,15 @@ void Spell::EffectDispel(SpellEffectEntry const* effect)
         // Send success log and really remove auras
         if (!success_list.empty())
         {
-            int32 count = success_list.size();
-            WorldPacket data(SMSG_SPELLDISPELLOG, 8 + 8 + 4 + 1 + 4 + count * 5);
-            data << unitTarget->GetPackGUID();              // Victim GUID
-            data << m_caster->GetPackGUID();                // Caster GUID
-            data << uint32(m_spellInfo->ID);                // Dispel spell id
-            data << uint8(0);                               // not used
-            data << uint32(count);                          // count
+            std::vector<uint32> dispelled;
+            dispelled.reserve(success_list.size());
             for (std::list<std::pair<SpellAuraHolder* , uint32> >::iterator j = success_list.begin(); j != success_list.end(); ++j)
             {
                 SpellAuraHolder* dispelledHolder = j->first;
-                data << uint32(dispelledHolder->GetId());   // Spell Id
-                data << uint8(0);                           // 0 - dispelled !=0 cleansed
+                dispelled.push_back(dispelledHolder->GetId());
                 unitTarget->RemoveAuraHolderDueToSpellByDispel(dispelledHolder->GetId(), j->second, dispelledHolder->GetCasterGuid(), m_caster);
             }
-            m_caster->SendMessageToSet(&data, true);
+            sSpellEffectNotices.DispelLog(*this, *unitTarget, dispelled);
 
             // On success dispel
             // Devour Magic
@@ -238,15 +231,7 @@ void Spell::EffectDispel(SpellEffectEntry const* effect)
         if (!fail_list.empty())
         {
             // Failed to dispel
-            WorldPacket data(SMSG_DISPEL_FAILED, 8 + 8 + 4 + 4 * fail_list.size());
-            data << m_caster->GetObjectGuid();              // Caster GUID
-            data << unitTarget->GetObjectGuid();            // Victim GUID
-            data << uint32(m_spellInfo->ID);                // Dispel spell id
-            for (std::list< uint32 >::iterator j = fail_list.begin(); j != fail_list.end(); ++j)
-            {
-                data << uint32(*j);                         // Spell Id
-            }
-            m_caster->SendMessageToSet(&data, true);
+            sSpellEffectNotices.DispelFailed(*this, *unitTarget, fail_list);
         }
     }
 }
