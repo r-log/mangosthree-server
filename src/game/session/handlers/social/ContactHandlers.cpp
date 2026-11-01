@@ -33,11 +33,11 @@
 #include "Log/Log.h"
 #include "entities/player/Player.h"
 #include "data/GameConfig.h"
-#include "Object/ObjectMgr.h"
+#include "data/world/ObjectMgr.h"
 #include "session/WorldSession.h"
 #include "entities/player/PlayerRegistry.h"
-#include "Object/CharacterCache.h"
-#include "Server/DBCStores.h"
+#include "data/CharacterCache.h"
+#include "data/dbc/DBCStores.h"
 #include "entities/player/social/SocialMgr.h"
 
 /**

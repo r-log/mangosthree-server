@@ -54,7 +54,7 @@
 #include "Database/TickGuard.h"
 #include "ArenaTeam.h"
 #include "Calendar.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "Guild.h"
 #include "Mail.h"
 #include "ObjectGuid.h"

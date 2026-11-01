@@ -30,7 +30,7 @@
 #include <ctime>
 #include "WorldPacket.h"
 #include "session/WorldSession.h"
-#include "Object/ObjectMgr.h"
+#include "data/world/ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Log/Log.h"
 #include "spells/pipeline/Spell.h"

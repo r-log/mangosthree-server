@@ -30,7 +30,7 @@
 
 #include "TestHarness.h"
 #include "InstalledGroupRegistry.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "Group.h"
 #include "ObjectGuid.h"
 #include "SharedDefines.h"

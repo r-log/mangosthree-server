@@ -8,7 +8,7 @@ gate_require_source_root(SyncDb)
 set(CONVERTED_FILES
     src/game/session/handlers/social/PetitionsHandler.cpp
     src/game/entities/player/persistence/PlayerDbLookup.cpp
-    src/game/Object/ObjectMgr.cpp
+    src/game/data/world/ObjectMgr.cpp
     src/game/session/handlers/entities/CharacterHandler.cpp
     src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp
     src/game/entities/player/Player.cpp
@@ -112,11 +112,11 @@ set(CONVERTED_FILES
     src/game/persistence/world/pools/PoolDataRepository.cpp
     src/game/persistence/world/DisableDataRepository.h
     src/game/persistence/world/DisableDataRepository.cpp
-    src/game/WorldHandlers/GameEventMgr.cpp
-    src/game/WorldHandlers/WaypointManager.cpp
-    src/game/WorldHandlers/PoolManager.cpp
-    src/game/WorldHandlers/CreatureLinkingMgr.cpp
-    src/game/WorldHandlers/DisableMgr.cpp
+    src/game/data/world/GameEventMgr.cpp
+    src/game/data/world/WaypointManager.cpp
+    src/game/data/world/PoolManager.cpp
+    src/game/data/world/CreatureLinkingMgr.cpp
+    src/game/data/world/DisableMgr.cpp
     src/game/persistence/world/creatures/CreatureDataRepository.h
     src/game/persistence/world/creatures/CreatureDataRepository.cpp
     src/game/persistence/world/items/ItemDataRepository.h
@@ -133,27 +133,27 @@ set(CONVERTED_FILES
     src/game/persistence/world/quests/QuestDataRepository.cpp
     src/game/persistence/world/reputation/ReputationDataRepository.h
     src/game/persistence/world/reputation/ReputationDataRepository.cpp
-    src/game/Object/ObjectMgrAreaTrigger.cpp
-    src/game/Object/ObjectMgrCreatures.cpp
-    src/game/Object/ObjectMgrDungeonFinder.cpp
-    src/game/Object/ObjectMgrGameObjects.cpp
-    src/game/Object/ObjectMgrGameTele.cpp
-    src/game/Object/ObjectMgrGossipMenu.cpp
-    src/game/Object/ObjectMgrGraveyard.cpp
-    src/game/Object/ObjectMgrInstanceData.cpp
+    src/game/data/world/ObjectMgrAreaTrigger.cpp
+    src/game/data/world/ObjectMgrCreatures.cpp
+    src/game/data/world/ObjectMgrDungeonFinder.cpp
+    src/game/data/world/ObjectMgrGameObjects.cpp
+    src/game/data/world/ObjectMgrGameTele.cpp
+    src/game/data/world/ObjectMgrGossipMenu.cpp
+    src/game/data/world/ObjectMgrGraveyard.cpp
+    src/game/data/world/ObjectMgrInstanceData.cpp
     src/game/social/ArenaTeamRegistry.cpp
     src/game/social/GroupRegistry.cpp
-    src/game/Object/ObjectMgrItems.cpp
-    src/game/Object/ObjectMgrLocales.cpp
-    src/game/Object/ObjectMgrNameCheck.cpp
-    src/game/Object/ObjectMgrPlayerInfo.cpp
-    src/game/Object/ObjectMgrQuestRelations.cpp
-    src/game/Object/ObjectMgrQuests.cpp
-    src/game/Object/ObjectMgrReputation.cpp
-    src/game/Object/ObjectMgrSpellData.cpp
-    src/game/Object/ObjectMgrText.cpp
-    src/game/Object/ObjectMgrTrainerVendor.cpp
-    src/game/Object/CharacterCache.cpp
+    src/game/data/world/ObjectMgrItems.cpp
+    src/game/data/world/ObjectMgrLocales.cpp
+    src/game/data/world/ObjectMgrNameCheck.cpp
+    src/game/data/world/ObjectMgrPlayerInfo.cpp
+    src/game/data/world/ObjectMgrQuestRelations.cpp
+    src/game/data/world/ObjectMgrQuests.cpp
+    src/game/data/world/ObjectMgrReputation.cpp
+    src/game/data/world/ObjectMgrSpellData.cpp
+    src/game/data/world/ObjectMgrText.cpp
+    src/game/data/world/ObjectMgrTrainerVendor.cpp
+    src/game/data/CharacterCache.cpp
     src/game/persistence/world/spells/SpellDataRepository.h
     src/game/persistence/world/spells/SpellDataRepository.cpp
     src/game/persistence/world/ai/CreatureEventAIRepository.h
@@ -174,7 +174,7 @@ set(CONVERTED_FILES
     src/game/spells/data/SpellMgrProc.cpp
     src/game/Object/CreatureEventAIMgr.cpp
     src/game/Object/LootMgr.cpp
-    src/game/Object/ItemEnchantmentMgr.cpp
+    src/game/data/world/ItemEnchantmentMgr.cpp
     src/game/WorldHandlers/SkillDiscovery.cpp
     src/game/WorldHandlers/SkillExtraItems.cpp
     src/game/WorldHandlers/Transports.cpp

@@ -36,7 +36,7 @@
 #include "WorldPacket.h"
 #include "session/WorldSession.h"
 #include "data/GameConfig.h"
-#include "Object/ObjectMgr.h"
+#include "data/world/ObjectMgr.h"
 #include "Log/Log.h"
 #include "Opcodes.h"
 #include "Object/Guild.h"
@@ -44,7 +44,7 @@
 #include "entities/player/PlayerRegistry.h"
 #include "Player.h"
 #include "Unit.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 #include "Creature.h"
 
 // Charters ID in item_template

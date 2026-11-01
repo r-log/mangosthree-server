@@ -2,7 +2,7 @@
 
 // Bridges the client MPQ to the server's own DBC reader. The baker carries no DBC
 // parser of its own: it reads the raw WDBC image out of the archive and hands it to
-// DBCFileLoader, driven by the format strings in Server/DBCfmt.h. One parser and one
+// DBCFileLoader, driven by the format strings in data/dbc/DBCfmt.h. One parser and one
 // column layout, so the baker cannot drift from the server's view of a .dbc.
 //
 // The server marks columns it does not care about as 'x', and Map.dbc's Directory is

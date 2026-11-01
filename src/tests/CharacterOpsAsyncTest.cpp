@@ -48,7 +48,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
 #include "Database/TickGuard.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "ObjectGuid.h"
 #include "Player.h"
 #include "WorldSession.h"

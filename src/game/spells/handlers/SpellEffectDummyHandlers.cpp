@@ -39,7 +39,7 @@
 #include "Object/GameObject.h"
 #include "Object/Pet.h"
 #include "spells/data/SpellMgr.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 #include "Utilities/Util.h"
 #include "entities/player/Player.h"
 #include <algorithm>

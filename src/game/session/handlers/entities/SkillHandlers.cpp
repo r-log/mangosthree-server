@@ -26,7 +26,7 @@
 #include "session/handlers/entities/SkillHandlers.h"
 
 #include "Platform/Define.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 #include "Opcodes.h"
 #include "Log/Log.h"
 #include "Object/Creature.h"

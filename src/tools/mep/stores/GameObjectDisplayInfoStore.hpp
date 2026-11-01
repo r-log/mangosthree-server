@@ -5,7 +5,7 @@
 
 #include "MpqDbcLoader.hpp"
 
-#include "Server/DBCfmt.h"
+#include "data/dbc/DBCfmt.h"
 
 #include <cctype>
 #include <cstdint>

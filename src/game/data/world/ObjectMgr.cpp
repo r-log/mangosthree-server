@@ -41,7 +41,7 @@
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "ProgressBar.h"
 #include "data/Language.h"
 #include "PoolManager.h"

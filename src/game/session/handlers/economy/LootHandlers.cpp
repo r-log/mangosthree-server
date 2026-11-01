@@ -44,7 +44,7 @@
 #include "Object/Object.h"
 #include "WorldHandlers/Group.h"
 #include "Object/Unit.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 
 void LootHandlers::HandleAutostoreLootItem(WorldSession& session, WorldPacket& recv_data)
 {

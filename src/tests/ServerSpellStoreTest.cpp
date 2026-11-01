@@ -34,7 +34,7 @@
 #include "data/ServerSpellStore.h"
 #include "persistence/world/spells/SpellTemplateRepository.h"
 #include "DataStores/DBCStore.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 
 #include <cstring>
 

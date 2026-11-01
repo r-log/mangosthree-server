@@ -35,7 +35,7 @@
 #include "MapPersistentStateMgr.h"
 #include "Calendar.h"
 #include "CalendarHandler.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "ObjectMgr.h"
 #include "SocialMgr.h"
 #include "data/GameConfig.h"

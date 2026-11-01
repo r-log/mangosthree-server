@@ -26,9 +26,9 @@
 
 #include "data/CreatureRecords.h" // CreatureInfo
 #include "SharedDefines.h"        // CREATURE_ELITE_WORLDBOSS, CREATURE_ELITE_NORMAL, UNIT_NPC_FLAG_FLIGHTMASTER, UNIT_NPC_FLAG_GOSSIP
-#include "Server/DBCStructure.h"  // MapEntry
-#include "Server/DBCStores.h"     // sFactionTemplateStore, FactionTemplateEntry
-#include "Server/DBCEnums.h"      // FactionMasks
+#include "data/dbc/DBCStructure.h"  // MapEntry
+#include "data/dbc/DBCStores.h"     // sFactionTemplateStore, FactionTemplateEntry
+#include "data/dbc/DBCEnums.h"      // FactionMasks
 
 // Wave 1 high-confidence LivingWorld anchor categories (bitmask).
 enum LivingWorldAnchorCategory

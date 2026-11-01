@@ -27,7 +27,7 @@
 
 #include <string>
 #include "Platform/Define.h"
-#include "Server/SharedDefines.h"
+#include "data/dbc/SharedDefines.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "session/WorldSession.h"
@@ -35,7 +35,7 @@
 #include "entities/player/Player.h"
 #include "session/packets/chat/SystemMessage.h"
 #include "Object/Object.h"
-#include "Object/ObjectMgr.h"
+#include "data/world/ObjectMgr.h"
 #include "Object/ArenaTeam.h"
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundMgr.h"
@@ -46,7 +46,7 @@
 #include "data/Language.h"
 #include "data/ScriptHooks.h"
 #include "data/GameConfig.h"
-#include "WorldHandlers/DisableMgr.h"
+#include "data/world/DisableMgr.h"
 #include "Time/GameTime.h"
 #include "MotionGenerators/MotionMaster.h"
 #include "entities/player/social/SocialMgr.h"

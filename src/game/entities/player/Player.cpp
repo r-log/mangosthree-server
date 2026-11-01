@@ -73,7 +73,7 @@
 #include "DBCStores.h"
 #include "DB2Stores.h"
 #include "Vehicle.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "DisableMgr.h"
 #include "MotionMaster.h"
 #include "State.h"

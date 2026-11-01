@@ -41,7 +41,7 @@
 #include "Log.h"
 #include "PlayerRegistry.h"
 #include "Creature.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "Pet.h"
 #include "Player.h"
 #include "data/WorldBroadcast.h"

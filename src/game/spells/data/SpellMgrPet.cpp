@@ -30,7 +30,7 @@
 
 #include "Utilities/Errors.h"
 #include "spells/data/SpellMgr.h"
-#include "spells/auras/SpellAuraDefines.h"
+#include "spells/data/SpellAuraDefines.h"
 #include "ObjectMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"

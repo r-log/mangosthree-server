@@ -72,7 +72,7 @@ legacy/base/escort_ai.h call GetMap
 legacy/base/escort_ai.h call GetPlayer
 legacy/base/escort_ai.h downcast Unit
 legacy/base/escort_ai.h free Start
-legacy/base/escort_ai.h include game/Object/ObjectMgr.h
+legacy/base/escort_ai.h include game/data/world/ObjectMgr.h
 legacy/base/escort_ai.h override AttackStart
 legacy/base/escort_ai.h override EnterCombat
 legacy/base/escort_ai.h override EnterEvadeMode
@@ -326,11 +326,11 @@ legacy/include/sc_creature.cpp free SpellEffectIndex
 legacy/include/sc_creature.cpp free script_error_log
 legacy/include/sc_creature.cpp free urand
 legacy/include/sc_creature.cpp include game/Object/Item.h
-legacy/include/sc_creature.cpp include game/Object/ObjectMgr.h
 legacy/include/sc_creature.cpp include game/WorldHandlers/Cell.h
 legacy/include/sc_creature.cpp include game/WorldHandlers/CellImpl.h
 legacy/include/sc_creature.cpp include game/WorldHandlers/GridNotifiers.h
 legacy/include/sc_creature.cpp include game/WorldHandlers/GridNotifiersImpl.h
+legacy/include/sc_creature.cpp include game/data/world/ObjectMgr.h
 legacy/include/sc_creature.cpp include game/spells/pipeline/Spell.h
 legacy/include/sc_creature.cpp include proto/WorldPacket.h
 legacy/include/sc_creature.h call GetManaCost
@@ -343,7 +343,7 @@ legacy/include/sc_creature.h free DoFindFriendlyMissingBuff
 legacy/include/sc_creature.h free DoSelectLowestHpFriendly
 legacy/include/sc_creature.h free SetCombatMovement
 legacy/include/sc_creature.h include game/ChatCommands/Chat.h
-legacy/include/sc_creature.h include game/Server/DBCStores.h
+legacy/include/sc_creature.h include game/data/dbc/DBCStores.h
 legacy/include/sc_creature.h override AttackStart
 legacy/include/sc_creature.h override AttackedBy
 legacy/include/sc_creature.h override CorpseRemoved
@@ -381,7 +381,7 @@ legacy/include/sc_gossip.h call SendListInventory
 legacy/include/sc_gossip.h call SendTrainerList
 legacy/include/sc_gossip.h free GetSession
 legacy/include/sc_gossip.h include game/WorldHandlers/GossipDef.h
-legacy/include/sc_gossip.h include game/WorldHandlers/QuestDef.h
+legacy/include/sc_gossip.h include game/data/world/QuestDef.h
 legacy/include/sc_gossip.h include game/entities/player/Player.h
 legacy/include/sc_gossip.h include game/session/WorldSession.h
 legacy/include/sc_grid_searchers.cpp call CellEnvStats
@@ -5516,7 +5516,7 @@ legacy/scripts/kalimdor/felwood.cpp free Start
 legacy/scripts/kalimdor/felwood.cpp free StartEvent
 legacy/scripts/kalimdor/felwood.cpp free roll_chance_i
 legacy/scripts/kalimdor/felwood.cpp free urand
-legacy/scripts/kalimdor/felwood.cpp include game/Object/ObjectMgr.h
+legacy/scripts/kalimdor/felwood.cpp include game/data/world/ObjectMgr.h
 legacy/scripts/kalimdor/felwood.cpp override EffectDummy
 legacy/scripts/kalimdor/felwood.cpp override JustDied
 legacy/scripts/kalimdor/felwood.cpp override JustSummoned
@@ -5643,7 +5643,7 @@ legacy/scripts/kalimdor/moonglade.cpp free RandomGroundPointNear
 legacy/scripts/kalimdor/moonglade.cpp free SetCombatMovement
 legacy/scripts/kalimdor/moonglade.cpp free roll_chance_i
 legacy/scripts/kalimdor/moonglade.cpp free urand
-legacy/scripts/kalimdor/moonglade.cpp include game/Object/ObjectMgr.h
+legacy/scripts/kalimdor/moonglade.cpp include game/data/world/ObjectMgr.h
 legacy/scripts/kalimdor/moonglade.cpp override EffectDummy
 legacy/scripts/kalimdor/moonglade.cpp override EnterEvadeMode
 legacy/scripts/kalimdor/moonglade.cpp override JustDied
@@ -6158,7 +6158,7 @@ legacy/scripts/kalimdor/silithus.cpp free RandomGroundPointNear
 legacy/scripts/kalimdor/silithus.cpp free Reset
 legacy/scripts/kalimdor/silithus.cpp free Transform
 legacy/scripts/kalimdor/silithus.cpp free urand
-legacy/scripts/kalimdor/silithus.cpp include game/Object/ObjectMgr.h
+legacy/scripts/kalimdor/silithus.cpp include game/data/world/ObjectMgr.h
 legacy/scripts/kalimdor/silithus.cpp override EnterEvadeMode
 legacy/scripts/kalimdor/silithus.cpp override JustDied
 legacy/scripts/kalimdor/silithus.cpp override JustSummoned
@@ -7886,7 +7886,7 @@ legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp free DoCastSpellIfCan
 legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp free DoMeleeAttackIfReady
 legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp free GetCreatureTemplateStore
 legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp free urand
-legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp include game/Object/ObjectMgr.h
+legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp include game/data/world/ObjectMgr.h
 legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp override JustDied
 legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp override JustReachedHome
 legacy/scripts/northrend/draktharon_keep/boss_tharonja.cpp override KilledUnit
@@ -15043,8 +15043,8 @@ legacy/scripts/world/npcs_special.cpp free countof
 legacy/scripts/world/npcs_special.cpp free error_db_log
 legacy/scripts/world/npcs_special.cpp free script_error_log
 legacy/scripts/world/npcs_special.cpp free urand
-legacy/scripts/world/npcs_special.cpp include game/Object/ObjectMgr.h
-legacy/scripts/world/npcs_special.cpp include game/WorldHandlers/GameEventMgr.h
+legacy/scripts/world/npcs_special.cpp include game/data/world/GameEventMgr.h
+legacy/scripts/world/npcs_special.cpp include game/data/world/ObjectMgr.h
 legacy/scripts/world/npcs_special.cpp override EnterEvadeMode
 legacy/scripts/world/npcs_special.cpp override MoveInLineOfSight
 legacy/scripts/world/npcs_special.cpp override MovementInform
@@ -15102,7 +15102,7 @@ legacy/scripts/world/spell_scripts.cpp free countof
 legacy/scripts/world/spell_scripts.cpp free frand
 legacy/scripts/world/spell_scripts.cpp free irand
 legacy/scripts/world/spell_scripts.cpp free urand
-legacy/scripts/world/spell_scripts.cpp include game/Object/ObjectMgr.h
+legacy/scripts/world/spell_scripts.cpp include game/data/world/ObjectMgr.h
 legacy/scripts/world/spell_scripts.cpp override EffectDummy
 legacy/scripts/world/world_map_scripts.cpp call GetEntry
 legacy/scripts/world/world_map_scripts.cpp call GetMotionMaster
@@ -15148,8 +15148,8 @@ legacy/system/ScriptDevMgr.cpp free debug_log
 legacy/system/ScriptDevMgr.cpp free outstring_log
 legacy/system/ScriptDevMgr.cpp free script_error_log
 legacy/system/ScriptDevMgr.cpp free setScriptLibraryErrorFile
-legacy/system/ScriptDevMgr.cpp include game/Object/ObjectMgr.h
-legacy/system/ScriptDevMgr.cpp include game/Server/DBCStores.h
+legacy/system/ScriptDevMgr.cpp include game/data/dbc/DBCStores.h
+legacy/system/ScriptDevMgr.cpp include game/data/world/ObjectMgr.h
 legacy/system/ScriptDevMgr.cpp include shared/Config/Config.h
 legacy/system/ScriptDevMgr.cpp include shared/Database/DatabaseEnv.h
 legacy/system/ScriptDevMgr.cpp include shared/Utilities/ProgressBar.h
@@ -15178,8 +15178,8 @@ legacy/system/ScriptDevMgr.h free ProcessEvent
 legacy/system/ScriptDevMgr.h free RegisterSelf
 legacy/system/ScriptDevMgr.h free ServesScript
 legacy/system/ScriptDevMgr.h free Type
-legacy/system/ScriptDevMgr.h include game/Server/DBCStructure.h
-legacy/system/ScriptDevMgr.h include game/WorldHandlers/QuestDef.h
+legacy/system/ScriptDevMgr.h include game/data/dbc/DBCStructure.h
+legacy/system/ScriptDevMgr.h include game/data/world/QuestDef.h
 legacy/system/ScriptDevMgr.h include game/dbscripts/ScriptMgr.h
 legacy/system/ScriptDevMgr.h include shared/Common/ServerDefines.h
 legacy/system/ScriptDevMgr.h include shared/Common/TimeConstants.h
@@ -15210,7 +15210,7 @@ legacy/system/system.cpp free GetCreatureTemplateStore
 legacy/system/system.cpp free LoadMangosStrings
 legacy/system/system.cpp free error_db_log
 legacy/system/system.cpp free outstring_log
-legacy/system/system.cpp include game/Object/ObjectMgr.h
+legacy/system/system.cpp include game/data/world/ObjectMgr.h
 legacy/system/system.cpp include game/persistence/world/ScriptDataRepository.h
 legacy/system/system.cpp include shared/Database/DatabaseEnv.h
 legacy/system/system.cpp include shared/Utilities/ProgressBar.h

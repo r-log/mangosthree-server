@@ -16,6 +16,12 @@ source_group("Combat" FILES ${SRC_GRP_COMBAT})
 file(GLOB SRC_GRP_DATA data/*.cpp data/*.h)
 source_group("Data" FILES ${SRC_GRP_DATA})
 
+file(GLOB SRC_GRP_DATA_DBC data/dbc/*.cpp data/dbc/*.h)
+source_group("Data\\DBC" FILES ${SRC_GRP_DATA_DBC})
+
+file(GLOB SRC_GRP_DATA_WORLD data/world/*.cpp data/world/*.h)
+source_group("Data\\World" FILES ${SRC_GRP_DATA_WORLD})
+
 file(GLOB SRC_GRP_DBSCRIPTS dbscripts/*.cpp dbscripts/*.h)
 source_group("Database Scripts" FILES ${SRC_GRP_DBSCRIPTS})
 
@@ -214,7 +220,6 @@ add_library(persistence STATIC
     ${SRC_GRP_PERSISTENCE_WORLD_SPAWNS}
     ${SRC_GRP_PERSISTENCE_WORLD_SPELLS}
     ${SRC_GRP_PERSISTENCE_WORLD_WAYPOINTS}
-    Server/GameGlobals.cpp
 )
 
 target_include_directories(persistence
@@ -233,10 +238,6 @@ target_link_libraries(persistence
 
 file(GLOB SRC_GRP_REFERENCES References/*.cpp References/*.h)
 source_group("References" FILES ${SRC_GRP_REFERENCES})
-
-file(GLOB SRC_GRP_SERVER Server/*.cpp Server/*.h)
-list(REMOVE_ITEM SRC_GRP_SERVER ${CMAKE_CURRENT_SOURCE_DIR}/Server/GameGlobals.cpp)
-source_group("Server" FILES ${SRC_GRP_SERVER})
 
 file(GLOB SRC_GRP_SESSION session/*.cpp session/*.h)
 source_group("Session" FILES ${SRC_GRP_SESSION})
@@ -313,86 +314,18 @@ source_group("Spells\\Handlers" FILES ${SRC_GRP_SPELLS_HANDLERS})
 file(GLOB SRC_GRP_SPELLS_PIPELINE spells/pipeline/*.cpp spells/pipeline/*.h)
 source_group("Spells\\Pipeline" FILES ${SRC_GRP_SPELLS_PIPELINE})
 
-set(DATA_SOURCES
-    Object/CharacterCache.cpp
-    Object/CharacterCache.h
-    Object/ItemEnchantmentMgr.cpp
-    Object/ItemEnchantmentMgr.h
-    Object/ItemPrototype.cpp
-    Object/ItemPrototype.h
-    Object/LivingWorldAnchorPolicy.h
-    Object/LootStore.cpp
-    Object/LootStore.h
-    Object/ObjectMgr.cpp
-    Object/ObjectMgr.h
-    Object/ObjectMgrAreaTrigger.cpp
-    Object/ObjectMgrCreatures.cpp
-    Object/ObjectMgrDungeonFinder.cpp
-    Object/ObjectMgrGameObjectInfo.cpp
-    Object/ObjectMgrGameObjects.cpp
-    Object/ObjectMgrGameTele.cpp
-    Object/ObjectMgrGossipMenu.cpp
-    Object/ObjectMgrGraveyard.cpp
-    Object/ObjectMgrInstanceData.cpp
-    Object/ObjectMgrItems.cpp
-    Object/ObjectMgrLocaleStrings.cpp
-    Object/ObjectMgrLocales.cpp
-    Object/ObjectMgrNameCheck.cpp
-    Object/ObjectMgrPlayerInfo.cpp
-    Object/ObjectMgrQuestRelations.cpp
-    Object/ObjectMgrQuests.cpp
-    Object/ObjectMgrReputation.cpp
-    Object/ObjectMgrSpellData.cpp
-    Object/ObjectMgrTaxi.cpp
-    Object/ObjectMgrText.cpp
-    Object/ObjectMgrTrainerVendor.cpp
-    Object/TaxiDestinationsString.h
-    Object/TaxiRoute.h
-    Server/DB2Stores.cpp
-    Server/DB2Stores.h
-    Server/DB2Structure.h
-    Server/DB2Structure_reference.h
-    Server/DB2fmt.h
-    Server/DBCEnums.h
-    Server/DBCStores.cpp
-    Server/DBCStores.h
-    Server/DBCStructure.cpp
-    Server/DBCStructure.h
-    Server/DBCStructure_reference.h
-    Server/DBCfmt.h
-    Server/Path.h
-    Server/SharedDefines.h
-    WorldHandlers/CreatureLinkingMgr.cpp
-    WorldHandlers/CreatureLinkingMgr.h
-    WorldHandlers/DisableMgr.cpp
-    WorldHandlers/DisableMgr.h
-    WorldHandlers/GameEventMgr.cpp
-    WorldHandlers/GameEventMgr.h
-    WorldHandlers/PoolManager.cpp
-    WorldHandlers/PoolManager.h
-    WorldHandlers/QuestDef.cpp
-    WorldHandlers/QuestDef.h
-    WorldHandlers/WaypointManager.cpp
-    WorldHandlers/WaypointManager.h
-    spells/auras/SpellAuraDefines.h
-)
-list(TRANSFORM DATA_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-foreach(_group SRC_GRP_OBJECT SRC_GRP_SERVER SRC_GRP_SPELLS_AURAS)
-    list(REMOVE_ITEM ${_group} ${DATA_SOURCES})
-endforeach()
-
 add_library(data STATIC
     ${SRC_GRP_DATA}
+    ${SRC_GRP_DATA_DBC}
+    ${SRC_GRP_DATA_WORLD}
     ${SRC_GRP_SPELLS_DATA}
-    ${DATA_SOURCES}
 )
 
 target_include_directories(data
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        Object
-        Server
-        WorldHandlers
+        data/dbc
+        data/world
 )
 
 if(MSVC)

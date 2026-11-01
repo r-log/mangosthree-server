@@ -43,7 +43,7 @@
 #include "Pet.h"
 #include "DBCStores.h"
 #include "AchievementMgr.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "CinematicFlyover.h"

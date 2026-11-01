@@ -39,7 +39,7 @@
 #include "MapPersistentStateMgr.h"
 #include "Calendar.h"
 #include "CalendarHandler.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "ObjectMgr.h"
 #include "social/ArenaTeamRegistry.h"
 #include "SocialMgr.h"

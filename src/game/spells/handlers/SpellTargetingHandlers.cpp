@@ -27,7 +27,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "WorldHandlers/GridNotifiers.h"
 #include "WorldHandlers/Map.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/pipeline/SpellTargetDistanceOrder.h"

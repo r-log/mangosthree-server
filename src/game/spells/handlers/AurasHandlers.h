@@ -28,7 +28,7 @@
 #define MANGOSSERVER_SPELLS_HANDLERS_AURASHANDLERS_H
 
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Server/SharedDefines.h"
+#include "data/dbc/SharedDefines.h"
 
 class Aura;
 class ObjectGuid;

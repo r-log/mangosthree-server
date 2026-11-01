@@ -38,7 +38,7 @@
 #include "spells/pipeline/Spell.h"
 #include "entities/player/social/SocialMgr.h"
 #include "data/Language.h"
-#include "Server/DBCStores.h"
+#include "data/dbc/DBCStores.h"
 #include "persistence/characters/CharacterTransaction.h"
 
 /**

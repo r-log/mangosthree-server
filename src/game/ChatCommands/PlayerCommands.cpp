@@ -40,7 +40,7 @@
 #include <list>
 #include "Chat.h"
 #include "AchievementMgr.h"
-#include "CharacterCache.h"
+#include "data/CharacterCache.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "DBCStores.h"
