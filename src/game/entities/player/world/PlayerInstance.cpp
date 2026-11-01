@@ -27,8 +27,7 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/player/world/PlayerWorldNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "MapManager.h"
@@ -47,22 +46,12 @@
 #include <cmath>
 void Player::SendDungeonDifficulty(bool IsInGroup)
 {
-    uint8 val = 0x00000001;
-    WorldPacket data(MSG_SET_DUNGEON_DIFFICULTY, 12);
-    data << uint32(GetDungeonDifficulty());
-    data << uint32(val);
-    data << uint32(IsInGroup);
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.DungeonDifficultyShown(*this, GetDungeonDifficulty(), IsInGroup);
 }
 
 void Player::SendRaidDifficulty(bool IsInGroup)
 {
-    uint8 val = 0x00000001;
-    WorldPacket data(MSG_SET_RAID_DIFFICULTY, 12);
-    data << uint32(GetRaidDifficulty());
-    data << uint32(val);
-    data << uint32(IsInGroup);
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.RaidDifficultyShown(*this, GetRaidDifficulty(), IsInGroup);
 }
 
 /**
@@ -72,9 +61,7 @@ void Player::SendRaidDifficulty(bool IsInGroup)
  */
 void Player::SendResetFailedNotify(uint32 mapid)
 {
-    WorldPacket data(SMSG_RESET_FAILED_NOTIFY, 4);
-    data << uint32(mapid);
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.InstanceResetFailedNotify(*this, mapid);
 }
 
 /// Reset all solo instances and optionally send a message on success for each
@@ -133,9 +120,7 @@ void Player::ResetInstances(InstanceResetMethod method, bool isRaid)
  */
 void Player::SendResetInstanceSuccess(uint32 MapId)
 {
-    WorldPacket data(SMSG_INSTANCE_RESET, 4);
-    data << uint32(MapId);
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.InstanceReset(*this, MapId);
 }
 
 /**
@@ -146,11 +131,7 @@ void Player::SendResetInstanceSuccess(uint32 MapId)
  */
 void Player::SendResetInstanceFailed(uint32 reason, uint32 MapId)
 {
-    // TODO: find what other fail reasons there are besides players in the instance
-    WorldPacket data(SMSG_INSTANCE_RESET_FAILED, 4);
-    data << uint32(reason);
-    data << uint32(MapId);
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.InstanceResetFailed(*this, reason, MapId);
 }
 
 /**
@@ -180,15 +161,5 @@ void Player::SendInstanceResetWarning(uint32 mapid, Difficulty difficulty, uint3
         type = RAID_INSTANCE_WARNING_MIN_SOON;
     }
 
-    WorldPacket data(SMSG_RAID_INSTANCE_MESSAGE, 4 + 4 + 4 + 4);
-    data << uint32(type);
-    data << uint32(mapid);
-    data << uint32(difficulty);                             // difficulty
-    data << uint32(time);
-    if (type == RAID_INSTANCE_WELCOME)
-    {
-        data << uint8(0);                                   // is your (1)
-        data << uint8(0);                                   // is extended (1), ignored if prev field is 0
-    }
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.RaidInstanceMessage(*this, type, mapid, difficulty, time);
 }

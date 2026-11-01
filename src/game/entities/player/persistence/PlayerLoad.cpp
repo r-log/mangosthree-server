@@ -37,10 +37,9 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "WorldGameTime.h"
-#include "WorldPacket.h"
+#include "entities/player/world/PlayerWorldNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "MapManager.h"
@@ -1330,14 +1329,7 @@ DungeonPersistentState* Player::GetBoundInstanceSaveForSelfOrGroup(uint32 mapid)
  */
 void Player::SendRaidInfo()
 {
-    uint32 counter = 0;
-
-    WorldPacket data(SMSG_RAID_INSTANCE_INFO, 4);
-
-    size_t p_counter = data.wpos();
-    data << uint32(counter);                                // placeholder
-
-    time_t now = time(NULL);
+    std::vector<DungeonPersistentState*> permBinds;
 
     for (int i = 0; i < MAX_DIFFICULTY; ++i)
     {
@@ -1345,20 +1337,11 @@ void Player::SendRaidInfo()
         {
             if (itr->second.perm)
             {
-                DungeonPersistentState* state = itr->second.state;
-                data << uint32(state->GetMapId());          // map id
-                data << uint32(state->GetDifficulty());     // difficulty
-                data << ObjectGuid(state->GetInstanceGuid());// instance guid
-                data << uint8(1);                           // expired = 0
-                data << uint8(0);                           // extended = 1
-                data << uint32(state->GetResetTime() - now);// reset time
-                data << uint32(state->GetCompletedEncountersMask());// completed encounter mask
-                ++counter;
+                permBinds.push_back(itr->second.state);
             }
         }
     }
-    data.put<uint32>(p_counter, counter);
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.RaidInfoShown(*this, permBinds);
 }
 
 /*
@@ -1366,8 +1349,7 @@ void Player::SendRaidInfo()
 */
 void Player::SendSavedInstances()
 {
-    bool hasBeenSaved = false;
-    WorldPacket data;
+    std::vector<uint32> permMapIds;
 
     for (uint8 i = 0; i < MAX_DIFFICULTY; ++i)
     {
@@ -1375,34 +1357,12 @@ void Player::SendSavedInstances()
         {
             if (itr->second.perm)                           // only permanent binds are sent
             {
-                hasBeenSaved = true;
-                break;
+                permMapIds.push_back(itr->second.state->GetMapId());
             }
         }
     }
 
-    // Send opcode 811. true or false means, whether you have current raid/heroic instances
-    data.Initialize(SMSG_UPDATE_INSTANCE_OWNERSHIP);
-    data << uint32(hasBeenSaved);
-    GetSession()->SendPacket(&data);
-
-    if (!hasBeenSaved)
-    {
-        return;
-    }
-
-    for (uint8 i = 0; i < MAX_DIFFICULTY; ++i)
-    {
-        for (BoundInstancesMap::const_iterator itr = m_boundInstances[i].begin(); itr != m_boundInstances[i].end(); ++itr)
-        {
-            if (itr->second.perm)
-            {
-                data.Initialize(SMSG_UPDATE_LAST_INSTANCE);
-                data << uint32(itr->second.state->GetMapId());
-                GetSession()->SendPacket(&data);
-            }
-        }
-    }
+    sPlayerWorldNotices.SavedInstancesShown(*this, permMapIds);
 }
 
 /// convert the player's binds to the group

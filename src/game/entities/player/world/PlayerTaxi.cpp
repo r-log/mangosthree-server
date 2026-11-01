@@ -34,10 +34,9 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
+#include "entities/player/world/PlayerWorldNotices.h"
 #include "UpdateMask.h"
 #include "ObjectMgr.h"
 #include "spells/pipeline/Spell.h"
@@ -729,8 +728,7 @@ void Player::TaxiSeamPassed()
     const uint32 hub = m_taxi.GetTaxiSource();
     if (hub && IsTaxiCheater() && m_taxi.SetTaximaskNode(hub))
     {
-        WorldPacket data(SMSG_NEW_TAXI_PATH, 0);
-        GetSession()->SendPacket(&data);
+        sPlayerWorldNotices.NewTaxiPath(*this);
     }
 }
 

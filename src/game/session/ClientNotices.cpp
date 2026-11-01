@@ -39,6 +39,7 @@
 #include "session/packets/entities/MotionPackets.h"
 #include "session/packets/entities/PlayerCombatPackets.h"
 #include "session/packets/entities/PlayerSpellPackets.h"
+#include "session/packets/entities/PlayerWorldPackets.h"
 #include "session/packets/entities/WorldObjectPackets.h"
 #include "session/packets/maps/MapPackets.h"
 #include "session/packets/pvp/BattleGroundPackets.h"
@@ -113,6 +114,7 @@ void InstallClientNotices()
     static SessionQuestNotices quests;
     static SessionPlayerSpellNotices playerSpells;
     static SessionInventoryNotices inventory;
+    static SessionPlayerWorldNotices playerWorld;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -135,5 +137,6 @@ void InstallClientNotices()
     QuestNotices::Install(&quests);
     PlayerSpellNotices::Install(&playerSpells);
     InventoryNotices::Install(&inventory);
+    PlayerWorldNotices::Install(&playerWorld);
     InstallCalendarNotices();
 }

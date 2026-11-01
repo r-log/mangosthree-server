@@ -401,8 +401,6 @@ src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/MapPer
 src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/TransportMap.h
 src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Transports.h
 src/game/entities/player/persistence/PlayerLoad.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/persistence/PlayerLoad.cpp -> src/proto/Opcodes.h
-src/game/entities/player/persistence/PlayerLoad.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/persistence/PlayerSave.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/pets [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/pvp [entities] -> src/game/BattleGround/BattleGround.h
@@ -413,8 +411,6 @@ src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridMap.h
 src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Group.h
 src/game/entities/player/pvp/PlayerBattleGround.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/pvp/PlayerBattleGround.cpp -> src/proto/Opcodes.h
-src/game/entities/player/pvp/PlayerBattleGround.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/quests [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/quests [entities] -> src/game/BattleGround/BattleGroundAV.h
 src/game/entities/player/quests [entities] -> src/game/WorldHandlers/GridNotifiers.h
@@ -453,17 +449,8 @@ src/game/entities/player/world [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/world [entities] -> src/game/spells/pipeline/Spell.h
 # moved from spells/data/SpellMgr.h in #651
 src/game/entities/player/world [entities] -> src/game/spells/pipeline/SpellRules.h
-src/game/entities/player/world/PlayerInstance.cpp -> src/proto/Opcodes.h
-src/game/entities/player/world/PlayerInstance.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/world/PlayerMirror.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/world/PlayerMirror.cpp -> src/proto/Opcodes.h
-src/game/entities/player/world/PlayerMirror.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/world/PlayerMovement.cpp -> src/proto/Opcodes.h
-src/game/entities/player/world/PlayerTaxi.cpp -> src/proto/Opcodes.h
-src/game/entities/player/world/PlayerTaxi.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/world/PlayerZone.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/world/PlayerZone.cpp -> src/proto/Opcodes.h
-src/game/entities/player/world/PlayerZone.cpp -> src/proto/WorldPacket.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h
 src/game/spells/auras [spells] -> src/game/MotionGenerators/MotionMaster.h
 src/game/spells/auras [spells] -> src/game/Object/Creature.h

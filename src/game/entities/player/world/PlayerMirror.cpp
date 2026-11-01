@@ -27,9 +27,8 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
+#include "entities/player/world/PlayerWorldNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -64,14 +63,7 @@ void Player::SendMirrorTimer(MirrorTimerType Type, uint32 MaxValue, uint32 Curre
         }
         return;
     }
-    WorldPacket data(SMSG_START_MIRROR_TIMER, (21));
-    data << (uint32)Type;
-    data << CurrentValue;
-    data << MaxValue;
-    data << Regen;
-    data << (uint8)0;
-    data << (uint32)0; // Spell ID
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.MirrorTimerStarted(*this, Type, MaxValue, CurrentValue, Regen);
 }
 
 /**
@@ -82,9 +74,7 @@ void Player::SendMirrorTimer(MirrorTimerType Type, uint32 MaxValue, uint32 Curre
 void Player::StopMirrorTimer(MirrorTimerType Type)
 {
     m_MirrorTimer[Type] = DISABLED_MIRROR_TIMER;
-    WorldPacket data(SMSG_STOP_MIRROR_TIMER, 4);
-    data << (uint32)Type;
-    GetSession()->SendPacket(&data);
+    sPlayerWorldNotices.MirrorTimerStopped(*this, Type);
 }
 
 /**
@@ -117,13 +107,7 @@ uint32 Player::EnvironmentalDamage(EnviromentalDamage type, uint32 damage)
 
     DealDamageMods(this, damage, &absorb);
 
-    WorldPacket data(SMSG_ENVIRONMENTALDAMAGELOG, (21));
-    data << GetObjectGuid();
-    data << uint8(type != DAMAGE_FALL_TO_VOID ? type : DAMAGE_FALL);
-    data << uint32(damage);
-    data << uint32(absorb);
-    data << uint32(resist);
-    SendMessageToSet(&data, true);
+    sPlayerWorldNotices.EnvironmentalDamageLogged(*this, type, damage, absorb, resist);
 
     DamageEffectType damageType = SELF_DAMAGE;
     if (type == DAMAGE_FALL && getClass() == CLASS_ROGUE)
@@ -140,8 +124,7 @@ uint32 Player::EnvironmentalDamage(EnviromentalDamage type, uint32 damage)
             DEBUG_LOG("We fell to death, losing 10 percent durability");
             DurabilityLossAll(0.10f, false);
             // durability lost message
-            WorldPacket data2(SMSG_DURABILITY_DAMAGE_DEATH, 0);
-            GetSession()->SendPacket(&data2);
+            ReportClientFact(m_clientSinks.durabilityDeath, DurabilityDeathFact());
         }
 
         GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DEATHS_FROM, 1, type);
@@ -429,11 +412,5 @@ void Player::SetDrunkValue(uint8 newDrunkValue, uint32 itemId /*= 0*/)
         return;
     }
 
-    // Send a packet to update the drunken state
-    WorldPacket data(SMSG_CROSSED_INEBRIATION_THRESHOLD, (8 + 4 + 4));
-    data << GetObjectGuid();
-    data << uint32(newDrunkenState);
-    data << uint32(itemId);
-
-    SendMessageToSet(&data, true);
+    sPlayerWorldNotices.InebriationThresholdCrossed(*this, newDrunkenState, itemId);
 }

@@ -27,9 +27,8 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
+#include "entities/player/world/PlayerWorldNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -359,28 +358,10 @@ bool Player::CanUseBattleGroundObject()
 
 void Player::SendPvPRewards()
 {
-    // Placeholder
-
-    WorldPacket data(SMSG_PVP_REWARDS, 6 * 4);
-    data << uint32(1650);   // rbg conquest cap
-    data << uint32(0);      // total conquest earned
-    data << uint32(1350);   // arena conquest cap
-    data << uint32(0);      // rbg conquest earned
-    data << uint32(0);      // arena conquest earned
-    data << uint32(1650);   // total conquest cap
-
-    SendDirectMessage(&data);
+    sPlayerWorldNotices.PvpRewardsShown(*this);
 }
 
 void Player::SendRatedBGStats()
 {
-    // Placeholder
-
-    WorldPacket data(SMSG_RATED_BG_STATS, 18 * 4);
-    for (int i = 0; i < 18; ++i)
-    {
-        data << uint32(0);
-    }
-
-    SendDirectMessage(&data);
+    sPlayerWorldNotices.RatedBgStatsShown(*this);
 }

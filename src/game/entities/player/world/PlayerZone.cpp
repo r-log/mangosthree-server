@@ -27,10 +27,9 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
+#include "entities/player/world/PlayerWorldNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "OutdoorPvPMgr.h"
@@ -356,10 +355,7 @@ void Player::UpdateHomebindTime(uint32 time)
         if (m_HomebindTimer)                                // instance valid, but timer not reset
         {
             // hide reminder
-            WorldPacket data(SMSG_RAID_GROUP_ONLY, 4 + 4);
-            data << uint32(0);
-            data << uint32(ERR_RAID_GROUP_NONE);            // error used only when timer = 0
-            GetSession()->SendPacket(&data);
+            sPlayerWorldNotices.RaidGroupOnly(*this, 0, ERR_RAID_GROUP_NONE);
         }
         // instance is valid, reset homebind timer
         m_HomebindTimer = 0;
@@ -381,10 +377,7 @@ void Player::UpdateHomebindTime(uint32 time)
         // instance is invalid, start homebind timer
         m_HomebindTimer = 60000;
         // send message to player
-        WorldPacket data(SMSG_RAID_GROUP_ONLY, 4 + 4);
-        data << uint32(m_HomebindTimer);
-        data << uint32(ERR_RAID_GROUP_NONE);                // error used only when timer = 0
-        GetSession()->SendPacket(&data);
+        sPlayerWorldNotices.RaidGroupOnly(*this, m_HomebindTimer, ERR_RAID_GROUP_NONE);
         DEBUG_LOG("PLAYER: Player '%s' (GUID: %u) will be teleported to homebind in 60 seconds", GetName(), GetGUIDLow());
     }
 }
