@@ -73,6 +73,7 @@ class Item;
 class GameObject;
 class Group;
 class Aura;
+struct SpellGoTargets;
 
 /// @brief Spell casting flag enumeration.
 ///
@@ -518,10 +519,10 @@ class Spell
 
         void DoCreateItem(SpellEffectEntry const* effect, uint32 itemtype);
 
-        /// Classifies the targets for the spell go: a unit no effect applies to is an immune miss, and
-        /// the effects of the hit units join the mask of those that must stay alive, which a spell
-        /// that does not channel clears.
-        void ClassifyGoTargets();
+        /// Classifies the targets for the spell go into `targets`: a unit no effect applies to is an
+        /// immune miss, and the effects of the hit units join the mask of those that must stay alive,
+        /// which a spell that does not channel clears.
+        void ClassifyGoTargets(SpellGoTargets& targets);
 
         template<typename T> WorldObject* FindCorpseUsing();
 
@@ -726,7 +727,6 @@ class Spell
         // Spell target subsystem
         //*****************************************
         // Targets store structures and data
-    public:
         struct TargetInfo
         {
             ObjectGuid targetGUID;
@@ -738,10 +738,8 @@ class Spell
             uint8  effectMask: 8;
             bool   processed: 1;
         };
-    protected:
         uint8 m_needAliveTargetMask;                        // Mask req. alive targets
 
-    public:
         struct GOTargetInfo
         {
             ObjectGuid targetGUID;
@@ -750,7 +748,6 @@ class Spell
             bool   processed: 1;
         };
 
-    protected:
         struct ItemTargetInfo
         {
             Item*  item;
@@ -759,12 +756,8 @@ class Spell
 
     public:
         typedef std::list<TargetInfo>     TargetList;
-        typedef std::list<GOTargetInfo>   GOTargetList;
-
-        TargetList const& GetUnitTargets() const { return m_UniqueTargetInfo; }
-        GOTargetList const& GetGOTargets() const { return m_UniqueGOTargetInfo; }
-
     protected:
+        typedef std::list<GOTargetInfo>   GOTargetList;
         typedef std::list<ItemTargetInfo> ItemTargetList;
 
         TargetList     m_UniqueTargetInfo;

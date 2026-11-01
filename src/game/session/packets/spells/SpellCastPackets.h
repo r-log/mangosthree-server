@@ -40,8 +40,8 @@ void BuildCastFailedPacket(WorldPacket& packet, SpellEntry const* spellInfo, uin
 /// then the fields the flags call for, the heal `prediction` among them.
 void BuildSpellStartPacket(WorldPacket& packet, Spell const& spell, uint32 castFlags, SpellHealPrediction const& prediction);
 /// Initializes `packet` as `spell`'s go with the cast flags `castFlags`: as the start, then the hit
-/// and missed targets, the targets, and the fields the flags and the target mask call for.
-void BuildSpellGoPacket(WorldPacket& packet, Spell const& spell, uint32 castFlags);
+/// and missed `targets`, the cast's targets, and the fields the flags and the target mask call for.
+void BuildSpellGoPacket(WorldPacket& packet, Spell const& spell, uint32 castFlags, SpellGoTargets const& targets);
 /// Initializes `packet` as `spell`'s effect log. False for an effect the log does not report.
 bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell);
 /// Initializes `packet` as `spell`'s interruption with `result`, `SMSG_SPELL_FAILED_OTHER` when
@@ -62,7 +62,7 @@ class SessionSpellNotices : public SpellNotices
     public:
         void CastResult(Player& caster, SpellEntry const* spellInfo, uint8 castCount, SpellCastResult result, bool isPetCastResult) override;
         void SpellStart(Spell const& spell, uint32 castFlags, SpellHealPrediction const& prediction) override;
-        void SpellGo(Spell const& spell, uint32 castFlags) override;
+        void SpellGo(Spell const& spell, uint32 castFlags, SpellGoTargets const& targets) override;
         void LogExecute(Spell const& spell) override;
         void Interrupted(Spell const& spell, uint8 result) override;
         void ChannelUpdate(Spell const& spell, uint32 time) override;

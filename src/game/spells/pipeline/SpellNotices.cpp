@@ -50,7 +50,7 @@ void SpellNotices::SpellStart(Spell const& /*spell*/, uint32 /*castFlags*/, Spel
 {
 }
 
-void SpellNotices::SpellGo(Spell const& /*spell*/, uint32 /*castFlags*/)
+void SpellNotices::SpellGo(Spell const& /*spell*/, uint32 /*castFlags*/, SpellGoTargets const& /*targets*/)
 {
 }
 

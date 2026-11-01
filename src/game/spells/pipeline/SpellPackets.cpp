@@ -180,12 +180,13 @@ void Spell::SendSpellGo()
         castFlags |= CAST_FLAG_PREDICTED_RUNES;             // rune cooldowns list
     }
 
-    ClassifyGoTargets();
-    sSpellNotices.SpellGo(*this, castFlags);
+    SpellGoTargets targets;
+    ClassifyGoTargets(targets);
+    sSpellNotices.SpellGo(*this, castFlags, targets);
 }
 
 
-void Spell::ClassifyGoTargets()
+void Spell::ClassifyGoTargets(SpellGoTargets& targets)
 {
     // This function also fill data for channeled spells:
     // m_needAliveTargetMask req for stop channeling if one target die
@@ -200,6 +201,27 @@ void Spell::ClassifyGoTargets()
         {
             m_needAliveTargetMask |= ihit->effectMask;
         }
+    }
+
+    for (TargetList::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
+    {
+        if (ihit->missCondition == SPELL_MISS_NONE)
+        {
+            targets.hits.push_back(ihit->targetGUID);
+        }
+        else
+        {
+            SpellGoTargets::Miss miss;
+            miss.guid = ihit->targetGUID;
+            miss.condition = uint8(ihit->missCondition);
+            miss.reflectResult = uint8(ihit->reflectResult);
+            targets.misses.push_back(miss);
+        }
+    }
+
+    for (GOTargetList::const_iterator ighit = m_UniqueGOTargetInfo.begin(); ighit != m_UniqueGOTargetInfo.end(); ++ighit)
+    {
+        targets.hits.push_back(ighit->targetGUID);          // Always hits
     }
 
     // Reset m_needAliveTargetMask for non channeled spell

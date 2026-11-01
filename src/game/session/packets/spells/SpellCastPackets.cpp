@@ -109,53 +109,24 @@ namespace
         packet << uint32(ammoInventoryType);
     }
 
-    /// Writes the go's targets, classified by `Spell::ClassifyGoTargets`: the count and the guids of
-    /// the hits (the units, then the objects, which always hit), then the count and the misses, each
-    /// with its condition and, for a reflect, the reflect's result.
-    void WriteSpellGoTargets(WorldPacket& packet, Spell const& spell)
+    /// Writes the go's `targets`: the count and the guids of the hits, then the count and the misses,
+    /// each with its condition and, for a reflect, the reflect's result.
+    void WriteSpellGoTargets(WorldPacket& packet, SpellGoTargets const& targets)
     {
-        Spell::TargetList const& units = spell.GetUnitTargets();
-        Spell::GOTargetList const& objects = spell.GetGOTargets();
-
-        uint32 hit = objects.size();
-        uint32 miss = 0;
-        for (Spell::TargetList::const_iterator ihit = units.begin(); ihit != units.end(); ++ihit)
+        packet << uint8(targets.hits.size());
+        for (std::vector<ObjectGuid>::const_iterator hit = targets.hits.begin(); hit != targets.hits.end(); ++hit)
         {
-            if (ihit->missCondition == SPELL_MISS_NONE)
-            {
-                ++hit;
-            }
-            else
-            {
-                ++miss;
-            }
+            packet << *hit;
         }
 
-        packet << uint8(hit);
-        for (Spell::TargetList::const_iterator ihit = units.begin(); ihit != units.end(); ++ihit)
+        packet << uint8(targets.misses.size());
+        for (std::vector<SpellGoTargets::Miss>::const_iterator miss = targets.misses.begin(); miss != targets.misses.end(); ++miss)
         {
-            if (ihit->missCondition == SPELL_MISS_NONE)
+            packet << miss->guid;
+            packet << uint8(miss->condition);
+            if (miss->condition == SPELL_MISS_REFLECT)
             {
-                packet << ihit->targetGUID;
-            }
-        }
-
-        for (Spell::GOTargetList::const_iterator ighit = objects.begin(); ighit != objects.end(); ++ighit)
-        {
-            packet << ighit->targetGUID;                    // Always hits
-        }
-
-        packet << (uint8)miss;
-        for (Spell::TargetList::const_iterator ihit = units.begin(); ihit != units.end(); ++ihit)
-        {
-            if (ihit->missCondition != SPELL_MISS_NONE)     // Add only miss
-            {
-                packet << ihit->targetGUID;
-                packet << uint8(ihit->missCondition);
-                if (ihit->missCondition == SPELL_MISS_REFLECT)
-                {
-                    packet << uint8(ihit->reflectResult);
-                }
+                packet << uint8(miss->reflectResult);
             }
         }
     }
@@ -321,7 +292,7 @@ void BuildSpellStartPacket(WorldPacket& packet, Spell const& spell, uint32 castF
     }
 }
 
-void BuildSpellGoPacket(WorldPacket& packet, Spell const& spell, uint32 castFlags)
+void BuildSpellGoPacket(WorldPacket& packet, Spell const& spell, uint32 castFlags, SpellGoTargets const& targets)
 {
     Unit* caster = spell.GetCaster();
 
@@ -343,7 +314,7 @@ void BuildSpellGoPacket(WorldPacket& packet, Spell const& spell, uint32 castFlag
     packet << uint32(spell.GetTimer());
     packet << uint32(GameTime::GetGameTimeMS());              // timestamp
 
-    WriteSpellGoTargets(packet, spell);
+    WriteSpellGoTargets(packet, targets);
 
     packet << spell.m_targets;
 
@@ -627,10 +598,10 @@ void SessionSpellNotices::SpellStart(Spell const& spell, uint32 castFlags, Spell
     spell.GetCaster()->SendMessageToSet(&data, true);
 }
 
-void SessionSpellNotices::SpellGo(Spell const& spell, uint32 castFlags)
+void SessionSpellNotices::SpellGo(Spell const& spell, uint32 castFlags, SpellGoTargets const& targets)
 {
     WorldPacket data;
-    BuildSpellGoPacket(data, spell, castFlags);
+    BuildSpellGoPacket(data, spell, castFlags, targets);
     spell.GetCaster()->SendMessageToSet(&data, true);
 }
 

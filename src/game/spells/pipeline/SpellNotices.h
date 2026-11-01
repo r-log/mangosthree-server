@@ -26,8 +26,11 @@
 #ifndef MANGOS_H_SPELLNOTICES
 #define MANGOS_H_SPELLNOTICES
 
+#include "ObjectGuid.h"
 #include "Platform/Define.h"
 #include "SharedDefines.h"
+
+#include <vector>
 
 class Player;
 class Spell;
@@ -39,6 +42,21 @@ struct SpellHealPrediction
 {
     uint32 amount = 0;
     uint8 type = 0;
+};
+
+/// The targets a spell go reports: the hits (the units, then the objects, which always hit), then
+/// the missed units, each with its condition and, for a reflect, the reflect's result.
+struct SpellGoTargets
+{
+    struct Miss
+    {
+        ObjectGuid guid;
+        uint8 condition = 0;
+        uint8 reflectResult = 0;
+    };
+
+    std::vector<ObjectGuid> hits;
+    std::vector<Miss> misses;
 };
 
 /**
@@ -57,9 +75,9 @@ class SpellNotices
         /// `spell` starts, with the cast flags `castFlags` and, under CAST_FLAG_HEAL_PREDICTION, the
         /// heal `prediction`.
         virtual void SpellStart(Spell const& spell, uint32 castFlags, SpellHealPrediction const& prediction);
-        /// `spell` goes, with the cast flags `castFlags`; its targets are classified first
+        /// `spell` goes, with the cast flags `castFlags` and its classified `targets`
         /// (`Spell::ClassifyGoTargets`).
-        virtual void SpellGo(Spell const& spell, uint32 castFlags);
+        virtual void SpellGo(Spell const& spell, uint32 castFlags, SpellGoTargets const& targets);
         /// The effect log of `spell`.
         virtual void LogExecute(Spell const& spell);
         /// `spell` is interrupted with `result`.
