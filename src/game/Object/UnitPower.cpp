@@ -35,7 +35,7 @@
 #include "Group.h"
 #include "entities/GroupUpdateFacts.h"
 #include "DBCStores.h"
-#include "WorldPacket.h"
+#include "entities/WorldObjectNotices.h"
 
 /**
  * @brief Looks up the power-array index used by a given class for a power type.
@@ -148,13 +148,7 @@ void Unit::SetPowerByIndex(uint32 powerIndex, int32 val)
 
     if (IsInWorld())
     {
-        WorldPacket data(SMSG_POWER_UPDATE);
-        data << GetPackGUID();
-        data << uint32(1); // iteration count
-        // for (int i = 0; i < count; ++i)
-        data << uint8(power);
-        data << uint32(val);
-        SendMessageToSet(&data, true);
+        sWorldObjectNotices.PowerUpdated(*this, power, uint32(val));
     }
 
     // group update

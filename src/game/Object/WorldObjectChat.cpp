@@ -26,8 +26,6 @@
 #include "Utilities/Errors.h"
 #include "Object.h"
 #include "SharedDefines.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "Creature.h"
@@ -48,6 +46,7 @@
 #include "movement/packet_builder.h"
 #include "CreatureLinkingMgr.h"
 #include "entities/ChatNotices.h"
+#include "entities/WorldObjectNotices.h"
 #include "GameTime.h"
 #include "TransportMap.h"
 
@@ -297,17 +296,12 @@ void WorldObject::SendMessageToSetExcept(WorldPacket* data, Player const* skippe
 
 void WorldObject::SendObjectDeSpawnAnim(ObjectGuid guid)
 {
-    WorldPacket data(SMSG_GAMEOBJECT_DESPAWN_ANIM, 8);
-    data << ObjectGuid(guid);
-    SendMessageToSet(&data, true);
+    sWorldObjectNotices.ObjectDespawnAnim(*this, guid);
 }
 
 void WorldObject::SendGameObjectCustomAnim(ObjectGuid guid, uint32 animId /*= 0*/)
 {
-    WorldPacket data(SMSG_GAMEOBJECT_CUSTOM_ANIM, 8 + 4);
-    data << ObjectGuid(guid);
-    data << uint32(animId);
-    SendMessageToSet(&data, true);
+    sWorldObjectNotices.GameObjectCustomAnim(*this, guid, animId);
 }
 
 bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target /*=NULL*/)

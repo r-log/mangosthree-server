@@ -31,8 +31,7 @@
 #include "ObjectMgr.h"
 #include "PoolManager.h"
 #include "UpdateMask.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/WorldObjectNotices.h"
 #include "Database/DatabaseEnv.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -313,13 +312,7 @@ void GameObject::DealGameObjectDamage(uint32 damage, uint32 spell, Unit* caster)
 
     ForceGameObjectHealth(-int32(damage), caster);
 
-    WorldPacket data(SMSG_DESTRUCTIBLE_BUILDING_DAMAGE, 9 + 9 + 9 + 4 + 4);
-    data << GetPackGUID();
-    data << caster->GetPackGUID();
-    data << caster->GetCharmerOrOwnerOrSelf()->GetPackGUID();
-    data << uint32(damage);
-    data << uint32(spell);
-    SendMessageToSet(&data, false);
+    sWorldObjectNotices.BuildingDamaged(*this, *caster, damage, spell);
 }
 
 void GameObject::RebuildGameObject(uint32 spell, Unit* caster)

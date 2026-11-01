@@ -45,6 +45,7 @@
 #include "spells/pipeline/Spell.h"
 #include "entities/GroupUpdateFacts.h"
 #include "entities/MotionNotices.h"
+#include "entities/WorldObjectNotices.h"
 #include "spells/auras/SpellAuras.h"
 #include "MapManager.h"
 #include "PlayerRegistry.h"
@@ -863,10 +864,7 @@ void Unit::CastSpell(float x, float y, float z, SpellEntry const* spellInfo, boo
 void Unit::HandleEmoteCommand(uint32 emote_id)
 {
     DEBUG_LOG("SMSG_EMOTE %u", emote_id);
-    WorldPacket data(SMSG_EMOTE, 4 + 8);
-    data << uint32(emote_id);
-    data << GetObjectGuid();
-    SendMessageToSet(&data, true);
+    sWorldObjectNotices.Emoted(*this, emote_id);
 }
 
 /**
@@ -1571,12 +1569,7 @@ void Unit::SetPowerType(Powers new_powertype)
         }
 
         // send power type update to client
-        WorldPacket data(SMSG_POWER_UPDATE);
-        data << GetPackGUID();
-        data << uint32(1);              // power count
-        data << uint8(new_powertype);
-        data << uint32(curValue);
-        SendMessageToSet(&data, true);
+        sWorldObjectNotices.PowerUpdated(*this, new_powertype, curValue);
     }
 }
 
@@ -2200,13 +2193,7 @@ Unit* Unit::SelectMagnetTarget(Unit* victim, Spell* spell, SpellEffectIndex eff)
  */
 void Unit::SendEnergizeSpellLog(Unit* pVictim, uint32 SpellID, uint32 Damage, Powers powertype)
 {
-    WorldPacket data(SMSG_SPELLENERGIZELOG, (8 + 8 + 4 + 4 + 4 + 1));
-    data << pVictim->GetPackGUID();
-    data << GetPackGUID();
-    data << uint32(SpellID);
-    data << uint32(powertype);
-    data << uint32(Damage);
-    SendMessageToSet(&data, true);
+    sWorldObjectNotices.Energized(*this, *pVictim, SpellID, Damage, powertype);
 }
 
 /**
@@ -2335,9 +2322,7 @@ void Unit::Unmount(bool from_aura)
     // Called NOT by Taxi system / GM command
     if (from_aura)
     {
-        WorldPacket data(SMSG_DISMOUNT, 8);
-        data << GetPackGUID();
-        SendMessageToSet(&data, true);
+        sWorldObjectNotices.Dismounted(*this);
     }
 
     // only resummon old pet if the player is already added to a map
@@ -2466,10 +2451,7 @@ MountCapabilityEntry const* Unit::GetMountCapability(uint32 mountType) const
 
 void Unit::PlayOneShotAnimKit(uint32 id)
 {
-    WorldPacket data(SMSG_PLAY_ONE_SHOT_ANIM_KIT, 7+2);
-    data << GetPackGUID();
-    data << uint16(id);
-    SendMessageToSet(&data, true);
+    sWorldObjectNotices.OneShotAnimKitPlayed(*this, id);
 }
 
 /**
@@ -4052,10 +4034,7 @@ void Unit::SetVehicleId(uint32 entry, uint32 overwriteNpcEntry)
 
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        WorldPacket data(SMSG_SET_VEHICLE_REC_ID, 16);
-        data << GetPackGUID();
-        data << uint32(entry);
-        SendMessageToSet(&data, true);
+        sWorldObjectNotices.VehicleRecIdChanged(*this, entry);
     }
 }
 

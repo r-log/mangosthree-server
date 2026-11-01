@@ -29,8 +29,6 @@
 #include "ObjectMgr.h"
 #include "PoolManager.h"
 #include "UpdateMask.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
 #include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"
 #include "LootMgr.h"

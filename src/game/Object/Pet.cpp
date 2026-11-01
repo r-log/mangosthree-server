@@ -29,7 +29,6 @@
 #include "Pet.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "WorldPacket.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "InventoryMgr.h"

@@ -154,10 +154,6 @@ src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through GridNotifiersImpl.h before #572
 src/game/Object/GameObject.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/Object/GameObjectDestructible.cpp -> src/proto/Opcodes.h
-src/game/Object/GameObjectDestructible.cpp -> src/proto/WorldPacket.h
-src/game/Object/GameObjectUpdate.cpp -> src/proto/Opcodes.h
-src/game/Object/GameObjectUpdate.cpp -> src/proto/WorldPacket.h
 src/game/Object/GameObjectUse.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GameObjectUse.cpp -> src/proto/Opcodes.h
 src/game/Object/GameObjectUse.cpp -> src/proto/WorldPacket.h
@@ -193,7 +189,6 @@ src/game/Object/ObjectValues.cpp -> src/game/entities/player/Player.h
 src/game/Object/Pet.cpp -> src/game/entities/player/Player.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Pet.cpp -> src/game/entities/player/inventory/InventoryMgr.h
-src/game/Object/Pet.cpp -> src/proto/WorldPacket.h
 src/game/Object/PetAI.cpp -> src/game/entities/player/Player.h
 src/game/Object/PetDatabase.cpp -> src/game/entities/player/Player.h
 src/game/Object/PetDatabase.cpp -> src/game/entities/player/pets/PlayerPetCache.h
@@ -210,7 +205,6 @@ src/game/Object/Unit.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Unit.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Unit.cpp -> src/proto/WorldPacket.h
 src/game/Object/Unit.h -> src/game/spells/AuraContainer.h
-src/game/Object/UnitPower.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitVisibility.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitVisibility.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through ObjectMgr.h before #512
@@ -218,11 +212,7 @@ src/game/Object/Vehicle.cpp -> src/game/entities/player/Player.h
 # reached through WorldSession.h before #666
 src/game/Object/Vehicle.cpp -> src/proto/WorldPacket.h
 src/game/Object/WorldObjectChat.cpp -> src/game/entities/player/Player.h
-src/game/Object/WorldObjectChat.cpp -> src/proto/Opcodes.h
-src/game/Object/WorldObjectChat.cpp -> src/proto/WorldPacket.h
 src/game/Object/WorldObjectSummon.cpp -> src/game/entities/player/Player.h
-src/game/Object/WorldObjectSummon.cpp -> src/proto/Opcodes.h
-src/game/Object/WorldObjectSummon.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP [pvp] -> src/game/Object/Creature.h
 src/game/OutdoorPvP [pvp] -> src/game/Object/GameObject.h
 src/game/OutdoorPvP [pvp] -> src/game/Object/Object.h
