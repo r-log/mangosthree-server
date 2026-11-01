@@ -59,6 +59,10 @@ class SessionBattleGroundNotices : public BattleGroundNotices
         void PlayerJoined(BattleGround& bg, Team team, Player& player) override;
         void PlayerLeft(BattleGround& bg, Team team, ObjectGuid guid, Player* sender) override;
         void WorldStateToAll(BattleGround& bg, uint32 state, uint32 value) override;
+        void MessageToAll(BattleGround& bg, ChatMsg msgtype, int32 textId, Player const* source, va_list* args) override;
+        void YellToAll(BattleGround& bg, int32 textId, Language language, Creature const& source) override;
+        void Message2ToAll(BattleGround& bg, ChatMsg msgtype, int32 textId, Player const* source, int32 arg1, int32 arg2) override;
+        void Yell2ToAll(BattleGround& bg, int32 textId, uint32 language, Creature const& source, int32 arg1, int32 arg2) override;
 };
 
 #endif

@@ -43,6 +43,7 @@
 #include "BattleGround.h"
 #include "BattleGroundMgr.h"
 #include "Creature.h"
+#include "GameObject.h"
 #include "data/Language.h"
 #include "ArenaTeam.h"
 #include "data/GameConfig.h"
@@ -50,196 +51,18 @@
 #include "Group.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
-#include "WorldPacket.h"
-#include "GridNotifiersImpl.h"
-#include "data/ChatPacketBuilder.h"
 #include <cstdarg>
 #include "PlayerRegistry.h"
 
-namespace MaNGOS
-{
-    class BattleGroundChatBuilder
-    {
-        public:
-            /// <summary>
-            /// Initializes a new instance of the <see cref="BattleGroundChatBuilder"/> class.
-            /// </summary>
-            /// <param name="msgtype">The msgtype.</param>
-            /// <param name="textId">The text id.</param>
-            /// <param name="source">The source.</param>
-            /// <param name="args">The args.</param>
-            BattleGroundChatBuilder(ChatMsg msgtype, int32 textId, Player const* source, va_list* args = nullptr)
-                : i_msgtype(msgtype), i_textId(textId), i_source(source), i_args(args) {}
-            void operator()(WorldPacket& data, int32 loc_idx)
-            {
-                char const* text = sObjectMgr.GetMangosString(i_textId, loc_idx);
-
-                ObjectGuid sourceGuid = i_source ? i_source ->GetObjectGuid() : ObjectGuid();
-                std::string sourceName = i_source ? i_source ->GetName() : "";
-
-                if (i_args)
-                {
-                    // we need copy va_list before use or original va_list will corrupted
-                    va_list ap;
-                    va_copy(ap, *i_args);
-
-                    char str [2048];
-                    vsnprintf(str, 2048, text, ap);
-                    va_end(ap);
-
-                    BuildChatPacket(data, i_msgtype, &str[0], LANG_UNIVERSAL, CHAT_TAG_NONE, sourceGuid, sourceName.c_str());
-                }
-                else
-                {
-                    BuildChatPacket(data, i_msgtype, text, LANG_UNIVERSAL, CHAT_TAG_NONE, sourceGuid, sourceName.c_str(), sourceGuid, sourceName.c_str());
-                }
-            }
-        private:
-            ChatMsg i_msgtype;
-            int32 i_textId;
-            Player const* i_source;
-            va_list* i_args;
-    };
-
-    class BattleGroundYellBuilder
-    {
-        public:
-            /// <summary>
-            /// Initializes a new instance of the <see cref="BattleGroundYellBuilder"/> class.
-            /// </summary>
-            /// <param name="language">The language.</param>
-            /// <param name="textId">The text id.</param>
-            /// <param name="source">The source.</param>
-            /// <param name="args">The args.</param>
-            BattleGroundYellBuilder(Language language, int32 textId, Creature const* source, va_list* args = NULL)
-                : i_language(language), i_textId(textId), i_source(source), i_args(args) {}
-            void operator()(WorldPacket& data, int32 loc_idx)
-            {
-                char const* text = sObjectMgr.GetMangosString(i_textId, loc_idx);
-
-                if (i_args)
-                {
-                    // we need copy va_list before use or original va_list will corrupted
-                    va_list ap;
-                    va_copy(ap, *i_args);
-
-                    char str [2048];
-                    vsnprintf(str, 2048, text, ap);
-                    va_end(ap);
-
-                    BuildChatPacket(data, CHAT_MSG_MONSTER_YELL, &str[0], i_language, CHAT_TAG_NONE, i_source->GetObjectGuid(), i_source->GetName());
-                }
-                else
-                {
-                    BuildChatPacket(data, CHAT_MSG_MONSTER_YELL, text, i_language, CHAT_TAG_NONE, i_source->GetObjectGuid(), i_source->GetName());
-                }
-            }
-        private:
-            Language i_language;
-            int32 i_textId;
-            Creature const* i_source;
-            va_list* i_args;
-    };
-
-
-    class BattleGround2ChatBuilder
-    {
-        public:
-            /// <summary>
-            /// Initializes a new instance of the <see cref="BattleGround2ChatBuilder"/> class.
-            /// </summary>
-            /// <param name="msgtype">The msgtype.</param>
-            /// <param name="textId">The text id.</param>
-            /// <param name="source">The source.</param>
-            /// <param name="arg1">The arg1.</param>
-            /// <param name="arg2">The arg2.</param>
-            BattleGround2ChatBuilder(ChatMsg msgtype, int32 textId, Player const* source, int32 arg1, int32 arg2)
-                : i_msgtype(msgtype), i_textId(textId), i_source(source), i_arg1(arg1), i_arg2(arg2) {}
-            void operator()(WorldPacket& data, int32 loc_idx)
-            {
-                char const* text = sObjectMgr.GetMangosString(i_textId, loc_idx);
-                char const* arg1str = i_arg1 ? sObjectMgr.GetMangosString(i_arg1, loc_idx) : "";
-                char const* arg2str = i_arg2 ? sObjectMgr.GetMangosString(i_arg2, loc_idx) : "";
-
-                char str [2048];
-                snprintf(str, 2048, text, arg1str, arg2str);
-
-                ObjectGuid guid;
-                char const* pName = NULL;
-                if (i_source)
-                {
-                    guid = i_source->GetObjectGuid();
-                    pName = i_source->GetName();
-                }
-                BuildChatPacket(data, i_msgtype, str, LANG_UNIVERSAL, CHAT_TAG_NONE, ObjectGuid(), NULL, guid, pName);
-            }
-        private:
-            ChatMsg i_msgtype;
-            int32 i_textId;
-            Player const* i_source;
-            int32 i_arg1;
-            int32 i_arg2;
-    };
-
-    class BattleGround2YellBuilder
-    {
-        public:
-            /// <summary>
-            /// Initializes a new instance of the <see cref="BattleGround2YellBuilder"/> class.
-            /// </summary>
-            /// <param name="language">The language.</param>
-            /// <param name="textId">The text id.</param>
-            /// <param name="source">The source.</param>
-            /// <param name="arg1">The arg1.</param>
-            /// <param name="arg2">The arg2.</param>
-            BattleGround2YellBuilder(uint32 language, int32 textId, Creature const* source, int32 arg1, int32 arg2)
-                : i_language(language), i_textId(textId), i_source(source), i_arg1(arg1), i_arg2(arg2) {}
-            void operator()(WorldPacket& data, int32 loc_idx)
-            {
-                char const* text = sObjectMgr.GetMangosString(i_textId, loc_idx);
-                char const* arg1str = i_arg1 ? sObjectMgr.GetMangosString(i_arg1, loc_idx) : "";
-                char const* arg2str = i_arg2 ? sObjectMgr.GetMangosString(i_arg2, loc_idx) : "";
-
-                char str [2048];
-                snprintf(str, 2048, text, arg1str, arg2str);
-                // copied from BuildMonsterChat
-                data << uint8(CHAT_MSG_MONSTER_YELL);
-                data << uint32(i_language);
-                data << ObjectGuid(i_source->GetObjectGuid());
-                data << uint32(0);                          // 2.1.0
-                data << uint32(strlen(i_source->GetName()) + 1);
-                data << i_source->GetName();
-                data << ObjectGuid();                       // Unit Target - isn't important for bgs
-                data << uint32(strlen(str) + 1);
-                data << str;
-                data << uint8(0);                           // ChatTag - for bgs allways 0?
-            }
-        private:
-
-            uint32 i_language;
-            int32 i_textId;
-            Creature const* i_source;
-            int32 i_arg1;
-            int32 i_arg2;
-    };
-}                                                           // namespace MaNGOS
-
-template<class Do>
-
 /**
- * @brief Broadcasts a worker function to all players in the battleground.
+ * @brief The online player of the battleground's list.
  *
- * @param _do The worker function.
+ * @param guid The player.
+ * @return The player, or NULL when it is not online.
  */
-void BattleGround::BroadcastWorker(Do& _do)
+Player* BattleGround::FindPlayer(ObjectGuid guid) const
 {
-    for (BattleGroundPlayerMap::const_iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
-    {
-        if (Player* plr = sPlayerRegistry.Find(itr->first))
-        {
-            _do(plr);
-        }
-    }
+    return sPlayerRegistry.Find(guid);
 }
 
 BattleGround::BattleGround(): m_BuffChange(false), m_ArenaBuffSpawned(false), m_StartDelayTime(0), m_startMaxDist(0)
@@ -1277,9 +1100,7 @@ void BattleGround::UpdatePlayerScore(Player* Source, uint32 type, uint32 value)
 /// <param name="source">The source.</param>
 void BattleGround::SendMessageToAll(int32 entry, ChatMsg type, Player const* source)
 {
-    MaNGOS::BattleGroundChatBuilder bg_builder(type, entry, source);
-    MaNGOS::LocalizedPacketDo<MaNGOS::BattleGroundChatBuilder> bg_do(bg_builder);
-    BroadcastWorker(bg_do);
+    sBattleGroundNotices.MessageToAll(*this, type, entry, source, NULL);
 }
 
 /// <summary>
@@ -1295,9 +1116,7 @@ void BattleGround::SendYellToAll(int32 entry, uint32 language, ObjectGuid guid)
     {
         return;
     }
-    MaNGOS::BattleGroundYellBuilder bg_builder(Language(language), entry, source);
-    MaNGOS::LocalizedPacketDo<MaNGOS::BattleGroundYellBuilder> bg_do(bg_builder);
-    BroadcastWorker(bg_do);
+    sBattleGroundNotices.YellToAll(*this, entry, Language(language), *source);
 }
 
 /// <summary>
@@ -1312,9 +1131,7 @@ void BattleGround::PSendMessageToAll(int32 entry, ChatMsg type, Player const* so
     va_list ap;
     va_start(ap, source);
 
-    MaNGOS::BattleGroundChatBuilder bg_builder(type, entry, source, &ap);
-    MaNGOS::LocalizedPacketDo<MaNGOS::BattleGroundChatBuilder> bg_do(bg_builder);
-    BroadcastWorker(bg_do);
+    sBattleGroundNotices.MessageToAll(*this, type, entry, source, &ap);
 
     va_end(ap);
 }
@@ -1329,9 +1146,7 @@ void BattleGround::PSendMessageToAll(int32 entry, ChatMsg type, Player const* so
 /// <param name="arg2">The arg2.</param>
 void BattleGround::SendMessage2ToAll(int32 entry, ChatMsg type, Player const* source, int32 arg1, int32 arg2)
 {
-    MaNGOS::BattleGround2ChatBuilder bg_builder(type, entry, source, arg1, arg2);
-    MaNGOS::LocalizedPacketDo<MaNGOS::BattleGround2ChatBuilder> bg_do(bg_builder);
-    BroadcastWorker(bg_do);
+    sBattleGroundNotices.Message2ToAll(*this, type, entry, source, arg1, arg2);
 }
 
 /// <summary>
@@ -1349,9 +1164,7 @@ void BattleGround::SendYell2ToAll(int32 entry, uint32 language, ObjectGuid guid,
     {
         return;
     }
-    MaNGOS::BattleGround2YellBuilder bg_builder(language, entry, source, arg1, arg2);
-    MaNGOS::LocalizedPacketDo<MaNGOS::BattleGround2YellBuilder> bg_do(bg_builder);
-    BroadcastWorker(bg_do);
+    sBattleGroundNotices.Yell2ToAll(*this, entry, language, *source, arg1, arg2);
 }
 
 /// <summary>

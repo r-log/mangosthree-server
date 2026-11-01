@@ -145,6 +145,7 @@ enum BattleGroundQueueGroupTypes
 #define BG_QUEUE_GROUP_TYPES_COUNT 4
 
 class BattleGround;
+class Creature;
 class BattleGroundHooks;
 
 /**
@@ -463,6 +464,17 @@ class BattleGroundNotices
         virtual void PlayerLeft(BattleGround& bg, Team team, ObjectGuid guid, Player* sender);
         /// Every player of `bg` is told the world state `state` is now `value`.
         virtual void WorldStateToAll(BattleGround& bg, uint32 state, uint32 value);
+        /// Every player of `bg` is told the text `textId` as `msgtype` in its own locale, formatted with
+        /// `args` when given, naming `source` when there is one.
+        virtual void MessageToAll(BattleGround& bg, ChatMsg msgtype, int32 textId, Player const* source, va_list* args);
+        /// Every player of `bg` hears `source` yell the text `textId` in `language`, in its own locale.
+        virtual void YellToAll(BattleGround& bg, int32 textId, Language language, Creature const& source);
+        /// Every player of `bg` is told the text `textId` as `msgtype` in its own locale, formatted with
+        /// the texts `arg1` and `arg2` (0 for none), naming `source` when there is one.
+        virtual void Message2ToAll(BattleGround& bg, ChatMsg msgtype, int32 textId, Player const* source, int32 arg1, int32 arg2);
+        /// Every player of `bg` is sent `source`'s yell of the text `textId` in `language`, formatted
+        /// with the texts `arg1` and `arg2` (0 for none) in its own locale.
+        virtual void Yell2ToAll(BattleGround& bg, int32 textId, uint32 language, Creature const& source, int32 arg1, int32 arg2);
 
         /// The installed notices, or the base when none are installed.
         static BattleGroundNotices& Installed();

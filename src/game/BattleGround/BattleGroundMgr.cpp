@@ -170,6 +170,22 @@ void BattleGroundNotices::WorldStateToAll(BattleGround& /*bg*/, uint32 /*state*/
 {
 }
 
+void BattleGroundNotices::MessageToAll(BattleGround& /*bg*/, ChatMsg /*msgtype*/, int32 /*textId*/, Player const* /*source*/, va_list* /*args*/)
+{
+}
+
+void BattleGroundNotices::YellToAll(BattleGround& /*bg*/, int32 /*textId*/, Language /*language*/, Creature const& /*source*/)
+{
+}
+
+void BattleGroundNotices::Message2ToAll(BattleGround& /*bg*/, ChatMsg /*msgtype*/, int32 /*textId*/, Player const* /*source*/, int32 /*arg1*/, int32 /*arg2*/)
+{
+}
+
+void BattleGroundNotices::Yell2ToAll(BattleGround& /*bg*/, int32 /*textId*/, uint32 /*language*/, Creature const& /*source*/, int32 /*arg1*/, int32 /*arg2*/)
+{
+}
+
 BattleGroundNotices& BattleGroundNotices::Installed()
 {
     BattleGroundNotices* notices = s_battleGroundNoticesInstalled.load(std::memory_order_acquire);

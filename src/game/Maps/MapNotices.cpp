@@ -63,6 +63,10 @@ void MapNotices::SoundToMap(Map const& /*map*/, uint32 /*soundId*/, uint32 /*zon
 {
 }
 
+void MapNotices::MonsterYell(Map const& /*map*/, CreatureInfo const& /*cinfo*/, int32 /*textId*/, Language /*language*/, Unit const* /*target*/, uint32 /*senderLowGuid*/)
+{
+}
+
 MapNotices& MapNotices::Installed()
 {
     MapNotices* notices = s_mapNoticesInstalled.load(std::memory_order_acquire);

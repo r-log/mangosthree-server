@@ -28,10 +28,13 @@
 
 #include "Platform/Define.h"
 #include "ObjectGuid.h"
+#include "SharedDefines.h"
 #include "Weather.h"
 
 class Map;
 class Player;
+class Unit;
+struct CreatureInfo;
 
 /**
  * What a map tells the clients in it, one call per notice; who is told is the map's own send to its
@@ -54,6 +57,9 @@ class MapNotices
         virtual bool WeatherInZone(Map const& map, uint32 zoneId, WeatherState state, float grade);
         /// The players of `map`, only those in the zone `zoneId` unless it is 0, play the sound `soundId`.
         virtual void SoundToMap(Map const& map, uint32 soundId, uint32 zoneId);
+        /// The players of `map` hear the creature `cinfo`, as its spawn `senderLowGuid` (0 for none),
+        /// yell the text `textId` in `language`, each in its own locale, naming `target`.
+        virtual void MonsterYell(Map const& map, CreatureInfo const& cinfo, int32 textId, Language language, Unit const* target, uint32 senderLowGuid);
 
         /// The installed notices, or the base when none are installed.
         static MapNotices& Installed();
