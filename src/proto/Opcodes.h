@@ -594,7 +594,7 @@ enum OpcodesList
     CMSG_PET_CAST_SPELL                                   = 0x6337, // 4.3.4 15595
     MSG_SAVE_GUILD_EMBLEM                                 = 0x2404, // 4.3.4 15595
     MSG_TABARDVENDOR_ACTIVATE                             = 0x6926, // 4.3.4 15595
-    SMSG_PLAY_SPELL_VISUAL                                = 0x55A5, // 4.3.4 15595
+    SMSG_PLAY_SPELL_VISUAL_KIT                            = 0x55A5, // 4.3.4 15595
     CMSG_ZONEUPDATE                                       = 0x4F37, // 4.3.4 15595
     SMSG_PARTYKILLLOG                                     = 0x4937, // 4.3.4 15595
     SMSG_COMPRESSED_UPDATE_OBJECT                         = 0x11F7,
