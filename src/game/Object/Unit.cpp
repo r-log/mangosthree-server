@@ -44,6 +44,7 @@
 #include "Creature.h"
 #include "spells/pipeline/Spell.h"
 #include "entities/GroupUpdateFacts.h"
+#include "entities/MotionNotices.h"
 #include "spells/auras/SpellAuras.h"
 #include "MapManager.h"
 #include "PlayerRegistry.h"
@@ -61,12 +62,9 @@
 #include "CellImpl.h"
 #include "MotionGenerators/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
-#include "movement/MonsterMovePacket.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
 #include "Geometry/Placement.h"
-#include "movement/MovementBridge.h"
-#include "Writers.h"
 #include "Transports.h"
 #include "TransportMap.h"
 #include "Group.h"
@@ -328,46 +326,34 @@ void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
     {
         return;
     }
-    const uint64 guid = GetObjectGuid().GetRawValue();
     for (size_t i = 0; i < emissions.size(); ++i)
     {
         Motion::Emission const& e = emissions[i];
-        WorldPacket data;
         switch (e.kind)
         {
             case Motion::EmissionKind::Mover:
                 // To the session whose client moves this unit: a player's own, a
                 // possessed creature's possessor. None: dropped and counted.
-                if (!m_moverSession || !Motion::BuildMover(data, guid, e.counter, e.change))
+                if (!m_moverSession || !sMotionNotices.MoverTold(*this, *m_moverSession, e.counter, e.change))
                 {
                     ++m_motionDropped;
                     continue;
                 }
-                m_moverSession->SendPacket(&data);
                 break;
             case Motion::EmissionKind::Spline:
-                if (!Motion::BuildSpline(data, guid, e.change))
+                if (!sMotionNotices.SplineShown(*this, e.change))
                 {
                     ++m_motionDropped;
                     continue;
                 }
-                SendMessageToSet(&data, true);
                 break;
             case Motion::EmissionKind::Observer:
-                if (!Motion::BuildObserver(data, guid, e.counter, e.change, Movement::ToWire(WireStatus())))
+                // Everyone but the client that acked it (CPP's SendSpeedChangeToObservers
+                // skips the controller the same way).
+                if (!sMotionNotices.ObserversTold(*this, e.counter, e.change, m_moverSession ? m_moverSession->GetPlayer() : NULL))
                 {
                     ++m_motionDropped;
                     continue;
-                }
-                // Everyone but the client that acked it (CPP's SendSpeedChangeToObservers
-                // skips the controller the same way).
-                if (m_moverSession && m_moverSession->GetPlayer())
-                {
-                    SendMessageToSetExcept(&data, m_moverSession->GetPlayer());
-                }
-                else
-                {
-                    SendMessageToSet(&data, false);
                 }
                 break;
         }
@@ -376,16 +362,12 @@ void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
 
 void Unit::SendMonsterMove(Movement::Aboard const& aboard) const
 {
-    WorldPacket data;
-    Movement::BuildMonsterMove(data, GetObjectGuid(), aboard, *movespline);
-    SendMessageToSet(&data, true);
+    sMotionNotices.MonsterMoved(*this, aboard);
 }
 
 void Unit::SendMonsterMoveStop(Movement::Aboard const& aboard, Movement::Location const& at) const
 {
-    WorldPacket data;
-    Movement::BuildMonsterMoveStop(data, GetObjectGuid(), aboard, at, movespline->GetId());
-    SendMessageToSet(&data, true);
+    sMotionNotices.MonsterMoveStopped(*this, aboard, at);
 }
 
 Unit::~Unit()
@@ -568,10 +550,7 @@ void Unit::WriteMovementInfo(ByteBuffer& out, uint16 opcode, uint32 time) const
 
 void Unit::SendHeartBeat()
 {
-    WorldPacket data(MSG_MOVE_HEARTBEAT, 64);
-    data << GetPackGUID();
-    WriteMovementInfo(data, data.GetOpcode(), GameTime::GetGameTimeMS());
-    SendMessageToSet(&data, true);
+    sMotionNotices.HeartBeat(*this);
 }
 
 /**
