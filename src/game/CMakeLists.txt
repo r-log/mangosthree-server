@@ -268,6 +268,9 @@ source_group("Session\\Packets\\Chat" FILES ${SRC_GRP_SESSION_PACKETS_CHAT})
 file(GLOB SRC_GRP_SESSION_PACKETS_COMBAT session/packets/combat/*.cpp session/packets/combat/*.h)
 source_group("Session\\Packets\\Combat" FILES ${SRC_GRP_SESSION_PACKETS_COMBAT})
 
+file(GLOB SRC_GRP_SESSION_PACKETS_ECONOMY session/packets/economy/*.cpp session/packets/economy/*.h)
+source_group("Session\\Packets\\Economy" FILES ${SRC_GRP_SESSION_PACKETS_ECONOMY})
+
 file(GLOB SRC_GRP_SESSION_PACKETS_ENTITIES session/packets/entities/*.cpp session/packets/entities/*.h)
 source_group("Session\\Packets\\Entities" FILES ${SRC_GRP_SESSION_PACKETS_ENTITIES})
 
@@ -605,6 +608,7 @@ add_library(session STATIC
     ${SRC_GRP_SESSION_PACKETS}
     ${SRC_GRP_SESSION_PACKETS_CHAT}
     ${SRC_GRP_SESSION_PACKETS_COMBAT}
+    ${SRC_GRP_SESSION_PACKETS_ECONOMY}
     ${SRC_GRP_SESSION_PACKETS_ENTITIES}
     ${SRC_GRP_SESSION_PACKETS_MAPS}
     ${SRC_GRP_SESSION_PACKETS_PVP}
