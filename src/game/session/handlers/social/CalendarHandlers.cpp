@@ -51,6 +51,7 @@
 #include "persistence/characters/social/CalendarRepository.h"
 #include "persistence/characters/social/SocialRepository.h"
 #include "session/packets/social/ArenaTeamPackets.h"
+#include "session/packets/social/GuildPackets.h"
 
 void CalendarHandlers::HandleCalendarGetCalendar(WorldSession& session, WorldPacket& /*recv_data*/)
 {
@@ -263,7 +264,15 @@ void CalendarHandlers::HandleCalendarGuildFilter(WorldSession& session, WorldPac
 
     if (Guild* guild = sGuildMgr.GetGuildById(session.GetPlayer()->GetGuildId()))
     {
-        guild->MassInviteToEvent(&session, minLevel, maxLevel, minRank);
+        WorldPacket data;
+        if (BuildGuildCalendarInvitePacket(data, *guild, session.GetPlayer()->GetObjectGuid(), minLevel, maxLevel, minRank))
+        {
+            session.SendPacket(&data);
+        }
+        else
+        {
+            sCalendarMgr.SendCalendarCommandResult(session.GetPlayer(), CALENDAR_ERROR_INVITES_EXCEEDED);
+        }
     }
 
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "Min level [%u], Max level [%u], Min rank [%u]", minLevel, maxLevel, minRank);

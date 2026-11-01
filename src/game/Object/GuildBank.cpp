@@ -1655,3 +1655,48 @@ void Guild::MoveFromCharToBank(Player* pl, uint8 PlayerBag, uint8 PlayerSlot, ui
         }
     }
 }
+
+void GuildBankEventLogEntry::WriteData(WorldPacket& data, ByteBuffer& buffer)
+{
+    ObjectGuid logGuid = ObjectGuid(HIGHGUID_PLAYER, PlayerGuid);
+
+    bool hasItem = EventType == GUILD_BANK_LOG_DEPOSIT_ITEM || EventType == GUILD_BANK_LOG_WITHDRAW_ITEM ||
+        EventType == GUILD_BANK_LOG_MOVE_ITEM || EventType == GUILD_BANK_LOG_MOVE_ITEM2;
+
+    bool itemMoved = EventType == GUILD_BANK_LOG_MOVE_ITEM || EventType == GUILD_BANK_LOG_MOVE_ITEM2;
+
+    bool hasStack = hasItem && ItemStackCount > 1 || itemMoved;
+
+    data.WriteBit(isMoneyEvent());
+    data.WriteGuidMask<4, 1>(logGuid);
+    data.WriteBit(hasItem);
+    data.WriteBit(hasStack);
+    data.WriteGuidMask<2, 5, 3, 6, 0>(logGuid);
+    data.WriteBit(itemMoved);
+    data.WriteGuidMask<7>(logGuid);
+
+    buffer.WriteGuidBytes<6, 1, 5>(logGuid);
+    if (hasStack)
+    {
+        buffer << uint32(ItemStackCount);
+    }
+
+    buffer << uint8(EventType);
+    buffer.WriteGuidBytes<2, 4, 0, 7, 3>(logGuid);
+    if (hasItem)
+    {
+        buffer << uint32(ItemOrMoney);
+    }
+
+    buffer << uint32(time(NULL) - TimeStamp);
+
+    if (isMoneyEvent())
+    {
+        buffer << uint64(ItemOrMoney);
+    }
+
+    if (itemMoved)
+    {
+        buffer << uint8(DestTabId);         // moved tab
+    }
+}

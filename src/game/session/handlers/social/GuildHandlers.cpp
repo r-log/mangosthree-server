@@ -43,6 +43,7 @@
 #include "Calendar.h"
 #include "PlayerRegistry.h"
 #include "persistence/characters/CharacterTransaction.h"
+#include "session/packets/social/GuildPackets.h"
 
 void GuildHandlers::HandleGuildQuery(WorldSession& session, WorldPacket& recvPacket)
 {
@@ -55,7 +56,7 @@ void GuildHandlers::HandleGuildQuery(WorldSession& session, WorldPacket& recvPac
     {
         if (guild->GetMemberSlot(playerGuid))
         {
-            guild->Query(&session);
+            SendGuildQuery(session, *guild);
             return;
         }
     }
@@ -350,7 +351,7 @@ void GuildHandlers::HandleGuildRoster(WorldSession& session, WorldPacket& recvPa
 
     if (Guild* guild = sGuildMgr.GetGuildById(session.GetPlayer()->GetGuildId()))
     {
-        guild->Roster(&session);
+        SendGuildRoster(session, *guild);
     }
 }
 
@@ -602,9 +603,9 @@ void GuildHandlers::HandleGuildSwitchRank(WorldSession& session, WorldPacket& re
 
     guild->SwitchRank(rankId, up);
 
-    guild->QueryRanks(&session);
-    guild->Query(&session);
-    guild->Roster();                                        // broadcast for tab rights update
+    SendGuildRanks(session, *guild);
+    SendGuildQuery(session, *guild);
+    BroadcastGuildRoster(*guild);                                        // broadcast for tab rights update
 }
 
 /**
@@ -839,7 +840,7 @@ void GuildHandlers::HandleGuildSetNote(WorldSession& session, WorldPacket& recvP
         slot->SetPNOTE(note);
     }
 
-    guild->Roster(&session);
+    SendGuildRoster(session, *guild);
 }
 
 /**
@@ -903,8 +904,8 @@ void GuildHandlers::HandleGuildRank(WorldSession& session, WorldPacket& recvPack
 
     guild->SetRankRights(rankId, rights);
 
-    guild->Query(&session);
-    guild->Roster();                                        // broadcast for tab rights update
+    SendGuildQuery(session, *guild);
+    BroadcastGuildRoster(*guild);                                        // broadcast for tab rights update
 }
 
 /**
@@ -939,9 +940,9 @@ void GuildHandlers::HandleGuildAddRank(WorldSession& session, WorldPacket& recvP
 
     guild->CreateRank(rankname, GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
 
-    guild->Query(&session);
-    guild->QueryRanks(&session);
-    guild->Roster();                                        // broadcast for tab rights update
+    SendGuildQuery(session, *guild);
+    SendGuildRanks(session, *guild);
+    BroadcastGuildRoster(*guild);                                        // broadcast for tab rights update
 }
 
 /**
@@ -978,9 +979,9 @@ void GuildHandlers::HandleGuildDelRank(WorldSession& session, WorldPacket& recvP
 
     guild->DelRank(rankId);
 
-    guild->Query(&session);
-    guild->QueryRanks(&session);
-    guild->Roster();                                        // broadcast for tab rights update
+    SendGuildQuery(session, *guild);
+    SendGuildRanks(session, *guild);
+    BroadcastGuildRoster(*guild);                                        // broadcast for tab rights update
 }
 
 /**
@@ -1068,7 +1069,7 @@ void GuildHandlers::HandleSaveGuildEmblem(WorldSession& session, WorldPacket& re
     //"Guild Emblem saved."
     session.SendSaveGuildEmblem(ERR_GUILDEMBLEM_SUCCESS);
 
-    guild->Query(&session);
+    SendGuildQuery(session, *guild);
 }
 
 /**
@@ -1084,7 +1085,7 @@ void GuildHandlers::HandleGuildEventLogQuery(WorldSession& session, WorldPacket&
     if (uint32 GuildId = session.GetPlayer()->GetGuildId())
         if (Guild* pGuild = sGuildMgr.GetGuildById(GuildId))
         {
-            pGuild->DisplayGuildEventLog(&session);
+            SendGuildEventLog(session, *pGuild);
         }
 }
 
@@ -1469,7 +1470,7 @@ void GuildHandlers::HandleGuildBankBuyTab(WorldSession& session, WorldPacket& re
     pGuild->CreateNewBankTab();
     session.GetPlayer()->ModifyMoney(-int64(TabCost));
     pGuild->SetBankRightsAndSlots(session.GetPlayer()->GetRank(), TabId, GUILD_BANK_RIGHT_FULL, WITHDRAW_SLOT_UNLIMITED, true);
-    pGuild->Roster();                                       // broadcast for tab rights update
+    BroadcastGuildRoster(*pGuild);                                       // broadcast for tab rights update
     pGuild->DisplayGuildBankTabsInfo(&session);
 }
 
@@ -1624,7 +1625,7 @@ void GuildHandlers::HandleGuildQueryRanks(WorldSession& session, WorldPacket& re
     recv_data.ReadGuidBytes<3, 4, 5, 7, 1, 0, 6, 2>(guildGuid);
     if (Guild* guild = sGuildMgr.GetGuildByGuid(guildGuid))
     {
-        guild->QueryRanks(&session);
+        SendGuildRanks(session, *guild);
     }
 }
 

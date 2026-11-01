@@ -29,6 +29,7 @@
 #include "ObjectGuid.h"
 #include "WorldPacket.h"
 #include "session/packets/social/ArenaTeamPackets.h"
+#include "session/packets/social/GuildPackets.h"
 
 #include <string>
 
@@ -66,4 +67,20 @@ TEST(SocialPackets_ArenaTeamEventBytes)
     // Three strings.
     BuildArenaTeamEventPacket(packet, ERR_ARENA_TEAM_LEADER_CHANGED_SSS, ObjectGuid(), "a", "b", "c");
     CHECK_STR(Hex(packet), "0617:0803610062006300");
+}
+
+// SMSG_GUILD_EVENT (0x0705): the event, the count of strings, each string with its 0 byte, then the
+// guid when it is not empty.
+TEST(SocialPackets_GuildEventBytes)
+{
+    // A player guid, counter 7: raw 0x0000000000000007.
+    const ObjectGuid player(HIGHGUID_PLAYER, uint32(7));
+    WorldPacket packet;
+
+    BuildGuildEventPacket(packet, GE_JOINED, player, "ab", NULL, NULL);
+    CHECK_STR(Hex(packet), "0705:0401616200" "0700000000000000");
+    BuildGuildEventPacket(packet, GE_DISBANDED, ObjectGuid(), NULL, NULL, NULL);
+    CHECK_STR(Hex(packet), "0705:0900");
+    BuildGuildEventPacket(packet, GE_PROMOTION, ObjectGuid(), "a", "b", "c");
+    CHECK_STR(Hex(packet), "0705:0103610062006300");
 }

@@ -166,8 +166,6 @@ src/game/Object/GuardAI.cpp -> src/game/entities/player/Player.h
 src/game/Object/Guild.cpp -> src/game/entities/player/Player.h
 src/game/Object/Guild.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Guild.cpp -> src/game/entities/player/social/SocialList.h
-src/game/Object/Guild.cpp -> src/proto/Opcodes.h
-src/game/Object/Guild.cpp -> src/proto/WorldPacket.h
 src/game/Object/Guild.h -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GuildBank.cpp -> src/game/entities/player/Player.h
 src/game/Object/GuildBank.cpp -> src/game/entities/player/PlayerRegistry.h
