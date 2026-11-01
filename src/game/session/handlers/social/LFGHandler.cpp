@@ -34,7 +34,7 @@
 #include "WorldSession.h"
 #include "Group.h"
 #include "LFGMgr.h"
-#include "LFGPackets.h"
+#include "session/packets/social/LFGPackets.h"
 #include "Log.h"
 #include "Player.h"
 #include "WorldPacket.h"

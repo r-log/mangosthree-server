@@ -28,8 +28,8 @@
 #include <string>
 #include "Object/ObjectMgr.h"
 #include "WorldHandlers/ChannelMgr.h"
-#include "Server/WorldSession.h"
-#include "Server/OpcodeTable.h"
+#include "session/WorldSession.h"
+#include "session/OpcodeTable.h"
 
 /**
  * @brief Handles a client's request to join a chat channel.

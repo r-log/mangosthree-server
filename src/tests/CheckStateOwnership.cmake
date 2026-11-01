@@ -219,7 +219,7 @@ state_allow(achievement src/game/persistence/characters/CharacterRepository.cpp
 state_allow(achievement src/game/WorldHandlers/AchievementGlobalMgr.cpp
     WHY "realm-wide start-up checks (LoadCompletedAchievements, ReportOrphanedCriteriaProgress)"
     NAMES character_achievement character_achievement_progress)
-state_allow(achievement src/game/WorldHandlers/CharacterDatabaseCleaner.cpp
+state_allow(achievement src/game/app/CharacterDatabaseCleaner.cpp
     WHY "realm-wide cleanup (CleanCharacterAchievementProgress's CheckUnique)"
     NAMES character_achievement_progress)
 state_allow(achievement src/game/session/PlayerDump.cpp
@@ -486,7 +486,7 @@ state_allow(honor src/tests/PlayerClientPacketsTest.cpp
 
 state_definition_site(src/proto/Opcodes.h
     WHY "opcode definition: each packet's name and value")
-state_definition_site(src/game/Server/OpcodeTable.cpp
+state_definition_site(src/game/session/OpcodeTable.cpp
     WHY "opcode table: each packet registered as a server-side opcode")
 state_definition_site(src/proto/OpcodeSlots.inc
     WHY "generated client stream-slot table: each line's comment names its opcode, in the client's spelling")

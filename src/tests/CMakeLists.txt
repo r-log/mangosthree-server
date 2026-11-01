@@ -604,7 +604,7 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME world_session_methods
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 152
-            --class WorldSession --header ${CMAKE_SOURCE_DIR}/src/game/Server/WorldSession.h)
+            --class WorldSession --header ${CMAKE_SOURCE_DIR}/src/game/session/WorldSession.h)
 
     add_test(NAME object_mgr_methods
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 235

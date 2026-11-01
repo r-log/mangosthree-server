@@ -30,8 +30,8 @@
 #include <string>
 #include "data/Language.h"
 #include "WorldPacket.h"
-#include "Server/WorldSession.h"
-#include "Server/OpcodeTable.h"
+#include "session/WorldSession.h"
+#include "session/OpcodeTable.h"
 #include "Log/Log.h"
 #include "Object/GMTicketMgr.h"
 #include "entities/player/PlayerRegistry.h"

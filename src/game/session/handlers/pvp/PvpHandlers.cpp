@@ -30,7 +30,7 @@
 #include "Server/SharedDefines.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "Log/Log.h"
 #include "entities/player/Player.h"
 #include "session/packets/chat/SystemMessage.h"

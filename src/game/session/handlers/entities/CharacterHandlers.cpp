@@ -58,7 +58,7 @@
 #include "data/Language.h"
 #include "spells/data/SpellMgr.h"
 #include "Calendar.h"
-#include "LFGPackets.h"
+#include "session/packets/social/LFGPackets.h"
 #include "GameTime.h"
 #include "Timer.h"
 #include "MotionMaster.h"

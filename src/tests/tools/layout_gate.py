@@ -110,14 +110,12 @@ RULES = [
     (r'^(tools|genrev)/|^game/pch', None), (r'^tests/', 'tests'), (r'^realmd/', 'realmd'), (r'^mangosd/', 'app'),
     (r'^shared/Database/|^game/persistence/|^game/Server/GameGlobals', 'persistence'),
     (r'^shared/', 'foundation'), (r'^proto/', 'proto'), (r'^motion/', 'motion'),
-    (r'^scripts/|^game/ChatCommands/|^game/WorldHandlers/(Chat\.|ChatArgExtract|ChatHelp|CommandMgr|ScriptMgr|ScriptAction)', 'scripts'),
-    (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig|GameEventScheduler|CharacterDatabaseCleaner)', 'app'),
-    (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
-    (r'^game/session/|^game/BattleGround/BattleGroundHandler\.', 'session'),
+    (r'^scripts/|^game/(ChatCommands|dbscripts)/', 'scripts'),
+    (r'^game/(Harness|AuctionHouseBot|app)/', 'app'),
+    (r'^game/session/', 'session'),
     (r'^game/data/|^game/spells/data/|^game/spells/auras/SpellAuraDefines\.', 'data'),
     (r'^game/Server/|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy|LootStore)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
     (r'^game/spells/', 'spells'),
-    (r'^game/WorldHandlers/(\w*Handler\w*|AccountMgr|LFGPackets)\.', 'session'),
     (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
     (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|BareMap|Weather|PoolSpawner|CreatureLinkingHolder)', 'maps'),
     (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
@@ -787,7 +785,7 @@ def self_test():
         with_file('src/game/spells/pipeline/Spell.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
         'allow-list line(s) name an edge that is gone')
     run('an allowed edge added is fine (session, same peer)',
-        dict(SELF_TREE, **{'src/game/Server/WorldSession.cpp': '#include "Player.h"\n#include "WorldPacket.h"\n',
+        dict(SELF_TREE, **{'src/game/session/WorldSession.cpp': '#include "Player.h"\n#include "WorldPacket.h"\n',
                            'src/game/Object/Creature.cpp': '#include "Unit.h"\n#include "Object/Unit.h"\n'}),
         SELF_ALLOW, 0, 'CheckLayout: OK')
     run('an unclassified file fails', with_file('src/weird/Thing.cpp', '#include "Common.h"\n'), SELF_ALLOW, 1,
@@ -802,9 +800,9 @@ def self_test():
                                                           'src/shared/Use.cpp': '#include "Grid.h"\n'}),
         SELF_ALLOW, 1, 'is ambiguous')
     run('relative first picks the includer\'s own World.h',
-        dict(SELF_TREE, **{'src/game/WorldHandlers/World.h': '', 'src/shared/World.h': '',
-                           'src/game/WorldHandlers/Group.cpp': '#include "World.h"\n'}),
-        SELF_ALLOW, 1, 'src/game/WorldHandlers/Group.cpp -> src/game/WorldHandlers/World.h   [against: domain -> app]')
+        dict(SELF_TREE, **{'src/game/Maps/World.h': '', 'src/game/app/World.h': '',
+                           'src/game/Maps/Group.cpp': '#include "World.h"\n'}),
+        SELF_ALLOW, 0, 'CheckLayout: OK')
     run('a spelling matches at a directory boundary only',
         dict(SELF_TREE, **{'src/game/GameObject/X.h': '',
                            'src/game/Maps/Map.h': '#include "Common.h"\n#include "Object/X.h"\n'}),
@@ -1164,7 +1162,7 @@ def self_test():
                        ('shared/Utilities/ObjectGuid.cpp', 'game/Object/ObjectMgr.h', ('against', ('foundation', 'data'))),
                        ('game/AuctionHouseBot/AuctionHouseBot.cpp', 'game/Object/Unit.h', None),
                        ('tests/X.cpp', 'game/Harness/Harness.h', None),
-                       ('game/Server/WorldSession.cpp', 'game/WorldHandlers/World.h', ('against', ('session', 'app'))),
+                       ('game/session/WorldSession.cpp', 'game/app/World.h', ('against', ('session', 'app'))),
                        ('game/session/packets/spells/CooldownPackets.cpp', 'proto/WorldPacket.h', None),
                        ('game/session/packets/spells/CooldownPacketSinks.cpp', 'game/entities/player/Player.h', None),
                        ('game/Object/ObjectMgr.h', 'game/data/MailLevelRewardStore.h', None),

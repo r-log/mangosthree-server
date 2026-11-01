@@ -26,11 +26,11 @@
 #include "session/handlers/social/LfgHandlers.h"
 
 #include <set>
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "Server/DBCStores.h"
 #include "WorldHandlers/Group.h"
 #include "WorldHandlers/LFGMgr.h"
-#include "WorldHandlers/LFGPackets.h"
+#include "session/packets/social/LFGPackets.h"
 #include "Log/Log.h"
 #include "entities/player/Player.h"
 #include "WorldPacket.h"

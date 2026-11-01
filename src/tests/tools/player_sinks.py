@@ -354,7 +354,7 @@ def self_test():
     expect_assignments('the item-callback pointer', 'm_itemCallbacks(NULL),\nm_itemCallbacks = p;\n', [2])
 
     good = 'Player* p = new Player(s);\n' + install
-    three = {'src/game/WorldHandlers/CharacterHandler.cpp': good + good, 'src/game/Harness/Scenario.cpp': good,
+    three = {'src/game/session/handlers/entities/CharacterHandler.cpp': good + good, 'src/game/Harness/Scenario.cpp': good,
              PLAYER_CPP: player,
              'src/game/Object/Unit.cpp': 'Unit::Unit() :\n    m_groupCallbacks(NULL),\n    m_x(0)\n{\n}\n'}
     expect_check('the three installed sites pass', three, 0)

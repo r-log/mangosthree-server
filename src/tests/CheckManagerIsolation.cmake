@@ -57,7 +57,7 @@
 # seen by this gate; the second is what CheckHeaderReach is for, and the first it cannot see
 # either (it only follows spelled paths). The CheckHeaderReach rules on QuestStatusMgr.h and
 # QuestStatusMgr.cpp close every route that needs the complete type (neither may reach
-# entities/player/Player.h, Object/Unit.h, Server/WorldSession.h or ObjectMgr.h); what is
+# entities/player/Player.h, Object/Unit.h, session/WorldSession.h or ObjectMgr.h); what is
 # left is a pointer through QuestDef.h's forward declaration spelled on purpose to dodge a
 # text rule, which review would see.
 # Run standalone (-P), this script sees none of the top-level project's policies. The project

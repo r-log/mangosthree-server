@@ -28,7 +28,7 @@
 #include <vector>
 
 #include "Platform/Define.h"
-#include "Server/OpcodeTable.h"
+#include "session/OpcodeTable.h"
 #include "WorldPacket.h"
 #include "Log/Log.h"
 #include "Object/Corpse.h"
@@ -38,7 +38,7 @@
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
 #include "ObjectGuid.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "Object/Item.h"
 #include "Object/LootMgr.h"
 #include "Object/Object.h"

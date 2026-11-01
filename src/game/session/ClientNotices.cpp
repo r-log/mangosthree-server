@@ -26,7 +26,7 @@
 #include "session/ClientNotices.h"
 
 #include "AuctionHouseMgr.h"
-#include "CalendarHandler.h"
+#include "session/handlers/social/CalendarHandler.h"
 #include "GMTicketMgr.h"
 #include "LFGMgr.h"
 #include "Player.h"

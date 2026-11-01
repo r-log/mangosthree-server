@@ -33,7 +33,7 @@
 #include "Object/Pet.h"
 #include "entities/player/Player.h"
 #include "WorldPacket.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 
 /**
  * @brief Handle talent learning (CMSG_LEARN_TALENT)

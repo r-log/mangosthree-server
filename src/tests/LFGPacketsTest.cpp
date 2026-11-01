@@ -25,7 +25,7 @@
 
 #include "TestHarness.h"
 
-#include "LFGPackets.h"
+#include "session/packets/social/LFGPackets.h"
 #include "Opcodes.h"
 
 /**

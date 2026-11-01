@@ -31,7 +31,7 @@
 #include "Log/Log.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
-#include "Server/WorldSession.h"
+#include "session/WorldSession.h"
 #include "ObjectGuid.h"
 #include "WorldHandlers/UpdateData.h"
 #include "entities/player/Player.h"

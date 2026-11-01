@@ -42,7 +42,7 @@ import case_labels  # noqa: E402
 
 SCOPE = 'src/game/'
 EXTENSIONS = ('.h', '.hpp', '.cpp', '.inl', '.inc')
-SEED_FILE = 'src/game/WorldHandlers/World.cpp'
+SEED_FILE = 'src/game/app/World.cpp'
 SEED_LIMIT = 1
 
 TOKEN = re.compile(r'\b(srand|rand)\s*\(')
