@@ -25,7 +25,6 @@
 
 #include "MapPackets.h"
 #include "Creature.h"
-#include "GridNotifiersImpl.h"
 #include "InstanceData.h"
 #include "Map.h"
 #include "ObjectMgr.h"
@@ -33,6 +32,7 @@
 #include "Player.h"
 #include "SoundPacket.h"
 #include "WorldPacket.h"
+#include "session/packets/chat/LocalizedPackets.h"
 #include "session/packets/chat/MessageChatPacket.h"
 
 namespace

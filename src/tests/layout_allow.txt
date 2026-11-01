@@ -293,7 +293,6 @@ src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/GridNotifiers.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/entities/player/Player.h
-src/game/WorldHandlers/GridNotifiersImpl.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Group.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/WorldHandlers/Group.cpp -> src/game/entities/player/PlayerRegistry.h

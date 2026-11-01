@@ -24,7 +24,6 @@
  */
 
 #include "AchievementPackets.h"
-#include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Player.h"
@@ -32,6 +31,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "data/Language.h"
+#include "session/packets/chat/LocalizedPackets.h"
 #include "session/packets/chat/MessageChatPacket.h"
 
 #include <cstring>

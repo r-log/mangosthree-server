@@ -1350,51 +1350,6 @@ namespace MaNGOS
             float i_range;
     };
 
-    // Prepare using Builder localized packets with caching and send to player
-    template<class Builder>
-    class LocalizedPacketDo
-    {
-        public:
-            explicit LocalizedPacketDo(Builder& builder) : i_builder(builder) {}
-
-            ~LocalizedPacketDo()
-            {
-                for (size_t i = 0; i < i_data_cache.size(); ++i)
-                {
-                    delete i_data_cache[i];
-                }
-            }
-            void operator()(Player const* p);
-
-        private:
-            Builder& i_builder;
-            std::vector<WorldPacket*> i_data_cache;         // 0 = default, i => i-1 locale index
-    };
-
-    // Prepare using Builder localized packets with caching and send to player
-    template<class Builder>
-    class LocalizedPacketListDo
-    {
-        public:
-            typedef std::vector<WorldPacket*> WorldPacketList;
-            explicit LocalizedPacketListDo(Builder& builder) : i_builder(builder) {}
-
-            ~LocalizedPacketListDo()
-            {
-                for (size_t i = 0; i < i_data_cache.size(); ++i)
-                    for (size_t j = 0; j < i_data_cache[i].size(); ++j)
-                    {
-                        delete i_data_cache[i][j];
-                    }
-            }
-            void operator()(Player* p);
-
-        private:
-            Builder& i_builder;
-            std::vector<WorldPacketList> i_data_cache;
-            // 0 = default, i => i-1 locale index
-    };
-
 #ifndef WIN32
     template<> void PlayerRelocationNotifier::Visit<Creature>(CreatureMapType&);
     template<> void CreatureRelocationNotifier::Visit<Player>(PlayerMapType&);

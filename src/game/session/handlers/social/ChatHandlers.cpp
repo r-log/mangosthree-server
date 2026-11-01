@@ -50,6 +50,7 @@
 #include "data/Language.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
+#include "session/packets/chat/LocalizedPackets.h"
 #include "CellImpl.h"
 
 /**
