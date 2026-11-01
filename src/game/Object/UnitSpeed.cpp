@@ -477,13 +477,6 @@ void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 spellID)
 
     if (apply)
     {
-        /*
-        WorldPacket data(SMSG_FEIGN_DEATH_RESISTED, 9);
-        data<<GetGUID();
-        data<<uint8(0);
-        SendMessageToSet(&data,true);
-        */
-
         if (GetTypeId() != TYPEID_PLAYER)
         {
             StopMoving();
@@ -515,12 +508,6 @@ void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 spellID)
     }
     else
     {
-        /*
-        WorldPacket data(SMSG_FEIGN_DEATH_RESISTED, 9);
-        data<<GetGUID();
-        data<<uint8(1);
-        SendMessageToSet(&data,true);
-        */
         // The block's own lift resumes whatever the feign paused -- a chase in the Combat
         // layer, a follow, a patrol -- from where it stood; nothing here needs to guess it
         // back from combat state.
