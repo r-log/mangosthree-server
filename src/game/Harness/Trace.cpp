@@ -158,7 +158,7 @@ namespace Harness
                 { SMSG_SPELL_START,                 Rule::Decode },
                 { SMSG_SPELL_GO,                    Rule::Decode },
                 { SMSG_QUESTGIVER_STATUS_MULTIPLE,  Rule::Decode },
-                // SpellAuraHolder::SendAuraUpdate: the target's packed guid and, unless the
+                // BuildAuraUpdatePacket: the target's packed guid and, unless the
                 // aura's flags say the target cast it, the caster's -- a creature's comes from
                 // the map's counter
                 { SMSG_AURA_UPDATE,                 Rule::Decode },

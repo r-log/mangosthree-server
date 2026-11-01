@@ -3830,6 +3830,8 @@ class Unit : public WorldObject
         }
         VisibleAuraMap const& GetVisibleAuras() const { return m_visibleAuras; }
         uint8 GetVisibleAurasCount() const { return m_visibleAuras.size(); }
+        /// Tells `viewer` every visible aura of this unit, when it has any.
+        void SendVisibleAurasTo(Player& viewer) const;
 
         Aura* GetAura(uint32 spellId, SpellEffectIndex effindex);
         Aura const* GetAura(uint32 spellId, SpellEffectIndex effindex) const;
