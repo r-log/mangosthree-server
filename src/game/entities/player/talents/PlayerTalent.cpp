@@ -30,6 +30,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
+#include "entities/player/spells/PlayerSpellNotices.h"
 #include "WorldPacket.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
@@ -544,9 +545,7 @@ void Player::BuildPetTalentsInfoData(WorldPacket* data)
  */
 void Player::SendTalentsInvoluntarilyReset(bool pet)
 {
-    WorldPacket data(SMSG_TALENTS_INVOLUNTARILY_RESET, 1);
-    data << uint8(pet ? 1 : 0);
-    GetSession()->SendPacket(&data);
+    sPlayerSpellNotices.TalentsInvoluntarilyReset(*this, pet);
 }
 
 void Player::SendTalentsInfoData(bool pet)

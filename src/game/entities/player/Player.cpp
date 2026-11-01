@@ -4025,10 +4025,7 @@ void Player::SetBindPoint(ObjectGuid guid)
  */
 void Player::SendTalentWipeConfirm(ObjectGuid guid)
 {
-    WorldPacket data(MSG_TALENT_WIPE_CONFIRM, (8 + 4));
-    data << ObjectGuid(guid);
-    data << uint32(m_talentMgr.ResetTalentsCost(WorldGameTime::Get()));
-    GetSession()->SendPacket(&data);
+    sPlayerSpellNotices.TalentWipeConfirm(*this, guid, m_talentMgr.ResetTalentsCost(WorldGameTime::Get()));
 }
 
 /**
@@ -4041,10 +4038,7 @@ void Player::SendPetSkillWipeConfirm()
     {
         return;
     }
-    WorldPacket data(SMSG_PET_UNLEARN_CONFIRM, (8 + 4));
-    data << ObjectGuid(pet->GetObjectGuid());
-    data << uint32(pet->resetTalentsCost());
-    GetSession()->SendPacket(&data);
+    sPlayerSpellNotices.PetUnlearnConfirm(*this, pet->GetObjectGuid(), pet->resetTalentsCost());
 }
 
 

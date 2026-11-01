@@ -416,8 +416,6 @@ src/game/entities/player/persistence/PlayerLoad.cpp -> src/proto/Opcodes.h
 src/game/entities/player/persistence/PlayerLoad.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/persistence/PlayerSave.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/pets [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/pets/PlayerPet.cpp -> src/proto/Opcodes.h
-src/game/entities/player/pets/PlayerPet.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/pvp [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/pvp [entities] -> src/game/BattleGround/BattleGroundMgr.h
 src/game/entities/player/pvp [entities] -> src/game/Object/ArenaTeam.h
