@@ -8,7 +8,7 @@
 # For each target below, the include directories are read from its CMakeLists.txt (every
 # target_include_directories() call for it) plus those of the targets it inherits them from
 # (game's are PUBLIC). Every header under each directory, recursively, is listed by the path it
-# would be included by from that directory: "Unit.h" from src/game/Object, "Object/Unit.h" from
+# would be included by from that directory: "Unit.h" from src/game/Object, "entities/Unit.h" from
 # src/game. A spelling that names two different files is a collision. The basenames are the
 # spellings of the files directly in a directory; the deeper spellings catch the D4j shape too
 # ("combat/X.h" from both src/game and src/game/entities/player). Spellings are compared in

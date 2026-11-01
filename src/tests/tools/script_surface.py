@@ -437,7 +437,7 @@ def self_test():
         'src/game/data/dbc/SharedDefines.h': '#include "Platform/Define.h"\n',
         'src/game/data/dbc/DBCEnums.h': '',
         'src/game/Object/ObjectGuid.h': '#include "Platform/Define.h"\n',
-        'src/game/Object/Unit.h': '#include "ObjectGuid.h"\nclass Unit\n{\n    public:\n        void Kill();\n};\n#define sUnits Units()\n',
+        'src/game/entities/Unit.h': '#include "ObjectGuid.h"\nclass Unit\n{\n    public:\n        void Kill();\n};\n#define sUnits Units()\n',
         'src/scripts/surface/Ids.h': '#include "Platform/Define.h"\n#include <functional>\n',
         'src/scripts/surface/Units.h': '#include "surface/Ids.h"\n#include "SharedDefines.h"\n',
         'src/scripts/surface/detail/Guids.h': '#include "surface/Ids.h"\n#include "ObjectGuid.h"\n',
@@ -490,8 +490,8 @@ def self_test():
 
     ratchet_base = dict(base)
     ratchet_base.update({
-        'src/game/Object/Unit.h': '#include "ObjectGuid.h"\nclass Unit\n{\n    public:\n        void Kill();\n        void Heal();\n};\n#define sUnits Units()\n',
-        'src/game/Object/Creature.h': 'class Creature : public Unit\n{\n};\n',
+        'src/game/entities/Unit.h': '#include "ObjectGuid.h"\nclass Unit\n{\n    public:\n        void Kill();\n        void Heal();\n};\n#define sUnits Units()\n',
+        'src/game/entities/Creature.h': 'class Creature : public Unit\n{\n};\n',
         'src/scripts/legacy/scripts/boss_a.cpp': '#include "Unit.h"\nvoid A(Unit* u)\n{\n    u->Kill();\n    ((Creature*)u)->Kill();\n    sUnits;\n}\n',
         'src/scripts/legacy/scripts/boss_b.cpp': 'void B(Unit* u)\n{\n    u->Heal();\n}\n',
     })
@@ -519,8 +519,8 @@ def self_test():
             failures.append('%s: got %r (want %r)%s\n%s' % (label, got, want, ', missing "%s"' % needle if needle else '', text))
 
     full = ['legacy/scripts/boss_a.cpp call Kill', 'legacy/scripts/boss_a.cpp downcast Creature',
-            'legacy/scripts/boss_a.cpp include game/Object/Unit.h', 'legacy/scripts/boss_a.cpp singleton sUnits',
-            'legacy/scripts/boss_b.cpp call Heal', 'legacy/system/ScriptDevMgr.h include game/Object/Unit.h']
+            'legacy/scripts/boss_a.cpp include game/entities/Unit.h', 'legacy/scripts/boss_a.cpp singleton sUnits',
+            'legacy/scripts/boss_b.cpp call Heal', 'legacy/system/ScriptDevMgr.h include game/entities/Unit.h']
     ratchet_case('the listed reach passes', full, {}, 0, 'legacy: 6 reach lines over 3 legacy files')
     ratchet_case('a grown reach fails', full, {'src/scripts/legacy/scripts/boss_b.cpp': 'void B(Unit* u)\n{\n    u->Heal();\n    u->Kill();\n}\n'},
                  1, 'legacy reach grew: legacy/scripts/boss_b.cpp call Kill')

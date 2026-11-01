@@ -182,8 +182,8 @@ def self_test():
     tree = {
         'src/proto/WorldPacket.h': 'class WorldPacket {};\n',
         'src/proto/Opcodes.h': 'enum Opcodes {};\n',
-        'src/game/Object/Unit.cpp': '#include "Unit.h"\nvoid Unit::F(WorldPacket* p) {}\n',
-        'src/game/Object/Unit.h': 'class WorldPacket;\n',
+        'src/game/entities/Unit.cpp': '#include "Unit.h"\nvoid Unit::F(WorldPacket* p) {}\n',
+        'src/game/entities/Unit.h': 'class WorldPacket;\n',
         'src/game/session/Packets.cpp': '#include "WorldPacket.h"\nWorldPacket data(SMSG_X, 4);\n',
         'src/' + PCH: '#include "Unit.h"\n',
     }
@@ -204,11 +204,11 @@ def self_test():
 
     expect_check('a clean domain and a session that builds packets pass', tree, 0)
     expect_check('a domain include of the packet fails',
-                 dict(tree, **{'src/game/Object/Unit.cpp': '#include "WorldPacket.h"\n'}), 1)
+                 dict(tree, **{'src/game/entities/Unit.cpp': '#include "WorldPacket.h"\n'}), 1)
     expect_check('a domain include of the opcodes by a longer path fails',
                  dict(tree, **{'src/game/spells/pipeline/Spell.cpp': '#include "proto/Opcodes.h"\n'}), 1)
     expect_check('an include in a comment passes',
-                 dict(tree, **{'src/game/Object/Unit.cpp': '// #include "WorldPacket.h"\n/*\n#include "Opcodes.h"\n*/\n'}), 0)
+                 dict(tree, **{'src/game/entities/Unit.cpp': '// #include "WorldPacket.h"\n/*\n#include "Opcodes.h"\n*/\n'}), 0)
     expect_check('the PCH including the opcodes fails', dict(tree, **{'src/game/pchdomain.h': '#include "Opcodes.h"\n'}), 1)
     expect_check('the other PCH is not read', dict(tree, **{'src/game/pchdef.h': '#include "Opcodes.h"\n'}), 0)
     expect_check('a packet built in the maps fails',

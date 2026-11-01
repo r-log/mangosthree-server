@@ -45,7 +45,7 @@
 /// asynchronous writes on: they are queued, and what the delay thread would have sent to MySQL
 /// is the exact SQL asserted after ExecuteQueuedForTest().
 ///
-/// The update field indexes, by hand from Object/UpdateFields.h: OBJECT_END = 0x8, UNIT_END =
+/// The update field indexes, by hand from entities/UpdateFields.h: OBJECT_END = 0x8, UNIT_END =
 /// OBJECT_END + 0x8A = 146, PLAYER_FIELD_GLYPH_SLOTS_1 = UNIT_END + 0x4A9 = 1339,
 /// PLAYER_FIELD_GLYPHS_1 = UNIT_END + 0x4B2 = 1348, PLAYER_GLYPHS_ENABLED = UNIT_END + 0x4BB = 1357.
 /// Every other expected value is derived by hand in the comments.
@@ -56,7 +56,7 @@
 #include "Database/TickGuard.h"
 #include "DBCStores.h"
 #include "GlyphMgr.h"
-#include "Object/UpdateFields.h"
+#include "entities/UpdateFields.h"
 #include "persistence/characters/talents/GlyphRepository.h"
 
 #include <string>

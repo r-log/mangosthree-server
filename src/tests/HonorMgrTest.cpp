@@ -49,7 +49,7 @@
 
 #include "TestHarness.h"
 #include "HonorMgr.h"
-#include "Object/UpdateFields.h"
+#include "entities/UpdateFields.h"
 #include "Common/TimeConstants.h"
 #include "ObjectGuid.h"
 #include "Opcodes.h"

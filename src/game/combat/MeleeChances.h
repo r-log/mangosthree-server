@@ -34,7 +34,7 @@ namespace Combat
     /**
      * @brief Gets the attack power damage multiplier for an attack type.
      *
-     * Unit::GetAPMultiplier, src/game/Object/Unit.cpp:6374-6401 at ce20c27db, moved
+     * Unit::GetAPMultiplier, src/game/entities/Unit.cpp:6374-6401 at ce20c27db, moved
      * verbatim. The weapon lookup is nullable, so the member still performs it under
      * the original `normalized && isPlayer` guard and passes what it found; the
      * "fist attack" early return for a missing weapon stays here.

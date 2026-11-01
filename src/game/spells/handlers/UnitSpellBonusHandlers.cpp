@@ -25,7 +25,7 @@
 
 #include "spells/handlers/UnitSpellBonusHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Unit.h"
+#include "entities/Unit.h"
 #include "spells/auras/SpellAuras.h"
 
 /// 45182: Cheating Death: on a player, spell damage taken scales by the aura's amount if its school mask has physical

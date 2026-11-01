@@ -16,7 +16,7 @@ foreach(ROOT_DIR IN LISTS ROOTS)
 endforeach()
 list(LENGTH SOURCES SOURCE_COUNT)
 
-set(UNIT_HEADER "${SOURCE_ROOT}/src/game/Object/Unit.h")
+set(UNIT_HEADER "${SOURCE_ROOT}/src/game/entities/Unit.h")
 file(READ "${UNIT_HEADER}" UNIT_TEXT)
 string(FIND "${UNIT_TEXT}" "bool Blocked(UnitState) const = delete;" HAS_GUARD)
 if(HAS_GUARD EQUAL -1)

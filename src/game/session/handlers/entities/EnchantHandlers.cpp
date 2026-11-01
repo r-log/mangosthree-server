@@ -31,7 +31,7 @@
 #include "Log/Log.h"
 #include "data/world/ObjectMgr.h"
 #include "entities/player/Player.h"
-#include "Object/Item.h"
+#include "entities/Item.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/inventory/ItemRepository.h"
 #include "DBCStores.h"

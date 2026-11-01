@@ -26,7 +26,7 @@
 #include "GlyphMgr.h"
 #include "DBCStores.h"
 #include "Log.h"
-#include "Object/UpdateFields.h"
+#include "entities/UpdateFields.h"
 #include "persistence/characters/talents/GlyphRepository.h"
 
 void GlyphMgr::InitGlyphsForLevel(uint32 level, GlyphSlotSink const& setGlyphSlot, FieldSink const& setField)

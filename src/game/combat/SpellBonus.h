@@ -141,7 +141,7 @@ namespace Combat
     /**
      * @brief The legacy level clamps and base points of a spell effect.
      *
-     * The `else` arm of Unit::CalculateSpellDamage, src/game/Object/Unit.cpp:4721-4736 at
+     * The `else` arm of Unit::CalculateSpellDamage, src/game/entities/Unit.cpp:4721-4736 at
      * 82e9c4f65, moved verbatim. It stops before the die-sides switch, which rolls.
      *
      * @param level The caster's level, or the target's where the scaling arm took it.

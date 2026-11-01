@@ -31,9 +31,9 @@
 #include "Log/Log.h"
 #include "WorldHandlers/AchievementMgr.h"
 #include "entities/player/Player.h"
-#include "Object/Item.h"
-#include "Object/Bag.h"
-#include "Object/Creature.h"
+#include "entities/Item.h"
+#include "entities/Bag.h"
+#include "entities/Creature.h"
 #include "data/dbc/DBCStores.h"
 
 /**

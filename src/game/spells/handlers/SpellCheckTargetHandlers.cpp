@@ -25,7 +25,7 @@
 
 #include "spells/handlers/SpellCheckTargetHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Creature.h"
+#include "entities/Creature.h"
 
 /// 37433: Spout (The Lurker Below): only a player out of the water is a target
 static SpellHandlerOutcome<bool> CheckTargetSpout(SpellCheckTargetContext& ctx)

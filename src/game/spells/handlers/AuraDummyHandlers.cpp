@@ -25,7 +25,7 @@
 
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Creature.h"
+#include "entities/Creature.h"
 #include "data/world/ObjectMgr.h"
 #include "entities/motion/MotionMaster.h"
 #include "Maps/Map.h"

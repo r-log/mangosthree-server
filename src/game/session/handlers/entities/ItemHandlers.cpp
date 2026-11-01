@@ -36,7 +36,7 @@
 #include "data/world/ObjectMgr.h"
 #include "data/dbc/DBCStores.h"
 #include "entities/player/Player.h"
-#include "Object/Item.h"
+#include "entities/Item.h"
 #include "entities/UpdateData.h"
 
 /**

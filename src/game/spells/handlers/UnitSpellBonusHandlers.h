@@ -27,7 +27,7 @@
 #define MANGOSSERVER_SPELLS_HANDLERS_UNITSPELLBONUSHANDLERS_H
 
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Unit.h"
+#include "entities/Unit.h"
 #include <list>
 
 class Aura;
