@@ -130,6 +130,8 @@ set(OWNER_FILES
     entities/player/spells/PlayerSpellMod.cpp
     entities/player/spells/PlayerLearn.cpp
     entities/player/spells/PlayerActionButton.cpp
+    entities/player/spells/PlayerSpellNotices.h
+    entities/player/spells/PlayerSpellNotices.cpp
     entities/player/spells/PlayerRune.cpp                   # decoupling D4k: drives spells/RuneMgr
     entities/player/spells/PlayerSpellCooldown.cpp          # decoupling D4k: drives spells/SpellCooldownMgr
     entities/player/inventory/PlayerItem.cpp

@@ -29,6 +29,8 @@
 #include <string>
 #include <list>
 #include "Player.h"
+#include "entities/WorldObjectNotices.h"
+#include "entities/player/spells/PlayerSpellNotices.h"
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
@@ -2901,91 +2903,7 @@ void Player::InitStatsForLevel(bool reapplyMods)
  */
 void Player::SendInitialSpells()
 {
-    time_t curTime = time(NULL);
-    time_t infTime = curTime + infinityCooldownDelayCheck;
-
-    /* * * * * * * * * * * * * * * * *
-     * * START OF PACKET STRUCTURE * *
-     * * * * * * * * * * * * * * * * */
-    uint16 spellCount = 0;
-
-    WorldPacket data(SMSG_INITIAL_SPELLS, (1 + 2 + 4 * m_spells.size() + 2 + m_spellCooldownMgr.GetSpellCooldownMap().size() * (2 + 2 + 2 + 4 + 4)));
-    data << uint8(0);
-
-    /* * * * * * * * * * * * * * * * *
-     * *  END OF PACKET STRUCTURE  * *
-     * * * * * * * * * * * * * * * * */
-    size_t countPos = data.wpos();
-    data << uint16(spellCount);                             // spell count placeholder
-
-    /* For each spell the player knows */
-    for (PlayerSpellMap::const_iterator itr = m_spells.begin(); itr != m_spells.end(); ++itr)
-    {
-        /* If the spell is marked as removed, don't send it */
-        PlayerSpell const& playerSpell = itr->second;
-
-        if (playerSpell.state == PLAYERSPELL_REMOVED)
-        {
-            continue;
-        }
-
-        if (!playerSpell.active || playerSpell.disabled)
-        {
-            continue;
-        }
-
-        /* Insert spell into vector for insertion into packet */
-        data << uint32(itr->first);
-        data << uint16(0);                                  // it's not slot id
-
-        /* Increase spell counter by 1 (sent in packet) */
-        spellCount += 1;
-    }
-
-    data.put<uint16>(countPos, spellCount);                 // write real count value
-
-    /* For each spell the player has on cooldown */
-    uint16 spellCooldowns = m_spellCooldownMgr.GetSpellCooldownMap().size();
-    data << uint16(spellCooldowns);
-    for (SpellCooldowns::const_iterator itr = m_spellCooldownMgr.GetSpellCooldownMap().begin(); itr != m_spellCooldownMgr.GetSpellCooldownMap().end(); ++itr)
-    {
-        /* If the spell doesn't exist in the spellbook, just ignore it */
-        SpellEntry const* sEntry = sSpellStore.LookupEntry(itr->first);
-        if (!sEntry)
-        {
-            continue;
-        }
-
-        SpellCooldown const& spellCooldown = itr->second;
-
-        data << uint32(itr->first);
-
-        data << uint32(spellCooldown.itemid);                 // cast item id
-        data << uint16(sEntry->GetCategory());              // spell category
-
-        /* send infinity cooldown in special format */
-        if (spellCooldown.end >= infTime)
-        {
-            data << uint32(1);                              // cooldown
-            data << uint32(0x80000000);                     // category cooldown
-            continue;
-        }
-
-        time_t cooldown = spellCooldown.end > curTime ? (spellCooldown.end - curTime) * IN_MILLISECONDS : 0;
-
-        if (sEntry->GetCategory())                           // may be wrong, but anyway better than nothing...
-        {
-            data << uint32(0);                              // cooldown
-            data << uint32(cooldown);                       // category cooldown
-        }
-        else
-        {
-            data << uint32(cooldown);                       // cooldown
-            data << uint32(0);                              // category cooldown
-        }
-    }
-
-    GetSession()->SendPacket(&data);
+    sPlayerSpellNotices.InitialSpellsShown(*this);
 
     DETAIL_LOG("CHARACTER: Sent Initial Spells");
 }
@@ -4355,9 +4273,7 @@ void Player::SendExplorationExperience(uint32 Area, uint32 Experience)
 // send Proficiency
 void Player::SendProficiency(ItemClass itemClass, uint32 itemSubclassMask)
 {
-    WorldPacket data(SMSG_SET_PROFICIENCY, 1 + 4);
-    data << uint8(itemClass) << uint32(itemSubclassMask);
-    GetSession()->SendPacket(&data);
+    sPlayerSpellNotices.ProficiencyShown(*this, itemClass, itemSubclassMask);
 }
 
 /**
@@ -4490,9 +4406,7 @@ void Player::HandleStealthedUnitsDetection()
 void Player::ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
 {
     // last check 4.3.4
-    WorldPacket data(SMSG_SPELL_COOLDOWN, 8 + 1 + m_spells.size() * 8);
-    data << GetObjectGuid();
-    data << uint8(0x0);                                     // flags (0x1, 0x2)
+    std::vector<SpellCooldownTime> cooldowns;
     time_t curTime = time(NULL);
     for (PlayerSpellMap::const_iterator itr = m_spells.begin(); itr != m_spells.end(); ++itr)
     {
@@ -4512,12 +4426,14 @@ void Player::ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
 
         if ((idSchoolMask & GetSpellSchoolMask(spellInfo)) && GetSpellCooldownDelay(unSpellId) < unTimeMs)
         {
-            data << uint32(unSpellId);
-            data << uint32(unTimeMs);                       // in m.secs
+            SpellCooldownTime cooldown;
+            cooldown.spellId = unSpellId;
+            cooldown.remainingMs = unTimeMs;                // in m.secs
+            cooldowns.push_back(cooldown);
             m_spellCooldownMgr.AddSpellCooldown(unSpellId, 0, curTime + unTimeMs / IN_MILLISECONDS);
         }
     }
-    GetSession()->SendPacket(&data);
+    sWorldObjectNotices.SpellCooldownsTold(*this, GetObjectGuid(), 0x0, cooldowns);
 }
 
 /**
@@ -4859,10 +4775,7 @@ void Player::ApplyEquipCooldown(Item* pItem)
 
         m_spellCooldownMgr.AddSpellCooldown(spellData.SpellId, pItem->GetEntry(), time(NULL) + 30);
 
-        WorldPacket data(SMSG_ITEM_COOLDOWN, 12);
-        data << pItem->GetObjectGuid();
-        data << uint32(spellData.SpellId);
-        GetSession()->SendPacket(&data);
+        sPlayerSpellNotices.ItemCooldownStarted(*this, pItem->GetObjectGuid(), spellData.SpellId);
     }
 }
 
@@ -6236,18 +6149,7 @@ void Player::RemoveAtLoginFlag(AtLoginFlags f, bool in_db_also /*= false*/)
  */
 void Player::SendClearCooldown(uint32 spell_id, Unit* target)
 {
-    ObjectGuid guid = target->GetObjectGuid();
-
-    WorldPacket data(SMSG_CLEAR_COOLDOWNS, 1 + 8 + 4);
-    data.WriteGuidMask<1, 3, 6>(guid);
-    data.WriteBits(1, 24);      // cooldown count
-    data.WriteGuidMask<7, 5, 2, 4, 0>(guid);
-
-    data.WriteGuidBytes<7, 2, 4, 5, 1, 3>(guid);
-    data << uint32(spell_id);
-    data.WriteGuidBytes<0, 6>(guid);
-
-    SendDirectMessage(&data);
+    sPlayerSpellNotices.CooldownCleared(*this, target->GetObjectGuid(), spell_id);
 }
 
 /**
