@@ -35,6 +35,7 @@
 #include "session/packets/combat/CombatPackets.h"
 #include "session/packets/entities/AchievementPackets.h"
 #include "session/packets/entities/GossipPackets.h"
+#include "session/packets/entities/MotionPackets.h"
 #include "session/packets/maps/MapPackets.h"
 #include "session/packets/pvp/BattleGroundPackets.h"
 #include "session/packets/social/ArenaTeamPackets.h"
@@ -101,6 +102,7 @@ void InstallClientNotices()
     static SessionAuraNotices auras;
     static SessionChatNotices chat;
     static SessionAchievementNotices achievements;
+    static SessionMotionNotices motion;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -117,5 +119,6 @@ void InstallClientNotices()
     AuraNotices::Install(&auras);
     ChatNotices::Install(&chat);
     AchievementNotices::Install(&achievements);
+    MotionNotices::Install(&motion);
     InstallCalendarNotices();
 }
