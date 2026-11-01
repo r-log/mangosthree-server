@@ -232,6 +232,25 @@ struct WorldStateUpdateFact
     uint32 value = 0;
 };
 
+/// The client may move the unit `unit` when `allowMove` is 1, and may not when it is 0.
+struct ControlUpdateFact
+{
+    ObjectGuid unit;
+    uint8 allowMove = 0;
+};
+
+/// The client moves the unit `mover` now.
+struct ActiveMoverFact
+{
+    ObjectGuid mover;
+};
+
+/// The client is asked to answer the time sync request `counter`.
+struct TimeSyncRequestFact
+{
+    uint32 counter = 0;
+};
+
 typedef std::function<void(SwingOutOfReachFact const&)> SwingOutOfReachSink;
 typedef std::function<void(SwingBadFacingFact const&)> SwingBadFacingSink;
 typedef std::function<void(CombatCancelledFact const&)> CombatCancelledSink;
@@ -260,6 +279,9 @@ typedef std::function<void(MonsterWhisperFact const&)> MonsterWhisperSink;
 typedef std::function<void(SystemMessageFact const&)> SystemMessageSink;
 typedef std::function<void(InitWorldStatesFact const&)> InitWorldStatesSink;
 typedef std::function<void(WorldStateUpdateFact const&)> WorldStateUpdateSink;
+typedef std::function<void(ControlUpdateFact const&)> ControlUpdateSink;
+typedef std::function<void(ActiveMoverFact const&)> ActiveMoverSink;
+typedef std::function<void(TimeSyncRequestFact const&)> TimeSyncRequestSink;
 
 /// The account security level of the player's session, read at each call. An unsigned integer:
 /// the levels run from 0 to 4, and a caller comparing two of them with `<=` gets the answer the

@@ -353,7 +353,6 @@ src/game/entities/player [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/Player.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/Player.cpp -> src/proto/Opcodes.h
 src/game/entities/player/Player.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/Player.cpp -> src/proto/wire/MoverCodec.h
 src/game/entities/player/combat [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/combat [entities] -> src/game/Object/Formulas.h
 # reached through ObjectMgr.h before #512
