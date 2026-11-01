@@ -29,7 +29,7 @@
 
 void BuildPlaySpellVisualKitPacket(WorldPacket& packet, ObjectGuid unit, uint32 kitId, uint32 kitType)
 {
-    packet.Initialize(SMSG_PLAY_SPELL_VISUAL, 21);
+    packet.Initialize(SMSG_PLAY_SPELL_VISUAL_KIT, 21);
     packet << uint32(0);
     packet << uint32(kitId);
     packet << uint32(kitType);

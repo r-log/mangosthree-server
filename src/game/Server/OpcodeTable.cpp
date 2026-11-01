@@ -663,7 +663,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_PET_CAST_SPELL,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetCastSpell               );
     OPCODE(MSG_SAVE_GUILD_EMBLEM,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GuildHandlers::HandleSaveGuildEmblem          );
     OPCODE(MSG_TABARDVENDOR_ACTIVATE,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &NpcHandlers::HandleTabardVendorActivate       );
-    OPCODE(SMSG_PLAY_SPELL_VISUAL,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
+    OPCODE(SMSG_PLAY_SPELL_VISUAL_KIT,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_ZONEUPDATE,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &MapHandlers::HandleZoneUpdate                 );
     OPCODE(SMSG_PARTYKILLLOG,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_COMPRESSED_UPDATE_OBJECT,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
