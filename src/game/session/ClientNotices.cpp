@@ -31,6 +31,7 @@
 #include "LFGMgr.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "session/packets/chat/ChatPackets.h"
 #include "session/packets/combat/CombatPackets.h"
 #include "session/packets/entities/GossipPackets.h"
 #include "session/packets/maps/MapPackets.h"
@@ -97,6 +98,7 @@ void InstallClientNotices()
     static SessionSpellNotices spells;
     static SessionSpellEffectNotices spellEffects;
     static SessionAuraNotices auras;
+    static SessionChatNotices chat;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -111,5 +113,6 @@ void InstallClientNotices()
     SpellNotices::Install(&spells);
     SpellEffectNotices::Install(&spellEffects);
     AuraNotices::Install(&auras);
+    ChatNotices::Install(&chat);
     InstallCalendarNotices();
 }

@@ -13,7 +13,7 @@ source_group("Combat" FILES ${SRC_GRP_COMBAT})
 file(GLOB SRC_GRP_DATA data/*.cpp data/*.h)
 source_group("Data" FILES ${SRC_GRP_DATA})
 
-file(GLOB SRC_GRP_ENTITIES entities/*.h)
+file(GLOB SRC_GRP_ENTITIES entities/*.cpp entities/*.h)
 source_group("Entities" FILES ${SRC_GRP_ENTITIES})
 
 file(GLOB SRC_GRP_ENTITIES_PLAYER entities/player/*.cpp entities/player/*.h)
