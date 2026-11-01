@@ -8,17 +8,17 @@
 # After removing or moving edges: python src/tests/tools/layout_gate.py --generate
 # A "#" line directly above an entry is its reason; --generate keeps it with the entry.
 
-src/game/BattleGround [pvp] -> src/game/Object/ArenaTeam.h
+src/game/BattleGround [pvp] -> src/game/Maps/GridNotifiersImpl.h
+src/game/BattleGround [pvp] -> src/game/Maps/Map.h
+src/game/BattleGround [pvp] -> src/game/Maps/MapManager.h
 src/game/BattleGround [pvp] -> src/game/Object/Creature.h
 src/game/BattleGround [pvp] -> src/game/Object/Formulas.h
 src/game/BattleGround [pvp] -> src/game/Object/GameObject.h
 src/game/BattleGround [pvp] -> src/game/Object/Object.h
 src/game/BattleGround [pvp] -> src/game/WorldHandlers/AchievementMgr.h
-src/game/BattleGround [pvp] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/BattleGround [pvp] -> src/game/WorldHandlers/Group.h
-src/game/BattleGround [pvp] -> src/game/WorldHandlers/Mail.h
-src/game/BattleGround [pvp] -> src/game/WorldHandlers/Map.h
-src/game/BattleGround [pvp] -> src/game/WorldHandlers/MapManager.h
+src/game/BattleGround [pvp] -> src/game/social/ArenaTeam.h
+src/game/BattleGround [pvp] -> src/game/social/Group.h
+src/game/BattleGround [pvp] -> src/game/social/Mail.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGroundAA.cpp -> src/game/entities/player/Player.h
@@ -45,91 +45,106 @@ src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/Player.
 src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/BattleGround/BattleGroundSA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
+src/game/Maps [maps] -> src/game/BattleGround/BattleGround.h
+src/game/Maps [maps] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/Maps [maps] -> src/game/MotionGenerators/MotionMaster.h
+src/game/Maps [maps] -> src/game/Object/Corpse.h
+src/game/Maps [maps] -> src/game/Object/CorpseManager.h
+src/game/Maps [maps] -> src/game/Object/Creature.h
+src/game/Maps [maps] -> src/game/Object/CreatureAI.h
+src/game/Maps [maps] -> src/game/Object/DynamicObject.h
+src/game/Maps [maps] -> src/game/Object/GameObject.h
+src/game/Maps [maps] -> src/game/Object/LivingWorldCellEnvelope.h
+src/game/Maps [maps] -> src/game/Object/LootMgr.h
+src/game/Maps [maps] -> src/game/Object/Object.h
+src/game/Maps [maps] -> src/game/Object/Pet.h
+src/game/Maps [maps] -> src/game/Object/Unit.h
+# a visibility notifier holds its viewer's update accumulator by value; the accumulator (UpdateData) is entities
+src/game/Maps [maps] -> src/game/WorldHandlers/UpdateData.h
+src/game/Maps [maps] -> src/game/social/Calendar.h
+src/game/Maps [maps] -> src/game/social/Group.h
+src/game/Maps [maps] -> src/game/social/LFGMgr.h
+src/game/Maps/GridNotifiers.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/Maps/GridNotifiers.h -> src/game/entities/player/Player.h
+src/game/Maps/GridNotifiersImpl.h -> src/game/entities/player/Player.h
+src/game/Maps/Map.cpp -> src/game/entities/player/Player.h
+src/game/Maps/Map.cpp -> src/game/entities/player/PlayerRegistry.h
+# reached through ObjectMgr.h before #512
+src/game/Maps/MapManager.cpp -> src/game/entities/player/Player.h
+src/game/Maps/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
+src/game/Maps/TransportMap.cpp -> src/game/entities/player/Player.h
+src/game/Maps/Weather.cpp -> src/game/entities/player/Player.h
+src/game/MotionGenerators [entities] -> src/game/Maps/GridMap.h
+src/game/MotionGenerators [entities] -> src/game/Maps/Map.h
+src/game/MotionGenerators [entities] -> src/game/Maps/MoveMap.h
+src/game/MotionGenerators [entities] -> src/game/Maps/MoveMapSharedDefines.h
+src/game/MotionGenerators [entities] -> src/game/Maps/TransportMap.h
 src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
-src/game/MotionGenerators [entities] -> src/game/WorldHandlers/GridMap.h
-src/game/MotionGenerators [entities] -> src/game/WorldHandlers/Map.h
-src/game/MotionGenerators [entities] -> src/game/WorldHandlers/MoveMap.h
-src/game/MotionGenerators [entities] -> src/game/WorldHandlers/MoveMapSharedDefines.h
-src/game/MotionGenerators [entities] -> src/game/WorldHandlers/TransportMap.h
 src/game/MotionGenerators/MotionMaster.cpp -> src/game/entities/player/Player.h
 src/game/MotionGenerators/NativeBehaviour.cpp -> src/game/entities/player/Player.h
+src/game/Object [ai] -> src/game/Maps/Cell.h
+src/game/Object [ai] -> src/game/Maps/CellImpl.h
+src/game/Object [ai] -> src/game/Maps/GridDefines.h
+src/game/Object [ai] -> src/game/Maps/GridNotifiers.h
+src/game/Object [ai] -> src/game/Maps/GridNotifiersImpl.h
+src/game/Object [ai] -> src/game/Maps/InstanceData.h
+src/game/Object [ai] -> src/game/Maps/Map.h
 src/game/Object [ai] -> src/game/MotionGenerators/MotionMaster.h
 src/game/Object [ai] -> src/game/Object/Creature.h
 src/game/Object [ai] -> src/game/Object/GameObject.h
 src/game/Object [ai] -> src/game/Object/Pet.h
 src/game/Object [ai] -> src/game/Object/Totem.h
 src/game/Object [ai] -> src/game/Object/Unit.h
-src/game/Object [ai] -> src/game/WorldHandlers/Cell.h
-src/game/Object [ai] -> src/game/WorldHandlers/CellImpl.h
-src/game/Object [ai] -> src/game/WorldHandlers/GridDefines.h
-src/game/Object [ai] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/Object [ai] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/Object [ai] -> src/game/WorldHandlers/Group.h
-src/game/Object [ai] -> src/game/WorldHandlers/InstanceData.h
-src/game/Object [ai] -> src/game/WorldHandlers/Map.h
+src/game/Object [ai] -> src/game/social/Group.h
 src/game/Object [ai] -> src/game/spells/pipeline/Spell.h
+# reached through WorldSession.h before #666
+src/game/Object [combat] -> src/game/Maps/GridMap.h
 src/game/Object [combat] -> src/game/Object/Creature.h
 src/game/Object [combat] -> src/game/Object/Pet.h
 src/game/Object [combat] -> src/game/Object/Unit.h
-# reached through WorldSession.h before #666
-src/game/Object [combat] -> src/game/WorldHandlers/GridMap.h
 # reached through ObjectMgr.h before #512
 src/game/Object [economy] -> src/game/Object/Bag.h
 src/game/Object [economy] -> src/game/Object/Item.h
 src/game/Object [economy] -> src/game/WorldHandlers/AchievementMgr.h
-src/game/Object [economy] -> src/game/WorldHandlers/Group.h
-src/game/Object [economy] -> src/game/WorldHandlers/Mail.h
+src/game/Object [economy] -> src/game/social/Group.h
+src/game/Object [economy] -> src/game/social/Mail.h
 src/game/Object [entities] -> src/game/BattleGround/BattleGround.h
 src/game/Object [entities] -> src/game/BattleGround/BattleGroundAV.h
 src/game/Object [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/Object [entities] -> src/game/Maps/Cell.h
+src/game/Object [entities] -> src/game/Maps/CellImpl.h
+src/game/Object [entities] -> src/game/Maps/GameObjectModel.h
+src/game/Object [entities] -> src/game/Maps/GridDefines.h
+src/game/Object [entities] -> src/game/Maps/GridMap.h
+src/game/Object [entities] -> src/game/Maps/GridNotifiers.h
+src/game/Object [entities] -> src/game/Maps/GridNotifiersImpl.h
+src/game/Object [entities] -> src/game/Maps/InstanceData.h
+src/game/Object [entities] -> src/game/Maps/Map.h
+src/game/Object [entities] -> src/game/Maps/MapManager.h
+src/game/Object [entities] -> src/game/Maps/MapPersistentStateMgr.h
 src/game/Object [entities] -> src/game/Maps/MapPhase.h
+# the pool spawner left PoolManager (data) in #658
+src/game/Object [entities] -> src/game/Maps/PoolSpawner.h
+src/game/Object [entities] -> src/game/Maps/TransportMap.h
+src/game/Object [entities] -> src/game/Maps/Transports.h
 src/game/Object [entities] -> src/game/Object/CreatureAI.h
 src/game/Object [entities] -> src/game/Object/CreatureAISelector.h
 src/game/Object [entities] -> src/game/Object/GameObjectAI.h
 src/game/Object [entities] -> src/game/Object/LootMgr.h
 src/game/Object [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/Object [entities] -> src/game/WorldHandlers/Cell.h
-src/game/Object [entities] -> src/game/WorldHandlers/CellImpl.h
-src/game/Object [entities] -> src/game/WorldHandlers/GameObjectModel.h
-src/game/Object [entities] -> src/game/WorldHandlers/GridDefines.h
-src/game/Object [entities] -> src/game/WorldHandlers/GridMap.h
-src/game/Object [entities] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/Object [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/Object [entities] -> src/game/WorldHandlers/Group.h
-src/game/Object [entities] -> src/game/WorldHandlers/InstanceData.h
-src/game/Object [entities] -> src/game/WorldHandlers/Map.h
-src/game/Object [entities] -> src/game/WorldHandlers/MapManager.h
-src/game/Object [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
-# the pool spawner left PoolManager (data) in #658
-src/game/Object [entities] -> src/game/WorldHandlers/PoolSpawner.h
-src/game/Object [entities] -> src/game/WorldHandlers/TransportMap.h
-src/game/Object [entities] -> src/game/WorldHandlers/Transports.h
 src/game/Object [entities] -> src/game/combat/HostileRefManager.h
 src/game/Object [entities] -> src/game/combat/MeleeChances.h
 src/game/Object [entities] -> src/game/combat/SpellBonus.h
 src/game/Object [entities] -> src/game/combat/ThreatManager.h
+src/game/Object [entities] -> src/game/social/Group.h
 # Unit holds the spell cooldown manager by value (Unit.h).
 src/game/Object [entities] -> src/game/spells/SpellCooldownMgr.h
 src/game/Object [entities] -> src/game/spells/pipeline/Spell.h
-# reached through ObjectMgr.h before #512
-src/game/Object [social] -> src/game/Object/Bag.h
-src/game/Object [social] -> src/game/Object/Item.h
-# reached through WorldSession.h before #666
-src/game/Object [social] -> src/game/WorldHandlers/GridMap.h
-# reached through WorldSession.h before #666
-src/game/Object [social] -> src/game/WorldHandlers/Map.h
-src/game/Object/ArenaTeam.cpp -> src/game/entities/player/Player.h
-# moved from the ObjectMgr::GetPlayer wrapper in #653
-src/game/Object/ArenaTeam.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/Object/AuctionHouseMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Bag.cpp -> src/game/entities/player/Player.h
-# reached through ObjectMgr.h before #512
-src/game/Object/Calendar.cpp -> src/game/entities/player/Player.h
-# moved from the ObjectMgr::GetPlayer wrapper in #653
-src/game/Object/Calendar.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Camera.cpp -> src/game/entities/player/Player.h
 src/game/Object/CinematicFlyover.cpp -> src/game/entities/player/Player.h
 src/game/Object/Corpse.cpp -> src/game/entities/player/Player.h
@@ -145,20 +160,11 @@ src/game/Object/CreatureEventAI.cpp -> src/game/entities/player/PlayerConditions
 src/game/Object/CreatureEventAI.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through GridNotifiersImpl.h before #572
 src/game/Object/DynamicObject.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/Player.h
-# moved from the ObjectMgr::GetPlayer wrapper in #653
-src/game/Object/GMTicketMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through GridNotifiersImpl.h before #572
 src/game/Object/GameObject.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/GameObjectUse.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GuardAI.cpp -> src/game/entities/player/Player.h
-src/game/Object/Guild.cpp -> src/game/entities/player/Player.h
-src/game/Object/Guild.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/Guild.cpp -> src/game/entities/player/social/SocialList.h
-src/game/Object/Guild.h -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/GuildBank.cpp -> src/game/entities/player/Player.h
-src/game/Object/GuildBank.cpp -> src/game/entities/player/PlayerRegistry.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Item.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
@@ -200,12 +206,12 @@ src/game/Object/UnitVisibility.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Vehicle.cpp -> src/game/entities/player/Player.h
 src/game/Object/WorldObjectChat.cpp -> src/game/entities/player/Player.h
 src/game/Object/WorldObjectSummon.cpp -> src/game/entities/player/Player.h
+src/game/OutdoorPvP [pvp] -> src/game/Maps/Map.h
 src/game/OutdoorPvP [pvp] -> src/game/Object/Creature.h
 src/game/OutdoorPvP [pvp] -> src/game/Object/GameObject.h
 src/game/OutdoorPvP [pvp] -> src/game/Object/Object.h
 # reached through WorldSession.h before #666
-src/game/OutdoorPvP [pvp] -> src/game/WorldHandlers/Group.h
-src/game/OutdoorPvP [pvp] -> src/game/WorldHandlers/Map.h
+src/game/OutdoorPvP [pvp] -> src/game/social/Group.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/PlayerRegistry.h
@@ -221,94 +227,29 @@ src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/PlayerRegistry.
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers [entities] -> src/game/BattleGround/BattleGround.h
 src/game/WorldHandlers [entities] -> src/game/BattleGround/BattleGroundAB.h
-src/game/WorldHandlers [entities] -> src/game/Object/ArenaTeam.h
-src/game/WorldHandlers [entities] -> src/game/Object/Guild.h
-src/game/WorldHandlers [entities] -> src/game/WorldHandlers/CellImpl.h
-src/game/WorldHandlers [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/WorldHandlers [entities] -> src/game/WorldHandlers/GuildMgr.h
-src/game/WorldHandlers [entities] -> src/game/WorldHandlers/InstanceData.h
-src/game/WorldHandlers [entities] -> src/game/WorldHandlers/Mail.h
-src/game/WorldHandlers [entities] -> src/game/WorldHandlers/Map.h
-src/game/WorldHandlers [entities] -> src/game/WorldHandlers/MapManager.h
-src/game/WorldHandlers [maps] -> src/game/BattleGround/BattleGround.h
-src/game/WorldHandlers [maps] -> src/game/BattleGround/BattleGroundMgr.h
-src/game/WorldHandlers [maps] -> src/game/MotionGenerators/MotionMaster.h
-src/game/WorldHandlers [maps] -> src/game/Object/Calendar.h
-src/game/WorldHandlers [maps] -> src/game/Object/Corpse.h
-src/game/WorldHandlers [maps] -> src/game/Object/CorpseManager.h
-src/game/WorldHandlers [maps] -> src/game/Object/Creature.h
-src/game/WorldHandlers [maps] -> src/game/Object/CreatureAI.h
-src/game/WorldHandlers [maps] -> src/game/Object/DynamicObject.h
-src/game/WorldHandlers [maps] -> src/game/Object/GameObject.h
-src/game/WorldHandlers [maps] -> src/game/Object/LivingWorldCellEnvelope.h
-src/game/WorldHandlers [maps] -> src/game/Object/LootMgr.h
-src/game/WorldHandlers [maps] -> src/game/Object/Object.h
-src/game/WorldHandlers [maps] -> src/game/Object/Pet.h
-src/game/WorldHandlers [maps] -> src/game/Object/Unit.h
-src/game/WorldHandlers [maps] -> src/game/WorldHandlers/Group.h
-src/game/WorldHandlers [maps] -> src/game/WorldHandlers/LFGMgr.h
-# a visibility notifier holds its viewer's update accumulator by value; the accumulator (UpdateData) is entities
-src/game/WorldHandlers [maps] -> src/game/WorldHandlers/UpdateData.h
-src/game/WorldHandlers [social] -> src/game/BattleGround/BattleGround.h
-src/game/WorldHandlers [social] -> src/game/Object/AuctionHouseMgr.h
-src/game/WorldHandlers [social] -> src/game/Object/DynamicObject.h
-src/game/WorldHandlers [social] -> src/game/Object/Formulas.h
-src/game/WorldHandlers [social] -> src/game/Object/Item.h
-src/game/WorldHandlers [social] -> src/game/Object/LootMgr.h
-src/game/WorldHandlers [social] -> src/game/Object/Object.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers [social] -> src/game/Object/Pet.h
-src/game/WorldHandlers [social] -> src/game/WorldHandlers/AchievementMgr.h
-src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapManager.h
-src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/WorldHandlers [entities] -> src/game/Maps/CellImpl.h
+src/game/WorldHandlers [entities] -> src/game/Maps/GridNotifiersImpl.h
+src/game/WorldHandlers [entities] -> src/game/Maps/InstanceData.h
+src/game/WorldHandlers [entities] -> src/game/Maps/Map.h
+src/game/WorldHandlers [entities] -> src/game/Maps/MapManager.h
+src/game/WorldHandlers [entities] -> src/game/social/ArenaTeam.h
+src/game/WorldHandlers [entities] -> src/game/social/Guild.h
+src/game/WorldHandlers [entities] -> src/game/social/GuildMgr.h
+src/game/WorldHandlers [entities] -> src/game/social/Mail.h
 src/game/WorldHandlers/AchievementCriteriaRequirement.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/entities/player/Player.h
-# moved from the ObjectMgr::GetPlayer wrapper in #653
-src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/social/SocialList.h
-src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
-src/game/WorldHandlers/GridNotifiers.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/GridNotifiers.h -> src/game/entities/player/Player.h
-src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/entities/player/Player.h
-src/game/WorldHandlers/Group.cpp -> src/game/entities/player/Player.h
-# moved from the ObjectMgr::GetPlayer wrapper in #653
-src/game/WorldHandlers/Group.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/GroupInstance.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/GroupInstance.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/GroupMemberState.cpp -> src/game/entities/player/Player.h
-# moved from the ObjectMgr::GetPlayer wrapper in #653
-src/game/WorldHandlers/GroupMemberState.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/LFGMgr.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/LFGMgr.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/LFGMgrProposal.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/LFGMgrProposal.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/LFGMgrProposal.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/Mail.cpp -> src/game/entities/player/Player.h
-# moved from the ObjectMgr::GetPlayer wrapper in #653
-src/game/WorldHandlers/Mail.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/Map.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/Map.cpp -> src/game/entities/player/PlayerRegistry.h
-# reached through ObjectMgr.h before #512
-src/game/WorldHandlers/MapManager.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/MapPersistentStateMgr.cpp -> src/game/entities/player/Player.h
-# moved from the ObjectMgr::GetPlayer wrapper in #653
-src/game/WorldHandlers/MassMailMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/SkillDiscovery.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SkillExtraItems.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/TransportMap.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/Weather.cpp -> src/game/entities/player/Player.h
+# reached through ObjectMgr.h before #512
+src/game/combat [combat] -> src/game/Maps/GridMap.h
+src/game/combat [combat] -> src/game/Maps/GridNotifiersImpl.h
+src/game/combat [combat] -> src/game/Maps/InstanceData.h
+src/game/combat [combat] -> src/game/Maps/Map.h
 src/game/combat [combat] -> src/game/MotionGenerators/MotionMaster.h
 src/game/combat [combat] -> src/game/Object/Creature.h
 src/game/combat [combat] -> src/game/Object/CreatureAI.h
 src/game/combat [combat] -> src/game/Object/ObjectLookup.h
 src/game/combat [combat] -> src/game/Object/Unit.h
-# reached through ObjectMgr.h before #512
-src/game/combat [combat] -> src/game/WorldHandlers/GridMap.h
-src/game/combat [combat] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/combat [combat] -> src/game/WorldHandlers/InstanceData.h
-src/game/combat [combat] -> src/game/WorldHandlers/Map.h
 src/game/combat [combat] -> src/game/spells/pipeline/Spell.h
 src/game/combat/CreatureThreat.cpp -> src/game/entities/player/Player.h
 src/game/combat/CreatureThreat.cpp -> src/game/spells/auras/SpellAuras.h
@@ -327,22 +268,22 @@ src/game/combat/UnitMeleeDamage.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through ObjectMgr.h before #512
 src/game/combat/UnitThreat.cpp -> src/game/entities/player/Player.h
 src/game/entities/player [entities] -> src/game/BattleGround/BattleGround.h
-src/game/entities/player [entities] -> src/game/Object/Guild.h
+src/game/entities/player [entities] -> src/game/Maps/Cell.h
+src/game/entities/player [entities] -> src/game/Maps/CellImpl.h
+src/game/entities/player [entities] -> src/game/Maps/GridNotifiers.h
+src/game/entities/player [entities] -> src/game/Maps/GridNotifiersImpl.h
+src/game/entities/player [entities] -> src/game/Maps/InstanceData.h
+src/game/entities/player [entities] -> src/game/Maps/MapManager.h
+src/game/entities/player [entities] -> src/game/Maps/MapPersistentStateMgr.h
+src/game/entities/player [entities] -> src/game/Maps/MapReference.h
+src/game/entities/player [entities] -> src/game/Maps/TransportMap.h
+src/game/entities/player [entities] -> src/game/Maps/Transports.h
 src/game/entities/player [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player [entities] -> src/game/References/GroupReference.h
-src/game/entities/player [entities] -> src/game/References/MapReference.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/Cell.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/Group.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/Mail.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/TransportMap.h
-src/game/entities/player [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player [entities] -> src/game/social/Group.h
+src/game/entities/player [entities] -> src/game/social/GroupReference.h
+src/game/entities/player [entities] -> src/game/social/Guild.h
+src/game/entities/player [entities] -> src/game/social/GuildMgr.h
+src/game/entities/player [entities] -> src/game/social/Mail.h
 # the condition evaluator left ObjectMgr.cpp (data) in #655
 src/game/entities/player [entities] -> src/game/spells/AuraQueries.h
 # Player holds the spell modifier manager by value (Player.h).
@@ -350,15 +291,15 @@ src/game/entities/player [entities] -> src/game/spells/SpellModMgr.h
 src/game/entities/player [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/Player.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/combat [entities] -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/combat [entities] -> src/game/Object/Formulas.h
 # reached through ObjectMgr.h before #512
-src/game/entities/player/combat [entities] -> src/game/WorldHandlers/GridMap.h
-src/game/entities/player/combat [entities] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/combat [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/combat [entities] -> src/game/Maps/GridMap.h
+src/game/entities/player/combat [entities] -> src/game/Maps/GridNotifiers.h
+src/game/entities/player/combat [entities] -> src/game/Maps/GridNotifiersImpl.h
 # reached through WorldSession.h before #666
-src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Map.h
+src/game/entities/player/combat [entities] -> src/game/Maps/Map.h
+src/game/entities/player/combat [entities] -> src/game/Object/Formulas.h
 src/game/entities/player/combat [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/combat [entities] -> src/game/social/Group.h
 src/game/entities/player/combat/PlayerDeath.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/combat/PlayerDuel.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/combat/PlayerRegen.cpp -> src/game/spells/auras/SpellAuras.h
@@ -366,84 +307,149 @@ src/game/entities/player/combat/PlayerStats.cpp -> src/game/spells/auras/SpellAu
 src/game/entities/player/interaction [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/interaction [entities] -> src/game/BattleGround/BattleGroundAV.h
 src/game/entities/player/interaction [entities] -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/interaction [entities] -> src/game/Object/ArenaTeam.h
-src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Group.h
-src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/interaction [entities] -> src/game/Maps/GridNotifiersImpl.h
+src/game/entities/player/interaction [entities] -> src/game/Maps/InstanceData.h
+src/game/entities/player/interaction [entities] -> src/game/social/ArenaTeam.h
+src/game/entities/player/interaction [entities] -> src/game/social/Group.h
+src/game/entities/player/interaction [entities] -> src/game/social/Mail.h
 # reached through WorldSession.h before #666
 src/game/entities/player/inventory [entities] -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/inventory [entities] -> src/game/Object/Guild.h
-src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/inventory [entities] -> src/game/Maps/GridNotifiersImpl.h
 # reached through WorldSession.h before #666
-src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Group.h
-src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/inventory [entities] -> src/game/social/Group.h
+src/game/entities/player/inventory [entities] -> src/game/social/Guild.h
+src/game/entities/player/inventory [entities] -> src/game/social/GuildMgr.h
 src/game/entities/player/inventory [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/persistence [entities] -> src/game/Object/ArenaTeam.h
-src/game/entities/player/persistence [entities] -> src/game/Object/Calendar.h
 # reached through WorldSession.h before #666
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/GridMap.h
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Group.h
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/TransportMap.h
-src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/persistence [entities] -> src/game/Maps/GridMap.h
+src/game/entities/player/persistence [entities] -> src/game/Maps/GridNotifiers.h
+src/game/entities/player/persistence [entities] -> src/game/Maps/GridNotifiersImpl.h
+src/game/entities/player/persistence [entities] -> src/game/Maps/MapManager.h
+src/game/entities/player/persistence [entities] -> src/game/Maps/MapPersistentStateMgr.h
+src/game/entities/player/persistence [entities] -> src/game/Maps/TransportMap.h
+src/game/entities/player/persistence [entities] -> src/game/Maps/Transports.h
+src/game/entities/player/persistence [entities] -> src/game/social/ArenaTeam.h
+src/game/entities/player/persistence [entities] -> src/game/social/Calendar.h
+src/game/entities/player/persistence [entities] -> src/game/social/Group.h
+src/game/entities/player/persistence [entities] -> src/game/social/Mail.h
 src/game/entities/player/persistence/PlayerLoad.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/persistence/PlayerSave.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/pets [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/pets [entities] -> src/game/Maps/GridNotifiersImpl.h
 src/game/entities/player/pvp [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/pvp [entities] -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/pvp [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/pvp [entities] -> src/game/Maps/GridMap.h
+src/game/entities/player/pvp [entities] -> src/game/Maps/GridNotifiersImpl.h
 src/game/entities/player/pvp [entities] -> src/game/Object/Formulas.h
-src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridMap.h
-src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/pvp [entities] -> src/game/social/ArenaTeam.h
+src/game/entities/player/pvp [entities] -> src/game/social/Group.h
 src/game/entities/player/pvp/PlayerBattleGround.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/quests [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/quests [entities] -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/quests [entities] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Group.h
-src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/quests [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/quests [entities] -> src/game/Maps/GridNotifiers.h
+src/game/entities/player/quests [entities] -> src/game/Maps/MapManager.h
+src/game/entities/player/quests [entities] -> src/game/social/Group.h
+src/game/entities/player/quests [entities] -> src/game/social/Mail.h
 # moved from spells/data/SpellMgr.h in #651
 src/game/entities/player/quests [entities] -> src/game/spells/pipeline/SpellRules.h
+# reached through WorldSession.h before #666
+src/game/entities/player/social [entities] -> src/game/Maps/GridMap.h
+src/game/entities/player/social [entities] -> src/game/Maps/GridNotifiers.h
+src/game/entities/player/social [entities] -> src/game/Maps/GridNotifiersImpl.h
+# reached through WorldSession.h before #666
+src/game/entities/player/social [entities] -> src/game/Maps/Map.h
 src/game/entities/player/social [entities] -> src/game/Object/Formulas.h
-src/game/entities/player/social [entities] -> src/game/Object/GMTicketMgr.h
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/ChannelMgr.h
-# reached through WorldSession.h before #666
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/GridMap.h
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/Group.h
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGBootLogic.h
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGMgr.h
-# reached through WorldSession.h before #666
-src/game/entities/player/social [entities] -> src/game/WorldHandlers/Map.h
-src/game/entities/player/spells [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/social [entities] -> src/game/social/Channel.h
+src/game/entities/player/social [entities] -> src/game/social/ChannelMgr.h
+src/game/entities/player/social [entities] -> src/game/social/GMTicketMgr.h
+src/game/entities/player/social [entities] -> src/game/social/Group.h
+src/game/entities/player/social [entities] -> src/game/social/LFGBootLogic.h
+src/game/entities/player/social [entities] -> src/game/social/LFGMgr.h
+src/game/entities/player/spells [entities] -> src/game/Maps/GridNotifiersImpl.h
 src/game/entities/player/spells [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/spells/PlayerRune.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/talents [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/talents [entities] -> src/game/Maps/GridNotifiersImpl.h
+src/game/entities/player/world [entities] -> src/game/Maps/GridNotifiersImpl.h
+src/game/entities/player/world [entities] -> src/game/Maps/InstanceData.h
+src/game/entities/player/world [entities] -> src/game/Maps/MapManager.h
+src/game/entities/player/world [entities] -> src/game/Maps/MapPersistentStateMgr.h
+src/game/entities/player/world [entities] -> src/game/Maps/Weather.h
 src/game/entities/player/world [entities] -> src/game/OutdoorPvP/OutdoorPvPMgr.h
-src/game/entities/player/world [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/world [entities] -> src/game/WorldHandlers/Group.h
-src/game/entities/player/world [entities] -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/world [entities] -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/world [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/world [entities] -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/world [entities] -> src/game/social/Group.h
 src/game/entities/player/world [entities] -> src/game/spells/pipeline/Spell.h
 # moved from spells/data/SpellMgr.h in #651
 src/game/entities/player/world [entities] -> src/game/spells/pipeline/SpellRules.h
 src/game/entities/player/world/PlayerMirror.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/world/PlayerZone.cpp -> src/game/spells/auras/SpellAuras.h
+src/game/social [social] -> src/game/BattleGround/BattleGround.h
+# reached through WorldSession.h before #666
+src/game/social [social] -> src/game/Maps/GridMap.h
+# reached through WorldSession.h before #666
+src/game/social [social] -> src/game/Maps/Map.h
+src/game/social [social] -> src/game/Maps/MapManager.h
+src/game/social [social] -> src/game/Maps/MapPersistentStateMgr.h
+src/game/social [social] -> src/game/Object/AuctionHouseMgr.h
+# reached through ObjectMgr.h before #512
+src/game/social [social] -> src/game/Object/Bag.h
+src/game/social [social] -> src/game/Object/DynamicObject.h
+src/game/social [social] -> src/game/Object/Formulas.h
+src/game/social [social] -> src/game/Object/Item.h
+src/game/social [social] -> src/game/Object/LootMgr.h
+src/game/social [social] -> src/game/Object/Object.h
+# reached through ObjectMgr.h before #512
+src/game/social [social] -> src/game/Object/Pet.h
+src/game/social [social] -> src/game/WorldHandlers/AchievementMgr.h
+src/game/social/ArenaTeam.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/social/ArenaTeam.cpp -> src/game/entities/player/PlayerRegistry.h
+# reached through ObjectMgr.h before #512
+src/game/social/Calendar.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/social/Calendar.cpp -> src/game/entities/player/PlayerRegistry.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/social/Channel.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/Channel.cpp -> src/game/entities/player/social/SocialList.h
+src/game/social/Channel.h -> src/game/entities/player/Player.h
+src/game/social/GMTicketMgr.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/social/GMTicketMgr.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/Group.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/social/Group.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/GroupInstance.cpp -> src/game/entities/player/Player.h
+src/game/social/GroupInstance.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/GroupMemberState.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/social/GroupMemberState.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/Guild.cpp -> src/game/entities/player/Player.h
+src/game/social/Guild.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/Guild.cpp -> src/game/entities/player/social/SocialList.h
+src/game/social/Guild.h -> src/game/entities/player/PlayerRegistry.h
+src/game/social/GuildBank.cpp -> src/game/entities/player/Player.h
+src/game/social/GuildBank.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/LFGMgr.cpp -> src/game/entities/player/Player.h
+src/game/social/LFGMgr.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/LFGMgrProposal.cpp -> src/game/entities/player/Player.h
+src/game/social/LFGMgrProposal.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/LFGMgrProposal.cpp -> src/game/spells/auras/SpellAuras.h
+src/game/social/LFGMgrQueue.cpp -> src/game/entities/player/Player.h
+src/game/social/LFGMgrQueue.cpp -> src/game/entities/player/PlayerRegistry.h
+src/game/social/Mail.cpp -> src/game/entities/player/Player.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/social/Mail.cpp -> src/game/entities/player/PlayerRegistry.h
+# moved from the ObjectMgr::GetPlayer wrapper in #653
+src/game/social/MassMailMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/spells/auras [spells] -> src/game/BattleGround/BattleGround.h
+src/game/spells/auras [spells] -> src/game/Maps/CellImpl.h
+# reached through WorldSession.h before #666
+src/game/spells/auras [spells] -> src/game/Maps/GridMap.h
+src/game/spells/auras [spells] -> src/game/Maps/GridNotifiers.h
+src/game/spells/auras [spells] -> src/game/Maps/GridNotifiersImpl.h
+# reached through WorldSession.h before #666
+src/game/spells/auras [spells] -> src/game/Maps/Map.h
 src/game/spells/auras [spells] -> src/game/MotionGenerators/MotionMaster.h
 src/game/spells/auras [spells] -> src/game/Object/Creature.h
 src/game/spells/auras [spells] -> src/game/Object/DynamicObject.h
@@ -456,14 +462,7 @@ src/game/spells/auras [spells] -> src/game/Object/Totem.h
 src/game/spells/auras [spells] -> src/game/Object/Unit.h
 src/game/spells/auras [spells] -> src/game/Object/Vehicle.h
 src/game/spells/auras [spells] -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/spells/auras [spells] -> src/game/WorldHandlers/CellImpl.h
-# reached through WorldSession.h before #666
-src/game/spells/auras [spells] -> src/game/WorldHandlers/GridMap.h
-src/game/spells/auras [spells] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/spells/auras [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/spells/auras [spells] -> src/game/WorldHandlers/Group.h
-# reached through WorldSession.h before #666
-src/game/spells/auras [spells] -> src/game/WorldHandlers/Map.h
+src/game/spells/auras [spells] -> src/game/social/Group.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraControl.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraDummy.cpp -> src/game/entities/player/Player.h
@@ -476,6 +475,16 @@ src/game/spells/auras/SpellAuras.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/UnitAuraProcHandler.cpp -> src/game/entities/player/Player.h
 # The bodies read the player's battleground: Rocket Boots Engaged reports the dropped flag to it, and the location bodies read its status and whether it is an arena; the origin's own edge, same layer pair and header; dies when the flag drop and the battleground's state become facts the player answers (pvp's own seam).
 src/game/spells/handlers [spells] -> src/game/BattleGround/BattleGround.h
+# The bodies visit the grid or world cells around a unit for the game objects, creatures or players near it; read-only on the grid; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
+src/game/spells/handlers [spells] -> src/game/Maps/CellImpl.h
+# The bodies read the water level or the area id at a unit's position from its TerrainInfo: read-only on the grid map; spells -> maps is allowed, so the key stays while a handler reads the terrain itself.
+src/game/spells/handlers [spells] -> src/game/Maps/GridMap.h
+# Read-only, a search over the grid: a reader is not a reach; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
+src/game/spells/handlers [spells] -> src/game/Maps/GridNotifiers.h
+# The bodies search the grid with the searchers' visits for game objects, creatures or players; read-only on the grid; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
+src/game/spells/handlers [spells] -> src/game/Maps/GridNotifiersImpl.h
+# The bodies read the map's difficulty and find units and players on it by guid; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; spells -> maps is allowed, so the key stays while a handler reads or adds to the map itself.
+src/game/spells/handlers [spells] -> src/game/Maps/Map.h
 # The bodies inhibit and release a unit's motion under a control claim, move a summon to a point, expire a follow or a roam and read the latches; the origin's own edge carried into the handler directory, same layer pair and header; spells -> entities is allowed, so the key stays while a handler asks for moves itself.
 src/game/spells/handlers [spells] -> src/game/MotionGenerators/MotionMaster.h
 # The bodies call creature-only methods on a unit cast to a creature, such as its virtual items, a despawn or the temporary-summon check.
@@ -496,16 +505,6 @@ src/game/spells/handlers [spells] -> src/game/Object/TemporarySummon.h
 src/game/spells/handlers [spells] -> src/game/Object/Totem.h
 # The bonus and proc bodies read and act on the unit their handler ran for; the origin's own edge carried into the handler directory, same layer pair and header; spells -> entities is allowed, so the key stays while the Unit-site handlers read the unit itself.
 src/game/spells/handlers [spells] -> src/game/Object/Unit.h
-# The bodies visit the grid or world cells around a unit for the game objects, creatures or players near it; read-only on the grid; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
-src/game/spells/handlers [spells] -> src/game/WorldHandlers/CellImpl.h
-# The bodies read the water level or the area id at a unit's position from its TerrainInfo: read-only on the grid map; spells -> maps is allowed, so the key stays while a handler reads the terrain itself.
-src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridMap.h
-# Read-only, a search over the grid: a reader is not a reach; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
-src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
-# The bodies search the grid with the searchers' visits for game objects, creatures or players; read-only on the grid; spells -> maps is allowed, so the key stays while a handler searches the grid itself.
-src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
-# The bodies read the map's difficulty and find units and players on it by guid; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; spells -> maps is allowed, so the key stays while a handler reads or adds to the map itself.
-src/game/spells/handlers [spells] -> src/game/WorldHandlers/Map.h
 # The research bodies ask for an explicit discovery recipe and teach it; the origin's own edge, same layer pair and header; retires when the discovery tables move to data/ with the other SQL stores, which turns the line into a down edge.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/SkillDiscovery.h
 # The bodies cast a unit to a player for player methods and to name the player a sound plays to; retires with the Unit page's row 13 successor.
@@ -549,6 +548,18 @@ src/game/spells/handlers/UnitSpellBonusHandlers.cpp -> src/game/spells/auras/Spe
 src/game/spells/pipeline [spells] -> src/game/BattleGround/BattleGround.h
 src/game/spells/pipeline [spells] -> src/game/BattleGround/BattleGroundEY.h
 src/game/spells/pipeline [spells] -> src/game/BattleGround/BattleGroundWS.h
+src/game/spells/pipeline [spells] -> src/game/Maps/CellImpl.h
+src/game/spells/pipeline [spells] -> src/game/Maps/GridDefines.h
+src/game/spells/pipeline [spells] -> src/game/Maps/GridNotifiers.h
+src/game/spells/pipeline [spells] -> src/game/Maps/GridNotifiersImpl.h
+src/game/spells/pipeline [spells] -> src/game/Maps/LineOfSightExemptions.h
+# reached through WorldSession.h before #666
+src/game/spells/pipeline [spells] -> src/game/Maps/Map.h
+src/game/spells/pipeline [spells] -> src/game/Maps/MapManager.h
+# reached through ObjectMgr.h before #511
+src/game/spells/pipeline [spells] -> src/game/Maps/MapPersistentStateMgr.h
+src/game/spells/pipeline [spells] -> src/game/Maps/TransportMap.h
+src/game/spells/pipeline [spells] -> src/game/Maps/Transports.h
 src/game/spells/pipeline [spells] -> src/game/MotionGenerators/MotionMaster.h
 src/game/spells/pipeline [spells] -> src/game/Object/Creature.h
 src/game/spells/pipeline [spells] -> src/game/Object/CreatureAI.h
@@ -564,24 +575,12 @@ src/game/spells/pipeline [spells] -> src/game/Object/Unit.h
 src/game/spells/pipeline [spells] -> src/game/Object/UnitDisableSubject.h
 src/game/spells/pipeline [spells] -> src/game/Object/Vehicle.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/AchievementMgr.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/CellImpl.h
 # a quest-offering spell opens the player's quest dialogue; the menus (GossipDef) are entities
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GossipDef.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GridDefines.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GridNotifiers.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/Group.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/LineOfSightExemptions.h
-# reached through WorldSession.h before #666
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/Map.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/MapManager.h
-# reached through ObjectMgr.h before #511
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/spells/pipeline [spells] -> src/game/WorldHandlers/SkillExtraItems.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/TransportMap.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/Transports.h
 src/game/spells/pipeline [spells] -> src/game/combat/SpellBonus.h
 src/game/spells/pipeline [spells] -> src/game/combat/WeaponDamage.h
+src/game/spells/pipeline [spells] -> src/game/social/Group.h
 src/game/spells/pipeline/Spell.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/Spell.h -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/entities/player/Player.h
@@ -611,8 +610,8 @@ src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/spells/auras/SpellAuras
 src/game/spells/pipeline/SpellHit.cpp -> src/game/entities/player/Player.h
 # reached through GridNotifiersImpl.h before #572
 src/game/spells/pipeline/SpellHit.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/spells/pipeline/SpellReports.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellPower.cpp -> src/game/entities/player/Player.h
+src/game/spells/pipeline/SpellReports.cpp -> src/game/entities/player/Player.h
 # the condition evaluator left ObjectMgr.cpp (data) in #655
 src/game/spells/pipeline/SpellRules.cpp -> src/game/entities/player/PlayerConditions.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/game/entities/player/Player.h

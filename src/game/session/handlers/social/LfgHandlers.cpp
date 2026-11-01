@@ -28,8 +28,8 @@
 #include <set>
 #include "session/WorldSession.h"
 #include "data/dbc/DBCStores.h"
-#include "WorldHandlers/Group.h"
-#include "WorldHandlers/LFGMgr.h"
+#include "social/Group.h"
+#include "social/LFGMgr.h"
 #include "session/packets/social/LFGPackets.h"
 #include "Log/Log.h"
 #include "entities/player/Player.h"

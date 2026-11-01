@@ -1,8 +1,8 @@
-# Checks that Map::Update in src/game/WorldHandlers/Map.cpp opens its MapPhase::Scope and then calls ApplyTeamBuffs().
+# Checks that Map::Update in src/game/Maps/Map.cpp opens its MapPhase::Scope and then calls ApplyTeamBuffs().
 include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(TeamBuffDrain)
 
-set(MAP_CPP "${SOURCE_ROOT}/src/game/WorldHandlers/Map.cpp")
+set(MAP_CPP "${SOURCE_ROOT}/src/game/Maps/Map.cpp")
 if(NOT EXISTS "${MAP_CPP}")
     message(FATAL_ERROR "team buff drain: the map's source is missing: ${MAP_CPP}")
 endif()

@@ -1,6 +1,6 @@
-# The social registries (`social/`)
+# The social peer (`social/`)
 
-The social peer's registries of live objects, built and installed by the world as the session registry is:
+The social peer: the groups (`Group`, with `GroupInstance.cpp`, `GroupMemberState.cpp` and the group references), the arena teams, the guilds with their banks and ranks (`Guild`, `GuildBank.cpp`, `GuildRank.cpp`, `GuildMgr`), the calendar, the GM tickets, the chat channels (`Channel`, `ChannelMgr`), the mail (`Mail`, `MassMailMgr`) and the dungeon finder (`LFGMgr` and its `LFG*` logic headers), with the notices each tells clients through (`*Notices`). Its registries of live objects are built and installed by the world as the session registry is:
 
 | File | Holds |
 |---|---|
