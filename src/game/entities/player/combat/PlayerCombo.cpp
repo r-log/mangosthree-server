@@ -27,8 +27,7 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/player/combat/PlayerCombatNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -52,18 +51,8 @@ void Player::SendComboPoints()
     Unit* combotarget = ObjectLookup::GetUnit(*this, m_comboTargetGuid);
     if (combotarget)
     {
-        WorldPacket data(SMSG_UPDATE_COMBO_POINTS, combotarget->GetPackGUID().size() + 1);
-        data << combotarget->GetPackGUID();
-        data << uint8(m_comboPoints);
-        GetSession()->SendPacket(&data);
+        sPlayerCombatNotices.ComboPointsUpdated(*this, *combotarget, m_comboPoints);
     }
-    /*else
-    {
-        // can be NULL, and then points=0. Use unknown; to reset points of some sort?
-        data << PackedGuid();
-        data << uint8(0);
-        GetSession()->SendPacket(&data);
-    }*/
 }
 
 /**

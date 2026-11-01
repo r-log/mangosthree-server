@@ -364,16 +364,8 @@ src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Group.h
 # reached through WorldSession.h before #666
 src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Map.h
 src/game/entities/player/combat [entities] -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/combat/PlayerCombat.cpp -> src/proto/Opcodes.h
-src/game/entities/player/combat/PlayerCombat.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/combat/PlayerCombo.cpp -> src/proto/Opcodes.h
-src/game/entities/player/combat/PlayerCombo.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/combat/PlayerDeath.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/combat/PlayerDeath.cpp -> src/proto/Opcodes.h
-src/game/entities/player/combat/PlayerDeath.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/combat/PlayerDuel.cpp -> src/game/spells/auras/SpellAuras.h
-src/game/entities/player/combat/PlayerDuel.cpp -> src/proto/Opcodes.h
-src/game/entities/player/combat/PlayerDuel.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/combat/PlayerRegen.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/combat/PlayerStats.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/interaction [entities] -> src/game/BattleGround/BattleGround.h

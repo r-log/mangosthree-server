@@ -28,9 +28,8 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "data/GameConfig.h"
-#include "WorldPacket.h"
+#include "entities/player/combat/PlayerCombatNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -61,9 +60,7 @@ static const uint32 corpseReclaimDelay[MAX_DEATH_COUNT] = {30, 60, 120};
 */
 void Player::BuildPlayerRepop()
 {
-    WorldPacket data(SMSG_PRE_RESURRECT, GetPackGUID().size());
-    data << GetPackGUID();
-    GetSession()->SendPacket(&data);
+    sPlayerCombatNotices.PreResurrect(*this);
 
     if (getRace() == RACE_NIGHTELF)
     {
@@ -135,12 +132,7 @@ void Player::BuildPlayerRepop()
  */
 void Player::ResurrectPlayer(float restore_percent, bool applySickness)
 {
-    WorldPacket data(SMSG_DEATH_RELEASE_LOC, 4 * 4);        // remove spirit healer position
-    data << uint32(-1);
-    data << float(0);
-    data << float(0);
-    data << float(0);
-    GetSession()->SendPacket(&data);
+    sPlayerCombatNotices.SpiritHealerLocCleared(*this);       // remove spirit healer position
 
     // speed change, land walk
 
@@ -393,12 +385,7 @@ void Player::RepopAtGraveyard()
         TeleportTo(ClosestGrave->Continent, ClosestGrave->Loc_0, ClosestGrave->Loc_1, ClosestGrave->Loc_2, Where().Facing());
         if (IsDead())                                       // not send if alive, because it used in TeleportTo()
         {
-            WorldPacket data(SMSG_DEATH_RELEASE_LOC, 4 * 4);// show spirit healer position on minimap
-            data << ClosestGrave->Continent;
-            data << ClosestGrave->Loc_0;
-            data << ClosestGrave->Loc_1;
-            data << ClosestGrave->Loc_2;
-            GetSession()->SendPacket(&data);
+            sPlayerCombatNotices.SpiritHealerLocShown(*this, ClosestGrave->Continent, ClosestGrave->Loc_0, ClosestGrave->Loc_1, ClosestGrave->Loc_2);
         }
         if (updateVisibility && IsInWorld())
         {
@@ -514,9 +501,7 @@ void Player::SendCorpseReclaimDelay(bool load)
     }
 
     //! corpse reclaim delay 30 * 1000ms or longer at often deaths
-    WorldPacket data(SMSG_CORPSE_RECLAIM_DELAY, 4);
-    data << uint32(delay * IN_MILLISECONDS);
-    GetSession()->SendPacket(&data);
+    sPlayerCombatNotices.CorpseReclaimDelay(*this, uint32(delay * IN_MILLISECONDS));
 }
 
 /**

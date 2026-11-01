@@ -27,8 +27,7 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "entities/player/combat/PlayerCombatNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "GridNotifiersImpl.h"
@@ -50,8 +49,7 @@
  */
 void Player::SendAttackSwingDeadTarget()
 {
-    WorldPacket data(SMSG_ATTACKSWING_DEADTARGET, 0);
-    GetSession()->SendPacket(&data);
+    sPlayerCombatNotices.SwingDeadTarget(*this);
 }
 
 /**
@@ -59,8 +57,7 @@ void Player::SendAttackSwingDeadTarget()
  */
 void Player::SendAttackSwingCantAttack()
 {
-    WorldPacket data(SMSG_ATTACKSWING_CANT_ATTACK, 0);
-    GetSession()->SendPacket(&data);
+    sPlayerCombatNotices.SwingCantAttack(*this);
 }
 
 /**
