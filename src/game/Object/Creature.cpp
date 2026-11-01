@@ -30,6 +30,7 @@
 #include <vector>
 #include "Utilities/MathDefines.h"
 #include "Creature.h"
+#include "entities/WorldObjectNotices.h"
 #include "LivingWorldAnchorPolicy.h"
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
@@ -2273,12 +2274,7 @@ bool Creature::IsVisibleInGridForPlayer(Player const* pl) const
  */
 void Creature::SendAIReaction(AiReaction reactionType)
 {
-    WorldPacket data(SMSG_AI_REACTION, 12);
-
-    data << GetObjectGuid();
-    data << uint32(reactionType);
-
-    ((WorldObject*)this)->SendMessageToSet(&data, true);
+    sWorldObjectNotices.AiReacted(*this, reactionType);
 
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "WORLD: Sent SMSG_AI_REACTION, type %u.", reactionType);
 }

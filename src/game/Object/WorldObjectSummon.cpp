@@ -28,8 +28,7 @@
 #include "Utilities/MathDefines.h"
 #include "Object.h"
 #include "SharedDefines.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
+#include "entities/WorldObjectNotices.h"
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "Creature.h"
@@ -659,18 +658,7 @@ void WorldObject::SetPhaseMask(uint32 newPhaseMask, bool update)
  */
 void WorldObject::PlayDistanceSound(uint32 sound_id, Player const* target /*= NULL*/) const
 {
-    WorldPacket data(SMSG_PLAY_OBJECT_SOUND, 4 + 8);
-    data << uint32(sound_id);
-    data << GetObjectGuid();
-    data << GetObjectGuid();
-    if (target)
-    {
-        target->SendDirectMessage(&data);
-    }
-    else
-    {
-        SendMessageToSet(&data, true);
-    }
+    sWorldObjectNotices.DistanceSoundPlayed(*this, sound_id, target);
 }
 
 /**
@@ -681,17 +669,7 @@ void WorldObject::PlayDistanceSound(uint32 sound_id, Player const* target /*= NU
  */
 void WorldObject::PlayDirectSound(uint32 sound_id, Player const* target /*= NULL*/) const
 {
-    WorldPacket data(SMSG_PLAY_SOUND, 4);
-    data << uint32(sound_id);
-    data << ObjectGuid();
-    if (target)
-    {
-        target->SendDirectMessage(&data);
-    }
-    else
-    {
-        SendMessageToSet(&data, true);
-    }
+    sWorldObjectNotices.SoundPlayed(*this, sound_id, target);
 }
 
 /**
@@ -702,16 +680,7 @@ void WorldObject::PlayDirectSound(uint32 sound_id, Player const* target /*= NULL
  */
 void WorldObject::PlayMusic(uint32 sound_id, Player const* target /*= NULL*/) const
 {
-    WorldPacket data(SMSG_PLAY_MUSIC, 4);
-    data << uint32(sound_id);
-    if (target)
-    {
-        target->SendDirectMessage(&data);
-    }
-    else
-    {
-        SendMessageToSet(&data, true);
-    }
+    sWorldObjectNotices.MusicPlayed(*this, sound_id, target);
 }
 
 /**
