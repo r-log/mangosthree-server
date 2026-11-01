@@ -265,7 +265,6 @@ typedef std::unordered_map<uint32, CompletedAchievementData> CompletedAchievemen
 
 class Unit;
 class Player;
-class WorldPacket;
 
 class AchievementMgr
 {
@@ -283,7 +282,6 @@ class AchievementMgr
         void UpdateAchievementCriteria(AchievementCriteriaTypes type, uint32 miscvalue1 = 0, uint32 miscvalue2 = 0, Unit* unit = NULL, uint32 time = 0);
         void CheckAllAchievementCriteria();
         void SendAllAchievementData();
-        void SendRespondInspectAchievements(Player* player);
 
         Player* GetPlayer() const { return m_player;}
 
@@ -295,6 +293,7 @@ class AchievementMgr
 
         bool HasAchievement(uint32 achievement_id) const { return GetCompleteData(achievement_id) != NULL; }
         CompletedAchievementMap const& GetCompletedAchievements() const { return m_completedAchievements; }
+        CriteriaProgressMap const& GetCriteriaProgress() const { return m_criteriaProgress; }
         bool IsCompletedCriteria(AchievementCriteriaEntry const* criteria, AchievementEntry const* achievement) const;
 
         uint32 GetCriteriaProgressCounter(AchievementCriteriaEntry const* entry) const;
@@ -306,7 +305,6 @@ class AchievementMgr
 
         /// Builds into `data` the packet that tells a client the player `name` (`guid`) is the realm's
         /// first to earn `achievementId`.
-        static void BuildServerFirstAchievementPacket(WorldPacket& data, char const* name, ObjectGuid guid, uint32 achievementId);
 
     private:
         void SendAchievementEarned(AchievementEntry const* achievement);
@@ -363,5 +361,39 @@ class AchievementGlobalMgr
 };
 
 #define sAchievementMgr MaNGOS::Singleton<AchievementGlobalMgr>::Instance()
+
+/**
+ * What a player's achievements tell the clients, one call per notice: the players who hear an
+ * achievement earned, the units around the earner, and the player's own client its progress and its
+ * achievements. The session installs the notices that send them at start-up; this base sends nothing.
+ */
+class AchievementNotices
+{
+    public:
+        virtual ~AchievementNotices();
+
+        /// `listeners`, in order, are told as `msgtype`, each in its own locale, that `earner` earned
+        /// the achievement `achievementId`.
+        virtual void EarnedSaid(Player const& earner, ChatMsg msgtype, uint32 achievementId, std::vector<Player const*> const& listeners);
+        /// The players within `range` of `earner`, the earner among them, are told it earned the
+        /// achievement `achievementId`.
+        virtual void Earned(Player& earner, uint32 achievementId, float range);
+        /// `player` is told the progress of its criteria `criteriaId`.
+        virtual void CriteriaUpdated(Player& player, uint32 criteriaId, CriteriaProgress const& progress);
+        /// `player` is told its criteria `criteriaId` lost its progress.
+        virtual void CriteriaDeleted(Player& player, uint32 criteriaId);
+        /// `player` is told it lost the achievement `achievementId`.
+        virtual void AchievementDeleted(Player& player, uint32 achievementId);
+        /// `player` is told every achievement it completed and the progress of every criteria.
+        virtual void AllData(Player& player);
+
+        /// The installed notices, or the base when none are installed.
+        static AchievementNotices& Installed();
+        /// Installs `notices` and answers the ones it replaces (NULL for the base). NULL installs the
+        /// base. Installed once at start-up, before the world loads.
+        static AchievementNotices* Install(AchievementNotices* notices);
+};
+
+#define sAchievementNotices AchievementNotices::Installed()
 
 #endif

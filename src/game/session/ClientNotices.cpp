@@ -33,6 +33,7 @@
 #include "WorldSession.h"
 #include "session/packets/chat/ChatPackets.h"
 #include "session/packets/combat/CombatPackets.h"
+#include "session/packets/entities/AchievementPackets.h"
 #include "session/packets/entities/GossipPackets.h"
 #include "session/packets/maps/MapPackets.h"
 #include "session/packets/pvp/BattleGroundPackets.h"
@@ -99,6 +100,7 @@ void InstallClientNotices()
     static SessionSpellEffectNotices spellEffects;
     static SessionAuraNotices auras;
     static SessionChatNotices chat;
+    static SessionAchievementNotices achievements;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -114,5 +116,6 @@ void InstallClientNotices()
     SpellEffectNotices::Install(&spellEffects);
     AuraNotices::Install(&auras);
     ChatNotices::Install(&chat);
+    AchievementNotices::Install(&achievements);
     InstallCalendarNotices();
 }
