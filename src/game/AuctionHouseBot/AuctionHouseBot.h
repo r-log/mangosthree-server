@@ -31,6 +31,7 @@
 #include "AuctionHouseMgr.h"
 #include "SharedDefines.h"
 #include "Item.h"
+#include "AuctionBotControl.h"
 
 /**
  * @file AuctionHouseBot.h
@@ -50,26 +51,6 @@
  */
 
    /**
-    * @brief Auction item quality enumeration
-    *
-    * Shadow of ItemQualities with skipped ITEM_QUALITY_HEIRLOOM and
-    * anything after ITEM_QUALITY_ARTIFACT(6). Used to categorize
-    * auction items by quality level.
-    */
-enum AuctionQuality
-{
-    AUCTION_QUALITY_GREY   = ITEM_QUALITY_POOR,
-    AUCTION_QUALITY_WHITE  = ITEM_QUALITY_NORMAL,
-    AUCTION_QUALITY_GREEN  = ITEM_QUALITY_UNCOMMON,
-    AUCTION_QUALITY_BLUE   = ITEM_QUALITY_RARE,
-    AUCTION_QUALITY_PURPLE = ITEM_QUALITY_EPIC,
-    AUCTION_QUALITY_ORANGE = ITEM_QUALITY_LEGENDARY,
-    AUCTION_QUALITY_YELLOW = ITEM_QUALITY_ARTIFACT
-};
-
-#define MAX_AUCTION_QUALITY 7
-
-/**
  * @brief Configuration values of type uint32 for AuctionBot
  *
  * This enumeration defines all uint32 configuration options for
@@ -401,28 +382,6 @@ public:
     virtual bool Update(AuctionHouseType houseType) = 0;
 };
 
-/**
- * @brief Status information for auction house bot per house type
- *
- * Used in AuctionHouseBot::PrepareStatusInfos to show item counts
- * per auction house and per quality level for items created by
- * AuctionBotBuyer and AuctionBotSeller.
- * \see AuctionQuality
- */
-struct AuctionHouseBotStatusInfoPerType
-{
-    uint32 ItemsCount;                          /**< Total items in this auction house */
-    uint32 QualityInfo[MAX_AUCTION_QUALITY];    /**< Items count per quality level */
-};
-
-/**
- * @brief Array of status info for all auction house types
- *
- * Provides status information for all possible auction houses:
- * Alliance, Horde, and Neutral.
- */
-typedef AuctionHouseBotStatusInfoPerType AuctionHouseBotStatusInfo[MAX_AUCTION_HOUSE_TYPE];
-
 class AuctionBotBuyer;
 class AuctionBotSeller;
 
@@ -515,6 +474,9 @@ class AuctionHouseBot
          * @param statusInfo the structure to fill with data
          */
         void PrepareStatusInfos(AuctionHouseBotStatusInfo& statusInfo);
+
+        /// The bot's answers to its commands, which mangosd installs as the auction bot's control.
+        static AuctionBotControl& GetControl();
     private:
         /**
          * @brief Initializes the agents, ie: the \ref AuctionBotBuyer and \ref AuctionBotSeller

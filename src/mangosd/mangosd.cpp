@@ -358,6 +358,7 @@ int main(int argc, char** argv)
     static Script::Dispatcher scripts(LegacyScriptHooks());
     ScriptHooks::Install(&scripts);
     CommandHooks::Install(&ChatHandler::GetCommandHooks());
+    AuctionBotControl::Install(&AuctionHouseBot::GetControl());
     DbScriptHooks::Install(&ScriptMgr::GetDbScriptHooks());
     BattleGroundHooks::Install(&BattleGroundMgr::GetBattleGroundHooks());
     OutdoorPvPHooks::Install(&OutdoorPvPMgr::GetOutdoorPvPHooks());
