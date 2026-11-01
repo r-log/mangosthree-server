@@ -274,6 +274,9 @@ source_group("Session\\Packets\\Entities" FILES ${SRC_GRP_SESSION_PACKETS_ENTITI
 file(GLOB SRC_GRP_SESSION_PACKETS_MAPS session/packets/maps/*.cpp session/packets/maps/*.h)
 source_group("Session\\Packets\\Maps" FILES ${SRC_GRP_SESSION_PACKETS_MAPS})
 
+file(GLOB SRC_GRP_SESSION_PACKETS_PVP session/packets/pvp/*.cpp session/packets/pvp/*.h)
+source_group("Session\\Packets\\Pvp" FILES ${SRC_GRP_SESSION_PACKETS_PVP})
+
 file(GLOB SRC_GRP_SESSION_PACKETS_QUESTS session/packets/quests/*.cpp session/packets/quests/*.h)
 source_group("Session\\Packets\\Quests" FILES ${SRC_GRP_SESSION_PACKETS_QUESTS})
 
@@ -609,6 +612,7 @@ add_library(session STATIC
     ${SRC_GRP_SESSION_PACKETS_COMBAT}
     ${SRC_GRP_SESSION_PACKETS_ENTITIES}
     ${SRC_GRP_SESSION_PACKETS_MAPS}
+    ${SRC_GRP_SESSION_PACKETS_PVP}
     ${SRC_GRP_SESSION_PACKETS_QUESTS}
     ${SRC_GRP_SESSION_PACKETS_SPELLS}
     ${SESSION_SOURCES}

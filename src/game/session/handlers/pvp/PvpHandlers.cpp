@@ -41,6 +41,7 @@
 #include "BattleGround/BattleGroundMgr.h"
 #include "BattleGround/BattleGroundEY.h"
 #include "BattleGround/BattleGroundWS.h"
+#include "session/packets/pvp/BattleGroundPackets.h"
 #include "Tools/Language.h"
 #include "data/ScriptHooks.h"
 #include "data/GameConfig.h"
@@ -582,7 +583,7 @@ void PvpHandlers::HandleBattlemasterJoin(WorldSession& session, WorldPacket& rec
         if (!session.GetPlayer()->CanJoinToBattleground())
         {
             WorldPacket data;
-            sBattleGroundMgr.BuildBattleGroundStatusFailedPacket(&data, bg, session.GetPlayer(), 0, ERR_GROUP_JOIN_BATTLEGROUND_DESERTERS);
+            BuildBattleGroundStatusFailedPacket(data, bg, session.GetPlayer(), 0, ERR_GROUP_JOIN_BATTLEGROUND_DESERTERS);
             session.GetPlayer()->GetSession()->SendPacket(&data);
             return;
         }
@@ -621,7 +622,7 @@ void PvpHandlers::HandleBattlemasterJoin(WorldSession& session, WorldPacket& rec
     if (err)
     {
         WorldPacket data;
-        sBattleGroundMgr.BuildBattleGroundStatusFailedPacket(&data, bg, session.GetPlayer(), 0, err);
+        BuildBattleGroundStatusFailedPacket(data, bg, session.GetPlayer(), 0, err);
         session.SendPacket(&data);
     }
     else if (joinAsGroup)
@@ -645,7 +646,7 @@ void PvpHandlers::HandleBattlemasterJoin(WorldSession& session, WorldPacket& rec
 
             // send status packet (in queue)
             WorldPacket data;
-            sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, member, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, ginfo->arenaType);
+            BuildBattleGroundStatusPacket(data, bg, member, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, ginfo->arenaType);
             member->GetSession()->SendPacket(&data);
             DEBUG_LOG("Battleground: player joined queue for bg queue type %u bg type %u: GUID %u, NAME %s", bgQueueTypeId, bgTypeId, member->GetGUIDLow(), member->GetName());
         }
@@ -660,7 +661,7 @@ void PvpHandlers::HandleBattlemasterJoin(WorldSession& session, WorldPacket& rec
 
         WorldPacket data;
         // send status packet (in queue)
-        sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, session.GetPlayer(), queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, ginfo->arenaType);
+        BuildBattleGroundStatusPacket(data, bg, session.GetPlayer(), queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, ginfo->arenaType);
         session.SendPacket(&data);
         DEBUG_LOG("Battleground: player joined queue for bg queue type %u bg type %u: GUID %u, NAME %s", bgQueueTypeId, bgTypeId, session.GetPlayer()->GetGUIDLow(), session.GetPlayer()->GetName());
     }
@@ -778,7 +779,7 @@ void PvpHandlers::HandlePVPLogData(WorldSession& session, WorldPacket & /*recv_d
     }
 
     WorldPacket data;
-    sBattleGroundMgr.BuildPvpLogDataPacket(&data, bg);
+    BuildPvpLogDataPacket(data, bg);
     session.SendPacket(&data);
 
     DEBUG_LOG("WORLD: Sent SMSG_PVP_LOG_DATA Message");
@@ -807,7 +808,7 @@ void PvpHandlers::HandleBattlefieldList(WorldSession& session, WorldPacket& recv
     }
 
     WorldPacket data;
-    sBattleGroundMgr.BuildBattleGroundListPacket(&data, ObjectGuid(), session.GetPlayer(), BattleGroundTypeId(bgTypeId));
+    BuildBattleGroundListPacket(data, ObjectGuid(), session.GetPlayer(), BattleGroundTypeId(bgTypeId));
     session.SendPacket(&data);
 }
 
@@ -912,7 +913,7 @@ void PvpHandlers::HandleBattleFieldPort(WorldSession& session, WorldPacket& recv
         {
             // send bg command result to show nice message
             WorldPacket data2;
-            sBattleGroundMgr.BuildBattleGroundStatusFailedPacket(&data2, bg, session.GetPlayer(), queueSlot, ERR_GROUP_JOIN_BATTLEGROUND_DESERTERS);
+            BuildBattleGroundStatusFailedPacket(data2, bg, session.GetPlayer(), queueSlot, ERR_GROUP_JOIN_BATTLEGROUND_DESERTERS);
             session.GetPlayer()->GetSession()->SendPacket(&data2);
             action = 0;
             DEBUG_LOG("Battleground: player %s (%u) has a deserter debuff, do not port him to battleground!", session.GetPlayer()->GetName(), session.GetPlayer()->GetGUIDLow());
@@ -953,7 +954,7 @@ void PvpHandlers::HandleBattleFieldPort(WorldSession& session, WorldPacket& recv
                 session.GetPlayer()->m_taxi.ClearTaxiDestinations();
             }
 
-            sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, session.GetPlayer(), queueSlot, STATUS_IN_PROGRESS, bg->GetEndTime(), bg->GetStartTime(), bg->GetArenaType());
+            BuildBattleGroundStatusPacket(data, bg, session.GetPlayer(), queueSlot, STATUS_IN_PROGRESS, bg->GetEndTime(), bg->GetStartTime(), bg->GetArenaType());
             session.GetPlayer()->GetSession()->SendPacket(&data);
             // remove battleground queue status from BGmgr
             bgQueue.RemovePlayer(session.GetPlayer()->GetObjectGuid(), false);
@@ -987,7 +988,7 @@ void PvpHandlers::HandleBattleFieldPort(WorldSession& session, WorldPacket& recv
                 }
             }
             session.GetPlayer()->RemoveBattleGroundQueueId(bgQueueTypeId);  // must be called this way, because if you move this call to queue->removeplayer, it causes bugs
-            sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, session.GetPlayer(), queueSlot, STATUS_NONE, 0, 0, ARENA_TYPE_NONE);
+            BuildBattleGroundStatusPacket(data, bg, session.GetPlayer(), queueSlot, STATUS_NONE, 0, 0, ARENA_TYPE_NONE);
             bgQueue.RemovePlayer(session.GetPlayer()->GetObjectGuid(), true);
             // player left queue, we should update it - do not update Arena Queue
             if (ginfo.arenaType == ARENA_TYPE_NONE)
@@ -1062,7 +1063,7 @@ void PvpHandlers::HandleBattlefieldStatus(WorldSession& session, WorldPacket & /
             {
                 // this line is checked, i only don't know if GetStartTime is changing itself after bg end!
                 // send status in BattleGround
-                sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, session.GetPlayer(), i, STATUS_IN_PROGRESS, bg->GetEndTime(), 0, arenaType);
+                BuildBattleGroundStatusPacket(data, bg, session.GetPlayer(), i, STATUS_IN_PROGRESS, bg->GetEndTime(), 0, arenaType);
                 session.SendPacket(&data);
                 continue;
             }
@@ -1084,7 +1085,7 @@ void PvpHandlers::HandleBattlefieldStatus(WorldSession& session, WorldPacket & /
             }
             uint32 remainingTime = getMSTimeDiff(GameTime::GetGameTimeMS(), ginfo.RemoveInviteTime);
             // send status invited to BattleGround
-            sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, session.GetPlayer(), i, STATUS_WAIT_JOIN, remainingTime, 0, arenaType);
+            BuildBattleGroundStatusPacket(data, bg, session.GetPlayer(), i, STATUS_WAIT_JOIN, remainingTime, 0, arenaType);
             session.SendPacket(&data);
         }
         else
@@ -1104,7 +1105,7 @@ void PvpHandlers::HandleBattlefieldStatus(WorldSession& session, WorldPacket & /
 
             uint32 avgTime = bgQueue.GetAverageQueueWaitTime(&ginfo, bracketEntry->GetBracketId());
             // send status in BattleGround Queue
-            sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, session.GetPlayer(), i, STATUS_WAIT_QUEUE, avgTime, getMSTimeDiff(ginfo.JoinTime, GameTime::GetGameTimeMS()), arenaType);
+            BuildBattleGroundStatusPacket(data, bg, session.GetPlayer(), i, STATUS_WAIT_QUEUE, avgTime, getMSTimeDiff(ginfo.JoinTime, GameTime::GetGameTimeMS()), arenaType);
             session.SendPacket(&data);
         }
     }
@@ -1291,7 +1292,7 @@ void PvpHandlers::HandleBattlemasterJoinArena(WorldSession& session, WorldPacket
 
         if (err)
         {
-            sBattleGroundMgr.BuildBattleGroundStatusFailedPacket(&data, bg, member, 0, err);
+            BuildBattleGroundStatusFailedPacket(data, bg, member, 0, err);
             member->GetSession()->SendPacket(&data);
             continue;
         }
@@ -1300,7 +1301,7 @@ void PvpHandlers::HandleBattlemasterJoinArena(WorldSession& session, WorldPacket
         uint32 queueSlot = member->AddBattleGroundQueueId(bgQueueTypeId);
 
         // send status packet (in queue)
-        sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, member, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, arenatype);
+        BuildBattleGroundStatusPacket(data, bg, member, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0, arenatype);
         member->GetSession()->SendPacket(&data);
         DEBUG_LOG("Battleground: player joined queue for arena as group bg queue type %u bg type %u: GUID %u, NAME %s", bgQueueTypeId, bgTypeId, member->GetGUIDLow(), member->GetName());
     }

@@ -438,6 +438,42 @@ class BGQueueRemoveEvent : public BasicEvent
 typedef std::function<void(int32 textId, va_list* args)> WorldTextSink;
 
 /**
+ * What the battlegrounds tell clients, one call per notice. The session installs the notices that
+ * send them at start-up; this base sends nothing.
+ */
+class BattleGroundNotices
+{
+    public:
+        virtual ~BattleGroundNotices();
+
+        /// `player`'s queue slot `queueSlot` is in the status `statusId` for `bg`, with the status's
+        /// times `time1` and `time2` and its arena type `arenaType`.
+        virtual void Status(Player& player, BattleGround* bg, uint8 queueSlot, uint8 statusId, uint32 time1, uint32 time2, ArenaType arenaType);
+        /// `player` is shown the score board of `bg`.
+        virtual void PvpLog(Player& player, BattleGround& bg);
+        /// `player`'s countdown to the start: `timeLeft` of `totalTime` seconds.
+        virtual void StartTimer(Player& player, uint32 timeLeft, uint32 totalTime);
+        /// Every player of `bg` plays the sound `soundId`.
+        virtual void SoundToAll(BattleGround& bg, uint32 soundId);
+        /// `player` plays the sound `soundId`.
+        virtual void Sound(Player& player, uint32 soundId);
+        /// The players of `team` in `bg` other than `player` are told `player` joined.
+        virtual void PlayerJoined(BattleGround& bg, Team team, Player& player);
+        /// The players of `team` in `bg` other than `sender` are told the player `guid` left.
+        virtual void PlayerLeft(BattleGround& bg, Team team, ObjectGuid guid, Player* sender);
+        /// Every player of `bg` is told the world state `state` is now `value`.
+        virtual void WorldStateToAll(BattleGround& bg, uint32 state, uint32 value);
+
+        /// The installed notices, or the base when none are installed.
+        static BattleGroundNotices& Installed();
+        /// Installs `notices` and answers the ones it replaces (NULL for the base). NULL installs the
+        /// base. Installed once at start-up, before the world loads.
+        static BattleGroundNotices* Install(BattleGroundNotices* notices);
+};
+
+#define sBattleGroundNotices BattleGroundNotices::Installed()
+
+/**
  * @brief Class for managing battlegrounds.
  */
 class BattleGroundMgr
@@ -462,69 +498,6 @@ class BattleGroundMgr
          * @param diff The time difference.
          */
         void Update(uint32 diff);
-
-        /* Packet Building */
-
-        /**
-         * @brief Builds a packet for player joined battleground.
-         * @param data The packet data.
-         * @param plr The player.
-         */
-        void BuildPlayerJoinedBattleGroundPacket(WorldPacket* data, Player* plr);
-
-        /**
-         * @brief Builds a packet for player left battleground.
-         * @param data The packet data.
-         * @param guid The player's GUID.
-         */
-        void BuildPlayerLeftBattleGroundPacket(WorldPacket* data, ObjectGuid guid);
-
-        /**
-         * @brief Builds a packet for battleground list.
-         * @param data The packet data.
-         * @param guid The player's GUID.
-         * @param plr The player.
-         * @param bgTypeId The battleground type id.
-         */
-
-        void BuildBattleGroundListPacket(WorldPacket* data, ObjectGuid guid, Player* plr, BattleGroundTypeId bgTypeId);
-
-        /**
-         * @brief Builds a packet for updating world state.
-         * @param data The packet data.
-         * @param field The field.
-         * @param value The value.
-         */
-        void BuildUpdateWorldStatePacket(WorldPacket* data, uint32 field, uint32 value);
-
-        /**
-         * @brief Builds a packet for PvP log data.
-         * @param data The packet data.
-         * @param bg The battleground.
-         */
-        void BuildPvpLogDataPacket(WorldPacket* data, BattleGround* bg);
-
-        /**
-
-         * @brief Builds a packet for battleground status.
-         * @param data The packet data.
-         * @param bg The battleground.
-         * @param player The recipient player.
-         * @param QueueSlot The queue slot.
-         * @param StatusID The status ID.
-         * @param Time1 The first time value.
-         * @param Time2 The second time value.
-         * @param arenatype The arena type.
-         */
-        void BuildBattleGroundStatusPacket(WorldPacket* data, BattleGround* bg, Player* player, uint8 QueueSlot, uint8 StatusID, uint32 Time1, uint32 Time2, ArenaType arenatype);
-        void BuildBattleGroundStatusFailedPacket(WorldPacket* data, BattleGround* bg, Player* player, uint8 QueueSlot, GroupJoinBattlegroundResult result);
-
-        /**
-         * @brief Builds a packet for playing sound.
-         * @param data The packet data.
-         * @param soundid The sound ID.
-         */
-        void BuildPlaySoundPacket(WorldPacket* data, uint32 soundid);
 
         /* Battlegrounds */
 
@@ -620,6 +593,18 @@ class BattleGroundMgr
         void DeleteClientVisibleInstanceId(BattleGroundTypeId bgTypeId, BattleGroundBracketId bracket_id, uint32 clientInstanceID)
         {
             m_ClientBattleGroundIds[bgTypeId][bracket_id].erase(clientInstanceID);
+        }
+
+        /**
+         * @brief The client-visible instance IDs of a battleground type in a bracket.
+         *
+         * @param bgTypeId The battleground type id.
+         * @param bracket_id The bracket id.
+         * @return The IDs, in ascending order.
+         */
+        std::set<uint32> const& GetClientVisibleInstanceIds(BattleGroundTypeId bgTypeId, BattleGroundBracketId bracket_id) const
+        {
+            return m_ClientBattleGroundIds[bgTypeId][bracket_id];
         }
 
         /**

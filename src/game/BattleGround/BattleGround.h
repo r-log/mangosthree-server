@@ -1078,6 +1078,8 @@ class BattleGround
         uint32 GetArenaTeamIdForTeam(Team team) const             { return m_ArenaTeamIds[GetTeamIndexByTeamId(team)]; }
         void SetArenaTeamRatingChangeForTeam(Team team, int32 RatingChange) { m_ArenaTeamRatingChanges[GetTeamIndexByTeamId(team)] = RatingChange; }
         int32 GetArenaTeamRatingChangeForTeam(Team team) const    { return m_ArenaTeamRatingChanges[GetTeamIndexByTeamId(team)]; }
+        uint32 GetArenaTeamIdByIndex(PvpTeamIndex index) const    { return m_ArenaTeamIds[index]; }
+        int32 GetArenaTeamRatingChangeByIndex(PvpTeamIndex index) const { return m_ArenaTeamRatingChanges[index]; }
         void CheckArenaWinConditions();
 
         /* Triggers handle */

@@ -34,19 +34,16 @@ src/game/BattleGround/BattleGroundIC.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundMgr.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/BattleGround/BattleGroundMgr.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/BattleGround/BattleGroundMgr.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/BattleGround/BattleGroundQueue.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundRB.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundRL.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundRV.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/BattleGround/BattleGroundReward.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundSA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
 src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
