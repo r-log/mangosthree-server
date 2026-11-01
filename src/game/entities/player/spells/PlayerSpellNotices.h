@@ -29,14 +29,18 @@
 #include "ItemPrototype.h"
 #include "ObjectGuid.h"
 #include "Platform/Define.h"
+#include "SharedDefines.h"
 
 #include <vector>
 
+class CharmInfo;
+class Pet;
 class Player;
 
 /**
  * What a player's spells tell its own client, one call per notice: its spell book, its action bars,
- * its proficiencies and its cooldowns. The player keeps when each is told. The session installs the
+ * its proficiencies and its cooldowns, its pet's and its charm's spells, a failed taming and its
+ * talent resets. The player keeps when each is told. The session installs the
  * notices that send them at start-up; this base sends nothing.
  */
 class PlayerSpellNotices
@@ -62,6 +66,19 @@ class PlayerSpellNotices
         virtual void ItemCooldownStarted(Player const& player, ObjectGuid item, uint32 spellId);
         /// `player` is told the cooldown of the spell `spellId` of the unit `unit` is cleared.
         virtual void CooldownCleared(Player const& player, ObjectGuid unit, uint32 spellId);
+        /// `player` is told the spell bar, spells and cooldowns of its pet `pet`.
+        virtual void PetSpellsShown(Player const& player, Pet& pet);
+        /// `player` is told the action bar of the unit `charm` it charms (a player when `charmIsPlayer`),
+        /// from `info`, with its first `charmSpellCount` charm spells.
+        virtual void CharmSpellsShown(Player const& player, ObjectGuid charm, bool charmIsPlayer, CharmInfo& info, uint8 charmSpellCount);
+        /// `player` is told its taming failed for `reason`.
+        virtual void PetTameFailed(Player const& player, PetTameFailureReason reason);
+        /// `player` is told its talents, or its pet's when `pet` is true, were reset without its asking.
+        virtual void TalentsInvoluntarilyReset(Player const& player, bool pet);
+        /// `player` is asked to confirm resetting its talents for `cost` at `source`.
+        virtual void TalentWipeConfirm(Player const& player, ObjectGuid source, uint32 cost);
+        /// `player` is asked to confirm resetting its pet `pet`'s talents for `cost`.
+        virtual void PetUnlearnConfirm(Player const& player, ObjectGuid pet, uint32 cost);
 
         /// The installed notices, or the base when none are installed.
         static PlayerSpellNotices& Installed();

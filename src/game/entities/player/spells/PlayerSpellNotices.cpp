@@ -79,6 +79,30 @@ void PlayerSpellNotices::CooldownCleared(Player const& /*player*/, ObjectGuid /*
 {
 }
 
+void PlayerSpellNotices::PetSpellsShown(Player const& /*player*/, Pet& /*pet*/)
+{
+}
+
+void PlayerSpellNotices::CharmSpellsShown(Player const& /*player*/, ObjectGuid /*charm*/, bool /*charmIsPlayer*/, CharmInfo& /*info*/, uint8 /*charmSpellCount*/)
+{
+}
+
+void PlayerSpellNotices::PetTameFailed(Player const& /*player*/, PetTameFailureReason /*reason*/)
+{
+}
+
+void PlayerSpellNotices::TalentsInvoluntarilyReset(Player const& /*player*/, bool /*pet*/)
+{
+}
+
+void PlayerSpellNotices::TalentWipeConfirm(Player const& /*player*/, ObjectGuid /*source*/, uint32 /*cost*/)
+{
+}
+
+void PlayerSpellNotices::PetUnlearnConfirm(Player const& /*player*/, ObjectGuid /*pet*/, uint32 /*cost*/)
+{
+}
+
 PlayerSpellNotices& PlayerSpellNotices::Installed()
 {
     PlayerSpellNotices* notices = s_playerSpellNoticesInstalled.load(std::memory_order_acquire);

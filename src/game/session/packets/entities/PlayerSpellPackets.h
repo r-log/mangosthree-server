@@ -42,6 +42,12 @@ class SessionPlayerSpellNotices : public PlayerSpellNotices
         void ProficiencyShown(Player const& player, ItemClass itemClass, uint32 itemSubclassMask) override;
         void ItemCooldownStarted(Player const& player, ObjectGuid item, uint32 spellId) override;
         void CooldownCleared(Player const& player, ObjectGuid unit, uint32 spellId) override;
+        void PetSpellsShown(Player const& player, Pet& pet) override;
+        void CharmSpellsShown(Player const& player, ObjectGuid charm, bool charmIsPlayer, CharmInfo& info, uint8 charmSpellCount) override;
+        void PetTameFailed(Player const& player, PetTameFailureReason reason) override;
+        void TalentsInvoluntarilyReset(Player const& player, bool pet) override;
+        void TalentWipeConfirm(Player const& player, ObjectGuid source, uint32 cost) override;
+        void PetUnlearnConfirm(Player const& player, ObjectGuid pet, uint32 cost) override;
 };
 
 #endif
