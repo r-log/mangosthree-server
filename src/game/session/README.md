@@ -1,6 +1,6 @@
 # The session (`session/`)
 
-The session layer's own directory: `SessionRegistry`, the world's client sessions and their login queue, `PlayerDump`, a character written to a dump and loaded from one (the GM commands' and the character screen's), the builders of the outgoing packets under `packets/<domain>/` and the opcode handler classes under `handlers/<domain>/`. The session's other files live outside it, and `src/tests/tools/layout_gate.py`'s `RULES` classify them as session too: `WorldSession`, `OpcodeTable`, `SessionMailbox`, `SessionProtocolPolicy`, `WorldGateway` and `WorldNetwork` in `Server/`, and in `WorldHandlers/` the opcode handler files, `AccountMgr`, `GossipDef`, `UpdateData`, `LFGPackets` and the `ChatMessage*` files.
+The session layer's own directory: `SessionRegistry`, the world's client sessions and their login queue, `PlayerDump`, a character written to a dump and loaded from one (the GM commands' and the character screen's), the builders of the outgoing packets under `packets/<domain>/` and the opcode handler classes under `handlers/<domain>/`. The session's core is here too: `WorldSession`, `OpcodeTable`, `SessionMailbox`, `SessionProtocolPolicy`, `WorldGateway`, `WorldNetwork` and `AccountMgr`; each opcode handler origin file, which keeps the `WorldSession` members of its opcodes, sits beside its handler class under `handlers/<domain>/`. `src/tests/tools/layout_gate.py`'s `RULES` classify the whole directory as session.
 
 ## `packets/`
 
