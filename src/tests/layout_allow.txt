@@ -483,7 +483,6 @@ src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGBootLogi
 src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGMgr.h
 # reached through WorldSession.h before #666
 src/game/entities/player/social [entities] -> src/game/WorldHandlers/Map.h
-src/game/entities/player/social/PlayerChat.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/spells [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
 src/game/entities/player/spells [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/proto/Opcodes.h
