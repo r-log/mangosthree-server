@@ -256,8 +256,6 @@ struct GuildEventLogEntry
     uint32 PlayerGuid2;
     uint8  NewRank;
     uint64 TimeStamp;
-
-    void WriteData(WorldPacket& data, ByteBuffer& buffer);
 };
 
 struct GuildBankEventLogEntry
@@ -397,8 +395,9 @@ class Guild
         void BroadcastAddonToOfficers(PlayerSession* session, const std::string& msg, const std::string& prefix);
         void BroadcastPacketToRank(WorldPacket* packet, uint32 rankId);
         void BroadcastPacket(WorldPacket* packet);
-        // for calendar
-        void MassInviteToEvent(PlayerSession* session, uint32 minLevel, uint32 maxLevel, uint32 minRank);
+        /// Sends `packet` to the online members who may listen to the officer chat when `officers` is
+        /// true, or to the guild chat otherwise, and do not ignore `speaker`.
+        void SendToChatListeners(WorldPacket* packet, Player const& speaker, bool officers);
 
         void BroadcastEvent(GuildEvents event, ObjectGuid guid, char const* str1 = NULL, char const* str2 = NULL, char const* str3 = NULL);
         void BroadcastEvent(GuildEvents event, char const* str1 = NULL, char const* str2 = NULL, char const* str3 = NULL)
@@ -465,13 +464,14 @@ class Guild
             return NULL;
         }
 
-        void Roster(PlayerSession* session = NULL);          // NULL = broadcast
-        void Query(PlayerSession* session);
-        void QueryRanks(PlayerSession* session);
+        MemberList const& GetMembers() const { return members; }
+        RankList const& GetRanks() const { return m_Ranks; }
+        /// The account count as last counted, 0 when it is to be counted again (`GetAccountsNumber`).
+        uint32 GetCachedAccountsNumber() const { return m_accountsNumber; }
+        std::list<GuildEventLogEntry> const& GetEventLog() const { return m_GuildEventLog; }
 
         // Guild EventLog
         void   LoadGuildEventLogFromDB();
-        void   DisplayGuildEventLog(PlayerSession* session);
         void   LogGuildEvent(uint8 EventType, ObjectGuid playerGuid1, ObjectGuid playerGuid2 = ObjectGuid(), uint8 newRank = 0);
 
         // ** Guild bank **

@@ -37,6 +37,7 @@
 #include "session/packets/pvp/BattleGroundPackets.h"
 #include "session/packets/social/ArenaTeamPackets.h"
 #include "session/packets/social/GroupPackets.h"
+#include "session/packets/social/GuildPackets.h"
 
 namespace
 {
@@ -87,6 +88,7 @@ void InstallClientNotices()
     static SessionMapNotices maps;
     static SessionArenaTeamNotices arenaTeams;
     static SessionGroupNotices groups;
+    static SessionGuildNotices guilds;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -96,5 +98,6 @@ void InstallClientNotices()
     MapNotices::Install(&maps);
     ArenaTeamNotices::Install(&arenaTeams);
     GroupNotices::Install(&groups);
+    GuildNotices::Install(&guilds);
     InstallCalendarNotices();
 }
