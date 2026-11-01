@@ -3077,8 +3077,6 @@ class Player : public Unit
         void SendDirectMessage(WorldPacket* data) const;
         void FillBGWeekendWorldStates(WorldStateList& states);
 
-        void SendAurasForTarget(Unit* target);
-
         // Player menu for interactions
         PlayerMenu* PlayerTalkClass;
 

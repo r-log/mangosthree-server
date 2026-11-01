@@ -54,8 +54,6 @@
 #include <list>
 #include <ctime>
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
@@ -64,6 +62,7 @@
 #include "Player.h"
 #include "Unit.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/auras/AuraNotices.h"
 #include "spells/pipeline/Spell.h"
 #include "DynamicObject.h"
 #include "Group.h"
@@ -3315,48 +3314,6 @@ bool SpellAuraHolder::IsNeedVisibleSlot(Unit const* caster) const
     return !m_isPassive || totemAura || HasAreaAuraEffect(m_spellProto);
 }
 
-void SpellAuraHolder::BuildUpdatePacket(WorldPacket& data) const
-{
-    data << uint8(GetAuraSlot());
-    data << uint32(GetId());
-
-    uint8 auraFlags = GetAuraFlags();
-    data << uint16(auraFlags);
-    data << uint8(GetAuraLevel());
-
-    uint32 stackCount = m_procCharges ? m_procCharges * m_stackAmount : m_stackAmount;
-    data << uint8(stackCount <= 255 ? stackCount : 255);
-
-    if (!(auraFlags & AFLAG_NOT_CASTER))
-    {
-        data << GetCasterGuid().WriteAsPacked();
-    }
-
-    if (auraFlags & AFLAG_DURATION)
-    {
-        data << uint32(GetAuraMaxDuration());
-        data << uint32(GetAuraDuration());
-    }
-
-    if (auraFlags & AFLAG_EFFECT_AMOUNT_SEND)
-    {
-        for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
-        {
-            if (auraFlags & (1 << i))
-            {
-                if (Aura const* aura = m_auras[i])
-                {
-                    data << int32(aura->GetModifier()->m_amount);
-                }
-                else
-                {
-                    data << int32(0);
-                }
-            }
-        }
-    }
-}
-
 void SpellAuraHolder::SendAuraUpdate(bool remove) const
 {
     // A target that is not in the world yet has nothing on the client to hang an
@@ -3371,7 +3328,7 @@ void SpellAuraHolder::SendAuraUpdate(bool remove) const
     // SMSG_UPDATE_OBJECT that creates the player client-side.
     //
     // Nothing is lost by holding them. These are exactly the holders that took a
-    // visible slot, which is the same set SendAurasForTarget writes into
+    // visible slot, which is the same set SendVisibleAurasTo writes into
     // SMSG_AURA_UPDATE_ALL from SendInitialPacketsAfterAddToMap -- and that runs
     // at the end of both windows where a player is out of the world, login
     // (CharacterHandler) and world teleport (MovementHandler).
@@ -3380,20 +3337,7 @@ void SpellAuraHolder::SendAuraUpdate(bool remove) const
         return;
     }
 
-    WorldPacket data(SMSG_AURA_UPDATE);
-    data << m_target->GetPackGUID();
-
-    if (remove)
-    {
-        data << uint8(GetAuraSlot());
-        data << uint32(0);
-    }
-    else
-    {
-        BuildUpdatePacket(data);
-    }
-
-    m_target->SendMessageToSet(&data, true);
+    sAuraNotices.AuraUpdate(*this, remove);
 }
 
 /**

@@ -4466,7 +4466,7 @@ void Player::HandleStealthedUnitsDetection()
                 // send data at target visibility change (adding to client)
                 if ((*i) != this && (*i)->isType(TYPEMASK_UNIT))
                 {
-                    SendAurasForTarget(*i);
+                    (*i)->SendVisibleAurasTo(*this);
                 }
             }
         }
@@ -4824,7 +4824,7 @@ void Player::SendInitialPacketsAfterAddToMap()
     // changed instead of a second, superseding entry for the same flag.
     StartMovementEpoch();
 
-    SendAurasForTarget(this);
+    SendVisibleAurasTo(*this);
     SendEnchantmentDurations();                             // must be after add to map
     SendItemDurations();                                    // must be after add to map
 }
@@ -4864,30 +4864,6 @@ void Player::ApplyEquipCooldown(Item* pItem)
         data << uint32(spellData.SpellId);
         GetSession()->SendPacket(&data);
     }
-}
-
-/**
- * @brief Sends visible aura duration updates for a target to the player.
- *
- * @param target The unit whose aura durations should be sent.
- */
-void Player::SendAurasForTarget(Unit* target)
-{
-    Unit::VisibleAuraMap const& visibleAuras = target->GetVisibleAuras();
-    if (visibleAuras.empty())
-    {
-        return;
-    }
-
-    WorldPacket data(SMSG_AURA_UPDATE_ALL);
-    data << target->GetPackGUID();
-
-    for (Unit::VisibleAuraMap::const_iterator itr = visibleAuras.begin(); itr != visibleAuras.end(); ++itr)
-    {
-        itr->second->BuildUpdatePacket(data);
-    }
-
-    GetSession()->SendPacket(&data);
 }
 
 /**

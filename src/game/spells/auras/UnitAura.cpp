@@ -32,6 +32,7 @@
 #include "QuestDef.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/auras/AuraNotices.h"
 #include "Util.h"
 #include "Pet.h"
 #include "Totem.h"
@@ -2323,4 +2324,19 @@ SpellAuraHolder* Unit::GetSpellAuraHolder(uint32 spellid, ObjectGuid casterGuid)
         }
 
     return NULL;
+}
+
+/**
+ * @brief Tells a viewer every visible aura of this unit, when it has any.
+ *
+ * @param viewer The player whose client is told.
+ */
+void Unit::SendVisibleAurasTo(Player& viewer) const
+{
+    if (m_visibleAuras.empty())
+    {
+        return;
+    }
+
+    sAuraNotices.VisibleAuras(viewer, *this);
 }

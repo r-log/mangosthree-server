@@ -122,7 +122,7 @@ namespace Harness
         /// counter and is recorded as `rest=<n>` and, when there is any, `restfnv=<hex>`. Dropped:
         /// the cast counter, m_timer and GO's timestamp, which sit in the fixed head.
         bool DecodeSpellCast(bool go, uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_AURA_UPDATE (SpellAuraHolder::SendAuraUpdate, one aura per packet): the target as
+        /// SMSG_AURA_UPDATE (BuildAuraUpdatePacket, AuraPackets.cpp, one aura per packet): the target as
         /// a role, the slot, the spell, the flags, the level and the stack, the caster as a role
         /// when the flags carry one (AFLAG_NOT_CASTER clear), then the durations and effect
         /// amounts as `rest=<n>` and `restfnv=<hex>`. The removal form -- the slot and a zero
@@ -203,8 +203,8 @@ namespace Harness
         /// SMSG_SPELL_DELAYED (BuildSpellDelayedPacket, SpellCastPackets.cpp): the caster's packed guid as a
         /// role and the pushback in milliseconds.
         bool DecodeSpellDelayed(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_AURA_UPDATE_ALL (Player::SendAurasForTarget, Player.cpp:5018-5025, one record per
-        /// visible slot written by SpellAuraHolder::BuildUpdatePacket, SpellAuras.cpp:4789-4829):
+        /// SMSG_AURA_UPDATE_ALL (BuildAuraUpdateAllPacket, AuraPackets.cpp, one record per
+        /// visible slot):
         /// the target's packed guid as a role, then to the end each record's slot, spell, flags,
         /// level and stack; the caster as a role when AFLAG_NOT_CASTER is clear; the maximum and
         /// remaining duration when AFLAG_DURATION is set (the stepped world's milliseconds); and an

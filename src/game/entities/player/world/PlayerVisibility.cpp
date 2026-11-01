@@ -198,7 +198,7 @@ void Player::UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject* targe
             // send data at target visibility change (adding to client)
             if (target != this && target->isType(TYPEMASK_UNIT))
             {
-                SendAurasForTarget((Unit*)target);
+                ((Unit*)target)->SendVisibleAurasTo(*this);
             }
         }
     }

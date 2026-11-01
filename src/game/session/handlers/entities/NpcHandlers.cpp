@@ -51,6 +51,7 @@
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
 #include "session/packets/social/GuildBankPackets.h"
+#include "session/packets/spells/SpellVisualPackets.h"
 
 /**
  * @brief Opens the tabard vendor interface for the selected NPC.
@@ -213,11 +214,11 @@ void NpcHandlers::HandleTrainerBuySpell(WorldSession& session, WorldPacket& recv
 
         // visual effect on trainer
         WorldPacket data;
-        unit->BuildSendPlayVisualPacket(&data, 0xB3, false);
+        BuildPlaySpellVisualKitPacket(data, unit->GetObjectGuid(), 0xB3, 0);
         session.SendPacket(&data);
 
         // visual effect on player
-        session.GetPlayer()->BuildSendPlayVisualPacket(&data, 0x016A, true);
+        BuildPlaySpellVisualKitPacket(data, session.GetPlayer()->GetObjectGuid(), 0x016A, 1);
         session.SendPacket(&data);
 
     // learn explicitly or cast explicitly

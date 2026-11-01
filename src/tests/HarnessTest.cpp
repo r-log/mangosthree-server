@@ -493,7 +493,7 @@ namespace
         return data;
     }
 
-    /// SpellAuraHolder::SendAuraUpdate + BuildUpdatePacket for one aura.
+    /// BuildAuraUpdatePacket for one aura.
     WorldPacket AuraUpdate(uint64 target, uint8 slot, uint32 spell, uint16 flags, uint64 caster, uint32 amount)
     {
         WorldPacket data(SMSG_AURA_UPDATE);
@@ -1010,8 +1010,7 @@ namespace
         return data;
     }
 
-    /// Player::SendAurasForTarget, Player.cpp:5018-5025, with SpellAuraHolder::BuildUpdatePacket,
-    /// SpellAuras.cpp:4789-4829: the target, then one record per visible slot.
+    /// BuildAuraUpdateAllPacket, AuraPackets.cpp: the target, then one record per visible slot.
     void AuraRecord(WorldPacket& data, uint8 slot, uint32 spell, uint16 flags, uint8 level, uint8 stack, uint64 caster, uint32 maxDuration,
                     uint32 duration, int32 amount0, int32 amount1)
     {
@@ -1429,7 +1428,7 @@ TEST(HarnessTrace_the_periodic_log_reads_obs_mod_health_and_obs_mod_mana)
 
 TEST(HarnessTrace_aura_update_all_reads_the_third_effect_amount)
 {
-    // BuildUpdatePacket writes one amount per effect bit, bit 2 included (SpellAuras.cpp:4812-4828)
+    // WriteAuraRecord writes one amount per effect bit, bit 2 included (AuraPackets.cpp)
     WorldPacket all(SMSG_AURA_UPDATE_ALL);
     all.appendPackGUID(kSelf);
     all << uint8(5) << uint32(1949) << uint16(0x08 | 0x40 | 0x01 | 0x04) << uint8(30) << uint8(1);

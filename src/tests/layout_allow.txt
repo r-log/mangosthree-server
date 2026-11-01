@@ -547,8 +547,6 @@ src/game/spells/auras/SpellAuraPeriodic.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraShapeshift.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuras.cpp -> src/game/entities/player/Player.h
-src/game/spells/auras/SpellAuras.cpp -> src/proto/Opcodes.h
-src/game/spells/auras/SpellAuras.cpp -> src/proto/WorldPacket.h
 src/game/spells/auras/UnitAuraProcHandler.cpp -> src/game/entities/player/Player.h
 # The bodies read the player's battleground: Rocket Boots Engaged reports the dropped flag to it, and the location bodies read its status and whether it is an arena; the origin's own edge, same layer pair and header; dies when the flag drop and the battleground's state become facts the player answers (pvp's own seam).
 src/game/spells/handlers [spells] -> src/game/BattleGround/BattleGround.h
