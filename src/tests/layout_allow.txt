@@ -211,7 +211,6 @@ src/game/Object/Unit.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Unit.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Unit.cpp -> src/proto/WorldPacket.h
 src/game/Object/Unit.h -> src/game/spells/AuraContainer.h
-src/game/Object/Unit.h -> src/proto/Opcodes.h
 src/game/Object/UnitPower.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitVisibility.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitVisibility.cpp -> src/game/spells/auras/SpellAuras.h
