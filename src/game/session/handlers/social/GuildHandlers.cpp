@@ -43,6 +43,7 @@
 #include "Calendar.h"
 #include "PlayerRegistry.h"
 #include "persistence/characters/CharacterTransaction.h"
+#include "session/packets/social/GuildBankPackets.h"
 #include "session/packets/social/GuildPackets.h"
 
 void GuildHandlers::HandleGuildQuery(WorldSession& session, WorldPacket& recvPacket)
@@ -1096,7 +1097,7 @@ void GuildHandlers::HandleGuildBankMoneyWithdrawn(WorldSession& session, WorldPa
     if (uint32 GuildId = session.GetPlayer()->GetGuildId())
         if (Guild* pGuild = sGuildMgr.GetGuildById(GuildId))
         {
-            pGuild->SendMoneyInfo(&session, session.GetPlayer()->GetGUIDLow());
+            SendGuildBankMoneyInfo(session, *pGuild, session.GetPlayer()->GetGUIDLow());
         }
 }
 
@@ -1147,7 +1148,7 @@ void GuildHandlers::HandleGuildBankerActivate(WorldSession& session, WorldPacket
     {
         if (Guild* pGuild = sGuildMgr.GetGuildById(GuildId))
         {
-            pGuild->DisplayGuildBankTabsInfo(&session);         // this also will load guild bank if not yet
+            SendGuildBankTabsInfo(session, *pGuild);         // this also will load guild bank if not yet
             return;
         }
     }
@@ -1186,7 +1187,7 @@ void GuildHandlers::HandleGuildBankQueryTab(WorldSession& session, WorldPacket& 
         return;
     }
 
-    pGuild->DisplayGuildBankContent(&session, TabId);
+    SendGuildBankContent(session, *pGuild, TabId);
 }
 
 void GuildHandlers::HandleGuildBankDepositMoney(WorldSession& session, WorldPacket& recv_data)
@@ -1242,9 +1243,9 @@ void GuildHandlers::HandleGuildBankDepositMoney(WorldSession& session, WorldPack
     // log
     pGuild->LogBankEvent(GUILD_BANK_LOG_DEPOSIT_MONEY, uint8(0), session.GetPlayer()->GetGUIDLow(), money);
 
-    pGuild->DisplayGuildBankTabsInfo(&session);
-    pGuild->DisplayGuildBankContent(&session, 0);
-    pGuild->DisplayGuildBankMoneyUpdate(&session);
+    SendGuildBankTabsInfo(session, *pGuild);
+    SendGuildBankContent(session, *pGuild, 0);
+    BroadcastGuildBankMoney(session, *pGuild);
 }
 
 void GuildHandlers::HandleGuildBankWithdrawMoney(WorldSession& session, WorldPacket& recv_data)
@@ -1303,10 +1304,10 @@ void GuildHandlers::HandleGuildBankWithdrawMoney(WorldSession& session, WorldPac
     // Log
     pGuild->LogBankEvent(GUILD_BANK_LOG_WITHDRAW_MONEY, uint8(0), session.GetPlayer()->GetGUIDLow(), money);
 
-    pGuild->SendMoneyInfo(&session, session.GetPlayer()->GetGUIDLow());
-    pGuild->DisplayGuildBankTabsInfo(&session);
-    pGuild->DisplayGuildBankContent(&session, 0);
-    pGuild->DisplayGuildBankMoneyUpdate(&session);
+    SendGuildBankMoneyInfo(session, *pGuild, session.GetPlayer()->GetGUIDLow());
+    SendGuildBankTabsInfo(session, *pGuild);
+    SendGuildBankContent(session, *pGuild, 0);
+    BroadcastGuildBankMoney(session, *pGuild);
 }
 
 void GuildHandlers::HandleGuildBankSwapItems(WorldSession& session, WorldPacket& recv_data)
@@ -1471,7 +1472,7 @@ void GuildHandlers::HandleGuildBankBuyTab(WorldSession& session, WorldPacket& re
     session.GetPlayer()->ModifyMoney(-int64(TabCost));
     pGuild->SetBankRightsAndSlots(session.GetPlayer()->GetRank(), TabId, GUILD_BANK_RIGHT_FULL, WITHDRAW_SLOT_UNLIMITED, true);
     BroadcastGuildRoster(*pGuild);                                       // broadcast for tab rights update
-    pGuild->DisplayGuildBankTabsInfo(&session);
+    SendGuildBankTabsInfo(session, *pGuild);
 }
 
 void GuildHandlers::HandleGuildBankUpdateTab(WorldSession& session, WorldPacket& recv_data)
@@ -1526,8 +1527,8 @@ void GuildHandlers::HandleGuildBankUpdateTab(WorldSession& session, WorldPacket&
     }
 
     pGuild->SetGuildBankTabInfo(TabId, Name, IconIndex);
-    pGuild->DisplayGuildBankTabsInfo(&session);
-    pGuild->DisplayGuildBankContent(&session, TabId);
+    SendGuildBankTabsInfo(session, *pGuild);
+    SendGuildBankContent(session, *pGuild, TabId);
 }
 
 void GuildHandlers::HandleGuildBankLogQuery(WorldSession& session, WorldPacket& recv_data)
@@ -1555,7 +1556,7 @@ void GuildHandlers::HandleGuildBankLogQuery(WorldSession& session, WorldPacket& 
         return;
     }
 
-    pGuild->DisplayGuildBankLogs(&session, TabId);
+    SendGuildBankLogs(session, *pGuild, TabId);
 }
 
 void GuildHandlers::HandleQueryGuildBankTabText(WorldSession& session, WorldPacket& recv_data)
@@ -1582,7 +1583,7 @@ void GuildHandlers::HandleQueryGuildBankTabText(WorldSession& session, WorldPack
         return;
     }
 
-    pGuild->SendGuildBankTabText(&session, TabId);
+    SendGuildBankTabText(session, *pGuild, TabId);
 }
 
 void GuildHandlers::HandleSetGuildBankTabText(WorldSession& session, WorldPacket& recv_data)

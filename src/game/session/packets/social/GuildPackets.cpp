@@ -24,6 +24,7 @@
  */
 
 #include "GuildPackets.h"
+#include "GuildBankPackets.h"
 #include "Calendar.h"
 #include "GridMap.h"
 #include "Log.h"
@@ -385,4 +386,18 @@ void SessionGuildNotices::AddonChat(Guild& guild, Player& speaker, std::string c
     WorldPacket data;
     BuildChatPacket(data, officers ? CHAT_MSG_OFFICER : CHAT_MSG_GUILD, msg.c_str(), LANG_ADDON, CHAT_TAG_NONE, ObjectGuid(), NULL, ObjectGuid(), NULL, NULL, 0, prefix.c_str());
     guild.SendToChatListeners(&data, speaker, officers);
+}
+
+void SessionGuildNotices::BankSlotsChanged(Guild const& guild, Player& player, uint8 tabId, std::vector<int32> const& slots, uint32 withdrawRemaining)
+{
+    WorldPacket data;
+    BuildGuildBankSlotsPacket(data, guild, tabId, slots, withdrawRemaining);
+    player.GetSession()->SendPacket(&data);
+}
+
+void SessionGuildNotices::BankTabTextChanged(Guild& guild, uint8 tabId)
+{
+    WorldPacket data;
+    BuildGuildBankTabTextPacket(data, guild, tabId);
+    guild.BroadcastPacket(&data);
 }

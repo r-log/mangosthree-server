@@ -54,6 +54,14 @@ void GuildNotices::AddonChat(Guild& /*guild*/, Player& /*speaker*/, std::string 
 {
 }
 
+void GuildNotices::BankSlotsChanged(Guild const& /*guild*/, Player& /*player*/, uint8 /*tabId*/, std::vector<int32> const& /*slots*/, uint32 /*withdrawRemaining*/)
+{
+}
+
+void GuildNotices::BankTabTextChanged(Guild& /*guild*/, uint8 /*tabId*/)
+{
+}
+
 GuildNotices& GuildNotices::Installed()
 {
     GuildNotices* notices = s_guildNoticesInstalled.load(std::memory_order_acquire);

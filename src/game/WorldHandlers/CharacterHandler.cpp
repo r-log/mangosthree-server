@@ -72,6 +72,7 @@
 #include "persistence/characters/account/AccountDataRepository.h"
 #include "persistence/characters/pets/PetRepository.h"
 #include "persistence/login/AccountRepository.h"
+#include "session/packets/social/GuildBankPackets.h"
 
 /**
  * @brief Re-find the session a queued character request came from (decoupling D7d, C1).
@@ -414,7 +415,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
             SendPacket(&data);
             DEBUG_LOG("WORLD: Sent guild-motd (SMSG_GUILD_EVENT)");
 
-            guild->DisplayGuildBankTabsInfo(this);
+            SendGuildBankTabsInfo(*this, *guild);
             /* Let everyone in the guild know you've just signed in */
             guild->BroadcastEvent(GE_SIGNED_ON, pCurrChar->GetObjectGuid(), pCurrChar->GetName());
         }

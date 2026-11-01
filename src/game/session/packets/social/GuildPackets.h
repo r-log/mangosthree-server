@@ -72,6 +72,8 @@ class SessionGuildNotices : public GuildNotices
         void Event(Guild& guild, GuildEvents event, ObjectGuid guid, char const* str1, char const* str2, char const* str3) override;
         void Chat(Guild& guild, Player& speaker, std::string const& msg, uint32 language, bool officers) override;
         void AddonChat(Guild& guild, Player& speaker, std::string const& msg, std::string const& prefix, bool officers) override;
+        void BankSlotsChanged(Guild const& guild, Player& player, uint8 tabId, std::vector<int32> const& slots, uint32 withdrawRemaining) override;
+        void BankTabTextChanged(Guild& guild, uint8 tabId) override;
 };
 
 #endif

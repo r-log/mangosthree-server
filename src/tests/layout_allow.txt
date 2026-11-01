@@ -169,8 +169,6 @@ src/game/Object/Guild.cpp -> src/game/entities/player/social/SocialList.h
 src/game/Object/Guild.h -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GuildBank.cpp -> src/game/entities/player/Player.h
 src/game/Object/GuildBank.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/Object/GuildBank.cpp -> src/proto/Opcodes.h
-src/game/Object/GuildBank.cpp -> src/proto/WorldPacket.h
 # reached through ObjectMgr.h before #512
 src/game/Object/Item.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653

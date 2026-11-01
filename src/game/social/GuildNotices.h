@@ -29,6 +29,7 @@
 #include "Guild.h"
 
 #include <string>
+#include <vector>
 
 class Player;
 
@@ -51,6 +52,11 @@ class GuildNotices
         /// The members of `guild` who may listen are told `speaker`'s addon message `msg` with the prefix
         /// `prefix`, in the officer chat when `officers` is true and the guild chat otherwise.
         virtual void AddonChat(Guild& guild, Player& speaker, std::string const& msg, std::string const& prefix, bool officers);
+        /// `player` is told the slots `slots` of `guild`'s bank tab `tabId` changed, with the items it
+        /// may still take from the tab today, `withdrawRemaining`.
+        virtual void BankSlotsChanged(Guild const& guild, Player& player, uint8 tabId, std::vector<int32> const& slots, uint32 withdrawRemaining);
+        /// The members of `guild` are told its bank tab `tabId`'s text.
+        virtual void BankTabTextChanged(Guild& guild, uint8 tabId);
 
         /// The installed notices, or the base when none are installed.
         static GuildNotices& Installed();
