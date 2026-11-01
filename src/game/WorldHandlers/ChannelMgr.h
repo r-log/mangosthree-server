@@ -53,7 +53,6 @@ class ChannelMgr
         // across concurrent GetChannel/LeftChannel callers is a separate,
         // unaddressed concern.
         std::mutex channels_lock;
-        void MakeNotOnPacket(WorldPacket* data, const std::string& name);
 };
 
 class AllianceChannelMgr : public ChannelMgr {};

@@ -36,6 +36,7 @@
 #include "session/packets/maps/MapPackets.h"
 #include "session/packets/pvp/BattleGroundPackets.h"
 #include "session/packets/social/ArenaTeamPackets.h"
+#include "session/packets/social/ChannelPackets.h"
 #include "session/packets/social/GroupPackets.h"
 #include "session/packets/social/GuildPackets.h"
 
@@ -89,6 +90,7 @@ void InstallClientNotices()
     static SessionArenaTeamNotices arenaTeams;
     static SessionGroupNotices groups;
     static SessionGuildNotices guilds;
+    static SessionChannelNotices channels;
     LfgNotices::Install(&lfg);
     TicketNotices::Install(&tickets);
     AuctionNotices::Install(&auctions);
@@ -99,5 +101,6 @@ void InstallClientNotices()
     ArenaTeamNotices::Install(&arenaTeams);
     GroupNotices::Install(&groups);
     GuildNotices::Install(&guilds);
+    ChannelNotices::Install(&channels);
     InstallCalendarNotices();
 }

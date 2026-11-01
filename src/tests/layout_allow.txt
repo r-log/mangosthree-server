@@ -293,7 +293,6 @@ src/game/WorldHandlers/AchievementMgr.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/Channel.cpp -> src/game/entities/player/social/SocialList.h
 src/game/WorldHandlers/Channel.h -> src/game/entities/player/Player.h
-src/game/WorldHandlers/Channel.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/GridNotifiers.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/GridNotifiers.h -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GridNotifiersImpl.h -> src/game/entities/player/Player.h
