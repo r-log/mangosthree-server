@@ -53,6 +53,7 @@
 #include "Player.h"
 #include "CinematicFlyover.h"
 #include "session/packets/PlayerPacketSinks.h"
+#include "session/packets/entities/HotfixPackets.h"
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "CorpseManager.h"
@@ -432,6 +433,9 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
 
     data.Initialize(SMSG_LEARNED_DANCE_MOVES, 4 + 4);
     data << uint64(0);
+    SendPacket(&data);
+
+    BuildHotfixListPacket(data, sObjectMgr.GetHotfixData());
     SendPacket(&data);
 
     pCurrChar->SendInitialPacketsBeforeAddToMap();

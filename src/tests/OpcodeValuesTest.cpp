@@ -237,3 +237,12 @@ TEST(OpcodeValues_time_skipped_send_and_relay_match_the_client)
     CHECK_EQ(int(CMSG_MOVE_TIME_SKIPPED), 0x7A0A);
     CHECK_EQ(int(MSG_MOVE_TIME_SKIPPED),  0x19B3);
 }
+
+TEST(OpcodeValues_hotfix_list_is_the_one_the_client_reads_as_a_list)
+{
+    // The client reads 0x19B5 as a list of hotfixes (dispatch reader sub_1403A2860, ClientHotfixNotify,
+    // handler sub_1400AF9C0) and 0x55A7 as a single one (ClientHotfixNotifyBlob); the table's names
+    // follow the reference project, which swaps them.
+    CHECK_EQ(int(SMSG_HOTFIX_NOTIFY_BLOB), 0x19B5);
+    CHECK_EQ(int(SMSG_DB_REPLY),           0x38A4);
+}
