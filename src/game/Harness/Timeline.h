@@ -67,6 +67,14 @@ namespace Harness
         return TickSeed(base, order, elapsedMs) ^ 0x7F4A7C15u;
     }
 
+    /// The seed the off-map aura updates draw from: they run on the world thread after every
+    /// map's update (World::ApplyOffMapAuraUpdates), where the other maps' units leave the stream
+    /// at amounts no seed controls; the tick seed under its own salt.
+    inline uint32 OffMapSeed(uint32 base, int order, uint32 elapsedMs)
+    {
+        return TickSeed(base, order, elapsedMs) ^ 0x2545F491u;
+    }
+
     class Timeline
     {
     public:

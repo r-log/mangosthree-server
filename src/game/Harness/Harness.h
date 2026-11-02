@@ -113,8 +113,9 @@ namespace Harness
      * A run steps the world (movement P0-D): from `Start` to `MVTEST DONE` the world
      * loop advances the clock in fixed 50 ms ticks without sleeping, every map updates
      * on the world thread, and each scenario starts from `SeedFor(seedBase, order)` and
-     * reseeds again right before the harness map's own update (`SeedMapUpdate`) and its
-     * own step, and, on a bare map, from no loaded grids; a run refuses to start while
+     * reseeds again right before the harness map's own update (`SeedMapUpdate`), the
+     * world's off-map aura updates (`SeedOffMapUpdates`) and its own step, and, on a bare
+     * map, from no loaded grids; a run refuses to start while
      * any session is online -- the mode exists for the headless launcher.
      *
      * A run started from a chat command is processed in the session update, before the maps'
@@ -139,6 +140,7 @@ namespace Harness
         std::string Status() const;
         void Update(uint32 diff);
         void SeedMapUpdate();   ///< right before the harness map's update, while a scenario is running: the world thread's generator takes TickSeed(seedBase, order, elapsed)
+        void SeedOffMapUpdates();   ///< right before the world's off-map aura updates, while a scenario is running: the generator takes OffMapSeed(seedBase, order, elapsed)
         Map* GetMap() const { return m_map; }
         void Register(Scenario* scenario) { m_registry.push_back(scenario); }
         /// A staged run is not a running one: the queue is built but nothing has begun,
