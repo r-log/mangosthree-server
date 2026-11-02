@@ -2828,8 +2828,8 @@ TEST(OpcodeDispatch_MovementRowsHoldTheirHandlersThunks)
 {
     InitializeOpcodes();
 
-    // CMSG_MOVE_TIME_SKIPPED shares 0x7A0A with MSG_MOVE_TIME_SKIPPED, whose later row holds the slot,
-    // so the time-skipped handler is not checked here.
+    CHECK(opcodeTable[CMSG_MOVE_TIME_SKIPPED].handler == &OpcodeThunk<&MovementHandlers::HandleMoveTimeSkipped>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveTimeSkipped>), 1);
     CHECK(opcodeTable[MSG_MOVE_WORLDPORT_ACK].handler == &OpcodeThunk<&MovementHandlers::HandleMoveWorldportAck>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&MovementHandlers::HandleMoveWorldportAck>), 1);
     CHECK(opcodeTable[CMSG_MOVE_TELEPORT_ACK].handler == &OpcodeThunk<&MovementHandlers::HandleMoveTeleportAck>);
@@ -2869,6 +2869,9 @@ TEST(OpcodeDispatch_MovementRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_MOUNTSPECIAL_ANIM].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_SUMMON_RESPONSE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_SUMMON_RESPONSE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_TIME_SKIPPED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_MOVE_TIME_SKIPPED].packetProcessing, PROCESS_THREADSAFE);
+    CHECK_EQ(opcodeTable[MSG_MOVE_TIME_SKIPPED].status, STATUS_NEVER);
 }
 
 TEST(OpcodeDispatch_VehicleRowsHoldTheirHandlersThunks)

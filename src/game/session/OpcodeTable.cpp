@@ -889,7 +889,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_INSTANCE_SAVE_CREATED,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_RAID_INSTANCE_INFO,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_REQUEST_RAID_INFO,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &GroupHandlers::HandleRequestRaidInfo          );
-    OPCODE(CMSG_MOVE_TIME_SKIPPED,                       STATUS_LOGGEDIN, PROCESS_INPLACE,      &MovementHandlers::HandleMoveTimeSkipped       );
+    OPCODE(CMSG_MOVE_TIME_SKIPPED,                       STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &MovementHandlers::HandleMoveTimeSkipped       );
     OPCODE(CMSG_MOVE_FEATHER_FALL_ACK,                   STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &MovementHandlers::HandleMovementAck           );
     OPCODE(CMSG_MOVE_WATER_WALK_ACK,                     STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &MovementHandlers::HandleMovementAck           );
     OPCODE(CMSG_MOVE_NOT_ACTIVE_MOVER,                   STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &MovementHandlers::HandleMoveNotActiveMover    );
@@ -971,7 +971,7 @@ void InitializeOpcodes()
     //OPCODE(CMSG_DEBUG_ACTIONS_STOP,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_SET_FACTION_INACTIVE,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CharacterHandlers::HandleSetFactionInactive   );
     OPCODE(CMSG_SET_WATCHED_FACTION,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CharacterHandlers::HandleSetWatchedFaction    );
-    OPCODE(MSG_MOVE_TIME_SKIPPED,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
+    OPCODE(MSG_MOVE_TIME_SKIPPED,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SPLINE_MOVE_ROOT,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_SET_EXPLORATION_ALL,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_INVALIDATE_PLAYER,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );

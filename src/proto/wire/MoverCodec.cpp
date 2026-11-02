@@ -36,6 +36,10 @@ namespace
     const uint8 kSetBytes[8] = { 6, 2, 3, 0, 5, 7, 1, 4 };
     const uint8 kAckMask[8]  = { 7, 2, 1, 0, 4, 5, 6, 3 };   // CMSG_SET_ACTIVE_MOVER (HandleSetActiveMover, CPP SetActiveMover::Read)
     const uint8 kAckBytes[8] = { 3, 2, 4, 0, 5, 1, 6, 7 };
+    const uint8 kSkipSentMask[8]   = { 5, 1, 3, 7, 6, 0, 4, 2 };   // CMSG_MOVE_TIME_SKIPPED
+    const uint8 kSkipSentBytes[8]  = { 7, 1, 2, 4, 3, 6, 0, 5 };
+    const uint8 kSkipShownMask[8]  = { 5, 7, 2, 1, 0, 6, 3, 4 };   // MSG_MOVE_TIME_SKIPPED
+    const uint8 kSkipShownBytes[8] = { 0, 4, 6, 2, 1, 5, 7, 3 };
 }
 
 namespace Wire
@@ -79,6 +83,44 @@ namespace Wire
         {
             v.guid = ReadPackedGuid(r);
             v.allowMove = r.Get<uint8>();
+        });
+    }
+
+    void EncodeTimeSkipped(ByteBuffer& out, uint16 opcode, TimeSkipped const& v)
+    {
+        if (opcode == CMSG_MOVE_TIME_SKIPPED)
+        {
+            out << uint32(v.skipped);
+            WriteGuidMask(out, v.guid, kSkipSentMask);
+            out.FlushBits();
+            WriteGuidBytes(out, v.guid, kSkipSentBytes);
+            return;
+        }
+
+        WriteGuidMask(out, v.guid, kSkipShownMask);
+        out.FlushBits();
+        out << uint32(v.skipped);
+        WriteGuidBytes(out, v.guid, kSkipShownBytes);
+    }
+
+    DecodeResult DecodeTimeSkipped(ByteBuffer& in, uint16 opcode, TimeSkipped& out)
+    {
+        const bool sent = (opcode == CMSG_MOVE_TIME_SKIPPED);
+        return Detail::Run(in, out, [sent](Detail::Reader& r, TimeSkipped& v)
+        {
+            MaskedGuid g;
+            if (sent)
+            {
+                v.skipped = r.Get<uint32>();
+                ReadGuidMask(r, g, kSkipSentMask);
+            }
+            else
+            {
+                ReadGuidMask(r, g, kSkipShownMask);
+                v.skipped = r.Get<uint32>();
+            }
+            ReadGuidBytes(r, g, sent ? kSkipSentBytes : kSkipShownBytes);
+            v.guid = g.Value();
         });
     }
 }

@@ -63,6 +63,21 @@ namespace Wire
 
     void EncodeControlUpdate(ByteBuffer& out, ControlUpdate const& v);
     DecodeResult DecodeControlUpdate(ByteBuffer& in, ControlUpdate& out);
+
+    /// CMSG_MOVE_TIME_SKIPPED and its MSG_MOVE_TIME_SKIPPED relay: the mover's guid and the
+    /// milliseconds its client did not move it, in a different order per opcode.
+    ///
+    /// Provenance: the client's PlayerMoveTimeSkipped::Put (the time, mask 5,1,3,7,6,0,4,2, bytes
+    /// 7,1,2,4,3,6,0,5) and its ClientMoveSkipTime::Read (mask 5,7,2,1,0,6,3,4, the time, bytes
+    /// 0,4,6,2,1,5,7,3), whose handler adds the time to the unit's movement clock.
+    struct TimeSkipped
+    {
+        uint64 guid = 0;
+        uint32 skipped = 0;
+    };
+
+    void EncodeTimeSkipped(ByteBuffer& out, uint16 opcode, TimeSkipped const& v);   // opcode picks the order
+    DecodeResult DecodeTimeSkipped(ByteBuffer& in, uint16 opcode, TimeSkipped& out);
 }
 
 #endif
