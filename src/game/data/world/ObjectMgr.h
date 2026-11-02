@@ -51,6 +51,7 @@
 #include "data/AreaTriggerStore.h"
 #include "data/CellObjectGuidStore.h"
 #include "data/CellObjectGuids.h"
+#include "data/CreatureClassLevelStatsStore.h"
 #include "data/CreatureAddonStore.h"
 #include "data/CreatureEquipmentStore.h"
 #include "data/CreatureModelInfoStore.h"
@@ -1139,8 +1140,7 @@ class ObjectMgr
 
         PetNameStore m_petNames;
 
-        // Array to store creature stats, Max creature level + 1 (for data alignement with in game level)
-        CreatureClassLvlStats m_creatureClassLvlStats[DEFAULT_MAX_CREATURE_LEVEL + 1][MAX_CREATURE_CLASS][MAX_EXPANSION + 1];
+        CreatureClassLevelStatsStore m_creatureClassLevelStats;
 
         CellObjectGuidStore m_cellObjectGuids;
         CreatureSpawnStore m_creatureSpawns;
