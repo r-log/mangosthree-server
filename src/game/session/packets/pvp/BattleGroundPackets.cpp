@@ -109,7 +109,7 @@ namespace MaNGOS
             {
                 char const* text = sObjectMgr.GetMangosString(i_textId, loc_idx);
 
-                BuildMessageChatPacket(data, CHAT_MSG_MONSTER_YELL, text, i_language, CHAT_TAG_NONE, i_source->GetObjectGuid(), i_source->GetName());
+                BuildBattleGroundYellPacket(data, i_language, i_source->GetObjectGuid(), i_source->GetNameForLocaleIdx(loc_idx), text);
             }
         private:
             Language i_language;
@@ -168,7 +168,7 @@ namespace MaNGOS
             /// <param name="source">The source.</param>
             /// <param name="arg1">The arg1.</param>
             /// <param name="arg2">The arg2.</param>
-            BattleGround2YellBuilder(uint32 language, int32 textId, Creature const* source, int32 arg1, int32 arg2)
+            BattleGround2YellBuilder(Language language, int32 textId, Creature const* source, int32 arg1, int32 arg2)
                 : i_language(language), i_textId(textId), i_source(source), i_arg1(arg1), i_arg2(arg2) {}
             void operator()(WorldPacket& data, int32 loc_idx)
             {
@@ -178,27 +178,23 @@ namespace MaNGOS
 
                 char str [2048];
                 snprintf(str, 2048, text, arg1str, arg2str);
-                // copied from BuildMonsterChat
-                data << uint8(CHAT_MSG_MONSTER_YELL);
-                data << uint32(i_language);
-                data << ObjectGuid(i_source->GetObjectGuid());
-                data << uint32(0);                          // 2.1.0
-                data << uint32(strlen(i_source->GetName()) + 1);
-                data << i_source->GetName();
-                data << ObjectGuid();                       // Unit Target - isn't important for bgs
-                data << uint32(strlen(str) + 1);
-                data << str;
-                data << uint8(0);                           // ChatTag - for bgs allways 0?
+
+                BuildBattleGroundYellPacket(data, i_language, i_source->GetObjectGuid(), i_source->GetNameForLocaleIdx(loc_idx), str);
             }
         private:
 
-            uint32 i_language;
+            Language i_language;
             int32 i_textId;
             Creature const* i_source;
             int32 i_arg1;
             int32 i_arg2;
     };
 }                                                           // namespace MaNGOS
+
+void BuildBattleGroundYellPacket(WorldPacket& data, Language language, ObjectGuid speaker, char const* speakerName, char const* text)
+{
+    BuildMessageChatPacket(data, CHAT_MSG_MONSTER_YELL, text, language, CHAT_TAG_NONE, speaker, speakerName);
+}
 
 /**
  * @brief Builds a battlefield status packet for sending to the player.
@@ -864,7 +860,7 @@ void SessionBattleGroundNotices::Message2ToAll(BattleGround& bg, ChatMsg msgtype
     bg.BroadcastWorker(bg_do);
 }
 
-void SessionBattleGroundNotices::Yell2ToAll(BattleGround& bg, int32 textId, uint32 language, Creature const& source, int32 arg1, int32 arg2)
+void SessionBattleGroundNotices::Yell2ToAll(BattleGround& bg, int32 textId, Language language, Creature const& source, int32 arg1, int32 arg2)
 {
     MaNGOS::BattleGround2YellBuilder bg_builder(language, textId, &source, arg1, arg2);
     MaNGOS::LocalizedPacketDo<MaNGOS::BattleGround2YellBuilder> bg_do(bg_builder);

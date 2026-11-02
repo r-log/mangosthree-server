@@ -474,7 +474,7 @@ class BattleGroundNotices
         virtual void Message2ToAll(BattleGround& bg, ChatMsg msgtype, int32 textId, Player const* source, int32 arg1, int32 arg2);
         /// Every player of `bg` is sent `source`'s yell of the text `textId` in `language`, formatted
         /// with the texts `arg1` and `arg2` (0 for none) in its own locale.
-        virtual void Yell2ToAll(BattleGround& bg, int32 textId, uint32 language, Creature const& source, int32 arg1, int32 arg2);
+        virtual void Yell2ToAll(BattleGround& bg, int32 textId, Language language, Creature const& source, int32 arg1, int32 arg2);
 
         /// The installed notices, or the base when none are installed.
         static BattleGroundNotices& Installed();

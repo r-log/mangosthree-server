@@ -23,7 +23,8 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The bytes of the battleground countdown and of a played sound, as the session's builders write them.
+/// The bytes of the battleground countdown, of a played sound and of a herald's yell, as the session's builders
+/// write them.
 
 #include "TestHarness.h"
 #include "WorldPacket.h"
@@ -65,4 +66,16 @@ TEST(BattleGroundPackets_PlaySoundBytes)
     WorldPacket packet;
     BuildPlaySoundPacket(packet, 8455);
     CHECK_STR(Hex(packet), "2134:072100000000000000000000");
+}
+
+// SMSG_MESSAGECHAT (0x2026), a monster yell: the type, the language, the speaker, a zero, the speaker's
+// name, no target, the text and the chat tag.
+TEST(BattleGroundPackets_HeraldYellIsAMonsterYell)
+{
+    ObjectGuid const herald(HIGHGUID_UNIT, uint32(448), uint32(0x56));
+    WorldPacket packet;
+    BuildBattleGroundYellPacket(packet, LANG_UNIVERSAL, herald, "Herald", "Hi");
+    CHECK_STR(Hex(packet), "2026:"
+              "0e" "00000000" "56000000c00130f1" "00000000" "07000000" "486572616c6400"
+              "0000000000000000" "03000000" "486900" "00");
 }

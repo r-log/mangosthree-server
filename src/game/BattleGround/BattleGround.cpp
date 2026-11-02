@@ -1164,7 +1164,7 @@ void BattleGround::SendYell2ToAll(int32 entry, uint32 language, ObjectGuid guid,
     {
         return;
     }
-    sBattleGroundNotices.Yell2ToAll(*this, entry, language, *source, arg1, arg2);
+    sBattleGroundNotices.Yell2ToAll(*this, entry, Language(language), *source, arg1, arg2);
 }
 
 /// <summary>
