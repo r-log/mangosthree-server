@@ -249,152 +249,55 @@ void SpellCastTargets::Update(Unit* caster)
 }
 
 /**
- * @brief Deserializes spell cast targets from a packet buffer.
+ * @brief Targets the caster itself: its position as the destination, the caster as the unit target.
  *
- * @param data The packet buffer to read.
  * @param caster The casting unit.
  */
-void SpellCastTargets::read(ByteBuffer& data, Unit* caster)
+void SpellCastTargets::SetSelfTarget(Unit* caster)
 {
-    data >> m_targetMask;
-
-    if (m_targetMask == TARGET_FLAG_SELF)
-    {
-        m_destX = caster->Where().X();
-        m_destY = caster->Where().Y();
-        m_destZ = caster->Where().Z();
-        m_unitTarget = caster;
-        m_unitTargetGUID = caster->GetObjectGuid();
-        return;
-    }
-
-    // TARGET_FLAG_UNK2 is used for non-combat pets, maybe other?
-    if (m_targetMask & (TARGET_FLAG_UNIT | TARGET_FLAG_UNK2))
-    {
-        data >> m_unitTargetGUID.ReadAsPacked();
-    }
-
-    if (m_targetMask & (TARGET_FLAG_OBJECT | TARGET_FLAG_GAMEOBJECT_ITEM))
-    {
-        data >> m_GOTargetGUID.ReadAsPacked();
-    }
-
-    if ((m_targetMask & (TARGET_FLAG_ITEM | TARGET_FLAG_TRADE_ITEM)) && caster->GetTypeId() == TYPEID_PLAYER)
-    {
-        data >> m_itemTargetGUID.ReadAsPacked();
-    }
-
-    if (m_targetMask & (TARGET_FLAG_CORPSE | TARGET_FLAG_PVP_CORPSE))
-    {
-        data >> m_CorpseTargetGUID.ReadAsPacked();
-    }
-
-    if (m_targetMask & TARGET_FLAG_SOURCE_LOCATION)
-    {
-        data >> m_srcTransportGUID.ReadAsPacked();
-        data >> m_srcX >> m_srcY >> m_srcZ;
-        m_srcTransOffsetX = m_srcX;
-        m_srcTransOffsetY = m_srcY;
-        m_srcTransOffsetZ = m_srcZ;
-        if (!MaNGOS::IsValidMapCoord(m_srcX, m_srcY, m_srcZ))
-        {
-            throw ByteBufferException(false, data.rpos(), 0, data.size());
-        }
-    }
-
-    if (m_targetMask & TARGET_FLAG_DEST_LOCATION)
-    {
-        data >> m_destTransportGUID.ReadAsPacked();
-        data >> m_destX >> m_destY >> m_destZ;
-        m_destTransOffsetX = m_destX;
-        m_destTransOffsetY = m_destY;
-        m_destTransOffsetZ = m_destZ;
-        if (!MaNGOS::IsValidMapCoord(m_destX, m_destY, m_destZ))
-        {
-            throw ByteBufferException(false, data.rpos(), 0, data.size());
-        }
-    }
-
-    if (m_targetMask & TARGET_FLAG_STRING)
-    {
-        data >> m_strTarget;
-    }
-
-    // find real units/GOs
-    Update(caster);
+    m_destX = caster->Where().X();
+    m_destY = caster->Where().Y();
+    m_destZ = caster->Where().Z();
+    m_unitTarget = caster;
+    m_unitTargetGUID = caster->GetObjectGuid();
 }
 
 /**
- * @brief Serializes spell cast targets into a packet buffer.
+ * @brief Sets the source the client sent; its coordinates are also the transport offset.
  *
- * @param data The packet buffer to write.
+ * @param transport The vessel the source stands on, or an empty guid.
+ * @param x The source X coordinate.
+ * @param y The source Y coordinate.
+ * @param z The source Z coordinate.
  */
-void SpellCastTargets::write(ByteBuffer& data) const
+void SpellCastTargets::SetSourceAsSent(ObjectGuid transport, float x, float y, float z)
 {
-    data << uint32(m_targetMask);
+    m_srcTransportGUID = transport;
+    m_srcX = x;
+    m_srcY = y;
+    m_srcZ = z;
+    m_srcTransOffsetX = x;
+    m_srcTransOffsetY = y;
+    m_srcTransOffsetZ = z;
+}
 
-    if (m_targetMask & (TARGET_FLAG_UNIT | TARGET_FLAG_PVP_CORPSE | TARGET_FLAG_OBJECT | TARGET_FLAG_CORPSE | TARGET_FLAG_UNK2))
-    {
-        if (m_targetMask & TARGET_FLAG_UNIT)
-        {
-            if (m_unitTarget)
-            {
-                data << m_unitTarget->GetPackGUID();
-            }
-            else
-            {
-                data << uint8(0);
-            }
-        }
-        else if (m_targetMask & TARGET_FLAG_OBJECT)
-        {
-            if (m_GOTarget)
-            {
-                data << m_GOTarget->GetPackGUID();
-            }
-            else
-            {
-                data << uint8(0);
-            }
-        }
-        else if (m_targetMask & (TARGET_FLAG_CORPSE | TARGET_FLAG_PVP_CORPSE))
-        {
-            data << m_CorpseTargetGUID.WriteAsPacked();
-        }
-        else
-        {
-            data << uint8(0);
-        }
-    }
-
-    if (m_targetMask & (TARGET_FLAG_ITEM | TARGET_FLAG_TRADE_ITEM))
-    {
-        if (m_itemTarget)
-        {
-            data << m_itemTarget->GetPackGUID();
-        }
-        else
-        {
-            data << uint8(0);
-        }
-    }
-
-    if (m_targetMask & TARGET_FLAG_SOURCE_LOCATION)
-    {
-        data << m_srcTransportGUID.WriteAsPacked();
-        data << m_srcX << m_srcY << m_srcZ;
-    }
-
-    if (m_targetMask & TARGET_FLAG_DEST_LOCATION)
-    {
-        data << m_destTransportGUID.WriteAsPacked();
-        data << m_destX << m_destY << m_destZ;
-    }
-
-    if (m_targetMask & TARGET_FLAG_STRING)
-    {
-        data << m_strTarget;
-    }
+/**
+ * @brief Sets the destination the client sent; its coordinates are also the transport offset.
+ *
+ * @param transport The vessel the destination stands on, or an empty guid.
+ * @param x The destination X coordinate.
+ * @param y The destination Y coordinate.
+ * @param z The destination Z coordinate.
+ */
+void SpellCastTargets::SetDestinationAsSent(ObjectGuid transport, float x, float y, float z)
+{
+    m_destTransportGUID = transport;
+    m_destX = x;
+    m_destY = y;
+    m_destZ = z;
+    m_destTransOffsetX = x;
+    m_destTransOffsetY = y;
+    m_destTransOffsetZ = z;
 }
 
 Spell::Spell(Unit* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID, SpellEntry const* triggeredBy)

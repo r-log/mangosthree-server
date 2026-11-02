@@ -24,6 +24,8 @@
  */
 
 #include "CastTargetsReader.h"
+#include "ByteBuffer.h"
+#include "data/MapGeometry.h"
 #include "spells/pipeline/Spell.h"
 #include "WorldPacket.h"
 #include "movement/MovementInfo.h"
@@ -67,4 +69,77 @@ void ReadAdditionalCastData(WorldPacket& packet, uint8 castFlags, SpellCastTarge
             }
         }
     }
+}
+
+void ReadCastTargets(ByteBuffer& packet, SpellCastTargets& targets, Unit* caster)
+{
+    packet >> targets.m_targetMask;
+
+    if (targets.m_targetMask == TARGET_FLAG_SELF)
+    {
+        targets.SetSelfTarget(caster);
+        return;
+    }
+
+    // TARGET_FLAG_UNK2 is used for non-combat pets, maybe other?
+    if (targets.m_targetMask & (TARGET_FLAG_UNIT | TARGET_FLAG_UNK2))
+    {
+        ObjectGuid unit;
+        packet >> unit.ReadAsPacked();
+        targets.SetUnitTargetGuid(unit);
+    }
+
+    if (targets.m_targetMask & (TARGET_FLAG_OBJECT | TARGET_FLAG_GAMEOBJECT_ITEM))
+    {
+        ObjectGuid object;
+        packet >> object.ReadAsPacked();
+        targets.SetGOTargetGuid(object);
+    }
+
+    if ((targets.m_targetMask & (TARGET_FLAG_ITEM | TARGET_FLAG_TRADE_ITEM)) && caster->GetTypeId() == TYPEID_PLAYER)
+    {
+        ObjectGuid item;
+        packet >> item.ReadAsPacked();
+        targets.SetItemTargetGuid(item);
+    }
+
+    if (targets.m_targetMask & (TARGET_FLAG_CORPSE | TARGET_FLAG_PVP_CORPSE))
+    {
+        ObjectGuid corpse;
+        packet >> corpse.ReadAsPacked();
+        targets.SetCorpseTargetGuid(corpse);
+    }
+
+    if (targets.m_targetMask & TARGET_FLAG_SOURCE_LOCATION)
+    {
+        ObjectGuid transport;
+        float x, y, z;
+        packet >> transport.ReadAsPacked();
+        packet >> x >> y >> z;
+        targets.SetSourceAsSent(transport, x, y, z);
+        if (!MaNGOS::IsValidMapCoord(x, y, z))
+        {
+            throw ByteBufferException(false, packet.rpos(), 0, packet.size());
+        }
+    }
+
+    if (targets.m_targetMask & TARGET_FLAG_DEST_LOCATION)
+    {
+        ObjectGuid transport;
+        float x, y, z;
+        packet >> transport.ReadAsPacked();
+        packet >> x >> y >> z;
+        targets.SetDestinationAsSent(transport, x, y, z);
+        if (!MaNGOS::IsValidMapCoord(x, y, z))
+        {
+            throw ByteBufferException(false, packet.rpos(), 0, packet.size());
+        }
+    }
+
+    if (targets.m_targetMask & TARGET_FLAG_STRING)
+    {
+        packet >> targets.m_strTarget;
+    }
+
+    targets.Update(caster);
 }

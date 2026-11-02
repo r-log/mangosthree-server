@@ -659,7 +659,7 @@ void PetHandlers::HandlePetCastSpell(WorldSession& session, WorldPacket& recvPac
 
     SpellCastTargets targets;
 
-    recvPacket >> targets.ReadForCaster(pet);
+    ReadCastTargets(recvPacket, targets, pet);
 
     ReadAdditionalCastData(recvPacket, cast_flags, targets);
 
