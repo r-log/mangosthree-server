@@ -30,6 +30,13 @@
 
 #include <vector>
 
+/// The client's table hashes of the two item DB2 files, as `hotfix_data` names them.
+enum HotfixTable : uint32
+{
+    HOTFIX_TABLE_ITEM           = 0x50238EC2,               // Item.db2
+    HOTFIX_TABLE_ITEM_SPARSE    = 0x919BE54E                // Item-sparse.db2
+};
+
 struct HotfixInfo
 {
     uint32 Type;
