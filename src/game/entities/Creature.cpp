@@ -70,7 +70,6 @@
 #include "PlayerRegistry.h"
 #include "MotionMaster.h"
 #include "persistence/world/spawns/SpawnRepository.h"
-#include "UnitDisableSubject.h"
 #include "PoolSpawner.h"
 
 /**
@@ -2705,7 +2704,7 @@ bool Creature::MeetsSelectAttackingRequirement(Unit* pTarget, SpellEntry const* 
         return false;
     }
 
-    if (pSpellInfo && selectFlags & SELECT_FLAG_IN_LOS && !DisableMgr::IsSpellDisabledFor(pSpellInfo->ID, UnitDisableSubject(*pTarget)) && !HasLineOfSight(*this, *pTarget))
+    if (pSpellInfo && selectFlags & SELECT_FLAG_IN_LOS && !DisableMgr::IsLineOfSightIgnoredFor(pSpellInfo->ID) && !HasLineOfSight(*this, *pTarget))
     {
         return false;
     }

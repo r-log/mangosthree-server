@@ -82,6 +82,8 @@ namespace DisableMgr
     /// Whether `entry` of `type` is disabled with no one to check it for; `flags` are the spell or
     /// collision bits asked about.
     bool IsDisabledFor(DisableType type, uint32 entry, uint8 flags = 0);
+    /// Whether a spell's disable row tells its casts to skip the line of sight check (`SPELL_DISABLE_LOS`).
+    bool IsLineOfSightIgnoredFor(uint32 spellId);
     /// Whether spell `spellId` is disabled for `subject`: by its kind, then by the row's maps and areas.
     bool IsSpellDisabledFor(uint32 spellId, DisableSubject const& subject);
     void CheckQuestDisables();

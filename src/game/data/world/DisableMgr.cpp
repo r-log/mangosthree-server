@@ -360,6 +360,11 @@ void CheckQuestDisables()
  * @param flags Additional disable flags to test.
  * @return true if the entry is disabled; otherwise false.
  */
+bool IsLineOfSightIgnoredFor(uint32 spellId)
+{
+    return IsDisabledFor(DISABLE_TYPE_SPELL, spellId, SPELL_DISABLE_LOS);
+}
+
 bool IsDisabledFor(DisableType type, uint32 entry, uint8 flags)
 {
     MANGOS_ASSERT(type < MAX_DISABLE_TYPES);
