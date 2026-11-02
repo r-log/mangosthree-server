@@ -83,7 +83,7 @@ void ObjectMgr::LoadDungeonFinderRequirements()
         uint32 allianceQuest  = row.allianceQuest;
         uint32 hordeQuest     = row.hordeQuest;
         uint32 achievement    = row.achievement;
-        const char* questText = (row.questIncompleteText ? row.questIncompleteText->c_str() : NULL);
+        std::string questText = row.questIncompleteText ? *row.questIncompleteText : std::string();
 
         // check that items, quests, & achievements are real
         if (item)

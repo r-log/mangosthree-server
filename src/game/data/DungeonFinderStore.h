@@ -29,6 +29,7 @@
 #include "Platform/Define.h"
 #include "Utilities/PackedValues.h"
 
+#include <string>
 #include <unordered_map>
 
 struct DungeonFinderRequirements
@@ -39,12 +40,12 @@ struct DungeonFinderRequirements
     uint32 allianceQuestId;
     uint32 hordeQuestId;
     uint32 achievement;
-    const char* questIncompleteText;
+    std::string questIncompleteText;
 
     DungeonFinderRequirements()
         : minItemLevel(0), item(0), item2(0), allianceQuestId(0), hordeQuestId(0), achievement(0) {}
     DungeonFinderRequirements(uint32 MinItemLevel, uint32 Item, uint32 Item2, uint32 AllianceQuestId,
-                              uint32 HordeQuestId, uint32 Achievement, const char* QuestIncompleteText)
+                              uint32 HordeQuestId, uint32 Achievement, std::string const& QuestIncompleteText)
         : minItemLevel(MinItemLevel), item(Item), item2(Item2), allianceQuestId(AllianceQuestId),
         hordeQuestId(HordeQuestId), achievement(Achievement), questIncompleteText(QuestIncompleteText) {}
 };
@@ -81,10 +82,8 @@ typedef std::unordered_map<uint32, DungeonFinderItems> DungeonFinderItemsMap;
  * (`dungeonfinder_requirements`, keyed by MAKE_PAIR32(map id, difficulty)), the base rewards per
  * level (`dungeonfinder_rewards`) and the item rewards per id (`dungeonfinder_item_rewards`). A
  * second entry set for the same key overwrites the first. A lookup answers NULL on a miss. Each
- * map is cleared on its own, since each table is loaded on its own. A requirement's
- * questIncompleteText is stored as given: the loader passes the text field of its query row,
- * which points into the query result and is freed when the result is, so the pointer is not
- * valid after the load.
+ * map is cleared on its own, since each table is loaded on its own. A requirement holds its own
+ * copy of the quest-incomplete text, empty when the row has none.
  */
 class DungeonFinderStore
 {
