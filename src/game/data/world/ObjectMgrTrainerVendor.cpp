@@ -46,14 +46,7 @@
  */
 void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
 {
-    CacheTrainerSpellMap& trainerList = isTemplates ? m_mCacheTrainerTemplateSpellMap : m_mCacheTrainerSpellMap;
-
-    // For reload case
-    for (CacheTrainerSpellMap::iterator itr = trainerList.begin(); itr != trainerList.end(); ++itr)
-    {
-        itr->second.Clear();
-    }
-    trainerList.clear();
+    m_trainerSpells.Clear(isTemplates);                     // For reload case
 
     std::set<uint32> skip_trainers;
 
@@ -133,7 +126,7 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
             }
         }
 
-        TrainerSpellData& data = trainerList[entry];
+        TrainerSpellData& data = m_trainerSpells.FindOrAdd(isTemplates, entry);
 
         TrainerSpell& trainerSpell = data.spellList[spell];
         trainerSpell.spell         = spell;
@@ -227,7 +220,7 @@ void ObjectMgr::LoadTrainerTemplates()
     std::set<uint32> trainer_ids;
     bool hasErrored = false;
 
-    for (CacheTrainerSpellMap::const_iterator tItr = m_mCacheTrainerTemplateSpellMap.begin(); tItr != m_mCacheTrainerTemplateSpellMap.end(); ++tItr)
+    for (CacheTrainerSpellMap::const_iterator tItr = m_trainerSpells.Templates().begin(); tItr != m_trainerSpells.Templates().end(); ++tItr)
     {
         trainer_ids.insert(tItr->first);
     }
@@ -238,7 +231,7 @@ void ObjectMgr::LoadTrainerTemplates()
         {
             if (cInfo->TrainerTemplateId)
             {
-                if (m_mCacheTrainerTemplateSpellMap.find(cInfo->TrainerTemplateId) != m_mCacheTrainerTemplateSpellMap.end())
+                if (m_trainerSpells.Find(true, cInfo->TrainerTemplateId))
                 {
                     trainer_ids.erase(cInfo->TrainerTemplateId);
                 }
@@ -270,14 +263,7 @@ void ObjectMgr::LoadTrainerTemplates()
  */
 void ObjectMgr::LoadVendors(char const* tableName, bool isTemplates)
 {
-    CacheVendorItemMap& vendorList = isTemplates ? m_mCacheVendorTemplateItemMap : m_mCacheVendorItemMap;
-
-    // For reload case
-    for (CacheVendorItemMap::iterator itr = vendorList.begin(); itr != vendorList.end(); ++itr)
-    {
-        itr->second.Clear();
-    }
-    vendorList.clear();
+    m_vendorItems.Clear(isTemplates);                       // For reload case
 
     std::set<uint32> skip_vendors;
 
@@ -313,7 +299,7 @@ void ObjectMgr::LoadVendors(char const* tableName, bool isTemplates)
             continue;
         }
 
-        VendorItemData& vList = vendorList[entry];
+        VendorItemData& vList = m_vendorItems.FindOrAdd(isTemplates, entry);
 
         vList.AddItem(item_id, type, maxcount, incrtime, ExtendedCost, conditionId);
         ++count;
@@ -334,7 +320,7 @@ void ObjectMgr::LoadVendorTemplates()
     // post loading check
     std::set<uint32> vendor_ids;
 
-    for (CacheVendorItemMap::const_iterator vItr = m_mCacheVendorTemplateItemMap.begin(); vItr != m_mCacheVendorTemplateItemMap.end(); ++vItr)
+    for (CacheVendorItemMap::const_iterator vItr = m_vendorItems.Templates().begin(); vItr != m_vendorItems.Templates().end(); ++vItr)
     {
         vendor_ids.insert(vItr->first);
     }
@@ -345,7 +331,7 @@ void ObjectMgr::LoadVendorTemplates()
         {
             if (cInfo->VendorTemplateId)
             {
-                if (m_mCacheVendorTemplateItemMap.find(cInfo->VendorTemplateId) !=  m_mCacheVendorTemplateItemMap.end())
+                if (m_vendorItems.Find(true, cInfo->VendorTemplateId))
                 {
                     vendor_ids.erase(cInfo->VendorTemplateId);
                 }

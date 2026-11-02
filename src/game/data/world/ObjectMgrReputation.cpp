@@ -53,7 +53,7 @@
  */
 void ObjectMgr::LoadReputationRewardRate()
 {
-    m_RepRewardRateMap.clear();                             // for reload case
+    m_reputation.ClearRewardRates();                        // for reload case
 
     uint32 count = 0;
     std::vector<ReputationRewardRateRow> rows = ReputationDataRepository::QueryRewardRates();
@@ -106,7 +106,7 @@ void ObjectMgr::LoadReputationRewardRate()
             continue;
         }
 
-        m_RepRewardRateMap[factionId] = repRate;
+        m_reputation.SetRewardRate(factionId, repRate);
 
         ++count;
     }
@@ -178,7 +178,7 @@ void ObjectMgr::LoadReputationOnKill()
             }
         }
 
-        mRepOnKill[creature_id] = repOnKill;
+        m_reputation.SetOnKill(creature_id, repOnKill);
 
         ++count;
     }
@@ -192,7 +192,7 @@ void ObjectMgr::LoadReputationOnKill()
  */
 void ObjectMgr::LoadReputationSpilloverTemplate()
 {
-    m_RepSpilloverTemplateMap.clear();                      // for reload case
+    m_reputation.ClearSpillovers();                         // for reload case
 
     uint32 count = 0;
     std::vector<ReputationSpilloverRow> rows = ReputationDataRepository::QuerySpillovers();
@@ -303,7 +303,7 @@ void ObjectMgr::LoadReputationSpilloverTemplate()
             continue;
         }
 
-        m_RepSpilloverTemplateMap[factionId] = repTemplate;
+        m_reputation.SetSpillover(factionId, repTemplate);
 
         ++count;
     }
