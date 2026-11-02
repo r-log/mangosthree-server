@@ -127,3 +127,11 @@ template <class T> T SpellModMgr::ApplySpellMod(uint32 spellId, SpellModOp op, T
 template int32 SpellModMgr::ApplySpellMod<int32>(uint32 spellId, SpellModOp op, int32& basevalue);
 template uint32 SpellModMgr::ApplySpellMod<uint32>(uint32 spellId, SpellModOp op, uint32& basevalue);
 template float SpellModMgr::ApplySpellMod<float>(uint32 spellId, SpellModOp op, float& basevalue);
+
+void SpellModMgr::Clear()
+{
+    for (int i = 0; i < MAX_SPELLMOD; ++i)
+    {
+        m_mods[i].clear();
+    }
+}
