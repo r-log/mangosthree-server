@@ -107,12 +107,7 @@ void ObjectMgr::LoadPetLevelInfo()
                 continue;
             }
 
-            PetLevelInfo*& pInfoMapEntry = petInfo[creature_id];
-
-            if (pInfoMapEntry == NULL)
-            {
-                pInfoMapEntry =  new PetLevelInfo[sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL)];
-            }
+            PetLevelInfo* pInfoMapEntry = m_petLevels.FindOrAddLevels(creature_id, sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
 
             // data for level 1 stored in [0] array element, ...
             PetLevelInfo* pLevelInfo = &pInfoMapEntry[current_level - 1];
@@ -132,7 +127,7 @@ void ObjectMgr::LoadPetLevelInfo()
     }
 
     // Fill gaps and check integrity
-    for (PetLevelInfoMap::iterator itr = petInfo.begin(); itr != petInfo.end(); ++itr)
+    for (PetLevelInfoStore::PetLevelInfoMap::const_iterator itr = m_petLevels.All().begin(); itr != m_petLevels.All().end(); ++itr)
     {
         PetLevelInfo* pInfo = itr->second;
 
@@ -173,13 +168,13 @@ PetLevelInfo const* ObjectMgr::GetPetLevelInfo(uint32 creature_id, uint32 level)
         level = sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
     }
 
-    PetLevelInfoMap::const_iterator itr = petInfo.find(creature_id);
-    if (itr == petInfo.end())
+    PetLevelInfo const* levels = m_petLevels.Levels(creature_id);
+    if (!levels)
     {
         return NULL;
     }
 
-    return &itr->second[level - 1];                         // data for level 1 stored in [0] array element, ...
+    return &levels[level - 1];                              // data for level 1 stored in [0] array element, ...
 }
 
 /**
@@ -245,7 +240,7 @@ void ObjectMgr::LoadPlayerInfo()
                 continue;
             }
 
-            PlayerInfo* pInfo = &playerInfo[current_race][current_class];
+            PlayerInfo* pInfo = &m_playerInfos.ForEdit(current_race, current_class);
 
             pInfo->mapId       = mapId;
             pInfo->areaId      = areaId;
@@ -304,7 +299,7 @@ void ObjectMgr::LoadPlayerInfo()
                     continue;
                 }
 
-                PlayerInfo* pInfo = &playerInfo[current_race][current_class];
+                PlayerInfo* pInfo = &m_playerInfos.ForEdit(current_race, current_class);
 
                 uint32 item_id = row.itemid;
 
@@ -377,7 +372,7 @@ void ObjectMgr::LoadPlayerInfo()
                     continue;
                 }
 
-                PlayerInfo* pInfo = &playerInfo[current_race][current_class];
+                PlayerInfo* pInfo = &m_playerInfos.ForEdit(current_race, current_class);
                 pInfo->spell.push_back(spell_id);
 
                 bar.step();
@@ -435,7 +430,7 @@ void ObjectMgr::LoadPlayerInfo()
                     continue;
                 }
 
-                PlayerInfo* pInfo = &playerInfo[current_race][current_class];
+                PlayerInfo* pInfo = &m_playerInfos.ForEdit(current_race, current_class);
                 pInfo->action.push_back(PlayerCreateInfoAction(action_button, action, action_type));
 
                 bar.step();
@@ -500,7 +495,7 @@ void ObjectMgr::LoadPlayerInfo()
                 continue;
             }
 
-            PlayerInfo* pInfo = &playerInfo[current_race][current_class];
+            PlayerInfo* pInfo = &m_playerInfos.ForEdit(current_race, current_class);
 
             if (!pInfo->levelInfo)
             {
@@ -539,7 +534,7 @@ void ObjectMgr::LoadPlayerInfo()
                 continue;
             }
 
-            PlayerInfo* pInfo = &playerInfo[race][class_];
+            PlayerInfo* pInfo = &m_playerInfos.ForEdit(race, class_);
 
             // skip non loaded combinations
             if (!pInfo->displayId_m || !pInfo->displayId_f)
@@ -587,11 +582,7 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Loading xp per level data
     {
-        mPlayerXPperLevel.resize(sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
-        for (uint32 level = 0; level < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
-        {
-            mPlayerXPperLevel[level] = 0;
-        }
+        m_playerInfos.ResetXpForLevels(sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
 
         std::vector<PlayerXpForLevelRow> rows = PlayerDataRepository::QueryXpForLevel();
 
@@ -628,8 +619,7 @@ void ObjectMgr::LoadPlayerInfo()
                 }
                 continue;
             }
-            // PlayerXPperLevel
-            mPlayerXPperLevel[current_level] = current_xp;
+            m_playerInfos.SetXpForLevel(current_level, current_xp);
             bar.step();
             ++count;
         }
@@ -641,10 +631,10 @@ void ObjectMgr::LoadPlayerInfo()
     // fill level gaps
     for (uint32 level = 1; level < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
     {
-        if (mPlayerXPperLevel[level] == 0)
+        if (m_playerInfos.XpForLevel(level) == 0)
         {
             sLog.outErrorDb("Level %i does not have XP for level data. Using data of level [%i] + 100.", level + 1, level);
-            mPlayerXPperLevel[level] = mPlayerXPperLevel[level - 1] + 100;
+            m_playerInfos.SetXpForLevel(level, m_playerInfos.XpForLevel(level - 1) + 100);
         }
     }
 }
@@ -697,7 +687,7 @@ void ObjectMgr::GetPlayerLevelInfo(uint32 race, uint32 class_, uint32 level, Pla
         return;
     }
 
-    PlayerInfo const* pInfo = &playerInfo[race][class_];
+    PlayerInfo const* pInfo = &m_playerInfos.Get(race, class_);
     if (pInfo->displayId_m == 0 || pInfo->displayId_f == 0)
     {
         return;
@@ -724,7 +714,7 @@ void ObjectMgr::GetPlayerLevelInfo(uint32 race, uint32 class_, uint32 level, Pla
 void ObjectMgr::BuildPlayerLevelInfo(uint8 race, uint8 _class, uint8 level, PlayerLevelInfo* info) const
 {
     // base data (last known level)
-    *info = playerInfo[race][_class].levelInfo[sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) - 1];
+    *info = m_playerInfos.Get(race, _class).levelInfo[sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) - 1];
 
     for (int lvl = sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) - 1; lvl < level; ++lvl)
     {

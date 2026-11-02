@@ -73,11 +73,15 @@
 #include "data/NpcTextStore.h"
 #include "data/PlayerCreateInfo.h"
 #include "data/PageTextStore.h"
+#include "data/PetLevelInfoStore.h"
+#include "data/PetNameStore.h"
+#include "data/PlayerCreateInfoStore.h"
 #include "data/PointOfInterestStore.h"
 #include "data/QuestRelationStore.h"
 #include "data/QuestStore.h"
 #include "data/QuestPOIStore.h"
 #include "data/ReputationRecords.h"
+#include "data/ReservedNameStore.h"
 #include "data/ServerSpellStore.h"
 #include "data/SpellClickStore.h"
 #include "data/TextPool.h"
@@ -137,19 +141,6 @@ typedef std::unordered_map<uint32, PageTextLocale> PageTextLocaleMap;
 typedef std::unordered_map<int32, MangosStringLocale> MangosStringLocaleMap;
 typedef std::unordered_map<uint32, GossipMenuItemsLocale> GossipMenuItemsLocaleMap;
 typedef std::unordered_map<uint32, PointOfInterestLocale> PointOfInterestLocaleMap;
-
-struct PetLevelInfo
-{
-    PetLevelInfo() : health(0), mana(0), armor(0)
-    {
-        for (int i = 0; i < MAX_STATS; ++i) stats[i] = 0;
-    }
-
-    uint16 stats[MAX_STATS];
-    uint16 health;
-    uint16 mana;
-    uint16 armor;
-};
 
 struct DungeonEncounter
 {
@@ -428,7 +419,7 @@ class ObjectMgr
             {
                 return NULL;
             }
-            PlayerInfo const* info = &playerInfo[race][class_];
+            PlayerInfo const* info = &m_playerInfos.Get(race, class_);
             if (info->displayId_m == 0 || info->displayId_f == 0)
             {
                 return NULL;
@@ -1248,9 +1239,7 @@ class ObjectMgr
         DungeonFinderStore m_dungeonFinder;
         LfgDungeonEntranceStore m_lfgDungeonEntrances;
 
-        // character reserved names
-        typedef std::set<std::wstring> ReservedNamesMap;
-        ReservedNamesMap    m_ReservedNames;
+        ReservedNameStore   m_reservedNames;
 
         GraveyardStore      m_graveyards;
 
@@ -1276,23 +1265,16 @@ class ObjectMgr
 
         MailLevelRewardStore m_mailLevelRewards;
 
-        typedef std::map<uint32, PetLevelInfo*> PetLevelInfoMap;
-        // PetLevelInfoMap[creature_id][level]
-        PetLevelInfoMap petInfo;                            // [creature_id][level]
+        PetLevelInfoStore m_petLevels;
 
         void BuildPlayerLevelInfo(uint8 race, uint8 class_, uint8 level, PlayerLevelInfo* plinfo) const;
-        PlayerInfo playerInfo[MAX_RACES][MAX_CLASSES];
-
-        typedef std::vector<uint32> PlayerXPperLevel;       // [level]
-        PlayerXPperLevel mPlayerXPperLevel;
+        PlayerCreateInfoStore m_playerInfos;
 
         ExplorationBaseXpStore m_explorationBaseXp;
 
         FishingBaseSkillStore m_fishingBaseSkill;
 
-        typedef std::map<uint32, std::vector<std::string> > HalfNameMap;
-        HalfNameMap PetHalfName0;
-        HalfNameMap PetHalfName1;
+        PetNameStore m_petNames;
 
         // Array to store creature stats, Max creature level + 1 (for data alignement with in game level)
         CreatureClassLvlStats m_creatureClassLvlStats[DEFAULT_MAX_CREATURE_LEVEL + 1][MAX_CREATURE_CLASS][MAX_EXPANSION + 1];
