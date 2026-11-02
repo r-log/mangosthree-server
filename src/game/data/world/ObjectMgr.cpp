@@ -1139,7 +1139,7 @@ void ObjectMgr::DeleteCreatureData(uint32 guid)
         RemoveCreatureFromGrid(guid, data);
     }
 
-    mCreatureDataMap.erase(guid);
+    m_creatureSpawns.Erase(guid);
 }
 
 /**

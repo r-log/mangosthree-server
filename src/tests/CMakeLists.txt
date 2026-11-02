@@ -262,6 +262,9 @@ set(SRC_GRP_TESTS
     GraveyardStoreTest.cpp
     GossipMenuStoreTest.cpp
     NpcTextStoreTest.cpp
+    CreatureSpawnStoreTest.cpp
+    CreatureModelRaceStoreTest.cpp
+    SpellClickStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp
