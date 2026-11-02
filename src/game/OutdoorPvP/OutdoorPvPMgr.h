@@ -185,6 +185,9 @@ class OutdoorPvPMgr
          */
         void Update(uint32 diff);
 
+        /// Has every zone set its graveyard link's team again, after the graveyard links were reloaded.
+        void ApplyGraveyardTeams();
+
         /**
          * @brief Get capture point slider value
          * @param entry Capture point entry

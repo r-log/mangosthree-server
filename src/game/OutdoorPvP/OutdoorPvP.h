@@ -177,6 +177,12 @@ class OutdoorPvP
         virtual void Update(uint32 /*diff*/) {}
 
         /**
+         * @brief Sets the team of the zone's graveyard link again from the zone's own state, after the
+         * graveyard links were reloaded from the database.
+         */
+        virtual void ApplyGraveyardTeam() {}
+
+        /**
          * @brief Handle player kill event
          * @param killer Player who killed the victim
          * @param victim Player who was killed

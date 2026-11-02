@@ -190,7 +190,7 @@ class OutdoorPvPTF : public OutdoorPvP
         void UnlockZone();
 
         void LockTowers(const WorldObject* objRef);
-        void ResetTowers(const WorldObject* objRef);
+        void ResetTowers(Map* towerMap);
 
         uint32 m_towerWorldState[MAX_TF_TOWERS];
         uint32 m_zoneWorldState;
@@ -205,6 +205,7 @@ class OutdoorPvPTF : public OutdoorPvP
         uint8 m_towersHorde;
 
         ObjectGuid m_towerBanners[MAX_TF_TOWERS];
+        Map* m_towerMap;                                    ///< the map the tower banners stand on, once one was created
 };
 
 #endif

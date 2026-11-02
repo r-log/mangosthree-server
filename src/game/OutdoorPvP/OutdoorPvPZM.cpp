@@ -453,3 +453,8 @@ void OutdoorPvPZM::SetBeaconArtKit(const WorldObject* objRef, ObjectGuid creatur
         }
     }
 }
+
+void OutdoorPvPZM::ApplyGraveyardTeam()
+{
+    sObjectMgr.SetGraveYardLinkTeam(GRAVEYARD_ID_TWIN_SPIRE, GRAVEYARD_ZONE_TWIN_SPIRE, (m_graveyardOwner == ALLIANCE || m_graveyardOwner == HORDE) ? m_graveyardOwner : TEAM_INVALID);
+}

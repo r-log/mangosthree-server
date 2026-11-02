@@ -472,3 +472,9 @@ void OutdoorPvPEP::UnsummonSoldiers(const WorldObject* objRef)
 
     m_soldiers.clear();
 }
+
+void OutdoorPvPEP::ApplyGraveyardTeam()
+{
+    Team const owner = m_towerOwner[TOWER_ID_CROWNGUARD];
+    sObjectMgr.SetGraveYardLinkTeam(GRAVEYARD_ID_EASTERN_PLAGUE, GRAVEYARD_ZONE_EASTERN_PLAGUE, (owner == ALLIANCE || owner == HORDE) ? owner : TEAM_INVALID);
+}

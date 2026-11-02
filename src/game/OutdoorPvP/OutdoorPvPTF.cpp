@@ -38,7 +38,8 @@ OutdoorPvPTF::OutdoorPvPTF() : OutdoorPvP(),
     //m_zoneUpdateTimer(TIMER_TF_UPDATE_TIME),
     m_zoneLockTimer(0),
     m_towersAlliance(0),
-    m_towersHorde(0)
+    m_towersHorde(0),
+    m_towerMap(NULL)
 {
     m_towerWorldState[0] = WORLD_STATE_TF_WEST_TOWER_NEUTRAL;
     m_towerWorldState[1] = WORLD_STATE_TF_NORTH_TOWER_NEUTRAL;
@@ -129,6 +130,14 @@ void OutdoorPvPTF::HandleGameObjectCreate(GameObject* go)
             m_towerBanners[4] = go->GetObjectGuid();
             go->SetGoArtKit(GetBannerArtKit(m_towerOwner[4]));
             break;
+    }
+
+    for (uint8 i = 0; i < MAX_TF_TOWERS; ++i)
+    {
+        if (m_towerBanners[i] == go->GetObjectGuid())
+        {
+            m_towerMap = go->GetMap();
+        }
     }
 }
 
@@ -308,21 +317,7 @@ void OutdoorPvPTF::UnlockZone()
     SendUpdateWorldState(WORLD_STATE_TF_TOWER_COUNT_A, m_towersAlliance);
     SendUpdateWorldState(WORLD_STATE_TF_TOWER_COUNT_H, m_towersHorde);
 
-    GuidZoneMap const players = m_zonePlayers.Snapshot();
-    for (GuidZoneMap::const_iterator itr = players.begin(); itr != players.end(); ++itr)
-    {
-        // Find player who is in main zone (Terokkar Forest) to get correct map reference
-        if (!itr->second)
-        {
-            continue;
-        }
-
-        if (Player* player = sPlayerRegistry.Find(itr->first))
-        {
-            ResetTowers(player);
-            break;
-        }
-    }
+    ResetTowers(m_towerMap);
 }
 
 void OutdoorPvPTF::Update(uint32 diff)
@@ -387,11 +382,11 @@ void OutdoorPvPTF::LockTowers(const WorldObject* objRef)
 }
 
 // Handle towers reset when the timer expires
-void OutdoorPvPTF::ResetTowers(const WorldObject* objRef)
+void OutdoorPvPTF::ResetTowers(Map* towerMap)
 {
     for (uint8 i = 0; i < MAX_TF_TOWERS; ++i)
     {
-        if (GameObject* go = objRef->GetMap()->GetGameObject(m_towerBanners[i]))
+        if (GameObject* go = towerMap ? towerMap->GetGameObject(m_towerBanners[i]) : NULL)
         {
             go->SetCapturePointSlider(CAPTURE_SLIDER_MIDDLE, false);
             // visual update needed because banner still has artkit from previous owner
