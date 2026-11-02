@@ -33,7 +33,14 @@
 #include <set>
 #include <vector>
 
-// Structures using to access raw DB2 data and required packing to portability
+// Structures using to access raw DB2 data and required packing to portability: the loader writes each field
+// right after the one before it, so a string pointer can follow an odd number of 4-byte fields.
+#if defined( __GNUC__ )
+#pragma pack(1)
+#else
+#pragma pack(push,1)
+#endif
+
 struct ItemEntry
 {
    uint32   ID;                                             // 0
@@ -44,6 +51,83 @@ struct ItemEntry
    uint32   DisplayId;                                      // 5
    uint32   InventoryType;                                  // 6
    uint32   Sheath;                                         // 7
+};
+
+typedef char const* const* DB2String;                       // char const* strings[MAX_LOCALE]
+
+#define MAX_ITEM_SPARSE_STATS           10
+#define MAX_ITEM_SPARSE_SPELLS          5
+#define MAX_ITEM_SPARSE_NAMES           4
+#define MAX_ITEM_SPARSE_SOCKETS         3
+
+// Item-sparse.db2: the client's full record of each item it ships, in the order of its ItemRecSparse.
+struct ItemSparseEntry
+{
+    uint32   ID;                                            // 0
+    int32    Quality;                                       // 1
+    uint32   Flags[2];                                      // 2-3
+    float    PriceRandomValue;                              // 4
+    float    PriceVariance;                                 // 5
+    int32    BuyCount;                                      // 6
+    int32    BuyPrice;                                      // 7
+    int32    SellPrice;                                     // 8
+    int32    InventoryType;                                 // 9
+    int32    AllowableClass;                                // 10
+    int32    AllowableRace;                                 // 11
+    int32    ItemLevel;                                     // 12
+    int32    RequiredLevel;                                 // 13
+    int32    RequiredSkill;                                 // 14
+    int32    RequiredSkillRank;                             // 15
+    int32    RequiredSpell;                                 // 16
+    int32    RequiredHonorRank;                             // 17
+    int32    RequiredCityRank;                              // 18
+    int32    RequiredReputationFaction;                     // 19
+    int32    RequiredReputationRank;                        // 20
+    int32    MaxCount;                                      // 21
+    int32    Stackable;                                     // 22
+    int32    ContainerSlots;                                // 23
+    int32    StatModifierBonusStat[MAX_ITEM_SPARSE_STATS];  // 24-33
+    int32    StatModifierBonusAmount[MAX_ITEM_SPARSE_STATS];// 34-43
+    int32    StatPercentEditor[MAX_ITEM_SPARSE_STATS];      // 44-53
+    int32    StatPercentageOfSocket[MAX_ITEM_SPARSE_STATS]; // 54-63
+    int32    ScalingStatDistribution;                       // 64
+    int32    DamageType;                                    // 65
+    int32    Delay;                                         // 66
+    float    RangedModRange;                                // 67
+    int32    SpellID[MAX_ITEM_SPARSE_SPELLS];               // 68-72
+    int32    SpellTrigger[MAX_ITEM_SPARSE_SPELLS];          // 73-77
+    int32    SpellCharges[MAX_ITEM_SPARSE_SPELLS];          // 78-82
+    int32    SpellCooldown[MAX_ITEM_SPARSE_SPELLS];         // 83-87
+    int32    SpellCategory[MAX_ITEM_SPARSE_SPELLS];         // 88-92
+    int32    SpellCategoryCooldown[MAX_ITEM_SPARSE_SPELLS]; // 93-97
+    int32    Bonding;                                       // 98
+    DB2String Name[MAX_ITEM_SPARSE_NAMES];                  // 99-102
+    DB2String Description;                                  // 103
+    int32    PageText;                                      // 104
+    int32    LanguageID;                                    // 105
+    int32    PageMaterial;                                  // 106
+    int32    StartQuest;                                    // 107
+    int32    LockID;                                        // 108
+    int32    Material;                                      // 109
+    int32    SheatheType;                                   // 110
+    int32    RandomProperty;                                // 111
+    int32    RandomSuffix;                                  // 112
+    int32    ItemSet;                                       // 113
+    int32    ZoneBound;                                     // 114
+    int32    InstanceBound;                                 // 115
+    int32    BagFamily;                                     // 116
+    int32    TotemCategoryID;                               // 117
+    int32    SocketColor[MAX_ITEM_SPARSE_SOCKETS];          // 118-120
+    int32    SocketContent[MAX_ITEM_SPARSE_SOCKETS];        // 121-123
+    int32    SocketBonus;                                   // 124
+    int32    GemProperties;                                 // 125
+    float    ArmorDamageModifier;                           // 126
+    int32    Duration;                                      // 127
+    int32    ItemLimitCategory;                             // 128
+    int32    HolidayID;                                     // 129
+    float    StatScalingFactor;                             // 130
+    int32    CurrencySubstitutionID;                        // 131
+    int32    CurrencySubstitutionCount;                     // 132
 };
 
 struct ItemCurrencyCostEntry
@@ -91,5 +175,11 @@ struct ItemExtendedCostEntry
         return Flags & 1 << (i + 1);
     }
 };
+
+#if defined( __GNUC__ )
+#pragma pack()
+#else
+#pragma pack(pop)
+#endif
 
 #endif

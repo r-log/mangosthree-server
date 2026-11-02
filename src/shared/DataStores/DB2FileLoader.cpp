@@ -119,29 +119,29 @@ bool DB2FileLoader::Load(const char *filename, const char *fmt)
 
     EndianConvert(build);
 
-    if (fread(&unk1,4,1,f)!=1)                               // Unknown WDB2
+    if (fread(&timestamp,4,1,f)!=1)                          // Timestamp
     {
         fclose(f);
         return false;
     }
 
-    EndianConvert(unk1);
+    EndianConvert(timestamp);
 
-    if (fread(&unk2,4,1,f)!=1)                               // Unknown WDB2
+    if (fread(&minId,4,1,f)!=1)                              // Lowest id of the id index
     {
         fclose(f);
         return false;
     }
 
-    EndianConvert(unk2);
+    EndianConvert(minId);
 
-    if (fread(&unk3,4,1,f)!=1)                               // Unknown WDB2
+    if (fread(&maxId,4,1,f)!=1)                              // Highest id of the id index, 0 without one
     {
         fclose(f);
         return false;
     }
 
-    EndianConvert(unk3);
+    EndianConvert(maxId);
 
     if (fread(&locale,4,1,f)!=1)                             // Locales
     {
@@ -151,13 +151,25 @@ bool DB2FileLoader::Load(const char *filename, const char *fmt)
 
     EndianConvert(locale);
 
-    if (fread(&unk5,4,1,f)!=1)                               // Unknown WDB2
+    if (fread(&copyTableSize,4,1,f)!=1)                      // Copy table size
     {
         fclose(f);
         return false;
     }
 
-    EndianConvert(unk5);
+    EndianConvert(copyTableSize);
+
+    // A file with an id range holds, after the header, a 4-byte record index and a 2-byte string length
+    // for every id from minId to maxId; the records follow it.
+    if (maxId != 0)
+    {
+        if (maxId < minId || uint64(maxId) - minId + 1 > MAX_DB2_INDEX ||
+            fseek(f, long((uint64(maxId) - minId + 1) * 6), SEEK_CUR) != 0)
+        {
+            fclose(f);
+            return false;
+        }
+    }
 
     fieldsOffset = new uint32[fieldCount];
     fieldsOffset[0] = 0;

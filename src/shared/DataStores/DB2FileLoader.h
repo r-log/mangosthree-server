@@ -127,11 +127,11 @@ private:
     uint32 tableHash;    // WDB2
     uint32 build;        // WDB2
 
-    int unk1;            // WDB2 (Unix time in WCH2)
-    int unk2;            // WDB2
-    int unk3;            // WDB2 (index table)
+    uint32 timestamp;    // WDB2
+    uint32 minId;        // WDB2: the lowest id of a file with an id index
+    uint32 maxId;        // WDB2: the highest id of a file with an id index, 0 without one
     int locale;          // WDB2
-    int unk5;            // WDB2
+    uint32 copyTableSize;// WDB2
 };
 
 #endif
