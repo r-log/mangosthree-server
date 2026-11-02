@@ -109,6 +109,7 @@ set(REACH_RULES
     "data/VendorItemStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/TrainerSpellStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/MangosStringStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "data/CreatureClassLevelStatsStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/QuestPOIStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/DungeonFinderStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/LfgDungeonEntranceStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"

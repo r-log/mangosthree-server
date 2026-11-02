@@ -722,8 +722,7 @@ void ObjectMgr::LoadCreatureAddons()
  */
 void ObjectMgr::LoadCreatureClassLvlStats()
 {
-    // initialize data array
-    memset(&m_creatureClassLvlStats, 0, sizeof(m_creatureClassLvlStats));
+    m_creatureClassLevelStats.Clear();
 
     std::vector<ClassLevelStatsRow> rows = CreatureDataRepository::QueryClassLevelStats(MAX_EXPANSION);
 
@@ -765,7 +764,7 @@ void ObjectMgr::LoadCreatureClassLvlStats()
 
         for (uint8 i = 0; i <= MAX_EXPANSION; ++i)
         {
-            CreatureClassLvlStats &cCLS = m_creatureClassLvlStats[creatureLevel][classToIndex[creatureClass]][i - 1];   // values should start from 0
+            CreatureClassLvlStats cCLS;
             cCLS.BaseMana                   = baseMana;
             cCLS.BaseMeleeAttackPower       = baseMeleeAttackPower;
             cCLS.BaseRangedAttackPower      = baseRangedAttackPower;
@@ -773,6 +772,8 @@ void ObjectMgr::LoadCreatureClassLvlStats()
 
             cCLS.BaseHealth = row.baseHealth[i];
             cCLS.BaseDamage = row.baseDamage[i];
+
+            m_creatureClassLevelStats.Set(creatureLevel, classToIndex[creatureClass], i, cCLS);
         }
         ++DataCount;
     }
@@ -790,14 +791,14 @@ void ObjectMgr::LoadCreatureClassLvlStats()
  */
 CreatureClassLvlStats const* ObjectMgr::GetCreatureClassLvlStats(uint32 level, uint32 unitClass, int32 expansion) const
 {
-    if (expansion < 0)
+    if (expansion < 0 || unitClass >= MAX_CLASSES)
     {
         return NULL;
     }
 
-    CreatureClassLvlStats const* cCLS = &m_creatureClassLvlStats[level][classToIndex[unitClass]][expansion];
+    CreatureClassLvlStats const* cCLS = m_creatureClassLevelStats.Find(level, classToIndex[unitClass], uint32(expansion));
 
-    if (cCLS->BaseHealth != 0 && cCLS->BaseDamage > 0.1f)
+    if (cCLS && cCLS->BaseHealth != 0 && cCLS->BaseDamage > 0.1f)
     {
         return cCLS;
     }
