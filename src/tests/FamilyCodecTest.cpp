@@ -155,10 +155,10 @@ TEST(MoverCodec_time_skipped_has_one_order_per_opcode)
     v.skipped = 750;
     WorldPacket c(CMSG_MOVE_TIME_SKIPPED, 16);
     Wire::EncodeTimeSkipped(c, CMSG_MOVE_TIME_SKIPPED, v);
-    CHECK_STR(Hex(c), "ee0200000447");
+    CHECK_STR(Hex(c), "EE0200000447");
     WorldPacket s(MSG_MOVE_TIME_SKIPPED, 16);
     Wire::EncodeTimeSkipped(s, MSG_MOVE_TIME_SKIPPED, v);
-    CHECK_STR(Hex(s), "08ee02000047");
+    CHECK_STR(Hex(s), "08EE02000047");
 
     Wire::TimeSkipped back;
     c.rpos(0); c.ResetBitReader();
