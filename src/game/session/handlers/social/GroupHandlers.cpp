@@ -1035,7 +1035,7 @@ void GroupHandlers::HandleRequestPartyMemberStats(WorldSession& session, WorldPa
 
     WorldPacket data(SMSG_PARTY_MEMBER_STATS_FULL, 4 + 2 + 2 + 2 + 1 + 2 * 6 + 8 + 1 + 8);
     data << uint8(0);                                       // only for SMSG_PARTY_MEMBER_STATS_FULL, probably arena/bg related
-    data << player->GetPackGUID();
+    data << player->GetObjectGuid().WriteAsPacked();
 
     uint32 mask1 = GROUP_UPDATE_FLAG_STATUS | GROUP_UPDATE_FLAG_CUR_HP | GROUP_UPDATE_FLAG_MAX_HP |
         GROUP_UPDATE_FLAG_POWER_TYPE | GROUP_UPDATE_FLAG_CUR_POWER | GROUP_UPDATE_FLAG_MAX_POWER |

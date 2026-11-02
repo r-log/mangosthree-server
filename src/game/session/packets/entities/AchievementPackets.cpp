@@ -63,7 +63,7 @@ namespace MaNGOS
 void BuildAchievementEarnedPacket(WorldPacket& packet, Player const& earner, uint32 achievementId)
 {
     packet.Initialize(SMSG_ACHIEVEMENT_EARNED, 8 + 4 + 8);
-    packet << earner.GetPackGUID();
+    packet << earner.GetObjectGuid().WriteAsPacked();
     packet << uint32(achievementId);
     packet << uint32(secsToTimeBitFields(time(NULL)));
     packet << uint32(0);
@@ -78,7 +78,7 @@ void BuildCriteriaUpdatePacket(WorldPacket& packet, Player const& player, uint32
     // the counter is packed like a packed Guid
     packet.appendPackGUID(progress.counter);
 
-    packet << player.GetPackGUID();
+    packet << player.GetObjectGuid().WriteAsPacked();
     packet << uint32(progress.timedCriteriaFailed ? 1 : 0);
     packet << uint32(secsToTimeBitFields(now));
     packet << uint32(now - progress.date);                   // timer 1

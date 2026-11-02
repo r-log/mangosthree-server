@@ -78,7 +78,7 @@ bool SessionMotionNotices::ObserversTold(Unit const& mover, uint32 counter, Moti
 void SessionMotionNotices::HeartBeat(Unit const& mover)
 {
     WorldPacket data(MSG_MOVE_HEARTBEAT, 64);
-    data << mover.GetPackGUID();
+    data << mover.GetObjectGuid().WriteAsPacked();
     mover.WireMovementInfo(GameTime::GetGameTimeMS()).Write(data, data.GetOpcode());
     mover.SendMessageToSet(&data, true);
 }

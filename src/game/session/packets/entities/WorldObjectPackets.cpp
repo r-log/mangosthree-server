@@ -99,7 +99,7 @@ void SessionWorldObjectNotices::Emoted(Unit const& unit, uint32 emoteId)
 void SessionWorldObjectNotices::PowerUpdated(Unit const& unit, Powers power, uint32 value)
 {
     WorldPacket data(SMSG_POWER_UPDATE);
-    data << unit.GetPackGUID();
+    data << unit.GetObjectGuid().WriteAsPacked();
     data << uint32(1);                                      // power count
     data << uint8(power);
     data << uint32(value);
@@ -109,8 +109,8 @@ void SessionWorldObjectNotices::PowerUpdated(Unit const& unit, Powers power, uin
 void SessionWorldObjectNotices::Energized(Unit const& caster, Unit const& victim, uint32 spellId, uint32 amount, Powers power)
 {
     WorldPacket data(SMSG_SPELLENERGIZELOG, (8 + 8 + 4 + 4 + 4 + 1));
-    data << victim.GetPackGUID();
-    data << caster.GetPackGUID();
+    data << victim.GetObjectGuid().WriteAsPacked();
+    data << caster.GetObjectGuid().WriteAsPacked();
     data << uint32(spellId);
     data << uint32(power);
     data << uint32(amount);
@@ -120,14 +120,14 @@ void SessionWorldObjectNotices::Energized(Unit const& caster, Unit const& victim
 void SessionWorldObjectNotices::Dismounted(Unit const& unit)
 {
     WorldPacket data(SMSG_DISMOUNT, 8);
-    data << unit.GetPackGUID();
+    data << unit.GetObjectGuid().WriteAsPacked();
     unit.SendMessageToSet(&data, true);
 }
 
 void SessionWorldObjectNotices::OneShotAnimKitPlayed(Unit const& unit, uint32 id)
 {
     WorldPacket data(SMSG_PLAY_ONE_SHOT_ANIM_KIT, 7 + 2);
-    data << unit.GetPackGUID();
+    data << unit.GetObjectGuid().WriteAsPacked();
     data << uint16(id);
     unit.SendMessageToSet(&data, true);
 }
@@ -135,7 +135,7 @@ void SessionWorldObjectNotices::OneShotAnimKitPlayed(Unit const& unit, uint32 id
 void SessionWorldObjectNotices::VehicleRecIdChanged(Unit const& unit, uint32 entry)
 {
     WorldPacket data(SMSG_SET_VEHICLE_REC_ID, 16);
-    data << unit.GetPackGUID();
+    data << unit.GetObjectGuid().WriteAsPacked();
     data << uint32(entry);
     unit.SendMessageToSet(&data, true);
 }
@@ -153,9 +153,9 @@ void SessionWorldObjectNotices::AiReacted(Creature const& creature, AiReaction r
 void SessionWorldObjectNotices::BuildingDamaged(GameObject const& building, Unit& caster, uint32 damage, uint32 spell)
 {
     WorldPacket data(SMSG_DESTRUCTIBLE_BUILDING_DAMAGE, 9 + 9 + 9 + 4 + 4);
-    data << building.GetPackGUID();
-    data << caster.GetPackGUID();
-    data << caster.GetCharmerOrOwnerOrSelf()->GetPackGUID();
+    data << building.GetObjectGuid().WriteAsPacked();
+    data << caster.GetObjectGuid().WriteAsPacked();
+    data << caster.GetCharmerOrOwnerOrSelf()->GetObjectGuid().WriteAsPacked();
     data << uint32(damage);
     data << uint32(spell);
     building.SendMessageToSet(&data, false);

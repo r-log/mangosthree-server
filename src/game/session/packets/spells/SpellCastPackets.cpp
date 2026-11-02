@@ -227,14 +227,14 @@ void BuildSpellStartPacket(WorldPacket& packet, Spell const& spell, uint32 castF
     packet.Initialize(SMSG_SPELL_START, (8 + 8 + 4 + 4 + 2));
     if (spell.m_CastItem)
     {
-        packet << spell.m_CastItem->GetPackGUID();
+        packet << spell.m_CastItem->GetObjectGuid().WriteAsPacked();
     }
     else
     {
-        packet << caster->GetPackGUID();
+        packet << caster->GetObjectGuid().WriteAsPacked();
     }
 
-    packet << caster->GetPackGUID();
+    packet << caster->GetObjectGuid().WriteAsPacked();
     packet << uint8(spell.m_cast_count);                            // pending spell cast
     packet << uint32(spell.m_spellInfo->ID);                        // spellId
     packet << uint32(castFlags);                              // cast flags
@@ -288,7 +288,7 @@ void BuildSpellStartPacket(WorldPacket& packet, Spell const& spell, uint32 castF
         packet << uint8(prediction.type);
         if (prediction.type == DOT)
         {
-            packet << caster->GetPackGUID();
+            packet << caster->GetObjectGuid().WriteAsPacked();
         }
     }
 }
@@ -301,14 +301,14 @@ void BuildSpellGoPacket(WorldPacket& packet, Spell const& spell, uint32 castFlag
 
     if (spell.m_CastItem)
     {
-        packet << spell.m_CastItem->GetPackGUID();
+        packet << spell.m_CastItem->GetObjectGuid().WriteAsPacked();
     }
     else
     {
-        packet << caster->GetPackGUID();
+        packet << caster->GetObjectGuid().WriteAsPacked();
     }
 
-    packet << caster->GetPackGUID();
+    packet << caster->GetObjectGuid().WriteAsPacked();
     packet << uint8(spell.m_cast_count);                            // pending spell cast?
     packet << uint32(spell.m_spellInfo->ID);                        // spellId
     packet << uint32(castFlags);                              // cast flags
@@ -390,11 +390,11 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
 
     if (caster->GetTypeId() == TYPEID_PLAYER)
     {
-        packet << caster->GetPackGUID();
+        packet << caster->GetObjectGuid().WriteAsPacked();
     }
     else
     {
-        packet << target->GetPackGUID();
+        packet << target->GetObjectGuid().WriteAsPacked();
     }
 
     packet << uint32(spell.m_spellInfo->ID);
@@ -419,7 +419,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                 case SPELL_EFFECT_POWER_BURN:
                     if (Unit* unit = spell.m_targets.getUnitTarget())
                     {
-                        packet << unit->GetPackGUID();
+                        packet << unit->GetObjectGuid().WriteAsPacked();
                     }
                     else
                     {
@@ -432,7 +432,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                 case SPELL_EFFECT_ADD_EXTRA_ATTACKS:
                     if (Unit* unit = spell.m_targets.getUnitTarget())
                     {
-                        packet << unit->GetPackGUID();
+                        packet << unit->GetObjectGuid().WriteAsPacked();
                     }
                     else
                     {
@@ -443,7 +443,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                 case SPELL_EFFECT_INTERRUPT_CAST:
                     if (Unit* unit = spell.m_targets.getUnitTarget())
                     {
-                        packet << unit->GetPackGUID();
+                        packet << unit->GetObjectGuid().WriteAsPacked();
                     }
                     else
                     {
@@ -454,7 +454,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                 case SPELL_EFFECT_DURABILITY_DAMAGE:
                     if (Unit* unit = spell.m_targets.getUnitTarget())
                     {
-                        packet << unit->GetPackGUID();
+                        packet << unit->GetObjectGuid().WriteAsPacked();
                     }
                     else
                     {
@@ -466,7 +466,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                 case SPELL_EFFECT_OPEN_LOCK:
                     if (Item* item = spell.m_targets.getItemTarget())
                     {
-                        packet << item->GetPackGUID();
+                        packet << item->GetObjectGuid().WriteAsPacked();
                     }
                     else
                     {
@@ -488,7 +488,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                 case SPELL_EFFECT_171:
                     if (Unit* unit = spell.m_targets.getUnitTarget())
                     {
-                        packet << unit->GetPackGUID();
+                        packet << unit->GetObjectGuid().WriteAsPacked();
                     }
                     else if (spell.m_targets.getItemTargetGuid())
                     {
@@ -496,7 +496,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                     }
                     else if (GameObject* go = spell.m_targets.getGOTarget())
                     {
-                        packet << go->GetPackGUID();
+                        packet << go->GetObjectGuid().WriteAsPacked();
                     }
                     else
                     {
@@ -509,7 +509,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                 case SPELL_EFFECT_DISMISS_PET:
                     if (Unit* unit = spell.m_targets.getUnitTarget())
                     {
-                        packet << unit->GetPackGUID();
+                        packet << unit->GetObjectGuid().WriteAsPacked();
                     }
                     else
                     {
@@ -521,7 +521,7 @@ bool BuildSpellLogExecutePacket(WorldPacket& packet, Spell const& spell)
                 case SPELL_EFFECT_MASS_RESSURECTION:
                     if (Unit* unit = spell.m_targets.getUnitTarget())
                     {
-                        packet << unit->GetPackGUID();
+                        packet << unit->GetObjectGuid().WriteAsPacked();
                     }
                     else
                     {
@@ -547,7 +547,7 @@ void BuildSpellFailurePacket(WorldPacket& packet, Spell const& spell, uint8 resu
     {
         packet.Initialize(SMSG_SPELL_FAILURE, 8 + 4 + 1);
     }
-    packet << spell.GetCaster()->GetPackGUID();
+    packet << spell.GetCaster()->GetObjectGuid().WriteAsPacked();
     packet << uint8(spell.m_cast_count);
     packet << uint32(spell.m_spellInfo->ID);
     packet << uint8(result);
@@ -556,14 +556,14 @@ void BuildSpellFailurePacket(WorldPacket& packet, Spell const& spell, uint8 resu
 void BuildChannelUpdatePacket(WorldPacket& packet, Unit const& caster, uint32 time)
 {
     packet.Initialize(SMSG_CHANNEL_UPDATE, 8 + 4);
-    packet << caster.GetPackGUID();
+    packet << caster.GetObjectGuid().WriteAsPacked();
     packet << uint32(time);
 }
 
 void BuildChannelStartPacket(WorldPacket& packet, Spell const& spell, uint32 duration)
 {
     packet.Initialize(SMSG_CHANNEL_START, 8 + 4 + 4);
-    packet << spell.GetCaster()->GetPackGUID();
+    packet << spell.GetCaster()->GetObjectGuid().WriteAsPacked();
     packet << uint32(spell.m_spellInfo->ID);
     packet << uint32(duration);
     packet << uint8(0);       // unk1

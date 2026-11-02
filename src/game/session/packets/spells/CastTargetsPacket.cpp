@@ -40,7 +40,7 @@ void WriteCastTargets(ByteBuffer& data, SpellCastTargets const& targets)
         {
             if (targets.getUnitTarget())
             {
-                data << targets.getUnitTarget()->GetPackGUID();
+                data << targets.getUnitTarget()->GetObjectGuid().WriteAsPacked();
             }
             else
             {
@@ -51,7 +51,7 @@ void WriteCastTargets(ByteBuffer& data, SpellCastTargets const& targets)
         {
             if (targets.getGOTarget())
             {
-                data << targets.getGOTarget()->GetPackGUID();
+                data << targets.getGOTarget()->GetObjectGuid().WriteAsPacked();
             }
             else
             {
@@ -72,7 +72,7 @@ void WriteCastTargets(ByteBuffer& data, SpellCastTargets const& targets)
     {
         if (targets.getItemTarget())
         {
-            data << targets.getItemTarget()->GetPackGUID();
+            data << targets.getItemTarget()->GetObjectGuid().WriteAsPacked();
         }
         else
         {

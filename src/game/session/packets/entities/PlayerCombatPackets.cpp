@@ -52,16 +52,16 @@ void SessionPlayerCombatNotices::SwingCantAttack(Player const& player)
 
 void SessionPlayerCombatNotices::ComboPointsUpdated(Player const& player, Unit const& target, uint8 points)
 {
-    WorldPacket data(SMSG_UPDATE_COMBO_POINTS, target.GetPackGUID().size() + 1);
-    data << target.GetPackGUID();
+    WorldPacket data(SMSG_UPDATE_COMBO_POINTS, target.GetObjectGuid().WriteAsPacked().size() + 1);
+    data << target.GetObjectGuid().WriteAsPacked();
     data << uint8(points);
     player.SendDirectMessage(&data);
 }
 
 void SessionPlayerCombatNotices::PreResurrect(Player const& player)
 {
-    WorldPacket data(SMSG_PRE_RESURRECT, player.GetPackGUID().size());
-    data << player.GetPackGUID();
+    WorldPacket data(SMSG_PRE_RESURRECT, player.GetObjectGuid().WriteAsPacked().size());
+    data << player.GetObjectGuid().WriteAsPacked();
     player.SendDirectMessage(&data);
 }
 

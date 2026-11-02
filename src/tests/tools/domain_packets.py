@@ -8,7 +8,11 @@ maps, ai, social, pvp, economy), and the domain's precompiled header, src/game/p
   - no WorldPacket by value: the type name is followed, past whitespace and const or volatile, only by
     `*` or `&`, or is named after `class` or `struct` (a forward declaration). A packet built, held,
     returned or passed by value, a std::vector<WorldPacket> and WorldPacket::member all fail;
-  - no opcode name (SMSG_, CMSG_ or MSG_ starting a word) and no Opcodes or OpcodesList.
+  - no opcode name (SMSG_, CMSG_ or MSG_ starting a word) and no Opcodes or OpcodesList;
+  - no wire word: ByteBuffer, ByteBufferException, PackedGuid, PackedGuidReader, WriteAsPacked,
+    ReadAsPacked or GetPackGUID, a forward declaration included, and no #include of ByteBuffer.h. The
+    domain hands the session plain values; ObjectGuid.h still includes ByteBuffer.h, so every domain
+    file reaches it, and the rule is on the words, not on the reach.
 
 Comments and string and character literals are ignored (case_labels.blank). The allow list is empty: a
 file that needs any of these belongs in session/.
@@ -56,6 +60,7 @@ import layout_gate  # noqa: E402
 PCH = 'game/pchdomain.h'
 PACKET_RX = re.compile(r'\bWorldPacket\b')
 OPCODE_RX = re.compile(r'\b(?:SMSG|CMSG|MSG)_\w+|\bOpcodes(?:List)?\b')
+WIRE_RX = re.compile(r'\b(?:ByteBuffer|ByteBufferException|PackedGuid|PackedGuidReader|WriteAsPacked|ReadAsPacked|GetPackGUID)\b')
 QUALIFIER_RX = re.compile(r'(?:\s|\bconst\b|\bvolatile\b)*')
 ELABORATED_RX = re.compile(r'\b(?:class|struct)\s+$')
 
@@ -95,10 +100,14 @@ def findings(rel, text, resolve):
         target = resolve(rel, m.group(1).replace('\\', '/'))
         if target and layout_gate.layer(target) == 'proto':
             out.append((no, '#include "%s" is a proto header (src/%s)' % (m.group(1), target)))
+        if m.group(1).replace('\\', '/').rsplit('/', 1)[-1] == 'ByteBuffer.h':
+            out.append((no, '#include "%s" is the wire buffer; only session/ and proto/ write bytes' % m.group(1)))
     for offset in by_value(clean):
         out.append((line_of(clean, offset), 'a WorldPacket by value; only session/ builds or holds a packet'))
     for m in OPCODE_RX.finditer(clean):
         out.append((line_of(clean, m.start()), '%s names an opcode; only session/ and proto/ do' % m.group(0)))
+    for m in WIRE_RX.finditer(clean):
+        out.append((line_of(clean, m.start()), '%s is wire code; the domain hands plain values' % m.group(0)))
     return sorted(out)
 
 
@@ -143,7 +152,7 @@ def check(root, out=print):
             '(design/architecture.md section 2)' % len(found))
         return 1
     out('DomainPackets OK: %d files of the domain tier and its precompiled header, no proto include, no WorldPacket by value, '
-        'no opcode name' % read)
+        'no opcode name, no wire word' % read)
     return 0
 
 
@@ -178,6 +187,18 @@ def self_test():
                    [1, 2, 3, 4, 5])
     expect_opcodes('a chat type, a literal and a comment pass',
                    'c = CHAT_MSG_SAY;\nconst char* s = "SMSG_X";\n// CMSG_Y\nOpcodesTable t;\n', [])
+
+    def expect_wire(label, text, want):
+        got = [line for line, message in findings('game/Object/X.cpp', text, lambda r, s: None)
+               if 'wire' in message]
+        if got != want:
+            failures.append('wire %s: lines %r, expected %r' % (label, got, want))
+
+    expect_wire('a parameter, a member, a forward declaration, a packed write and the include fail',
+                'void F(ByteBuffer& b);\nPackedGuid m_guid;\nclass ByteBuffer;\nb << g.WriteAsPacked();\n'
+                '#include "ByteBuffer.h"\nthrow ByteBufferException(false, 0, 0, 0);\n', [1, 2, 3, 4, 5, 6])
+    expect_wire('a comment, a literal and a longer name pass',
+                '// a ByteBuffer write\nconst char* s = "GetPackGUID";\nByteBufferish x;\n', [])
 
     tree = {
         'src/proto/WorldPacket.h': 'class WorldPacket {};\n',
