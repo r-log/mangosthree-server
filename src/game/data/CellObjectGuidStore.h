@@ -34,7 +34,7 @@
 /**
  * The spawn guids filed by where they load: per map, spawn mode and grid cell, the creature and game
  * object spawns and the player corpses in that cell (a corpse always under spawn mode 0), and per
- * map, the active creature spawns, loaded with the map. `FindOrAddCell` answers a cell for an edit,
+ * map, the active creature spawns, loaded with the map, a deleted spawn removed. `FindOrAddCell` answers a cell for an edit,
  * adding an empty one when the cell has none; `FindCell` never adds one.
  */
 class CellObjectGuidStore
@@ -46,6 +46,7 @@ class CellObjectGuidStore
         CellObjectGuids const* FindCell(uint32 mapId, uint8 spawnMode, uint32 cellId) const;
 
         void AddActiveCreature(uint32 mapId, uint32 guid) { m_activeCreatures.insert(ActiveCreatureGuidsOnMap::value_type(mapId, guid)); }
+        void RemoveActiveCreature(uint32 mapId, uint32 guid);
         ActiveCreatureGuidsOnMap const& ActiveCreatures() const { return m_activeCreatures; }
 
     private:

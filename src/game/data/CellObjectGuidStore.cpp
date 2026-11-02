@@ -45,3 +45,16 @@ CellObjectGuids const* CellObjectGuidStore::FindCell(uint32 mapId, uint8 spawnMo
     }
     return &cellItr->second;
 }
+
+void CellObjectGuidStore::RemoveActiveCreature(uint32 mapId, uint32 guid)
+{
+    std::pair<ActiveCreatureGuidsOnMap::iterator, ActiveCreatureGuidsOnMap::iterator> bounds = m_activeCreatures.equal_range(mapId);
+    for (ActiveCreatureGuidsOnMap::iterator itr = bounds.first; itr != bounds.second; ++itr)
+    {
+        if (itr->second == guid)
+        {
+            m_activeCreatures.erase(itr);
+            return;
+        }
+    }
+}

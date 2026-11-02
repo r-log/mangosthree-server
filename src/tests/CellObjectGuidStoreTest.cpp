@@ -87,3 +87,20 @@ TEST(CellObjectGuidStore_AMapHoldsItsActiveCreaturesInTheOrderAdded)
     CHECK(map0.first == map0.second);
     CHECK_EQ(store.ActiveCreatures().count(1), size_t(1));
 }
+
+TEST(CellObjectGuidStore_ARemovedActiveCreatureLeavesOnlyItsOwnEntry)
+{
+    CellObjectGuidStore store;
+    store.AddActiveCreature(0, 300);
+    store.AddActiveCreature(0, 301);
+    store.AddActiveCreature(1, 300);
+
+    store.RemoveActiveCreature(0, 300);
+    CHECK_EQ(store.ActiveCreatures().count(0), size_t(1));
+    CHECK_EQ(store.ActiveCreatures().find(0)->second, uint32(301));
+    CHECK_EQ(store.ActiveCreatures().count(1), size_t(1));
+
+    store.RemoveActiveCreature(0, 999);
+    store.RemoveActiveCreature(5, 301);
+    CHECK_EQ(store.ActiveCreatures().size(), size_t(2));
+}
