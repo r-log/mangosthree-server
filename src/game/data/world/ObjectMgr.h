@@ -56,6 +56,7 @@
 #include "data/CreatureModelInfoStore.h"
 #include "data/CreatureModelRaceStore.h"
 #include "data/CreatureSpawnStore.h"
+#include "data/DungeonEncounterStore.h"
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
@@ -64,6 +65,7 @@
 #include "data/GameTeleStore.h"
 #include "data/GossipMenuStore.h"
 #include "data/GraveyardStore.h"
+#include "data/HotfixStore.h"
 #include "data/InstanceTemplateStore.h"
 #include "data/ItemConvertStore.h"
 #include "data/ItemRequiredTargetStore.h"
@@ -81,11 +83,14 @@
 #include "data/QuestStore.h"
 #include "data/QuestPOIStore.h"
 #include "data/ReputationRecords.h"
+#include "data/ReputationStore.h"
 #include "data/ReservedNameStore.h"
 #include "data/ServerSpellStore.h"
 #include "data/SpellClickStore.h"
 #include "data/TextPool.h"
+#include "data/TrainerSpellStore.h"
 #include "data/VehicleAccessoryStore.h"
+#include "data/VendorItemStore.h"
 
 #include <string>
 #include <map>
@@ -141,19 +146,6 @@ typedef std::unordered_map<uint32, PageTextLocale> PageTextLocaleMap;
 typedef std::unordered_map<int32, MangosStringLocale> MangosStringLocaleMap;
 typedef std::unordered_map<uint32, GossipMenuItemsLocale> GossipMenuItemsLocaleMap;
 typedef std::unordered_map<uint32, PointOfInterestLocale> PointOfInterestLocaleMap;
-
-struct DungeonEncounter
-{
-    DungeonEncounter(DungeonEncounterEntry const* _dbcEntry, EncounterCreditType _creditType, uint32 _creditEntry, uint32 _lastEncounterDungeon)
-        : dbcEntry(_dbcEntry), creditType(_creditType), creditEntry(_creditEntry), lastEncounterDungeon(_lastEncounterDungeon) { }
-    DungeonEncounterEntry const* dbcEntry;
-    EncounterCreditType creditType;
-    uint32 creditEntry;
-    uint32 lastEncounterDungeon;
-};
-
-typedef std::multimap<uint32, DungeonEncounter const*> DungeonEncounterMap;
-typedef std::pair<DungeonEncounterMap::const_iterator, DungeonEncounterMap::const_iterator> DungeonEncounterMapBounds;
 
 enum ConditionType
 {
@@ -252,9 +244,6 @@ class PlayerCondition
         uint32 m_value2;
 };
 
-typedef std::unordered_map<uint32, VendorItemData> CacheVendorItemMap;
-typedef std::unordered_map<uint32, TrainerSpellData> CacheTrainerSpellMap;
-
 enum SkillRangeType
 {
     SKILL_RANGE_LANGUAGE,                                   // 300..300
@@ -268,15 +257,6 @@ enum SkillRangeType
  * Determines the skill progression range type for the specified skill line.
  */
 SkillRangeType GetSkillRangeType(SkillLineEntry const* pSkill, bool racial);
-
-struct HotfixInfo
-{
-    uint32 Type;
-    uint32 Timestamp;
-    uint32 Entry;
-};
-
-typedef std::vector<HotfixInfo> HotfixData;
 
 #define MAX_PLAYER_NAME          12                         // max allowed by client name length
 #define MAX_INTERNAL_PLAYER_NAME 15                         // max server internal player name length ( > MAX_PLAYER_NAME for support declined names )
@@ -393,10 +373,6 @@ class ObjectMgr
 
         typedef AreaTriggerStore::AreaTriggerMap AreaTriggerMap;
 
-        typedef std::unordered_map<uint32, RepRewardRate > RepRewardRateMap;
-        typedef std::unordered_map<uint32, ReputationOnKillEntry> RepOnKillMap;
-        typedef std::unordered_map<uint32, RepSpilloverTemplate> RepSpilloverTemplateMap;
-
         typedef CellObjectGuidStore::ActiveCreatureGuidsOnMap ActiveCreatureGuidsOnMap;
 
         void LoadGameobjectInfo();
@@ -479,34 +455,17 @@ class ObjectMgr
 
         RepRewardRate const* GetRepRewardRate(uint32 factionId) const
         {
-            RepRewardRateMap::const_iterator itr = m_RepRewardRateMap.find(factionId);
-            if (itr != m_RepRewardRateMap.end())
-            {
-                return &itr->second;
-            }
-
-            return NULL;
+            return m_reputation.RewardRate(factionId);
         }
 
         ReputationOnKillEntry const* GetReputationOnKillEntry(uint32 id) const
         {
-            RepOnKillMap::const_iterator itr = mRepOnKill.find(id);
-            if (itr != mRepOnKill.end())
-            {
-                return &itr->second;
-            }
-            return NULL;
+            return m_reputation.OnKill(id);
         }
 
         RepSpilloverTemplate const* GetRepSpilloverTemplate(uint32 factionId) const
         {
-            RepSpilloverTemplateMap::const_iterator itr = m_RepSpilloverTemplateMap.find(factionId);
-            if (itr != m_RepSpilloverTemplateMap.end())
-            {
-                return &itr->second;
-            }
-
-            return NULL;
+            return m_reputation.Spillover(factionId);
         }
 
         /// The condition `id`, or NULL when there is none or the load erased it.
@@ -1005,46 +964,22 @@ class ObjectMgr
 
         TrainerSpellData const* GetNpcTrainerSpells(uint32 entry) const
         {
-            CacheTrainerSpellMap::const_iterator iter = m_mCacheTrainerSpellMap.find(entry);
-            if (iter == m_mCacheTrainerSpellMap.end())
-            {
-                return NULL;
-            }
-
-            return &iter->second;
+            return m_trainerSpells.Find(false, entry);
         }
 
         TrainerSpellData const* GetNpcTrainerTemplateSpells(uint32 entry) const
         {
-            CacheTrainerSpellMap::const_iterator iter = m_mCacheTrainerTemplateSpellMap.find(entry);
-            if (iter == m_mCacheTrainerTemplateSpellMap.end())
-            {
-                return NULL;
-            }
-
-            return &iter->second;
+            return m_trainerSpells.Find(true, entry);
         }
 
         VendorItemData const* GetNpcVendorItemList(uint32 entry) const
         {
-            CacheVendorItemMap::const_iterator  iter = m_mCacheVendorItemMap.find(entry);
-            if (iter == m_mCacheVendorItemMap.end())
-            {
-                return NULL;
-            }
-
-            return &iter->second;
+            return m_vendorItems.Find(false, entry);
         }
 
         VendorItemData const* GetNpcVendorTemplateItemList(uint32 entry) const
         {
-            CacheVendorItemMap::const_iterator  iter = m_mCacheVendorTemplateItemMap.find(entry);
-            if (iter == m_mCacheVendorTemplateItemMap.end())
-            {
-                return NULL;
-            }
-
-            return &iter->second;
+            return m_vendorItems.Find(true, entry);
         }
 
         void AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 extendedcost);
@@ -1092,7 +1027,7 @@ class ObjectMgr
 
         DungeonEncounterMapBounds GetDungeonEncounterBounds(uint32 creditEntry) const
         {
-            return m_DungeonEncounters.equal_range(creditEntry);
+            return m_dungeonEncounters.ForCredit(creditEntry);
         }
 
         GossipMenusMapBounds GetGossipMenusMapBounds(uint32 uiMenuId) const
@@ -1150,11 +1085,11 @@ class ObjectMgr
         CreatureClassLvlStats const* GetCreatureClassLvlStats(uint32 level, uint32 unitClass, int32 expansion) const;
 
         void LoadHotfixData();
-        HotfixData const& GetHotfixData() const { return m_hotfixData; }
+        HotfixData const& GetHotfixData() const { return m_hotfixes.All(); }
         uint32 GetHotfixDate(uint32 entry, uint32 type) const
         {
             uint32 ret = 0;
-            for (HotfixData::const_iterator itr = m_hotfixData.begin(); itr != m_hotfixData.end(); ++itr)
+            for (HotfixData::const_iterator itr = m_hotfixes.All().begin(); itr != m_hotfixes.All().end(); ++itr)
                 if (itr->Entry == entry && itr->Type == type)
                     if (itr->Timestamp > ret)
                     {
@@ -1198,9 +1133,7 @@ class ObjectMgr
         NpcTextStore        m_npcTexts;
         AreaTriggerStore    m_areaTriggers;
 
-        RepRewardRateMap    m_RepRewardRateMap;
-        RepOnKillMap        mRepOnKill;
-        RepSpilloverTemplateMap m_RepSpilloverTemplateMap;
+        ReputationStore     m_reputation;
 
         GossipMenuStore     m_gossipMenus;
         PointOfInterestStore m_pointsOfInterest;
@@ -1292,16 +1225,14 @@ class ObjectMgr
         std::map < int32 /*minEntryOfBracket*/, uint32 /*count*/ > m_loadedStringCount;
         GossipMenuItemsLocaleMap mGossipMenuItemsLocaleMap;
         PointOfInterestLocaleMap mPointOfInterestLocaleMap;
-        DungeonEncounterMap m_DungeonEncounters;
+        DungeonEncounterStore m_dungeonEncounters;
 
         CreatureModelRaceStore  m_creatureModelRaces;
 
-        CacheVendorItemMap m_mCacheVendorTemplateItemMap;
-        CacheVendorItemMap m_mCacheVendorItemMap;
-        CacheTrainerSpellMap m_mCacheTrainerTemplateSpellMap;
-        CacheTrainerSpellMap m_mCacheTrainerSpellMap;
+        VendorItemStore m_vendorItems;
+        TrainerSpellStore m_trainerSpells;
 
-        HotfixData m_hotfixData;
+        HotfixStore m_hotfixes;
 };
 
 #define sObjectMgr MaNGOS::Singleton<ObjectMgr>::Instance()

@@ -48,7 +48,7 @@ InstanceTemplate const* ObjectMgr::GetInstanceTemplate(uint32 map) { return sObj
 /* ********************************************************************************************* */
 void ObjectMgr::LoadInstanceEncounters()
 {
-    m_DungeonEncounters.clear();         // need for reload case
+    m_dungeonEncounters.Clear();         // need for reload case
 
     std::vector<InstanceEncounterRow> rows = DungeonDataRepository::QueryInstanceEncounters();
 
@@ -108,9 +108,9 @@ void ObjectMgr::LoadInstanceEncounters()
         }
         uint32 lastEncounterDungeon = row.lastEncounterDungeon;
 
-        m_DungeonEncounters.insert(DungeonEncounterMap::value_type(creditEntry, new DungeonEncounter(dungeonEncounter, EncounterCreditType(creditType), creditEntry, lastEncounterDungeon)));
+        m_dungeonEncounters.Add(creditEntry, new DungeonEncounter(dungeonEncounter, EncounterCreditType(creditType), creditEntry, lastEncounterDungeon));
     }
 
     sLog.outString();
-    sLog.outString(">> Loaded %zu Instance Encounters", m_DungeonEncounters.size());
+    sLog.outString(">> Loaded %zu Instance Encounters", m_dungeonEncounters.Count());
 }

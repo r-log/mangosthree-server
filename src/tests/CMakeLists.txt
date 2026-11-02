@@ -273,6 +273,11 @@ set(SRC_GRP_TESTS
     PetLevelInfoStoreTest.cpp
     ReservedNameStoreTest.cpp
     PetNameStoreTest.cpp
+    ReputationStoreTest.cpp
+    DungeonEncounterStoreTest.cpp
+    HotfixStoreTest.cpp
+    VendorItemStoreTest.cpp
+    TrainerSpellStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp

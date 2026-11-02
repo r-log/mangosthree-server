@@ -203,21 +203,6 @@ ObjectMgr::ObjectMgr() :
 ObjectMgr::~ObjectMgr()
 {
     m_quests.Clear();
-
-    for (CacheVendorItemMap::iterator itr = m_mCacheVendorTemplateItemMap.begin(); itr != m_mCacheVendorTemplateItemMap.end(); ++itr)
-    {
-        itr->second.Clear();
-    }
-
-    for (CacheVendorItemMap::iterator itr = m_mCacheVendorItemMap.begin(); itr != m_mCacheVendorItemMap.end(); ++itr)
-    {
-        itr->second.Clear();
-    }
-
-    for (CacheTrainerSpellMap::iterator itr = m_mCacheTrainerSpellMap.begin(); itr != m_mCacheTrainerSpellMap.end(); ++itr)
-    {
-        itr->second.Clear();
-    }
 }
 
 
@@ -2045,7 +2030,7 @@ void ObjectMgr::LoadMailLevelRewards()
 
 void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint8 type, uint32 maxcount, uint32 incrtime, uint32 extendedcost)
 {
-    VendorItemData& vList = m_mCacheVendorItemMap[entry];
+    VendorItemData& vList = m_vendorItems.FindOrAdd(false, entry);
     vList.AddItem(item, type, maxcount, incrtime, extendedcost, 0);
 
     NpcDataRepository::InsertVendorItem(entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item, maxcount, incrtime, extendedcost);
@@ -2053,7 +2038,7 @@ void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint8 type, uint32 maxc
 
 void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 extendedcost)
 {
-    VendorItemData& vList = m_mCacheVendorItemMap[entry];
+    VendorItemData& vList = m_vendorItems.FindOrAdd(false, entry);
     uint8 type = VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item;
     vList.AddItem(item, type, maxcount, incrtime, extendedcost, 0);
 
@@ -2069,13 +2054,13 @@ void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32
  */
 bool ObjectMgr::RemoveVendorItem(uint32 entry, uint32 item, uint8 type)
 {
-    CacheVendorItemMap::iterator  iter = m_mCacheVendorItemMap.find(entry);
-    if (iter == m_mCacheVendorItemMap.end())
+    VendorItemData* vList = m_vendorItems.FindForEdit(false, entry);
+    if (!vList)
     {
         return false;
     }
 
-    if (!iter->second.RemoveItem(item, type))
+    if (!vList->RemoveItem(item, type))
     {
         return false;
     }
@@ -2520,7 +2505,7 @@ MangosStringLocale const* GetMangosStringData(int32 entry)
 void ObjectMgr::LoadHotfixData()
 {
     uint32 count = 0;
-    m_hotfixData.clear();
+    m_hotfixes.Clear();
 
     std::vector<HotfixRow> rows = ItemDataRepository::QueryHotfixes();
     if (rows.empty())
@@ -2539,7 +2524,7 @@ void ObjectMgr::LoadHotfixData()
         info.Entry      = row.entry;
         info.Type       = row.type;
         info.Timestamp  = row.timestamp;
-        m_hotfixData.push_back(info);
+        m_hotfixes.Add(info);
         ++count;
     }
 
