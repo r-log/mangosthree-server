@@ -696,6 +696,9 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading GameTeleports...");
     sObjectMgr.LoadGameTele();
 
+    sLog.outString("Loading Hotfix Data...");
+    sObjectMgr.LoadHotfixData();
+
     sLog.outString("Loading GM tickets...");
     sTicketMgr.LoadGMTickets();
 
