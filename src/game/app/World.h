@@ -46,7 +46,7 @@
 #include "Policies/Singleton.h"
 #include "SharedDefines.h"
 #include "data/GameConfig.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "session/SessionRegistry.h"
 #include "data/WorldBroadcast.h"
 #include "data/ServerControl.h"
@@ -177,7 +177,7 @@ class World : public WorldBroadcast, public ServerControl
         /// When server started?
         time_t const& GetStartTime() const { return m_startTime; }
         /// Uptime (in secs)
-        uint32 Uptime() const override { return uint32(WorldGameTime::Get() - m_startTime); }
+        uint32 Uptime() const override { return uint32(GameTime::GetGameTime() - m_startTime); }
 
         /// Get the maximum skill level a player can reach
         uint16 GetConfigMaxSkillValue() const { return sGameConfig.GetConfigMaxSkillValue(); }

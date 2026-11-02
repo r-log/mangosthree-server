@@ -38,7 +38,7 @@
 #include "spells/data/SpellMgr.h"
 #include "data/ResetSchedule.h"
 #include "data/GameConfig.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "entities/player/PlayerNotices.h"
 #include <array>
 #include "UpdateMask.h"
@@ -3743,7 +3743,7 @@ void Player::SetBindPoint(ObjectGuid guid)
  */
 void Player::SendTalentWipeConfirm(ObjectGuid guid)
 {
-    sPlayerSpellNotices.TalentWipeConfirm(*this, guid, m_talentMgr.ResetTalentsCost(WorldGameTime::Get()));
+    sPlayerSpellNotices.TalentWipeConfirm(*this, guid, m_talentMgr.ResetTalentsCost(GameTime::GetGameTime()));
 }
 
 /**
@@ -4291,7 +4291,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
 
     m_achievementMgr->SendAllAchievementData();
 
-    sPlayerNotices.LoginTimeSpeedShown(*this, WorldGameTime::Get());
+    sPlayerNotices.LoginTimeSpeedShown(*this, GameTime::GetGameTime());
 
     // SMSG_TALENTS_INFO x 2 for pet (unspent points and talents in separate packets...)
     // SMSG_PET_GUIDS

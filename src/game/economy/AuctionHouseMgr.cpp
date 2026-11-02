@@ -44,7 +44,7 @@
 #include "AchievementMgr.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "Mail.h"
 #include "persistence/characters/CharacterTransaction.h"
@@ -770,7 +770,7 @@ AuctionHouseEntry const* AuctionHouseMgr::GetAuctionHouseEntry(Unit* unit)
  */
 void AuctionHouseObject::Update()
 {
-    time_t curTime = WorldGameTime::Get();
+    time_t curTime = GameTime::GetGameTime();
     ///- Handle expired auctions
     for (AuctionEntryMap::iterator itr = AuctionsMap.begin(); itr != AuctionsMap.end();)
     {

@@ -35,7 +35,7 @@
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
 #include "data/GameConfig.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "DBCStores.h"
 #include "Log.h"
 #include "TaxiRoute.h"
@@ -490,7 +490,7 @@ namespace Harness
             At(400, [this, g, st]()
             {
                 Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
-                st->nowAtTakeoff = uint32(WorldGameTime::Get());
+                st->nowAtTakeoff = uint32(GameTime::GetGameTime());
                 Board(p);
                 st->stampAtTakeoff = p->m_taxi.GetLandingTime();
                 Log(" 400ms the takeoff stamped the landing: now=%u landing=%u (%u s of contract over %u yd)",
@@ -511,7 +511,7 @@ namespace Harness
                 // Half the route flown: the contract has as many seconds left as half its length
                 // buys at the taxi speed. This is exactly what a short dungeon pop leaves behind.
                 const float speed = sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED);
-                p->m_taxi.SetLandingTime(uint32(WorldGameTime::Get()) + uint32(float(st->total) * 0.5f / speed));
+                p->m_taxi.SetLandingTime(uint32(GameTime::GetGameTime()) + uint32(float(st->total) * 0.5f / speed));
                 p->ContinueTaxiFlight();
                 st->airRan = true;
                 st->airFlying = p->IsTaxiFlying();
@@ -547,7 +547,7 @@ namespace Harness
                 p->m_taxi.AddTaxiDestination(SOURCE_NODE);
                 p->m_taxi.AddTaxiDestination(DEST_NODE);
                 // A stamp in the past: the fifteen-minute battleground on a fifty-second flight.
-                p->m_taxi.SetLandingTime(uint32(WorldGameTime::Get()) - 60);
+                p->m_taxi.SetLandingTime(uint32(GameTime::GetGameTime()) - 60);
                 p->ContinueTaxiFlight();
                 st->landRan = true;
                 st->landFlying = p->IsTaxiFlying();

@@ -67,7 +67,7 @@
 #include "CorpseManager.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "LFGMgr.h"
 #include "data/ScriptHooks.h"
@@ -2922,7 +2922,7 @@ bool Map::ScriptsStart(DBScriptType type, uint32 id, Object* source, Object* tar
     {
         DbScriptStep step(type, sourceGuid, targetGuid, ownerGuid, &(*iter));
 
-        m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(WorldGameTime::Get() + iter->delay), step));
+        m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(GameTime::GetGameTime() + iter->delay), step));
 
         ++s_scheduledScripts;
     }
@@ -2949,7 +2949,7 @@ void Map::ScriptCommandStart(ScriptInfo const& script, uint32 delay, Object* sou
 
     DbScriptStep step(DBS_INTERNAL, sourceGuid, targetGuid, ownerGuid, &script);
 
-    m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(WorldGameTime::Get() + delay), step));
+    m_scriptSchedule.insert(ScriptScheduleMap::value_type(time_t(GameTime::GetGameTime() + delay), step));
 
     ++s_scheduledScripts;
 }
@@ -2977,7 +2977,7 @@ void Map::ScriptsProcess()
     ///- Process overdue queued scripts
     ScriptScheduleMap::iterator iter = m_scriptSchedule.begin();
     // ok as multimap is a *sorted* associative container
-    while (!m_scriptSchedule.empty() && (iter->first <= WorldGameTime::Get()))
+    while (!m_scriptSchedule.empty() && (iter->first <= GameTime::GetGameTime()))
     {
         if (sDbScriptHooks.RunStep(this, iter->second))
         {

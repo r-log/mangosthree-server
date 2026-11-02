@@ -65,7 +65,6 @@
 #include "DBCStores.h"
 #include "ProgressBar.h"
 #include "ArenaTeam.h"
-#include "WorldGameTime.h"
 #include "data/GameConfig.h"
 #include "GameEventMgr.h"
 #include "DisableMgr.h"
@@ -753,7 +752,7 @@ void BattleGroundMgr::InitAutomaticArenaPointDistribution()
         if (!nextDistribution)
         {
             DEBUG_LOG("Battleground: Next arena point distribution time not found in SavedVariables, reseting it now.");
-            m_NextAutoDistributionTime = time_t(WorldGameTime::Get() + BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY * sGameConfig.getConfig(CONFIG_UINT32_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS));
+            m_NextAutoDistributionTime = time_t(GameTime::GetGameTime() + BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY * sGameConfig.getConfig(CONFIG_UINT32_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS));
             SavedVariablesRepository::InsertNextArenaPointDistribution(uint64(m_NextAutoDistributionTime));
         }
         else

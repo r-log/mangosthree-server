@@ -32,7 +32,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "spells/data/SpellMgr.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
@@ -274,7 +274,7 @@ void Player::SaveToDB()
 
     _SaveBGData();
     _SaveInventory();
-    m_questStatusMgr.SaveStatus(GetGUIDLow(), WorldGameTime::Get());
+    m_questStatusMgr.SaveStatus(GetGUIDLow(), GameTime::GetGameTime());
     _SaveDailyQuestStatus();
     m_questStatusMgr.SaveWeekly(GetGUIDLow());
     m_questStatusMgr.SaveMonthly(GetGUIDLow());

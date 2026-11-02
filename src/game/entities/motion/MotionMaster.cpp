@@ -45,7 +45,7 @@
 #include "Pet.h"
 #include "Player.h"
 #include "TaxiRoute.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "DBCStores.h"
 #include "ObjectMgr.h"
@@ -1183,7 +1183,7 @@ void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 start
     if (!passenger->m_taxi.GetLandingTime())
     {
         const float remaining = TaxiResume::Length(welded, startNode);
-        passenger->m_taxi.SetLandingTime(uint32(WorldGameTime::Get()) + uint32(remaining / p.speed + 0.5f));
+        passenger->m_taxi.SetLandingTime(uint32(GameTime::GetGameTime()) + uint32(remaining / p.speed + 0.5f));
     }
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s taxi from node %u to node %u (%u path nodes, from %u, landing at %u)",
                      m_owner->GetGuidStr().c_str(), route.front(), route.back(), uint32(p.nodes.size()), startNode,
