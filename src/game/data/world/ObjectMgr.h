@@ -1015,7 +1015,6 @@ class ObjectMgr
         CreatureClassLvlStats const* GetCreatureClassLvlStats(uint32 level, uint32 unitClass, int32 expansion) const;
 
         void LoadHotfixData();
-        HotfixData const& GetHotfixData() const { return m_hotfixes.All(); }
         uint32 GetHotfixDate(uint32 entry, uint32 type) const
         {
             uint32 ret = 0;
