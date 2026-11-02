@@ -518,7 +518,7 @@ void ObjectMgr::LoadPlayerInfo()
     }
 
     // Fill gaps and check integrity
-    for (int race = 0; race < MAX_RACES; ++race)
+    for (int race = 1; race < MAX_RACES; ++race)
     {
         // skip nonexistent races
         if (!((1 << (race - 1)) & RACEMASK_ALL_PLAYABLE) || !sChrRacesStore.LookupEntry(race))
@@ -526,7 +526,7 @@ void ObjectMgr::LoadPlayerInfo()
             continue;
         }
 
-        for (int class_ = 0; class_ < MAX_CLASSES; ++class_)
+        for (int class_ = 1; class_ < MAX_CLASSES; ++class_)
         {
             // skip nonexistent classes
             if (!((1 << (class_ - 1)) & CLASSMASK_ALL_PLAYABLE) || !sChrClassesStore.LookupEntry(class_))

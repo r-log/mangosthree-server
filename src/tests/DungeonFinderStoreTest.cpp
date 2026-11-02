@@ -38,7 +38,7 @@ TEST(DungeonFinderStore_RequirementsMissAnswersNull)
     DungeonFinderStore store;
     CHECK(store.FindRequirements(33, 1) == NULL);
 
-    store.SetRequirements(MAKE_PAIR32(33, 1), DungeonFinderRequirements(180, 0, 0, 0, 0, 0, NULL));
+    store.SetRequirements(MAKE_PAIR32(33, 1), DungeonFinderRequirements(180, 0, 0, 0, 0, 0, ""));
     CHECK(store.FindRequirements(33, 1) != NULL);
     CHECK(store.FindRequirements(33, 0) == NULL);
     CHECK(store.FindRequirements(33, 2) == NULL);
@@ -49,7 +49,7 @@ TEST(DungeonFinderStore_RequirementsMissAnswersNull)
 TEST(DungeonFinderStore_RequirementsHitThroughThePairKey)
 {
     DungeonFinderStore store;
-    store.SetRequirements(MAKE_PAIR32(36, 0), DungeonFinderRequirements(0, 0, 0, 0, 0, 0, NULL));
+    store.SetRequirements(MAKE_PAIR32(36, 0), DungeonFinderRequirements(0, 0, 0, 0, 0, 0, ""));
     store.SetRequirements(MAKE_PAIR32(36, 1), DungeonFinderRequirements(329, 7, 8, 11, 12, 4840, kQuestText));
 
     DungeonFinderRequirements const* normal = store.FindRequirements(36, 0);
@@ -60,7 +60,7 @@ TEST(DungeonFinderStore_RequirementsHitThroughThePairKey)
 
     CHECK_EQ(normal->minItemLevel, 0u);
     CHECK_EQ(normal->achievement, 0u);
-    CHECK(normal->questIncompleteText == NULL);
+    CHECK(normal->questIncompleteText.empty());
 
     CHECK_EQ(heroic->minItemLevel, 329u);
     CHECK_EQ(heroic->item, 7u);
@@ -68,7 +68,7 @@ TEST(DungeonFinderStore_RequirementsHitThroughThePairKey)
     CHECK_EQ(heroic->allianceQuestId, 11u);
     CHECK_EQ(heroic->hordeQuestId, 12u);
     CHECK_EQ(heroic->achievement, 4840u);
-    CHECK(heroic->questIncompleteText == kQuestText);
+    CHECK_STR(heroic->questIncompleteText, kQuestText);
 }
 
 TEST(DungeonFinderStore_RewardsMissAndHit)
@@ -109,8 +109,8 @@ TEST(DungeonFinderStore_ItemsMissAndHit)
 TEST(DungeonFinderStore_SecondSetOverwrites)
 {
     DungeonFinderStore store;
-    store.SetRequirements(MAKE_PAIR32(43, 0), DungeonFinderRequirements(10, 0, 0, 0, 0, 0, NULL));
-    store.SetRequirements(MAKE_PAIR32(43, 0), DungeonFinderRequirements(20, 0, 0, 0, 0, 0, NULL));
+    store.SetRequirements(MAKE_PAIR32(43, 0), DungeonFinderRequirements(10, 0, 0, 0, 0, 0, ""));
+    store.SetRequirements(MAKE_PAIR32(43, 0), DungeonFinderRequirements(20, 0, 0, 0, 0, 0, ""));
     store.SetRewards(60, DungeonFinderRewards(100, 1));
     store.SetRewards(60, DungeonFinderRewards(200, 2));
     store.SetItems(9, DungeonFinderItems(1, 2, 3, 4, 5));
@@ -130,8 +130,8 @@ TEST(DungeonFinderStore_SecondSetOverwrites)
 TEST(DungeonFinderStore_WholeItemsMapHoldsTheStoredEntries)
 {
     DungeonFinderStore store;
-    store.SetRequirements(MAKE_PAIR32(33, 0), DungeonFinderRequirements(1, 0, 0, 0, 0, 0, NULL));
-    store.SetRequirements(MAKE_PAIR32(33, 1), DungeonFinderRequirements(2, 0, 0, 0, 0, 0, NULL));
+    store.SetRequirements(MAKE_PAIR32(33, 0), DungeonFinderRequirements(1, 0, 0, 0, 0, 0, ""));
+    store.SetRequirements(MAKE_PAIR32(33, 1), DungeonFinderRequirements(2, 0, 0, 0, 0, 0, ""));
     store.SetRewards(10, DungeonFinderRewards(30, 0));
     store.SetItems(1, DungeonFinderItems(15, 24, 51999, 1, 1));
     store.SetItems(2, DungeonFinderItems(80, 85, 52005, 2, 2));
@@ -143,7 +143,7 @@ TEST(DungeonFinderStore_WholeItemsMapHoldsTheStoredEntries)
 
 static void FillEveryMap(DungeonFinderStore& store)
 {
-    store.SetRequirements(MAKE_PAIR32(33, 0), DungeonFinderRequirements(1, 0, 0, 0, 0, 0, NULL));
+    store.SetRequirements(MAKE_PAIR32(33, 0), DungeonFinderRequirements(1, 0, 0, 0, 0, 0, ""));
     store.SetRewards(10, DungeonFinderRewards(30, 0));
     store.SetItems(1, DungeonFinderItems(15, 24, 51999, 1, 1));
 }

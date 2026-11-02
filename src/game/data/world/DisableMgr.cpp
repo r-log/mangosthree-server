@@ -223,7 +223,7 @@ void LoadDisables()
                     ERROR_DB_STRICT_LOG("Disable flags specified for battleground %u, useless data.", entry);
                 break;
             case DISABLE_TYPE_OUTDOORPVP:
-                if (entry > MAX_OPVP_ID)
+                if (entry >= MAX_OPVP_ID)
                 {
                     ERROR_DB_STRICT_LOG("OutdoorPvPTypes value %u from `disables` is invalid, skipped.", entry);
                     continue;

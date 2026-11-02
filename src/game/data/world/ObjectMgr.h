@@ -913,7 +913,6 @@ class ObjectMgr
             return m_vendorItems.Find(true, entry);
         }
 
-        void AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 extendedcost);
         void AddVendorItem(uint32 entry, uint32 item, uint8 type, uint32 maxcount, uint32 incrtime, uint32 ExtendedCost);
         bool RemoveVendorItem(uint32 entry, uint32 item, uint8 type);
         bool IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item, uint8 type, uint32 maxcount, uint32 ptime, uint32 ExtendedCost, uint16 conditionId, std::vector<VendorItemProblem>* problems = NULL, std::set<uint32>* skip_vendors = NULL) const;

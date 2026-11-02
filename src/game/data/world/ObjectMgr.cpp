@@ -2026,15 +2026,6 @@ void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint8 type, uint32 maxc
     NpcDataRepository::InsertVendorItem(entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item, maxcount, incrtime, extendedcost);
 }
 
-void ObjectMgr::AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 extendedcost)
-{
-    VendorItemData& vList = m_vendorItems.FindOrAdd(false, entry);
-    uint8 type = VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item;
-    vList.AddItem(item, type, maxcount, incrtime, extendedcost, 0);
-
-    NpcDataRepository::InsertVendorItem(entry, type == VENDOR_ITEM_TYPE_CURRENCY ? -int32(item) : item, maxcount, incrtime, extendedcost);
-}
-
 /**
  * @brief Removes a vendor item from a creature vendor list and database.
  *
