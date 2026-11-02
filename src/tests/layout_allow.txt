@@ -11,7 +11,6 @@
 src/game/BattleGround [pvp] -> src/game/Maps/GridNotifiersImpl.h
 src/game/BattleGround [pvp] -> src/game/Maps/Map.h
 src/game/BattleGround [pvp] -> src/game/Maps/MapManager.h
-src/game/BattleGround [pvp] -> src/game/WorldHandlers/AchievementMgr.h
 src/game/BattleGround [pvp] -> src/game/combat/Formulas.h
 src/game/BattleGround [pvp] -> src/game/entities/Creature.h
 src/game/BattleGround [pvp] -> src/game/entities/GameObject.h
@@ -21,6 +20,8 @@ src/game/BattleGround [pvp] -> src/game/social/Group.h
 src/game/BattleGround [pvp] -> src/game/social/Mail.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/PlayerRegistry.h
+# the achievements are the player's (page section 3), so this include of the achievement manager crosses into the player seam
+src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/achievements/AchievementMgr.h
 src/game/BattleGround/BattleGroundAA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundAB.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundAV.cpp -> src/game/entities/player/Player.h
@@ -43,6 +44,8 @@ src/game/BattleGround/BattleGroundRV.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/PlayerRegistry.h
+# the achievements are the player's (page section 3), so this include of the achievement manager crosses into the player seam
+src/game/BattleGround/BattleGroundReward.cpp -> src/game/entities/player/achievements/AchievementMgr.h
 src/game/BattleGround/BattleGroundSA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundWS.cpp -> src/game/entities/player/Player.h
 src/game/Maps [maps] -> src/game/BattleGround/BattleGround.h
@@ -93,19 +96,6 @@ src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers [entities] -> src/game/BattleGround/BattleGround.h
-src/game/WorldHandlers [entities] -> src/game/BattleGround/BattleGroundAB.h
-src/game/WorldHandlers [entities] -> src/game/Maps/CellImpl.h
-src/game/WorldHandlers [entities] -> src/game/Maps/GridNotifiersImpl.h
-src/game/WorldHandlers [entities] -> src/game/Maps/InstanceData.h
-src/game/WorldHandlers [entities] -> src/game/Maps/Map.h
-src/game/WorldHandlers [entities] -> src/game/Maps/MapManager.h
-src/game/WorldHandlers [entities] -> src/game/social/ArenaTeam.h
-src/game/WorldHandlers [entities] -> src/game/social/Guild.h
-src/game/WorldHandlers [entities] -> src/game/social/GuildMgr.h
-src/game/WorldHandlers [entities] -> src/game/social/Mail.h
-src/game/WorldHandlers/AchievementCriteriaRequirement.cpp -> src/game/entities/player/Player.h
-src/game/WorldHandlers/AchievementMgr.cpp -> src/game/entities/player/Player.h
 src/game/ai [ai] -> src/game/Maps/Cell.h
 src/game/ai [ai] -> src/game/Maps/CellImpl.h
 src/game/ai [ai] -> src/game/Maps/GridDefines.h
@@ -157,7 +147,6 @@ src/game/combat/UnitMeleeDamage.cpp -> src/game/entities/player/Player.h
 src/game/combat/UnitMeleeDamage.cpp -> src/game/spells/auras/SpellAuras.h
 # reached through ObjectMgr.h before #512
 src/game/combat/UnitThreat.cpp -> src/game/entities/player/Player.h
-src/game/economy [economy] -> src/game/WorldHandlers/AchievementMgr.h
 # reached through ObjectMgr.h before #512
 src/game/economy [economy] -> src/game/entities/Bag.h
 src/game/economy [economy] -> src/game/entities/Item.h
@@ -166,6 +155,8 @@ src/game/economy [economy] -> src/game/social/Mail.h
 src/game/economy/AuctionHouseMgr.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/economy/AuctionHouseMgr.cpp -> src/game/entities/player/PlayerRegistry.h
+# the achievements are the player's (page section 3), so this include of the achievement manager crosses into the player seam
+src/game/economy/AuctionHouseMgr.cpp -> src/game/entities/player/achievements/AchievementMgr.h
 # reached through ObjectMgr.h before #512
 src/game/economy/LootMgr.cpp -> src/game/entities/player/Player.h
 # the condition evaluator left ObjectMgr.cpp (data) in #655
@@ -286,6 +277,17 @@ src/game/entities/player [entities] -> src/game/spells/AuraQueries.h
 src/game/entities/player [entities] -> src/game/spells/SpellModMgr.h
 src/game/entities/player [entities] -> src/game/spells/pipeline/Spell.h
 src/game/entities/player/Player.cpp -> src/game/spells/auras/SpellAuras.h
+src/game/entities/player/achievements [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/achievements [entities] -> src/game/BattleGround/BattleGroundAB.h
+src/game/entities/player/achievements [entities] -> src/game/Maps/CellImpl.h
+src/game/entities/player/achievements [entities] -> src/game/Maps/GridNotifiersImpl.h
+src/game/entities/player/achievements [entities] -> src/game/Maps/InstanceData.h
+src/game/entities/player/achievements [entities] -> src/game/Maps/Map.h
+src/game/entities/player/achievements [entities] -> src/game/Maps/MapManager.h
+src/game/entities/player/achievements [entities] -> src/game/social/ArenaTeam.h
+src/game/entities/player/achievements [entities] -> src/game/social/Guild.h
+src/game/entities/player/achievements [entities] -> src/game/social/GuildMgr.h
+src/game/entities/player/achievements [entities] -> src/game/social/Mail.h
 src/game/entities/player/combat [entities] -> src/game/BattleGround/BattleGround.h
 # reached through ObjectMgr.h before #512
 src/game/entities/player/combat [entities] -> src/game/Maps/GridMap.h
@@ -387,7 +389,6 @@ src/game/social [social] -> src/game/Maps/GridMap.h
 src/game/social [social] -> src/game/Maps/Map.h
 src/game/social [social] -> src/game/Maps/MapManager.h
 src/game/social [social] -> src/game/Maps/MapPersistentStateMgr.h
-src/game/social [social] -> src/game/WorldHandlers/AchievementMgr.h
 src/game/social [social] -> src/game/combat/Formulas.h
 src/game/social [social] -> src/game/economy/AuctionHouseMgr.h
 src/game/social [social] -> src/game/economy/LootMgr.h
@@ -415,6 +416,8 @@ src/game/social/GMTicketMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/social/Group.cpp -> src/game/entities/player/Player.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/social/Group.cpp -> src/game/entities/player/PlayerRegistry.h
+# the achievements are the player's (page section 3), so this include of the achievement manager crosses into the player seam
+src/game/social/Group.cpp -> src/game/entities/player/achievements/AchievementMgr.h
 src/game/social/GroupInstance.cpp -> src/game/entities/player/Player.h
 src/game/social/GroupInstance.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/social/GroupMemberState.cpp -> src/game/entities/player/Player.h
@@ -428,6 +431,8 @@ src/game/social/GuildBank.cpp -> src/game/entities/player/Player.h
 src/game/social/GuildBank.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/social/LFGMgr.cpp -> src/game/entities/player/Player.h
 src/game/social/LFGMgr.cpp -> src/game/entities/player/PlayerRegistry.h
+# the achievements are the player's (page section 3), so this include of the achievement manager crosses into the player seam
+src/game/social/LFGMgr.cpp -> src/game/entities/player/achievements/AchievementMgr.h
 src/game/social/LFGMgrProposal.cpp -> src/game/entities/player/Player.h
 src/game/social/LFGMgrProposal.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/social/LFGMgrProposal.cpp -> src/game/spells/auras/SpellAuras.h
@@ -556,7 +561,6 @@ src/game/spells/pipeline [spells] -> src/game/Maps/MapManager.h
 src/game/spells/pipeline [spells] -> src/game/Maps/MapPersistentStateMgr.h
 src/game/spells/pipeline [spells] -> src/game/Maps/TransportMap.h
 src/game/spells/pipeline [spells] -> src/game/Maps/Transports.h
-src/game/spells/pipeline [spells] -> src/game/WorldHandlers/AchievementMgr.h
 src/game/spells/pipeline [spells] -> src/game/ai/CreatureAI.h
 src/game/spells/pipeline [spells] -> src/game/combat/SpellBonus.h
 src/game/spells/pipeline [spells] -> src/game/combat/WeaponDamage.h
@@ -581,6 +585,8 @@ src/game/spells/pipeline/Spell.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/Spell.h -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellCast.cpp -> src/game/entities/player/Player.h
+# the achievements are the player's (page section 3), so this include of the achievement manager crosses into the player seam
+src/game/spells/pipeline/SpellCast.cpp -> src/game/entities/player/achievements/AchievementMgr.h
 # reached through GridNotifiersImpl.h before #572
 src/game/spells/pipeline/SpellCast.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellCheckTarget.cpp -> src/game/entities/player/Player.h
@@ -604,6 +610,8 @@ src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/spells/auras/Spel
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectTail.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellHit.cpp -> src/game/entities/player/Player.h
+# the achievements are the player's (page section 3), so this include of the achievement manager crosses into the player seam
+src/game/spells/pipeline/SpellHit.cpp -> src/game/entities/player/achievements/AchievementMgr.h
 # reached through GridNotifiersImpl.h before #572
 src/game/spells/pipeline/SpellHit.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/pipeline/SpellPower.cpp -> src/game/entities/player/Player.h

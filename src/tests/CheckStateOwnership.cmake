@@ -193,7 +193,7 @@ state_row(achievement
             CompletedAchievementData
             CompletedAchievementMap)
 
-state_allow(achievement src/game/WorldHandlers/AchievementMgr.cpp
+state_allow(achievement src/game/entities/player/achievements/AchievementMgr.cpp
     WHY "the owner: its load's log line names the progress table"
     NAMES character_achievement_progress)
 state_allow(achievement src/game/session/packets/entities/AchievementPackets.cpp
@@ -201,7 +201,7 @@ state_allow(achievement src/game/session/packets/entities/AchievementPackets.cpp
     NAMES SMSG_ACHIEVEMENT_EARNED SMSG_CRITERIA_UPDATE SMSG_RESPOND_INSPECT_ACHIEVEMENTS
           SMSG_ALL_ACHIEVEMENT_DATA SMSG_SERVER_FIRST_ACHIEVEMENT SMSG_CRITERIA_DELETED
           SMSG_ACHIEVEMENT_DELETED)
-state_allow(achievement src/game/WorldHandlers/AchievementMgr.h
+state_allow(achievement src/game/entities/player/achievements/AchievementMgr.h
     WHY "realm-wide check: AchievementGlobalMgr::ReportOrphanedCriteriaProgress's doc comment, in the owner's header"
     NAMES character_achievement_progress)
 state_allow(achievement src/game/persistence/characters/achievements/AchievementRepository.cpp
@@ -216,7 +216,7 @@ state_allow(achievement src/game/persistence/characters/CharacterDeleteRepositor
 state_allow(achievement src/game/persistence/characters/CharacterRepository.cpp
     WHY "login holder SELECTs (PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS / LOADCRITERIAPROGRESS), handed to AchievementMgr::LoadFromDB"
     NAMES character_achievement character_achievement_progress)
-state_allow(achievement src/game/WorldHandlers/AchievementGlobalMgr.cpp
+state_allow(achievement src/game/entities/player/achievements/AchievementGlobalMgr.cpp
     WHY "realm-wide start-up checks (LoadCompletedAchievements, ReportOrphanedCriteriaProgress)"
     NAMES character_achievement character_achievement_progress)
 state_allow(achievement src/game/app/CharacterDatabaseCleaner.cpp

@@ -15,6 +15,7 @@
 | `social/` | groups, channels, chat, reputation, and the friend and ignore lists |
 | `world/` | movement, zones and areas, area triggers, instances, visibility, rested XP, breath and fatigue timers and environmental damage, and taxi routes |
 | `pets/` | the character's pets, their action bars and the pet cache read at login |
+| `achievements/` | the character's achievements and criteria progress (`AchievementMgr`), the achievement and criteria tables every character shares (`AchievementGlobalMgr.cpp`) and the criteria requirements (`AchievementCriteriaRequirement.cpp`) |
 
 Includes name the file only (`#include "Player.h"`, `#include "TalentMgr.h"`): every directory here is on the `game` target's include path, so a header's name must stay unique across that path.
 

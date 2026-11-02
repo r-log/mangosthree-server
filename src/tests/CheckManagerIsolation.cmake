@@ -110,6 +110,10 @@ set(OWNER_FILES
     entities/player/Player.cpp
     entities/player/PlayerNotices.h
     entities/player/PlayerNotices.cpp
+    entities/player/achievements/AchievementCriteriaRequirement.cpp
+    entities/player/achievements/AchievementGlobalMgr.cpp
+    entities/player/achievements/AchievementMgr.cpp
+    entities/player/achievements/AchievementMgr.h
     entities/player/ClientCallbacks.h
     entities/player/inventory/ItemCallbacks.h
     entities/player/PlayerRegistry.h

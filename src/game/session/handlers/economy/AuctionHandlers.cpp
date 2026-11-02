@@ -37,7 +37,7 @@
 #include "data/GameConfig.h"
 #include "data/world/ObjectMgr.h"
 #include "ObjectGuid.h"
-#include "WorldHandlers/AchievementMgr.h"
+#include "entities/player/achievements/AchievementMgr.h"
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
 #include "economy/AuctionHouseMgr.h"

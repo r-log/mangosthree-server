@@ -121,7 +121,7 @@ RULES = [
     (r'^game/social/', 'social'),
     (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
     (r'^game/economy/', 'economy'),
-    (r'^game/entities/|^game/WorldHandlers/Achievement', 'entities')]
+    (r'^game/entities/', 'entities')]
 DOMAIN = {'entities', 'spells', 'combat', 'maps', 'ai', 'social', 'pvp', 'economy'}
 ORDER = ['app', 'scripts', 'session', 'domain', 'data', 'motion', 'proto', 'persistence', 'foundation']
 MAY = {l: set(ORDER[i + 1:]) for i, l in enumerate(ORDER)}
