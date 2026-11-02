@@ -173,7 +173,7 @@ void ObjectMgr::LoadGossipText()
             continue;
         }
 
-        GossipText& gText = mGossipText[Text_ID];
+        GossipText& gText = m_npcTexts.FindOrAdd(Text_ID);
 
         for (int i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; ++i)
         {

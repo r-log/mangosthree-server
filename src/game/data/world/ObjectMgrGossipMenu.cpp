@@ -46,7 +46,7 @@
  */
 void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
 {
-    m_mGossipMenusMap.clear();
+    m_gossipMenus.ClearMenus();
     std::vector<GossipMenuRow> rows = NpcDataRepository::QueryGossipMenus();
 
     if (rows.empty())
@@ -109,7 +109,7 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
             }
         }
 
-        m_mGossipMenusMap.insert(GossipMenusMap::value_type(gMenu.entry, gMenu));
+        m_gossipMenus.AddMenu(gMenu);
 
         ++count;
     }
@@ -121,7 +121,7 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
         {
             if (cInfo->GossipMenuId)
             {
-                if (m_mGossipMenusMap.find(cInfo->GossipMenuId) == m_mGossipMenusMap.end())
+                if (!m_gossipMenus.HasMenu(cInfo->GossipMenuId))
                 {
                     sLog.outErrorDb("Creature (Entry: %u) has GossipMenuId = %u for nonexistent menu", cInfo->Entry, cInfo->GossipMenuId);
                 }
@@ -135,7 +135,7 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
         {
             if (uint32 menuid = itr->GetGossipMenuId())
             {
-                if (m_mGossipMenusMap.find(menuid) == m_mGossipMenusMap.end())
+                if (!m_gossipMenus.HasMenu(menuid))
                 {
                     sLog.outErrorDb("Gameobject (Entry: %u) has gossip_menu_id = %u for nonexistent menu", itr->id, menuid);
                 }
@@ -154,7 +154,7 @@ void ObjectMgr::LoadGossipMenu(std::set<uint32>& gossipScriptSet)
  */
 void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
 {
-    m_mGossipMenuItemsMap.clear();
+    m_gossipMenus.ClearMenuItems();
 
     std::vector<GossipMenuOptionRow> rows = NpcDataRepository::QueryGossipMenuOptions();
 
@@ -171,7 +171,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
     std::set<uint32> menu_ids;                              // for later integrity check
     if (!sLog.HasLogFilter(LOG_FILTER_DB_STRICTED_CHECK))   // check unused menu ids only in strict mode
     {
-        for (GossipMenusMap::const_iterator itr = m_mGossipMenusMap.begin(); itr != m_mGossipMenusMap.end(); ++itr)
+        for (GossipMenusMap::const_iterator itr = m_gossipMenus.AllMenus().begin(); itr != m_gossipMenus.AllMenus().end(); ++itr)
             if (itr->first)
             {
                 menu_ids.insert(itr->first);
@@ -228,7 +228,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
 
         if (gMenuItem.menu_id)                              // == 0 id is special and not have menu_id data
         {
-            if (m_mGossipMenusMap.find(gMenuItem.menu_id) == m_mGossipMenusMap.end())
+            if (!m_gossipMenus.HasMenu(gMenuItem.menu_id))
             {
                 sLog.outErrorDb("Gossip menu option (MenuId: %u) for nonexistent menu", gMenuItem.menu_id);
                 continue;
@@ -237,7 +237,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
 
         if (gMenuItem.action_menu_id > 0)
         {
-            if (m_mGossipMenusMap.find(gMenuItem.action_menu_id) == m_mGossipMenusMap.end())
+            if (!m_gossipMenus.HasMenu(gMenuItem.action_menu_id))
             {
                 sLog.outErrorDb("Gossip menu option (MenuId: %u Id: %u) have action_menu_id = %u for nonexistent menu", gMenuItem.menu_id, gMenuItem.id, gMenuItem.action_menu_id);
             }
@@ -322,7 +322,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
             }
         }
 
-        m_mGossipMenuItemsMap.insert(GossipMenuItemsMap::value_type(gMenuItem.menu_id, gMenuItem));
+        m_gossipMenus.AddMenuItem(gMenuItem);
 
         ++count;
     }
