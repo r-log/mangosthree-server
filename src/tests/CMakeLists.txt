@@ -275,6 +275,7 @@ set(SRC_GRP_TESTS
     PetNameStoreTest.cpp
     ReputationStoreTest.cpp
     DungeonEncounterStoreTest.cpp
+    HotfixPacketsTest.cpp
     HotfixStoreTest.cpp
     VendorItemStoreTest.cpp
     TrainerSpellStoreTest.cpp

@@ -41,6 +41,7 @@
 #include "Player.h"
 #include "Item.h"
 #include "UpdateData.h"
+#include "session/packets/entities/HotfixPackets.h"
 
 
 void WorldSession::SendItemDb2Reply(uint32 entry)
@@ -49,10 +50,7 @@ void WorldSession::SendItemDb2Reply(uint32 entry)
     ItemPrototype const* proto = sObjectMgr.GetItemPrototype(entry);
     if (!proto)
     {
-        data << uint32(-1);         // entry
-        data << uint32(DB2_REPLY_ITEM);
-        data << uint32(time(NULL)); // hotfix date
-        data << uint32(0);          // size of next block
+        BuildMissingRecordReplyPacket(data, DB2_REPLY_ITEM, entry, uint32(time(NULL)));
         SendPacket(&data);
         return;
     }
@@ -83,10 +81,7 @@ void WorldSession::SendItemSparseDb2Reply(uint32 entry)
     ItemPrototype const* proto = sObjectMgr.GetItemPrototype(entry);
     if (!proto)
     {
-        data << uint32(-1);         // entry
-        data << uint32(DB2_REPLY_SPARSE);
-        data << uint32(time(NULL)); // hotfix date
-        data << uint32(0);          // size of next block
+        BuildMissingRecordReplyPacket(data, DB2_REPLY_SPARSE, entry, uint32(time(NULL)));
         SendPacket(&data);
         return;
     }
