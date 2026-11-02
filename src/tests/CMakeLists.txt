@@ -269,6 +269,10 @@ set(SRC_GRP_TESTS
     CellObjectGuidStoreTest.cpp
     ItemConvertStoreTest.cpp
     ItemRequiredTargetStoreTest.cpp
+    PlayerCreateInfoStoreTest.cpp
+    PetLevelInfoStoreTest.cpp
+    ReservedNameStoreTest.cpp
+    PetNameStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp

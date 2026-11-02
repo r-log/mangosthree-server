@@ -204,19 +204,6 @@ ObjectMgr::~ObjectMgr()
 {
     m_quests.Clear();
 
-    for (PetLevelInfoMap::iterator i = petInfo.begin(); i != petInfo.end(); ++i)
-    {
-        delete[] i->second;
-    }
-
-    for (int race = 0; race < MAX_RACES; ++race)
-    {
-        for (int class_ = 0; class_ < MAX_CLASSES; ++class_)
-        {
-            delete[] playerInfo[race][class_].levelInfo;
-        }
-    }
-
     for (CacheVendorItemMap::iterator itr = m_mCacheVendorTemplateItemMap.begin(); itr != m_mCacheVendorTemplateItemMap.end(); ++itr)
     {
         itr->second.Clear();
@@ -781,11 +768,7 @@ void ObjectMgr::LoadExplorationBaseXP()
  */
 uint32 ObjectMgr::GetXPForLevel(uint32 level) const
 {
-    if (level < mPlayerXPperLevel.size())
-    {
-        return mPlayerXPperLevel[level];
-    }
-    return 0;
+    return m_playerInfos.XpForLevel(level);
 }
 
 /**
@@ -816,11 +799,11 @@ void ObjectMgr::LoadPetNames()
         bool   half      = row.half;
         if (half)
         {
-            PetHalfName1[entry].push_back(word);
+            m_petNames.AddSecondHalf(entry, word);
         }
         else
         {
-            PetHalfName0[entry].push_back(word);
+            m_petNames.AddFirstHalf(entry, word);
         }
         ++count;
     }
@@ -854,8 +837,8 @@ void ObjectMgr::LoadPetNumber()
  */
 std::string ObjectMgr::GeneratePetName(uint32 entry)
 {
-    std::vector<std::string>& list0 = PetHalfName0[entry];
-    std::vector<std::string>& list1 = PetHalfName1[entry];
+    std::vector<std::string> const& list0 = m_petNames.FirstHalves(entry);
+    std::vector<std::string> const& list1 = m_petNames.SecondHalves(entry);
 
     if (list0.empty() || list1.empty())
     {

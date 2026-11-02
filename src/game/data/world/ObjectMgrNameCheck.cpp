@@ -44,7 +44,7 @@
  */
 void ObjectMgr::LoadReservedPlayersNames()
 {
-    m_ReservedNames.clear();                                // need for reload case
+    m_reservedNames.Clear();                                // need for reload case
 
     std::vector<std::string> names = PlayerDataRepository::QueryReservedNames();
 
@@ -74,7 +74,7 @@ void ObjectMgr::LoadReservedPlayersNames()
 
         wstrToLower(wstr);
 
-        m_ReservedNames.insert(wstr);
+        m_reservedNames.Add(wstr);
         ++count;
     }
 
@@ -98,7 +98,7 @@ bool ObjectMgr::IsReservedName(const std::string& name) const
 
     wstrToLower(wstr);
 
-    return m_ReservedNames.find(wstr) != m_ReservedNames.end();
+    return m_reservedNames.Contains(wstr);
 }
 
 enum LanguageType
