@@ -46,7 +46,7 @@ void TakeItemRecord(ItemPrototype& proto, ItemEntry const& record);
  */
 void TakeItemSparseRecord(ItemPrototype& proto, ItemSparseEntry const& record);
 
-/// The items whose Item-sparse.db2 record `hotfix_data` overrides: the server keeps their `item_template` rows.
+/// The items whose Item-sparse.db2 record `hotfix_data` overrides: the server keeps their `item_sparse` rows.
 std::set<uint32> ItemSparseOverrides(HotfixData const& hotfixes);
 
 #endif

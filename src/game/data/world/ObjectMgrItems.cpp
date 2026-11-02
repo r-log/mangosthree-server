@@ -127,146 +127,136 @@ void ObjectMgr::LoadItemLocales()
     sLog.outString();
 }
 
-static_assert(int(ITEM_TEMPLATE_STAT_COLUMNS) == int(MAX_ITEM_PROTO_STATS), "an item template row holds every stat");
-static_assert(int(ITEM_TEMPLATE_SPELL_COLUMNS) == int(MAX_ITEM_PROTO_SPELLS), "an item template row holds every spell");
-static_assert(int(ITEM_TEMPLATE_SOCKET_COLUMNS) == int(MAX_ITEM_PROTO_SOCKETS), "an item template row holds every socket");
+static_assert(int(ITEM_ROW_STATS) == int(MAX_ITEM_PROTO_STATS), "an item row holds every stat");
+static_assert(int(ITEM_ROW_SPELLS) == int(MAX_ITEM_PROTO_SPELLS), "an item row holds every spell");
+static_assert(int(ITEM_ROW_SOCKETS) == int(MAX_ITEM_PROTO_SOCKETS), "an item row holds every socket");
 
 /**
- * @brief Fills the item prototypes from `item_template` rows, without the load's checks.
+ * @brief Fills the item prototypes from `item_template` and `item_sparse` rows, without the load's checks.
  *
- * Each column lands in the field it names; the name and description are held in the prototypes'
- * text pool. The prototypes and texts held before are forgotten.
+ * Each `item_template` row makes a prototype with the fields no client file holds, and an empty name and
+ * description. Each `item_sparse` row then fills the client fields of its item's prototype, the name and
+ * description held in the prototypes' text pool; a row for an item `item_template` does not list is reported
+ * and skipped. The prototypes and texts held before are forgotten.
  *
- * @param rows The rows, in the order read.
+ * @param rows The `item_template` rows, in the order read.
+ * @param sparseRows The `item_sparse` rows, in the order read.
  */
-void ObjectMgr::FillItemPrototypes(std::vector<ItemTemplateRow> const& rows)
+void ObjectMgr::FillItemPrototypes(std::vector<ItemTemplateRow> const& rows, std::vector<ItemSparseRow> const& sparseRows)
 {
     m_itemPrototypes.Clear();
     m_itemPrototypeTexts.Clear();
-    BarGoLink bar(rows.size());
+    char* const noText = m_itemPrototypeTexts.Add("");
+    BarGoLink bar(rows.size() + sparseRows.size());
     for (ItemTemplateRow const& row : rows)
     {
         bar.step();
         ItemPrototype proto = ItemPrototype();
         proto.ItemId = row.entry;
-        proto.Class = row.itemClass;
-        proto.SubClass = row.subClass;
-        proto.Unk0 = int32(row.unk0);
-        proto.DisplayInfoID = row.displayId;
-        proto.Quality = row.quality;
-        proto.Flags = row.flags;
-        proto.Flags2 = row.flags2;
-        proto.Unknown = row.unknown;
-        proto.Unknown1 = row.unknown1;
-        proto.Unknown2 = row.unknown2;
-        proto.BuyCount = row.buyCount;
-        proto.BuyPrice = row.buyPrice;
-        proto.SellPrice = row.sellPrice;
-        proto.InventoryType = row.inventoryType;
-        proto.AllowableClass = row.allowableClass;
-        proto.AllowableRace = row.allowableRace;
-        proto.ItemLevel = row.itemLevel;
-        proto.RequiredLevel = row.requiredLevel;
-        proto.RequiredSkill = row.requiredSkill;
-        proto.RequiredSkillRank = row.requiredSkillRank;
-        proto.RequiredSpell = row.requiredSpell;
-        proto.RequiredHonorRank = row.requiredHonorRank;
-        proto.RequiredCityRank = row.requiredCityRank;
-        proto.RequiredReputationFaction = row.requiredReputationFaction;
-        proto.RequiredReputationRank = row.requiredReputationRank;
-        proto.MaxCount = int32(row.maxCount);
-        proto.Stackable = int32(row.stackable);
-        proto.ContainerSlots = row.containerSlots;
-        for (uint32 k = 0; k < ITEM_TEMPLATE_STAT_COLUMNS; ++k)
+        for (uint32 k = 0; k < ITEM_ROW_SPELLS; ++k)
         {
-            proto.ItemStat[k].ItemStatType = row.stats[k].type;
+            proto.Spells[k].SpellPPMRate = row.spellPpmRate[k];
         }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_STAT_COLUMNS; ++k)
-        {
-            proto.ItemStat[k].ItemStatValue = int32(row.stats[k].value);
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_STAT_COLUMNS; ++k)
-        {
-            proto.ItemStat[k].ItemStatType2 = row.stats[k].unk1;
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_STAT_COLUMNS; ++k)
-        {
-            proto.ItemStat[k].ItemStatValue2 = int32(row.stats[k].unk2);
-        }
-        proto.ScalingStatDistribution = row.scalingStatDistribution;
-        proto.DamageType = row.damageType;
-        proto.Delay = row.delay;
-        proto.RangedModRange = row.rangedModRange;
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SPELL_COLUMNS; ++k)
-        {
-            proto.Spells[k].SpellId = row.spells[k].id;
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SPELL_COLUMNS; ++k)
-        {
-            proto.Spells[k].SpellTrigger = row.spells[k].trigger;
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SPELL_COLUMNS; ++k)
-        {
-            proto.Spells[k].SpellCharges = int32(row.spells[k].charges);
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SPELL_COLUMNS; ++k)
-        {
-            proto.Spells[k].SpellPPMRate = row.spells[k].ppmRate;
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SPELL_COLUMNS; ++k)
-        {
-            proto.Spells[k].SpellCooldown = int32(row.spells[k].cooldown);
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SPELL_COLUMNS; ++k)
-        {
-            proto.Spells[k].SpellCategory = row.spells[k].category;
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SPELL_COLUMNS; ++k)
-        {
-            proto.Spells[k].SpellCategoryCooldown = int32(row.spells[k].categoryCooldown);
-        }
-        proto.Bonding = row.bonding;
-        proto.PageText = row.pageText;
-        proto.LanguageID = row.languageId;
-        proto.PageMaterial = row.pageMaterial;
-        proto.StartQuest = row.startQuest;
-        proto.LockID = row.lockId;
-        proto.Material = int32(row.material);
-        proto.Sheath = row.sheath;
-        proto.RandomProperty = row.randomProperty;
-        proto.RandomSuffix = row.randomSuffix;
-        proto.ItemSet = row.itemSet;
         proto.MaxDurability = row.maxDurability;
-        proto.Area = row.area;
-        proto.Map = row.map;
-        proto.BagFamily = row.bagFamily;
-        proto.TotemCategory = row.totemCategory;
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SOCKET_COLUMNS; ++k)
-        {
-            proto.Socket[k].Color = row.sockets[k].color;
-        }
-        for (uint32 k = 0; k < ITEM_TEMPLATE_SOCKET_COLUMNS; ++k)
-        {
-            proto.Socket[k].Content = row.sockets[k].content;
-        }
-        proto.socketBonus = row.socketBonus;
-        proto.GemProperties = row.gemProperties;
         proto.RequiredDisenchantSkill = int32(row.requiredDisenchantSkill);
-        proto.ArmorDamageModifier = row.armorDamageModifier;
-        proto.Duration = row.duration;
-        proto.ItemLimitCategory = row.itemLimitCategory;
-        proto.HolidayId = row.holidayId;
         proto.DisenchantID = row.disenchantId;
         proto.FoodType = row.foodType;
-        proto.StatScalingFactor = row.statScalingFactor;
-        proto.Unknown400_1 = row.unknown400_1;
-        proto.Unknown400_2 = row.unknown400_2;
         proto.MinMoneyLoot = row.minMoneyLoot;
         proto.MaxMoneyLoot = row.maxMoneyLoot;
         proto.ExtraFlags = row.extraFlags;
-        proto.Name1 = m_itemPrototypeTexts.Add(row.name);
-        proto.Description = m_itemPrototypeTexts.Add(row.description);
+        proto.Name1 = noText;
+        proto.Description = noText;
         m_itemPrototypes.Set(row.entry, proto);
+    }
+
+    for (ItemSparseRow const& row : sparseRows)
+    {
+        bar.step();
+        ItemPrototype* proto = m_itemPrototypes.FindForEdit(row.entry);
+        if (!proto)
+        {
+            sLog.outErrorDb("Table `item_sparse` has item %u, which `item_template` does not list; skipped.", row.entry);
+            continue;
+        }
+
+        proto->Class = row.itemClass;
+        proto->SubClass = row.subClass;
+        proto->Unk0 = int32(row.unk0);
+        proto->DisplayInfoID = row.displayId;
+        proto->Quality = row.quality;
+        proto->Flags = row.flags;
+        proto->Flags2 = row.flags2;
+        proto->Unknown = row.unknown;
+        proto->Unknown1 = row.unknown1;
+        proto->BuyCount = row.buyCount;
+        proto->BuyPrice = row.buyPrice;
+        proto->SellPrice = row.sellPrice;
+        proto->InventoryType = row.inventoryType;
+        proto->AllowableClass = row.allowableClass;
+        proto->AllowableRace = row.allowableRace;
+        proto->ItemLevel = row.itemLevel;
+        proto->RequiredLevel = row.requiredLevel;
+        proto->RequiredSkill = row.requiredSkill;
+        proto->RequiredSkillRank = row.requiredSkillRank;
+        proto->RequiredSpell = row.requiredSpell;
+        proto->RequiredHonorRank = row.requiredHonorRank;
+        proto->RequiredCityRank = row.requiredCityRank;
+        proto->RequiredReputationFaction = row.requiredReputationFaction;
+        proto->RequiredReputationRank = row.requiredReputationRank;
+        proto->MaxCount = int32(row.maxCount);
+        proto->Stackable = int32(row.stackable);
+        proto->ContainerSlots = row.containerSlots;
+        for (uint32 k = 0; k < ITEM_ROW_STATS; ++k)
+        {
+            proto->ItemStat[k].ItemStatType = row.stats[k].type;
+            proto->ItemStat[k].ItemStatValue = int32(row.stats[k].value);
+            proto->ItemStat[k].ItemStatType2 = row.stats[k].unk1;
+            proto->ItemStat[k].ItemStatValue2 = int32(row.stats[k].unk2);
+        }
+        proto->ScalingStatDistribution = row.scalingStatDistribution;
+        proto->DamageType = row.damageType;
+        proto->Delay = row.delay;
+        proto->RangedModRange = row.rangedModRange;
+        for (uint32 k = 0; k < ITEM_ROW_SPELLS; ++k)
+        {
+            proto->Spells[k].SpellId = row.spells[k].id;
+            proto->Spells[k].SpellTrigger = row.spells[k].trigger;
+            proto->Spells[k].SpellCharges = int32(row.spells[k].charges);
+            proto->Spells[k].SpellCooldown = int32(row.spells[k].cooldown);
+            proto->Spells[k].SpellCategory = row.spells[k].category;
+            proto->Spells[k].SpellCategoryCooldown = int32(row.spells[k].categoryCooldown);
+        }
+        proto->Bonding = row.bonding;
+        proto->PageText = row.pageText;
+        proto->LanguageID = row.languageId;
+        proto->PageMaterial = row.pageMaterial;
+        proto->StartQuest = row.startQuest;
+        proto->LockID = row.lockId;
+        proto->Material = int32(row.material);
+        proto->Sheath = row.sheath;
+        proto->RandomProperty = row.randomProperty;
+        proto->RandomSuffix = row.randomSuffix;
+        proto->ItemSet = row.itemSet;
+        proto->Area = row.area;
+        proto->Map = row.map;
+        proto->BagFamily = row.bagFamily;
+        proto->TotemCategory = row.totemCategory;
+        for (uint32 k = 0; k < ITEM_ROW_SOCKETS; ++k)
+        {
+            proto->Socket[k].Color = row.sockets[k].color;
+            proto->Socket[k].Content = row.sockets[k].content;
+        }
+        proto->socketBonus = row.socketBonus;
+        proto->GemProperties = row.gemProperties;
+        proto->ArmorDamageModifier = row.armorDamageModifier;
+        proto->Duration = row.duration;
+        proto->ItemLimitCategory = row.itemLimitCategory;
+        proto->HolidayId = row.holidayId;
+        proto->StatScalingFactor = row.statScalingFactor;
+        proto->Unknown400_1 = row.unknown400_1;
+        proto->Unknown400_2 = row.unknown400_2;
+        proto->Name1 = m_itemPrototypeTexts.Add(row.name);
+        proto->Description = m_itemPrototypeTexts.Add(row.description);
     }
 }
 
@@ -283,6 +273,14 @@ void ObjectMgr::LoadItemPrototypes()
         exit(1);
     }
 
+    TableRead<ItemSparseRow> sparseRead = ItemTemplateRepository::QueryItemSparse();
+    if (sparseRead.Unreadable())
+    {
+        sLog.outError("Error loading `item_sparse` table: %s\n", TableReadReason(sparseRead.status));
+        Log::WaitBeforeContinueIfNeed();
+        exit(1);
+    }
+
     uint32 loaded = 0;
     if (read.status == TableReadStatus::Empty)
     {
@@ -290,17 +288,23 @@ void ObjectMgr::LoadItemPrototypes()
     }
     else
     {
-        FillItemPrototypes(read.rows);
+        FillItemPrototypes(read.rows, sparseRead.rows);
         loaded = uint32(read.rows.size());
     }
     sLog.outString(">> Loaded %u item prototypes", loaded);
 
-    // The client's files hold every field the client reads of the items they ship; `item_template` keeps the
-    // server-only fields, the items the client does not ship and the overrides `hotfix_data` tells the client about.
+    // The client's files hold every field the client reads of the items they ship; `item_sparse` holds those
+    // fields of the items the client does not ship and of the overrides `hotfix_data` tells the client about.
     std::set<uint32> const overrides = ItemSparseOverrides(m_hotfixes.All());
+    std::set<uint32> sparseRows;
+    for (ItemSparseRow const& row : sparseRead.rows)
+    {
+        sparseRows.insert(row.entry);
+    }
     uint32 fromClient = 0;
     uint32 serverOnly = 0;
     uint32 overridden = 0;
+    uint32 unusedRows = 0;
     for (uint32 i = 1; i < m_itemPrototypes.GetMaxEntry(); ++i)
     {
         ItemPrototype* proto = m_itemPrototypes.FindForEdit(i);
@@ -314,16 +318,29 @@ void ObjectMgr::LoadItemPrototypes()
             TakeItemRecord(*proto, *item);
         }
 
+        const bool hasRow = sparseRows.count(i) != 0;
         ItemSparseEntry const* sparse = sItemSparseStore.LookupEntry(i);
         if (!sparse)
         {
+            if (!hasRow)
+            {
+                sLog.outErrorDb("Item (Entry: %u) has no record in Item-sparse.db2 and no row in `item_sparse`.", i);
+            }
             ++serverOnly;
             continue;
         }
         if (overrides.count(i))
         {
-            ++overridden;
-            continue;
+            if (hasRow)
+            {
+                ++overridden;
+                continue;
+            }
+            sLog.outErrorDb("Item (Entry: %u) is listed in `hotfix_data` for Item-sparse but has no row in `item_sparse`; the client's record is used.", i);
+        }
+        else if (hasRow)
+        {
+            ++unusedRows;
         }
 
         TakeItemSparseRecord(*proto, *sparse);
@@ -333,6 +350,11 @@ void ObjectMgr::LoadItemPrototypes()
     }
     sLog.outString(">> %u items from the client's files, %u server-only items and %u overrides from the database",
                    fromClient, serverOnly, overridden);
+    if (unusedRows)
+    {
+        sLog.outString(">> %u `item_sparse` rows unused: the client's files hold those items and `hotfix_data` does not list them",
+                       unusedRows);
+    }
     sLog.outString();
 
     // The prototypes hold what the client's sparse records gave them; nothing else reads the records.

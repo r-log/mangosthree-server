@@ -112,6 +112,7 @@ struct DeclinedName;
 enum class TableReadStatus;
 struct SpellTemplateRow;
 struct ItemTemplateRow;
+struct ItemSparseRow;
 
 // mangos string ranges
 #define MIN_MANGOS_STRING_ID           1                    // 'mangos_string'
@@ -558,8 +559,9 @@ class ObjectMgr
         void LoadGameObjects();
         void LoadGameObjectAddon();
         void LoadItemPrototypes();
-        /// Fills the item prototypes from `item_template` rows without the load's checks; the tests' item fixture fills them so.
-        void FillItemPrototypes(std::vector<ItemTemplateRow> const& rows);
+        /// Fills the item prototypes from `item_template` and `item_sparse` rows without the load's checks; the tests' item
+        /// fixture fills them so.
+        void FillItemPrototypes(std::vector<ItemTemplateRow> const& rows, std::vector<ItemSparseRow> const& sparseRows);
         void LoadItemConverts();
         void LoadItemExpireConverts();
         void LoadItemRequiredTarget();

@@ -33,38 +33,45 @@
 #include "persistence/world/items/ItemTemplateRepository.h"
 #include "Utilities/ProgressBar.h"
 
-#include <algorithm>
 #include <cstring>
 #include <iterator>
 
 namespace
 {
-    /// `item_template`'s columns, by the live table's names and positions (147 of them, in the
+    /// `item_template`'s columns, by the live table's names and positions (13 of them, in the
     /// order ItemTemplateRepository's statement names them). Only the ones the fixture writes.
     enum TemplateColumn
+    {
+        TEMPLATE_COL_ENTRY          = 0,    // entry
+        TEMPLATE_COL_MAX_DURABILITY = 6,    // MaxDurability
+        TEMPLATE_COLUMN_COUNT       = 13
+    };
+
+    /// `item_sparse`'s columns, by the live table's names and positions (134 of them, in the
+    /// order ItemTemplateRepository's statement names them). Only the ones the fixture writes.
+    enum SparseColumn
     {
         COL_ENTRY           = 0,            // entry
         COL_CLASS           = 1,            // class
         COL_SUBCLASS        = 2,            // subclass
         COL_NAME            = 4,            // name (string)
-        COL_DISPLAY_INFO_ID = 5,            // displayid (decoupling D4e1)
+        COL_DISPLAY_INFO_ID = 5,            // displayid
         COL_QUALITY         = 6,            // Quality
         COL_FLAGS           = 7,            // Flags
-        COL_INVENTORY_TYPE  = 15,           // InventoryType
-        COL_ALLOWABLE_CLASS = 16,           // AllowableClass (signed in the table; decoupling D4e1)
-        COL_ALLOWABLE_RACE  = 17,           // AllowableRace (signed in the table; decoupling D4e1)
-        COL_MAX_COUNT       = 27,           // maxcount
-        COL_STACKABLE       = 28,           // stackable
-        COL_CONTAINER_SLOTS = 29,           // ContainerSlots
-        COL_BONDING         = 109,          // bonding
-        COL_DESCRIPTION     = 110,          // description (string)
-        COL_MAX_DURABILITY  = 121,          // MaxDurability
-        COL_BAG_FAMILY      = 124,          // BagFamily
-        COL_SOCKET_COLOR_1  = 126,          // socketColor_1; _2 and _3 at 128 and 130 (decoupling D4e1)
-        COL_SOCKET_CONTENT_1 = 127,         // socketContent_1; _2 and _3 at 129 and 131 (decoupling D4e1)
-        COL_GEM_PROPERTIES  = 133,          // GemProperties (decoupling D4e1)
-        COL_ITEM_LIMIT_CATEGORY = 137,      // ItemLimitCategory (decoupling D4e1)
-        COLUMN_COUNT        = 147
+        COL_INVENTORY_TYPE  = 14,           // InventoryType
+        COL_ALLOWABLE_CLASS = 15,           // AllowableClass (signed in the table)
+        COL_ALLOWABLE_RACE  = 16,           // AllowableRace (signed in the table)
+        COL_MAX_COUNT       = 26,           // maxcount
+        COL_STACKABLE       = 27,           // stackable
+        COL_CONTAINER_SLOTS = 28,           // ContainerSlots
+        COL_BONDING         = 103,          // bonding
+        COL_DESCRIPTION     = 104,          // description (string)
+        COL_BAG_FAMILY      = 117,          // BagFamily
+        COL_SOCKET_COLOR_1  = 119,          // socketColor_1; _2 and _3 at 121 and 123
+        COL_SOCKET_CONTENT_1 = 120,         // socketContent_1; _2 and _3 at 122 and 124
+        COL_GEM_PROPERTIES  = 126,          // GemProperties
+        COL_ITEM_LIMIT_CATEGORY = 129,      // ItemLimitCategory
+        SPARSE_COLUMN_COUNT = 134
     };
 
     using namespace ItemFixture;
@@ -127,7 +134,15 @@ std::vector<ItemFixture::Prototype> const& ItemFixture::Prototypes()
 
 FakeRow ItemFixture::TemplateRow(Prototype const& proto)
 {
-    FakeRow row(COLUMN_COUNT, "0");
+    FakeRow row(TEMPLATE_COLUMN_COUNT, "0");
+    row[TEMPLATE_COL_ENTRY]          = std::to_string(proto.entry);
+    row[TEMPLATE_COL_MAX_DURABILITY] = std::to_string(proto.maxDurability);
+    return row;
+}
+
+FakeRow ItemFixture::SparseRow(Prototype const& proto)
+{
+    FakeRow row(SPARSE_COLUMN_COUNT, "0");
     row[COL_ENTRY]           = std::to_string(proto.entry);
     row[COL_CLASS]           = std::to_string(proto.itemClass);
     row[COL_SUBCLASS]        = std::to_string(proto.subClass);
@@ -143,7 +158,6 @@ FakeRow ItemFixture::TemplateRow(Prototype const& proto)
     row[COL_CONTAINER_SLOTS] = std::to_string(proto.containerSlots);
     row[COL_BONDING]         = std::to_string(proto.bonding);
     row[COL_DESCRIPTION]     = "";
-    row[COL_MAX_DURABILITY]  = std::to_string(proto.maxDurability);
     row[COL_BAG_FAMILY]      = std::to_string(proto.bagFamily);
     for (int i = 0; i < 3; ++i)
     {
@@ -189,21 +203,26 @@ ItemFixture::LoadRecord const& ItemFixture::Load()
         return record;
     }
 
-    FakeRows rows;
-    uint32 maxEntry = 0;
+    FakeRows templateRows;
+    FakeRows sparseRows;
     for (Prototype const& proto : Prototypes())
     {
-        rows.push_back(TemplateRow(proto));
-        maxEntry = std::max(maxEntry, proto.entry);
+        templateRows.push_back(TemplateRow(proto));
+        sparseRows.push_back(SparseRow(proto));
     }
 
-    // A row narrower than the statement's columns would read its missing columns as NULL, so a
+    // A row narrower than its statement's columns would read its missing columns as NULL, so a
     // wrong width is reported here instead of being handed to the read.
-    const size_t width = ITEM_TEMPLATE_COLUMNS;
-    if (rows[0].size() != width)
+    if (templateRows[0].size() != size_t(ITEM_TEMPLATE_COLUMNS))
     {
-        record.failure = "item_template row has " + std::to_string(rows[0].size()) + " columns, the statement "
-                         + std::to_string(width);
+        record.failure = "item_template row has " + std::to_string(templateRows[0].size()) + " columns, the statement "
+                         + std::to_string(ITEM_TEMPLATE_COLUMNS);
+        return record;
+    }
+    if (sparseRows[0].size() != size_t(ITEM_SPARSE_COLUMNS))
+    {
+        record.failure = "item_sparse row has " + std::to_string(sparseRows[0].size()) + " columns, the statement "
+                         + std::to_string(ITEM_SPARSE_COLUMNS);
         return record;
     }
 
@@ -211,24 +230,27 @@ ItemFixture::LoadRecord const& ItemFixture::Load()
     FakeConnection async(WorldDatabase);
     SqlResultQueue results;
 
-    // The one statement ItemTemplateRepository::QueryItemTemplates issues.
-    query.Answer("SELECT `entry`", rows);
+    // The statements ItemTemplateRepository::QueryItemTemplates and QueryItemSparse issue.
+    query.Answer("SELECT `entry`, `spellppmRate_1`", templateRows);
+    query.Answer("SELECT `entry`, `class`", sparseRows);
 
     const uint32 violationsBefore = TickGuard::Violations();
     {
         AttachedFakes attached(WorldDatabase, &query, &async, &results);
         QuietBar quiet;
-        sObjectMgr.FillItemPrototypes(ItemTemplateRepository::QueryItemTemplates().rows);
+        std::vector<ItemTemplateRow> const templates = ItemTemplateRepository::QueryItemTemplates().rows;
+        std::vector<ItemSparseRow> const sparse = ItemTemplateRepository::QueryItemSparse().rows;
+        sObjectMgr.FillItemPrototypes(templates, sparse);
     }
 
     record.queries = query.executed;
     record.asyncStatements = async.executed.size();
     record.tickViolations = TickGuard::Violations() - violationsBefore;
-    record.loaded = sObjectMgr.GetItemPrototypes().GetCount() == rows.size();
+    record.loaded = sObjectMgr.GetItemPrototypes().GetCount() == templateRows.size();
     if (!record.loaded)
     {
         record.failure = "the item prototypes hold " + std::to_string(sObjectMgr.GetItemPrototypes().GetCount()) + " records after the load, not "
-                         + std::to_string(rows.size());
+                         + std::to_string(templateRows.size());
     }
     else
     {
