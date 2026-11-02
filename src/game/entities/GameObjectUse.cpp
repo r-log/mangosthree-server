@@ -36,7 +36,7 @@
 #include "spells/data/SpellMgr.h"
 #include "UpdateMask.h"
 #include "entities/WorldObjectNotices.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"
 #include "LootMgr.h"
@@ -74,12 +74,12 @@ void GameObject::Use(Unit* user)
     // test only for exist cooldown data (cooldown timer used for door/buttons reset that not have use cooldown)
     if (uint32 cooldown = GetGOInfo()->GetCooldown())
     {
-        if (m_cooldownTime > WorldGameTime::Get())
+        if (m_cooldownTime > GameTime::GetGameTime())
         {
             return;
         }
 
-        m_cooldownTime = WorldGameTime::Get() + cooldown;
+        m_cooldownTime = GameTime::GetGameTime() + cooldown;
     }
 
     Player* userPlayer = user->ToPlayer();

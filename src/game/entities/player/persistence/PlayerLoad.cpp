@@ -38,7 +38,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "spells/data/SpellMgr.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "entities/player/world/PlayerWorldNotices.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
@@ -921,7 +921,7 @@ void Player::_LoadQuestStatus(std::vector<QuestStatusRow> const& rows)
             // next row is read. Applying a rewarded row casts spells, and a quest-complete
             // effect reaches AreaExploredOrEventHappens, which reads and writes a later row --
             // so the load must stay one pass, row by row, as it always was.
-            QuestRowResult row = m_questStatusMgr.FillRow(statusRow, WorldGameTime::Get(), GetName(), QuestTemplateLookup());
+            QuestRowResult row = m_questStatusMgr.FillRow(statusRow, GameTime::GetGameTime(), GetName(), QuestTemplateLookup());
             if (row.accepted)
             {
                 uint32 quest_id = row.questId;

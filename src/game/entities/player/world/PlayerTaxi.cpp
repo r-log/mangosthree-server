@@ -34,7 +34,7 @@
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "entities/player/world/PlayerWorldNotices.h"
 #include "UpdateMask.h"
@@ -603,7 +603,7 @@ void Player::ContinueTaxiFlight()
 
     const float speed = sGameConfig.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED);
     const TaxiResume::Resume resume = TaxiResume::Decide(nodes, speed,
-                                                         int64(WorldGameTime::Get()),
+                                                         int64(GameTime::GetGameTime()),
                                                          int64(m_taxi.GetLandingTime()),
                                                          GetMapId());
 

@@ -47,7 +47,7 @@
 #include "data/Language.h"
 #include "ArenaTeam.h"
 #include "data/GameConfig.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "Group.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
@@ -200,7 +200,7 @@ void BattleGround::Update(uint32 diff)
         BattleGroundPlayerMap::iterator itr = m_Players.find(*(m_OfflineQueue.begin()));
         if (itr != m_Players.end())
         {
-            if (itr->second.OfflineRemoveTime <= WorldGameTime::Get())
+            if (itr->second.OfflineRemoveTime <= GameTime::GetGameTime())
             {
                 RemovePlayerAtLeave(itr->first, true, true);// remove player from BG
                 m_OfflineQueue.pop_front();                 // remove from offline queue
@@ -967,7 +967,7 @@ void BattleGround::EventPlayerLoggedOut(Player* player)
 {
     // player is correct pointer, it is checked in WorldSession::LogoutPlayer()
     m_OfflineQueue.push_back(player->GetObjectGuid());
-    m_Players[player->GetObjectGuid()].OfflineRemoveTime = WorldGameTime::Get() + MAX_OFFLINE_TIME;
+    m_Players[player->GetObjectGuid()].OfflineRemoveTime = GameTime::GetGameTime() + MAX_OFFLINE_TIME;
     if (GetStatus() == STATUS_IN_PROGRESS)
     {
         // drop flag and handle other cleanups

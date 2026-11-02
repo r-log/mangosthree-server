@@ -36,7 +36,7 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "GameEventMgr.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "Map.h"
 #include "InstanceData.h"
@@ -365,7 +365,7 @@ bool AchievementCriteriaRequirement::Meets(uint32 criteria_id, Player const* sou
 
             time_t birthday = mktime(&birthday_tm);
 
-            time_t now = WorldGameTime::Get();
+            time_t now = GameTime::GetGameTime();
             return now <= birthday + DAY && now >= birthday;
         }
         case ACHIEVEMENT_CRITERIA_REQUIRE_KNOWN_TITLE:

@@ -29,7 +29,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "spells/data/SpellMgr.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "entities/player/spells/PlayerSpellNotices.h"
 #include "UpdateMask.h"
@@ -835,7 +835,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
 
     if (!no_cost)
     {
-        cost = m_talentMgr.ResetTalentsCost(WorldGameTime::Get());
+        cost = m_talentMgr.ResetTalentsCost(GameTime::GetGameTime());
 
         if (GetMoney() < cost)
         {

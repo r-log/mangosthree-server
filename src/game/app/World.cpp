@@ -180,8 +180,8 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_social(sPlayerRegistry)
     m_allowMovement = true;
     m_ShutdownMask = 0;
     m_ShutdownTimer = 0;
-    WorldGameTime::Set(time(NULL));
-    m_startTime = WorldGameTime::Get();
+    GameTime::UpdateGameTimers();
+    m_startTime = GameTime::GetGameTime();
     m_broadcastEnable = false;
     m_broadcastList.clear();
     m_broadcastWeight = 0;
@@ -276,7 +276,7 @@ void World::SetInitialWorldSettings()
     srand((unsigned int)time(NULL));
 
     ///- Time server startup
-    uint32 startupBegin = GameTime::GetGameTimeMS();
+    uint32 startupBegin = getMSTime();
 
     ///- Initialize detour memory management
     dtAllocSetCustom(dtCustomAlloc, dtCustomFree);
@@ -770,8 +770,8 @@ void World::SetInitialWorldSettings()
 
     ///- Initialize game time and timers
     sLog.outString("Initialize game time and timers");
-    WorldGameTime::Set(time(NULL));
-    m_startTime = WorldGameTime::Get();
+    GameTime::UpdateGameTimers();
+    m_startTime = GameTime::GetGameTime();
 
     tm local;
     time_t curr;
@@ -815,7 +815,7 @@ void World::SetInitialWorldSettings()
     // to set mailtimer to return mails every day between 4 and 5 am
     // mailtimer is increased when updating auctions
     // one second is 1000 -(tested on win system)
-    std::tm ltm = safe_localtime(WorldGameTime::Get());
+    std::tm ltm = safe_localtime(GameTime::GetGameTime());
     mail_timer = uint32((((ltm.tm_hour + 20) % 24) * HOUR * IN_MILLISECONDS) / m_timers[WUPDATE_AUCTIONS].GetInterval());
     // 1440
     mail_timer_expires = uint32((DAY * IN_MILLISECONDS) / (m_timers[WUPDATE_AUCTIONS].GetInterval()));
@@ -882,7 +882,7 @@ void World::SetInitialWorldSettings()
     m_timers[WUPDATE_EVENTS].SetInterval(nextGameEvent);    // depend on next event
 
     sLog.outString("Loading grids for active creatures or transports...");
-    uint32 loadContinentsBegin = GameTime::GetGameTimeMS();
+    uint32 loadContinentsBegin = getMSTime();
     MapManager::LivingWorldStartupStats lwStats = sMapMgr.LoadContinentActiveEntities();
     uint32 loadContinentsMs = GetMSTimeDiffToNow(loadContinentsBegin);
     sLog.outString("[LivingWorld] startup summary: maps-forced=%u, total-unique-grids=%u, total-newly-loaded=%u, total-map-transports=%u, LoadContinents=%u ms",
@@ -1016,7 +1016,6 @@ void World::Update(uint32 diff)
 
     ///- Update the game time and check for shutdown time
     _UpdateGameTime();
-    GameTime::UpdateGameTimers();
     sWorldUpdateTime.UpdateWithDiff(diff);
 
     ///- Flush buffered log files about once per second. The file sinks are
@@ -1035,25 +1034,25 @@ void World::Update(uint32 diff)
     sMassMailMgr.Update();
 
     /// Handle daily quests and dungeon reset time
-    if (WorldGameTime::Get() > m_resets.nextDailyQuestReset)
+    if (GameTime::GetGameTime() > m_resets.nextDailyQuestReset)
     {
         ResetDailyQuests();
     }
 
     /// Handle weekly quests reset time
-    if (WorldGameTime::Get() > m_resets.nextWeeklyQuestReset)
+    if (GameTime::GetGameTime() > m_resets.nextWeeklyQuestReset)
     {
         ResetWeeklyQuests();
     }
 
     /// Handle monthly quests reset time
-    if (WorldGameTime::Get() > m_resets.nextMonthlyQuestReset)
+    if (GameTime::GetGameTime() > m_resets.nextMonthlyQuestReset)
     {
         ResetMonthlyQuests();
     }
 
     /// Handle weekly currency cap reset time
-    if (WorldGameTime::Get() > m_resets.nextCurrencyReset)
+    if (GameTime::GetGameTime() > m_resets.nextCurrencyReset)
     {
         ResetCurrencyWeekCounts();
     }
@@ -1103,7 +1102,7 @@ void World::Update(uint32 diff)
     /// <li> Update uptime table
     if (m_timers[WUPDATE_UPTIME].Passed())
     {
-        uint32 tmpDiff = uint32(WorldGameTime::Get() - m_startTime);
+        uint32 tmpDiff = uint32(GameTime::GetGameTime() - m_startTime);
         uint32 maxClientsNum = m_sessions.MaxActiveCount();
 
         m_timers[WUPDATE_UPTIME].Reset();
@@ -1486,11 +1485,12 @@ bool World::RemoveBan(BanMode mode, std::string nameOrIP)
 void World::_UpdateGameTime()
 {
     ///- update the time
-    time_t thisTime = WorldClock::NowUnix();
+    time_t const previousTime = GameTime::GetGameTime();
+    GameTime::UpdateGameTimers();
+    time_t const thisTime = GameTime::GetGameTime();
     /// The seconds step back once when a harness run ends; the step is taken
     /// as no time passed, rather than underflowing to a huge elapsed value.
-    const uint32 elapsed = thisTime > WorldGameTime::Get() ? uint32(thisTime - WorldGameTime::Get()) : 0;
-    WorldGameTime::Set(thisTime);
+    const uint32 elapsed = thisTime > previousTime ? uint32(thisTime - previousTime) : 0;
 
     ///- if there is a shutdown timer
     if (!ServerControl::IsStopped() && m_ShutdownTimer > 0 && elapsed > 0)
@@ -1785,7 +1785,7 @@ void World::SetMonthlyQuestResetTime(bool initialize)
 
         if (!nextReset)
         {
-            m_resets.nextMonthlyQuestReset = WorldGameTime::Get();
+            m_resets.nextMonthlyQuestReset = GameTime::GetGameTime();
         }
         else
         {
@@ -1802,7 +1802,7 @@ void World::SetMonthlyQuestResetTime(bool initialize)
     }
 
     // computed from the world game time, the clock Update compares the reset against
-    m_resets.nextMonthlyQuestReset = NextMonthlyQuestReset(WorldGameTime::Get(), m_resets.nextMonthlyQuestReset, initialize);
+    m_resets.nextMonthlyQuestReset = NextMonthlyQuestReset(GameTime::GetGameTime(), m_resets.nextMonthlyQuestReset, initialize);
 
     // Row must exist for this to work. Currently row is added by InitDailyQuestResetTime(), called before this function
     SavedVariablesRepository::SetNextMonthlyQuestReset(uint64(m_resets.nextMonthlyQuestReset));

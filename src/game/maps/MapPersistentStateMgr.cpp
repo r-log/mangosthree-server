@@ -67,7 +67,7 @@
 #include "Transports.h"
 #include "ObjectMgr.h"
 #include "GameEventMgr.h"
-#include "WorldGameTime.h"
+#include "GameTime.h"
 #include "data/GameConfig.h"
 #include "Group.h"
 #include "InstanceData.h"
@@ -135,7 +135,7 @@ void MapPersistentState::SaveCreatureRespawnTime(uint32 loguid, time_t t)
         return;
     }
 
-    InstanceRepository::SaveCreatureRespawn(loguid, m_instanceid, uint64(t), t > WorldGameTime::Get());
+    InstanceRepository::SaveCreatureRespawn(loguid, m_instanceid, uint64(t), t > GameTime::GetGameTime());
 }
 
 /**
@@ -154,7 +154,7 @@ void MapPersistentState::SaveGORespawnTime(uint32 loguid, time_t t)
         return;
     }
 
-    InstanceRepository::SaveGameObjectRespawn(loguid, m_instanceid, uint64(t), t > WorldGameTime::Get());
+    InstanceRepository::SaveGameObjectRespawn(loguid, m_instanceid, uint64(t), t > GameTime::GetGameTime());
 }
 
 /**
@@ -165,7 +165,7 @@ void MapPersistentState::SaveGORespawnTime(uint32 loguid, time_t t)
  */
 void MapPersistentState::SetCreatureRespawnTime(uint32 loguid, time_t t)
 {
-    if (t > WorldGameTime::Get())
+    if (t > GameTime::GetGameTime())
     {
         m_creatureRespawnTimes[loguid] = t;
     }
@@ -184,7 +184,7 @@ void MapPersistentState::SetCreatureRespawnTime(uint32 loguid, time_t t)
  */
 void MapPersistentState::SetGORespawnTime(uint32 loguid, time_t t)
 {
-    if (t > WorldGameTime::Get())
+    if (t > GameTime::GetGameTime())
     {
         m_goRespawnTimes[loguid] = t;
     }

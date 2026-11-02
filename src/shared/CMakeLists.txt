@@ -164,8 +164,6 @@ set(SRC_GRP_TIME
   Time/GameTime.h
   Time/UpdateTime.cpp
   Time/UpdateTime.h
-  Time/WorldGameTime.cpp
-  Time/WorldGameTime.h
 )
 source_group("Time" FILES ${SRC_GRP_TIME})
 
