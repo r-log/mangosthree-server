@@ -43,7 +43,7 @@
  */
 void ObjectMgr::LoadGameTele()
 {
-    m_GameTeleMap.clear();                                  // for reload case
+    m_gameTeles.Clear();                                    // for reload case
 
     uint32 count = 0;
     std::vector<GameTeleRow> rows = MapDataRepository::QueryTeles();
@@ -88,7 +88,7 @@ void ObjectMgr::LoadGameTele()
 
         wstrToLower(gt.wnameLow);
 
-        m_GameTeleMap[id] = gt;
+        m_gameTeles.Set(id, gt);
 
         ++count;
     }
@@ -117,7 +117,7 @@ GameTele const* ObjectMgr::GetGameTele(const std::string& name) const
 
     // Alternative first GameTele what contains wnameLow as substring in case no GameTele location found
     const GameTele* alt = NULL;
-    for (GameTeleMap::const_iterator itr = m_GameTeleMap.begin(); itr != m_GameTeleMap.end(); ++itr)
+    for (GameTeleMap::const_iterator itr = m_gameTeles.All().begin(); itr != m_gameTeles.All().end(); ++itr)
         if (itr->second.wnameLow == wname)
         {
             return &itr->second;
@@ -140,7 +140,7 @@ bool ObjectMgr::AddGameTele(GameTele& tele)
 {
     // find max id
     uint32 new_id = 0;
-    for (GameTeleMap::const_iterator itr = m_GameTeleMap.begin(); itr != m_GameTeleMap.end(); ++itr)
+    for (GameTeleMap::const_iterator itr = m_gameTeles.All().begin(); itr != m_gameTeles.All().end(); ++itr)
         if (itr->first > new_id)
         {
             new_id = itr->first;
@@ -156,7 +156,7 @@ bool ObjectMgr::AddGameTele(GameTele& tele)
 
     wstrToLower(tele.wnameLow);
 
-    m_GameTeleMap[new_id] = tele;
+    m_gameTeles.Set(new_id, tele);
 
     return MapDataRepository::InsertTele(new_id, tele.position_x, tele.position_y, tele.position_z,
                                          tele.orientation, tele.mapId, tele.name);
@@ -180,12 +180,12 @@ bool ObjectMgr::DeleteGameTele(const std::string& name)
     // converting string that we try to find to lower case
     wstrToLower(wname);
 
-    for (GameTeleMap::iterator itr = m_GameTeleMap.begin(); itr != m_GameTeleMap.end(); ++itr)
+    for (GameTeleMap::const_iterator itr = m_gameTeles.All().begin(); itr != m_gameTeles.All().end(); ++itr)
     {
         if (itr->second.wnameLow == wname)
         {
             MapDataRepository::DeleteTele(itr->second.name.c_str());
-            m_GameTeleMap.erase(itr);
+            m_gameTeles.Erase(itr->first);
             return true;
         }
     }

@@ -42,7 +42,7 @@
  */
 void ObjectMgr::LoadAreaTriggerTeleports()
 {
-    mAreaTriggers.clear();                                  // need for reload case
+    m_areaTriggers.ClearTeleports();                        // need for reload case
 
     uint32 count = 0;
 
@@ -159,7 +159,7 @@ void ObjectMgr::LoadAreaTriggerTeleports()
             continue;
         }
 
-        mAreaTriggers[Trigger_ID] = at;
+        m_areaTriggers.SetTeleport(Trigger_ID, at);
     }
 
     sLog.outString(">> Loaded %u area trigger teleport definitions", count);
@@ -180,7 +180,7 @@ AreaTrigger const* ObjectMgr::GetGoBackTrigger(uint32 map_id) const
     // Try to find one that teleports to the map we want to enter
     std::list<AreaTrigger const*> ghostTrigger;
     AreaTrigger const* compareTrigger = NULL;
-    for (AreaTriggerMap::const_iterator itr = mAreaTriggers.begin(); itr != mAreaTriggers.end(); ++itr)
+    for (AreaTriggerMap::const_iterator itr = m_areaTriggers.Teleports().begin(); itr != m_areaTriggers.Teleports().end(); ++itr)
     {
         if (itr->second.target_mapId == uint32(mapEntry->CorpseMapID))
         {
@@ -226,7 +226,7 @@ AreaTrigger const* ObjectMgr::GetMapEntranceTrigger(uint32 Map) const
     AreaTrigger const* compareTrigger = NULL;
     MapEntry const* mEntry = sMapStore.LookupEntry(Map);
 
-    for (AreaTriggerMap::const_iterator itr = mAreaTriggers.begin(); itr != mAreaTriggers.end(); ++itr)
+    for (AreaTriggerMap::const_iterator itr = m_areaTriggers.Teleports().begin(); itr != m_areaTriggers.Teleports().end(); ++itr)
     {
         if (itr->second.target_mapId == Map)
         {

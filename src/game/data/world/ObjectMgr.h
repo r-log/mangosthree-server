@@ -48,6 +48,7 @@
 #include "Database/DatabaseEnv.h"
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
+#include "data/AreaTriggerStore.h"
 #include "data/CellObjectGuids.h"
 #include "data/CreatureAddonStore.h"
 #include "data/CreatureEquipmentStore.h"
@@ -56,6 +57,8 @@
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
 #include "data/GameObjectTemplateStore.h"
+#include "data/GameTeleStore.h"
+#include "data/GraveyardStore.h"
 #include "data/InstanceTemplateStore.h"
 #include "data/KeyedRecordStore.h"
 #include "data/LfgDungeonEntranceStore.h"
@@ -90,19 +93,6 @@ enum class TableReadStatus;
 struct SpellTemplateRow;
 struct ItemTemplateRow;
 
-struct GameTele
-{
-    float  position_x;
-    float  position_y;
-    float  position_z;
-    float  orientation;
-    uint32 mapId;
-    std::string name;
-    std::wstring wnameLow;
-};
-
-typedef std::unordered_map<uint32, GameTele > GameTeleMap;
-
 struct SpellClickInfo
 {
     uint32 spellId;
@@ -115,37 +105,6 @@ struct SpellClickInfo
 
 typedef std::multimap<uint32 /*npcEntry*/, SpellClickInfo> SpellClickInfoMap;
 typedef std::pair<SpellClickInfoMap::const_iterator, SpellClickInfoMap::const_iterator> SpellClickInfoMapBounds;
-
-struct AreaTrigger
-{
-    uint8  requiredLevel;
-    uint32 requiredItem;
-    uint32 requiredItem2;
-    uint32 heroicKey;
-    uint32 heroicKey2;
-    uint32 requiredQuest;
-    uint32 requiredQuestHeroic;
-    uint32 target_mapId;
-    float  target_X;
-    float  target_Y;
-    float  target_Z;
-    float  target_Orientation;
-
-    // Operators
-    bool IsMinimal() const
-    {
-        return requiredLevel == 0 && requiredItem == 0 && requiredItem2 == 0 && heroicKey == 0 &&
-               heroicKey2 == 0 && requiredQuest == 0 && requiredQuestHeroic == 0;
-    }
-
-    bool IsLessOrEqualThan(AreaTrigger const* l) const      // Expected to have same map
-    {
-        MANGOS_ASSERT(target_mapId == l->target_mapId);
-        return requiredLevel <= l->requiredLevel && requiredItem <= l->requiredItem && requiredItem2 <= l->requiredItem2
-               && heroicKey <= l->heroicKey && heroicKey2 <= l->heroicKey2 && requiredQuest <= l->requiredQuest && requiredQuestHeroic <= l->requiredQuestHeroic;
-    }
-};
-
 
 // mangos string ranges
 #define MIN_MANGOS_STRING_ID           1                    // 'mangos_string'
@@ -248,14 +207,6 @@ struct DungeonEncounter
 
 typedef std::multimap<uint32, DungeonEncounter const*> DungeonEncounterMap;
 typedef std::pair<DungeonEncounterMap::const_iterator, DungeonEncounterMap::const_iterator> DungeonEncounterMapBounds;
-
-struct GraveYardData
-{
-    uint32 safeLocId;
-    Team team;
-};
-typedef std::multimap < uint32 /*zoneId*/, GraveYardData > GraveYardMap;
-typedef std::pair<GraveYardMap::const_iterator, GraveYardMap::const_iterator> GraveYardMapBounds;
 
 enum ConditionType
 {
@@ -496,7 +447,7 @@ class ObjectMgr
 
         typedef QuestStore::QuestMap QuestMap;
 
-        typedef std::unordered_map<uint32, AreaTrigger> AreaTriggerMap;
+        typedef AreaTriggerStore::AreaTriggerMap AreaTriggerMap;
 
         typedef std::unordered_map<uint32, RepRewardRate > RepRewardRateMap;
         typedef std::unordered_map<uint32, ReputationOnKillEntry> RepOnKillMap;
@@ -554,16 +505,11 @@ class ObjectMgr
 
         uint32 GetQuestForAreaTrigger(uint32 Trigger_ID) const
         {
-            QuestAreaTriggerMap::const_iterator itr = mQuestAreaTriggerMap.find(Trigger_ID);
-            if (itr != mQuestAreaTriggerMap.end())
-            {
-                return itr->second;
-            }
-            return 0;
+            return m_areaTriggers.QuestFor(Trigger_ID);
         }
         bool IsTavernAreaTrigger(uint32 Trigger_ID) const
         {
-            return mTavernAreaTriggerSet.find(Trigger_ID) != mTavernAreaTriggerSet.end();
+            return m_areaTriggers.IsTavern(Trigger_ID);
         }
 
         bool IsGameObjectForQuests(uint32 entry) const
@@ -581,12 +527,7 @@ class ObjectMgr
 
         AreaTrigger const* GetAreaTrigger(uint32 trigger) const
         {
-            AreaTriggerMap::const_iterator itr = mAreaTriggers.find(trigger);
-            if (itr != mAreaTriggers.end())
-            {
-                return &itr->second;
-            }
-            return NULL;
+            return m_areaTriggers.FindTeleport(trigger);
         }
 
         AreaTrigger const* GetGoBackTrigger(uint32 Map) const;
@@ -1134,18 +1075,13 @@ class ObjectMgr
 
         GameTele const* GetGameTele(uint32 id) const
         {
-            GameTeleMap::const_iterator itr = m_GameTeleMap.find(id);
-            if (itr == m_GameTeleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_gameTeles.Find(id);
         }
 
         GameTele const* GetGameTele(const std::string& name) const;
         GameTeleMap const& GetGameTeleMap() const
         {
-            return m_GameTeleMap;
+            return m_gameTeles.All();
         }
         bool AddGameTele(GameTele& data);
         bool DeleteGameTele(const std::string& name);
@@ -1352,16 +1288,12 @@ class ObjectMgr
         QuestRelationStore  m_questRelations;
 
         typedef std::unordered_map<uint32, GossipText> GossipTextMap;
-        typedef std::unordered_map<uint32, uint32> QuestAreaTriggerMap;
-        typedef std::set<uint32> TavernAreaTriggerSet;
 
         typedef std::multimap<uint32, CreatureModelRace> CreatureModelRaceMap;
         typedef std::pair<CreatureModelRaceMap::const_iterator, CreatureModelRaceMap::const_iterator> CreatureModelRaceMapBounds;
 
-        QuestAreaTriggerMap mQuestAreaTriggerMap;
-        TavernAreaTriggerSet mTavernAreaTriggerSet;
         GossipTextMap       mGossipText;
-        AreaTriggerMap      mAreaTriggers;
+        AreaTriggerStore    m_areaTriggers;
 
         RepRewardRateMap    m_RepRewardRateMap;
         RepOnKillMap        mRepOnKill;
@@ -1409,9 +1341,9 @@ class ObjectMgr
         typedef std::set<std::wstring> ReservedNamesMap;
         ReservedNamesMap    m_ReservedNames;
 
-        GraveYardMap        mGraveYardMap;
+        GraveyardStore      m_graveyards;
 
-        GameTeleMap         m_GameTeleMap;
+        GameTeleStore       m_gameTeles;
 
         SpellClickInfoMap   mSpellClickInfoMap;
 

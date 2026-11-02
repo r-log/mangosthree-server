@@ -55,7 +55,7 @@
  */
 void ObjectMgr::LoadGraveyardZones()
 {
-    mGraveYardMap.clear();                                  // need for reload case
+    m_graveyards.Clear();                                   // need for reload case
 
     std::vector<GraveyardZoneRow> rows = MapDataRepository::QueryGraveyardZones();
 
@@ -139,7 +139,7 @@ WorldSafeLocsEntry const* ObjectMgr::GetClosestGraveYard(float x, float y, float
     //     then check faction
     //   if mapId != graveyard.mapId (ghost in instance) and search any graveyard associated
     //     then check faction
-    GraveYardMapBounds bounds = mGraveYardMap.equal_range(zoneId);
+    GraveYardMapBounds bounds = m_graveyards.Zone(zoneId);
 
     if (bounds.first == bounds.second)
     {
@@ -252,17 +252,7 @@ WorldSafeLocsEntry const* ObjectMgr::GetClosestGraveYard(float x, float y, float
  */
 GraveYardData const* ObjectMgr::FindGraveYardData(uint32 id, uint32 zoneId) const
 {
-    GraveYardMapBounds bounds = mGraveYardMap.equal_range(zoneId);
-
-    for (GraveYardMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
-    {
-        if (itr->second.safeLocId == id)
-        {
-            return &itr->second;
-        }
-    }
-
-    return NULL;
+    return m_graveyards.Find(id, zoneId);
 }
 
 /**
@@ -276,7 +266,7 @@ GraveYardData const* ObjectMgr::FindGraveYardData(uint32 id, uint32 zoneId) cons
  */
 bool ObjectMgr::AddGraveYardLink(uint32 id, uint32 zoneId, Team team, bool inDB)
 {
-    if (FindGraveYardData(id, zoneId))                      // This ensures that (safeLoc)Id,  zoneId is unique in mGraveYardMap
+    if (FindGraveYardData(id, zoneId))                      // This ensures that (safeLoc)Id,  zoneId is unique in the store
     {
         return false;
     }
@@ -286,7 +276,7 @@ bool ObjectMgr::AddGraveYardLink(uint32 id, uint32 zoneId, Team team, bool inDB)
     data.safeLocId = id;
     data.team = team;
 
-    mGraveYardMap.insert(GraveYardMap::value_type(zoneId, data));
+    m_graveyards.Add(zoneId, data);
 
     // add link to DB
     if (inDB)
@@ -306,19 +296,9 @@ bool ObjectMgr::AddGraveYardLink(uint32 id, uint32 zoneId, Team team, bool inDB)
  */
 void ObjectMgr::SetGraveYardLinkTeam(uint32 id, uint32 zoneId, Team team)
 {
-    std::pair<GraveYardMap::iterator, GraveYardMap::iterator> bounds = mGraveYardMap.equal_range(zoneId);
-
-    for (GraveYardMap::iterator itr = bounds.first; itr != bounds.second; ++itr)
+    if (GraveYardData* data = m_graveyards.FindForEdit(id, zoneId))
     {
-        GraveYardData& data = itr->second;
-
-        // skip not matching safezone id
-        if (data.safeLocId != id)
-        {
-            continue;
-        }
-
-        data.team = team;                                   // Validate link
+        data->team = team;                                  // Validate link
         return;
     }
 

@@ -257,6 +257,9 @@ set(SRC_GRP_TESTS
     PointOfInterestStoreTest.cpp
     QuestStoreTest.cpp
     QuestRelationStoreTest.cpp
+    AreaTriggerStoreTest.cpp
+    GameTeleStoreTest.cpp
+    GraveyardStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp
