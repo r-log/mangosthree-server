@@ -600,6 +600,9 @@ void Player::CleanupsBeforeDelete()
 
     // Perform unit-specific cleanup
     Unit::CleanupsBeforeDelete();
+
+    // The unit's cleanup deleted the auras the modifiers point into.
+    m_spellModMgr.Clear();
 }
 
 /**

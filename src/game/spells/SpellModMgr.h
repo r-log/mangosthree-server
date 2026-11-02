@@ -89,6 +89,8 @@ class SpellModMgr
     public:
         void Change(SpellModEntry const& entry, bool apply, SpellModChangedSink const& report);
         template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue);
+        /// Forgets every modifier without telling the client, for a unit whose auras were deleted.
+        void Clear();
 
     private:
         std::list<SpellModEntry> m_mods[MAX_SPELLMOD];

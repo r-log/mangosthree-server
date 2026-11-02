@@ -237,6 +237,24 @@ TEST(SpellModMgr_FlatAmountsAreSummed)
     CHECK_EQ(value, int32(112));
 }
 
+// A cleared manager forgets every modifier and tells no client: nothing applies afterwards.
+TEST(SpellModMgr_ClearingForgetsEveryModifierWithoutAReport)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    Recorder recorder;
+    FakeModifier first(5, kBit1, 1);
+    mgr.Change(first.Entry(true, SPELLMOD_DAMAGE), true, recorder.Sink());
+    size_t const reported = recorder.facts.size();
+
+    mgr.Clear();
+    CHECK_EQ(recorder.facts.size(), reported);
+
+    int32 value = 100;
+    CHECK_EQ(mgr.ApplySpellMod(kSpellMage, SPELLMOD_DAMAGE, value), int32(0));
+    CHECK_EQ(value, int32(100));
+}
+
 // Percentages add up and scale the value before the flat amounts are added.
 TEST(SpellModMgr_PercentagesAreSummed)
 {
