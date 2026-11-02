@@ -2778,7 +2778,7 @@ namespace Harness
             std::map<std::string, int64> e;
             e["Method"] = 2;
             e["SpecialFlags"] = QUEST_SPECIAL_FLAG_EXPLORATION_OR_EVENT;
-            e["QuestFlags"] = 278530;
+            e["QuestFlags"] = 16386;
             e["QuestLevel"] = 49;
             e["ZoneOrSort"] = 2100;
             e["RewXPId"] = 6;
