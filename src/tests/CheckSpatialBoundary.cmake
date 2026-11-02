@@ -2,17 +2,17 @@ include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(SpatialBoundary)
 
 set(HIERARCHY_HEADERS
-    Object/Object.h
-    Object/Unit.h
+    entities/Object.h
+    entities/Unit.h
     entities/player/Player.h
-    Object/Creature.h
-    Object/GameObject.h
-    Object/DynamicObject.h
-    Object/Corpse.h
-    Object/Vehicle.h
-    Object/Pet.h
-    Object/Totem.h
-    Object/TemporarySummon.h)
+    entities/Creature.h
+    entities/GameObject.h
+    entities/DynamicObject.h
+    entities/Corpse.h
+    entities/Vehicle.h
+    entities/Pet.h
+    entities/Totem.h
+    entities/TemporarySummon.h)
 
 set(FORBIDDEN_MEMBERS
     GetPositionX GetPositionY GetPositionZ GetOrientation
@@ -45,7 +45,7 @@ function(spatial_missing_headers HEADERS_VAR OUT_VAR)
 endfunction()
 
 # Self-test: a present header passes, a renamed one and a directory are reported.
-set(SELF_TEST_HEADERS Object/Object.h Object/NoSuchHeader.h Object)
+set(SELF_TEST_HEADERS entities/Object.h Object/NoSuchHeader.h Object)
 spatial_missing_headers(SELF_TEST_HEADERS SELF_TEST_MISSING)
 if(NOT "${SELF_TEST_MISSING}" STREQUAL "Object/NoSuchHeader.h;Object")
   message(FATAL_ERROR "SpatialBoundary self-test failed: [${SELF_TEST_HEADERS}] reported missing "
@@ -74,7 +74,7 @@ foreach(HEADER IN LISTS HIERARCHY_HEADERS)
   endforeach()
 endforeach()
 
-file(READ "${SOURCE_ROOT}/src/game/Object/Object.h" OBJECT_H)
+file(READ "${SOURCE_ROOT}/src/game/entities/Object.h" OBJECT_H)
 foreach(REQUIRED_TEXT
     "Geometry::Placement m_placement"
     "Geometry::Placement const& Where() const")

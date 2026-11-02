@@ -356,7 +356,7 @@ def self_test():
     good = 'Player* p = new Player(s);\n' + install
     three = {'src/game/session/handlers/entities/CharacterHandler.cpp': good + good, 'src/game/Harness/Scenario.cpp': good,
              PLAYER_CPP: player,
-             'src/game/Object/Unit.cpp': 'Unit::Unit() :\n    m_groupCallbacks(NULL),\n    m_x(0)\n{\n}\n'}
+             'src/game/entities/Unit.cpp': 'Unit::Unit() :\n    m_groupCallbacks(NULL),\n    m_x(0)\n{\n}\n'}
     expect_check('the three installed sites pass', three, 0)
     expect_check('a fourth site without the install fails',
                  dict(three, **{'src/scripts/legacy/a.cpp': 'Player* p = new Player(s);\np->Create();\n'}), 1)
@@ -373,13 +373,13 @@ def self_test():
     expect_check('the clear missing fails', dict(three, **{PLAYER_CPP: ctor % sets + dtor % ''}), 1)
     expect_check('the set missing fails', dict(three, **{PLAYER_CPP: ctor % '' + dtor % clears}), 1)
     expect_check('an assignment in another file fails',
-                 dict(three, **{'src/game/Object/Unit.cpp': 'Unit::~Unit()\n{\n    m_groupCallbacks = NULL;\n}\n'}), 1)
+                 dict(three, **{'src/game/entities/Unit.cpp': 'Unit::~Unit()\n{\n    m_groupCallbacks = NULL;\n}\n'}), 1)
     expect_check('the spell-modifier pointer assigned in another file fails',
-                 dict(three, **{'src/game/Object/Unit.cpp': 'Unit::~Unit()\n{\n    m_spellMods = NULL;\n}\n'}), 1)
+                 dict(three, **{'src/game/entities/Unit.cpp': 'Unit::~Unit()\n{\n    m_spellMods = NULL;\n}\n'}), 1)
     expect_check('the client-callback pointer assigned in another file fails',
-                 dict(three, **{'src/game/Object/Unit.cpp': 'Unit::~Unit()\n{\n    m_clientCallbacks = NULL;\n}\n'}), 1)
+                 dict(three, **{'src/game/entities/Unit.cpp': 'Unit::~Unit()\n{\n    m_clientCallbacks = NULL;\n}\n'}), 1)
     expect_check('the cooldown-callback pointer assigned in another file fails',
-                 dict(three, **{'src/game/Object/Unit.cpp': 'Unit::~Unit()\n{\n    m_cooldownCallbacks = NULL;\n}\n'}), 1)
+                 dict(three, **{'src/game/entities/Unit.cpp': 'Unit::~Unit()\n{\n    m_cooldownCallbacks = NULL;\n}\n'}), 1)
     expect_check('a second assignment in Player.cpp fails',
                  dict(three, **{PLAYER_CPP: player + 'void Player::F()\n{\n    m_groupCallbacks = NULL;\n}\n'}), 1)
     expect_check('Player.cpp missing fails', {k: v for k, v in three.items() if k != PLAYER_CPP}, 1)

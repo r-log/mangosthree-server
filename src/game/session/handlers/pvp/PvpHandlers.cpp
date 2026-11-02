@@ -34,7 +34,7 @@
 #include "Log/Log.h"
 #include "entities/player/Player.h"
 #include "session/packets/chat/SystemMessage.h"
-#include "Object/Object.h"
+#include "entities/Object.h"
 #include "data/world/ObjectMgr.h"
 #include "social/ArenaTeam.h"
 #include "BattleGround/BattleGround.h"

@@ -8,7 +8,7 @@
 # For each target below, the include directories are read from its CMakeLists.txt (every
 # target_include_directories() call for it) plus those of the targets it inherits them from
 # (game's are PUBLIC). Every header under each directory, recursively, is listed by the path it
-# would be included by from that directory: "Unit.h" from src/game/Object, "Object/Unit.h" from
+# would be included by from that directory: "Unit.h" from src/game/Object, "entities/Unit.h" from
 # src/game. A spelling that names two different files is a collision. The basenames are the
 # spellings of the files directly in a directory; the deeper spellings catch the D4j shape too
 # ("combat/X.h" from both src/game and src/game/entities/player). Spellings are compared in
@@ -205,11 +205,11 @@ endif()
 
 set(SELF_TEST_GAME "${SOURCE_ROOT}/src/game")
 string(CONCAT SELF_TEST_TEXT "x()\ntarget_include_directories(game\n    PUBLIC # a comment ) with a paren\n"
-    "        \${CMAKE_CURRENT_SOURCE_DIR}\n        Object\n        \${CMAKE_CURRENT_SOURCE_DIR}/combat\n"
-    "        \${CMAKE_CURRENT_BINARY_DIR}\n)\ntarget_include_directories(gamex PRIVATE Server)\n"
+    "        \${CMAKE_CURRENT_SOURCE_DIR}\n        Maps\n        \${CMAKE_CURRENT_SOURCE_DIR}/combat\n"
+    "        \${CMAKE_CURRENT_BINARY_DIR}\n)\ntarget_include_directories(gamex PRIVATE session)\n"
     "target_include_directories(game PRIVATE \${CMAKE_SOURCE_DIR}/src/game/spells)\n")
 parse_include_dirs("${SELF_TEST_TEXT}" game "${SELF_TEST_GAME}" SELF_TEST_DIRS SELF_TEST_SKIPPED)
-set(SELF_TEST_EXPECTED "${SELF_TEST_GAME};${SELF_TEST_GAME}/Object;${SELF_TEST_GAME}/combat;${SELF_TEST_GAME}/spells")
+set(SELF_TEST_EXPECTED "${SELF_TEST_GAME};${SELF_TEST_GAME}/Maps;${SELF_TEST_GAME}/combat;${SELF_TEST_GAME}/spells")
 if(NOT "${SELF_TEST_DIRS}" STREQUAL "${SELF_TEST_EXPECTED}" OR NOT SELF_TEST_SKIPPED EQUAL 1)
     message(FATAL_ERROR "IncludeCollisions self-test failed (parser): got '${SELF_TEST_DIRS}' "
         "(${SELF_TEST_SKIPPED} skipped), expected '${SELF_TEST_EXPECTED}' (1 skipped)")

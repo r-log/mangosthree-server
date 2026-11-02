@@ -26,7 +26,7 @@
 #ifndef MANGOS_H_SPELLTARGETDISTANCEORDER
 #define MANGOS_H_SPELLTARGETDISTANCEORDER
 
-#include "Object/Unit.h"
+#include "entities/Unit.h"
 
 // Helper for targets furthest away to the spell target
 template <class Arg1, class Arg2, class Result>

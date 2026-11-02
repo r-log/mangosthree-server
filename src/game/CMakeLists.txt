@@ -79,9 +79,6 @@ source_group("Map Threading" FILES ${SRC_GRP_MAP_THREAD})
 file(GLOB SRC_GRP_HARNESS Harness/*.cpp Harness/*.h)
 source_group("Harness" FILES ${SRC_GRP_HARNESS})
 
-file(GLOB SRC_GRP_OBJECT Object/*.cpp Object/*.h)
-source_group("Object" FILES ${SRC_GRP_OBJECT})
-
 file(GLOB SRC_GRP_OUTDOOR_PVP OutdoorPvP/*.cpp OutdoorPvP/*.h)
 source_group("Outdoor PvP" FILES ${SRC_GRP_OUTDOOR_PVP})
 
@@ -368,7 +365,6 @@ add_library(domain STATIC
     ${SRC_GRP_ENTITIES_PLAYER_TALENTS}
     ${SRC_GRP_ENTITIES_PLAYER_WORLD}
     ${SRC_GRP_MAP_THREAD}
-    ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
     ${SRC_GRP_SOCIAL}
     ${SRC_GRP_SPELLS}
@@ -400,7 +396,6 @@ target_include_directories(domain
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/talents
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
         Maps
-        Object
         OutdoorPvP
         WorldHandlers
         social

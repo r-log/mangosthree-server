@@ -274,7 +274,7 @@ def spell_critical_healing_bonus(damage, critical_healing_multiplier):
 
 def ap_multiplier(attack_time, is_player, normalized, has_weapon,
                   weapon_inventory_type, weapon_sub_class):
-    """Unit::GetAPMultiplier -- src/game/Object/Unit.cpp:6374-6401 at ce20c27db.
+    """Unit::GetAPMultiplier -- src/game/entities/Unit.cpp:6374-6401 at ce20c27db.
 
     GetAttackTime(attType) -> attack_time, GetTypeId() == TYPEID_PLAYER -> is_player,
     ((Player*)this)->GetWeaponForAttack(attType, true, false) -> has_weapon, and that

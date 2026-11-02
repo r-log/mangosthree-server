@@ -25,7 +25,7 @@
 
 #include "HonorMgr.h"
 #include "ObjectGuid.h"
-#include "Object/UpdateFields.h"
+#include "entities/UpdateFields.h"
 #include "Common/TimeConstants.h"                           // DAY
 
 void HonorMgr::UpdateKills(Clock const& clock, KillFields const& fields)

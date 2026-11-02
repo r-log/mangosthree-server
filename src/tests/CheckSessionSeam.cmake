@@ -9,7 +9,7 @@ set(SEAM_FILES
     "${GAME_DIR}/spells/auras/SpellAuraPeriodic.cpp"
     "${GAME_DIR}/spells/pipeline/SpellReports.cpp"
     "${GAME_DIR}/spells/auras/UnitAura.cpp"
-    "${GAME_DIR}/Object/UnitVisibility.cpp")
+    "${GAME_DIR}/entities/UnitVisibility.cpp")
 
 set(SESSION_CALL_RE "GetSession[ \t]*\\(")
 set(SEND_PACKET_RE "SendPacket[ \t]*\\(")

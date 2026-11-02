@@ -77,7 +77,7 @@ namespace
     }
 
     // The four movement flags a direction key sets, by their names in
-    // src/game/Object/Unit.h:739-742 -- MOVEFLAG_FORWARD 0x1,
+    // src/game/entities/Unit.h:739-742 -- MOVEFLAG_FORWARD 0x1,
     // MOVEFLAG_BACKWARD 0x2, MOVEFLAG_STRAFE_LEFT 0x4, MOVEFLAG_STRAFE_RIGHT
     // 0x8 -- spelled out here because this test links proto and shared only and
     // cannot include Unit.h.

@@ -34,7 +34,7 @@
 #include "Log/Log.h"
 #include "Opcodes.h"
 #include "entities/player/Player.h"
-#include "Object/Item.h"
+#include "entities/Item.h"
 #include "spells/pipeline/Spell.h"
 #include "entities/player/social/SocialMgr.h"
 #include "data/Language.h"

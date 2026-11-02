@@ -41,7 +41,7 @@ namespace Motion
     enum class ChangeType : uint8
     {
         None = 0,
-        // The nine speeds, in UnitMoveType order (src/game/Object/Unit.h:580).
+        // The nine speeds, in UnitMoveType order (src/game/entities/Unit.h:580).
         WalkSpeed, RunSpeed, RunBackSpeed, SwimSpeed, SwimBackSpeed, TurnRate, FlightSpeed, FlightBackSpeed, PitchRate,
         // Flags: apply = set, !apply = unset.
         Root, CanFly, WaterWalk, FeatherFall, Hover, GravityDisabled, CanTransitionSwimFly,

@@ -12,15 +12,15 @@ set(CONVERTED_FILES
     src/game/session/handlers/entities/CharacterHandler.cpp
     src/game/session/handlers/entities/CharacterCustomizeHandlers.cpp
     src/game/entities/player/Player.cpp
-    src/game/Object/PetDatabase.cpp
-    src/game/Object/PetSpells.cpp
+    src/game/entities/PetDatabase.cpp
+    src/game/entities/PetSpells.cpp
     src/game/persistence/characters/CharacterTransaction.h
     src/game/persistence/characters/CharacterTransaction.cpp
     src/game/persistence/characters/pets/PetRepository.h
     src/game/persistence/characters/pets/PetRepository.cpp
     src/game/persistence/characters/social/GroupRepository.h
     src/game/persistence/characters/social/GroupRepository.cpp
-    src/game/Object/ItemPersistence.cpp
+    src/game/entities/ItemPersistence.cpp
     src/game/persistence/characters/inventory/ItemRepository.h
     src/game/persistence/characters/inventory/ItemRepository.cpp
     src/game/persistence/characters/mail/MailRepository.h

@@ -25,7 +25,7 @@
 
 #include "spells/handlers/AuraShapeshiftHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Creature.h"
+#include "entities/Creature.h"
 #include "Log.h"
 
 /// 16739: Orb of Deception: a display by the target's native model

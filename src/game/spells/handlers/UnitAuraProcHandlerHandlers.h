@@ -27,7 +27,7 @@
 #define MANGOSSERVER_SPELLS_HANDLERS_UNITAURAPROCHANDLERHANDLERS_H
 
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Unit.h"
+#include "entities/Unit.h"
 
 /**
  * @file UnitAuraProcHandlerHandlers.h

@@ -35,7 +35,7 @@ namespace loadtest
 {
     namespace
     {
-        /// MovementFlags::MOVEFLAG_FORWARD (src/game/Object/Unit.h). The tool
+        /// MovementFlags::MOVEFLAG_FORWARD (src/game/entities/Unit.h). The tool
         /// cannot include game headers, so the one bit it needs lives here.
         const uint32 MOVEFLAG_FORWARD = 0x00000001;
         const float kPi = 3.14159265358979f;

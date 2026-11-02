@@ -25,8 +25,8 @@
 
 #include "spells/handlers/SpellEffectObjectCombatHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Creature.h"
-#include "Object/GameObject.h"
+#include "entities/Creature.h"
+#include "entities/GameObject.h"
 #include "Common/TimeConstants.h"
 #include "Utilities/MathDefines.h"
 #include "Utilities/Util.h"

@@ -146,7 +146,7 @@ legacy/base/follower_ai.cpp free Reset
 legacy/base/follower_ai.cpp free SetCombatMovement
 legacy/base/follower_ai.cpp free debug_log
 legacy/base/follower_ai.cpp free script_error_log
-legacy/base/follower_ai.cpp include game/Object/Pet.h
+legacy/base/follower_ai.cpp include game/entities/Pet.h
 legacy/base/follower_ai.h downcast Unit
 legacy/base/follower_ai.h override AttackStart
 legacy/base/follower_ai.h override EnterEvadeMode
@@ -218,7 +218,7 @@ legacy/base/pet_ai.cpp free InMeleeReach
 legacy/base/pet_ai.cpp free InReach
 legacy/base/pet_ai.cpp free Reset
 legacy/base/pet_ai.cpp free debug_log
-legacy/base/pet_ai.cpp include game/Object/Pet.h
+legacy/base/pet_ai.cpp include game/entities/Pet.h
 legacy/base/pet_ai.h downcast Unit
 legacy/base/pet_ai.h free Reset
 legacy/base/pet_ai.h override AttackStart
@@ -228,13 +228,13 @@ legacy/base/pet_ai.h override KilledUnit
 legacy/base/pet_ai.h override MoveInLineOfSight
 legacy/base/pet_ai.h override OwnerKilledUnit
 legacy/base/pet_ai.h override UpdateAI
-legacy/include/precompiled.h include game/Object/Creature.h
-legacy/include/precompiled.h include game/Object/GameObject.h
-legacy/include/precompiled.h include game/Object/Object.h
-legacy/include/precompiled.h include game/Object/Unit.h
 legacy/include/precompiled.h include game/ai/CreatureAI.h
 legacy/include/precompiled.h include game/ai/GameObjectAI.h
 legacy/include/precompiled.h include game/dbscripts/ScriptMgr.h
+legacy/include/precompiled.h include game/entities/Creature.h
+legacy/include/precompiled.h include game/entities/GameObject.h
+legacy/include/precompiled.h include game/entities/Object.h
+legacy/include/precompiled.h include game/entities/Unit.h
 legacy/include/precompiled.h include game/entities/motion/MotionMaster.h
 legacy/include/precompiled.h include game/spells/auras/SpellAuras.h
 legacy/include/precompiled.h include shared/Common/TimeConstants.h
@@ -329,8 +329,8 @@ legacy/include/sc_creature.cpp include game/Maps/Cell.h
 legacy/include/sc_creature.cpp include game/Maps/CellImpl.h
 legacy/include/sc_creature.cpp include game/Maps/GridNotifiers.h
 legacy/include/sc_creature.cpp include game/Maps/GridNotifiersImpl.h
-legacy/include/sc_creature.cpp include game/Object/Item.h
 legacy/include/sc_creature.cpp include game/data/world/ObjectMgr.h
+legacy/include/sc_creature.cpp include game/entities/Item.h
 legacy/include/sc_creature.cpp include game/spells/pipeline/Spell.h
 legacy/include/sc_creature.cpp include proto/WorldPacket.h
 legacy/include/sc_creature.h call GetManaCost
@@ -405,7 +405,7 @@ legacy/include/sc_grid_searchers.cpp include game/data/GameConfig.h
 legacy/include/sc_grid_searchers.cpp singleton sLog
 legacy/include/sc_grid_searchers.h call IsNearer
 legacy/include/sc_grid_searchers.h call Where
-legacy/include/sc_grid_searchers.h include game/Object/Object.h
+legacy/include/sc_grid_searchers.h include game/entities/Object.h
 legacy/include/sc_instance.cpp call GetCreature
 legacy/include/sc_instance.cpp call GetEntry
 legacy/include/sc_instance.cpp call GetGameObject
@@ -958,7 +958,7 @@ legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.
 legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.cpp free DoCastSpellIfCan
 legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.cpp free DoMeleeAttackIfReady
 legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.cpp free urand
-legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.cpp include game/Object/TemporarySummon.h
+legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.cpp include game/entities/TemporarySummon.h
 legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.cpp override JustDied
 legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.cpp override JustReachedHome
 legacy/scripts/eastern_kingdoms/blackrock_mountain/blackwing_lair/boss_nefarian.cpp override KilledUnit
@@ -1285,7 +1285,7 @@ legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_ex
 legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_executus.cpp free DoMeleeAttackIfReady
 legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_executus.cpp free debug_log
 legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_executus.cpp free urand
-legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_executus.cpp include game/Object/TemporarySummon.h
+legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_executus.cpp include game/entities/TemporarySummon.h
 legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_executus.cpp override CorpseRemoved
 legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_executus.cpp override DamageTaken
 legacy/scripts/eastern_kingdoms/blackrock_mountain/molten_core/boss_majordomo_executus.cpp override EffectDummy
@@ -1672,7 +1672,7 @@ legacy/scripts/eastern_kingdoms/eversong_woods.cpp free DoMeleeAttackIfReady
 legacy/scripts/eastern_kingdoms/eversong_woods.cpp free Reset
 legacy/scripts/eastern_kingdoms/eversong_woods.cpp free StartEvent
 legacy/scripts/eastern_kingdoms/eversong_woods.cpp free urand
-legacy/scripts/eastern_kingdoms/eversong_woods.cpp include game/Object/TemporarySummon.h
+legacy/scripts/eastern_kingdoms/eversong_woods.cpp include game/entities/TemporarySummon.h
 legacy/scripts/eastern_kingdoms/eversong_woods.cpp override JustDied
 legacy/scripts/eastern_kingdoms/eversong_woods.cpp override JustSummoned
 legacy/scripts/eastern_kingdoms/eversong_woods.cpp override OnGossipHello
@@ -1884,7 +1884,7 @@ legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp downcast Pet
 legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp downcast Unit
 legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp free DoCastSpellIfCan
 legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp free urand
-legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp include game/Object/Pet.h
+legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp include game/entities/Pet.h
 legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp override MoveInLineOfSight
 legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp override Reset
 legacy/scripts/eastern_kingdoms/isle_of_queldanas.cpp override UpdateAI
@@ -2584,7 +2584,7 @@ legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp downcast Tem
 legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp downcast Unit
 legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp free DoCastSpellIfCan
 legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp free DoMeleeAttackIfReady
-legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp include game/Object/TemporarySummon.h
+legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp include game/entities/TemporarySummon.h
 legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp override AttackStart
 legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp override JustDied
 legacy/scripts/eastern_kingdoms/magisters_terrace/boss_vexallus.cpp override JustReachedHome
@@ -2754,7 +2754,7 @@ legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp free SetCombatMove
 legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp free Start
 legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp free countof
 legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp free urand
-legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp include game/Object/Pet.h
+legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp include game/entities/Pet.h
 legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp override AttackStart
 legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp override DamageTaken
 legacy/scripts/eastern_kingdoms/scarlet_enclave/ebon_hold.cpp override EffectDummy
@@ -2870,7 +2870,7 @@ legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp fre
 legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp free RandomGroundPointNear
 legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp free SendAIEvent
 legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp free urand
-legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp include game/Object/TemporarySummon.h
+legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp include game/entities/TemporarySummon.h
 legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp override AttackStart
 legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp override DamageTaken
 legacy/scripts/eastern_kingdoms/scarlet_monastery/boss_headless_horseman.cpp override JustDied
@@ -3683,7 +3683,7 @@ legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp free ObjectGuid
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp free Reset
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp free SetCombatMovement
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp free urand
-legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp include game/Object/TemporarySummon.h
+legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp include game/entities/TemporarySummon.h
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp override AttackStart
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp override EnterEvadeMode
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_felmyst.cpp override JustDied
@@ -3807,7 +3807,7 @@ legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp free SetComba
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp free frand
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp free irand
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp free urand
-legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp include game/Object/TemporarySummon.h
+legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp include game/entities/TemporarySummon.h
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp override AttackStart
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp override GetAIInformation
 legacy/scripts/eastern_kingdoms/sunwell_plateau/boss_kiljaeden.cpp override JustDied
@@ -5202,7 +5202,7 @@ legacy/scripts/kalimdor/darkshore.cpp free JustRespawned
 legacy/scripts/kalimdor/darkshore.cpp free Reset
 legacy/scripts/kalimdor/darkshore.cpp free Start
 legacy/scripts/kalimdor/darkshore.cpp free urand
-legacy/scripts/kalimdor/darkshore.cpp include game/Object/Pet.h
+legacy/scripts/kalimdor/darkshore.cpp include game/entities/Pet.h
 legacy/scripts/kalimdor/darkshore.cpp override JustRespawned
 legacy/scripts/kalimdor/darkshore.cpp override JustSummoned
 legacy/scripts/kalimdor/darkshore.cpp override MoveInLineOfSight
@@ -5261,7 +5261,7 @@ legacy/scripts/kalimdor/desolace.cpp free InReach
 legacy/scripts/kalimdor/desolace.cpp free RandomGroundPointNear
 legacy/scripts/kalimdor/desolace.cpp free Reset
 legacy/scripts/kalimdor/desolace.cpp free urand
-legacy/scripts/kalimdor/desolace.cpp include game/Object/Pet.h
+legacy/scripts/kalimdor/desolace.cpp include game/entities/Pet.h
 legacy/scripts/kalimdor/desolace.cpp override EffectDummy
 legacy/scripts/kalimdor/desolace.cpp override JustDied
 legacy/scripts/kalimdor/desolace.cpp override JustSummoned
@@ -5439,7 +5439,7 @@ legacy/scripts/kalimdor/dustwallow_marsh.cpp free GetQuestTemplateStore
 legacy/scripts/kalimdor/dustwallow_marsh.cpp free ObjectGuid
 legacy/scripts/kalimdor/dustwallow_marsh.cpp free Start
 legacy/scripts/kalimdor/dustwallow_marsh.cpp free urand
-legacy/scripts/kalimdor/dustwallow_marsh.cpp include game/Object/TemporarySummon.h
+legacy/scripts/kalimdor/dustwallow_marsh.cpp include game/entities/TemporarySummon.h
 legacy/scripts/kalimdor/dustwallow_marsh.cpp override AttackedBy
 legacy/scripts/kalimdor/dustwallow_marsh.cpp override DamageTaken
 legacy/scripts/kalimdor/dustwallow_marsh.cpp override JustDied
@@ -6827,7 +6827,7 @@ legacy/scripts/kalimdor/ungoro_crater.cpp free InReach
 legacy/scripts/kalimdor/ungoro_crater.cpp free Reset
 legacy/scripts/kalimdor/ungoro_crater.cpp free Transform
 legacy/scripts/kalimdor/ungoro_crater.cpp free urand
-legacy/scripts/kalimdor/ungoro_crater.cpp include game/Object/Pet.h
+legacy/scripts/kalimdor/ungoro_crater.cpp include game/entities/Pet.h
 legacy/scripts/kalimdor/ungoro_crater.cpp override EnterEvadeMode
 legacy/scripts/kalimdor/ungoro_crater.cpp override JustDied
 legacy/scripts/kalimdor/ungoro_crater.cpp override JustReachedHome
@@ -7273,7 +7273,7 @@ legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp free DoCastSpellIf
 legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp free DoMeleeAttackIfReady
 legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp free SetCombatMovement
 legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp free urand
-legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp override EnterEvadeMode
 legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp override JustDied
 legacy/scripts/northrend/azjol-nerub/ahnkahet/boss_volazj.cpp override JustReachedHome
@@ -7315,7 +7315,7 @@ legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp free advance
 legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp free debug_log
 legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp free script_error_log
 legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp free urand
-legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp override CheckAchievementCriteriaMeet
 legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp override GetData
 legacy/scripts/northrend/azjol-nerub/ahnkahet/instance_ahnkahet.cpp override GetInstanceData
@@ -7565,7 +7565,7 @@ legacy/scripts/northrend/borean_tundra.cpp free Reset
 legacy/scripts/northrend/borean_tundra.cpp free Start
 legacy/scripts/northrend/borean_tundra.cpp free UpdateAI
 legacy/scripts/northrend/borean_tundra.cpp free urand
-legacy/scripts/northrend/borean_tundra.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/borean_tundra.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/borean_tundra.cpp override AttackStart
 legacy/scripts/northrend/borean_tundra.cpp override AttackedBy
 legacy/scripts/northrend/borean_tundra.cpp override EffectDummy
@@ -9573,7 +9573,7 @@ legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp free InReach
 legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp free RandomGroundPointNear
 legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp free SetCombatMovement
 legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp free urand
-legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp override AttackStart
 legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp override JustDied
 legacy/scripts/northrend/nexus/eye_of_eternity/boss_malygos.cpp override JustReachedHome
@@ -9857,7 +9857,7 @@ legacy/scripts/northrend/nexus/oculus/boss_varos.cpp free DoCastSpellIfCan
 legacy/scripts/northrend/nexus/oculus/boss_varos.cpp free DoMeleeAttackIfReady
 legacy/scripts/northrend/nexus/oculus/boss_varos.cpp free SetCombatMovement
 legacy/scripts/northrend/nexus/oculus/boss_varos.cpp free urand
-legacy/scripts/northrend/nexus/oculus/boss_varos.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/nexus/oculus/boss_varos.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/nexus/oculus/boss_varos.cpp override AttackStart
 legacy/scripts/northrend/nexus/oculus/boss_varos.cpp override JustDied
 legacy/scripts/northrend/nexus/oculus/boss_varos.cpp override JustReachedHome
@@ -9911,7 +9911,7 @@ legacy/scripts/northrend/nexus/oculus/oculus.cpp downcast Unit
 legacy/scripts/northrend/nexus/oculus/oculus.cpp free ContactPointNear
 legacy/scripts/northrend/nexus/oculus/oculus.cpp free DoCastSpellIfCan
 legacy/scripts/northrend/nexus/oculus/oculus.cpp free SetCombatMovement
-legacy/scripts/northrend/nexus/oculus/oculus.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/nexus/oculus/oculus.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/nexus/oculus/oculus.cpp override JustDied
 legacy/scripts/northrend/nexus/oculus/oculus.cpp override Reset
 legacy/scripts/northrend/nexus/oculus/oculus.cpp override SpellHit
@@ -10837,7 +10837,7 @@ legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp free DoMeleeAttackIfReady
 legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp free EnterEvadeMode
 legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp free Reset
 legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp free urand
-legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp override AttackStart
 legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp override DamageTaken
 legacy/scripts/northrend/ulduar/ulduar/boss_hodir.cpp override EnterEvadeMode
@@ -10918,7 +10918,7 @@ legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp free InMeleeReach
 legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp free ObjectGuid
 legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp free SendAIEvent
 legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp free urand
-legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp override AttackStart
 legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp override JustDied
 legacy/scripts/northrend/ulduar/ulduar/boss_kologarn.cpp override JustReachedHome
@@ -11268,7 +11268,7 @@ legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp free SendAIEvent
 legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp free frand
 legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp free roll_chance_i
 legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp free urand
-legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp override AttackStart
 legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp override DamageTaken
 legacy/scripts/northrend/ulduar/ulduar/boss_yogg_saron.cpp override EnterEvadeMode
@@ -11946,7 +11946,7 @@ legacy/scripts/northrend/zuldrak.cpp free DoMeleeAttackIfReady
 legacy/scripts/northrend/zuldrak.cpp free SendAIEvent
 legacy/scripts/northrend/zuldrak.cpp free SetPlayer
 legacy/scripts/northrend/zuldrak.cpp free urand
-legacy/scripts/northrend/zuldrak.cpp include game/Object/TemporarySummon.h
+legacy/scripts/northrend/zuldrak.cpp include game/entities/TemporarySummon.h
 legacy/scripts/northrend/zuldrak.cpp override EffectDummy
 legacy/scripts/northrend/zuldrak.cpp override JustRespawned
 legacy/scripts/northrend/zuldrak.cpp override MovementInform
@@ -12075,7 +12075,7 @@ legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp free DoMeleeAttackIf
 legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp free GetQuestTemplateStore
 legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp free Reset
 legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp free Start
-legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp include game/Object/TemporarySummon.h
+legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp include game/entities/TemporarySummon.h
 legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp override JustSummoned
 legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp override ReceiveAIEvent
 legacy/scripts/outland/auchindoun/mana_tombs/mana_tombs.cpp override Reset
@@ -12757,7 +12757,7 @@ legacy/scripts/outland/blades_edge_mountains.cpp free EnterEvadeMode
 legacy/scripts/outland/blades_edge_mountains.cpp free InReach
 legacy/scripts/outland/blades_edge_mountains.cpp free countof
 legacy/scripts/outland/blades_edge_mountains.cpp free urand
-legacy/scripts/outland/blades_edge_mountains.cpp include game/Object/TemporarySummon.h
+legacy/scripts/outland/blades_edge_mountains.cpp include game/entities/TemporarySummon.h
 legacy/scripts/outland/blades_edge_mountains.cpp override AttackStart
 legacy/scripts/outland/blades_edge_mountains.cpp override EffectDummy
 legacy/scripts/outland/blades_edge_mountains.cpp override GetAIInformation
@@ -13065,7 +13065,7 @@ legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp free DoCastS
 legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp free DoMeleeAttackIfReady
 legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp free Reset
 legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp free urand
-legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp include game/Object/TemporarySummon.h
+legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp include game/entities/TemporarySummon.h
 legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp override AttackStart
 legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp override DamageTaken
 legacy/scripts/outland/coilfang_reservoir/slave_pens/boss_ahune.cpp override EffectDummy
@@ -14788,7 +14788,7 @@ legacy/scripts/world/areatrigger_scripts.cpp call UseDoorOrButton
 legacy/scripts/world/areatrigger_scripts.cpp call getLootState
 legacy/scripts/world/areatrigger_scripts.cpp call isGameMaster
 legacy/scripts/world/areatrigger_scripts.cpp free RandomGroundPointNear
-legacy/scripts/world/areatrigger_scripts.cpp include game/Object/Pet.h
+legacy/scripts/world/areatrigger_scripts.cpp include game/entities/Pet.h
 legacy/scripts/world/bosses_emerald_dragons.cpp call AI
 legacy/scripts/world/bosses_emerald_dragons.cpp call AttackStart
 legacy/scripts/world/bosses_emerald_dragons.cpp call CastSpell

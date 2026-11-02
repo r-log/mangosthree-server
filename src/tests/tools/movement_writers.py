@@ -48,16 +48,16 @@ import case_labels  # noqa: E402
 
 SCOPE = ('src/game/', 'src/motion/', 'src/tests/', 'src/scripts/', 'src/mangosd/')
 EXTENSIONS = ('.h', '.hpp', '.cpp', '.inl', '.inc')
-OWNER_HEADER = 'src/game/Object/Unit.h'
-OWNER_FILE = 'src/game/Object/UnitMovementStatus.cpp'
+OWNER_HEADER = 'src/game/entities/Unit.h'
+OWNER_FILE = 'src/game/entities/UnitMovementStatus.cpp'
 MEMBER = 'm_movementInfo'
 OPERATIONS = (
     ('AcceptClientStatus', ('src/game/session/handlers/entities/MovementHandlers.cpp', 'src/game/Harness/', 'src/tests/')),
-    ('ResetClientWord', ('src/game/spells/auras/SpellAuraControl.cpp', 'src/game/Object/UnitSpeed.cpp',
+    ('ResetClientWord', ('src/game/spells/auras/SpellAuraControl.cpp', 'src/game/entities/UnitSpeed.cpp',
                          'src/game/entities/player/Player.cpp', 'src/tests/')),
     ('ClearClientFall', ('src/game/entities/player/Player.cpp',)),
-    ('SetTransportStatus', ('src/game/Object/Vehicle.cpp', 'src/game/entities/player/persistence/PlayerLoadFromDB.cpp')),
-    ('ClearTransportStatus', ('src/game/Object/Vehicle.cpp', 'src/game/entities/player/Player.cpp',
+    ('SetTransportStatus', ('src/game/entities/Vehicle.cpp', 'src/game/entities/player/persistence/PlayerLoadFromDB.cpp')),
+    ('ClearTransportStatus', ('src/game/entities/Vehicle.cpp', 'src/game/entities/player/Player.cpp',
                               'src/game/entities/player/persistence/PlayerLoadFromDB.cpp')),
 )
 FRIENDS = ('Movement::ToWire', 'Movement::FromWire')
@@ -208,9 +208,9 @@ def self_test():
         'src/game/Harness/S.cpp': 'void s(Unit* u) { u->AcceptClientStatus(2); }\n',
         'src/tests/T.cpp': 'void t(Unit& u) { u.AcceptClientStatus(3); u.ResetClientWord(0); }\n',
         'src/game/spells/auras/SpellAuraControl.cpp': 'void a(Unit* u) { u->ResetClientWord(0); }\n',
-        'src/game/Object/UnitSpeed.cpp': 'void Unit::f() { ResetClientWord(0); }\n',
+        'src/game/entities/UnitSpeed.cpp': 'void Unit::f() { ResetClientWord(0); }\n',
         'src/game/entities/player/Player.cpp': 'void Player::g() { ResetClientWord(0); ClearClientFall(); ClearTransportStatus(); }\n',
-        'src/game/Object/Vehicle.cpp': 'void v(Unit* u) { u->SetTransportStatus(1); u->ClearTransportStatus(); }\n',
+        'src/game/entities/Vehicle.cpp': 'void v(Unit* u) { u->SetTransportStatus(1); u->ClearTransportStatus(); }\n',
         'src/game/entities/player/persistence/PlayerLoadFromDB.cpp': 'void l() { SetTransportStatus(1); ClearTransportStatus(); }\n',
     }
 
@@ -234,14 +234,14 @@ def self_test():
             failures.append('%s: rc %d, expected %d (%s)' % (label, got, want, ' | '.join(lines)))
 
     expect('the owner alone passes', base, 0)
-    expect('a planted write fails', dict(base, **{'src/game/Object/Creature.cpp': 'void c() { m_movementInfo.SetMovementFlags(0); }\n'}), 1)
-    expect('a comment mention passes', dict(base, **{'src/game/Object/Creature.cpp': '// m_movementInfo is private now\nint x;\n'}), 0)
+    expect('a planted write fails', dict(base, **{'src/game/entities/Creature.cpp': 'void c() { m_movementInfo.SetMovementFlags(0); }\n'}), 1)
+    expect('a comment mention passes', dict(base, **{'src/game/entities/Creature.cpp': '// m_movementInfo is private now\nint x;\n'}), 0)
     expect('a public member fails', dict(base, **{OWNER_HEADER: UNIT_H.replace('    private:\n', '    public:\n')}), 1)
     expect('a second mention in the header fails', dict(base, **{OWNER_HEADER: UNIT_H.replace('};', '        int f() { return m_movementInfo.x; }\n};')}), 1)
-    expect('an operation called from elsewhere fails', dict(base, **{'src/game/Object/Pet.cpp': 'void p(Unit* u) { u->ResetClientWord(0); }\n'}), 1)
-    expect('a stale row fails', dict(base, **{'src/game/Object/UnitSpeed.cpp': 'void Unit::f() {}\n'}), 1)
+    expect('an operation called from elsewhere fails', dict(base, **{'src/game/entities/Pet.cpp': 'void p(Unit* u) { u->ResetClientWord(0); }\n'}), 1)
+    expect('a stale row fails', dict(base, **{'src/game/entities/UnitSpeed.cpp': 'void Unit::f() {}\n'}), 1)
     expect('a third friend fails', dict(base, **{'src/motion/movement/MovementInfo.h': INFO_H.replace('};', '        friend class Unit;\n};')}), 1)
-    expect('a const_cast fails', dict(base, **{'src/game/Object/ObjectUpdate.cpp': 'void o(Unit const* u) { MovementInfo& m = const_cast<MovementInfo&>(u->ClientStatus()); }\n'}), 1)
+    expect('a const_cast fails', dict(base, **{'src/game/entities/ObjectUpdate.cpp': 'void o(Unit const* u) { MovementInfo& m = const_cast<MovementInfo&>(u->ClientStatus()); }\n'}), 1)
     expect('a missing owner file fails', {k: v for k, v in base.items() if k != OWNER_FILE}, 1)
     expect('no MovementInfo class fails', {k: v for k, v in base.items() if k != 'src/motion/movement/MovementInfo.h'}, 1)
     expect('an empty scan fails', {'src/other/A.cpp': 'int x;\n'}, 1)

@@ -33,7 +33,7 @@
 #include "Opcodes.h"
 #include "Log/Log.h"
 #include "data/world/ObjectMgr.h"
-#include "Object/Corpse.h"
+#include "entities/Corpse.h"
 #include "data/dbc/DBCStores.h"
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"

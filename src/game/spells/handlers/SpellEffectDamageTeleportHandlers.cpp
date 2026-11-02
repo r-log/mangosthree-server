@@ -26,7 +26,7 @@
 #include "spells/handlers/SpellEffectDamageTeleportHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/pipeline/Spell.h"
-#include "Object/Pet.h"
+#include "entities/Pet.h"
 #include "spells/data/SpellMgr.h"
 #include "Utilities/Util.h"
 #include "spells/auras/SpellAuras.h"
