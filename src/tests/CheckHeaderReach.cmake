@@ -85,6 +85,8 @@ set(REACH_RULES
     "data/PageTextStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/MapGeometry.h|ObjectMgr.h,DBCStores.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,Maps/Map.h,Maps/MapManager.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/PointOfInterestStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "data/QuestStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "data/QuestRelationStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/QuestPOIStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/DungeonFinderStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "data/LfgDungeonEntranceStore.h|ObjectMgr.h,entities/player/Player.h,entities/Unit.h,session/WorldSession.h,app/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"

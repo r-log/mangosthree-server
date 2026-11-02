@@ -63,14 +63,7 @@ static_assert(int(QUEST_LOCALE_ROW_OBJECTIVES) == int(QUEST_OBJECTIVES_COUNT), "
 void ObjectMgr::LoadQuests()
 {
     // For reload case
-    for (QuestMap::const_iterator itr = mQuestTemplates.begin(); itr != mQuestTemplates.end(); ++itr)
-    {
-        delete itr->second;
-    }
-
-    mQuestTemplates.clear();
-
-    m_ExclusiveQuestGroups.clear();
+    m_quests.Clear();
 
     std::vector<QuestTemplateRow> rows = QuestDataRepository::QueryQuests();
     if (rows.empty())
@@ -93,14 +86,15 @@ void ObjectMgr::LoadQuests()
         bar.step();
 
         Quest* newQuest = new Quest(row);
-        mQuestTemplates[newQuest->GetQuestId()] = newQuest;
+        m_quests.Set(newQuest->GetQuestId(), newQuest);
     }
 
     // Post processing
 
     std::map<uint32, uint32> usedMailTemplates;
 
-    for (QuestMap::iterator iter = mQuestTemplates.begin(); iter != mQuestTemplates.end(); ++iter)
+    QuestMap& quests = m_quests.AllForEdit();
+    for (QuestMap::iterator iter = quests.begin(); iter != quests.end(); ++iter)
     {
         // skip post-loading checks for disabled quests
         if (DisableMgr::IsDisabledFor(DISABLE_TYPE_QUEST, iter->first))
@@ -636,8 +630,8 @@ void ObjectMgr::LoadQuests()
 
         if (qinfo->NextQuestInChain)
         {
-            QuestMap::iterator qNextItr = mQuestTemplates.find(qinfo->NextQuestInChain);
-            if (qNextItr == mQuestTemplates.end())
+            Quest* qNext = m_quests.FindForEdit(qinfo->NextQuestInChain);
+            if (!qNext)
             {
                 sLog.outErrorDb("Quest %u has `NextQuestInChain` = %u but quest %u does not exist, quest chain will not work.",
                                 qinfo->GetQuestId(), qinfo->NextQuestInChain , qinfo->NextQuestInChain);
@@ -645,14 +639,14 @@ void ObjectMgr::LoadQuests()
             }
             else
             {
-                qNextItr->second->prevChainQuests.push_back(qinfo->GetQuestId());
+                qNext->prevChainQuests.push_back(qinfo->GetQuestId());
             }
         }
 
         // fill additional data stores
         if (qinfo->PrevQuestId)
         {
-            if (mQuestTemplates.find(abs(qinfo->GetPrevQuestId())) == mQuestTemplates.end())
+            if (!m_quests.Find(abs(qinfo->GetPrevQuestId())))
             {
                 sLog.outErrorDb("Quest %d has PrevQuestId %i, but no such quest", qinfo->GetQuestId(), qinfo->GetPrevQuestId());
             }
@@ -664,15 +658,15 @@ void ObjectMgr::LoadQuests()
 
         if (qinfo->NextQuestId)
         {
-            QuestMap::iterator qNextItr = mQuestTemplates.find(abs(qinfo->GetNextQuestId()));
-            if (qNextItr == mQuestTemplates.end())
+            Quest* qNext = m_quests.FindForEdit(abs(qinfo->GetNextQuestId()));
+            if (!qNext)
             {
                 sLog.outErrorDb("Quest %d has NextQuestId %i, but no such quest", qinfo->GetQuestId(), qinfo->GetNextQuestId());
             }
             else
             {
                 int32 signedQuestId = qinfo->NextQuestId < 0 ? -int32(qinfo->GetQuestId()) : int32(qinfo->GetQuestId());
-                qNextItr->second->prevQuests.push_back(signedQuestId);
+                qNext->prevQuests.push_back(signedQuestId);
             }
         }
 
@@ -818,7 +812,7 @@ void ObjectMgr::LoadQuests()
 
         if (qinfo->ExclusiveGroup)
         {
-            m_ExclusiveQuestGroups.insert(ExclusiveQuestGroupsMap::value_type(qinfo->ExclusiveGroup, qinfo->GetQuestId()));
+            m_quests.AddToExclusiveGroup(qinfo->ExclusiveGroup, qinfo->GetQuestId());
         }
 
         if (qinfo->LimitTime)
@@ -869,7 +863,7 @@ void ObjectMgr::LoadQuests()
         }
     }
 
-    sLog.outString(">> Loaded %zu quests definitions", mQuestTemplates.size());
+    sLog.outString(">> Loaded %zu quests definitions", m_quests.All().size());
     sLog.outString();
 }
 

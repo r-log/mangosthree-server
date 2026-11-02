@@ -202,10 +202,7 @@ ObjectMgr::ObjectMgr() :
  */
 ObjectMgr::~ObjectMgr()
 {
-    for (QuestMap::iterator i = mQuestTemplates.begin(); i != mQuestTemplates.end(); ++i)
-    {
-        delete i->second;
-    }
+    m_quests.Clear();
 
     for (PetLevelInfoMap::iterator i = petInfo.begin(); i != petInfo.end(); ++i)
     {
