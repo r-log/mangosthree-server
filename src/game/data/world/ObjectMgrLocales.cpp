@@ -47,7 +47,7 @@ static_assert(int(NPC_TEXT_LOCALE_ROW_TEXTS) == int(MAX_GOSSIP_TEXT_OPTIONS), "a
  */
 void ObjectMgr::LoadCreatureLocales()
 {
-    mCreatureLocaleMap.clear();                             // need for reload case
+    m_creatureLocales.Clear();                              // need for reload case
 
     std::vector<CreatureLocaleRow> rows = LocaleDataRepository::QueryCreatureLocales();
     if (rows.empty())
@@ -72,7 +72,7 @@ void ObjectMgr::LoadCreatureLocales()
             continue;
         }
 
-        CreatureLocale& data = mCreatureLocaleMap[entry];
+        CreatureLocale& data = m_creatureLocales.FindOrAdd(entry);
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
@@ -107,7 +107,7 @@ void ObjectMgr::LoadCreatureLocales()
         }
     }
 
-    sLog.outString(">> Loaded %zu creature locale strings", mCreatureLocaleMap.size());
+    sLog.outString(">> Loaded %u creature locale strings", m_creatureLocales.GetCount());
     sLog.outString();
 }
 
@@ -116,7 +116,7 @@ void ObjectMgr::LoadCreatureLocales()
  */
 void ObjectMgr::LoadGossipMenuItemsLocales()
 {
-    mGossipMenuItemsLocaleMap.clear();                      // need for reload case
+    m_gossipMenuItemsLocales.Clear();                       // need for reload case
 
     std::vector<GossipMenuOptionLocaleRow> rows = LocaleDataRepository::QueryGossipMenuOptionLocales();
 
@@ -161,7 +161,7 @@ void ObjectMgr::LoadGossipMenuItemsLocales()
             continue;
         }
 
-        GossipMenuItemsLocale& data = mGossipMenuItemsLocaleMap[MAKE_PAIR32(menuId, id)];
+        GossipMenuItemsLocale& data = m_gossipMenuItemsLocales.FindOrAdd(MAKE_PAIR32(menuId, id));
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
@@ -196,7 +196,7 @@ void ObjectMgr::LoadGossipMenuItemsLocales()
         }
     }
 
-    sLog.outString(">> Loaded %zu gossip_menu_option locale strings", mGossipMenuItemsLocaleMap.size());
+    sLog.outString(">> Loaded %u gossip_menu_option locale strings", m_gossipMenuItemsLocales.GetCount());
     sLog.outString();
 }
 
@@ -205,7 +205,7 @@ void ObjectMgr::LoadGossipMenuItemsLocales()
  */
 void ObjectMgr::LoadPointOfInterestLocales()
 {
-    mPointOfInterestLocaleMap.clear();                      // need for reload case
+    m_pointOfInterestLocales.Clear();                       // need for reload case
 
     std::vector<PointOfInterestLocaleRow> rows = LocaleDataRepository::QueryPointOfInterestLocales();
 
@@ -231,7 +231,7 @@ void ObjectMgr::LoadPointOfInterestLocales()
             continue;
         }
 
-        PointOfInterestLocale& data = mPointOfInterestLocaleMap[entry];
+        PointOfInterestLocale& data = m_pointOfInterestLocales.FindOrAdd(entry);
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
@@ -254,7 +254,7 @@ void ObjectMgr::LoadPointOfInterestLocales()
         }
     }
 
-    sLog.outString(">> Loaded %zu points_of_interest locale strings", mPointOfInterestLocaleMap.size());
+    sLog.outString(">> Loaded %u points_of_interest locale strings", m_pointOfInterestLocales.GetCount());
     sLog.outString();
 }
 
@@ -263,7 +263,7 @@ void ObjectMgr::LoadPointOfInterestLocales()
  */
 void ObjectMgr::LoadPageTextLocales()
 {
-    mPageTextLocaleMap.clear();                             // need for reload case
+    m_pageTextLocales.Clear();                              // need for reload case
 
     std::vector<PageTextLocaleRow> rows = LocaleDataRepository::QueryPageTextLocales();
     if (rows.empty())
@@ -288,7 +288,7 @@ void ObjectMgr::LoadPageTextLocales()
             continue;
         }
 
-        PageTextLocale& data = mPageTextLocaleMap[entry];
+        PageTextLocale& data = m_pageTextLocales.FindOrAdd(entry);
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
@@ -311,7 +311,7 @@ void ObjectMgr::LoadPageTextLocales()
         }
     }
 
-    sLog.outString(">> Loaded %zu PageText locale strings", mPageTextLocaleMap.size());
+    sLog.outString(">> Loaded %u PageText locale strings", m_pageTextLocales.GetCount());
     sLog.outString();
 }
 
@@ -320,7 +320,7 @@ void ObjectMgr::LoadPageTextLocales()
  */
 void ObjectMgr::LoadGossipTextLocales()
 {
-    mNpcTextLocaleMap.clear();                              // need for reload case
+    m_npcTextLocales.Clear();                               // need for reload case
 
     std::vector<NpcTextLocaleRow> rows = LocaleDataRepository::QueryNpcTextLocales();
     if (rows.empty())
@@ -345,7 +345,7 @@ void ObjectMgr::LoadGossipTextLocales()
             continue;
         }
 
-        NpcTextLocale& data = mNpcTextLocaleMap[entry];
+        NpcTextLocale& data = m_npcTextLocales.FindOrAdd(entry);
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
@@ -383,7 +383,7 @@ void ObjectMgr::LoadGossipTextLocales()
         }
     }
 
-    sLog.outString(">> Loaded %zu NpcText locale strings", mNpcTextLocaleMap.size());
+    sLog.outString(">> Loaded %u NpcText locale strings", m_npcTextLocales.GetCount());
     sLog.outString();
 }
 
@@ -392,7 +392,7 @@ void ObjectMgr::LoadGossipTextLocales()
  */
 void ObjectMgr::LoadGameObjectLocales()
 {
-    mGameObjectLocaleMap.clear();                           // need for reload case
+    m_gameObjectLocales.Clear();                            // need for reload case
 
     std::vector<GameObjectLocaleRow> rows = LocaleDataRepository::QueryGameObjectLocales();
     if (rows.empty())
@@ -417,7 +417,7 @@ void ObjectMgr::LoadGameObjectLocales()
             continue;
         }
 
-        GameObjectLocale& data = mGameObjectLocaleMap[entry];
+        GameObjectLocale& data = m_gameObjectLocales.FindOrAdd(entry);
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
@@ -456,6 +456,6 @@ void ObjectMgr::LoadGameObjectLocales()
         }
     }
 
-    sLog.outString(">> Loaded %zu gameobject locale strings", mGameObjectLocaleMap.size());
+    sLog.outString(">> Loaded %u gameobject locale strings", m_gameObjectLocales.GetCount());
     sLog.outString();
 }

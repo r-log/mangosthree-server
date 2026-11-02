@@ -24,8 +24,8 @@
  */
 
 /// The keyed record store over a plain record, with no database: a key with no record, a key with
-/// one, a second record for the same key, the highest key, an edited record, an erased key, and a
-/// cleared store.
+/// one, a second record for the same key, the highest key, an edited record, a record filled in
+/// place, an erased key, and a cleared store.
 
 #include "TestHarness.h"
 #include "data/KeyedRecordStore.h"
@@ -106,4 +106,19 @@ TEST(KeyedRecordStore_ClearForgetsEveryKey)
     CHECK(store.Find(2) == NULL);
     CHECK_EQ(store.GetCount(), 0u);
     CHECK_EQ(store.GetMaxEntry(), 0u);
+}
+
+TEST(KeyedRecordStore_ARecordIsFilledInPlaceAndKeptOnASecondFill)
+{
+    KeyedRecordStore<SomeRecord> store;
+    SomeRecord& record = store.FindOrAdd(9);
+    CHECK_EQ(record.a, uint32(0));
+    record.a = 5;
+
+    REQUIRE(store.Find(9) != NULL);
+    CHECK_EQ(store.Find(9)->a, uint32(5));
+    store.FindOrAdd(9).b = -2;
+    CHECK_EQ(store.Find(9)->a, uint32(5));
+    CHECK_EQ(store.Find(9)->b, int32(-2));
+    CHECK_EQ(store.GetCount(), uint32(1));
 }

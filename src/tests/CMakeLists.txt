@@ -278,6 +278,7 @@ set(SRC_GRP_TESTS
     HotfixStoreTest.cpp
     VendorItemStoreTest.cpp
     TrainerSpellStoreTest.cpp
+    MangosStringStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp

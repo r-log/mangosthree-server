@@ -61,7 +61,7 @@ static_assert(int(ITEM_LOCALE_ROW_LOCALES) == int(MAX_LOCALE) - 1, "an item loca
  */
 void ObjectMgr::LoadItemLocales()
 {
-    mItemLocaleMap.clear();                                 // need for reload case
+    m_itemLocales.Clear();                                  // need for reload case
 
     std::vector<ItemLocaleRow> rows = ItemDataRepository::QueryItemLocales();
     if (rows.empty())
@@ -86,7 +86,7 @@ void ObjectMgr::LoadItemLocales()
             continue;
         }
 
-        ItemLocale& data = mItemLocaleMap[entry];
+        ItemLocale& data = m_itemLocales.FindOrAdd(entry);
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
@@ -122,7 +122,7 @@ void ObjectMgr::LoadItemLocales()
         }
     }
 
-    sLog.outString(">> Loaded %zu Item locale strings", mItemLocaleMap.size());
+    sLog.outString(">> Loaded %u Item locale strings", m_itemLocales.GetCount());
     sLog.outString();
 }
 
