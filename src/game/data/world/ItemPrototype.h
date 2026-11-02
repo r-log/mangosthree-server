@@ -690,7 +690,6 @@ struct ItemPrototype
     uint32 Flags2;
     float Unknown;
     float Unknown1;
-    uint32 Unknown2;
     uint32 BuyCount;
     uint32 BuyPrice;
     uint32 SellPrice;

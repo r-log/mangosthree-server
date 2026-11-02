@@ -33,17 +33,32 @@
 
 class Field;
 
-/// The columns of an `item_template` row, and how many of each repeated group it holds.
+/// The columns of an `item_template` row and of an `item_sparse` row, and how many stats, spells and sockets an item has.
 enum
 {
-    ITEM_TEMPLATE_COLUMNS = 147,
-    ITEM_TEMPLATE_STAT_COLUMNS = 10,
-    ITEM_TEMPLATE_SPELL_COLUMNS = 5,
-    ITEM_TEMPLATE_SOCKET_COLUMNS = 3
+    ITEM_TEMPLATE_COLUMNS = 13,
+    ITEM_SPARSE_COLUMNS = 134,
+    ITEM_ROW_STATS = 10,
+    ITEM_ROW_SPELLS = 5,
+    ITEM_ROW_SOCKETS = 3
+};
+
+/// One `item_template` row: the fields of an item no client file holds, a member per column in table order.
+struct ItemTemplateRow
+{
+    uint32 entry = 0;
+    float spellPpmRate[ITEM_ROW_SPELLS] = {};
+    uint32 maxDurability = 0;
+    uint32 requiredDisenchantSkill = 0;
+    uint32 disenchantId = 0;
+    uint32 foodType = 0;
+    uint32 minMoneyLoot = 0;
+    uint32 maxMoneyLoot = 0;
+    uint32 extraFlags = 0;
 };
 
 /// One of the stat columns `stat_type1` to `stat_unk2_10`, one per stat.
-struct ItemTemplateStatRow
+struct ItemSparseStatRow
 {
     uint32 type = 0;
     uint32 value = 0;
@@ -52,26 +67,26 @@ struct ItemTemplateStatRow
 };
 
 /// One of the spell columns `spellid_1` to `spellcategorycooldown_5`, one per spell.
-struct ItemTemplateSpellRow
+struct ItemSparseSpellRow
 {
     uint32 id = 0;
     uint32 trigger = 0;
     uint32 charges = 0;
-    float ppmRate = 0.0f;
     uint32 cooldown = 0;
     uint32 category = 0;
     uint32 categoryCooldown = 0;
 };
 
 /// One of the socket columns `socketColor_1` to `socketContent_3`, one per socket.
-struct ItemTemplateSocketRow
+struct ItemSparseSocketRow
 {
     uint32 color = 0;
     uint32 content = 0;
 };
 
-/// One `item_template` row, a member per column in table order, the stats, spells and sockets as arrays.
-struct ItemTemplateRow
+/// One `item_sparse` row: the client fields of an item the client's files do not hold, a member per column in
+/// table order, the stats, spells and sockets as arrays.
+struct ItemSparseRow
 {
     uint32 entry = 0;
     uint32 itemClass = 0;
@@ -84,7 +99,6 @@ struct ItemTemplateRow
     uint32 flags2 = 0;
     float unknown = 0.0f;
     float unknown1 = 0.0f;
-    uint32 unknown2 = 0;
     uint32 buyCount = 0;
     uint32 buyPrice = 0;
     uint32 sellPrice = 0;
@@ -103,12 +117,12 @@ struct ItemTemplateRow
     uint32 maxCount = 0;
     uint32 stackable = 0;
     uint32 containerSlots = 0;
-    ItemTemplateStatRow stats[ITEM_TEMPLATE_STAT_COLUMNS];
+    ItemSparseStatRow stats[ITEM_ROW_STATS];
     uint32 scalingStatDistribution = 0;
     uint32 damageType = 0;
     uint32 delay = 0;
     float rangedModRange = 0.0f;
-    ItemTemplateSpellRow spells[ITEM_TEMPLATE_SPELL_COLUMNS];
+    ItemSparseSpellRow spells[ITEM_ROW_SPELLS];
     uint32 bonding = 0;
     std::string description;
     uint32 pageText = 0;
@@ -121,37 +135,37 @@ struct ItemTemplateRow
     uint32 randomProperty = 0;
     uint32 randomSuffix = 0;
     uint32 itemSet = 0;
-    uint32 maxDurability = 0;
     uint32 area = 0;
     uint32 map = 0;
     uint32 bagFamily = 0;
     uint32 totemCategory = 0;
-    ItemTemplateSocketRow sockets[ITEM_TEMPLATE_SOCKET_COLUMNS];
+    ItemSparseSocketRow sockets[ITEM_ROW_SOCKETS];
     uint32 socketBonus = 0;
     uint32 gemProperties = 0;
-    uint32 requiredDisenchantSkill = 0;
     float armorDamageModifier = 0.0f;
     uint32 duration = 0;
     uint32 itemLimitCategory = 0;
     uint32 holidayId = 0;
-    uint32 disenchantId = 0;
-    uint32 foodType = 0;
     float statScalingFactor = 0.0f;
     uint32 unknown400_1 = 0;
     uint32 unknown400_2 = 0;
-    uint32 minMoneyLoot = 0;
-    uint32 maxMoneyLoot = 0;
-    uint32 extraFlags = 0;
 };
 
-/// The item templates on the world database.
+/// The item templates on the world database: `item_template` for every item, `item_sparse` for the items the
+/// client's files do not hold.
 namespace ItemTemplateRepository
 {
-    /// Reads one row in the column order of the statement; a NULL text reads as "".
+    /// Reads one `item_template` row in the column order of the statement.
     ItemTemplateRow ReadRow(Field* fields);
 
-    /// Reads every row, synchronously, in the order the database returns them, with how the read ended.
+    /// Reads one `item_sparse` row in the column order of the statement; a NULL text reads as "".
+    ItemSparseRow ReadSparseRow(Field* fields);
+
+    /// Reads every `item_template` row, synchronously, in the order the database returns them, with how the read ended.
     TableRead<ItemTemplateRow> QueryItemTemplates();
+
+    /// Reads every `item_sparse` row, synchronously, in the order the database returns them, with how the read ended.
+    TableRead<ItemSparseRow> QueryItemSparse();
 }
 
 #endif

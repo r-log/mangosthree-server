@@ -27,7 +27,7 @@
 ///
 /// The inventory golden table needs real Item and Bag objects in slots. These cases prove the
 /// fixture that makes them (ItemFixture.h): the item prototypes filled from fake
-/// `item_template` rows by ObjectMgr::FillItemPrototypes, then Item::Create and Bag::Create run
+/// `item_template` and `item_sparse` rows by ObjectMgr::FillItemPrototypes, then Item::Create and Bag::Create run
 /// unchanged. Create's owner parameter is a `Player const*`; NULL is what every case passes.
 ///
 /// The prototypes stay loaded for the rest of this binary once the first case here (or any
@@ -55,7 +55,7 @@ namespace
     ObjectGuid OwnerGuid() { return ObjectGuid(HIGHGUID_PLAYER, uint32(42)); }
 }
 
-TEST(ItemFixture_TheFillTakesTheFakeRowsInItsOneStatement)
+TEST(ItemFixture_TheFillTakesTheFakeRowsInItsTwoStatements)
 {
     // The fill's progress bar is silenced for the load and the state found is put back --
     // not forced on. Seen only when this case makes the binary's first load (run it alone).
@@ -68,10 +68,11 @@ TEST(ItemFixture_TheFillTakesTheFakeRowsInItsOneStatement)
     CHECK_STR(record.failure, "");
     REQUIRE(record.loaded);
 
-    // The repository's one read, on the query connection: nothing else was asked, and no
-    // probe, as the read found rows.
-    REQUIRE(record.queries.size() == size_t(1));
-    CHECK_STR(record.queries[0], "SELECT `entry`, `class`, `subclass`, `unk0`, `name`, `displayid`, `Quality`, `Flags`, `Flags2`, `Unknown`, `Unknown1`, `Unknown2`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `RequiredSkill`, `RequiredSkillRank`, `requiredspell`, `requiredhonorrank`, `RequiredCityRank`, `RequiredReputationFaction`, `RequiredReputationRank`, `maxcount`, `stackable`, `ContainerSlots`, `stat_type1`, `stat_value1`, `stat_unk1_1`, `stat_unk2_1`, `stat_type2`, `stat_value2`, `stat_unk1_2`, `stat_unk2_2`, `stat_type3`, `stat_value3`, `stat_unk1_3`, `stat_unk2_3`, `stat_type4`, `stat_value4`, `stat_unk1_4`, `stat_unk2_4`, `stat_type5`, `stat_value5`, `stat_unk1_5`, `stat_unk2_5`, `stat_type6`, `stat_value6`, `stat_unk1_6`, `stat_unk2_6`, `stat_type7`, `stat_value7`, `stat_unk1_7`, `stat_unk2_7`, `stat_type8`, `stat_value8`, `stat_unk1_8`, `stat_unk2_8`, `stat_type9`, `stat_value9`, `stat_unk1_9`, `stat_unk2_9`, `stat_type10`, `stat_value10`, `stat_unk1_10`, `stat_unk2_10`, `ScalingStatDistribution`, `DamageType`, `delay`, `RangedModRange`, `spellid_1`, `spelltrigger_1`, `spellcharges_1`, `spellppmRate_1`, `spellcooldown_1`, `spellcategory_1`, `spellcategorycooldown_1`, `spellid_2`, `spelltrigger_2`, `spellcharges_2`, `spellppmRate_2`, `spellcooldown_2`, `spellcategory_2`, `spellcategorycooldown_2`, `spellid_3`, `spelltrigger_3`, `spellcharges_3`, `spellppmRate_3`, `spellcooldown_3`, `spellcategory_3`, `spellcategorycooldown_3`, `spellid_4`, `spelltrigger_4`, `spellcharges_4`, `spellppmRate_4`, `spellcooldown_4`, `spellcategory_4`, `spellcategorycooldown_4`, `spellid_5`, `spelltrigger_5`, `spellcharges_5`, `spellppmRate_5`, `spellcooldown_5`, `spellcategory_5`, `spellcategorycooldown_5`, `bonding`, `description`, `PageText`, `LanguageID`, `PageMaterial`, `startquest`, `lockid`, `Material`, `sheath`, `RandomProperty`, `RandomSuffix`, `itemset`, `MaxDurability`, `area`, `Map`, `BagFamily`, `TotemCategory`, `socketColor_1`, `socketContent_1`, `socketColor_2`, `socketContent_2`, `socketColor_3`, `socketContent_3`, `socketBonus`, `GemProperties`, `RequiredDisenchantSkill`, `ArmorDamageModifier`, `Duration`, `ItemLimitCategory`, `HolidayId`, `DisenchantID`, `FoodType`, `StatScalingFactor`, `Unknown400_1`, `Unknown400_2`, `minMoneyLoot`, `maxMoneyLoot`, `ExtraFlags` FROM `item_template`");
+    // The repository's two reads, on the query connection: nothing else was asked, and no
+    // probe, as the reads found rows.
+    REQUIRE(record.queries.size() == size_t(2));
+    CHECK_STR(record.queries[0], "SELECT `entry`, `spellppmRate_1`, `spellppmRate_2`, `spellppmRate_3`, `spellppmRate_4`, `spellppmRate_5`, `MaxDurability`, `RequiredDisenchantSkill`, `DisenchantID`, `FoodType`, `minMoneyLoot`, `maxMoneyLoot`, `ExtraFlags` FROM `item_template`");
+    CHECK_STR(record.queries[1], "SELECT `entry`, `class`, `subclass`, `unk0`, `name`, `displayid`, `Quality`, `Flags`, `Flags2`, `Unknown`, `Unknown1`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `RequiredSkill`, `RequiredSkillRank`, `requiredspell`, `requiredhonorrank`, `RequiredCityRank`, `RequiredReputationFaction`, `RequiredReputationRank`, `maxcount`, `stackable`, `ContainerSlots`, `stat_type1`, `stat_value1`, `stat_unk1_1`, `stat_unk2_1`, `stat_type2`, `stat_value2`, `stat_unk1_2`, `stat_unk2_2`, `stat_type3`, `stat_value3`, `stat_unk1_3`, `stat_unk2_3`, `stat_type4`, `stat_value4`, `stat_unk1_4`, `stat_unk2_4`, `stat_type5`, `stat_value5`, `stat_unk1_5`, `stat_unk2_5`, `stat_type6`, `stat_value6`, `stat_unk1_6`, `stat_unk2_6`, `stat_type7`, `stat_value7`, `stat_unk1_7`, `stat_unk2_7`, `stat_type8`, `stat_value8`, `stat_unk1_8`, `stat_unk2_8`, `stat_type9`, `stat_value9`, `stat_unk1_9`, `stat_unk2_9`, `stat_type10`, `stat_value10`, `stat_unk1_10`, `stat_unk2_10`, `ScalingStatDistribution`, `DamageType`, `delay`, `RangedModRange`, `spellid_1`, `spelltrigger_1`, `spellcharges_1`, `spellcooldown_1`, `spellcategory_1`, `spellcategorycooldown_1`, `spellid_2`, `spelltrigger_2`, `spellcharges_2`, `spellcooldown_2`, `spellcategory_2`, `spellcategorycooldown_2`, `spellid_3`, `spelltrigger_3`, `spellcharges_3`, `spellcooldown_3`, `spellcategory_3`, `spellcategorycooldown_3`, `spellid_4`, `spelltrigger_4`, `spellcharges_4`, `spellcooldown_4`, `spellcategory_4`, `spellcategorycooldown_4`, `spellid_5`, `spelltrigger_5`, `spellcharges_5`, `spellcooldown_5`, `spellcategory_5`, `spellcategorycooldown_5`, `bonding`, `description`, `PageText`, `LanguageID`, `PageMaterial`, `startquest`, `lockid`, `Material`, `sheath`, `RandomProperty`, `RandomSuffix`, `itemset`, `area`, `Map`, `BagFamily`, `TotemCategory`, `socketColor_1`, `socketContent_1`, `socketColor_2`, `socketContent_2`, `socketColor_3`, `socketContent_3`, `socketBonus`, `GemProperties`, `ArmorDamageModifier`, `Duration`, `ItemLimitCategory`, `HolidayId`, `StatScalingFactor`, `Unknown400_1`, `Unknown400_2` FROM `item_sparse`");
 
     // Nothing queued, and nothing counted against the tick: the load ran outside a
     // TickGuard::Scope, which is where the server's own start-up load runs.
@@ -81,10 +82,11 @@ TEST(ItemFixture_TheFillTakesTheFakeRowsInItsOneStatement)
     // The fakes are gone again: WorldDatabase has no pool (GameLinkTest asserts the same).
     CHECK(!WorldDatabase);
 
-    // A row is as wide as the statement names columns.
+    // A row is as wide as its statement names columns.
     std::vector<Prototype> const& prototypes = Prototypes();
     REQUIRE(!prototypes.empty());
     CHECK_EQ(TemplateRow(prototypes[0]).size(), size_t(ITEM_TEMPLATE_COLUMNS));
+    CHECK_EQ(SparseRow(prototypes[0]).size(), size_t(ITEM_SPARSE_COLUMNS));
 
     // One prototype per row, and the highest entry is one below the store's max.
     uint32 maxEntry = 0;
@@ -141,27 +143,30 @@ TEST(ItemFixture_EveryPrototypeReadsBackThroughTheObjectManager)
         CHECK_EQ(proto->ItemLimitCategory, expected.itemLimitCategory);
 
         // The columns either side of the written ones, a float, the second string and the last
-        // column hold the zeros the row carried: nothing was written one column off.
+        // columns hold the zeros the rows carried: nothing was written one column off. The
+        // numbers are `item_sparse` columns but where `item_template` is named.
         CHECK_EQ(proto->Unk0, 0);                                   // 3, between subclass and name
         CHECK_EQ(proto->Flags2, 0u);                                // 8
         CHECK(proto->Unknown == 0.0f);                              // 9, a float
-        CHECK_EQ(proto->BuyPrice, 0u);                              // 13
-        CHECK_EQ(proto->ItemLevel, 0u);                             // 18, after the race mask
-        CHECK_EQ(proto->RequiredReputationRank, 0u);                // 26
-        CHECK_EQ(proto->ItemStat[0].ItemStatType, 0u);              // 30
-        CHECK_EQ(proto->Spells[4].SpellCategoryCooldown, 0);        // 108
-        CHECK_STR(proto->Description, "");                          // 110
-        CHECK_EQ(proto->PageText, 0u);                              // 111
-        CHECK_EQ(proto->ItemSet, 0u);                               // 120
-        CHECK_EQ(proto->Area, 0u);                                  // 122
-        CHECK_EQ(proto->Map, 0u);                                   // 123
-        CHECK_EQ(proto->TotemCategory, 0u);                         // 125
-        CHECK_EQ(proto->socketBonus, 0u);                           // 132, after the sockets
-        CHECK_EQ(proto->RequiredDisenchantSkill, 0);                // 134
-        CHECK(proto->ArmorDamageModifier == 0.0f);                  // 135, a float
-        CHECK_EQ(proto->Duration, 0u);                              // 136
-        CHECK_EQ(proto->HolidayId, 0u);                             // 138, after the limit category
-        CHECK_EQ(proto->ExtraFlags, 0u);                            // 146, the last
+        CHECK_EQ(proto->BuyPrice, 0u);                              // 12
+        CHECK_EQ(proto->ItemLevel, 0u);                             // 17, after the race mask
+        CHECK_EQ(proto->RequiredReputationRank, 0u);                // 25
+        CHECK_EQ(proto->ItemStat[0].ItemStatType, 0u);              // 29
+        CHECK_EQ(proto->Spells[4].SpellCategoryCooldown, 0);        // 102
+        CHECK_STR(proto->Description, "");                          // 104
+        CHECK_EQ(proto->PageText, 0u);                              // 105
+        CHECK_EQ(proto->ItemSet, 0u);                               // 114
+        CHECK_EQ(proto->Area, 0u);                                  // 115
+        CHECK_EQ(proto->Map, 0u);                                   // 116
+        CHECK_EQ(proto->TotemCategory, 0u);                         // 118
+        CHECK_EQ(proto->socketBonus, 0u);                           // 125, after the sockets
+        CHECK(proto->ArmorDamageModifier == 0.0f);                  // 127, a float
+        CHECK_EQ(proto->Duration, 0u);                              // 128
+        CHECK_EQ(proto->HolidayId, 0u);                             // 130, after the limit category
+        CHECK_EQ(proto->Unknown400_2, 0u);                          // 133, the last
+        CHECK(proto->Spells[0].SpellPPMRate == 0.0f);               // `item_template` 1, a float
+        CHECK_EQ(proto->RequiredDisenchantSkill, 0);                // `item_template` 7, after the durability
+        CHECK_EQ(proto->ExtraFlags, 0u);                            // `item_template` 12, the last
     }
 
     // The masks are -1 on exactly the items a later table equips or banks as a bag.

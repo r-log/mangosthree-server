@@ -31,9 +31,9 @@
  *
  * A bare Item() has no update fields -- Object::Object leaves them NULL until Create() --
  * and Item::Create / Bag::Create take their prototype from ObjectMgr::GetItemPrototype,
- * which looks in the item prototypes ObjectMgr fills from `item_template` on the GLOBAL
- * WorldDatabase. So this fixture answers ItemTemplateRepository's one statement from a
- * FakeConnection attached to WorldDatabase and lets ObjectMgr::FillItemPrototypes build the
+ * which looks in the item prototypes ObjectMgr fills from `item_template` and `item_sparse` on
+ * the GLOBAL WorldDatabase. So this fixture answers ItemTemplateRepository's two statements from
+ * a FakeConnection attached to WorldDatabase and lets ObjectMgr::FillItemPrototypes build the
  * records from the rows it reads.
  *
  * The fill is the one ObjectMgr::LoadItemPrototypes runs. What the fixture does NOT run is
@@ -47,7 +47,7 @@
  * declares an item entry, and template 555, which CharacterOpsAsyncTest and GuildAsyncTest
  * rely on being unknown, is never declared.
  *
- * Load() is start-up work -- three synchronous reads -- so it must first run OUTSIDE a
+ * Load() is start-up work -- two synchronous reads -- so it must first run OUTSIDE a
  * TickGuard::Scope, as the server's own start-up load does. Inside one it refuses (the
  * reads would count as tick violations, and abort under MANGOS_STRICT_TICK) and says so in
  * LoadRecord::failure. Decoupling D4e1: it refuses as well while WorldDatabase already has
@@ -92,9 +92,9 @@ namespace ItemFixture
     const uint32 kFirstGuidLow = 700001;
 
     /**
-     * @brief One `item_template` row, as the columns the inventory code reads.
+     * @brief One item, as the `item_template` and `item_sparse` columns the inventory code reads.
      *
-     * Every other column of the row is 0, and `description` is empty. Each field here is
+     * Every other column of the two rows is 0, and `description` is empty. Each field here is
      * non-zero in at least one declared row, so a row builder that put a value in the wrong
      * column would be caught reading it back.
      *
@@ -122,20 +122,23 @@ namespace ItemFixture
         uint32 bonding;
         uint32 maxDurability;
         uint32 bagFamily;
-        int32  allowableClass;          ///< column 16
-        int32  allowableRace;           ///< column 17
-        uint32 displayInfoId;           ///< column 5
-        uint32 socketColor[3];          ///< columns 126, 128, 130
-        uint32 socketContent[3];        ///< columns 127, 129, 131
-        uint32 gemProperties;           ///< column 133
-        uint32 itemLimitCategory;       ///< column 137
+        int32  allowableClass;          ///< `item_sparse` column 15
+        int32  allowableRace;           ///< `item_sparse` column 16
+        uint32 displayInfoId;           ///< `item_sparse` column 5
+        uint32 socketColor[3];          ///< `item_sparse` columns 119, 121, 123
+        uint32 socketContent[3];        ///< `item_sparse` columns 120, 122, 124
+        uint32 gemProperties;           ///< `item_sparse` column 126
+        uint32 itemLimitCategory;       ///< `item_sparse` column 129
     };
 
     /// Every prototype the fixture loads, in row order.
     std::vector<Prototype> const& Prototypes();
 
-    /// The `item_template` row for one prototype: all 147 columns in table order, as strings.
+    /// The `item_template` row for one prototype: all 13 columns in table order, as strings.
     FakeRow TemplateRow(Prototype const& proto);
+
+    /// The `item_sparse` row for one prototype: all 134 columns in table order, as strings.
+    FakeRow SparseRow(Prototype const& proto);
 
     /// What the one load did.
     struct LoadRecord
