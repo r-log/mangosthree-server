@@ -276,7 +276,7 @@ void World::SetInitialWorldSettings()
     srand((unsigned int)time(NULL));
 
     ///- Time server startup
-    uint32 startupBegin = GameTime::GetGameTimeMS();
+    uint32 startupBegin = getMSTime();
 
     ///- Initialize detour memory management
     dtAllocSetCustom(dtCustomAlloc, dtCustomFree);
@@ -882,7 +882,7 @@ void World::SetInitialWorldSettings()
     m_timers[WUPDATE_EVENTS].SetInterval(nextGameEvent);    // depend on next event
 
     sLog.outString("Loading grids for active creatures or transports...");
-    uint32 loadContinentsBegin = GameTime::GetGameTimeMS();
+    uint32 loadContinentsBegin = getMSTime();
     MapManager::LivingWorldStartupStats lwStats = sMapMgr.LoadContinentActiveEntities();
     uint32 loadContinentsMs = GetMSTimeDiffToNow(loadContinentsBegin);
     sLog.outString("[LivingWorld] startup summary: maps-forced=%u, total-unique-grids=%u, total-newly-loaded=%u, total-map-transports=%u, LoadContinents=%u ms",
