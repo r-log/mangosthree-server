@@ -3,14 +3,14 @@
 Measured on master 0bbab743b and decided by the maintainer on 2026-09-28. A **Today:** line marks where the tree
 differs from the target. Section 8 lists each divergence with the phase that closes it. Every number comes from a
 command in the appendix. Sections 5 and 6 (the threads, the build targets) were added on 2026-09-29, measured on
-master 7b6a481ce.
+master 7b6a481ce. Sections 1, 6 and 8 and the appendix were re-measured at the end of phase 7, on master PHASE7_MASTER.
 
 ## 1. Layers and the include direction
 
 A layer includes only what its row allows, and nothing includes upward. The chain
 `proto -> session -> entities/spells/combat/maps -> motion` is the path a packet takes, not the include direction:
 proto is the wire library near the bottom that session and motion build on. The tree agrees: `src/proto` includes
-only `src/shared`; session includes it 116 times, the motion layer 23 times (8 from the kernel's writers, 15 from
+only `src/shared`; session includes it 226 times (116 before phase 6 moved the builders into `session/packets/`), the motion layer 23 times (8 from the kernel's writers, 15 from
 `movement/`).
 
 | Layer | Directories in the target | May include |
@@ -59,8 +59,9 @@ layer pair or header is a new edge. A file that reached a header only through a 
 PR: the line is listed with the reason `reached through <header> before #<PR>`, and the PR shows that the file's include closure
 reached the header at the parent commit. Any other new edge is fixed, not listed.
 
-**Today:** 849 such lines, the largest being spells -> entities 175, entities -> maps 151, -> spells 50, -> social 38
-and -> pvp 28, spells -> maps 63 and pvp -> entities 55.
+**Today:** 904 such lines, the largest being spells -> entities 179, entities -> maps 172, -> social 45, -> spells 32
+and -> pvp 28, spells -> maps 76 and pvp -> entities 63 (849 when this page was first measured; phase 7's moves left
+the count as it was).
 
 **Which peers may know which (decided 2026-10-02).** The ratchet above keeps the cross lines from growing; it does
 not say which of them are the design and which are debt. This table does. A pair not listed is debt: its ratchet
@@ -78,9 +79,9 @@ gone, not before (section 6 splits the tier as one library first).
 | pvp | entities, social, maps, combat | a battleground is a map of groups fighting |
 | economy | entities, social | an auction or a trade is between players |
 
-Two consequences. `entities -> social` (336 lines today, the largest after maps) is debt: a player asks its group
+Two consequences. `entities -> social` (45 lines today, the largest after maps; 336 when this was decided) is debt: a player asks its group
 through a fact callback declared beside the player and supplied by social, the shape the group update flags cluster
-waits for. And `entities -> pvp` (188) is the same shape: a battleground tells the player, not the reverse.
+waits for. And `entities -> pvp` (28; 188 then) is the same shape: a battleground tells the player, not the reverse.
 
 ## 2. What each layer may know
 
@@ -371,14 +372,14 @@ invisible to the linker (`proto` is a target below), so `CheckDomainPackets` kee
 `scripts_legacy`: the core calls the scripts through the hook interface (`data/ScriptHooks.h`), and `mangosd` installs
 the dispatcher at start-up, which hands each hook to SD3 when SD3 is built.
 
-The sizes, by target layer (from `layers.py files`, lines of `.h`/`.cpp`): scripts 264k (SD3 and `ChatCommands`),
-entities 98k, spells 65k, session 39k, data 39k, app 37k (with the harness), social 21k, pvp 20k, maps 19k,
-persistence 10k, combat 8k, ai 7k, economy 5k.
+The sizes, by target layer (from `layers.py files`, lines of `.h`/`.cpp`): scripts 260k (SD3, the dispatcher, the
+surface, `ChatCommands` and `dbscripts`), entities 94k, spells 61k, data 56k, session 52k, app 37k (with the harness),
+persistence 27k (with the driver), social 22k, maps 20k, pvp 19k, combat 11k, ai 7k, economy 3k.
 
 **The rule for splitting.** A layer becomes its own target in the PR that brings its upward edges to zero, never
 before: a library with an upward include does not link, so the split *is* that layer's finish line, and it cannot be
 faked. The domain tier splits as one library first (its directories are peers with cycles: entities <-> spells
-173 / 53) and into per-directory libraries only if a cycle is ever cut on purpose. The order follows section 8:
+179 / 32) and into per-directory libraries only if a cycle is ever cut on purpose. The order follows section 8:
 
 1. `data`: done (phase 5): row 5 is closed and `data` is a target.
 2. `domain`: done (phase 5): row 2 is closed and `domain` is a target. Row 1 (domain -> proto) is closed (phase 6). It was
@@ -412,6 +413,9 @@ target, as it links three today.
 This page resolved four earlier questions: the proto arrow; #76's layout rule, replaced by the ratchet in section 4;
 where reputation, currency, honor and runes live; and the rule for the domain tier.
 
+Every row is closed (phase 7). Rows 12 and 24 moved to #497 with their text, as did `Unit` built of parts (#601,
+named in row 13 and section 3); #497 lists what was left for after the epic.
+
 | # | Today, against the target | Closed by |
 |---|---|---|
 | 1 | domain -> proto: none; the domain tier builds no packet (`layers.py src packets`). `CheckDomainPackets` (`src/tests/tools/domain_packets.py`) keeps it so, with no allow list: no domain file and not the domain's precompiled header includes a proto header, names a `WorldPacket` by value or names an opcode. `Unit.h`, `Player.h`, `Object.h`, `Map.h`, `Group.h` and `Spell.h` reach neither `WorldPacket.h` nor `Opcodes.h` (`CheckHeaderReach`). The domain reads and writes no wire bytes either (phase 7, wire words 55 -> 0): `CheckDomainPackets` also refuses `ByteBuffer`, `ByteBufferException`, the packed guid names and `ByteBuffer.h` in a domain file. A unit hands the session its movement record as a value (`Unit::WireMovementInfo`), written with the motion layer's `MovementInfo::Write`; the session writes the taxi mask (`session/packets/entities/TaxiPackets`), the character list entry (`session/packets/entities/CharacterEnumPacket`), the loot window (`session/packets/economy/LootPackets`) and a cast's targets (`session/packets/spells/CastTargetsPacket`); an object update is a list of values (`UpdateBlock`, `UpdateValues`, with the movement captured as `entities/MovementUpdate`), captured at the statements that built it and written by `session/packets/entities/UpdateObjectPacket`; and a guid is packed on demand (`ObjectGuid::WriteAsPacked`). A speaker's chat tells the clients that hear it through `entities/ChatNotices` (a creature's say, yell, emote and localized text, a player's say, yell, emote, whisper and the automatic reply it gets), built by `session/packets/chat/ChatPackets`; the speaker keeps the range, the team and the listeners. A player's achievements tell clients through `AchievementNotices` (declared in `AchievementMgr.h`: the achievement chat, the achievement earned, a criteria's progress, the deletions and every achievement), built by `session/packets/entities/AchievementPackets`; the manager keeps who hears (the guild's members and the players in range), and the inspect answer and the realm first are the session's own sends. A unit's movement tells clients through `entities/MotionNotices` (the change to the client that moves it, the spline and an acknowledged change to the units around it, the heartbeat and the monster moves), built by `session/packets/entities/MotionPackets` with the motion writers; the unit keeps who moves it and counts the changes no packet was built for. A world object shows the clients around it through `entities/WorldObjectNotices` (its animations, sounds and music, a unit's emote, power, mount and vehicle, a creature's reaction and a building's damage) and tells one player's client what concerns only it (a spirit healer's timer, a page text, a fishing result, a barber's chair, an item's time and gems, an object destroyed, a pet's cooldowns and a vehicle aura cancelled), built by `session/packets/entities/WorldObjectPackets`. A player's fights, deaths and duels tell its client through `entities/player/combat/PlayerCombatNotices` (the swing errors, the combo points, the ghost, the spirit healer on the minimap, the corpse delay and the duel's bounds, end, winner and countdown), built by `session/packets/entities/PlayerCombatPackets`. A player's quests tell its client through `entities/player/quests/QuestNotices` (a full log, an event objective done, a failure, a timer run out, an invalid quest, a share's offer and result, a kill credited and the quest givers' statuses), built by `session/packets/quests/QuestPackets`. A player's spells tell its client through `entities/player/spells/PlayerSpellNotices` (its spell book, its action bars, its proficiencies, an item's cooldown, a cleared cooldown, its pet's and its charm's spells, a failed taming, an involuntary talent reset and the talent reset prompts), built by `session/packets/entities/PlayerSpellPackets`; a school's lockout goes through the world object notices' cooldown list. A player's bags, loot, mail and purchases tell its client through `entities/player/inventory/InventoryNotices` (its equipment sets, an item received, an equip, buy or sell failure, the loot window and its changes, a mail result, new mail and an item bought), built by `session/packets/entities/InventoryPackets`; an item received goes to the group when the player shares it. A player's place in the world tells its client through `entities/player/world/PlayerWorldNotices` (its difficulties, its instances' resets, binds and saves, its mirror timers, the environment's damage and its drunkenness to the units around it, a new taxi path, the raid-group reminder and its battleground statistics), built by `session/packets/entities/PlayerWorldPackets`; the durability lost at a fall's death is the client fact a killing blow already reports. What a player tells its own client about itself goes through `entities/player/PlayerNotices` (its transfers between maps, its experience and levels, its cinematics, its login state, its titles and its charters), built by `session/packets/entities/PlayerPackets`. The writers of a player's talents, of its pet's and of its equipment for an inspection, and of a charm's action bar, are the session's (`session/packets/entities/TalentPackets`, `PetActionBarPacket`'s `WriteActionBar`); the player still repairs a stored talent group count above the maximum when it sends its own talents. The auction house selects the auctions a list shows (`CollectBidderItems`, `CollectOwnerItems`, `CollectPendingSales` and the search's `SelectAuctionItems`), and the session writes them (`session/packets/economy/AuctionPackets`). A cast packet's targets, and what it carries after them, the trajectory or the archaeology weights, the session reads (`session/handlers/spells/CastTargetsReader`) and hands to `SpellCastTargets`' setters and `SpellCastTargets::SetTrajectory`. The battleground and outdoor PvP scripts add their world states to a `data/WorldStates` list, and a player's initial and changed world states are facts of its own client, built by `session/packets/maps/`. The battlegrounds tell clients through `BattleGroundNotices`, whose builders are in `session/packets/pvp/`; the battleground's messages and yells go through them too, built in each player's locale for the players `BattleGround::BroadcastWorker` finds. The pvp peer includes nothing of proto. A fight tells the units around it through `combat/CombatNotices` (the melee swing and its start and stop, the spell damage, heal, miss, resist, periodic and damage shield logs, and a threat list's changes), whose builders are in `session/packets/combat/`. A map tells its players through `Maps/MapNotices` (the permanent instance bind, the encounter frame, the weather, the map-wide sound and a creature's yell to the whole map), whose builders are in `session/packets/maps/`; who hears is still the map's own send to its players. The per-locale chat cache is the session's (`session/packets/chat/LocalizedPackets`), and the maps peer includes nothing of proto. An arena team tells its members through `social/ArenaTeamNotices` (its stats and its events), and the session builds its roster, query, stats, inspect and calendar list in `session/packets/social/`. A group tells its members through `social/GroupNotices` (its leader, roster, raid markers and target icons, its loot rolls and master loot list, a member's stats and the ready check), and the party member stats packet left the session port for `session/packets/social/GroupPackets`. A guild tells its members through `social/GuildNotices` (its events and its guild and officer chat; the guild keeps who may speak and who listens), and the session builds its roster, query, ranks, event log and calendar list; the guild bank tells a viewer its changed slots and its members a tab's text through the same notices, and the session builds its content, tabs, money and logs (`session/packets/social/GuildBankPackets`). A chat channel makes each of its notices a `ChannelNotice` value and tells its members through `social/ChannelNotices` (its notices, its member and user lists and its messages), built by `session/packets/social/ChannelPackets`. The social peer includes nothing of proto. A spell's cast tells its caster and the units around it through `spells/pipeline/SpellNotices` (its failure, start, go, effect log, interruption, channel and resurrect offer); the cast classifies its go targets and computes its heal prediction, and `session/packets/spells/SpellCastPackets` builds the packets; the cast's pushback is a spell notice too. A spell's effects tell clients through `spells/pipeline/SpellEffectNotices` (the kill, dispel and steal logs, a failed dispel, a cleared target, a duel request, a totem, a learned taxi node and a new home), built by `session/packets/spells/SpellEffectPackets`. A unit's auras tell clients through `spells/auras/AuraNotices` (an aura's change, and the visible auras a player is shown when it comes to see the unit, `Unit::SendVisibleAurasTo`), built by `session/packets/spells/AuraPackets`. The spells peer includes nothing of proto. `Player::SetClientControl`, reached from `Unit` as an override, tells its own client the control update and the active mover as two client facts (`ControlUpdateFact`, `ActiveMoverFact`, built by `session/packets/entities/ClientControlPackets`) at the statements that sent them; the grant and the revoke of its session's mover authority on a `Unit*` stay the port's (`GrantMover`, `RevokeMover`); its time sync request is a client fact too (`TimeSyncRequestFact`) | closed (phase 6; the wire bytes in phase 7) |
@@ -422,7 +426,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 6 | `src/motion/movement/` includes nothing above motion (0 lines) | closed (#81): `CheckMotionBoundary` covers `src/motion`, `movement/` included |
 | 7 | `PlayerDump` is in `session/` and `CharacterDatabaseCleaner` beside `World`, the layers they build in, and `Language.h` in `data/`; `ObjectGuid` is in `src/shared/Utilities` and names a player through the resolver the world installs | closed (phase 6) |
 | 8 | 0 database calls outside persistence | closed: `CheckDatabaseCalls` keeps it at 0 |
-| 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); none calls the database; all twelve are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, `CurrencyMgr`, `SocialList`, `GlyphMgr`, `TalentMgr` and `QuestStatusMgr`, whose rows their repositories in `persistence/characters/` read and write). **Spells, Today:** `SpellCooldownMgr` calls no database (its rows go through its repository in `persistence/characters/spells/`) and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | closed (#144 for the database: no manager calls it, each is tested from plain rows and its repository over the fake connection; the rest measured in phase 7: the fourteen managers spell no opcode outside a log line, call no database and name no packet type) |
+| 9 | **Entities, Today:** no manager builds packets (`CurrencyMgr`'s four, `ReputationMgr`'s five and `SocialList`/`PlayerSocial`'s contact list are typed facts built by `session/packets/entities/`); none calls the database; all twelve are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`, `HonorMgr`, whose kill's honor credit is a typed fact built by `session/packets/entities/`, `PetMgr`, the clear of the pet action bar now a fact of the player's own client, `RuneMgr`, whose three rune facts the same directory builds, and `ReputationMgr`, `CurrencyMgr`, `SocialList`, `GlyphMgr`, `TalentMgr` and `QuestStatusMgr`, whose rows their repositories in `persistence/characters/` read and write). **Spells, Today:** `SpellCooldownMgr` calls no database (its rows go through its repository in `persistence/characters/spells/`) and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | closed (#144 for the database: no manager calls it, each is tested from plain rows and its repository over the fake connection; the rest measured in phase 7: the fourteen managers name no opcode but in one comment, call no database and name no packet type, `WorldPacket`, `ByteBuffer` or `PackedGuid`) |
 | 10 | `CheckStateOwnership`'s achievement row: the session builds its owner's packets (`session/packets/entities/AchievementPackets`), as it builds the other managers'; `QuestCompletePacket` is in `session/packets/quests/` and builds the player's quest-complete fact | closed (phase 6) |
 | 11 | `Player` forwarders for quests, talents and inventory: no pure forwarder is left; the 23 `Player` methods that still call the three managers supply inputs the managers do not hold | closed (#78, measured in phase 7) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | moved to #497 (phase 7): the Creature fold, a behaviour change, in #600 on 4.3.4 evidence |
@@ -445,8 +449,8 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 From the repository root, with Python 3 and Git Bash. `layers.py` is the script below. Its `RULES` table is
 section 1's directory table, written as code: `AuctionHouseBot/` is app (kept, section 7).
 
-- Where the files go: `python layers.py src files | grep ' game/Object/' | cut -d' ' -f1 | sort | uniq -c` (and
-  likewise for `WorldHandlers/`, `Server/` and `References/`).
+- Where the files went (section 1): `git diff -M50% --name-status 971010a00 <the wave's last merge> -- src/game`,
+  each renamed file of a dissolved directory counted by its new directory (971010a00 is master before #711).
 - The edge tables: `python layers.py src against` (305, with the headers and the includers),
   `python layers.py src sideways` (2,357) and `python layers.py src edges` (every layer pair).
 - Packets and the database: `python layers.py src packets` (404 by layer and directory) and `python layers.py src db`
@@ -462,24 +466,24 @@ section 1's directory table, written as code: `AuctionHouseBot/` is app (kept, s
   `cat M.h M.cpp | grep -cE '\b(Character|World|Login)Database\.'` (database lines).
 - Method counts:
   `python src/tests/tools/method_count.py --class <C> --header <C.h> --all` for Player (`entities/player/Player.h`),
-  Unit (`Object/Unit.h`), WorldSession (`Server/WorldSession.h`) and ObjectMgr (`Object/ObjectMgr.h`).
+  Unit (`entities/Unit.h`), WorldSession (`session/WorldSession.h`) and ObjectMgr (`data/world/ObjectMgr.h`).
 - Unit's families:
-  `python src/tests/tools/method_count.py --class Unit --header src/game/Object/Unit.h --all --list | python layers.py src unit`.
+  `python src/tests/tools/method_count.py --class Unit --header src/game/entities/Unit.h --all --list | python layers.py src unit`.
 - The player-only leaks, with
-  `F="src/game/Object/Unit*.cpp src/game/combat/Unit*.cpp src/game/spells/auras/Unit*.cpp src/game/spells/pipeline/Unit*.cpp"`:
+  `F="src/game/entities/Unit*.cpp src/game/combat/Unit*.cpp src/game/spells/auras/Unit*.cpp src/game/spells/pipeline/Unit*.cpp"`:
   `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (3) and
   `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (194).
   The Player-only virtuals are the `virtual` lines of the `--all --list` output whose name is declared again in
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h`, where only a
   unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (45 of 74).
-- Creature cooldowns: `grep -nE '^\w.*Creature::\w+\(' src/game/Object/CreatureSpellCooldown.cpp` (6).
-- The threads (section 5): the tick's order is `World::Update` (`WorldHandlers/World.cpp:971`, the `TickGuard::Scope` at the top of its
-  body) read top to bottom; the map split is `MapManager::Update` (`WorldHandlers/MapManager.cpp:306`);
+- Creature cooldowns: `grep -nE '^\w.*Creature::\w+\(' src/game/entities/CreatureSpellCooldown.cpp` (6).
+- The threads (section 5): the tick's order is `World::Update` (`app/World.cpp:976`, the `TickGuard::Scope` at the top of its
+  body) read top to bottom; the map split is `MapManager::Update` (`Maps/MapManager.cpp:307`);
   the thread starts are `grep -rnE "std::thread|StartConsoleThread|HaltDelayThread" src/mangosd src/game src/shared`
   (the map pool in `Maps/MapUpdater.cpp`, the CLI reader and the watchdog in `mangosd/`, the console writer in
   `shared/Log`, one delay thread per database); the network pool's size is `net/reactor/ReactorServer.cpp:110`;
   the map-phase rows are
-  `grep -E '^\s*OPCODE\(' src/game/Server/OpcodeTable.cpp | grep -vE 'Handle_(ServerSide|NULL|EarlyProccess|Deprecated)\b' | grep -cE 'PROCESS_(THREADSAFE|INPLACE)'`
+  `grep -E '^\s*OPCODE\(' src/game/session/OpcodeTable.cpp | grep -vE 'Handle_(ServerSide|NULL|EarlyProccess|Deprecated)\b' | grep -cE 'PROCESS_(THREADSAFE|INPLACE)'`
   (73; without the last filter, 437 bound rows);
   `grep -rl "Network\.\(OutKBuff\|OutUBuff\|TcpNodelay\)" src` finds nothing; the strict-mode proof is the
   "Check strict tick mode is armed" step of `core_linux_build.yml`. Raw generators:
@@ -487,12 +491,12 @@ section 1's directory table, written as code: `AuctionHouseBot/` is app (kept, s
   excluded) and `grep -rnE '\brand\s*\(' src/scripts/legacy | grep -vE 'urand|irand'` (20 lines, 21 draws).
 - The session handlers (section 8, row 25): `Handle*` members are the `--all --list` lines of WorldSession matching
   `\bHandle\w*\s*\(` (418); the bound handlers are
-  `grep -E '^\s*OPCODE\(' src/game/Server/OpcodeTable.cpp | grep -oE 'WorldSession::\w+' | grep -vE '::Handle_(ServerSide|NULL|EarlyProccess|Deprecated)$' | sort -u > bound.txt`
+  `grep -E '^\s*OPCODE\(' src/game/session/OpcodeTable.cpp | grep -oE 'WorldSession::\w+' | grep -vE '::Handle_(ServerSide|NULL|EarlyProccess|Deprecated)$' | sort -u > bound.txt`
   (372), and the files defining them
   `grep -rlE '^\w.*\bWorldSession::\w+\s*\(' src/game --include=*.cpp | while read f; do grep -oE '^\w.*\bWorldSession::\w+\s*\(' "$f" | grep -oE 'WorldSession::\w+' | grep -qxFf bound.txt && echo "$f"; done`
-  (36, 34 of them in `WorldHandlers/`).
+  (36 before the first handler moved, 34 of them then in `WorldHandlers/`).
 - The build targets (section 6): `grep -rnE "^\s*add_(library|executable)" --include=CMakeLists.txt src` and each
-  target's `target_link_libraries`; which target builds which file is the globs and named lists of
+  target's `target_link_libraries`; which target builds which file is the globs of
   `src/game/CMakeLists.txt` and `src/scripts/CMakeLists.txt`; the size of `src/game` is
   `find src/game -name '*.cpp' -o -name '*.h' | xargs cat | wc -l` (399,004). Lines per target layer:
   `python layers.py src files`, summing `wc -l` per file by layer.
@@ -507,23 +511,20 @@ section 1's directory table, written as code: `AuctionHouseBot/` is app (kept, s
 import os, re, sys, collections
 RULES = [
  (r'^(tools|genrev)/|^game/pch', None), (r'^tests/', 'tests'), (r'^realmd/', 'realmd'), (r'^mangosd/', 'app'),
- (r'^shared/Database/|^game/persistence/|^game/Server/GameGlobals', 'persistence'),
+ (r'^shared/Database/|^game/persistence/', 'persistence'),
  (r'^shared/', 'foundation'), (r'^proto/', 'proto'), (r'^motion/', 'motion'),
- (r'^scripts/|^game/ChatCommands/|^game/WorldHandlers/(Chat\.|ChatArgExtract|ChatHelp|CommandMgr|ScriptMgr|ScriptAction)', 'scripts'),
- (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig|GameEventScheduler|CharacterDatabaseCleaner)', 'app'),
- (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)', 'session'),
- (r'^game/session/|^game/BattleGround/BattleGroundHandler\.', 'session'),
- (r'^game/data/|^game/spells/data/|^game/spells/auras/SpellAuraDefines\.', 'data'),
- (r'^game/Server/|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi|ItemEnchantmentMgr|LivingWorldAnchorPolicy|LootStore)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
+ (r'^scripts/|^game/(ChatCommands|dbscripts)/', 'scripts'),
+ (r'^game/(Harness|AuctionHouseBot|app)/', 'app'),
+ (r'^game/session/', 'session'),
+ (r'^game/data/|^game/spells/data/', 'data'),
  (r'^game/spells/', 'spells'),
- (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|AccountMgr|LFGPackets)\.', 'session'),
- (r'^game/combat/|^game/Object/(Formulas|StatSystem)', 'combat'),
- (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|Path\.|BareMap|Weather|PoolSpawner|CreatureLinkingHolder)', 'maps'),
- (r'^game/Object/[A-Za-z]*AI[A-Za-z]*\.', 'ai'),
- (r'^game/social/|^game/References/Group|^game/Object/(ArenaTeam|Calendar|Guild|GMTicketMgr)|^game/WorldHandlers/(Channel|Group|GuildMgr|Mail|MassMailMgr|LFG)', 'social'),
+ (r'^game/combat/', 'combat'),
+ (r'^game/Maps/', 'maps'),
+ (r'^game/ai/', 'ai'),
+ (r'^game/social/', 'social'),
  (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
- (r'^game/Object/(AuctionHouseMgr|LootMgr)|^game/WorldHandlers/Skill(Discovery|ExtraItems)', 'economy'),
- (r'^game/(entities|Object|MotionGenerators)/|^game/WorldHandlers/(Achievement|GossipDef|UpdateData)', 'entities')]
+ (r'^game/economy/', 'economy'),
+ (r'^game/entities/', 'entities')]
 DOMAIN = {'entities', 'spells', 'combat', 'maps', 'ai', 'social', 'pvp', 'economy'}
 ORDER = ['app', 'scripts', 'session', 'domain', 'data', 'motion', 'proto', 'persistence', 'foundation']
 MAY = {l: set(ORDER[i + 1:]) for i, l in enumerate(ORDER)}          # a layer may include every layer below it,
