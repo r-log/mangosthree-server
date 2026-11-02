@@ -174,7 +174,6 @@ TEST(CommandRepository_ListAndLookupReads)
     SpawnRepository::QueryCreatureCountOf(1234);
     SpawnRepository::QueryCreaturesNear(1.5f, -2.25f, 3.0f, 1234, 10);
     SpawnRepository::QueryCreaturesOf(1234, 10);
-    ItemDataRepository::QueryItemEntryByName("Hearthstone");
     AccountRepository::QueryAccountsByEmail("ann@x");
     AccountRepository::QueryAccountsByLastIp("10.0");
     AccountRepository::QueryAccountsByName("BOB");
@@ -201,7 +200,6 @@ TEST(CommandRepository_ListAndLookupReads)
         "SELECT COUNT(`guid`) FROM `creature` WHERE `id`='1234'",
         "SELECT `guid`, `position_x`, `position_y`, `position_z`, `map`, (POW(`position_x` - '1.500000', 2) + POW(`position_y` - '-2.250000', 2) + POW(`position_z` - '3.000000', 2)) AS order_ FROM `creature` WHERE `id` = '1234' ORDER BY `order_` ASC LIMIT 10",
         "SELECT `guid`, `position_x`, `position_y`, `position_z`, `map` FROM `creature` WHERE `id` = '1234' LIMIT 10",
-        "SELECT `entry` FROM `item_template` WHERE `name` = 'Hearthstone'",
     }, __LINE__);
     CheckLines(login.query.executed, {
         "SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `email` LIKE CONCAT( '%' , 'ann@x' , '%' )",
@@ -838,22 +836,6 @@ TEST(SpawnRepository_CreatureIdCountOf)
     CHECK_EQ(*value, 1007u);
 }
 
-// The read answers the first column of the first row, and nothing for no rows.
-TEST(ItemDataRepository_ItemEntryByName)
-{
-    {
-        Db db(WorldDatabase);
-        std::optional<uint16> value = ItemDataRepository::QueryItemEntryByName("Hearthstone");
-        CHECK(!value);
-    }
-    Db db(WorldDatabase);
-    db.query.Answer("SELECT", FakeRows{
-        FakeRow{"10007"}, FakeRow{"20007"},
-    });
-    std::optional<uint16> value = ItemDataRepository::QueryItemEntryByName("Hearthstone");
-    REQUIRE(value);
-    CHECK_EQ(*value, uint16(10007));
-}
 
 // Each row's first column comes back as a value, in order.
 TEST(CharacterRepository_AccountsOfCharactersNamed)

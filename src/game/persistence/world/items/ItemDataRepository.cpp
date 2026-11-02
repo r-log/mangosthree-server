@@ -111,11 +111,4 @@ namespace ItemDataRepository
         QueryResult* result = WorldDatabase.Query("SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data");
         return ReadRows<HotfixRow>(result, ReadHotfix);
     }
-
-    std::optional<uint16> QueryItemEntryByName(std::string itemName)
-    {
-        WorldDatabase.escape_string(itemName);
-        QueryResult* result = WorldDatabase.PQuery("SELECT `entry` FROM `item_template` WHERE `name` = '%s'", itemName.c_str());
-        return ReadRow<uint16>(result, [](Field* fields) { return fields[0].GetUInt16(); });
-    }
 }

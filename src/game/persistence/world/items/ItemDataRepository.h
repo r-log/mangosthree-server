@@ -97,9 +97,6 @@ namespace ItemDataRepository
 
     /// Selects every hotfix entry with its date (`hotfix_data`).
     std::vector<HotfixRow> QueryHotfixes();
-
-    /// Selects an item template's entry by its name, the name escaped first.
-    std::optional<uint16> QueryItemEntryByName(std::string itemName);
 }
 
 #endif

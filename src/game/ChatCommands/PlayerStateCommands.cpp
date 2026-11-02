@@ -34,7 +34,7 @@
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
 #include "WorldSession.h"
-#include "persistence/world/items/ItemDataRepository.h"
+#include "data/world/ItemPrototypeLookup.h"
 #include "session/SessionRegistry.h"
 
 /**
@@ -651,15 +651,13 @@ bool ChatHandler::HandleAddItemCommand(char* args)
     uint32 itemId = 0;
     if (!ExtractUInt32(&cId, itemId))                       // [name] manual form
     {
-        std::string itemName = cId;
-        std::optional<uint16> entry = ItemDataRepository::QueryItemEntryByName(itemName);
-        if (!entry)
+        itemId = FindItemEntryByName(sObjectMgr.GetItemPrototypes(), cId);
+        if (!itemId)
         {
             PSendSysMessage(LANG_COMMAND_COULDNOTFIND, cId);
             SetSentErrorMessage(true);
             return false;
         }
-        itemId = *entry;
     }
 
     int32 count;

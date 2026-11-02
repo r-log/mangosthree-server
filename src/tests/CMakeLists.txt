@@ -279,6 +279,7 @@ set(SRC_GRP_TESTS
     HotfixStoreTest.cpp
     DB2FileLoaderTest.cpp
     ItemPrototypeClientRecordsTest.cpp
+    ItemPrototypeLookupTest.cpp
     VendorItemStoreTest.cpp
     TrainerSpellStoreTest.cpp
     MangosStringStoreTest.cpp
