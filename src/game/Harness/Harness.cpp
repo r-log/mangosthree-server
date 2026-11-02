@@ -488,6 +488,16 @@ namespace Harness
         RNG::Seed(TickSeed(m_seedBase, s->Order(), m_elapsed));
     }
 
+    void Runner::SeedOffMapUpdates()
+    {
+        if (!Running() || m_settle)
+        {
+            return;
+        }
+        Scenario* s = m_queue[m_index];
+        RNG::Seed(OffMapSeed(m_seedBase, s->Order(), m_elapsed));
+    }
+
     void Runner::Begin(Scenario* s)
     {
         m_elapsed = 0;

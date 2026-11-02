@@ -1370,6 +1370,8 @@ void World::ApplyAfterMapPhasePosts()
 
 void World::ApplyOffMapAuraUpdates()
 {
+    sHarness.SeedOffMapUpdates();
+
     std::vector<OffMapAuraUpdate> const updates = OffMapAuraUpdates::Take();
     for (std::vector<OffMapAuraUpdate>::const_iterator itr = updates.begin(); itr != updates.end(); ++itr)
     {

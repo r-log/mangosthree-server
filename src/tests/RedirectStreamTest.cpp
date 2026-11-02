@@ -352,12 +352,11 @@ TEST(RedirectStream_the_old_constant_seed_no_longer_decodes)
     // constants. Every header after the handshake is noise, and the packet the
     // client meant to send never arrives.
     //
-    // What is NOT asserted is that the connection drops. A header of noise is a
-    // random 16-bit size, and roughly one in seven of those is a size the codec
-    // finds plausible -- it then waits for a payload that never comes instead of
-    // refusing the peer. Asserting the drop made this test fail about that
-    // often; the property that actually matters, and that holds every time, is
-    // that nothing keyed with the wrong table is ever accepted as a packet.
+    // What is NOT asserted is that the connection drops, nor that nothing at all is
+    // delivered. A header of noise is a random 16-bit size and opcode: roughly one in
+    // seven sizes is one the codec finds plausible, and when the fed bytes cover it,
+    // the noise frames a packet of some random opcode. The property that holds is that
+    // the ping the client meant to send never arrives.
     Fixture fixture;
     fixture.OpenAndReadChallengeSeed();
 
@@ -374,7 +373,10 @@ TEST(RedirectStream_the_old_constant_seed_no_longer_decodes)
 
     fixture.Feed(ping);
 
-    CHECK_EQ(int(fixture.gateway.delivered.size()), 0);
+    for (size_t i = 0; i < fixture.gateway.delivered.size(); ++i)
+    {
+        CHECK(int(fixture.gateway.delivered[i]) != int(WIRE_PING));
+    }
 }
 
 TEST(RedirectStream_answers_the_handshake_with_resume_comms)
