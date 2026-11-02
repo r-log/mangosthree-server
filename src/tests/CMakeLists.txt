@@ -185,6 +185,7 @@ set(SRC_GRP_TESTS
     SpellEffectPacketsTest.cpp
     SpellVisualPacketsTest.cpp
     CastTargetsCodecTest.cpp
+    UpdateObjectPacketTest.cpp
     UnitSpellCooldownTest.cpp
     UnitCombatStatsTest.cpp
     UnitItemByGuidTest.cpp

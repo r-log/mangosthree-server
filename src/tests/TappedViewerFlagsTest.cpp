@@ -31,7 +31,6 @@
 
 #include "TestHarness.h"
 #include "Auth/BigNumber.h"
-#include "ByteBuffer.h"
 #include "Creature.h"
 #include "Player.h"
 #include "UpdateData.h"
@@ -80,10 +79,9 @@ namespace
                 UpdateMask mask;
                 mask.SetCount(GetValuesCount());
                 mask.SetBit(UNIT_DYNAMIC_FLAGS);
-                ByteBuffer data;
-                BuildValuesUpdate(UPDATETYPE_VALUES, &data, &mask, viewer);
-                data.rpos(1 + mask.GetLength());
-                return data.read<uint32>();
+                UpdateValues values;
+                CollectValuesUpdate(UPDATETYPE_VALUES, &mask, viewer, values);
+                return values.values.empty() ? 0xFFFFFFFF : values.values[0];
             }
     };
 }

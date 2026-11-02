@@ -26,8 +26,10 @@
 #ifndef __UPDATEDATA_H
 #define __UPDATEDATA_H
 
-#include "ByteBuffer.h"
 #include "ObjectGuid.h"
+
+#include <memory>
+#include <vector>
 
 enum ObjectUpdateType
 {
@@ -57,6 +59,34 @@ enum ObjectUpdateFlags
     UPDATEFLAG_UNK2                 = 0x4000,
 };
 
+struct MovementUpdate;
+
+/// The values part of an update block as one viewer sees it: the update mask and, in index order,
+/// the 32-bit value of each field the mask names. Nothing is shown for a block built with no
+/// viewer.
+struct UpdateValues
+{
+    UpdateValues() : shown(false), blockCount(0) {}
+
+    bool shown;
+    uint8 blockCount;                                       ///< the mask's 32-bit blocks
+    std::vector<uint8> mask;                                ///< the mask's bytes
+    std::vector<uint32> values;
+};
+
+/// One block of an object update: a values block, or a create block that also carries the object's
+/// type and its movement part.
+struct UpdateBlock
+{
+    UpdateBlock() : type(UPDATETYPE_VALUES), objectTypeId(0) {}
+
+    uint8 type;                                             ///< ObjectUpdateType
+    ObjectGuid guid;
+    uint8 objectTypeId;                                     ///< a create block's TypeID
+    std::shared_ptr<MovementUpdate const> movement;         ///< a create block's movement part
+    UpdateValues values;
+};
+
 class UpdateData
 {
     public:
@@ -64,17 +94,17 @@ class UpdateData
 
         void AddOutOfRangeGUID(GuidSet& guids);
         void AddOutOfRangeGUID(ObjectGuid const& guid);
-        void AddUpdateBlock() { ++m_blockCount; }
-        ByteBuffer& GetBuffer() { return m_data; }
-        ByteBuffer const& GetBuffer() const { return m_data; }
-        bool HasData() { return m_blockCount > 0 || !m_outOfRangeGUIDs.empty(); }
+        /// Adds a block; the packet carries the blocks in the order they were added.
+        void AddBlock(UpdateBlock const& block) { m_blocks.push_back(block); }
+        std::vector<UpdateBlock> const& GetBlocks() const { return m_blocks; }
+        bool HasData() { return !m_blocks.empty() || !m_outOfRangeGUIDs.empty(); }
         void Clear();
 
         GuidSet const& GetOutOfRangeGUIDs() const { return m_outOfRangeGUIDs; }
 
         void SetMapId(uint32 mapId) { m_map = mapId; }
         uint32 GetMapId() const { return m_map; }
-        uint32 GetBlockCount() const { return m_blockCount; }
+        uint32 GetBlockCount() const { return uint32(m_blocks.size()); }
 
     protected:
 
@@ -91,8 +121,7 @@ class UpdateData
          * does not fit it.
          */
         uint32 m_map;
-        uint32 m_blockCount;
         GuidSet m_outOfRangeGUIDs;
-        ByteBuffer m_data;
+        std::vector<UpdateBlock> m_blocks;
 };
 #endif
