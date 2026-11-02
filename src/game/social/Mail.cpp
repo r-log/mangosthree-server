@@ -567,6 +567,7 @@ void ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> holder, uint
                 {
                     MailRepository::DeleteExpiredMailItem(itr2->item_guid);
                 }
+                MailRepository::DeleteMailItems(m->messageID);
             }
             else
             {
