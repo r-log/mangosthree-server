@@ -463,6 +463,11 @@ the code; each one is applied to the code a PR touches, never as a sweep of its 
   registers its handlers in the existing registries (`spells/handlers/SpellHandlerRegistry.h`). Each class
   campaign starts by moving its class's handlers there. `spells/handlers/` keeps the hook-type files for spells
   that belong to no class: items, creatures and quests.
+- **The client's files are the source of truth for the data the client reads.** A value the 4.3.4 client takes
+  from its own DBC or DB2 files comes from those files on the server too. The world database holds only what the
+  client does not have: server-only fields, records the client lacks, and, for the five item DB2 tables the client
+  can be told about, overrides that `hotfix_data` lists. Items move first; each other table follows in a PR of its
+  own.
 - **The domain peers may include each other.** The layout gate counts those includes by layer pair and does not
   gate them (section 4); the layer rules and the two seams stay gated. Coupling between peers is reduced where code
   is changed.
