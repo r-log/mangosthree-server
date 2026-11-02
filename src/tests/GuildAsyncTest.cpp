@@ -459,6 +459,10 @@ TEST(GuildAsync_ExpiredMailCursorGivesEachMailItsOwnItemRunAndNobodyElseS)
     CHECK(IndexOfRecorded(async, "DELETE FROM `mail` WHERE `id` = '10'") <
           IndexOfRecorded(async, "DELETE FROM `mail` WHERE `id` = '30'"));
 
+    // A deleted mail takes its item rows with it; a returned one keeps them for its new receiver.
+    CHECK_EQ(CountRecorded(async, "DELETE FROM `mail_items` WHERE `mail_id` = '10'"), size_t(1));
+    CHECK(!Recorded(async, "DELETE FROM `mail_items` WHERE `mail_id` = '20'"));
+
     // And nothing blocked while it ran: every write is a queued one and the query
     // connection, where a PQuery or an escape would have shown up, is untouched.
     CHECK_EQ(query.executed.size(), size_t(0));
