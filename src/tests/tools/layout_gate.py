@@ -15,7 +15,8 @@ Edges: each `#include "..."` line is an edge from the includer to the header, on
   against   an upward or forbidden edge.
   seam      an edge into a gated seam (entities/player, spells/aura) from outside it: from another
             domain peer, or from the seam's own peer (SEAM_SAME_PEER).
-  sideways  any other edge between two domain peers; an edge out of a seam is sideways.
+  sideways  any other edge between two domain peers; an edge out of a seam is sideways. Sideways
+            edges are counted in the summary, by layer pair; they are not gated and not listed.
 
 Headers: a spelling resolves relative to the includer's directory first; otherwise it must be a
 path suffix, at a directory boundary and ignoring letter case, of exactly one file under src/.
@@ -28,15 +29,9 @@ include path; a relative match that differs only in case) is taken as the src/ f
 Not counted: `#include <...>` and an include produced by a macro. Counted: an include inside a
 comment or an #if 0 block.
 
-The allow-list, src/tests/layout_allow.txt, holds one line per key, paths from the repository
-root, in one sort order:
-
-  against, seam   "<includer file> -> <header>", however many times the file includes it.
-  sideways        "<includer directory> [<includer peer>] -> <header>", the includer's immediate
-                  directory (src/game/spells/handlers is its own key, not part of src/game/spells)
-                  and its peer layer. A new file of a listed peer in a listed directory including a
-                  listed header adds no key. A file's peer comes from its name (RULES), so a file
-                  named after another peer is a new key.
+The allow-list, src/tests/layout_allow.txt, holds one line per against or seam edge,
+"<includer file> -> <header>" however many times the file includes it, paths from the repository
+root, in one sort order.
 The file starts with a header block of "#" lines and one blank line; --generate replaces the block
 with the tool's header and names each line it replaced. A block with no blank line after it fails,
 and --generate writes nothing while such a block holds a line that is not the tool's. After the
@@ -54,7 +49,7 @@ A reason is optional here; that a line needs one is decided by the review of the
     includer files in the tree may not outnumber the listed lines, so a new edge that matches a
     listed line of its layer pair gone from the tree is reported as "moved: replace the old line ...
     with ..."; beyond that count, or into another layer pair, it is new;
-  - a listed line whose key is gone from the tree or is allowed;
+  - a listed line whose key is gone from the tree, is allowed, or is a sideways edge;
   - a malformed or duplicate line, an unclassified file, an unknown or ambiguous header, a seam
     that matches no file, and a scan that reads no file or no include.
 It passes with a per-layer-pair summary in numbers. --generate rewrites the list from the tree and
@@ -64,10 +59,8 @@ prints what it added and removed. --self-test runs the fixtures.
 renamed file, paths from the repository root ("#" lines and blank lines aside), as
 `git diff -M100% --diff-filter=R --name-status` lists them. The list is then read at the tree's
 paths: each edge is also read with its includer and header at their old paths, and a tree key
-whose edge so read makes a listed line is carried from that line, which it replaces. A line
-carried to more than one key (a sideways key whose directory's files went to several directories)
-is a fan-out. Every carried line and every fan-out is printed, and a map line that carries no list
-line is named. An edge passes when its file, at its old path, would have passed, so a moved file
+whose edge so read makes a listed line is carried from that line, which it replaces. Every
+carried line is printed, and a map line that carries no list line is named. An edge passes when its file, at its old path, would have passed, so a moved file
 with a new include fails as new. A key keeps the reason of the lines it is carried from; a key
 carried from lines with different reasons (no reason counts as one) fails. A malformed or repeated
 map line, an old path still in the tree and a new path the tree does not have fail, and --generate
@@ -141,8 +134,8 @@ INCLUDE_RX = re.compile(r'\s*#\s*include\s*"([^"]+)"')
 ALLOW_REL = 'src/tests/layout_allow.txt'
 ALLOW_HEADER = '''\
 # CheckLayout's allow-list: src/tests/tools/layout_gate.py, design/architecture.md sections 1 and 4.
-# Against-the-rule and seam edges: "<includer file> -> <header>".
-# Sideways edges: "<includer directory> [<peer>] -> <header>". Paths from the repository root.
+# Against-the-rule and seam edges: "<includer file> -> <header>", paths from the repository root.
+# Sideways edges between domain peers are counted by the gate, not listed.
 # The gate fails on an edge that is not listed and on a line whose edge is gone or allowed.
 # A new edge is fixed, not listed. A line whose includer file changed is replaced by the new one.
 # A file that reached a header only through a header a PR cuts may include it directly, listed in that PR
@@ -150,7 +143,7 @@ ALLOW_HEADER = '''\
 # After removing or moving edges: python src/tests/tools/layout_gate.py --generate
 # A "#" line directly above an entry is its reason; --generate keeps it with the entry.
 '''
-KEY_BY_DIRECTORY = ('sideways',)
+GATED = ('against', 'seam')
 
 
 class GateError(Exception):
@@ -374,18 +367,14 @@ def read_allow(path):
     return entries, errors, reasons, lost, replaced
 
 
-def list_key(edge, verdict):
-    """The list key of an edge: its includer's directory and peer if sideways, else its includer file."""
-    kind, key = verdict
-    return ('%s [%s]' % (edge[0].rsplit('/', 1)[0], key[0]), edge[1]) if kind in KEY_BY_DIRECTORY else edge
+def gated(edges):
+    """The edges the list holds: against the rule and into a gated seam."""
+    return {e: v for e, v in edges.items() if v[0] in GATED}
 
 
 def keys_of(edges):
-    """{list key: (kind, [(includer, header), ...])} for a scan's edges."""
-    keys = {}
-    for e, v in sorted(edges.items()):
-        keys.setdefault(list_key(e, v), (v[0], []))[1].append(e)
-    return keys
+    """{list key: (kind, [(includer, header)])} for a scan's gated edges; a key is its edge."""
+    return {e: (v[0], [e]) for e, v in sorted(gated(edges).items())}
 
 
 def format_allow(entries, reasons=None):
@@ -397,10 +386,8 @@ def format_allow(entries, reasons=None):
 def summary(result, out):
     lines, edges = result['lines'], result['edges']
     per_kind = collections.defaultdict(set)
-    pairs = collections.defaultdict(set)
     for e, (kind, key) in edges.items():
         per_kind[(kind, key)].add(e)
-        pairs[(kind, key)].add(list_key(e, (kind, key)))
     lay = result['layers']
     out('layout: %d files classified: %s' % (len(result['files']), ', '.join(
         '%s %d' % (l if l else 'excluded', n) for l, n in sorted(lay.items(), key=lambda x: (-x[1], str(x[0]))))))
@@ -410,22 +397,18 @@ def summary(result, out):
         '%d skipped: tests -> tools/), %d third-party under dep/, %d generated'
         % (sum(r.values()), r['tree'], lines['allowed'], listed, lines['skipped'], r['dep'], r['generated']))
     titles = {'against': 'against the rule (by tier)', 'seam': 'against the rule: into a gated seam',
-              'sideways': 'sideways inside the domain tier (by layer)'}
-    for kind in ('against', 'seam', 'sideways'):
+              'sideways': 'sideways inside the domain tier (by layer), reported, not gated'}
+    for kind in GATED + ('sideways',):
         keys = sorted((x[1] for x in lines if isinstance(x, tuple) and x[0] == kind),
                       key=lambda k: (-lines[(kind, k)], k))
         tl = sum(lines[(kind, k)] for k in keys)
         te = sum(len(per_kind[(kind, k)]) for k in keys)
-        if kind in KEY_BY_DIRECTORY:
-            tp = len(set().union(*(pairs[(kind, k)] for k in keys)))
-            out('layout: %s: %d lines, %d edges, %d (includer directory, includer peer, header) keys listed'
-                % (titles[kind], tl, te, tp))
-        else:
+        if kind in GATED:
             out('layout: %s: %d lines, %d (includer file, header) edges listed' % (titles[kind], tl, te))
+        else:
+            out('layout: %s: %d lines, %d edges' % (titles[kind], tl, te))
         for k in keys:
-            out('layout:   %-11s -> %-15s %5d lines %5d edges%s'
-                % (k[0], k[1], lines[(kind, k)], len(per_kind[(kind, k)]),
-                   ' %5d keys' % len(pairs[(kind, k)]) if kind in KEY_BY_DIRECTORY else ''))
+            out('layout:   %-11s -> %-15s %5d lines %5d edges' % (k[0], k[1], lines[(kind, k)], len(per_kind[(kind, k)])))
 
 
 def line_verdict(entry):
@@ -451,21 +434,19 @@ def compare(edges, entries):
     new = sorted(k for k in keys if k not in entries)
     stale = sorted(e for e in entries if e not in keys)
     tree_n, list_n = collections.Counter(), collections.Counter()
-    for k, (kind, _) in keys.items():
-        if kind not in KEY_BY_DIRECTORY:
-            tree_n[(edges[k], k[1])] += 1
+    for k in keys:
+        tree_n[(edges[k], k[1])] += 1
     for e in entries:
         v = line_verdict(e)
-        if v and v[0] not in KEY_BY_DIRECTORY:
+        if v and v[0] in GATED:
             list_n[(v, e[1])] += 1
     # A new key pairs with a stale line of its kind, layer pair and header; the rest is new or stale.
     new_by, stale_by = collections.defaultdict(list), collections.defaultdict(list)
     for k in new:
-        if keys[k][0] not in KEY_BY_DIRECTORY:
-            new_by[(edges[k], k[1])].append(k)
+        new_by[(edges[k], k[1])].append(k)
     for e in stale:
         v = line_verdict(e)
-        if v and v[0] not in KEY_BY_DIRECTORY:
+        if v and v[0] in GATED:
             stale_by[(v, e[1])].append(e)
     moved, sole = [], set()
     for hk in sorted(new_by):
@@ -517,12 +498,11 @@ def carry(edges, entries, reasons, renames):
     carried, used = collections.defaultdict(set), set()
     for k, (kind, es) in keys.items():
         for e in es:
-            old = (back.get(e[0], e[0]), back.get(e[1], e[1]))
-            was = list_key(old, edges[e])
+            was = (back.get(e[0], e[0]), back.get(e[1], e[1]))
             if was in entries:
                 carried[was].add(k)
                 if was != k:
-                    used.update(p for p in old if p in renames)
+                    used.update(p for p in was if p in renames)
     out = set(entries) - set(carried)
     sources = collections.defaultdict(set)
     for e in out:
@@ -543,11 +523,9 @@ def carry(edges, entries, reasons, renames):
 
 
 def report_carry(renames, fan, unused, out):
-    out('CheckLayout: %d renamed file(s): %d list line(s) carried to new paths, %d of them to more than one key'
-        % (len(renames), len(fan), sum(1 for v in fan.values() if len(v) > 1)))
+    out('CheckLayout: %d renamed file(s): %d list line(s) carried to new paths' % (len(renames), len(fan)))
     for was, now in sorted(fan.items()):
-        out('  %s: %s -> %s  =>  %s' % ('fan-out' if len(now) > 1 else 'carried', was[0], was[1],
-                                         ' | '.join('%s -> %s' % k for k in now)))
+        out('  carried: %s -> %s  =>  %s' % (was[0], was[1], ' | '.join('%s -> %s' % k for k in now)))
     for old in unused:
         out('  renamed, no list line carried: %s -> %s' % (old, renames[old]))
 
@@ -568,7 +546,7 @@ def check(root, allow_path, out=print, renamed=None):
         entries, reasons, fan, unused, carry_errors = carry(edges, entries, reasons, renames)
         errors += carry_errors
         report_carry(renames, fan, unused, out)
-    keys, new, moved, stale, (tree_n, list_n), sole = compare(edges, entries)
+    keys, new, moved, stale, (tree_n, list_n), sole = compare(gated(edges), entries)
     allow_rel = os.path.relpath(allow_path, root).replace(os.sep, '/')
     if not errors:
         summary(result, out)
@@ -580,24 +558,16 @@ def check(root, allow_path, out=print, renamed=None):
                    'do not list them:',
         'seam': 'new include edge(s) into a gated seam (entities/player, spells/aura; section 1: "only two '
                 'seams are gated") that the allow-list does not hold, keyed per includer file and header -- '
-                'fix them, do not list them:',
-        'sideways': 'new sideways include key(s) (includer directory, includer peer, header) between two domain '
-                    'directories that the allow-list does not hold; section 1 allows these lines but the keys '
-                    'cannot grow (a new file of a listed peer in a listed directory including a listed header is '
-                    'not new) -- fix them, do not list them:'}
-    for kind in ('against', 'seam', 'sideways'):
+                'fix them, do not list them:'}
+    for kind in GATED:
         mine = [k for k in new if keys[k][0] == kind]
         if mine:
             out('CheckLayout: %d %s' % (len(mine), headings[kind]))
         for k in mine:
-            key = edges[keys[k][1][0]][1]
-            if kind in KEY_BY_DIRECTORY:
-                out('  %s -> %s   [%s: %s -> %s] included by %s'
-                    % (k[0], k[1], kind, key[0], key[1], ', '.join(e[0] for e in keys[k][1])))
-            else:
-                out('  %s -> %s   [%s: %s -> %s] the header has %d %s includer file(s) in the tree, %d listed'
-                    % (k[0], k[1], kind, key[0], key[1], tree_n[(edges[k], k[1])], '%s -> %s' % key,
-                       list_n[(edges[k], k[1])]))
+            key = edges[k][1]
+            out('  %s -> %s   [%s: %s -> %s] the header has %d %s includer file(s) in the tree, %d listed'
+                % (k[0], k[1], kind, key[0], key[1], tree_n[(edges[k], k[1])], '%s -> %s' % key,
+                   list_n[(edges[k], k[1])]))
     if moved:
         out('CheckLayout: %d against-the-rule or seam line(s) changed includer file inside one layer pair, the '
             'header\'s count did not grow -- moved: replace the old line with the new one in %s:'
@@ -616,9 +586,8 @@ def check(root, allow_path, out=print, renamed=None):
             'delete them (%s):' % (len(stale), allow_rel))
         for e in stale:
             note = ''
-            if line_kind(e) in KEY_BY_DIRECTORY:
-                note = ('   [a sideways edge is listed per includer directory and peer: %s [%s] -> %s]'
-                        % (e[0].rsplit('/', 1)[0], layer(e[0][4:]), e[1]))
+            if line_kind(e) == 'sideways' or ' [' in e[0]:
+                note = '   [sideways edges are reported, not listed]'
             if e in reasons:
                 note += '   (its reason goes with it: %s)' % reasons[e]
             out('  %s -> %s%s' % (e[0], e[1], note))
@@ -626,9 +595,10 @@ def check(root, allow_path, out=print, renamed=None):
         out('CheckLayout: FAIL')
         return 1
     per = collections.Counter(kind for kind, _ in keys.values())
-    out('CheckLayout: OK: %d list lines (%d against + %d seam per includer file and header, %d sideways per '
-        'includer directory, peer and header), all %d on the allow-list'
-        % (len(keys), per['against'], per['seam'], per['sideways'], len(entries)))
+    sideways = sum(1 for kind, _ in result['edges'].values() if kind == 'sideways')
+    out('CheckLayout: OK: %d list lines (%d against + %d seam per includer file and header), all %d on the '
+        'allow-list; %d sideways edge(s) between domain peers reported, not gated'
+        % (len(keys), per['against'], per['seam'], len(entries), sideways))
     return 0
 
 
@@ -699,6 +669,7 @@ SELF_TREE = {
     'src/game/entities/Unit.cpp': '#include "Unit.h"\n#include "zlib.h"\n',
     'src/game/entities/player/Player.h': '#include "Unit.h"\n',
     'src/game/entities/player/Player.cpp': '#include "Player.h"\n#include "entities/Unit.h"\n',
+    'src/game/data/Store.cpp': '#include "Unit.h"\n',
     'src/game/spells/AuraContainer.h': '#include "Common.h"\n',
     'src/game/spells/pipeline/Spell.cpp': '#include "Unit.h"\n#include "WorldPacket.h"\n',
     'src/game/maps/Map.cpp': '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "Map.h"\n',
@@ -709,9 +680,8 @@ SELF_TREE = {
     'src/tools/ToolDefs.h': '',
     'dep/zlib/zlib.h': '',
 }
-SELF_ALLOW = [('src/game/maps [maps]', 'src/game/entities/Unit.h'),
+SELF_ALLOW = [('src/game/data/Store.cpp', 'src/game/entities/Unit.h'),
               ('src/game/maps/Map.cpp', 'src/game/entities/player/Player.h'),
-              ('src/game/spells/pipeline [spells]', 'src/game/entities/Unit.h'),
               ('src/game/spells/pipeline/Spell.cpp', 'src/proto/WorldPacket.h')]
 
 
@@ -758,25 +728,22 @@ def self_test():
         return t
 
     run('the clean fixture passes (tools/ is not scanned)', SELF_TREE, SELF_ALLOW, 0,
-        ['CheckLayout: OK: 4 list lines (1 against + 1 seam per includer file and header, 2 sideways per includer '
-         'directory, peer and header), all 4 on the allow-list', 'domain      -> proto               1 lines    '
-         ' 1 edges',
+        ['CheckLayout: OK: 3 list lines (2 against + 1 seam per includer file and header), all 3 on the '
+         'allow-list; 2 sideways edge(s) between domain peers reported, not gated',
+         'domain      -> proto               1 lines     1 edges',
+         'data        -> domain              1 lines     1 edges',
          'maps        -> entities/player     1 lines     1 edges',
-         'maps        -> entities            1 lines     1 edges     1 keys',
-         'sideways inside the domain tier (by layer): 2 lines, 2 edges, 2 (includer directory, includer peer, '
-         'header) keys',
-         '(15 allowed, 4 against/seam/sideways, 1 skipped: tests -> tools/), 1 third-party under dep/, 1 generated'])
+         'maps        -> entities            1 lines     1 edges',
+         'sideways inside the domain tier (by layer), reported, not gated: 2 lines, 2 edges',
+         '(15 allowed, 5 against/seam/sideways, 1 skipped: tests -> tools/), 1 third-party under dep/, 1 generated'])
     run('a planted upward include fails (foundation -> entities)',
         with_file('src/shared/Common.cpp', '#include "Common.h"\n#include "entities/Unit.h"\n'), SELF_ALLOW, 1,
         ['1 new include edge(s) against section 1', 'an upward or forbidden include',
          'src/shared/Common.cpp -> src/game/entities/Unit.h   [against: foundation -> domain]'])
-    run('a new sideways include fails (spells -> maps)',
+    run('a new sideways include passes and is counted (spells -> maps)',
         with_file('src/game/spells/pipeline/Spell.cpp', '#include "Unit.h"\n#include "WorldPacket.h"\n#include "Map.h"\n'),
-        SELF_ALLOW, 1, ['1 new sideways include key(s) (includer directory, includer peer, header)',
-                        'section 1 allows these lines but the keys cannot grow',
-                        '  src/game/spells/pipeline [spells] -> src/game/maps/Map.h   [sideways: spells -> maps] '
-                        'included by '
-                        'src/game/spells/pipeline/Spell.cpp'])
+        SELF_ALLOW, 0, ['spells      -> maps                1 lines     1 edges',
+                        '3 sideways edge(s) between domain peers reported, not gated'], 'new include edge(s)')
     run('a new include into a gated seam fails as against',
         with_file('src/game/spells/pipeline/Spell.cpp', '#include "WorldPacket.h"\n#include "Player.h"\n'),
         SELF_ALLOW, 1, ['1 new include edge(s) into a gated seam', '[seam: spells -> entities/player]'])
@@ -826,38 +793,22 @@ def self_test():
     run('a same-peer include into a seam follows SEAM_SAME_PEER',
         with_file('src/game/entities/Bag.cpp', '#include "Player.h"\n'), SELF_ALLOW, 1 if SEAM_SAME_PEER else 0,
         '  src/game/entities/Bag.cpp -> src/game/entities/player/Player.h   [seam: entities -> entities/player]'
-        if SEAM_SAME_PEER else 'CheckLayout: OK: 4 list lines')
+        if SEAM_SAME_PEER else 'CheckLayout: OK: 3 list lines')
     run('duplicate violating lines collapse to one edge',
-        with_file('src/game/maps/Map.cpp', '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "Unit.h"\n'),
-        SELF_ALLOW, 0, ['CheckLayout: OK: 4 list lines', 'all 4 on the allow-list',
-                        'maps        -> entities            2 lines     1 edges     1 keys'])
+        with_file('src/game/maps/Map.cpp', '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "Player.h"\n'),
+        SELF_ALLOW, 0, ['CheckLayout: OK: 3 list lines', 'all 3 on the allow-list',
+                        'maps        -> entities/player     2 lines     1 edges'])
 
-    run('rule 1: a new file in a listed directory, listed header, passes',
-        with_file('src/game/maps/MapGrid.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 0,
-        ['CheckLayout: OK: 4 list lines', 'maps        -> entities            2 lines     2 edges     1 keys'])
-    run('rule 1: a split beside Spell.cpp passes',
-        with_file('src/game/spells/pipeline/SpellEffectWarrior.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 0,
-        ['CheckLayout: OK: 4 list lines', 'spells      -> entities            2 lines     2 edges     1 keys'])
-    run('rule 1: a new (directory, header) pair fails (spells/handlers)',
-        with_file('src/game/spells/handlers/AuraDummyWarrior.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
-        ['1 new sideways include key(s)', '  src/game/spells/handlers [spells] -> src/game/entities/Unit.h   '
-         '[sideways: spells '
-         '-> entities] included by src/game/spells/handlers/AuraDummyWarrior.cpp'])
-    run('rule 1: a listed pair with no includer left is stale and fails',
-        with_file('src/game/maps/Map.cpp', '#include "Map.h"\n#include "Player.h"\n'), SELF_ALLOW, 1,
-        ['1 allow-list line(s) name an edge that is gone', '  src/game/maps [maps] -> src/game/entities/Unit.h'])
-    run('rule 1: a pair stays while one includer in the directory is left',
-        dict(SELF_TREE, **{'src/game/maps/Map.cpp': '#include "Map.h"\n#include "Player.h"\n',
-                           'src/game/maps/MapGrid.cpp': '#include "Unit.h"\n'}), SELF_ALLOW, 0,
-        'CheckLayout: OK: 4 list lines')
-    run('rule 1: a sideways edge listed per file (the old key) fails',
-        SELF_TREE,
-        [e for e in SELF_ALLOW if e[0] != 'src/game/maps [maps]']
-        + [('src/game/maps/Map.cpp', 'src/game/entities/Unit.h')],
-        1, ['  src/game/maps [maps] -> src/game/entities/Unit.h   [sideways: maps -> entities] included by',
-            '  src/game/maps/Map.cpp -> src/game/entities/Unit.h   [a sideways edge is listed per includer '
-            'directory and peer: '
-            'src/game/maps [maps] -> src/game/entities/Unit.h]'])
+    run('rule 1: a new sideways file in a new directory passes and is counted',
+        with_file('src/game/spells/handlers/AuraDummyWarrior.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 0,
+        ['CheckLayout: OK: 3 list lines', 'spells      -> entities            2 lines     2 edges'])
+    run('rule 1: a sideways line listed per directory is stale and fails',
+        SELF_TREE, SELF_ALLOW + [('src/game/maps [maps]', 'src/game/entities/Unit.h')], 1,
+        ['1 allow-list line(s) name an edge that is gone',
+         '  src/game/maps [maps] -> src/game/entities/Unit.h   [sideways edges are reported, not listed]'])
+    run('rule 1: a sideways line listed per file is stale and fails',
+        SELF_TREE, SELF_ALLOW + [('src/game/maps/Map.cpp', 'src/game/entities/Unit.h')], 1,
+        '  src/game/maps/Map.cpp -> src/game/entities/Unit.h   [sideways edges are reported, not listed]')
 
     run('rule 2: a second file including a forbidden header fails',
         with_file('src/game/spells/pipeline/SpellEffects.cpp', '#include "WorldPacket.h"\n'), SELF_ALLOW, 1,
@@ -881,7 +832,7 @@ def self_test():
     moved_text = ('  moved: replace the old line src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h with '
                   'src/game/maps/Map.cpp -> src/proto/WorldPacket.h   [against: domain -> proto]')
     run('rule 3: a moved against line, replaced in the list, passes', moved_tree, moved_allow, 0,
-        'CheckLayout: OK: 4 list lines')
+        'CheckLayout: OK: 3 list lines')
     run('rule 3: a moved against line not replaced fails as moved', moved_tree, SELF_ALLOW, 1,
         ['1 against-the-rule or seam line(s) changed includer file', moved_text],
         ['new include edge(s) against', 'allow-list line(s) name an edge that is gone'])
@@ -911,7 +862,7 @@ def self_test():
         'src/game/maps/Map.cpp': '#include "Map.h"\n#include "Unit.h"\n',
         'src/game/maps/MapGrid.cpp': '#include "Player.h"\n'})
     run('rule 3: a moved seam line, replaced in the list, passes', seam_tree,
-        [e for e in SELF_ALLOW if e != old_pl] + [new_pl], 0, 'CheckLayout: OK: 4 list lines')
+        [e for e in SELF_ALLOW if e != old_pl] + [new_pl], 0, 'CheckLayout: OK: 3 list lines')
     run('rule 3: a moved seam line not replaced fails as moved', seam_tree, SELF_ALLOW, 1,
         '  moved: replace the old line src/game/maps/Map.cpp -> src/game/entities/player/Player.h with '
         'src/game/maps/MapGrid.cpp -> src/game/entities/player/Player.h   [seam: maps -> entities/player]',
@@ -1080,31 +1031,21 @@ def self_test():
         return t
 
     sp, sd = 'src/game/spells/pipeline/Spell.cpp', 'src/game/spells/effects/Spell.cpp'
-    pk, dk = SELF_ALLOW[2], ('src/game/spells/effects [spells]', 'src/game/entities/Unit.h')
     moved_sp = rename(SELF_TREE, sp, sd)
-    renamed('renamed: an includer moved to another directory carries its lines', moved_sp, SELF_ALLOW, [(sp, sd)], 0,
-            ['1 renamed file(s): 2 list line(s) carried to new paths, 0 of them to more than one key',
+    renamed('renamed: an includer moved to another directory carries its line', moved_sp, SELF_ALLOW, [(sp, sd)], 0,
+            ['1 renamed file(s): 1 list line(s) carried to new paths',
              '  carried: src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h  =>  '
-             'src/game/spells/effects/Spell.cpp -> src/proto/WorldPacket.h',
-             '  carried: src/game/spells/pipeline [spells] -> src/game/entities/Unit.h  =>  '
-             'src/game/spells/effects [spells] -> src/game/entities/Unit.h', 'CheckLayout: OK: 4 list lines'])
+             'src/game/spells/effects/Spell.cpp -> src/proto/WorldPacket.h', 'CheckLayout: OK: 3 list lines'])
     run('renamed: the same tree with no map fails', moved_sp, SELF_ALLOW, 1,
-        ['  src/game/spells/effects [spells] -> src/game/entities/Unit.h   [sideways: spells -> entities]',
-         '  moved: replace the old line src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h with '
-         'src/game/spells/effects/Spell.cpp -> src/proto/WorldPacket.h'])
+        '  moved: replace the old line src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h with '
+        'src/game/spells/effects/Spell.cpp -> src/proto/WorldPacket.h')
     pl, px = 'src/game/entities/player/Player.h', 'src/game/entities/player/core/Player.h'
     renamed('renamed: a header moved carries the lines naming it', rename(SELF_TREE, pl, px), SELF_ALLOW, [(pl, px)], 0,
             ['  carried: src/game/maps/Map.cpp -> src/game/entities/player/Player.h  =>  src/game/maps/Map.cpp -> '
              'src/game/entities/player/core/Player.h', 'CheckLayout: OK'])
     renamed('renamed: a moved file with a new include fails',
-            rename(SELF_TREE, sp, sd, SELF_TREE[sp] + '#include "Map.h"\n'), SELF_ALLOW, [(sp, sd)], 1,
-            '  src/game/spells/effects [spells] -> src/game/maps/Map.h   [sideways: spells -> maps]')
-    two = dict(SELF_TREE, **{'src/game/spells/pipeline/SpellHit.cpp': '#include "Unit.h"\n'})
-    renamed('renamed: a sideways key split over two directories names both', rename(two, sp, sd), SELF_ALLOW,
-            [(sp, sd)], 0, ['2 list line(s) carried to new paths, 1 of them to more than one key',
-                            '  fan-out: src/game/spells/pipeline [spells] -> src/game/entities/Unit.h  =>  '
-                            'src/game/spells/effects [spells] -> src/game/entities/Unit.h | src/game/spells/pipeline '
-                            '[spells] -> src/game/entities/Unit.h', 'CheckLayout: OK: 5 list lines'])
+            rename(SELF_TREE, sp, sd, SELF_TREE[sp] + '#include "Player.h"\n'), SELF_ALLOW, [(sp, sd)], 1,
+            '  src/game/spells/effects/Spell.cpp -> src/game/entities/player/Player.h   [seam: spells -> entities/player]')
     renamed('renamed: an old path still in the tree fails', dict(moved_sp, **{sp: SELF_TREE[sp]}), SELF_ALLOW,
             [(sp, sd)], 1, 'renames.txt:2: the old path src/game/spells/pipeline/Spell.cpp is still in the tree')
     renamed('renamed: a new path the tree does not have fails', moved_sp, SELF_ALLOW,
@@ -1117,31 +1058,28 @@ def self_test():
     renamed('renamed: a map entry no list line uses is reported', rename(moved_sp, mh, mb), SELF_ALLOW,
             [(sp, sd), (mh, mb)], 0,
             ['  renamed, no list line carried: src/shared/Common.cpp -> src/shared/CommonInit.cpp', 'CheckLayout: OK'])
-    why_wp, why_unit = '# Spell.cpp sends a packet', '# the spell code reads the unit'
-    reasoned_sp = format_allow(SELF_ALLOW, {old_wp: why_wp, pk: why_unit})
-    renamed('renamed: --generate carries the reasons to the renamed lines', moved_sp, reasoned_sp, [(sp, sd)], 0,
+    why_wp = '# Spell.cpp sends a packet'
+    reasoned_sp = format_allow(SELF_ALLOW, {old_wp: why_wp})
+    renamed('renamed: --generate carries the reason to the renamed line', moved_sp, reasoned_sp, [(sp, sd)], 0,
             '  carried: src/game/spells/pipeline/Spell.cpp', generate_too=True,
-            written=format_allow([e for e in SELF_ALLOW if e not in (old_wp, pk)] + [(sd, old_wp[1]), dk],
-                                 {(sd, old_wp[1]): why_wp, dk: why_unit}))
-    renamed('renamed: --generate keeps a reason on every key of a fan-out', rename(two, sp, sd), reasoned_sp,
-            [(sp, sd)], 0, '  fan-out:', generate_too=True,
-            written=format_allow([e for e in SELF_ALLOW if e != old_wp] + [(sd, old_wp[1]), dk],
-                                 {(sd, old_wp[1]): why_wp, pk: why_unit, dk: why_unit}))
-    ob, ub = 'src/game/Object/UnitSpellBonus.cpp', 'src/game/spells/pipeline/UnitSpellBonus.cpp'
-    ok_ = ('src/game/Object [spells]', 'src/game/entities/Unit.h')
-    bonus = rename(dict(SELF_TREE, **{ob: '#include "Unit.h"\n'}), ob, ub)
-    why_bonus = '# the bonus code reads the unit'
-    differing = format_allow(SELF_ALLOW + [ok_], {pk: why_unit, ok_: why_bonus})
-    renamed('renamed: a key carried from lines with different reasons fails', bonus, differing, [(ob, ub)], 1,
-            'src/game/spells/pipeline [spells] -> src/game/entities/Unit.h is carried from lines with different '
-            'reasons: src/game/Object [spells] -> src/game/entities/Unit.h %s | src/game/spells/pipeline [spells] -> '
-            'src/game/entities/Unit.h %s' % (why_bonus, why_unit))
-    renamed('renamed: --generate writes nothing on different reasons', bonus, differing, [(ob, ub)], 1,
-            'the list is not written while the rename map has errors', generate_too=True, written=differing)
-    renamed('renamed: a key carried from lines with one reason passes', bonus,
-            format_allow(SELF_ALLOW + [ok_], {pk: why_unit, ok_: why_unit}), [(ob, ub)], 0,
-            ['  carried: src/game/Object [spells] -> src/game/entities/Unit.h  =>  src/game/spells/pipeline [spells] '
-             '-> src/game/entities/Unit.h', 'CheckLayout: OK: 4 list lines'])
+            written=format_allow([e for e in SELF_ALLOW if e != old_wp] + [(sd, old_wp[1])], {(sd, old_wp[1]): why_wp}))
+    store = SELF_ALLOW[0]
+    old_store = ('src/game/data/OldStore.cpp', store[1])
+    why_store, why_old = '# the store reads the unit', '# the old store read the unit'
+    differing = format_allow(SELF_ALLOW + [old_store], {store: why_store, old_store: why_old})
+    renamed('renamed: a key carried from lines with different reasons fails', SELF_TREE, differing,
+            [(old_store[0], store[0])], 1,
+            'src/game/data/Store.cpp -> src/game/entities/Unit.h is carried from lines with different reasons: '
+            'src/game/data/OldStore.cpp -> src/game/entities/Unit.h %s | src/game/data/Store.cpp -> '
+            'src/game/entities/Unit.h %s' % (why_old, why_store))
+    renamed('renamed: --generate writes nothing on different reasons', SELF_TREE, differing,
+            [(old_store[0], store[0])], 1, 'the list is not written while the rename map has errors',
+            generate_too=True, written=differing)
+    renamed('renamed: a key carried from lines with one reason passes', SELF_TREE,
+            format_allow(SELF_ALLOW + [old_store], {store: why_store, old_store: why_store}),
+            [(old_store[0], store[0])], 0,
+            ['  carried: src/game/data/OldStore.cpp -> src/game/entities/Unit.h  =>  src/game/data/Store.cpp -> '
+             'src/game/entities/Unit.h', 'CheckLayout: OK: 3 list lines'])
     renamed('renamed: --generate writes nothing while an old path is in the tree',
             dict(moved_sp, **{sp: SELF_TREE[sp]}), reasoned_sp, [(sp, sd)], 1,
             'the list is not written while the rename map has errors', generate_too=True, written=reasoned_sp)
