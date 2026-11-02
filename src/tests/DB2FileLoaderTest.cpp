@@ -73,7 +73,8 @@ namespace
         out.insert(out.end(), bytes, bytes + 4);
     }
 
-    /// A WDB2 file of the records and strings; with maxId set, the id index (6 bytes per id) follows the header.
+    /// A WDB2 file of the records and strings; with maxId set, the id index (6 bytes per id) follows the header,
+    /// and a reversed range gets none, since the loader refuses its header.
     std::string WriteDb2(char const* tag, std::vector<TestRecord> const& records, std::string const& strings,
                          uint32 minId, uint32 maxId)
     {
@@ -90,7 +91,7 @@ namespace
         Put(out, maxId);
         Put(out, 1);                                // locale
         Put(out, 0);                                // copy table size
-        if (maxId != 0)
+        if (maxId != 0 && maxId >= minId)
         {
             out.insert(out.end(), size_t(maxId - minId + 1) * 6, 0xEE);
         }
