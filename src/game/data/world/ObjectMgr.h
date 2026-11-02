@@ -65,6 +65,8 @@
 #include "data/GossipMenuStore.h"
 #include "data/GraveyardStore.h"
 #include "data/InstanceTemplateStore.h"
+#include "data/ItemConvertStore.h"
+#include "data/ItemRequiredTargetStore.h"
 #include "data/KeyedRecordStore.h"
 #include "data/LfgDungeonEntranceStore.h"
 #include "data/MailLevelRewardStore.h"
@@ -135,10 +137,6 @@ typedef std::unordered_map<uint32, PageTextLocale> PageTextLocaleMap;
 typedef std::unordered_map<int32, MangosStringLocale> MangosStringLocaleMap;
 typedef std::unordered_map<uint32, GossipMenuItemsLocale> GossipMenuItemsLocaleMap;
 typedef std::unordered_map<uint32, PointOfInterestLocale> PointOfInterestLocaleMap;
-typedef std::unordered_map<uint32, uint32> ItemConvertMap;
-
-typedef std::multimap<uint32, ItemRequiredTarget> ItemRequiredTargetMap;
-typedef std::pair<ItemRequiredTargetMap::const_iterator, ItemRequiredTargetMap::const_iterator> ItemRequiredTargetMapBounds;
 
 struct PetLevelInfo
 {
@@ -1081,25 +1079,24 @@ class ObjectMgr
 
         uint32 GetItemConvert(uint32 itemEntry, uint32 raceMask) const
         {
-            ItemConvertMap::const_iterator iter = m_ItemConvert.find(itemEntry);
-            if (iter == m_ItemConvert.end())
+            uint32 targetEntry = m_itemConverts.RaceConvert(itemEntry);
+            if (!targetEntry)
             {
                 return 0;
             }
 
-            ItemPrototype const* proto = GetItemPrototype(iter->second);
-            return (proto && proto->AllowableRace & raceMask) ? iter->second : 0;
+            ItemPrototype const* proto = GetItemPrototype(targetEntry);
+            return (proto && proto->AllowableRace & raceMask) ? targetEntry : 0;
         }
 
         uint32 GetItemExpireConvert(uint32 itemEntry) const
         {
-            ItemConvertMap::const_iterator iter = m_ItemExpireConvert.find(itemEntry);
-            return iter != m_ItemExpireConvert.end() ? iter->second : 0;
+            return m_itemConverts.ExpireConvert(itemEntry);
         }
 
         ItemRequiredTargetMapBounds GetItemRequiredTargetMapBounds(uint32 uiItemEntry) const
         {
-            return m_ItemRequiredTarget.equal_range(uiItemEntry);
+            return m_itemRequiredTargets.ForItem(uiItemEntry);
         }
 
         DungeonEncounterMapBounds GetDungeonEncounterBounds(uint32 creditEntry) const
@@ -1261,9 +1258,8 @@ class ObjectMgr
 
         SpellClickStore     m_spellClicks;
 
-        ItemConvertMap        m_ItemConvert;
-        ItemConvertMap        m_ItemExpireConvert;
-        ItemRequiredTargetMap m_ItemRequiredTarget;
+        ItemConvertStore        m_itemConverts;
+        ItemRequiredTargetStore m_itemRequiredTargets;
 
         typedef             std::vector<LocaleConstant> LocalForIndex;
         LocalForIndex        m_LocalForIndex;

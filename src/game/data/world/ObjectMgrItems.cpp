@@ -940,7 +940,7 @@ void ObjectMgr::LoadItemPrototypes()
 
 void ObjectMgr::LoadItemConverts()
 {
-    m_ItemConvert.clear();                                  // needed for reload case
+    m_itemConverts.ClearRaceConverts();                     // needed for reload case
 
     uint32 count = 0;
 
@@ -990,7 +990,7 @@ void ObjectMgr::LoadItemConverts()
             continue;
         }
 
-        m_ItemConvert[itemEntry] = itemTargetId;
+        m_itemConverts.SetRaceConvert(itemEntry, itemTargetId);
 
         ++count;
     }
@@ -1001,7 +1001,7 @@ void ObjectMgr::LoadItemConverts()
 
 void ObjectMgr::LoadItemExpireConverts()
 {
-    m_ItemExpireConvert.clear();                            // needed for reload case
+    m_itemConverts.ClearExpireConverts();                   // needed for reload case
 
     uint32 count = 0;
 
@@ -1048,7 +1048,7 @@ void ObjectMgr::LoadItemExpireConverts()
             continue;
         }
 
-        m_ItemExpireConvert[itemEntry] = itemTargetId;
+        m_itemConverts.SetExpireConvert(itemEntry, itemTargetId);
 
         ++count;
     }
@@ -1062,7 +1062,7 @@ void ObjectMgr::LoadItemExpireConverts()
  */
 void ObjectMgr::LoadItemRequiredTarget()
 {
-    m_ItemRequiredTarget.clear();                           // needed for reload case
+    m_itemRequiredTargets.Clear();                          // needed for reload case
 
     uint32 count = 0;
 
@@ -1158,7 +1158,7 @@ void ObjectMgr::LoadItemRequiredTarget()
             continue;
         }
 
-        m_ItemRequiredTarget.insert(ItemRequiredTargetMap::value_type(uiItemId, ItemRequiredTarget(ItemRequiredTargetType(uiType), uiTargetEntry)));
+        m_itemRequiredTargets.Add(uiItemId, ItemRequiredTarget(ItemRequiredTargetType(uiType), uiTargetEntry));
 
         ++count;
     }

@@ -267,6 +267,8 @@ set(SRC_GRP_TESTS
     SpellClickStoreTest.cpp
     GameObjectSpawnStoreTest.cpp
     CellObjectGuidStoreTest.cpp
+    ItemConvertStoreTest.cpp
+    ItemRequiredTargetStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp
