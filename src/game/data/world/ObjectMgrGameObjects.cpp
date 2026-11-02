@@ -112,7 +112,7 @@ void ObjectMgr::LoadGameObjects()
             continue;
         }
 
-        GameObjectData& data = mGameObjectDataMap[guid];
+        GameObjectData& data = m_gameObjectSpawns.FindOrAdd(guid);
 
         data.id             = entry;
         data.mapid          = row.map;
@@ -205,7 +205,7 @@ void ObjectMgr::LoadGameObjects()
     }
 
     sLog.outString();
-    sLog.outString(">> Loaded %zu gameobjects", mGameObjectDataMap.size());
+    sLog.outString(">> Loaded %zu gameobjects", m_gameObjectSpawns.All().size());
 }
 
 void ObjectMgr::LoadGameObjectAddon()
@@ -279,7 +279,7 @@ void ObjectMgr::AddGameobjectToGrid(uint32 guid, GameObjectData const* data)
             CellPair cell_pair = MaNGOS::ComputeCellPair(data->posX, data->posY);
             uint32 cell_id = (cell_pair.y_coord * TOTAL_NUMBER_OF_CELLS_PER_MAP) + cell_pair.x_coord;
 
-            CellObjectGuids& cell_guids = mMapObjectGuids[MAKE_PAIR64(data->mapid, i)][cell_id];
+            CellObjectGuids& cell_guids = m_cellObjectGuids.FindOrAddCell(data->mapid, i, cell_id);
             cell_guids.gameobjects.insert(guid);
         }
     }
@@ -301,7 +301,7 @@ void ObjectMgr::RemoveGameobjectFromGrid(uint32 guid, GameObjectData const* data
             CellPair cell_pair = MaNGOS::ComputeCellPair(data->posX, data->posY);
             uint32 cell_id = (cell_pair.y_coord * TOTAL_NUMBER_OF_CELLS_PER_MAP) + cell_pair.x_coord;
 
-            CellObjectGuids& cell_guids = mMapObjectGuids[MAKE_PAIR64(data->mapid, i)][cell_id];
+            CellObjectGuids& cell_guids = m_cellObjectGuids.FindOrAddCell(data->mapid, i, cell_id);
             cell_guids.gameobjects.erase(guid);
         }
     }
