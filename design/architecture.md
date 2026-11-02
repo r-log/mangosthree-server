@@ -3,7 +3,7 @@
 Measured on master 0bbab743b and decided by the maintainer on 2026-09-28. A **Today:** line marks where the tree
 differs from the target. Section 8 lists each divergence with the phase that closes it. Every number comes from a
 command in the appendix. Sections 5 and 6 (the threads, the build targets) were added on 2026-09-29, measured on
-master 7b6a481ce. Sections 1, 6 and 8 and the appendix were re-measured at the end of phase 7, on master PHASE7_MASTER.
+master 7b6a481ce. Sections 1, 6 and 8 and the appendix were re-measured at the end of phase 7, on master fb9ad91ac.
 
 ## 1. Layers and the include direction
 
