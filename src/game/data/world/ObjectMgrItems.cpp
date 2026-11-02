@@ -49,6 +49,7 @@
 #include "WaypointManager.h"
 #include "DB2Structure.h"
 #include "DB2Stores.h"
+#include "ItemPrototypeClientRecords.h"
 #include "DisableMgr.h"
 
 #include <limits>
@@ -293,9 +294,52 @@ void ObjectMgr::LoadItemPrototypes()
         loaded = uint32(read.rows.size());
     }
     sLog.outString(">> Loaded %u item prototypes", loaded);
+
+    // The client's files hold every field the client reads of the items they ship; `item_template` keeps the
+    // server-only fields, the items the client does not ship and the overrides `hotfix_data` tells the client about.
+    std::set<uint32> const overrides = ItemSparseOverrides(m_hotfixes.All());
+    uint32 fromClient = 0;
+    uint32 serverOnly = 0;
+    uint32 overridden = 0;
+    for (uint32 i = 1; i < m_itemPrototypes.GetMaxEntry(); ++i)
+    {
+        ItemPrototype* proto = m_itemPrototypes.FindForEdit(i);
+        if (!proto)
+        {
+            continue;
+        }
+
+        if (ItemEntry const* item = sItemStore.LookupEntry(i))
+        {
+            TakeItemRecord(*proto, *item);
+        }
+
+        ItemSparseEntry const* sparse = sItemSparseStore.LookupEntry(i);
+        if (!sparse)
+        {
+            ++serverOnly;
+            continue;
+        }
+        if (overrides.count(i))
+        {
+            ++overridden;
+            continue;
+        }
+
+        TakeItemSparseRecord(*proto, *sparse);
+        proto->Name1 = m_itemPrototypeTexts.Add(sparse->Name[0][LOCALE_enUS]);
+        proto->Description = m_itemPrototypeTexts.Add(sparse->Description[LOCALE_enUS]);
+        ++fromClient;
+    }
+    sLog.outString(">> %u items from the client's files, %u server-only items and %u overrides from the database",
+                   fromClient, serverOnly, overridden);
     sLog.outString();
 
+    // The prototypes hold what the client's sparse records gave them; nothing else reads the records.
+    sItemSparseStore.Clear();
+
     // check data correctness
+    uint32 rankWithoutFaction = 0;
     for (uint32 i = 1; i < m_itemPrototypes.GetMaxEntry(); ++i)
     {
         ItemPrototype* proto = m_itemPrototypes.FindForEdit(i);
@@ -311,52 +355,7 @@ void ObjectMgr::LoadItemPrototypes()
             continue;
         }
 
-        if (dbcitem)
-        {
-            if (proto->Class != dbcitem->Class)
-            {
-                sLog.outErrorDb("Item (Entry: %u) not correct class %u, must be %u (still using DB value).", i, proto->Class, dbcitem->Class);
-                // It safe let use Class from DB
-            }
-            /* disabled: have some strange wrong cases for Subclass values.
-               for enable also uncomment Subclass field in ItemEntry structure and in Itemfmt[]
-            if (proto->SubClass != dbcitem->SubClass)
-            {
-                sLog.outErrorDb("Item (Entry: %u) not correct (Class: %u, Sub: %u) pair, must be (Class: %u, Sub: %u) (still using DB value).",i,proto->Class,proto->SubClass,dbcitem->Class,dbcitem->SubClass);
-                // It safe let use Subclass from DB
-            }
-            */
-
-            if (proto->Unk0 != dbcitem->SoundOverrideSubclass)
-            {
-                sLog.outErrorDb("Item (Entry: %u) not correct %i Unk0, must be %i (still using DB value).", i, proto->Unk0, dbcitem->SoundOverrideSubclass);
-                // It safe let use Unk0 from DB
-            }
-
-            if (proto->Material != dbcitem->Material)
-            {
-                sLog.outErrorDb("Item (Entry: %u) not correct %i material, must be %i (still using DB value).", i, proto->Material, dbcitem->Material);
-                // It safe let use Material from DB
-            }
-
-            if (proto->InventoryType != dbcitem->InventoryType)
-            {
-                sLog.outErrorDb("Item (Entry: %u) not correct %u inventory type, must be %u (still using DB value).", i, proto->InventoryType, dbcitem->InventoryType);
-                // It safe let use InventoryType from DB
-            }
-
-            if (proto->DisplayInfoID != dbcitem->DisplayId)
-            {
-                sLog.outErrorDb("Item (Entry: %u) not correct %u display id, must be %u (using it).", i, proto->DisplayInfoID, dbcitem->DisplayId);
-                proto->DisplayInfoID = dbcitem->DisplayId;
-            }
-            if (proto->Sheath != dbcitem->Sheath)
-            {
-                sLog.outErrorDb("Item (Entry: %u) not correct %u sheath, must be %u  (using it).", i, proto->Sheath, dbcitem->Sheath);
-                proto->Sheath = dbcitem->Sheath;
-            }
-        }
-        else
+        if (!dbcitem)
         {
             sLog.outErrorDb("Item (Entry: %u) not correct (not listed in list of existing items).", i);
         }
@@ -500,7 +499,7 @@ void ObjectMgr::LoadItemPrototypes()
         }
         else if (proto->RequiredReputationRank > MIN_REPUTATION_RANK)
         {
-            sLog.outErrorDb("Item (Entry: %u) has RequiredReputationFaction ==0 but RequiredReputationRank > 0, rank setting is useless.", i);
+            ++rankWithoutFaction;
         }
 
         if (proto->MaxCount < -1)
@@ -903,6 +902,12 @@ void ObjectMgr::LoadItemPrototypes()
                 }
             }
         }
+    }
+
+    if (rankWithoutFaction)
+    {
+        sLog.outErrorDb("%u items have a RequiredReputationRank but no RequiredReputationFaction; the rank is not used.",
+                        rankWithoutFaction);
     }
 
     // check some dbc referenced items (avoid duplicate reports)

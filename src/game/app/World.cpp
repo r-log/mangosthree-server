@@ -427,6 +427,9 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading Disables...");                  // must be before loading quests and items
     DisableMgr::LoadDisables();
 
+    sLog.outString("Loading Hotfix Data...");               // must be before LoadItemPrototypes
+    sObjectMgr.LoadHotfixData();
+
     sLog.outString("Loading Items...");                     // must be after LoadRandomEnchantmentsTable and LoadPageTexts
     sObjectMgr.LoadItemPrototypes();
 
@@ -695,9 +698,6 @@ void World::SetInitialWorldSettings()
 
     sLog.outString("Loading GameTeleports...");
     sObjectMgr.LoadGameTele();
-
-    sLog.outString("Loading Hotfix Data...");
-    sObjectMgr.LoadHotfixData();
 
     sLog.outString("Loading GM tickets...");
     sTicketMgr.LoadGMTickets();
