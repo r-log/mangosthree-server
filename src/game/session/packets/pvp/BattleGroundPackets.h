@@ -45,6 +45,9 @@ void BuildPlayerJoinedBattleGroundPacket(WorldPacket& data, Player* plr);
 void BuildBattleGroundListPacket(WorldPacket& data, ObjectGuid guid, Player* plr, BattleGroundTypeId bgTypeId);
 /// Initializes `data` as the countdown to a battleground's start: 0, `timeLeft`, then `totalTime`.
 void BuildStartTimerPacket(WorldPacket& data, uint32 timeLeft, uint32 totalTime);
+/// Initializes `data` as a battleground herald's yell: a monster yell of `text` in `language` from
+/// `speaker`, named `speakerName`, to no target.
+void BuildBattleGroundYellPacket(WorldPacket& data, Language language, ObjectGuid speaker, char const* speakerName, char const* text);
 
 /// The battlegrounds' notices: a player's own are sent to its client, a battleground's audience
 /// through the battleground's own sends.
@@ -62,7 +65,7 @@ class SessionBattleGroundNotices : public BattleGroundNotices
         void MessageToAll(BattleGround& bg, ChatMsg msgtype, int32 textId, Player const* source, va_list* args) override;
         void YellToAll(BattleGround& bg, int32 textId, Language language, Creature const& source) override;
         void Message2ToAll(BattleGround& bg, ChatMsg msgtype, int32 textId, Player const* source, int32 arg1, int32 arg2) override;
-        void Yell2ToAll(BattleGround& bg, int32 textId, uint32 language, Creature const& source, int32 arg1, int32 arg2) override;
+        void Yell2ToAll(BattleGround& bg, int32 textId, Language language, Creature const& source, int32 arg1, int32 arg2) override;
 };
 
 #endif

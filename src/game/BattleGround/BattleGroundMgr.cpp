@@ -182,7 +182,7 @@ void BattleGroundNotices::Message2ToAll(BattleGround& /*bg*/, ChatMsg /*msgtype*
 {
 }
 
-void BattleGroundNotices::Yell2ToAll(BattleGround& /*bg*/, int32 /*textId*/, uint32 /*language*/, Creature const& /*source*/, int32 /*arg1*/, int32 /*arg2*/)
+void BattleGroundNotices::Yell2ToAll(BattleGround& /*bg*/, int32 /*textId*/, Language /*language*/, Creature const& /*source*/, int32 /*arg1*/, int32 /*arg2*/)
 {
 }
 
