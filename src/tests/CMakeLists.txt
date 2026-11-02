@@ -595,7 +595,7 @@ if(Python3_Interpreter_FOUND)
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --self-test)
 
     add_test(NAME player_methods
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 906
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 900
             --class Player --header ${CMAKE_SOURCE_DIR}/src/game/entities/player/Player.h)
 
     add_test(NAME unit_methods
@@ -603,7 +603,7 @@ if(Python3_Interpreter_FOUND)
             --class Unit --header ${CMAKE_SOURCE_DIR}/src/game/entities/Unit.h)
 
     add_test(NAME world_session_methods
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 152
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 151
             --class WorldSession --header ${CMAKE_SOURCE_DIR}/src/game/session/WorldSession.h)
 
     add_test(NAME object_mgr_methods

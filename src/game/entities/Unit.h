@@ -2848,11 +2848,10 @@ class Unit : public WorldObject
          */
         void SendHeartBeat();
 
-        /// Serialise this unit's movement AS THE WIRE MUST SEE IT. Decided here, at the
-        /// instant of writing, from the map: aboard a vessel our coordinates are that
-        /// map's and the client has never heard of it, so it gets no world position at
-        /// all -- only the vessel's guid and those same coordinates as an offset.
-        void WriteMovementInfo(ByteBuffer& out, uint16 opcode, uint32 time) const;
+        /// The movement record this unit shows the clients at `time`, decided from its map: on a
+        /// world map its position; aboard a vessel, whose deck map no client knows, no world
+        /// position, only the vessel's guid and the same coordinates as the transport offset.
+        MovementInfo WireMovementInfo(uint32 time) const;
 
         /// The movement status this unit shows: what create blocks, observer packets and
         /// heartbeats carry, and what gameplay asks of its movement flags.

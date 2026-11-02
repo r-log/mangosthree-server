@@ -73,6 +73,7 @@
 #include "persistence/characters/pets/PetRepository.h"
 #include "persistence/login/AccountRepository.h"
 #include "session/packets/social/GuildBankPackets.h"
+#include "session/packets/entities/CharacterEnumPacket.h"
 
 /**
  * @brief Re-find the session a queued character request came from (decoupling D7d, C1).
@@ -203,7 +204,7 @@ void WorldSession::HandleCharEnum(std::vector<CharacterEnumRow> const& rows)
         {
             sLog.outDetail("Loading char guid %u from account %u.", row.guid, GetAccountId());
 
-            if (!Player::BuildEnumData(row, &data, &buffer))
+            if (!WriteCharacterEnumData(row, &data, &buffer))
             {
                 sLog.outError("Building enum data for SMSG_CHAR_ENUM has failed, aborting");
                 return;

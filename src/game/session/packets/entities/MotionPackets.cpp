@@ -79,7 +79,7 @@ void SessionMotionNotices::HeartBeat(Unit const& mover)
 {
     WorldPacket data(MSG_MOVE_HEARTBEAT, 64);
     data << mover.GetPackGUID();
-    mover.WriteMovementInfo(data, data.GetOpcode(), GameTime::GetGameTimeMS());
+    mover.WireMovementInfo(GameTime::GetGameTimeMS()).Write(data, data.GetOpcode());
     mover.SendMessageToSet(&data, true);
 }
 
