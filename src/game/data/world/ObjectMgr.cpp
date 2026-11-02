@@ -1105,6 +1105,7 @@ void ObjectMgr::DeleteCreatureData(uint32 guid)
     if (data)
     {
         RemoveCreatureFromGrid(guid, data);
+        m_cellObjectGuids.RemoveActiveCreature(data->mapid, guid);
     }
 
     m_creatureSpawns.Erase(guid);

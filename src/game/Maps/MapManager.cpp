@@ -747,7 +747,10 @@ void MapManager::LoadActiveEntities(Map& map, LivingWorldStartupStats* stats)
         std::pair<ObjectMgr::ActiveCreatureGuidsOnMap::const_iterator, ObjectMgr::ActiveCreatureGuidsOnMap::const_iterator> bounds = activeCreatures.equal_range(map.GetId());
         for (ObjectMgr::ActiveCreatureGuidsOnMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
         {
-            loadGridOf(sObjectMgr.NewOrExistCreatureData(itr->second));
+            if (CreatureData const* data = sObjectMgr.GetCreatureData(itr->second))
+            {
+                loadGridOf(*data);
+            }
         }
     }
 
