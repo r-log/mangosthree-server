@@ -53,6 +53,8 @@
 #include "data/CreatureAddonStore.h"
 #include "data/CreatureEquipmentStore.h"
 #include "data/CreatureModelInfoStore.h"
+#include "data/CreatureModelRaceStore.h"
+#include "data/CreatureSpawnStore.h"
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
@@ -73,6 +75,7 @@
 #include "data/QuestPOIStore.h"
 #include "data/ReputationRecords.h"
 #include "data/ServerSpellStore.h"
+#include "data/SpellClickStore.h"
 #include "data/TextPool.h"
 #include "data/VehicleAccessoryStore.h"
 
@@ -94,19 +97,6 @@ struct DeclinedName;
 enum class TableReadStatus;
 struct SpellTemplateRow;
 struct ItemTemplateRow;
-
-struct SpellClickInfo
-{
-    uint32 spellId;
-    uint32 questStart;                                      // quest start (quest must be active or rewarded for spell apply)
-    uint32 questEnd;                                        // quest end (quest don't must be rewarded for spell apply)
-    bool   questStartCanActive;                             // if true then quest start can be active (not only rewarded)
-    uint8 castFlags;
-    uint16 conditionId;                                     // intends to replace questStart, questEnd, questStartCanActive
-};
-
-typedef std::multimap<uint32 /*npcEntry*/, SpellClickInfo> SpellClickInfoMap;
-typedef std::pair<SpellClickInfoMap::const_iterator, SpellClickInfoMap::const_iterator> SpellClickInfoMapBounds;
 
 // mangos string ranges
 #define MIN_MANGOS_STRING_ID           1                    // 'mangos_string'
@@ -133,9 +123,6 @@ struct MangosStringLocale
     Language LanguageId;
     uint32 Emote;                       // 0 -> default, i -> i-1 locale index
 };
-
-typedef std::unordered_map<uint32, CreatureData> CreatureDataMap;
-typedef CreatureDataMap::value_type CreatureDataPair;
 
 typedef std::unordered_map<uint32, GameObjectData> GameObjectDataMap;
 typedef GameObjectDataMap::value_type GameObjectDataPair;
@@ -804,12 +791,7 @@ class ObjectMgr
 
         CreatureDataPair const* GetCreatureDataPair(uint32 guid) const
         {
-            CreatureDataMap::const_iterator itr = mCreatureDataMap.find(guid);
-            if (itr == mCreatureDataMap.end())
-            {
-                return NULL;
-            }
-            return &*itr;
+            return m_creatureSpawns.Find(guid);
         }
 
         CreatureData const* GetCreatureData(uint32 guid) const
@@ -820,14 +802,14 @@ class ObjectMgr
 
         CreatureData& NewOrExistCreatureData(uint32 guid)
         {
-            return mCreatureDataMap[guid];
+            return m_creatureSpawns.FindOrAdd(guid);
         }
         void DeleteCreatureData(uint32 guid);
 
         template<typename Worker>
         void DoCreatureData(Worker& worker) const
         {
-            for (CreatureDataMap::const_iterator itr = mCreatureDataMap.begin(); itr != mCreatureDataMap.end(); ++itr)
+            for (CreatureDataMap::const_iterator itr = m_creatureSpawns.All().begin(); itr != m_creatureSpawns.All().end(); ++itr)
                 if (worker(*itr))
                 {
                     break;
@@ -1117,7 +1099,7 @@ class ObjectMgr
 
         SpellClickInfoMapBounds GetSpellClickInfoMapBounds(uint32 creature_id) const
         {
-            return mSpellClickInfoMap.equal_range(creature_id);
+            return m_spellClicks.ForCreature(creature_id);
         }
 
         uint32 GetItemConvert(uint32 itemEntry, uint32 raceMask) const
@@ -1245,8 +1227,8 @@ class ObjectMgr
         QuestStore          m_quests;
         QuestRelationStore  m_questRelations;
 
-        typedef std::multimap<uint32, CreatureModelRace> CreatureModelRaceMap;
-        typedef std::pair<CreatureModelRaceMap::const_iterator, CreatureModelRaceMap::const_iterator> CreatureModelRaceMapBounds;
+        typedef CreatureModelRaceStore::CreatureModelRaceMap CreatureModelRaceMap;
+        typedef CreatureModelRaceStore::CreatureModelRaceMapBounds CreatureModelRaceMapBounds;
 
         NpcTextStore        m_npcTexts;
         AreaTriggerStore    m_areaTriggers;
@@ -1300,7 +1282,7 @@ class ObjectMgr
 
         GameTeleStore       m_gameTeles;
 
-        SpellClickInfoMap   mSpellClickInfoMap;
+        SpellClickStore     m_spellClicks;
 
         ItemConvertMap        m_ItemConvert;
         ItemConvertMap        m_ItemExpireConvert;
@@ -1344,7 +1326,7 @@ class ObjectMgr
 
         MapObjectGuids mMapObjectGuids;
         ActiveCreatureGuidsOnMap m_activeCreatures;
-        CreatureDataMap mCreatureDataMap;
+        CreatureSpawnStore m_creatureSpawns;
         CreatureLocaleMap mCreatureLocaleMap;
         GameObjectDataMap mGameObjectDataMap;
         GameObjectLocaleMap mGameObjectLocaleMap;
@@ -1358,7 +1340,7 @@ class ObjectMgr
         PointOfInterestLocaleMap mPointOfInterestLocaleMap;
         DungeonEncounterMap m_DungeonEncounters;
 
-        CreatureModelRaceMap    m_mCreatureModelRaceMap;
+        CreatureModelRaceStore  m_creatureModelRaces;
 
         CacheVendorItemMap m_mCacheVendorTemplateItemMap;
         CacheVendorItemMap m_mCacheVendorItemMap;

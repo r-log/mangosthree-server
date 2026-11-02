@@ -709,7 +709,7 @@ void ObjectMgr::LoadCreatureAddons()
     {
         if (CreatureDataAddon const* addon = m_creatureAddons.Find(i))
         {
-            if (mCreatureDataMap.find(addon->guidOrEntry) == mCreatureDataMap.end())
+            if (!m_creatureSpawns.Find(addon->guidOrEntry))
             {
                 sLog.outErrorDb("Creature (GUID: %u) does not exist but has a record in `creature_addon`", addon->guidOrEntry);
             }
@@ -934,7 +934,7 @@ uint32 ObjectMgr::GetModelForRace(uint32 sourceModelId, uint32 racemask)
 {
     uint32 modelId = 0;
 
-    CreatureModelRaceMapBounds bounds = m_mCreatureModelRaceMap.equal_range(sourceModelId);
+    CreatureModelRaceMapBounds bounds = m_creatureModelRaces.ForModel(sourceModelId);
 
     for (CreatureModelRaceMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
     {
@@ -1125,7 +1125,7 @@ void ObjectMgr::LoadCreatureModelInfo()
  */
 void ObjectMgr::LoadCreatureModelRace()
 {
-    m_mCreatureModelRaceMap.clear();                        // can be used for reload
+    m_creatureModelRaces.Clear();                           // can be used for reload
 
     std::vector<CreatureModelRaceRow> rows = CreatureDataRepository::QueryModelRaces();
 
@@ -1228,7 +1228,7 @@ void ObjectMgr::LoadCreatureModelRace()
             continue;
         }
 
-        m_mCreatureModelRaceMap.insert(CreatureModelRaceMap::value_type(raceData.modelid, raceData));
+        m_creatureModelRaces.Add(raceData);
 
         ++count;
     }
@@ -1312,7 +1312,7 @@ void ObjectMgr::LoadCreatures()
             continue;
         }
 
-        CreatureData& data = mCreatureDataMap[guid];
+        CreatureData& data = m_creatureSpawns.FindOrAdd(guid);
 
         data.id                 = entry;
         data.mapid              = row.map;
@@ -1463,7 +1463,7 @@ void ObjectMgr::LoadCreatures()
         ++count;
     }
 
-    sLog.outString(">> Loaded %zu creatures", mCreatureDataMap.size());
+    sLog.outString(">> Loaded %zu creatures", m_creatureSpawns.All().size());
     sLog.outString("[LivingWorld] anchor policy mask=0x%X: world-boss/leaders=%u, flight-masters=%u, settlement-defenders=%u, total-anchors=%u (continent-only; instance spawns excluded)",
         lwAnchorMask, lwWorldBossLeaderCount, lwFlightMasterCount, lwSettlementDefenderCount, lwAnchorTotal);
     sLog.outString();

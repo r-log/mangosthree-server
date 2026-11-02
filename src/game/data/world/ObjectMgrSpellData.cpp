@@ -41,7 +41,7 @@ void ObjectMgr::LoadNPCSpellClickSpells()
 {
     uint32 count = 0;
 
-    mSpellClickInfoMap.clear();
+    m_spellClicks.Clear();
     std::vector<SpellClickSpellRow> rows = NpcDataRepository::QuerySpellClickSpells();
 
     if (rows.empty())
@@ -110,7 +110,7 @@ void ObjectMgr::LoadNPCSpellClickSpells()
             }
         }
 
-        mSpellClickInfoMap.insert(SpellClickInfoMap::value_type(npc_entry, info));
+        m_spellClicks.Add(npc_entry, info);
 
         // mark creature template as spell clickable
         m_creatureTemplates.FindForEdit(cInfo->Entry)->NpcFlags |= UNIT_NPC_FLAG_SPELLCLICK;
