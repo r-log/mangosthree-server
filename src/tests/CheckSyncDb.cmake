@@ -500,9 +500,7 @@ set(ALLOW_ItemDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,`item` FROM `item_convert`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,`item` FROM `item_expire_convert`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,`type`,`targetEntry` FROM `item_required_target`\")\;"
-    "QueryResult* result = WorldDatabase.Query(\"SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data\")\;"
-    "WorldDatabase.escape_string(itemName)\;"
-    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry` FROM `item_template` WHERE `name` = '%s'\", itemName.c_str())\;")
+    "QueryResult* result = WorldDatabase.Query(\"SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data\")\;")
 
 set(ALLOW_LocaleDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`,\""

@@ -277,6 +277,7 @@ set(SRC_GRP_TESTS
     DungeonEncounterStoreTest.cpp
     HotfixPacketsTest.cpp
     HotfixStoreTest.cpp
+    ItemPrototypeLookupTest.cpp
     VendorItemStoreTest.cpp
     TrainerSpellStoreTest.cpp
     MangosStringStoreTest.cpp
