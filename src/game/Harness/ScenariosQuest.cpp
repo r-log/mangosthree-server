@@ -2547,14 +2547,14 @@ namespace Harness
     };
 
     /**
-     * S940 `quest-unique-reward-refused`: quest 4321 "Making Sense of It" on a human warrior set to
-     * level 50 by the `.reset level` sequence. Its fixed reward, 11482 Crystal Pylon User's Manual,
-     * is Unique in the 4.3.4 client (Item-sparse.db2: max count 1, no unique-equipped flag). One
-     * manual stored first, and the reward asked for while INCOMPLETE -- the base check refuses it,
+     * S940 `quest-unique-reward-refused`: quest 7046 "The Scepter of Celebras" on a human warrior set
+     * to level 45 by the `.reset level` sequence. Its fixed reward, 17191 Scepter of Celebras, is
+     * Unique in the 4.3.4 client (Item-sparse.db2: max count 1, no unique-equipped flag). One
+     * scepter stored first, and the reward asked for while INCOMPLETE -- the base check refuses it,
      * before the overload's store check could send anything; the event credit completes the quest;
-     * with the manual held, the quest passes CanRewardQuest(q, false) and the overload refuses at
+     * with the scepter held, the quest passes CanRewardQuest(q, false) and the overload refuses at
      * the fixed item's store check with one INVENTORY_CHANGE_FAILURE; destroyed, the reward runs and
-     * hands over one manual.
+     * hands over one scepter.
      */
     class QuestUniqueRewardRefused : public QuestScenario
     {
@@ -2573,7 +2573,7 @@ namespace Harness
                 bool noReachLevel = false;
                 std::set<uint32> achievementsAtSpawn;
                 bool accepted = false;
-                bool manualStored = false;
+                bool scepterStored = false;
                 bool incompleteRan = false, incompleteResult = true;
                 uint32 incompleteStatus = 0, incompleteHeld = 0, incompletePackets = 0;
                 bool eventRan = false;
@@ -2588,13 +2588,13 @@ namespace Harness
                 std::string stayedNew;
             };
 
-            const uint32 questId = 4321;
-            const uint32 manual = 11482;
-            const uint32 level = 50;
+            const uint32 questId = 7046;
+            const uint32 scepter = 17191;
+            const uint32 level = 45;
             QuestPlan plan;
             plan.quest = questId;
             plan.level = level;
-            plan.items[manual] = 1;         // the manual the scenario stores itself before the reward
+            plan.items[scepter] = 1;        // the scepter the scenario stores itself before the reward
             QuestPreCheck pre;
             const std::string templateOk = PreCheck(plan, Fingerprint(), &pre);
             if (templateOk.empty())
@@ -2630,28 +2630,28 @@ namespace Harness
                 st->accepted = Accept(p, q, p, "accept");
             });
 
-            // ---- the manual stored as loot would store it, so the reward's own is one too many
-            At(400, [this, st, manual]()
+            // ---- the scepter stored as loot would store it, so the reward's own is one too many
+            At(400, [this, st, scepter]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->accepted) { return; }
-                m_rec.Open("manual");
-                st->manualStored = StoreAsLoot(p, manual) != NULL;
-                m_rec.Open("manual+tick");
+                m_rec.Open("scepter");
+                st->scepterStored = StoreAsLoot(p, scepter) != NULL;
+                m_rec.Open("scepter+tick");
             });
 
-            // ---- the reward asked for while INCOMPLETE with the manual held: the base check must
+            // ---- the reward asked for while INCOMPLETE with the scepter held: the base check must
             // refuse it before the overload's fixed-item store check, which would send
             // INVENTORY_CHANGE_FAILURE, is reached ------------------------------------------------
-            At(500, [this, st, questId, manual]()
+            At(500, [this, st, questId, scepter]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
-                if (!p || !q || !st->manualStored) { return; }
+                if (!p || !q || !st->scepterStored) { return; }
                 m_rec.Open("canRewardIncomplete");
                 st->incompleteRan = true;
                 st->incompleteStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
-                st->incompleteHeld = p->GetInventoryMgr().GetItemCount(manual);
+                st->incompleteHeld = p->GetInventoryMgr().GetItemCount(scepter);
                 st->incompleteResult = p->CanRewardQuest(q, 0, true);
                 st->incompletePackets = m_rec.CountIn("canRewardIncomplete");
                 m_rec.Note(std::string("CanRewardQuest(q, 0, true)=") + (st->incompleteResult ? "1" : "0"));
@@ -2670,14 +2670,14 @@ namespace Harness
                 m_rec.Open("event+tick");
             });
 
-            At(700, [this, st, questId, manual]()
+            At(700, [this, st, questId, scepter]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
-                if (!p || !q || !st->manualStored || !st->eventRan) { return; }
+                if (!p || !q || !st->scepterStored || !st->eventRan) { return; }
                 m_rec.Open("canRewardHeld");
                 st->askRan = true;
-                st->heldAtAsk = p->GetInventoryMgr().GetItemCount(manual);
+                st->heldAtAsk = p->GetInventoryMgr().GetItemCount(scepter);
                 st->askPlain = p->CanRewardQuest(q, false);
                 m_rec.Note(std::string("CanRewardQuest(q, false)=") + (st->askPlain ? "1" : "0"));
                 st->askFull = p->CanRewardQuest(q, 0, true);
@@ -2692,23 +2692,23 @@ namespace Harness
                 m_rec.Open("canRewardHeld+tick");
             });
 
-            At(800, [this, st, manual]()
+            At(800, [this, st, scepter]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->askRan) { return; }
-                m_rec.Open("manualDestroyed");
-                p->DestroyItemCount(manual, 1, true);
-                st->heldAfterDestroy = p->GetInventoryMgr().GetItemCount(manual);
-                m_rec.Open("manualDestroyed+tick");
+                m_rec.Open("scepterDestroyed");
+                p->DestroyItemCount(scepter, 1, true);
+                st->heldAfterDestroy = p->GetInventoryMgr().GetItemCount(scepter);
+                m_rec.Open("scepterDestroyed+tick");
             });
 
-            At(900, [this, st, questId, manual]()
+            At(900, [this, st, questId, scepter]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
                 if (!p || !q || !st->askRan) { return; }
                 st->rewardRan = Reward(p, q, 0, p, p->GetObjectGuid(), "canReward", "reward", st->canReward);
-                st->heldAfterReward = p->GetInventoryMgr().GetItemCount(manual);
+                st->heldAfterReward = p->GetInventoryMgr().GetItemCount(scepter);
                 st->statusAfter = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->rewardedAfter = p->GetQuestRewardStatus(questId);
                 st->stayedNew = StaysNew(p, questId);
@@ -2728,26 +2728,26 @@ namespace Harness
                 // --- uniqueItemRefused
                 if (!st->askRan || !st->incompleteRan)
                 {
-                    snprintf(unique, sizeof(unique), "INVALID(manual stored=%d, the incomplete ask ran=%d, the held ask ran=%d)",
-                             st->manualStored ? 1 : 0, st->incompleteRan ? 1 : 0, st->askRan ? 1 : 0);
+                    snprintf(unique, sizeof(unique), "INVALID(scepter stored=%d, the incomplete ask ran=%d, the held ask ran=%d)",
+                             st->scepterStored ? 1 : 0, st->incompleteRan ? 1 : 0, st->askRan ? 1 : 0);
                 }
                 else if (st->incompleteResult || st->incompletePackets || st->incompleteStatus != QUEST_STATUS_INCOMPLETE || st->incompleteHeld != 1)
                 {
-                    snprintf(unique, sizeof(unique), "BUG(asked while status %u with 11482 x%u held: CanRewardQuest(q, 0, true)=%d with %u packet(s); expected false at the base check, INCOMPLETE, nothing sent -- the store check would send INVENTORY_CHANGE_FAILURE)",
+                    snprintf(unique, sizeof(unique), "BUG(asked while status %u with 17191 x%u held: CanRewardQuest(q, 0, true)=%d with %u packet(s); expected false at the base check, INCOMPLETE, nothing sent -- the store check would send INVENTORY_CHANGE_FAILURE)",
                              st->incompleteStatus, st->incompleteHeld, st->incompleteResult ? 1 : 0, st->incompletePackets);
                 }
                 else if (st->eventStatus != QUEST_STATUS_COMPLETE || st->heldAtAsk != 1 || !st->askPlain || st->askFull || st->askFailures != 1)
                 {
-                    snprintf(unique, sizeof(unique), "BUG(status %u after the event; with 11482 x%u held: CanRewardQuest(q, false)=%d, CanRewardQuest(q, 0, true)=%d, INVENTORY_CHANGE_FAILURE x%u; expected COMPLETE, x1, true, false, one)",
+                    snprintf(unique, sizeof(unique), "BUG(status %u after the event; with 17191 x%u held: CanRewardQuest(q, false)=%d, CanRewardQuest(q, 0, true)=%d, INVENTORY_CHANGE_FAILURE x%u; expected COMPLETE, x1, true, false, one)",
                              st->eventStatus, st->heldAtAsk, st->askPlain ? 1 : 0, st->askFull ? 1 : 0, st->askFailures);
                 }
                 else if (st->heldAfterDestroy || !st->canReward || !st->rewardRan)
                 {
-                    snprintf(unique, sizeof(unique), "BUG(after the manual was destroyed: x%u held, CanRewardQuest=%d)", st->heldAfterDestroy, st->canReward ? 1 : 0);
+                    snprintf(unique, sizeof(unique), "BUG(after the scepter was destroyed: x%u held, CanRewardQuest=%d)", st->heldAfterDestroy, st->canReward ? 1 : 0);
                 }
                 else
                 {
-                    snprintf(unique, sizeof(unique), "OK(one 11482 held while INCOMPLETE: false at the base check before the store check, nothing sent; COMPLETE: the quest passes CanRewardQuest(q, false), the overload refuses at the fixed item's store check with one %s; destroyed, the ask is true and the reward runs)",
+                    snprintf(unique, sizeof(unique), "OK(one 17191 held while INCOMPLETE: false at the base check before the store check, nothing sent; COMPLETE: the quest passes CanRewardQuest(q, false), the overload refuses at the fixed item's store check with one %s; destroyed, the ask is true and the reward runs)",
                              st->askFailure.c_str());
                 }
 
@@ -2758,12 +2758,12 @@ namespace Harness
                 }
                 else if (st->heldAfterReward != 1 || st->statusAfter != QUEST_STATUS_COMPLETE || !st->rewardedAfter || !st->stayedNew.empty())
                 {
-                    snprintf(reward, sizeof(reward), "BUG(11482 x%u after the reward, status %u, rewarded %d%s%s)", st->heldAfterReward,
+                    snprintf(reward, sizeof(reward), "BUG(17191 x%u after the reward, status %u, rewarded %d%s%s)", st->heldAfterReward,
                              st->statusAfter, st->rewardedAfter ? 1 : 0, st->stayedNew.empty() ? "" : "; ", st->stayedNew.c_str());
                 }
                 else
                 {
-                    snprintf(reward, sizeof(reward), "OK(the fixed 11482 x1 held after the reward; COMPLETE and rewarded, uState NEW)");
+                    snprintf(reward, sizeof(reward), "OK(the fixed 17191 x1 held after the reward; COMPLETE and rewarded, uState NEW)");
                 }
 
                 Verdict(Compose({ st->templateOk, unique, reward,
@@ -2772,19 +2772,19 @@ namespace Harness
         }
 
     private:
-        /// Quest 4321 as the loader leaves it: EXPLORATION_OR_EVENT from the row; one fixed item.
+        /// Quest 7046 as the loader leaves it: EXPLORATION_OR_EVENT from the row; one fixed item.
         static std::map<std::string, int64> Fingerprint()
         {
             std::map<std::string, int64> e;
             e["Method"] = 2;
             e["SpecialFlags"] = QUEST_SPECIAL_FLAG_EXPLORATION_OR_EVENT;
-            e["QuestFlags"] = 16392;
-            e["QuestLevel"] = 53;
-            e["ZoneOrSort"] = 490;
-            e["RewXPId"] = 1;
-            e["RewItemId1"] = 11482;
+            e["QuestFlags"] = 278530;
+            e["QuestLevel"] = 49;
+            e["ZoneOrSort"] = 2100;
+            e["RewXPId"] = 6;
+            e["RewItemId1"] = 17191;
             e["RewItemCount1"] = 1;
-            e["RewMoneyMaxLevel"] = 4500;
+            e["RewMoneyMaxLevel"] = 48900;
             return e;
         }
     };
