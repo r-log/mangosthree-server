@@ -59,6 +59,12 @@ class KeyedRecordStore
             return NULL;
         }
 
+        /// The record of `key` for a loader to fill in place, a new default record when the key has none.
+        Record& FindOrAdd(uint32 key)
+        {
+            return m_records[key];
+        }
+
         /// The record of `key` for a loader's checks to change, or NULL.
         Record* FindForEdit(uint32 key)
         {

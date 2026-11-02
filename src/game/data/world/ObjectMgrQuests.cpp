@@ -872,7 +872,7 @@ void ObjectMgr::LoadQuests()
  */
 void ObjectMgr::LoadQuestLocales()
 {
-    mQuestLocaleMap.clear();                                // need for reload case
+    m_questLocales.Clear();                                 // need for reload case
 
     std::vector<QuestLocaleRow> rows = QuestDataRepository::QueryQuestLocales();
 
@@ -898,7 +898,7 @@ void ObjectMgr::LoadQuestLocales()
             continue;
         }
 
-        QuestLocale& data = mQuestLocaleMap[entry];
+        QuestLocale& data = m_questLocales.FindOrAdd(entry);
 
         for (int i = 1; i < MAX_LOCALE; ++i)
         {
@@ -1077,5 +1077,5 @@ void ObjectMgr::LoadQuestLocales()
     }
 
     sLog.outString();
-    sLog.outString(">> Loaded %zu Quest locale strings", mQuestLocaleMap.size());
+    sLog.outString(">> Loaded %u Quest locale strings", m_questLocales.GetCount());
 }

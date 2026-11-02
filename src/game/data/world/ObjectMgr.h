@@ -72,6 +72,7 @@
 #include "data/KeyedRecordStore.h"
 #include "data/LfgDungeonEntranceStore.h"
 #include "data/MailLevelRewardStore.h"
+#include "data/MangosStringStore.h"
 #include "data/NpcTextStore.h"
 #include "data/PlayerCreateInfo.h"
 #include "data/PageTextStore.h"
@@ -125,27 +126,6 @@ static_assert(MAX_DB_SCRIPT_STRING_ID < INT32_MAX, "Must scope with int32 range"
 /// Logs an error about a text entry in the log of the entry's range: the script library's, the event
 /// AI's, the core's or the database scripts'.
 void LogTextEntryError(int32 entry, char const* format, ...) ATTR_PRINTF(2, 3);
-
-struct MangosStringLocale
-{
-    MangosStringLocale() : SoundId(0), Type(0), LanguageId(LANG_UNIVERSAL), Emote(0) { }
-
-    std::vector<std::string> Content;                       // 0 -> default, i -> i-1 locale index
-    uint32 SoundId;
-    uint8  Type;
-    Language LanguageId;
-    uint32 Emote;                       // 0 -> default, i -> i-1 locale index
-};
-
-typedef std::unordered_map<uint32, CreatureLocale> CreatureLocaleMap;
-typedef std::unordered_map<uint32, GameObjectLocale> GameObjectLocaleMap;
-typedef std::unordered_map<uint32, ItemLocale> ItemLocaleMap;
-typedef std::unordered_map<uint32, QuestLocale> QuestLocaleMap;
-typedef std::unordered_map<uint32, NpcTextLocale> NpcTextLocaleMap;
-typedef std::unordered_map<uint32, PageTextLocale> PageTextLocaleMap;
-typedef std::unordered_map<int32, MangosStringLocale> MangosStringLocaleMap;
-typedef std::unordered_map<uint32, GossipMenuItemsLocale> GossipMenuItemsLocaleMap;
-typedef std::unordered_map<uint32, PointOfInterestLocale> PointOfInterestLocaleMap;
 
 enum ConditionType
 {
@@ -770,58 +750,33 @@ class ObjectMgr
 
         CreatureLocale const* GetCreatureLocale(uint32 entry) const
         {
-            CreatureLocaleMap::const_iterator itr = mCreatureLocaleMap.find(entry);
-            if (itr == mCreatureLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_creatureLocales.Find(entry);
         }
 
         void GetCreatureLocaleStrings(uint32 entry, int32 loc_idx, char const** namePtr, char const** subnamePtr = NULL) const;
 
         GameObjectLocale const* GetGameObjectLocale(uint32 entry) const
         {
-            GameObjectLocaleMap::const_iterator itr = mGameObjectLocaleMap.find(entry);
-            if (itr == mGameObjectLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_gameObjectLocales.Find(entry);
         }
 
         ItemLocale const* GetItemLocale(uint32 entry) const
         {
-            ItemLocaleMap::const_iterator itr = mItemLocaleMap.find(entry);
-            if (itr == mItemLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_itemLocales.Find(entry);
         }
 
         void GetItemLocaleStrings(uint32 entry, int32 loc_idx, std::string* namePtr, std::string* descriptionPtr = NULL) const;
 
         QuestLocale const* GetQuestLocale(uint32 entry) const
         {
-            QuestLocaleMap::const_iterator itr = mQuestLocaleMap.find(entry);
-            if (itr == mQuestLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_questLocales.Find(entry);
         }
 
         void GetQuestLocaleStrings(uint32 entry, int32 loc_idx, std::string* titlePtr) const;
 
         NpcTextLocale const* GetNpcTextLocale(uint32 entry) const
         {
-            NpcTextLocaleMap::const_iterator itr = mNpcTextLocaleMap.find(entry);
-            if (itr == mNpcTextLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_npcTextLocales.Find(entry);
         }
 
         typedef std::string NpcTextArray[MAX_GOSSIP_TEXT_OPTIONS];
@@ -830,32 +785,17 @@ class ObjectMgr
 
         PageTextLocale const* GetPageTextLocale(uint32 entry) const
         {
-            PageTextLocaleMap::const_iterator itr = mPageTextLocaleMap.find(entry);
-            if (itr == mPageTextLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_pageTextLocales.Find(entry);
         }
 
         GossipMenuItemsLocale const* GetGossipMenuItemsLocale(uint32 entry) const
         {
-            GossipMenuItemsLocaleMap::const_iterator itr = mGossipMenuItemsLocaleMap.find(entry);
-            if (itr == mGossipMenuItemsLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_gossipMenuItemsLocales.Find(entry);
         }
 
         PointOfInterestLocale const* GetPointOfInterestLocale(uint32 poi_id) const
         {
-            PointOfInterestLocaleMap::const_iterator itr = mPointOfInterestLocaleMap.find(poi_id);
-            if (itr == mPointOfInterestLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_pointOfInterestLocales.Find(poi_id);
         }
 
         GameObjectDataPair const* GetGODataPair(uint32 guid) const
@@ -887,21 +827,11 @@ class ObjectMgr
 
         MangosStringLocale const* GetMangosStringLocale(int32 entry) const
         {
-            MangosStringLocaleMap::const_iterator itr = mMangosStringLocaleMap.find(entry);
-            if (itr == mMangosStringLocaleMap.end())
-            {
-                return NULL;
-            }
-            return &itr->second;
+            return m_mangosStrings.Find(entry);
         }
         uint32 GetLoadedStringsCount(int32 minEntry) const
         {
-            std::map<int32, uint32>::const_iterator itr = m_loadedStringCount.find(minEntry);
-            if (itr != m_loadedStringCount.end())
-            {
-                return itr->second;
-            }
-            return 0;
+            return m_mangosStrings.LoadedCount(minEntry);
         }
 
         const char* GetMangosString(int32 entry, int locale_idx) const;
@@ -1214,17 +1144,16 @@ class ObjectMgr
 
         CellObjectGuidStore m_cellObjectGuids;
         CreatureSpawnStore m_creatureSpawns;
-        CreatureLocaleMap mCreatureLocaleMap;
+        KeyedRecordStore<CreatureLocale> m_creatureLocales;
         GameObjectSpawnStore m_gameObjectSpawns;
-        GameObjectLocaleMap mGameObjectLocaleMap;
-        ItemLocaleMap mItemLocaleMap;
-        QuestLocaleMap mQuestLocaleMap;
-        NpcTextLocaleMap mNpcTextLocaleMap;
-        PageTextLocaleMap mPageTextLocaleMap;
-        MangosStringLocaleMap mMangosStringLocaleMap;
-        std::map < int32 /*minEntryOfBracket*/, uint32 /*count*/ > m_loadedStringCount;
-        GossipMenuItemsLocaleMap mGossipMenuItemsLocaleMap;
-        PointOfInterestLocaleMap mPointOfInterestLocaleMap;
+        KeyedRecordStore<GameObjectLocale> m_gameObjectLocales;
+        KeyedRecordStore<ItemLocale> m_itemLocales;
+        KeyedRecordStore<QuestLocale> m_questLocales;
+        KeyedRecordStore<NpcTextLocale> m_npcTextLocales;
+        KeyedRecordStore<PageTextLocale> m_pageTextLocales;
+        MangosStringStore m_mangosStrings;
+        KeyedRecordStore<GossipMenuItemsLocale> m_gossipMenuItemsLocales;
+        KeyedRecordStore<PointOfInterestLocale> m_pointOfInterestLocales;
         DungeonEncounterStore m_dungeonEncounters;
 
         CreatureModelRaceStore  m_creatureModelRaces;

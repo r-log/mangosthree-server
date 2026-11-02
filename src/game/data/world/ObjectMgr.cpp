@@ -1291,17 +1291,7 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
     }
 
     // cleanup affected map part for reloading case
-    for (MangosStringLocaleMap::iterator itr = mMangosStringLocaleMap.begin(); itr != mMangosStringLocaleMap.end();)
-    {
-        if (itr->first >= start_value && itr->first < end_value)
-        {
-            mMangosStringLocaleMap.erase(itr++);
-        }
-        else
-        {
-            ++itr;
-        }
-    }
+    m_mangosStrings.EraseRange(start_value, end_value);
 
     sLog.outString("Loading texts from %s%s", table, extra_content ? ", with additional data" : "");
 
@@ -1346,7 +1336,7 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
             continue;
         }
 
-        MangosStringLocale& data = mMangosStringLocaleMap[entry];
+        MangosStringLocale& data = m_mangosStrings.FindOrAdd(entry);
 
         if (!data.Content.empty())
         {
@@ -1424,7 +1414,7 @@ bool ObjectMgr::LoadMangosStrings(DatabaseType& db, char const* table, int32 min
     }
     sLog.outString();
 
-    m_loadedStringCount[min_value] = count;
+    m_mangosStrings.SetLoadedCount(min_value, count);
 
     return true;
 }
