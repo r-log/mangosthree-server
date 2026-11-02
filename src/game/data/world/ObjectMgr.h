@@ -58,11 +58,13 @@
 #include "data/FishingBaseSkillStore.h"
 #include "data/GameObjectTemplateStore.h"
 #include "data/GameTeleStore.h"
+#include "data/GossipMenuStore.h"
 #include "data/GraveyardStore.h"
 #include "data/InstanceTemplateStore.h"
 #include "data/KeyedRecordStore.h"
 #include "data/LfgDungeonEntranceStore.h"
 #include "data/MailLevelRewardStore.h"
+#include "data/NpcTextStore.h"
 #include "data/PlayerCreateInfo.h"
 #include "data/PageTextStore.h"
 #include "data/PointOfInterestStore.h"
@@ -164,36 +166,6 @@ struct PetLevelInfo
     uint16 mana;
     uint16 armor;
 };
-
-struct GossipMenuItems
-{
-    uint32          menu_id;
-    uint32          id;
-    uint8           option_icon;
-    std::string     option_text;
-    uint32          option_id;
-    uint32          npc_option_npcflag;
-    int32           action_menu_id;
-    uint32          action_poi_id;
-    uint32          action_script_id;
-    bool            box_coded;
-    uint32          box_money;
-    std::string     box_text;
-    uint16          conditionId;
-};
-
-struct GossipMenus
-{
-    uint32          entry;
-    uint32          text_id;
-    uint32          script_id;
-    uint16          conditionId;
-};
-
-typedef std::multimap<uint32, GossipMenus> GossipMenusMap;
-typedef std::pair<GossipMenusMap::const_iterator, GossipMenusMap::const_iterator> GossipMenusMapBounds;
-typedef std::multimap<uint32, GossipMenuItems> GossipMenuItemsMap;
-typedef std::pair<GossipMenuItemsMap::const_iterator, GossipMenuItemsMap::const_iterator> GossipMenuItemsMapBounds;
 
 struct DungeonEncounter
 {
@@ -304,9 +276,6 @@ class PlayerCondition
         uint32 m_value1;                                    // data for the condition - see ConditionType definition
         uint32 m_value2;
 };
-
-// NPC gossip text id
-typedef std::unordered_map<uint32, uint32> CacheNpcTextIdMap;
 
 typedef std::unordered_map<uint32, VendorItemData> CacheVendorItemMap;
 typedef std::unordered_map<uint32, TrainerSpellData> CacheTrainerSpellMap;
@@ -1086,17 +1055,6 @@ class ObjectMgr
         bool AddGameTele(GameTele& data);
         bool DeleteGameTele(const std::string& name);
 
-        uint32 GetNpcGossip(uint32 entry) const
-        {
-            CacheNpcTextIdMap::const_iterator iter = m_mCacheNpcTextIdMap.find(entry);
-            if (iter == m_mCacheNpcTextIdMap.end())
-            {
-                return 0;
-            }
-
-            return iter->second;
-        }
-
         TrainerSpellData const* GetNpcTrainerSpells(uint32 entry) const
         {
             CacheTrainerSpellMap::const_iterator iter = m_mCacheTrainerSpellMap.find(entry);
@@ -1192,12 +1150,12 @@ class ObjectMgr
 
         GossipMenusMapBounds GetGossipMenusMapBounds(uint32 uiMenuId) const
         {
-            return m_mGossipMenusMap.equal_range(uiMenuId);
+            return m_gossipMenus.Menus(uiMenuId);
         }
 
         GossipMenuItemsMapBounds GetGossipMenuItemsMapBounds(uint32 uiMenuId) const
         {
-            return m_mGossipMenuItemsMap.equal_range(uiMenuId);
+            return m_gossipMenus.MenuItems(uiMenuId);
         }
 
         ExclusiveQuestGroupsMapBounds GetExclusiveQuestGroupsMapBounds(int32 groupId) const
@@ -1287,20 +1245,17 @@ class ObjectMgr
         QuestStore          m_quests;
         QuestRelationStore  m_questRelations;
 
-        typedef std::unordered_map<uint32, GossipText> GossipTextMap;
-
         typedef std::multimap<uint32, CreatureModelRace> CreatureModelRaceMap;
         typedef std::pair<CreatureModelRaceMap::const_iterator, CreatureModelRaceMap::const_iterator> CreatureModelRaceMapBounds;
 
-        GossipTextMap       mGossipText;
+        NpcTextStore        m_npcTexts;
         AreaTriggerStore    m_areaTriggers;
 
         RepRewardRateMap    m_RepRewardRateMap;
         RepOnKillMap        mRepOnKill;
         RepSpilloverTemplateMap m_RepSpilloverTemplateMap;
 
-        GossipMenusMap      m_mGossipMenusMap;
-        GossipMenuItemsMap  m_mGossipMenuItemsMap;
+        GossipMenuStore     m_gossipMenus;
         PointOfInterestStore m_pointsOfInterest;
 
         PageTextStore m_pageTexts;
@@ -1405,7 +1360,6 @@ class ObjectMgr
 
         CreatureModelRaceMap    m_mCreatureModelRaceMap;
 
-        CacheNpcTextIdMap m_mCacheNpcTextIdMap;
         CacheVendorItemMap m_mCacheVendorTemplateItemMap;
         CacheVendorItemMap m_mCacheVendorItemMap;
         CacheTrainerSpellMap m_mCacheTrainerTemplateSpellMap;

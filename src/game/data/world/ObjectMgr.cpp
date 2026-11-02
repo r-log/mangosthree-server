@@ -556,12 +556,7 @@ TableReadStatus ObjectMgr::ReloadConditions()
  */
 GossipText const* ObjectMgr::GetGossipText(uint32 Text_ID) const
 {
-    GossipTextMap::const_iterator itr = mGossipText.find(Text_ID);
-    if (itr != mGossipText.end())
-    {
-        return &itr->second;
-    }
-    return NULL;
+    return m_npcTexts.Find(Text_ID);
 }
 
 /**
