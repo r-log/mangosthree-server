@@ -255,6 +255,8 @@ set(SRC_GRP_TESTS
     SpellTemplateRepositoryTest.cpp
     ServerSpellStoreTest.cpp
     PointOfInterestStoreTest.cpp
+    QuestStoreTest.cpp
+    QuestRelationStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp

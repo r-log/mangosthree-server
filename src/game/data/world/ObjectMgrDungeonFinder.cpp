@@ -110,8 +110,7 @@ void ObjectMgr::LoadDungeonFinderRequirements()
 
         if (allianceQuest)
         {
-            QuestMap::iterator qReqItr = mQuestTemplates.find(allianceQuest);
-            if (qReqItr == mQuestTemplates.end())
+            if (!m_quests.Find(allianceQuest))
             {
                 sLog.outString();
                 sLog.outErrorDb("Table `dungeonfinder_requirements` has invalid quest requirement %u for map %u ! Removing requirement.", allianceQuest, mapId);
@@ -121,8 +120,7 @@ void ObjectMgr::LoadDungeonFinderRequirements()
 
         if (hordeQuest)
         {
-            QuestMap::iterator qReqItr = mQuestTemplates.find(hordeQuest);
-            if (qReqItr == mQuestTemplates.end())
+            if (!m_quests.Find(hordeQuest))
             {
                 sLog.outString();
                 sLog.outErrorDb("Table `dungeonfinder_requirements` has invalid quest requirement %u for map %u ! Removing requirement.", hordeQuest, mapId);

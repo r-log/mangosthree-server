@@ -70,7 +70,7 @@ void ObjectMgr::LoadQuestRelationsHelper(QuestRelationsMap& map, QuestActor acto
         uint32 id    = row.entry;
         uint32 quest = row.quest;
 
-        if (mQuestTemplates.find(quest) == mQuestTemplates.end())
+        if (!m_quests.Find(quest))
         {
             sLog.outErrorDb("Table `quest_relations`: Quest %u listed for entry %u does not exist.", quest, id);
             continue;
@@ -90,9 +90,10 @@ void ObjectMgr::LoadQuestRelationsHelper(QuestRelationsMap& map, QuestActor acto
  */
 void ObjectMgr::LoadGameobjectQuestRelations()
 {
-    LoadQuestRelationsHelper(m_GOQuestRelations, QA_GAMEOBJECT, QR_START);
+    QuestRelationsMap& relations = m_questRelations.GameObjectStartsForEdit();
+    LoadQuestRelationsHelper(relations, QA_GAMEOBJECT, QR_START);
 
-    for (QuestRelationsMap::iterator itr = m_GOQuestRelations.begin(); itr != m_GOQuestRelations.end(); ++itr)
+    for (QuestRelationsMap::iterator itr = relations.begin(); itr != relations.end(); ++itr)
     {
         GameObjectInfo const* goInfo = GetGameObjectInfo(itr->first);
         if (!goInfo)
@@ -111,9 +112,10 @@ void ObjectMgr::LoadGameobjectQuestRelations()
  */
 void ObjectMgr::LoadGameobjectInvolvedRelations()
 {
-    LoadQuestRelationsHelper(m_GOQuestInvolvedRelations, QA_GAMEOBJECT, QR_END);
+    QuestRelationsMap& relations = m_questRelations.GameObjectEndsForEdit();
+    LoadQuestRelationsHelper(relations, QA_GAMEOBJECT, QR_END);
 
-    for (QuestRelationsMap::iterator itr = m_GOQuestInvolvedRelations.begin(); itr != m_GOQuestInvolvedRelations.end(); ++itr)
+    for (QuestRelationsMap::iterator itr = relations.begin(); itr != relations.end(); ++itr)
     {
         GameObjectInfo const* goInfo = GetGameObjectInfo(itr->first);
         if (!goInfo)
@@ -132,9 +134,10 @@ void ObjectMgr::LoadGameobjectInvolvedRelations()
  */
 void ObjectMgr::LoadCreatureQuestRelations()
 {
-    LoadQuestRelationsHelper(m_CreatureQuestRelations, QA_CREATURE, QR_START);
+    QuestRelationsMap& relations = m_questRelations.CreatureStartsForEdit();
+    LoadQuestRelationsHelper(relations, QA_CREATURE, QR_START);
 
-    for (QuestRelationsMap::iterator itr = m_CreatureQuestRelations.begin(); itr != m_CreatureQuestRelations.end(); ++itr)
+    for (QuestRelationsMap::iterator itr = relations.begin(); itr != relations.end(); ++itr)
     {
         CreatureInfo const* cInfo = GetCreatureTemplate(itr->first);
         if (!cInfo)
@@ -153,9 +156,10 @@ void ObjectMgr::LoadCreatureQuestRelations()
  */
 void ObjectMgr::LoadCreatureInvolvedRelations()
 {
-    LoadQuestRelationsHelper(m_CreatureQuestInvolvedRelations, QA_CREATURE, QR_END);
+    QuestRelationsMap& relations = m_questRelations.CreatureEndsForEdit();
+    LoadQuestRelationsHelper(relations, QA_CREATURE, QR_END);
 
-    for (QuestRelationsMap::iterator itr = m_CreatureQuestInvolvedRelations.begin(); itr != m_CreatureQuestInvolvedRelations.end(); ++itr)
+    for (QuestRelationsMap::iterator itr = relations.begin(); itr != relations.end(); ++itr)
     {
         CreatureInfo const* cInfo = GetCreatureTemplate(itr->first);
         if (!cInfo)
@@ -174,7 +178,7 @@ void ObjectMgr::LoadCreatureInvolvedRelations()
  */
 void ObjectMgr::LoadGameObjectForQuests()
 {
-    mGameObjectForQuestSet.clear();                         // need for reload case
+    m_questRelations.ClearGameObjectsForQuests();          // need for reload case
 
     if (!m_gameObjectTemplates.GetMaxEntry())
     {
@@ -196,10 +200,9 @@ void ObjectMgr::LoadGameObjectForQuests()
         {
             case GAMEOBJECT_TYPE_QUESTGIVER:
             {
-                if (m_GOQuestRelations.find(itr->id) != m_GOQuestRelations.end() ||
-                    m_GOQuestInvolvedRelations.find(itr->id) != m_GOQuestInvolvedRelations.end())
+                if (m_questRelations.GameObjectStartsOrEndsQuests(itr->id))
                 {
-                    mGameObjectForQuestSet.insert(itr->id);
+                    m_questRelations.AddGameObjectForQuests(itr->id);
                     ++count;
                 }
 
@@ -214,7 +217,7 @@ void ObjectMgr::LoadGameObjectForQuests()
                 if (itr->chest.questId || LootTemplates_Gameobject.HaveQuestLootFor(loot_id) ||
                     LootTemplates_Gameobject.HaveConditionalLootFor(loot_id))
                 {
-                    mGameObjectForQuestSet.insert(itr->id);
+                    m_questRelations.AddGameObjectForQuests(itr->id);
                     ++count;
                 }
                 break;
@@ -223,7 +226,7 @@ void ObjectMgr::LoadGameObjectForQuests()
             {
                 if (itr->_generic.questID)                  // quest related objects, has visual effects
                 {
-                    mGameObjectForQuestSet.insert(itr->id);
+                    m_questRelations.AddGameObjectForQuests(itr->id);
                     ++count;
                 }
                 break;
@@ -232,7 +235,7 @@ void ObjectMgr::LoadGameObjectForQuests()
             {
                 if (itr->spellFocus.questID)                // quest related objects, has visual effect
                 {
-                    mGameObjectForQuestSet.insert(itr->id);
+                    m_questRelations.AddGameObjectForQuests(itr->id);
                     ++count;
                 }
                 break;
@@ -241,7 +244,7 @@ void ObjectMgr::LoadGameObjectForQuests()
             {
                 if (itr->goober.questId)                    // quests objects
                 {
-                    mGameObjectForQuestSet.insert(itr->id);
+                    m_questRelations.AddGameObjectForQuests(itr->id);
                     ++count;
                 }
                 break;

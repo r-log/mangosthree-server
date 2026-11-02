@@ -63,6 +63,8 @@
 #include "data/PlayerCreateInfo.h"
 #include "data/PageTextStore.h"
 #include "data/PointOfInterestStore.h"
+#include "data/QuestRelationStore.h"
+#include "data/QuestStore.h"
 #include "data/QuestPOIStore.h"
 #include "data/ReputationRecords.h"
 #include "data/ServerSpellStore.h"
@@ -188,12 +190,8 @@ typedef std::unordered_map<uint32, GossipMenuItemsLocale> GossipMenuItemsLocaleM
 typedef std::unordered_map<uint32, PointOfInterestLocale> PointOfInterestLocaleMap;
 typedef std::unordered_map<uint32, uint32> ItemConvertMap;
 
-typedef std::multimap<int32, uint32> ExclusiveQuestGroupsMap;
 typedef std::multimap<uint32, ItemRequiredTarget> ItemRequiredTargetMap;
-typedef std::multimap<uint32, uint32> QuestRelationsMap;
-typedef std::pair<ExclusiveQuestGroupsMap::const_iterator, ExclusiveQuestGroupsMap::const_iterator> ExclusiveQuestGroupsMapBounds;
 typedef std::pair<ItemRequiredTargetMap::const_iterator, ItemRequiredTargetMap::const_iterator> ItemRequiredTargetMapBounds;
-typedef std::pair<QuestRelationsMap::const_iterator, QuestRelationsMap::const_iterator> QuestRelationsMapBounds;
 
 struct PetLevelInfo
 {
@@ -496,7 +494,7 @@ class ObjectMgr
 
         typedef std::unordered_map<uint32, Item*> ItemMap;
 
-        typedef std::unordered_map<uint32, Quest*> QuestMap;
+        typedef QuestStore::QuestMap QuestMap;
 
         typedef std::unordered_map<uint32, AreaTrigger> AreaTriggerMap;
 
@@ -547,12 +545,11 @@ class ObjectMgr
 
         Quest const* GetQuestTemplate(uint32 quest_id) const
         {
-            QuestMap::const_iterator itr = mQuestTemplates.find(quest_id);
-            return itr != mQuestTemplates.end() ? itr->second : NULL;
+            return m_quests.Find(quest_id);
         }
         QuestMap const& GetQuestTemplates() const
         {
-            return mQuestTemplates;
+            return m_quests.All();
         }
 
         uint32 GetQuestForAreaTrigger(uint32 Trigger_ID) const
@@ -571,7 +568,7 @@ class ObjectMgr
 
         bool IsGameObjectForQuests(uint32 entry) const
         {
-            return mGameObjectForQuestSet.find(entry) != mGameObjectForQuestSet.end();
+            return m_questRelations.IsGameObjectForQuests(entry);
         }
 
         GossipText const* GetGossipText(uint32 Text_ID) const;
@@ -1269,32 +1266,32 @@ class ObjectMgr
 
         ExclusiveQuestGroupsMapBounds GetExclusiveQuestGroupsMapBounds(int32 groupId) const
         {
-            return m_ExclusiveQuestGroups.equal_range(groupId);
+            return m_quests.ExclusiveGroup(groupId);
         }
 
         QuestRelationsMapBounds GetCreatureQuestRelationsMapBounds(uint32 entry) const
         {
-            return m_CreatureQuestRelations.equal_range(entry);
+            return m_questRelations.CreatureStarts(entry);
         }
 
         QuestRelationsMapBounds GetCreatureQuestInvolvedRelationsMapBounds(uint32 entry) const
         {
-            return m_CreatureQuestInvolvedRelations.equal_range(entry);
+            return m_questRelations.CreatureEnds(entry);
         }
 
         QuestRelationsMapBounds GetGOQuestRelationsMapBounds(uint32 entry) const
         {
-            return m_GOQuestRelations.equal_range(entry);
+            return m_questRelations.GameObjectStarts(entry);
         }
 
         QuestRelationsMapBounds GetGOQuestInvolvedRelationsMapBounds(uint32 entry) const
         {
-            return m_GOQuestInvolvedRelations.equal_range(entry);
+            return m_questRelations.GameObjectEnds(entry);
         }
 
         QuestRelationsMap& GetCreatureQuestRelationsMap()
         {
-            return m_CreatureQuestRelations;
+            return m_questRelations.CreatureStartsForEdit();
         }
         uint32 GetModelForRace(uint32 sourceModelId, uint32 racemask);
         /**
@@ -1351,19 +1348,18 @@ class ObjectMgr
         ObjectGuidGenerator<HIGHGUID_INSTANCE>   m_InstanceGuids;
         ObjectGuidGenerator<HIGHGUID_GROUP>      m_GroupGuids;
 
-        QuestMap            mQuestTemplates;
+        QuestStore          m_quests;
+        QuestRelationStore  m_questRelations;
 
         typedef std::unordered_map<uint32, GossipText> GossipTextMap;
         typedef std::unordered_map<uint32, uint32> QuestAreaTriggerMap;
         typedef std::set<uint32> TavernAreaTriggerSet;
-        typedef std::set<uint32> GameObjectForQuestSet;
 
         typedef std::multimap<uint32, CreatureModelRace> CreatureModelRaceMap;
         typedef std::pair<CreatureModelRaceMap::const_iterator, CreatureModelRaceMap::const_iterator> CreatureModelRaceMapBounds;
 
         QuestAreaTriggerMap mQuestAreaTriggerMap;
         TavernAreaTriggerSet mTavernAreaTriggerSet;
-        GameObjectForQuestSet mGameObjectForQuestSet;
         GossipTextMap       mGossipText;
         AreaTriggerMap      mAreaTriggers;
 
@@ -1425,13 +1421,6 @@ class ObjectMgr
 
         typedef             std::vector<LocaleConstant> LocalForIndex;
         LocalForIndex        m_LocalForIndex;
-
-        ExclusiveQuestGroupsMap m_ExclusiveQuestGroups;
-
-        QuestRelationsMap       m_CreatureQuestRelations;
-        QuestRelationsMap       m_CreatureQuestInvolvedRelations;
-        QuestRelationsMap       m_GOQuestRelations;
-        QuestRelationsMap       m_GOQuestInvolvedRelations;
 
         int DBCLocaleIndex;
 

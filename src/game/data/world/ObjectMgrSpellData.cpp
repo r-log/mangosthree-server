@@ -96,14 +96,14 @@ void ObjectMgr::LoadNPCSpellClickSpells()
         else if (!info.conditionId)                         // TODO Drop block after finished converting
         {
             // quest might be 0 to enable spellclick independent of any quest
-            if (info.questStart && mQuestTemplates.find(info.questStart) == mQuestTemplates.end())
+            if (info.questStart && !m_quests.Find(info.questStart))
             {
                 sLog.outErrorDb("Table npc_spellclick_spells references unknown start quest %u. Skipping entry.", info.questStart);
                 continue;
             }
 
             // quest might be 0 to enable spellclick active infinity after start quest
-            if (info.questEnd && mQuestTemplates.find(info.questEnd) == mQuestTemplates.end())
+            if (info.questEnd && !m_quests.Find(info.questEnd))
             {
                 sLog.outErrorDb("Table npc_spellclick_spells references unknown end quest %u. Skipping entry.", info.questEnd);
                 continue;
