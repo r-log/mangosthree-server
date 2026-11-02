@@ -33,7 +33,7 @@
 #include "Opcodes.h"
 #include "session/WorldSession.h"
 #include "ObjectGuid.h"
-#include "WorldHandlers/UpdateData.h"
+#include "entities/UpdateData.h"
 #include "entities/player/Player.h"
 
 /**

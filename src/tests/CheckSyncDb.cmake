@@ -172,11 +172,11 @@ set(CONVERTED_FILES
     src/game/spells/data/SpellMgrData.cpp
     src/game/spells/data/SpellMgrPet.cpp
     src/game/spells/data/SpellMgrProc.cpp
-    src/game/Object/CreatureEventAIMgr.cpp
-    src/game/Object/LootMgr.cpp
+    src/game/ai/CreatureEventAIMgr.cpp
+    src/game/economy/LootMgr.cpp
     src/game/data/world/ItemEnchantmentMgr.cpp
-    src/game/WorldHandlers/SkillDiscovery.cpp
-    src/game/WorldHandlers/SkillExtraItems.cpp
+    src/game/economy/SkillDiscovery.cpp
+    src/game/economy/SkillExtraItems.cpp
     src/game/Maps/Transports.cpp
     src/game/Maps/Weather.cpp
     src/game/BattleGround/BattleGroundMgrUtil.cpp
@@ -212,7 +212,7 @@ set(CONVERTED_FILES
     src/game/session/handlers/connection/ClientHandlers.cpp
     src/game/entities/player/social/SocialMgr.cpp
     src/game/social/GMTicketMgr.cpp
-    src/game/Object/AuctionHouseMgr.cpp
+    src/game/economy/AuctionHouseMgr.cpp
     src/game/session/AccountMgr.cpp
     src/game/ChatCommands/AccountCommands.cpp
     src/game/entities/player/quests/QuestStatusMgr.h

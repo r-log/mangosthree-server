@@ -1,6 +1,9 @@
 file(GLOB SRC_GRP_AHBOT AuctionHouseBot/*.cpp AuctionHouseBot/*.h)
 source_group("AhBot" FILES ${SRC_GRP_AHBOT})
 
+file(GLOB SRC_GRP_AI ai/*.cpp ai/*.h)
+source_group("AI" FILES ${SRC_GRP_AI})
+
 file(GLOB SRC_GRP_APP app/*.cpp app/*.h)
 source_group("App" FILES ${SRC_GRP_APP})
 
@@ -25,8 +28,14 @@ source_group("Data\\World" FILES ${SRC_GRP_DATA_WORLD})
 file(GLOB SRC_GRP_DBSCRIPTS dbscripts/*.cpp dbscripts/*.h)
 source_group("Database Scripts" FILES ${SRC_GRP_DBSCRIPTS})
 
+file(GLOB SRC_GRP_ECONOMY economy/*.cpp economy/*.h)
+source_group("Economy" FILES ${SRC_GRP_ECONOMY})
+
 file(GLOB SRC_GRP_ENTITIES entities/*.cpp entities/*.h)
 source_group("Entities" FILES ${SRC_GRP_ENTITIES})
+
+file(GLOB SRC_GRP_ENTITIES_MOTION entities/motion/*.cpp entities/motion/*.h)
+source_group("Entities\\Motion" FILES ${SRC_GRP_ENTITIES_MOTION})
 
 file(GLOB SRC_GRP_ENTITIES_PLAYER entities/player/*.cpp entities/player/*.h)
 source_group("Entities\\Player" FILES ${SRC_GRP_ENTITIES_PLAYER})
@@ -69,9 +78,6 @@ source_group("Map Threading" FILES ${SRC_GRP_MAP_THREAD})
 
 file(GLOB SRC_GRP_HARNESS Harness/*.cpp Harness/*.h)
 source_group("Harness" FILES ${SRC_GRP_HARNESS})
-
-file(GLOB SRC_GRP_MOTION_GEN MotionGenerators/*.cpp MotionGenerators/*.h)
-source_group("Motion generators" FILES ${SRC_GRP_MOTION_GEN})
 
 file(GLOB SRC_GRP_OBJECT Object/*.cpp Object/*.h)
 source_group("Object" FILES ${SRC_GRP_OBJECT})
@@ -339,21 +345,16 @@ set(DOMAIN_SOURCES
     WorldHandlers/AchievementGlobalMgr.cpp
     WorldHandlers/AchievementMgr.cpp
     WorldHandlers/AchievementMgr.h
-    WorldHandlers/GossipDef.cpp
-    WorldHandlers/GossipDef.h
-    WorldHandlers/SkillDiscovery.cpp
-    WorldHandlers/SkillDiscovery.h
-    WorldHandlers/SkillExtraItems.cpp
-    WorldHandlers/SkillExtraItems.h
-    WorldHandlers/UpdateData.cpp
-    WorldHandlers/UpdateData.h
 )
 list(TRANSFORM DOMAIN_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 
 add_library(domain STATIC
+    ${SRC_GRP_AI}
     ${SRC_GRP_BATTLEGROUND}
     ${SRC_GRP_COMBAT}
+    ${SRC_GRP_ECONOMY}
     ${SRC_GRP_ENTITIES}
+    ${SRC_GRP_ENTITIES_MOTION}
     ${SRC_GRP_ENTITIES_PLAYER}
     ${SRC_GRP_ENTITIES_PLAYER_COMBAT}
     ${SRC_GRP_ENTITIES_PLAYER_INTERACTION}
@@ -367,7 +368,6 @@ add_library(domain STATIC
     ${SRC_GRP_ENTITIES_PLAYER_TALENTS}
     ${SRC_GRP_ENTITIES_PLAYER_WORLD}
     ${SRC_GRP_MAP_THREAD}
-    ${SRC_GRP_MOTION_GEN}
     ${SRC_GRP_OBJECT}
     ${SRC_GRP_OUTDOOR_PVP}
     ${SRC_GRP_SOCIAL}
@@ -382,7 +382,11 @@ target_include_directories(domain
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         BattleGround
+        ai
         ${CMAKE_CURRENT_SOURCE_DIR}/combat
+        economy
+        entities
+        entities/motion
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/combat
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/interaction
@@ -396,7 +400,6 @@ target_include_directories(domain
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/talents
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
         Maps
-        MotionGenerators
         Object
         OutdoorPvP
         WorldHandlers

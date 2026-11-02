@@ -27,7 +27,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Object/Creature.h"
 #include "data/world/ObjectMgr.h"
-#include "MotionGenerators/MotionMaster.h"
+#include "entities/motion/MotionMaster.h"
 #include "Maps/Map.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"

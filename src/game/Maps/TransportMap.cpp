@@ -40,7 +40,7 @@
 #include "MapManager.h"
 #include "MapPhase.h"
 #include "DBCStores.h"
-#include "MotionGenerators/MotionMaster.h"
+#include "entities/motion/MotionMaster.h"
 #include "Log.h"
 #include "terrain/GoModelStore.hpp"
 #include "CellImpl.h"
