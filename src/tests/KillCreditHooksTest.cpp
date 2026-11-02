@@ -26,10 +26,10 @@
 #include "TestHarness.h"
 
 #include "Auth/BigNumber.h"
-#include "BattleGround/BattleGroundMgr.h"
+#include "pvp/battleground/BattleGroundMgr.h"
 #include "Creature.h"
 #include "Group.h"
-#include "OutdoorPvP/OutdoorPvPMgr.h"
+#include "pvp/outdoor/OutdoorPvPMgr.h"
 #include "Player.h"
 #include "WorldSession.h"
 #include "data/BattleGroundHooks.h"

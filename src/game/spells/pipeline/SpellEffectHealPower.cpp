@@ -37,7 +37,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "SharedDefines.h"
 #include "GameObject.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "data/Language.h"
 #include "Util.h"
 #include "data/DbScriptHooks.h"

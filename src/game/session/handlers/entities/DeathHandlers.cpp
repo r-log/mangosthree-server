@@ -36,7 +36,7 @@
 #include "DBCEnums.h"
 #include "GridMap.h"
 #include "WorldSession.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 
 void DeathHandlers::HandleRepopRequest(WorldSession& session, WorldPacket& recv_data)
 {

@@ -36,7 +36,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "OutdoorPvP/OutdoorPvP.h"
+#include "pvp/outdoor/OutdoorPvP.h"
 #include "Util.h"
 #include "data/DbScriptHooks.h"
 #include <memory>

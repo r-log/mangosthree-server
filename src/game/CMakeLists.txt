@@ -7,8 +7,8 @@ source_group("AI" FILES ${SRC_GRP_AI})
 file(GLOB SRC_GRP_APP app/*.cpp app/*.h)
 source_group("App" FILES ${SRC_GRP_APP})
 
-file(GLOB SRC_GRP_BATTLEGROUND BattleGround/*.cpp BattleGround/*.h)
-source_group("BattleGround" FILES ${SRC_GRP_BATTLEGROUND})
+file(GLOB SRC_GRP_BATTLEGROUND pvp/battleground/*.cpp pvp/battleground/*.h)
+source_group("PvP\\BattleGround" FILES ${SRC_GRP_BATTLEGROUND})
 
 file(GLOB SRC_GRP_CHAT_COMMANDS ChatCommands/*.cpp ChatCommands/*.h)
 source_group("Chat Commands" FILES ${SRC_GRP_CHAT_COMMANDS})
@@ -82,8 +82,8 @@ source_group("Map Threading" FILES ${SRC_GRP_MAP_THREAD})
 file(GLOB SRC_GRP_HARNESS Harness/*.cpp Harness/*.h)
 source_group("Harness" FILES ${SRC_GRP_HARNESS})
 
-file(GLOB SRC_GRP_OUTDOOR_PVP OutdoorPvP/*.cpp OutdoorPvP/*.h)
-source_group("Outdoor PvP" FILES ${SRC_GRP_OUTDOOR_PVP})
+file(GLOB SRC_GRP_OUTDOOR_PVP pvp/outdoor/*.cpp pvp/outdoor/*.h)
+source_group("PvP\\Outdoor" FILES ${SRC_GRP_OUTDOOR_PVP})
 
 file(GLOB SRC_GRP_PERSISTENCE persistence/*.cpp persistence/*.h)
 source_group("Persistence" FILES ${SRC_GRP_PERSISTENCE})
@@ -372,7 +372,6 @@ add_library(domain STATIC
 target_include_directories(domain
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        BattleGround
         ai
         ${CMAKE_CURRENT_SOURCE_DIR}/combat
         economy
@@ -392,7 +391,8 @@ target_include_directories(domain
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/talents
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
         maps
-        OutdoorPvP
+        pvp/battleground
+        pvp/outdoor
         social
 )
 

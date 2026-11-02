@@ -55,7 +55,7 @@
 #include "Util.h"
 #include "Totem.h"
 #include "Vehicle.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "InstanceData.h"
 #include "MapPhase.h"
 #include "GridNotifiersImpl.h"

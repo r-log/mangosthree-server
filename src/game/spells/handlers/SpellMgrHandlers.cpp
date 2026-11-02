@@ -25,7 +25,7 @@
 
 #include "spells/handlers/SpellMgrHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "data/dbc/DBCStores.h"
 #include "entities/player/Player.h"
 

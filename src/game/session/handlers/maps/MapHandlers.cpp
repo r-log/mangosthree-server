@@ -39,8 +39,8 @@
 #include "Map.h"
 #include "WorldSession.h"
 #include "data/ScriptHooks.h"
-#include "BattleGround/BattleGround.h"
-#include "OutdoorPvP/OutdoorPvP.h"
+#include "pvp/battleground/BattleGround.h"
+#include "pvp/outdoor/OutdoorPvP.h"
 
 /**
  * @brief Updates the player's cached zone and area.

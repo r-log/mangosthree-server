@@ -34,7 +34,7 @@
 
 #include <sstream>
 #include "GameEventScheduler.h"
-#include "BattleGround/BattleGroundMgr.h"
+#include "pvp/battleground/BattleGroundMgr.h"
 #include "Creature.h"
 #include "DBCStores.h"
 #include "GameObject.h"

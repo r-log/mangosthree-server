@@ -56,7 +56,7 @@
 #include "CommandMgr.h"
 #include "ScriptMgr.h"
 #include "ObjectMgr.h"
-#include "OutdoorPvP/OutdoorPvPMgr.h"
+#include "pvp/outdoor/OutdoorPvPMgr.h"
 #include "persistence/TableRead.h"
 
 /**

@@ -57,7 +57,7 @@
 #include "ObjectGuid.h"
 #include "Group.h"
 #include "Formulas.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "MapPersistentStateMgr.h"
 #include "Util.h"
 #include "LootMgr.h"

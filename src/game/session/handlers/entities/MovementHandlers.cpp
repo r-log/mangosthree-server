@@ -41,7 +41,7 @@
 #include "Transports.h"
 #include "TransportMap.h"
 #include <cmath>
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "MapPersistentStateMgr.h"
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
