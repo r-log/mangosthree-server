@@ -1439,7 +1439,7 @@ void ObjectMgr::LoadCreatures()
             if ((cInfo->ExtraFlags & CREATURE_FLAG_EXTRA_ACTIVE) || lwCats != 0)
             {
                 BASIC_FILTER_LOG(LOG_FILTER_MAP_LOADING, "Adding `creature` with Active Flag: Map: %u, Guid %u", data.mapid, guid);
-                m_activeCreatures.insert(ActiveCreatureGuidsOnMap::value_type(data.mapid, guid));
+                m_cellObjectGuids.AddActiveCreature(data.mapid, guid);
 
                 if (lwCats != 0)
                 {
@@ -1485,7 +1485,7 @@ void ObjectMgr::AddCreatureToGrid(uint32 guid, CreatureData const* data)
             CellPair cell_pair = MaNGOS::ComputeCellPair(data->posX, data->posY);
             uint32 cell_id = (cell_pair.y_coord * TOTAL_NUMBER_OF_CELLS_PER_MAP) + cell_pair.x_coord;
 
-            CellObjectGuids& cell_guids = mMapObjectGuids[MAKE_PAIR64(data->mapid, i)][cell_id];
+            CellObjectGuids& cell_guids = m_cellObjectGuids.FindOrAddCell(data->mapid, i, cell_id);
             cell_guids.creatures.insert(guid);
         }
     }
@@ -1507,7 +1507,7 @@ void ObjectMgr::RemoveCreatureFromGrid(uint32 guid, CreatureData const* data)
             CellPair cell_pair = MaNGOS::ComputeCellPair(data->posX, data->posY);
             uint32 cell_id = (cell_pair.y_coord * TOTAL_NUMBER_OF_CELLS_PER_MAP) + cell_pair.x_coord;
 
-            CellObjectGuids& cell_guids = mMapObjectGuids[MAKE_PAIR64(data->mapid, i)][cell_id];
+            CellObjectGuids& cell_guids = m_cellObjectGuids.FindOrAddCell(data->mapid, i, cell_id);
             cell_guids.creatures.erase(guid);
         }
     }

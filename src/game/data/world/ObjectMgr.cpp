@@ -1156,7 +1156,7 @@ void ObjectMgr::DeleteGOData(uint32 guid)
         RemoveGameobjectFromGrid(guid, data);
     }
 
-    mGameObjectDataMap.erase(guid);
+    m_gameObjectSpawns.Erase(guid);
 }
 
 /**
@@ -1170,7 +1170,7 @@ void ObjectMgr::DeleteGOData(uint32 guid)
 void ObjectMgr::AddCorpseCellData(uint32 mapid, uint32 cellid, uint32 player_guid, uint32 instance)
 {
     // corpses are always added to spawn mode 0 and they are spawned by their instance id
-    CellObjectGuids& cell_guids = mMapObjectGuids[MAKE_PAIR64(mapid, 0)][cellid];
+    CellObjectGuids& cell_guids = m_cellObjectGuids.FindOrAddCell(mapid, 0, cellid);
     cell_guids.corpses[player_guid] = instance;
 }
 
@@ -1184,7 +1184,7 @@ void ObjectMgr::AddCorpseCellData(uint32 mapid, uint32 cellid, uint32 player_gui
 void ObjectMgr::DeleteCorpseCellData(uint32 mapid, uint32 cellid, uint32 player_guid)
 {
     // corpses are always added to spawn mode 0 and they are spawned by their instance id
-    CellObjectGuids& cell_guids = mMapObjectGuids[MAKE_PAIR64(mapid, 0)][cellid];
+    CellObjectGuids& cell_guids = m_cellObjectGuids.FindOrAddCell(mapid, 0, cellid);
     cell_guids.corpses.erase(player_guid);
 }
 

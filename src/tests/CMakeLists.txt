@@ -265,6 +265,8 @@ set(SRC_GRP_TESTS
     CreatureSpawnStoreTest.cpp
     CreatureModelRaceStoreTest.cpp
     SpellClickStoreTest.cpp
+    GameObjectSpawnStoreTest.cpp
+    CellObjectGuidStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp

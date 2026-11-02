@@ -49,6 +49,7 @@
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
 #include "data/AreaTriggerStore.h"
+#include "data/CellObjectGuidStore.h"
 #include "data/CellObjectGuids.h"
 #include "data/CreatureAddonStore.h"
 #include "data/CreatureEquipmentStore.h"
@@ -58,6 +59,7 @@
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
+#include "data/GameObjectSpawnStore.h"
 #include "data/GameObjectTemplateStore.h"
 #include "data/GameTeleStore.h"
 #include "data/GossipMenuStore.h"
@@ -123,9 +125,6 @@ struct MangosStringLocale
     Language LanguageId;
     uint32 Emote;                       // 0 -> default, i -> i-1 locale index
 };
-
-typedef std::unordered_map<uint32, GameObjectData> GameObjectDataMap;
-typedef GameObjectDataMap::value_type GameObjectDataPair;
 
 typedef std::unordered_map<uint32, CreatureLocale> CreatureLocaleMap;
 typedef std::unordered_map<uint32, GameObjectLocale> GameObjectLocaleMap;
@@ -409,7 +408,7 @@ class ObjectMgr
         typedef std::unordered_map<uint32, ReputationOnKillEntry> RepOnKillMap;
         typedef std::unordered_map<uint32, RepSpilloverTemplate> RepSpilloverTemplateMap;
 
-        typedef std::multimap<uint32 /*mapId*/, uint32 /*guid*/> ActiveCreatureGuidsOnMap;
+        typedef CellObjectGuidStore::ActiveCreatureGuidsOnMap ActiveCreatureGuidsOnMap;
 
         void LoadGameobjectInfo();
         void AddGameobjectInfo(GameObjectInfo* goinfo);
@@ -818,7 +817,7 @@ class ObjectMgr
 
         ActiveCreatureGuidsOnMap const* GetActiveCreatureGuids() const
         {
-            return &m_activeCreatures;
+            return &m_cellObjectGuids.ActiveCreatures();
         }
 
         CreatureLocale const* GetCreatureLocale(uint32 entry) const
@@ -913,12 +912,7 @@ class ObjectMgr
 
         GameObjectDataPair const* GetGODataPair(uint32 guid) const
         {
-            GameObjectDataMap::const_iterator itr = mGameObjectDataMap.find(guid);
-            if (itr == mGameObjectDataMap.end())
-            {
-                return NULL;
-            }
-            return &*itr;
+            return m_gameObjectSpawns.Find(guid);
         }
 
         GameObjectData const* GetGOData(uint32 guid) const
@@ -929,14 +923,14 @@ class ObjectMgr
 
         GameObjectData& NewGOData(uint32 guid)
         {
-            return mGameObjectDataMap[guid];
+            return m_gameObjectSpawns.FindOrAdd(guid);
         }
         void DeleteGOData(uint32 guid);
 
         template<typename Worker>
         void DoGOData(Worker& worker) const
         {
-            for (GameObjectDataMap::const_iterator itr = mGameObjectDataMap.begin(); itr != mGameObjectDataMap.end(); ++itr)
+            for (GameObjectDataMap::const_iterator itr = m_gameObjectSpawns.All().begin(); itr != m_gameObjectSpawns.All().end(); ++itr)
                 if (worker(*itr))                           // arg = GameObjectDataPair
                 {
                     break;
@@ -970,31 +964,14 @@ class ObjectMgr
         // global grid objects state (static DB spawns, global spawn mods from gameevent system)
         CellObjectGuids const& GetCellObjectGuids(uint32 mapid, uint8 spawnMode, uint32 cell_id)
         {
-            return mMapObjectGuids[MAKE_PAIR64(mapid, spawnMode)][cell_id];
+            return m_cellObjectGuids.FindOrAddCell(mapid, spawnMode, cell_id);
         }
 
-        // Read-only per-cell spawn lookup for diagnostics. Unlike
-        // GetCellObjectGuids() this is find-based and const: it never
-        // inserts an empty entry on miss, so scanning many cells (e.g. a
-        // whole grid) does not mutate mMapObjectGuids. Returns NULL when
-        // the cell has no static DB spawn definitions.
-        //
-        // spawnMode is part of the key and always was; this used to look up on
-        // the bare map id, which is the key only for spawn mode 0, so it
-        // reported "no spawns" for every other difficulty.
+        // The spawns filed under one cell of a map and spawn mode, or NULL when the cell has none;
+        // unlike GetCellObjectGuids() it never adds an empty cell, so a scan of many cells changes nothing.
         CellObjectGuids const* GetCellObjectGuidsReadOnly(uint32 mapid, uint8 spawnMode, uint32 cell_id) const
         {
-            MapObjectGuids::const_iterator mapItr = mMapObjectGuids.find(MAKE_PAIR64(mapid, spawnMode));
-            if (mapItr == mMapObjectGuids.end())
-            {
-                return NULL;
-            }
-            CellObjectGuidsMap::const_iterator cellItr = mapItr->second.find(cell_id);
-            if (cellItr == mapItr->second.end())
-            {
-                return NULL;
-            }
-            return &cellItr->second;
+            return m_cellObjectGuids.FindCell(mapid, spawnMode, cell_id);
         }
 
         // modifiers for global grid objects state (static DB spawns, global spawn mods from gameevent system)
@@ -1324,11 +1301,10 @@ class ObjectMgr
         // Array to store creature stats, Max creature level + 1 (for data alignement with in game level)
         CreatureClassLvlStats m_creatureClassLvlStats[DEFAULT_MAX_CREATURE_LEVEL + 1][MAX_CREATURE_CLASS][MAX_EXPANSION + 1];
 
-        MapObjectGuids mMapObjectGuids;
-        ActiveCreatureGuidsOnMap m_activeCreatures;
+        CellObjectGuidStore m_cellObjectGuids;
         CreatureSpawnStore m_creatureSpawns;
         CreatureLocaleMap mCreatureLocaleMap;
-        GameObjectDataMap mGameObjectDataMap;
+        GameObjectSpawnStore m_gameObjectSpawns;
         GameObjectLocaleMap mGameObjectLocaleMap;
         ItemLocaleMap mItemLocaleMap;
         QuestLocaleMap mQuestLocaleMap;
