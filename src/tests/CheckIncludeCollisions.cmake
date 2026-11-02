@@ -205,11 +205,11 @@ endif()
 
 set(SELF_TEST_GAME "${SOURCE_ROOT}/src/game")
 string(CONCAT SELF_TEST_TEXT "x()\ntarget_include_directories(game\n    PUBLIC # a comment ) with a paren\n"
-    "        \${CMAKE_CURRENT_SOURCE_DIR}\n        Maps\n        \${CMAKE_CURRENT_SOURCE_DIR}/combat\n"
+    "        \${CMAKE_CURRENT_SOURCE_DIR}\n        maps\n        \${CMAKE_CURRENT_SOURCE_DIR}/combat\n"
     "        \${CMAKE_CURRENT_BINARY_DIR}\n)\ntarget_include_directories(gamex PRIVATE session)\n"
     "target_include_directories(game PRIVATE \${CMAKE_SOURCE_DIR}/src/game/spells)\n")
 parse_include_dirs("${SELF_TEST_TEXT}" game "${SELF_TEST_GAME}" SELF_TEST_DIRS SELF_TEST_SKIPPED)
-set(SELF_TEST_EXPECTED "${SELF_TEST_GAME};${SELF_TEST_GAME}/Maps;${SELF_TEST_GAME}/combat;${SELF_TEST_GAME}/spells")
+set(SELF_TEST_EXPECTED "${SELF_TEST_GAME};${SELF_TEST_GAME}/maps;${SELF_TEST_GAME}/combat;${SELF_TEST_GAME}/spells")
 if(NOT "${SELF_TEST_DIRS}" STREQUAL "${SELF_TEST_EXPECTED}" OR NOT SELF_TEST_SKIPPED EQUAL 1)
     message(FATAL_ERROR "IncludeCollisions self-test failed (parser): got '${SELF_TEST_DIRS}' "
         "(${SELF_TEST_SKIPPED} skipped), expected '${SELF_TEST_EXPECTED}' (1 skipped)")

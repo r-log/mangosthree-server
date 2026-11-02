@@ -233,7 +233,7 @@ def self_test():
     expect_check('the PCH including the opcodes fails', dict(tree, **{'src/game/pchdomain.h': '#include "Opcodes.h"\n'}), 1)
     expect_check('the other PCH is not read', dict(tree, **{'src/game/pchdef.h': '#include "Opcodes.h"\n'}), 0)
     expect_check('a packet built in the maps fails',
-                 dict(tree, **{'src/game/Maps/Weather.cpp': 'void W()\n{\n    WorldPacket data(1, 4);\n}\n'}), 1)
+                 dict(tree, **{'src/game/maps/Weather.cpp': 'void W()\n{\n    WorldPacket data(1, 4);\n}\n'}), 1)
     expect_check('an opcode named in the pvp fails',
                  dict(tree, **{'src/game/BattleGround/BattleGround.cpp': 'uint16 o = SMSG_BATTLEFIELD_STATUS;\n'}), 1)
     expect_check('a data file building a packet is not read',

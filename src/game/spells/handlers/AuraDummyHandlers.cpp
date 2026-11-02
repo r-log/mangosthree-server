@@ -28,7 +28,7 @@
 #include "entities/Creature.h"
 #include "data/world/ObjectMgr.h"
 #include "entities/motion/MotionMaster.h"
-#include "Maps/Map.h"
+#include "maps/Map.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"
 #include "entities/player/Player.h"

@@ -26,7 +26,7 @@
 #include "spells/handlers/AuraPeriodicHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"
-#include "Maps/GridMap.h"
+#include "maps/GridMap.h"
 
 /// 28200: Ascendance (Talisman of Ascendance trinket): six charges at apply
 static SpellHandlerOutcome<void> AuraProcTriggerAscendance(AuraProcTriggerContext& ctx)

@@ -76,7 +76,7 @@
 #include "DBCEnums.h"
 #include "MapPersistentStateMgr.h"
 #include "MapPhase.h"
-#include "Maps/MapNotices.h"
+#include "maps/MapNotices.h"
 #include "MoveMap.h"
 #include "Calendar.h"
 #include "Weather.h"

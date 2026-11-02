@@ -38,8 +38,8 @@
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
 #include "data/GossipRecords.h"
-#include "Maps/MapManager.h"
-#include "Maps/Map.h"
+#include "maps/MapManager.h"
+#include "maps/Map.h"
 
 /**
  * @brief Handles a client request to query another player's name.

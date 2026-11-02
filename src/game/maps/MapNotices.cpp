@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "Maps/MapNotices.h"
+#include "maps/MapNotices.h"
 
 #include <atomic>
 
