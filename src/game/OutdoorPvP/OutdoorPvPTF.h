@@ -32,6 +32,8 @@
 #include "OutdoorPvP.h"
 #include "data/Language.h"
 
+class Map;
+
 enum
 {
     MAX_TF_TOWERS                               = 5,
