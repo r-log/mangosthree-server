@@ -569,7 +569,7 @@ GossipText const* ObjectMgr::GetGossipText(uint32 Text_ID) const
  */
 void ObjectMgr::LoadQuestAreaTriggers()
 {
-    mQuestAreaTriggerMap.clear();                           // need for reload case
+    m_areaTriggers.ClearQuestTriggers();                    // need for reload case
 
     std::vector<QuestRelationRow> rows = QuestDataRepository::QueryActorQuestRelations(QA_AREATRIGGER);
 
@@ -618,7 +618,7 @@ void ObjectMgr::LoadQuestAreaTriggers()
             // continue; - quest modified to required objective and trigger can be allowed.
         }
 
-        mQuestAreaTriggerMap[trigger_ID] = quest_ID;
+        m_areaTriggers.SetQuestTrigger(trigger_ID, quest_ID);
     }
 
     sLog.outString(">> Loaded %u quest trigger points", count);
@@ -630,7 +630,7 @@ void ObjectMgr::LoadQuestAreaTriggers()
  */
 void ObjectMgr::LoadTavernAreaTriggers()
 {
-    mTavernAreaTriggerSet.clear();                          // need for reload case
+    m_areaTriggers.ClearTaverns();                          // need for reload case
 
     std::vector<TavernAreaTriggerRow> rows = MapDataRepository::QueryTavernAreaTriggers();
 
@@ -661,7 +661,7 @@ void ObjectMgr::LoadTavernAreaTriggers()
             continue;
         }
 
-        mTavernAreaTriggerSet.insert(Trigger_ID);
+        m_areaTriggers.AddTavern(Trigger_ID);
     }
 
     sLog.outString(">> Loaded %u tavern triggers", count);
