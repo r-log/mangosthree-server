@@ -26,7 +26,7 @@
 #ifndef MANGOS_H_MAPPACKETS
 #define MANGOS_H_MAPPACKETS
 
-#include "Maps/MapNotices.h"
+#include "maps/MapNotices.h"
 
 class WorldPacket;
 

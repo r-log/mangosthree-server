@@ -19,7 +19,7 @@ gate_require_scanned(MotionBoundary "${MOTION_SOURCE_COUNT}" "sources in the mot
 
 set(FORBIDDEN_PATTERNS
     "#[ \t]*include[ \t]*[\"<](Database/|World\\.h|WorldSession\\.h|AddonHandler\\.h|Warden)"
-    "#[ \t]*include[ \t]*[\"<](Unit\\.h|Player\\.h|Creature\\.h|SharedDefines\\.h|entities/|ai/|social/|economy/|data/|session/|app/|dbscripts/|ChatCommands/|Maps/)"
+    "#[ \t]*include[ \t]*[\"<](Unit\\.h|Player\\.h|Creature\\.h|SharedDefines\\.h|entities/|ai/|social/|economy/|data/|session/|app/|dbscripts/|ChatCommands/|maps/)"
     "(^|[^A-Za-z0-9_])(WorldSession|sWorld|LoginDatabase|CharacterDatabase|WorldDatabase|sAddOnHandler|Warden)([^A-Za-z0-9_]|$)")
 set(KERNEL_PATTERNS
     "(^|[^A-Za-z0-9_])sLog([^A-Za-z0-9_]|$)")

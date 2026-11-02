@@ -177,8 +177,8 @@ set(CONVERTED_FILES
     src/game/data/world/ItemEnchantmentMgr.cpp
     src/game/economy/SkillDiscovery.cpp
     src/game/economy/SkillExtraItems.cpp
-    src/game/Maps/Transports.cpp
-    src/game/Maps/Weather.cpp
+    src/game/maps/Transports.cpp
+    src/game/maps/Weather.cpp
     src/game/BattleGround/BattleGroundMgrUtil.cpp
     src/game/session/handlers/entities/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
@@ -196,10 +196,10 @@ set(CONVERTED_FILES
     src/game/social/GuildBank.cpp
     src/game/ChatCommands/Chat.cpp
     src/game/Harness/Harness.cpp
-    src/game/Maps/Map.cpp
-    src/game/Maps/InstanceData.cpp
-    src/game/Maps/InstanceDataCache.cpp
-    src/game/Maps/MapPersistentStateMgr.cpp
+    src/game/maps/Map.cpp
+    src/game/maps/InstanceData.cpp
+    src/game/maps/InstanceDataCache.cpp
+    src/game/maps/MapPersistentStateMgr.cpp
     src/game/BattleGround/BattleGroundReward.cpp
     src/game/BattleGround/BattleGroundMgr.cpp
     src/game/session/handlers/entities/PetHandler.cpp

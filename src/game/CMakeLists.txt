@@ -76,7 +76,7 @@ source_group("Entities\\Player\\Talents" FILES ${SRC_GRP_ENTITIES_PLAYER_TALENTS
 file(GLOB SRC_GRP_ENTITIES_PLAYER_WORLD entities/player/world/*.cpp entities/player/world/*.h)
 source_group("Entities\\Player\\World" FILES ${SRC_GRP_ENTITIES_PLAYER_WORLD})
 
-file(GLOB SRC_GRP_MAP_THREAD Maps/*.cpp Maps/*.h)
+file(GLOB SRC_GRP_MAP_THREAD maps/*.cpp maps/*.h)
 source_group("Map Threading" FILES ${SRC_GRP_MAP_THREAD})
 
 file(GLOB SRC_GRP_HARNESS Harness/*.cpp Harness/*.h)
@@ -391,7 +391,7 @@ target_include_directories(domain
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/spells
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/talents
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
-        Maps
+        maps
         OutdoorPvP
         social
 )

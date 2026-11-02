@@ -33,7 +33,7 @@
 #include "Map.h"
 #include "WorldGameTime.h"
 #include "data/GameConfig.h"
-#include "Maps/MapNotices.h"
+#include "maps/MapNotices.h"
 #include "Log.h"
 #include "Util.h"
 #include "Database/DatabaseEnv.h"

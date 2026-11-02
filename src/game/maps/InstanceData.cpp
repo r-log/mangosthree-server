@@ -46,7 +46,7 @@
 #include "InstanceDataCache.h"
 #include "Map.h"
 #include "Log.h"
-#include "Maps/MapNotices.h"
+#include "maps/MapNotices.h"
 #include "persistence/characters/maps/InstanceDataRepository.h"
 
 /**
