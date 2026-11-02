@@ -40,7 +40,7 @@
 #include "data/GameConfig.h"
 #include "Map.h"
 #include "InstanceData.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 
 bool AchievementCriteriaRequirement::IsValid(AchievementCriteriaEntry const* criteria)
 {

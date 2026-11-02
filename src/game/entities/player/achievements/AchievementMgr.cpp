@@ -46,8 +46,8 @@
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "MapManager.h"
-#include "BattleGround/BattleGround.h"
-#include "BattleGround/BattleGroundAB.h"
+#include "pvp/battleground/BattleGround.h"
+#include "pvp/battleground/BattleGroundAB.h"
 #include "Map.h"
 #include "DBCStructure.h"
 

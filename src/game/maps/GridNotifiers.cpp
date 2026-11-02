@@ -50,7 +50,7 @@
 #include "Transports.h"
 #include "TransportMap.h"
 #include "PlayerRegistry.h"
-#include "BattleGround/BattleGroundMgr.h"
+#include "pvp/battleground/BattleGroundMgr.h"
 #include "CreatureAI.h"
 
 using namespace MaNGOS;

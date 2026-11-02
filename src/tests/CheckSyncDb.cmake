@@ -179,7 +179,7 @@ set(CONVERTED_FILES
     src/game/economy/SkillExtraItems.cpp
     src/game/maps/Transports.cpp
     src/game/maps/Weather.cpp
-    src/game/BattleGround/BattleGroundMgrUtil.cpp
+    src/game/pvp/battleground/BattleGroundMgrUtil.cpp
     src/game/session/handlers/entities/NPCHandler.cpp
     src/game/spells/pipeline/SpellChecks.cpp
     src/game/social/Guild.cpp
@@ -200,8 +200,8 @@ set(CONVERTED_FILES
     src/game/maps/InstanceData.cpp
     src/game/maps/InstanceDataCache.cpp
     src/game/maps/MapPersistentStateMgr.cpp
-    src/game/BattleGround/BattleGroundReward.cpp
-    src/game/BattleGround/BattleGroundMgr.cpp
+    src/game/pvp/battleground/BattleGroundReward.cpp
+    src/game/pvp/battleground/BattleGroundMgr.cpp
     src/game/session/handlers/entities/PetHandler.cpp
     src/game/session/handlers/maps/MapHandlers.cpp
     src/game/session/handlers/entities/DeathHandlers.cpp

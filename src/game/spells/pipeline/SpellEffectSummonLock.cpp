@@ -42,7 +42,7 @@
 #include "Creature.h"
 #include "Totem.h"
 #include "CreatureAI.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "data/Language.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"

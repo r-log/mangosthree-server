@@ -119,7 +119,7 @@ RULES = [
     (r'^game/maps/', 'maps'),
     (r'^game/ai/', 'ai'),
     (r'^game/social/', 'social'),
-    (r'^game/(BattleGround|OutdoorPvP)/', 'pvp'),
+    (r'^game/pvp/', 'pvp'),
     (r'^game/economy/', 'economy'),
     (r'^game/entities/', 'entities')]
 DOMAIN = {'entities', 'spells', 'combat', 'maps', 'ai', 'social', 'pvp', 'economy'}

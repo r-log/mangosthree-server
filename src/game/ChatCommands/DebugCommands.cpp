@@ -51,7 +51,7 @@
 #include "Unit.h"
 #include "GossipDef.h"
 #include "data/Language.h"
-#include "BattleGround/BattleGroundMgr.h"
+#include "pvp/battleground/BattleGroundMgr.h"
 #include <fstream>
 #include "ObjectLookup.h"
 #include "ObjectMgr.h"

@@ -69,7 +69,7 @@
 #include "ObjectLookup.h"
 #include "Policies/Singleton.h"
 #include "Creature.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "data/ScriptHooks.h"
 #include "Util.h"
 #include "GridNotifiers.h"

@@ -59,8 +59,8 @@
 #include "GridNotifiersImpl.h"
 #include "Cell.h"
 #include "CellImpl.h"
-#include "BattleGround/BattleGround.h"
-#include "OutdoorPvP/OutdoorPvP.h"
+#include "pvp/battleground/BattleGround.h"
+#include "pvp/outdoor/OutdoorPvP.h"
 #include "Mail.h"
 
 #include <cstring> /* std::strcmp */

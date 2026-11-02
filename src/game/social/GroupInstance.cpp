@@ -33,7 +33,7 @@
 #include "Group.h"
 #include "Formulas.h"
 #include "PlayerRegistry.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "MapManager.h"
 #include "MapPersistentStateMgr.h"
 #include "Util.h"

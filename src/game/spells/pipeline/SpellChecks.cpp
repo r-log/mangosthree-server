@@ -63,7 +63,7 @@
 #include "SharedDefines.h"
 #include "LootMgr.h"
 #include "LineOfSightExemptions.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "Util.h"
 #include "data/CommandHooks.h"
 #include "DB2Stores.h"

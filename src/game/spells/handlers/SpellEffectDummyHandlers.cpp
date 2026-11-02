@@ -32,7 +32,7 @@
 #include "maps/GridNotifiersImpl.h"
 #include "maps/Map.h"
 #include "spells/auras/SpellAuras.h"
-#include "BattleGround/BattleGround.h"
+#include "pvp/battleground/BattleGround.h"
 #include "entities/motion/MotionMaster.h"
 #include "entities/Creature.h"
 #include "ai/CreatureAI.h"
