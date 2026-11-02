@@ -146,6 +146,31 @@ TEST(GuidCodec_packed_guid_is_a_mask_byte_then_the_bytes_low_to_high)
     CHECK(r.error == Wire::DecodeError::Overread);
 }
 
+TEST(MoverCodec_time_skipped_has_one_order_per_opcode)
+{
+    // CMSG (the client's PlayerMoveTimeSkipped::Put): the time, mask 5,1,3,7,6,0,4,2, bytes 7,1,2,4,3,6,0,5.
+    // MSG (the client's ClientMoveSkipTime::Read): mask 5,7,2,1,0,6,3,4, the time, bytes 0,4,6,2,1,5,7,3.
+    Wire::TimeSkipped v;
+    v.guid = kGuid;
+    v.skipped = 750;
+    WorldPacket c(CMSG_MOVE_TIME_SKIPPED, 16);
+    Wire::EncodeTimeSkipped(c, CMSG_MOVE_TIME_SKIPPED, v);
+    CHECK_STR(Hex(c), "ee0200000447");
+    WorldPacket s(MSG_MOVE_TIME_SKIPPED, 16);
+    Wire::EncodeTimeSkipped(s, MSG_MOVE_TIME_SKIPPED, v);
+    CHECK_STR(Hex(s), "08ee02000047");
+
+    Wire::TimeSkipped back;
+    c.rpos(0); c.ResetBitReader();
+    CHECK(Wire::DecodeTimeSkipped(c, CMSG_MOVE_TIME_SKIPPED, back).ok());
+    CHECK_EQ(back.guid, kGuid);
+    CHECK_EQ(back.skipped, uint32(750));
+    s.rpos(0); s.ResetBitReader();
+    CHECK(Wire::DecodeTimeSkipped(s, MSG_MOVE_TIME_SKIPPED, back).ok());
+    CHECK_EQ(back.guid, kGuid);
+    CHECK_EQ(back.skipped, uint32(750));
+}
+
 TEST(MoverCodec_active_mover_has_one_order_per_opcode)
 {
     // SMSG (CPP's MoveSetActiveMover::Write): mask 5,7,3,6,0,4,1,2 / bytes 6,2,3,0,5,7,1,4.

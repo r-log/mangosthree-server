@@ -904,7 +904,7 @@ enum OpcodesList
     CMSG_DEBUG_ACTIONS_STOP                               = 0x1317,
     CMSG_SET_FACTION_INACTIVE                             = 0x0E37, // 4.3.4 15595
     CMSG_SET_WATCHED_FACTION                              = 0x2434, // 4.3.4 15595
-    MSG_MOVE_TIME_SKIPPED                                 = 0x7A0A, // 4.3.4 15595
+    MSG_MOVE_TIME_SKIPPED                                 = 0x19B3, // 4.3.4 15595
     SMSG_SPLINE_MOVE_ROOT                                 = 0x51B4, // 4.3.4 15595
     CMSG_SET_EXPLORATION_ALL                              = 0x131C,
     SMSG_INVALIDATE_PLAYER                                = 0x6325, // 4.3.4 15595

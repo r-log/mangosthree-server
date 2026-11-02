@@ -228,3 +228,12 @@ TEST(OpcodeValues_movement_updates_lifted_in_p2a)
     // shift-register tracker does not parse. No registry row for it (see MovementLayouts.inc).
     CHECK_EQ(int(SMSG_MOVE_UPDATE_PITCH_RATE), 0x1DB5);  // dispatch reader sub_140383A60; field reader sub_14037B330 (BLOCKED)
 }
+
+TEST(OpcodeValues_time_skipped_send_and_relay_match_the_client)
+{
+    // The client sends the skip as 0x7A0A (PlayerMoveTimeSkipped::Put; send router slot 0x7A0A) and reads the
+    // relay at 0x19B3 (dispatch reader sub_14035C670, handler sub_140355C70), two values, so neither row
+    // overwrites the other.
+    CHECK_EQ(int(CMSG_MOVE_TIME_SKIPPED), 0x7A0A);
+    CHECK_EQ(int(MSG_MOVE_TIME_SKIPPED),  0x19B3);
+}

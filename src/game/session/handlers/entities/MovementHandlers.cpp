@@ -411,30 +411,40 @@ void MovementHandlers::HandleMoveNotActiveMover(WorldSession& session, WorldPack
 
 void MovementHandlers::HandleMoveTimeSkipped(WorldSession& session, WorldPacket& recv_data)
 {
-    /*  WorldSession::Update( WorldTimer::getMSTime() );*/
-    DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_TIME_SKIPPED");
+    Wire::TimeSkipped skip;
+    Wire::DecodeResult const r = Wire::DecodeTimeSkipped(recv_data, CMSG_MOVE_TIME_SKIPPED, skip);
+    if (!r.ok())
+    {
+        WireParity::Rejected(CMSG_MOVE_TIME_SKIPPED, r.error);
+        throw ByteBufferException(false, recv_data.rpos(), 0, recv_data.size());
+    }
 
-    ObjectGuid guid;
+    if (!skip.skipped || !session.Movers().IsSelected(skip.guid))
+    {
+        return;
+    }
 
-    recv_data >> Unused<uint32>();
-    recv_data.ReadGuidMask<5, 1, 3, 7, 6, 0, 4, 2>(guid);
-    recv_data.ReadGuidBytes<7, 1, 2, 4, 3, 6, 0, 5>(guid);
+    Unit* mover = session.SelectedMover();
+    if (!mover)
+    {
+        return;
+    }
 
-    /*
-        ObjectGuid guid;
-        uint32 time_skipped;
-        recv_data >> guid;
-        recv_data >> time_skipped;
-        DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_TIME_SKIPPED");
+    Player* plMover = mover->ToPlayer();
+    if (plMover && plMover->IsBeingTeleported())
+    {
+        return;
+    }
 
-        /// TODO
-        must be need use in mangos
-        We substract server Lags to move time ( AntiLags )
-        for exmaple
-        {
-            session.GetPlayer()->ModifyLastMoveTime( -int32(time_skipped) );
-        }
-    */
+    // The client did not move its mover for the skipped time: its last status holds that much
+    // longer, and the units around it are told, so their clients do not play the gap as movement.
+    MovementInfo status = mover->ClientStatus();
+    status.UpdateTime(status.GetTime() + skip.skipped);
+    mover->AcceptClientStatus(status);
+
+    WorldPacket data(MSG_MOVE_TIME_SKIPPED, 1 + 4 + 8);
+    Wire::EncodeTimeSkipped(data, MSG_MOVE_TIME_SKIPPED, skip);
+    mover->SendMessageToSetExcept(&data, session.GetPlayer());
 }
 
 /**
