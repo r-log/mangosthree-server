@@ -56,6 +56,7 @@
 #include "CommandMgr.h"
 #include "ScriptMgr.h"
 #include "ObjectMgr.h"
+#include "OutdoorPvP/OutdoorPvPMgr.h"
 #include "persistence/TableRead.h"
 
 /**
@@ -1479,6 +1480,7 @@ bool ChatHandler::HandleReloadGameGraveyardZoneCommand(char* /*args*/)
 {
     sLog.outString("Re-Loading Graveyard-zone links...");
     sObjectMgr.LoadGraveyardZones();
+    sOutdoorPvPMgr.ApplyGraveyardTeams();
     SendGlobalSysMessage("DB table `game_graveyard_zone` reloaded.", SEC_MODERATOR);
     return true;
 }

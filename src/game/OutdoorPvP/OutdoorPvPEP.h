@@ -323,6 +323,7 @@ class OutdoorPvPEP : public OutdoorPvP
          * @param go Game object that was created
          */
         void HandleGameObjectCreate(GameObject* go) override;
+        void ApplyGraveyardTeam() override;
 
         /**
          * @brief Handle game object use in Eastern Plaguelands

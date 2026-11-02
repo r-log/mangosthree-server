@@ -183,6 +183,7 @@ class OutdoorPvPNA : public OutdoorPvP
         void HandlePlayerKillInsideArea(Player* player) override;
         bool HandleGameObjectUse(Player* player, GameObject* go) override;
         void Update(uint32 diff) override;
+        void ApplyGraveyardTeam() override;
 
     private:
         // world states handling

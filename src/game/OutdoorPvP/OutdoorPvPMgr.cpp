@@ -257,3 +257,14 @@ void OutdoorPvPMgr::Update(uint32 diff)
 
     m_updateTimer.Reset();
 }
+
+void OutdoorPvPMgr::ApplyGraveyardTeams()
+{
+    for (uint8 i = 0; i < MAX_OPVP_ID; ++i)
+    {
+        if (m_scripts[i])
+        {
+            m_scripts[i]->ApplyGraveyardTeam();
+        }
+    }
+}

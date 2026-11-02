@@ -613,3 +613,8 @@ void OutdoorPvPNA::UnlockHalaa(const WorldObject* objRef)
         sOutdoorPvPMgr.SetCapturePointSlider(GO_HALAA_BANNER, value);
     }
 }
+
+void OutdoorPvPNA::ApplyGraveyardTeam()
+{
+    sObjectMgr.SetGraveYardLinkTeam(GRAVEYARD_ID_HALAA, GRAVEYARD_ZONE_ID_HALAA, (m_zoneOwner == ALLIANCE || m_zoneOwner == HORDE) ? m_zoneOwner : TEAM_INVALID);
+}

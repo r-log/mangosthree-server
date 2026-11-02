@@ -149,6 +149,7 @@ class OutdoorPvPZM : public OutdoorPvP
 
         void HandleCreatureCreate(Creature* creature) override;
         void HandleGameObjectCreate(GameObject* go) override;
+        void ApplyGraveyardTeam() override;
 
         void HandlePlayerKillInsideArea(Player* player) override;
         bool HandleGameObjectUse(Player* player, GameObject* go) override;
