@@ -30,7 +30,6 @@
 #include <cmath>
 #include <set>
 #include "ItemEnchantmentMgr.h"
-#include "ByteBuffer.h"
 #include "ObjectGuid.h"
 #include "Utilities/LinkedReference/RefManager.h"
 #include "LootStore.h"
@@ -155,26 +154,14 @@ class LootValidatorRefManager : public RefManager<Loot, LootValidatorRef>
 };
 
 //=====================================================
-struct LootView;
-
-/**
- * Serializes a loot item entry into a byte buffer.
- */
-ByteBuffer& operator<<(ByteBuffer& b, LootItem const& li);
-
-/**
- * Serializes a loot view into a byte buffer.
- */
-ByteBuffer& operator<<(ByteBuffer& b, LootView const& lv);
-
 struct Loot
 {
-        friend ByteBuffer& operator<<(ByteBuffer& b, LootView const& lv);
-
         QuestItemMap const& GetPlayerCurrencies() const { return m_playerCurrencies; }
         QuestItemMap const& GetPlayerQuestItems() const { return m_playerQuestItems; }
         QuestItemMap const& GetPlayerFFAItems() const { return m_playerFFAItems; }
         QuestItemMap const& GetPlayerNonQuestNonFFANonCurrencyConditionalItems() const { return m_playerNonQuestNonFFANonCurrencyConditionalItems; }
+        /// The quest items, which the players' quest item lists index.
+        LootItemList const& GetQuestItems() const { return m_questItems; }
 
         LootItemList items;
         uint32 gold;
