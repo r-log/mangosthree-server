@@ -521,7 +521,7 @@ set(ALLOW_NpcDataRepository_cpp
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `text_id`, `script_id`, \""
     "QueryResult* result = WorldDatabase.Query(\"SELECT `menu_id`, `id`, `option_icon`, `option_text`, `option_id`, `npc_option_npcflag`, \""
     "QueryResult* result = WorldDatabase.Query(\"SELECT * FROM `npc_text`\")\;"
-    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel` FROM `%s`\", table)\;"
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel`,`reqability1`,`reqability2`,`reqability3` FROM `%s`\", table)\;"
     "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `condition_id` FROM `%s`\", table)\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `npc_entry`, `spell_id`, `quest_start`, `quest_start_active`, `quest_end`, `cast_flags`, `condition_id` FROM `npc_spellclick_spells`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`\")\;"

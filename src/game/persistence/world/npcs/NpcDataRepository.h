@@ -69,6 +69,9 @@ struct TrainerSpellRow
     uint32 reqskill = 0;
     uint32 reqskillvalue = 0;
     uint32 reqlevel = 0;
+    uint32 reqability1 = 0;
+    uint32 reqability2 = 0;
+    uint32 reqability3 = 0;
 };
 
 /// One row of a vendor item table (`npc_vendor` or `npc_vendor_template`).

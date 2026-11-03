@@ -100,8 +100,8 @@ TEST(NpcDataRepository_TrainerSpells)
 {
     Db db;
     db.query.Answer("SELECT", FakeRows{
-        FakeRow{"1000", "1001", "1002", "1003", "1004", "1005"},
-        FakeRow{"2000", "2001", "2002", "2003", "2004", "2005"},
+        FakeRow{"1000", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008"},
+        FakeRow{"2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008"},
     });
     std::vector<TrainerSpellRow> rows = NpcDataRepository::QueryTrainerSpells("npc_trainer");
     REQUIRE(rows.size() == 2);
@@ -111,6 +111,9 @@ TEST(NpcDataRepository_TrainerSpells)
     CHECK_EQ(rows[0].reqskill, 1003u);
     CHECK_EQ(rows[0].reqskillvalue, 1004u);
     CHECK_EQ(rows[0].reqlevel, 1005u);
+    CHECK_EQ(rows[0].reqability1, 1006u);
+    CHECK_EQ(rows[0].reqability2, 1007u);
+    CHECK_EQ(rows[0].reqability3, 1008u);
     CHECK_EQ(rows[1].entry, 2000u);
 }
 

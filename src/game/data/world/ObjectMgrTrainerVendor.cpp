@@ -135,6 +135,19 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
         trainerSpell.reqSkillValue = row.reqskillvalue;
         trainerSpell.reqLevel      = row.reqlevel;
 
+        uint32 const reqAbilities[MAX_TRAINER_REQ_ABILITIES] = { row.reqability1, row.reqability2, row.reqability3 };
+        for (int i = 0; i < MAX_TRAINER_REQ_ABILITIES; ++i)
+        {
+            if (reqAbilities[i] && !sSpellStore.LookupEntry(reqAbilities[i]))
+            {
+                sLog.outErrorDb("Table `%s` (Entry: %u) has non existing required ability %u for spell %u, ignore", tableName, entry, reqAbilities[i], spell);
+                trainerSpell.reqAbility[i] = 0;
+                continue;
+            }
+
+            trainerSpell.reqAbility[i] = reqAbilities[i];
+        }
+
         trainerSpell.isProvidedReqLevel = trainerSpell.reqLevel > 0;
 
         // calculate learned spell for profession case when stored cast-spell

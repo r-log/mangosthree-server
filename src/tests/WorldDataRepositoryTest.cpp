@@ -238,7 +238,7 @@ TEST(WorldDataRepository_ObjectMgrReads)
         "SELECT `entry`, `text_id`, `script_id`, `condition_id` FROM `gossip_menu`",
         "SELECT `menu_id`, `id`, `option_icon`, `option_text`, `option_id`, `npc_option_npcflag`, `action_menu_id`, `action_poi_id`, `action_script_id`, `box_coded`, `box_money`, `box_text`, `condition_id` FROM `gossip_menu_option` ORDER BY `menu_id`, `id`",
         "SELECT * FROM `npc_text`",
-        "SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel` FROM `npc_trainer`",
+        "SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel`,`reqability1`,`reqability2`,`reqability3` FROM `npc_trainer`",
         "SELECT `entry`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `condition_id` FROM `npc_vendor`",
         "SELECT `npc_entry`, `spell_id`, `quest_start`, `quest_start_active`, `quest_end`, `cast_flags`, `condition_id` FROM `npc_spellclick_spells`",
         "SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`",
