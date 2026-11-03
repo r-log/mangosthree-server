@@ -246,7 +246,9 @@ class Creature : public Unit
         bool CanFly() const override { return (GetCreatureInfo()->InhabitType & INHABIT_AIR) || (GetByteValue(UNIT_FIELD_BYTES_1, 3) & UNIT_BYTE1_FLAG_FLY_ANIM) || (WireFlags() & (MOVEFLAG_LEVITATING | MOVEFLAG_CAN_FLY)) != 0; }
         bool IsFlying() const { return (WireFlags() & (MOVEFLAG_FLYING | MOVEFLAG_LEVITATING)) != 0; }
 
-        bool IsTrainerOf(Player* player, bool msg) const;
+        /// Whether the creature trains the player: from trainer list `trainerList` (npc_trainer_template) when given,
+        /// else from its own lists or the lists its gossip options name.
+        bool IsTrainerOf(Player* player, bool msg, uint32 trainerList = 0) const;
         bool CanInteractWithBattleMaster(Player* player, bool msg) const;
         bool CanTrainAndResetTalentsOf(Player* pPlayer) const;
 
@@ -609,6 +611,9 @@ class Creature : public Unit
         bool DisableReputationGain;
 
     private:
+        /// Whether an option of the creature's gossip menu names a trainer list that is not empty.
+        bool OffersTrainerListOption() const;
+
         GridReference<Creature> m_gridRef;
         CreatureInfo const* m_creatureInfo;                 // in difficulty mode > 0 can different from ObjMgr::GetCreatureTemplate(GetEntry())
 };

@@ -508,8 +508,8 @@ class WorldSession final : public PlayerSession
         void SendNameQueryOpcodeFromDB(ObjectGuid guid);
         static void SendNameQueryOpcodeFromDBCallBack(std::optional<CharacterNameRow> const& row, uint32 accountId, proto::SessionId sessionId);
 
-        void SendTrainerList(ObjectGuid guid) override;
-        void SendTrainerList(ObjectGuid guid, const std::string& strTitle);
+        using PlayerSession::SendTrainerList;
+        void SendTrainerList(ObjectGuid guid, uint32 trainerList) override;
 
         void SendListInventory(ObjectGuid guid) override;
         bool CheckBanker(ObjectGuid guid);

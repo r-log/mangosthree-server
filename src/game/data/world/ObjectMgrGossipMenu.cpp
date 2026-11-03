@@ -220,6 +220,7 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
         gMenuItem.action_menu_id        = row.actionMenuId;
         gMenuItem.action_poi_id         = row.actionPoiId;
         gMenuItem.action_script_id      = row.actionScriptId;
+        gMenuItem.action_trainer_id     = row.actionTrainerId;
         gMenuItem.box_coded             = row.boxCoded != 0;
         gMenuItem.box_money             = row.boxMoney;
         gMenuItem.box_text              = row.boxText;
@@ -292,6 +293,12 @@ void ObjectMgr::LoadGossipMenuItems(std::set<uint32>& gossipScriptSet)
         {
             sLog.outErrorDb("Table gossip_menu_option for menu %u, id %u use non-existing action_poi_id %u, ignoring", gMenuItem.menu_id, gMenuItem.id, gMenuItem.action_poi_id);
             gMenuItem.action_poi_id = 0;
+        }
+
+        if (gMenuItem.action_trainer_id && gMenuItem.option_id != GOSSIP_OPTION_TRAINER)
+        {
+            sLog.outErrorDb("Table gossip_menu_option for menu %u, id %u has action_trainer_id %u but is not a trainer option, ignoring", gMenuItem.menu_id, gMenuItem.id, gMenuItem.action_trainer_id);
+            gMenuItem.action_trainer_id = 0;
         }
 
         if (gMenuItem.action_script_id)

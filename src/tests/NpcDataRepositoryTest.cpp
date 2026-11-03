@@ -72,9 +72,9 @@ TEST(NpcDataRepository_GossipMenuOptions)
     Db db;
     db.query.Answer("SELECT", FakeRows{
         FakeRow{"1000", "1001", "102", "s1.3", "1004", "1005", "-1006", "1007", "1008", "109",
-            "1010", "s1.11", "10012"},
+            "1010", "s1.11", "10012", "1013"},
         FakeRow{"2000", "2001", "202", "s2.3", "2004", "2005", "-2006", "2007", "2008", "209",
-            "2010", "s2.11", "20012"},
+            "2010", "s2.11", "20012", "2013"},
     });
     std::vector<GossipMenuOptionRow> rows = NpcDataRepository::QueryGossipMenuOptions();
     REQUIRE(rows.size() == 2);
@@ -91,6 +91,7 @@ TEST(NpcDataRepository_GossipMenuOptions)
     CHECK_EQ(rows[0].boxMoney, 1010u);
     CHECK_STR(rows[0].boxText, "s1.11");
     CHECK_EQ(rows[0].conditionId, uint16(10012));
+    CHECK_EQ(rows[0].actionTrainerId, 1013u);
     CHECK_EQ(rows[1].menuId, 2000u);
 }
 

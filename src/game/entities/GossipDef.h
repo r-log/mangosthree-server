@@ -63,6 +63,7 @@ struct GossipMenuItemData
     int32  m_gAction_menu;          // Action menu ID (negative for close gossip)
     uint32 m_gAction_poi;           // Action POI ID
     uint32 m_gAction_script;        // Action script ID
+    uint32 m_gAction_trainer;       // Trainer list a trainer option opens, 0 for the creature's own
 };
 
 typedef std::vector<GossipMenuItemData> GossipMenuItemDataList;
@@ -99,7 +100,7 @@ class GossipMenu
         void SetMenuId(uint32 menu_id) { m_gMenuId = menu_id; }
         uint32 GetMenuId() const { return m_gMenuId; }
 
-        void AddMenuItemData(int32 action_menu, uint32 action_poi, uint32 action_script);
+        void AddMenuItemData(int32 action_menu, uint32 action_poi, uint32 action_script, uint32 action_trainer);
 
         unsigned int MenuItemCount() const
         {
@@ -221,6 +222,8 @@ class PlayerMenu
     private:
         GossipMenu mGossipMenu;                     // Gossip menu
         QuestMenu  mQuestMenu;                      // Quest menu
+        ObjectGuid mTrainerListGuid;                // Trainer the last trainer list was sent for
+        uint32     mTrainerList = 0;                // Trainer list (npc_trainer_template) sent from a gossip option, 0 for the creature's own
 
     public:
         PlayerMenu(PlayerSession* Session, int localeIndex);
@@ -228,6 +231,11 @@ class PlayerMenu
 
         GossipMenu& GetGossipMenu() { return mGossipMenu; }
         QuestMenu& GetQuestMenu() { return mQuestMenu; }
+
+        /// Remembers the trainer list sent for the trainer `guid`, 0 for the creature's own lists.
+        void SetSentTrainerList(ObjectGuid guid, uint32 trainerList) { mTrainerListGuid = guid; mTrainerList = trainerList; }
+        /// The trainer list last sent for the trainer `guid`, 0 when its own lists were.
+        uint32 GetSentTrainerList(ObjectGuid guid) const { return guid == mTrainerListGuid ? mTrainerList : 0; }
 
         PlayerSession* GetMenuSession() const { return mGossipMenu.GetMenuSession(); }
 

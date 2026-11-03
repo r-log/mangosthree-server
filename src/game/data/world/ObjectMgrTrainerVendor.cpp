@@ -257,6 +257,22 @@ void ObjectMgr::LoadTrainerTemplates()
         }
     }
 
+    for (GossipMenuItemsMap::value_type const& item : m_gossipMenus.AllMenuItems())
+    {
+        if (uint32 trainerId = item.second.action_trainer_id)
+        {
+            if (m_trainerSpells.Find(true, trainerId))
+            {
+                trainer_ids.erase(trainerId);
+            }
+            else
+            {
+                sLog.outErrorDb("Table `gossip_menu_option` (MenuId: %u Id: %u) has `action_trainer_id` = %u for nonexistent trainer template", item.second.menu_id, item.second.id, trainerId);
+                hasErrored = true;
+            }
+        }
+    }
+
     for (std::set<uint32>::const_iterator tItr = trainer_ids.begin(); tItr != trainer_ids.end(); ++tItr)
     {
         sLog.outErrorDb("Table `npc_trainer_template` has trainer template %u not used by any trainers ", *tItr);
