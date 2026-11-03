@@ -126,6 +126,8 @@ set(OWNER_FILES
     entities/player/persistence/PlayerSave.cpp
     entities/player/persistence/PlayerDbLookup.cpp
     entities/player/quests/PlayerQuest.cpp
+    entities/player/quests/QuestAccept.h
+    entities/player/quests/QuestAccept.cpp
     entities/player/quests/QuestGiverStatus.h
     entities/player/quests/QuestGiverStatus.cpp
     entities/player/quests/QuestNotices.h

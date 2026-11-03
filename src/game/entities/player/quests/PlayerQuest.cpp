@@ -43,6 +43,7 @@
 #include "UpdateMask.h"
 #include "QuestDef.h"
 #include "QuestGiverStatus.h"
+#include "QuestAccept.h"
 #include "GossipDef.h"
 #include "UpdateData.h"
 #include "MapManager.h"
@@ -234,6 +235,11 @@ void Player::SendPreparedQuest(ObjectGuid guid)
             }
             else
             {
+                if (Object* questGiver = GetObjectByTypeMask(guid, TYPEMASK_CREATURE_GAMEOBJECT_OR_ITEM))
+                {
+                    AutoAcceptQuest(*this, pQuest, questGiver);
+                }
+
                 PlayerTalkClass->SendQuestGiverQuestDetails(pQuest, guid, true);
             }
         }
