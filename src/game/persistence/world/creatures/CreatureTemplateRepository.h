@@ -119,6 +119,9 @@ struct CreatureTemplateRow
     uint32 vehicleTemplateId = 0;
     uint32 gossipMenuId = 0;
     std::string aiName;
+    std::string femaleName;
+    uint32 creatureTypeFlags2 = 0;
+    uint32 requiredExpansion = 0;
 };
 
 /// The creature templates on the world database.

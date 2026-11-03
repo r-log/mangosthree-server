@@ -123,11 +123,13 @@ void ObjectMgr::LoadCreatureTemplates()
             info.DynamicFlags = row.dynamicFlags;
             info.ExtraFlags = row.extraFlags;
             info.CreatureTypeFlags = row.creatureTypeFlags;
+            info.CreatureTypeFlags2 = row.creatureTypeFlags2;
             info.SpeedWalk = row.speedWalk;
             info.SpeedRun = row.speedRun;
             info.UnitClass = row.unitClass;
             info.Rank = row.rank;
             info.Expansion = int32(row.expansion);
+            info.RequiredExpansion = row.requiredExpansion;
             info.HealthMultiplier = row.healthMultiplier;
             info.PowerMultiplier = row.powerMultiplier;
             info.DamageMultiplier = row.damageMultiplier;
@@ -182,6 +184,7 @@ void ObjectMgr::LoadCreatureTemplates()
             info.GossipMenuId = row.gossipMenuId;
             info.Name = m_creatureTemplateTexts.Add(row.name);
             info.SubName = m_creatureTemplateTexts.Add(row.subName);
+            info.FemaleName = m_creatureTemplateTexts.Add(row.femaleName);
             info.IconName = m_creatureTemplateTexts.Add(row.iconName);
             info.AIName = m_creatureTemplateTexts.Add(row.aiName);
             m_creatureTemplates.Set(row.entry, info);
