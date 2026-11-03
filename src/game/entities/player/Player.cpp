@@ -2912,6 +2912,15 @@ TrainerSpellState Player::GetTrainerSpellState(TrainerSpell const* trainer_spell
         }
     }
 
+    // check the trainer's required abilities
+    for (int i = 0; i < MAX_TRAINER_REQ_ABILITIES; ++i)
+    {
+        if (trainer_spell->reqAbility[i] && !HasSpell(trainer_spell->reqAbility[i]))
+        {
+            return TRAINER_SPELL_RED;
+        }
+    }
+
     // check level requirement
     //
     // The previous check `trainer_spell->reqLevel < reqLevel` compared two

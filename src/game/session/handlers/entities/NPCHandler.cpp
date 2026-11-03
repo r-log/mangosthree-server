@@ -52,6 +52,7 @@
 #include "GuildMgr.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
+#include "session/packets/entities/TrainerPackets.h"
 
 /**
  * @brief Sends the tabard vendor activation packet.
@@ -102,26 +103,12 @@ void WorldSession::SendTrainerList(ObjectGuid guid)
  * @param tSpell The trainer spell entry.
  * @param state The trainer spell state for the player.
  * @param fDiscountMod The reputation price discount multiplier.
- * @param can_learn_primary_prof Whether a primary profession can still be learned.
  * @param reqLevel The required player level.
  */
-static void SendTrainerSpellHelper(WorldPacket& data, TrainerSpell const* tSpell, TrainerSpellState state, float fDiscountMod, bool can_learn_primary_prof, uint32 reqLevel)
+static void SendTrainerSpellHelper(WorldPacket& data, TrainerSpell const* tSpell, TrainerSpellState state, float fDiscountMod, uint32 reqLevel)
 {
-    bool primary_prof_first_rank = sSpellMgr.IsPrimaryProfessionFirstRankSpell(tSpell->learnedSpell);
-
-    SpellChainNode const* chain_node = sSpellMgr.GetSpellChainNode(tSpell->learnedSpell);
-
-    data << uint32(tSpell->spell);                      // learned spell (or cast-spell in profession case)
-    data << uint8(state == TRAINER_SPELL_GREEN_DISABLED ? TRAINER_SPELL_GREEN : state);
-    data << uint32(floor(tSpell->spellCost * fDiscountMod));
-    data << uint8(reqLevel);
-    data << uint32(tSpell->reqSkill);
-    data << uint32(tSpell->reqSkillValue);
-    data << uint32(primary_prof_first_rank && can_learn_primary_prof ? 1 : 0);
-    // primary prof. learn confirmation dialog
-    data << uint32(primary_prof_first_rank ? 1 : 0);    // must be equal prev. field to have learn button in enabled state
-    data << uint32(!tSpell->IsCastable() && chain_node ? (chain_node->prev ? chain_node->prev : chain_node->req) : 0);
-    data << uint32(!tSpell->IsCastable() && chain_node && chain_node->prev ? chain_node->req : 0);
+    AppendTrainerSpell(data, *tSpell, uint8(state == TRAINER_SPELL_GREEN_DISABLED ? TRAINER_SPELL_GREEN : state),
+                       uint32(floor(tSpell->spellCost * fDiscountMod)), uint8(reqLevel));
 }
 
 /**
@@ -181,7 +168,6 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
 
     // reputation discount
     float fDiscountMod = _player->GetReputationPriceDiscount(unit);
-    bool can_learn_primary_prof = GetPlayer()->GetFreePrimaryProfessionPoints() > 0;
 
     uint32 count = 0;
 
@@ -201,7 +187,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
 
             TrainerSpellState state = _player->GetTrainerSpellState(tSpell, reqLevel);
 
-            SendTrainerSpellHelper(data, tSpell, state, fDiscountMod, can_learn_primary_prof, reqLevel);
+            SendTrainerSpellHelper(data, tSpell, state, fDiscountMod, reqLevel);
 
             ++count;
         }
@@ -223,7 +209,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
 
             TrainerSpellState state = _player->GetTrainerSpellState(tSpell, reqLevel);
 
-            SendTrainerSpellHelper(data, tSpell, state, fDiscountMod, can_learn_primary_prof, reqLevel);
+            SendTrainerSpellHelper(data, tSpell, state, fDiscountMod, reqLevel);
 
             ++count;
         }

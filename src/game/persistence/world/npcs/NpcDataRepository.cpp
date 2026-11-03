@@ -112,12 +112,15 @@ namespace NpcDataRepository
         row.reqskill = fields[3].GetUInt32();
         row.reqskillvalue = fields[4].GetUInt32();
         row.reqlevel = fields[5].GetUInt32();
+        row.reqability1 = fields[6].GetUInt32();
+        row.reqability2 = fields[7].GetUInt32();
+        row.reqability3 = fields[8].GetUInt32();
         return row;
     }
 
     std::vector<TrainerSpellRow> QueryTrainerSpells(char const* table)
     {
-        QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel` FROM `%s`", table);
+        QueryResult* result = WorldDatabase.PQuery("SELECT `entry`, `spell`,`spellcost`,`reqskill`,`reqskillvalue`,`reqlevel`,`reqability1`,`reqability2`,`reqability3` FROM `%s`", table);
         return ReadRows<TrainerSpellRow>(result, ReadTrainerSpell);
     }
 

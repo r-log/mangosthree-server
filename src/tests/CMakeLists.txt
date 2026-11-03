@@ -103,6 +103,7 @@ set(SRC_GRP_TESTS
     PlayerDataRepositoryTest.cpp
     QuestDataRepositoryTest.cpp
     QueryPacketsTest.cpp
+    TrainerPacketsTest.cpp
     ReputationDataRepositoryTest.cpp
     LocaleDataRepositoryTest.cpp
     GameEventStatusRepositoryTest.cpp
