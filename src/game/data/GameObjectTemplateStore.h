@@ -456,7 +456,7 @@ struct GameObjectInfo
         } raw;
     };
 
-    uint32 unk2;
+    uint32 requiredLevel;                                   ///> Below this level the client refuses to use the object
     uint32 MinMoneyLoot;
     uint32 MaxMoneyLoot;
 

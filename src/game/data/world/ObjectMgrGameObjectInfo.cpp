@@ -218,7 +218,7 @@ void ObjectMgr::LoadGameobjectInfo()
             {
                 info.raw.data[i] = row.data[i];
             }
-            info.unk2 = row.unk2;
+            info.requiredLevel = row.unk2;
             info.MinMoneyLoot = row.minGold;
             info.MaxMoneyLoot = row.maxGold;
             m_gameObjectTemplates.Set(info, row.name, row.iconName, row.castBarCaption, row.unk1);
