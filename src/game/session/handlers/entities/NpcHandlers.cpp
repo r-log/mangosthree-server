@@ -151,7 +151,7 @@ void NpcHandlers::HandleTrainerBuySpell(WorldSession& session, WorldPacket& recv
     uint32 trainState = 2;
 
     // the list last sent for this trainer: a gossip option's list, or 0 for the creature's own lists
-    uint32 const trainerList = session.GetSentTrainerList(guid);
+    uint32 const trainerList = session.GetPlayer()->PlayerTalkClass->GetSentTrainerList(guid);
     if (trainerList && TrainerTemplateId != trainerList)
     {
         trainState = 1;

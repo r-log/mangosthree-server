@@ -103,7 +103,7 @@ class PlayerSession
         virtual void SendShowMailBox(ObjectGuid guid) = 0;
         virtual void SendStablePet(ObjectGuid guid) = 0;
         virtual void SendTabardVendorActivate(ObjectGuid guid) = 0;
-        virtual void SendTrainerList(ObjectGuid guid) = 0;
+        void SendTrainerList(ObjectGuid guid) { SendTrainerList(guid, 0); }
         virtual void SendTrainerList(ObjectGuid guid, uint32 trainerList) = 0;  ///< the trainer list (npc_trainer_template) a gossip option names, 0 for the creature's own
         virtual void SendListInventory(ObjectGuid guid) = 0;
         virtual void SendAuctionHello(Unit* unit) = 0;

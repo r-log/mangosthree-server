@@ -86,28 +86,6 @@ void WorldSession::SendShowMailBox(ObjectGuid guid)
 }
 
 /**
- * @brief Sends the trainer's own lists using the default localized title.
- *
- * @param guid The trainer guid.
- */
-void WorldSession::SendTrainerList(ObjectGuid guid)
-{
-    SendTrainerList(guid, 0);
-}
-
-/**
- * @brief Sends a trainer list using the default localized title.
- *
- * @param guid The trainer guid.
- * @param trainerList The trainer list (npc_trainer_template) a gossip option names, 0 for the creature's own.
- */
-void WorldSession::SendTrainerList(ObjectGuid guid, uint32 trainerList)
-{
-    std::string str = GetMangosString(LANG_NPC_TAINER_HELLO);
-    SendTrainerList(guid, trainerList, str);
-}
-
-/**
  * @brief Writes a single trainer spell entry into a trainer list packet.
  *
  * @param data The packet being built.
@@ -123,15 +101,16 @@ static void SendTrainerSpellHelper(WorldPacket& data, TrainerSpell const* tSpell
 }
 
 /**
- * @brief Sends the trainer list with a custom title string.
+ * @brief Sends a trainer list with the default localized title.
  *
  * @param guid The trainer guid.
  * @param trainerList The trainer list (npc_trainer_template) a gossip option names, 0 for the creature's own.
- * @param strTitle The title displayed in the trainer window.
  */
-void WorldSession::SendTrainerList(ObjectGuid guid, uint32 trainerList, const std::string& strTitle)
+void WorldSession::SendTrainerList(ObjectGuid guid, uint32 trainerList)
 {
     DEBUG_LOG("WORLD: SendTrainerList");
+
+    std::string const strTitle = GetMangosString(LANG_NPC_TAINER_HELLO);
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
     if (!unit)
@@ -234,8 +213,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid, uint32 trainerList, const st
     data.put<uint32>(count_pos, count);
     SendPacket(&data);
 
-    m_trainerListGuid = guid;
-    m_trainerList = trainerList;
+    _player->PlayerTalkClass->SetSentTrainerList(guid, trainerList);
 }
 
 /**
