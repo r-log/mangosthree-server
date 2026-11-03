@@ -43,6 +43,7 @@ struct GossipMenuItems
     int32           action_menu_id;
     uint32          action_poi_id;
     uint32          action_script_id;
+    uint32          action_trainer_id;                      // the trainer list (npc_trainer_template) a trainer option opens, 0 for the creature's own
     bool            box_coded;
     uint32          box_money;
     std::string     box_text;
@@ -79,6 +80,7 @@ class GossipMenuStore
         void ClearMenuItems() { m_menuItems.clear(); }
         void AddMenuItem(GossipMenuItems const& item) { m_menuItems.insert(GossipMenuItemsMap::value_type(item.menu_id, item)); }
         GossipMenuItemsMapBounds MenuItems(uint32 menuId) const { return m_menuItems.equal_range(menuId); }
+        GossipMenuItemsMap const& AllMenuItems() const { return m_menuItems; }
 
     private:
         GossipMenusMap m_menus;

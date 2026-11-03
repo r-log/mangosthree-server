@@ -142,7 +142,7 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
                         hasMenuItem = false;
                     }
                     else */
-                    if (!pCreature->IsTrainerOf(this, false))
+                    if (!pCreature->IsTrainerOf(this, false, itr->second.action_trainer_id))
                     {
                         hasMenuItem = false;
                     }
@@ -256,7 +256,7 @@ void Player::PrepareGossipMenu(WorldObject* pSource, uint32 menuId)
             }
 
             pMenu->GetGossipMenu().AddMenuItem(itr->second.option_icon, strOptionText, 0, itr->second.option_id, strBoxText, itr->second.box_money, itr->second.box_coded);
-            pMenu->GetGossipMenu().AddMenuItemData(itr->second.action_menu_id, itr->second.action_poi_id, itr->second.action_script_id);
+            pMenu->GetGossipMenu().AddMenuItemData(itr->second.action_menu_id, itr->second.action_poi_id, itr->second.action_script_id, itr->second.action_trainer_id);
         }
     }
 
@@ -428,7 +428,7 @@ void Player::OnGossipSelect(WorldObject* pSource, uint32 gossipListId, uint32 me
             GetSession()->SendStablePet(guid);
             break;
         case GOSSIP_OPTION_TRAINER:
-            GetSession()->SendTrainerList(guid);
+            GetSession()->SendTrainerList(guid, menuData.m_gAction_trainer);
             break;
         case GOSSIP_OPTION_UNLEARNTALENTS:
             PlayerTalkClass->CloseGossip();

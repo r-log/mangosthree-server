@@ -1090,23 +1090,32 @@ bool Creature::Create(uint32 guidlow, CreatureCreatePos& cPos, CreatureInfo cons
  *
  * @param pPlayer The player requesting training.
  * @param msg true to send denial gossip messages.
+ * @param trainerList The trainer list (npc_trainer_template) asked for, 0 for the creature's own lists.
  * @return true if the player may train here; otherwise, false.
  */
-bool Creature::IsTrainerOf(Player* pPlayer, bool msg) const
+bool Creature::IsTrainerOf(Player* pPlayer, bool msg, uint32 trainerList) const
 {
     if (!IsTrainer())
     {
         return false;
     }
 
+    if (trainerList)
+    {
+        TrainerSpellData const* list = sObjectMgr.GetNpcTrainerTemplateSpells(trainerList);
+        if (!list || list->spellList.empty())
+        {
+            return false;
+        }
+    }
     // pet trainers not have spells in fact now
-    if (GetCreatureInfo()->TrainerType != TRAINER_TYPE_PETS)
+    else if (GetCreatureInfo()->TrainerType != TRAINER_TYPE_PETS)
     {
         TrainerSpellData const* cSpells = GetTrainerSpells();
         TrainerSpellData const* tSpells = GetTrainerTemplateSpells();
 
         // for not pet trainer expected not empty trainer list always
-        if ((!cSpells || cSpells->spellList.empty()) && (!tSpells || tSpells->spellList.empty()))
+        if ((!cSpells || cSpells->spellList.empty()) && (!tSpells || tSpells->spellList.empty()) && !OffersTrainerListOption())
         {
             sLog.outErrorDb("Creature %u (Entry: %u) have UNIT_NPC_FLAG_TRAINER but have empty trainer spell list.",
                             GetGUIDLow(), GetEntry());
@@ -1196,6 +1205,23 @@ bool Creature::IsTrainerOf(Player* pPlayer, bool msg) const
             return false;                                   // checked and error output at creature_template loading
     }
     return true;
+}
+
+bool Creature::OffersTrainerListOption() const
+{
+    GossipMenuItemsMapBounds bounds = sObjectMgr.GetGossipMenuItemsMapBounds(GetCreatureInfo()->GossipMenuId);
+    for (GossipMenuItemsMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
+    {
+        if (itr->second.action_trainer_id)
+        {
+            TrainerSpellData const* list = sObjectMgr.GetNpcTrainerTemplateSpells(itr->second.action_trainer_id);
+            if (list && !list->spellList.empty())
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /**

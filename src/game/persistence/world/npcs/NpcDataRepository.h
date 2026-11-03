@@ -54,6 +54,7 @@ struct GossipMenuOptionRow
     int32 actionMenuId = 0;
     uint32 actionPoiId = 0;
     uint32 actionScriptId = 0;
+    uint32 actionTrainerId = 0;
     uint8 boxCoded = 0;
     uint32 boxMoney = 0;
     std::string boxText;

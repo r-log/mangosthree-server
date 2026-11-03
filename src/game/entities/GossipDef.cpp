@@ -84,13 +84,14 @@ void GossipMenu::AddMenuItem(uint8 Icon, const std::string& Message, uint32 dtSe
 }
 
 // Adds gossip menu item data
-void GossipMenu::AddMenuItemData(int32 action_menu, uint32 action_poi, uint32 action_script)
+void GossipMenu::AddMenuItemData(int32 action_menu, uint32 action_poi, uint32 action_script, uint32 action_trainer)
 {
     GossipMenuItemData pItemData{};
 
     pItemData.m_gAction_menu    = action_menu;
     pItemData.m_gAction_poi     = action_poi;
     pItemData.m_gAction_script  = action_script;
+    pItemData.m_gAction_trainer = action_trainer;
 
     m_gItemsData.push_back(pItemData);
 }

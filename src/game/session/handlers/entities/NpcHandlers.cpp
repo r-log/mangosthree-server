@@ -150,14 +150,21 @@ void NpcHandlers::HandleTrainerBuySpell(WorldSession& session, WorldPacket& recv
 
     uint32 trainState = 2;
 
-    if (!unit->IsTrainerOf(session.GetPlayer(), true))
+    // the list last sent for this trainer: a gossip option's list, or 0 for the creature's own lists
+    uint32 const trainerList = session.GetSentTrainerList(guid);
+    if (trainerList && TrainerTemplateId != trainerList)
+    {
+        trainState = 1;
+    }
+
+    if (!unit->IsTrainerOf(session.GetPlayer(), true, trainerList))
     {
         trainState = 1;
     }
 
     // check present spell in trainer spell list
-    TrainerSpellData const* cSpells = unit->GetTrainerSpells();
-    TrainerSpellData const* tSpells = unit->GetTrainerTemplateSpells();
+    TrainerSpellData const* cSpells = trainerList ? NULL : unit->GetTrainerSpells();
+    TrainerSpellData const* tSpells = trainerList ? sObjectMgr.GetNpcTrainerTemplateSpells(trainerList) : unit->GetTrainerTemplateSpells();
 
     if (!cSpells && !tSpells)
     {

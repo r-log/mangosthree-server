@@ -63,6 +63,7 @@ struct GossipMenuItemData
     int32  m_gAction_menu;          // Action menu ID (negative for close gossip)
     uint32 m_gAction_poi;           // Action POI ID
     uint32 m_gAction_script;        // Action script ID
+    uint32 m_gAction_trainer;       // Trainer list a trainer option opens, 0 for the creature's own
 };
 
 typedef std::vector<GossipMenuItemData> GossipMenuItemDataList;
@@ -99,7 +100,7 @@ class GossipMenu
         void SetMenuId(uint32 menu_id) { m_gMenuId = menu_id; }
         uint32 GetMenuId() const { return m_gMenuId; }
 
-        void AddMenuItemData(int32 action_menu, uint32 action_poi, uint32 action_script);
+        void AddMenuItemData(int32 action_menu, uint32 action_poi, uint32 action_script, uint32 action_trainer);
 
         unsigned int MenuItemCount() const
         {

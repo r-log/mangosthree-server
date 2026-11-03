@@ -86,14 +86,25 @@ void WorldSession::SendShowMailBox(ObjectGuid guid)
 }
 
 /**
- * @brief Sends a trainer list using the default localized title.
+ * @brief Sends the trainer's own lists using the default localized title.
  *
  * @param guid The trainer guid.
  */
 void WorldSession::SendTrainerList(ObjectGuid guid)
 {
+    SendTrainerList(guid, 0);
+}
+
+/**
+ * @brief Sends a trainer list using the default localized title.
+ *
+ * @param guid The trainer guid.
+ * @param trainerList The trainer list (npc_trainer_template) a gossip option names, 0 for the creature's own.
+ */
+void WorldSession::SendTrainerList(ObjectGuid guid, uint32 trainerList)
+{
     std::string str = GetMangosString(LANG_NPC_TAINER_HELLO);
-    SendTrainerList(guid, str);
+    SendTrainerList(guid, trainerList, str);
 }
 
 /**
@@ -115,9 +126,10 @@ static void SendTrainerSpellHelper(WorldPacket& data, TrainerSpell const* tSpell
  * @brief Sends the trainer list with a custom title string.
  *
  * @param guid The trainer guid.
+ * @param trainerList The trainer list (npc_trainer_template) a gossip option names, 0 for the creature's own.
  * @param strTitle The title displayed in the trainer window.
  */
-void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
+void WorldSession::SendTrainerList(ObjectGuid guid, uint32 trainerList, const std::string& strTitle)
 {
     DEBUG_LOG("WORLD: SendTrainerList");
 
@@ -135,7 +147,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
     }
 
     // trainer list loaded at check;
-    if (!unit->IsTrainerOf(_player, true))
+    if (!unit->IsTrainerOf(_player, true, trainerList))
     {
         return;
     }
@@ -146,8 +158,10 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
         return;
     }
 
-    TrainerSpellData const* cSpells = unit->GetTrainerSpells();
-    TrainerSpellData const* tSpells = unit->GetTrainerTemplateSpells();
+    // a gossip option's list replaces the creature's own lists
+    TrainerSpellData const* cSpells = trainerList ? NULL : unit->GetTrainerSpells();
+    TrainerSpellData const* tSpells = trainerList ? sObjectMgr.GetNpcTrainerTemplateSpells(trainerList) : unit->GetTrainerTemplateSpells();
+    uint32 const trainerId = trainerList ? trainerList : ci->TrainerTemplateId;
 
     if (!cSpells && !tSpells)
     {
@@ -161,7 +175,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
     WorldPacket data(SMSG_TRAINER_LIST, 8 + 4 + 4 + maxcount * 38 + strTitle.size() + 1);
     data << ObjectGuid(guid);
     data << uint32(TrainerType);
-    data << uint32(ci->TrainerTemplateId);
+    data << uint32(trainerId);
 
     size_t count_pos = data.wpos();
     data << uint32(maxcount);
@@ -219,6 +233,9 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
 
     data.put<uint32>(count_pos, count);
     SendPacket(&data);
+
+    m_trainerListGuid = guid;
+    m_trainerList = trainerList;
 }
 
 /**

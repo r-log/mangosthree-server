@@ -64,6 +64,7 @@ namespace NpcDataRepository
         row.boxMoney = fields[10].GetUInt32();
         row.boxText = fields[11].GetCppString();
         row.conditionId = fields[12].GetUInt16();
+        row.actionTrainerId = fields[13].GetUInt32();
         return row;
     }
 
@@ -71,7 +72,7 @@ namespace NpcDataRepository
     {
         QueryResult* result = WorldDatabase.Query("SELECT `menu_id`, `id`, `option_icon`, `option_text`, `option_id`, `npc_option_npcflag`, "
                                                   "`action_menu_id`, `action_poi_id`, `action_script_id`, `box_coded`, `box_money`, `box_text`, "
-                                                  "`condition_id` "
+                                                  "`condition_id`, `action_trainer_id` "
                                                   "FROM `gossip_menu_option` ORDER BY `menu_id`, `id`");
         return ReadRows<GossipMenuOptionRow>(result, ReadGossipMenuOption);
     }

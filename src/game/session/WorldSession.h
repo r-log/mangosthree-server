@@ -509,7 +509,10 @@ class WorldSession final : public PlayerSession
         static void SendNameQueryOpcodeFromDBCallBack(std::optional<CharacterNameRow> const& row, uint32 accountId, proto::SessionId sessionId);
 
         void SendTrainerList(ObjectGuid guid) override;
-        void SendTrainerList(ObjectGuid guid, const std::string& strTitle);
+        void SendTrainerList(ObjectGuid guid, uint32 trainerList) override;
+        void SendTrainerList(ObjectGuid guid, uint32 trainerList, const std::string& strTitle);
+        /// The trainer list (npc_trainer_template) last sent for the trainer guid, 0 when its own lists were.
+        uint32 GetSentTrainerList(ObjectGuid guid) const { return guid == m_trainerListGuid ? m_trainerList : 0; }
 
         void SendListInventory(ObjectGuid guid) override;
         bool CheckBanker(ObjectGuid guid);
@@ -760,6 +763,10 @@ class WorldSession final : public PlayerSession
         SocketlessSink m_socketlessSink = NULL;
         void* m_socketlessSinkContext = NULL;
         std::string m_Address;
+
+        /// The trainer and the trainer list (npc_trainer_template) last sent from a gossip option.
+        ObjectGuid m_trainerListGuid;
+        uint32 m_trainerList = 0;
 
         /// The session key (K) realmd agreed with this client. The second world
         /// stream re-derives its ciphers from it instead of logging in again.
