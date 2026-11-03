@@ -42,6 +42,7 @@
 #include "PlayerRegistry.h"
 #include "data/ScriptHooks.h"
 #include "QuestGiverStatus.h"
+#include "QuestAccept.h"
 #include "Group.h"
 #include "persistence/characters/quests/QuestTrackerRepository.h"
 
@@ -188,40 +189,7 @@ void QuestHandlers::HandleQuestgiverAcceptQuest(WorldSession& session, WorldPack
 
         if (session.GetPlayer()->CanAddQuest(qInfo, true))
         {
-            session.GetPlayer()->AddQuest(qInfo, pObject);              // pObject (if it item) can be destroyed at call
-
-            if (qInfo->HasQuestFlag(QUEST_FLAGS_PARTY_ACCEPT))
-            {
-                if (Group* pGroup = session.GetPlayer()->GetGroup())
-                {
-                    for (GroupReference* itr = pGroup->GetFirstMember(); itr != NULL; itr = itr->next())
-                    {
-                        Player* pPlayer = itr->getSource();
-
-                        if (!pPlayer || pPlayer == session.GetPlayer()) // not self
-                        {
-                            continue;
-                        }
-
-                        if (pPlayer->CanTakeQuest(qInfo, true))
-                        {
-                            pPlayer->SetDividerGuid(session.GetPlayer()->GetObjectGuid());
-
-                            // need confirmation that any gossip window will close
-                            pPlayer->PlayerTalkClass->CloseGossip();
-
-                            session.GetPlayer()->SendQuestConfirmAccept(qInfo, pPlayer);
-                        }
-                    }
-                }
-            }
-
-            if (session.GetPlayer()->CanCompleteQuest(quest))
-            {
-                session.GetPlayer()->CompleteQuest(quest);
-            }
-
-            session.GetPlayer()->GetAchievementMgr().StartTimedAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST, quest);
+            StartAcceptedQuest(*session.GetPlayer(), qInfo, pObject);  // pObject (if it item) can be destroyed at call
 
             session.GetPlayer()->PlayerTalkClass->CloseGossip();
 
@@ -261,7 +229,9 @@ void QuestHandlers::HandleQuestgiverQueryQuest(WorldSession& session, WorldPacke
 
     if (Quest const* pQuest = sObjectMgr.GetQuestTemplate(quest))
     {
-        session.GetPlayer()->PlayerTalkClass->SendQuestGiverQuestDetails(pQuest, pObject->GetObjectGuid(), true);
+        ObjectGuid const giverGuid = pObject->GetObjectGuid();
+        AutoAcceptQuest(*session.GetPlayer(), pQuest, pObject);    // pObject (if it item) can be destroyed at call
+        session.GetPlayer()->PlayerTalkClass->SendQuestGiverQuestDetails(pQuest, giverGuid, true);
     }
 }
 
@@ -331,6 +301,7 @@ void QuestHandlers::HandleQuestgiverChooseReward(WorldSession& session, WorldPac
             // Send next quest
             if (nextquest)
             {
+                AutoAcceptQuest(*session.GetPlayer(), nextquest, pObject);
                 session.GetPlayer()->PlayerTalkClass->SendQuestGiverQuestDetails(nextquest, guid, true);
             }
             else if (Creature* pCreature = pObject->ToCreature())
@@ -605,6 +576,7 @@ void QuestHandlers::HandlePushQuestToParty(WorldSession& session, WorldPacket& r
                     continue;
                 }
 
+                AutoAcceptQuest(*pPlayer, pQuest, session.GetPlayer());
                 pPlayer->PlayerTalkClass->SendQuestGiverQuestDetails(pQuest, session.GetPlayer()->GetObjectGuid(), true);
                 pPlayer->SetDividerGuid(session.GetPlayer()->GetObjectGuid());
             }
