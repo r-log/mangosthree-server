@@ -105,7 +105,7 @@ namespace
             {
                 QuestTemplateRow row;
                 row.entry = spec.id;
-                row.questFlags = uint16(spec.questFlags);
+                row.questFlags = spec.questFlags;
                 row.specialFlags = uint16(spec.specialFlags);
                 row.reqCreatureOrGOId[1] = spec.reqCreature1;
                 m_quests[spec.id].reset(new Quest(row));

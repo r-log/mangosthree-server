@@ -133,7 +133,7 @@ struct QuestTemplateRow
     int32 requiredMaxRepValue = 0;
     uint32 suggestedPlayers = 0;
     uint32 limitTime = 0;
-    uint16 questFlags = 0;
+    uint32 questFlags = 0;
     uint16 specialFlags = 0;
     uint32 charTitleId = 0;
     uint32 playersSlain = 0;

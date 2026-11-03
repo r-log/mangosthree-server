@@ -82,7 +82,7 @@ namespace
         QuestTemplateRow row;
         row.entry = id;
         row.method = method;
-        row.questFlags = uint16(questFlags);
+        row.questFlags = questFlags;
         row.specialFlags = uint16(specialFlags);
         for (Choice const& c : choices)
         {

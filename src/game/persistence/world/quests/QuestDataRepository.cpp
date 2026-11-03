@@ -50,7 +50,7 @@ namespace QuestDataRepository
         row.requiredMaxRepValue = fields[15].GetInt32();
         row.suggestedPlayers = fields[16].GetUInt32();
         row.limitTime = fields[17].GetUInt32();
-        row.questFlags = fields[18].GetUInt16();
+        row.questFlags = fields[18].GetUInt32();
         row.specialFlags = fields[19].GetUInt16();
         row.charTitleId = fields[20].GetUInt32();
         row.playersSlain = fields[21].GetUInt32();

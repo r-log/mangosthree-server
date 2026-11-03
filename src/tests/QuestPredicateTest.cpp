@@ -99,7 +99,7 @@ namespace
             {
                 QuestTemplateRow row;
                 row.entry = spec.id;
-                row.questFlags = uint16(spec.questFlags);
+                row.questFlags = spec.questFlags;
                 row.specialFlags = uint16(spec.specialFlags);
                 row.prevQuestId = spec.prevQuestId;
                 row.nextQuestId = spec.nextQuestId;

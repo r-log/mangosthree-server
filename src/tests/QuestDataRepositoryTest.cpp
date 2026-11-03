@@ -85,7 +85,7 @@ TEST(QuestDataRepository_Quests)
     Db db;
     db.query.Answer("SELECT", FakeRows{
         FakeRow{"1000", "1001", "-1002", "1003", "-1004", "1005", "1006", "1007", "1008", "1009",
-            "1010", "-1011", "1012", "-1013", "1014", "-1015", "1016", "1017", "10018", "10019",
+            "1010", "-1011", "1012", "-1013", "1014", "-1015", "1016", "1017", "134217856", "10019",
             "1020", "1021", "1022", "1023", "1024", "-1025", "-1026", "-1027", "1028", "1029",
             "1030", "1031", "1032", "s1.33", "s1.34", "s1.35", "s1.36", "s1.37", "s1.38",
             "s1.39", "s1.40", "s1.41", "s1.42", "s1.43", "s1.44", "s1.45", "s1.46", "s1.47",
@@ -141,7 +141,7 @@ TEST(QuestDataRepository_Quests)
     CHECK_EQ(rows[0].requiredMaxRepValue, -1015);
     CHECK_EQ(rows[0].suggestedPlayers, 1016u);
     CHECK_EQ(rows[0].limitTime, 1017u);
-    CHECK_EQ(rows[0].questFlags, uint16(10018));
+    CHECK_EQ(rows[0].questFlags, 134217856u);
     CHECK_EQ(rows[0].specialFlags, uint16(10019));
     CHECK_EQ(rows[0].charTitleId, 1020u);
     CHECK_EQ(rows[0].playersSlain, 1021u);
