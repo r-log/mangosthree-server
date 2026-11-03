@@ -1083,13 +1083,12 @@ namespace Harness
     private:
         /// Quest 28714 as the loader leaves it: DELIVER derived from the item objective
         /// (ObjectMgrQuests.cpp); three choice items; RewOrReqMoney at Rate.Drop.Money 1.
-        /// QuestFlags reads 0: the row holds 8912896 (0x880000), and Quest's constructor reads the
-        /// column with GetUInt16 (QuestDef.cpp), which keeps none of it.
         static std::map<std::string, int64> Fingerprint()
         {
             std::map<std::string, int64> e;
             e["Method"] = 2;
             e["SpecialFlags"] = QUEST_SPECIAL_FLAG_DELIVER;
+            e["QuestFlags"] = 8912896;
             e["QuestLevel"] = 3;
             e["ZoneOrSort"] = 188;
             e["NextQuestInChain"] = 28734;
@@ -2778,7 +2777,7 @@ namespace Harness
             std::map<std::string, int64> e;
             e["Method"] = 2;
             e["SpecialFlags"] = QUEST_SPECIAL_FLAG_EXPLORATION_OR_EVENT;
-            e["QuestFlags"] = 16386;
+            e["QuestFlags"] = 278530;
             e["QuestLevel"] = 49;
             e["ZoneOrSort"] = 2100;
             e["RewXPId"] = 6;

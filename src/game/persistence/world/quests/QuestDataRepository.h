@@ -133,7 +133,7 @@ struct QuestTemplateRow
     int32 requiredMaxRepValue = 0;
     uint32 suggestedPlayers = 0;
     uint32 limitTime = 0;
-    uint16 questFlags = 0;
+    uint32 questFlags = 0;
     uint16 specialFlags = 0;
     uint32 charTitleId = 0;
     uint32 playersSlain = 0;
@@ -203,6 +203,8 @@ struct QuestTemplateRow
     uint32 soundTurnIn = 0;
     uint32 startScript = 0;
     uint32 completeScript = 0;
+    uint32 minimapTargetMark = 0;
+    uint32 rewRepMask = 0;
 };
 
 /// The quest data on the world database: `ObjectMgr`'s quest, quest relation and quest point of

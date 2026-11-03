@@ -299,6 +299,8 @@ class Quest
         uint32 GetQuestCompleteScript() const { return QuestCompleteScript; }
         uint32 GetSoundAcceptId() const { return SoundAcceptId; }
         uint32 GetSoundTurnInId() const { return SoundTurnInId; }
+        uint32 GetMinimapTargetMark() const { return MinimapTargetMark; }
+        uint32 GetRewRepMask() const { return RewRepMask; }
 
         bool   IsRepeatable() const { return m_SpecialFlags & QUEST_SPECIAL_FLAG_REPEATABLE; }
         bool   IsAutoComplete() const { return QuestMethod ? false : true; }
@@ -428,6 +430,8 @@ class Quest
         uint32 QuestCompleteScript;
         uint32 SoundAcceptId;
         uint32 SoundTurnInId;
+        uint32 MinimapTargetMark;                           // the objectives the client marks on the minimap, one bit each
+        uint32 RewRepMask;                                  // the reward factions the client shows
 };
 
 enum QuestUpdateState

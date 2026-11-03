@@ -50,7 +50,7 @@ namespace QuestDataRepository
         row.requiredMaxRepValue = fields[15].GetInt32();
         row.suggestedPlayers = fields[16].GetUInt32();
         row.limitTime = fields[17].GetUInt32();
-        row.questFlags = fields[18].GetUInt16();
+        row.questFlags = fields[18].GetUInt32();
         row.specialFlags = fields[19].GetUInt16();
         row.charTitleId = fields[20].GetUInt32();
         row.playersSlain = fields[21].GetUInt32();
@@ -189,6 +189,8 @@ namespace QuestDataRepository
         row.soundTurnIn = fields[165].GetUInt32();
         row.startScript = fields[166].GetUInt32();
         row.completeScript = fields[167].GetUInt32();
+        row.minimapTargetMark = fields[168].GetUInt32();
+        row.rewRepMask = fields[169].GetUInt32();
         return row;
     }
 
@@ -247,7 +249,7 @@ namespace QuestDataRepository
                                                   //   160                    161                       162                       163
                                                   "`OfferRewardEmoteDelay1`, `OfferRewardEmoteDelay2`, `OfferRewardEmoteDelay3`, `OfferRewardEmoteDelay4`,"
                                                   //   164         165            166            167
-                                                  "`SoundAccept`, `SoundTurnIn`, `StartScript`, `CompleteScript`"
+                                                  "`SoundAccept`, `SoundTurnIn`, `StartScript`, `CompleteScript`, `MinimapTargetMark`, `RewRepMask`"
                                                   " FROM `quest_template`");
         return ReadRows<QuestTemplateRow>(result, ReadQuestTemplate);
     }
