@@ -96,6 +96,7 @@ struct CreatureInfo
     uint32 Entry;                                             ///< Creature entry ID
     char* Name;                                               ///< Creature name
     char* SubName;                                            ///< Creature sub-name
+    char* FemaleName;                                         ///< Name the client shows for a female creature
     char* IconName;
     uint32 MinLevel;                                          ///< Minimum level
     uint32 MaxLevel;                                          ///< Maximum level
@@ -115,11 +116,13 @@ struct CreatureInfo
     uint32 DynamicFlags;                                      ///< Dynamic flags
     uint32 ExtraFlags;                                        ///< Extra flags
     uint32 CreatureTypeFlags;                                 ///< Creature type flags (enum CreatureTypeFlags mask values)
+    uint32 CreatureTypeFlags2;                                ///< Second word of the type flags the client reads
     float SpeedWalk;                                          ///< Walk speed
     float SpeedRun;                                           ///< Run speed
     uint32 UnitClass;                                         ///< Unit class (enum Classes, note only 4 classes are known for creatures)
     uint32 Rank;                                              ///< Creature rank
     int32 Expansion;                                          ///< creature expansion, important for stats, CAN BE -1 as marker for some invalid cases.
+    uint32 RequiredExpansion;                                 ///< Expansion the client reads with the creature
     float HealthMultiplier;                                   ///< Health multiplier
     float PowerMultiplier;                                    ///< Power multiplier
     float DamageMultiplier;                                   ///< Damage multiplier

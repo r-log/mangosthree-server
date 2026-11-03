@@ -23,13 +23,13 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The gameobject query reply holds every field the 15595 client reads, in its order: the entry,
-/// type, display, four names, icon, cast-bar caption and close text, the 32 data words, the scale,
-/// the six quest items and the required level, and nothing after them.
+/// The gameobject and creature query replies hold every field the 15595 client reads, in its order,
+/// and nothing after them.
 
 #include "TestHarness.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
+#include "data/CreatureRecords.h"
 #include "data/GameObjectTemplateStore.h"
 #include "session/packets/entities/QueryPackets.h"
 
@@ -97,5 +97,75 @@ TEST(QueryPackets_GameObjectReplyHoldsEveryFieldTheClientReads)
     uint32 requiredLevel = 0;
     packet >> requiredLevel;
     CHECK_EQ(requiredLevel, 85u);
+    CHECK_EQ(packet.rpos(), packet.size());
+}
+
+TEST(QueryPackets_CreatureReplyHoldsEveryFieldTheClientReads)
+{
+    char female[] = "Scarlet Priestess";
+    char icon[] = "Directions";
+    CreatureInfo info = CreatureInfo();
+    info.Entry = 10608;
+    info.FemaleName = female;
+    info.IconName = icon;
+    info.CreatureTypeFlags = 0x1000;
+    info.CreatureTypeFlags2 = 6;
+    info.CreatureType = 7;
+    info.Family = 0;
+    info.Rank = 1;
+    info.KillCredit[0] = 101;
+    info.KillCredit[1] = 102;
+    for (uint32 i = 0; i < MAX_CREATURE_MODEL; ++i)
+    {
+        info.ModelId[i] = 2000 + i;
+    }
+    info.HealthMultiplier = 2.5f;
+    info.PowerMultiplier = 0.5f;
+    info.RacialLeader = 1;
+    for (uint32 i = 0; i < 6; ++i)
+    {
+        info.QuestItems[i] = 3000 + i;
+    }
+    info.MovementTemplateId = 7;
+    info.RequiredExpansion = 3;
+
+    WorldPacket packet;
+    BuildCreatureQueryResponse(packet, info, "Scarlet Priest", "Scarlet Crusade");
+
+    CHECK_EQ(packet.GetOpcode(), uint16(SMSG_CREATURE_QUERY_RESPONSE));
+    uint32 entry = 0;
+    packet >> entry;
+    CHECK_EQ(entry, 10608u);
+    std::string text;
+    char const* names[] = { "Scarlet Priest", "", "", "", "Scarlet Priestess", "", "", "", "Scarlet Crusade", "Directions" };
+    for (uint32 i = 0; i < 10; ++i)
+    {
+        packet >> text;
+        CHECK_STR(text.c_str(), names[i]);
+    }
+    uint32 expected[] = { 0x1000, 6, 7, 0, 1, 101, 102, 2000, 2001, 2002, 2003 };
+    for (uint32 i = 0; i < 11; ++i)
+    {
+        uint32 word = 0;
+        packet >> word;
+        CHECK_EQ(word, expected[i]);
+    }
+    float health = 0.0f, power = 0.0f;
+    packet >> health >> power;
+    CHECK(health == 2.5f);
+    CHECK(power == 0.5f);
+    uint8 leader = 0;
+    packet >> leader;
+    CHECK_EQ(leader, uint8(1));
+    for (uint32 i = 0; i < 6; ++i)
+    {
+        uint32 item = 0;
+        packet >> item;
+        CHECK_EQ(item, 3000 + i);
+    }
+    uint32 movement = 0, expansion = 0;
+    packet >> movement >> expansion;
+    CHECK_EQ(movement, 7u);
+    CHECK_EQ(expansion, 3u);
     CHECK_EQ(packet.rpos(), packet.size());
 }

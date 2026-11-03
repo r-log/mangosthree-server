@@ -26,6 +26,7 @@
 #include "QueryPackets.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
+#include "data/CreatureRecords.h"
 #include "data/GameObjectTemplateStore.h"
 
 void BuildGameObjectQueryResponse(WorldPacket& packet, GameObjectInfo const& info, std::string const& name,
@@ -50,4 +51,36 @@ void BuildGameObjectQueryResponse(WorldPacket& packet, GameObjectInfo const& inf
         packet << uint32(info.questItems[i]);
     }
     packet << uint32(info.requiredLevel);
+}
+
+void BuildCreatureQueryResponse(WorldPacket& packet, CreatureInfo const& info, char const* name, char const* subName)
+{
+    packet.Initialize(SMSG_CREATURE_QUERY_RESPONSE, 200);
+    packet << uint32(info.Entry);
+    packet << (name ? name : "");
+    packet << uint8(0) << uint8(0) << uint8(0);
+    packet << (info.FemaleName ? info.FemaleName : "");
+    packet << uint8(0) << uint8(0) << uint8(0);
+    packet << (subName ? subName : "");
+    packet << (info.IconName ? info.IconName : "");
+    packet << uint32(info.CreatureTypeFlags);
+    packet << uint32(info.CreatureTypeFlags2);
+    packet << uint32(info.CreatureType);
+    packet << uint32(info.Family);
+    packet << uint32(info.Rank);
+    packet << uint32(info.KillCredit[0]);
+    packet << uint32(info.KillCredit[1]);
+    for (uint32 i = 0; i < MAX_CREATURE_MODEL; ++i)
+    {
+        packet << uint32(info.ModelId[i]);
+    }
+    packet << float(info.HealthMultiplier);
+    packet << float(info.PowerMultiplier);
+    packet << uint8(info.RacialLeader);
+    for (uint32 i = 0; i < sizeof(info.QuestItems) / sizeof(info.QuestItems[0]); ++i)
+    {
+        packet << uint32(info.QuestItems[i]);
+    }
+    packet << uint32(info.MovementTemplateId);
+    packet << uint32(info.RequiredExpansion);
 }

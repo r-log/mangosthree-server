@@ -30,6 +30,7 @@
 
 #include <string>
 
+struct CreatureInfo;
 struct GameObjectInfo;
 class WorldPacket;
 
@@ -38,5 +39,11 @@ class WorldPacket;
 /// close text, the 32 data words, the scale, the six quest items and the required level.
 void BuildGameObjectQueryResponse(WorldPacket& packet, GameObjectInfo const& info, std::string const& name,
                                   std::string const& castBarCaption);
+
+/// Initializes `packet` as the creature query reply the client reads (`CreatureStats::Unpack`): the entry,
+/// the name and three empty names, the female name and three empty ones, the subname and cursor icon,
+/// both type-flag words, type, family, rank, kill credits, four models, health and power modifiers,
+/// racial leader, six quest items, movement id and required expansion.
+void BuildCreatureQueryResponse(WorldPacket& packet, CreatureInfo const& info, char const* name, char const* subName);
 
 #endif
