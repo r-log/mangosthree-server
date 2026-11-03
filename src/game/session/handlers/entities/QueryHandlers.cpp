@@ -38,6 +38,7 @@
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
 #include "data/GossipRecords.h"
+#include "session/packets/entities/QueryPackets.h"
 #include "maps/MapManager.h"
 #include "maps/Map.h"
 
@@ -152,11 +153,9 @@ void QueryHandlers::HandleGameObjectQuery(WorldSession& session, WorldPacket& re
     if (info)
     {
         std::string Name;
-        std::string IconName;
         std::string CastBarCaption;
 
         Name = info->name;
-        IconName = info->IconName;
         CastBarCaption = info->castBarCaption;
 
         int loc_idx = session.GetSessionDbLocaleIndex();
@@ -176,21 +175,8 @@ void QueryHandlers::HandleGameObjectQuery(WorldSession& session, WorldPacket& re
             }
         }
         DETAIL_LOG("WORLD: CMSG_GAMEOBJECT_QUERY '%s' - Entry: %u. ", info->name, entryID);
-        WorldPacket data(SMSG_GAMEOBJECT_QUERY_RESPONSE, 150);
-        data << uint32(entryID);
-        data << uint32(info->type);
-        data << uint32(info->displayId);
-        data << Name;
-        data << uint8(0) << uint8(0) << uint8(0);           // name2, name3, name4
-        data << IconName;                                   // 2.0.3, string. Icon name to use instead of default icon for go's (ex: "Attack" makes sword)
-        data << CastBarCaption;                             // 2.0.3, string. Text will appear in Cast Bar when using GO (ex: "Collecting")
-        data << info->unk1;                                 // 2.0.3, string
-        data.append(info->raw.data, 24);
-        data << float(info->size);                          // go size
-        for (uint32 i = 0; i < 6; ++i)
-        {
-            data << uint32(info->questItems[i]);            // itemId[6], quest drop
-        }
+        WorldPacket data;
+        BuildGameObjectQueryResponse(data, *info, Name, CastBarCaption);
         session.SendPacket(&data);
         DEBUG_LOG("WORLD: Sent SMSG_GAMEOBJECT_QUERY_RESPONSE");
     }
