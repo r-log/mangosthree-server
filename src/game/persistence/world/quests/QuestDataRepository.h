@@ -203,6 +203,8 @@ struct QuestTemplateRow
     uint32 soundTurnIn = 0;
     uint32 startScript = 0;
     uint32 completeScript = 0;
+    uint32 minimapTargetMark = 0;
+    uint32 rewRepMask = 0;
 };
 
 /// The quest data on the world database: `ObjectMgr`'s quest, quest relation and quest point of

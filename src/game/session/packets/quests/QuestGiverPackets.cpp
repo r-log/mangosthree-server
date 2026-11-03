@@ -210,7 +210,7 @@ void SessionGossipNotices::SendQuestGiverQuestDetails(PlayerSession& session, Qu
     data << float(0);                                       // unk, unused GetRewHonorMultiplier ?
     data << pQuest->GetBonusTalents();                      // bonus talents
     data << uint32(0);                                      // unk, unused bonus arena points?
-    data << uint32(0);                                      // rep reward show mask?
+    data << uint32(pQuest->GetRewRepMask());                // reward factions the client shows
 
     for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)       // reward factions ids
     {
@@ -222,11 +222,10 @@ void SessionGossipNotices::SendQuestGiverQuestDetails(PlayerSession& session, Qu
         data << pQuest->RewRepValueId[i];
     }
 
-    for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)       // reward reputation override. No bonus is expected given
+    for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)       // reputation override of each reward faction, sent as stored
     {
-        data << int32(0);
+        data << int32(pQuest->RewRepValue[i]);
     }
-    // data << int32(pQuest->RewRepValue[i]);            // current field for store of rep value, can be reused to implement "override value"
 
     data << pQuest->GetRewSpell();                  // reward spell, this spell will display (icon) (casted if RewSpellCast==0)
     data << pQuest->GetRewSpellCast();              // casted spell
@@ -372,7 +371,7 @@ void SessionGossipNotices::SendQuestQueryResponse(PlayerSession& session, Quest 
     data << uint32(pQuest->GetSrcItemId());                 // source item id
     data << uint32(pQuest->GetQuestFlags());                // quest flags
 
-    data << uint32(0);                                      // MinimapTargetMark
+    data << uint32(pQuest->GetMinimapTargetMark());
 
     data << uint32(pQuest->GetCharTitleId());               // CharTitleId, new 2.4.0, player gets this title (id from CharTitles)
     data << uint32(pQuest->GetPlayersSlain());              // players slain
@@ -381,7 +380,7 @@ void SessionGossipNotices::SendQuestQueryResponse(PlayerSession& session, Quest 
     data << uint32(0);                                      // unused 4.x.x ? bonus arena points
     data << uint32(pQuest->GetRewSkill());                  // Rewarded skill id
     data << uint32(pQuest->GetRewSkillValue());             // Rewarded skill bonus points
-    data << uint32(0);                                      // rew rep show mask?
+    data << uint32(pQuest->GetRewRepMask());                // reward factions the client shows
     data << uint32(pQuest->GetPortraitGiver());
     data << uint32(pQuest->GetPortraitTurnIn());
 
@@ -424,11 +423,10 @@ void SessionGossipNotices::SendQuestQueryResponse(PlayerSession& session, Quest 
         data << int32(pQuest->RewRepValueId[i]);
     }
 
-    for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)       // reward reputation override. No bonus is expected given
+    for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)       // reputation override of each reward faction, sent as stored
     {
-        data << int32(0);
+        data << int32(pQuest->RewRepValue[i]);
     }
-    // data << int32(pQuest->RewRepValue[i]);            // current field for store of rep value, can be reused to implement "override value"
 
     // Add quest point information
     data << pQuest->GetPointMapId();
@@ -638,7 +636,7 @@ void SessionGossipNotices::SendQuestGiverOfferReward(PlayerSession& session, Que
     data << float(0);                           // unk, unused GetRewHonorMultiplier ?
     data << uint32(pQuest->GetBonusTalents());  // bonus talents
     data << uint32(0);                          // unk, unused bonus arena points?
-    data << uint32(0);                          // rep reward show mask?
+    data << uint32(pQuest->GetRewRepMask());    // reward factions the client shows
 
     for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)       // reward factions ids
     {
@@ -650,11 +648,10 @@ void SessionGossipNotices::SendQuestGiverOfferReward(PlayerSession& session, Que
         data << int32(pQuest->RewRepValueId[i]);
     }
 
-    for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)       // reward reputation override. No diplomacy bonus is expected given, reward also does not display in chat window
+    for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)       // reputation override of each reward faction, sent as stored
     {
-        data << int32(0);
+        data << int32(pQuest->RewRepValue[i]);
     }
-    // data << int32(pQuest->RewRepValue[i]);
 
     data << uint32(pQuest->GetRewSpell());                  // reward spell, this spell will display (icon) (casted if RewSpellCast==0)
     data << uint32(pQuest->GetRewSpellCast());              // casted spell

@@ -246,6 +246,8 @@ Quest::Quest(QuestTemplateRow const& row)
 
     SoundAcceptId = row.soundAccept;
     SoundTurnInId = row.soundTurnIn;
+    MinimapTargetMark = row.minimapTargetMark;
+    RewRepMask = row.rewRepMask;
 
     QuestStartScript = row.startScript;
     QuestCompleteScript = row.completeScript;

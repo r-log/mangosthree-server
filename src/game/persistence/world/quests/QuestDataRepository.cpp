@@ -189,6 +189,8 @@ namespace QuestDataRepository
         row.soundTurnIn = fields[165].GetUInt32();
         row.startScript = fields[166].GetUInt32();
         row.completeScript = fields[167].GetUInt32();
+        row.minimapTargetMark = fields[168].GetUInt32();
+        row.rewRepMask = fields[169].GetUInt32();
         return row;
     }
 
@@ -247,7 +249,7 @@ namespace QuestDataRepository
                                                   //   160                    161                       162                       163
                                                   "`OfferRewardEmoteDelay1`, `OfferRewardEmoteDelay2`, `OfferRewardEmoteDelay3`, `OfferRewardEmoteDelay4`,"
                                                   //   164         165            166            167
-                                                  "`SoundAccept`, `SoundTurnIn`, `StartScript`, `CompleteScript`"
+                                                  "`SoundAccept`, `SoundTurnIn`, `StartScript`, `CompleteScript`, `MinimapTargetMark`, `RewRepMask`"
                                                   " FROM `quest_template`");
         return ReadRows<QuestTemplateRow>(result, ReadQuestTemplate);
     }
