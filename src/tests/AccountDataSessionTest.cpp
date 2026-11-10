@@ -23,7 +23,8 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The client settings a session saves: which character a per-character block is saved under.
+/// The client settings a session saves and sends back: which character a per-character block is
+/// saved under, and which block types the two account-data handlers accept.
 ///
 /// The session is built in storage filled with a non-zero pattern, so a member its constructor
 /// leaves unset holds that pattern rather than a lucky zero. Players are probes seated on the
@@ -173,6 +174,13 @@ namespace
         packet << uint32(0);                                // decompressed size 0: the block is erased
         return packet;
     }
+
+    WorldPacket RequestAccountData(uint32 type)
+    {
+        WorldPacket packet(CMSG_REQUEST_ACCOUNT_DATA, 4);
+        packet << uint32(type);
+        return packet;
+    }
 }
 
 // A session no player was ever seated on saves no character's block. A seated player's blocks are
@@ -214,4 +222,31 @@ TEST(AccountDataSession_ACharactersBlockIsSavedUnderTheLastSeatedPlayer)
 
     session->SetAccountData(PER_CHARACTER_CONFIG_CACHE, 1700000005, "config");
     CheckLines(db.Take(), CharacterBlock(43, PER_CHARACTER_CONFIG_CACHE, 1700000005, "config"), __LINE__);
+}
+
+// Types 0 to 7 are the client's blocks; type 8 is past the session's table. The upload and the
+// request both refuse it without a statement or a reply, and both still take type 7.
+TEST(AccountDataSession_TheHandlersRefuseATypePastTheLast)
+{
+    Db db;
+    PatternedSession session;
+    SeatedPlayer player(*session, 42);
+
+    WorldPacket upload8 = UpdateAccountData(NUM_ACCOUNT_DATA_TYPES, 1700000000);
+    ClientHandlers::HandleUpdateAccountData(*session, upload8);
+    CheckLines(db.Take(), {}, __LINE__);
+    CHECK(session.sent.empty());
+
+    WorldPacket request8 = RequestAccountData(NUM_ACCOUNT_DATA_TYPES);
+    ClientHandlers::HandleRequestAccountData(*session, request8);
+    CHECK(session.sent.empty());
+
+    WorldPacket upload7 = UpdateAccountData(PER_CHARACTER_CHAT_CACHE, 1700000000);
+    ClientHandlers::HandleUpdateAccountData(*session, upload7);
+    CheckLines(db.Take(), CharacterBlock(42, PER_CHARACTER_CHAT_CACHE, 0, ""), __LINE__);
+    CHECK(session.sent == std::vector<uint16>({uint16(SMSG_UPDATE_ACCOUNT_DATA_COMPLETE)}));
+
+    WorldPacket request7 = RequestAccountData(PER_CHARACTER_CHAT_CACHE);
+    ClientHandlers::HandleRequestAccountData(*session, request7);
+    CHECK(session.sent == std::vector<uint16>({uint16(SMSG_UPDATE_ACCOUNT_DATA_COMPLETE), uint16(SMSG_UPDATE_ACCOUNT_DATA)}));
 }
