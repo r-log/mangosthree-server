@@ -80,7 +80,7 @@ void BuildCriteriaUpdatePacket(WorldPacket& packet, Player const& player, uint32
 
     packet << player.GetObjectGuid().WriteAsPacked();
     packet << uint32(progress.timedCriteriaFailed ? 1 : 0);
-    packet << uint32(secsToTimeBitFields(now));
+    packet << uint32(secsToTimeBitFields(now));               // sent as the criteria changes: its date is now
     packet << uint32(now - progress.date);                   // timer 1
     packet << uint32(now - progress.date);                   // timer 2
 }
@@ -153,7 +153,7 @@ void BuildAllAchievementDataPacket(WorldPacket& packet, Player const& player)
         packet.WriteGuidBytes<7>(counter);
 
         packet << uint32(now - iter->second.date);               // Timer 1
-        packet << uint32(secsToTimeBitFields(now));
+        packet << uint32(secsToTimeBitFields(iter->second.date));
 
         packet.WriteGuidBytes<1>(guid);
     }
@@ -217,7 +217,7 @@ void BuildRespondInspectAchievementsPacket(WorldPacket& packet, Player const& in
 
         packet.WriteGuidBytes<1>(counter);
 
-        packet << uint32(secsToTimeBitFields(now));
+        packet << uint32(secsToTimeBitFields(iter->second.date));
 
         packet.WriteGuidBytes<3, 7>(guid);
         packet.WriteGuidBytes<5>(counter);

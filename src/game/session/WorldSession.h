@@ -447,10 +447,9 @@ class WorldSession final : public PlayerSession
         {
             return m_Address;
         }
-        void SetPlayer(Player* plr)
-        {
-            _player = plr;
-        }
+        /// Seats `plr` on the session. A player also becomes the character the per-character
+        /// account data is saved under; NULL keeps the last one.
+        void SetPlayer(Player* plr);
 
         /// Where SendPacket hands a packet when this session has no socket.
         /// A plain function and its context, so this header reaches nothing new. The sink is
@@ -751,7 +750,11 @@ class WorldSession final : public PlayerSession
         void LogUnexpectedOpcode(WorldPacket* packet, const char* reason);
         void LogUnprocessedTail(WorldPacket* packet);
 
-        uint32 m_GUIDLow;                                   // set logged or recently logout player (while m_playerRecentlyLogout set)
+        /// The low guid of the character the per-character account data is saved under: the player
+        /// seated on the session, or the last one seated, whose final uploads arrive after its
+        /// logout completes. 0 until a player is seated, and again from the start of each login
+        /// until its player is seated.
+        uint32 m_GUIDLow;
         Player* _player;
         std::shared_ptr<proto::SessionLinks> m_Socket;
         std::shared_ptr<SessionMailbox> m_mailbox;

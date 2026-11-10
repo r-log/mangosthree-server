@@ -50,7 +50,7 @@ void ClientHandlers::HandleUpdateAccountData(WorldSession& session, WorldPacket&
 
     DEBUG_LOG("UAD: type %u, time %u, decompressedSize %u", type, timestamp, decompressedSize);
 
-    if (type > NUM_ACCOUNT_DATA_TYPES)
+    if (type >= NUM_ACCOUNT_DATA_TYPES)
     {
         return;
     }
@@ -112,7 +112,7 @@ void ClientHandlers::HandleRequestAccountData(WorldSession& session, WorldPacket
 
     DEBUG_LOG("RAD: type %u", type);
 
-    if (type > NUM_ACCOUNT_DATA_TYPES)
+    if (type >= NUM_ACCOUNT_DATA_TYPES)
     {
         return;
     }

@@ -234,6 +234,9 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recv_data)
 
     m_playerLoading = true;
 
+    // No character's account data is saved until the character being loaded is seated.
+    m_GUIDLow = 0;
+
     ObjectGuid playerGuid;
 
     recv_data.ReadGuidMask<2, 3, 0, 6, 4, 5, 1, 7>(playerGuid);

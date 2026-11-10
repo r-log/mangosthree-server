@@ -282,7 +282,7 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
                            std::shared_ptr<SessionMailbox> mailbox,
                            AccountTypes sec, uint8 expansion, time_t mute_time,
                            LocaleConstant locale, const BigNumber& sessionKey) :
-    PlayerSession(mute_time), _player(NULL), m_Socket(std::move(links)),
+    PlayerSession(mute_time), m_GUIDLow(0), _player(NULL), m_Socket(std::move(links)),
     m_mailbox(mailbox ? std::move(mailbox) : std::make_shared<SessionMailbox>()),
     m_sessionKey(sessionKey), m_secondStreamAttempts(0),
     m_sessionId(proto::INVALID_SESSION_ID),
@@ -301,6 +301,16 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
 WorldSession* SessionOf(Player const& player)
 {
     return static_cast<WorldSession*>(player.GetSession());
+}
+
+void WorldSession::SetPlayer(Player* plr)
+{
+    _player = plr;
+
+    if (_player)
+    {
+        m_GUIDLow = _player->GetGUIDLow();
+    }
 }
 
 /// WorldSession destructor
@@ -490,6 +500,13 @@ bool WorldSession::Update(PacketFilter& updater)
         // hand a queued client a second stream and hold a redirect slot for it.
         if (packet->GetOpcode() == CMSG_PLAYER_LOGIN && !m_inQueue && !HasSecondStream())
         {
+            // A held login is a login in progress: as in HandlePlayerLoginOpcode, no character's
+            // account data is saved until its character is seated.
+            if (!_player && !m_playerLoading)
+            {
+                m_GUIDLow = 0;
+            }
+
             BeginSecondStream(std::unique_ptr<WorldPacket>(packet));
             continue;
         }
@@ -1326,7 +1343,7 @@ void WorldSession::SetAccountData(AccountDataType type, time_t time_, const std:
     }
     else
     {
-        // _player can be NULL and packet received after logout but m_GUID still store correct guid
+        // _player is NULL for the uploads that arrive after the logout; m_GUIDLow still holds that character
         if (!m_GUIDLow)
         {
             return;
