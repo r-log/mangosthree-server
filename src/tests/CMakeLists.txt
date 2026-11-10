@@ -79,6 +79,7 @@ set(SRC_GRP_TESTS
     PetitionRepositoryTest.cpp
     CharacterRepositoryTest.cpp
     AccountDataRepositoryTest.cpp
+    AccountDataSessionTest.cpp
     QuestTrackerRepositoryTest.cpp
     CharacterDeleteRepositoryTest.cpp
     CharacterSaveRepositoryTest.cpp
