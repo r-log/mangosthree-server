@@ -750,9 +750,10 @@ class WorldSession final : public PlayerSession
         void LogUnexpectedOpcode(WorldPacket* packet, const char* reason);
         void LogUnprocessedTail(WorldPacket* packet);
 
-        /// The low guid of the player seated on the session, or of the last one seated: the
-        /// client uploads its per-character account data after the logout completes. 0 until a
-        /// player is seated.
+        /// The low guid of the character the per-character account data is saved under: the player
+        /// seated on the session, or the last one seated, whose final uploads arrive after its
+        /// logout completes. 0 until a player is seated, and again from the start of each login
+        /// until its player is seated.
         uint32 m_GUIDLow;
         Player* _player;
         std::shared_ptr<proto::SessionLinks> m_Socket;

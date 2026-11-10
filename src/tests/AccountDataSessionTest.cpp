@@ -24,7 +24,8 @@
  */
 
 /// The client settings a session saves and sends back: which character a per-character block is
-/// saved under, and which block types the two account-data handlers accept.
+/// saved under, before, during and after a login, and which block types the two account-data
+/// handlers accept.
 ///
 /// The session is built in storage filled with a non-zero pattern, so a member its constructor
 /// leaves unset holds that pattern rather than a lucky zero. Players are probes seated on the
@@ -34,6 +35,7 @@
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
+#include "InstalledSessionRegistry.h"
 #include "Database/DatabaseEnv.h"
 #include "Auth/BigNumber.h"
 #include "Opcodes.h"
@@ -181,6 +183,28 @@ namespace
         packet << uint32(type);
         return packet;
     }
+
+    /// A login of the empty guid: one byte of guid mask bits, all clear, so no guid byte follows.
+    WorldPacket LoginRequest()
+    {
+        WorldPacket packet(CMSG_PLAYER_LOGIN, 1);
+        packet << uint8(0);
+        return packet;
+    }
+
+    /// The statements that write: a login's reads run on the same connection.
+    std::vector<std::string> Writes(std::vector<std::string> const& statements)
+    {
+        std::vector<std::string> out;
+        for (std::string const& statement : statements)
+        {
+            if (statement.compare(0, 6, "SELECT") != 0)
+            {
+                out.push_back(statement);
+            }
+        }
+        return out;
+    }
 }
 
 // A session no player was ever seated on saves no character's block. A seated player's blocks are
@@ -222,6 +246,32 @@ TEST(AccountDataSession_ACharactersBlockIsSavedUnderTheLastSeatedPlayer)
 
     session->SetAccountData(PER_CHARACTER_CONFIG_CACHE, 1700000005, "config");
     CheckLines(db.Take(), CharacterBlock(43, PER_CHARACTER_CONFIG_CACHE, 1700000005, "config"), __LINE__);
+}
+
+// The uploads that reach the session before the next login are saved under the character that
+// logged out. From the start of that login until its player is seated, a character's block is
+// saved under no character.
+TEST(AccountDataSession_ALoginInProgressSavesNoCharactersBlock)
+{
+    InstalledSessionRegistry sessions;
+    Db db;
+    PatternedSession session;
+
+    {
+        SeatedPlayer first(*session, 42);
+    }
+    session->SetAccountData(PER_CHARACTER_CHAT_CACHE, 1700000000, "chat");
+    CheckLines(Writes(db.Take()), CharacterBlock(42, PER_CHARACTER_CHAT_CACHE, 1700000000, "chat"), __LINE__);
+
+    WorldPacket login = LoginRequest();
+    session->HandlePlayerLoginOpcode(login);
+    REQUIRE(session->PlayerLoading());
+    session->SetAccountData(PER_CHARACTER_MACROS_CACHE, 1700000001, "macros");
+    CheckLines(Writes(db.Take()), {}, __LINE__);
+
+    // The login's reads come back with no session listed: the holder is freed.
+    CharacterDatabase.ProcessResultQueue();
+    CHECK(session->GetPlayer() == NULL);
 }
 
 // Types 0 to 7 are the client's blocks; type 8 is past the session's table. The upload and the

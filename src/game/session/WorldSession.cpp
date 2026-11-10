@@ -500,6 +500,13 @@ bool WorldSession::Update(PacketFilter& updater)
         // hand a queued client a second stream and hold a redirect slot for it.
         if (packet->GetOpcode() == CMSG_PLAYER_LOGIN && !m_inQueue && !HasSecondStream())
         {
+            // A held login is a login in progress: as in HandlePlayerLoginOpcode, no character's
+            // account data is saved until its character is seated.
+            if (!_player && !m_playerLoading)
+            {
+                m_GUIDLow = 0;
+            }
+
             BeginSecondStream(std::unique_ptr<WorldPacket>(packet));
             continue;
         }
