@@ -41,3 +41,13 @@ TrainerSpellData const* TrainerSpellStore::Find(bool templates, uint32 entry) co
     CacheTrainerSpellMap::const_iterator itr = list.find(entry);
     return itr != list.end() ? &itr->second : NULL;
 }
+
+TrainerSpell const* FindTrainerSpell(TrainerSpellData const* creatureSpells, TrainerSpellData const* templateSpells, uint32 spellId)
+{
+    TrainerSpell const* spell = creatureSpells ? creatureSpells->Find(spellId) : NULL;
+    if (!spell && templateSpells)
+    {
+        spell = templateSpells->Find(spellId);
+    }
+    return spell;
+}
