@@ -48,10 +48,24 @@
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "data/CommandHooks.h"
+#include "data/TrainerSpellStore.h"
 #include "persistence/characters/CharacterTransaction.h"
 #include "persistence/characters/pets/PetRepository.h"
 #include "session/packets/social/GuildBankPackets.h"
 #include "session/packets/spells/SpellVisualPackets.h"
+
+namespace
+{
+    /// Answers a trainer purchase: the trainer, the spell asked for and the purchase state.
+    void SendTrainerService(WorldSession& session, ObjectGuid trainer, uint32 spellId, uint32 state)
+    {
+        WorldPacket data(SMSG_TRAINER_SERVICE, 16);
+        data << trainer;
+        data << uint32(spellId);
+        data << uint32(state);
+        session.SendPacket(&data);
+    }
+}
 
 /**
  * @brief Opens the tabard vendor interface for the selected NPC.
@@ -146,8 +160,6 @@ void NpcHandlers::HandleTrainerBuySpell(WorldSession& session, WorldPacket& recv
         session.GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
     }
 
-    WorldPacket sendData(SMSG_TRAINER_SERVICE, 16);
-
     uint32 trainState = 2;
 
     // the list last sent for this trainer: a gossip option's list, or 0 for the creature's own lists
@@ -162,28 +174,14 @@ void NpcHandlers::HandleTrainerBuySpell(WorldSession& session, WorldPacket& recv
         trainState = 1;
     }
 
-    // check present spell in trainer spell list
     TrainerSpellData const* cSpells = trainerList ? NULL : unit->GetTrainerSpells();
     TrainerSpellData const* tSpells = trainerList ? sObjectMgr.GetNpcTrainerTemplateSpells(trainerList) : unit->GetTrainerTemplateSpells();
 
-    if (!cSpells && !tSpells)
-    {
-        trainState = 1;
-    }
-
-    // Try find spell in npc_trainer
-    TrainerSpell const* trainer_spell = cSpells ? cSpells->Find(spellId) : NULL;
-
-    // Not found, try find in npc_trainer_template
-    if (!trainer_spell && tSpells)
-    {
-        trainer_spell = tSpells->Find(spellId);
-    }
-
-    // Not found anywhere, cheating?
+    TrainerSpell const* trainer_spell = FindTrainerSpell(cSpells, tSpells, spellId);
     if (!trainer_spell)
     {
-        trainState = 1;
+        SendTrainerService(session, guid, spellId, 1);
+        return;
     }
 
     // can't be learn, cheat? Or double learn with lags...
@@ -210,10 +208,7 @@ void NpcHandlers::HandleTrainerBuySpell(WorldSession& session, WorldPacket& recv
 
     if (trainState != 2)
     {
-        sendData << ObjectGuid(guid);
-        sendData << uint32(spellId);
-        sendData << uint32(trainState);
-        session.SendPacket(&sendData);
+        SendTrainerService(session, guid, spellId, trainState);
     }
     else
     {
@@ -239,10 +234,7 @@ void NpcHandlers::HandleTrainerBuySpell(WorldSession& session, WorldPacket& recv
         session.GetPlayer()->learnSpell(spellId, false);
     }
 
-        sendData << ObjectGuid(guid);
-        sendData << uint32(spellId);                                // should be same as in packet from client
-        sendData << uint32(trainState);
-        session.SendPacket(&sendData);
+        SendTrainerService(session, guid, spellId, trainState);
     }
 }
 
