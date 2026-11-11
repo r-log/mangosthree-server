@@ -3812,33 +3812,62 @@ static SpellHandlerOutcome<void> EffectDummyHunterMastersCall(SpellEffectDummyHu
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// 19740: Blessing of Might; 20217: Blessing of Kings: the caster casts the buff its base points name on the unit
-/// target, or the raid-wide variant (the next id) on itself when the target is another player in its raid; the effect
-/// ends
-static SpellHandlerOutcome<void> EffectDummyPaladinBlessing(SpellEffectDummyPaladinContext& ctx)
+std::array<RaidBuffSpells, 7> const& RaidBuffTable()
+{
+    static std::array<RaidBuffSpells, 7> const table =
+    {{
+        { 21562, 79104, 79105, 14 },    // Power Word: Fortitude
+        { 27683, 79106, 79107, 52 },    // Shadow Protection
+        { 1126,  79060, 79061, 30 },    // Mark of the Wild
+        { 1459,  79057, 79058, 58 },    // Arcane Brilliance
+        { 61316, 79039, 79038, 80 },    // Dalaran Brilliance
+        { 19740, 79101, 79102, 56 },    // Blessing of Might
+        { 20217, 79062, 79063, 22 },    // Blessing of Kings
+    }};
+    return table;
+}
+
+RaidBuffSpells const* FindRaidBuff(uint32 spellId)
+{
+    for (RaidBuffSpells const& buff : RaidBuffTable())
+    {
+        if (buff.castSpellId == spellId)
+        {
+            return &buff;
+        }
+    }
+    return NULL;
+}
+
+bool CastsRaidWideBuff(Player const* caster, Player const* targetPlayer)
+{
+    return caster && targetPlayer && caster->GetGroup() && caster->IsInSameRaidWith(targetPlayer);
+}
+
+/// The raid buffs of RaidBuffTable (priest 21562 and 27683, druid 1126, mage 1459 and 61316, paladin 19740 and
+/// 20217): with a unit target, the caster casts the raid-wide aura on itself when CastsRaidWideBuff holds for the
+/// target's player, otherwise the single-target aura on the target; the effect ends
+template <class Context>
+static SpellHandlerOutcome<void> EffectDummyRaidBuff(Context& ctx)
 {
     if (!ctx.unitTarget)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    // Cata 4.3.4: dummy carries the buff spell id; id + 1 is the raid-wide variant
-    uint32 buffId = ctx.m_currentBasePoints[ctx.effect->EffectIndex];
-    if (!sSpellStore.LookupEntry(buffId))
+    RaidBuffSpells const* buff = FindRaidBuff(ctx.spell->m_spellInfo->ID);
+    if (!buff)
     {
         return SpellHandlerOutcome<void>::Return();
     }
 
-    Player* casterPlayer = ctx.m_caster->ToPlayer();
-    Player* targetPlayer = ctx.unitTarget->GetCharmerOrOwnerPlayerOrPlayerItself();
-    if (casterPlayer && targetPlayer && casterPlayer != targetPlayer &&
-        casterPlayer->IsInSameRaidWith(targetPlayer) && sSpellStore.LookupEntry(buffId + 1))
+    if (CastsRaidWideBuff(ctx.m_caster->ToPlayer(), ctx.unitTarget->GetCharmerOrOwnerPlayerOrPlayerItself()))
     {
-        ctx.m_caster->CastSpell(ctx.m_caster, buffId + 1, true);
+        ctx.m_caster->CastSpell(ctx.m_caster, buff->raidSpellId, true);
     }
     else
     {
-        ctx.m_caster->CastSpell(ctx.unitTarget, buffId, true);
+        ctx.m_caster->CastSpell(ctx.unitTarget, buff->singleSpellId, true);
     }
     return SpellHandlerOutcome<void>::Return();
 }
@@ -4167,6 +4196,8 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
         { 32826, &EffectDummyMagePolymorphCastVisual },
         { 38194, &EffectDummyMageBlink },
         { 42955, &EffectDummyMageConjureRefreshment },
+        { 1459, &EffectDummyRaidBuff<SpellEffectDummyMageContext> },
+        { 61316, &EffectDummyRaidBuff<SpellEffectDummyMageContext> },
     };
 
     static SpellEffectDummyRow<SpellEffectDummyWarriorSite> const warrior[] =
@@ -4202,10 +4233,21 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
 
     static SpellEffectDummyRow<SpellEffectDummyPaladinSite> const paladin[] =
     {
-        { 19740, &EffectDummyPaladinBlessing },
-        { 20217, &EffectDummyPaladinBlessing },
+        { 19740, &EffectDummyRaidBuff<SpellEffectDummyPaladinContext> },
+        { 20217, &EffectDummyRaidBuff<SpellEffectDummyPaladinContext> },
         { 31789, &EffectDummyPaladinRighteousDefense },
         { 37877, &EffectDummyPaladinBlessingOfFaith },
+    };
+
+    static SpellEffectDummyRow<SpellEffectDummyPriestSite> const priest[] =
+    {
+        { 21562, &EffectDummyRaidBuff<SpellEffectDummyPriestContext> },
+        { 27683, &EffectDummyRaidBuff<SpellEffectDummyPriestContext> },
+    };
+
+    static SpellEffectDummyRow<SpellEffectDummyDruidSite> const druid[] =
+    {
+        { 1126, &EffectDummyRaidBuff<SpellEffectDummyDruidContext> },
     };
 
     uint32 rows = RegisterSpellEffectDummyRows(registry, generic);
@@ -4214,5 +4256,7 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
     rows += RegisterSpellEffectDummyRows(registry, rogue);
     rows += RegisterSpellEffectDummyRows(registry, hunter);
     rows += RegisterSpellEffectDummyRows(registry, paladin);
+    rows += RegisterSpellEffectDummyRows(registry, priest);
+    rows += RegisterSpellEffectDummyRows(registry, druid);
     return rows;
 }

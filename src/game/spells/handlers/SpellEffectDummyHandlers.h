@@ -29,6 +29,10 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/pipeline/Spell.h"
 
+#include <array>
+
+class Player;
+
 /**
  * @file SpellEffectDummyHandlers.h
  * @brief The `Spell::EffectDummy` sites of the spell handler registry.
@@ -171,22 +175,19 @@ struct SpellEffectDummyHunterSite
 };
 
 /// What the bodies of `Spell::EffectDummy`'s SPELLFAMILY_PALADIN switch read and write: the spell, its caster, its unit
-/// target, its entry, its base points, its targets and the dummy effect.
+/// target, its entry and its targets.
 struct SpellEffectDummyPaladinContext
 {
     SpellEffectDummyPaladinContext(Spell* thisSpell, Unit*& casterMember, Unit*& targetMember,
-                                   SpellEntry const*& spellInfoMember, int32 (&basePointsMember)[MAX_EFFECT_INDEX],
-                                   Spell::TargetList& targetsMember, SpellEffectEntry const* const& effectParameter)
+                                   SpellEntry const*& spellInfoMember, Spell::TargetList& targetsMember)
         : spell(thisSpell), m_caster(casterMember), unitTarget(targetMember), m_spellInfo(spellInfoMember),
-          m_currentBasePoints(basePointsMember), m_UniqueTargetInfo(targetsMember), effect(effectParameter) {}
+          m_UniqueTargetInfo(targetsMember) {}
 
-    Spell* const spell;                              ///< the spell itself
-    Unit*& m_caster;                                 ///< the spell's member `Unit* m_caster;`
-    Unit*& unitTarget;                               ///< the spell's member `Unit* unitTarget;`
-    SpellEntry const*& m_spellInfo;                  ///< the spell's member `SpellEntry const* m_spellInfo;`
-    int32 (&m_currentBasePoints)[MAX_EFFECT_INDEX];  ///< the spell's member array `m_currentBasePoints`
-    Spell::TargetList& m_UniqueTargetInfo;           ///< the spell's member `TargetList m_UniqueTargetInfo;`
-    SpellEffectEntry const* const& effect;           ///< the function's parameter `SpellEffectEntry const* effect`
+    Spell* const spell;                     ///< the spell itself
+    Unit*& m_caster;                        ///< the spell's member `Unit* m_caster;`
+    Unit*& unitTarget;                      ///< the spell's member `Unit* unitTarget;`
+    SpellEntry const*& m_spellInfo;         ///< the spell's member `SpellEntry const* m_spellInfo;`
+    Spell::TargetList& m_UniqueTargetInfo;  ///< the spell's member `TargetList m_UniqueTargetInfo;`
 };
 
 /// `Spell::EffectDummy`, SPELLFAMILY_PALADIN, after the Holy Shock icon switch: its `switch (m_spellInfo->ID)`. Every
@@ -198,6 +199,68 @@ struct SpellEffectDummyPaladinSite
     typedef void Value;
     typedef SpellEffectDummyPaladinContext Context;
 };
+
+/// What the bodies of `Spell::EffectDummy`'s SPELLFAMILY_PRIEST switch read: the spell, its caster and its unit target.
+struct SpellEffectDummyPriestContext
+{
+    SpellEffectDummyPriestContext(Spell* thisSpell, Unit*& casterMember, Unit*& targetMember)
+        : spell(thisSpell), m_caster(casterMember), unitTarget(targetMember) {}
+
+    Spell* const spell;  ///< the spell itself
+    Unit*& m_caster;     ///< the spell's member `Unit* m_caster;`
+    Unit*& unitTarget;   ///< the spell's member `Unit* unitTarget;`
+};
+
+/// `Spell::EffectDummy`, SPELLFAMILY_PRIEST, after the Penance check: its `switch (m_spellInfo->ID)`. Every label ends
+/// the effect; there is no `default:`, so a miss leaves the family case for the pet aura, script and database script
+/// steps.
+struct SpellEffectDummyPriestSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_PRIEST;
+    typedef void Value;
+    typedef SpellEffectDummyPriestContext Context;
+};
+
+/// What the bodies of `Spell::EffectDummy`'s SPELLFAMILY_DRUID switch read: the spell, its caster and its unit target.
+struct SpellEffectDummyDruidContext
+{
+    SpellEffectDummyDruidContext(Spell* thisSpell, Unit*& casterMember, Unit*& targetMember)
+        : spell(thisSpell), m_caster(casterMember), unitTarget(targetMember) {}
+
+    Spell* const spell;  ///< the spell itself
+    Unit*& m_caster;     ///< the spell's member `Unit* m_caster;`
+    Unit*& unitTarget;   ///< the spell's member `Unit* unitTarget;`
+};
+
+/// `Spell::EffectDummy`, SPELLFAMILY_DRUID, after the Starfall check: its `switch (m_spellInfo->ID)`. Every label ends
+/// the effect; there is no `default:`, so a miss leaves the family case for the pet aura, script and database script
+/// steps.
+struct SpellEffectDummyDruidSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_DRUID;
+    typedef void Value;
+    typedef SpellEffectDummyDruidContext Context;
+};
+
+/// A raid buff: the spell a player casts, the single-target aura and the raid-wide aura its dummy effect casts, and
+/// the level the spell is learned at.
+struct RaidBuffSpells
+{
+    uint32 castSpellId;
+    uint32 singleSpellId;
+    uint32 raidSpellId;
+    uint32 level;
+};
+
+/// The raid buffs whose dummy effect casts their single-target or their raid-wide aura.
+std::array<RaidBuffSpells, 7> const& RaidBuffTable();
+
+/// The row of RaidBuffTable cast as `spellId`; NULL for any other spell.
+RaidBuffSpells const* FindRaidBuff(uint32 spellId);
+
+/// True when a raid buff cast by `caster` on a unit of `targetPlayer` casts the raid-wide aura: the caster is in a
+/// group, and the target's player is the caster or a member of the caster's group.
+bool CastsRaidWideBuff(Player const* caster, Player const* targetPlayer);
 
 /// Registers every `Spell::EffectDummy` handler on `registry` (defined in SpellEffectDummyHandlers.cpp).
 /// Returns the number of rows it registered; a row whose key was taken does not change the table, so a caller

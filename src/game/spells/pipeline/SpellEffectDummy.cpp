@@ -284,6 +284,12 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
 
                 return;
             }
+
+            SpellEffectDummyPriestContext ctx(this, m_caster, unitTarget);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectDummyPriestSite>(m_spellInfo->ID, ctx).IsReturn())
+            {
+                return;
+            }
             break;
         }
         case SPELLFAMILY_DRUID:
@@ -317,6 +323,12 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     return;
                 }
                 sLog.outError("Spell::EffectDummy: Unhandeled Starfall spell rank %u", m_spellInfo->ID);
+                return;
+            }
+
+            SpellEffectDummyDruidContext ctx(this, m_caster, unitTarget);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectDummyDruidSite>(m_spellInfo->ID, ctx).IsReturn())
+            {
                 return;
             }
             break;
@@ -433,8 +445,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 }
             }
 
-            SpellEffectDummyPaladinContext ctx(this, m_caster, unitTarget, m_spellInfo,
-                                               m_currentBasePoints, m_UniqueTargetInfo, effect);
+            SpellEffectDummyPaladinContext ctx(this, m_caster, unitTarget, m_spellInfo, m_UniqueTargetInfo);
             if (SpellHandlerRegistry::Game().Dispatch<SpellEffectDummyPaladinSite>(m_spellInfo->ID, ctx).IsReturn())
             {
                 return;
