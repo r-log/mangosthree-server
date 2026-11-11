@@ -618,6 +618,10 @@ class Creature : public Unit
         CreatureInfo const* m_creatureInfo;                 // in difficulty mode > 0 can different from ObjMgr::GetCreatureTemplate(GetEntry())
 };
 
+/// Whether `trainer` resets the talents of a player of class `playerClass` at level `playerLevel`:
+/// a class trainer of the player's own class, from level 10.
+bool CanResetTalents(CreatureInfo const& trainer, uint8 playerClass, uint32 playerLevel);
+
 class ForcedDespawnDelayEvent : public BasicEvent
 {
     public:
