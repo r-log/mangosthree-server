@@ -38,6 +38,7 @@
 #include "SharedDefines.h"
 #include "spells/data/SpellAuraDefines.h"
 #include "DBCStructure.h"
+#include "data/SkillLevelSpellStore.h"
 #include "data/SpellScriptTargetStore.h"
 
 #include <map>
@@ -1507,6 +1508,12 @@ class SpellMgr
             return mSpellScriptTargets.GetBounds(spellId);
         }
 
+        /// The spells a class learns with its skill line at a level.
+        SkillLevelSpellStore const& GetSkillLevelSpells() const
+        {
+            return mSkillLevelSpells;
+        }
+
         // Loading data at server startup
         void LoadSpellChains();
         void LoadSpellLearnSkills();
@@ -1522,6 +1529,7 @@ class SpellMgr
         void LoadSpellThreats();
         void LoadSkillLineAbilityMap();
         void LoadSkillRaceClassInfoMap();
+        void LoadSkillLevelSpells();
         void LoadSpellPetAuras();
         void LoadPetLevelupSpellMap();
         void LoadPetDefaultSpells();
@@ -1549,6 +1557,7 @@ class SpellMgr
         SpellAreaForAuraMap  mSpellAreaForAuraMap;
         SpellAreaForAreaMap  mSpellAreaForAreaMap;
         SpellScriptTargetStore mSpellScriptTargets;
+        SkillLevelSpellStore mSkillLevelSpells;
 };
 
 #define sSpellMgr SpellMgr::Instance()

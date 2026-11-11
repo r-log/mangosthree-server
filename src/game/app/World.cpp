@@ -350,6 +350,9 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading SkillRaceClassInfoMultiMap Data...");
     sSpellMgr.LoadSkillRaceClassInfoMap();
 
+    sLog.outString("Loading Skill Level Spells...");
+    sSpellMgr.LoadSkillLevelSpells();                       // must be after LoadSkillLineAbilityMap
+
     ///- Clean up and pack instances
     sLog.outString("Cleaning up instances...");
     sMapPersistentStateMgr.CleanupInstances();              // must be called before `creature_respawn`/`gameobject_respawn` tables

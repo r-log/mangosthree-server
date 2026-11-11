@@ -31,6 +31,7 @@
 #include "Player.h"
 #include "entities/WorldObjectNotices.h"
 #include "entities/player/spells/PlayerSpellNotices.h"
+#include "entities/player/spells/SkillLevelSpells.h"
 #include "data/Language.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
@@ -2324,6 +2325,7 @@ void Player::GiveLevel(uint32 level)
     sCharacterCache.UpdateLevel(GetObjectGuid(), uint8(level));
 
     UpdateSkillsForLevel();
+    LearnSkillLevelSpells(*this);
 
     // save base values (bonuses already included in stored stats
     for (int i = STAT_STRENGTH; i < MAX_STATS; ++i)
@@ -5465,7 +5467,8 @@ void Player::learnSpellHighRank(uint32 spellid)
 }
 
 /**
- * @brief Loads skill values from the database and initializes related rewards.
+ * @brief Loads skill values from the database and initializes related rewards, then learns the
+ * skill level spells the player's level has reached.
  *
  * @param rows The saved skill rows.
  */
@@ -5609,6 +5612,8 @@ void Player::_LoadSkills(std::vector<LoginSkillRow> const& rows)
             SetSkill(SKILL_UNARMED, base_skill, base_skill);
         }
     }
+
+    LearnSkillLevelSpells(*this);
 }
 
 uint32 Player::GetPhaseMaskForSpawn() const
