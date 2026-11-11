@@ -286,6 +286,7 @@ set(SRC_GRP_TESTS
     ItemPrototypeLookupTest.cpp
     VendorItemStoreTest.cpp
     TrainerSpellStoreTest.cpp
+    TrainerTalentResetTest.cpp
     MangosStringStoreTest.cpp
     CreatureClassLevelStatsStoreTest.cpp
     QuestPOIStoreTest.cpp

@@ -1282,9 +1282,15 @@ bool Creature::CanInteractWithBattleMaster(Player* pPlayer, bool msg) const
  */
 bool Creature::CanTrainAndResetTalentsOf(Player* pPlayer) const
 {
-    return pPlayer->getLevel() >= 10
-           && GetCreatureInfo()->TrainerType == TRAINER_TYPE_CLASS
-           && pPlayer->getClass() == GetCreatureInfo()->TrainerType;
+    return CanResetTalents(*GetCreatureInfo(), pPlayer->getClass(), pPlayer->getLevel());
+}
+
+bool CanResetTalents(CreatureInfo const& trainer, uint8 playerClass, uint32 playerLevel)
+{
+    static uint32 const TALENT_RESET_MIN_LEVEL = 10;
+    return playerLevel >= TALENT_RESET_MIN_LEVEL
+           && trainer.TrainerType == TRAINER_TYPE_CLASS
+           && playerClass == trainer.TrainerClass;
 }
 
 /**
