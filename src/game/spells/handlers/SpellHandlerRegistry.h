@@ -232,7 +232,11 @@ enum SpellHandlerSite
     /// `Spell::SetTargetMap`, TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER: its `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER = 82,
     /// `Spell::EffectQuestComplete`'s `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_EFFECT_QUEST_COMPLETE = 83
+    SPELL_HANDLER_SITE_SPELL_EFFECT_QUEST_COMPLETE = 83,
+    /// `Spell::EffectDummy`, SPELLFAMILY_PRIEST: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_PRIEST = 84,
+    /// `Spell::EffectDummy`, SPELLFAMILY_DRUID: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_DRUID = 85
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

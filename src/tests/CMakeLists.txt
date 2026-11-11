@@ -158,6 +158,7 @@ set(SRC_GRP_TESTS
     SpellHitResultTest.cpp
     AuraContainerTest.cpp
     SpellHandlerRegistryTest.cpp
+    RaidBuffTest.cpp
     SpellTargetDistanceOrderTest.cpp
     SpellTargetListTypeTest.cpp
     SpellTablesTest.cpp
