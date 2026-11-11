@@ -54,4 +54,8 @@ class TrainerSpellStore
         CacheTrainerSpellMap m_trainers;
 };
 
+/// The trainer spell `spellId` from the creature's own list, else from the template list; null when
+/// neither list holds it. Either list may be null.
+TrainerSpell const* FindTrainerSpell(TrainerSpellData const* creatureSpells, TrainerSpellData const* templateSpells, uint32 spellId);
+
 #endif

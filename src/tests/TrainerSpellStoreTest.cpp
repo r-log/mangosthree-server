@@ -25,6 +25,8 @@
 
 /// The trainer spell lists, filled and looked up with no database: a key with no list, a list filled
 /// in place, the template lists kept apart from the creature lists, and each side cleared on its own.
+/// A purchase's spell is looked up in the creature's own list, then its template list, and a spell
+/// neither list holds, or a trainer with no lists, finds nothing.
 
 #include "TestHarness.h"
 #include "data/TrainerSpellStore.h"
@@ -66,4 +68,52 @@ TEST(TrainerSpellStore_EachSideClearsOnItsOwn)
 
     store.Clear(false);
     CHECK(store.Find(false, 3153) == NULL);
+}
+
+TEST(TrainerSpellStore_FindTrainerSpellMissesASpellNeitherListHolds)
+{
+    TrainerSpellData creature;
+    creature.spellList[100] = TrainerSpell(100, 10, 0, 0, 4, 100, true);
+    TrainerSpellData templ;
+    templ.spellList[6673] = TrainerSpell(6673, 10, 0, 0, 1, 6673, true);
+
+    CHECK(FindTrainerSpell(&creature, &templ, 133) == NULL);
+    CHECK(FindTrainerSpell(&creature, NULL, 6673) == NULL);
+    CHECK(FindTrainerSpell(NULL, &templ, 100) == NULL);
+}
+
+TEST(TrainerSpellStore_FindTrainerSpellFindsASpellInEitherList)
+{
+    TrainerSpellData creature;
+    creature.spellList[100] = TrainerSpell(100, 10, 0, 0, 4, 100, true);
+    TrainerSpellData templ;
+    templ.spellList[6673] = TrainerSpell(6673, 20, 0, 0, 1, 6673, true);
+
+    TrainerSpell const* own = FindTrainerSpell(&creature, &templ, 100);
+    REQUIRE(own != NULL);
+    CHECK(own == creature.Find(100));
+    CHECK_EQ(own->reqLevel, uint32(4));
+
+    TrainerSpell const* fromTemplate = FindTrainerSpell(&creature, &templ, 6673);
+    REQUIRE(fromTemplate != NULL);
+    CHECK(fromTemplate == templ.Find(6673));
+    CHECK_EQ(fromTemplate->spellCost, uint32(20));
+
+    CHECK(FindTrainerSpell(&creature, NULL, 100) == creature.Find(100));
+    CHECK(FindTrainerSpell(NULL, &templ, 6673) == templ.Find(6673));
+}
+
+TEST(TrainerSpellStore_FindTrainerSpellTakesTheCreatureListFirst)
+{
+    TrainerSpellData creature;
+    creature.spellList[100] = TrainerSpell(100, 10, 0, 0, 4, 100, true);
+    TrainerSpellData templ;
+    templ.spellList[100] = TrainerSpell(100, 30, 0, 0, 8, 100, true);
+
+    CHECK(FindTrainerSpell(&creature, &templ, 100) == creature.Find(100));
+}
+
+TEST(TrainerSpellStore_FindTrainerSpellWithNoListsFindsNothing)
+{
+    CHECK(FindTrainerSpell(NULL, NULL, 100) == NULL);
 }
