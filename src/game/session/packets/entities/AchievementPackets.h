@@ -41,9 +41,11 @@ void BuildCriteriaUpdatePacket(WorldPacket& packet, Player const& player, uint32
 void BuildAchievementDeletedPacket(WorldPacket& packet, uint32 achievementId);
 /// Initializes `packet` as the loss of the criteria `criteriaId`'s progress.
 void BuildCriteriaDeletedPacket(WorldPacket& packet, uint32 criteriaId);
-/// Initializes `packet` as every criteria's progress and every achievement `player` completed.
+/// Initializes `packet` as every criteria's progress, oldest change first, and every achievement `player`
+/// completed.
 void BuildAllAchievementDataPacket(WorldPacket& packet, Player const& player);
-/// Initializes `packet` as `inspected`'s achievements and criteria progress for an inspecting player.
+/// Initializes `packet` as `inspected`'s achievements and criteria progress, oldest change first, for an
+/// inspecting player.
 void BuildRespondInspectAchievementsPacket(WorldPacket& packet, Player const& inspected);
 /// Initializes `packet` as the realm's first of the achievement `achievementId`, earned by `name`
 /// (`guid`).

@@ -73,9 +73,9 @@ namespace AchievementRepository
     /// Deletes a character's completed achievement.
     void DeleteCompleted(uint32 guid, uint32 achievement);
 
-    /// Each writes a character's progress in one criteria.
+    /// Each writes a character's progress in one criteria: `date` is its last change, `started` when it began.
     void DeleteProgress(uint32 guid, uint32 criteria);
-    void InsertProgress(uint32 guid, uint32 criteria, uint32 counter, uint64 date);
+    void InsertProgress(uint32 guid, uint32 criteria, uint32 counter, uint64 date, uint64 started);
 
 }
 

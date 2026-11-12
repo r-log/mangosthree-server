@@ -23,17 +23,22 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The dates a player's criteria progress is sent with. The login list of every criteria and the
-/// answer to an inspection carry each criteria's own date, the one its progress was loaded with; a
-/// single criteria's update carries the time it is sent, since it is sent as the criteria changes.
+/// The dates a player's criteria progress keeps and is sent with. Each criteria keeps the time of its
+/// last change and the time its progress began: a change moves the first and never the second, which
+/// a timed criteria's clock counts from. The login list of every criteria and the answer to an
+/// inspection carry each criteria's last change, oldest first, with timers counting from its start; a
+/// single criteria's update carries the time it is sent, since it is sent as the criteria changes. A
+/// save writes both times.
 ///
-/// An achievement and two kill-creature criteria of it are seeded into the stores for each case and
-/// removed after it; the criteria's progress is loaded into a player probe seated on a socketless session (no map, no
-/// world). Each packet is read back field by field in the order its builder writes it, which is the
-/// order the 4.3.4 client reads it in.
+/// An achievement and kill-creature criteria of it, one of them timed, are seeded into the stores for
+/// each case and removed after it; the criteria's progress is loaded into a player probe seated on a
+/// socketless session (no map, no world). Each packet is read back field by field in the order its
+/// builder writes it, which is the order the 4.3.4 client reads it in.
 
 #include "TestHarness.h"
+#include "FakeDatabase.h"
 #include "Auth/BigNumber.h"
+#include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
 #include "ObjectGuid.h"
 #include "Player.h"
@@ -52,59 +57,84 @@ namespace
     const uint32 kAchievement = 9000;
     const uint32 kCriteriaA = 9001;
     const uint32 kCriteriaB = 9002;
+    const uint32 kCriteriaC = 9003;
+    const uint32 kCriteriaD = 9004;
+    const uint32 kTimed = 9005;
+    const uint32 kTimeLimit = 3600;
     const uint32 kCounterA = 3;
     const uint32 kCounterB = 7;
     const time_t kDateA = 1300000000;                       // 2011-03-13
     const time_t kDateB = 1325000000;                       // 2011-12-27
+    const time_t kStartA = 1290000000;                      // 2010-11-17
+    const time_t kStartB = 1295000000;                      // 2011-01-14
 
     AchievementEntry s_achievement;
-    AchievementCriteriaEntry s_criteriaA;
-    AchievementCriteriaEntry s_criteriaB;
+    AchievementCriteriaEntry s_criteria[5];
 
-    /// The achievement and its two criteria in the stores for the scope.
+    /// The achievement and its criteria in the stores for the scope; `kTimed` has a time limit.
     struct SeededCriteria
     {
         SeededCriteria()
         {
             s_achievement.ID = kAchievement;
             sAchievementStore.SetEntry(kAchievement, &s_achievement);
-            Seed(s_criteriaA, kCriteriaA);
-            Seed(s_criteriaB, kCriteriaB);
+            uint32 const ids[5] = { kCriteriaA, kCriteriaB, kCriteriaC, kCriteriaD, kTimed };
+            for (uint32 i = 0; i < 5; ++i)
+            {
+                Seed(s_criteria[i], ids[i], ids[i] == kTimed ? kTimeLimit : 0);
+            }
         }
 
         ~SeededCriteria()
         {
-            sAchievementCriteriaStore.SetEntry(kCriteriaA, NULL);
-            sAchievementCriteriaStore.SetEntry(kCriteriaB, NULL);
+            for (AchievementCriteriaEntry const& entry : s_criteria)
+            {
+                sAchievementCriteriaStore.SetEntry(entry.ID, NULL);
+            }
             sAchievementStore.SetEntry(kAchievement, NULL);
         }
 
-        static void Seed(AchievementCriteriaEntry& entry, uint32 id)
+        static void Seed(AchievementCriteriaEntry& entry, uint32 id, uint32 timeLimit)
         {
             entry.ID = id;
             entry.referredAchievement = kAchievement;
             entry.requiredType = ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE;
             entry.kill_creature.creatureCount = 10;
+            entry.timeLimit = timeLimit;
             sAchievementCriteriaStore.SetEntry(id, &entry);
         }
     };
 
-    /// A player with the two criteria's progress loaded, seated on `session` while it lives.
+    AchievementCriteriaEntry const* Criteria(uint32 id)
+    {
+        return sAchievementCriteriaStore.LookupEntry(id);
+    }
+
+    LoginCriteriaProgressRow Row(uint32 criteria, uint32 counter, time_t date, time_t started)
+    {
+        LoginCriteriaProgressRow row;
+        row.criteria = criteria;
+        row.counter = counter;
+        row.date = uint64(date);
+        row.started = uint64(started);
+        return row;
+    }
+
+    /// The progress of criteria A and B, each changed after it began.
+    std::vector<LoginCriteriaProgressRow> BothCriteria()
+    {
+        return { Row(kCriteriaA, kCounterA, kDateA, kStartA), Row(kCriteriaB, kCounterB, kDateB, kStartB) };
+    }
+
+    /// A player with `rows` loaded, seated on `session` while it lives.
     class ProgressPlayer : public Player
     {
         public:
-            explicit ProgressPlayer(WorldSession& session) : Player(&session)
+            ProgressPlayer(WorldSession& session, std::vector<LoginCriteriaProgressRow> const& rows = BothCriteria())
+                : Player(&session)
             {
                 Object::_Create(1, 0, HIGHGUID_PLAYER);
                 session.SetPlayer(this);
-
-                std::vector<LoginCriteriaProgressRow> rows(2);
-                rows[0].criteria = kCriteriaA;
-                rows[0].counter = kCounterA;
-                rows[0].date = uint64(kDateA);
-                rows[1].criteria = kCriteriaB;
-                rows[1].counter = kCounterB;
-                rows[1].date = uint64(kDateB);
                 GetAchievementMgr().LoadFromDB(std::vector<LoginAchievementRow>(), rows);
             }
 
@@ -237,8 +267,15 @@ namespace
         return out;
     }
 
-    /// Each of the two criteria once, with its own counter and date, and timers that count from its
-    /// date to a moment between `before` and `after`.
+    /// Both timers of `c` count from `started` to a moment between `before` and `after`.
+    void CheckTimers(WireCriteria const& c, time_t started, time_t before, time_t after)
+    {
+        CHECK(c.timer1 >= uint32(before - started) && c.timer1 <= uint32(after - started));
+        CHECK_EQ(c.timer2, c.timer1);
+    }
+
+    /// Each of criteria A and B once, with its own counter and last change, and timers that count from
+    /// its start to a moment between `before` and `after`.
     void CheckBothCriteria(std::vector<WireCriteria> const& got, time_t before, time_t after, int line)
     {
         if (got.size() != 2)
@@ -256,17 +293,51 @@ namespace
                 continue;
             }
 
-            time_t const date = isA ? kDateA : kDateB;
             CHECK_EQ(c.counter, uint64(isA ? kCounterA : kCounterB));
-            CHECK_EQ(c.date, secsToTimeBitFields(date));
-            CHECK(c.timer1 >= uint32(before - date) && c.timer1 <= uint32(after - date));
-            CHECK_EQ(c.timer2, c.timer1);
+            CHECK_EQ(c.date, secsToTimeBitFields(isA ? kDateA : kDateB));
+            CheckTimers(c, isA ? kStartA : kStartB, before, after);
         }
         CHECK(got[0].id != got[1].id);
     }
+
+    bool EndsWith(std::string const& text, std::string const& tail)
+    {
+        return text.size() >= tail.size() && text.compare(text.size() - tail.size(), tail.size(), tail) == 0;
+    }
+
+    std::vector<uint32> Ids(std::vector<WireCriteria> const& got)
+    {
+        std::vector<uint32> ids;
+        for (WireCriteria const& c : got)
+        {
+            ids.push_back(c.id);
+        }
+        return ids;
+    }
+
+    /// The fakes on the character database, asynchronous writes on.
+    struct CharacterDb
+    {
+        FakeConnection query;
+        FakeConnection async;
+        SqlResultQueue results;
+        AttachedFakes attached;
+
+        CharacterDb() : query(CharacterDatabase), async(CharacterDatabase),
+            attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true)
+        {
+        }
+
+        std::vector<std::string> RunQueued()
+        {
+            CharacterDatabase.ExecuteQueuedForTest();
+            return async.executed;
+        }
+    };
 }
 
-// The login list sends each criteria with its own date, not the time of the login.
+// The login list sends each criteria with its last change, not the time of the login, and timers from
+// its start.
 TEST(AchievementDates_TheLoginListSendsEachCriteriasOwnDate)
 {
     SeededCriteria seeded;
@@ -282,7 +353,8 @@ TEST(AchievementDates_TheLoginListSendsEachCriteriasOwnDate)
     CheckBothCriteria(ReadAllData(packet), before, after, __LINE__);
 }
 
-// An inspection answer sends each criteria with its own date, not the time of the inspection.
+// An inspection answer sends each criteria with its last change, not the time of the inspection, and
+// timers from its start.
 TEST(AchievementDates_TheInspectionAnswerSendsEachCriteriasOwnDate)
 {
     SeededCriteria seeded;
@@ -299,7 +371,7 @@ TEST(AchievementDates_TheInspectionAnswerSendsEachCriteriasOwnDate)
 }
 
 // A criteria's update is sent as the criteria changes, so it carries the time it is sent; its timers
-// still count from the criteria's own date.
+// count from the criteria's start.
 TEST(AchievementDates_AnUpdateSendsTheTimeItIsSent)
 {
     SeededCriteria seeded;
@@ -320,9 +392,125 @@ TEST(AchievementDates_AnUpdateSendsTheTimeItIsSent)
     CHECK_EQ(p.read<uint32>(), 0u);
     uint32 const date = p.read<uint32>();
     CHECK(date == secsToTimeBitFields(before) || date == secsToTimeBitFields(after));
-    uint32 const timer1 = p.read<uint32>();
-    uint32 const timer2 = p.read<uint32>();
-    CHECK(timer1 >= uint32(before - kDateA) && timer1 <= uint32(after - kDateA));
-    CHECK_EQ(timer2, timer1);
+    WireCriteria c;
+    c.timer1 = p.read<uint32>();
+    c.timer2 = p.read<uint32>();
+    CheckTimers(c, kStartA, before, after);
     CHECK_EQ(p.rpos(), p.size());
+}
+
+// A second change moves the criteria's date to the time of the change; its start stays, and the login
+// list then sends the new date with timers still counting from the start.
+TEST(AchievementDates_ASecondChangeMovesTheDate)
+{
+    SeededCriteria seeded;
+    WorldSession session(1, "client", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    ProgressPlayer player(session);
+
+    time_t const before = time(NULL);
+    player.GetAchievementMgr().SetCriteriaProgress(Criteria(kCriteriaA), &s_achievement, 1, AchievementMgr::PROGRESS_ACCUMULATE);
+    time_t const changed = time(NULL);
+
+    CriteriaProgress const& progress = player.GetAchievementMgr().GetCriteriaProgress().find(kCriteriaA)->second;
+    CHECK_EQ(progress.counter, kCounterA + 1);
+    CHECK(progress.date >= before && progress.date <= changed);
+    CHECK_EQ(progress.started, kStartA);
+
+    WorldPacket packet;
+    BuildAllAchievementDataPacket(packet, player);
+    time_t const after = time(NULL);
+    for (WireCriteria const& c : ReadAllData(packet))
+    {
+        if (c.id == kCriteriaA)
+        {
+            CHECK_EQ(c.date, secsToTimeBitFields(progress.date));
+            CheckTimers(c, kStartA, before, after);
+        }
+    }
+}
+
+// A change of a running timed criteria moves its date but not its start, so its clock keeps counting
+// from the start.
+TEST(AchievementDates_TheTimedStartDoesNotMove)
+{
+    SeededCriteria seeded;
+    WorldSession session(1, "client", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    time_t const started = time(NULL) - 60;
+    ProgressPlayer player(session, { Row(kTimed, 1, started + 30, started) });
+
+    time_t const before = time(NULL);
+    player.GetAchievementMgr().SetCriteriaProgress(Criteria(kTimed), &s_achievement, 1, AchievementMgr::PROGRESS_ACCUMULATE);
+
+    CriteriaProgress const& progress = player.GetAchievementMgr().GetCriteriaProgress().find(kTimed)->second;
+    CHECK_EQ(progress.counter, 2u);
+    CHECK(!progress.timedCriteriaFailed);
+    CHECK(progress.date >= before);
+    CHECK_EQ(progress.started, started);
+
+    WorldPacket built;
+    BuildCriteriaUpdatePacket(built, player, kTimed, progress);
+    time_t const after = time(NULL);
+    WorldPacket p = Readable(built);
+    p.read<uint32>();
+    p.readPackGUID();
+    p.readPackGUID();
+    p.read<uint32>();
+    p.read<uint32>();
+    WireCriteria c;
+    c.timer1 = p.read<uint32>();
+    c.timer2 = p.read<uint32>();
+    CheckTimers(c, started, before, after);
+}
+
+// The login list and the inspection answer send the criteria oldest change first, whatever order
+// they were loaded or are kept in.
+TEST(AchievementDates_TheLoginListIsOldestChangeFirst)
+{
+    SeededCriteria seeded;
+    WorldSession session(1, "client", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    ProgressPlayer player(session, {
+        Row(kCriteriaA, 1, 1320000000, kStartA),
+        Row(kCriteriaB, 1, 1300000000, kStartA),
+        Row(kCriteriaC, 1, 1330000000, kStartA),
+        Row(kCriteriaD, 1, 1310000000, kStartA),
+    });
+    std::vector<uint32> const oldestFirst = { kCriteriaB, kCriteriaD, kCriteriaA, kCriteriaC };
+
+    WorldPacket all;
+    BuildAllAchievementDataPacket(all, player);
+    CHECK(Ids(ReadAllData(all)) == oldestFirst);
+
+    WorldPacket inspect;
+    BuildRespondInspectAchievementsPacket(inspect, player);
+    CHECK(Ids(ReadInspect(inspect)) == oldestFirst);
+}
+
+// A row saved without a start loads as begun at its date.
+TEST(AchievementDates_ARowWithoutAStartBeganAtItsDate)
+{
+    SeededCriteria seeded;
+    WorldSession session(1, "client", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    ProgressPlayer player(session, { Row(kCriteriaA, kCounterA, kDateA, 0) });
+
+    CriteriaProgress const& progress = player.GetAchievementMgr().GetCriteriaProgress().find(kCriteriaA)->second;
+    CHECK_EQ(progress.date, kDateA);
+    CHECK_EQ(progress.started, kDateA);
+}
+
+// A save writes a changed criteria with its last change and its start.
+TEST(AchievementDates_ASaveWritesTheDateAndTheStart)
+{
+    SeededCriteria seeded;
+    CharacterDb db;
+    WorldSession session(1, "client", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    ProgressPlayer player(session);
+    player.GetAchievementMgr().SetCriteriaProgress(Criteria(kCriteriaA), &s_achievement, 1, AchievementMgr::PROGRESS_ACCUMULATE);
+    time_t const date = player.GetAchievementMgr().GetCriteriaProgress().find(kCriteriaA)->second.date;
+
+    player.GetAchievementMgr().SaveToDB();
+    std::vector<std::string> const lines = db.RunQueued();
+    REQUIRE(lines.size() == size_t(2));
+    CHECK(EndsWith(lines[0], "WHERE `guid` = '1' AND `criteria` = '9001'"));
+    CHECK(EndsWith(lines[1], "(`guid`, `criteria`, `counter`, `date`, `started`) VALUES ('1', '9001', '4', '"
+                             + std::to_string(date) + "', '" + std::to_string(kStartA) + "')"));
 }

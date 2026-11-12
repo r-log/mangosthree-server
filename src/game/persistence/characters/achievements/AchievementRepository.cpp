@@ -115,10 +115,15 @@ namespace AchievementRepository
         stmt.PExecute(guid, criteria);
     }
 
-    void InsertProgress(uint32 guid, uint32 criteria, uint32 counter, uint64 date)
+    void InsertProgress(uint32 guid, uint32 criteria, uint32 counter, uint64 date, uint64 started)
     {
         static SqlStatementID insProgress ;
-        SqlStatement stmt = CharacterDatabase.CreateStatement(insProgress, "INSERT INTO `character_achievement_progress` (`guid`, `criteria`, `counter`, `date`) VALUES (?, ?, ?, ?)");
-        stmt.PExecute(guid, criteria, counter, date);
+        SqlStatement stmt = CharacterDatabase.CreateStatement(insProgress, "INSERT INTO `character_achievement_progress` (`guid`, `criteria`, `counter`, `date`, `started`) VALUES (?, ?, ?, ?, ?)");
+        stmt.addUInt32(guid);
+        stmt.addUInt32(criteria);
+        stmt.addUInt32(counter);
+        stmt.addUInt64(date);
+        stmt.addUInt64(started);
+        stmt.Execute();
     }
 }

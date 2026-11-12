@@ -415,12 +415,13 @@ struct LoginAchievementRow
     uint64 date = 0;
 };
 
-/// One criteria's progress of the login: its counter and date.
+/// One criteria's progress of the login: its counter, its last change and its start.
 struct LoginCriteriaProgressRow
 {
     uint32 criteria = 0;
     uint32 counter = 0;
     uint64 date = 0;
+    uint64 started = 0;
 };
 
 /// One `character_pet` row of the login.

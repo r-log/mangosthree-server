@@ -111,7 +111,8 @@ TEST(AchievementRepository_StartupReads)
                                        " FROM `locales_achievement_reward`");
 }
 
-// The writes, the delete of a character's rows as one transaction.
+// The writes, the delete of a character's rows as one transaction; a criteria's progress is written with
+// its last change and its start.
 TEST(AchievementRepository_Writes)
 {
     Db db(CharacterDatabase);
@@ -121,7 +122,7 @@ TEST(AchievementRepository_Writes)
         AchievementRepository::ReplaceCompleted(42, 6, 1700000000);
         AchievementRepository::DeleteCompleted(42, 7);
         AchievementRepository::DeleteProgress(42, 100);
-        AchievementRepository::InsertProgress(42, 100, 3, 1700000001);
+        AchievementRepository::InsertProgress(42, 100, 3, 1700000001, 1600000002);
         CHECK_EQ(TickGuard::Violations(), 0u);
         CHECK_EQ(db.query.executed.size(), size_t(0));
         CHECK_EQ(CharacterDatabase.GetDelayQueueDepth(), size_t(6));
@@ -133,7 +134,7 @@ TEST(AchievementRepository_Writes)
         "INSERT INTO `character_achievement` (`guid`, `achievement`, `date`) VALUES ('42', '6', '1700000000')",
         "DELETE FROM `character_achievement` WHERE `guid` = 42 AND `achievement` = 7",
         "DELETE FROM `character_achievement_progress` WHERE `guid` = '42' AND `criteria` = '100'",
-        "INSERT INTO `character_achievement_progress` (`guid`, `criteria`, `counter`, `date`) VALUES ('42', '100', '3', '1700000001')",
+        "INSERT INTO `character_achievement_progress` (`guid`, `criteria`, `counter`, `date`, `started`) VALUES ('42', '100', '3', '1700000001', '1600000002')",
     }, __LINE__);
 }
 

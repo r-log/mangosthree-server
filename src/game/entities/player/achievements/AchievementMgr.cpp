@@ -240,7 +240,7 @@ void AchievementMgr::SaveToDB()
 
             if (needSave)
             {
-                AchievementRepository::InsertProgress(GetPlayer()->GetGUIDLow(), iter->first, iter->second.counter, uint64(iter->second.date));
+                AchievementRepository::InsertProgress(GetPlayer()->GetGUIDLow(), iter->first, iter->second.counter, uint64(iter->second.date), uint64(iter->second.started));
             }
         }
     }
@@ -288,6 +288,7 @@ void AchievementMgr::LoadFromDB(std::vector<LoginAchievementRow> const& achievem
             CriteriaProgress& progress = m_criteriaProgress[id];
             progress.counter = counter;
             progress.date    = date;
+            progress.started = row.started ? time_t(row.started) : date;    // a row saved without a start began at its date
             progress.changed = false;
             progress.timedCriteriaFailed = false;
 
@@ -300,7 +301,7 @@ void AchievementMgr::LoadFromDB(std::vector<LoginAchievementRow> const& achievem
                 // Add not-completed achievements to time map
                 if (!IsCompletedCriteria(criteria, achievement))
                 {
-                    time_t failTime = time_t(progress.date + criteria->timeLimit);
+                    time_t failTime = time_t(progress.started + criteria->timeLimit);
                     m_criteriaFailTimes[criteria->ID] = failTime;
                     // A failed Achievement - will be removed by DoFailedTimedAchievementCriterias on next tick for player
                     if (failTime <= time(NULL))
@@ -460,11 +461,13 @@ void AchievementMgr::StartTimedAchievementCriteria(AchievementCriteriaTypes type
         progress->counter = 0;
 
         // Start with given startTime or now
-        progress->date = startTime ? startTime : time(NULL);
+        time_t const now = time(NULL);
+        progress->started = startTime ? startTime : now;
+        progress->date = now;
         progress->timedCriteriaFailed = false;
 
         // Add to timer map
-        m_criteriaFailTimes[achievementCriteria->ID] = time_t(progress->date + achievementCriteria->timeLimit);
+        m_criteriaFailTimes[achievementCriteria->ID] = time_t(progress->started + achievementCriteria->timeLimit);
 
         SendCriteriaUpdate(achievementCriteria->ID, progress);
     }
@@ -1999,13 +2002,14 @@ void AchievementMgr::SetCriteriaProgress(AchievementCriteriaEntry const* criteri
 
         progress = &m_criteriaProgress[criteria->ID];
 
-        progress->date = time(NULL);
+        progress->started = time(NULL);
+        progress->date = progress->started;
         progress->timedCriteriaFailed = false;
 
         // timed criterias are added to fail-timer map, and send the starting with counter=0
         if (criteria->timeLimit)
         {
-            m_criteriaFailTimes[criteria->ID] = time_t(progress->date + criteria->timeLimit);
+            m_criteriaFailTimes[criteria->ID] = time_t(progress->started + criteria->timeLimit);
             progress->counter = 0;
             SendCriteriaUpdate(criteria->ID, progress);
         }
@@ -2041,6 +2045,7 @@ void AchievementMgr::SetCriteriaProgress(AchievementCriteriaEntry const* criteri
     }
 
     progress->counter = newValue;
+    progress->date = time(NULL);
     progress->changed = true;
 
     // update client side value

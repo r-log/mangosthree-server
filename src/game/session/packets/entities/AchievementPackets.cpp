@@ -34,8 +34,11 @@
 #include "session/packets/chat/LocalizedPackets.h"
 #include "session/packets/chat/MessageChatPacket.h"
 
+#include <algorithm>
 #include <cstring>
 #include <ctime>
+#include <utility>
+#include <vector>
 
 namespace MaNGOS
 {
@@ -60,6 +63,25 @@ namespace MaNGOS
     };
 }                                                           // namespace MaNGOS
 
+typedef std::pair<uint32, CriteriaProgress const*> CriteriaEntry;
+
+/// A player's criteria progress, oldest change first; criteria changed in the same second by id.
+static std::vector<CriteriaEntry> CriteriaOldestFirst(AchievementMgr const& achievements)
+{
+    std::vector<CriteriaEntry> criteria;
+    criteria.reserve(achievements.GetCriteriaProgress().size());
+    for (CriteriaProgressMap::value_type const& progress : achievements.GetCriteriaProgress())
+    {
+        criteria.push_back(CriteriaEntry(progress.first, &progress.second));
+    }
+
+    std::sort(criteria.begin(), criteria.end(), [](CriteriaEntry const& a, CriteriaEntry const& b)
+    {
+        return a.second->date != b.second->date ? a.second->date < b.second->date : a.first < b.first;
+    });
+    return criteria;
+}
+
 void BuildAchievementEarnedPacket(WorldPacket& packet, Player const& earner, uint32 achievementId)
 {
     packet.Initialize(SMSG_ACHIEVEMENT_EARNED, 8 + 4 + 8);
@@ -81,8 +103,8 @@ void BuildCriteriaUpdatePacket(WorldPacket& packet, Player const& player, uint32
     packet << player.GetObjectGuid().WriteAsPacked();
     packet << uint32(progress.timedCriteriaFailed ? 1 : 0);
     packet << uint32(secsToTimeBitFields(now));               // sent as the criteria changes: its date is now
-    packet << uint32(now - progress.date);                   // timer 1
-    packet << uint32(now - progress.date);                   // timer 2
+    packet << uint32(now - progress.started);                // timer 1
+    packet << uint32(now - progress.started);                // timer 2
 }
 
 void BuildAchievementDeletedPacket(WorldPacket& packet, uint32 achievementId)
@@ -104,12 +126,13 @@ void BuildAllAchievementDataPacket(WorldPacket& packet, Player const& player)
     packet.Initialize(SMSG_ALL_ACHIEVEMENT_DATA, 4 * 2 + achievements.GetCompletedAchievements().size() * 4 * 2 + achievements.GetCompletedAchievements().size() * 7 * 4);
 
     ObjectGuid guid = player.GetObjectGuid();
+    std::vector<CriteriaEntry> const criteria = CriteriaOldestFirst(achievements);
 
-    packet.WriteBits(achievements.GetCriteriaProgress().size(), 21);
+    packet.WriteBits(criteria.size(), 21);
 
-    for (CriteriaProgressMap::const_iterator iter = achievements.GetCriteriaProgress().begin(); iter!=achievements.GetCriteriaProgress().end(); ++iter)
+    for (CriteriaEntry const& entry : criteria)
     {
-        ObjectGuid counter = ObjectGuid(uint64(iter->second.counter));
+        ObjectGuid counter = ObjectGuid(uint64(entry.second->counter));
 
         packet.WriteGuidMask<4>(guid);
         packet.WriteGuidMask<3>(counter);
@@ -132,28 +155,28 @@ void BuildAllAchievementDataPacket(WorldPacket& packet, Player const& player)
     packet.WriteBits(achievements.GetCompletedAchievements().size(), 23);
 
     time_t now = time(NULL);
-    for (CriteriaProgressMap::const_iterator iter = achievements.GetCriteriaProgress().begin(); iter != achievements.GetCriteriaProgress().end(); ++iter)
+    for (CriteriaEntry const& entry : criteria)
     {
-        ObjectGuid counter = ObjectGuid(uint64(iter->second.counter));
+        ObjectGuid counter = ObjectGuid(uint64(entry.second->counter));
 
         packet.WriteGuidBytes<3>(guid);
         packet.WriteGuidBytes<5, 6>(counter);
         packet.WriteGuidBytes<4, 6>(guid);
         packet.WriteGuidBytes<2>(counter);
 
-        packet << uint32(now - iter->second.date);               // Timer 2
+        packet << uint32(now - entry.second->started);           // Timer 2
 
         packet.WriteGuidBytes<2>(guid);
 
-        packet << uint32(iter->first);
+        packet << uint32(entry.first);
 
         packet.WriteGuidBytes<5>(guid);
         packet.WriteGuidBytes<0, 3, 1, 4>(counter);
         packet.WriteGuidBytes<0, 7>(guid);
         packet.WriteGuidBytes<7>(counter);
 
-        packet << uint32(now - iter->second.date);               // Timer 1
-        packet << uint32(secsToTimeBitFields(iter->second.date));
+        packet << uint32(now - entry.second->started);           // Timer 1
+        packet << uint32(secsToTimeBitFields(entry.second->date));
 
         packet.WriteGuidBytes<1>(guid);
     }
@@ -173,6 +196,7 @@ void BuildRespondInspectAchievementsPacket(WorldPacket& packet, Player const& in
 
     ObjectGuid targetGuid = inspected.GetObjectGuid();
     ObjectGuid guid = inspected.GetObjectGuid();
+    std::vector<CriteriaEntry> const criteria = CriteriaOldestFirst(achievements);
 
     packet.WriteGuidMask<7, 4, 1>(targetGuid);
 
@@ -180,13 +204,13 @@ void BuildRespondInspectAchievementsPacket(WorldPacket& packet, Player const& in
 
     packet.WriteGuidMask<0, 3>(targetGuid);
 
-    packet.WriteBits(achievements.GetCriteriaProgress().size(), 21);
+    packet.WriteBits(criteria.size(), 21);
 
     packet.WriteGuidMask<2>(targetGuid);
 
-    for (CriteriaProgressMap::const_iterator iter = achievements.GetCriteriaProgress().begin(); iter != achievements.GetCriteriaProgress().end(); ++iter)
+    for (CriteriaEntry const& entry : criteria)
     {
-        ObjectGuid counter = ObjectGuid(uint64(iter->second.counter));
+        ObjectGuid counter = ObjectGuid(uint64(entry.second->counter));
 
         packet.WriteGuidMask<5, 3>(guid);
         packet.WriteGuidMask<1, 4, 2>(counter);
@@ -206,18 +230,18 @@ void BuildRespondInspectAchievementsPacket(WorldPacket& packet, Player const& in
     packet.WriteGuidMask<6, 5>(targetGuid);
 
     time_t now = time(NULL);
-    for (CriteriaProgressMap::const_iterator iter = achievements.GetCriteriaProgress().begin(); iter != achievements.GetCriteriaProgress().end(); ++iter)
+    for (CriteriaEntry const& entry : criteria)
     {
-        ObjectGuid counter = ObjectGuid(uint64(iter->second.counter));
+        ObjectGuid counter = ObjectGuid(uint64(entry.second->counter));
 
         packet.WriteGuidBytes<3>(counter);
         packet.WriteGuidBytes<4>(guid);
 
-        packet << uint32(now - iter->second.date);            // Timer 1
+        packet << uint32(now - entry.second->started);        // Timer 1
 
         packet.WriteGuidBytes<1>(counter);
 
-        packet << uint32(secsToTimeBitFields(iter->second.date));
+        packet << uint32(secsToTimeBitFields(entry.second->date));
 
         packet.WriteGuidBytes<3, 7>(guid);
         packet.WriteGuidBytes<5>(counter);
@@ -225,8 +249,8 @@ void BuildRespondInspectAchievementsPacket(WorldPacket& packet, Player const& in
         packet.WriteGuidBytes<4, 2, 6, 7>(counter);
         packet.WriteGuidBytes<6>(guid);
 
-        packet << uint32(iter->first);
-        packet << uint32(now - iter->second.date);            // Timer 2
+        packet << uint32(entry.first);
+        packet << uint32(now - entry.second->started);        // Timer 2
 
         packet.WriteGuidBytes<1, 5>(guid);
         packet.WriteGuidBytes<0>(counter);

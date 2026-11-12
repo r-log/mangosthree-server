@@ -229,7 +229,7 @@ namespace CharacterRepository
         res &= holder->SetPQuery(PLAYER_LOGIN_QUERY_LOADGUILD,           "SELECT `guildid`,`rank` FROM `guild_member` WHERE `guid` = '%u'", guid);
         res &= holder->SetPQuery(PLAYER_LOGIN_QUERY_LOADARENAINFO,       "SELECT `arenateamid`, `played_week`, `played_season`, `wons_season`, `personal_rating` FROM `arena_team_member` WHERE `guid`='%u'", guid);
         res &= holder->SetPQuery(PLAYER_LOGIN_QUERY_LOADACHIEVEMENTS,    "SELECT `achievement`, `date` FROM `character_achievement` WHERE `guid` = '%u'", guid);
-        res &= holder->SetPQuery(PLAYER_LOGIN_QUERY_LOADCRITERIAPROGRESS, "SELECT `criteria`, `counter`, `date` FROM `character_achievement_progress` WHERE `guid` = '%u'", guid);
+        res &= holder->SetPQuery(PLAYER_LOGIN_QUERY_LOADCRITERIAPROGRESS, "SELECT `criteria`, `counter`, `date`, `started` FROM `character_achievement_progress` WHERE `guid` = '%u'", guid);
         res &= holder->SetPQuery(PLAYER_LOGIN_QUERY_LOADEQUIPMENTSETS,   "SELECT `setguid`, `setindex`, `name`, `iconname`, `ignore_mask`, `item0`, `item1`, `item2`, `item3`, `item4`, `item5`, `item6`, `item7`, `item8`, `item9`, `item10`, `item11`, `item12`, `item13`, `item14`, `item15`, `item16`, `item17`, `item18` FROM `character_equipmentsets` WHERE `guid` = '%u' ORDER BY setindex", guid);
         res &= holder->SetPQuery(PLAYER_LOGIN_QUERY_LOADBGDATA,          "SELECT `instance_id`, `team`, `join_x`, `join_y`, `join_z`, `join_o`, `join_map`, `taxi_start`, `taxi_end`, `mount_spell` FROM `character_battleground_data` WHERE `guid` = '%u'", guid);
         res &= holder->SetPQuery(PLAYER_LOGIN_QUERY_LOADACCOUNTDATA,     "SELECT `type`, `time`, `data` FROM `character_account_data` WHERE `guid`='%u'", guid);
@@ -954,6 +954,7 @@ namespace CharacterRepository
         row.criteria = fields[0].GetUInt32();
         row.counter = fields[1].GetUInt32();
         row.date = fields[2].GetUInt64();
+        row.started = fields[3].GetUInt64();
         return row;
     }
 
