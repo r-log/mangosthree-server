@@ -24,8 +24,9 @@
  */
 
 /// The vendor item lists, filled and looked up with no database: a key with no list, a list filled in
-/// place, the template lists kept apart from the creature lists, an edit, and each side cleared on
-/// its own.
+/// place, the template lists kept apart from the creature lists, an edit, each side cleared on its
+/// own, and a creature's vendor template list found by its template id, which the vendor item check
+/// searches for a repeated item.
 
 #include "TestHarness.h"
 #include "data/VendorItemStore.h"
@@ -71,4 +72,36 @@ TEST(VendorItemStore_EachSideClearsOnItsOwn)
 
     store.Clear(false);
     CHECK(store.Find(false, 1000) == NULL);
+}
+
+TEST(VendorItemStore_ACreatureRowIsCheckedAgainstItsVendorTemplateList)
+{
+    VendorItemStore store;
+    store.FindOrAdd(true, 7).AddItem(2512, VENDOR_ITEM_TYPE_ITEM, 0, 0, 0, 0);
+
+    CreatureInfo vendor = CreatureInfo();
+    vendor.Entry = 1000;
+    vendor.VendorTemplateId = 7;
+
+    VendorItemData const* list = store.FindTemplateOf(vendor);
+    REQUIRE(list != NULL);
+    CHECK(list->FindItemCostPair(2512, VENDOR_ITEM_TYPE_ITEM, 0) != NULL);
+}
+
+TEST(VendorItemStore_ATemplateListUnderTheCreatureEntryIsNotChecked)
+{
+    VendorItemStore store;
+    store.FindOrAdd(true, 7).AddItem(2512, VENDOR_ITEM_TYPE_ITEM, 0, 0, 0, 0);
+    store.FindOrAdd(true, 1000).AddItem(4540, VENDOR_ITEM_TYPE_ITEM, 0, 0, 0, 0);
+
+    CreatureInfo vendor = CreatureInfo();
+    vendor.Entry = 1000;
+    vendor.VendorTemplateId = 7;
+
+    VendorItemData const* list = store.FindTemplateOf(vendor);
+    REQUIRE(list != NULL);
+    CHECK(list->FindItemCostPair(4540, VENDOR_ITEM_TYPE_ITEM, 0) == NULL);
+
+    vendor.VendorTemplateId = 0;
+    CHECK(store.FindTemplateOf(vendor) == NULL);
 }

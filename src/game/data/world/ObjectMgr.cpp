@@ -2162,7 +2162,7 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     }
 
     VendorItemData const* vItems = isTemplate ? GetNpcVendorTemplateItemList(vendor_entry) : GetNpcVendorItemList(vendor_entry);
-    VendorItemData const* tItems = isTemplate ? NULL : GetNpcVendorTemplateItemList(vendor_entry);
+    VendorItemData const* tItems = isTemplate ? NULL : m_vendorItems.FindTemplateOf(*cInfo);
 
     if (!vItems && !tItems)
     {
@@ -2380,7 +2380,7 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
     }
 
     VendorItemData const* vItems = isTemplate ? GetNpcVendorTemplateItemList(vendor_entry) : GetNpcVendorItemList(vendor_entry);
-    VendorItemData const* tItems = isTemplate ? NULL : GetNpcVendorTemplateItemList(vendor_entry);
+    VendorItemData const* tItems = isTemplate ? NULL : m_vendorItems.FindTemplateOf(*cInfo);
 
     if (!vItems && !tItems)
         return true;                                        // later checks for non-empty lists
