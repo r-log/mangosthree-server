@@ -691,15 +691,17 @@ TEST(CharacterRepository_LoginCriteriaProgress)
     SqlQueryHolder holder;
     holder.SetSize(MAX_PLAYER_LOGIN_QUERY);
     holder.SetResult(PLAYER_LOGIN_QUERY_LOADCRITERIAPROGRESS, CannedResult(FakeRows{
-        FakeRow{"1000", "1001", "4294967298"},
-        FakeRow{"2000", "2001", "8589934594"},
+        FakeRow{"1000", "1001", "4294967298", "4294967299"},
+        FakeRow{"2000", "2001", "8589934594", "8589934595"},
     }));
     std::vector<LoginCriteriaProgressRow> rows = CharacterRepository::LoginCriteriaProgress(&holder);
     REQUIRE(rows.size() == 2);
     CHECK_EQ(rows[0].criteria, 1000u);
     CHECK_EQ(rows[0].counter, 1001u);
     CHECK_EQ(rows[0].date, uint64(4294967298ull));
+    CHECK_EQ(rows[0].started, uint64(4294967299ull));
     CHECK_EQ(rows[1].criteria, 2000u);
+    CHECK_EQ(rows[1].started, uint64(8589934595ull));
 }
 
 // Each column of a `character_pet` row of the login lands in its member, and the rows come back in

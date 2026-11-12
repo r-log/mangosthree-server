@@ -54,7 +54,8 @@ typedef std::map<uint32, time_t>                       AchievementCriteriaFailTi
 
 struct CriteriaProgress
 {
-    time_t date;
+    time_t date;                                            ///< the last change
+    time_t started;                                         ///< when the progress began; a timed criteria's clock counts from it
     uint32 counter;
     bool changed;
     bool timedCriteriaFailed;
