@@ -193,6 +193,7 @@ void AchievementMgr::ResetAchievementCriteria(AchievementCriteriaTypes type, uin
 void AchievementMgr::DeleteFromDB(ObjectGuid guid)
 {
     AchievementRepository::DeleteAllOf(guid.GetCounter());
+    sAchievementMgr.ClearRealmCompletedBy(guid.GetCounter());
 }
 
 void AchievementMgr::SaveToDB()
@@ -2113,7 +2114,7 @@ void AchievementMgr::CompletedAchievement(AchievementEntry const* achievement)
     // TODO: where do set this instead?
     if (!(achievement->Flags & ACHIEVEMENT_FLAG_REALM_FIRST_KILL))
     {
-        sAchievementMgr.SetRealmCompleted(achievement);
+        sAchievementMgr.SetRealmCompleted(achievement, GetPlayer()->GetGUIDLow());
     }
 
     UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT);
@@ -2196,6 +2197,7 @@ void AchievementMgr::IncompletedAchievement(AchievementEntry const* achievement)
         AchievementRepository::DeleteCompleted(GetPlayer()->GetGUIDLow(), achievement->ID);
 
     m_completedAchievements.erase(achievement->ID);
+    sAchievementMgr.ClearRealmCompleted(achievement, GetPlayer()->GetGUIDLow());
 
     // reward items and titles if any
     AchievementReward const* reward = sAchievementMgr.GetAchievementReward(achievement, GetPlayer()->getGender());

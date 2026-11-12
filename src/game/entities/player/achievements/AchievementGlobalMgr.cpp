@@ -42,6 +42,14 @@
 
 static_assert(int(ACHIEVEMENT_REWARD_LOCALE_ROW_LOCALES) == int(MAX_LOCALE) - 1, "an achievement reward locale row holds its texts for every locale but the default one");
 
+namespace
+{
+    bool IsRealmFirst(AchievementEntry const* achievement)
+    {
+        return (achievement->Flags & (ACHIEVEMENT_FLAG_REALM_FIRST_REACH | ACHIEVEMENT_FLAG_REALM_FIRST_KILL)) != 0;
+    }
+}
+
 AchievementCriteriaEntryList const& AchievementGlobalMgr::GetAchievementCriteriaByType(AchievementCriteriaTypes type)
 {
     return m_AchievementCriteriasByType[type];
@@ -91,12 +99,47 @@ AchievementCriteriaRequirementSet const* AchievementGlobalMgr::GetCriteriaRequir
 
 bool AchievementGlobalMgr::IsRealmCompleted(AchievementEntry const* achievement) const
 {
+    std::lock_guard<std::mutex> guard(m_realmCompletedLock);
     return m_allCompletedAchievements.find(achievement->ID) != m_allCompletedAchievements.end();
 }
 
-void AchievementGlobalMgr::SetRealmCompleted(AchievementEntry const* achievement)
+void AchievementGlobalMgr::SetRealmCompleted(AchievementEntry const* achievement, uint32 holderGuid)
 {
+    std::lock_guard<std::mutex> guard(m_realmCompletedLock);
     m_allCompletedAchievements.insert(achievement->ID);
+    if (IsRealmFirst(achievement))
+    {
+        m_realmFirstHolders[achievement->ID].insert(holderGuid);
+    }
+}
+
+void AchievementGlobalMgr::ClearRealmCompleted(AchievementEntry const* achievement, uint32 holderGuid)
+{
+    std::lock_guard<std::mutex> guard(m_realmCompletedLock);
+    RealmFirstHolders::iterator itr = m_realmFirstHolders.find(achievement->ID);
+    if (itr == m_realmFirstHolders.end() || !itr->second.erase(holderGuid) || !itr->second.empty())
+    {
+        return;
+    }
+
+    m_allCompletedAchievements.erase(itr->first);
+    m_realmFirstHolders.erase(itr);
+}
+
+void AchievementGlobalMgr::ClearRealmCompletedBy(uint32 holderGuid)
+{
+    std::lock_guard<std::mutex> guard(m_realmCompletedLock);
+    for (RealmFirstHolders::iterator itr = m_realmFirstHolders.begin(); itr != m_realmFirstHolders.end();)
+    {
+        if (!itr->second.erase(holderGuid) || !itr->second.empty())
+        {
+            ++itr;
+            continue;
+        }
+
+        m_allCompletedAchievements.erase(itr->first);
+        itr = m_realmFirstHolders.erase(itr);
+    }
 }
 
 void AchievementGlobalMgr::LoadAchievementCriteriaList()
@@ -341,24 +384,42 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
         return;
     }
 
+    std::vector<uint32> completed;
+    std::vector<uint32> realmFirsts;
     BarGoLink bar(rows.size());
     for (CompletedAchievementRow const& row : rows)
     {
         bar.step();
 
         uint32 achievement_id = row.achievement;
-        if (!sAchievementStore.LookupEntry(achievement_id))
+        AchievementEntry const* achievement = sAchievementStore.LookupEntry(achievement_id);
+        if (!achievement)
         {
             // the rows of a nonexistent achievement are kept and logged
             sLog.outError("Nonexistent achievement %u data kept in table `character_achievement`.", achievement_id);
             continue;
         }
 
-        m_allCompletedAchievements.insert(achievement_id);
+        completed.push_back(achievement_id);
+        if (IsRealmFirst(achievement))
+        {
+            realmFirsts.push_back(achievement_id);
+        }
+    }
+
+    std::vector<AchievementHolderRow> holders = AchievementRepository::QueryHolders(realmFirsts);
+
+    {
+        std::lock_guard<std::mutex> guard(m_realmCompletedLock);
+        m_allCompletedAchievements.insert(completed.begin(), completed.end());
+        for (AchievementHolderRow const& holder : holders)
+        {
+            m_realmFirstHolders[holder.achievement].insert(holder.guid);
+        }
     }
 
     sLog.outString();
-    sLog.outString(">> Loaded %zu realm completed achievements.", m_allCompletedAchievements.size());
+    sLog.outString(">> Loaded %zu realm completed achievements.", completed.size());
 }
 
 void AchievementGlobalMgr::ReportOrphanedCriteriaProgress()

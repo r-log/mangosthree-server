@@ -373,6 +373,7 @@ set(ALLOW_AuctionRepository_cpp
 
 set(ALLOW_AchievementRepository_cpp
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`\")\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `achievement`, `guid` FROM `character_achievement` WHERE `achievement` IN (%s)\", ids.c_str())\;"
     "QueryResult* result = CharacterDatabase.Query(\"SELECT DISTINCT `criteria` FROM `character_achievement_progress`\")\;")
 
 set(ALLOW_AchievementDataRepository_cpp

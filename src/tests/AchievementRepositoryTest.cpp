@@ -152,6 +152,29 @@ TEST(AchievementRepository_CompletedAchievements)
     CHECK_EQ(rows[1].achievement, 2000u);
 }
 
+// The holders of a list of achievements are read on the calling thread with the list in the statement,
+// each column lands in its member; an empty list asks nothing.
+TEST(AchievementRepository_Holders)
+{
+    Db db(CharacterDatabase);
+    CHECK(AchievementRepository::QueryHolders(std::vector<uint32>()).empty());
+    CHECK_EQ(db.query.executed.size(), size_t(0));
+
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"1415", "7"},
+        FakeRow{"457", "8"},
+    });
+    std::vector<AchievementHolderRow> rows = AchievementRepository::QueryHolders(std::vector<uint32>{1415, 457});
+    CheckLines(db.query.executed, {
+        "SELECT `achievement`, `guid` FROM `character_achievement` WHERE `achievement` IN (1415,457)",
+    }, __LINE__);
+    REQUIRE(rows.size() == 2);
+    CHECK_EQ(rows[0].achievement, 1415u);
+    CHECK_EQ(rows[0].guid, 7u);
+    CHECK_EQ(rows[1].achievement, 457u);
+    CHECK_EQ(rows[1].guid, 8u);
+}
+
 // Each column of a criteria some character has progress in lands in its member, and the rows come
 // back in order.
 TEST(AchievementRepository_ProgressCriteria)

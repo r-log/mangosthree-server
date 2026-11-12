@@ -37,6 +37,7 @@
 #include "ObjectGuid.h"
 
 #include <map>
+#include <mutex>
 #include <string>
 
 struct AchievementEntry;
@@ -332,7 +333,12 @@ class AchievementGlobalMgr
         AchievementCriteriaRequirementSet const* GetCriteriaRequirementSet(AchievementCriteriaEntry const* achievementCriteria);
 
         bool IsRealmCompleted(AchievementEntry const* achievement) const;
-        void SetRealmCompleted(AchievementEntry const* achievement);
+        /// Marks `achievement` completed on the realm; a realm first counts `holderGuid` among its holders.
+        void SetRealmCompleted(AchievementEntry const* achievement, uint32 holderGuid);
+        /// `holderGuid` no longer holds `achievement`; a realm first left with no holder can be earned again.
+        void ClearRealmCompleted(AchievementEntry const* achievement, uint32 holderGuid);
+        /// `holderGuid` no longer holds any achievement; each realm first left with no holder can be earned again.
+        void ClearRealmCompletedBy(uint32 holderGuid);
 
         void LoadAchievementCriteriaList();
         void LoadAchievementCriteriaRequirements();
@@ -355,6 +361,11 @@ class AchievementGlobalMgr
 
         typedef std::set<uint32> AllCompletedAchievements;
         AllCompletedAchievements m_allCompletedAchievements;
+        /// The characters holding each realm first, by achievement.
+        typedef std::map<uint32, std::set<uint32> > RealmFirstHolders;
+        RealmFirstHolders m_realmFirstHolders;
+        /// Guards the two above; nothing else is locked while it is held.
+        mutable std::mutex m_realmCompletedLock;
 
         AchievementRewardsMap       m_achievementRewards;
         AchievementRewardLocalesMap m_achievementRewardLocales;
