@@ -28,6 +28,8 @@
 #include "Log.h"
 #include "persistence/characters/social/ReputationRepository.h"
 
+#include <algorithm>
+
 const int32 ReputationMgr::PointsInRank[MAX_REPUTATION_RANK] = {36000, 3000, 3000, 3000, 6000, 12000, 21000, 1000};
 
 /**
@@ -361,18 +363,39 @@ void ReputationMgr::Initialize()
 }
 
 /**
- * @brief Sets reputation for a faction and applies spillover if configured.
+ * @brief The change a set or a modify makes to a faction's reputation, which its spillover carries.
+ *
+ * @param standing The new reputation value (base included) or the delta.
+ * @param incremental true if the standing value is a delta; otherwise, false.
+ * @param current The faction's reputation now, base included.
+ * @return The delta itself, or the new value clamped to the reputation range minus the current one.
+ */
+int32 ReputationSpillChange(int32 standing, bool incremental, int32 current)
+{
+    if (incremental)
+    {
+        return standing;
+    }
+
+    return std::min(std::max(standing, REPUTATION_BOTTOM), REPUTATION_CAP) - current;
+}
+
+/**
+ * @brief Sets or modifies reputation for a faction and spills the change to the related factions.
+ *
+ * The related factions always receive the change, so a set moves them as a modify of the same
+ * change would, and a set back restores them.
  *
  * @param factionEntry The faction entry to modify.
  * @param standing The new reputation value or delta.
  * @param incremental true if the standing value is a delta; otherwise, false.
  * @param inputs The spillover template and team list lookups, each read at its point of use.
  * @param sinks The notices and the owner's per-faction quest check and achievement updates.
- * @return true if the faction state was updated; otherwise, false.
  */
 void ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standing, bool incremental, ChangeInputs const& inputs, ChangeSinks const& sinks)
 {
     bool anyRankIncreased = false;
+    int32 const change = ReputationSpillChange(standing, incremental, GetReputation(factionEntry));
 
     // if spillover definition exists in DB, override DBC
     if (const RepSpilloverTemplate* repTemplate = inputs.spilloverTemplate(factionEntry->ID))
@@ -384,8 +407,8 @@ void ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standi
                 if (GetRank(sFactionStore.LookupEntry(repTemplate->faction[i])) <= ReputationRank(repTemplate->faction_rank[i]))
                 {
                     // bonuses are already given, so just modify standing by rate
-                    int32 spilloverRep = standing * repTemplate->faction_rate[i];
-                    if (SetOneFactionReputation(sFactionStore.LookupEntry(repTemplate->faction[i]), spilloverRep, incremental, sinks))
+                    int32 spilloverRep = change * repTemplate->faction_rate[i];
+                    if (SetOneFactionReputation(sFactionStore.LookupEntry(repTemplate->faction[i]), spilloverRep, true, sinks))
                     {
                         anyRankIncreased = true;
                     }
@@ -395,7 +418,7 @@ void ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standi
     }
     else
     {
-        float spillOverRepOut = standing;
+        float spillOverRepOut = change;
         // check for sub-factions that receive spillover
         SimpleFactionsList const* flist = inputs.teamList(factionEntry->ID);
         // if has no sub-factions, check for factions with same parent
@@ -408,7 +431,7 @@ void ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standi
                 // some team factions have own reputation standing, in this case do not spill to other sub-factions
                 if (parentState != m_factions.end() && (parentState->second.Flags & FACTION_FLAG_TEAM_REPUTATION))
                 {
-                    if (SetOneFactionReputation(parent, int32(spillOverRepOut), incremental, sinks))
+                    if (SetOneFactionReputation(parent, int32(spillOverRepOut), true, sinks))
                     {
                         anyRankIncreased = true;
                     }
@@ -432,11 +455,10 @@ void ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standi
                     }
 
                     int32 spilloverRep = int32(spillOverRepOut * factionEntryCalc->ParentFactionMod_0);
-                    if (spilloverRep != 0 || !incremental)
-                        if (SetOneFactionReputation(factionEntryCalc, spilloverRep, incremental, sinks))
-                        {
-                            anyRankIncreased = true;
-                        }
+                    if (spilloverRep != 0 && SetOneFactionReputation(factionEntryCalc, spilloverRep, true, sinks))
+                    {
+                        anyRankIncreased = true;
+                    }
                 }
             }
         }

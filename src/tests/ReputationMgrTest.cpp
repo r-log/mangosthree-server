@@ -606,8 +606,8 @@ TEST(ReputationMgr_SpilloverTemplate)
     CHECK_EQ(StandingOf(mgr, 22), 0);
     CHECK_EQ(FlagsOf(mgr, 23), uint32(FACTION_FLAG_HIDDEN));
 
-    // Absolute: the rate applies to the absolute value (1000 * 0.5 = 500 again, as a SET), and a
-    // rank increase anywhere lights the packet's flag: 3 goes to 3000 * 1.0 = friendly.
+    // A set spills its change, 3000 - 1000 = 2000: 1 gets 2000 * 0.5 = 1000 more (1500), and a
+    // rank increase anywhere lights the packet's flag: 3 gets 2000 * 1.0 more, 3000 = friendly.
     wire.Set(mgr, 10, 3000);
     CheckEvents(wire.Take(), Cat({ { "tpl 10", "changed 1 rep=1500 vis=7 hon=1 rev=1 exa=0" }, Ach(1),
         { "changed 3 rep=3000 vis=7 hon=1 rev=1 exa=0" }, Ach(3),
@@ -639,8 +639,7 @@ TEST(ReputationMgr_SpilloverTemplate)
 // The team: a child's change spills to its sisters through the parent's team list, each at its
 // own incoming rate (mod0) of the child's outgoing share (mod1), unless the sister is above its
 // cap; a team-reputation parent takes the share itself and the sisters get nothing; a change to
-// the parent spills to every child at full outgoing; an incremental share of 0 is skipped, an
-// absolute one is set.
+// the parent spills to every child at full outgoing; a share of 0 is skipped.
 TEST(ReputationMgr_SpilloverTeamParentAndSisters)
 {
     {
@@ -655,17 +654,17 @@ TEST(ReputationMgr_SpilloverTeamParentAndSisters)
             { "changed 6 rep=1000 vis=8 hon=1 rev=1 exa=0" }, Ach(6),
             { "0126:" "00000000" "00" "02000000" "1a000000" "e8030000" "1b000000" "7d000000" } }), __LINE__);
 
-        // 7 absolute 9000 (honored): out 4500 to 6 (neutral <= revered): int32(4500 * 0.5) = 2250,
-        // set absolutely.
+        // 7 set from 125 to 9000 (honored), a change of 8875: out 4437.5 to 6 (neutral <=
+        // revered): int32(4437.5 * 0.5) = 2218 more, 3218 (friendly, a rank up).
         wire.Set(mgr, 7, 9000);
-        CheckEvents(wire.Take(), Cat({ { "tpl 7", "team 7", "team 5", "changed 6 rep=2250 vis=8 hon=1 rev=1 exa=0" }, Ach(6),
+        CheckEvents(wire.Take(), Cat({ { "tpl 7", "team 7", "team 5", "changed 6 rep=3218 vis=8 hon=1 rev=1 exa=0" }, Ach(6),
             { "changed 7 rep=9000 vis=8 hon=2 rev=1 exa=0" }, Ach(7),
-            { "0126:" "00000000" "01" "02000000" "1b000000" "28230000" "1a000000" "ca080000" } }), __LINE__);
+            { "0126:" "00000000" "01" "02000000" "1b000000" "28230000" "1a000000" "920c0000" } }), __LINE__);
 
         // 7 is now honored, above its cap (friendly): 6's change no longer reaches it.
         wire.Modify(mgr, 6, 1000);
-        CheckEvents(wire.Take(), Cat({ { "tpl 6", "team 6", "team 5", "changed 6 rep=3250 vis=8 hon=2 rev=1 exa=0" }, Ach(6),
-            { "0126:" "00000000" "01" "01000000" "1a000000" "b20c0000" } }), __LINE__);
+        CheckEvents(wire.Take(), Cat({ { "tpl 6", "team 6", "team 5", "changed 6 rep=4218 vis=8 hon=2 rev=1 exa=0" }, Ach(6),
+            { "0126:" "00000000" "00" "01000000" "1a000000" "7a100000" } }), __LINE__);
     }
     {
         // The real Alliance/Horde shape (review M-1, X4): the parent 5 VISIBLE (flags 0x01) but not
@@ -709,8 +708,8 @@ TEST(ReputationMgr_SpilloverTeamParentAndSisters)
             { "0126:" "00000000" "00" "03000000" "19000000" "e8030000" "1a000000" "f4010000" "1b000000" "fa000000" } }), __LINE__);
     }
     {
-        // A zero share: 6 +1 gives 7 int32(0.5 * 0.25) = 0 -- skipped when incremental, set (to
-        // 0, which still makes 7 visible) when absolute.
+        // A zero share: 6 +1 gives 7 int32(0.5 * 0.25) = 0, skipped; a set of 6 to the standing
+        // it has is a change of 0, so 7 is skipped too and stays unseen.
         ReputationMgr mgr;
         Wire wire;
         Build(mgr, wire);
@@ -718,10 +717,204 @@ TEST(ReputationMgr_SpilloverTeamParentAndSisters)
         CheckEvents(wire.Take(), Cat({ { "tpl 6", "team 6", "team 5", "changed 6 rep=1 vis=7 hon=1 rev=1 exa=0" }, Ach(6),
             { "0126:" "00000000" "00" "01000000" "1a000000" "01000000" } }), __LINE__);
         wire.Set(mgr, 6, 1);
-        CheckEvents(wire.Take(), Cat({ { "tpl 6", "team 6", "team 5", "loading?", "2525:" "1b000000",
-            "changed 7 rep=0 vis=8 hon=1 rev=1 exa=0" }, Ach(7),
-            { "changed 6 rep=1 vis=8 hon=1 rev=1 exa=0" }, Ach(6),
-            { "0126:" "00000000" "00" "02000000" "1a000000" "01000000" "1b000000" "00000000" } }), __LINE__);
+        CheckEvents(wire.Take(), Cat({ { "tpl 6", "team 6", "team 5", "changed 6 rep=1 vis=7 hon=1 rev=1 exa=0" }, Ach(6),
+            { "0126:" "00000000" "00" "01000000" "1a000000" "01000000" } }), __LINE__);
+        CHECK_EQ(FlagsOf(mgr, 27), 0x00u);
+    }
+}
+
+// The change a spill carries: a modify's delta as given (even past the range), a set's new
+// standing clamped to [-42000, 42999] minus the current standing.
+TEST(ReputationMgr_SpillChangeOfASetAndAModify)
+{
+    CHECK_EQ(ReputationSpillChange(4000, true, 2500), 4000);
+    CHECK_EQ(ReputationSpillChange(-100000, true, 0), -100000);
+    CHECK_EQ(ReputationSpillChange(4000, false, 0), 4000);
+    CHECK_EQ(ReputationSpillChange(4000, false, 2500), 1500);
+    CHECK_EQ(ReputationSpillChange(0, false, 4000), -4000);
+    CHECK_EQ(ReputationSpillChange(4000, false, 4000), 0);
+    CHECK_EQ(ReputationSpillChange(50000, false, 40000), 2999);
+    CHECK_EQ(ReputationSpillChange(-50000, false, -41000), -1000);
+    CHECK_EQ(ReputationSpillChange(3001, false, -19802), 22803);
+}
+
+// A set spills its change, the new standing minus the current one, not the new standing: the
+// related factions move as a modify of that change would move them, so a set and a set back
+// restore them, and a set to the same standing moves nothing. The related factions start from a
+// loaded standing, so a spill of the new standing would show. One case per branch: the spillover
+// template (10 -> 1 at 0.25), the sisters (6 -> 7 through parent 5: half out, a quarter in) and a
+// team-reputation parent (9 -> 8 at 0.25).
+TEST(ReputationMgr_SetSpillsItsChange)
+{
+    {
+        ReputationMgr mgr;
+        Wire wire;
+        Build(mgr, wire);
+        RepSpilloverTemplate t = RepSpilloverTemplate();
+        t.faction[0] = 1;
+        t.faction_rate[0] = 0.25f;
+        t.faction_rank[0] = REP_HONORED;
+        wire.templates[10] = t;
+        LoadOne(mgr, wire, RepRow("1", "2000", "1"));
+
+        wire.Set(mgr, 10, 4000);                            // a change of +4000: 1 gets +1000
+        CHECK_EQ(mgr.GetReputation(F(10)), 4000);
+        CHECK_EQ(mgr.GetReputation(F(1)), 3000);
+        wire.Set(mgr, 10, 0);                               // -4000: 1 gets -1000, back to 2000
+        CHECK_EQ(mgr.GetReputation(F(10)), 0);
+        CHECK_EQ(mgr.GetReputation(F(1)), 2000);
+
+        wire.Modify(mgr, 10, 4000);                         // a modify spills its amount: +1000
+        CHECK_EQ(mgr.GetReputation(F(10)), 4000);
+        CHECK_EQ(mgr.GetReputation(F(1)), 3000);
+        wire.Set(mgr, 10, 4000);                            // the same standing: nothing moves
+        CHECK_EQ(mgr.GetReputation(F(10)), 4000);
+        CHECK_EQ(mgr.GetReputation(F(1)), 3000);
+        wire.Take();
+    }
+    {
+        // A set past the cap spills the change it makes: 40000 -> 42999 is +2999, 1 gets 749.
+        ReputationMgr mgr;
+        Wire wire;
+        Build(mgr, wire);
+        RepSpilloverTemplate t = RepSpilloverTemplate();
+        t.faction[0] = 1;
+        t.faction_rate[0] = 0.25f;
+        t.faction_rank[0] = REP_HONORED;
+        wire.templates[10] = t;
+        LoadOne(mgr, wire, RepRow("10", "40000", "1"));
+        wire.Set(mgr, 10, 50000);
+        CHECK_EQ(mgr.GetReputation(F(10)), ReputationMgr::Reputation_Cap);
+        CHECK_EQ(mgr.GetReputation(F(1)), 749);
+        wire.Take();
+    }
+    {
+        // Sisters: 6 from 0 to 4000 sends 2000 out, 7 takes a quarter: 1000 -> 1500, and back.
+        // A set to the same standing sends nothing: 7 is not even touched.
+        ReputationMgr mgr;
+        Wire wire;
+        Build(mgr, wire);
+        LoadOne(mgr, wire, RepRow("7", "1000", "0"));
+        wire.Set(mgr, 6, 4000);
+        CHECK_EQ(mgr.GetReputation(F(6)), 4000);
+        CHECK_EQ(mgr.GetReputation(F(7)), 1500);
+        wire.Set(mgr, 6, 0);
+        CHECK_EQ(mgr.GetReputation(F(6)), 0);
+        CHECK_EQ(mgr.GetReputation(F(7)), 1000);
+        wire.Take();
+        wire.Set(mgr, 6, 0);
+        CheckEvents(wire.Take(), Cat({ { "tpl 6", "team 6", "team 5", "changed 6 rep=0 vis=8 hon=1 rev=1 exa=0" }, Ach(6),
+            { "0126:" "00000000" "00" "01000000" "1a000000" "00000000" } }), __LINE__);
+        CHECK_EQ(mgr.GetReputation(F(7)), 1000);
+    }
+    {
+        // A team-reputation parent: 9 from 0 to 4000 gives 8 a quarter: 2000 -> 3000, and back.
+        ReputationMgr mgr;
+        Wire wire;
+        Build(mgr, wire);
+        LoadOne(mgr, wire, RepRow("8", "2000", "129"));
+        wire.Set(mgr, 9, 4000);
+        CHECK_EQ(mgr.GetReputation(F(9)), 4000);
+        CHECK_EQ(mgr.GetReputation(F(8)), 3000);
+        wire.Set(mgr, 9, 0);
+        CHECK_EQ(mgr.GetReputation(F(9)), 0);
+        CHECK_EQ(mgr.GetReputation(F(8)), 2000);
+        wire.Take();
+    }
+}
+
+// The Sholazar Basin switch: spells 53475 (the Oracles to 3001), 53487 (the Frenzyheart Tribe to
+// 9001) and 54015 (the Oracles to 9001) set one faction, and the spillover template couples the
+// two at -2.2 both ways up to exalted, so the other faction must end hated (below -6000) whatever
+// the state before. Faction 1 stands for the Frenzyheart Tribe and faction 12 for the Oracles,
+// both at base 0. A spill is int32(change * -2.2f): 3001 -> -6602, 9001 -> -19802, 22803 ->
+// -50166, 15603 -> -34326, 28803 -> -63366.
+TEST(ReputationMgr_SholazarSwitchLeavesTheOtherFactionHated)
+{
+    const uint32 frenzyheart = 1;
+    const uint32 oracles = 12;
+    auto couple = [](Wire& wire, uint32 from, uint32 to)
+    {
+        RepSpilloverTemplate t = RepSpilloverTemplate();
+        t.faction[0] = to;
+        t.faction_rate[0] = -2.2f;
+        t.faction_rank[0] = REP_EXALTED;
+        wire.templates[from] = t;
+    };
+    auto build = [&](ReputationMgr& mgr, Wire& wire)
+    {
+        Build(mgr, wire);
+        couple(wire, frenzyheart, oracles);
+        couple(wire, oracles, frenzyheart);
+    };
+
+    {
+        // From 0/0, 53475: the Frenzyheart Tribe at -6602.
+        ReputationMgr mgr;
+        Wire wire;
+        build(mgr, wire);
+        wire.Set(mgr, oracles, 3001);
+        CHECK_EQ(mgr.GetReputation(F(oracles)), 3001);
+        CHECK_EQ(mgr.GetReputation(F(frenzyheart)), -6602);
+        CHECK_EQ(int(mgr.GetRank(F(frenzyheart))), int(REP_HATED));
+
+        // Then 53487 (a change of 15603): the Oracles at 3001 - 34326 = -31325.
+        wire.Set(mgr, frenzyheart, 9001);
+        CHECK_EQ(mgr.GetReputation(F(frenzyheart)), 9001);
+        CHECK_EQ(mgr.GetReputation(F(oracles)), -31325);
+        CHECK_EQ(int(mgr.GetRank(F(oracles))), int(REP_HATED));
+        wire.Take();
+    }
+    {
+        // From 0/0, 53487: the Oracles at -19802. Then 53475 (a change of 22803): the
+        // Frenzyheart Tribe at 9001 - 50166 = -41165.
+        ReputationMgr mgr;
+        Wire wire;
+        build(mgr, wire);
+        wire.Set(mgr, frenzyheart, 9001);
+        CHECK_EQ(mgr.GetReputation(F(frenzyheart)), 9001);
+        CHECK_EQ(mgr.GetReputation(F(oracles)), -19802);
+        CHECK_EQ(int(mgr.GetRank(F(oracles))), int(REP_HATED));
+
+        wire.Set(mgr, oracles, 3001);
+        CHECK_EQ(mgr.GetReputation(F(oracles)), 3001);
+        CHECK_EQ(mgr.GetReputation(F(frenzyheart)), -41165);
+        CHECK_EQ(int(mgr.GetRank(F(frenzyheart))), int(REP_HATED));
+        wire.Take();
+    }
+    {
+        // The mirror, from 0/0: 54015 leaves the Frenzyheart Tribe at -19802; then 53487 (a change
+        // of 28803) takes the Oracles to 9001 - 63366, clamped at the floor.
+        ReputationMgr mgr;
+        Wire wire;
+        build(mgr, wire);
+        wire.Set(mgr, oracles, 9001);
+        CHECK_EQ(mgr.GetReputation(F(oracles)), 9001);
+        CHECK_EQ(mgr.GetReputation(F(frenzyheart)), -19802);
+        CHECK_EQ(int(mgr.GetRank(F(frenzyheart))), int(REP_HATED));
+
+        wire.Set(mgr, frenzyheart, 9001);
+        CHECK_EQ(mgr.GetReputation(F(frenzyheart)), 9001);
+        CHECK_EQ(mgr.GetReputation(F(oracles)), ReputationMgr::Reputation_Bottom);
+        CHECK_EQ(int(mgr.GetRank(F(oracles))), int(REP_HATED));
+        wire.Take();
+    }
+    {
+        // Frenzyheart gains past the Oracles' floor (+20000: 29001, the Oracles clamped at
+        // -42000), then 53475: a change of 45001 sends the Frenzyheart Tribe to the floor.
+        ReputationMgr mgr;
+        Wire wire;
+        build(mgr, wire);
+        wire.Set(mgr, frenzyheart, 9001);
+        wire.Modify(mgr, frenzyheart, 20000);
+        CHECK_EQ(mgr.GetReputation(F(frenzyheart)), 29001);
+        CHECK_EQ(mgr.GetReputation(F(oracles)), ReputationMgr::Reputation_Bottom);
+
+        wire.Set(mgr, oracles, 3001);
+        CHECK_EQ(mgr.GetReputation(F(oracles)), 3001);
+        CHECK_EQ(mgr.GetReputation(F(frenzyheart)), ReputationMgr::Reputation_Bottom);
+        CHECK_EQ(int(mgr.GetRank(F(frenzyheart))), int(REP_HATED));
+        wire.Take();
     }
 }
 
