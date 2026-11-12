@@ -40,8 +40,52 @@
 #include "DB2Stores.h"
 #include "Vehicle.h"
 #include "DisableMgr.h"
+#include "entities/player/spells/SkillLevelSpells.h"
 
 #include <cmath>
+
+namespace
+{
+    /// Whether SkillRaceClassInfo.dbc gives the skill line to a race and class of these masks.
+    bool RaceClassHasSkillLine(uint32 raceMask, uint32 classMask, uint32 skillLine)
+    {
+        SkillRaceClassInfoMapBounds bounds = sSpellMgr.GetSkillRaceClassInfoMapBounds(skillLine);
+        for (SkillRaceClassInfoMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
+        {
+            SkillRaceClassInfoEntry const* info = itr->second;
+            if ((!info->RaceMask || (info->RaceMask & raceMask)) && (!info->ClassMask || (info->ClassMask & classMask)))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+void LearnSkillLevelSpells(Player& player)
+{
+    uint32 const raceMask = player.getRaceMask();
+    uint32 const classMask = player.getClassMask();
+    std::vector<uint32> const spells = sSpellMgr.GetSkillLevelSpells().SpellsToLearn(raceMask, classMask, player.getLevel(),
+        [raceMask, classMask](uint32 skillLine) { return RaceClassHasSkillLine(raceMask, classMask, skillLine); });
+
+    for (uint32 spellId : spells)
+    {
+        if (player.HasSpell(spellId))
+        {
+            continue;
+        }
+
+        if (!player.IsInWorld())
+        {
+            player.addSpell(spellId, true, true, true, false);
+        }
+        else
+        {
+            player.learnSpell(spellId, true);
+        }
+    }
+}
 
 /**
  * @brief Resets the player's learned spells and restores default and quest rewards.

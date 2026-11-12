@@ -25,7 +25,7 @@
 
 /**
  * @file SpellMgrAreas.cpp
- * @brief SpellMgr's spell area, skill line ability and skill race-class info loaders.
+ * @brief SpellMgr's spell area, skill line ability, skill race-class info and skill level spell loaders.
  */
 
 #include "spells/data/SpellMgr.h"
@@ -322,5 +322,47 @@ void SpellMgr::LoadSkillRaceClassInfoMap()
     }
 
     sLog.outString(">> Loaded %u SkillRaceClassInfo MultiMap Data", count);
+    sLog.outString();
+}
+
+/**
+ * @brief Fills the skill level spells: each listed spell's SkillLineAbility rows learned with its
+ * skill line, at the spell's SpellLevels base level. Needs the skill line ability map.
+ */
+void SpellMgr::LoadSkillLevelSpells()
+{
+    mSkillLevelSpells.Clear();
+
+    for (uint32 spellId : SkillLevelSpellStore::Allowlist())
+    {
+        SpellEntry const* spellInfo = sSpellStore.LookupEntry(spellId);
+        if (!spellInfo || !spellInfo->GetSpellLevels())
+        {
+            sLog.outError("Skill level spell %u has no Spell.dbc or SpellLevels.dbc row; it is not learned.", spellId);
+            continue;
+        }
+
+        uint32 rows = 0;
+        SkillLineAbilityMapBounds bounds = GetSkillLineAbilityMapBounds(spellId);
+        for (SkillLineAbilityMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
+        {
+            SkillLineAbilityEntry const* ability = itr->second;
+            if (ability->AcquireMethod != ABILITY_LEARNED_ON_GET_RACE_OR_CLASS_SKILL)
+            {
+                continue;
+            }
+
+            SkillLevelSpell const row = { spellId, ability->SkillLine, ability->RaceMask, ability->ClassMask, spellInfo->GetBaseLevel() };
+            mSkillLevelSpells.Add(row);
+            ++rows;
+        }
+
+        if (!rows)
+        {
+            sLog.outError("Skill level spell %u has no SkillLineAbility.dbc row learned with a skill line; it is not learned.", spellId);
+        }
+    }
+
+    sLog.outString(">> Loaded %u skill level spells", uint32(mSkillLevelSpells.Rows().size()));
     sLog.outString();
 }
