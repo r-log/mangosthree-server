@@ -49,6 +49,8 @@ class VendorItemStore
         VendorItemData& FindOrAdd(bool templates, uint32 entry) { return List(templates)[entry]; }
         VendorItemData const* Find(bool templates, uint32 entry) const;
         VendorItemData* FindForEdit(bool templates, uint32 entry);
+        /// The list of a creature's vendor template, or NULL when the creature has none.
+        VendorItemData const* FindTemplateOf(CreatureInfo const& creature) const;
         CacheVendorItemMap const& Templates() const { return m_templates; }
 
     private:

@@ -24,11 +24,14 @@
  */
 
 /// NpcDataRepository's row reads on the global WorldDatabase backed by fakes: every column of a
-/// canned row lands in its member, typed as the loader read it.
+/// canned row lands in its member, typed as the loader read it, and a vendor row's negative item
+/// loads as a currency.
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
+#include "DBCStores.h"
+#include "ObjectMgr.h"
 #include "persistence/world/npcs/NpcDataRepository.h"
 
 #include <vector>
@@ -136,6 +139,27 @@ TEST(NpcDataRepository_VendorItems)
     CHECK_EQ(rows[0].extendedCost, 1004u);
     CHECK_EQ(rows[0].conditionId, uint16(10005));
     CHECK_EQ(rows[1].entry, 2000u);
+}
+
+// A vendor row's negative item is a currency: the vendor template load lists the currency's id as a
+// currency.
+TEST(NpcDataRepository_ANegativeVendorItemLoadsAsACurrency)
+{
+    // CurrencyTypes.dbc row: { ID, CategoryID, Name_lang, MaxQty, MaxEarnablePerWeek, Flags }.
+    static CurrencyTypesEntry currency = { 990301, 0, NULL, 0, 0, 0 };
+    sCurrencyTypesStore.SetEntry(currency.ID, &currency);
+
+    Db db;
+    db.query.Answer("SELECT", FakeRows{
+        FakeRow{"990302", "-990301", "1", "0", "0", "0"},
+    });
+    sObjectMgr.LoadVendorTemplates();
+
+    VendorItemData const* list = sObjectMgr.GetNpcVendorTemplateItemList(990302);
+    REQUIRE(list != NULL);
+    REQUIRE(list->GetItemCount() == 1);
+    CHECK_EQ(list->GetItem(0)->item, 990301u);
+    CHECK(list->GetItem(0)->IsCurrency());
 }
 
 // Each column of a `npc_spellclick_spells` row lands in its member, and the rows come back in

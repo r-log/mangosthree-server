@@ -54,3 +54,8 @@ VendorItemData* VendorItemStore::FindForEdit(bool templates, uint32 entry)
     CacheVendorItemMap::iterator itr = list.find(entry);
     return itr != list.end() ? &itr->second : NULL;
 }
+
+VendorItemData const* VendorItemStore::FindTemplateOf(CreatureInfo const& creature) const
+{
+    return creature.VendorTemplateId ? Find(true, creature.VendorTemplateId) : NULL;
+}
