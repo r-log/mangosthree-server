@@ -115,12 +115,11 @@ void CharacterCustomizeHandlers::HandleCharRename(WorldSession& session, WorldPa
 
     // The character cache answers whether the name is taken, and its name index folds the way
     // the `characters`.`name` collation (utf8_general_ci) compares, so the check is made here,
-    // in memory, and the statement below carries numbers only. A taken name answers
-    // CHAR_CREATE_ERROR, the code the callback gives a missing row.
+    // in memory, and the statement below carries numbers only.
     if (sObjectMgr.GetPlayerGuidByName(newname))
     {
         WorldPacket data(SMSG_CHAR_RENAME, 1);
-        data << uint8(CHAR_CREATE_ERROR);
+        data << uint8(CHAR_CREATE_NAME_IN_USE);
         session.SendPacket(&data);
         return;
     }
@@ -178,7 +177,7 @@ void CharacterCustomizeHandlers::HandleChangePlayerNameCallback(std::optional<Re
     if (sObjectMgr.GetPlayerGuidByName(newname))
     {
         WorldPacket data(SMSG_CHAR_RENAME, 1);
-        data << uint8(CHAR_CREATE_ERROR);
+        data << uint8(CHAR_CREATE_NAME_IN_USE);
         session->SendPacket(&data);
         return;
     }

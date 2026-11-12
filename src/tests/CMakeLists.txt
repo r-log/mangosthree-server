@@ -19,6 +19,7 @@ set(SRC_GRP_TESTS
     SessionProtocolPolicyTest.cpp
     OpcodeSlotsTest.cpp
     OpcodeValuesTest.cpp
+    ResponseCodeValuesTest.cpp
     MovementCodecTest.cpp
     MovementParityTest.cpp
     ServerRoutingTest.cpp
@@ -130,6 +131,7 @@ set(SRC_GRP_TESTS
     CharacterCacheTest.cpp
     CharacterOpsAsyncTest.cpp
     RequesterSessionTest.cpp
+    CharacterRenameResultTest.cpp
     SessionRegistryTest.cpp
     GroupRegistryTest.cpp
     ArenaTeamRegistryTest.cpp
