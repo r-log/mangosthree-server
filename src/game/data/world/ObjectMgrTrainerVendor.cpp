@@ -186,8 +186,6 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
         SpellEntry const* learnSpellinfo = sSpellStore.LookupEntry(trainerSpell.learnedSpell);
         if (SpellMgr::IsProfessionSpell(trainerSpell.learnedSpell))
         {
-            data.trainerType = 2;
-
             uint32 minLevel = sSpellMgr.GetProfessionSpellMinLevel(trainerSpell.learnedSpell);
             if (trainerSpell.reqLevel)
             {
@@ -217,6 +215,8 @@ void ObjectMgr::LoadTrainers(char const* tableName, bool isTemplates)
 
         ++count;
     }
+
+    m_trainerSpells.DeriveTrainerTypes(isTemplates);
 
     sLog.outString(">> Loaded %d trainer %sspells", count, isTemplates ? "template " : "");
     sLog.outString();

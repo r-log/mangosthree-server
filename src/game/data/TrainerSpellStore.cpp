@@ -24,6 +24,20 @@
  */
 
 #include "data/TrainerSpellStore.h"
+#include "spells/data/SpellMgr.h"
+
+namespace
+{
+    bool IsTradeskillLine(uint32 skill)
+    {
+        return IsProfessionSkill(skill) || skill == SKILL_ARCHAEOLOGY;
+    }
+
+    bool MakesTradeskillList(TrainerSpell const& spell)
+    {
+        return SpellMgr::IsProfessionSpell(spell.learnedSpell) || IsTradeskillLine(spell.reqSkill);
+    }
+}
 
 void TrainerSpellStore::Clear(bool templates)
 {
@@ -42,6 +56,15 @@ TrainerSpellData const* TrainerSpellStore::Find(bool templates, uint32 entry) co
     return itr != list.end() ? &itr->second : NULL;
 }
 
+void TrainerSpellStore::DeriveTrainerTypes(bool templates)
+{
+    CacheTrainerSpellMap& list = List(templates);
+    for (CacheTrainerSpellMap::iterator itr = list.begin(); itr != list.end(); ++itr)
+    {
+        itr->second.trainerType = TrainerListType(itr->second.spellList);
+    }
+}
+
 TrainerSpell const* FindTrainerSpell(TrainerSpellData const* creatureSpells, TrainerSpellData const* templateSpells, uint32 spellId)
 {
     TrainerSpell const* spell = creatureSpells ? creatureSpells->Find(spellId) : NULL;
@@ -50,4 +73,16 @@ TrainerSpell const* FindTrainerSpell(TrainerSpellData const* creatureSpells, Tra
         spell = templateSpells->Find(spellId);
     }
     return spell;
+}
+
+uint32 TrainerListType(TrainerSpellMap const& spells)
+{
+    for (TrainerSpellMap::const_iterator itr = spells.begin(); itr != spells.end(); ++itr)
+    {
+        if (MakesTradeskillList(itr->second))
+        {
+            return TRAINER_TYPE_TRADESKILLS;
+        }
+    }
+    return TRAINER_TYPE_CLASS;
 }

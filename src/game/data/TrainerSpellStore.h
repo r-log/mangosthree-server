@@ -46,6 +46,9 @@ class TrainerSpellStore
         TrainerSpellData const* Find(bool templates, uint32 entry) const;
         CacheTrainerSpellMap const& Templates() const { return m_templates; }
 
+        /// Sets the trainer type of each list on one side from its spells (`TrainerListType`).
+        void DeriveTrainerTypes(bool templates);
+
     private:
         CacheTrainerSpellMap& List(bool templates) { return templates ? m_templates : m_trainers; }
         CacheTrainerSpellMap const& List(bool templates) const { return templates ? m_templates : m_trainers; }
@@ -57,5 +60,9 @@ class TrainerSpellStore
 /// The trainer spell `spellId` from the creature's own list, else from the template list; null when
 /// neither list holds it. Either list may be null.
 TrainerSpell const* FindTrainerSpell(TrainerSpellData const* creatureSpells, TrainerSpellData const* templateSpells, uint32 spellId);
+
+/// The trainer type the client gets with a list: TRAINER_TYPE_TRADESKILLS when a spell of the list
+/// teaches a profession rank or needs a profession skill (Archaeology included), else TRAINER_TYPE_CLASS.
+uint32 TrainerListType(TrainerSpellMap const& spells);
 
 #endif
