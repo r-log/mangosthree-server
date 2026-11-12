@@ -45,6 +45,10 @@
 #include "QuestAccept.h"
 #include "Group.h"
 #include "persistence/characters/quests/QuestTrackerRepository.h"
+#include "session/packets/quests/QuestCompletionNpcsPacket.h"
+
+#include <algorithm>
+#include <vector>
 
 void QuestHandlers::HandleQuestgiverStatusQuery(WorldSession& session, WorldPacket& recv_data)
 {
@@ -618,6 +622,32 @@ void QuestHandlers::HandleQuestgiverStatusMultipleQuery(WorldSession& session, W
     DEBUG_LOG("WORLD: Received opcode CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY");
 
     session.GetPlayer()->SendQuestGiverStatusMultiple();
+}
+
+void AnswerQuestCompletionNpcsQuery(WorldPacket& request, QuestRelationStore const& relations, WorldPacket& reply)
+{
+    uint32 count = std::min(request.ReadBits(24), uint32(MAX_QUEST_LOG_SIZE));
+
+    std::vector<uint32> questIds(count);
+    for (uint32& questId : questIds)
+    {
+        request >> questId;
+    }
+    request.rpos(request.wpos());
+
+    BuildQuestCompletionNpcResponse(reply, relations, questIds);
+}
+
+/**
+ * @brief Tells the client which creatures and game objects end the quests it asks about.
+ *
+ * @param recv_data The received opcode packet.
+ */
+void QuestHandlers::HandleQueryQuestCompletionNpcs(WorldSession& session, WorldPacket& recv_data)
+{
+    WorldPacket data;
+    AnswerQuestCompletionNpcsQuery(recv_data, sObjectMgr.QuestRelations(), data);
+    session.SendPacket(&data);
 }
 
 /**

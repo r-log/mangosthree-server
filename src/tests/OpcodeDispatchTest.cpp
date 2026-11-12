@@ -2058,6 +2058,9 @@ TEST(OpcodeDispatch_QuestRowsHoldTheirHandlersThunks)
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestPushResult>), 1);
     CHECK(opcodeTable[CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY].handler == &OpcodeThunk<&QuestHandlers::HandleQuestgiverStatusMultipleQuery>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQuestgiverStatusMultipleQuery>), 1);
+    CHECK(opcodeTable[CMSG_QUERY_QUEST_COMPLETION_NPCS].handler == &OpcodeThunk<&QuestHandlers::HandleQueryQuestCompletionNpcs>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&QuestHandlers::HandleQueryQuestCompletionNpcs>), 1);
+    CHECK(opcodeTable[SMSG_QUEST_COMPLETION_NPC_RESPONSE].handler == &OpcodeThunk<&WorldSession::Handle_ServerSide>);
 }
 
 TEST(OpcodeDispatch_QuestRowsKeepTheirStatusAndProcessing)
@@ -2070,12 +2073,18 @@ TEST(OpcodeDispatch_QuestRowsKeepTheirStatusAndProcessing)
     OpcodesList const rows[] = { CMSG_QUESTGIVER_HELLO, CMSG_QUESTGIVER_ACCEPT_QUEST, CMSG_QUESTGIVER_QUERY_QUEST,
                                  CMSG_QUEST_QUERY, CMSG_QUESTGIVER_CHOOSE_REWARD, CMSG_QUESTGIVER_REQUEST_REWARD,
                                  CMSG_QUESTLOG_REMOVE_QUEST, CMSG_QUEST_CONFIRM_ACCEPT, CMSG_QUESTGIVER_COMPLETE_QUEST,
-                                 CMSG_PUSHQUESTTOPARTY, MSG_QUEST_PUSH_RESULT, CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY };
+                                 CMSG_PUSHQUESTTOPARTY, MSG_QUEST_PUSH_RESULT, CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY,
+                                 CMSG_QUERY_QUEST_COMPLETION_NPCS };
     for (OpcodesList row : rows)
     {
         CHECK_EQ(opcodeTable[row].status, STATUS_LOGGEDIN);
         CHECK_EQ(opcodeTable[row].packetProcessing, PROCESS_THREADUNSAFE);
     }
+
+    // The answer is the server's to send: a row the client never sends, which SendPacket accepts.
+    CHECK_EQ(opcodeTable[SMSG_QUEST_COMPLETION_NPC_RESPONSE].status, STATUS_NEVER);
+    CHECK_STR(opcodeTable[SMSG_QUEST_COMPLETION_NPC_RESPONSE].name, "SMSG_QUEST_COMPLETION_NPC_RESPONSE");
+    CHECK_STR(opcodeTable[CMSG_QUERY_QUEST_COMPLETION_NPCS].name, "CMSG_QUERY_QUEST_COMPLETION_NPCS");
 }
 
 TEST(OpcodeDispatch_CalendarRowsHoldTheirHandlersThunks)

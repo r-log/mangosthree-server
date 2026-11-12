@@ -30,3 +30,18 @@ bool QuestRelationStore::GameObjectStartsOrEndsQuests(uint32 entry) const
     return m_gameObjectStarts.find(entry) != m_gameObjectStarts.end() ||
            m_gameObjectEnds.find(entry) != m_gameObjectEnds.end();
 }
+
+void QuestRelationStore::RebuildQuestEnders()
+{
+    m_questEnders.clear();
+
+    for (QuestRelationsMap::value_type const& relation : m_creatureEnds)
+    {
+        m_questEnders.insert(QuestRelationsMap::value_type(relation.second, relation.first));
+    }
+
+    for (QuestRelationsMap::value_type const& relation : m_gameObjectEnds)
+    {
+        m_questEnders.insert(QuestRelationsMap::value_type(relation.second, relation.first | GAMEOBJECT_ENDER_FLAG));
+    }
+}

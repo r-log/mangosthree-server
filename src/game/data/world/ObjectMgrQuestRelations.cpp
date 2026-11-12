@@ -127,6 +127,8 @@ void ObjectMgr::LoadGameobjectInvolvedRelations()
             sLog.outErrorDb("Table `quest_relations` have data gameobject entry (%u) for quest %u, but GO is not GAMEOBJECT_TYPE_QUESTGIVER", itr->first, itr->second);
         }
     }
+
+    m_questRelations.RebuildQuestEnders();
 }
 
 /**
@@ -171,6 +173,8 @@ void ObjectMgr::LoadCreatureInvolvedRelations()
             sLog.outErrorDb("Table `quest_relations` has creature entry (%u) for quest %u, but npcflag does not include UNIT_NPC_FLAG_QUESTGIVER", itr->first, itr->second);
         }
     }
+
+    m_questRelations.RebuildQuestEnders();
 }
 
 /**

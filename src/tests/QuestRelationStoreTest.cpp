@@ -24,7 +24,8 @@
  */
 
 /// Who starts and ends each quest, filled and looked up with no database: the four relation maps by
-/// entry, a game object that starts or ends a quest, and the game objects that activate for quests.
+/// entry, the enders of each quest, a game object that starts or ends a quest, and the game objects
+/// that activate for quests.
 
 #include "TestHarness.h"
 #include "data/QuestRelationStore.h"
@@ -69,6 +70,45 @@ TEST(QuestRelationStore_AGameObjectStartsOrEndsAQuest)
     CHECK(store.GameObjectStartsOrEndsQuests(200));
     CHECK(store.GameObjectStartsOrEndsQuests(201));
     CHECK(!store.GameObjectStartsOrEndsQuests(202));
+}
+
+TEST(QuestRelationStore_AQuestsEndersHoldItsCreatureAsItIsAndItsGameObjectFlagged)
+{
+    QuestRelationStore store;
+    store.CreatureEndsForEdit().insert(QuestRelationsMap::value_type(197, 28766));
+    store.GameObjectEndsForEdit().insert(QuestRelationsMap::value_type(196394, 28766));
+    store.CreatureEndsForEdit().insert(QuestRelationsMap::value_type(823, 28767));
+    store.CreatureStartsForEdit().insert(QuestRelationsMap::value_type(197, 28763));
+    store.RebuildQuestEnders();
+
+    QuestRelationsMapBounds enders = store.QuestEnders(28766);
+    CHECK_EQ(Count(enders), size_t(2));
+    CHECK_EQ(enders.first->second, uint32(197));
+    ++enders.first;
+    CHECK_EQ(enders.first->second, uint32(0x8002FF2A));
+    CHECK_EQ(enders.first->second, uint32(196394) | QuestRelationStore::GAMEOBJECT_ENDER_FLAG);
+
+    CHECK_EQ(Count(store.QuestEnders(28767)), size_t(1));
+    CHECK_EQ(store.QuestEnders(28767).first->second, uint32(823));
+
+    // A quest the creature only starts, and a quest nobody ends, have no enders.
+    CHECK_EQ(Count(store.QuestEnders(28763)), size_t(0));
+    CHECK_EQ(Count(store.QuestEnders(99999)), size_t(0));
+}
+
+TEST(QuestRelationStore_RebuildingTheEndersFollowsTheReloadedMaps)
+{
+    QuestRelationStore store;
+    store.CreatureEndsForEdit().insert(QuestRelationsMap::value_type(197, 28766));
+    store.RebuildQuestEnders();
+    CHECK_EQ(Count(store.QuestEnders(28766)), size_t(1));
+
+    store.CreatureEndsForEdit().clear();
+    store.GameObjectEndsForEdit().insert(QuestRelationsMap::value_type(300, 28766));
+    store.RebuildQuestEnders();
+
+    CHECK_EQ(Count(store.QuestEnders(28766)), size_t(1));
+    CHECK_EQ(store.QuestEnders(28766).first->second, uint32(300) | QuestRelationStore::GAMEOBJECT_ENDER_FLAG);
 }
 
 TEST(QuestRelationStore_TheGameObjectsForQuestsAreAddedAndCleared)

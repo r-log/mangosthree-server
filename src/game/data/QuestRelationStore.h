@@ -37,18 +37,29 @@ typedef std::pair<QuestRelationsMap::const_iterator, QuestRelationsMap::const_it
 
 /**
  * Who starts and ends each quest (`quest_relations`): the quests a creature or a game object entry
- * starts and the quests it ends, by entry, in the order loaded; and the game object entries that
- * activate for quests. The loaders fill each map through its edit access.
+ * starts and the quests it ends, by entry, in the order loaded; the creatures and game objects that
+ * end each quest, by quest; and the game object entries that activate for quests. The loaders fill
+ * each map through its edit access and then rebuild the enders by quest.
  */
 class QuestRelationStore
 {
     public:
+        /// The bit a game object's entry carries among a quest's enders, which tells the client's
+        /// minimap to match it against game object blips rather than creature blips.
+        static constexpr uint32 GAMEOBJECT_ENDER_FLAG = 0x80000000;
+
         QuestRelationsMapBounds CreatureStarts(uint32 entry) const { return m_creatureStarts.equal_range(entry); }
         QuestRelationsMapBounds CreatureEnds(uint32 entry) const { return m_creatureEnds.equal_range(entry); }
         QuestRelationsMapBounds GameObjectStarts(uint32 entry) const { return m_gameObjectStarts.equal_range(entry); }
         QuestRelationsMapBounds GameObjectEnds(uint32 entry) const { return m_gameObjectEnds.equal_range(entry); }
         /// Whether the game object entry starts or ends a quest.
         bool GameObjectStartsOrEndsQuests(uint32 entry) const;
+
+        /// The creatures and game objects that end the quest: the creature entries first, then the
+        /// game object entries with GAMEOBJECT_ENDER_FLAG set.
+        QuestRelationsMapBounds QuestEnders(uint32 questId) const { return m_questEnders.equal_range(questId); }
+        /// Refills QuestEnders from the creature and game object ender maps.
+        void RebuildQuestEnders();
 
         /// The loaders' edit access to each relation map.
         QuestRelationsMap& CreatureStartsForEdit() { return m_creatureStarts; }
@@ -65,6 +76,7 @@ class QuestRelationStore
         QuestRelationsMap m_creatureEnds;
         QuestRelationsMap m_gameObjectStarts;
         QuestRelationsMap m_gameObjectEnds;
+        QuestRelationsMap m_questEnders;
         std::set<uint32> m_gameObjectsForQuests;
 };
 

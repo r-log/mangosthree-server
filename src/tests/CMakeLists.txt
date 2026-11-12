@@ -165,6 +165,7 @@ set(SRC_GRP_TESTS
     QuestStatusMgrTest.cpp
     QuestPredicateTest.cpp
     QuestCompletePacketTest.cpp
+    QuestCompletionNpcsTest.cpp
     MessageChatPacketTest.cpp
     ChatLinksTest.cpp
     CommandHooksTest.cpp
