@@ -119,9 +119,8 @@ which (its reader takes +120 where CPP's run-speed table, after the P1-B
 rename, says FallSinAngle). These four readers take +116 where their CPP table
 says FallSinAngle and +120 where it says FallCosAngle -- the same two slots, the
 opposite labels -- so those four tables and the control cannot both be right.
-The control is the one a real-client golden replayed, so it is those four
-tables, still CPP-sourced and live in the registry, that need a witness and a
-fix; this tool only reports it.
+The control is the one a real-client golden replayed, so the generator swaps
+the pair in those four tables (its SWAPPED).
 
 The two that disagree structurally:
 

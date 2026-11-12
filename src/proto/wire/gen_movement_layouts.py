@@ -72,8 +72,8 @@ ELEMENT_NAMES = {
     # client sends while that jump's fall stays open (MSG_MOVE_HEARTBEAT,
     # CMSG_MOVE_START_STRAFE_LEFT -- Cos-then-Sin tables, the opposite wire
     # order from the jump's Sin-then-Cos) echoes the identical, now-correct
-    # pair. CPP names both elements from one offset-to-name mapping applied to
-    # every table, so the flip belongs in that one mapping, not per table.
+    # pair. The flip belongs in this one mapping; SWAPPED below swaps the pair
+    # back in the tables whose client readers take it the other way round.
     "MSEFallCosAngle": "FallSinAngle", "MSEFallSinAngle": "FallCosAngle",
 }
 for i in range(8):
@@ -255,7 +255,11 @@ for name, first in CORRECTED.items():
 # the pair swaps places, and the table keeps its name, its row and every other element.
 # Each entry names the reader (Wow-64.c of build 15595) that shows the order.
 SWAPPED = {
-    "MoveSetRunBackSpeed": ("MSEHasGuidByte4", "MSEHasGuidByte5", "sub_14036D2B0"),
+    "MoveSetRunBackSpeed":           ("MSEHasGuidByte4", "MSEHasGuidByte5", "sub_14036D2B0"),
+    "MovementUpdateFlightSpeed":     ("MSEFallCosAngle", "MSEFallSinAngle", "sub_14037F910"),
+    "MovementUpdateSwimSpeed":       ("MSEFallCosAngle", "MSEFallSinAngle", "sub_14038B940"),
+    "MoveUpdateSwimBackSpeed":       ("MSEFallCosAngle", "MSEFallSinAngle", "sub_14037CC90"),
+    "MovementUpdateCollisionHeight": ("MSEFallCosAngle", "MSEFallSinAngle", "sub_140390280"),
 }
 for name, (first, second, reader) in SWAPPED.items():
     table = tables[name]
@@ -312,7 +316,8 @@ buf.write("// verified one. The legacy fence that recorded where the tree's olde
 buf.write("// disagreed retired with that transcription (P2-B); one of its differences was CPP's\n")
 buf.write("// mistake, not the tree's, and is CORRECTED below.\n")
 buf.write("// One rename: MSEFallCosAngle -> FallSinAngle and MSEFallSinAngle -> FallCosAngle, in every\n")
-buf.write("// table -- P1-B's client golden proved the source's mapping backwards (see ELEMENT_NAMES).\n//\n")
+buf.write("// table -- P1-B's client golden proved the source's mapping backwards (see ELEMENT_NAMES).\n")
+buf.write("// The tables whose client readers take the pair the other way round have it SWAPPED back below.\n//\n")
 buf.write("// %d of the source's tables were excluded -- the client's own reader contradicts each,\n" % len(EXCLUDED))
 buf.write("// for the reason listed below -- and are\n")
 buf.write("// supplied by the client's own readers instead (LIFTED in the generator, lifted by\n")

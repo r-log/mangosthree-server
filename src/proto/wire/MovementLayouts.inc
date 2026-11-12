@@ -12,6 +12,7 @@
 // mistake, not the tree's, and is CORRECTED below.
 // One rename: MSEFallCosAngle -> FallSinAngle and MSEFallSinAngle -> FallCosAngle, in every
 // table -- P1-B's client golden proved the source's mapping backwards (see ELEMENT_NAMES).
+// The tables whose client readers take the pair the other way round have it SWAPPED back below.
 //
 // 4 of the source's tables were excluded -- the client's own reader contradicts each,
 // for the reason listed below -- and are
@@ -32,9 +33,13 @@
 // generator's CORRECTED, each with its witness golden):
 //   MoveSplineDone (CMSG_MOVE_SPLINE_DONE): MovementCounter leads; CPP's table starts at the position
 //
-// 1 CPP table(s) whose client reader takes two of their elements the other way round
+// 5 CPP table(s) whose client reader takes two of their elements the other way round
 // have the pair SWAPPED in place (the generator's SWAPPED, each with its reader):
 //   MoveSetRunBackSpeed (SMSG_MOVE_SET_RUN_BACK_SPEED): GuidBit4 and GuidBit5 swapped, as the client reader sub_14036D2B0 takes them
+//   MoveUpdateSwimBackSpeed (SMSG_MOVE_UPDATE_SWIM_BACK_SPEED): FallSinAngle and FallCosAngle swapped, as the client reader sub_14037CC90 takes them
+//   MovementUpdateCollisionHeight (SMSG_MOVE_UPDATE_COLLISION_HEIGHT): FallSinAngle and FallCosAngle swapped, as the client reader sub_140390280 takes them
+//   MovementUpdateFlightSpeed (SMSG_MOVE_UPDATE_FLIGHT_SPEED): FallSinAngle and FallCosAngle swapped, as the client reader sub_14037F910 takes them
+//   MovementUpdateSwimSpeed (SMSG_MOVE_UPDATE_SWIM_SPEED): FallSinAngle and FallCosAngle swapped, as the client reader sub_14038B940 takes them
 //
 // A fourth client-only update, SMSG_MOVE_UPDATE_PITCH_RATE (0x1DB5), has no table here
 // either: its reader (sub_14037B330) takes a gate bit as a bitwise-complement (`~expr >> 7`)
@@ -543,6 +548,7 @@ LAYOUT(MovementSetCanTransitionBetweenSwimAndFlyAck,
     E::TransportPositionO, E::TransportVehicleId, E::Pitch, E::PositionO, E::Timestamp,
     E::SplineElevation, E::End)
 
+// SWAPPED: two elements in the order the client reader sub_14038B940 takes them (see the generator)
 LAYOUT(MovementUpdateSwimSpeed,
     E::HasMovementFlags, E::GuidBit2, E::HasSpline, E::HasTimestamp, E::Flags, E::HasFallData,
     E::GuidBit3, E::HasTransportData, E::HasUnknownBit, E::GuidBit7, E::HasFallDirection,
@@ -554,8 +560,8 @@ LAYOUT(MovementUpdateSwimSpeed,
     E::TransportVehicleId, E::TransportTime2, E::TransportGuidByte6, E::TransportPositionO,
     E::TransportGuidByte0, E::TransportGuidByte4, E::TransportPositionY, E::TransportTime,
     E::TransportGuidByte1, E::TransportGuidByte7, E::TransportPositionZ, E::TransportSeat,
-    E::TransportGuidByte3, E::TransportGuidByte5, E::PositionX, E::FallSinAngle,
-    E::FallHorizontalSpeed, E::FallCosAngle, E::FallTime, E::FallVerticalSpeed, E::GuidByte7,
+    E::TransportGuidByte3, E::TransportGuidByte5, E::PositionX, E::FallCosAngle,
+    E::FallHorizontalSpeed, E::FallSinAngle, E::FallTime, E::FallVerticalSpeed, E::GuidByte7,
     E::Timestamp, E::PositionY, E::SplineElevation, E::PositionZ, E::ExtraFloat, E::GuidByte4,
     E::PositionO, E::GuidByte2, E::GuidByte3, E::GuidByte0, E::GuidByte6, E::GuidByte1,
     E::GuidByte5, E::Pitch, E::End)
@@ -576,6 +582,7 @@ LAYOUT(MovementUpdateRunSpeed,
     E::FallTime, E::Pitch, E::GuidByte6, E::SplineElevation, E::GuidByte5, E::GuidByte7,
     E::GuidByte4, E::PositionO, E::GuidByte0, E::GuidByte3, E::GuidByte2, E::GuidByte1, E::End)
 
+// SWAPPED: two elements in the order the client reader sub_14037F910 takes them (see the generator)
 LAYOUT(MovementUpdateFlightSpeed,
     E::PositionY, E::ExtraFloat, E::PositionX, E::PositionZ, E::HasMovementFlags, E::GuidBit4,
     E::HasUnknownBit, E::GuidBit5, E::GuidBit1, E::Flags, E::HasFallData, E::GuidBit2,
@@ -588,8 +595,8 @@ LAYOUT(MovementUpdateFlightSpeed,
     E::TransportTime, E::TransportGuidByte5, E::TransportGuidByte4, E::TransportGuidByte6,
     E::TransportPositionZ, E::TransportGuidByte7, E::TransportGuidByte0, E::TransportGuidByte2,
     E::TransportGuidByte3, E::TransportPositionY, E::TransportVehicleId, E::TransportTime2,
-    E::TransportGuidByte1, E::TransportSeat, E::TransportPositionX, E::FallSinAngle,
-    E::FallHorizontalSpeed, E::FallCosAngle, E::FallVerticalSpeed, E::FallTime, E::GuidByte1,
+    E::TransportGuidByte1, E::TransportSeat, E::TransportPositionX, E::FallCosAngle,
+    E::FallHorizontalSpeed, E::FallSinAngle, E::FallVerticalSpeed, E::FallTime, E::GuidByte1,
     E::GuidByte6, E::Timestamp, E::GuidByte7, E::GuidByte2, E::GuidByte4, E::PositionO,
     E::GuidByte3, E::End)
 
@@ -599,6 +606,7 @@ LAYOUT(MovementSetCollisionHeight,
     E::GuidByte5, E::MovementCounter, E::GuidByte1, E::GuidByte2, E::GuidByte7, E::ExtraFloat,
     E::End)
 
+// SWAPPED: two elements in the order the client reader sub_140390280 takes them (see the generator)
 LAYOUT(MovementUpdateCollisionHeight,
     E::PositionZ, E::ExtraFloat, E::PositionX, E::PositionY, E::GuidBit6, E::GuidBit7,
     E::HasSplineElevation, E::HasTransportData, E::TransportGuidBit6, E::TransportGuidBit4,
@@ -611,7 +619,7 @@ LAYOUT(MovementUpdateCollisionHeight,
     E::TransportVehicleId, E::TransportTime2, E::TransportGuidByte5, E::TransportPositionO,
     E::TransportPositionX, E::TransportGuidByte6, E::TransportGuidByte0, E::TransportPositionY,
     E::TransportGuidByte2, E::TransportPositionZ, E::TransportGuidByte3, E::TransportGuidByte1,
-    E::TransportSeat, E::Pitch, E::GuidByte6, E::FallSinAngle, E::FallCosAngle,
+    E::TransportSeat, E::Pitch, E::GuidByte6, E::FallCosAngle, E::FallSinAngle,
     E::FallHorizontalSpeed, E::FallVerticalSpeed, E::FallTime, E::GuidByte7, E::PositionO,
     E::GuidByte0, E::GuidByte5, E::GuidByte4, E::SplineElevation, E::Timestamp, E::GuidByte2,
     E::GuidByte1, E::End)
@@ -799,6 +807,7 @@ LAYOUT(ForceMoveUnrootAck,
     E::FallVerticalSpeed, E::FallTime, E::Timestamp, E::SplineElevation, E::PositionO, E::Pitch,
     E::End)
 
+// SWAPPED: two elements in the order the client reader sub_14037CC90 takes them (see the generator)
 LAYOUT(MoveUpdateSwimBackSpeed,
     E::GuidBit7, E::GuidBit2, E::HasTransportData, E::GuidBit1, E::TransportGuidBit2,
     E::TransportGuidBit1, E::TransportGuidBit0, E::TransportGuidBit7, E::TransportGuidBit3,
@@ -810,7 +819,7 @@ LAYOUT(MoveUpdateSwimBackSpeed,
     E::TransportVehicleId, E::TransportGuidByte6, E::TransportGuidByte4, E::TransportGuidByte2,
     E::TransportGuidByte3, E::TransportPositionO, E::TransportGuidByte5, E::TransportTime,
     E::TransportGuidByte0, E::TransportGuidByte1, E::TransportPositionX, E::TransportPositionZ,
-    E::TransportTime2, E::TransportPositionY, E::TransportSeat, E::FallCosAngle, E::FallSinAngle,
+    E::TransportTime2, E::TransportPositionY, E::TransportSeat, E::FallSinAngle, E::FallCosAngle,
     E::FallHorizontalSpeed, E::FallVerticalSpeed, E::FallTime, E::Pitch, E::GuidByte2, E::GuidByte7,
     E::ExtraFloat, E::SplineElevation, E::PositionZ, E::GuidByte3, E::PositionX, E::Timestamp,
     E::GuidByte5, E::PositionO, E::GuidByte6, E::GuidByte1, E::End)

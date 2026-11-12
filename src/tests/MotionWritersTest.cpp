@@ -471,6 +471,99 @@ TEST(MotionWriters_the_run_back_speed_set_carries_guid_byte_5_as_the_client_read
         "47" "F0" "31"));                                                 // guid 0, 7, 6
 }
 
+// ---- four observer updates of a mover falling with a direction, against the client's readers ----
+//
+// The golden strings list the bytes in the order each client reader reads them, one segment per
+// read: ClientMoveUpdateFlightSpeed::Unpack (Wow-64.exe 0x14037F910),
+// ClientMoveUpdateSwimSpeed::Unpack (0x14038B940), ClientMoveUpdateSwimBackSpeed::Unpack
+// (0x14037CC90) and ClientMoveUpdateCollisionHeight::Unpack (0x140390280). The fall's cosine is
+// the float each reader stores at +116 of its movement status, the sine the one at +120.
+
+namespace
+{
+    const uint64 kFallingMover = 0x4400330022110046ULL;   // guid bytes 0, 2, 3, 5 and 7 set
+
+    /// A mover with no transport, falling with a direction.
+    Wire::MovementStatus FallingWithDirection()
+    {
+        Wire::MovementStatus s;
+        s.flags = 0x00000801;
+        s.time = 0x000ABCDE;
+        s.pos = { 1.0f, 2.0f, 3.0f, 0.5f };
+        s.fall.present = true;
+        s.fall.hasDirection = true;
+        s.fall.time = 1200;
+        s.fall.vertical = -7.5f;
+        s.fall.horizontal = 7.0f;
+        s.fall.cosAngle = 0.6f;
+        s.fall.sinAngle = 0.8f;
+        return s;
+    }
+
+    /// Builds the observer packet of `change` for the falling mover, checks it against `golden`,
+    /// and decodes it back.
+    void CheckFallingUpdate(uint16 opcode, Change const& change, std::string const& golden)
+    {
+        WorldPacket out;
+        REQUIRE(BuildObserver(out, kFallingMover, 0, change, FallingWithDirection()));
+        CHECK_EQ(out.GetOpcode(), opcode);
+        CHECK_STR(Hex(out), golden);
+
+        WorldPacket in = FromHex(opcode, golden.c_str());
+        Wire::MovementStatus back;
+        Wire::DecodeResult res;
+        REQUIRE(Wire::DecodeWhole(in, Wire::SequenceFor(opcode), back, res, false));
+        Wire::MovementStatus expect = FallingWithDirection();
+        expect.guid = kFallingMover;
+        expect.value = change.value;
+        CHECK(back == expect);
+    }
+}
+
+TEST(MotionWriters_the_flight_speed_update_carries_a_fall_direction_as_the_client_reads)
+{
+    CheckFallingUpdate(SMSG_MOVE_UPDATE_FLIGHT_SPEED, SpeedChange(uint8(SpeedIndex(ChangeType::FlightSpeed)), 8.5f),
+        std::string(
+        "00000040" "00000841" "0000803F" "00004040"                       // y, speed, x, z
+        "100001003B8D80"                                                  // 49 bits
+        "47" "32"                                                         // guid 0, 5
+        "9A99193F" "0000E040" "CDCC4C3F" "0000F0C0" "B0040000"            // fall: cos, horizontal, sin, vertical, time
+        "DEBC0A00" "45" "10" "0000003F" "23"));                           // time, guid 7, 2, o, guid 3
+}
+
+TEST(MotionWriters_the_swim_speed_update_carries_a_fall_direction_as_the_client_reads)
+{
+    CheckFallingUpdate(SMSG_MOVE_UPDATE_SWIM_SPEED, SpeedChange(uint8(SpeedIndex(ChangeType::SwimSpeed)), 4.5f),
+        std::string(
+        "4000020073B500"                                                  // 49 bits
+        "0000803F"                                                        // x
+        "9A99193F" "0000E040" "CDCC4C3F" "B0040000" "0000F0C0"            // fall: cos, horizontal, sin, time, vertical
+        "45" "DEBC0A00" "00000040" "00004040" "00009040" "0000003F"       // guid 7, time, y, z, speed, o
+        "10" "23" "47" "32"));                                            // guid 2, 3, 0, 5
+}
+
+TEST(MotionWriters_the_swim_back_speed_update_carries_a_fall_direction_as_the_client_reads)
+{
+    CheckFallingUpdate(SMSG_MOVE_UPDATE_SWIM_BACK_SPEED, SpeedChange(uint8(SpeedIndex(ChangeType::SwimBackSpeed)), 2.5f),
+        std::string(
+        "C9870000200580"                                                  // 49 bits
+        "47" "00000040"                                                   // guid 0, y
+        "CDCC4C3F" "9A99193F" "0000E040" "0000F0C0" "B0040000"            // fall: sin, cos, horizontal, vertical, time
+        "10" "45" "00002040" "00004040" "23" "0000803F"                   // guid 2, 7, speed, z, guid 3, x
+        "DEBC0A00" "32" "0000003F"));                                     // time, guid 5, o
+}
+
+TEST(MotionWriters_the_collision_height_update_carries_a_fall_direction_as_the_client_reads)
+{
+    CheckFallingUpdate(SMSG_MOVE_UPDATE_COLLISION_HEIGHT, HeightChange(2.25f, 0),
+        std::string(
+        "00004040" "00001040" "0000803F" "00000040"                       // z, height, x, y
+        "69754000040080"                                                  // 49 bits
+        "23"                                                              // guid 3
+        "9A99193F" "CDCC4C3F" "0000E040" "0000F0C0" "B0040000"            // fall: cos, sin, horizontal, vertical, time
+        "45" "0000003F" "47" "32" "DEBC0A00" "10"));                      // guid 7, o, guid 0, 5, time, guid 2
+}
+
 // ---- the monster move and the point-carrying stop ----------------------------------------
 
 namespace
