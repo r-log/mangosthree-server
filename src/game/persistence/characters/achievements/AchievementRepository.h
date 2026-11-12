@@ -36,19 +36,30 @@ struct CompletedAchievementRow
     uint32 achievement = 0;
 };
 
+/// One character holding one completed achievement.
+struct AchievementHolderRow
+{
+    uint32 achievement = 0;
+    uint32 guid = 0;
+};
+
 /// One criteria some character has progress in.
 struct AchievementCriteriaProgressRow
 {
     uint32 criteria = 0;
 };
 
-/// The characters' completed achievements and criteria progress. The two realm-wide reads run at
+/// The characters' completed achievements and criteria progress. The realm-wide reads run at
 /// startup, synchronously; every write is queued on the character database, and one called inside
 /// CharacterTransaction joins it.
 namespace AchievementRepository
 {
     /// Selects every achievement some character has completed, once each.
     std::vector<CompletedAchievementRow> QueryCompletedAchievements();
+
+    /// Selects every character holding one of `achievements`, once per achievement it holds; nothing
+    /// for an empty list.
+    std::vector<AchievementHolderRow> QueryHolders(std::vector<uint32> const& achievements);
 
     /// Selects every criteria some character has progress in, once each.
     std::vector<AchievementCriteriaProgressRow> QueryProgressCriteria();

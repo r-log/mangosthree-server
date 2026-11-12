@@ -86,6 +86,7 @@ set(SRC_GRP_TESTS
     CharacterSaveRepositoryTest.cpp
     AchievementRepositoryTest.cpp
     AchievementDatesTest.cpp
+    AchievementRealmFirstTest.cpp
     SpawnRepositoryTest.cpp
     InstanceRepositoryTest.cpp
     BattleGroundStatsRepositoryTest.cpp

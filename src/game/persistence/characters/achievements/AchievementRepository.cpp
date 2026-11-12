@@ -27,6 +27,8 @@
 #include "Database/DatabaseEnv.h"
 #include "persistence/RowReader.h"
 
+#include <string>
+
 namespace AchievementRepository
 {
     static CompletedAchievementRow ReadCompletedAchievement(Field* fields)
@@ -40,6 +42,31 @@ namespace AchievementRepository
     {
         QueryResult* result = CharacterDatabase.Query("SELECT `achievement` FROM `character_achievement` GROUP BY `achievement`");
         return ReadRows<CompletedAchievementRow>(result, ReadCompletedAchievement);
+    }
+
+    static AchievementHolderRow ReadAchievementHolder(Field* fields)
+    {
+        AchievementHolderRow row;
+        row.achievement = fields[0].GetUInt32();
+        row.guid = fields[1].GetUInt32();
+        return row;
+    }
+
+    std::vector<AchievementHolderRow> QueryHolders(std::vector<uint32> const& achievements)
+    {
+        if (achievements.empty())
+        {
+            return std::vector<AchievementHolderRow>();
+        }
+
+        std::string ids;
+        for (uint32 achievement : achievements)
+        {
+            ids += (ids.empty() ? "" : ",") + std::to_string(achievement);
+        }
+
+        QueryResult* result = CharacterDatabase.PQuery("SELECT `achievement`, `guid` FROM `character_achievement` WHERE `achievement` IN (%s)", ids.c_str());
+        return ReadRows<AchievementHolderRow>(result, ReadAchievementHolder);
     }
 
     static AchievementCriteriaProgressRow ReadAchievementCriteriaProgress(Field* fields)
