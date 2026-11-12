@@ -292,4 +292,8 @@ class ReputationMgr
         uint8 m_exaltedFactionCount : 8;
 };
 
+/// The change a set or a modify makes to a faction's reputation, which its spillover carries: the
+/// delta itself, or the new value clamped to the reputation range minus the current one.
+int32 ReputationSpillChange(int32 standing, bool incremental, int32 current);
+
 #endif
