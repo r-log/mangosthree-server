@@ -247,6 +247,15 @@ TEST(OpcodeValues_hotfix_list_is_the_one_the_client_reads_as_a_list)
     CHECK_EQ(int(SMSG_DB_REPLY),           0x38A4);
 }
 
+TEST(OpcodeValues_quest_completion_npcs_query_and_its_answer_match_the_client)
+{
+    // The client writes the question as 0x7302 (PlayerQueryQuestCompletionNPCs::Put, OFFSET
+    // 0x00680AB0/0x14032A460) and reads the answer at 0x75A1 (ClientQuestNpcQueryResponse::Unpack,
+    // OFFSET 0x006F6DB0/0x1403BE970).
+    CHECK_EQ(int(CMSG_QUERY_QUEST_COMPLETION_NPCS),   0x7302);
+    CHECK_EQ(int(SMSG_QUEST_COMPLETION_NPC_RESPONSE), 0x75A1);
+}
+
 TEST(OpcodeValues_unlearn_specialization_and_its_removed_spell_reply_match_the_client)
 {
     // The client writes the unlearn as 0x3210 and one uint32 index (UserClientUnlearnSpecialization::Put,

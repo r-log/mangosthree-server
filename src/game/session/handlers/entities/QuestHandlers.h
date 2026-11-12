@@ -27,14 +27,21 @@
 #define MANGOS_H_QUESTHANDLERS
 
 class ObjectGuid;
+class QuestRelationStore;
 class WorldPacket;
 class WorldSession;
+
+/// Reads the client's quest-completion query from `request`, at most MAX_QUEST_LOG_SIZE quest ids
+/// with the rest skipped, and writes into `reply` the creatures and game objects `relations` says
+/// end each of them.
+void AnswerQuestCompletionNpcsQuery(WorldPacket& request, QuestRelationStore const& relations, WorldPacket& reply);
 
 /// The client's quest opcodes: a quest giver's status, one at a time or for every quest giver in
 /// sight, its greeting, a quest's details, accepted, its reward asked for and chosen, its items
 /// handed in, a quest queried, removed from the log, confirmed when a party member shares it,
-/// shared with the party and the answer to a share. Static entry points the opcode table binds,
-/// each borrowing the session for one call and storing nothing.
+/// shared with the party, the answer to a share and the creatures and game objects that end the
+/// quests in the log. Static entry points the opcode table binds, each borrowing the session for
+/// one call and storing nothing.
 struct QuestHandlers
 {
     public:
@@ -51,6 +58,7 @@ struct QuestHandlers
         static void HandlePushQuestToParty(WorldSession& session, WorldPacket& recv_data);
         static void HandleQuestPushResult(WorldSession& session, WorldPacket& recv_data);
         static void HandleQuestgiverStatusMultipleQuery(WorldSession& session, WorldPacket& recv_data);
+        static void HandleQueryQuestCompletionNpcs(WorldSession& session, WorldPacket& recv_data);
 
     private:
         static bool CanInteractWithQuestGiver(WorldSession& session, ObjectGuid guid, char const* descr);

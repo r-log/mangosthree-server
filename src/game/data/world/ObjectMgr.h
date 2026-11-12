@@ -997,9 +997,9 @@ class ObjectMgr
             return m_questRelations.GameObjectEnds(entry);
         }
 
-        QuestRelationsMap& GetCreatureQuestRelationsMap()
+        QuestRelationStore const& QuestRelations() const
         {
-            return m_questRelations.CreatureStartsForEdit();
+            return m_questRelations;
         }
         uint32 GetModelForRace(uint32 sourceModelId, uint32 racemask);
         /**

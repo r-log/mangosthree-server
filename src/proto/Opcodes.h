@@ -1165,6 +1165,8 @@ enum OpcodesList
     CMSG_NO_SPELL_VARIANCE                                = 0x1417,
     CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY                 = 0x6305, // 4.3.4 15595
     SMSG_QUESTGIVER_STATUS_MULTIPLE                       = 0x4F25, // 4.3.4 15595
+    CMSG_QUERY_QUEST_COMPLETION_NPCS                      = 0x7302, // 4.3.4 15595
+    SMSG_QUEST_COMPLETION_NPC_RESPONSE                    = 0x75A1, // 4.3.4 15595
     CMSG_SET_PLAYER_DECLINED_NAMES                        = 0x6316, // 4.3.4 15595
     SMSG_SET_PLAYER_DECLINED_NAMES_RESULT                 = 0x2B25, // 4.3.4 15595
     CMSG_QUERY_SERVER_BUCK_DATA                           = 0x141C,

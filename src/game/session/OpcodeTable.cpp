@@ -1229,6 +1229,8 @@ void InitializeOpcodes()
     //OPCODE(CMSG_NO_SPELL_VARIANCE,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY,        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QuestHandlers::HandleQuestgiverStatusMultipleQuery);
     OPCODE(SMSG_QUESTGIVER_STATUS_MULTIPLE,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
+    OPCODE(CMSG_QUERY_QUEST_COMPLETION_NPCS,             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &QuestHandlers::HandleQueryQuestCompletionNpcs );
+    OPCODE(SMSG_QUEST_COMPLETION_NPC_RESPONSE,           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_SET_PLAYER_DECLINED_NAMES,               STATUS_AUTHED,   PROCESS_THREADUNSAFE, &CharacterCustomizeHandlers::HandleSetPlayerDeclinedNames);
     OPCODE(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT,        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_QUERY_SERVER_BUCK_DATA,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
