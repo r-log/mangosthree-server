@@ -790,6 +790,8 @@ TEST(OpcodeDispatch_SkillRowsHoldTheirHandlersThunks)
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SkillHandlers::HandleLearnPreviewTalents>), 1);
     CHECK(opcodeTable[MSG_TALENT_WIPE_CONFIRM].handler == &OpcodeThunk<&SkillHandlers::HandleTalentWipeConfirm>);
     CHECK(opcodeTable[CMSG_UNLEARN_SKILL].handler == &OpcodeThunk<&SkillHandlers::HandleUnlearnSkill>);
+    CHECK(opcodeTable[CMSG_UNLEARN_SPECIALIZATION].handler == &OpcodeThunk<&SkillHandlers::HandleUnlearnSpecialization>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SkillHandlers::HandleUnlearnSpecialization>), 1);
     CHECK(opcodeTable[CMSG_LEARN_TALENT].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
 
@@ -805,6 +807,8 @@ TEST(OpcodeDispatch_SkillRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[MSG_TALENT_WIPE_CONFIRM].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_UNLEARN_SKILL].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_UNLEARN_SKILL].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_UNLEARN_SPECIALIZATION].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_UNLEARN_SPECIALIZATION].packetProcessing, PROCESS_THREADUNSAFE);
 }
 
 TEST(OpcodeDispatch_EnchantRowReachesItsHandlerWithThePacket)

@@ -678,6 +678,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_LFG_TELEPORT_DENIED,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_UNLEARN_SPELL,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_UNLEARN_SKILL,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleUnlearnSkill             );
+    OPCODE(CMSG_UNLEARN_SPECIALIZATION,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleUnlearnSpecialization    );
     OPCODE(SMSG_REMOVED_SPELL,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_DECHARGE,                                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_GMTICKET_CREATE,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMTicketCreate          );
