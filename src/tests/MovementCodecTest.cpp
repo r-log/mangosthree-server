@@ -645,13 +645,11 @@ TEST(MovementSequences_registers_every_layout_of_the_source)
 
 TEST(MovementSequences_the_lifted_tables_carry_presence_gates)
 {
-    // The reason the first three were excluded: CPP's tables read gated fields with no
-    // gate. The client's own readers have the gates; a lifted table must too. The other
-    // two have no CPP table to have been excluded from (ADDED, Task 6 of P2-A) but read
-    // the same gated fields from the same kind of reader, so the same check applies.
-    const uint16 ops[5] = { SMSG_MOVE_UPDATE_KNOCK_BACK, SMSG_MOVE_UPDATE_RUN_BACK_SPEED, SMSG_MOVE_UPDATE_WALK_SPEED,
-                             SMSG_MOVE_UPDATE_TELEPORT, SMSG_MOVE_UPDATE_TURN_RATE };
-    for (int i = 0; i < 5; ++i)
+    // Every table lifted from a client reader reads the fall and transport blocks and,
+    // like the client's reader, gates both.
+    const uint16 ops[6] = { SMSG_MOVE_UPDATE_KNOCK_BACK, SMSG_MOVE_UPDATE_RUN_BACK_SPEED, SMSG_MOVE_UPDATE_WALK_SPEED,
+                             SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED, SMSG_MOVE_UPDATE_TELEPORT, SMSG_MOVE_UPDATE_TURN_RATE };
+    for (int i = 0; i < 6; ++i)
     {
         Wire::Sequence s = Wire::SequenceFor(ops[i]);
         REQUIRE(s != nullptr);
@@ -675,12 +673,11 @@ TEST(MovementSequences_the_lifted_tables_carry_presence_gates)
 
 TEST(MovementSequences_the_lifted_tables_round_trip_a_full_status)
 {
-    // Every field the fixture fills survives a pass through each lifted table: all five
-    // carry the whole status, gates included, so nothing may drop. Six when PitchRate's
-    // lift is unblocked; see the ADDED comment in gen_movement_layouts.py.
-    const uint16 ops[5] = { SMSG_MOVE_UPDATE_KNOCK_BACK, SMSG_MOVE_UPDATE_RUN_BACK_SPEED, SMSG_MOVE_UPDATE_WALK_SPEED,
-                             SMSG_MOVE_UPDATE_TELEPORT, SMSG_MOVE_UPDATE_TURN_RATE };
-    for (int i = 0; i < 5; ++i)
+    // Every field the fixture fills survives a pass through each lifted table: all six
+    // carry the whole status, gates included, so nothing may drop.
+    const uint16 ops[6] = { SMSG_MOVE_UPDATE_KNOCK_BACK, SMSG_MOVE_UPDATE_RUN_BACK_SPEED, SMSG_MOVE_UPDATE_WALK_SPEED,
+                             SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED, SMSG_MOVE_UPDATE_TELEPORT, SMSG_MOVE_UPDATE_TURN_RATE };
+    for (int i = 0; i < 6; ++i)
     {
         Wire::Sequence s = Wire::SequenceFor(ops[i]);
         REQUIRE(s != nullptr);

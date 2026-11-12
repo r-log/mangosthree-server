@@ -90,21 +90,20 @@ EXTRAS = {
                       + ["Guid2Byte%d" % i for i in (6, 1, 2, 5, 3, 0, 4, 7)],
 }
 
-# CPP tables that read gated fields (Timestamp, Pitch, Fall*, Transport*) with none of the
-# presence gates every other update carries; a reader cannot know from the table what to
-# read, so no layout is better than this one. P1-C's reader lift supplies all three from
-# the client instead (LIFTED below), so the opcodes still get a row.
+# CPP tables the client's own reader contradicts, each with the reason. LIFTED below
+# supplies their layouts from the client instead, so the opcodes still get a row.
 EXCLUDED = {
     "MovementUpdateKnockBack":     "no HasTimestamp/HasPitch/HasFallData/HasTransportData gates",
     "MovementUpdateRunBackSpeed":  "same",
     "MovementUpdateWalkSpeed":     "same",
+    "MoveUpdateFlightBackSpeed":   "no HasSpline bit, OneBit for HasTransportTime2, fall bytes out of order, "
+                                   "no TransportTime2 or TransportSeat",
 }
 
 # Tables lifted from the client's own readers by lift_client_reader.py (the
-# reader named per table, from Wow-64.c of build 15595), because CPP's tables
-# for these three read gated fields with no gates. The lifter reproduces
-# MovementUpdateRunSpeed from its reader exactly (its --control mode), which is
-# what makes these three trustworthy.
+# reader named per table, from Wow-64.c of build 15595), one per EXCLUDED table.
+# The lifter reproduces MovementUpdateRunSpeed from its reader exactly (its
+# --control mode), which is what makes these trustworthy.
 LIFTED = {
     "MovementUpdateKnockBack": ("sub_140382F50", [
         "HasUnknownBit", "GuidBit4", "HasMovementFlags", "HasPitch", "HasTimestamp", "GuidBit1",
@@ -154,6 +153,21 @@ LIFTED = {
         "GuidByte1", "GuidByte4", "GuidByte2", "GuidByte6", "GuidByte7", "Timestamp",
         "PositionO", "PositionY", "GuidByte0", "PositionZ", "PositionX", "GuidByte3",
         "GuidByte5", "ExtraFloat"]),
+    "MoveUpdateFlightBackSpeed": ("sub_14038A240", [
+        "PositionY", "ExtraFloat", "PositionX", "PositionZ", "HasSpline", "GuidBit6",
+        "GuidBit4", "HasPitch", "GuidBit7", "GuidBit1", "HasTransportData", "HasVehicleId",
+        "TransportGuidBit4", "TransportGuidBit7", "TransportGuidBit6", "TransportGuidBit0",
+        "HasTransportTime2", "TransportGuidBit2", "TransportGuidBit3", "TransportGuidBit5",
+        "TransportGuidBit1", "GuidBit5", "GuidBit0", "HasTimestamp", "HasMovementFlags", "Flags",
+        "GuidBit3", "HasMovementFlags2", "HasUnknownBit", "HasSplineElevation", "Flags2",
+        "GuidBit2", "HasFallData", "HasOrientation", "HasFallDirection", "FlushBits",
+        "FallCosAngle", "FallHorizontalSpeed", "FallSinAngle", "FallTime", "FallVerticalSpeed",
+        "TransportPositionX", "TransportTime", "TransportPositionO", "TransportGuidByte5",
+        "TransportPositionZ", "TransportVehicleId", "TransportGuidByte7", "TransportGuidByte1",
+        "TransportGuidByte3", "TransportGuidByte6", "TransportGuidByte0", "TransportGuidByte2",
+        "TransportTime2", "TransportPositionY", "TransportSeat", "TransportGuidByte4",
+        "GuidByte1", "GuidByte4", "PositionO", "GuidByte5", "Timestamp", "SplineElevation",
+        "GuidByte6", "Pitch", "GuidByte3", "GuidByte2", "GuidByte0", "GuidByte7"]),
 }
 assert set(LIFTED) == set(EXCLUDED)
 
@@ -248,13 +262,13 @@ assert not missing_added, "ADDED not in Opcodes.h: %s" % " ".join(missing_added)
 
 emitted_order = [name for name in order if name not in EXCLUDED]
 emitted_opmap = {op: t for op, t in opmap.items() if t not in EXCLUDED}
-assert len(emitted_order) == 106, len(emitted_order)
-assert len(emitted_opmap) == 108, len(emitted_opmap)
+assert len(emitted_order) == 105, len(emitted_order)
+assert len(emitted_opmap) == 107, len(emitted_opmap)
 
 lifted_order = [name for name in order if name in LIFTED]
 lifted_opmap = {op: t for op, t in opmap.items() if t in LIFTED}
-assert len(lifted_order) == 3, len(lifted_order)
-assert len(lifted_opmap) == 3, len(lifted_opmap)
+assert len(lifted_order) == 4, len(lifted_order)
+assert len(lifted_opmap) == 4, len(lifted_opmap)
 
 def wire(name, elements):
     extras = list(EXTRAS.get(name, ["ExtraFloat"] * elements.count("MSEExtraElement")))
@@ -286,8 +300,8 @@ buf.write("// disagreed retired with that transcription (P2-B); one of its diffe
 buf.write("// mistake, not the tree's, and is CORRECTED below.\n")
 buf.write("// One rename: MSEFallCosAngle -> FallSinAngle and MSEFallSinAngle -> FallCosAngle, in every\n")
 buf.write("// table -- P1-B's client golden proved the source's mapping backwards (see ELEMENT_NAMES).\n//\n")
-buf.write("// %d of the source's tables were excluded -- they read gated fields with none of the\n" % len(EXCLUDED))
-buf.write("// presence gates, so no table of theirs would be better than a wrong one -- and are\n")
+buf.write("// %d of the source's tables were excluded -- the client's own reader contradicts each,\n" % len(EXCLUDED))
+buf.write("// for the reason listed below -- and are\n")
 buf.write("// supplied by the client's own readers instead (LIFTED in the generator, lifted by\n")
 buf.write("// src/proto/wire/lift_client_reader.py, which reproduces MovementUpdateRunSpeed from\n")
 buf.write("// its reader exactly). %d more tables have no reference counterpart at all -- CPP's\n" % len(ADDED))

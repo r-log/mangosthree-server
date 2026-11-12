@@ -343,6 +343,93 @@ TEST(MotionWriters_refuse_cells_the_matrix_leaves_empty)
     CHECK(!BuildMover(out, 0x46, 0, none));
 }
 
+// ---- the flight-back speed update, against the client's reader ----------------------------
+//
+// The golden strings list the bytes in the order ClientMoveUpdateFlightBackSpeed::Unpack
+// (Wow-64.exe 0x14038A240) reads them, one segment per read.
+
+namespace
+{
+    const uint64 kFlightBackMover = 0x4400330022110046ULL;   // guid bytes 0, 2, 3, 5 and 7 set
+
+    Change FlightBackSpeed()
+    {
+        return SpeedChange(uint8(SpeedIndex(ChangeType::FlightBackSpeed)), 4.5f);
+    }
+
+    /// A mover on a transport with a vehicle id, a second time and a seat, falling with a
+    /// direction, pitched and spline-elevated.
+    Wire::MovementStatus FlightBackOnTransportFalling()
+    {
+        Wire::MovementStatus s;
+        s.flags = 0x00000801;
+        s.flags2 = 0x040;
+        s.time = 0x000ABCDE;
+        s.pos = { 1.0f, 2.0f, 3.0f, 0.5f };
+        s.has.pitch = true;
+        s.pitch = -0.25f;
+        s.has.splineElevation = true;
+        s.splineElevation = 2.5f;
+        s.fall.present = true;
+        s.fall.hasDirection = true;
+        s.fall.time = 1200;
+        s.fall.vertical = -7.5f;
+        s.fall.horizontal = 7.0f;
+        s.fall.cosAngle = 0.6f;
+        s.fall.sinAngle = 0.8f;
+        s.transport.present = true;
+        s.transport.guid = 0x1F00A1B200C000EEULL;
+        s.transport.pos = { 10.0f, -20.0f, 30.0f, 1.25f };
+        s.transport.time = 555;
+        s.transport.hasTime2 = true;
+        s.transport.time2 = 556;
+        s.transport.hasVehicleId = true;
+        s.transport.vehicleId = 557;
+        s.transport.seat = 2;
+        return s;
+    }
+
+    /// Builds the observer packet for `status`, checks it against `golden`, and decodes it back.
+    void CheckFlightBackUpdate(Wire::MovementStatus const& status, std::string const& golden)
+    {
+        WorldPacket out;
+        REQUIRE(BuildObserver(out, kFlightBackMover, 0, FlightBackSpeed(), status));
+        CHECK_EQ(out.GetOpcode(), uint16(SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED));
+        CHECK_STR(Hex(out), golden);
+
+        WorldPacket in = FromHex(SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED, golden.c_str());
+        Wire::MovementStatus back;
+        Wire::DecodeResult res;
+        REQUIRE(Wire::DecodeWhole(in, Wire::SequenceFor(SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED), back, res, false));
+        Wire::MovementStatus expect = status;
+        expect.guid = kFlightBackMover;
+        expect.value = 4.5f;
+        CHECK(back == expect);
+    }
+}
+
+TEST(MotionWriters_the_flight_back_speed_update_carries_a_transport_and_a_fall_as_the_client_reads)
+{
+    CheckFlightBackUpdate(FlightBackOnTransportFalling(), std::string(
+        "00000040" "00009040" "0000803F" "00004040"                       // y, speed, x, z
+        "0BDD6000010030081A"                                              // 71 bits, the spline bit first
+        "9A99193F" "0000E040" "CDCC4C3F" "B0040000" "0000F0C0"            // fall: cos, horizontal, sin, time, vertical
+        "00002041" "2B020000" "0000A03F" "A0" "0000F041" "2D020000"       // transport x, time, o, guid 5, z, vehicle
+        "1E" "EF" "C1" "2C020000" "0000A0C1" "02" "B3"                    // transport guid 7, 0, 2, time2, y, seat, guid 4
+        "0000003F" "32" "DEBC0A00" "00002040" "000080BE" "23" "10" "47" "45"));   // o, guid 5, time, elevation, pitch, guid 3, 2, 0, 7
+}
+
+TEST(MotionWriters_the_flight_back_speed_update_without_a_transport_or_a_fall_reads_no_more)
+{
+    Wire::MovementStatus plain;
+    plain.time = 0x000ABCDE;
+    plain.pos = { 1.0f, 2.0f, 3.0f, 0.5f };
+    CheckFlightBackUpdate(plain, std::string(
+        "00000040" "00009040" "0000803F" "00004040"                       // y, speed, x, z
+        "19BB00"                                                          // 18 bits
+        "0000003F" "32" "DEBC0A00" "23" "10" "47" "45"));                 // o, guid 5, time, guid 3, 2, 0, 7
+}
+
 // ---- the monster move and the point-carrying stop ----------------------------------------
 
 namespace

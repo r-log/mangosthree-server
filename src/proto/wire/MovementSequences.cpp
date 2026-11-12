@@ -31,7 +31,7 @@
 #include "Opcodes.h"
 
 // The layouts below are generated: see wire/MovementLayouts.inc's own banner
-// for the source, the vocabulary translation, the three excluded tables, and
+// for the source, the vocabulary translation, the excluded tables, and
 // what CPP-SOURCED and BINARY-UNVERIFIED mean for each table. This file only
 // wires the generated tables into the two lookups (AllSequences, SequenceFor);
 // it does not carry any layout data of its own.
