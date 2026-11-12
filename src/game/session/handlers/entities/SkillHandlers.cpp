@@ -180,3 +180,31 @@ void SkillHandlers::HandleUnlearnSkill(WorldSession& session, WorldPacket& recv_
     recv_data >> skill_id;
     session.GetPlayer()->SetSkill(skill_id, 0, 0);
 }
+
+uint32 SpecializationSpellOfIndex(uint32 index)
+{
+    constexpr uint32 specializationSpells[] = { 20219, 20222, 28677, 28675, 28672 };
+    return index < countof(specializationSpells) ? specializationSpells[index] : 0;
+}
+
+/**
+ * @brief Handle a profession specialization unlearned from the spellbook (CMSG_UNLEARN_SPECIALIZATION)
+ * @param recv_data World packet containing the specialization's index in the client's table
+ *
+ * Removes the specialization spell the index names when the player knows it; the profession skill
+ * and its recipes stay, and nothing is charged.
+ */
+void SkillHandlers::HandleUnlearnSpecialization(WorldSession& session, WorldPacket& recv_data)
+{
+    uint32 index;
+    recv_data >> index;
+
+    uint32 spellId = SpecializationSpellOfIndex(index);
+    Player* player = session.GetPlayer();
+    if (!spellId || !player->HasSpell(spellId))
+    {
+        return;
+    }
+
+    player->removeSpell(spellId);
+}

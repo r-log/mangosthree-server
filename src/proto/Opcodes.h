@@ -609,6 +609,7 @@ enum OpcodesList
     SMSG_LFG_TELEPORT_DENIED                              = 0x0E14, // 4.3.4 15595
     CMSG_UNLEARN_SPELL                                    = 0x1202,
     CMSG_UNLEARN_SKILL                                    = 0x6106, // 4.3.4 15595
+    CMSG_UNLEARN_SPECIALIZATION                           = 0x3210, // 4.3.4 15595
     SMSG_REMOVED_SPELL                                    = 0x4804, // 4.3.4 15595
     CMSG_DECHARGE                                         = 0x1205,
     CMSG_GMTICKET_CREATE                                  = 0x0137, // 4.3.4 15595

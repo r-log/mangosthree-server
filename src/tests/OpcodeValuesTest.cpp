@@ -246,3 +246,12 @@ TEST(OpcodeValues_hotfix_list_is_the_one_the_client_reads_as_a_list)
     CHECK_EQ(int(SMSG_HOTFIX_NOTIFY_BLOB), 0x19B5);
     CHECK_EQ(int(SMSG_DB_REPLY),           0x38A4);
 }
+
+TEST(OpcodeValues_unlearn_specialization_and_its_removed_spell_reply_match_the_client)
+{
+    // The client writes the unlearn as 0x3210 and one uint32 index (UserClientUnlearnSpecialization::Put,
+    // OFFSET 0x00673610/0x14031BA60) and reads a removed spell at 0x4804 (Packet_SMSG_REMOVED_SPELL,
+    // OFFSET 0x00569B30/0x1401C8250).
+    CHECK_EQ(int(CMSG_UNLEARN_SPECIALIZATION), 0x3210);
+    CHECK_EQ(int(SMSG_REMOVED_SPELL),          0x4804);
+}

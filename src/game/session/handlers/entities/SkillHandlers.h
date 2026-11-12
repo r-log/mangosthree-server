@@ -26,13 +26,20 @@
 #ifndef MANGOS_H_SKILLHANDLERS
 #define MANGOS_H_SKILLHANDLERS
 
+#include "Platform/Define.h"
+
 class WorldPacket;
 class WorldSession;
 
+/// The profession specialization spell the client's unlearn index names (0 Gnomish Engineer,
+/// 1 Goblin Engineer, 2 Elixir Master, 3 Potion Master, 4 Transmutation Master), or 0 for any
+/// other index.
+uint32 SpecializationSpellOfIndex(uint32 index);
+
 /// The client's talent and skill opcodes: learning one talent rank, learning the talents chosen in
-/// the talent preview as one group, confirming a talent wipe at a class trainer and unlearning a
-/// skill: static entry points the opcode table binds, each borrowing the session for one call and
-/// storing nothing.
+/// the talent preview as one group, confirming a talent wipe at a class trainer, unlearning a
+/// skill and unlearning a profession specialization: static entry points the opcode table binds,
+/// each borrowing the session for one call and storing nothing.
 struct SkillHandlers
 {
     public:
@@ -40,6 +47,7 @@ struct SkillHandlers
         static void HandleLearnPreviewTalents(WorldSession& session, WorldPacket& recv_data);
         static void HandleTalentWipeConfirm(WorldSession& session, WorldPacket& recv_data);
         static void HandleUnlearnSkill(WorldSession& session, WorldPacket& recv_data);
+        static void HandleUnlearnSpecialization(WorldSession& session, WorldPacket& recv_data);
 };
 
 #endif
