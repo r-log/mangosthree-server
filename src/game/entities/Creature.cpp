@@ -25,11 +25,13 @@
 
 #include "Utilities/Errors.h"
 #include <algorithm>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
 #include "Utilities/MathDefines.h"
 #include "Creature.h"
+#include "CorpseDecay.h"
 #include "entities/WorldObjectNotices.h"
 #include "LivingWorldAnchorPolicy.h"
 #include "Database/DatabaseEnv.h"
@@ -2938,11 +2940,12 @@ void Creature::ResetSpawn()
 }
 
 /**
- * @brief Handles corpse state after all loot has been removed.
+ * @brief Sets the corpse's countdown from what is left to loot or gather on it. Called at death and
+ * when the last of its loot is taken; the respawn time stays as set at death.
  */
 void Creature::AllLootRemovedFromCorpse()
 {
-    if (loot.loot_type != LOOT_SKINNING && !IsPet() && GetCreatureInfo()->LootId && !HasLootRecipient())
+    if (loot.loot_type != LOOT_SKINNING && !IsPet() && !HasLootRecipient() && GetCreatureInfo()->LootId)
     {
         if (LootTemplates_Skinning.HaveLootFor(GetCreatureInfo()->LootId))
         {
@@ -2950,25 +2953,24 @@ void Creature::AllLootRemovedFromCorpse()
         }
     }
 
-    time_t now = GameTime::GetGameTime();
-    // Do not reset corpse remove time if corpse is already removed
-    if (m_corpseDecayTimer <= now)
+    if (!IsCorpse() || !m_corpseDecayTimer)
     {
         return;
     }
 
-    float decayRate = m_ignoreCorpseDecayRatio ? 1.f : sGameConfig.getConfig(CONFIG_FLOAT_RATE_CORPSE_DECAY_LOOTED);
+    time_t const now = time(NULL);
+    uint64 const untilRespawnMs = m_respawnTime > now ? uint64(m_respawnTime - now) * IN_MILLISECONDS : 0;
 
-    if (loot.loot_type == LOOT_SKINNING)
-    {
-        m_corpseDecayTimer = now;
-    }
-    else
-    {
-        m_corpseDecayTimer = now + uint32(m_corpseDelay * decayRate);
-    }
+    CorpseLootState corpse;
+    corpse.remainingMs = m_corpseDecayTimer;
+    corpse.corpseDelayMs = m_corpseDelay * IN_MILLISECONDS;
+    corpse.untilRespawnMs = uint32(std::min<uint64>(untilRespawnMs, std::numeric_limits<uint32>::max()));
+    corpse.ignoreLootedRate = m_ignoreCorpseDecayRatio;
+    corpse.lootable = HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+    corpse.skinnable = HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
+    corpse.gathered = lootForSkin;
 
-    m_respawnTime = std::max<time_t>(m_corpseDecayTimer + m_respawnDelay, m_respawnTime);
+    m_corpseDecayTimer = CorpseDecayAfterLoot(corpse, sGameConfig.getConfig(CONFIG_FLOAT_RATE_CORPSE_DECAY_LOOTED));
 }
 
 /**
