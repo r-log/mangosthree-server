@@ -32,6 +32,10 @@
 // generator's CORRECTED, each with its witness golden):
 //   MoveSplineDone (CMSG_MOVE_SPLINE_DONE): MovementCounter leads; CPP's table starts at the position
 //
+// 1 CPP table(s) whose client reader takes two of their elements the other way round
+// have the pair SWAPPED in place (the generator's SWAPPED, each with its reader):
+//   MoveSetRunBackSpeed (SMSG_MOVE_SET_RUN_BACK_SPEED): GuidBit4 and GuidBit5 swapped, as the client reader sub_14036D2B0 takes them
+//
 // A fourth client-only update, SMSG_MOVE_UPDATE_PITCH_RATE (0x1DB5), has no table here
 // either: its reader (sub_14037B330) takes a gate bit as a bitwise-complement (`~expr >> 7`)
 // that lift_client_reader.py cannot follow (see ADDED's comment above); it is BLOCKED, not
@@ -980,8 +984,9 @@ LAYOUT(MoveSetRunSpeed,
     E::GuidBit4, E::GuidByte5, E::GuidByte3, E::GuidByte1, E::GuidByte4, E::MovementCounter,
     E::ExtraFloat, E::GuidByte6, E::GuidByte0, E::GuidByte7, E::GuidByte2, E::End)
 
+// SWAPPED: two elements in the order the client reader sub_14036D2B0 takes them (see the generator)
 LAYOUT(MoveSetRunBackSpeed,
-    E::GuidBit0, E::GuidBit6, E::GuidBit2, E::GuidBit1, E::GuidBit3, E::GuidBit4, E::GuidBit5,
+    E::GuidBit0, E::GuidBit6, E::GuidBit2, E::GuidBit1, E::GuidBit3, E::GuidBit5, E::GuidBit4,
     E::GuidBit7, E::GuidByte5, E::MovementCounter, E::ExtraFloat, E::GuidByte0, E::GuidByte4,
     E::GuidByte7, E::GuidByte3, E::GuidByte1, E::GuidByte2, E::GuidByte6, E::End)
 
