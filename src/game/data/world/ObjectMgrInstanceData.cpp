@@ -96,8 +96,7 @@ void ObjectMgr::LoadInstanceEncounters()
             {
                 if (!sSpellStore.LookupEntry(creditEntry))
                 {
-                    // skip spells that aren't in dbc for now
-                    // sLog.outErrorDb("Table `instance_encounters` has an invalid spell (entry %u) linked to the encounter %u (%s), skipped!", creditEntry, entry, dungeonEncounter->encounterName[0]);
+                    sLog.outErrorDb("Table `instance_encounters` has encounter %u (%s) with credit type %u (spell cast) and spell %u, which neither Spell.dbc nor `spell_template` holds; the row is skipped.", entry, dungeonEncounter->Name_lang[0], uint32(creditType), creditEntry);
                     continue;
                 }
                 break;
