@@ -1180,12 +1180,15 @@ LivingWorld.AnchorPolicyMask              = 0
 #    Corpse.Decay.ELITE
 #    Corpse.Decay.RAREELITE
 #    Corpse.Decay.WORLDBOSS
-#        Seconds until creature corpse will decay without being looted or skinned (not used when creature does not have loot initially)
+#        Seconds a creature corpse stays after death while it still holds loot. Once looted, a corpse
+#        that can still be skinned, herbed, mined or salvaged stays this long again from the looting.
 #        Default: 300, 900, 600, 1200, 3600
 #
 #    Rate.Corpse.Decay.Looted
-#         Controls how long the creature corpse stays after it had been looted, as a multiplier of its Corpse.Decay.* config.
-#         Default: 0.0 (will use modifier /3 of the creatures spawntimesecs when 0.0)
+#        How long a corpse stays once nothing is left to loot or gather on it: at most 120 seconds
+#        when 0.0, otherwise at most its Corpse.Decay.* value times this rate.
+#        A skinned, herbed, mined or salvaged corpse goes at once.
+#        Default: 0.0 (120 seconds)
 #
 #    Rate.Creature.Normal.Damage
 #    Rate.Creature.Elite.Elite.Damage
