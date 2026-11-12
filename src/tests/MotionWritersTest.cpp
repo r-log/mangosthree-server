@@ -430,6 +430,47 @@ TEST(MotionWriters_the_flight_back_speed_update_without_a_transport_or_a_fall_re
         "0000003F" "32" "DEBC0A00" "23" "10" "47" "45"));                 // o, guid 5, time, guid 3, 2, 0, 7
 }
 
+// ---- the run-back speed set, against the client's reader ----------------------------------
+//
+// The golden strings list the bytes in the order ClientMoveSetRunBackSpeed::Unpack
+// (Wow-64.exe 0x14036D2B0) reads them, one segment per read.
+
+namespace
+{
+    /// Builds the mover packet for `guid`, checks it against `golden`, and decodes it back.
+    void CheckRunBackSpeedSet(uint64 guid, std::string const& golden)
+    {
+        WorldPacket out;
+        REQUIRE(BuildMover(out, guid, 7, SpeedChange(uint8(SpeedIndex(ChangeType::RunBackSpeed)), 4.5f)));
+        CHECK_EQ(out.GetOpcode(), uint16(SMSG_MOVE_SET_RUN_BACK_SPEED));
+        CHECK_STR(Hex(out), golden);
+
+        WorldPacket in = FromHex(SMSG_MOVE_SET_RUN_BACK_SPEED, golden.c_str());
+        Wire::MovementStatus back;
+        Wire::DecodeResult res;
+        REQUIRE(Wire::DecodeWhole(in, Wire::SequenceFor(SMSG_MOVE_SET_RUN_BACK_SPEED), back, res, false));
+        CHECK_EQ(back.guid, guid);
+        CHECK_EQ(back.counter, 7u);
+        CHECK_EQ(back.value, 4.5f);
+    }
+}
+
+TEST(MotionWriters_the_run_back_speed_set_carries_guid_byte_4_as_the_client_reads)
+{
+    CheckRunBackSpeedSet(0xF130001234000046ULL, std::string(
+        "CB"                                                              // guid bits 0, 6, 2, 1, 3, 5, 4, 7
+        "07000000" "00009040"                                             // counter, speed
+        "47" "13" "F0" "35" "31"));                                       // guid 0, 4, 7, 3, 6
+}
+
+TEST(MotionWriters_the_run_back_speed_set_carries_guid_byte_5_as_the_client_reads)
+{
+    CheckRunBackSpeedSet(0xF1302A0000000046ULL, std::string(
+        "C5" "2B"                                                         // guid bits 0, 6, 2, 1, 3, 5, 4, 7; guid 5
+        "07000000" "00009040"                                             // counter, speed
+        "47" "F0" "31"));                                                 // guid 0, 7, 6
+}
+
 // ---- the monster move and the point-carrying stop ----------------------------------------
 
 namespace

@@ -251,6 +251,19 @@ for name, first in CORRECTED.items():
     assert name in tables and first not in tables[name], name
     tables[name] = [first] + tables[name]
 
+# CPP tables whose client reader takes two of the table's elements the other way round:
+# the pair swaps places, and the table keeps its name, its row and every other element.
+# Each entry names the reader (Wow-64.c of build 15595) that shows the order.
+SWAPPED = {
+    "MoveSetRunBackSpeed": ("MSEHasGuidByte4", "MSEHasGuidByte5", "sub_14036D2B0"),
+}
+for name, (first, second, reader) in SWAPPED.items():
+    table = tables[name]
+    assert name not in CORRECTED and name not in EXCLUDED, name
+    assert table.count(first) == 1 and table.count(second) == 1, name
+    i, j = table.index(first), table.index(second)
+    table[i], table[j] = second, first
+
 our_names = set(re.findall(r"^\s+((?:C|S|)MSG_[A-Z_0-9]+)\s*=", io.open("../Opcodes.h", encoding="utf-8").read(), re.M))
 missing = sorted(op for op in opmap if op not in our_names)
 assert not missing, "not in Opcodes.h: %s" % " ".join(missing)
@@ -323,6 +336,15 @@ for name in sorted(CORRECTED):
     buf.write("//   %s (%s): %s leads; CPP's table starts at the position\n"
               % (name, op, ELEMENT_NAMES.get(CORRECTED[name], CORRECTED[name][3:])))
 buf.write("//\n")
+buf.write("// %d CPP table(s) whose client reader takes two of their elements the other way round\n"
+          % len(SWAPPED))
+buf.write("// have the pair SWAPPED in place (the generator's SWAPPED, each with its reader):\n")
+for name in sorted(SWAPPED):
+    op = next(o for o, t in opmap.items() if t == name)
+    first, second, reader = SWAPPED[name]
+    buf.write("//   %s (%s): %s and %s swapped, as the client reader %s takes them\n"
+              % (name, op, ELEMENT_NAMES.get(first, first[3:]), ELEMENT_NAMES.get(second, second[3:]), reader))
+buf.write("//\n")
 buf.write("// A fourth client-only update, SMSG_MOVE_UPDATE_PITCH_RATE (0x1DB5), has no table here\n")
 buf.write("// either: its reader (sub_14037B330) takes a gate bit as a bitwise-complement (`~expr >> 7`)\n")
 buf.write("// that lift_client_reader.py cannot follow (see ADDED's comment above); it is BLOCKED, not\n")
@@ -345,11 +367,18 @@ def layout(name, elems, note=None):
     buf.write(line.rstrip(",") + ")\n\n")
 
 
+def note(name):
+    if name in CORRECTED:
+        return "CORRECTED: the movement counter leads, as a real client writes it (see the generator)"
+    if name in SWAPPED:
+        return "SWAPPED: two elements in the order the client reader %s takes them (see the generator)" \
+               % SWAPPED[name][2]
+    return None
+
+
 for name in order:
     if name not in EXCLUDED:
-        layout(name, wire(name, tables[name]),
-               "CORRECTED: the movement counter leads, as a real client writes it (see the generator)"
-               if name in CORRECTED else None)
+        layout(name, wire(name, tables[name]), note(name))
 for name in lifted_order:
     reader, elems = LIFTED[name]
     layout(name, elems + ["End"],
@@ -365,6 +394,7 @@ for name in ADDED:
 for op in sorted(rows):
     buf.write("MAP(%s, %s)\n" % (op, rows[op]))
 io.open(OUT, "w", encoding="utf-8", newline="\n").write(buf.getvalue())
-print("wrote %s: %d tables, %d rows (%d of them lifted from the client's readers, %d corrected)"
+print("wrote %s: %d tables, %d rows (%d of them lifted from the client's readers, %d corrected, %d swapped)"
       % (OUT, len(emitted_order) + len(lifted_order) + len(ADDED),
-         len(emitted_opmap) + len(lifted_opmap) + len(ADDED), len(LIFTED) + len(ADDED), len(CORRECTED)))
+         len(emitted_opmap) + len(lifted_opmap) + len(ADDED), len(LIFTED) + len(ADDED), len(CORRECTED),
+         len(SWAPPED)))
