@@ -27,9 +27,53 @@
 /// in place, the template lists kept apart from the creature lists, and each side cleared on its own.
 /// A purchase's spell is looked up in the creature's own list, then its template list, and a spell
 /// neither list holds, or a trainer with no lists, finds nothing.
+///
+/// A list's trainer type comes from its spells alone: tradeskill when a spell teaches a profession
+/// rank or needs a profession skill, Archaeology included; class otherwise, whatever the list held
+/// before. Engineering's skill line and one of its rank spells are seeded with DBCStorage::SetEntry
+/// and AddSpellEffectEntry, as UnlearnSpecializationTest.cpp and DbScriptStoreTest.cpp do.
 
 #include "TestHarness.h"
+#include "DBCStores.h"
+#include "data/ServerSpellStore.h"
 #include "data/TrainerSpellStore.h"
+
+namespace
+{
+    uint32 const kEngineeringRank = 4038;
+
+    SkillLineEntry s_engineeringLine = {};
+
+    /// Engineering's skill line as a profession, and its rank spell whose second effect sets the skill.
+    void SeedEngineering()
+    {
+        static bool seeded = false;
+        if (seeded)
+        {
+            return;
+        }
+        seeded = true;
+
+        s_engineeringLine.ID = SKILL_ENGINEERING;
+        s_engineeringLine.CategoryID = SKILL_CATEGORY_PROFESSION;
+        sSkillLineStore.SetEntry(SKILL_ENGINEERING, &s_engineeringLine);
+
+        static ServerSpell rank;
+        rank.Entry().ID = kEngineeringRank;
+        rank.effect.SpellID = kEngineeringRank;
+        rank.effect.EffectIndex = EFFECT_INDEX_1;
+        rank.effect.Effect = SPELL_EFFECT_SKILL;
+        rank.effect.EffectMiscValue_0 = SKILL_ENGINEERING;
+        sSpellStore.SetEntry(kEngineeringRank, &rank.Entry());
+        AddSpellEffectEntry(&rank.effect);
+    }
+
+    /// A trainer row teaching `spell` itself, needing `skill` at `skillValue`.
+    TrainerSpell Row(uint32 spell, uint32 skill, uint32 skillValue)
+    {
+        return TrainerSpell(spell, 100, skill, skillValue, 0, spell, false);
+    }
+}
 
 TEST(TrainerSpellStore_AKeyWithNoListAnswersNull)
 {
@@ -116,4 +160,83 @@ TEST(TrainerSpellStore_FindTrainerSpellTakesTheCreatureListFirst)
 TEST(TrainerSpellStore_FindTrainerSpellWithNoListsFindsNothing)
 {
     CHECK(FindTrainerSpell(NULL, NULL, 100) == NULL);
+}
+
+TEST(TrainerSpellStore_ARecipeListThatNeedsAProfessionSkillIsATradeskillList)
+{
+    SeedEngineering();
+
+    TrainerSpellMap specialist;
+    specialist[12759] = Row(12759, SKILL_ENGINEERING, 240);     // Gnomish Death Ray
+    specialist[12897] = Row(12897, SKILL_ENGINEERING, 215);     // Gnomish Goggles
+    specialist[30574] = Row(30574, SKILL_ENGINEERING, 375);     // Gnomish Power Goggles
+
+    CHECK_EQ(TrainerListType(specialist), uint32(TRAINER_TYPE_TRADESKILLS));
+}
+
+TEST(TrainerSpellStore_AClassListIsAClassList)
+{
+    SeedEngineering();
+
+    TrainerSpellMap mage;
+    mage[133] = Row(133, 0, 0);                                 // Fireball
+    mage[118] = Row(118, 0, 0);                                 // Polymorph
+    mage[10059] = Row(10059, 0, 0);                             // Portal: Stormwind
+
+    CHECK_EQ(TrainerListType(mage), uint32(TRAINER_TYPE_CLASS));
+}
+
+TEST(TrainerSpellStore_ARidingListIsAClassList)
+{
+    SeedEngineering();
+
+    TrainerSpellMap flying;
+    flying[33388] = Row(33388, 0, 0);                           // Apprentice Riding
+    flying[34090] = Row(34090, SKILL_RIDING, 150);              // Expert Riding
+    flying[90267] = Row(90267, SKILL_RIDING, 225);              // Flight Master's License
+
+    CHECK_EQ(TrainerListType(flying), uint32(TRAINER_TYPE_CLASS));
+}
+
+TEST(TrainerSpellStore_AWeaponMasterListDerivesClassOverATradeskillValue)
+{
+    SeedEngineering();
+
+    TrainerSpellStore store;
+    TrainerSpellData& weaponMaster = store.FindOrAdd(false, 2704);
+    weaponMaster.spellList[196] = Row(196, 0, 0);               // One-Handed Axes
+    weaponMaster.spellList[197] = Row(197, 0, 0);               // Two-Handed Axes
+    weaponMaster.spellList[264] = Row(264, 0, 0);               // Bows
+    weaponMaster.trainerType = TRAINER_TYPE_TRADESKILLS;
+
+    store.DeriveTrainerTypes(false);
+
+    REQUIRE(store.Find(false, 2704) != NULL);
+    CHECK_EQ(store.Find(false, 2704)->trainerType, uint32(TRAINER_TYPE_CLASS));
+}
+
+TEST(TrainerSpellStore_AListTeachingAProfessionRankIsATradeskillList)
+{
+    SeedEngineering();
+
+    TrainerSpellStore store;
+    TrainerSpellData& trainer = store.FindOrAdd(true, 102);
+    trainer.spellList[kEngineeringRank] = Row(kEngineeringRank, 0, 0);
+
+    store.DeriveTrainerTypes(true);
+
+    REQUIRE(store.Find(true, 102) != NULL);
+    CHECK_EQ(store.Find(true, 102)->trainerType, uint32(TRAINER_TYPE_TRADESKILLS));
+    CHECK_EQ(TrainerListType(trainer.spellList), uint32(TRAINER_TYPE_TRADESKILLS));
+}
+
+TEST(TrainerSpellStore_AnArchaeologyListIsATradeskillList)
+{
+    SeedEngineering();
+
+    TrainerSpellMap archaeology;
+    archaeology[80836] = Row(80836, 0, 0);                      // Apprentice Archaeology
+    archaeology[89129] = Row(89129, SKILL_ARCHAEOLOGY, 50);     // Journeyman Archaeology
+
+    CHECK_EQ(TrainerListType(archaeology), uint32(TRAINER_TYPE_TRADESKILLS));
 }
