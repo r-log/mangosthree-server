@@ -1822,6 +1822,13 @@ uint32 Map::GetMaxResetDelay() const
  */
 bool Map::CheckGridIntegrity(Creature* c, bool moved) const
 {
+    // A boarded creature's placement is its seat pose in the vehicle's frame, not a map point;
+    // the relocation carries its cell from the composed world point.
+    if (c->IsBoarded())
+    {
+        return true;
+    }
+
     Cell const& cur_cell = c->GetCurrentCell();
 
     CellPair xy_val = MaNGOS::ComputeCellPair(c->Where().X(), c->Where().Y());
