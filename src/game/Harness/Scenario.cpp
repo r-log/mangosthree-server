@@ -38,6 +38,7 @@
 #include "PlayerRegistry.h"
 #include "MapManager.h"
 #include "data/GameConfig.h"
+#include "entities/player/spells/SkillLevelSpells.h"
 #include "InstanceDataCache.h"
 #include "WorldSession.h"
 #include "Auth/BigNumber.h"
@@ -158,6 +159,14 @@ namespace Harness
 
     Creature* Scenario::SpawnTarget(uint32 entry, uint32 level, float x, float y, float z, float o)
     {
+        CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(entry);
+        if (cinfo && (level < cinfo->MinLevel || level > cinfo->MaxLevel) &&
+            !sObjectMgr.GetCreatureClassLvlStats(level, cinfo->UnitClass, cinfo->Expansion))
+        {
+            Log("ERR spawn target %u: level %u is outside its template's %u..%u and has no class level stats for class %u, expansion %d",
+                entry, level, cinfo->MinLevel, cinfo->MaxLevel, cinfo->UnitClass, int32(cinfo->Expansion));
+            return NULL;
+        }
         Creature* c = SpawnAtLevel(entry, level, x, y, z, o);
         if (!c)
         {
@@ -518,6 +527,11 @@ namespace Harness
                 return false;
             }
             SetLevelAsResetDoes(&player, plan.level);
+            LearnSkillLevelSpells(player);
+            if (Pet* pet = player.GetPet())
+            {
+                pet->SynchronizeLevelWithOwner();
+            }
         }
 
         for (size_t i = 0; i < plan.talents.size(); ++i)
@@ -547,6 +561,11 @@ namespace Harness
             if (!gp)
             {
                 Log("ERR stage glyph: %u is not in GlyphProperties.dbc", glyph);
+                return false;
+            }
+            if (player.HasAura(gp->SpellID))
+            {
+                Log("ERR stage glyph: %u is already applied (its aura %u is on the player)", glyph, gp->SpellID);
                 return false;
             }
             uint32 slotTypes[MAX_GLYPH_SLOT_INDEX];

@@ -205,12 +205,16 @@ namespace Harness
          * haste and mastery ratings, the spells. False, and an ERR line naming the step, on the first refusal; the
          * player is left as far as it got.
          *  - The level by the `.reset level` sequence (SetLevelAsResetDoes), which ends in InitGlyphsForLevel and
-         *    InitTalentForLevel, so the glyph slots and the free talent points are the level's own.
+         *    InitTalentForLevel, so the glyph slots and the free talent points are the level's own; then the two
+         *    calls Player::GiveLevel adds to it: LearnSkillLevelSpells (the level's skill spells) and, for a pet,
+         *    Pet::SynchronizeLevelWithOwner.
          *  - Each talent by Player::LearnTalent, in the plan's order, as the talent-group handler learns them (the
          *    first talent learned names the primary tree); then the talent data is sent and a pet's owner-talent
          *    auras are cast again, as that handler ends.
-         *  - Each glyph as the glyph effect applies one (Spell::EffectApplyGlyph): into FirstGlyphSlot's slot, by
-         *    ApplyGlyph(slot, false), SetGlyph, ApplyGlyph(slot, true), then the talent data sent.
+         *  - Each glyph as the glyph effect applies one (Spell::EffectApplyGlyph): refused when its aura is on the
+         *    player already, as the cast check refuses a second copy (SPELL_FAILED_UNIQUE_GLYPH); else into
+         *    FirstGlyphSlot's slot, by ApplyGlyph(slot, false), SetGlyph, ApplyGlyph(slot, true), then the talent
+         *    data sent.
          *  - Spell power, haste rating and mastery rating as an item's stats add them (Player::_ApplyItemBonuses):
          *    ApplySpellPowerBonus; ApplyRatingMod for the melee, ranged and spell haste ratings; ApplyRatingMod for
          *    mastery.
@@ -222,8 +226,9 @@ namespace Harness
         bool StagePlayer(Player& player, StagePlan const& plan);
         /// A creature of `entry` on the harness map, its level and the stats of that level chosen by
         /// Creature::SelectLevel(level) before it is added (as Unit::TakePossessOf chooses a summon's), its default
-        /// movement idle, the recording AI installed and silenced. NULL and an ERR line when the template is missing
-        /// or the create fails. Never written to a database.
+        /// movement idle, the recording AI installed and silenced. NULL and an ERR line when the template is missing,
+        /// when `level` lies outside the template's MinLevel..MaxLevel and has no class level stats row for its class
+        /// and expansion (SelectLevel would guess the health), or when the create fails. Never written to a database.
         Creature* SpawnTarget(uint32 entry, uint32 level, float x, float y, float z, float o);
         /// The `.reset level` sequence (PlayerMiscCommands.cpp, HandleResetLevelCommand) to `level` instead of the start
         /// level: the level-scaled item mods off, SetLevel, InitRunes, InitStatsForLevel(true), the taxi nodes, glyphs
