@@ -716,24 +716,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
         }
         case SPELLFAMILY_MAGE:
         {
-            // Burnout
-            if (dummySpell->SpellIconID == 2998)
-            {
-                if (!procSpell)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                int32 cost = procSpell->GetManaCost() + procSpell->GetManaCostPercentage() * GetCreateMana() / 100;
-                basepoints[0] = cost * triggerAmount/100;
-                if (basepoints[0] <=0)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-                triggered_spell_id = 44450;
-                target = this;
-                break;
-            }
             DummyAuraProcContext ctx(this, m_spellCooldownMgr, pVictim, damage, triggeredByAura, procSpell, procFlag,
                                      cooldown, dummySpell, effIndex, procClassOptions, triggerAmount, castItem,
                                      triggered_spell_id, target, basepoints);
