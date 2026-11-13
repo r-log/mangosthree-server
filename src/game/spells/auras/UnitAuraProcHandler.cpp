@@ -1701,14 +1701,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
         }
         case SPELLFAMILY_MAGE:
         {
-            if (auraSpellInfo->ID == 26467)                 // Persistent Shield (Scarab Brooch trinket)
-            {
-                // This spell originally trigger 13567 - Dummy Trigger (vs dummy effect)
-                basepoints[0] = damage * 15 / 100;
-                target = pVictim;
-                trigger_spell_id = 26470;
-            }
-            else if (auraSpellInfo->ID == 71761)            // Deep Freeze Immunity State
+            if (auraSpellInfo->ID == 71761)                 // Deep Freeze Immunity State
             {
                 // spell applied only to permanent immunes to stun targets (bosses)
                 Creature* victimCreature = pVictim->ToCreature();

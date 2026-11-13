@@ -181,6 +181,8 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage64411(DummyAura
 
 namespace
 {
+    typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
+
     /// 38194: Blink: its effect keeps one of the units its target mode found, as the cut after the hook keeps them.
     SpellHandlerOutcome<void> BlinkSelectTargets(SelectTargetsContext& ctx)
     {
@@ -188,7 +190,20 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
+    /// 26467: Persistent Shield, the Scarab Brooch's aura: its proc on a heal casts 26470 instead of its own trigger
+    /// spell, at the unit healed, with 15% of the heal as the shield's amount.
+    ProcOutcome PersistentShieldProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        int32 const basePoints[MAX_EFFECT_INDEX] = { int32(ctx.damage * 15 / 100), 0, 0 };
+        return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, 26470, ctx.victim, basePoints));
+    }
+
     uint32 const BLINK[] = { 38194 };
+    uint32 const PERSISTENT_SHIELD[] = { 26467 };
 }
 
 uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
@@ -218,6 +233,7 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
     rows += RegisterRows(registry, effectDummyMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
     rows += RegisterRanks<SelectTargetsHook>(registry, BLINK, &BlinkSelectTargets);
+    rows += RegisterRanks<OnProcHook>(registry, PERSISTENT_SHIELD, &PersistentShieldProc);
     registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);
@@ -238,6 +254,27 @@ SpellAuraProcResult Mage::CastProcSpell(OnProcContext& ctx, Unit& to, uint32 spe
         return SPELL_AURA_PROC_FAILED;
     }
     return ctx.CastTriggered(to, spellId, basePoints) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED;
+}
+
+uint32 Mage::EffectTriggerSpell(OnProcContext const& ctx)
+{
+    SpellEffectEntry const* effect = ctx.spell.GetSpellEffect(ctx.effIndex);
+    return effect ? effect->EffectTriggerSpell : 0;
+}
+
+SpellAuraProcResult Mage::CastProcTriggerSpell(OnProcContext& ctx, uint32 spellId, Unit* to, int32 const* basePoints)
+{
+    SpellEntry const* entry = sSpellStore.LookupEntry(spellId);
+    if (!entry || (ctx.caster.m_extraAttacks && IsSpellHaveEffect(entry, SPELL_EFFECT_ADD_EXTRA_ATTACKS)))
+    {
+        return SPELL_AURA_PROC_FAILED;
+    }
+    Unit* target = to ? to : !(ctx.procFlag & PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL) && IsPositiveSpell(spellId) ? &ctx.caster : ctx.victim;
+    if (!target)
+    {
+        return SPELL_AURA_PROC_FAILED;
+    }
+    return ctx.CastTriggered(*target, spellId, basePoints) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED;
 }
 
 uint32 RegisterMageScripts(SpellHandlerRegistry& registry)

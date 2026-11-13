@@ -131,10 +131,9 @@ namespace
     }
 
     /// 31641, 31642: Blazing Speed: a proc-trigger aura whose own trigger spell (18350) the client's data lacks. Its
-    /// proc casts Blazing Speed (31643) instead, as Unit::HandleProcTriggerSpellAuraProc ends for a trigger spell: not
-    /// when 31643 is an extra attack and extra attacks are pending; at the owner when the event is no positive spell
-    /// and 31643 is positive, else at the victim; the aura's amount as base points when the aura carries a value. No
-    /// row of the legacy site of trigger spells (ProcTriggerSpellAuraProcTriggeredSite) names 31643.
+    /// proc casts Blazing Speed (31643) instead, through Mage::CastProcTriggerSpell with no target of its own; the
+    /// aura's amount as base points when the aura carries a value. No row of the legacy site of trigger spells
+    /// (ProcTriggerSpellAuraProcTriggeredSite) names 31643.
     ProcOutcome BlazingSpeedProc(OnProcContext& ctx)
     {
         bool const withValue = Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL_WITH_VALUE);
@@ -148,19 +147,8 @@ namespace
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
         }
 
-        uint32 const buff = 31643;
-        SpellEntry const* buffEntry = sSpellStore.LookupEntry(buff);
-        if (!buffEntry || (ctx.caster.m_extraAttacks && IsSpellHaveEffect(buffEntry, SPELL_EFFECT_ADD_EXTRA_ATTACKS)))
-        {
-            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
-        }
-        Unit* target = !(ctx.procFlag & PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL) && IsPositiveSpell(buff) ? &ctx.caster : ctx.victim;
-        if (!target)
-        {
-            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
-        }
         int32 const basePoints[MAX_EFFECT_INDEX] = { withValue ? ctx.triggerAmount : 0, 0, 0 };
-        return ProcOutcome::Return(ctx.CastTriggered(*target, buff, basePoints) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED);
+        return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, 31643, NULL, basePoints));
     }
 
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
