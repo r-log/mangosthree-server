@@ -62,23 +62,38 @@
  * @param donePart calculate for done or taken
  * @param kind the kind of amount: damage, heal or absorb
  *
- * A non-pet creature takes its whole spell power and no attack power. Any other caster takes the spell power
- * coefficient SpellPowerCoefficient picks: the client's (EffectBonusCoefficient of the spell's first effect of
- * `kind`, at this caster's level), else the spell_bonus_data row's part, else 0; a coefficient above 0 goes through
- * SPELLMOD_SPELL_BONUS_DAMAGE as a percent. At the done side the row's attack power part is added after it.
+ * The spell power coefficient has three branches, by caster:
+ * - a player takes SpellPowerCoefficient: the client's value (EffectBonusCoefficient of the spell's first effect of
+ *   `kind`, at the player's level) when it is nonzero, else the spell_bonus_data row's part, else 0;
+ * - a pet takes PetSpellPowerCoefficient: the row's part when it is nonzero, else the client's value at the pet's
+ *   level when it is nonzero, else the cast-time default CalculateDefaultCoefficient;
+ * - any other creature takes its whole spell power and no row.
+ * A damage kind of a spell with SPELL_ATTR_EX3_NO_DONE_BONUS takes none for a player or a pet. A coefficient above 0
+ * goes through SPELLMOD_SPELL_BONUS_DAMAGE as a percent. At the done side the row's attack power part is added after
+ * it, for a player or a pet.
  */
 int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int32 benefit, int32 ap_benefit, DamageEffectType damagetype, bool donePart, SpellBonusKind kind)
 {
-    bool const creature = GetTypeId() == TYPEID_UNIT && !IsPet();
-    SpellBonusEntry const* bonus = creature ? NULL : sSpellMgr.GetSpellBonusData(spellProto->ID);
+    bool const player = GetTypeId() == TYPEID_PLAYER;
+    bool const pet = !player && IsPet();
+    SpellBonusEntry const* bonus = player || pet ? sSpellMgr.GetSpellBonusData(spellProto->ID) : NULL;
 
     if (benefit)
     {
         float coeff = 1.0f;
-        if (!creature)
+        if (player || pet)
         {
+            bool const noDoneBonus = spellProto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS);
             float const client = EffectBonusCoefficient(spellProto, getLevel(), kind, damagetype);
-            coeff = SpellPowerCoefficient(client, bonus, kind, damagetype, spellProto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
+            if (player)
+            {
+                coeff = SpellPowerCoefficient(client, bonus, kind, damagetype, noDoneBonus);
+            }
+            else
+            {
+                float const row = bonus ? (damagetype == DOT ? bonus->dot_damage : bonus->direct_damage) : 0.0f;
+                coeff = PetSpellPowerCoefficient(row, client, CalculateDefaultCoefficient(spellProto, damagetype), kind, noDoneBonus);
+            }
         }
 
         if (coeff > 0.0f)

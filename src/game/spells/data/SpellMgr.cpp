@@ -147,6 +147,160 @@ uint32 GetSpellCastTime(SpellEntry const* spellInfo)
     return castTime;
 }
 
+/**
+ * @brief Calculates the cast time value used for spell bonus coefficients.
+ *
+ * @param spellProto The spell entry.
+ * @param damagetype The damage effect type being evaluated.
+ * @return The normalized cast time in milliseconds.
+ */
+uint32 GetSpellCastTimeForBonus(SpellEntry const* spellProto, DamageEffectType damagetype)
+{
+    uint32 CastingTime = !IsChanneledSpell(spellProto) ? GetSpellCastTime(spellProto) : GetSpellDuration(spellProto);
+
+    if (CastingTime > 7000)
+    {
+        CastingTime = 7000;
+    }
+    if (CastingTime < 1500)
+    {
+        CastingTime = 1500;
+    }
+
+    if (damagetype == DOT && !IsChanneledSpell(spellProto))
+    {
+        CastingTime = 3500;
+    }
+
+    int32 overTime    = 0;
+    uint8 effects     = 0;
+    bool DirectDamage = false;
+    bool AreaEffect   = false;
+
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        SpellEffectEntry const* spellEffect = spellProto->GetSpellEffect(SpellEffectIndex(i));
+        if (!spellEffect)
+        {
+            continue;
+        }
+        if (IsAreaEffectTarget(Targets(spellEffect->ImplicitTarget_0)) || IsAreaEffectTarget(Targets(spellEffect->ImplicitTarget_1)))
+        {
+            AreaEffect = true;
+        }
+    }
+
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        SpellEffectEntry const* spellEffect = spellProto->GetSpellEffect(SpellEffectIndex(i));
+        if (!spellEffect)
+        {
+            continue;
+        }
+        switch (spellEffect->Effect)
+        {
+            case SPELL_EFFECT_SCHOOL_DAMAGE:
+            case SPELL_EFFECT_POWER_DRAIN:
+            case SPELL_EFFECT_HEALTH_LEECH:
+            case SPELL_EFFECT_ENVIRONMENTAL_DAMAGE:
+            case SPELL_EFFECT_POWER_BURN:
+            case SPELL_EFFECT_HEAL:
+                DirectDamage = true;
+                break;
+            case SPELL_EFFECT_APPLY_AURA:
+                switch (spellEffect->EffectAura)
+                {
+                    case SPELL_AURA_PERIODIC_DAMAGE:
+                    case SPELL_AURA_PERIODIC_HEAL:
+                    case SPELL_AURA_PERIODIC_LEECH:
+                        if (GetSpellDuration(spellProto))
+                        {
+                            overTime = GetSpellDuration(spellProto);
+                        }
+                        break;
+                        // Penalty for additional effects
+                    case SPELL_AURA_DUMMY:
+                        ++effects;
+                        break;
+                    case SPELL_AURA_MOD_DECREASE_SPEED:
+                        ++effects;
+                        break;
+                    case SPELL_AURA_MOD_CONFUSE:
+                    case SPELL_AURA_MOD_STUN:
+                    case SPELL_AURA_MOD_ROOT:
+                        // -10% per effect
+                        effects += 2;
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    // Combined Spells with Both Over Time and Direct Damage
+    if (overTime > 0 && CastingTime > 0 && DirectDamage)
+    {
+        // mainly for DoTs which are 3500 here otherwise
+        uint32 OriginalCastTime = GetSpellCastTime(spellProto);
+        if (OriginalCastTime > 7000)
+        {
+            OriginalCastTime = 7000;
+        }
+        if (OriginalCastTime < 1500)
+        {
+            OriginalCastTime = 1500;
+        }
+        // Portion to Over Time
+        float PtOT = (overTime / 15000.0f) / ((overTime / 15000.0f) + (OriginalCastTime / 3500.0f));
+
+        if (damagetype == DOT)
+        {
+            CastingTime = uint32(CastingTime * PtOT);
+        }
+        else if (PtOT < 1.0f)
+        {
+            CastingTime  = uint32(CastingTime * (1 - PtOT));
+        }
+        else
+        {
+            CastingTime = 0;
+        }
+    }
+
+    // Area Effect Spells receive only half of bonus
+    if (AreaEffect)
+    {
+        CastingTime /= 2;
+    }
+
+    // 50% for damage and healing spells for leech spells from damage bonus and 0% from healing
+    for (int j = 0; j < MAX_EFFECT_INDEX; ++j)
+    {
+        SpellEffectEntry const* spellEffect = spellProto->GetSpellEffect(SpellEffectIndex(j));
+        if (!spellEffect)
+        {
+            continue;
+        }
+        if (spellEffect->Effect == SPELL_EFFECT_HEALTH_LEECH ||
+            spellEffect->Effect == SPELL_EFFECT_APPLY_AURA && spellEffect->EffectAura == SPELL_AURA_PERIODIC_LEECH)
+        {
+            CastingTime /= 2;
+            break;
+        }
+    }
+
+    // -5% of total per any additional effect (multiplicative)
+    for (int i = 0; i < effects; ++i)
+    {
+        CastingTime *= 0.95f;
+    }
+
+    return CastingTime;
+}
+
 namespace
 {
     /// Whether `effect` carries an aura the client reads a spell power coefficient from.
@@ -296,6 +450,26 @@ float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonus
     return 0.0f;
 }
 
+float PetSpellPowerCoefficient(float row, float client, float castTimeDefault, SpellBonusKind kind, bool noDoneBonus)
+{
+    if (kind == SPELL_BONUS_KIND_DAMAGE && noDoneBonus)
+    {
+        return 0.0f;
+    }
+
+    if (row != 0.0f)
+    {
+        return row;
+    }
+
+    if (client != 0.0f)
+    {
+        return client;
+    }
+
+    return castTimeDefault;
+}
+
 /**
  * @brief Calculates the maximum number of periodic ticks for a spell.
  *
@@ -355,6 +529,36 @@ uint16 GetSpellAuraMaxTicks(uint32 spellId)
     }
 
     return GetSpellAuraMaxTicks(spellInfo);
+}
+
+/**
+ * @brief Calculates the default bonus coefficient for a spell effect.
+ *
+ * @param spellProto The spell entry.
+ * @param damagetype The damage effect type being evaluated.
+ * @return The default coefficient value.
+ */
+float CalculateDefaultCoefficient(SpellEntry const* spellProto, DamageEffectType const damagetype)
+{
+    // Damage over Time spells bonus calculation
+    float DotFactor = 1.0f;
+    if (damagetype == DOT)
+    {
+        if (!IsChanneledSpell(spellProto))
+        {
+            DotFactor = GetSpellDuration(spellProto) / 15000.0f;
+        }
+
+        if (uint16 DotTicks = GetSpellAuraMaxTicks(spellProto))
+        {
+            DotFactor /= DotTicks;
+        }
+    }
+
+    // Distribute Damage over multiple effects, reduce by AoE
+    float coeff = GetSpellCastTimeForBonus(spellProto, damagetype) / 3500.0f;
+
+    return coeff * DotFactor;
 }
 
 /**

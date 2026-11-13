@@ -1715,6 +1715,12 @@ bool ChatHandler::HandleDebugSpellCoefsCommand(char* args)
                             i, kindNames[k], periodic ? "periodic" : "direct", spellEffect->EffectBonusCoefficient,
                             kindNames[k], periodic ? "periodic" : "direct", level, client, row, applies,
                             noDoneBonus && kinds[k] == SPELL_BONUS_KIND_DAMAGE ? " (SPELL_ATTR_EX3_NO_DONE_BONUS)" : "");
+
+            // The same effect cast by a pet: the row first, then the client's value, then the cast-time default.
+            float const castTimeDefault = CalculateDefaultCoefficient(spellEntry, type);
+            float const petApplies = PetSpellPowerCoefficient(row, client, castTimeDefault, kinds[k], noDoneBonus);
+            PSendSysMessage("Effect %u cast by a pet: spell_bonus_data %f; SpellEffect.dbc at level %u %f; cast-time default %f; applies %f",
+                            i, row, level, client, castTimeDefault, petApplies);
         }
 
         if (!found)

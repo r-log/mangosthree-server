@@ -111,6 +111,16 @@ uint32 GetSoulstoneResurrectionSpell(uint32 auraSpellId);
  */
 uint32 GetSpellCastTime(SpellEntry const* spellInfo);
 
+/**
+ * Returns the cast time used when calculating spell coefficient bonuses.
+ */
+uint32 GetSpellCastTimeForBonus(SpellEntry const* spellProto, DamageEffectType damagetype);
+
+/**
+ * Calculates the default spell power coefficient for the specified spell effect type.
+ */
+float CalculateDefaultCoefficient(SpellEntry const* spellProto, DamageEffectType const damagetype);
+
 struct SpellBonusEntry;
 
 /**
@@ -151,6 +161,13 @@ float EffectBonusCoefficient(SpellEntry const* spellProto, uint32 level, SpellBo
  */
 float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonusKind kind, DamageEffectType damagetype,
                             bool noDoneBonus);
+
+/**
+ * The spell power coefficient that applies to a pet's spell: none for a damage kind when `noDoneBonus`; else `row`, the
+ * spell_bonus_data row's part, when it is nonzero; else `client`, the spell's EffectBonusCoefficient for the kind at the
+ * pet's level, when it is nonzero; else `castTimeDefault`, CalculateDefaultCoefficient.
+ */
+float PetSpellPowerCoefficient(float row, float client, float castTimeDefault, SpellBonusKind kind, bool noDoneBonus);
 
 inline float GetSpellMinRange(SpellRangeEntry const* range, bool friendly = false)
 {
