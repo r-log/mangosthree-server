@@ -61,6 +61,7 @@
 #include "DB2Stores.h"
 #include "DisableMgr.h"
 #include "Map.h"
+#include "spells/SpellScriptHooks.h"
 
 /**
  * @brief Applies all pending spell effects to a unit target entry.
@@ -190,6 +191,9 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
 
         int32 gain = caster->DealHeal(unitTarget, addhealth, m_spellInfo, crit, absorb);
 
+        AfterHitContext afterHealCtx(*caster, *unitTarget, *m_spellInfo, addhealth, crit, absorb, 0, true);
+        SpellHandlerRegistry::Game().Dispatch<AfterHitHook>(m_spellInfo->ID, afterHealCtx);
+
         if (real_caster)
         {
             unitTarget->GetHostileRefManager().threatAssist(real_caster, float(gain) * 0.5f * sSpellMgr.GetSpellThreatMultiplier(m_spellInfo), m_spellInfo);
@@ -248,6 +252,11 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         }
 
         caster->DealSpellDamage(&damageInfo, true);
+
+        AfterHitContext afterDamageCtx(*caster, *unitTarget, *m_spellInfo, damageInfo.damage,
+                                       (damageInfo.HitInfo & SPELL_HIT_TYPE_CRIT) != 0, damageInfo.absorb,
+                                       damageInfo.resist, false);
+        SpellHandlerRegistry::Game().Dispatch<AfterHitHook>(m_spellInfo->ID, afterDamageCtx);
 
         // Scourge Strike, here because needs to use final damage in second part of the spell
         if (classOpt && classOpt->SpellClassSet == SPELLFAMILY_DEATHKNIGHT && classOpt->SpellClassMask & UI64LIT(0x0800000000000000))

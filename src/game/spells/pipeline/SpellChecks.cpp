@@ -72,6 +72,7 @@
 #include "spells/handlers/SpellChecksHandlers.h"
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"
+#include "spells/SpellScriptHooks.h"
 
 /**
  * @brief Validates whether the spell can currently be cast.
@@ -1814,6 +1815,13 @@ SpellCastResult Spell::CheckCast(bool strict)
             default:
                 break;
         }
+    }
+
+    CheckCastContext checkCastCtx(*m_caster, m_targets.getUnitTarget(), *m_spellInfo, strict);
+    SpellHandlerOutcome<SpellCastResult> checkCast = SpellHandlerRegistry::Game().Dispatch<CheckCastHook>(m_spellInfo->ID, checkCastCtx);
+    if (checkCast.IsReturn())
+    {
+        return checkCast.GetValue();
     }
 
     // check trade slot case (last, for allow catch any another cast problems)

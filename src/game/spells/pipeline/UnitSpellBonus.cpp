@@ -44,6 +44,7 @@
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
 #include "spells/handlers/UnitSpellBonusHandlers.h"
+#include "spells/SpellScriptHooks.h"
 // NOTE: no legacy movement-layout header to avoid here anymore -- the registry
 // in src/proto/wire is the only layout source (P2-B retired MovementStructures.h).
 
@@ -376,6 +377,9 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
             }
         }
     }
+
+    DamageDoneContext damageDoneCtx(*this, *pVictim, *spellProto, DoneTotalMod);
+    SpellHandlerRegistry::Game().Dispatch<DamageDoneHook>(spellProto->ID, damageDoneCtx);
 
     SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();
 
@@ -830,6 +834,9 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
                             break;
                     }
                 }
+
+                CritChanceContext critChanceCtx(*this, *pVictim, *spellProto, crit_chance);
+                SpellHandlerRegistry::Game().Dispatch<CritChanceHook>(spellProto->ID, critChanceCtx);
 
                 SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();
                 // Custom crit by class
