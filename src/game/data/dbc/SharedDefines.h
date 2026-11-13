@@ -426,7 +426,7 @@ enum SpellAttributesEx3
     SPELL_ATTR_EX3_UNK26                       = 0x04000000,// 26
     SPELL_ATTR_EX3_UNK27                       = 0x08000000,// 27
     SPELL_ATTR_EX3_UNK28                       = 0x10000000,// 28
-    SPELL_ATTR_EX3_UNK29                       = 0x20000000,// 29
+    SPELL_ATTR_EX3_NO_DONE_BONUS               = 0x20000000,// 29 a damage effect of the spell takes no spell power share
     SPELL_ATTR_EX3_UNK30                       = 0x40000000,// 30
     SPELL_ATTR_EX3_UNK31                       = 0x80000000,// 31
 };
@@ -1753,6 +1753,15 @@ enum DamageEffectType
     SELF_DAMAGE             = 6
 };
 
+/// The kind of amount a spell power share is computed for: each takes the coefficient of the spell's first effect
+/// of that kind.
+enum SpellBonusKind
+{
+    SPELL_BONUS_KIND_DAMAGE = 0,
+    SPELL_BONUS_KIND_HEAL   = 1,
+    SPELL_BONUS_KIND_ABSORB = 2
+};
+
 enum GameobjectTypes
 {
     GAMEOBJECT_TYPE_DOOR                   = 0,
@@ -2899,8 +2908,6 @@ enum TrainerType                                            // this is important
 #define BASE_MAXDAMAGE 2.0f
 #define BASE_ATTACK_TIME 2000
 #define BASE_BLOCK_DAMAGE_PERCENT 30
-
-#define SCALE_SPELLPOWER_HEALING        1.88f
 
 /**
  *  byte value (UNIT_FIELD_BYTES_2,0)

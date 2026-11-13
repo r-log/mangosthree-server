@@ -28,7 +28,9 @@
  * @brief SpellMgr's spell target-position, bonus, elixir, threat and script-target loaders.
  */
 
+#include <cstdio>
 #include <set>
+#include <string>
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellAuraDefines.h"
 #include "ObjectMgr.h"
@@ -195,7 +197,29 @@ struct DoSpellBonuses
 };
 
 /**
- * @brief Loads spell bonus coefficient overrides from the database.
+ * A row part that a nonzero value of the client's stands beside: the client's value applies and the part is not
+ * read. For a nonzero `part` beside a nonzero `reference`, appends "`<name>` <part>, <dbc> holds <reference>" to
+ * `found`, after a "; " when `found` already holds one.
+ */
+static void RowPartNotNeeded(float part, float reference, char const* name, char const* dbc, std::string& found)
+{
+    if (part == 0.0f || reference == 0.0f)
+    {
+        return;
+    }
+
+    char text[160];
+    snprintf(text, sizeof(text), "`%s` %f, %s holds %f", name, part, dbc, reference);
+    if (!found.empty())
+    {
+        found += "; ";
+    }
+    found += text;
+}
+
+/**
+ * @brief Loads spell bonus coefficients from the database: the attack power parts, and the spell power parts
+ * that apply where the client's SpellEffect.dbc holds no coefficient.
  */
 void SpellMgr::LoadSpellBonuses()
 {
@@ -240,126 +264,36 @@ void SpellMgr::LoadSpellBonuses()
         sbe.ap_bonus      = row.apBonus;
         sbe.ap_dot_bonus   = row.apDotBonus;
 
-        bool need_dot = false;
-        bool need_direct = false;
-        uint32 x = 0;                                       // count all, including empty, meaning: not all existing effect is DoTs/HoTs
-        for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+        // The client's coefficients for the row's two spell power parts, as SpellEffect.dbc holds them.
+        SpellEffectEntry const* effects[MAX_EFFECT_INDEX];
+        for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
         {
-            SpellEffectEntry const* spellEffect = spell->GetSpellEffect(SpellEffectIndex(i));
-            if (!spellEffect)
+            effects[i] = spell->GetSpellEffect(SpellEffectIndex(i));
+        }
+        float clientDirect = 0.0f;
+        float clientDot = 0.0f;
+        for (SpellBonusKind kind : { SPELL_BONUS_KIND_DAMAGE, SPELL_BONUS_KIND_HEAL, SPELL_BONUS_KIND_ABSORB })
+        {
+            if (clientDirect == 0.0f)
             {
-                continue;
+                clientDirect = EffectBonusCoefficient(effects, NULL, 0, kind, SPELL_DIRECT_DAMAGE);
             }
-            if (!spellEffect->Effect)
+            if (clientDot == 0.0f)
             {
-                ++x;
-                continue;
-            }
-
-            // DoTs/HoTs
-            switch(spellEffect->EffectAura)
-            {
-                case SPELL_AURA_PERIODIC_DAMAGE:
-                case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
-                case SPELL_AURA_PERIODIC_LEECH:
-                case SPELL_AURA_PERIODIC_HEAL:
-                case SPELL_AURA_OBS_MOD_HEALTH:
-                case SPELL_AURA_PERIODIC_MANA_LEECH:
-                case SPELL_AURA_OBS_MOD_MANA:
-                case SPELL_AURA_POWER_BURN_MANA:
-                    need_dot = true;
-                    ++x;
-                    break;
-                default:
-                    break;
+                clientDot = EffectBonusCoefficient(effects, NULL, 0, kind, DOT);
             }
         }
 
-        // TODO: maybe add explicit list possible direct damage spell effects...
-        if (x < MAX_EFFECT_INDEX)
+        std::string notNeeded;
+        RowPartNotNeeded(sbe.direct_damage, clientDirect, "direct_bonus", "SpellEffect.dbc", notNeeded);
+        RowPartNotNeeded(sbe.dot_damage, clientDot, "dot_bonus", "SpellEffect.dbc", notNeeded);
+        if (!notNeeded.empty())
         {
-            need_direct = true;
+            sLog.outErrorDb("`spell_bonus_data` entry for spell %u is not needed: %s", entry, notNeeded.c_str());
         }
-
-        // Check if direct_bonus is needed in `spell_bonus_data`
-        float direct_calc = 0.0f;
-        float direct_diff = 1000.0f;                        // for have big diff if no DB field value
-        if (sbe.direct_damage)
+        else if (!sbe.direct_damage && !sbe.dot_damage && !sbe.ap_bonus && !sbe.ap_dot_bonus)
         {
-            bool isHeal = false;
-            for(int i = 0; i < MAX_EFFECT_INDEX; ++i)
-            {
-                SpellEffectEntry const* spellEffect = spell->GetSpellEffect(SpellEffectIndex(i));
-                if (!spellEffect)
-                {
-                    continue;
-                }
-                // Heals (Also count Mana Shield and Absorb effects as heals)
-                if (spellEffect->Effect == SPELL_EFFECT_HEAL || spellEffect->Effect == SPELL_EFFECT_HEAL_MAX_HEALTH ||
-                    (spellEffect->Effect == SPELL_EFFECT_APPLY_AURA && (spellEffect->EffectAura == SPELL_AURA_SCHOOL_ABSORB || spellEffect->EffectAura == SPELL_AURA_PERIODIC_HEAL)) )
-                {
-                    isHeal = true;
-                    break;
-                }
-            }
-            direct_calc = CalculateDefaultCoefficient(spell, SPELL_DIRECT_DAMAGE) * (isHeal ? SCALE_SPELLPOWER_HEALING : 1.0f);
-            direct_diff = std::abs(sbe.direct_damage - direct_calc);
-        }
-
-        // Check if dot_bonus is needed in `spell_bonus_data`
-        float dot_calc = 0.0f;
-        float dot_diff = 1000.0f;                           // for have big diff if no DB field value
-        if (sbe.dot_damage)
-        {
-            bool isHeal = false;
-            for(int i = 0; i < MAX_EFFECT_INDEX; ++i)
-            {
-                SpellEffectEntry const* spellEffect = spell->GetSpellEffect(SpellEffectIndex(i));
-                if (!spellEffect)
-                {
-                    continue;
-                }
-                // Periodic Heals
-                if (spellEffect->Effect == SPELL_EFFECT_APPLY_AURA && spellEffect->EffectAura == SPELL_AURA_PERIODIC_HEAL)
-                {
-                    isHeal = true;
-                    break;
-                }
-            }
-            dot_calc = CalculateDefaultCoefficient(spell, DOT) * (isHeal ? SCALE_SPELLPOWER_HEALING : 1.0f);
-            dot_diff = std::abs(sbe.dot_damage - dot_calc);
-        }
-
-        // direct bonus
-        if (direct_diff < 0.02f && !need_dot && !sbe.ap_bonus && !sbe.ap_dot_bonus)
-            sLog.outErrorDb("`spell_bonus_data` entry for spell %u `direct_bonus` not needed (data from table: %f, calculated %f, difference of %f) and `dot_bonus` also not used",
-                            entry, sbe.direct_damage, direct_calc, direct_diff);
-        else if (direct_diff < 0.02f && dot_diff < 0.02f && !sbe.ap_bonus && !sbe.ap_dot_bonus)
-        {
-            sLog.outErrorDb("`spell_bonus_data` entry for spell %u `direct_bonus` not needed (data from table: %f, calculated %f, difference of %f) and ",
-                            entry, sbe.direct_damage, direct_calc, direct_diff);
-            sLog.outErrorDb("                                  ... `dot_bonus` not needed (data from table: %f, calculated %f, difference of %f)",
-                            sbe.dot_damage, dot_calc, dot_diff);
-        }
-        else if (!need_direct && dot_diff < 0.02f && !sbe.ap_bonus && !sbe.ap_dot_bonus)
-            sLog.outErrorDb("`spell_bonus_data` entry for spell %u `dot_bonus` not needed (data from table: %f, calculated %f, difference of %f) and direct also not used",
-                            entry, sbe.dot_damage, dot_calc, dot_diff);
-        else if (!need_direct && sbe.direct_damage)
-        {
-            sLog.outErrorDb("`spell_bonus_data` entry for spell %u `direct_bonus` not used (spell not have non-periodic affects)", entry);
-        }
-        else if (!need_dot && sbe.dot_damage)
-        {
-            sLog.outErrorDb("`spell_bonus_data` entry for spell %u `dot_bonus` not used (spell not have periodic affects)", entry);
-        }
-
-        if (!need_direct && sbe.ap_bonus)
-        {
-            sLog.outErrorDb("`spell_bonus_data` entry for spell %u `ap_bonus` not used (spell not have non-periodic affects)", entry);
-        }
-        else if (!need_dot && sbe.ap_dot_bonus)
-        {
-            sLog.outErrorDb("`spell_bonus_data` entry for spell %u `ap_dot_bonus` not used (spell not have periodic affects)", entry);
+            sLog.outErrorDb("`spell_bonus_data` entry for spell %u holds only zeros: SpellEffect.dbc's coefficients apply", entry);
         }
 
         mSpellBonusMap[entry] = sbe;

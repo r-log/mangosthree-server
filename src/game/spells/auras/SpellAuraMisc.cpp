@@ -650,65 +650,30 @@ void Aura::HandleSchoolAbsorb(bool apply, bool Real)
         if (!target->IsLoading())
         {
             float DoneActualBenefit = 0.0f;
-            switch(spellProto->GetSpellFamilyName())
+            // Stoicism
+            if (spellProto->ID == 70845)
             {
-                case SPELLFAMILY_GENERIC:
-                    // Stoicism
-                    if (spellProto->ID == 70845)
-                    {
-                        DoneActualBenefit = caster->GetMaxHealth() * 0.20f;
-                    }
-                    break;
-                case SPELLFAMILY_PRIEST:
-                    // Power Word: Shield
-                    if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000000000000001))
-                    {
-                        //+80.68% from +spell bonus
-                        DoneActualBenefit = caster->SpellBaseHealingBonusDone(GetSpellSchoolMask(spellProto)) * 0.8068f;
-                        // Borrowed Time
-                        Unit::AuraList const& borrowedTime = caster->GetAurasByType(SPELL_AURA_DUMMY);
-                        for (Unit::AuraList::const_iterator itr = borrowedTime.begin(); itr != borrowedTime.end(); ++itr)
-                        {
-                            SpellEntry const* i_spell = (*itr)->GetSpellProto();
-                            if (i_spell->GetSpellFamilyName()==SPELLFAMILY_PRIEST && i_spell->SpellIconID == 2899 && i_spell->GetEffectMiscValue((*itr)->GetEffIndex()) == 24)
-                            {
-                                DoneActualBenefit += DoneActualBenefit * (*itr)->GetModifier()->m_amount / 100;
-                                break;
-                            }
-                        }
-                    }
-
-                    break;
-                case SPELLFAMILY_MAGE:
-                    // Frost Ward, Fire Ward
-                    if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000108)))
-                        //+10% from +spell bonus
-                        DoneActualBenefit = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto)) * 0.1f;
-                    // Ice Barrier
-                    else if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000100000000)))
-                        //+80.67% from +spell bonus
-                        DoneActualBenefit = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto)) * 0.8067f;
-                    break;
-                case SPELLFAMILY_WARLOCK:
-                    // Shadow Ward
-                    if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000000), 0x00000040))
-                        //+30% from +spell bonus
-                        DoneActualBenefit = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto)) * 0.30f;
-                    break;
-                case SPELLFAMILY_PALADIN:
-                    // Sacred Shield
-                    // (check not strictly needed, only Sacred Shield has SPELL_AURA_SCHOOL_ABSORB in SPELLFAMILY_PALADIN at this time)
-                    if (spellProto->IsFitToFamilyMask(UI64LIT(0x0008000000000000)))
-                    {
-                        // +75% from spell power
-                        DoneActualBenefit = caster->SpellBaseHealingBonusDone(GetSpellSchoolMask(spellProto)) * 0.75f;
-                    }
-                    break;
-                default:
-                    break;
+                DoneActualBenefit = caster->GetMaxHealth() * 0.20f;
             }
+            // A shield with a spell_bonus_data row: the caster's spell power of the shield's school and attack power,
+            // each times the coefficient the absorb kind takes
+            else if (sSpellMgr.GetSpellBonusData(spellProto->ID))
+            {
+                int32 const spellPower = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto));
+                DoneActualBenefit = float(caster->SpellBonusWithCoeffs(spellProto, 0, spellPower, 0, SPELL_DIRECT_DAMAGE, true, SPELL_BONUS_KIND_ABSORB));
 
-            DoneActualBenefit *= caster->CalculateLevelPenalty(GetSpellProto());
+                // Borrowed Time
+                Unit::AuraList const& borrowedTime = caster->GetAurasByType(SPELL_AURA_DUMMY);
+                for (Unit::AuraList::const_iterator itr = borrowedTime.begin(); itr != borrowedTime.end(); ++itr)
+                {
+                    SpellEntry const* i_spell = (*itr)->GetSpellProto();
+                    if (i_spell->GetSpellFamilyName()==SPELLFAMILY_PRIEST && i_spell->SpellIconID == 2899 && i_spell->GetEffectMiscValue((*itr)->GetEffIndex()) == 24)
+                    {
+                        DoneActualBenefit += DoneActualBenefit * (*itr)->GetModifier()->m_amount / 100;
+                        break;
+                    }
+                }
+            }
 
             m_modifier.m_amount += (int32)DoneActualBenefit;
         }

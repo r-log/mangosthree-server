@@ -301,6 +301,175 @@ uint32 GetSpellCastTimeForBonus(SpellEntry const* spellProto, DamageEffectType d
     return CastingTime;
 }
 
+namespace
+{
+    /// Whether `effect` carries an aura the client reads a spell power coefficient from.
+    bool IsAuraCarryingEffect(uint32 effect)
+    {
+        switch (effect)
+        {
+            case SPELL_EFFECT_APPLY_AURA:
+            case SPELL_EFFECT_PERSISTENT_AREA_AURA:
+            case SPELL_EFFECT_APPLY_AREA_AURA_PARTY:
+            case SPELL_EFFECT_APPLY_AREA_AURA_RAID:
+            case SPELL_EFFECT_APPLY_AREA_AURA_PET:
+            case SPELL_EFFECT_APPLY_AREA_AURA_FRIEND:
+            case SPELL_EFFECT_APPLY_AREA_AURA_ENEMY:
+            case SPELL_EFFECT_APPLY_AREA_AURA_OWNER:
+            case SPELL_EFFECT_174:
+                return true;
+            default:
+                return false;
+        }
+    }
+}
+
+bool IsSpellBonusEffect(SpellEffectEntry const& effect, SpellBonusKind kind, bool& periodic)
+{
+    periodic = false;
+    if (!IsAuraCarryingEffect(effect.Effect))
+    {
+        switch (effect.Effect)
+        {
+            case SPELL_EFFECT_SCHOOL_DAMAGE:
+            case SPELL_EFFECT_HEALTH_LEECH:
+            case SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL:
+            case SPELL_EFFECT_WEAPON_DAMAGE:
+            case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+                return kind == SPELL_BONUS_KIND_DAMAGE;
+            case SPELL_EFFECT_HEAL:
+            case SPELL_EFFECT_HEAL_MAX_HEALTH:
+            case SPELL_EFFECT_HEAL_MECHANICAL:
+                return kind == SPELL_BONUS_KIND_HEAL;
+            default:
+                return false;
+        }
+    }
+
+    switch (effect.EffectAura)
+    {
+        case SPELL_AURA_PERIODIC_DAMAGE:
+        case SPELL_AURA_PERIODIC_LEECH:
+            periodic = true;
+            return kind == SPELL_BONUS_KIND_DAMAGE;
+        case SPELL_AURA_DAMAGE_SHIELD:
+        case SPELL_AURA_PROC_TRIGGER_DAMAGE:
+            return kind == SPELL_BONUS_KIND_DAMAGE;
+        case SPELL_AURA_PERIODIC_HEAL:
+        case SPELL_AURA_OBS_MOD_HEALTH:
+        case SPELL_AURA_PERIODIC_HEALTH_FUNNEL:
+        case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
+            periodic = true;
+            return kind == SPELL_BONUS_KIND_HEAL;
+        case SPELL_AURA_SCHOOL_ABSORB:
+        case SPELL_AURA_MANA_SHIELD:
+            return kind == SPELL_BONUS_KIND_ABSORB;
+        default:
+            return false;
+    }
+}
+
+float SpellScalingMultiplier(SpellScalingEntry const* scaling, uint32 level)
+{
+    if (!scaling)
+    {
+        return 1.0f;
+    }
+
+    int32 const unitLevel = level ? int32(level) : 1;
+    float multiplier = 1.0f;
+    if (unitLevel < int32(scaling->CastTimeMaxLevel) && scaling->CastTimeMax)
+    {
+        int32 const castTimeMin = int32(scaling->CastTimeMin);
+        int32 const castTimeMax = int32(scaling->CastTimeMax);
+        int32 const castTime = castTimeMin + (unitLevel - 1) * (castTimeMax - castTimeMin) / (int32(scaling->CastTimeMaxLevel) - 1);
+        multiplier = float(castTime) / float(castTimeMax);
+    }
+
+    if (unitLevel < int32(scaling->NerfMaxLevel))
+    {
+        return ((1.0f - scaling->NerfFactor) * float(unitLevel - 1) / float(int32(scaling->NerfMaxLevel) - 1) + scaling->NerfFactor) * multiplier;
+    }
+
+    return multiplier;
+}
+
+float EffectBonusCoefficient(SpellEffectEntry const* const (&effects)[MAX_EFFECT_INDEX], SpellScalingEntry const* scaling,
+                             uint32 level, SpellBonusKind kind, DamageEffectType damagetype)
+{
+    bool const wantPeriodic = damagetype == DOT;
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        SpellEffectEntry const* effect = effects[i];
+        bool periodic = false;
+        if (!effect || !IsSpellBonusEffect(*effect, kind, periodic) || periodic != wantPeriodic)
+        {
+            continue;
+        }
+
+        float coefficient = effect->EffectBonusCoefficient;
+        if (scaling && scaling->IsScalableEffect(SpellEffectIndex(i)))
+        {
+            coefficient *= SpellScalingMultiplier(scaling, level);
+        }
+        return coefficient;
+    }
+
+    return 0.0f;
+}
+
+float EffectBonusCoefficient(SpellEntry const* spellProto, uint32 level, SpellBonusKind kind, DamageEffectType damagetype)
+{
+    SpellEffectEntry const* effects[MAX_EFFECT_INDEX];
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        effects[i] = spellProto->GetSpellEffect(SpellEffectIndex(i));
+    }
+
+    return EffectBonusCoefficient(effects, spellProto->GetSpellScaling(), level, kind, damagetype);
+}
+
+float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonusKind kind, DamageEffectType damagetype,
+                            bool noDoneBonus)
+{
+    if (kind == SPELL_BONUS_KIND_DAMAGE && noDoneBonus)
+    {
+        return 0.0f;
+    }
+
+    if (client != 0.0f)
+    {
+        return client;
+    }
+
+    if (row)
+    {
+        return damagetype == DOT ? row->dot_damage : row->direct_damage;
+    }
+
+    return 0.0f;
+}
+
+float PetSpellPowerCoefficient(float row, float client, float castTimeDefault, SpellBonusKind kind, bool noDoneBonus)
+{
+    if (kind == SPELL_BONUS_KIND_DAMAGE && noDoneBonus)
+    {
+        return 0.0f;
+    }
+
+    if (row != 0.0f)
+    {
+        return row;
+    }
+
+    if (client != 0.0f)
+    {
+        return client;
+    }
+
+    return castTimeDefault;
+}
+
 /**
  * @brief Calculates the maximum number of periodic ticks for a spell.
  *

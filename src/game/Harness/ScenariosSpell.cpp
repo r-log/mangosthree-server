@@ -3405,8 +3405,8 @@ namespace Harness
      * cast opens its own.
      *
      * Fireball qualifies: one SpellEffect row, SCHOOL_DAMAGE at A=6 and B=0, SPELLFAMILY_MAGE, nothing
-     * triggered, no script binding. Its row holds the client's spell power coefficient (EffectBonusCoefficient
-     * 1.236); the server takes the coefficient from spell_bonus_data 133 instead. Every mage is created with two
+     * triggered, no script binding. Its effect holds the client's spell power coefficient (EffectBonusCoefficient
+     * 1.236), the coefficient the server applies at level 85. Every mage is created with two
      * proc passives, Offensive State (79684, which casts Arcane Missiles! 79683 on him) and Deep Freeze Immunity
      * State (71761, which names Deep Freeze 71757): all four are fingerprinted, their procs are recorded as they
      * happen, and a cast is refused when a holder outside the fingerprinted spells could proc. The Camel is level
@@ -3659,15 +3659,15 @@ namespace Harness
         {
             const SpellSchoolMask school = GetSpellSchoolMask(info);
             power = p->SpellBaseDamageBonusDone(school);
-            bonus = p->SpellBonusWithCoeffs(info, 0, power, 0, SPELL_DIRECT_DAMAGE, true);
+            bonus = p->SpellBonusWithCoeffs(info, 0, power, 0, SPELL_DIRECT_DAMAGE, true, SPELL_BONUS_KIND_DAMAGE);
             SpellBonusEntry const* row = sSpellMgr.GetSpellBonusData(info->ID);
-            SpellEffectEntry const* effect = info->GetSpellEffect(EFFECT_INDEX_0);
-            const float client = effect ? effect->EffectBonusCoefficient : 0.0f;
+            const float client = EffectBonusCoefficient(info, p->getLevel(), SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE);
+            const float applies = SpellPowerCoefficient(client, row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE,
+                                                        info->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
             char buf[512];
             snprintf(buf, sizeof(buf),
-                     "Unit::SpellBonusWithCoeffs over fire spell power %d: spell_bonus_data %u direct %.4f, level penalty %.4f; the target's taken benefit %d; Fireball's EffectBonusCoefficient %.4f, which over the same spell power is %.1f",
-                     power, info->ID, row ? row->direct_damage : 0.0f, p->CalculateLevelPenalty(info),
-                     target->SpellBaseDamageBonusTaken(school), client, double(power) * client);
+                     "Unit::SpellBonusWithCoeffs over fire spell power %d: Fireball's EffectBonusCoefficient at level %u %.4f, the coefficient that applies %.4f; the target's taken benefit %d",
+                     power, p->getLevel(), client, applies, target->SpellBaseDamageBonusTaken(school));
             text = buf;
             m_rec.Note("bonus " + U(uint32(bonus)) + ": " + text);
         }

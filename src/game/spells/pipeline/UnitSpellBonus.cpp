@@ -51,68 +51,80 @@
 #include <math.h>
 #include <stdarg.h>
 
-/** Calculate spell coefficents and level penalties for spell/melee damage or heal
+/** Adds the spell power share and the attack power share of one hit or tick to `total`
  *
  * this is the caster of the spell/ melee attacker
  * @param spellProto SpellEntry of the used spell
- * @param total current value onto which the Bonus and level penalty will be calculated
- * @param benefit additional benefit from ie spellpower-auras
+ * @param total current value onto which the shares are added
+ * @param benefit the spell power the share is taken of (done or taken)
  * @param ap_benefit additional melee attackpower benefit from auras
- * @param damagetype what kind of damage
+ * @param damagetype DOT for a periodic tick, any other type for a direct amount
  * @param donePart calculate for done or taken
- * @param defCoeffMod default coefficient for additional scaling (i.e. normal player healing SCALE_SPELLPOWER_HEALING)
+ * @param kind the kind of amount: damage, heal or absorb
+ *
+ * The spell power coefficient has three branches, by caster:
+ * - a player takes SpellPowerCoefficient: the client's value (EffectBonusCoefficient of the spell's first effect of
+ *   `kind`, at the player's level) when it is nonzero, else the spell_bonus_data row's part, else 0;
+ * - a pet takes PetSpellPowerCoefficient: the row's part when it is nonzero, else the client's value at the pet's
+ *   level when it is nonzero, else the cast-time default CalculateDefaultCoefficient;
+ * - any other creature takes its whole spell power and no row.
+ * A damage kind of a spell with SPELL_ATTR_EX3_NO_DONE_BONUS takes none for a player or a pet. A coefficient above 0
+ * goes through SPELLMOD_SPELL_BONUS_DAMAGE as a percent. At the done side the row's attack power part is added after
+ * it, for a player or a pet.
  */
-int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int32 benefit, int32 ap_benefit,  DamageEffectType damagetype, bool donePart, float defCoeffMod)
+int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int32 benefit, int32 ap_benefit, DamageEffectType damagetype, bool donePart, SpellBonusKind kind)
 {
-    // Distribute Damage over multiple effects, reduce by AoE
-    float coeff = 1.0f;
-
-    // Not apply this to creature casted spells
-    if (GetTypeId() == TYPEID_UNIT && !IsPet())
-    {
-        coeff = 1.0f;
-    }
-    // Check for table values
-    else if (SpellBonusEntry const* bonus = sSpellMgr.GetSpellBonusData(spellProto->ID))
-    {
-        coeff = damagetype == DOT ? bonus->dot_damage : bonus->direct_damage;
-
-        // apply ap bonus at done part calculation only (it flat total mod so common with taken)
-        if (donePart && (bonus->ap_bonus || bonus->ap_dot_bonus))
-        {
-            float ap_bonus = damagetype == DOT ? bonus->ap_dot_bonus : bonus->ap_bonus;
-
-            // Impurity
-            if (GetTypeId() == TYPEID_PLAYER && spellProto->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT)
-            {
-                if (SpellEntry const* spell = GetKnownTalentRankById(2005))
-                {
-                    ap_bonus += ((spell->CalculateSimpleValue(EFFECT_INDEX_0) * ap_bonus) / 100.0f);
-                }
-            }
-
-            total += int32(ap_bonus * (GetTotalAttackPowerValue(IsSpellRequiresRangedAP(spellProto) ? RANGED_ATTACK : BASE_ATTACK) + ap_benefit));
-        }
-    }
-    // Default calculation
-    else if (benefit)
-    {
-        coeff = CalculateDefaultCoefficient(spellProto, damagetype) * defCoeffMod;
-    }
+    bool const player = GetTypeId() == TYPEID_PLAYER;
+    bool const pet = !player && IsPet();
+    SpellBonusEntry const* bonus = player || pet ? sSpellMgr.GetSpellBonusData(spellProto->ID) : NULL;
 
     if (benefit)
     {
-        float LvlPenalty = CalculateLevelPenalty(spellProto);
-
-        // Spellmod SpellDamage
-        if (SpellModMgr* modOwner = GetSpellMods())
+        float coeff = 1.0f;
+        if (player || pet)
         {
-            coeff *= 100.0f;
-            modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_SPELL_BONUS_DAMAGE, coeff);
-            coeff /= 100.0f;
+            bool const noDoneBonus = spellProto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS);
+            float const client = EffectBonusCoefficient(spellProto, getLevel(), kind, damagetype);
+            if (player)
+            {
+                coeff = SpellPowerCoefficient(client, bonus, kind, damagetype, noDoneBonus);
+            }
+            else
+            {
+                float const row = bonus ? (damagetype == DOT ? bonus->dot_damage : bonus->direct_damage) : 0.0f;
+                coeff = PetSpellPowerCoefficient(row, client, CalculateDefaultCoefficient(spellProto, damagetype), kind, noDoneBonus);
+            }
         }
 
-        total += int32(benefit * coeff * LvlPenalty);
+        if (coeff > 0.0f)
+        {
+            // Spellmod SpellDamage
+            if (SpellModMgr* modOwner = GetSpellMods())
+            {
+                coeff *= 100.0f;
+                modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_SPELL_BONUS_DAMAGE, coeff);
+                coeff /= 100.0f;
+            }
+
+            total += int32(benefit * coeff);
+        }
+    }
+
+    // apply ap bonus at done part calculation only (it flat total mod so common with taken)
+    if (bonus && donePart && (bonus->ap_bonus || bonus->ap_dot_bonus))
+    {
+        float ap_bonus = damagetype == DOT ? bonus->ap_dot_bonus : bonus->ap_bonus;
+
+        // Impurity
+        if (GetTypeId() == TYPEID_PLAYER && spellProto->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT)
+        {
+            if (SpellEntry const* spell = GetKnownTalentRankById(2005))
+            {
+                ap_bonus += ((spell->CalculateSimpleValue(EFFECT_INDEX_0) * ap_bonus) / 100.0f);
+            }
+        }
+
+        total += int32(ap_bonus * (GetTotalAttackPowerValue(IsSpellRequiresRangedAP(spellProto) ? RANGED_ATTACK : BASE_ATTACK) + ap_benefit));
     }
 
     return total;
@@ -523,8 +535,8 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
         DoneAdvertisedBenefit += pet->GetBonusDamage();
     }
 
-    // apply ap bonus and benefit affected by spell power implicit coeffs and spell level penalties
-    DoneTotal = SpellBonusWithCoeffs(spellProto, DoneTotal, DoneAdvertisedBenefit, 0, damagetype, true);
+    // apply ap bonus and benefit affected by the spell power coefficient
+    DoneTotal = SpellBonusWithCoeffs(spellProto, DoneTotal, DoneAdvertisedBenefit, 0, damagetype, true, SPELL_BONUS_KIND_DAMAGE);
 
     float tmpDamage = (int32(pdamage) + DoneTotal * int32(stack)) * DoneTotalMod;
     // apply spellmod to Done damage (flat and pct)
@@ -602,8 +614,8 @@ uint32 Unit::SpellDamageBonusTaken(Unit* pCaster, SpellEntry const* spellProto, 
     // Taken fixed damage bonus auras
     int32 TakenAdvertisedBenefit = SpellBaseDamageBonusTaken(GetSpellSchoolMask(spellProto));
 
-    // apply benefit affected by spell power implicit coeffs and spell level penalties
-    TakenTotal = pCaster->SpellBonusWithCoeffs(spellProto, TakenTotal, TakenAdvertisedBenefit, 0, damagetype, false);
+    // apply benefit affected by the spell power coefficient
+    TakenTotal = pCaster->SpellBonusWithCoeffs(spellProto, TakenTotal, TakenAdvertisedBenefit, 0, damagetype, false, SPELL_BONUS_KIND_DAMAGE);
 
     float tmpDamage = (int32(pdamage) + TakenTotal * int32(stack)) * TakenTotalMod;
 
@@ -1163,8 +1175,8 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
     // Done fixed damage bonus auras
     int32 DoneAdvertisedBenefit  = SpellBaseHealingBonusDone(GetSpellSchoolMask(spellProto));
 
-    // apply ap bonus and benefit affected by spell power implicit coeffs and spell level penalties
-    DoneTotal = SpellBonusWithCoeffs(spellProto, DoneTotal, DoneAdvertisedBenefit, 0, damagetype, true, SCALE_SPELLPOWER_HEALING);
+    // apply ap bonus and benefit affected by the spell power coefficient
+    DoneTotal = SpellBonusWithCoeffs(spellProto, DoneTotal, DoneAdvertisedBenefit, 0, damagetype, true, SPELL_BONUS_KIND_HEAL);
 
     // use float as more appropriate for negative values and percent applying
     float heal = (healamount + DoneTotal * int32(stack)) * DoneTotalMod;
@@ -1203,8 +1215,8 @@ uint32 Unit::SpellHealingBonusTaken(Unit* pCaster, SpellEntry const* spellProto,
     // Taken fixed damage bonus auras
     int32 TakenAdvertisedBenefit = SpellBaseHealingBonusTaken(GetSpellSchoolMask(spellProto));
 
-    // apply benefit affected by spell power implicit coeffs and spell level penalties
-    TakenTotal = pCaster->SpellBonusWithCoeffs(spellProto, TakenTotal, TakenAdvertisedBenefit, 0, damagetype, false, SCALE_SPELLPOWER_HEALING);
+    // apply benefit affected by the spell power coefficient
+    TakenTotal = pCaster->SpellBonusWithCoeffs(spellProto, TakenTotal, TakenAdvertisedBenefit, 0, damagetype, false, SPELL_BONUS_KIND_HEAL);
 
     AuraList const& mHealingGet = GetAurasByType(SPELL_AURA_MOD_HEALING_RECEIVED);
     for (AuraList::const_iterator i = mHealingGet.begin(); i != mHealingGet.end(); ++i)
@@ -1741,8 +1753,8 @@ uint32 Unit::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackTyp
     // scaling of non weapon based spells
     if (!isWeaponDamageBasedSpell)
     {
-        // apply ap bonus and benefit affected by spell power implicit coeffs and spell level penalties
-        DoneTotal = SpellBonusWithCoeffs(spellProto, DoneTotal, DoneFlat, APbonus, damagetype, true);
+        // apply ap bonus and benefit affected by the spell power coefficient
+        DoneTotal = SpellBonusWithCoeffs(spellProto, DoneTotal, DoneFlat, APbonus, damagetype, true, SPELL_BONUS_KIND_DAMAGE);
     }
     // weapon damage based spells
     else if (APbonus || DoneFlat)
@@ -1872,8 +1884,8 @@ uint32 Unit::MeleeDamageBonusTaken(Unit* pCaster, uint32 pdamage, WeaponAttackTy
     // scaling of non weapon based spells
     if (!isWeaponDamageBasedSpell)
     {
-        // apply benefit affected by spell power implicit coeffs and spell level penalties
-        TakenFlat = pCaster->SpellBonusWithCoeffs(spellProto, 0, TakenFlat, 0, damagetype, false);
+        // apply benefit affected by the spell power coefficient
+        TakenFlat = pCaster->SpellBonusWithCoeffs(spellProto, 0, TakenFlat, 0, damagetype, false, SPELL_BONUS_KIND_DAMAGE);
     }
 
     float tmpDamage = float(int32(pdamage) + TakenFlat * int32(stack)) * TakenPercent;
