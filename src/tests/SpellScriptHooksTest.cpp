@@ -344,8 +344,9 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     }));
     Forget();
     SpellCooldownMgr cooldowns;
-    OnProcContext onProc(owner, &other, spell, EFFECT_INDEX_0, AuraHandle(holder), NULL, 0x10000, 0x2, 900, 13, NULL,
-                         6, NULL, cooldowns);
+    OnProcContext onProc(owner, &other, spell, EFFECT_INDEX_0, AuraHandle(holder), NULL, 0x10000, 0x2, 900, 13,
+                         ObjectGuid(), 6, NULL, cooldowns);
+    CHECK(onProc.CastItem() == NULL);
     SpellHandlerOutcome<SpellAuraProcResult> procResult = registry.Dispatch<OnProcHook>(kHookSpell, onProc);
     CHECK(procResult.IsReturn());
     CHECK_EQ(int(procResult.GetValue()), int(SPELL_AURA_PROC_CANT_TRIGGER));

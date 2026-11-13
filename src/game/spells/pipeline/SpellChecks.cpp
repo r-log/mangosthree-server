@@ -1819,7 +1819,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
     CheckCastContext checkCastCtx(*m_caster, m_targets.getUnitTarget(), *m_spellInfo, strict);
     SpellHandlerOutcome<SpellCastResult> checkCast = SpellHandlerRegistry::Game().Dispatch<CheckCastHook>(m_spellInfo->ID, checkCastCtx);
-    if (checkCast.IsReturn())
+    if (checkCast.IsReturn() && checkCast.GetValue() != SPELL_CAST_OK)
     {
         return checkCast.GetValue();
     }

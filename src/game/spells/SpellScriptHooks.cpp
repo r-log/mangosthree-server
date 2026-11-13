@@ -70,7 +70,7 @@ void AfterHitContext::RemoveAura(Unit& from, uint32 spellId)
 
 void AuraApplyContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
 {
-    CastTriggeredSpell(target, to, spellId, basePoints, NULL, NULL, aura.CasterGuid(), &spell);
+    CastTriggeredSpell(target, to, spellId, basePoints, NULL, NULL, aura.CasterGuid(), NULL);
 }
 
 void AuraApplyContext::RemoveAura(Unit& from, uint32 spellId)
@@ -80,12 +80,17 @@ void AuraApplyContext::RemoveAura(Unit& from, uint32 spellId)
 
 void AuraRemoveContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
 {
-    CastTriggeredSpell(target, to, spellId, basePoints, NULL, NULL, aura.CasterGuid(), &spell);
+    CastTriggeredSpell(target, to, spellId, basePoints, NULL, NULL, aura.CasterGuid(), NULL);
 }
 
 void AuraRemoveContext::RemoveAura(Unit& from, uint32 spellId)
 {
     from.RemoveAurasDueToSpell(spellId);
+}
+
+Item* OnProcContext::CastItem() const
+{
+    return m_castItemGuid ? caster.GetItemByGuid(m_castItemGuid) : NULL;
 }
 
 bool OnProcContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
@@ -101,7 +106,7 @@ bool OnProcContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoi
         return false;
     }
 
-    CastTriggeredSpell(caster, to, spellId, basePoints, castItem, m_triggeredByAura, ObjectGuid(), NULL);
+    CastTriggeredSpell(caster, to, spellId, basePoints, CastItem(), m_triggeredByAura, ObjectGuid(), NULL);
 
     if (playerCooldown)
     {

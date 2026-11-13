@@ -43,27 +43,43 @@ struct SpellEntry;
  * @brief The named hooks a spell script registers on, by spell id, in the spell handler registry.
  *
  * A hook is a site of the registry's table: a traits type with a Key, a Value and a Context. It runs at one point of
- * the spell pipeline, for every spell that reaches that point:
- * - CheckCast: `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) refuses the cast.
- * - SelectTargets: `Spell::SetTargetMap`, after the target mode filled the effect's unit list. Return() makes the list
- *   final: the caster and target-count filters after it are skipped.
- * - EffectValue: `Spell::HandleEffects`, after the effect's value for this target is calculated.
+ * the spell pipeline, for every spell that reaches that point. Per hook: where it runs, what its outcome does, and
+ * what a body may change:
+ * - CheckCast: `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) with any result but
+ *   SPELL_CAST_OK refuses the cast; Return(SPELL_CAST_OK) is the same as Continue(). It runs at every check of a cast
+ *   (its preparation, its cast, each update of an auto-repeat spell, the trade window's), so a body is a pure check:
+ *   it changes nothing and gives the same answer each time. Its units are const.
+ * - SelectTargets: `Spell::SetTargetMap`, after the target mode filled the effect's unit list. A body may remove,
+ *   add or reorder units. Return() skips the two filters after it: the caster's removal for
+ *   SPELL_ATTR_EX_CANT_TARGET_SELF and the cut to the spell's maximum target count; the game object targets and
+ *   `Spell::CheckTarget` in `Spell::FillTargetMap` still apply. It runs once per call of `Spell::SetTargetMap`, so once
+ *   for each of an effect's two target modes, both filling one list, and again for the party recursion of
+ *   TARGET_AREAEFFECT_PARTY; it does not run for an effect that takes the list of an earlier effect, nor when the
+ *   target mode ends `Spell::SetTargetMap` itself.
+ * - EffectValue: `Spell::HandleEffects`, after the effect's value for this target is calculated. A body changes only
+ *   the value.
  * - DummyEffect: `Spell::EffectDummy` and `Spell::EffectScriptEffect`, before their family switches. Return() ends the
- *   effect; otherwise the family switches and the script library run.
- * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt.
- * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it.
+ *   effect; otherwise the family switches and the script library run. A body may cast and remove auras.
+ * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt; the target may be dead. A body may
+ *   cast and remove auras.
+ * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
+ *   body changes only the amount: the aura is not built yet.
  * - AuraApply: `Unit::AddSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(true)` runs. Return()
- *   skips the boosts.
+ *   skips the boosts. A body may cast, remove other auras and set the script words.
  * - AuraRemove: `Unit::RemoveSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(false)` runs, so
- *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts.
- * - PeriodicTick: `Aura::PeriodicTick`, before a damage or a heal tick is dealt, and `Aura::PeriodicDummyTick`, before
- *   its family switch. Return() ends the tick.
+ *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts. A body may cast and remove other auras.
+ * - PeriodicTick: `Aura::PeriodicTick`, for a damage or a heal tick, before the target's steps (its taken bonus, the
+ *   crit, its absorb and resist), and `Aura::PeriodicDummyTick`, before its family switch. Return() ends the tick with
+ *   nothing dealt. A body may change the amount; a body that removes the ticking aura must Return().
  * - CheckProc: `Unit::ProcDamageAndSpellFor`, after the proc event accepted a holder. Return(false) drops the holder
- *   from this proc.
+ *   from this proc. A body changes nothing: the owner's holders are being walked, so it must not cast, nor add or
+ *   remove an aura. Its units are const.
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
- *   proc handler. Return(result) is the effect's result and the handler does not run.
- * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch.
- * - CritChance: `Unit::IsSpellCrit`, for a spell with a victim, before its family switch.
+ *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges
+ *   and set the script words.
+ * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch. A body changes only the done multiplier.
+ * - CritChance: `Unit::IsSpellCrit`, for a magic spell with a victim, before its family switch. A body changes only
+ *   the crit chance.
  *
  * EffectValue, AfterHit, AuraAmount, DamageDone and CritChance read no outcome: a body changes the context's values and
  * answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it as they are.
@@ -120,14 +136,14 @@ class AuraHandle
 /// CheckCast's context. Value: SpellCastResult.
 struct CheckCastContext
 {
-    CheckCastContext(Unit& casterUnit, Unit* targetUnit, SpellEntry const& spellEntry, bool strictCheck)
+    CheckCastContext(Unit const& casterUnit, Unit const* targetUnit, SpellEntry const& spellEntry, bool strictCheck)
         : caster(casterUnit), target(targetUnit), spell(spellEntry), strict(strictCheck)
     {
         caster.AssertSpellSeamOwner();
     }
 
-    Unit& caster;                                   ///< the caster
-    Unit* target;                                   ///< the cast's unit target; NULL when it has none
+    Unit const& caster;                             ///< the caster
+    Unit const* target;                             ///< the cast's unit target; NULL when it has none
     SpellEntry const& spell;                        ///< the spell cast
     bool strict;                                    ///< `Spell::CheckCast`'s `strict`
 };
@@ -249,8 +265,8 @@ struct AuraApplyContext
         target.AssertSpellSeamOwner();
     }
 
-    /// The target casts `spellId` at `to`, triggered by this spell, for the aura's caster. `basePoints`, when given,
-    /// holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    /// The target casts `spellId` at `to`, triggered, for the aura's caster, as the holder's boosts cast: with no
+    /// triggering spell. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
@@ -259,10 +275,11 @@ struct AuraApplyContext
     Unit* caster;                                   ///< the aura's caster; NULL when it cannot be found
     SpellEntry const& spell;                        ///< the aura's spell
     AuraHandle aura;                                ///< the aura's holder
-    bool real;                                      ///< true for an application, false for a reapplication of the modifiers
+    bool real;                                      ///< always true: the hook runs once, when the holder is added
 };
 
-/// AuraRemove's context. Value: void.
+/// AuraRemove's context. Value: void. The holder's auras are already removed when the hook runs, so `aura.Amount` is 0
+/// for every effect and `aura.SetAmount` changes nothing.
 struct AuraRemoveContext
 {
     AuraRemoveContext(Unit& targetUnit, Unit* casterUnit, SpellEntry const& spellEntry, AuraHandle const& holder,
@@ -272,8 +289,8 @@ struct AuraRemoveContext
         target.AssertSpellSeamOwner();
     }
 
-    /// The target casts `spellId` at `to`, triggered by this spell, for the aura's caster. `basePoints`, when given,
-    /// holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    /// The target casts `spellId` at `to`, triggered, for the aura's caster, as the holder's boosts cast: with no
+    /// triggering spell. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
@@ -308,16 +325,17 @@ struct PeriodicTickContext
 /// CheckProc's context. Value: bool.
 struct CheckProcContext
 {
-    CheckProcContext(Unit& ownerUnit, Unit* victimUnit, SpellEntry const& spellEntry, AuraHandle const& holder,
-                     SpellEntry const* triggeringSpell, uint32 flags, uint32 extraFlags, uint32 eventDamage)
+    CheckProcContext(Unit const& ownerUnit, Unit const* victimUnit, SpellEntry const& spellEntry,
+                     AuraHandle const& holder, SpellEntry const* triggeringSpell, uint32 flags, uint32 extraFlags,
+                     uint32 eventDamage)
         : owner(ownerUnit), victim(victimUnit), spell(spellEntry), aura(holder), procSpell(triggeringSpell),
           procFlag(flags), procEx(extraFlags), damage(eventDamage)
     {
         owner.AssertSpellSeamOwner();
     }
 
-    Unit& owner;                                    ///< the unit that holds the aura
-    Unit* victim;                                   ///< the other unit of the event; NULL when there is none
+    Unit const& owner;                              ///< the unit that holds the aura
+    Unit const* victim;                             ///< the other unit of the event; NULL when there is none
     SpellEntry const& spell;                        ///< the aura's spell
     AuraHandle aura;                                ///< the aura's holder
     SpellEntry const* procSpell;                    ///< the spell of the event; NULL for a melee event
@@ -326,21 +344,24 @@ struct CheckProcContext
     uint32 damage;                                  ///< the event's damage or heal
 };
 
-/// OnProc's context. Value: SpellAuraProcResult.
+/// OnProc's context. Value: SpellAuraProcResult. After the effects of a proc that succeeded, the engine drops one of
+/// the holder's charges itself, so a body's `aura.DropCharge` drops another.
 struct OnProcContext
 {
     OnProcContext(Unit& ownerUnit, Unit* victimUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
                   AuraHandle const& holder, SpellEntry const* triggeringSpell, uint32 flags, uint32 extraFlags,
-                  uint32 eventDamage, int32 auraAmount, Item* item, uint32 procCooldown, Aura* triggeringAura,
-                  SpellCooldownMgr& ownerCooldowns)
+                  uint32 eventDamage, int32 auraAmount, ObjectGuid const& itemGuid, uint32 procCooldown,
+                  Aura* triggeringAura, SpellCooldownMgr& ownerCooldowns)
         : caster(ownerUnit), victim(victimUnit), spell(spellEntry), effIndex(effectIndex), aura(holder),
           procSpell(triggeringSpell), procFlag(flags), procEx(extraFlags), damage(eventDamage),
-          triggerAmount(auraAmount), castItem(item), cooldown(procCooldown), m_triggeredByAura(triggeringAura),
-          m_cooldowns(ownerCooldowns)
+          triggerAmount(auraAmount), cooldown(procCooldown), m_castItemGuid(itemGuid),
+          m_triggeredByAura(triggeringAura), m_cooldowns(ownerCooldowns)
     {
         caster.AssertSpellSeamOwner();
     }
 
+    /// The item the aura was cast from, looked up in the caster's items when asked; NULL when none.
+    Item* CastItem() const;
     /// The caster casts `spellId` at `to`, triggered by this aura effect, from the aura's item, as
     /// `Unit::HandleDummyAuraProc` ends: false, and nothing cast, when `to` is another unit that is dead or when a
     /// player caster with a proc cooldown has `spellId` on cooldown; a player caster then gets that cooldown.
@@ -357,10 +378,10 @@ struct OnProcContext
     uint32 procEx;                                  ///< the event's PROC_EX_* mask
     uint32 damage;                                  ///< the event's damage or heal
     int32 triggerAmount;                            ///< the amount of the aura at `effIndex`
-    Item* castItem;                                 ///< the item the aura was cast from; NULL when none
     uint32 cooldown;                                ///< the proc's cooldown in seconds; 0 when it has none
 
     private:
+        ObjectGuid m_castItemGuid;                  ///< the guid of the item the aura was cast from
         Aura* m_triggeredByAura;                    ///< the aura at `effIndex`, the trigger of CastTriggered
         SpellCooldownMgr& m_cooldowns;              ///< the caster's spell cooldowns
 };
@@ -380,7 +401,7 @@ struct DamageDoneContext
     float& doneTotalMod;                            ///< the done multiplier, which a body may change
 };
 
-/// CritChance's context. Value: void.
+/// CritChance's context, for a magic spell with a victim. Value: void.
 struct CritChanceContext
 {
     CritChanceContext(Unit& casterUnit, Unit& victimUnit, SpellEntry const& spellEntry, float& chance)
@@ -395,7 +416,8 @@ struct CritChanceContext
     float& critChance;                              ///< the crit chance in percent, which a body may change
 };
 
-/// `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) refuses the cast.
+/// `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) refuses the cast unless the result
+/// is SPELL_CAST_OK.
 struct CheckCastHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_CHECK_CAST;
@@ -403,7 +425,8 @@ struct CheckCastHook
     typedef CheckCastContext Context;
 };
 
-/// `Spell::SetTargetMap`, after the target mode filled the unit list. Return() skips the filters after it.
+/// `Spell::SetTargetMap`, after the target mode filled the unit list. Return() skips the caster's removal and the cut
+/// to the maximum target count.
 struct SelectTargetsHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_SELECT_TARGETS;
@@ -459,7 +482,8 @@ struct AuraRemoveHook
     typedef AuraRemoveContext Context;
 };
 
-/// `Aura::PeriodicTick` and `Aura::PeriodicDummyTick`, before the tick is dealt. Return() ends the tick.
+/// `Aura::PeriodicTick`, before the target's steps (its taken bonus, the crit, its absorb), and
+/// `Aura::PeriodicDummyTick`. Return() ends the tick.
 struct PeriodicTickHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_PERIODIC_TICK;
@@ -491,7 +515,7 @@ struct DamageDoneHook
     typedef DamageDoneContext Context;
 };
 
-/// `Unit::IsSpellCrit`, before its family switch. The outcome is not read.
+/// `Unit::IsSpellCrit`, for a magic spell with a victim, before its family switch. The outcome is not read.
 struct CritChanceHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_CRIT_CHANCE;
