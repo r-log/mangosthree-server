@@ -261,8 +261,9 @@ proto::SessionId WorldGateway::Attach(const proto::AuthRequest& request,
     }
 
     // Before AddSession, which is where the session starts answering the client
-    // and may ask for its second stream.
+    // and may ask for its second stream; the link traces that first answer under the id.
     session->SetSessionId(id);
+    link->SetTraceSession(id);
 
     // AddSession answers the client itself, with either AUTH_OK or a queue
     // position (WorldSession::SendAuthWaitQue). The cipher was armed by proto

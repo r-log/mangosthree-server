@@ -27,6 +27,7 @@
 #define MANGOS_PROTO_ICLIENTLINK_H
 
 #include "LinkSlot.h"
+#include "SessionId.h"
 #include "WorldPacket.h"
 
 #include <string>
@@ -72,6 +73,10 @@ namespace proto
 
             /// True once the connection is dead and sends are being discarded.
             virtual bool IsClosed() const = 0;
+
+            /// The session this link serves, for its packet trace; the world says it before it can
+            /// answer on the link.
+            virtual void SetTraceSession(SessionId /*session*/) {}
 
             /**
              * @brief Whether one of the two world streams is usable right now.
