@@ -140,7 +140,7 @@ pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
     &Unit::HandleNULLProc,                                  // 94 SPELL_AURA_INTERRUPT_REGEN
     &Unit::HandleNULLProc,                                  // 95 SPELL_AURA_GHOST
     &Unit::HandleSpellMagnetAuraProc,                       // 96 SPELL_AURA_SPELL_MAGNET
-    &Unit::HandleManaShieldAuraProc,                        // 97 SPELL_AURA_MANA_SHIELD
+    &Unit::HandleNULLProc,                                  // 97 SPELL_AURA_MANA_SHIELD
     &Unit::HandleNULLProc,                                  // 98 SPELL_AURA_MOD_SKILL_TALENT
     &Unit::HandleNULLProc,                                  // 99 SPELL_AURA_MOD_ATTACK_POWER
     &Unit::HandleNULLProc,                                  //100 SPELL_AURA_AURAS_VISIBLE obsolete 3.x? all player can see all auras now, but still have 2 spells including GM-spell (1852,2855)
@@ -2698,16 +2698,6 @@ SpellAuraProcResult Unit::HandleSpellMagnetAuraProc(Unit* /*pVictim*/, uint32 da
             return SPELL_AURA_PROC_OK;
         }
     }
-    return SPELL_AURA_PROC_OK;
-}
-
-/**
- * @brief Handles mana shield proc auras: they trigger nothing here; Mana Shield's proc is a mage script on the proc hook.
- *
- * @return SpellAuraProcResult Always SPELL_AURA_PROC_OK.
- */
-SpellAuraProcResult Unit::HandleManaShieldAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* /*triggeredByAura*/, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 /*cooldown*/)
-{
     return SPELL_AURA_PROC_OK;
 }
 
