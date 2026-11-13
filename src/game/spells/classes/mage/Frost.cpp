@@ -68,6 +68,22 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage74396(DummyAura
     return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
 }
 
+namespace
+{
+    /// 30455: Ice Lance: at a frozen target, or one an IGNORE_UNIT_STATE aura of IGNORE_UNIT_TARGET_NON_FROZEN on the
+    /// caster (Fingers of Frost's 44544) lets him treat as frozen, the damage done is multiplied by 3.
+    SpellHandlerOutcome<void> IceLanceDamageDone(DamageDoneContext& ctx)
+    {
+        if (ctx.victim.IsFrozen() || ctx.caster.IsIgnoreUnitState(&ctx.spell, IGNORE_UNIT_TARGET_NON_FROZEN))
+        {
+            ctx.doneTotalMod *= 3.0f;
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    uint32 const ICE_LANCE[] = { 30455 };
+}
+
 uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
 {
     static Row<AuraBoostMageSite> const boostMage[] =
@@ -88,5 +104,6 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     uint32 rows = RegisterRows(registry, boostMage);
     rows += RegisterRows(registry, effectDummyMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
+    rows += RegisterRanks<DamageDoneHook>(registry, ICE_LANCE, &IceLanceDamageDone);
     return rows;
 }
