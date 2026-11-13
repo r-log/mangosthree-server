@@ -263,7 +263,6 @@ namespace Harness
 
         Player* player = new Player(session);
         InstallPlayerPacketSinks(*player);
-        session->SetPlayer(player);                      // as login does (CharacterHandler.cpp:1158)
         player->GetMotionMaster()->Initialize();         // as login does, before the player ever moves
 
         // The phase-map refusal above is what makes this call safe to make against any database:
@@ -271,12 +270,16 @@ namespace Harness
         // fire, and nothing else in Create touches the character database.
         if (!player->Create(guidlow, "HarnessMover", race, class_, GENDER_MALE, 0, 0, 0, 0, 0, 0))
         {
-            session->SetPlayer(NULL);
+            // The player was never seated, so the session holds nothing to clear.
             delete player;
             delete session;
             Log("ERR spawn player %u: create failed", guidlow);
             return NULL;
         }
+
+        // Seated only now, as login seats a player only after LoadFromDB: SetPlayer reads the
+        // player's guid, and his update fields exist only once Create has run.
+        session->SetPlayer(player);
 
         player->SetSaveTimer(0xFFFFFFFF);                // never let Player::Update save a character
                                                          // that does not exist
