@@ -90,8 +90,8 @@ struct DummyAuraProcGenericSite
     typedef DummyAuraProcContext Context;
 };
 
-/// `Unit::HandleDummyAuraProc`, SPELLFAMILY_MAGE's `switch (dummySpell->ID)`, after the checks by spell icon. A label
-/// sets what the proc casts or ends the proc with its result; a miss goes on to the cast after the family switch.
+/// `Unit::HandleDummyAuraProc`, SPELLFAMILY_MAGE's `switch (dummySpell->ID)`. A label sets what the proc casts or ends
+/// the proc with its result; a miss goes on to the cast after the family switch.
 struct DummyAuraProcMageSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_MAGE;

@@ -26,8 +26,12 @@
 #include "spells/classes/mage/Mage.h"
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
+#include "spells/data/SpellMgr.h"
+#include "spells/data/SpellTables.h"
 #include "entities/Unit.h"
+#include "DBCStores.h"
 #include "Log.h"
+#include "Utilities/Util.h"
 
 /// 11129: Combustion
 static SpellHandlerOutcome<void> AuraBoostMage11129(AuraBoostContext& ctx)
@@ -78,6 +82,107 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage11119(DummyAura
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 }
 
+namespace
+{
+    typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
+
+    /// 29074, 29075, 29076: Master of Elements: after a spell the proc accepts, gives back the aura's percent of the
+    /// spell's base mana cost through 29077.
+    ProcOutcome MasterOfElementsProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (!ctx.procSpell)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+
+        int32 const cost = ctx.procSpell->GetManaCost() + ctx.procSpell->GetManaCostPercentage() * ctx.caster.GetCreateMana() / 100;
+        int32 const basePoints[MAX_EFFECT_INDEX] = { cost * ctx.triggerAmount / 100, 0, 0 };
+        if (basePoints[EFFECT_INDEX_0] <= 0)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 29077, basePoints));
+    }
+
+    /// 44445: Hot Streak; 44446, 44448: Improved Hot Streak: effect 0 counts the hits the proc accepts in the holder's
+    /// script word of effect 0, and the second crit in a row rolls the aura's chance for Hot Streak! (48108). Effect 1
+    /// does nothing, and neither does effect 0 while the owner holds no aura of the spell at effect 1.
+    ProcOutcome HotStreakProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.caster.GetAura(ctx.spell.ID, EFFECT_INDEX_1))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_OK);
+        }
+
+        if (Mage::CountCritInARow(ctx.aura.ScriptWord(EFFECT_INDEX_0), (ctx.procEx & PROC_EX_CRITICAL_HIT) != 0) &&
+            roll_chance_i(ctx.triggerAmount))
+        {
+            ctx.CastTriggered(ctx.caster, 48108);
+        }
+        return ProcOutcome::Return(SPELL_AURA_PROC_OK);
+    }
+
+    /// 31641, 31642: Blazing Speed: a proc-trigger aura whose own trigger spell (18350) the client's data lacks. Its
+    /// proc casts Blazing Speed (31643) instead, as Unit::HandleProcTriggerSpellAuraProc ends for a trigger spell: not
+    /// when 31643 is an extra attack and extra attacks are pending; at the owner when the event is no positive spell
+    /// and 31643 is positive, else at the victim; the aura's amount as base points when the aura carries a value. No
+    /// row of the legacy site of trigger spells (ProcTriggerSpellAuraProcTriggeredSite) names 31643.
+    ProcOutcome BlazingSpeedProc(OnProcContext& ctx)
+    {
+        bool const withValue = Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL_WITH_VALUE);
+        if (!withValue && !Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (!IsBlazingSpeedRank(ctx.spell.ID))
+        {
+            sLog.outError("Blazing Speed: spell %u is no rank of Blazing Speed", ctx.spell.ID);
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+
+        uint32 const buff = 31643;
+        SpellEntry const* buffEntry = sSpellStore.LookupEntry(buff);
+        if (!buffEntry || (ctx.caster.m_extraAttacks && IsSpellHaveEffect(buffEntry, SPELL_EFFECT_ADD_EXTRA_ATTACKS)))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        Unit* target = !(ctx.procFlag & PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL) && IsPositiveSpell(buff) ? &ctx.caster : ctx.victim;
+        if (!target)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        int32 const basePoints[MAX_EFFECT_INDEX] = { withValue ? ctx.triggerAmount : 0, 0, 0 };
+        return ProcOutcome::Return(ctx.CastTriggered(*target, buff, basePoints) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED);
+    }
+
+    uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
+    uint32 const HOT_STREAK[] = { 44445, 44446, 44448 };
+    uint32 const BLAZING_SPEED[] = { 31641, 31642 };
+}
+
+bool Mage::CountCritInARow(int32& crits, bool crit)
+{
+    if (!crit)
+    {
+        crits = 0;
+        return false;
+    }
+    if (++crits < 2)
+    {
+        return false;
+    }
+    crits = 0;
+    return true;
+}
+
 uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
 {
     static Row<AuraBoostMageSite> const boostMage[] =
@@ -97,5 +202,8 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
 
     uint32 rows = RegisterRows(registry, boostMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
+    rows += RegisterRanks<OnProcHook>(registry, MASTER_OF_ELEMENTS, &MasterOfElementsProc);
+    rows += RegisterRanks<OnProcHook>(registry, HOT_STREAK, &HotStreakProc);
+    rows += RegisterRanks<OnProcHook>(registry, BLAZING_SPEED, &BlazingSpeedProc);
     return rows;
 }

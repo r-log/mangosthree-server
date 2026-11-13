@@ -140,7 +140,7 @@ pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
     &Unit::HandleNULLProc,                                  // 94 SPELL_AURA_INTERRUPT_REGEN
     &Unit::HandleNULLProc,                                  // 95 SPELL_AURA_GHOST
     &Unit::HandleSpellMagnetAuraProc,                       // 96 SPELL_AURA_SPELL_MAGNET
-    &Unit::HandleManaShieldAuraProc,                        // 97 SPELL_AURA_MANA_SHIELD
+    &Unit::HandleNULLProc,                                  // 97 SPELL_AURA_MANA_SHIELD
     &Unit::HandleNULLProc,                                  // 98 SPELL_AURA_MOD_SKILL_TALENT
     &Unit::HandleNULLProc,                                  // 99 SPELL_AURA_MOD_ATTACK_POWER
     &Unit::HandleNULLProc,                                  //100 SPELL_AURA_AURAS_VISIBLE obsolete 3.x? all player can see all auras now, but still have 2 spells including GM-spell (1852,2855)
@@ -716,109 +716,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
         }
         case SPELLFAMILY_MAGE:
         {
-            // Magic Absorption
-            if (dummySpell->SpellIconID == 459)             // only this spell have SpellIconID == 459 and dummy aura
-            {
-                if (GetPowerType() != POWER_MANA)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                // mana reward
-                basepoints[0] = (triggerAmount * GetMaxPower(POWER_MANA) / 100);
-                target = this;
-                triggered_spell_id = 29442;
-                break;
-            }
-            // Master of Elements
-            if (dummySpell->SpellIconID == 1920)
-            {
-                if (!procSpell)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                // mana cost save
-                int32 cost = procSpell->GetManaCost() + procSpell->GetManaCostPercentage() * GetCreateMana() / 100;
-                basepoints[0] = cost * triggerAmount/100;
-                if (basepoints[0] <=0)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                target = this;
-                triggered_spell_id = 29077;
-                break;
-            }
-
-            // Arcane Potency
-            if (dummySpell->SpellIconID == 2120)
-            {
-                if (!procSpell)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                target = this;
-                uint32 arcanePotency = GetArcanePotencyProcSpell(dummySpell->ID);
-                if (!arcanePotency)
-                {
-                    sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u", dummySpell->ID);
-                    return SPELL_AURA_PROC_FAILED;
-                }
-                triggered_spell_id = arcanePotency;
-                break;
-            }
-
-            // Hot Streak
-            if (dummySpell->SpellIconID == 2999)
-            {
-                if (effIndex != EFFECT_INDEX_0)
-                {
-                    return SPELL_AURA_PROC_OK;
-                }
-                Aura* counter = GetAura(triggeredByAura->GetId(), EFFECT_INDEX_1);
-                if (!counter)
-                {
-                    return SPELL_AURA_PROC_OK;
-                }
-
-                // Count spell criticals in a row in second aura
-                Modifier* mod = counter->GetModifier();
-                if (procEx & PROC_EX_CRITICAL_HIT)
-                {
-                    mod->m_amount *= 2;
-                    if (mod->m_amount < 100) // not enough
-                    {
-                        return SPELL_AURA_PROC_OK;
-                    }
-                    // Critical counted -> roll chance
-                    if (roll_chance_i(triggerAmount))
-                    {
-                        CastSpell(this, 48108, true, castItem, triggeredByAura);
-                    }
-                }
-                mod->m_amount = 25;
-                return SPELL_AURA_PROC_OK;
-            }
-            // Burnout
-            if (dummySpell->SpellIconID == 2998)
-            {
-                if (!procSpell)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                int32 cost = procSpell->GetManaCost() + procSpell->GetManaCostPercentage() * GetCreateMana() / 100;
-                basepoints[0] = cost * triggerAmount/100;
-                if (basepoints[0] <=0)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-                triggered_spell_id = 44450;
-                target = this;
-                break;
-            }
             DummyAuraProcContext ctx(this, m_spellCooldownMgr, pVictim, damage, triggeredByAura, procSpell, procFlag,
                                      cooldown, dummySpell, effIndex, procClassOptions, triggerAmount, castItem,
                                      triggered_spell_id, target, basepoints);
@@ -1804,16 +1701,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
         }
         case SPELLFAMILY_MAGE:
         {
-            if (auraSpellInfo->SpellIconID == 2127)         // Blazing Speed
-            {
-                if (!IsBlazingSpeedRank(auraSpellInfo->ID))
-                {
-                    sLog.outError("Unit::HandleProcTriggerSpellAuraProc: Spell %u miss possibly Blazing Speed", auraSpellInfo->ID);
-                    return SPELL_AURA_PROC_FAILED;
-                }
-                trigger_spell_id = 31643;
-            }
-            else if (auraSpellInfo->ID == 26467)            // Persistent Shield (Scarab Brooch trinket)
+            if (auraSpellInfo->ID == 26467)                 // Persistent Shield (Scarab Brooch trinket)
             {
                 // This spell originally trigger 13567 - Dummy Trigger (vs dummy effect)
                 basepoints[0] = damage * 15 / 100;
@@ -2725,29 +2613,13 @@ SpellAuraProcResult Unit::HandleAddFlatModifierAuraProc(Unit* pVictim, uint32 /*
     return SPELL_AURA_PROC_OK;
 }
 
-SpellAuraProcResult Unit::HandleAddPctModifierAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 /*procFlag*/, uint32 procEx, uint32 /*cooldown*/)
+SpellAuraProcResult Unit::HandleAddPctModifierAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 /*cooldown*/)
 {
     SpellEntry const* spellInfo = triggeredByAura->GetSpellProto();
     Item* castItem = triggeredByAura->GetCastItemGuid() ? GetItemByGuid(triggeredByAura->GetCastItemGuid()) : NULL;
 
     switch(spellInfo->GetSpellFamilyName())
     {
-        case SPELLFAMILY_MAGE:
-        {
-            // Combustion
-            if (spellInfo->ID == 11129)
-            {
-                // last charge and crit
-                if (triggeredByAura->GetHolder()->GetAuraCharges() <= 1 && (procEx & PROC_EX_CRITICAL_HIT))
-                {
-                    return SPELL_AURA_PROC_OK;              // charge counting (will removed)
-                }
-
-                CastSpell(this, 28682, true, castItem, triggeredByAura);
-                return (procEx & PROC_EX_CRITICAL_HIT) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED; // charge update only at crit hits, no hidden cooldowns
-            }
-            break;
-        }
         case SPELLFAMILY_PALADIN:
         {
             // Glyph of Divinity
@@ -2776,7 +2648,7 @@ SpellAuraProcResult Unit::HandleAddPctModifierAuraProc(Unit* /*pVictim*/, uint32
     return SPELL_AURA_PROC_OK;
 }
 
-SpellAuraProcResult Unit::HandleModDamagePercentDoneAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 cooldown)
+SpellAuraProcResult Unit::HandleModDamagePercentDoneAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 cooldown)
 {
     SpellEntry const* spellInfo = triggeredByAura->GetSpellProto();
     Item* castItem = triggeredByAura->GetCastItemGuid() ? GetItemByGuid(triggeredByAura->GetCastItemGuid()) : NULL;
@@ -2795,10 +2667,6 @@ SpellAuraProcResult Unit::HandleModDamagePercentDoneAuraProc(Unit* /*pVictim*/, 
 
         CastCustomSpell(this, 34075, &bp, NULL, NULL, true, castItem, triggeredByAura);
     }
-    // Arcane Blast
-    else if (spellInfo->ID == 36032 && procSpell->GetSpellFamilyName() == SPELLFAMILY_MAGE && procSpell->SpellIconID == 2294)
-        // prevent proc from self(spell that triggered this aura)
-        return SPELL_AURA_PROC_FAILED;
 
     return SPELL_AURA_PROC_OK;
 }
@@ -2830,73 +2698,6 @@ SpellAuraProcResult Unit::HandleSpellMagnetAuraProc(Unit* /*pVictim*/, uint32 da
             return SPELL_AURA_PROC_OK;
         }
     }
-    return SPELL_AURA_PROC_OK;
-}
-
-SpellAuraProcResult Unit::HandleManaShieldAuraProc(Unit* pVictim, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 cooldown)
-{
-    SpellEntry const *dummySpell = triggeredByAura->GetSpellProto ();
-    SpellClassOptionsEntry const* dummyClassOptions = dummySpell->GetSpellClassOptions();
-
-    Item* castItem = triggeredByAura->GetCastItemGuid() ? GetItemByGuid(triggeredByAura->GetCastItemGuid()) : NULL;
-
-    uint32 triggered_spell_id = 0;
-    Unit* target = pVictim;
-
-    switch(dummyClassOptions->SpellClassSet)
-    {
-        case SPELLFAMILY_MAGE:
-        {
-            // Incanter's Regalia set (add trigger chance to Mana Shield)
-            if (dummyClassOptions->IsFitToFamilyMask(UI64LIT(0x0000000000008000)))
-            {
-                if (GetTypeId() != TYPEID_PLAYER)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                target = this;
-                triggered_spell_id = 37436;
-                break;
-            }
-            break;
-        }
-        default:
-            break;
-    }
-
-    // processed charge only counting case
-    if (!triggered_spell_id)
-    {
-        return SPELL_AURA_PROC_OK;
-    }
-
-    SpellEntry const* triggerEntry = sSpellStore.LookupEntry(triggered_spell_id);
-
-    if (!triggerEntry)
-    {
-        sLog.outError("Unit::HandleManaShieldAuraProc: Spell %u have nonexistent triggered spell %u", dummySpell->ID, triggered_spell_id);
-        return SPELL_AURA_PROC_FAILED;
-    }
-
-    // default case
-    if (!target || (target != this && !target->IsAlive()))
-    {
-        return SPELL_AURA_PROC_FAILED;
-    }
-
-    if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(triggered_spell_id, time(NULL)))
-    {
-        return SPELL_AURA_PROC_FAILED;
-    }
-
-    CastSpell(target, triggered_spell_id, true, castItem, triggeredByAura);
-
-    if (cooldown && GetTypeId() == TYPEID_PLAYER)
-    {
-        m_spellCooldownMgr.AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
-    }
-
     return SPELL_AURA_PROC_OK;
 }
 

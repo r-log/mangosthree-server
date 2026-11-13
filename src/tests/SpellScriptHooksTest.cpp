@@ -24,7 +24,7 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the aura handle's reads,
-/// RegisterRanks, the holder's script words and the game table, which registers no hook.
+/// RegisterRanks, the holder's script words and the game table, whose only hook rows are the mage's proc scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -169,14 +169,15 @@ TEST(SpellScriptHooks_TheThirteenKeysAre100To112AboveEveryLegacySite)
         CHECK(keys[i] > uint32(SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_DRUID));
     }
 
-    // Every key the game registers sits at a legacy site, below the first hook.
+    // Every key the game registers sits at a legacy site, below the first hook, but the mage's proc scripts at the
+    // proc hook.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
     {
         belowHooks += game.CountAt(site);
     }
-    CHECK_EQ(belowHooks, game.Count());
+    CHECK_EQ(belowHooks + game.CountAt(OnProcHook::Key), game.Count());
 }
 
 TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
@@ -441,19 +442,21 @@ TEST(SpellScriptHooks_RegisterScriptPutsOneBodyUnderOneId)
     CHECK(registry.Find<OnProcHook>(11119) == &TestProcBody);
 }
 
-TEST(SpellScriptHooks_TheGameTableRegistersNoHook)
+TEST(SpellScriptHooks_TheGameTableHoldsTheMageProcScriptsAndNoOtherHookRow)
 {
-    uint32 const keys[] =
+    // The proc hook holds the mage's 13 proc scripts (MageScriptsTest names their ids); no other hook holds a row.
+    uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, SelectTargetsHook::Key, EffectValueHook::Key, DummyEffectHook::Key, AfterHitHook::Key,
         AuraAmountHook::Key, AuraApplyHook::Key, AuraRemoveHook::Key, PeriodicTickHook::Key, CheckProcHook::Key,
-        OnProcHook::Key, DamageDoneHook::Key, CritChanceHook::Key,
+        DamageDoneHook::Key, CritChanceHook::Key,
     };
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    for (uint32 key : keys)
+    for (uint32 key : emptyKeys)
     {
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
-    CHECK_EQ(game.Count(), std::size_t(1240));
+    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(13));
+    CHECK_EQ(game.Count(), std::size_t(1253));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }

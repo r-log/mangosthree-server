@@ -30,6 +30,8 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/data/SpellMgr.h"
 #include "entities/Unit.h"
+#include "DBCStores.h"
+#include "Log.h"
 #include "Utilities/Util.h"
 
 /// 66: Invisibility
@@ -207,6 +209,22 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
     registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);
     return rows + 3;
+}
+
+bool Mage::ProcEffectIs(OnProcContext const& ctx, uint32 auraType)
+{
+    SpellEffectEntry const* effect = ctx.spell.GetSpellEffect(ctx.effIndex);
+    return effect && effect->EffectAura == auraType;
+}
+
+SpellAuraProcResult Mage::CastProcSpell(OnProcContext& ctx, Unit& to, uint32 spellId, int32 const* basePoints)
+{
+    if (!sSpellStore.LookupEntry(spellId))
+    {
+        sLog.outError("Mage proc script of spell %u: the spell it casts, %u, is not in the spell store", ctx.spell.ID, spellId);
+        return SPELL_AURA_PROC_FAILED;
+    }
+    return ctx.CastTriggered(to, spellId, basePoints) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED;
 }
 
 uint32 RegisterMageScripts(SpellHandlerRegistry& registry)

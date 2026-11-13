@@ -24,8 +24,75 @@
  */
 
 #include "spells/classes/mage/Mage.h"
+#include "spells/data/SpellTables.h"
+#include "entities/Unit.h"
+#include "Log.h"
 
-uint32 Mage::RegisterArcane(SpellHandlerRegistry& /*registry*/)
+namespace
 {
-    return 0;
+    typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
+
+    /// 29441, 29444: Magic Absorption: a mana user gets back the aura's percent of his maximum mana through 29442.
+    ProcOutcome MagicAbsorptionProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (ctx.caster.GetPowerType() != POWER_MANA)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+
+        int32 const basePoints[MAX_EFFECT_INDEX] = { int32(ctx.triggerAmount * ctx.caster.GetMaxPower(POWER_MANA) / 100), 0, 0 };
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 29442, basePoints));
+    }
+
+    /// 31571, 31572: Arcane Potency: casts the buff of the aura's rank (GetArcanePotencyProcSpell) on the owner.
+    ProcOutcome ArcanePotencyProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (!ctx.procSpell)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+
+        uint32 const buff = GetArcanePotencyProcSpell(ctx.spell.ID);
+        if (!buff)
+        {
+            sLog.outError("Arcane Potency: spell %u has no buff of its rank", ctx.spell.ID);
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, buff));
+    }
+
+    /// 1463: Mana Shield: its proc, which a chance-of-success modifier such as the Incanter's Regalia set's (37424)
+    /// gives it, casts Arcane Surge (37436) on a player owner.
+    ProcOutcome ManaShieldProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_MANA_SHIELD))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (ctx.caster.GetTypeId() != TYPEID_PLAYER)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 37436));
+    }
+
+    uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
+    uint32 const ARCANE_POTENCY[] = { 31571, 31572 };
+    uint32 const MANA_SHIELD[] = { 1463 };
+}
+
+uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
+{
+    uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
+    rows += RegisterRanks<OnProcHook>(registry, ARCANE_POTENCY, &ArcanePotencyProc);
+    rows += RegisterRanks<OnProcHook>(registry, MANA_SHIELD, &ManaShieldProc);
+    return rows;
 }

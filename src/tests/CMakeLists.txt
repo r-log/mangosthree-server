@@ -650,7 +650,7 @@ if(Python3_Interpreter_FOUND)
             --class Player --header ${CMAKE_SOURCE_DIR}/src/game/entities/player/Player.h)
 
     add_test(NAME unit_methods
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 675
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 674
             --class Unit --header ${CMAKE_SOURCE_DIR}/src/game/entities/Unit.h)
 
     add_test(NAME world_session_methods
@@ -708,8 +708,8 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME class_logic
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/class_logic.py
             --root ${CMAKE_SOURCE_DIR} --check
-            --gate legacy_sites=83 --gate legacy_rows=1240 --gate family_mentions=334
-            --gate icon_compares=220 --gate mask_literals=318 --gate family_switches=36)
+            --gate legacy_sites=83 --gate legacy_rows=1240 --gate family_mentions=331
+            --gate icon_compares=213 --gate mask_literals=317 --gate family_switches=35)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()
