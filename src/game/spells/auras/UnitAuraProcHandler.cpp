@@ -2701,70 +2701,13 @@ SpellAuraProcResult Unit::HandleSpellMagnetAuraProc(Unit* /*pVictim*/, uint32 da
     return SPELL_AURA_PROC_OK;
 }
 
-SpellAuraProcResult Unit::HandleManaShieldAuraProc(Unit* pVictim, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 cooldown)
+/**
+ * @brief Handles mana shield proc auras: they trigger nothing here; Mana Shield's proc is a mage script on the proc hook.
+ *
+ * @return SpellAuraProcResult Always SPELL_AURA_PROC_OK.
+ */
+SpellAuraProcResult Unit::HandleManaShieldAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* /*triggeredByAura*/, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 /*cooldown*/)
 {
-    SpellEntry const *dummySpell = triggeredByAura->GetSpellProto ();
-    SpellClassOptionsEntry const* dummyClassOptions = dummySpell->GetSpellClassOptions();
-
-    Item* castItem = triggeredByAura->GetCastItemGuid() ? GetItemByGuid(triggeredByAura->GetCastItemGuid()) : NULL;
-
-    uint32 triggered_spell_id = 0;
-    Unit* target = pVictim;
-
-    switch(dummyClassOptions->SpellClassSet)
-    {
-        case SPELLFAMILY_MAGE:
-        {
-            // Incanter's Regalia set (add trigger chance to Mana Shield)
-            if (dummyClassOptions->IsFitToFamilyMask(UI64LIT(0x0000000000008000)))
-            {
-                if (GetTypeId() != TYPEID_PLAYER)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                target = this;
-                triggered_spell_id = 37436;
-                break;
-            }
-            break;
-        }
-        default:
-            break;
-    }
-
-    // processed charge only counting case
-    if (!triggered_spell_id)
-    {
-        return SPELL_AURA_PROC_OK;
-    }
-
-    SpellEntry const* triggerEntry = sSpellStore.LookupEntry(triggered_spell_id);
-
-    if (!triggerEntry)
-    {
-        sLog.outError("Unit::HandleManaShieldAuraProc: Spell %u have nonexistent triggered spell %u", dummySpell->ID, triggered_spell_id);
-        return SPELL_AURA_PROC_FAILED;
-    }
-
-    // default case
-    if (!target || (target != this && !target->IsAlive()))
-    {
-        return SPELL_AURA_PROC_FAILED;
-    }
-
-    if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(triggered_spell_id, time(NULL)))
-    {
-        return SPELL_AURA_PROC_FAILED;
-    }
-
-    CastSpell(target, triggered_spell_id, true, castItem, triggeredByAura);
-
-    if (cooldown && GetTypeId() == TYPEID_PLAYER)
-    {
-        m_spellCooldownMgr.AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
-    }
-
     return SPELL_AURA_PROC_OK;
 }
 

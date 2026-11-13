@@ -69,13 +69,30 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, buff));
     }
 
+    /// 1463: Mana Shield: its proc, which a chance-of-success modifier such as the Incanter's Regalia set's (37424)
+    /// gives it, casts Arcane Surge (37436) on a player owner.
+    ProcOutcome ManaShieldProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_MANA_SHIELD))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (ctx.caster.GetTypeId() != TYPEID_PLAYER)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 37436));
+    }
+
     uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
     uint32 const ARCANE_POTENCY[] = { 31571, 31572 };
+    uint32 const MANA_SHIELD[] = { 1463 };
 }
 
 uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
 {
     uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
     rows += RegisterRanks<OnProcHook>(registry, ARCANE_POTENCY, &ArcanePotencyProc);
+    rows += RegisterRanks<OnProcHook>(registry, MANA_SHIELD, &ManaShieldProc);
     return rows;
 }
