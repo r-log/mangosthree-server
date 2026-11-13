@@ -444,8 +444,8 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     }
     CHECK(game.FindDefault<ProcTriggerSpellAuraProcTriggeredSite>() == NULL);
 
-    // No script stands for the holders of icon 32 (Ice Barrier 11426 and 98864, Glyph of Ice Barrier 63095): the
-    // boost arm that matched them goes, and the mage boost site's default returns for them as the arm did.
+    // No script stands for the holders of icon 32 (Ice Barrier 11426 and 98864, Glyph of Ice Barrier 63095): no row of
+    // the mage boost site, the aura-apply or the aura-remove hook names them, and the site's default returns for them.
     for (uint32 spellId : { 11426u, 98864u, 63095u })
     {
         CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
