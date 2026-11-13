@@ -38,8 +38,8 @@ class Player;
  * @brief The `Spell::EffectDummy` sites of the spell handler registry.
  *
  * The handlers are file-static functions in SpellEffectDummyHandlers.cpp; this header holds what the
- * registry and tests see. The generic and paladin contexts hold the spell's target list by its own type,
- * so this header includes the spell's.
+ * registry and tests see, and the raid-buff body that the class tables share. The generic and paladin
+ * contexts hold the spell's target list by its own type, so this header includes the spell's.
  */
 
 /// What the bodies of `Spell::EffectDummy`'s SPELLFAMILY_GENERIC switch read: the spell, its entry, its base points,
@@ -261,6 +261,34 @@ RaidBuffSpells const* FindRaidBuff(uint32 spellId);
 /// True when a raid buff cast by `caster` on a unit of `targetPlayer` casts the raid-wide aura: the caster is in a
 /// group, and the target's player is the caster or a member of the caster's group.
 bool CastsRaidWideBuff(Player const* caster, Player const* targetPlayer);
+
+/// The raid buffs of RaidBuffTable (priest 21562 and 27683, druid 1126, mage 1459 and 61316, paladin 19740 and
+/// 20217): with a unit target, the caster casts the raid-wide aura on itself when CastsRaidWideBuff holds for the
+/// target's player, otherwise the single-target aura on the target; the effect ends
+template <class Context>
+inline SpellHandlerOutcome<void> EffectDummyRaidBuff(Context& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    RaidBuffSpells const* buff = FindRaidBuff(ctx.spell->m_spellInfo->ID);
+    if (!buff)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (CastsRaidWideBuff(ctx.m_caster->ToPlayer(), ctx.unitTarget->GetCharmerOrOwnerPlayerOrPlayerItself()))
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, buff->raidSpellId, true);
+    }
+    else
+    {
+        ctx.m_caster->CastSpell(ctx.unitTarget, buff->singleSpellId, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
 
 /// Registers every `Spell::EffectDummy` handler on `registry` (defined in SpellEffectDummyHandlers.cpp).
 /// Returns the number of rows it registered; a row whose key was taken does not change the table, so a caller

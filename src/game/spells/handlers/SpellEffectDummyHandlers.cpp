@@ -3480,103 +3480,6 @@ static SpellHandlerOutcome<void> EffectDummyMageColdSnap(SpellEffectDummyMageCon
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// 31687: Summon Water Elemental, which has no dummy effect in the client's spell data: a caster with Glyph of Mana
-/// Shield (70937) casts 70908 on itself, any other caster 70907, both absent from the client's spell data; the effect
-/// ends
-static SpellHandlerOutcome<void> EffectDummyMageSummonWaterElemental(SpellEffectDummyMageContext& ctx)
-{
-    if (ctx.m_caster->HasAura(70937))           // Glyph of Eternal Water (permanent limited by known spells version)
-    {
-        ctx.m_caster->CastSpell(ctx.m_caster, 70908, true);
-    }
-    else                                    // temporary version
-    {
-        ctx.m_caster->CastSpell(ctx.m_caster, 70907, true);
-    }
-
-    return SpellHandlerOutcome<void>::Return();
-}
-
-/// 32826: Polymorph Cast Visual: a creature target casts one of six forms on itself at random (Squirrel, Giraffe,
-/// Serpent, Dragonhawk, Worgen or Sheep Form: 32813, 32816 to 32820); the effect ends
-static SpellHandlerOutcome<void> EffectDummyMagePolymorphCastVisual(SpellEffectDummyMageContext& ctx)
-{
-    if (ctx.unitTarget && ctx.unitTarget->GetTypeId() == TYPEID_UNIT)
-    {
-        // Polymorph Cast Visual Rank 1
-        const uint32 spell_list[6] =
-        {
-            32813,                          // Squirrel Form
-            32816,                          // Giraffe Form
-            32817,                          // Serpent Form
-            32818,                          // Dragonhawk Form
-            32819,                          // Worgen Form
-            32820                           // Sheep Form
-        };
-        ctx.unitTarget->CastSpell(ctx.unitTarget, spell_list[urand(0, 5)], true);
-    }
-    return SpellHandlerOutcome<void>::Return();
-}
-
-/// 38194: Blink: the caster casts Blink (38203) on the unit target, if any; the effect ends
-static SpellHandlerOutcome<void> EffectDummyMageBlink(SpellEffectDummyMageContext& ctx)
-{
-    // Blink
-    if (ctx.unitTarget)
-    {
-        ctx.m_caster->CastSpell(ctx.unitTarget, 38203, true);
-    }
-
-    return SpellHandlerOutcome<void>::Return();
-}
-
-/// 42955: Conjure Refreshment: the damage is set to 20 and the spell creates that many of the conjured food the
-/// target's level calls for; the effect ends
-static SpellHandlerOutcome<void> EffectDummyMageConjureRefreshment(SpellEffectDummyMageContext& ctx)
-{
-    uint32 item = 0;
-
-    uint32 level = ctx.unitTarget->getLevel();
-
-    if (level < 44)
-    {
-        item = 65500;                                 // Conjured Mana Cookie (lvl 34)
-    }
-    else if (level < 54)
-    {
-        item = 65515;                            // Conjured Mana Brownie (lvl 44)
-    }
-    else if (level < 64)
-    {
-        item = 65516;                            // Conjured Mana Cupcake (lvl 54)
-    }
-    else if (level < 65)
-    {
-        item = 65517;                            // Conjured Mana Lollipop (lvl 64)
-    }
-    else if (level < 74)
-    {
-        item = 34062;                            // Conjured Mana Biscuit (lvl 65)
-    }
-    else if (level < 80)
-    {
-        item = 43518;                            // Conjured Mana Pie (lvl 74)
-    }
-    else if (level < 85)
-    {
-        item = 43523;                            // Conjured Mana Strudel (lvl 80)
-    }
-    else
-    {
-        item = 65499;                                            // Conjured Mana Cake (lvl 85)
-    }
-
-    ctx.damage = 20; // Used to set stack size.
-    ctx.spell->DoCreateItem(ctx.effect,item);
-
-    return SpellHandlerOutcome<void>::Return();
-}
-
 /// 21977: Warrior's Wrath: the caster casts Warrior's Wrath (21887) on the unit target, if any; the effect ends
 static SpellHandlerOutcome<void> EffectDummyWarriorWarriorsWrath(SpellEffectDummyWarriorContext& ctx)
 {
@@ -3842,34 +3745,6 @@ RaidBuffSpells const* FindRaidBuff(uint32 spellId)
 bool CastsRaidWideBuff(Player const* caster, Player const* targetPlayer)
 {
     return caster && targetPlayer && caster->GetGroup() && caster->IsInSameRaidWith(targetPlayer);
-}
-
-/// The raid buffs of RaidBuffTable (priest 21562 and 27683, druid 1126, mage 1459 and 61316, paladin 19740 and
-/// 20217): with a unit target, the caster casts the raid-wide aura on itself when CastsRaidWideBuff holds for the
-/// target's player, otherwise the single-target aura on the target; the effect ends
-template <class Context>
-static SpellHandlerOutcome<void> EffectDummyRaidBuff(Context& ctx)
-{
-    if (!ctx.unitTarget)
-    {
-        return SpellHandlerOutcome<void>::Return();
-    }
-
-    RaidBuffSpells const* buff = FindRaidBuff(ctx.spell->m_spellInfo->ID);
-    if (!buff)
-    {
-        return SpellHandlerOutcome<void>::Return();
-    }
-
-    if (CastsRaidWideBuff(ctx.m_caster->ToPlayer(), ctx.unitTarget->GetCharmerOrOwnerPlayerOrPlayerItself()))
-    {
-        ctx.m_caster->CastSpell(ctx.m_caster, buff->raidSpellId, true);
-    }
-    else
-    {
-        ctx.m_caster->CastSpell(ctx.unitTarget, buff->singleSpellId, true);
-    }
-    return SpellHandlerOutcome<void>::Return();
 }
 
 /// 31789: Righteous Defense: for a player caster and an attacked friendly target in its raid (the unit target, or a
@@ -4192,12 +4067,6 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
     static SpellEffectDummyRow<SpellEffectDummyMageSite> const mage[] =
     {
         { 11958, &EffectDummyMageColdSnap },
-        { 31687, &EffectDummyMageSummonWaterElemental },
-        { 32826, &EffectDummyMagePolymorphCastVisual },
-        { 38194, &EffectDummyMageBlink },
-        { 42955, &EffectDummyMageConjureRefreshment },
-        { 1459, &EffectDummyRaidBuff<SpellEffectDummyMageContext> },
-        { 61316, &EffectDummyRaidBuff<SpellEffectDummyMageContext> },
     };
 
     static SpellEffectDummyRow<SpellEffectDummyWarriorSite> const warrior[] =

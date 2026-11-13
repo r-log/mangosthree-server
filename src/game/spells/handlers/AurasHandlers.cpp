@@ -901,19 +901,6 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGenericDefault(AuraTriggerSpell
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 66: Invisibility
-static SpellHandlerOutcome<void> AuraTriggerSpellMage66(AuraTriggerSpellContext& /*ctx*/)
-{
-    // Here need periodic trigger reducing threat spell (or do it manually)
-    return SpellHandlerOutcome<void>::Return();
-}
-
-/// every other id: nothing
-static SpellHandlerOutcome<void> AuraTriggerSpellMageDefault(AuraTriggerSpellContext& /*ctx*/)
-{
-    return SpellHandlerOutcome<void>::Continue();
-}
-
 /// one body for 3 labels: 53302: Sniper Training, 53303: Sniper Training, 53304: Sniper Training
 static SpellHandlerOutcome<void> AuraTriggerSpellHunterSniperTraining(AuraTriggerSpellContext& ctx)
 {
@@ -1811,12 +1798,6 @@ static SpellHandlerOutcome<void> AuraPeriodicDummyTickMage55342(AuraPeriodicDumm
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// every other id: nothing
-static SpellHandlerOutcome<void> AuraPeriodicDummyTickMageDefault(AuraPeriodicDummyTickContext& /*ctx*/)
-{
-    return SpellHandlerOutcome<void>::Continue();
-}
-
 /// 22842: Frenzied Regeneration
 static SpellHandlerOutcome<void> AuraPeriodicDummyTickDruid22842(AuraPeriodicDummyTickContext& ctx)
 {
@@ -2005,34 +1986,6 @@ static SpellHandlerOutcome<void> AuraBoostGenericDefault(AuraBoostContext& /*ctx
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// 11129: Combustion
-static SpellHandlerOutcome<void> AuraBoostMage11129(AuraBoostContext& ctx)
-{
-    if (!ctx.apply)
-    {
-        ctx.spellId1 = 28682;
-    }
-    else
-    {
-        return SpellHandlerOutcome<void>::Return();
-    }
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// 28682: absent from the client's spell data
-static SpellHandlerOutcome<void> AuraBoostMage28682(AuraBoostContext& ctx)
-{
-    if (!ctx.apply)
-    {
-        ctx.spellId1 = 11129;
-    }
-    else
-    {
-        return SpellHandlerOutcome<void>::Return();
-    }
-    return SpellHandlerOutcome<void>::Continue();
-}
-
 /// one body for 3 labels: 44401: absent from the client's spell data, 48108: Hot Streak, 57761: Brain Freeze
 static SpellHandlerOutcome<void> AuraBoostMagePushingTheLimit(AuraBoostContext& ctx)
 {
@@ -2054,26 +2007,6 @@ static SpellHandlerOutcome<void> AuraBoostMagePushingTheLimit(AuraBoostContext& 
         return SpellHandlerOutcome<void>::Return();
     }
     return SpellHandlerOutcome<void>::Continue();
-}
-
-/// 74396: absent from the client's spell data
-static SpellHandlerOutcome<void> AuraBoostMage74396(AuraBoostContext& ctx)
-{
-    if (!ctx.apply)
-    {
-        ctx.spellId1 = 44544;
-    }
-    else
-    {
-        return SpellHandlerOutcome<void>::Return();
-    }
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// every other id: nothing
-static SpellHandlerOutcome<void> AuraBoostMageDefault(AuraBoostContext& /*ctx*/)
-{
-    return SpellHandlerOutcome<void>::Return();
 }
 
 /// 552: absent from the client's spell data
@@ -2449,11 +2382,6 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
         { 69012, &AuraTriggerSpellGeneric69012 },
     };
 
-    static AurasRow<AuraTriggerSpellMageSite> const triggerSpellMage[] =
-    {
-        { 66, &AuraTriggerSpellMage66 },
-    };
-
     static AurasRow<AuraTriggerSpellHunterSite> const triggerSpellHunter[] =
     {
         { 53302, &AuraTriggerSpellHunterSniperTraining },
@@ -2593,12 +2521,9 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
 
     static AurasRow<AuraBoostMageSite> const boostMage[] =
     {
-        { 11129, &AuraBoostMage11129 },
-        { 28682, &AuraBoostMage28682 },
         { 44401, &AuraBoostMagePushingTheLimit },
         { 48108, &AuraBoostMagePushingTheLimit },
         { 57761, &AuraBoostMagePushingTheLimit },
-        { 74396, &AuraBoostMage74396 },
     };
 
     static AurasRow<AuraBoostPriestSite> const boostPriest[] =
@@ -2626,7 +2551,6 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
     };
 
     uint32 rows = RegisterAurasRows(registry, triggerSpellGeneric);
-    rows += RegisterAurasRows(registry, triggerSpellMage);
     rows += RegisterAurasRows(registry, triggerSpellHunter);
     rows += RegisterAurasRows(registry, triggerSpellDruid);
     rows += RegisterAurasRows(registry, triggerSpellShaman);
@@ -2644,19 +2568,16 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
     rows += RegisterAurasRows(registry, boostHunter);
     rows += RegisterAurasRows(registry, boostDeathKnight);
     registry.RegisterDefault<AuraTriggerSpellGenericSite>(&AuraTriggerSpellGenericDefault);
-    registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
     registry.RegisterDefault<AuraTriggerSpellHunterSite>(&AuraTriggerSpellHunterDefault);
     registry.RegisterDefault<AuraTriggerSpellDruidSite>(&AuraTriggerSpellDruidDefault);
     registry.RegisterDefault<AuraTriggerSpellShamanSite>(&AuraTriggerSpellShamanDefault);
     registry.RegisterDefault<AuraPeriodicDamageTickSite>(&AuraPeriodicDamageTickDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickGenericSite>(&AuraPeriodicDummyTickGenericDefault);
-    registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickDruidSite>(&AuraPeriodicDummyTickDruidDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickRogueSite>(&AuraPeriodicDummyTickRogueDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickHunterSite>(&AuraPeriodicDummyTickHunterDefault);
     registry.RegisterDefault<AuraBoostGenericSite>(&AuraBoostGenericDefault);
-    registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);
     registry.RegisterDefault<AuraBoostPriestSite>(&AuraBoostPriestDefault);
     registry.RegisterDefault<AuraBoostHunterSite>(&AuraBoostHunterDefault);
-    return rows + 15;
+    return rows + 12;
 }
