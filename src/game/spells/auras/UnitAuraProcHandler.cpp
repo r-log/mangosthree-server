@@ -1701,15 +1701,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
         }
         case SPELLFAMILY_MAGE:
         {
-            if (auraSpellInfo->ID == 71761)                 // Deep Freeze Immunity State
-            {
-                // spell applied only to permanent immunes to stun targets (bosses)
-                Creature* victimCreature = pVictim->ToCreature();
-                if (!victimCreature ||
-                        (victimCreature->GetCreatureInfo()->MechanicImmuneMask & (1 << (MECHANIC_STUN - 1))) == 0)
-                    return SPELL_AURA_PROC_FAILED;
-            }
-            else if (auraSpellInfo->SpellIconID == 2947)     // Fingers of Frost
+            if (auraSpellInfo->SpellIconID == 2947)         // Fingers of Frost
             {
                 // proc chance for spells in basepoints
                 if (!roll_chance_i(triggerAmount))
