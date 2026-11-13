@@ -110,29 +110,13 @@ void Aura::HandleManaShield(bool apply, bool Real)
     // prevent double apply bonuses
     if (apply && !GetTarget()->IsLoading())
     {
-        if (Unit* caster = GetCaster())
+        // A shield with a spell_bonus_data row: the caster's spell power of the shield's school times the coefficient
+        // the absorb kind takes
+        Unit* caster = GetCaster();
+        if (caster && sSpellMgr.GetSpellBonusData(GetSpellProto()->ID))
         {
-            float DoneActualBenefit = 0.0f;
-            switch(GetSpellProto()->GetSpellFamilyName())
-            {
-                case SPELLFAMILY_MAGE:
-                    {
-                        if (GetSpellProto()->IsFitToFamilyMask(UI64LIT(0x0000000000008000)))
-                        {
-                            // Mana Shield
-                            // +50% from +spd bonus
-                            DoneActualBenefit = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(GetSpellProto())) * 0.5f;
-                            break;
-                        }
-                    }
-                    break;
-                default:
-                    break;
-            }
-
-            DoneActualBenefit *= caster->CalculateLevelPenalty(GetSpellProto());
-
-            m_modifier.m_amount += (int32)DoneActualBenefit;
+            int32 const spellPower = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(GetSpellProto()));
+            m_modifier.m_amount += caster->SpellBonusWithCoeffs(GetSpellProto(), 0, spellPower, 0, SPELL_DIRECT_DAMAGE, true, SPELL_BONUS_KIND_ABSORB);
         }
     }
 }

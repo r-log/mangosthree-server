@@ -401,35 +401,6 @@ uint32 Unit::CalculateDamage(WeaponAttackType attType, bool normalized)
 }
 
 /**
- * @brief Calculates the low-level spell coefficient penalty.
- *
- * @param spellProto The spell entry being evaluated.
- * @return The scaling penalty multiplier.
- */
-float Unit::CalculateLevelPenalty(SpellEntry const* spellProto) const
-{
-    uint32 spellLevel = spellProto->GetSpellLevel();
-    if (spellLevel <= 0 || spellLevel > spellProto->GetMaxLevel())
-    {
-        return 1.0f;
-    }
-
-    float LvlPenalty = 0.0f;
-
-    if (spellLevel < 20)
-    {
-        LvlPenalty = (20.0f - spellLevel) * 3.75f;
-    }
-    float LvlFactor = (float(spellLevel) + 6.0f) / float(getLevel());
-    if (LvlFactor > 1.0f)
-    {
-        LvlFactor = 1.0f;
-    }
-
-    return (100.0f - LvlPenalty) * LvlFactor / 100.0f;
-}
-
-/**
  * @brief Sends an attack-start packet for melee combat.
  *
  * @param pVictim The victim being attacked.

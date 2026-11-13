@@ -4059,8 +4059,6 @@ class Unit : public WorldObject
         uint32 CalcNotIgnoreDamageReduction(uint32 damage, SpellSchoolMask damageSchoolMask);
         int32 CalculateAuraDuration(SpellEntry const* spellProto, uint32 effectMask, int32 duration, Unit const* caster, Spell const* spell = NULL);
 
-        float CalculateLevelPenalty(SpellEntry const* spellProto) const;
-
         MotionMaster* GetMotionMaster();
         MotionMaster const* GetMotionMaster() const;
 
