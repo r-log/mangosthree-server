@@ -716,27 +716,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
         }
         case SPELLFAMILY_MAGE:
         {
-            // Master of Elements
-            if (dummySpell->SpellIconID == 1920)
-            {
-                if (!procSpell)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                // mana cost save
-                int32 cost = procSpell->GetManaCost() + procSpell->GetManaCostPercentage() * GetCreateMana() / 100;
-                basepoints[0] = cost * triggerAmount/100;
-                if (basepoints[0] <=0)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                target = this;
-                triggered_spell_id = 29077;
-                break;
-            }
-
             // Arcane Potency
             if (dummySpell->SpellIconID == 2120)
             {

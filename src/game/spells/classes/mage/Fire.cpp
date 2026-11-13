@@ -78,6 +78,35 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage11119(DummyAura
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 }
 
+namespace
+{
+    typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
+
+    /// 29074, 29075, 29076: Master of Elements: after a spell the proc accepts, gives back the aura's percent of the
+    /// spell's base mana cost through 29077.
+    ProcOutcome MasterOfElementsProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (!ctx.procSpell)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+
+        int32 const cost = ctx.procSpell->GetManaCost() + ctx.procSpell->GetManaCostPercentage() * ctx.caster.GetCreateMana() / 100;
+        int32 const basePoints[MAX_EFFECT_INDEX] = { cost * ctx.triggerAmount / 100, 0, 0 };
+        if (basePoints[EFFECT_INDEX_0] <= 0)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 29077, basePoints));
+    }
+
+    uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
+}
+
 uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
 {
     static Row<AuraBoostMageSite> const boostMage[] =
@@ -97,5 +126,6 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
 
     uint32 rows = RegisterRows(registry, boostMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
+    rows += RegisterRanks<OnProcHook>(registry, MASTER_OF_ELEMENTS, &MasterOfElementsProc);
     return rows;
 }
