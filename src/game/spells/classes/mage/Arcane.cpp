@@ -24,7 +24,9 @@
  */
 
 #include "spells/classes/mage/Mage.h"
+#include "spells/data/SpellTables.h"
 #include "entities/Unit.h"
+#include "Log.h"
 
 namespace
 {
@@ -46,11 +48,34 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 29442, basePoints));
     }
 
+    /// 31571, 31572: Arcane Potency: casts the buff of the aura's rank (GetArcanePotencyProcSpell) on the owner.
+    ProcOutcome ArcanePotencyProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (!ctx.procSpell)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+
+        uint32 const buff = GetArcanePotencyProcSpell(ctx.spell.ID);
+        if (!buff)
+        {
+            sLog.outError("Arcane Potency: spell %u has no buff of its rank", ctx.spell.ID);
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, buff));
+    }
+
     uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
+    uint32 const ARCANE_POTENCY[] = { 31571, 31572 };
 }
 
 uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
 {
     uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
+    rows += RegisterRanks<OnProcHook>(registry, ARCANE_POTENCY, &ArcanePotencyProc);
     return rows;
 }

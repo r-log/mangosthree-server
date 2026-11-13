@@ -716,25 +716,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
         }
         case SPELLFAMILY_MAGE:
         {
-            // Arcane Potency
-            if (dummySpell->SpellIconID == 2120)
-            {
-                if (!procSpell)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                target = this;
-                uint32 arcanePotency = GetArcanePotencyProcSpell(dummySpell->ID);
-                if (!arcanePotency)
-                {
-                    sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u", dummySpell->ID);
-                    return SPELL_AURA_PROC_FAILED;
-                }
-                triggered_spell_id = arcanePotency;
-                break;
-            }
-
             // Hot Streak
             if (dummySpell->SpellIconID == 2999)
             {
