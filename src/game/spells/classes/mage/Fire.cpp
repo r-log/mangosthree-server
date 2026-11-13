@@ -29,7 +29,6 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
 #include "entities/Unit.h"
-#include "DBCStores.h"
 #include "Log.h"
 #include "Utilities/Util.h"
 
