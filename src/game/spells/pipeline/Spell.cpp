@@ -1121,14 +1121,6 @@ void Spell::GetSpellRangeAndRadius(SpellEffectEntry const* spellEffect, float& r
             }
             break;
         }
-        case SPELLFAMILY_MAGE:
-        {
-            if (m_spellInfo->ID == 38194)                   // Blink
-            {
-                unMaxTargets = 1;
-            }
-            break;
-        }
         case SPELLFAMILY_WARRIOR:
         {
             // Sunder Armor (main spell)

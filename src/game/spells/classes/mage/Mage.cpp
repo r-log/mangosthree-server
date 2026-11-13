@@ -179,6 +179,18 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage64411(DummyAura
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 }
 
+namespace
+{
+    /// 38194: Blink: its effect keeps one of the units its target mode found, as the cut after the hook keeps them.
+    SpellHandlerOutcome<void> BlinkSelectTargets(SelectTargetsContext& ctx)
+    {
+        ctx.maxTargets = 1;
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    uint32 const BLINK[] = { 38194 };
+}
+
 uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
 {
     static Row<AuraTriggerSpellMageSite> const triggerSpellMage[] =
@@ -205,6 +217,7 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
     uint32 rows = RegisterRows(registry, triggerSpellMage);
     rows += RegisterRows(registry, effectDummyMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
+    rows += RegisterRanks<SelectTargetsHook>(registry, BLINK, &BlinkSelectTargets);
     registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);

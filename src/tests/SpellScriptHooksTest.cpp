@@ -201,17 +201,20 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
     {
         s_seen.targetMode = ctx.targetMode;
         ctx.targets.pop_front();
+        ctx.maxTargets = 1;
         return SpellHandlerOutcome<void>::Return();
     }));
     std::list<Unit*> targets;
     targets.push_back(&caster);
     targets.push_back(&target);
+    uint32 maxTargets = 0;
     Forget();
-    SelectTargetsContext selectTargets(caster, spell, EFFECT_INDEX_1, 22, targets);
+    SelectTargetsContext selectTargets(caster, spell, EFFECT_INDEX_1, 22, targets, maxTargets);
     CHECK(registry.Dispatch<SelectTargetsHook>(kHookSpell, selectTargets).IsReturn());
     CHECK_EQ(targets.size(), std::size_t(1));
     CHECK(targets.front() == &target);
     CHECK_EQ(s_seen.targetMode, uint32(22));
+    CHECK_EQ(maxTargets, uint32(1));
 
     CHECK(registry.Register<EffectValueHook>(kHookSpell, &TestVoidBody));
     int32 value = 41;

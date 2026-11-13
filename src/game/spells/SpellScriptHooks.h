@@ -50,12 +50,12 @@ struct SpellEntry;
  *   (its preparation, its cast, each update of an auto-repeat spell, the trade window's), so a body is a pure check:
  *   it changes nothing and gives the same answer each time. Its units are const.
  * - SelectTargets: `Spell::SetTargetMap`, after the target mode filled the effect's unit list. A body may remove,
- *   add or reorder units. Return() skips the two filters after it: the caster's removal for
- *   SPELL_ATTR_EX_CANT_TARGET_SELF and the cut to the spell's maximum target count; the game object targets and
- *   `Spell::CheckTarget` in `Spell::FillTargetMap` still apply. It runs once per call of `Spell::SetTargetMap`, so once
- *   for each of an effect's two target modes, both filling one list, and again for the party recursion of
- *   TARGET_AREAEFFECT_PARTY; it does not run for an effect that takes the list of an earlier effect, nor when the
- *   target mode ends `Spell::SetTargetMap` itself.
+ *   add or reorder units, and change the maximum target count the cut after it applies. Return() skips the two filters
+ *   after it: the caster's removal for SPELL_ATTR_EX_CANT_TARGET_SELF and the cut to the maximum target count; the
+ *   game object targets, cut to the same count, and `Spell::CheckTarget` in `Spell::FillTargetMap` still apply. It
+ *   runs once per call of `Spell::SetTargetMap`, so once for each of an effect's two target modes, both filling one
+ *   list, and again for the party recursion of TARGET_AREAEFFECT_PARTY; it does not run for an effect that takes the
+ *   list of an earlier effect, nor when the target mode ends `Spell::SetTargetMap` itself.
  * - EffectValue: `Spell::HandleEffects`, after the effect's value for this target is calculated. A body changes only
  *   the value.
  * - DummyEffect: `Spell::EffectDummy` and `Spell::EffectScriptEffect`, before their family switches. Return() ends the
@@ -152,9 +152,9 @@ struct CheckCastContext
 struct SelectTargetsContext
 {
     SelectTargetsContext(Unit& casterUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
-                         uint32 implicitTargetMode, std::list<Unit*>& unitTargets)
+                         uint32 implicitTargetMode, std::list<Unit*>& unitTargets, uint32& maxTargetCount)
         : caster(casterUnit), spell(spellEntry), effIndex(effectIndex), targetMode(implicitTargetMode),
-          targets(unitTargets)
+          targets(unitTargets), maxTargets(maxTargetCount)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -164,6 +164,8 @@ struct SelectTargetsContext
     SpellEffectIndex effIndex;                      ///< the effect whose targets are selected
     uint32 targetMode;                              ///< the implicit target mode that filled the list
     std::list<Unit*>& targets;                      ///< the effect's unit list, which a body may change
+    uint32& maxTargets;                             ///< the most targets the cut after the hook keeps, 0 for no cut,
+                                                    ///< which a body may change
 };
 
 /// EffectValue's context. Value: void.
