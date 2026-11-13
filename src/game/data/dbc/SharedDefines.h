@@ -2909,8 +2909,6 @@ enum TrainerType                                            // this is important
 #define BASE_ATTACK_TIME 2000
 #define BASE_BLOCK_DAMAGE_PERCENT 30
 
-#define SCALE_SPELLPOWER_HEALING        1.88f
-
 /**
  *  byte value (UNIT_FIELD_BYTES_2,0)
  */

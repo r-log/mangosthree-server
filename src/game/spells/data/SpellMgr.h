@@ -152,16 +152,6 @@ float EffectBonusCoefficient(SpellEntry const* spellProto, uint32 level, SpellBo
 float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonusKind kind, DamageEffectType damagetype,
                             bool noDoneBonus);
 
-/**
- * Returns the cast time used when calculating spell coefficient bonuses.
- */
-uint32 GetSpellCastTimeForBonus(SpellEntry const* spellProto, DamageEffectType damagetype);
-
-/**
- * Calculates the default spell power coefficient for the specified spell effect type.
- */
-float CalculateDefaultCoefficient(SpellEntry const* spellProto, DamageEffectType const damagetype);
-
 inline float GetSpellMinRange(SpellRangeEntry const* range, bool friendly = false)
 {
     if (!range)
