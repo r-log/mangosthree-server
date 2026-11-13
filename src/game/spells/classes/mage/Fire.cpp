@@ -26,8 +26,10 @@
 #include "spells/classes/mage/Mage.h"
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
+#include "spells/data/SpellMgr.h"
 #include "entities/Unit.h"
 #include "Log.h"
+#include "Utilities/Util.h"
 
 /// 11129: Combustion
 static SpellHandlerOutcome<void> AuraBoostMage11129(AuraBoostContext& ctx)
@@ -104,7 +106,45 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 29077, basePoints));
     }
 
+    /// 44445: Hot Streak; 44446, 44448: Improved Hot Streak: effect 0 counts the hits the proc accepts in the holder's
+    /// script word of effect 0, and the second crit in a row rolls the aura's chance for Hot Streak! (48108). Effect 1
+    /// does nothing, and neither does effect 0 while the owner holds no aura of the spell at effect 1.
+    ProcOutcome HotStreakProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.caster.GetAura(ctx.spell.ID, EFFECT_INDEX_1))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_OK);
+        }
+
+        if (Mage::CountCritInARow(ctx.aura.ScriptWord(EFFECT_INDEX_0), (ctx.procEx & PROC_EX_CRITICAL_HIT) != 0) &&
+            roll_chance_i(ctx.triggerAmount))
+        {
+            ctx.CastTriggered(ctx.caster, 48108);
+        }
+        return ProcOutcome::Return(SPELL_AURA_PROC_OK);
+    }
+
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
+    uint32 const HOT_STREAK[] = { 44445, 44446, 44448 };
+}
+
+bool Mage::CountCritInARow(int32& crits, bool crit)
+{
+    if (!crit)
+    {
+        crits = 0;
+        return false;
+    }
+    if (++crits < 2)
+    {
+        return false;
+    }
+    crits = 0;
+    return true;
 }
 
 uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
@@ -127,5 +167,6 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     uint32 rows = RegisterRows(registry, boostMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
     rows += RegisterRanks<OnProcHook>(registry, MASTER_OF_ELEMENTS, &MasterOfElementsProc);
+    rows += RegisterRanks<OnProcHook>(registry, HOT_STREAK, &HotStreakProc);
     return rows;
 }

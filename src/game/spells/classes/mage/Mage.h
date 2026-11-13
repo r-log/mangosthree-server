@@ -81,6 +81,10 @@ namespace Mage
     /// and lets the handler of any other run.
     bool ProcEffectIs(OnProcContext const& ctx, uint32 auraType);
 
+    /// Counts a hit into `crits`, the crits in a row so far: a crit adds one, any other hit sets it to 0. True, with
+    /// `crits` set back to 0, when the hit is the second crit in a row.
+    bool CountCritInARow(int32& crits, bool crit);
+
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.
     /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.

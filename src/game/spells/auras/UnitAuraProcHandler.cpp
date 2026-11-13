@@ -716,37 +716,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
         }
         case SPELLFAMILY_MAGE:
         {
-            // Hot Streak
-            if (dummySpell->SpellIconID == 2999)
-            {
-                if (effIndex != EFFECT_INDEX_0)
-                {
-                    return SPELL_AURA_PROC_OK;
-                }
-                Aura* counter = GetAura(triggeredByAura->GetId(), EFFECT_INDEX_1);
-                if (!counter)
-                {
-                    return SPELL_AURA_PROC_OK;
-                }
-
-                // Count spell criticals in a row in second aura
-                Modifier* mod = counter->GetModifier();
-                if (procEx & PROC_EX_CRITICAL_HIT)
-                {
-                    mod->m_amount *= 2;
-                    if (mod->m_amount < 100) // not enough
-                    {
-                        return SPELL_AURA_PROC_OK;
-                    }
-                    // Critical counted -> roll chance
-                    if (roll_chance_i(triggerAmount))
-                    {
-                        CastSpell(this, 48108, true, castItem, triggeredByAura);
-                    }
-                }
-                mod->m_amount = 25;
-                return SPELL_AURA_PROC_OK;
-            }
             // Burnout
             if (dummySpell->SpellIconID == 2998)
             {
