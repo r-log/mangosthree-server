@@ -35,10 +35,11 @@
  * @file Mage.h
  * @brief The mage's spell scripts, registered by spell id in the spell handler registry.
  *
- * Mage.cpp holds the class-wide bodies, the mage sites' defaults, and ProcEffectIs and CastProcSpell, which the proc
- * scripts of Fire.cpp and Arcane.cpp share; Fire.cpp, Frost.cpp and Arcane.cpp hold the bodies of the three
- * specializations, and Fire.cpp also CountCritInARow, Hot Streak's count. Each file registers its rows through one
- * function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * Mage.cpp holds the class-wide bodies, the mage sites' defaults, and ProcEffectIs, CastProcSpell, EffectTriggerSpell
+ * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
+ * bodies of the three specializations, and Fire.cpp also CountCritInARow, Hot Streak's count. Each file registers its
+ * rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks
+ * per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies and those of the three specializations. Returns the rows and
@@ -91,6 +92,18 @@ namespace Mage
     /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value. Defined in
     /// Mage.cpp.
     SpellAuraProcResult CastProcSpell(OnProcContext& ctx, Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+
+    /// The trigger spell the client's data names for the effect a proc runs for; 0 when it names none. Defined in
+    /// Mage.cpp.
+    uint32 EffectTriggerSpell(OnProcContext const& ctx);
+
+    /// The end of a proc-trigger aura's proc that casts `spellId`, as Unit::HandleProcTriggerSpellAuraProc ends for a
+    /// trigger spell no row of its legacy site of trigger spells names: FAILED when the spell store has no `spellId`
+    /// or when it adds extra attacks while the owner has some pending; at `to`, or when `to` is NULL at the owner when
+    /// the event is no positive spell and `spellId` is positive, else at the victim, FAILED when there is none; then
+    /// OK when ctx.CastTriggered cast it, FAILED when it refused. `basePoints`, when given, holds MAX_EFFECT_INDEX
+    /// values; a zero keeps that effect's own value. Defined in Mage.cpp.
+    SpellAuraProcResult CastProcTriggerSpell(OnProcContext& ctx, uint32 spellId, Unit* to, int32 const* basePoints = NULL);
 }
 
 #endif

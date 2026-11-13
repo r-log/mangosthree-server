@@ -28,6 +28,8 @@
 #include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "entities/Unit.h"
+#include "entities/Creature.h"
+#include "Utilities/Util.h"
 
 /// 74396: absent from the client's spell data
 static SpellHandlerOutcome<void> AuraBoostMage74396(AuraBoostContext& ctx)
@@ -68,6 +70,57 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage74396(DummyAura
     return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
 }
 
+namespace
+{
+    typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
+
+    /// 30455: Ice Lance: at a frozen target, or one an IGNORE_UNIT_STATE aura of IGNORE_UNIT_TARGET_NON_FROZEN on the
+    /// caster (Fingers of Frost's 44544) lets him treat as frozen, the damage done is multiplied by 3.
+    SpellHandlerOutcome<void> IceLanceDamageDone(DamageDoneContext& ctx)
+    {
+        if (ctx.victim.IsFrozen() || ctx.caster.IsIgnoreUnitState(&ctx.spell, IGNORE_UNIT_TARGET_NON_FROZEN))
+        {
+            ctx.doneTotalMod *= 3.0f;
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 71761: Deep Freeze Immunity State, which every mage holds: its proc casts its trigger spell (71757, Deep Freeze's
+    /// damage) only at a creature whose template is immune to stuns, through Mage::CastProcTriggerSpell.
+    ProcOutcome DeepFreezeImmunityProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        Creature* victimCreature = ctx.victim ? ctx.victim->ToCreature() : NULL;
+        if (!victimCreature || (victimCreature->GetCreatureInfo()->MechanicImmuneMask & (1 << (MECHANIC_STUN - 1))) == 0)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), NULL));
+    }
+
+    /// 44543, 44545, 83074: Fingers of Frost: its proc rolls the aura's amount as a percent chance, and on a pass casts
+    /// its trigger spell (44544) through Mage::CastProcTriggerSpell.
+    ProcOutcome FingersOfFrostProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (!roll_chance_i(ctx.triggerAmount))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), NULL));
+    }
+
+    uint32 const ICE_LANCE[] = { 30455 };
+    uint32 const DEEP_FREEZE_IMMUNITY[] = { 71761 };
+    uint32 const FINGERS_OF_FROST[] = { 44543, 44545, 83074 };
+}
+
 uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
 {
     static Row<AuraBoostMageSite> const boostMage[] =
@@ -88,5 +141,8 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     uint32 rows = RegisterRows(registry, boostMage);
     rows += RegisterRows(registry, effectDummyMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
+    rows += RegisterRanks<DamageDoneHook>(registry, ICE_LANCE, &IceLanceDamageDone);
+    rows += RegisterRanks<OnProcHook>(registry, DEEP_FREEZE_IMMUNITY, &DeepFreezeImmunityProc);
+    rows += RegisterRanks<OnProcHook>(registry, FINGERS_OF_FROST, &FingersOfFrostProc);
     return rows;
 }

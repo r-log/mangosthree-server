@@ -169,15 +169,16 @@ TEST(SpellScriptHooks_TheThirteenKeysAre100To112AboveEveryLegacySite)
         CHECK(keys[i] > uint32(SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_DRUID));
     }
 
-    // Every key the game registers sits at a legacy site, below the first hook, but the mage's proc scripts at the
-    // proc hook.
+    // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
+    // proc and damage-done hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
     {
         belowHooks += game.CountAt(site);
     }
-    CHECK_EQ(belowHooks + game.CountAt(OnProcHook::Key), game.Count());
+    CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key),
+             game.Count());
 }
 
 TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
@@ -201,17 +202,20 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
     {
         s_seen.targetMode = ctx.targetMode;
         ctx.targets.pop_front();
+        ctx.maxTargets = 1;
         return SpellHandlerOutcome<void>::Return();
     }));
     std::list<Unit*> targets;
     targets.push_back(&caster);
     targets.push_back(&target);
+    uint32 maxTargets = 0;
     Forget();
-    SelectTargetsContext selectTargets(caster, spell, EFFECT_INDEX_1, 22, targets);
+    SelectTargetsContext selectTargets(caster, spell, EFFECT_INDEX_1, 22, targets, maxTargets);
     CHECK(registry.Dispatch<SelectTargetsHook>(kHookSpell, selectTargets).IsReturn());
     CHECK_EQ(targets.size(), std::size_t(1));
     CHECK(targets.front() == &target);
     CHECK_EQ(s_seen.targetMode, uint32(22));
+    CHECK_EQ(maxTargets, uint32(1));
 
     CHECK(registry.Register<EffectValueHook>(kHookSpell, &TestVoidBody));
     int32 value = 41;
@@ -442,21 +446,23 @@ TEST(SpellScriptHooks_RegisterScriptPutsOneBodyUnderOneId)
     CHECK(registry.Find<OnProcHook>(11119) == &TestProcBody);
 }
 
-TEST(SpellScriptHooks_TheGameTableHoldsTheMageProcScriptsAndNoOtherHookRow)
+TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
-    // The proc hook holds the mage's 13 proc scripts (MageScriptsTest names their ids); no other hook holds a row.
+    // The proc hook holds the mage's 18 proc scripts, the target hook Blink's and the damage-done hook Ice Lance's
+    // (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
-        CheckCastHook::Key, SelectTargetsHook::Key, EffectValueHook::Key, DummyEffectHook::Key, AfterHitHook::Key,
-        AuraAmountHook::Key, AuraApplyHook::Key, AuraRemoveHook::Key, PeriodicTickHook::Key, CheckProcHook::Key,
-        DamageDoneHook::Key, CritChanceHook::Key,
+        CheckCastHook::Key, EffectValueHook::Key, DummyEffectHook::Key, AfterHitHook::Key, AuraAmountHook::Key,
+        AuraApplyHook::Key, AuraRemoveHook::Key, PeriodicTickHook::Key, CheckProcHook::Key, CritChanceHook::Key,
     };
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 key : emptyKeys)
     {
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
-    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(13));
-    CHECK_EQ(game.Count(), std::size_t(1253));
+    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(18));
+    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
+    CHECK_EQ(game.Count(), std::size_t(1260));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }

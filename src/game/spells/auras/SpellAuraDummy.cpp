@@ -106,8 +106,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 }
                 break;
             }
-            case SPELLFAMILY_MAGE:
-                break;
             case SPELLFAMILY_HUNTER:
             {
                 AuraDummyApplyContext ctx(this, target);
@@ -199,8 +197,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             }
             break;
         }
-        case SPELLFAMILY_MAGE:
-            break;
         case SPELLFAMILY_WARLOCK:
         {
             // Haunt

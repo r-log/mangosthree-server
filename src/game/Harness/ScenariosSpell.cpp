@@ -83,9 +83,10 @@
 // that unit alone; 938 the Creature cooldown model of pets and charmed creatures, recorded as it
 // is; 950 a mage staged to level 85 at a fixed spell power casts Fireball five times at a level-85
 // target; 951, 952, 954 and 955 a staged Fire mage's proc talents: Hot Streak, Master of Elements,
-// Blazing Speed, and Combustion, whose cast leaves no aura to proc. The guard of 931-938 and 950-955
-// (Qualify) fingerprints every spell a scenario reaches and refuses the random-pick labels, the
-// random chain targets and any script binding.
+// Blazing Speed, and Combustion, whose cast leaves no aura to proc; 956 Living Bomb's explosion at
+// expiry and at dispel; 957 Ice Lance at a frozen target, an unfrozen one, and with Fingers of Frost.
+// The guard of 931-938 and 950-957 (Qualify) fingerprints every spell a scenario reaches and refuses
+// the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -3872,26 +3873,32 @@ namespace Harness
     };
 
     /**
-     * What the mage proc scenarios share (951, 952, 954, 955): a human mage staged to level 85 with the scenario's
-     * talents and spells (Scenario::StagePlayer) and a Camel (50249) staged to level 85 ten yards in front of him
-     * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
+     * What the mage scenarios share (951, 952, 954-957): a human mage staged to level 85 with the scenario's talents,
+     * glyphs, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged to level 85 ten yards in front of
+     * him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: his mana set to its maximum by call; for a step that must crit, Increased Critical Spell (23434, a
      *    spell crit chance aura) put on him at kCritAuraPoints by a triggered self-cast, and for one that must not,
      *    taken off him by call; then the spell cast at the Camel through the CAST_SPELL handler's calls. One every
-     *    CastEveryMs() (kCastEveryMs unless the scenario sets its own), read kCastReadMs after;
+     *    CastEveryMs() (kCastEveryMs unless the scenario sets its own), read kCastReadMs after. An aura cast is the
+     *    same cast of a spell that applies an aura and sends no damage log of its own;
      *  - a swing: his health set to its maximum by call, then the Camel's melee swing at him
-     *    (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after.
-     * A step is not run when a holder on either unit that a proc can reach is not one the guard fingerprinted. Each
-     * step's rolls are drawn in map updates under the map hook's RNG::Seed(TickSeed(base, order, elapsed)), so every
-     * run draws the same ones.
+     *    (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
+     *  - a removal: the holder of the step's spell taken off the Camel, by dispel
+     *    (Unit::RemoveAuraHolderDueToSpellByDispel, one stack) or by the plain call (Unit::RemoveAurasDueToSpell),
+     *    read kSwingReadMs after.
+     * A step that names its own time to the next step takes it instead. A step is not run when a holder on either
+     * unit that a proc can reach is not one the guard fingerprinted. Each step's rolls are drawn in map updates under
+     * the map hook's RNG::Seed(TickSeed(base, order, elapsed)), so every run draws the same ones.
      *
      * Categories: `template`; `staged` the level, the free talent points against the level's, the primary tree, each
-     * talent's rank spell known, the glyph slots; `steps` each step as the record reads it (a cast's spell, `c` added
-     * when its damage log is a crit, `miss` when SPELL_GO lists the Camel as missed, `none` when no damage log came; a
-     * swing's `hit` when his health fell, else `swing`), a BUG when a step was refused or not read or a cast's crit
-     * flag is not the step's; `triggered` the spells of the SPELL_GO packets in each step's windows other than the
-     * step's own and the crit aura's, which are what his procs cast; the scenario's own category; `noPersistence`;
-     * `digest`.
+     * talent's rank spell known, the glyph slots, and for a scenario that stages glyphs or ratings each glyph's aura
+     * and the two ratings with the haste and mastery they give; `steps` each step as the record reads it (a cast's
+     * spell, `c` added when its damage log is a crit, `miss` when SPELL_GO lists the Camel as missed, `none` when no
+     * damage log came; an aura cast's spell, `miss` added as for a cast; a swing's `hit` when his health fell, else
+     * `swing`; a removal's `dispel` or `remove`), a BUG when a step was refused or not read, a cast's crit flag is not
+     * the step's or an aura cast missed; `triggered` the spells of the SPELL_GO packets in each step's windows other
+     * than the step's own and the crit aura's, which are what his procs and the auras cast; the scenario's own
+     * category; `noPersistence`; `digest`.
      */
     class MageProcScenario : public SpellScenario
     {
@@ -3912,6 +3919,7 @@ namespace Harness
             plan.classId = CLASS_MAGE;
             plan.level = level;
             plan.dealsDamage = true;
+            plan.takesDamage = TakesDamage();
             for (size_t i = 0; i < steps.size(); ++i)
             {
                 plan.takesDamage = plan.takesDamage || steps[i].swing;
@@ -3992,6 +4000,9 @@ namespace Harness
             StagePlan stage;
             stage.level = level;
             stage.talents = talents;
+            stage.glyphs = Glyphs();
+            stage.hasteRating = HasteRating();
+            stage.masteryRating = MasteryRating();
             stage.spells = spells;
             st->staged = StagePlayer(*p, stage);
             st->levelSet = p->getLevel();
@@ -4001,8 +4012,8 @@ namespace Harness
             for (uint32 k = 0; k < steps.size(); ++k)
             {
                 At(at, [this, st, k]() { RunStep(*st, k); });
-                At(at + (steps[k].swing ? kSwingReadMs : kCastReadMs), [this, st, k]() { ReadStep(*st, k); });
-                at += steps[k].swing ? kSwingEveryMs : CastEveryMs();
+                At(at + (steps[k].swing || steps[k].remove ? kSwingReadMs : kCastReadMs), [this, st, k]() { ReadStep(*st, k); });
+                at += steps[k].everyMs ? steps[k].everyMs : steps[k].swing ? kSwingEveryMs : CastEveryMs();
             }
             At(at, [this, st]() { Finish(*st); });
         }
@@ -4016,15 +4027,30 @@ namespace Harness
         static constexpr uint32 kSwingEveryMs = 600;
         static constexpr uint32 kSwingReadMs = 300;
 
-        /// One step of a scenario: the Camel's swing at the mage, or the mage's cast of `spell` at the Camel.
+        /// One step of a scenario: the Camel's swing at the mage, the mage's cast of `spell` at the Camel, or the
+        /// removal of `spell`'s holder from the Camel.
         struct Step
         {
             bool swing;
             uint32 spell;
             bool crit;                          ///< a cast that must crit; one that must not when false
+            bool aura;                          ///< a cast whose spell applies an aura and sends no damage log of its own
+            bool remove;                        ///< the removal of `spell`'s holder from the Camel
+            AuraRemoveMode mode;                ///< a removal's mode: AURA_REMOVE_BY_DISPEL, or the plain call's
+            uint32 everyMs;                     ///< the time to the next step; 0 for the step kind's own
         };
-        static Step Cast(uint32 spell, bool crit) { Step s = { false, spell, crit }; return s; }
-        static Step Swing() { Step s = { true, 0, false }; return s; }
+        static Step Cast(uint32 spell, bool crit) { Step s = { false, spell, crit, false, false, AURA_REMOVE_BY_DEFAULT, 0 }; return s; }
+        static Step Swing() { Step s = { true, 0, false, false, false, AURA_REMOVE_BY_DEFAULT, 0 }; return s; }
+        static Step AuraCast(uint32 spell, uint32 everyMs)
+        {
+            Step s = { false, spell, false, true, false, AURA_REMOVE_BY_DEFAULT, everyMs };
+            return s;
+        }
+        static Step Removal(uint32 spell, AuraRemoveMode mode, uint32 everyMs)
+        {
+            Step s = { false, spell, false, false, true, mode, everyMs };
+            return s;
+        }
 
         /// What a step's two moments and its windows saw.
         struct Seen
@@ -4033,7 +4059,9 @@ namespace Harness
             uint32 castId = 0;
             uint32 cost = 0;                            ///< a cast's mana cost, Spell::CalculatePowerCost
             uint32 healthBefore = 0, healthAfter = 0;   ///< the Camel's for a cast, the mage's for a swing
-            std::string holder;                         ///< HolderOf the scenario's watched spell on him, at the read
+            bool targetFrozen = false;                  ///< Unit::IsFrozen on the Camel when the step ran
+            std::string watchedBefore;                  ///< HolderOf the watched spell when the step ran
+            std::string holder;                         ///< HolderOf the scenario's watched spell, at the read
             bool logRead = false, crit = false, missed = false;
             uint32 amount = 0;
             std::vector<uint32> triggered;
@@ -4062,11 +4090,23 @@ namespace Harness
         virtual std::vector<std::pair<uint32, uint32> > Talents() const = 0;
         /// The spells to stage besides the talents.
         virtual std::vector<uint32> Spells() const { return std::vector<uint32>(); }
+        /// The glyphs to stage, as GlyphProperties ids.
+        virtual std::vector<uint32> Glyphs() const { return std::vector<uint32>(); }
+        /// The haste rating to stage.
+        virtual int32 HasteRating() const { return 0; }
+        /// The mastery rating to stage.
+        virtual int32 MasteryRating() const { return 0; }
+        /// Whether the mage can take damage besides the Camel's swings.
+        virtual bool TakesDamage() const { return false; }
         virtual std::vector<Step> Steps() const = 0;
         /// Every spell the scenario reaches: the casts, the holders that can proc and what they cast, the crit aura.
         virtual std::vector<SpellPrint> Prints() const = 0;
-        /// The spell whose holder on the mage each read records; 0 for none.
+        /// The spell whose holder each read records; 0 for none.
         virtual uint32 Watched() const { return 0; }
+        /// Whether the watched holder is the Camel's rather than the mage's.
+        virtual bool WatchedOnTarget() const { return false; }
+        /// Whether each step notes, before it acts, the Camel's frozen state and the watched holder.
+        virtual bool NotesBeforeStep() const { return false; }
         /// The time from one cast step to the next.
         virtual uint32 CastEveryMs() const { return kCastEveryMs; }
         /// The scenario's own category, from what the steps saw.
@@ -4117,7 +4157,32 @@ namespace Harness
                 m_rec.Open(name + "+tick");
                 return;
             }
-            if (step.swing)
+            seen.targetFrozen = target->IsFrozen();
+            if (const uint32 watched = Watched())
+            {
+                seen.watchedBefore = HolderOf(WatchedOnTarget() ? static_cast<Unit*>(target) : static_cast<Unit*>(p), watched);
+            }
+            if (NotesBeforeStep())
+            {
+                m_rec.Note(std::string("before the step: the Camel ") + (seen.targetFrozen ? "frozen" : "not frozen") +
+                           (Watched() ? "; " + U(Watched()) + (WatchedOnTarget() ? " on the Camel: " : " on him: ") + seen.watchedBefore
+                                      : std::string()));
+            }
+            if (step.remove)
+            {
+                seen.healthBefore = target->GetHealth();
+                m_rec.Note("the Camel's " + U(step.spell) + ": " + HolderOf(target, step.spell) + "; target health " +
+                           U(seen.healthBefore) + (step.mode == AURA_REMOVE_BY_DISPEL ? "; dispelled" : "; removed"));
+                if (step.mode == AURA_REMOVE_BY_DISPEL)
+                {
+                    target->RemoveAuraHolderDueToSpellByDispel(step.spell, 1, p->GetObjectGuid(), target);
+                }
+                else
+                {
+                    target->RemoveAurasDueToSpell(step.spell);
+                }
+            }
+            else if (step.swing)
             {
                 p->SetHealth(p->GetMaxHealth());
                 seen.healthBefore = p->GetHealth();
@@ -4166,10 +4231,11 @@ namespace Harness
             seen.healthAfter = st.steps[k].swing ? p->GetHealth() : target->GetHealth();
             if (const uint32 watched = Watched())
             {
-                seen.holder = HolderOf(p, watched);
+                seen.holder = HolderOf(WatchedOnTarget() ? static_cast<Unit*>(target) : static_cast<Unit*>(p), watched);
             }
             m_rec.Note("his health " + U(p->GetHealth()) + ", mana " + U(p->GetPower(POWER_MANA)) + "; the Camel's health " +
-                       U(target->GetHealth()) + (Watched() ? "; " + U(Watched()) + " on him: " + seen.holder : std::string()));
+                       U(target->GetHealth()) +
+                       (Watched() ? "; " + U(Watched()) + (WatchedOnTarget() ? " on the Camel: " : " on him: ") + seen.holder : std::string()));
             m_rec.Open(name + "+tick");
         }
 
@@ -4196,7 +4262,7 @@ namespace Harness
                         {
                             continue;
                         }
-                        if (!step.swing && spell == step.spell)
+                        if (!step.swing && !step.remove && spell == step.spell)
                         {
                             seen.missed = seen.missed || go.find(" hit=[] miss=[target:") != std::string::npos;
                         }
@@ -4245,6 +4311,15 @@ namespace Harness
                 tree = tree ? tree : (talent ? talent->TabID : 0);
                 known += (known.empty() ? "" : ", ") + U(rankSpell) + (has ? "" : " (not known)");
             }
+            // a staged spell that is a talent's rank takes that rank's points when learned
+            const std::vector<uint32> learned = Spells();
+            for (size_t i = 0; i < learned.size(); ++i)
+            {
+                if (TalentSpellPos const* pos = GetTalentSpellPos(learned[i]))
+                {
+                    spent += pos->rank + 1;
+                }
+            }
             char buf[512];
             snprintf(buf, sizeof(buf),
                      "level %u; free talent points %u of the level's %u, %u spent, primary tree %u; glyph slots open 0x%x; spell crit %.2f%% (fire); mana %u/%u, health %u/%u; target %u level %u, health %u/%u",
@@ -4258,6 +4333,25 @@ namespace Harness
             st.stagedOk = st.staged && p->getLevel() == level && p->GetTalentMgr().FreePoints() + spent == points && allKnown &&
                           p->GetTalentMgr().PrimaryTree(p->GetTalentMgr().ActiveSpec()) == tree &&
                           p->GetUInt32Value(PLAYER_GLYPHS_ENABLED) == 0x1ff && target->getLevel() == level;
+            const std::vector<uint32> glyphs = Glyphs();
+            if (!glyphs.empty() || HasteRating() || MasteryRating())
+            {
+                std::string glyphText;
+                for (size_t i = 0; i < glyphs.size(); ++i)
+                {
+                    GlyphPropertiesEntry const* gp = sGlyphPropertiesStore.LookupEntry(glyphs[i]);
+                    const bool applied = gp && p->HasAura(gp->SpellID);
+                    st.stagedOk = st.stagedOk && applied;
+                    glyphText += (glyphText.empty() ? "" : ", ") + U(glyphs[i]) + " (aura " + U(gp ? gp->SpellID : 0) +
+                                 (applied ? " on him)" : " not on him)");
+                }
+                const uint32 haste = p->GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL);
+                const uint32 mastery = p->GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + CR_MASTERY);
+                st.stagedOk = st.stagedOk && haste == uint32(HasteRating()) && mastery == uint32(MasteryRating());
+                snprintf(buf, sizeof(buf), "; spell haste rating %u (%.2f%%), mastery rating %u (mastery %.2f)", haste,
+                         p->GetRatingBonusValue(CR_HASTE_SPELL), mastery, p->GetFloatValue(PLAYER_MASTERY));
+                st.stagedText += "; glyphs " + (glyphText.empty() ? std::string("none") : glyphText) + buf;
+            }
             m_rec.Note("staged: " + st.stagedText);
         }
 
@@ -4292,6 +4386,14 @@ namespace Harness
                 {
                     value = seen.healthAfter < seen.healthBefore ? "hit" : "swing";
                 }
+                else if (step.remove)
+                {
+                    value = step.mode == AURA_REMOVE_BY_DISPEL ? "dispel" : "remove";
+                }
+                else if (step.aura)
+                {
+                    value = U(step.spell) + (seen.missed ? "miss" : "");
+                }
                 else if (seen.logRead)
                 {
                     value = U(step.spell) + (seen.crit ? "c" : "");
@@ -4300,13 +4402,16 @@ namespace Harness
                 {
                     value = U(step.spell) + (seen.missed ? "miss" : "none");
                 }
-                const bool bug = !seen.ran || seen.refused || !seen.read || (!step.swing && (!seen.logRead || seen.crit != step.crit));
+                const bool castBug = step.aura ? seen.missed : (!seen.logRead || seen.crit != step.crit);
+                const bool bug = !seen.ran || seen.refused || !seen.read || (!step.swing && !step.remove && castBug);
                 if (bug && stepsBug.empty())
                 {
-                    stepsBug = "step " + U(k + 1) + ": " + value + (step.swing ? std::string() : step.crit ? ", a crit was wanted" : ", no crit was wanted");
+                    stepsBug = "step " + U(k + 1) + ": " + value +
+                               (step.swing || step.remove ? std::string() : step.aura ? ", the aura was wanted"
+                                                                          : step.crit ? ", a crit was wanted" : ", no crit was wanted");
                 }
                 steps += (k ? "," : "") + value;
-                if (!step.swing && seen.logRead)
+                if (!step.swing && !step.remove && seen.logRead)
                 {
                     stepsText += (stepsText.empty() ? "" : "; ") + U(k + 1) + " " + U(seen.amount) + ", health " + U(seen.healthBefore) + "->" +
                                  U(seen.healthAfter);
@@ -4616,6 +4721,207 @@ namespace Harness
         }
     };
 
+    /**
+     * S956 `mage-fire-living-bomb`: Living Bomb (44457) on the Camel, cast by a staged mage who learned the talent's
+     * spell (which takes its one point), with Glyph of Living Bomb (928) and kHasteRating haste rating, as a level-85
+     * Fire mage has them. Its dummy aura (effect 1) holds the explosion's spell, 44461, which the Camel casts for the
+     * mage when the aura is removed by expiry or by dispel, and not when it is removed otherwise. Steps: Living Bomb,
+     * left to run out its 12 s; Living Bomb, then dispelled; Living Bomb, then removed by the plain call.
+     *
+     * `explosion`: the steps after which 44461 was cast, with its damage logs; OK when they are the expiry's (1) and
+     * the dispel's (3) and no other.
+     */
+    class MageFireLivingBomb : public MageProcScenario
+    {
+    public:
+        MageFireLivingBomb() : MageProcScenario("mage-fire-living-bomb", 956, "explosion") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return std::vector<std::pair<uint32, uint32> >(); }
+        std::vector<uint32> Spells() const override { return { 44457 }; }
+        std::vector<uint32> Glyphs() const override { return { 928 }; }
+        int32 HasteRating() const override { return kHasteRating; }
+        bool TakesDamage() const override { return true; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { AuraCast(44457, kExpiryEveryMs), AuraCast(44457, 0), Removal(44457, AURA_REMOVE_BY_DISPEL, 0), AuraCast(44457, 0),
+                     Removal(44457, AURA_REMOVE_BY_DEFAULT, 0) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 44457: 49 fields, fnv 87d07253
+                { 44457, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 3000 }, { "eff0.EffectBasePoints", 153 }, { "eff0.EffectBonusCoefficient", 1048844435 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 44461 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44461: 26 fields, fnv f40ea43f
+                { 44461, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 306 }, { "eff0.EffectBonusCoefficient", 1057216266 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 53 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return 44457; }
+        bool WatchedOnTarget() const override { return true; }
+        bool NotesBeforeStep() const override { return true; }
+
+        std::string Own(St const& st) const override
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::string logs;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+                for (const char* suffix : suffixes)
+                {
+                    std::vector<Recorder::Seen const*> seen = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_SPELLNONMELEEDAMAGELOG);
+                    for (size_t i = 0; i < seen.size(); ++i)
+                    {
+                        if (seen[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &seen[i]->payload[0],
+                                                                                 seen[i]->payload.size(), roles);
+                        for (size_t f = 0; f < fields.size(); ++f)
+                        {
+                            if (fields[f].find(".hit.44461=") != std::string::npos)
+                            {
+                                logs += (logs.empty() ? "" : "; ") + U(k + 1) + " " + fields[f];
+                            }
+                        }
+                    }
+                }
+            }
+            const std::string casts = StepsWhere(st, [&st](uint32 k) { return Triggered(st.seen[k], 44461); });
+            const std::string detail = "44461 cast after steps " + casts + "; its damage logs: " + (logs.empty() ? std::string("none") : logs) + ")";
+            return casts == "1,3" ? casts + "(OK: " + detail : "BUG(" + casts + ": " + detail;
+        }
+
+    private:
+        static constexpr int32 kHasteRating = 1500;
+        static constexpr uint32 kExpiryEveryMs = 14000;
+    };
+
+    /**
+     * S957 `mage-frost-ice-lance`: Ice Lance (30455) at a frozen Camel and at an unfrozen one, cast by a staged Frost
+     * mage: Early Frost 2, Piercing Ice 3, Ice Floes 3 and Improved Cone of Cold 2 (the ten points the third tier asks),
+     * then Fingers of Frost 3 (83074); Glyph of Ice Lance (322), kMasteryRating mastery rating and the Mastery passive
+     * (86473), as a level-85 Frost mage has them; Ice Lance, Frost Nova (122) and Frostbolt (116) learned. Ice Lance's
+     * done damage is multiplied when the target is frozen, or when Fingers of Frost (44544) on him lets it act as if it
+     * were. Steps: Ice Lance at the Camel; Frost Nova, which freezes it; Ice Lance at the frozen Camel; then three
+     * rounds of three Frostbolts and an Ice Lance, every hit a chance for Fingers of Frost. One cast every 4.7 s: under
+     * the harness's seed base no cast crits, and Fingers of Frost procs after casts 7, 10 and 13, so the Ice Lances of
+     * casts 11 and 15 have it.
+     *
+     * `iceLance`: each Ice Lance's state when cast (`frozen`, `fingers` when 44544 was on him and the Camel not frozen,
+     * else `plain`) and its amount; OK when there is a frozen one and a plain one, and each frozen or fingers one dealt
+     * more than twice the largest plain one.
+     */
+    class MageFrostIceLance : public MageProcScenario
+    {
+    public:
+        MageFrostIceLance() : MageProcScenario("mage-frost-ice-lance", 957, "iceLance") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 9862, 1 }, { 11157, 2 }, { 9846, 2 }, { 11325, 1 }, { 9876, 2 } };
+        }
+        std::vector<uint32> Spells() const override { return { 30455, 122, 116, 86473 }; }
+        std::vector<uint32> Glyphs() const override { return { 322 }; }
+        int32 MasteryRating() const override { return kMasteryRating; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Cast(30455, false), Cast(122, false), Cast(30455, false), Cast(116, false), Cast(116, false), Cast(116, false),
+                     Cast(30455, false), Cast(116, false), Cast(116, false), Cast(116, false), Cast(30455, false), Cast(116, false),
+                     Cast(116, false), Cast(116, false), Cast(30455, false) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 30455: 49 fields, fnv c88f610e
+                { 30455, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 160 }, { "eff0.EffectBonusCoefficient", 1052870967 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 27 }, { "eff0.EffectRealPointsPerLevel", 1078774989 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 3 }, { "eff1.EffectBasePoints", 100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 122: 49 fields, fnv 2ec0d9e1
+                { 122, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 18 }, { "eff0.EffectBonusCoefficient", 1044750795 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRadiusIndex_1", 32 }, { "eff0.EffectRealPointsPerLevel", 1056964608 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 26 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 7 }, { "eff1.EffectRadiusIndex_1", 32 }, { "eff1.ImplicitTarget_0", 22 }, { "eff1.ImplicitTarget_1", 15 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 116: 72 fields, fnv e7ba11a7
+                { 116, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 17 }, { "eff1.EffectBonusCoefficient", 1064396915 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 3 }, { "eff1.EffectRealPointsPerLevel", 1056964608 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 83074: 26 fields, fnv ab3597ca
+                { 83074, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 20 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 44544 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44544: 26 fields, fnv 65bc81c5
+                { 44544, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 262 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 4503599627370496 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 74396, { { "absent", 1 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return 44544; }
+        bool NotesBeforeStep() const override { return true; }
+        uint32 CastEveryMs() const override { return 4700; }
+
+        std::string Own(St const& st) const override
+        {
+            std::string value, text;
+            uint32 largestPlain = 0;
+            bool anyFrozen = false, anyPlain = false;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                Seen const& seen = st.seen[k];
+                if (st.steps[k].spell != 30455 || !seen.logRead)
+                {
+                    continue;
+                }
+                const bool fingers = !seen.targetFrozen && seen.watchedBefore != "none" && !seen.watchedBefore.empty();
+                if (!seen.targetFrozen && !fingers)
+                {
+                    anyPlain = true;
+                    largestPlain = std::max(largestPlain, seen.amount);
+                }
+                anyFrozen = anyFrozen || seen.targetFrozen;
+            }
+            bool ok = anyFrozen && anyPlain;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                Seen const& seen = st.seen[k];
+                if (st.steps[k].spell != 30455)
+                {
+                    continue;
+                }
+                const bool fingers = !seen.targetFrozen && seen.watchedBefore != "none" && !seen.watchedBefore.empty();
+                const char* state = seen.targetFrozen ? "frozen" : fingers ? "fingers" : "plain";
+                const std::string amount = seen.logRead ? U(seen.amount) : std::string("none");
+                value += (value.empty() ? "" : ",") + std::string(state) + ":" + amount;
+                text += (text.empty() ? "" : "; ") + U(k + 1) + " " + state + " " + amount;
+                if (seen.targetFrozen || fingers)
+                {
+                    ok = ok && seen.logRead && seen.amount > 2 * largestPlain;
+                }
+            }
+            const std::string detail = "Ice Lance by step: " + text + "; the largest plain one " + U(largestPlain) + ")";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr int32 kMasteryRating = 1500;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -4633,5 +4939,7 @@ namespace Harness
         r.Register(new MageFireMasterOfElements());
         r.Register(new MageFireBlazingSpeed());
         r.Register(new MageFireCombustion());
+        r.Register(new MageFireLivingBomb());
+        r.Register(new MageFrostIceLance());
     }
 }
