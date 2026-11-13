@@ -44,6 +44,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include "spells/data/SpellTables.h"
+#include "spells/SpellScriptHooks.h"
 #include "Map.h"
 #include "Group.h"
 
@@ -611,6 +612,12 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
     if (holder->IsDeleted())
     {
         return false;
+    }
+
+    AuraApplyContext applyCtx(*this, holder->GetCaster(), *holder->GetSpellProto(), AuraHandle(*holder), true);
+    if (SpellHandlerRegistry::Game().Dispatch<AuraApplyHook>(holder->GetId(), applyCtx).IsReturn())
+    {
+        return true;
     }
 
     holder->HandleSpellSpecificBoosts(true);
@@ -1440,7 +1447,11 @@ void Unit::RemoveSpellAuraHolder(SpellAuraHolder* holder, AuraRemoveMode mode)
 
     if (mode != AURA_REMOVE_BY_DELETE)
     {
-        holder->HandleSpellSpecificBoosts(false);
+        AuraRemoveContext removeCtx(*this, holder->GetCaster(), *holder->GetSpellProto(), AuraHandle(*holder), mode);
+        if (!SpellHandlerRegistry::Game().Dispatch<AuraRemoveHook>(holder->GetId(), removeCtx).IsReturn())
+        {
+            holder->HandleSpellSpecificBoosts(false);
+        }
     }
 
     if (statue)

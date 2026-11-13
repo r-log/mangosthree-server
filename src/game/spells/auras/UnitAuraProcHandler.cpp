@@ -39,6 +39,7 @@
 #include "Util.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/data/SpellTables.h"
+#include "spells/SpellScriptHooks.h"
 
 pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
 {
@@ -3187,6 +3188,14 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
             continue;
         }
 
+        CheckProcContext checkProcCtx(*this, pTarget, *itr->second->GetSpellProto(), AuraHandle(*itr->second), procSpell,
+                                      procFlag, procExtra, damage);
+        SpellHandlerOutcome<bool> checkProc = SpellHandlerRegistry::Game().Dispatch<CheckProcHook>(itr->second->GetId(), checkProcCtx);
+        if (checkProc.IsReturn() && !checkProc.GetValue())
+        {
+            continue;
+        }
+
         itr->second->SetInUse(true);                        // prevent holder deletion
         procTriggered.push_back(ProcTriggeredData(spellProcEvent, itr->second));
     }
@@ -3303,7 +3312,13 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                     }
                 }
 
-                SpellAuraProcResult procResult = (*this.*AuraProcHandler[spellEffect->EffectAura])(pTarget, damage, triggeredByAura, procSpell, procFlag, procExtra, cooldown);
+                OnProcContext onProcCtx(*this, pTarget, *triggeredByHolder->GetSpellProto(), SpellEffectIndex(i),
+                                        AuraHandle(*triggeredByHolder), procSpell, procFlag, procExtra, damage,
+                                        triggeredByAura->GetModifier()->m_amount, triggeredByAura->GetCastItemGuid(),
+                                        cooldown, triggeredByAura, m_spellCooldownMgr);
+                SpellHandlerOutcome<SpellAuraProcResult> onProc = SpellHandlerRegistry::Game().Dispatch<OnProcHook>(triggeredByHolder->GetId(), onProcCtx);
+                SpellAuraProcResult procResult = onProc.IsReturn() ? onProc.GetValue()
+                    : (*this.*AuraProcHandler[spellEffect->EffectAura])(pTarget, damage, triggeredByAura, procSpell, procFlag, procExtra, cooldown);
                 switch (procResult)
                 {
                     case SPELL_AURA_PROC_CANT_TRIGGER:

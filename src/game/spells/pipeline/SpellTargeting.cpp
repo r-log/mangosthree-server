@@ -75,6 +75,7 @@
 #include "DisableMgr.h"
 #include "spells/pipeline/SpellTargetDistanceOrder.h"
 #include "spells/handlers/SpellTargetingHandlers.h"
+#include "spells/SpellScriptHooks.h"
 
 template<typename T>
 /**
@@ -1662,8 +1663,11 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             break;
     }
 
+    SelectTargetsContext selectTargetsCtx(*m_caster, *m_spellInfo, effIndex, targetMode, targetUnitMap);
+    bool const targetsFinal = SpellHandlerRegistry::Game().Dispatch<SelectTargetsHook>(m_spellInfo->ID, selectTargetsCtx).IsReturn();
+
     // remove caster from the list if required by attribute
-    if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_CANT_TARGET_SELF))
+    if (!targetsFinal && m_spellInfo->HasAttribute(SPELL_ATTR_EX_CANT_TARGET_SELF))
     {
         const SpellEffectEntry* spellEffect = m_spellInfo->GetSpellEffect(effIndex);
 
@@ -1673,7 +1677,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
         }
     }
 
-    if (unMaxTargets && targetUnitMap.size() > unMaxTargets)
+    if (!targetsFinal && unMaxTargets && targetUnitMap.size() > unMaxTargets)
     {
         // make sure one unit is always removed per iteration
         uint32 removed_utarget = 0;

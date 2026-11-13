@@ -57,6 +57,7 @@
 #include "DB2Stores.h"
 #include "DisableMgr.h"
 #include "Map.h"
+#include "spells/SpellScriptHooks.h"
 
 extern pEffect SpellEffects[TOTAL_SPELL_EFFECTS];
 
@@ -78,6 +79,9 @@ void Spell::HandleEffects(Unit* pUnitTarget, Item* pItemTarget, GameObject* pGOT
     SpellEffectEntry const* spellEffect = m_spellInfo->GetSpellEffect(SpellEffectIndex(i));
 
     damage = int32(CalculateDamage(i, unitTarget) * DamageMultiplier);
+
+    EffectValueContext effectValueCtx(*m_caster, unitTarget, *m_spellInfo, i, damage);
+    SpellHandlerRegistry::Game().Dispatch<EffectValueHook>(m_spellInfo->ID, effectValueCtx);
 
     if (spellEffect)
     {

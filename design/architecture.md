@@ -459,10 +459,20 @@ the code; each one is applied to the code a PR touches, never as a sweep of its 
   new members on `Player` or `Unit`. Their method ratchets only go down, and a class campaign moves what it touches.
 - **Ownership.** New and changed code holds what it owns by value or in a `std::unique_ptr`, and refers to another
   world object by its guid, looked up when it is used, never by a pointer kept across updates.
-- **Class spell code is grouped by class.** Each class has one file, `spells/classes/<class>.cpp`, which
-  registers its handlers in the existing registries (`spells/handlers/SpellHandlerRegistry.h`). Each class
-  campaign starts by moving its class's handlers there. `spells/handlers/` keeps the hook-type files for spells
-  that belong to no class: items, creatures and quests.
+- **Class spell code is grouped by class, one directory each.** A class's scripts live under
+  `spells/classes/<class>/`, lower-case in the order and spelling of `SPELLFAMILY_`: one file per specialization
+  (`Fire.cpp`, `Frost.cpp`, `Arcane.cpp`), one class-wide file (`Mage.cpp`) and one header (`Mage.h`) declaring
+  `void RegisterMageScripts(SpellHandlerRegistry&)`, which `SpellHandlerRegistry::Game()` calls after the generic
+  handlers. A script is a free function in an anonymous namespace, registered by spell id on one of the named hooks
+  of `spells/SpellScriptHooks.h`; it includes neither `entities/player/` nor `spells/auras/`, asks the holder
+  through `AuraHandle` and the player through `Unit`'s virtuals, and keeps per-aura state in the holder's script
+  word. A behaviour is placed by one rule, in this order: client data, an engine mechanic, a shared engine helper
+  beside its mechanic (`combat/`, `spells/`), a class script; code is never copied between classes. Each class
+  campaign starts by moving its class's registry rows there, then its arms of the engine's family switches; a
+  legacy site of `spells/handlers/SpellHandlerRegistry.h` is deleted with its last row and its default, and ctest
+  `class_logic` (`src/tests/tools/class_logic.py`) ratchets the legacy sites, rows, family switches and class
+  literals in engine files down. `spells/handlers/` keeps the hook-type files for spells that belong to no class:
+  items, creatures and quests, whose rows move in the content campaigns.
 - **The client's files are the source of truth for the data the client reads.** A value the 4.3.4 client takes
   from its own DBC or DB2 files comes from those files on the server too. The world database holds only what the
   client does not have: server-only fields, records the client lacks, and, for the five item DB2 tables the client

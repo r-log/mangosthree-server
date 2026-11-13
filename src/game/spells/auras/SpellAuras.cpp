@@ -79,6 +79,7 @@
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"
+#include "spells/SpellScriptHooks.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -517,6 +518,9 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
             }
         }
     }
+
+    AuraAmountContext amountCtx(caster, *target, *spellproto, m_effIndex, damage);
+    SpellHandlerRegistry::Game().Dispatch<AuraAmountHook>(spellproto->ID, amountCtx);
 
     damage *= holder->GetStackAmount();
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Aura: construct Spellid : %u, Aura : %u Target : %d Damage : %d", spellproto->ID, m_spellEffect->EffectAura, m_spellEffect->ImplicitTarget_0, damage);
@@ -1762,6 +1766,12 @@ void Aura::PeriodicTick()
                 pdamage = uint32(target->GetMaxHealth() * amount / 100);
             }
 
+            PeriodicTickContext tickCtx(*target, pCaster, *spellProto, m_effIndex, AuraHandle(*GetHolder()), pdamage, false);
+            if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(GetId(), tickCtx).IsReturn())
+            {
+                return;
+            }
+
             // SpellDamageBonus for magic spells
             uint32 dmgClass = spellProto->GetDmgClass();
             if (dmgClass == SPELL_DAMAGE_CLASS_NONE || dmgClass == SPELL_DAMAGE_CLASS_MAGIC)
@@ -2034,6 +2044,12 @@ void Aura::PeriodicTick()
 
                         pdamage = int32(pdamage) + addition;
                     }
+                }
+
+                PeriodicTickContext tickCtx(*target, pCaster, *spellProto, m_effIndex, AuraHandle(*GetHolder()), pdamage, false);
+                if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(GetId(), tickCtx).IsReturn())
+                {
+                    return;
                 }
 
                 pdamage = target->SpellHealingBonusTaken(pCaster, spellProto, pdamage, DOT, GetStackAmount());
@@ -2416,6 +2432,14 @@ void Aura::PeriodicDummyTick()
     SpellClassOptionsEntry const* classOptions = spell->GetSpellClassOptions();
 
     Unit *target = GetTarget();
+
+    uint32 tickAmount = m_modifier.m_amount > 0 ? uint32(m_modifier.m_amount) : 0;
+    PeriodicTickContext tickCtx(*target, GetCaster(), *spell, m_effIndex, AuraHandle(*GetHolder()), tickAmount, true);
+    if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(spell->ID, tickCtx).IsReturn())
+    {
+        return;
+    }
+
     switch (spell->GetSpellFamilyName())
     {
         case SPELLFAMILY_GENERIC:
@@ -2692,6 +2716,7 @@ SpellAuraHolder::SpellAuraHolder(SpellEntry const* spellproto, Unit* target, Wor
     for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
     {
         m_auras[i] = NULL;
+        m_scriptWord[i] = 0;
     }
 }
 

@@ -47,6 +47,7 @@
 #include <random>
 #include "spells/handlers/SpellEffectScriptHandlers.h"
 #include "spells/data/SpellTables.h"
+#include "spells/SpellScriptHooks.h"
 
 /**
  * @brief Executes script-driven spell effect behavior for special cases.
@@ -55,6 +56,13 @@
  */
 void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
 {
+    DummyEffectContext dummyCtx(*m_caster, unitTarget, m_CastItem, gameObjTarget, *m_spellInfo,
+                                SpellEffectIndex(effect->EffectIndex), damage, m_originalCasterGUID);
+    if (SpellHandlerRegistry::Game().Dispatch<DummyEffectHook>(m_spellInfo->ID, dummyCtx).IsReturn())
+    {
+        return;
+    }
+
     // TODO: we must implement hunter pet summon at login there (spell 6962)
     switch(m_spellInfo->GetSpellFamilyName())
     {

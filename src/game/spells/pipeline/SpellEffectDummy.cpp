@@ -55,6 +55,7 @@
 #include <random>
 #include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/data/SpellTables.h"
+#include "spells/SpellScriptHooks.h"
 
 /**
  * @brief Executes spell-specific dummy effect behavior.
@@ -66,6 +67,13 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
     Creature* const targetCreature = unitTarget ? unitTarget->ToCreature() : NULL;
 
     if (!unitTarget && !gameObjTarget && !itemTarget)
+    {
+        return;
+    }
+
+    DummyEffectContext dummyCtx(*m_caster, unitTarget, m_CastItem, gameObjTarget, *m_spellInfo,
+                                SpellEffectIndex(effect->EffectIndex), damage, m_originalCasterGUID);
+    if (SpellHandlerRegistry::Game().Dispatch<DummyEffectHook>(m_spellInfo->ID, dummyCtx).IsReturn())
     {
         return;
     }
