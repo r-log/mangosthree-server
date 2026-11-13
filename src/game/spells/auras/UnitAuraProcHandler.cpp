@@ -1699,18 +1699,6 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             }
             break;
         }
-        case SPELLFAMILY_MAGE:
-        {
-            if (auraSpellInfo->SpellIconID == 2947)         // Fingers of Frost
-            {
-                // proc chance for spells in basepoints
-                if (!roll_chance_i(triggerAmount))
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-            }
-            break;
-        }
         case SPELLFAMILY_WARRIOR:
         {
             // Deep Wounds (replace triggered spells to directly apply DoT), dot spell have familyflags
