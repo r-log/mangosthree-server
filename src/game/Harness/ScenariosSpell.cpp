@@ -4408,7 +4408,8 @@ namespace Harness
             {
                 ok = ok && (!Triggered(st.seen[k], 48108) || second[k]);
             }
-            return casts + "(" + (ok ? "OK" : "BUG") + ": 48108 cast after casts " + casts + "; the count reached two at casts " + reached + ")";
+            const std::string detail = "48108 cast after casts " + casts + "; the count reached two at casts " + reached + ")";
+            return ok ? casts + "(OK: " + detail : "BUG(" + casts + ": " + detail;
         }
     };
 
@@ -4491,7 +4492,7 @@ namespace Harness
                 const std::string wanted = st.seen[k].crit ? U(st.seen[k].cost * 30 / 100) : std::string();
                 ok = ok && amounts == wanted;
             }
-            return value + "(" + (ok ? "OK" : "BUG") + ": " + text + ")";
+            return ok ? value + "(OK: " + text + ")" : "BUG(" + value + ": " + text + ")";
         }
     };
 
@@ -4546,7 +4547,8 @@ namespace Harness
             {
                 ok = ok && (!Triggered(st.seen[k], 31643) || st.seen[k].healthAfter < st.seen[k].healthBefore);
             }
-            return casts + "(" + (ok ? "OK" : "BUG") + ": 31643 cast after swings " + casts + "; the swings that hit: " + hits + ")";
+            const std::string detail = "31643 cast after swings " + casts + "; the swings that hit: " + hits + ")";
+            return ok ? casts + "(OK: " + detail : "BUG(" + casts + ": " + detail;
         }
 
     private:
