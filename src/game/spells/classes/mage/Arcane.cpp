@@ -24,8 +24,33 @@
  */
 
 #include "spells/classes/mage/Mage.h"
+#include "entities/Unit.h"
 
-uint32 Mage::RegisterArcane(SpellHandlerRegistry& /*registry*/)
+namespace
 {
-    return 0;
+    typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
+
+    /// 29441, 29444: Magic Absorption: a mana user gets back the aura's percent of his maximum mana through 29442.
+    ProcOutcome MagicAbsorptionProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (ctx.caster.GetPowerType() != POWER_MANA)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+
+        int32 const basePoints[MAX_EFFECT_INDEX] = { int32(ctx.triggerAmount * ctx.caster.GetMaxPower(POWER_MANA) / 100), 0, 0 };
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 29442, basePoints));
+    }
+
+    uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
+}
+
+uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
+{
+    uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
+    return rows;
 }

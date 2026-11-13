@@ -27,6 +27,7 @@
 #define MANGOSSERVER_SPELLS_CLASSES_MAGE_MAGE_H
 
 #include "spells/handlers/SpellHandlerRegistry.h"
+#include "spells/SpellScriptHooks.h"
 
 #include <cstddef>
 
@@ -34,9 +35,9 @@
  * @file Mage.h
  * @brief The mage's spell scripts, registered by spell id in the spell handler registry.
  *
- * Mage.cpp holds the class-wide bodies and the mage sites' defaults; Fire.cpp, Frost.cpp and Arcane.cpp hold the
- * bodies of the three specializations. Each file registers its rows through one function of namespace Mage, a table
- * per legacy site of SpellHandlerRegistry.h.
+ * Mage.cpp holds the class-wide bodies, the mage sites' defaults and what the proc scripts share; Fire.cpp, Frost.cpp
+ * and Arcane.cpp hold the bodies of the three specializations. Each file registers its rows through one function of
+ * namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies and those of the three specializations. Returns the rows and
@@ -74,6 +75,16 @@ namespace Mage
     uint32 RegisterFrost(SpellHandlerRegistry& registry);
     /// Registers the Arcane specialization's rows. Returns the rows registered.
     uint32 RegisterArcane(SpellHandlerRegistry& registry);
+
+    /// Whether the aura effect a proc runs for is of `auraType`. A proc script runs for every effect of its spell that
+    /// passed the proc's class-mask checks; it acts for the effects of the aura type whose proc handler it stands for,
+    /// and lets the handler of any other run.
+    bool ProcEffectIs(OnProcContext const& ctx, uint32 auraType);
+
+    /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
+    /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.
+    /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    SpellAuraProcResult CastProcSpell(OnProcContext& ctx, Unit& to, uint32 spellId, int32 const* basePoints = NULL);
 }
 
 #endif

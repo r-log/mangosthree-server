@@ -716,20 +716,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
         }
         case SPELLFAMILY_MAGE:
         {
-            // Magic Absorption
-            if (dummySpell->SpellIconID == 459)             // only this spell have SpellIconID == 459 and dummy aura
-            {
-                if (GetPowerType() != POWER_MANA)
-                {
-                    return SPELL_AURA_PROC_FAILED;
-                }
-
-                // mana reward
-                basepoints[0] = (triggerAmount * GetMaxPower(POWER_MANA) / 100);
-                target = this;
-                triggered_spell_id = 29442;
-                break;
-            }
             // Master of Elements
             if (dummySpell->SpellIconID == 1920)
             {
