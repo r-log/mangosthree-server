@@ -224,6 +224,9 @@ class  SpellAuraHolder
         bool HasMechanic(uint32 mechanic) const;
         bool HasMechanicMask(uint32 mechanicMask) const;
 
+        /// A spell script's word for the effect at `index`: zero when the holder is made, never saved or sent.
+        int32& ScriptWord(SpellEffectIndex index) { return m_scriptWord[index]; }
+
         ~SpellAuraHolder();
     private:
         SpellEntry const* m_spellProto;
@@ -256,6 +259,8 @@ class  SpellAuraHolder
         bool m_deleted: 1;
 
         uint32 m_in_use;                                    // > 0 while in SpellAuraHolder::ApplyModifiers call/SpellAuraHolder::Update/etc
+
+        int32 m_scriptWord[MAX_EFFECT_INDEX];               // a spell script's state per effect
 };
 
 typedef void(Aura::*pAuraHandler)(bool Apply, bool Real);

@@ -2692,6 +2692,7 @@ SpellAuraHolder::SpellAuraHolder(SpellEntry const* spellproto, Unit* target, Wor
     for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
     {
         m_auras[i] = NULL;
+        m_scriptWord[i] = 0;
     }
 }
 
