@@ -209,12 +209,12 @@ void Player::learnQuestRewardedSpells(Quest const* quest)
                 SpellEntry const* itrInfo = sSpellStore.LookupEntry(itr->first);
                 if (!itrInfo)
                 {
-                    return;
+                    continue;
                 }
 
                 // compare only specializations
-                SpellEffectEntry const* itrSpellEffect0 = learnedInfo->GetSpellEffect(EFFECT_INDEX_0);
-                SpellEffectEntry const* itrSpellEffect1 = learnedInfo->GetSpellEffect(EFFECT_INDEX_1);
+                SpellEffectEntry const* itrSpellEffect0 = itrInfo->GetSpellEffect(EFFECT_INDEX_0);
+                SpellEffectEntry const* itrSpellEffect1 = itrInfo->GetSpellEffect(EFFECT_INDEX_1);
                 if ((itrSpellEffect0 && itrSpellEffect0->Effect != SPELL_EFFECT_TRADE_SKILL) || (itrSpellEffect1 && itrSpellEffect1->Effect != 0))
                 {
                     continue;
