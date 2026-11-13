@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <functional>
 #include "ItemEnchantmentMgr.h"
+#include "ItemEnchantGroupCheck.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "ObjectMgr.h"
@@ -176,6 +177,38 @@ uint32 GetItemEnchantMod(int32 entry)
 
 uint32 GetItemRandomPropertyMod(uint32 entry) { return GetItemEnchantMod(entry); }
 uint32 GetItemRandomSuffixMod(uint32 entry) { return GetItemEnchantMod(-int32(entry)); }
+
+/// Looks the group up in `store` and lists the members `known` rejects.
+template <typename Known>
+static ItemEnchantGroupCheck CheckItemEnchantGroup(EnchantmentStore const& store, uint32 group, Known known)
+{
+    ItemEnchantGroupCheck check;
+    EnchantmentStore::const_iterator const tab = store.find(group);
+    if (tab == store.end())
+    {
+        return check;
+    }
+
+    check.hasRows = true;
+    for (EnchStoreItem const& member : tab->second)
+    {
+        if (!known(member.ench))
+        {
+            check.unknownEnchants.push_back(member.ench);
+        }
+    }
+    return check;
+}
+
+ItemEnchantGroupCheck CheckItemRandomPropertyGroup(uint32 group)
+{
+    return CheckItemEnchantGroup(RandomItemPropEnch, group, [](uint32 ench) { return sItemRandomPropertiesStore.LookupEntry(ench) != NULL; });
+}
+
+ItemEnchantGroupCheck CheckItemRandomSuffixGroup(uint32 group)
+{
+    return CheckItemEnchantGroup(RandomItemSuffixEnch, group, [](uint32 ench) { return sItemRandomSuffixStore.LookupEntry(ench) != NULL; });
+}
 
 uint32 GenerateEnchSuffixFactor(uint32 item_id)
 {
