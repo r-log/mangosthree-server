@@ -32,7 +32,7 @@
 #include <string>
 #include <set>
 #include "ObjectMgr.h"
-#include "ItemEnchantmentMgr.h"
+#include "ItemEnchantGroupCheck.h"
 #include "DBCStores.h"
 #include "persistence/world/items/ItemTemplateRepository.h"
 #include "Database/DatabaseEnv.h"
@@ -736,16 +736,32 @@ void ObjectMgr::LoadItemPrototypes()
             proto->Sheath = SHEATHETYPE_NONE;
         }
 
-        if (proto->RandomProperty && !sItemRandomPropertiesStore.LookupEntry(GetItemRandomPropertyMod(proto->RandomProperty)))
+        if (proto->RandomProperty)
         {
-            sLog.outErrorDb("Item (Entry: %u) has unknown (wrong or not listed in `item_enchantment_template`) RandomProperty (%u)", i, proto->RandomProperty);
-            proto->RandomProperty = 0;
+            ItemEnchantGroupCheck const check = CheckItemRandomPropertyGroup(proto->RandomProperty);
+            for (uint32 ench : check.unknownEnchants)
+            {
+                sLog.outErrorDb("Item (Entry: %u) has RandomProperty %u, whose `item_enchantment_template` rows name enchant %u, which ItemRandomProperties.dbc does not hold.", i, proto->RandomProperty, ench);
+            }
+            if (!check.hasRows)
+            {
+                sLog.outErrorDb("Item (Entry: %u) has RandomProperty %u, which has no rows in `item_enchantment_template`; the item gets no random property.", i, proto->RandomProperty);
+                proto->RandomProperty = 0;
+            }
         }
 
-        if (proto->RandomSuffix && !sItemRandomSuffixStore.LookupEntry(GetItemRandomSuffixMod(proto->RandomSuffix)))
+        if (proto->RandomSuffix)
         {
-            sLog.outErrorDb("Item (Entry: %u) has wrong RandomSuffix (%u)", i, proto->RandomSuffix);
-            proto->RandomSuffix = 0;
+            ItemEnchantGroupCheck const check = CheckItemRandomSuffixGroup(proto->RandomSuffix);
+            for (uint32 ench : check.unknownEnchants)
+            {
+                sLog.outErrorDb("Item (Entry: %u) has RandomSuffix %u, whose `item_enchantment_template` rows name enchant %u, which ItemRandomSuffix.dbc does not hold.", i, proto->RandomSuffix, ench);
+            }
+            if (!check.hasRows)
+            {
+                sLog.outErrorDb("Item (Entry: %u) has RandomSuffix %u, which has no rows in `item_enchantment_template`; the item gets no random suffix.", i, proto->RandomSuffix);
+                proto->RandomSuffix = 0;
+            }
         }
 
         // item can have not null only one from field values
