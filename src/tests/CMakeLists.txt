@@ -700,6 +700,15 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME domain_packets
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/domain_packets.py
             --root ${CMAKE_SOURCE_DIR} --check)
+
+    add_test(NAME class_logic_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/class_logic.py --self-test)
+
+    add_test(NAME class_logic
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/class_logic.py
+            --root ${CMAKE_SOURCE_DIR} --check
+            --gate legacy_sites=83 --gate legacy_rows=1240 --gate family_mentions=334
+            --gate icon_compares=220 --gate mask_literals=318 --gate family_switches=36)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()
