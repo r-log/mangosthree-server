@@ -2648,7 +2648,7 @@ SpellAuraProcResult Unit::HandleAddPctModifierAuraProc(Unit* /*pVictim*/, uint32
     return SPELL_AURA_PROC_OK;
 }
 
-SpellAuraProcResult Unit::HandleModDamagePercentDoneAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 cooldown)
+SpellAuraProcResult Unit::HandleModDamagePercentDoneAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 cooldown)
 {
     SpellEntry const* spellInfo = triggeredByAura->GetSpellProto();
     Item* castItem = triggeredByAura->GetCastItemGuid() ? GetItemByGuid(triggeredByAura->GetCastItemGuid()) : NULL;
@@ -2667,10 +2667,6 @@ SpellAuraProcResult Unit::HandleModDamagePercentDoneAuraProc(Unit* /*pVictim*/, 
 
         CastCustomSpell(this, 34075, &bp, NULL, NULL, true, castItem, triggeredByAura);
     }
-    // Arcane Blast
-    else if (spellInfo->ID == 36032 && procSpell->GetSpellFamilyName() == SPELLFAMILY_MAGE && procSpell->SpellIconID == 2294)
-        // prevent proc from self(spell that triggered this aura)
-        return SPELL_AURA_PROC_FAILED;
 
     return SPELL_AURA_PROC_OK;
 }
