@@ -182,6 +182,15 @@ namespace Harness
         return s;
     }
 
+    std::vector<std::string> SpellRecorder::PacketFields(uint16 opcode, uint8 const* data, size_t size) const
+    {
+        if (!m_watch.combatLogFields)
+        {
+            return std::vector<std::string>();
+        }
+        return Trace::CombatLogFields(opcode, data, size, Roles());
+    }
+
     std::string SpellRecorder::MiniUnit(char const* role, Unit* unit) const
     {
         if (!unit)

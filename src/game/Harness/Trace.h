@@ -138,11 +138,11 @@ namespace Harness
         // accounts for every byte: the first four require the payload to end where the writer's
         // layout ends; CAST_FAILED records its result-shaped tail as `tail=` and its FNV.
 
-        /// SMSG_SPELLNONMELEEDAMAGELOG (BuildSpellNonMeleeDamageLogPacket, CombatPackets.cpp):
-        /// the target's and the attacker's packed guids as roles, the spell, the damage, the
-        /// overkill, the school byte, the absorbed and resisted amounts, the physical-log and
-        /// unused bytes, the blocked amount, the hit-info word and the extend flag. No clock, no
-        /// counter: every field is kept.
+        /// SMSG_SPELLNONMELEEDAMAGELOG (BuildSpellNonMeleeDamageLogPacket, CombatPackets.cpp), read
+        /// by ReadSpellDamageLog: the target's and the attacker's packed guids as roles, the spell,
+        /// the damage, the overkill, the school byte, the absorbed and resisted amounts, the
+        /// physical-log and unused bytes, the blocked amount, the hit-info word and the extend
+        /// flag. No clock, no counter: every field is kept.
         bool DecodeSpellDamageLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_SPELLLOGMISS (BuildSpellMissPacket, CombatPackets.cpp): the spell, the caster's
         /// raw guid as a role, the flag byte, the target count, then each target's raw guid as a
@@ -167,18 +167,19 @@ namespace Harness
         // writer's layout ends. Guids read as roles. SMSG_PET_CAST_FAILED is the pet form of
         // BuildCastFailedPacket, one layout with SMSG_CAST_FAILED, and DecodeCastFailed reads it.
 
-        /// SMSG_PERIODICAURALOG (BuildPeriodicAuraLogPacket, CombatPackets.cpp): the target's and
-        /// the caster's packed guids as roles, the spell, the count (the writer's 1), the aura
-        /// type, then that type's own fields -- the damage, overkill, school, absorbed, resisted
-        /// and critical byte for PERIODIC_DAMAGE and PERIODIC_DAMAGE_PERCENT; the amount,
-        /// overheal, absorbed and critical byte for PERIODIC_HEAL and OBS_MOD_HEALTH; the power and
-        /// the amount for OBS_MOD_MANA and PERIODIC_ENERGIZE; the power, the amount and the gain
-        /// multiplier (a float, printed as its bits) for PERIODIC_MANA_LEECH. Any other aura type
-        /// is refused: the writer sends nothing for it.
+        /// SMSG_PERIODICAURALOG (BuildPeriodicAuraLogPacket, CombatPackets.cpp), read by
+        /// ReadPeriodicAuraLog: the target's and the caster's packed guids as roles, the spell, the
+        /// count (the writer's 1), then for each entry the aura type and that type's own fields --
+        /// the damage, overkill, school, absorbed, resisted and critical byte for PERIODIC_DAMAGE
+        /// and PERIODIC_DAMAGE_PERCENT; the amount, overheal, absorbed and critical byte for
+        /// PERIODIC_HEAL and OBS_MOD_HEALTH; the power and the amount for OBS_MOD_MANA and
+        /// PERIODIC_ENERGIZE; the power, the amount and the gain multiplier (a float, printed as its
+        /// bits) for PERIODIC_MANA_LEECH. Any other aura type is refused: the writer sends nothing
+        /// for it.
         bool DecodePeriodicAuraLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_SPELLHEALLOG (BuildSpellHealLogPacket, CombatPackets.cpp): the healed unit's and
-        /// the healer's packed guids as roles, the spell, the heal, the overheal, the absorbed
-        /// amount, the critical byte and the unused byte.
+        /// SMSG_SPELLHEALLOG (BuildSpellHealLogPacket, CombatPackets.cpp), read by
+        /// ReadSpellHealLog: the healed unit's and the healer's packed guids as roles, the spell,
+        /// the heal, the overheal, the absorbed amount, the critical byte and the unused byte.
         bool DecodeSpellHealLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_SPELLENERGIZELOG (Unit::SendEnergizeSpellLog, Unit.cpp:3942-3947): the energized
         /// unit's and the caster's packed guids as roles, the spell, the power type and the amount.
@@ -279,14 +280,95 @@ namespace Harness
         /// and the slot (4) come first, then the entry, the suffix factor, the random property and
         /// the count. False when the payload is not that writer's 45 bytes.
         bool ReadItemPush(uint8 const* data, size_t size, uint32& entry, uint32& count);
-        /// SMSG_SPELLNONMELEEDAMAGELOG's target and attacker guids, spell, damage and overkill,
-        /// read out of the bytes; false when the payload is not Unit::SendSpellNonMeleeDamageLog's
-        /// layout (the one DecodeSpellDamageLog reads).
+        // ---- the three combat logs, each read in one place: the order of the 15595 client's readers
+        // (UnitCombatLog_C.cpp: CombatLog::HandleSpellNonMeleeDamageLog, HandlePeriodicAuraLog,
+        // HandleSpellHealLog), which is the order the server's writers lay them out
+        // (CombatPackets.cpp). Each reader is false unless the bytes end where that read ends; the
+        // `pkt` decoders above and CombatLogFields below print what they read.
+
+        /// One SMSG_SPELLNONMELEEDAMAGELOG.
+        struct SpellDamageLog
+        {
+            uint64 target = 0;
+            uint64 attacker = 0;
+            uint32 spell = 0;
+            uint32 damage = 0;
+            uint32 overkill = 0;
+            uint8  school = 0;
+            uint32 absorb = 0;
+            uint32 resist = 0;
+            uint8  physical = 0;
+            uint8  unused = 0;
+            uint32 blocked = 0;
+            uint32 hitInfo = 0;     ///< 0x2 is the critical hit (SPELL_HIT_TYPE_CRIT)
+            uint8  extend = 0;      ///< the debug byte: when set, the floats the hit-info bits name follow
+        };
+        /// The damage log; with the extend byte set, the floats that follow it are read past as the
+        /// client reads them: two for hit-info 0x1, two for 0x4, six for 0x20.
+        bool ReadSpellDamageLog(uint8 const* data, size_t size, SpellDamageLog& log);
+
+        /// One entry of SMSG_PERIODICAURALOG. Which fields an entry holds depends on its aura type.
+        struct PeriodicAuraLogEntry
+        {
+            uint32 aura = 0;
+            uint32 amount = 0;      ///< the damage (3, 89), the heal (8, 20) or the power amount (21, 24, 64)
+            uint32 over = 0;        ///< the overkill (3, 89) or the overheal (8, 20)
+            uint32 school = 0;      ///< 3, 89
+            uint32 absorb = 0;      ///< 3, 89, 8, 20
+            uint32 resist = 0;      ///< 3, 89
+            uint8  critical = 0;    ///< 3, 89, 8, 20
+            uint32 power = 0;       ///< the power type (21, 24, 64)
+            uint32 multiplier = 0;  ///< the gain multiplier's float bits (64)
+        };
+        /// One SMSG_PERIODICAURALOG: the head and an entry for each of the count.
+        struct PeriodicAuraLog
+        {
+            uint64 target = 0;
+            uint64 caster = 0;
+            uint32 spell = 0;
+            uint32 count = 0;
+            std::vector<PeriodicAuraLogEntry> entries;
+        };
+        /// The periodic log; an aura type the writer sends no fields for is refused.
+        bool ReadPeriodicAuraLog(uint8 const* data, size_t size, PeriodicAuraLog& log);
+
+        /// One SMSG_SPELLHEALLOG.
+        struct SpellHealLog
+        {
+            uint64 target = 0;
+            uint64 caster = 0;
+            uint32 spell = 0;
+            uint32 heal = 0;
+            uint32 overheal = 0;
+            uint32 absorb = 0;
+            uint8  critical = 0;
+            uint8  unused = 0;
+        };
+        bool ReadSpellHealLog(uint8 const* data, size_t size, SpellHealLog& log);
+
+        /// SMSG_SPELLNONMELEEDAMAGELOG's target and attacker guids, spell, damage and overkill, as
+        /// ReadSpellDamageLog reads them.
         bool ReadSpellDamage(uint8 const* data, size_t size, uint64& target, uint64& attacker, uint32& spell, uint32& damage,
                              uint32& overkill);
         /// SMSG_POWER_UPDATE's unit guid and its first (power type, value); false when the payload
         /// is not Unit::SetPower's layout or names no power.
         bool ReadPowerUpdate(uint8 const* data, size_t size, uint64& unit, uint8& power, uint32& value);
+
+        /**
+         * The field lines of one combat log packet, each "<kind> <role>.<kind>.<spell>=<four fields>", where <role> is
+         * the role of the unit that dealt it (the caster guid the packet carries), from the readers above:
+         *  - SMSG_SPELLNONMELEEDAMAGELOG: one "hit <role>.hit.<spell>=<damage>/<crit>/<absorbed>/<resisted>" line;
+         *    <crit> is 1 when the hit-info word holds 0x2 (SPELL_HIT_TYPE_CRIT), the bit the client reads as a
+         *    critical hit.
+         *  - SMSG_PERIODICAURALOG: one "tick <role>.tick.<spell>=..." line per entry: <damage>/<crit>/<absorbed>/
+         *    <resisted> for a damage aura (3, 89), <amount>/<crit>/<absorbed>/<overheal> for a heal aura (8, 20),
+         *    "<amount>/0/0/0 power=<power type>" for an energize or a mana leech (21, 24, 64); a count of 0 gives
+         *    no line.
+         *  - SMSG_SPELLHEALLOG: one "heal <role>.heal.<spell>=<amount>/<crit>/<absorbed>/<overheal>" line.
+         * A payload its reader refuses gives the one line "<kind> undecoded size=<n>"; any other opcode gives no
+         * line.
+         */
+        std::vector<std::string> CombatLogFields(uint16 opcode, uint8 const* data, size_t size, Roles const& roles);
 
         /// The whole record of one packet, as it follows "pkt " in a TRACE line:
         /// "<name>", "<name> size=<n>", "<name> size=<n> fnv=<hex>", or "<name> <decoded fields>".

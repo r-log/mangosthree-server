@@ -51,7 +51,8 @@ namespace Harness
      * be a setup window (the spawn, a level set): logged like the rest, never digested.
      *
      * WHAT A WINDOW RECORDS. Each packet the moment it is sent (a `pkt` line, Trace::PacketRecord),
-     * and in a digested window, right after it, a `snap` line whenever the family's small state
+     * followed by the lines the family reads out of its bytes (PacketFields; none by default),
+     * and in a digested window, right after them, a `snap` line whenever the family's small state
      * (Mini) differs from the last one printed (Ruling 19, always on: no scenario can leave it out).
      * It puts an in-memory statement in order against the packets around it. A `call` line for each
      * server call's result that the step notes; and, when the window closes, a `state` line for each
@@ -120,6 +121,9 @@ namespace Harness
         virtual State Take() const = 0;
         /// The family's snap line state: small, and cheap enough to read after every packet.
         virtual std::string Mini() const = 0;
+        /// The lines the family reads out of one packet's bytes, each recorded right after the packet's `pkt` line and
+        /// before its snap line. None unless the family overrides it.
+        virtual std::vector<std::string> PacketFields(uint16 opcode, uint8 const* data, size_t size) const;
         /// The recorded player, or NULL once he is gone.
         Player* Resolve() const;
 

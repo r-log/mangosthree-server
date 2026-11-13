@@ -48,6 +48,10 @@ namespace Harness
         /// -- the spell map and the category map (Creature.h:841-842). Off unless a scenario asks,
         /// so a record made without it keeps every line it had.
         bool creatureCooldowns = false;
+        /// Also read every damage, periodic and heal log the player is sent into `hit`, `tick` and `heal` lines
+        /// (Trace::CombatLogFields), each after its packet's `pkt` line. Off unless a scenario asks, so a record made
+        /// without it keeps every line it had.
+        bool combatLogFields = false;
     };
 
     /**
@@ -79,6 +83,9 @@ namespace Harness
      * power, the combat flag, the generic and channeled slots' spells and the holder count -- so a
      * statement moved across a packet in the cast (the power taken before or after SPELL_GO, the
      * damage before or after its log) changes the digest.
+     *
+     * ITS FIELD LINES, when the watch asks for them (SpellWatch::combatLogFields): after each damage,
+     * periodic and heal log, the `hit`, `tick` and `heal` lines Trace::CombatLogFields reads out of it.
      */
     class SpellRecorder : public Recorder
     {
@@ -90,6 +97,7 @@ namespace Harness
     private:
         State Take() const override;
         std::string Mini() const override;
+        std::vector<std::string> PacketFields(uint16 opcode, uint8 const* data, size_t size) const override;
         /// The watched unit in `role`, on the player's map, or NULL.
         Unit* UnitIn(ObjectGuid guid) const;
         void TakeUnit(char const* role, Unit* unit, State& s) const;

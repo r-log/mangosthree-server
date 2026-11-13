@@ -176,17 +176,4 @@ namespace Harness
                  Trace::Hex32(Rec().Digest()).c_str(), Rec().DigestedLines(), from);
         return digest;
     }
-
-    void RecordedScenario::SetLevelAsResetDoes(Player* p, uint32 level)
-    {
-        p->_ApplyAllLevelScaleItemMods(false);
-        p->SetLevel(level);
-        p->InitRunes();
-        p->InitStatsForLevel(true);
-        p->InitTaxiNodesForLevel();
-        p->InitGlyphsForLevel();
-        p->InitTalentForLevel();
-        p->SetUInt32Value(PLAYER_XP, 0);
-        p->_ApplyAllLevelScaleItemMods(true);
-    }
 }

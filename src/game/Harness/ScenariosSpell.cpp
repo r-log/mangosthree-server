@@ -36,6 +36,8 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
+#include "combat/SpellBonus.h"
+#include "data/GameConfig.h"
 #include "DBCStores.h"
 #include "Opcodes.h"
 #include "Pet.h"
@@ -78,7 +80,8 @@
 // call; 935 a cast interrupted by a stun and by the player mover; 936 Hellfire cast on its own
 // caster, which hits him on every cast; 937 Mortar Shot at a unit outside its radius, which hits
 // that unit alone; 938 the Creature cooldown model of pets and charmed creatures, recorded as it
-// is. The guard of 931-938
+// is; 950 a mage staged to level 85 at a fixed spell power casts Fireball five times at a level-85
+// target. The guard of 931-938 and 950
 // (Qualify) fingerprints every spell a scenario reaches and refuses the random-pick labels, the
 // random chain targets and any script binding.
 namespace Harness
@@ -292,10 +295,11 @@ namespace Harness
             return r;
         }
 
-        /// Every aura holder on `unit` that a proc can trigger: its proc flags -- the spell's own
-        /// or spell_proc_event's, as Unit::IsTriggeredAtSpellProcEvent reads them -- not zero.
-        /// "" when none; a holder that is not in this list never reaches a proc handler.
-        std::string ProcHolders(Unit* unit)
+        /// Every aura holder on `unit` that a proc can trigger, but those of a spell in `except`: its
+        /// proc flags -- the spell's own or spell_proc_event's, as Unit::IsTriggeredAtSpellProcEvent
+        /// reads them -- not zero. "" when none; a holder that is not in this list never reaches a
+        /// proc handler.
+        std::string ProcHolders(Unit* unit, std::set<uint32> const& except)
         {
             std::string out;
             Unit::SpellAuraHolderMap const& holders = unit->GetSpellAuraHolderMap();
@@ -304,15 +308,17 @@ namespace Harness
                 SpellEntry const* proto = i->second->GetSpellProto();
                 SpellProcEventEntry const* event = sSpellMgr.GetSpellProcEvent(proto->ID);
                 const uint32 flags = (event && event->procFlags) ? event->procFlags : proto->GetProcFlags();
-                if (flags)
+                if (flags && !except.count(proto->ID))
                 {
                     out += (out.empty() ? "" : ",") + U(proto->ID);
                 }
             }
             return out;
         }
+        std::string ProcHolders(Unit* unit) { return ProcHolders(unit, std::set<uint32>()); }
 
-        // ---- the guard of scenarios 931-938 (decoupling D11 PR 2) --------------------------
+        // ---- the reached-spell guard: every spell fingerprinted, no dynamic radius or raw rand()
+        // label, no random chain, no script binding, every triggered spell fingerprinted too -------
 
         /// One spell a scenario reaches, and the fields its SpellEffect rows must hold (every
         /// field compared, a field the map does not name compared against 0, as 930's fingerprint).
@@ -3375,6 +3381,482 @@ namespace Harness
         }
     };
 
+    /**
+     * S950 `mage-fire-fireball-crit`: a human mage staged to level 85 with 1000 spell power and no talent or
+     * glyph (Scenario::StagePlayer) casts Fireball (133) kFireballCasts times through the CAST_SPELL handler's
+     * calls at a Camel (50249) that Scenario::SpawnTarget puts at level 85 ten yards in front of him. One cast
+     * every kCastEveryMs, his mana set to its maximum by call before each; each hit is read kReadAfterMs after
+     * its cast (a 2.5 s cast, then ten yards at Fireball's 24 yd/s), and that read window closes when the next
+     * cast opens its own.
+     *
+     * Fireball qualifies: one SpellEffect row, SCHOOL_DAMAGE at A=6 and B=0, SPELLFAMILY_MAGE, nothing
+     * triggered, no script binding. Its row holds the client's spell power coefficient (EffectBonusCoefficient
+     * 1.236); the server takes the coefficient from spell_bonus_data 133 instead. Every mage is created with two
+     * proc passives, Offensive State (79684, which casts Arcane Missiles! 79683 on him) and Deep Freeze Immunity
+     * State (71761, which names Deep Freeze 71757): all four are fingerprinted, their procs are recorded as they
+     * happen, and a cast is refused when a holder outside the fingerprinted spells could proc. The Camel is level
+     * 85 in its own template, so its level-85 health comes from the expansion-3 stats row (77490), more than five
+     * crits take; it runs no AI and binds no script.
+     *
+     * THE SEED. Each cast's hit roll, crit roll and base points are drawn in a map update, under the map hook's
+     * RNG::Seed(TickSeed(base, 950, elapsed)), so each is a function of the cast's elapsed time alone and every
+     * run draws the same ones. Under the harness's seed base, kCastEveryMs puts all five rolls on hits; none
+     * crits (1.23% fire crit chance with no gear and no talent). The record states the amounts and crit flags.
+     *
+     * Categories: `staged` the player and the target as staged; `bonus` the spell power part the damage formula
+     * adds to every hit, Unit::SpellBonusWithCoeffs over the player's fire spell power, as a number; `casts` each
+     * cast's packets: one SPELL_START, one SPELL_GO, then one damage log with its `self.hit.133` line and the
+     * target's health lost equal to its amount (or the target in the miss list, no damage log and no health
+     * lost), and the mana spent equal to the cost; `amounts` the amounts in cast order as a value (a crit marked
+     * `c`, a miss `miss`), each checked to be the bonus plus a base roll in Fireball's band at 85 by the client's
+     * rule (Spell_C.cpp), a crit's after taking off the spell crit bonus.
+     */
+    class MageFireFireballCrit : public SpellScenario
+    {
+    public:
+        MageFireFireballCrit()
+            : SpellScenario("mage-fire-fireball-crit", 950,
+                            { "template", "staged", "bonus", "casts", "amounts", "noPersistence", "digest" }) {}
+
+        void Prepare() override
+        {
+            const uint32 FIREBALL = 133;
+            const uint32 CAMEL = 50249;
+            const uint32 level = 85;
+
+            // Fireball, and the two proc passives every mage is created with (playercreateinfo_spell) with the spells
+            // they trigger: Offensive State (79684) casts Arcane Missiles! (79683) on its owner, Deep Freeze Immunity
+            // State (71761) names Deep Freeze (71757).
+            std::vector<SpellPrint> prints = {
+                // 133: 26 fields, fnv 81dba6e7
+                { FIREBALL, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+            QuestPlan plan;
+            plan.quest = 0;
+            plan.classId = CLASS_MAGE;
+            plan.level = level;
+            plan.casts.insert(FIREBALL);
+            plan.casts.insert(79683);
+            plan.dealsDamage = true;
+            std::string templateOk;
+            QuestPreCheck pre;
+            if (!Qualify(prints, { CAMEL }, plan, templateOk, &pre))
+            {
+                return;
+            }
+
+            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z), 0.0f, CLASS_MAGE);
+            if (!p)
+            {
+                Verdict(Invalid("spawn failed"));
+                return;
+            }
+            const float tx = P0.x + 10.0f;
+            Creature* target = SpawnTarget(CAMEL, level, tx, P0.y, Ground(tx, P0.y, P0.z), 3.14159f);
+            if (!target)
+            {
+                Verdict(Invalid("the target (50249) did not spawn"));
+                return;
+            }
+            StartTimeSync(p);
+
+            auto st = std::make_shared<St>();
+            st->player = p->GetObjectGuid();
+            st->target = target->GetObjectGuid();
+            st->templateOk = templateOk;
+            st->noReachLevel = pre.levelBound == pre.startLevel;
+            st->achievementsAtSpawn = Achievements(p);
+            st->dealsDamage = plan.dealsDamage;
+            st->plan = plan;
+            for (size_t i = 0; i < prints.size(); ++i)
+            {
+                st->printed.insert(prints[i].spell);
+            }
+
+            SpellWatch watch;
+            watch.target = st->target;
+            watch.combatLogFields = true;
+            m_rec.Begin(Name(), p, watch);
+            m_rec.Open("stage", false);           // a setup window: logged, never digested
+            StagePlan stage;
+            stage.level = level;
+            stage.spellPower = kSpellPower;
+            st->staged = StagePlayer(*p, stage);
+            st->levelSet = p->getLevel();
+            ReadStage(p, target, level, st->staged, st->stagedText, st->stagedOk);
+            SpellEntry const* info = sSpellStore.LookupEntry(FIREBALL);
+            ReadBonus(p, target, info, st->spellPower, st->bonus, st->bonusText);
+            ScaledBand(info, p->getLevel(), st->bandLow, st->bandHigh, st->bandRefusal);
+            st->casts.resize(kFireballCasts);
+
+            for (uint32 k = 0; k < kFireballCasts; ++k)
+            {
+                At(300 + kCastEveryMs * k, [this, st, k, FIREBALL]()
+                {
+                    Player* p = sPlayerRegistry.Find(st->player);
+                    Creature* target = Get(st->target);
+                    SpellEntry const* info = sSpellStore.LookupEntry(FIREBALL);
+                    if (!p || !target || !info || !st->staged) { return; }
+                    Cast& c = st->casts[k];
+                    const std::string name = "cast" + U(k + 1);
+                    m_rec.Open(name);
+                    const std::string procSelf = ProcHolders(p);
+                    const std::string procTarget = ProcHolders(target);
+                    m_rec.Note("holders that can proc: self [" + procSelf + "], target [" + procTarget + "]");
+                    const std::string unprintedSelf = ProcHolders(p, st->printed);
+                    const std::string unprintedTarget = ProcHolders(target, st->printed);
+                    const std::string unprinted = unprintedSelf + (unprintedSelf.empty() || unprintedTarget.empty() ? "" : ",") + unprintedTarget;
+                    if (!unprinted.empty())
+                    {
+                        // a proc the guard did not fingerprint could be reached: refused before the cast
+                        c.refused = true;
+                        m_rec.Note("holders that can proc and are not fingerprinted: [" + unprinted + "]; not cast");
+                        m_rec.Open(name + "+tick");
+                        return;
+                    }
+                    p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA));
+                    c.manaBefore = p->GetPower(POWER_MANA);
+                    c.cost = Spell::CalculatePowerCost(info, p);
+                    c.healthBefore = target->GetHealth();
+                    m_rec.Note("mana " + U(c.manaBefore) + ", cost " + U(c.cost) + "; target health " + U(c.healthBefore) + "/" +
+                               U(target->GetMaxHealth()));
+                    c.castId = CastAsHandler(p, FIREBALL, target, uint8(k + 1));
+                    m_rec.Open(name + "+tick");
+                });
+                At(300 + kCastEveryMs * k + kReadAfterMs, [this, st, k]()
+                {
+                    Player* p = sPlayerRegistry.Find(st->player);
+                    Creature* target = Get(st->target);
+                    Cast& c = st->casts[k];
+                    if (!p || !target || !c.castId) { return; }
+                    const std::string name = "cast" + U(k + 1) + "-read";
+                    m_rec.Open(name);
+                    c.read = true;
+                    c.healthAfter = target->GetHealth();
+                    c.targetAlive = target->IsAlive();
+                    m_rec.Note("target health " + U(c.healthAfter) + "/" + U(target->GetMaxHealth()) + "; mana " + U(p->GetPower(POWER_MANA)));
+                    m_rec.Open(name + "+tick");
+                });
+            }
+
+            At(300 + kCastEveryMs * kFireballCasts, [this, st, FIREBALL]()
+            {
+                m_rec.End();   // the sink comes off before the verdict
+                Player* p = sPlayerRegistry.Find(st->player);
+                if (!p)
+                {
+                    Verdict(Invalid("the harness player was gone at the verdict"));
+                    return;
+                }
+                if (!st->staged)
+                {
+                    const std::string why = "INVALID(StagePlayer refused; its ERR line names the step)";
+                    Verdict(Compose({ st->templateOk, why, why, why, why,
+                                      NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel, st->dealsDamage, &st->plan),
+                                      DigestValue("the first cast") }));
+                    return;
+                }
+                const std::string staged = std::string(st->stagedOk ? "OK" : "BUG") + "(" + st->stagedText + ")";
+                const std::string bonus = U(uint32(st->bonus)) + "(" + st->bonusText + ")";
+                std::string casts, amounts;
+                ReadCasts(*st, FIREBALL, casts, amounts);
+                Verdict(Compose({ st->templateOk, staged, bonus, casts, amounts,
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel, st->dealsDamage, &st->plan),
+                                  DigestValue("the first cast") }));
+            });
+        }
+
+    private:
+        static const uint32 kFireballCasts = 5;
+        static const uint32 kCastEveryMs = 4100;
+        static const uint32 kReadAfterMs = 3600;
+        static const int32 kSpellPower = 1000;
+
+        /// One cast, as its two steps saw it.
+        struct Cast
+        {
+            uint32 castId = 0;
+            bool refused = false;
+            uint32 manaBefore = 0, cost = 0;
+            uint32 healthBefore = 0, healthAfter = 0;
+            bool read = false, targetAlive = false;
+        };
+        struct St
+        {
+            ObjectGuid player;
+            ObjectGuid target;
+            std::string templateOk;
+            uint32 levelSet = 0;
+            bool noReachLevel = false;
+            std::set<uint32> achievementsAtSpawn;
+            bool dealsDamage = false;
+            QuestPlan plan;
+            bool staged = false;
+            std::string stagedText;
+            bool stagedOk = false;
+            int32 spellPower = 0;
+            int32 bonus = 0;
+            std::string bonusText;
+            int32 bandLow = 0, bandHigh = 0;
+            std::string bandRefusal;
+            std::set<uint32> printed;
+            std::vector<Cast> casts;
+        };
+
+        /// The staged player and the target, as the `staged` category prints them; `ok` when the level is the plan's,
+        /// the free talent points are the level's own, every glyph slot is open (0x1ff, from level 75), and the fire
+        /// spell power is the staged amount plus the intellect's part and nothing else.
+        void ReadStage(Player* p, Creature* target, uint32 level, bool staged, std::string& text, bool& ok)
+        {
+            const SpellSchoolMask fire = SPELL_SCHOOL_MASK_FIRE;
+            const int32 power = p->SpellBaseDamageBonusDone(fire);
+            const int32 intellect = int32(p->GetStat(STAT_INTELLECT));
+            const int32 fromIntellect = std::max(0, intellect - 10);
+            const uint32 points = TalentMgr::CalculateTalentsPoints(p->getLevel(), p->getClass(),
+                                                                    sGameConfig.getConfig(CONFIG_FLOAT_RATE_TALENT), 0);
+            char buf[640];
+            snprintf(buf, sizeof(buf),
+                     "level %u; free talent points %u of the level's %u, primary tree %u; glyph slots open 0x%x; fire spell power %d = %d staged + intellect %d - 10; spell crit %.2f%% (fire); haste rating %u, mastery rating %u; mana %u/%u; target %u level %u, health %u/%u, fire resistance %u",
+                     p->getLevel(), p->GetTalentMgr().FreePoints(), points, p->GetTalentMgr().PrimaryTree(p->GetTalentMgr().ActiveSpec()),
+                     p->GetUInt32Value(PLAYER_GLYPHS_ENABLED), power, kSpellPower, intellect,
+                     p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_FIRE),
+                     p->GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL), p->GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + CR_MASTERY),
+                     p->GetPower(POWER_MANA), p->GetMaxPower(POWER_MANA), target->GetEntry(), target->getLevel(),
+                     target->GetHealth(), target->GetMaxHealth(), target->GetResistance(SPELL_SCHOOL_FIRE));
+            text = std::string(buf) + "; holders that can proc: self [" + ProcHolders(p) + "] (by chance [" + LiveProcHolders(p) + "]), target [" +
+                   ProcHolders(target) + "]";
+            ok = staged && p->getLevel() == level && p->GetTalentMgr().FreePoints() == points && p->GetUInt32Value(PLAYER_GLYPHS_ENABLED) == 0x1ff &&
+                 power == kSpellPower + fromIntellect && target->getLevel() == level;
+            m_rec.Note("staged: " + text);
+        }
+
+        /// The spell power part the damage formula adds to every hit of `info`: Unit::SpellBonusWithCoeffs over the
+        /// player's fire spell power, done side; the taken side's benefit is the target's, read and printed.
+        void ReadBonus(Player* p, Creature* target, SpellEntry const* info, int32& power, int32& bonus, std::string& text)
+        {
+            const SpellSchoolMask school = GetSpellSchoolMask(info);
+            power = p->SpellBaseDamageBonusDone(school);
+            bonus = p->SpellBonusWithCoeffs(info, 0, power, 0, SPELL_DIRECT_DAMAGE, true);
+            SpellBonusEntry const* row = sSpellMgr.GetSpellBonusData(info->ID);
+            SpellEffectEntry const* effect = info->GetSpellEffect(EFFECT_INDEX_0);
+            const float client = effect ? effect->EffectBonusCoefficient : 0.0f;
+            char buf[512];
+            snprintf(buf, sizeof(buf),
+                     "Unit::SpellBonusWithCoeffs over fire spell power %d: spell_bonus_data %u direct %.4f, level penalty %.4f; the target's taken benefit %d; Fireball's EffectBonusCoefficient %.4f, which over the same spell power is %.1f",
+                     power, info->ID, row ? row->direct_damage : 0.0f, p->CalculateLevelPenalty(info),
+                     target->SpellBaseDamageBonusTaken(school), client, double(power) * client);
+            text = buf;
+            m_rec.Note("bonus " + U(uint32(bonus)) + ": " + text);
+        }
+
+        /// Fireball's base points at `level` by the client's rule (Spell_C.cpp: the scaling coefficient times the
+        /// gtSpellScaling value, its integer, then half the variance of that either side). Above the scaling row's
+        /// cast-time and nerf levels only, where the client's scaling multiplier is 1; `refusal` says why otherwise.
+        void ScaledBand(SpellEntry const* info, uint32 level, int32& low, int32& high, std::string& refusal)
+        {
+            SpellScalingEntry const* scaling = info->GetSpellScaling();
+            if (!scaling || !scaling->Coefficient[0])
+            {
+                refusal = "no SpellScaling row with an effect 0 coefficient";
+                return;
+            }
+            if (level < scaling->CastTimeMaxLevel || level < scaling->NerfMaxLevel)
+            {
+                refusal = "level " + U(level) + " is below the scaling row's levels";
+                return;
+            }
+            const uint32 row = scaling->Class == uint32(-1) ? uint32(MAX_CLASSES - 1) : scaling->Class - 1;
+            GtSpellScalingEntry const* gt = sGtSpellScalingStore.LookupEntry(row * GT_MAX_LEVEL + level - 1);
+            if (!gt)
+            {
+                refusal = "no gtSpellScaling value for class " + U(scaling->Class) + " at level " + U(level);
+                return;
+            }
+            const int32 points = int32(scaling->Coefficient[0] * gt->value);
+            const int32 half = int32(float(points) * scaling->Variance[0]) / 2;
+            low = points - half;
+            high = points + half;
+        }
+
+        /// The `casts` and `amounts` categories, from the recorded packets of each cast's windows.
+        void ReadCasts(St const& st, uint32 spellId, std::string& casts, std::string& amounts) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            SpellEntry const* info = sSpellStore.LookupEntry(spellId);
+            const uint32 dmgClass = info ? info->GetDmgClass() : 0;
+            std::string castBug, castText, values, fitBug, rolls, castTime;
+            for (uint32 k = 0; k < st.casts.size(); ++k)
+            {
+                Cast const& c = st.casts[k];
+                const std::string name = "cast" + U(k + 1);
+                const std::string sep = k ? "; " : "";
+                values += k ? "," : "";
+                if (c.refused)
+                {
+                    values += "refused";
+                    castBug = castBug.empty() ? name + ": refused before the cast, a holder the guard did not fingerprint can proc" : castBug;
+                    continue;
+                }
+
+                std::vector<Recorder::Seen const*> starts = m_rec.SeenIn(name, SMSG_SPELL_START);
+                std::string startRecord;
+                if (starts.size() == 1 && !starts[0]->payload.empty())
+                {
+                    Trace::DecodeSpellCast(false, &starts[0]->payload[0], starts[0]->payload.size(), roles, startRecord);
+                }
+                std::vector<Recorder::Seen const*> gos = m_rec.SeenIn(name + "+tick", SMSG_SPELL_GO);
+                std::string goRecord;
+                if (gos.size() == 1 && !gos[0]->payload.empty())
+                {
+                    Trace::DecodeSpellCast(true, &gos[0]->payload[0], gos[0]->payload.size(), roles, goRecord);
+                }
+                const bool hit = goRecord.find(" hit=[target] miss=[]") != std::string::npos;
+                const bool missed = goRecord.find(" hit=[] miss=[target:") != std::string::npos;
+                std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(name + "+tick", SMSG_SPELLNONMELEEDAMAGELOG);
+                std::vector<Recorder::Seen const*> missLogs = m_rec.SeenIn(name + "+tick", SMSG_SPELLLOGMISS);
+                const uint32 failed = m_rec.CountIn(name, SMSG_CAST_FAILED) + m_rec.CountIn(name + "+tick", SMSG_CAST_FAILED);
+
+                // the first power update of the player's mana after the cast: the cost taken
+                uint32 firstMana = 0;
+                bool manaRead = false;
+                std::vector<Recorder::Seen const*> powers = m_rec.SeenIn(name + "+tick", SMSG_POWER_UPDATE);
+                for (size_t i = 0; i < powers.size() && !manaRead; ++i)
+                {
+                    uint64 unit = 0;
+                    uint8 type = 0;
+                    uint32 value = 0;
+                    if (!powers[i]->payload.empty() &&
+                        Trace::ReadPowerUpdate(&powers[i]->payload[0], powers[i]->payload.size(), unit, type, value) &&
+                        unit == roles.self && type == POWER_MANA)
+                    {
+                        firstMana = value;
+                        manaRead = true;
+                    }
+                }
+
+                // the damage log, as its `hit` line reads it
+                uint32 logSpell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                bool logRead = false;
+                std::string hitLine;
+                uint64 logTarget = 0, logAttacker = 0;
+                if (logs.size() == 1 && !logs[0]->payload.empty())
+                {
+                    std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &logs[0]->payload[0],
+                                                                             logs[0]->payload.size(), roles);
+                    uint32 ignoredSpell = 0, ignoredDamage = 0, overkill = 0;
+                    hitLine = fields.size() == 1 ? fields[0] : std::string();
+                    logRead = fields.size() == 1 &&
+                              sscanf(fields[0].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &logSpell, &amount, &crit, &absorbed, &resisted) == 5 &&
+                              Trace::ReadSpellDamage(&logs[0]->payload[0], logs[0]->payload.size(), logTarget, logAttacker, ignoredSpell,
+                                                     ignoredDamage, overkill);
+                }
+
+                char problem[512] = "";
+                if (!c.castId)
+                {
+                    snprintf(problem, sizeof(problem), "the spellbook refused %u", spellId);
+                }
+                else if (!c.read)
+                {
+                    snprintf(problem, sizeof(problem), "the read step did not run");
+                }
+                else if (starts.size() != 1 || startRecord.find("spell=" + U(spellId) + " flags=") != 0 ||
+                         startRecord.find(" source=self caster=self ") == std::string::npos || failed)
+                {
+                    snprintf(problem, sizeof(problem), "SPELL_START x%u [%s], CAST_FAILED x%u", uint32(starts.size()), startRecord.c_str(), failed);
+                }
+                else if (gos.size() != 1 || (!hit && !missed))
+                {
+                    snprintf(problem, sizeof(problem), "SPELL_GO x%u [%s]", uint32(gos.size()), goRecord.c_str());
+                }
+                else if (hit && (!logRead || !missLogs.empty() || logSpell != spellId || logTarget != roles.target ||
+                                 amount != c.healthBefore - c.healthAfter || !c.targetAlive))
+                {
+                    snprintf(problem, sizeof(problem), "damage logs x%u [%s], miss logs x%u; target health %u -> %u, alive %d",
+                             uint32(logs.size()), hitLine.c_str(), uint32(missLogs.size()), c.healthBefore, c.healthAfter, c.targetAlive ? 1 : 0);
+                }
+                else if (missed && (!logs.empty() || c.healthBefore != c.healthAfter))
+                {
+                    snprintf(problem, sizeof(problem), "a miss in SPELL_GO, then damage logs x%u; target health %u -> %u",
+                             uint32(logs.size()), c.healthBefore, c.healthAfter);
+                }
+                else if (!manaRead || firstMana != c.manaBefore - c.cost)
+                {
+                    snprintf(problem, sizeof(problem), "mana %u, cost %u, the first power update %u", c.manaBefore, c.cost, firstMana);
+                }
+                if (problem[0] && castBug.empty())
+                {
+                    castBug = name + ": " + problem;
+                }
+                if (castTime.empty())
+                {
+                    const size_t at = startRecord.find(" casttime=");
+                    castTime = at == std::string::npos ? std::string("?") : startRecord.substr(at + 10, startRecord.find(' ', at + 10) - at - 10);
+                }
+
+                if (!hit || !logRead)
+                {
+                    values += missed ? "miss" : "none";
+                    castText += sep + U(k + 1) + " " + (missed ? "missed (in SPELL_GO's miss list, miss logs x" + U(missLogs.size()) + ")" : std::string("unread"));
+                    continue;
+                }
+                values += U(amount) + (crit ? "c" : "");
+                castText += sep + U(k + 1) + " " + hitLine.substr(4) + ", health " + U(c.healthBefore) + "->" + U(c.healthAfter) +
+                            ", mana " + U(c.manaBefore) + "->" + U(firstMana);
+
+                // what the damage was before the spell crit bonus, then the base roll under the bonus
+                const int32 dealt = int32(amount + absorbed + resisted);
+                int32 beforeCrit = crit ? -1 : dealt;
+                for (int32 d = (2 * dealt) / 3 - 1; crit && d <= (2 * dealt) / 3 + 1; ++d)
+                {
+                    if (d > 0 && d + Combat::SpellCritDamageBonusBase(uint32(d), dmgClass, 0) == dealt)
+                    {
+                        beforeCrit = d;
+                    }
+                }
+                const int32 roll = beforeCrit - st.bonus;
+                rolls += (rolls.empty() ? "" : ",") + std::to_string(roll);
+                if (fitBug.empty() && (beforeCrit < 0 || roll < st.bandLow || roll > st.bandHigh))
+                {
+                    fitBug = name + ": " + U(amount) + (crit ? " (crit)" : "") + " is no base roll in " + std::to_string(st.bandLow) + ".." +
+                             std::to_string(st.bandHigh) + " plus the bonus " + std::to_string(st.bonus);
+                }
+            }
+
+            casts = castBug.empty()
+                    ? "OK(" + U(st.casts.size()) + " casts, each one SPELL_START (casttime=" + castTime +
+                      "), one SPELL_GO and its log; the target lost each amount; mana by the cost, " + U(st.casts.empty() ? 0 : st.casts[0].cost) +
+                      ": " + castText + ")"
+                    : "BUG(" + castBug + ")";
+            if (values.empty())
+            {
+                values = "none";
+            }
+            if (!st.bandRefusal.empty())
+            {
+                amounts = "INVALID(" + values + ": " + st.bandRefusal + ")";
+            }
+            else if (!fitBug.empty())
+            {
+                amounts = "BUG(" + values + ": " + fitBug + ")";
+            }
+            else
+            {
+                amounts = values + "(each the bonus " + std::to_string(st.bonus) + " plus a base roll in Fireball's band " +
+                          std::to_string(st.bandLow) + ".." + std::to_string(st.bandHigh) + " at 85, a crit's taken back off the 50% spell crit bonus first; the rolls " +
+                          rolls + ")";
+            }
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -3387,5 +3869,6 @@ namespace Harness
         r.Register(new SpellMortarShotFallthrough());
         r.Register(new SpellCreatureCooldowns());
         r.Register(new SpellPeriodicOffMap());
+        r.Register(new MageFireFireballCrit());
     }
 }

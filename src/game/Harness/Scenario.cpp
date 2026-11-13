@@ -37,6 +37,8 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "MapManager.h"
+#include "data/GameConfig.h"
+#include "entities/player/spells/SkillLevelSpells.h"
 #include "InstanceDataCache.h"
 #include "WorldSession.h"
 #include "Auth/BigNumber.h"
@@ -137,7 +139,46 @@ namespace Harness
         return h > INVALID_HEIGHT + 1.0f ? h : z;
     }
 
+    int32 FirstGlyphSlot(uint32 glyphType, uint32 const (&slotTypes)[MAX_GLYPH_SLOT_INDEX], uint32 enabledMask,
+                         uint32 const (&glyphs)[MAX_GLYPH_SLOT_INDEX])
+    {
+        for (uint32 slot = 0; slot < MAX_GLYPH_SLOT_INDEX; ++slot)
+        {
+            if (slotTypes[slot] == glyphType && (enabledMask & (1u << slot)) && !glyphs[slot])
+            {
+                return int32(slot);
+            }
+        }
+        return -1;
+    }
+
     Creature* Scenario::Spawn(uint32 entry, float x, float y, float z, float o)
+    {
+        return SpawnAtLevel(entry, 0, x, y, z, o);
+    }
+
+    Creature* Scenario::SpawnTarget(uint32 entry, uint32 level, float x, float y, float z, float o)
+    {
+        CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(entry);
+        if (cinfo && (level < cinfo->MinLevel || level > cinfo->MaxLevel) &&
+            !sObjectMgr.GetCreatureClassLvlStats(level, cinfo->UnitClass, cinfo->Expansion))
+        {
+            Log("ERR spawn target %u: level %u is outside its template's %u..%u and has no class level stats for class %u, expansion %d",
+                entry, level, cinfo->MinLevel, cinfo->MaxLevel, cinfo->UnitClass, int32(cinfo->Expansion));
+            return NULL;
+        }
+        Creature* c = SpawnAtLevel(entry, level, x, y, z, o);
+        if (!c)
+        {
+            return NULL;
+        }
+        c->SetDefaultMovementType(CREATURE_MOVEMENT_IDLE);
+        c->GetMotionMaster()->Initialize();
+        Silence(c);
+        return c;
+    }
+
+    Creature* Scenario::SpawnAtLevel(uint32 entry, uint32 level, float x, float y, float z, float o)
     {
         Map* map = GetMap();
         CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(entry);
@@ -154,6 +195,11 @@ namespace Harness
             delete c;
             Log("ERR spawn %u at %.1f %.1f failed", entry, x, y);
             return NULL;
+        }
+        if (level)
+        {
+            // Before the add, as a summon's level is chosen: the stats of that level come with it.
+            c->SelectLevel(level);
         }
         c->SetSpawn(pos);
         // No player stands on the harness map, and Map::Update ticks only the cells
@@ -455,6 +501,125 @@ namespace Harness
             return;
         }
         caster->CastSpell(caster, spellId, true);
+    }
+
+    void Scenario::SetLevelAsResetDoes(Player* p, uint32 level)
+    {
+        p->_ApplyAllLevelScaleItemMods(false);
+        p->SetLevel(level);
+        p->InitRunes();
+        p->InitStatsForLevel(true);
+        p->InitTaxiNodesForLevel();
+        p->InitGlyphsForLevel();
+        p->InitTalentForLevel();
+        p->SetUInt32Value(PLAYER_XP, 0);
+        p->_ApplyAllLevelScaleItemMods(true);
+    }
+
+    bool Scenario::StagePlayer(Player& player, StagePlan const& plan)
+    {
+        if (plan.level)
+        {
+            if (plan.level > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+            {
+                Log("ERR stage level: %u is above the max player level %u", plan.level,
+                    sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
+                return false;
+            }
+            SetLevelAsResetDoes(&player, plan.level);
+            LearnSkillLevelSpells(player);
+            if (Pet* pet = player.GetPet())
+            {
+                pet->SynchronizeLevelWithOwner();
+            }
+        }
+
+        for (size_t i = 0; i < plan.talents.size(); ++i)
+        {
+            const uint32 talent = plan.talents[i].first;
+            const uint32 rank = plan.talents[i].second;
+            if (!player.LearnTalent(talent, rank))
+            {
+                Log("ERR stage talent: LearnTalent(%u, rank index %u) refused with %u free points", talent, rank,
+                    player.GetTalentMgr().FreePoints());
+                return false;
+            }
+        }
+        if (!plan.talents.empty())
+        {
+            player.SendTalentsInfoData(false);
+            if (Pet* pet = player.GetPet())
+            {
+                pet->CastOwnerTalentAuras();
+            }
+        }
+
+        for (size_t i = 0; i < plan.glyphs.size(); ++i)
+        {
+            const uint32 glyph = plan.glyphs[i];
+            GlyphPropertiesEntry const* gp = sGlyphPropertiesStore.LookupEntry(glyph);
+            if (!gp)
+            {
+                Log("ERR stage glyph: %u is not in GlyphProperties.dbc", glyph);
+                return false;
+            }
+            if (player.HasAura(gp->SpellID))
+            {
+                Log("ERR stage glyph: %u is already applied (its aura %u is on the player)", glyph, gp->SpellID);
+                return false;
+            }
+            uint32 slotTypes[MAX_GLYPH_SLOT_INDEX];
+            uint32 glyphs[MAX_GLYPH_SLOT_INDEX];
+            for (uint8 slot = 0; slot < MAX_GLYPH_SLOT_INDEX; ++slot)
+            {
+                GlyphSlotEntry const* gs = sGlyphSlotStore.LookupEntry(player.GetGlyphSlot(slot));
+                slotTypes[slot] = gs ? gs->Type : uint32(-1);
+                glyphs[slot] = player.GetGlyph(slot);
+            }
+            const int32 slot = FirstGlyphSlot(gp->GlyphSlotFlags, slotTypes, player.GetUInt32Value(PLAYER_GLYPHS_ENABLED), glyphs);
+            if (slot < 0)
+            {
+                Log("ERR stage glyph: %u (type %u) has no free slot of its type open at level %u", glyph, gp->GlyphSlotFlags,
+                    player.getLevel());
+                return false;
+            }
+            player.ApplyGlyph(uint8(slot), false);
+            player.SetGlyph(uint8(slot), glyph);
+            player.ApplyGlyph(uint8(slot), true);
+            player.SendTalentsInfoData(false);
+        }
+
+        if (plan.spellPower)
+        {
+            player.ApplySpellPowerBonus(plan.spellPower, true);
+        }
+        if (plan.hasteRating)
+        {
+            player.ApplyRatingMod(CR_HASTE_MELEE, plan.hasteRating, true);
+            player.ApplyRatingMod(CR_HASTE_RANGED, plan.hasteRating, true);
+            player.ApplyRatingMod(CR_HASTE_SPELL, plan.hasteRating, true);
+        }
+        if (plan.masteryRating)
+        {
+            player.ApplyRatingMod(CR_MASTERY, plan.masteryRating, true);
+        }
+
+        for (size_t i = 0; i < plan.spells.size(); ++i)
+        {
+            const uint32 spell = plan.spells[i];
+            if (!sSpellStore.LookupEntry(spell))
+            {
+                Log("ERR stage spell: %u is not in the spell store", spell);
+                return false;
+            }
+            player.learnSpell(spell, false);
+            if (!player.HasSpell(spell))
+            {
+                Log("ERR stage spell: learnSpell(%u) left it unknown", spell);
+                return false;
+            }
+        }
+        return true;
     }
 
     void Scenario::Log(char const* fmt, ...) const
