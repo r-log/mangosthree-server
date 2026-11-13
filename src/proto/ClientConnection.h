@@ -142,6 +142,11 @@ namespace proto
 
             bool IsClosed() const override { return closed(); }
 
+            void SetTraceSession(SessionId session) override
+            {
+                m_traceSession.store(session, std::memory_order_relaxed);
+            }
+
             /// Sockets currently open, for the mangosd console/window title.
             static uint32 GetOpenConnectionCount()
             {

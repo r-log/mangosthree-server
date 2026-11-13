@@ -710,7 +710,6 @@ namespace proto
         }
 
         m_session = session;
-        m_traceSession.store(session, std::memory_order_relaxed);
 
         DEBUG_LOG("proto: account '%s' authenticated from %s",
                   request.account.c_str(), m_address.c_str());
