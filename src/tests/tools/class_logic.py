@@ -29,7 +29,8 @@ counter and expects that counter alone to rise by one and --check to fail, then 
 expects no counter to move.
 
 Not caught: a dispatch through a stored reference to the registry, a row whose spell id is not a number literal, a
-table declared in another shape, and anything spelled by a macro.
+table declared in another shape, a legacy row registered by a direct SpellHandlerRegistry::Register call (the
+hooks' RegisterScript and RegisterRanks refuse a legacy site at compile time), and anything spelled by a macro.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
