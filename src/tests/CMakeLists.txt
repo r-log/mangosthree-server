@@ -159,6 +159,7 @@ set(SRC_GRP_TESTS
     CreatureThreatTest.cpp
     UnitSubtypeTest.cpp
     SpellHitResultTest.cpp
+    SpellCoefficientTest.cpp
     AuraContainerTest.cpp
     SpellHandlerRegistryTest.cpp
     SpellScriptHooksTest.cpp
