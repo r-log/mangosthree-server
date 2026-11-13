@@ -180,17 +180,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         {
             return;
         }
-
-        // Living Bomb
-        if (classOptions && classOptions->SpellClassSet == SPELLFAMILY_MAGE && (classOptions->SpellClassMask & UI64LIT(0x2000000000000)))
-        {
-            if (m_removeMode == AURA_REMOVE_BY_EXPIRE || m_removeMode == AURA_REMOVE_BY_DISPEL)
-            {
-                target->CastSpell(target, m_modifier.m_amount, true, NULL, this);
-            }
-
-            return;
-        }
     }
 
     // AT APPLY & REMOVE
