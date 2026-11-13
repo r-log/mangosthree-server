@@ -1649,7 +1649,14 @@ void Aura::TriggerSpell()
             Creature* triggerCreature = triggerTarget->ToCreature();
             if (!triggerCreature || !sScriptHooks.OnEffectDummy(caster, GetId(), GetEffIndex(), triggerCreature, ObjectGuid()))
             {
-                sLog.outError("Aura::TriggerSpell: Spell %u have 0 in EffectTriggered[%d], not handled custom case?", GetId(), GetEffIndex());
+                if (trigger_spell_id)
+                {
+                    sLog.outError("Aura::TriggerSpell: spell %u effect %d triggers spell %u, which neither Spell.dbc nor `spell_template` holds, and no custom case handles it.", GetId(), GetEffIndex(), trigger_spell_id);
+                }
+                else
+                {
+                    sLog.outError("Aura::TriggerSpell: spell %u effect %d names no trigger spell, and no custom case handles it.", GetId(), GetEffIndex());
+                }
             }
         }
     }

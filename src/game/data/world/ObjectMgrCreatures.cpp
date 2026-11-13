@@ -523,6 +523,44 @@ void ObjectMgr::LoadCreatureTemplates()
     sLog.outString();
 }
 
+/// The (aura, trigger spell) pairs already reported by one load of the creature addons.
+typedef std::set<std::pair<uint32, uint32> > ReportedAuraTriggers;
+
+/**
+ * @brief Reports each periodic trigger effect of an addon aura whose trigger spell no store holds,
+ * once per aura and trigger spell.
+ *
+ * @param spellInfo The addon aura.
+ * @param guidOrEntry The addon's key, used in log output.
+ * @param table The source table name.
+ * @param guidEntryStr The identifier label used in log output.
+ * @param reported The pairs reported so far; a reported pair is added.
+ */
+static void ReportMissingPeriodicTriggers(SpellEntry const* spellInfo, uint32 guidOrEntry, char const* table, char const* guidEntryStr, ReportedAuraTriggers& reported)
+{
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        SpellEffectEntry const* effect = spellInfo->GetSpellEffect(SpellEffectIndex(i));
+        if (!effect || effect->EffectAura != SPELL_AURA_PERIODIC_TRIGGER_SPELL || !effect->EffectTriggerSpell)
+        {
+            continue;
+        }
+
+        if (sSpellStore.LookupEntry(effect->EffectTriggerSpell))
+        {
+            continue;
+        }
+
+        if (!reported.insert(std::make_pair(spellInfo->ID, effect->EffectTriggerSpell)).second)
+        {
+            continue;
+        }
+
+        sLog.outErrorDb("Creature (%s: %u) has spell %u defined in `auras` field in `%s`, whose periodic trigger in effect %u names spell %u, which neither Spell.dbc nor `spell_template` holds.",
+                        guidEntryStr, guidOrEntry, spellInfo->ID, table, i, effect->EffectTriggerSpell);
+    }
+}
+
 /**
  * @brief Converts serialized creature addon aura text into stored spell ids.
  *
@@ -530,9 +568,10 @@ void ObjectMgr::LoadCreatureTemplates()
  * @param guidOrEntry The addon's key, used in log output.
  * @param table The source table name.
  * @param guidEntryStr The identifier label used in log output.
+ * @param reported The (aura, trigger spell) pairs reported so far by this load.
  * @return The accepted spell ids then a 0, or empty when the text names no spell.
  */
-static std::vector<uint32> ConvertCreatureAddonAuras(std::string const& text, uint32 guidOrEntry, char const* table, char const* guidEntryStr)
+static std::vector<uint32> ConvertCreatureAddonAuras(std::string const& text, uint32 guidOrEntry, char const* table, char const* guidEntryStr, ReportedAuraTriggers& reported)
 {
     // Now add the auras, format "spell1 spell2 ..."
     char const* p, *s;
@@ -597,6 +636,7 @@ static std::vector<uint32> ConvertCreatureAddonAuras(std::string const& text, ui
             continue;
         }
 
+        ReportMissingPeriodicTriggers(AdditionalSpellInfo, guidOrEntry, table, guidEntryStr, reported);
         auras.push_back(cAura);
     }
 
@@ -613,8 +653,9 @@ static std::vector<uint32> ConvertCreatureAddonAuras(std::string const& text, ui
  * @param table The source table name.
  * @param entryName The entry label used in log output.
  * @param comment The descriptive text used in the load summary.
+ * @param reported The (aura, trigger spell) pairs reported so far by this load.
  */
-static void LoadCreatureAddonTable(CreatureAddonStore& addons, TableRead<CreatureAddonRow> const& read, char const* table, char const* entryName, char const* comment)
+static void LoadCreatureAddonTable(CreatureAddonStore& addons, TableRead<CreatureAddonRow> const& read, char const* table, char const* entryName, char const* comment, ReportedAuraTriggers& reported)
 {
     if (read.Unreadable())
     {
@@ -680,7 +721,7 @@ static void LoadCreatureAddonTable(CreatureAddonStore& addons, TableRead<Creatur
             addons.FindForEdit(i)->emote = 0;
         }
 
-        addons.SetAuras(i, ConvertCreatureAddonAuras(auraTexts[i], addon->guidOrEntry, table, entryName));
+        addons.SetAuras(i, ConvertCreatureAddonAuras(auraTexts[i], addon->guidOrEntry, table, entryName, reported));
     }
 
     sLog.outString(">> Loaded %u %s", loaded, comment);
@@ -691,7 +732,8 @@ static void LoadCreatureAddonTable(CreatureAddonStore& addons, TableRead<Creatur
  */
 void ObjectMgr::LoadCreatureAddons()
 {
-    LoadCreatureAddonTable(m_creatureTemplateAddons, CreatureAddonRepository::QueryCreatureTemplateAddons(), "creature_template_addon", "Entry", "creature template addons");
+    ReportedAuraTriggers reportedTriggers;
+    LoadCreatureAddonTable(m_creatureTemplateAddons, CreatureAddonRepository::QueryCreatureTemplateAddons(), "creature_template_addon", "Entry", "creature template addons", reportedTriggers);
 
     // check entry ids
     for (uint32 i = 1; i < m_creatureTemplateAddons.GetMaxEntry(); ++i)
@@ -705,7 +747,7 @@ void ObjectMgr::LoadCreatureAddons()
         }
     }
 
-    LoadCreatureAddonTable(m_creatureAddons, CreatureAddonRepository::QueryCreatureAddons(), "creature_addon", "GUID", "creature addons");
+    LoadCreatureAddonTable(m_creatureAddons, CreatureAddonRepository::QueryCreatureAddons(), "creature_addon", "GUID", "creature addons", reportedTriggers);
 
     // check entry ids
     for (uint32 i = 1; i < m_creatureAddons.GetMaxEntry(); ++i)
