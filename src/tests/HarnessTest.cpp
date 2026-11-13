@@ -1438,6 +1438,116 @@ TEST(HarnessTrace_aura_update_all_reads_the_third_effect_amount)
     CheckRefusesOneByteEitherWay(SMSG_AURA_UPDATE_ALL, all, SpellRoles());
 }
 
+// ---- the spell recorder's field lines: Trace::CombatLogFields over the writers' own layouts ----------------------
+
+namespace
+{
+    std::string FieldLines(uint16 opcode, WorldPacket const& p, Harness::Trace::Roles const& roles = SpellRoles())
+    {
+        std::vector<std::string> lines = Harness::Trace::CombatLogFields(opcode, p.contents(), p.size(), roles);
+        std::string out;
+        for (size_t i = 0; i < lines.size(); ++i)
+        {
+            out += (i ? "|" : "") + lines[i];
+        }
+        return out;
+    }
+
+    /// One byte short, and one byte long: each read as the one undecoded line.
+    void CheckFieldsRefuseOneByteEitherWay(uint16 opcode, WorldPacket const& p, char const* kind)
+    {
+        WorldPacket shorter(opcode, p.size());
+        shorter.append(p.contents(), p.size() - 1);
+        WorldPacket longer(p);
+        longer << uint8(0x5A);
+        CHECK_STR(FieldLines(opcode, shorter).c_str(), (std::string(kind) + " undecoded size=" + std::to_string(p.size() - 1)).c_str());
+        CHECK_STR(FieldLines(opcode, longer).c_str(), (std::string(kind) + " undecoded size=" + std::to_string(p.size() + 1)).c_str());
+    }
+}
+
+TEST(HarnessTrace_a_damage_log_reads_as_a_hit_line_with_its_crit_bit)
+{
+    // the hit-info word Unit::SendSpellNonMeleeDamageLog writes: SPELL_HIT_TYPE_UNK1 | UNK3 | UNK6, and CRIT (0x2) on a crit
+    WorldPacket plain = DamageLogOf(kTarget, kSelf, 133, 2179, 0, 4, 0, 0, 0, 0, 0, 0x25, 0);
+    CHECK_STR(FieldLines(SMSG_SPELLNONMELEEDAMAGELOG, plain).c_str(), "hit self.hit.133=2179/0/0/0");
+    WorldPacket crit = DamageLogOf(kTarget, kSelf, 133, 3268, 0, 4, 0, 0, 0, 0, 0, 0x27, 0);
+    CHECK_STR(FieldLines(SMSG_SPELLNONMELEEDAMAGELOG, crit).c_str(), "hit self.hit.133=3268/1/0/0");
+    // every field its own value: the amount, the absorbed and the resisted amounts each in their place
+    WorldPacket all = DamageLogOf(kTarget, kCaster, 585, 17, 11, 2, 261, 3, 1, 6, 519, 0x25, 0);
+    CHECK_STR(FieldLines(SMSG_SPELLNONMELEEDAMAGELOG, all).c_str(), "hit caster.hit.585=17/0/261/3");
+    // the role is the attacker's, whatever number the map's counter gave the target
+    Harness::Trace::Roles moved = SpellRoles();
+    moved.target = 0xF130000B91000999ULL;
+    CHECK_STR(FieldLines(SMSG_SPELLNONMELEEDAMAGELOG, DamageLogOf(moved.target, kSelf, 133, 2179, 0, 4, 0, 0, 0, 0, 0, 0x25, 0), moved).c_str(),
+              "hit self.hit.133=2179/0/0/0");
+    CheckFieldsRefuseOneByteEitherWay(SMSG_SPELLNONMELEEDAMAGELOG, plain, "hit");
+    // the debug byte set: the floats the client reads after it, two for 0x1, two for 0x4 and six for 0x20
+    WorldPacket debug = DamageLogOf(kTarget, kSelf, 133, 2179, 0, 4, 0, 0, 0, 0, 0, 0x25, 1);
+    for (int i = 0; i < 10; ++i)
+    {
+        debug << float(i);
+    }
+    CHECK_STR(FieldLines(SMSG_SPELLNONMELEEDAMAGELOG, debug).c_str(), "hit self.hit.133=2179/0/0/0");
+    WorldPacket debugOnlyFirst = DamageLogOf(kTarget, kSelf, 133, 2179, 0, 4, 0, 0, 0, 0, 0, 0x01, 1);
+    debugOnlyFirst << float(1.0f) << float(2.0f);
+    CHECK_STR(FieldLines(SMSG_SPELLNONMELEEDAMAGELOG, debugOnlyFirst).c_str(), "hit self.hit.133=2179/0/0/0");
+    CheckFieldsRefuseOneByteEitherWay(SMSG_SPELLNONMELEEDAMAGELOG, debug, "hit");
+}
+
+TEST(HarnessTrace_a_periodic_log_reads_as_one_tick_line_per_aura_entry)
+{
+    // PERIODIC_DAMAGE (3): damage, overkill, school, absorbed, resisted, critical
+    WorldPacket damage = PeriodicHead(kTarget, kSelf, 12654, 3);
+    damage << uint32(7) << uint32(11) << uint32(4) << uint32(13) << uint32(17) << uint8(1);
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, damage).c_str(), "tick self.tick.12654=7/1/13/17");
+    CheckFieldsRefuseOneByteEitherWay(SMSG_PERIODICAURALOG, damage, "tick");
+    // PERIODIC_HEAL (8): amount, overheal, absorbed, critical -- the overheal in the fourth place
+    WorldPacket heal = PeriodicHead(kSelf, kCaster, 139, 8);
+    heal << uint32(21) << uint32(19) << uint32(4) << uint8(0);
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, heal).c_str(), "tick caster.tick.139=21/0/4/19");
+    // PERIODIC_ENERGIZE (24): the amount alone
+    WorldPacket energize = PeriodicHead(kSelf, kSelf, 29166, 24);
+    energize << uint32(0) << uint32(45);
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, energize).c_str(), "tick self.tick.29166=45/0/0/0");
+    // PERIODIC_MANA_LEECH (64): the amount alone, the multiplier read past
+    WorldPacket leech = PeriodicHead(kTarget, kSelf, 5138, 64);
+    leech << uint32(0) << uint32(33) << float(1.5f);
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, leech).c_str(), "tick self.tick.5138=33/0/0/0");
+    // two entries in one packet, as the client's count loop reads them: two lines
+    WorldPacket two(SMSG_PERIODICAURALOG, 60);
+    two.appendPackGUID(kTarget);
+    two.appendPackGUID(kSelf);
+    two << uint32(12654) << uint32(2);
+    two << uint32(3) << uint32(7) << uint32(0) << uint32(4) << uint32(0) << uint32(0) << uint8(0);
+    two << uint32(3) << uint32(9) << uint32(0) << uint32(4) << uint32(0) << uint32(0) << uint8(1);
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, two).c_str(), "tick self.tick.12654=7/0/0/0|tick self.tick.12654=9/1/0/0");
+    // an aura type the client's reader stops at
+    WorldPacket other = PeriodicHead(kTarget, kSelf, 589, 4);
+    other << uint32(1);
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, other).c_str(), (std::string("tick undecoded size=") + std::to_string(other.size())).c_str());
+}
+
+TEST(HarnessTrace_a_heal_log_reads_as_a_heal_line_with_the_overheal_last)
+{
+    WorldPacket heal = HealLog(kSelf, kCaster, 66064, 9773, 9770, 3, 1);
+    CHECK_STR(FieldLines(SMSG_SPELLHEALLOG, heal).c_str(), "heal caster.heal.66064=9773/1/3/9770");
+    WorldPacket plain = HealLog(kTarget, kSelf, 2061, 812, 0, 0, 0);
+    CHECK_STR(FieldLines(SMSG_SPELLHEALLOG, plain).c_str(), "heal self.heal.2061=812/0/0/0");
+    CheckFieldsRefuseOneByteEitherWay(SMSG_SPELLHEALLOG, heal, "heal");
+}
+
+TEST(HarnessTrace_other_packets_give_no_field_line)
+{
+    CHECK_STR(FieldLines(SMSG_SPELLLOGMISS, MissLog(133, kSelf, kTarget, 2)).c_str(), "");
+    CHECK_STR(FieldLines(SMSG_POWER_UPDATE, PowerUpdate(kSelf, 0, 100)).c_str(), "");
+    // a periodic log of no entries reads, and gives none
+    WorldPacket none(SMSG_PERIODICAURALOG, 16);
+    none.appendPackGUID(kTarget);
+    none.appendPackGUID(kSelf);
+    none << uint32(12654) << uint32(0);
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, none).c_str(), "");
+}
+
 // ---- the staging's pure half ---------------------------------------------------------------------------------------
 
 TEST(HarnessStage_a_glyph_takes_the_first_open_free_slot_of_its_type)

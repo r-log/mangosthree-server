@@ -190,6 +190,11 @@ namespace Harness
         return ids;
     }
 
+    std::vector<std::string> Recorder::PacketFields(uint16 /*opcode*/, uint8 const* /*data*/, size_t /*size*/) const
+    {
+        return std::vector<std::string>();
+    }
+
     void Recorder::Sink(void* context, WorldPacket const& packet)
     {
         static_cast<Recorder*>(context)->OnPacket(packet);
@@ -221,6 +226,14 @@ namespace Harness
         }
         m_packets.push_back(seen);
         Emit("pkt " + record);
+        if (!unhandled)
+        {
+            const std::vector<std::string> fields = PacketFields(opcode, copy.contents(), copy.size());
+            for (size_t i = 0; i < fields.size(); ++i)
+            {
+                Emit(fields[i]);
+            }
+        }
         if (m_digested)
         {
             if (Trace::SnapDue(m_lastMini, Mini()))

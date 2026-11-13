@@ -288,6 +288,27 @@ namespace Harness
         /// is not Unit::SetPower's layout or names no power.
         bool ReadPowerUpdate(uint8 const* data, size_t size, uint64& unit, uint8& power, uint32& value);
 
+        /**
+         * The field lines of one combat log packet, each "<kind> <role>.<kind>.<spell>=<four fields>", where <role> is
+         * the role of the unit that dealt it (the caster guid the packet carries). The bytes are read in the order
+         * the 15595 client's readers take them, which is the order the server's writers lay them out
+         * (CombatPackets.cpp):
+         *  - SMSG_SPELLNONMELEEDAMAGELOG (CombatLog::HandleSpellNonMeleeDamageLog): one
+         *    "hit <role>.hit.<spell>=<damage>/<crit>/<absorbed>/<resisted>" line; <crit> is 1 when the hit-info word
+         *    holds 0x2 (SPELL_HIT_TYPE_CRIT), the bit the client reads as a critical hit. The floats that follow
+         *    the debug byte are read as the client reads them.
+         *  - SMSG_PERIODICAURALOG (CombatLog::HandlePeriodicAuraLog): one "tick <role>.tick.<spell>=..." line per
+         *    aura entry of the packet's count: <damage>/<crit>/<absorbed>/<resisted> for a damage aura (3, 89),
+         *    <amount>/<crit>/<absorbed>/<overheal> for a heal aura (8, 20), <amount>/0/0/0 for an energize or a
+         *    mana leech (21, 24, 64); a count of 0 gives no line. Another aura type ends the client's read, and is
+         *    refused here.
+         *  - SMSG_SPELLHEALLOG (CombatLog::HandleSpellHealLog): one
+         *    "heal <role>.heal.<spell>=<amount>/<crit>/<absorbed>/<overheal>" line.
+         * A payload that does not end where that read ends gives the one line "<kind> undecoded size=<n>"; any
+         * other opcode gives no line.
+         */
+        std::vector<std::string> CombatLogFields(uint16 opcode, uint8 const* data, size_t size, Roles const& roles);
+
         /// The whole record of one packet, as it follows "pkt " in a TRACE line:
         /// "<name>", "<name> size=<n>", "<name> size=<n> fnv=<hex>", or "<name> <decoded fields>".
         /// A decoder that refuses the bytes gives "<name> undecoded size=<n>": no hash, because

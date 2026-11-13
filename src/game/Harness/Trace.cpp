@@ -468,6 +468,119 @@ namespace Harness
             return r.AtEnd();
         }
 
+        std::vector<std::string> CombatLogFields(uint16 opcode, uint8 const* data, size_t size, Roles const& roles)
+        {
+            char const* kind = NULL;
+            switch (opcode)
+            {
+                case SMSG_SPELLNONMELEEDAMAGELOG: kind = "hit"; break;
+                case SMSG_PERIODICAURALOG:        kind = "tick"; break;
+                case SMSG_SPELLHEALLOG:           kind = "heal"; break;
+                default:                          return std::vector<std::string>();
+            }
+
+            std::vector<std::string> lines;
+            Reader r(data, size);
+            uint64 target = 0, caster = 0;
+            uint32 spell = 0;
+            bool read = r.Packed(target) && r.Packed(caster) && r.U32(spell);
+            char buf[160];
+            if (read && opcode == SMSG_SPELLNONMELEEDAMAGELOG)
+            {
+                uint32 damage = 0, overkill = 0, absorbed = 0, resisted = 0, blocked = 0, hitInfo = 0;
+                uint8 school = 0, periodic = 0, unused = 0, debug = 0;
+                read = r.U32(damage) && r.U32(overkill) && r.U8(school) && r.U32(absorbed) && r.U32(resisted) &&
+                       r.U8(periodic) && r.U8(unused) && r.U32(blocked) && r.U32(hitInfo) && r.U8(debug);
+                if (read && debug)
+                {
+                    uint32 value = 0;
+                    const uint32 floats = ((hitInfo & 0x1) ? 2 : 0) + ((hitInfo & 0x4) ? 2 : 0) + ((hitInfo & 0x20) ? 6 : 0);
+                    for (uint32 i = 0; i < floats && read; ++i)
+                    {
+                        read = r.U32(value);
+                    }
+                }
+                snprintf(buf, sizeof(buf), "hit %s.hit.%u=%u/%u/%u/%u", RoleOf(roles, caster), spell, damage,
+                         (hitInfo & 0x2) ? 1u : 0u, absorbed, resisted);
+                lines.push_back(buf);
+            }
+            else if (read && opcode == SMSG_PERIODICAURALOG)
+            {
+                uint32 count = 0;
+                read = r.U32(count);
+                for (uint32 i = 0; i < count && read; ++i)
+                {
+                    uint32 aura = 0;
+                    read = r.U32(aura);
+                    if (!read)
+                    {
+                        break;
+                    }
+                    switch (aura)
+                    {
+                        case 3:     // SPELL_AURA_PERIODIC_DAMAGE
+                        case 89:    // SPELL_AURA_PERIODIC_DAMAGE_PERCENT
+                        {
+                            uint32 damage = 0, overkill = 0, school = 0, absorbed = 0, resisted = 0;
+                            uint8 critical = 0;
+                            read = r.U32(damage) && r.U32(overkill) && r.U32(school) && r.U32(absorbed) && r.U32(resisted) && r.U8(critical);
+                            snprintf(buf, sizeof(buf), "tick %s.tick.%u=%u/%u/%u/%u", RoleOf(roles, caster), spell, damage,
+                                     critical ? 1u : 0u, absorbed, resisted);
+                            break;
+                        }
+                        case 8:     // SPELL_AURA_PERIODIC_HEAL
+                        case 20:    // SPELL_AURA_OBS_MOD_HEALTH
+                        {
+                            uint32 amount = 0, overheal = 0, absorbed = 0;
+                            uint8 critical = 0;
+                            read = r.U32(amount) && r.U32(overheal) && r.U32(absorbed) && r.U8(critical);
+                            snprintf(buf, sizeof(buf), "tick %s.tick.%u=%u/%u/%u/%u", RoleOf(roles, caster), spell, amount,
+                                     critical ? 1u : 0u, absorbed, overheal);
+                            break;
+                        }
+                        case 21:    // SPELL_AURA_OBS_MOD_MANA
+                        case 24:    // SPELL_AURA_PERIODIC_ENERGIZE
+                        {
+                            uint32 power = 0, amount = 0;
+                            read = r.U32(power) && r.U32(amount);
+                            snprintf(buf, sizeof(buf), "tick %s.tick.%u=%u/0/0/0", RoleOf(roles, caster), spell, amount);
+                            break;
+                        }
+                        case 64:    // SPELL_AURA_PERIODIC_MANA_LEECH
+                        {
+                            uint32 power = 0, amount = 0, multiplier = 0;
+                            read = r.U32(power) && r.U32(amount) && r.U32(multiplier);
+                            snprintf(buf, sizeof(buf), "tick %s.tick.%u=%u/0/0/0", RoleOf(roles, caster), spell, amount);
+                            break;
+                        }
+                        default:
+                            read = false;
+                            break;
+                    }
+                    if (read)
+                    {
+                        lines.push_back(buf);
+                    }
+                }
+            }
+            else if (read)
+            {
+                uint32 amount = 0, overheal = 0, absorbed = 0;
+                uint8 critical = 0, unused = 0;
+                read = r.U32(amount) && r.U32(overheal) && r.U32(absorbed) && r.U8(critical) && r.U8(unused);
+                snprintf(buf, sizeof(buf), "heal %s.heal.%u=%u/%u/%u/%u", RoleOf(roles, caster), spell, amount,
+                         critical ? 1u : 0u, absorbed, overheal);
+                lines.push_back(buf);
+            }
+
+            if (!read || !r.AtEnd())
+            {
+                snprintf(buf, sizeof(buf), "%s undecoded size=%u", kind, uint32(size));
+                return std::vector<std::string>(1, std::string(buf));
+            }
+            return lines;
+        }
+
         bool DecodeAuraUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out)
         {
             Reader r(data, size);
