@@ -48,11 +48,11 @@ static SpellHandlerOutcome<void> AuraBoostMage74396(AuraBoostContext& ctx)
 /// ends
 static SpellHandlerOutcome<void> EffectDummyMageSummonWaterElemental(SpellEffectDummyMageContext& ctx)
 {
-    if (ctx.m_caster->HasAura(70937))           // Glyph of Eternal Water (permanent limited by known spells version)
+    if (ctx.m_caster->HasAura(70937))
     {
         ctx.m_caster->CastSpell(ctx.m_caster, 70908, true);
     }
-    else                                    // temporary version
+    else
     {
         ctx.m_caster->CastSpell(ctx.m_caster, 70907, true);
     }

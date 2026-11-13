@@ -148,7 +148,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56372(DummyAura
     // not 100% safe with client version switches but for 3.1.3 no spells with cooldown that can have mage player except Frost Nova.
     ctx.unit->RemoveSpellCategoryCooldown(35, true);
     return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-// Glyph of Polymorph
 }
 
 /// 56375: Glyph of Polymorph: removes the periodic damage auras from a living victim
@@ -162,7 +161,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56375(DummyAura
     ctx.pVictim->RemoveSpellsCausingAura(SPELL_AURA_PERIODIC_DAMAGE);
     ctx.pVictim->RemoveSpellsCausingAura(SPELL_AURA_PERIODIC_DAMAGE_PERCENT);
     return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-// Blessing of Ancient Kings
 }
 
 /// 64411: Blessing of Ancient Kings: after a positive spell, triggers 64413 for 15 percent of the damage
@@ -177,7 +175,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage64411(DummyAura
     ctx.triggered_spell_id = 64413;
     ctx.basepoints[0] = ctx.damage * 15 / 100;
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
-// Fingers of Frost
 }
 
 uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)

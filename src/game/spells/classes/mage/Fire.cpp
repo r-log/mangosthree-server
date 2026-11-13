@@ -76,7 +76,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage11119(DummyAura
 
     ctx.triggered_spell_id = 12654;
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
-// Glyph of Ice Block
 }
 
 uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
