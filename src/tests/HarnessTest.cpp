@@ -786,6 +786,11 @@ TEST(HarnessTrace_the_damage_log_keeps_every_field_with_its_units_as_roles)
     // absorb, physical, unused, blocked and extend were all 0, a decoder reading absorb and
     // blocked swapped still passed (the D11-1 task review's M-3)
     WorldPacket all = DamageLogOf(kTarget, kSelf, 585, 17, 11, 2, 261, 3, 1, 6, 519, 0x24, 9);
+    // the extend byte set: the client reads the floats hit-info 0x4 and 0x20 name after it, two and six
+    for (int i = 0; i < 8; ++i)
+    {
+        all << float(i);
+    }
     CHECK_STR(SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, all).c_str(),
               "OP target=target attacker=self spell=585 damage=17 overkill=11 school=2 absorb=261 resist=3 physical=1 unused=6 blocked=519 hitInfo=0x24 extend=9");
     CHECK(Harness::Trace::ReadSpellDamage(all.contents(), all.size(), target, attacker, spell, damage, overkill));
@@ -1492,6 +1497,10 @@ TEST(HarnessTrace_a_damage_log_reads_as_a_hit_line_with_its_crit_bit)
     debugOnlyFirst << float(1.0f) << float(2.0f);
     CHECK_STR(FieldLines(SMSG_SPELLNONMELEEDAMAGELOG, debugOnlyFirst).c_str(), "hit self.hit.133=2179/0/0/0");
     CheckFieldsRefuseOneByteEitherWay(SMSG_SPELLNONMELEEDAMAGELOG, debug, "hit");
+    // the pkt line reads the debug floats by the same rule
+    CHECK_STR(SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, debug).c_str(),
+              "OP target=target attacker=self spell=133 damage=2179 overkill=0 school=4 absorb=0 resist=0 physical=0 unused=0 blocked=0 hitInfo=0x25 extend=1");
+    CheckRefusesOneByteEitherWay(SMSG_SPELLNONMELEEDAMAGELOG, debug, SpellRoles());
 }
 
 TEST(HarnessTrace_a_periodic_log_reads_as_one_tick_line_per_aura_entry)
@@ -1505,14 +1514,14 @@ TEST(HarnessTrace_a_periodic_log_reads_as_one_tick_line_per_aura_entry)
     WorldPacket heal = PeriodicHead(kSelf, kCaster, 139, 8);
     heal << uint32(21) << uint32(19) << uint32(4) << uint8(0);
     CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, heal).c_str(), "tick caster.tick.139=21/0/4/19");
-    // PERIODIC_ENERGIZE (24): the amount alone
+    // PERIODIC_ENERGIZE (24): the amount and the power type
     WorldPacket energize = PeriodicHead(kSelf, kSelf, 29166, 24);
-    energize << uint32(0) << uint32(45);
-    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, energize).c_str(), "tick self.tick.29166=45/0/0/0");
-    // PERIODIC_MANA_LEECH (64): the amount alone, the multiplier read past
+    energize << uint32(3) << uint32(45);
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, energize).c_str(), "tick self.tick.29166=45/0/0/0 power=3");
+    // PERIODIC_MANA_LEECH (64): the amount and the power type, the multiplier read past
     WorldPacket leech = PeriodicHead(kTarget, kSelf, 5138, 64);
     leech << uint32(0) << uint32(33) << float(1.5f);
-    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, leech).c_str(), "tick self.tick.5138=33/0/0/0");
+    CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, leech).c_str(), "tick self.tick.5138=33/0/0/0 power=0");
     // two entries in one packet, as the client's count loop reads them: two lines
     WorldPacket two(SMSG_PERIODICAURALOG, 60);
     two.appendPackGUID(kTarget);
@@ -1521,6 +1530,9 @@ TEST(HarnessTrace_a_periodic_log_reads_as_one_tick_line_per_aura_entry)
     two << uint32(3) << uint32(7) << uint32(0) << uint32(4) << uint32(0) << uint32(0) << uint8(0);
     two << uint32(3) << uint32(9) << uint32(0) << uint32(4) << uint32(0) << uint32(0) << uint8(1);
     CHECK_STR(FieldLines(SMSG_PERIODICAURALOG, two).c_str(), "tick self.tick.12654=7/0/0/0|tick self.tick.12654=9/1/0/0");
+    // the pkt line reads the same entries from the same reader
+    CHECK_STR(SpellDecoded(SMSG_PERIODICAURALOG, two).c_str(),
+              "OP target=target caster=self spell=12654 count=2 aura=3 damage=7 overkill=0 school=4 absorb=0 resist=0 critical=0 aura=3 damage=9 overkill=0 school=4 absorb=0 resist=0 critical=1");
     // an aura type the client's reader stops at
     WorldPacket other = PeriodicHead(kTarget, kSelf, 589, 4);
     other << uint32(1);
