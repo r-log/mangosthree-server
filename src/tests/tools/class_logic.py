@@ -12,19 +12,24 @@ Six counters over src/game, read as text line by line, as grep reads it; comment
   family_mentions  lines that name `SPELLFAMILY_` in the .cpp and .h files, outside spells/handlers/,
                    spells/classes/, Harness/ and data/dbc/DBCEnums.h.
   icon_compares    lines that hold `SpellIconID ==` in the .cpp files, outside spells/handlers/ and spells/classes/.
-  mask_literals    every `UI64LIT(0x...)` literal in the .cpp files under spells/ and combat/.
+  mask_literals    every `UI64LIT(0x...)` literal in the .cpp files under spells/ and combat/; the class files under
+                   spells/classes/ count too, so a class script that tests a family mask literal raises it. Headers
+                   are not read: a literal moved into a header constant lowers it.
   family_switches  every `switch (...GetSpellFamilyName()` and `switch (...SpellClassSet` in the .cpp files.
 
---measure prints `name=value` per counter. --check takes a --gate for each of the six counters and prints every
-counter against its ceiling; it exits 1 when a counter is above its ceiling, after listing that counter's lines so
-the new one can be found. A counter below its ceiling passes, and the line printed for it gives the number to lower
-the ceiling to. Both exit 1 when src/game holds no .cpp file: a gate that reads nothing passes nothing. Exit 2 is a
-usage error. --self-test builds a fixture tree, plants one line per counter and expects that counter alone to rise by
-one and --check to fail, then plants one line per exclusion and expects no counter to move.
+legacy_sites, legacy_rows, family_mentions and icon_compares count lines, so a second mention or compare added to a
+line that is already counted is not seen.
 
-Not caught: a second mention or compare on a line that already holds one (family_mentions and icon_compares count
-lines), a dispatch through a stored reference to the registry, a row whose spell id is not a number literal, a table
-declared in another shape, and anything spelled by a macro.
+--measure prints `name=value` per counter. --check takes a --gate for each of the six counters, prints every counter
+against its ceiling and exits 0 only when every counter equals its ceiling. A counter above its ceiling fails after
+its lines are listed, so the new one can be found; a counter below its ceiling fails with the number to lower the
+ceiling to, so a count and its ceiling fall in the same change. Both exit 1 when src/game holds no .cpp file: a gate
+that reads nothing passes nothing. Exit 2 is a usage error. --self-test builds a fixture tree, plants one line per
+counter and expects that counter alone to rise by one and --check to fail, then plants one line per exclusion and
+expects no counter to move.
+
+Not caught: a dispatch through a stored reference to the registry, a row whose spell id is not a number literal, a
+table declared in another shape, and anything spelled by a macro.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -192,15 +197,15 @@ def check(root, gates, out=print):
     hits, cpp_files = measure(root)
     if cpp_files == 0:
         return empty_tree(root, out)
-    above = []
+    above, below = [], []
     for name in COUNTERS:
         count, ceiling = len(hits[name]), gates[name]
         if count > ceiling:
             above.append(name)
             out('%s=%d (ceiling %d): ABOVE the ceiling' % (name, count, ceiling))
         elif count < ceiling:
-            out('%s=%d (ceiling %d): below the ceiling; lower it to %d in src/tests/CMakeLists.txt'
-                % (name, count, ceiling, count))
+            below.append(name)
+            out('%s=%d (ceiling %d): BELOW the ceiling' % (name, count, ceiling))
         else:
             out('%s=%d (ceiling %d)' % (name, count, ceiling))
     for name in above:
@@ -210,9 +215,12 @@ def check(root, gates, out=print):
     for name in above:
         out('GATE FAILED: %s=%d is above its ceiling %d; %s'
             % (name, len(hits[name]), gates[name], FAILURE_HINT))
-    if above:
+    for name in below:
+        out('GATE FAILED: %s=%d is below its ceiling %d; lower the ceiling to %d in src/tests/CMakeLists.txt in '
+            'this change' % (name, len(hits[name]), gates[name], len(hits[name])))
+    if above or below:
         return 1
-    out('ClassLogic OK: no counter above its ceiling, %d .cpp files read' % cpp_files)
+    out('ClassLogic OK: every counter at its ceiling, %d .cpp files read' % cpp_files)
     return 0
 
 
@@ -280,6 +288,8 @@ SELF_PLANTS = (
      'inline bool IsMage(uint32 f) { return f == SPELLFAMILY_MAGE; }\n'),
     ('icon_compares', 'an icon compare', 'src/game/spells/auras/SpellAuraDummy.cpp',
      'if (GetSpellProto()->SpellIconID==2120) {}\n'),
+    ('icon_compares', 'an icon compare in Harness/', 'src/game/Harness/ScenariosSpell.cpp',
+     'if (spell->SpellIconID == 2120) {}\n'),
     ('mask_literals', 'a mask literal in combat/', 'src/game/combat/UnitDamage.cpp',
      'uint64 const mask = UI64LIT(0x200);\n'),
     ('mask_literals', 'a mask literal in spells/classes/', 'src/game/spells/classes/mage/Fire.cpp',
@@ -298,6 +308,10 @@ SELF_EXCLUDED = (
     ('a row in an array of another type', 'src/game/spells/handlers/AurasHandlers.cpp',
      '    static IdBody const morePairs[] =\n    {\n        { 2, &PairSecond },\n    };\n'),
     ('a row after a table has closed', 'src/game/spells/handlers/AurasHandlers.cpp', '        { 3, &Loose },\n'),
+    ('a row in the block after a table header that is not followed by its braces',
+     'src/game/spells/handlers/AurasHandlers.cpp',
+     '    static AurasRow<AuraBoostMageSite> const built[] = BuildRows();\n    void F()\n    {\n'
+     '        { 5, &Built },\n    }\n'),
     ('a legacy table outside spells/', 'src/game/entities/UnitHandlers.cpp',
      '    static AurasRow<AuraBoostMageSite> const elsewhere[] =\n    {\n        { 4, &Elsewhere },\n    };\n'),
     ('a mention in spells/handlers/', 'src/game/spells/handlers/AurasHandlers.cpp', 'case SPELLFAMILY_ROGUE:\n'),
@@ -373,19 +387,28 @@ def self_test():
     if code != 0 or len(lines) != len(COUNTERS) + 1:
         failures.append('the fixture tree at its ceilings: --check gave %d, %r' % (code, lines))
     code, lines = checked(SELF_TREE, dict((n, c + 1) for n, c in SELF_COUNTS.items()))
-    if code != 0 or sum('lower it to' in ln for ln in lines) != len(COUNTERS):
+    if code != 1 or sum('lower the ceiling to' in ln for ln in lines) != len(COUNTERS):
         failures.append('the fixture tree below its ceilings: --check gave %d, %r' % (code, lines))
     for name in COUNTERS:
         code, lines = checked(SELF_TREE, dict(SELF_COUNTS, **{name: SELF_COUNTS[name] - 1}))
         failed = [ln for ln in lines if ln.startswith('GATE FAILED')]
         if code != 1 or len(failed) != 1 or not failed[0].startswith('GATE FAILED: %s=' % name):
             failures.append('a ceiling of %s one below its count: --check gave %d, %r' % (name, code, failed))
+    for name in COUNTERS:
+        code, lines = checked(SELF_TREE, dict(SELF_COUNTS, **{name: SELF_COUNTS[name] + 1}))
+        failed = [ln for ln in lines if ln.startswith('GATE FAILED')]
+        want = 'GATE FAILED: %s=%d is below its ceiling %d; lower the ceiling to %d ' % (
+            name, SELF_COUNTS[name], SELF_COUNTS[name] + 1, SELF_COUNTS[name])
+        if code != 1 or len(failed) != 1 or not failed[0].startswith(want):
+            failures.append('a ceiling of %s one above its count: --check gave %d, %r' % (name, code, failed))
 
     for label, files in (('an empty tree', {}),
                          ('a tree of headers only', {'src/game/entities/Unit.h': 'case SPELLFAMILY_MAGE:\n'}),
                          ('a tree without src/game', {'src/shared/Util.cpp': 'case SPELLFAMILY_MAGE:\n'})):
         if checked(files, SELF_COUNTS)[0] != 1:
             failures.append('%s passes --check' % label)
+        if checked(files, dict((n, 0) for n in COUNTERS))[0] != 1:
+            failures.append('%s passes --check at ceilings of 0' % label)
         if with_tree(files, lambda d: run_measure(d, out=lambda s: None)) != 1:
             failures.append('%s passes --measure' % label)
 
