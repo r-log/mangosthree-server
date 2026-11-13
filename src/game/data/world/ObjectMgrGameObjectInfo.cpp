@@ -298,12 +298,10 @@ void ObjectMgr::LoadGameobjectInfo()
                 {
                     CheckGOLockId(goInfo, goInfo->trap.lockId, 0);
                 }
-                /* disable check for while, too many nonexistent spells
-                if (goInfo->trap.spellId)                   // spell
+                if (goInfo->trap.spellId)
                 {
-                    CheckGOSpellId(goInfo,goInfo->trap.spellId,3);
+                    CheckGOSpellId(goInfo, goInfo->trap.spellId, 3);
                 }
-                */
                 break;
             }
             case GAMEOBJECT_TYPE_CHAIR:                     // 7
@@ -339,12 +337,10 @@ void ObjectMgr::LoadGameobjectInfo()
                         sLog.outErrorDb("Gameobject (Entry: %u GoType: %u) have data7=%u but PageText (Entry %u) not exist.",
                                         goInfo->id, goInfo->type, goInfo->goober.pageId, goInfo->goober.pageId);
                 }
-                /* disable check for while, too many nonexistent spells
-                if (goInfo->goober.spellId)                 // spell
+                if (goInfo->goober.spellId)
                 {
-                    CheckGOSpellId(goInfo,goInfo->goober.spellId,10);
+                    CheckGOSpellId(goInfo, goInfo->goober.spellId, 10);
                 }
-                */
                 CheckGONoDamageImmuneId(goInfo, goInfo->goober.noDamageImmune, 11);
                 if (goInfo->goober.linkedTrapId)            // linked trap
                 {
