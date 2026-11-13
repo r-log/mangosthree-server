@@ -635,79 +635,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcGeneric72178(DummyA
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 }
 
-/// one body for 5 labels: 11119, 11120, 12846: Ignite; 12847, 12848: absent from the client's spell data: triggers
-/// 12654 for 4 to 20 percent of the damage by rank
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage11119(DummyAuraProcContext& ctx)
-{
-    // Ignite
-    switch (ctx.dummySpell->ID)
-    {
-        case 11119: ctx.basepoints[0] = int32(0.04f * ctx.damage); break;
-        case 11120: ctx.basepoints[0] = int32(0.08f * ctx.damage); break;
-        case 12846: ctx.basepoints[0] = int32(0.12f * ctx.damage); break;
-        case 12847: ctx.basepoints[0] = int32(0.16f * ctx.damage); break;
-        case 12848: ctx.basepoints[0] = int32(0.20f * ctx.damage); break;
-        default:
-            sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u (IG)", ctx.dummySpell->ID);
-            return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    ctx.triggered_spell_id = 12654;
-    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
-// Glyph of Ice Block
-}
-
-/// 56372: Glyph of Ice Block: removes a player's cooldowns of category 35
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56372(DummyAuraProcContext& ctx)
-{
-    if (ctx.unit->GetTypeId() != TYPEID_PLAYER)
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    // not 100% safe with client version switches but for 3.1.3 no spells with cooldown that can have mage player except Frost Nova.
-    ctx.unit->RemoveSpellCategoryCooldown(35, true);
-    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-// Glyph of Polymorph
-}
-
-/// 56375: Glyph of Polymorph: removes the periodic damage auras from a living victim
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56375(DummyAuraProcContext& ctx)
-{
-    if (!ctx.pVictim || !ctx.pVictim->IsAlive())
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    ctx.pVictim->RemoveSpellsCausingAura(SPELL_AURA_PERIODIC_DAMAGE);
-    ctx.pVictim->RemoveSpellsCausingAura(SPELL_AURA_PERIODIC_DAMAGE_PERCENT);
-    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-// Blessing of Ancient Kings
-}
-
-/// 64411: Blessing of Ancient Kings: after a positive spell, triggers 64413 for 15 percent of the damage
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage64411(DummyAuraProcContext& ctx)
-{
-    // for DOT procs
-    if (!IsPositiveSpell(ctx.procSpell->ID))
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    ctx.triggered_spell_id = 64413;
-    ctx.basepoints[0] = ctx.damage * 15 / 100;
-    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
-// Fingers of Frost
-}
-
-/// 74396: absent from the client's spell data: removes one stack of 74396
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage74396(DummyAuraProcContext& ctx)
-{
-    // Remove only single aura from stack and remove holder if its last stack
-    ctx.unit->RemoveAuraHolderFromStack(74396);
-    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-}
-
 /// one body for 3 labels: 18094, 18095: Nightfall, 56218: Glyph of Corruption: triggers 17941 on the unit
 static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcWarlock18094(DummyAuraProcContext& ctx)
 {
@@ -2566,19 +2493,6 @@ uint32 RegisterUnitAuraProcHandlerHandlers(SpellHandlerRegistry& registry)
         { 72178, &DummyAuraProcGeneric72178 },
     };
 
-    static ProcRow<DummyAuraProcMageSite> const dummyAuraProcMage[] =
-    {
-        { 11119, &DummyAuraProcMage11119 },
-        { 11120, &DummyAuraProcMage11119 },
-        { 12846, &DummyAuraProcMage11119 },
-        { 12847, &DummyAuraProcMage11119 },
-        { 12848, &DummyAuraProcMage11119 },
-        { 56372, &DummyAuraProcMage56372 },
-        { 56375, &DummyAuraProcMage56375 },
-        { 64411, &DummyAuraProcMage64411 },
-        { 74396, &DummyAuraProcMage74396 },
-    };
-
     static ProcRow<DummyAuraProcWarlockSite> const dummyAuraProcWarlock[] =
     {
         { 18094, &DummyAuraProcWarlock18094 },
@@ -2729,7 +2643,6 @@ uint32 RegisterUnitAuraProcHandlerHandlers(SpellHandlerRegistry& registry)
     };
 
     uint32 rows = RegisterProcRows(registry, dummyAuraProcGeneric);
-    rows += RegisterProcRows(registry, dummyAuraProcMage);
     rows += RegisterProcRows(registry, dummyAuraProcWarlock);
     rows += RegisterProcRows(registry, dummyAuraProcPriest);
     rows += RegisterProcRows(registry, dummyAuraProcDruid);

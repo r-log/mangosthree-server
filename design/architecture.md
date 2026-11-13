@@ -462,7 +462,7 @@ the code; each one is applied to the code a PR touches, never as a sweep of its 
 - **Class spell code is grouped by class, one directory each.** A class's scripts live under
   `spells/classes/<class>/`, lower-case in the order and spelling of `SPELLFAMILY_`: one file per specialization
   (`Fire.cpp`, `Frost.cpp`, `Arcane.cpp`), one class-wide file (`Mage.cpp`) and one header (`Mage.h`) declaring
-  `void RegisterMageScripts(SpellHandlerRegistry&)`, which `SpellHandlerRegistry::Game()` calls after the generic
+  `uint32 RegisterMageScripts(SpellHandlerRegistry&)`, which `SpellHandlerRegistry::Game()` calls after the generic
   handlers. A script is a free function in an anonymous namespace, registered by spell id on one of the named hooks
   of `spells/SpellScriptHooks.h`; it includes neither `entities/player/` nor `spells/auras/`, asks the holder
   through `AuraHandle` and the player through `Unit`'s virtuals, and keeps per-aura state in the holder's script

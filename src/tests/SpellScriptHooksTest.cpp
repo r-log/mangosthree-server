@@ -427,6 +427,20 @@ TEST(SpellScriptHooks_RegisterRanksPutsOneBodyUnderEveryId)
     }
 }
 
+TEST(SpellScriptHooks_RegisterScriptPutsOneBodyUnderOneId)
+{
+    SpellHandlerRegistry registry;
+    CHECK(RegisterScript<OnProcHook>(registry, 11119, &TestProcBody));
+    CHECK_EQ(registry.Count(), std::size_t(1));
+    CHECK(registry.Find<OnProcHook>(11119) == &TestProcBody);
+
+    // A taken key keeps its body, and a NULL body is refused.
+    CHECK(!RegisterScript<OnProcHook>(registry, 11119, &OtherProcBody));
+    CHECK(!RegisterScript<OnProcHook>(registry, 11120, NULL));
+    CHECK_EQ(registry.Count(), std::size_t(1));
+    CHECK(registry.Find<OnProcHook>(11119) == &TestProcBody);
+}
+
 TEST(SpellScriptHooks_TheGameTableRegistersNoHook)
 {
     uint32 const keys[] =

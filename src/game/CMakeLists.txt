@@ -308,6 +308,9 @@ source_group("Spells" FILES ${SRC_GRP_SPELLS})
 file(GLOB SRC_GRP_SPELLS_AURAS spells/auras/*.cpp spells/auras/*.h)
 source_group("Spells\\Auras" FILES ${SRC_GRP_SPELLS_AURAS})
 
+file(GLOB SRC_GRP_SPELLS_CLASSES spells/classes/*/*.cpp spells/classes/*/*.h)
+source_group("Spells\\Classes" FILES ${SRC_GRP_SPELLS_CLASSES})
+
 file(GLOB SRC_GRP_SPELLS_DATA spells/data/*.cpp spells/data/*.h)
 source_group("Spells\\Data" FILES ${SRC_GRP_SPELLS_DATA})
 
@@ -365,6 +368,7 @@ add_library(domain STATIC
     ${SRC_GRP_SOCIAL}
     ${SRC_GRP_SPELLS}
     ${SRC_GRP_SPELLS_AURAS}
+    ${SRC_GRP_SPELLS_CLASSES}
     ${SRC_GRP_SPELLS_HANDLERS}
     ${SRC_GRP_SPELLS_PIPELINE}
 )

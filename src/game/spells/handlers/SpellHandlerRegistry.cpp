@@ -42,6 +42,7 @@
 #include "spells/handlers/SpellMgrHandlers.h"
 #include "spells/handlers/UnitSpellBonusHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
+#include "spells/classes/mage/Mage.h"
 #include "Utilities/Errors.h"
 
 SpellHandlerRegistry const& SpellHandlerRegistry::Game()
@@ -70,6 +71,7 @@ SpellHandlerRegistry const& SpellHandlerRegistry::Game()
         rows += RegisterSpellMgrHandlers(built);
         rows += RegisterUnitSpellBonusHandlers(built);
         rows += RegisterUnitAuraProcHandlerHandlers(built);
+        rows += RegisterMageScripts(built);
         MANGOS_ASSERT(rows == built.Count() + built.CountDefaults()); // no key and no default registered twice
         return built;
     }();
@@ -86,6 +88,17 @@ std::size_t SpellHandlerRegistry::CountAt(uint32 site) const
         ++count;
     }
     return count;
+}
+
+std::vector<std::pair<uint32, uint32> > SpellHandlerRegistry::Keys() const
+{
+    std::vector<std::pair<uint32, uint32> > keys;
+    keys.reserve(m_handlers.size());
+    for (std::map<uint64, ErasedFunction>::const_iterator itr = m_handlers.begin(); itr != m_handlers.end(); ++itr)
+    {
+        keys.push_back(std::make_pair(uint32(itr->first >> 32), uint32(itr->first & 0xFFFFFFFF)));
+    }
+    return keys;
 }
 
 bool SpellHandlerRegistry::Insert(uint32 site, uint32 spellId, ErasedFunction function)

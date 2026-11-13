@@ -162,6 +162,7 @@ set(SRC_GRP_TESTS
     AuraContainerTest.cpp
     SpellHandlerRegistryTest.cpp
     SpellScriptHooksTest.cpp
+    MageScriptsTest.cpp
     RaidBuffTest.cpp
     SpellTargetDistanceOrderTest.cpp
     SpellTargetListTypeTest.cpp

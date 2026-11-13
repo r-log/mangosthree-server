@@ -523,13 +523,26 @@ struct CritChanceHook
     typedef CritChanceContext Context;
 };
 
-/// Registers `f` under every id of `ids` on `Hook`; returns N, so the boot assert sees a key taken twice.
+/// Registers `f` for `spellId` on `Hook`; false, and nothing changes, when the key is taken or `f` is NULL. A legacy
+/// site of SpellHandlerRegistry.h does not compile here: its rows are lines of its table.
+template <class Hook>
+bool RegisterScript(SpellHandlerRegistry& r, uint32 spellId, typename SpellHandler<Hook>::Function f)
+{
+    static_assert(Hook::Key >= SPELL_SCRIPT_HOOK_CHECK_CAST,
+                  "RegisterScript takes a script hook; a legacy site's rows are lines of its table");
+    return r.Register<Hook>(spellId, f);
+}
+
+/// Registers `f` under every id of `ids` on `Hook`; returns N, so the boot assert sees a key taken twice. A legacy
+/// site of SpellHandlerRegistry.h does not compile here: its rows are lines of its table.
 template <class Hook, size_t N>
 uint32 RegisterRanks(SpellHandlerRegistry& r, uint32 const (&ids)[N], typename SpellHandler<Hook>::Function f)
 {
+    static_assert(Hook::Key >= SPELL_SCRIPT_HOOK_CHECK_CAST,
+                  "RegisterRanks takes a script hook; a legacy site's rows are lines of its table");
     for (size_t i = 0; i < N; ++i)
     {
-        r.Register<Hook>(ids[i], f);
+        RegisterScript<Hook>(r, ids[i], f);
     }
     return uint32(N);
 }
