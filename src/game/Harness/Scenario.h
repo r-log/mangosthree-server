@@ -114,6 +114,24 @@ namespace Harness
         WorldSession* session;
     };
 
+    /// What Scenario::StagePlayer gives a harness player, each part through the path the game itself takes for it.
+    struct StagePlan
+    {
+        uint32 level = 0;                                   ///< 0 leaves the created level
+        std::vector<std::pair<uint32, uint32> > talents;    ///< (talent id, rank index) as Player::LearnTalent takes them
+        std::vector<uint32> glyphs;                         ///< GlyphProperties ids, each into the first free slot of its type
+        int32 spellPower = 0;                               ///< added as an item's spell power stat adds it
+        int32 hasteRating = 0;                              ///< added as an item's haste rating adds it
+        int32 masteryRating = 0;                            ///< added as an item's mastery rating adds it
+        std::vector<uint32> spells;                         ///< each learned by Player::learnSpell(id, false)
+    };
+
+    /// The glyph slot index a glyph of `glyphType` (GlyphProperties::GlyphSlotFlags) goes into: the lowest slot whose
+    /// GlyphSlot type is `glyphType`, whose bit is set in `enabledMask` (PLAYER_GLYPHS_ENABLED) and which holds no
+    /// glyph. -1 when there is none.
+    int32 FirstGlyphSlot(uint32 glyphType, uint32 const (&slotTypes)[MAX_GLYPH_SLOT_INDEX], uint32 enabledMask,
+                         uint32 const (&glyphs)[MAX_GLYPH_SLOT_INDEX]);
+
     /**
      * One headless scenario (design v2 §12): it spawns its actors, drives the
      * MotionMaster facade from a step timeline, samples positions and behaviour
@@ -183,6 +201,37 @@ namespace Harness
         /// would have to create with no `world` row), or when the create fails.
         Player* SpawnPlayer(float x, float y, float z, float o, uint8 classId = CLASS_WARRIOR);
         /**
+         * Applies `plan` to a harness player, in this order: the level, the talents, the glyphs, the spell power, the
+         * haste and mastery ratings, the spells. False, and an ERR line naming the step, on the first refusal; the
+         * player is left as far as it got.
+         *  - The level by the `.reset level` sequence (SetLevelAsResetDoes), which ends in InitGlyphsForLevel and
+         *    InitTalentForLevel, so the glyph slots and the free talent points are the level's own.
+         *  - Each talent by Player::LearnTalent, in the plan's order, as the talent-group handler learns them (the
+         *    first talent learned names the primary tree); then the talent data is sent and a pet's owner-talent
+         *    auras are cast again, as that handler ends.
+         *  - Each glyph as the glyph effect applies one (Spell::EffectApplyGlyph): into FirstGlyphSlot's slot, by
+         *    ApplyGlyph(slot, false), SetGlyph, ApplyGlyph(slot, true), then the talent data sent.
+         *  - Spell power, haste rating and mastery rating as an item's stats add them (Player::_ApplyItemBonuses):
+         *    ApplySpellPowerBonus; ApplyRatingMod for the melee, ranged and spell haste ratings; ApplyRatingMod for
+         *    mastery.
+         *  - Each spell by Player::learnSpell(id, false).
+         * Nothing here writes to a database: the level sequence reaches neither GiveLevel's level mail nor its
+         * REACH_LEVEL criteria. GiveLevel is not used for that reason: its REACH_LEVEL criteria complete achievement
+         * 13 ("Level 80") on the way to 85, whose reward is mailed.
+         */
+        bool StagePlayer(Player& player, StagePlan const& plan);
+        /// A creature of `entry` on the harness map, its level and the stats of that level chosen by
+        /// Creature::SelectLevel(level) before it is added (as Unit::TakePossessOf chooses a summon's), its default
+        /// movement idle, the recording AI installed and silenced. NULL and an ERR line when the template is missing
+        /// or the create fails. Never written to a database.
+        Creature* SpawnTarget(uint32 entry, uint32 level, float x, float y, float z, float o);
+        /// The `.reset level` sequence (PlayerMiscCommands.cpp, HandleResetLevelCommand) to `level` instead of the start
+        /// level: the level-scaled item mods off, SetLevel, InitRunes, InitStatsForLevel(true), the taxi nodes, glyphs
+        /// and talents for the level, XP 0, the mods back on. It reaches neither GiveLevel's REACH_LEVEL criteria nor its
+        /// level mail. The command's sCharacterCache.UpdateLevel is left out: the cache holds no harness guid, so it does
+        /// nothing (CharacterCache.cpp), and the harness keeps out of global state.
+        static void SetLevelAsResetDoes(Player* p, uint32 level);
+        /**
          * A player-owned pet of `entry`, in memory, at (x, y) facing `o` on the harness map, with no
          * row in `character_pet` and no write to the character database: Spell::DoSummonPet's own
          * recipe (SpellEffectSummonLock.cpp:937-1011), in its order, minus its last line,
@@ -236,6 +285,9 @@ namespace Harness
         Map* GetMap() const;
 
     private:
+        /// Spawn's body: `level` 0 keeps the level Create chose from the template.
+        Creature* SpawnAtLevel(uint32 entry, uint32 level, float x, float y, float z, float o);
+
         char const*              m_name;
         int                      m_order;
         Timeline                 m_timeline;

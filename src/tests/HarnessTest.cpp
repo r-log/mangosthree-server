@@ -7,6 +7,7 @@
 #include "Timeline.h"
 #include "Ownership.h"
 #include "Trace.h"
+#include "Scenario.h"
 #include "QuestFixture.h"
 #include "DBCEnums.h"
 #include "WorldPacket.h"
@@ -1435,4 +1436,27 @@ TEST(HarnessTrace_aura_update_all_reads_the_third_effect_amount)
     all << int32(-13) << int32(29);
     CHECK_STR(SpellDecoded(SMSG_AURA_UPDATE_ALL, all).c_str(), "OP target=self auras=[slot=5 spell=1949 flags=0x4d level=30 stack=1 amount0=-13 amount2=29]");
     CheckRefusesOneByteEitherWay(SMSG_AURA_UPDATE_ALL, all, SpellRoles());
+}
+
+// ---- the staging's pure half ---------------------------------------------------------------------------------------
+
+TEST(HarnessStage_a_glyph_takes_the_first_open_free_slot_of_its_type)
+{
+    // GlyphSlot types per slot: 0 major, 1 minor, 2 prime
+    const uint32 types[MAX_GLYPH_SLOT_INDEX] = { 0, 0, 1, 1, 0, 1, 2, 2, 2 };
+    const uint32 empty[MAX_GLYPH_SLOT_INDEX] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    const uint32 at85 = 0x01 | 0x02 | 0x40 | 0x04 | 0x08 | 0x80 | 0x10 | 0x20 | 0x100;
+    const uint32 at25 = 0x01 | 0x02 | 0x40;
+    CHECK_EQ(Harness::FirstGlyphSlot(0, types, at85, empty), 0);
+    CHECK_EQ(Harness::FirstGlyphSlot(1, types, at85, empty), 2);
+    CHECK_EQ(Harness::FirstGlyphSlot(2, types, at85, empty), 6);
+    // a slot the level has not opened is skipped
+    CHECK_EQ(Harness::FirstGlyphSlot(1, types, at25, empty), -1);
+    CHECK_EQ(Harness::FirstGlyphSlot(2, types, at25, empty), 6);
+    // a slot that holds a glyph is skipped
+    const uint32 held[MAX_GLYPH_SLOT_INDEX] = { 101, 102, 0, 0, 0, 0, 0, 0, 0 };
+    CHECK_EQ(Harness::FirstGlyphSlot(0, types, at85, held), 4);
+    CHECK_EQ(Harness::FirstGlyphSlot(0, types, at25, held), -1);
+    // a type no slot has
+    CHECK_EQ(Harness::FirstGlyphSlot(3, types, at85, empty), -1);
 }

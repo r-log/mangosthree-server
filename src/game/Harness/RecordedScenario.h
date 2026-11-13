@@ -92,16 +92,6 @@ namespace Harness
         /// The digest category: FNV-1a over every digested TRACE line, from the first step on.
         std::string DigestValue(char const* from = "the accept") const;
 
-        /// The `.reset level` sequence (PlayerMiscCommands.cpp, HandleResetLevelCommand) to `level`
-        /// instead of the start level: the level-scaled item mods off, SetLevel, InitRunes,
-        /// InitStatsForLevel(true), the taxi nodes, glyphs and talents for the level, XP 0, the mods
-        /// back on. It reaches neither GiveLevel's REACH_LEVEL criteria nor its level mail. The
-        /// command's sCharacterCache.UpdateLevel is left out: the cache holds no harness guid, so
-        /// it does nothing (CharacterCache.cpp), and the harness keeps out of global state. Moved
-        /// here verbatim from ScenariosQuest.cpp (decoupling D11 PR 2) so the spell family runs the
-        /// same sequence.
-        static void SetLevelAsResetDoes(Player* p, uint32 level);
-
     private:
         std::vector<char const*>   m_categories;
     };
