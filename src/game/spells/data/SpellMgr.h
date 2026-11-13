@@ -111,6 +111,47 @@ uint32 GetSoulstoneResurrectionSpell(uint32 auraSpellId);
  */
 uint32 GetSpellCastTime(SpellEntry const* spellInfo);
 
+struct SpellBonusEntry;
+
+/**
+ * The client's multiplier of a scaled effect's spell power coefficient at a caster level: below the scaling row's
+ * cast-time level the cast time at that level over the full cast time, interpolated in integer steps; below its nerf
+ * level, times the nerf factor rising to 1. 1 at or above both levels and for no row. A level of 0 reads as 1.
+ */
+float SpellScalingMultiplier(SpellScalingEntry const* scaling, uint32 level);
+
+/**
+ * The client's spell power coefficient for `kind` and `damagetype` (periodic for DOT, direct otherwise): the
+ * EffectBonusCoefficient of the first of `effects` of that kind, times SpellScalingMultiplier(scaling, level) when
+ * `scaling` holds a nonzero coefficient for that effect; 0 when no effect is of the kind.
+ * The kinds are the effects the client adds spell power to: damage is SCHOOL_DAMAGE, HEALTH_LEECH, the weapon damage
+ * effects but WEAPON_PERCENT_DAMAGE, and an aura effect carrying PERIODIC_DAMAGE, PERIODIC_LEECH, DAMAGE_SHIELD or
+ * PROC_TRIGGER_DAMAGE; heal is HEAL, HEAL_MAX_HEALTH, HEAL_MECHANICAL, and an aura effect carrying PERIODIC_HEAL,
+ * OBS_MOD_HEALTH, PERIODIC_HEALTH_FUNNEL or PERIODIC_DAMAGE_PERCENT; absorb is an aura effect carrying SCHOOL_ABSORB
+ * or MANA_SHIELD. The aura effects are APPLY_AURA, PERSISTENT_AREA_AURA, the area auras and effect 174. Every other
+ * effect is never read. `effects` may hold NULL rows; `scaling` may be NULL.
+ */
+float EffectBonusCoefficient(SpellEffectEntry const* const (&effects)[MAX_EFFECT_INDEX], SpellScalingEntry const* scaling,
+                             uint32 level, SpellBonusKind kind, DamageEffectType damagetype);
+
+/**
+ * Whether `effect` is of `kind` as EffectBonusCoefficient reads the kinds; `periodic` answers whether it is periodic.
+ */
+bool IsSpellBonusEffect(SpellEffectEntry const& effect, SpellBonusKind kind, bool& periodic);
+
+/**
+ * EffectBonusCoefficient over the three effects and the scaling row of `spellProto`, for a caster at `level`.
+ */
+float EffectBonusCoefficient(SpellEntry const* spellProto, uint32 level, SpellBonusKind kind, DamageEffectType damagetype);
+
+/**
+ * The spell power coefficient that applies: none for a damage kind when `noDoneBonus` (the spell carries
+ * SPELL_ATTR_EX3_NO_DONE_BONUS); else `client` when it is nonzero; else the part of `row` for `damagetype` (dot_bonus
+ * for DOT, direct_bonus otherwise); else 0. `row` may be NULL.
+ */
+float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonusKind kind, DamageEffectType damagetype,
+                            bool noDoneBonus);
+
 /**
  * Returns the cast time used when calculating spell coefficient bonuses.
  */

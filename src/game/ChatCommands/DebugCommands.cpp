@@ -1671,53 +1671,57 @@ bool ChatHandler::HandleDebugSpellCoefsCommand(char* args)
         return false;
     }
 
+    // The scaling multiplier is read at the level of the player who asks, at the default max level from the console.
+    Player* player = m_session ? m_session->GetPlayer() : NULL;
+    uint32 const level = player ? player->getLevel() : DEFAULT_MAX_LEVEL;
+    bool const noDoneBonus = spellEntry->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS);
+
     SpellBonusEntry const* bonus = sSpellMgr.GetSpellBonusData(spellid);
+    if (bonus)
+    {
+        PSendSysMessage("Spell %u: spell_bonus_data direct_bonus %f, dot_bonus %f, ap_bonus %f, ap_dot_bonus %f",
+                        spellid, bonus->direct_damage, bonus->dot_damage, bonus->ap_bonus, bonus->ap_dot_bonus);
+    }
+    else
+    {
+        PSendSysMessage("Spell %u: no spell_bonus_data row", spellid);
+    }
 
-    float direct_calc = CalculateDefaultCoefficient(spellEntry, SPELL_DIRECT_DAMAGE);
-    float dot_calc = CalculateDefaultCoefficient(spellEntry, DOT);
-
-    bool isDirectHeal = false;
-    for (int i = 0; i < 3; ++i)
+    SpellBonusKind const kinds[] = { SPELL_BONUS_KIND_DAMAGE, SPELL_BONUS_KIND_HEAL, SPELL_BONUS_KIND_ABSORB };
+    char const* const kindNames[] = { "damage", "heal", "absorb" };
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
     {
         SpellEffectEntry const* spellEffect = spellEntry->GetSpellEffect(SpellEffectIndex(i));
         if (!spellEffect)
         {
             continue;
         }
-        // Heals (Also count Mana Shield and Absorb effects as heals)
-        if (spellEffect->Effect == SPELL_EFFECT_HEAL || spellEffect->Effect == SPELL_EFFECT_HEAL_MAX_HEALTH ||
-            (spellEffect->Effect == SPELL_EFFECT_APPLY_AURA && (spellEffect->EffectAura == SPELL_AURA_SCHOOL_ABSORB || spellEffect->EffectAura == SPELL_AURA_PERIODIC_HEAL)))
+
+        bool found = false;
+        for (uint32 k = 0; k < 3 && !found; ++k)
         {
-            isDirectHeal = true;
-            break;
+            bool periodic = false;
+            if (!IsSpellBonusEffect(*spellEffect, kinds[k], periodic))
+            {
+                continue;
+            }
+            found = true;
+
+            DamageEffectType const type = periodic ? DOT : SPELL_DIRECT_DAMAGE;
+            float const client = EffectBonusCoefficient(spellEntry, level, kinds[k], type);
+            float const applies = SpellPowerCoefficient(client, bonus, kinds[k], type, noDoneBonus);
+            float const row = bonus ? (periodic ? bonus->dot_damage : bonus->direct_damage) : 0.0f;
+            PSendSysMessage("Effect %u (%s, %s): SpellEffect.dbc %f; the spell's first %s %s effect at level %u %f; spell_bonus_data %f; applies %f%s",
+                            i, kindNames[k], periodic ? "periodic" : "direct", spellEffect->EffectBonusCoefficient,
+                            kindNames[k], periodic ? "periodic" : "direct", level, client, row, applies,
+                            noDoneBonus && kinds[k] == SPELL_BONUS_KIND_DAMAGE ? " (SPELL_ATTR_EX3_NO_DONE_BONUS)" : "");
+        }
+
+        if (!found)
+        {
+            PSendSysMessage("Effect %u (effect %u, aura %u): takes no spell power share", i, spellEffect->Effect, spellEffect->EffectAura);
         }
     }
-
-    bool isDotHeal = false;
-    for (int i = 0; i < 3; ++i)
-    {
-        SpellEffectEntry const* spellEffect = spellEntry->GetSpellEffect(SpellEffectIndex(i));
-        if (!spellEffect)
-        {
-            continue;
-        }
-        // Periodic Heals
-        if (spellEffect->Effect == SPELL_EFFECT_APPLY_AURA && spellEffect->EffectAura == SPELL_AURA_PERIODIC_HEAL)
-        {
-            isDotHeal = true;
-            break;
-        }
-    }
-
-    char const* directHealStr = GetMangosString(LANG_DIRECT_HEAL);
-    char const* directDamageStr = GetMangosString(LANG_DIRECT_DAMAGE);
-    char const* dotHealStr = GetMangosString(LANG_DOT_HEAL);
-    char const* dotDamageStr = GetMangosString(LANG_DOT_DAMAGE);
-
-    PSendSysMessage(LANG_SPELLCOEFS, spellid, isDirectHeal ? directHealStr : directDamageStr,
-                    direct_calc, direct_calc * SCALE_SPELLPOWER_HEALING, bonus ? bonus->direct_damage : 0.0f, bonus ? bonus->ap_bonus : 0.0f);
-    PSendSysMessage(LANG_SPELLCOEFS, spellid, isDotHeal ? dotHealStr : dotDamageStr,
-                    dot_calc, dot_calc * SCALE_SPELLPOWER_HEALING, bonus ? bonus->dot_damage : 0.0f, bonus ? bonus->ap_dot_bonus : 0.0f);
 
     return true;
 }

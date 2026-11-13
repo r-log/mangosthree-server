@@ -3659,15 +3659,15 @@ namespace Harness
         {
             const SpellSchoolMask school = GetSpellSchoolMask(info);
             power = p->SpellBaseDamageBonusDone(school);
-            bonus = p->SpellBonusWithCoeffs(info, 0, power, 0, SPELL_DIRECT_DAMAGE, true);
+            bonus = p->SpellBonusWithCoeffs(info, 0, power, 0, SPELL_DIRECT_DAMAGE, true, SPELL_BONUS_KIND_DAMAGE);
             SpellBonusEntry const* row = sSpellMgr.GetSpellBonusData(info->ID);
-            SpellEffectEntry const* effect = info->GetSpellEffect(EFFECT_INDEX_0);
-            const float client = effect ? effect->EffectBonusCoefficient : 0.0f;
+            const float client = EffectBonusCoefficient(info, p->getLevel(), SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE);
+            const float applies = SpellPowerCoefficient(client, row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE,
+                                                        info->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
             char buf[512];
             snprintf(buf, sizeof(buf),
-                     "Unit::SpellBonusWithCoeffs over fire spell power %d: spell_bonus_data %u direct %.4f, level penalty %.4f; the target's taken benefit %d; Fireball's EffectBonusCoefficient %.4f, which over the same spell power is %.1f",
-                     power, info->ID, row ? row->direct_damage : 0.0f, p->CalculateLevelPenalty(info),
-                     target->SpellBaseDamageBonusTaken(school), client, double(power) * client);
+                     "Unit::SpellBonusWithCoeffs over fire spell power %d: Fireball's EffectBonusCoefficient at level %u %.4f, the coefficient that applies %.4f; the target's taken benefit %d",
+                     power, p->getLevel(), client, applies, target->SpellBaseDamageBonusTaken(school));
             text = buf;
             m_rec.Note("bonus " + U(uint32(bonus)) + ": " + text);
         }

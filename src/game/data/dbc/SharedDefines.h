@@ -426,7 +426,7 @@ enum SpellAttributesEx3
     SPELL_ATTR_EX3_UNK26                       = 0x04000000,// 26
     SPELL_ATTR_EX3_UNK27                       = 0x08000000,// 27
     SPELL_ATTR_EX3_UNK28                       = 0x10000000,// 28
-    SPELL_ATTR_EX3_UNK29                       = 0x20000000,// 29
+    SPELL_ATTR_EX3_NO_DONE_BONUS               = 0x20000000,// 29 a damage effect of the spell takes no spell power share
     SPELL_ATTR_EX3_UNK30                       = 0x40000000,// 30
     SPELL_ATTR_EX3_UNK31                       = 0x80000000,// 31
 };
@@ -1751,6 +1751,15 @@ enum DamageEffectType
     NODAMAGE                = 4,                            //< used also in case when damage applied to health but not applied to spell channelInterruptFlags/etc
     SELF_DAMAGE_ROGUE_FALL  = 5,                            //< used to avoid rogue loosing stealth on falling damage
     SELF_DAMAGE             = 6
+};
+
+/// The kind of amount a spell power share is computed for: each takes the coefficient of the spell's first effect
+/// of that kind.
+enum SpellBonusKind
+{
+    SPELL_BONUS_KIND_DAMAGE = 0,
+    SPELL_BONUS_KIND_HEAL   = 1,
+    SPELL_BONUS_KIND_ABSORB = 2
 };
 
 enum GameobjectTypes
