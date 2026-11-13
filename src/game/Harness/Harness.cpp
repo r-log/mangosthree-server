@@ -634,10 +634,10 @@ namespace Harness
                 // player: Map::DeleteFromWorld (Map.cpp:481, the sole caller of
                 // PlayerRegistry::Remove outside this teardown), whose next statement deletes
                 // him. So the object really is gone, no live player can still be reaching for
-                // this session, and closing it is the correct end rather than a leak. SetPlayer
-                // is a plain assignment (WorldSession.h:441-444), so it is safe over a _player
-                // that is already freed, and it is what keeps ~WorldSession's LogoutPlayer(true)
-                // off that freed memory.
+                // this session, and closing it is the correct end rather than a leak.
+                // SetPlayer(NULL) overwrites the pointer without reading through the old one, so
+                // it is safe over a _player that is already freed, and it is what keeps
+                // ~WorldSession's LogoutPlayer(true) off that freed memory.
                 sLog.outString("MVTEST ERR %s: harness player %s was destroyed by something else before the teardown reached him; he is not touched, and the session the scenario allocated is closed here",
                                s->Name(), owned.guid.GetString().c_str());
                 if (owned.session)
