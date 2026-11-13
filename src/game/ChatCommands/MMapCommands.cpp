@@ -44,7 +44,6 @@
 #include "GridNotifiersImpl.h"          // for mmap manager
 #include "CellImpl.h"
 #include "entities/motion/MoveSplineInit.h"
-#include "GameTime.h"
 #include "MotionMaster.h"
 #include "WorldSession.h"
 #include <fstream>
@@ -390,7 +389,7 @@ bool ChatHandler::HandleMmapTestArea(char* args)
         PSendSysMessage("Found %zu Creatures.", creatureList.size());
 
         uint32 paths = 0;
-        uint32 uStartTime = GameTime::GetGameTimeMS();
+        uint32 uStartTime = getMSTime();
 
         float gx, gy, gz;
         gx = m_session->GetPlayer()->Where().X();
@@ -403,7 +402,7 @@ bool ChatHandler::HandleMmapTestArea(char* args)
             ++paths;
         }
 
-        uint32 uPathLoadTime = getMSTimeDiff(uStartTime, GameTime::GetGameTimeMS());
+        uint32 uPathLoadTime = getMSTimeDiff(uStartTime, getMSTime());
         PSendSysMessage("Generated %i paths in %i ms", paths, uPathLoadTime);
     }
     else
@@ -469,7 +468,7 @@ bool ChatHandler::HandleMmapTestHeight(char* args)
     summoned->CastSpell(summoned, 8599, false);
     uint32 tries = 1;
     uint32 successes = 0;
-    uint32 startTime = GameTime::GetGameTimeMS();
+    uint32 startTime = getMSTime();
     for (; tries < 500; ++tries)
     {
         gx = unit->Where().X();
@@ -485,7 +484,7 @@ bool ChatHandler::HandleMmapTestHeight(char* args)
             }
         }
     }
-    uint32 genTime = getMSTimeDiff(startTime, GameTime::GetGameTimeMS());
+    uint32 genTime = getMSTimeDiff(startTime, getMSTime());
     PSendSysMessage("Generated %u valid points for %u try in %ums.", successes, tries, genTime);
     return true;
 }
