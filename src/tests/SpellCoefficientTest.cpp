@@ -266,6 +266,20 @@ TEST(SpellCoefficient_ARowBesideANonzeroClientValueIsBeaten)
     CHECK(NearF(SpellPowerCoefficient(0.856f, NULL, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false), 0.856f));
 }
 
+TEST(SpellCoefficient_APetTakesTheRowThenTheClientValueThenTheCastTimeDefault)
+{
+    // Torment with a row of 0.512 beside SpellEffect.dbc's 0: the row; with no row: the cast-time default 0.4286.
+    CHECK(NearF(PetSpellPowerCoefficient(0.512f, 0.0f, 0.4285714f, SPELL_BONUS_KIND_DAMAGE, false), 0.512f));
+    CHECK(NearF(PetSpellPowerCoefficient(0.0f, 0.0f, 0.4285714f, SPELL_BONUS_KIND_DAMAGE, false), 0.4285714f));
+    // Freeze, SpellEffect.dbc 0.029 and no row: the client's value beats the default.
+    CHECK(NearF(PetSpellPowerCoefficient(0.0f, 0.029f, 0.2142857f, SPELL_BONUS_KIND_DAMAGE, false), 0.029f));
+    // A row beats a nonzero client value on the pet path.
+    CHECK(NearF(PetSpellPowerCoefficient(0.5f, 1.2855f, 0.4285714f, SPELL_BONUS_KIND_DAMAGE, false), 0.5f));
+    // SPELL_ATTR_EX3_NO_DONE_BONUS: none on damage; a heal keeps its share.
+    CHECK_EQ(PetSpellPowerCoefficient(0.5f, 1.0f, 0.4285714f, SPELL_BONUS_KIND_DAMAGE, true), 0.0f);
+    CHECK(NearF(PetSpellPowerCoefficient(0.0f, 0.0f, 0.4285714f, SPELL_BONUS_KIND_HEAL, true), 0.4285714f));
+}
+
 TEST(SpellCoefficient_NoDoneBonusTakesTheShareFromDamageOnly)
 {
     SpellBonusEntry const row = Row(0.5f, 0.25f);
