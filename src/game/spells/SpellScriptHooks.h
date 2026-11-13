@@ -67,7 +67,8 @@ struct SpellEntry;
  * - AuraApply: `Unit::AddSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(true)` runs. Return()
  *   skips the boosts. A body may cast, remove other auras and set the script words.
  * - AuraRemove: `Unit::RemoveSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(false)` runs, so
- *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts. A body may cast and remove other auras.
+ *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts. A body may cast and remove other auras. It is the
+ *   boosts' moment; a dummy effect's own body runs on DummyAura.
  * - PeriodicTick: `Aura::PeriodicTick`, for a damage or a heal tick, before the target's steps (its taken bonus, the
  *   crit, its absorb and resist), and `Aura::PeriodicDummyTick`, before its family switch. Return() ends the tick with
  *   nothing dealt. A body may change the amount; a body that removes the ticking aura must Return().
@@ -80,6 +81,16 @@ struct SpellEntry;
  * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch. A body changes only the done multiplier.
  * - CritChance: `Unit::IsSpellCrit`, for a magic spell with a victim, before its family switch. A body changes only
  *   the crit chance.
+ * - DummyAura: `Aura::HandleAuraDummy`, after its check for a real apply or un-apply and before its family switches,
+ *   for every real apply and every real un-apply of a SPELL_AURA_DUMMY effect; so never when a unit's modifiers are
+ *   only taken off and put back (`Real` false), and never for AURA_REMOVE_BY_DELETE, which skips the un-apply. At a
+ *   holder's apply it runs after the holder's slot is sent and before AuraApply; at a holder's removal, before the
+ *   slot is cleared and before AuraRemove; a stack change that changes the amount un-applies and re-applies the
+ *   effect. Return() ends the handler, as a `return` in its family switches does: the switches, the pet aura and
+ *   spell area steps and the script library's OnAuraDummy do not run. A body may cast, with this aura effect as the
+ *   trigger or with none, remove other auras, change the effect's amount at the apply and set the script words. The
+ *   aura is alive: at a removal the holder's effects before this one are already un-applied and those after it not
+ *   yet.
  *
  * EffectValue, AfterHit, AuraAmount, DamageDone and CritChance read no outcome: a body changes the context's values and
  * answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it as they are.
@@ -103,7 +114,8 @@ enum SpellScriptHook
     SPELL_SCRIPT_HOOK_CHECK_PROC        = 109,
     SPELL_SCRIPT_HOOK_ON_PROC           = 110,
     SPELL_SCRIPT_HOOK_DAMAGE_DONE       = 111,
-    SPELL_SCRIPT_HOOK_CRIT_CHANCE       = 112
+    SPELL_SCRIPT_HOOK_CRIT_CHANCE       = 112,
+    SPELL_SCRIPT_HOOK_DUMMY_AURA        = 113
 };
 
 /// What a script may ask of the aura holder it runs for, without the aura headers.
@@ -418,6 +430,44 @@ struct CritChanceContext
     float& critChance;                              ///< the crit chance in percent, which a body may change
 };
 
+/// DummyAura's context. Value: void. At the un-apply of a removal the holder no longer holds this effect's aura, so
+/// `aura.Amount` is 0 for this effect and for the effects removed before it; `amount` is this effect's own at every
+/// apply and un-apply.
+struct DummyAuraContext
+{
+    DummyAuraContext(Unit& targetUnit, Unit* casterUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
+                     AuraHandle const& holder, bool applying, AuraRemoveMode removeMode, int32& auraAmount,
+                     Aura* thisAura)
+        : target(targetUnit), caster(casterUnit), spell(spellEntry), effIndex(effectIndex), aura(holder),
+          apply(applying), mode(removeMode), amount(auraAmount), m_aura(thisAura)
+    {
+        target.AssertSpellSeamOwner();
+    }
+
+    /// `from` casts `spellId` at `to`, triggered by this aura effect, as `from->CastSpell(to, spellId, true, NULL,
+    /// aura)` casts: with no item, and the original caster and the triggering spell taken from the aura.
+    /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggeredByAura(Unit& from, Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// `from` casts `spellId` at `to`, triggered, with no triggering spell or aura, as `from->CastSpell(to, spellId,
+    /// true)` casts. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggered(Unit& from, Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// Removes every aura of `spellId` from `from`.
+    void RemoveAura(Unit& from, uint32 spellId);
+
+    Unit& target;                                   ///< the unit the aura is on
+    Unit* caster;                                   ///< the aura's caster; NULL when it cannot be found
+    SpellEntry const& spell;                        ///< the aura's spell
+    SpellEffectIndex effIndex;                      ///< the dummy effect
+    AuraHandle aura;                                ///< the aura's holder
+    bool apply;                                     ///< true at the apply, false at the un-apply
+    AuraRemoveMode mode;                            ///< why the aura is un-applied; AURA_REMOVE_BY_DEFAULT at the apply
+                                                    ///< and at a stack change
+    int32& amount;                                  ///< the effect's amount, which a body may change at the apply
+
+    private:
+        Aura* m_aura;                               ///< this aura effect, the trigger of CastTriggeredByAura
+};
+
 /// `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) refuses the cast unless the result
 /// is SPELL_CAST_OK.
 struct CheckCastHook
@@ -523,6 +573,14 @@ struct CritChanceHook
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_CRIT_CHANCE;
     typedef void Value;
     typedef CritChanceContext Context;
+};
+
+/// `Aura::HandleAuraDummy`, for a real apply or un-apply, before its family switches. Return() ends the handler.
+struct DummyAuraHook
+{
+    static constexpr uint32 Key = SPELL_SCRIPT_HOOK_DUMMY_AURA;
+    typedef void Value;
+    typedef DummyAuraContext Context;
 };
 
 /// Registers `f` for `spellId` on `Hook`; false, and nothing changes, when the key is taken or `f` is NULL. A legacy

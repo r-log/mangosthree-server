@@ -88,6 +88,21 @@ void AuraRemoveContext::RemoveAura(Unit& from, uint32 spellId)
     from.RemoveAurasDueToSpell(spellId);
 }
 
+void DummyAuraContext::CastTriggeredByAura(Unit& from, Unit& to, uint32 spellId, int32 const* basePoints)
+{
+    CastTriggeredSpell(from, to, spellId, basePoints, NULL, m_aura, ObjectGuid(), NULL);
+}
+
+void DummyAuraContext::CastTriggered(Unit& from, Unit& to, uint32 spellId, int32 const* basePoints)
+{
+    CastTriggeredSpell(from, to, spellId, basePoints, NULL, NULL, ObjectGuid(), NULL);
+}
+
+void DummyAuraContext::RemoveAura(Unit& from, uint32 spellId)
+{
+    from.RemoveAurasDueToSpell(spellId);
+}
+
 Item* OnProcContext::CastItem() const
 {
     return m_castItemGuid ? caster.GetItemByGuid(m_castItemGuid) : NULL;
