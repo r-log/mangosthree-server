@@ -295,10 +295,11 @@ namespace Harness
             return r;
         }
 
-        /// Every aura holder on `unit` that a proc can trigger: its proc flags -- the spell's own
-        /// or spell_proc_event's, as Unit::IsTriggeredAtSpellProcEvent reads them -- not zero.
-        /// "" when none; a holder that is not in this list never reaches a proc handler.
-        std::string ProcHolders(Unit* unit)
+        /// Every aura holder on `unit` that a proc can trigger, but those of a spell in `except`: its
+        /// proc flags -- the spell's own or spell_proc_event's, as Unit::IsTriggeredAtSpellProcEvent
+        /// reads them -- not zero. "" when none; a holder that is not in this list never reaches a
+        /// proc handler.
+        std::string ProcHolders(Unit* unit, std::set<uint32> const& except)
         {
             std::string out;
             Unit::SpellAuraHolderMap const& holders = unit->GetSpellAuraHolderMap();
@@ -307,15 +308,17 @@ namespace Harness
                 SpellEntry const* proto = i->second->GetSpellProto();
                 SpellProcEventEntry const* event = sSpellMgr.GetSpellProcEvent(proto->ID);
                 const uint32 flags = (event && event->procFlags) ? event->procFlags : proto->GetProcFlags();
-                if (flags)
+                if (flags && !except.count(proto->ID))
                 {
                     out += (out.empty() ? "" : ",") + U(proto->ID);
                 }
             }
             return out;
         }
+        std::string ProcHolders(Unit* unit) { return ProcHolders(unit, std::set<uint32>()); }
 
-        // ---- the guard of scenarios 931-938 (decoupling D11 PR 2) --------------------------
+        // ---- the reached-spell guard: every spell fingerprinted, no dynamic radius or raw rand()
+        // label, no random chain, no script binding, every triggered spell fingerprinted too -------
 
         /// One spell a scenario reaches, and the fields its SpellEffect rows must hold (every
         /// field compared, a field the map does not name compared against 0, as 930's fingerprint).
@@ -3508,7 +3511,9 @@ namespace Harness
                     const std::string procSelf = ProcHolders(p);
                     const std::string procTarget = ProcHolders(target);
                     m_rec.Note("holders that can proc: self [" + procSelf + "], target [" + procTarget + "]");
-                    const std::string unprinted = UnprintedProcHolders(p, st->printed) + UnprintedProcHolders(target, st->printed);
+                    const std::string unprintedSelf = ProcHolders(p, st->printed);
+                    const std::string unprintedTarget = ProcHolders(target, st->printed);
+                    const std::string unprinted = unprintedSelf + (unprintedSelf.empty() || unprintedTarget.empty() ? "" : ",") + unprintedTarget;
                     if (!unprinted.empty())
                     {
                         // a proc the guard did not fingerprint could be reached: refused before the cast
@@ -3606,28 +3611,9 @@ namespace Harness
             std::vector<Cast> casts;
         };
 
-        /// The holders on `unit` a proc can trigger (ProcHolders' rule) whose spell `printed` does not hold, as
-        /// "<id>," each; "" when there is none.
-        static std::string UnprintedProcHolders(Unit* unit, std::set<uint32> const& printed)
-        {
-            std::string out;
-            Unit::SpellAuraHolderMap const& holders = unit->GetSpellAuraHolderMap();
-            for (Unit::SpellAuraHolderMap::const_iterator i = holders.begin(); i != holders.end(); ++i)
-            {
-                SpellEntry const* proto = i->second->GetSpellProto();
-                SpellProcEventEntry const* event = sSpellMgr.GetSpellProcEvent(proto->ID);
-                const uint32 flags = (event && event->procFlags) ? event->procFlags : proto->GetProcFlags();
-                if (flags && !printed.count(proto->ID))
-                {
-                    out += U(proto->ID) + ",";
-                }
-            }
-            return out;
-        }
-
         /// The staged player and the target, as the `staged` category prints them; `ok` when the level is the plan's,
-        /// the free talent points are the level's own, and the fire spell power is the staged amount plus the
-        /// intellect's part and nothing else.
+        /// the free talent points are the level's own, every glyph slot is open (0x1ff, from level 75), and the fire
+        /// spell power is the staged amount plus the intellect's part and nothing else.
         void ReadStage(Player* p, Creature* target, uint32 level, bool staged, std::string& text, bool& ok)
         {
             const SpellSchoolMask fire = SPELL_SCHOOL_MASK_FIRE;
@@ -3647,8 +3633,8 @@ namespace Harness
                      target->GetHealth(), target->GetMaxHealth(), target->GetResistance(SPELL_SCHOOL_FIRE));
             text = std::string(buf) + "; holders that can proc: self [" + ProcHolders(p) + "] (by chance [" + LiveProcHolders(p) + "]), target [" +
                    ProcHolders(target) + "]";
-            ok = staged && p->getLevel() == level && p->GetTalentMgr().FreePoints() == points && power == kSpellPower + fromIntellect &&
-                 target->getLevel() == level;
+            ok = staged && p->getLevel() == level && p->GetTalentMgr().FreePoints() == points && p->GetUInt32Value(PLAYER_GLYPHS_ENABLED) == 0x1ff &&
+                 power == kSpellPower + fromIntellect && target->getLevel() == level;
             m_rec.Note("staged: " + text);
         }
 
