@@ -286,6 +286,7 @@ set(SRC_GRP_TESTS
     DungeonEncounterStoreTest.cpp
     InstanceEncounterLoadTest.cpp
     ItemEnchantGroupCheckTest.cpp
+    GameObjectTemplateLoadTest.cpp
     HotfixPacketsTest.cpp
     HotfixStoreTest.cpp
     DB2FileLoaderTest.cpp
