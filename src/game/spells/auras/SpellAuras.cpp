@@ -1766,6 +1766,12 @@ void Aura::PeriodicTick()
                 pdamage = uint32(target->GetMaxHealth() * amount / 100);
             }
 
+            PeriodicTickContext tickCtx(*target, pCaster, *spellProto, m_effIndex, AuraHandle(*GetHolder()), pdamage, false);
+            if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(GetId(), tickCtx).IsReturn())
+            {
+                return;
+            }
+
             // SpellDamageBonus for magic spells
             uint32 dmgClass = spellProto->GetDmgClass();
             if (dmgClass == SPELL_DAMAGE_CLASS_NONE || dmgClass == SPELL_DAMAGE_CLASS_MAGIC)
@@ -1827,12 +1833,6 @@ void Aura::PeriodicTick()
 
             DETAIL_FILTER_LOG(LOG_FILTER_PERIODIC_AFFECTS, "PeriodicTick: %s attacked %s for %u dmg inflicted by %u abs is %u",
                               GetCasterGuid().GetString().c_str(), target->GetGuidStr().c_str(), pdamage, GetId(), absorb);
-
-            PeriodicTickContext tickCtx(*target, pCaster, *spellProto, m_effIndex, AuraHandle(*GetHolder()), pdamage, false);
-            if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(GetId(), tickCtx).IsReturn())
-            {
-                return;
-            }
 
             pCaster->DealDamageMods(target, pdamage, &absorb);
 
