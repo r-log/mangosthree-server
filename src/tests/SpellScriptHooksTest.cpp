@@ -30,8 +30,8 @@
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
 /// passes. The aura handle runs on a holder's storage that was never constructed, its fields written through the
 /// holder's setters; Amount and DropCharge are not called there (the first reads an Aura, which this binary cannot
-/// build, the second tells the clients). The script words of a constructed holder are read from a holder built on a
-/// spell put into the store, as the registry's own holder test builds one.
+/// build, the second tells the clients). The script words of a constructed holder are read from a holder built, on a
+/// spell put into the store as the registry's own holder test does, in storage whose bytes were all 0xA5.
 
 #include "TestHarness.h"
 #include "spells/SpellScriptHooks.h"
@@ -41,6 +41,7 @@
 
 #include <cstddef>
 #include <list>
+#include <new>
 
 namespace
 {
@@ -389,16 +390,20 @@ TEST(SpellScriptHooks_TheAuraHandleReadsTheHoldersFields)
 
 TEST(SpellScriptHooks_AHolderIsMadeWithItsScriptWordsAtZero)
 {
+    // The holder is made in storage whose every byte is 0xA5, so a word reads zero only when the constructor wrote it.
     BareCreature target;
-    SpellAuraHolder fresh(StoredHolderSpell(), &target, NULL, NULL, NULL);
-    CHECK_EQ(fresh.ScriptWord(EFFECT_INDEX_0), 0);
-    CHECK_EQ(fresh.ScriptWord(EFFECT_INDEX_1), 0);
-    CHECK_EQ(fresh.ScriptWord(EFFECT_INDEX_2), 0);
+    HolderStorage storage;
+    HolderFilledWith(storage, 0xA5);
+    SpellAuraHolder* fresh = new (storage.bytes) SpellAuraHolder(StoredHolderSpell(), &target, NULL, NULL, NULL);
+    CHECK_EQ(fresh->ScriptWord(EFFECT_INDEX_0), 0);
+    CHECK_EQ(fresh->ScriptWord(EFFECT_INDEX_1), 0);
+    CHECK_EQ(fresh->ScriptWord(EFFECT_INDEX_2), 0);
 
-    fresh.ScriptWord(EFFECT_INDEX_1) = 2;
-    CHECK_EQ(fresh.ScriptWord(EFFECT_INDEX_0), 0);
-    CHECK_EQ(fresh.ScriptWord(EFFECT_INDEX_1), 2);
-    CHECK_EQ(fresh.ScriptWord(EFFECT_INDEX_2), 0);
+    fresh->ScriptWord(EFFECT_INDEX_1) = 2;
+    CHECK_EQ(fresh->ScriptWord(EFFECT_INDEX_0), 0);
+    CHECK_EQ(fresh->ScriptWord(EFFECT_INDEX_1), 2);
+    CHECK_EQ(fresh->ScriptWord(EFFECT_INDEX_2), 0);
+    fresh->~SpellAuraHolder();
 }
 
 TEST(SpellScriptHooks_RegisterRanksPutsOneBodyUnderEveryId)
