@@ -30,6 +30,8 @@
 
 #include <cstddef>
 #include <map>
+#include <utility>
+#include <vector>
 
 /**
  * @file SpellHandlerRegistry.h
@@ -363,6 +365,8 @@ class SpellHandlerRegistry
         std::size_t CountAt(uint32 site) const;
         /// The number of sites with a registered `default:` body.
         std::size_t CountDefaults() const { return m_defaults.size(); }
+        /// Every (site, spell id) key, in site then spell id order.
+        std::vector<std::pair<uint32, uint32> > Keys() const;
 
     private:
         typedef void (*ErasedFunction)();

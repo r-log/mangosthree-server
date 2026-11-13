@@ -88,6 +88,17 @@ std::size_t SpellHandlerRegistry::CountAt(uint32 site) const
     return count;
 }
 
+std::vector<std::pair<uint32, uint32> > SpellHandlerRegistry::Keys() const
+{
+    std::vector<std::pair<uint32, uint32> > keys;
+    keys.reserve(m_handlers.size());
+    for (std::map<uint64, ErasedFunction>::const_iterator itr = m_handlers.begin(); itr != m_handlers.end(); ++itr)
+    {
+        keys.push_back(std::make_pair(uint32(itr->first >> 32), uint32(itr->first & 0xFFFFFFFF)));
+    }
+    return keys;
+}
+
 bool SpellHandlerRegistry::Insert(uint32 site, uint32 spellId, ErasedFunction function)
 {
     if (!function)

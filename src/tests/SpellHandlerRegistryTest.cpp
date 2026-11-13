@@ -66,6 +66,7 @@
 /// removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
+///                            SpellHandlerRegistry_TheGameTableMatchesItsGolden,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyFourLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault,
@@ -368,14 +369,21 @@
 #include "Log.h"
 #include "MapPhase.h"
 
+#include <algorithm>
 #include <chrono>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <list>
 #include <set>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
+
+#ifndef MANGOS_TEST_DATA_DIR
+#error "MANGOS_TEST_DATA_DIR must name src/tests/goldens (see src/tests/CMakeLists.txt)"
+#endif
 
 namespace
 {
@@ -745,6 +753,48 @@ TEST(SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody)
     static uint32 const mixed[] = { 300, 700, 999, 100, 300 };
     CHECK_EQ(RunVoidSiteInALoop(registry, mixed, 5, ctx), uint32(2));
     CHECK_EQ(ctx.handled, uint32(1));
+}
+
+TEST(SpellHandlerRegistry_TheGameTableMatchesItsGolden)
+{
+    // goldens/spell_handler_keys.txt holds one "<site> <spell id>" line per key of the game's table, in site then
+    // spell id order: a row moved between files keeps its line, and a row added, removed or put on another site
+    // changes the file.
+    std::string const path = std::string(MANGOS_TEST_DATA_DIR) + "/spell_handler_keys.txt";
+    std::ifstream golden(path.c_str());
+    REQUIRE(bool(golden));
+    std::vector<std::string> expected;
+    std::string text;
+    while (std::getline(golden, text))
+    {
+        if (!text.empty() && text[text.size() - 1] == '\r')
+        {
+            text.erase(text.size() - 1);
+        }
+        expected.push_back(text);
+    }
+
+    std::vector<std::pair<uint32, uint32> > const keys = SpellHandlerRegistry::Game().Keys();
+    std::size_t const lines = std::max(expected.size(), keys.size());
+    for (std::size_t i = 0; i < lines; ++i)
+    {
+        std::ostringstream live;
+        if (i < keys.size())
+        {
+            live << keys[i].first << ' ' << keys[i].second;
+        }
+        std::string const want = i < expected.size() ? expected[i] : std::string();
+        if (live.str() != want)
+        {
+            std::ostringstream where;
+            where << "spell_handler_keys.txt line " << (i + 1) << ": ";
+            std::string const liveLine = where.str() + live.str();
+            std::string const goldenLine = where.str() + want;
+            CHECK_STR(liveLine, goldenLine);
+            break;
+        }
+    }
+    CHECK_EQ(keys.size(), expected.size());
 }
 
 TEST(AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances)
