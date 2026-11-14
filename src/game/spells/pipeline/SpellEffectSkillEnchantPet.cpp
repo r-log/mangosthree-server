@@ -1178,21 +1178,6 @@ void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
             }
             break;
         }
-        case SPELLFAMILY_PALADIN:
-        {
-            // Judgement of Command - receive benefit from Spell Damage and Attack Power
-            if (classOptions && classOptions->SpellClassMask & UI64LIT(0x00020000000000))
-            {
-                float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
-                int32 holy = m_caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(m_spellInfo));
-                if (holy < 0)
-                {
-                    holy = 0;
-                }
-                spell_bonus += int32(ap * 0.08f) + int32(holy * 13 / 100);
-            }
-            break;
-        }
         case SPELLFAMILY_HUNTER:
         {
             // Kill Shot
