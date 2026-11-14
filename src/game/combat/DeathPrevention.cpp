@@ -27,6 +27,18 @@
 
 namespace Combat
 {
+    std::size_t DeathPreventionChoice(std::vector<bool> const& usedUp)
+    {
+        for (std::size_t i = 0; i < usedUp.size(); ++i)
+        {
+            if (usedUp[i])
+            {
+                return i;
+            }
+        }
+        return 0;
+    }
+
     bool WouldKill(int32 remainingDamage, uint32 health)
     {
         return remainingDamage > 0 && uint32(remainingDamage) >= health;

@@ -25,9 +25,9 @@
 
 /**
  * @file DeathPrevention.h
- * @brief How a death-prevention aura saves its bearer from a blow that would kill him: whether the blow kills, how much
- * of it the bearer still takes and how much he is healed. Pure functions over numbers; the shapes are the death
- * prevention table's column (spells/data/SpellTables.h).
+ * @brief How a death-prevention aura saves its bearer from a blow that would kill him: which of his auras saves,
+ * whether the blow kills, how much of it the bearer still takes and how much he is healed. Pure functions over numbers;
+ * the shapes are the death prevention table's column (spells/data/SpellTables.h).
  */
 
 #ifndef MANGOSSERVER_COMBAT_DEATHPREVENTION_H
@@ -36,8 +36,19 @@
 #include "Platform/Define.h"
 #include "spells/data/SpellTables.h"
 
+#include <cstddef>
+#include <vector>
+
 namespace Combat
 {
+    /**
+     * @brief Which of several death-prevention auras that meet one blow saves.
+     *
+     * @param usedUp For each aura, in the order the unit holds them, whether its save uses it up.
+     * @return The index of the first aura its save uses up, else 0: the first.
+     */
+    std::size_t DeathPreventionChoice(std::vector<bool> const& usedUp);
+
     /// What a save leaves of the blow and gives back.
     struct DeathPreventionOutcome
     {

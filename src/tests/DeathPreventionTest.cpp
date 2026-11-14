@@ -26,11 +26,62 @@
 /// The death-prevention save (combat/DeathPrevention.h) against the 4.3.4 tooltips: Cheat Death "will instead reduce
 /// you to 10% of your maximum health", Cauterize "will instead bring you to 40% of your maximum health", Guardian
 /// Spirit "heals the target of 50% of their maximum health". The floor is the percent of the maximum health,
-/// truncated; a 50000-health bearer has the floors 5000 (10%), 20000 (40%) and 25000 (50%).
+/// truncated; a 50000-health bearer has the floors 5000 (10%), 20000 (40%) and 25000 (50%). When several of these
+/// auras meet one blow, the first one its save uses up saves (Guardian Spirit), else the first one.
 
 #include "TestHarness.h"
 
 #include "combat/DeathPrevention.h"
+
+#include <cstddef>
+#include <vector>
+
+namespace
+{
+    /// The choice among auras given by spell id, in the order the unit holds them, each used up as its row says.
+    std::size_t ChoiceAmong(std::vector<uint32> const& spellIds)
+    {
+        std::vector<bool> usedUp;
+        for (uint32 spellId : spellIds)
+        {
+            DeathPreventionRow const* row = DeathPreventionFor(spellId);
+            usedUp.push_back(row && row->consumed);
+        }
+        return Combat::DeathPreventionChoice(usedUp);
+    }
+
+    const uint32 kCheatDeath = 31230;
+    const uint32 kGuardianSpirit = 47788;
+    const uint32 kCauterize = 86949;
+}
+
+TEST(DeathPrevention_OneAuraSaves)
+{
+    CHECK_EQ(ChoiceAmong({ kCauterize }), std::size_t(0));
+}
+
+TEST(DeathPrevention_GuardianSpiritSavesBeforeCauterizeWhicheverComesFirst)
+{
+    // Guardian Spirit's save uses it up; Cauterize's lockout stays free
+    CHECK_EQ(ChoiceAmong({ kCauterize, kGuardianSpirit }), std::size_t(1));
+    CHECK_EQ(ChoiceAmong({ kGuardianSpirit, kCauterize }), std::size_t(0));
+}
+
+TEST(DeathPrevention_GuardianSpiritSavesBeforeCheatDeath)
+{
+    CHECK_EQ(ChoiceAmong({ kCheatDeath, kGuardianSpirit }), std::size_t(1));
+}
+
+TEST(DeathPrevention_OfTwoGuardianSpiritsTheFirstSaves)
+{
+    // two priests' Guardian Spirits on one unit
+    CHECK_EQ(ChoiceAmong({ kGuardianSpirit, kGuardianSpirit }), std::size_t(0));
+}
+
+TEST(DeathPrevention_OfTwoAurasThatAreNotUsedUpTheFirstSaves)
+{
+    CHECK_EQ(ChoiceAmong({ kCheatDeath, kCauterize }), std::size_t(0));
+}
 
 TEST(DeathPrevention_ABlowOfAtLeastTheHealthKills)
 {

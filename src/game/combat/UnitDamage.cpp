@@ -630,20 +630,17 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
         }
     }
 
-    // A blow that would kill meets one death-prevention aura: the first one its save uses up, else the first one. It
-    // saves when its follow-up spell is not on cooldown and its chance rolls; the save sets the damage the unit keeps,
-    // casts the follow-up with the heal in the row's effect, starts the lockout and removes the aura when it is used up
+    // A blow that would kill meets one death-prevention aura (Combat::DeathPreventionChoice). It saves when its
+    // follow-up spell is not on cooldown and its chance rolls; the save sets the damage the unit keeps, casts the
+    // follow-up with the heal in the row's effect, starts the lockout and removes the aura when it is used up
     if (!deathPreventions.empty() && Combat::WouldKill(RemainingDamage, GetHealth()))
     {
-        std::pair<Aura*, DeathPreventionRow const*> chosen = deathPreventions.front();
+        std::vector<bool> usedUp;
         for (size_t k = 0; k < deathPreventions.size(); ++k)
         {
-            if (deathPreventions[k].second->consumed)
-            {
-                chosen = deathPreventions[k];
-                break;
-            }
+            usedUp.push_back(deathPreventions[k].second->consumed);
         }
+        std::pair<Aura*, DeathPreventionRow const*> const chosen = deathPreventions[Combat::DeathPreventionChoice(usedUp)];
         Aura* preventing = chosen.first;
         DeathPreventionRow const* row = chosen.second;
         SpellAuraHolder const* holder = preventing->GetHolder();
