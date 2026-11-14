@@ -63,3 +63,65 @@ size_t FindPeriodicDamage(Unit const& target, ObjectGuid const& caster, uint32 c
     }
     return out.size();
 }
+
+bool CopyAuraHolder(Unit& from, Unit& to, uint32 spellId, ObjectGuid const& caster)
+{
+    SpellAuraHolder const* source = from.GetSpellAuraHolder(spellId, caster);
+    if (!source || source->IsDeleted() || to.GetSpellAuraHolder(spellId, caster))
+    {
+        return false;
+    }
+    Unit* casterUnit = source->GetCaster();
+    if (!casterUnit)
+    {
+        return false;
+    }
+
+    // everything the copy takes from the source is read before the add, which may remove the source (a target limit)
+    SpellEntry const* spellProto = source->GetSpellProto();
+    int32 const left = source->GetAuraDuration();
+    bool periodic[MAX_EFFECT_INDEX] = { false, false, false };
+    int32 amounts[MAX_EFFECT_INDEX] = { 0, 0, 0 };
+
+    // the source's caster, item, stack and charges, and the time it has left as the copy's duration and full duration
+    SpellAuraHolder* copy = CreateSpellAuraHolder(spellProto, &to, casterUnit);
+    copy->SetLoadedState(caster, source->GetCastItemGuid(), source->GetStackAmount(), source->GetAuraCharges(), left,
+                         left);
+    for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
+    {
+        Aura const* aura = source->GetAuraByEffectIndex(SpellEffectIndex(eff));
+        if (!aura)
+        {
+            continue;
+        }
+        int32 basePoints = aura->GetBasePoints();
+        Aura* made = CreateAura(spellProto, SpellEffectIndex(eff), &basePoints, copy, &to, casterUnit);
+        periodic[eff] = aura->IsPeriodic() && made->GetModifier()->periodictime != 0;
+        if (periodic[eff])
+        {
+            made->CarryTickTimer(aura->GetPeriodicTimer());
+            made->GetModifier()->m_amount = aura->GetTickAmountBeforeDone();
+        }
+        amounts[eff] = aura->GetModifier()->m_amount;
+        copy->AddAura(made, SpellEffectIndex(eff));
+    }
+
+    if (!to.AddSpellAuraHolder(copy))
+    {
+        return false;
+    }
+
+    // a periodic aura's apply adds its caster's bonus to the amount; the source's amount holds that bonus already
+    if (SpellAuraHolder* added = to.GetSpellAuraHolder(spellId, caster))
+    {
+        for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            Aura* aura = added->GetAuraByEffectIndex(SpellEffectIndex(eff));
+            if (aura && periodic[eff] && aura->GetModifier()->m_amount != amounts[eff])
+            {
+                aura->ChangeAmount(amounts[eff]);
+            }
+        }
+    }
+    return true;
+}

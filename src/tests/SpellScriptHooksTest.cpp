@@ -24,7 +24,8 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the aura handle's reads,
-/// RegisterRanks, the holder's script words and the game table, whose only hook rows are the mage's scripts.
+/// RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none, and the game table,
+/// whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -620,6 +621,18 @@ TEST(SpellScriptHooks_RegisterScriptPutsOneBodyUnderOneId)
     CHECK(!RegisterScript<OnProcHook>(registry, 11120, NULL));
     CHECK_EQ(registry.Count(), std::size_t(1));
     CHECK(registry.Find<OnProcHook>(11119) == &TestProcBody);
+}
+
+TEST(SpellScriptHooks_CopyAuraHolderCopiesNothingFromAUnitThatHoldsNone)
+{
+    // A unit that holds no holder of the spell from the caster gives nothing to copy: false, and the other unit is left
+    // without a holder.
+    BareCreature from;
+    BareCreature to;
+    ObjectGuid const mage(HIGHGUID_UNIT, uint32(2961), uint32(400378));
+    CHECK(!CopyAuraHolder(from, to, kStoredHolderSpell, mage));
+    CHECK(to.GetSpellAuraHolder(kStoredHolderSpell, mage) == NULL);
+    CHECK(to.GetSpellAuraHolderMap().empty());
 }
 
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
