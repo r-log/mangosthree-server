@@ -392,6 +392,34 @@ namespace
         31642,
     };
 
+    /// The death-prevention auras. The chance and the percent are read from the holder's effects the row names; the
+    /// follow-up is cast by the bearer on himself, and its cooldown on him is the lockout between two saves.
+    constexpr DeathPreventionRow DEATH_PREVENTION[] =
+    {
+        // Cheat Death: "reduce you to 10% of your maximum health ... cannot occur more than once per 90 seconds."
+        { 31228, 0, -1, 10, DEATH_PREVENTION_FLOOR, 31231, -1, 90, false },
+        { 31229, 0, -1, 10, DEATH_PREVENTION_FLOOR, 31231, -1, 90, false },
+        { 31230, 0, -1, 10, DEATH_PREVENTION_FLOOR, 31231, -1, 90, false },
+        // Guardian Spirit: "prevents the target from dying by sacrificing itself ... heals the target of $s2%"
+        { 47788, -1, 1, 0, DEATH_PREVENTION_HEAL_PERCENT, 48153, 0, 0, true },
+        // Cauterize: "bring you to $s2% of your maximum health ... burn ... once per minute."
+        { 86948, 0, 1, 0, DEATH_PREVENTION_FLOOR_AND_HEAL, 87023, 1, 60, false },
+        { 86949, 0, 1, 0, DEATH_PREVENTION_FLOOR_AND_HEAL, 87023, 1, 60, false },
+    };
+
+    template <std::size_t N>
+    constexpr bool SortedBySpellId(DeathPreventionRow const (&rows)[N])
+    {
+        for (std::size_t i = 1; i < N; ++i)
+        {
+            if (!(rows[i - 1].spellId < rows[i].spellId))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     constexpr SpellAnswer SHADOWFLAME_DOT[] =
     {
         { 47897, 47960 },
@@ -649,6 +677,7 @@ namespace
     static_assert(SortedBySpellId(HOLY_SHOCK_OF_HEAL), "Holy Shock rows are sorted, each once");
     static_assert(SortedBySpellId(DEEP_WOUNDS_WEAPON_PERCENT), "Deep Wounds rows are sorted, each once");
     static_assert(SortedBySpellId(BLAZING_SPEED_RANKS), "Blazing Speed ranks are sorted, each once");
+    static_assert(SortedBySpellId(DEATH_PREVENTION), "death-prevention rows are sorted, each once");
     static_assert(SortedBySpellId(SHADOWFLAME_DOT), "Shadowflame rows are sorted, each once");
     static_assert(SortedBySpellId(STARFALL_STAR), "Starfall rows are sorted, each once");
     static_assert(SortedBySpellId(DISENGAGE), "Disengage rows are sorted, each once");
@@ -776,6 +805,14 @@ uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId)
 bool IsBlazingSpeedRank(uint32 spellId)
 {
     return Holds(BLAZING_SPEED_RANKS, spellId);
+}
+
+DeathPreventionRow const* DeathPreventionFor(uint32 spellId)
+{
+    DeathPreventionRow const* end = std::end(DEATH_PREVENTION);
+    DeathPreventionRow const* row = std::lower_bound(std::begin(DEATH_PREVENTION), end, spellId,
+                                                     [](DeathPreventionRow const& r, uint32 id) { return r.spellId < id; });
+    return row != end && row->spellId == spellId ? row : NULL;
 }
 
 SpellHurtHeal const* FindPenanceSpells(uint32 spellId)

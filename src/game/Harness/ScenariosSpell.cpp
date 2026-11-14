@@ -91,8 +91,8 @@
 // hasted mage's Pyroblast! and its ticks; 963 Pyroblast! cast again before its periodic effect's next tick; 964
 // Ignite's ticks under Flashburn on a staged Fire mage with mastery rating; 965 Living Bomb on four targets from
 // one mage, and a refresh; 967 a staged Fire mage's Pyroblast applies Critical Mass and his Arcane Blast crit gives
-// back mana through Master of Elements.
-// The guard of 931-938, 950-965 and 967 (Qualify) fingerprints every spell a scenario reaches and refuses
+// back mana through Master of Elements; 969 a killing blow on a Fire mage with Cauterize, and the burn that follows.
+// The guard of 931-938, 950-965, 967 and 969 (Qualify) fingerprints every spell a scenario reaches and refuses
 // the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3906,7 +3906,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-967): a human mage staged to level 85 with the
+     * What the mage scenarios share (951, 952, 954-957, 962-967, 969): a human mage staged to level 85 with the
      * scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged
      * to level 85 ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in
      * order:
@@ -3918,8 +3918,14 @@ namespace Harness
      *    first); then the spell cast at the Camel through the CAST_SPELL handler's calls. One every CastEveryMs()
      *    (kCastEveryMs unless the scenario sets its own), read CastReadMs() after (kCastReadMs unless the scenario sets
      *    its own). An aura cast is the same cast of a spell that applies an aura and sends no damage log of its own;
-     *  - a swing: his health set to its maximum by call, then the Camel's melee swing at him
-     *    (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
+     *  - a swing: his health set to SwingHealth() by call (his maximum unless the scenario names one), then the Camel's
+     *    melee swing at him (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
+     *  - a blow: his health set as for a swing, then the Camel strikes him for the step's amount of the step's school
+     *    through the calls the `.damage <amount> <school>` command makes (his CalculateDamageAbsorbAndResist, then,
+     *    when anything is left, the Camel's DealDamageMods, DealDamage and SendAttackStateUpdate); his health is noted
+     *    right after it. Read kSwingReadMs after; a blow that killed him has him resurrected at full health there, so
+     *    the steps after it run;
+     *  - his health set to its maximum by call, read kSwingReadMs after;
      *  - a removal: the holder of the step's spell taken off the Camel, by dispel
      *    (Unit::RemoveAuraHolderDueToSpellByDispel, one stack) or by the plain call (Unit::RemoveAurasDueToSpell),
      *    read kSwingReadMs after.
@@ -3938,7 +3944,8 @@ namespace Harness
      * and the two ratings with the haste and mastery they give; its text also names his cast-speed and cast-haste
      * fields; `steps` each step as the record reads it (a cast's spell, `c` added when its damage log is a crit,
      * `miss` when SPELL_GO lists the Camel as missed, `none` when no damage log came; an aura cast's spell, `miss`
-     * added as for a cast; a swing's `hit` when his health fell, else `swing`; a removal's `dispel` or `remove`), a
+     * added as for a cast; a swing's `hit` when his health fell, else `swing`; a blow's `blow`; a health step's
+     * `full`; a removal's `dispel` or `remove`), a
      * BUG when a step was refused or not read, a cast's crit flag is not the step's or an aura cast missed;
      * `triggered` the spells of the SPELL_GO packets in each step's windows other than the step's own, the crit
      * aura's and the caster aura's, which are what his procs and the auras cast; the scenario's own category;
@@ -3964,9 +3971,10 @@ namespace Harness
             plan.level = level;
             plan.dealsDamage = true;
             plan.takesDamage = TakesDamage();
+            plan.heals = Heals();
             for (size_t i = 0; i < steps.size(); ++i)
             {
-                plan.takesDamage = plan.takesDamage || steps[i].swing;
+                plan.takesDamage = plan.takesDamage || steps[i].swing || steps[i].blow;
             }
             for (size_t i = 0; i < prints.size(); ++i)
             {
@@ -4066,8 +4074,8 @@ namespace Harness
             for (uint32 k = 0; k < steps.size(); ++k)
             {
                 At(at, [this, st, k]() { RunStep(*st, k); });
-                At(at + (steps[k].swing || steps[k].remove ? kSwingReadMs : CastReadMs()), [this, st, k]() { ReadStep(*st, k); });
-                at += steps[k].everyMs ? steps[k].everyMs : steps[k].swing ? kSwingEveryMs : CastEveryMs();
+                At(at + (IsCast(steps[k]) ? CastReadMs() : kSwingReadMs), [this, st, k]() { ReadStep(*st, k); });
+                at += steps[k].everyMs ? steps[k].everyMs : steps[k].swing || steps[k].blow ? kSwingEveryMs : CastEveryMs();
             }
             At(at, [this, st]() { Finish(*st); });
         }
@@ -4082,8 +4090,9 @@ namespace Harness
         static constexpr uint32 kSwingReadMs = 300;
         static constexpr float kTargetSpacing = 15.0f;
 
-        /// One step of a scenario: the Camel's swing at the mage, the mage's cast of `spell` at the Camel, or the
-        /// removal of `spell`'s holder from the Camel.
+        /// One step of a scenario: the Camel's swing at the mage, the mage's cast of `spell` at the Camel, the removal
+        /// of `spell`'s holder from the Camel, the Camel's blow of `amount` damage of `school` at the mage, or the
+        /// mage's health set to its maximum.
         struct Step
         {
             bool swing;
@@ -4094,25 +4103,49 @@ namespace Harness
             AuraRemoveMode mode;                ///< a removal's mode: AURA_REMOVE_BY_DISPEL, or the plain call's
             uint32 everyMs;                     ///< the time to the next step; 0 for the step kind's own
             uint32 target;                      ///< the Camel the step acts on, by its index in St::targets
+            bool blow;                          ///< the Camel's blow at the mage
+            bool fullHealth;                    ///< the mage's health set to its maximum
+            uint32 amount;                      ///< a blow's damage
+            SpellSchoolMask school;             ///< a blow's school
         };
-        static Step Cast(uint32 spell, bool crit) { Step s = { false, spell, crit, false, false, AURA_REMOVE_BY_DEFAULT, 0, 0 }; return s; }
-        static Step Swing() { Step s = { true, 0, false, false, false, AURA_REMOVE_BY_DEFAULT, 0, 0 }; return s; }
+        static Step Cast(uint32 spell, bool crit)
+        {
+            Step s = { false, spell, crit, false, false, AURA_REMOVE_BY_DEFAULT, 0, 0, false, false, 0, SPELL_SCHOOL_MASK_NONE };
+            return s;
+        }
+        static Step Swing()
+        {
+            Step s = { true, 0, false, false, false, AURA_REMOVE_BY_DEFAULT, 0, 0, false, false, 0, SPELL_SCHOOL_MASK_NONE };
+            return s;
+        }
         static Step AuraCast(uint32 spell, uint32 everyMs)
         {
-            Step s = { false, spell, false, true, false, AURA_REMOVE_BY_DEFAULT, everyMs, 0 };
+            Step s = { false, spell, false, true, false, AURA_REMOVE_BY_DEFAULT, everyMs, 0, false, false, 0, SPELL_SCHOOL_MASK_NONE };
             return s;
         }
         /// An aura cast at the Camel of index `camel`.
         static Step AuraCastAt(uint32 spell, uint32 camel, uint32 everyMs)
         {
-            Step s = { false, spell, false, true, false, AURA_REMOVE_BY_DEFAULT, everyMs, camel };
+            Step s = { false, spell, false, true, false, AURA_REMOVE_BY_DEFAULT, everyMs, camel, false, false, 0, SPELL_SCHOOL_MASK_NONE };
             return s;
         }
         static Step Removal(uint32 spell, AuraRemoveMode mode, uint32 everyMs)
         {
-            Step s = { false, spell, false, false, true, mode, everyMs, 0 };
+            Step s = { false, spell, false, false, true, mode, everyMs, 0, false, false, 0, SPELL_SCHOOL_MASK_NONE };
             return s;
         }
+        static Step Blow(uint32 amount, SpellSchoolMask school, uint32 everyMs)
+        {
+            Step s = { false, 0, false, false, false, AURA_REMOVE_BY_DEFAULT, everyMs, 0, true, false, amount, school };
+            return s;
+        }
+        static Step FullHealth(uint32 everyMs)
+        {
+            Step s = { false, 0, false, false, false, AURA_REMOVE_BY_DEFAULT, everyMs, 0, false, true, 0, SPELL_SCHOOL_MASK_NONE };
+            return s;
+        }
+        /// Whether a step is a cast of the mage's: neither a swing, a removal, a blow nor a health step.
+        static bool IsCast(Step const& step) { return !step.swing && !step.remove && !step.blow && !step.fullHealth; }
 
         /// What a step's two moments and its windows saw.
         struct Seen
@@ -4120,7 +4153,9 @@ namespace Harness
             bool ran = false, refused = false, read = false;
             uint32 castId = 0;
             uint32 cost = 0;                            ///< a cast's mana cost, Spell::CalculatePowerCost
-            uint32 healthBefore = 0, healthAfter = 0;   ///< the Camel's for a cast, the mage's for a swing
+            /// The Camel's for a cast, the mage's for a swing, a blow and a health step: before the step, and at its
+            /// read, or for a blow right after it.
+            uint32 healthBefore = 0, healthAfter = 0;
             bool targetFrozen = false;                  ///< Unit::IsFrozen on the Camel when the step ran
             std::string watchedBefore;                  ///< HolderOf the watched spell when the step ran
             std::string holder;                         ///< HolderOf the scenario's watched spell, at the read
@@ -4128,6 +4163,7 @@ namespace Harness
             int32 period = 0, timer = 0, duration = 0, maxDuration = 0;
             std::vector<std::string> holders;           ///< several Camels: HolderOf the watched spell on each, at the read
             std::string removed;                        ///< several Camels: what ReleaseOtherTargets answered
+            bool watchedOnCooldown = false;             ///< the watched spell on cooldown on the mage, at the read
             bool logRead = false, crit = false, missed = false;
             uint32 amount = 0;
             std::vector<uint32> triggered;
@@ -4165,8 +4201,12 @@ namespace Harness
         virtual int32 MasteryRating() const { return 0; }
         /// The spell power to stage.
         virtual int32 SpellPower() const { return 0; }
-        /// Whether the mage can take damage besides the Camel's swings.
+        /// Whether the mage can take damage besides the Camel's swings and blows.
         virtual bool TakesDamage() const { return false; }
+        /// Whether the mage heals or is healed.
+        virtual bool Heals() const { return false; }
+        /// His health set before a swing or a blow; 0 for his maximum.
+        virtual uint32 SwingHealth() const { return 0; }
         virtual std::vector<Step> Steps() const = 0;
         /// Every spell the scenario reaches: the casts, the holders that can proc and what they cast, the crit aura.
         virtual std::vector<SpellPrint> Prints() const = 0;
@@ -4378,10 +4418,36 @@ namespace Harness
             }
             else if (step.swing)
             {
-                p->SetHealth(p->GetMaxHealth());
+                p->SetHealth(SwingHealth() ? SwingHealth() : p->GetMaxHealth());
                 seen.healthBefore = p->GetHealth();
                 m_rec.Note("his health " + U(seen.healthBefore) + "; the Camel swings at him");
                 target->AttackerStateUpdate(p);
+            }
+            else if (step.blow)
+            {
+                p->SetHealth(SwingHealth() ? SwingHealth() : p->GetMaxHealth());
+                seen.healthBefore = p->GetHealth();
+                m_rec.Note("his health " + U(seen.healthBefore) + " of " + U(p->GetMaxHealth()) + "; the Camel strikes him for " +
+                           U(step.amount) + " of school mask " + U(uint32(step.school)));
+                uint32 absorb = 0;
+                uint32 resist = 0;
+                p->CalculateDamageAbsorbAndResist(target, step.school, SPELL_DIRECT_DAMAGE, step.amount, &absorb, &resist);
+                if (step.amount > absorb + resist)
+                {
+                    uint32 left = step.amount - absorb - resist;
+                    target->DealDamageMods(p, left, &absorb);
+                    target->DealDamage(p, left, NULL, DIRECT_DAMAGE, step.school, NULL, false);
+                    target->SendAttackStateUpdate(HITINFO_NORMALSWING2, p, step.school, left, absorb, resist, VICTIMSTATE_NORMAL, 0);
+                }
+                seen.healthAfter = p->GetHealth();
+                m_rec.Note("absorbed " + U(absorb) + ", resisted " + U(resist) + "; his health right after the blow " + U(seen.healthAfter) +
+                           (p->IsAlive() ? "" : ", dead"));
+            }
+            else if (step.fullHealth)
+            {
+                seen.healthBefore = p->GetHealth();
+                p->SetHealth(p->GetMaxHealth());
+                m_rec.Note("his health " + U(seen.healthBefore) + " set to his maximum " + U(p->GetHealth()));
             }
             else
             {
@@ -4432,7 +4498,17 @@ namespace Harness
             const std::string name = "step" + U(k + 1) + "-read";
             m_rec.Open(name);
             seen.read = true;
-            seen.healthAfter = st.steps[k].swing ? p->GetHealth() : target->GetHealth();
+            Step const& step = st.steps[k];
+            if (step.blow && !p->IsAlive())
+            {
+                p->ResurrectPlayer(1.0f);
+                m_rec.Note("the blow killed him; resurrected at full health, " + U(p->GetHealth()));
+            }
+            if (!step.blow)
+            {
+                seen.healthAfter = step.swing || step.fullHealth ? p->GetHealth() : target->GetHealth();
+            }
+            seen.watchedOnCooldown = Watched() && p->HasSpellCooldown(Watched());
             std::string periodic;
             if (const uint32 watched = Watched())
             {
@@ -4614,6 +4690,14 @@ namespace Harness
                 {
                     value = seen.healthAfter < seen.healthBefore ? "hit" : "swing";
                 }
+                else if (step.blow)
+                {
+                    value = "blow";
+                }
+                else if (step.fullHealth)
+                {
+                    value = "full";
+                }
                 else if (step.remove)
                 {
                     value = step.mode == AURA_REMOVE_BY_DISPEL ? "dispel" : "remove";
@@ -4631,15 +4715,15 @@ namespace Harness
                     value = U(step.spell) + (seen.missed ? "miss" : "none");
                 }
                 const bool castBug = step.aura ? seen.missed : (!seen.logRead || seen.crit != step.crit);
-                const bool bug = !seen.ran || seen.refused || !seen.read || (!step.swing && !step.remove && castBug);
+                const bool bug = !seen.ran || seen.refused || !seen.read || (IsCast(step) && castBug);
                 if (bug && stepsBug.empty())
                 {
                     stepsBug = "step " + U(k + 1) + ": " + value +
-                               (step.swing || step.remove ? std::string() : step.aura ? ", the aura was wanted"
-                                                                          : step.crit ? ", a crit was wanted" : ", no crit was wanted");
+                               (!IsCast(step) ? std::string() : step.aura ? ", the aura was wanted"
+                                                              : step.crit ? ", a crit was wanted" : ", no crit was wanted");
                 }
                 steps += (k ? "," : "") + value;
-                if (!step.swing && !step.remove && seen.logRead)
+                if (IsCast(step) && seen.logRead)
                 {
                     stepsText += (stepsText.empty() ? "" : "; ") + U(k + 1) + " " + U(seen.amount) + ", health " + U(seen.healthBefore) + "->" +
                                  U(seen.healthAfter);
@@ -6419,6 +6503,160 @@ namespace Harness
         static constexpr uint32 kLastStepMs = 9000;
     };
 
+    /**
+     * S969 `mage-fire-cauterize`: a killing blow on a staged Fire mage with Cauterize (86949, rank 2 of 2). Staged:
+     * Burning Soul 3, Improved Fire Blast 2, Fire Power 3 and Blazing Speed 2 (the ten points the third tier asks;
+     * Blazing Speed's hits taken never come), then Cauterize 2. Its aura holds the chance in effect 0 (100) and the
+     * health percent in effect 1 (40): a blow that would kill him leaves him at 40% of his maximum health, healed up to
+     * it through the heal effect of the follow-up spell 87023, which also burns him for 12% of his maximum health every
+     * 1.5 s for 6 s (a periodic damage percent aura that takes no damage mods), and puts 87023 on cooldown on him for
+     * 60 s, the lockout between two saves. Steps: his health set to 1 and the Camel's blow of kBlow fire damage; his
+     * health set to its maximum 3.5 s later, after the burn's second tick and before its third, so he outlives all
+     * four.
+     *
+     * `cauterize`: `before=<his health before the blow> after=<his health right after it> burn=<the 87023 ticks in the
+     * steps' windows, as <count>x<amount> when they are equal> lockout=<on when 87023 was on cooldown on him at the
+     * second read>`; OK when they are 1, 40% of his maximum health, four ticks of 12% of it and on, and the first read
+     * found the 87023 holder on him with period kBurnPeriod and maximum duration kBurnDuration.
+     */
+    class MageFireCauterize : public MageProcScenario
+    {
+    public:
+        MageFireCauterize() : MageProcScenario("mage-fire-cauterize", 969, "cauterize") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 }, { 10555, 1 }, { 11433, 1 } };
+        }
+        bool TakesDamage() const override { return true; }
+        bool Heals() const override { return true; }
+        uint32 SwingHealth() const override { return 1; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Blow(kBlow, SPELL_SCHOOL_MASK_FIRE, kBlowEveryMs), FullHealth(kFullHealthEveryMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 86949: 49 fields, fnv 7082c5a5
+                { 86949, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 40 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 87023: 72 fields, fnv 7c2b9732
+                { 87023, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 89 }, { "eff0.EffectAuraPeriod", 1500 }, { "eff0.EffectBasePoints", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 10 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 4 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return kBurn; }
+        bool ReadsPeriodic() const override { return true; }
+
+        std::string Own(St const& st) const override
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<uint32> ticks;
+            std::string heals;
+            const std::string heal = "heal self.heal." + U(kBurn) + "=";
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+                for (const char* suffix : suffixes)
+                {
+                    const std::string window = "step" + U(k + 1) + suffix;
+                    std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(window, SMSG_PERIODICAURALOG);
+                    for (size_t i = 0; i < logs.size(); ++i)
+                    {
+                        if (logs[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_PERIODICAURALOG, &logs[i]->payload[0],
+                                                                                 logs[i]->payload.size(), roles);
+                        for (size_t f = 0; f < fields.size(); ++f)
+                        {
+                            uint32 amount = 0;
+                            if (sscanf(fields[f].c_str(), "tick self.tick.87023=%u/", &amount) == 1)
+                            {
+                                ticks.push_back(amount);
+                            }
+                        }
+                    }
+                    std::vector<Recorder::Seen const*> healLogs = m_rec.SeenIn(window, SMSG_SPELLHEALLOG);
+                    for (size_t i = 0; i < healLogs.size(); ++i)
+                    {
+                        if (healLogs[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLHEALLOG, &healLogs[i]->payload[0],
+                                                                                 healLogs[i]->payload.size(), roles);
+                        for (size_t f = 0; f < fields.size(); ++f)
+                        {
+                            if (fields[f].find(heal) != std::string::npos)
+                            {
+                                heals += (heals.empty() ? "" : "; ") + fields[f];
+                            }
+                        }
+                    }
+                }
+            }
+
+            uint32 maxHealth = 0;
+            if (Player* p = sPlayerRegistry.Find(st.player))
+            {
+                maxHealth = p->GetMaxHealth();
+            }
+            const uint32 floorHealth = uint32(uint64(maxHealth) * kFloorPercent / 100);
+            const uint32 burnTick = uint32(uint64(maxHealth) * kBurnPercent / 100);
+
+            Seen const& blow = st.seen[0];
+            Seen const& full = st.seen[1];
+            bool equal = !ticks.empty();
+            std::string tickList;
+            for (size_t i = 0; i < ticks.size(); ++i)
+            {
+                equal = equal && ticks[i] == ticks[0];
+                tickList += (i ? "/" : "") + U(ticks[i]);
+            }
+            const std::string burn = ticks.empty() ? std::string("0") : equal ? U(ticks.size()) + "x" + U(ticks[0]) : tickList;
+            const std::string value = "before=" + U(blow.healthBefore) + " after=" + U(blow.healthAfter) + " burn=" + burn +
+                                      " lockout=" + (full.watchedOnCooldown ? "on" : "off");
+            const bool ok = st.steps.size() == 2 && blow.read && full.read && blow.healthBefore == 1 && blow.healthAfter == floorHealth &&
+                            blow.periodicRead && blow.period == kBurnPeriod && blow.maxDuration == kBurnDuration &&
+                            ticks.size() == kBurnTicks && equal && ticks[0] == burnTick && full.watchedOnCooldown;
+            const std::string holder = blow.periodicRead ? "period " + std::to_string(blow.period) + ", duration " +
+                                                               std::to_string(blow.duration) + "/" + std::to_string(blow.maxDuration)
+                                                         : std::string("none");
+            const std::string detail = "his maximum health " + U(maxHealth) + ": the floor " + U(kFloorPercent) + "% is " + U(floorHealth) +
+                                       ", a burn tick " + U(kBurnPercent) + "% is " + U(burnTick) + "; the 87023 holder on him at the first read: " +
+                                       holder + "; the heal logs of 87023: " + (heals.empty() ? std::string("none") : heals) +
+                                       "; 87023 on cooldown at the first read " + (blow.watchedOnCooldown ? "yes" : "no") + ")";
+            return ok ? "OK(" + value + "; " + detail : "BUG(" + value + "; " + detail;
+        }
+
+    private:
+        static constexpr uint32 kBurn = 87023;
+        static constexpr uint32 kBlow = 1000000;
+        static constexpr uint32 kBlowEveryMs = 3500;
+        static constexpr uint32 kFullHealthEveryMs = 5000;
+        static constexpr uint32 kFloorPercent = 40;
+        static constexpr uint32 kBurnPercent = 12;
+        static constexpr int32 kBurnPeriod = 1500;
+        static constexpr int32 kBurnDuration = 6000;
+        static constexpr size_t kBurnTicks = 4;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -6448,5 +6686,6 @@ namespace Harness
         r.Register(new MageFireCriticalMass());
         r.Register(new MageFireLivingBombLimit());
         r.Register(new MageFireIgnite());
+        r.Register(new MageFireCauterize());
     }
 }
