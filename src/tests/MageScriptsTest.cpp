@@ -41,6 +41,7 @@
 #include "Creature.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
+#include "data/ServerSpellStore.h"
 
 #include <algorithm>
 #include <list>
@@ -54,11 +55,12 @@ namespace
     uint32 const TRIGGER_SPELL_IDS[] = { 66 };
     uint32 const BOOST_IDS[] = { 11129, 28682, 74396 };
     uint32 const EFFECT_DUMMY_IDS[] = { 32826, 38194, 42955, 1459, 61316, 31687 };
-    uint32 const DUMMY_PROC_IDS[] = { 56372, 56375, 64411, 11119, 11120, 12846, 12847, 12848, 74396 };
+    uint32 const DUMMY_PROC_IDS[] = { 56372, 56375, 64411, 74396 };
 
     // The ids each proc script holds at the proc hook: every mage spell with the talent's icon (or class mask) and an
     // aura of the type the script stands for, in the client's data.
     uint32 const MAGIC_ABSORPTION_IDS[] = { 29441, 29444 };
+    uint32 const IGNITE_IDS[] = { 11119, 11120, 12846 };
     uint32 const MASTER_OF_ELEMENTS_IDS[] = { 29074, 29075, 29076 };
     uint32 const ARCANE_POTENCY_IDS[] = { 31571, 31572 };
     uint32 const HOT_STREAK_IDS[] = { 44445, 44446, 44448 };
@@ -180,6 +182,7 @@ namespace
         {
             { 29441, 0, SPELL_AURA_DUMMY }, { 29441, 1, SPELL_AURA_MOD_RESISTANCE },
             { 29074, 0, SPELL_AURA_DUMMY },
+            { 12846, 0, SPELL_AURA_DUMMY },
             { 31571, 0, SPELL_AURA_DUMMY },
             { 44445, 0, SPELL_AURA_DUMMY }, { 44445, 1, SPELL_AURA_DUMMY },
             { 31641, 0, SPELL_AURA_PROC_TRIGGER_SPELL },
@@ -206,15 +209,46 @@ namespace
         }
     }
 
-    // A proc of `spellId`'s effect `effIndex` on `owner`, with the event's spell, flags and the aura's amount given.
+    // Ignite's damage over time (12654) as the client's data holds it: effect 0 a periodic damage aura at the target
+    // every 2000 ms, and duration index 35, 4000 ms; so the DoT ticks twice. Put into the spell, effect and duration
+    // stores once for the rest of the run; no other test reads them.
+    void AddIgniteDot()
+    {
+        static ServerSpell dot;
+        static SpellDurationEntry duration;
+        static bool added = false;
+        if (added)
+        {
+            return;
+        }
+        added = true;
+        duration.ID = 35;
+        duration.Duration[0] = 4000;
+        duration.Duration[1] = 0;
+        duration.Duration[2] = 4000;
+        sSpellDurationStore.SetEntry(duration.ID, &duration);
+        dot.Entry().ID = 12654;
+        dot.Entry().DurationIndex = duration.ID;
+        dot.effect.SpellID = 12654;
+        dot.effect.EffectIndex = EFFECT_INDEX_0;
+        dot.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        dot.effect.EffectAura = SPELL_AURA_PERIODIC_DAMAGE;
+        dot.effect.EffectAuraPeriod = 2000;
+        dot.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+        sSpellStore.SetEntry(dot.Entry().ID, &dot.Entry());
+        AddSpellEffectEntry(&dot.effect);
+    }
+
+    // A proc of `spellId`'s effect `effIndex` on `owner`, with the event's spell, flags and the aura's amount given;
+    // the event's other unit and its damage too, when given.
     SpellHandlerOutcome<SpellAuraProcResult> Proc(SpellHandlerRegistry const& registry, Unit& owner, uint32 spellId,
                                                   SpellEffectIndex effIndex, SpellAuraHolder& holder, SpellEntry const* procSpell,
-                                                  uint32 procEx, int32 amount)
+                                                  uint32 procEx, int32 amount, Unit* victim = NULL, uint32 damage = 900)
     {
         SpellRowStorage row;
         SpellCooldownMgr cooldowns;
-        OnProcContext ctx(owner, NULL, SpellRow(row, spellId), effIndex, AuraHandle(holder), procSpell, 0x10000, procEx, 900,
-                          amount, ObjectGuid(), 0, NULL, cooldowns);
+        OnProcContext ctx(owner, victim, SpellRow(row, spellId), effIndex, AuraHandle(holder), procSpell, 0x10000, procEx,
+                          damage, amount, ObjectGuid(), 0, NULL, cooldowns);
         return registry.Dispatch<OnProcHook>(spellId, ctx);
     }
 }
@@ -224,22 +258,22 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // The class-wide file: Invisibility at the trigger-spell site; Polymorph Cast Visual, Blink, Conjure Refreshment
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
-    // the target hook and Persistent Shield at the proc hook. Fire: Combustion's two boost labels and the five Ignite
-    // ranks, and Living Bomb at the dummy aura hook. Frost: the 74396 boost and proc labels and Summon Water
-    // Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Master of Elements, Hot Streak and Blazing
-    // Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana
-    // Shield. 40 rows, 40 keys and 3 defaults, none twice.
+    // the target hook and Persistent Shield at the proc hook. Fire: Combustion's two boost labels, and Living Bomb at
+    // the dummy aura hook. Frost: the 74396 boost and proc labels and Summon Water Elemental; Ice Lance at the
+    // damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak and Blazing Speed; Frost: Deep
+    // Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. 38 rows,
+    // 38 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(43));
-    CHECK_EQ(registry.Count(), std::size_t(40));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(41));
+    CHECK_EQ(registry.Count(), std::size_t(38));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
-    CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(9));
+    CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(18));
+    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(21));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
@@ -260,7 +294,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 14, 11, 3 },
-        { &Mage::RegisterFire, 16, 16, 0 },
+        { &Mage::RegisterFire, 14, 14, 0 },
         { &Mage::RegisterFrost, 8, 8, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
     };
@@ -273,8 +307,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(43));
-    CHECK_EQ(registry.Count(), std::size_t(40));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(41));
+    CHECK_EQ(registry.Count(), std::size_t(38));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -283,7 +317,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(40));
+    CHECK_EQ(mine.size(), std::size_t(38));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -296,7 +330,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(7));
-    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(9));
+    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
     CHECK(game.Find<AuraPeriodicDummyTickMageSite>(55342) != NULL);
     CHECK(registry.Find<AuraPeriodicDummyTickMageSite>(55342) == NULL);
@@ -311,19 +345,26 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK(registry.Find<SpellCritChanceAuraProcMageSite>(54646) == NULL);
 }
 
-TEST(MageScripts_TheIgniteRanksShareOneBody)
+TEST(MageScripts_TheIgniteRanksShareOneBodyAtTheProcHook)
 {
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
 
-    // The five Ignite ranks share one body; the Glyphs of Ice Block and Polymorph, Blessing of Ancient Kings and 74396
-    // each have their own: 9 labels in 5 bodies.
-    typedef SpellHandler<DummyAuraProcMageSite>::Function ProcBody;
-    ProcBody ignite = registry.Find<DummyAuraProcMageSite>(11119);
+    // The three Ignite ranks of the client's data share one body at the proc hook, on this table and the game's; the
+    // two ids the client's data lacks (12847, 12848) are a key of no site and no hook.
+    SpellHandler<OnProcHook>::Function ignite = OneProcBody(registry, IGNITE_IDS);
     CHECK(ignite != NULL);
-    for (uint32 spellId : { 11120u, 12846u, 12847u, 12848u })
+    for (std::pair<uint32, uint32> const& key : SpellHandlerRegistry::Game().Keys())
     {
-        CHECK(registry.Find<DummyAuraProcMageSite>(spellId) == ignite);
+        CHECK(key.second != 12847u && key.second != 12848u);
+    }
+
+    // The Glyphs of Ice Block and Polymorph, Blessing of Ancient Kings and 74396 each have their own body at the dummy
+    // proc site: 4 labels in 4 bodies, and no Ignite rank among them.
+    typedef SpellHandler<DummyAuraProcMageSite>::Function ProcBody;
+    for (uint32 spellId : IGNITE_IDS)
+    {
+        CHECK(registry.Find<DummyAuraProcMageSite>(spellId) == NULL);
     }
     std::set<ProcBody> procBodies;
     for (uint32 spellId : DUMMY_PROC_IDS)
@@ -331,7 +372,7 @@ TEST(MageScripts_TheIgniteRanksShareOneBody)
         procBodies.insert(registry.Find<DummyAuraProcMageSite>(spellId));
     }
     CHECK(procBodies.count(NULL) == 0);
-    CHECK_EQ(procBodies.size(), std::size_t(5));
+    CHECK_EQ(procBodies.size(), std::size_t(4));
 
     // Combustion's two labels and the 74396 boost each have their own body.
     std::set<SpellHandler<AuraBoostMageSite>::Function> boostBodies;
@@ -408,9 +449,10 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
-    // Each talent's ids share one body, and each talent has its own: 18 ids in 9 bodies, the same in the game's table.
+    // Each talent's ids share one body, and each talent has its own: 21 ids in 10 bodies, the same in the game's table.
     std::set<SpellHandler<OnProcHook>::Function> bodies;
     bodies.insert(OneProcBody(registry, MAGIC_ABSORPTION_IDS));
+    bodies.insert(OneProcBody(registry, IGNITE_IDS));
     bodies.insert(OneProcBody(registry, MASTER_OF_ELEMENTS_IDS));
     bodies.insert(OneProcBody(registry, ARCANE_POTENCY_IDS));
     bodies.insert(OneProcBody(registry, HOT_STREAK_IDS));
@@ -419,13 +461,14 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     bodies.insert(OneProcBody(registry, PERSISTENT_SHIELD_IDS));
     bodies.insert(OneProcBody(registry, DEEP_FREEZE_IMMUNITY_IDS));
     bodies.insert(OneProcBody(registry, FINGERS_OF_FROST_IDS));
-    CHECK_EQ(bodies.size(), std::size_t(9));
-    std::size_t const ids = sizeof(MAGIC_ABSORPTION_IDS) / sizeof(uint32) + sizeof(MASTER_OF_ELEMENTS_IDS) / sizeof(uint32) +
+    CHECK_EQ(bodies.size(), std::size_t(10));
+    std::size_t const ids = sizeof(MAGIC_ABSORPTION_IDS) / sizeof(uint32) + sizeof(IGNITE_IDS) / sizeof(uint32) +
+                            sizeof(MASTER_OF_ELEMENTS_IDS) / sizeof(uint32) +
                             sizeof(ARCANE_POTENCY_IDS) / sizeof(uint32) + sizeof(HOT_STREAK_IDS) / sizeof(uint32) +
                             sizeof(BLAZING_SPEED_IDS) / sizeof(uint32) + sizeof(MANA_SHIELD_IDS) / sizeof(uint32) +
                             sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) +
                             sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32);
-    CHECK_EQ(ids, std::size_t(18));
+    CHECK_EQ(ids, std::size_t(21));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(0));
@@ -519,6 +562,65 @@ TEST(MageScripts_TheProcScriptsKeepTheirEarlyRefusals)
     SpellHandlerOutcome<SpellAuraProcResult> noChance = Proc(registry, owner, 83074, EFFECT_INDEX_0, holder, NULL, PROC_EX_NORMAL_HIT, 0);
     CHECK(noChance.IsReturn());
     CHECK_EQ(int(noChance.GetValue()), int(SPELL_AURA_PROC_FAILED));
+}
+
+TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
+{
+    AddProcEffectRows();
+    AddIgniteDot();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    BareCreature owner;
+    BareCreature victim;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage fireballRow;
+    SpellEntry const& fireball = SpellRow(fireballRow, 133);
+
+    // The DoT's two ticks come from the client's data as the stores hold it: 4000 ms over a period of 2000.
+    SpellEntry const* dot = sSpellStore.LookupEntry(12654);
+    CHECK(dot != NULL);
+    CHECK_EQ(GetSpellDuration(dot), int32(4000));
+    CHECK(dot && dot->GetSpellEffect(EFFECT_INDEX_0) && dot->GetSpellEffect(EFFECT_INDEX_0)->EffectAuraPeriod == 2000);
+    CHECK(victim.IsAlive());
+
+    // An effect that is not the dummy (12846 has no effect 1) is left to the proc handler of its own aura type.
+    CHECK(Proc(registry, owner, 12846, EFFECT_INDEX_1, holder, &fireball, PROC_EX_CRITICAL_HIT, 40, &victim, 10000).IsContinue());
+
+    // A hit that did not crit is refused.
+    SpellHandlerOutcome<SpellAuraProcResult> outcome =
+        Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &fireball, PROC_EX_NORMAL_HIT, 40, &victim, 10000);
+    CHECK(outcome.IsReturn());
+    CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+
+    // A crit of Living Bomb's explosion, of a Flame Orb hit or of Fire Power's explosion is refused, by its id.
+    for (uint32 spellId : { 44461u, 82739u, 83619u })
+    {
+        SpellRowStorage notIgniting;
+        outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &SpellRow(notIgniting, spellId), PROC_EX_CRITICAL_HIT, 40,
+                       &victim, 10000);
+        CHECK(outcome.IsReturn());
+        CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    }
+
+    // A crit whose share is below one point a tick is refused: 40% of 1 is 0, and 40% of 4 is 1, below two ticks.
+    for (uint32 damage : { 1u, 4u })
+    {
+        outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &fireball, PROC_EX_CRITICAL_HIT, 40, &victim, damage);
+        CHECK(outcome.IsReturn());
+        CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    }
+
+    // A crit with no victim is refused, and so is one for an aura whose amount is no percent.
+    outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &fireball, PROC_EX_CRITICAL_HIT, 40, NULL, 10000);
+    CHECK(outcome.IsReturn());
+    CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &fireball, PROC_EX_CRITICAL_HIT, 0, &victim, 10000);
+    CHECK(outcome.IsReturn());
+    CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+
+    // Nothing was cast: the victim holds no Ignite.
+    CHECK(victim.GetSpellAuraHolder(12654) == NULL);
 }
 
 TEST(MageScripts_IceLanceTriplesTheDamageDoneAtAFrozenTarget)

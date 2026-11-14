@@ -160,6 +160,9 @@ TEST(PeriodicTiming_ARefreshedDotSpreadsTheOldAndTheNewTotalsOverTheNewTickCount
     // Ignite's bank: a new 4000 over two ticks (2000) beside one old 2000 tick left, over the three ticks the carry
     // gives: (2 x 2000 + 1 x 2000) / 3 = 2000
     CHECK_EQ(Spells::RolledOverTick(2000, 2, 2000, 1, 3), int32(2000));
+    // a rank-1 Ignite (two ticks of 650) over a running rank-3 bank with both its 1300 ticks left, over three ticks:
+    // (2 x 650 + 2 x 1300) / 3 = 1300
+    CHECK_EQ(Spells::RolledOverTick(650, 2, 1300, 2, 3), int32(1300));
     // the remainder of the division is dropped: (4000 + 2001) / 3 = 2000.33 -> 2000
     CHECK_EQ(Spells::RolledOverTick(2000, 2, 2001, 1, 3), int32(2000));
     // without the carry the tick count stays two: (4000 + 2000) / 2 = 3000, the new amount plus the remainder's half
