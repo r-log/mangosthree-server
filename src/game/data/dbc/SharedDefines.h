@@ -482,7 +482,7 @@ enum SpellAttributesEx5
     SPELL_ATTR_EX5_HIDE_DURATION               = 0x00000400,// 10
     SPELL_ATTR_EX5_UNK11                       = 0x00000800,// 11
     SPELL_ATTR_EX5_UNK12                       = 0x00001000,// 12
-    SPELL_ATTR_EX5_UNK13                       = 0x00002000,// 13 haste affects duration (e.g. 8050 since 3.3.3)
+    SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC      = 0x00002000,// 13 the period is hasted and the tick count rounded
     SPELL_ATTR_EX5_UNK14                       = 0x00004000,// 14
     SPELL_ATTR_EX5_UNK15                       = 0x00008000,// 15
     SPELL_ATTR_EX5_UNK16                       = 0x00010000,// 16
@@ -594,7 +594,7 @@ enum SpellAttributesEx8
     SPELL_ATTR_EX8_UNK14                       = 0x00004000,// 14 Focus Magic, Honor Among Thieves, Turn the Tables
     SPELL_ATTR_EX8_UNK15                       = 0x00008000,// 15 River Boat (76203)
     SPELL_ATTR_EX8_UNK16                       = 0x00010000,// 16
-    SPELL_ATTR_EX8_UNK17                       = 0x00020000,// 17
+    SPELL_ATTR_EX8_HASTE_AFFECTS_DURATION      = 0x00020000,// 17 the duration itself is hasted (channels)
     SPELL_ATTR_EX8_UNK18                       = 0x00040000,// 18 Dark Simulacrum, Soul Swap
     SPELL_ATTR_EX8_IGNORE_TARGET_FOR_COMBO_POINTS = 0x00080000,// 19 Slice and Dice, Savage Roar, Recuperate
     SPELL_ATTR_EX8_ARMOR_SPECIALIZATION        = 0x00100000,// 20

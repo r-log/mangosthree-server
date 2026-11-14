@@ -3699,7 +3699,7 @@ void Unit::ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply
 }
 
 /**
- * @brief Applies or removes a percentage modifier to cast speed.
+ * @brief Applies or removes a percentage modifier to the cast-speed and the cast-haste fields.
  *
  * @param val The percentage value.
  * @param apply True to apply the modifier; false to remove it.
@@ -3709,10 +3709,12 @@ void Unit::ApplyCastTimePercentMod(float val, bool apply)
     if (val > 0)
     {
         ApplyPercentModFloatValue(UNIT_MOD_CAST_SPEED, val, !apply);
+        ApplyPercentModFloatValue(UNIT_MOD_CAST_HASTE, val, !apply);
     }
     else
     {
         ApplyPercentModFloatValue(UNIT_MOD_CAST_SPEED, -val, apply);
+        ApplyPercentModFloatValue(UNIT_MOD_CAST_HASTE, -val, apply);
     }
 }
 

@@ -33,6 +33,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/auras/AuraNotices.h"
+#include "spells/PeriodicTiming.h"
 #include "Util.h"
 #include "Pet.h"
 #include "Totem.h"
@@ -356,7 +357,54 @@ float Unit::GetTotalAuraMultiplierByMiscValueForMask(AuraType auratype, uint32 m
 }
 
 /**
+ * @brief Carries the time to the next tick from a holder its caster applies again to the holder that replaces it.
+ *
+ * Each periodic aura of `holder` whose effect also ticks in `previous` takes the time `previous`'s aura had left to
+ * its next tick as the time to its first tick. The first such time lengthens `holder`, so it lasts its full duration
+ * after that tick. A holder without a positive duration is left as it is.
+ *
+ * @param holder The new holder, not yet on the unit.
+ * @param previous The caster's holder of the same spell it replaces.
+ */
+static void CarryPeriodicTimers(SpellAuraHolder* holder, SpellAuraHolder* previous)
+{
+    if (holder->GetAuraMaxDuration() <= 0)
+    {
+        return;
+    }
+
+    bool lengthened = false;
+    for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        Aura* aur = holder->GetAuraByEffectIndex(SpellEffectIndex(i));
+        Aura* old = previous->GetAuraByEffectIndex(SpellEffectIndex(i));
+        if (!aur || !old || !aur->GetModifier()->periodictime || !old->IsPeriodic())
+        {
+            continue;
+        }
+
+        const int32 timeToNextTick = old->GetPeriodicTimer();
+        if (timeToNextTick <= 0 || timeToNextTick > int32(old->GetModifier()->periodictime))
+        {
+            continue;
+        }
+
+        if (!lengthened)
+        {
+            holder->SetAuraMaxDuration(holder->GetAuraMaxDuration() + timeToNextTick);
+            holder->SetAuraDuration(holder->GetAuraDuration() + timeToNextTick);
+            lengthened = true;
+        }
+        aur->CarryTickTimer(timeToNextTick);
+    }
+}
+
+/**
  * @brief Adds an aura holder to the unit after stacking and conflict checks.
+ *
+ * A periodic effect its caster applies again, of a spell that does not stack, keeps the time its old aura had to the
+ * next tick and lasts its full duration after it (CarryPeriodicTimers); a damage-over-time effect that carries its
+ * remaining damage spreads the old and the new totals over the new tick count.
  *
  * @param holder The aura holder to add.
  * @return True if the holder remained applied; otherwise, false.
@@ -409,6 +457,16 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
                     continue;
                 }
 
+                uint32 ticksBeforeCarry[MAX_EFFECT_INDEX] = { 0, 0, 0 };
+                for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+                {
+                    if (Aura* aur = holder->GetAuraByEffectIndex(SpellEffectIndex(i)))
+                    {
+                        ticksBeforeCarry[i] = aur->GetAuraMaxTicks();
+                    }
+                }
+                CarryPeriodicTimers(holder, foundHolder);
+
                 // Carry over removed Aura's remaining damage if Aura still has ticks remaining
                 if (foundHolder->GetSpellProto()->HasAttribute(SPELL_ATTR_EX4_STACK_DOT_MODIFIER))
                 {
@@ -424,10 +482,12 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
                             {
                                 if (Aura* existing = foundHolder->GetAuraByEffectIndex(SpellEffectIndex(i)))
                                 {
-                                    int32 remainingTicks = existing->GetAuraMaxTicks() - existing->GetAuraTicks();
-                                    int32 remainingDamage = existing->GetModifier()->m_amount * remainingTicks;
+                                    const uint32 existingTicks = existing->GetAuraMaxTicks();
+                                    const uint32 remainingTicks = existingTicks > existing->GetAuraTicks() ? existingTicks - existing->GetAuraTicks() : 0;
 
-                                    aur->GetModifier()->m_amount += int32(remainingDamage / aur->GetAuraMaxTicks());
+                                    aur->GetModifier()->m_amount = Spells::RolledOverTick(aur->GetModifier()->m_amount, ticksBeforeCarry[i],
+                                                                                          existing->GetModifier()->m_amount, remainingTicks,
+                                                                                          aur->GetAuraMaxTicks());
                                 }
                                 else
                                 {

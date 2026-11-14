@@ -87,8 +87,9 @@
 // expiry and at dispel; 957 Ice Lance at a frozen target, an unfrozen one, and with Fingers of Frost;
 // 958-960 a warrior, a paladin and a death knight staged to level 85 at a fixed attack power cast Heroic
 // Throw, Hammer of Wrath and Death Coil five times at a level-85 target; 961 a priest staged the same way
-// with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it.
-// The guard of 931-938 and 950-961 (Qualify) fingerprints every spell a scenario reaches and refuses
+// with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it; 962 a
+// hasted mage's Pyroblast! and its ticks; 963 Pyroblast! cast again before its periodic effect's next tick.
+// The guard of 931-938 and 950-963 (Qualify) fingerprints every spell a scenario reaches and refuses
 // the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -510,6 +511,31 @@ namespace Harness
             char buf[96];
             snprintf(buf, sizeof(buf), "eff 0x%x charges %u stack %u", mask, uint32(holder->GetAuraCharges()), uint32(holder->GetStackAmount()));
             return buf;
+        }
+
+        /// The periodic timing of `spell`'s holder on `unit`: the period of its first periodic aura and the time to that
+        /// aura's next tick, and the holder's duration left and its maximum. False when the unit holds no such holder or
+        /// the holder no periodic aura.
+        bool PeriodicOf(Unit* unit, uint32 spell, int32& period, int32& timer, int32& duration, int32& maxDuration)
+        {
+            SpellAuraHolder* holder = unit ? unit->GetSpellAuraHolder(spell) : NULL;
+            if (!holder)
+            {
+                return false;
+            }
+            for (uint32 e = 0; e < MAX_EFFECT_INDEX; ++e)
+            {
+                Aura* aura = holder->GetAuraByEffectIndex(SpellEffectIndex(e));
+                if (aura && aura->IsPeriodic() && aura->GetModifier()->periodictime)
+                {
+                    period = int32(aura->GetModifier()->periodictime);
+                    timer = aura->GetPeriodicTimer();
+                    duration = holder->GetAuraDuration();
+                    maxDuration = holder->GetAuraMaxDuration();
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// The holders ProcHolders lists, split by the chance Unit::IsTriggeredAtSpellProcEvent
@@ -3877,14 +3903,16 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957): a human mage staged to level 85 with the scenario's talents,
-     * glyphs, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged to level 85 ten yards in front of
-     * him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
-     *  - a cast: his mana set to its maximum by call; for a step that must crit, Increased Critical Spell (23434, a
-     *    spell crit chance aura) put on him at kCritAuraPoints by a triggered self-cast, and for one that must not,
-     *    taken off him by call; then the spell cast at the Camel through the CAST_SPELL handler's calls. One every
-     *    CastEveryMs() (kCastEveryMs unless the scenario sets its own), read kCastReadMs after. An aura cast is the
-     *    same cast of a spell that applies an aura and sends no damage log of its own;
+     * What the mage scenarios share (951, 952, 954-957, 962, 963): a human mage staged to level 85 with the scenario's
+     * talents, glyphs, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged to level 85 ten yards in
+     * front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
+     *  - a cast: for a scenario whose spell asks for an aura on its caster (CasterAura), that aura put on him by a
+     *    triggered self-cast when he does not hold it; his mana set to its maximum by call; for a step that must crit,
+     *    Increased Critical Spell (23434, a spell crit chance aura) put on him at kCritAuraPoints by a triggered
+     *    self-cast, and for one that must not, taken off him by call; then the spell cast at the Camel through the
+     *    CAST_SPELL handler's calls. One every CastEveryMs() (kCastEveryMs unless the scenario sets its own), read
+     *    kCastReadMs after. An aura cast is the same cast of a spell that applies an aura and sends no damage log of
+     *    its own;
      *  - a swing: his health set to its maximum by call, then the Camel's melee swing at him
      *    (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
      *  - a removal: the holder of the step's spell taken off the Camel, by dispel
@@ -3896,13 +3924,14 @@ namespace Harness
      *
      * Categories: `template`; `staged` the level, the free talent points against the level's, the primary tree, each
      * talent's rank spell known, the glyph slots, and for a scenario that stages glyphs or ratings each glyph's aura
-     * and the two ratings with the haste and mastery they give; `steps` each step as the record reads it (a cast's
-     * spell, `c` added when its damage log is a crit, `miss` when SPELL_GO lists the Camel as missed, `none` when no
-     * damage log came; an aura cast's spell, `miss` added as for a cast; a swing's `hit` when his health fell, else
-     * `swing`; a removal's `dispel` or `remove`), a BUG when a step was refused or not read, a cast's crit flag is not
-     * the step's or an aura cast missed; `triggered` the spells of the SPELL_GO packets in each step's windows other
-     * than the step's own and the crit aura's, which are what his procs and the auras cast; the scenario's own
-     * category; `noPersistence`; `digest`.
+     * and the two ratings with the haste and mastery they give; its text also names his cast-speed and cast-haste
+     * fields; `steps` each step as the record reads it (a cast's spell, `c` added when its damage log is a crit,
+     * `miss` when SPELL_GO lists the Camel as missed, `none` when no damage log came; an aura cast's spell, `miss`
+     * added as for a cast; a swing's `hit` when his health fell, else `swing`; a removal's `dispel` or `remove`), a
+     * BUG when a step was refused or not read, a cast's crit flag is not the step's or an aura cast missed;
+     * `triggered` the spells of the SPELL_GO packets in each step's windows other than the step's own, the crit
+     * aura's and the caster aura's, which are what his procs and the auras cast; the scenario's own category;
+     * `noPersistence`; `digest`.
      */
     class MageProcScenario : public SpellScenario
     {
@@ -4066,6 +4095,8 @@ namespace Harness
             bool targetFrozen = false;                  ///< Unit::IsFrozen on the Camel when the step ran
             std::string watchedBefore;                  ///< HolderOf the watched spell when the step ran
             std::string holder;                         ///< HolderOf the scenario's watched spell, at the read
+            bool periodicRead = false;                  ///< PeriodicOf answered for the watched holder, at the read
+            int32 period = 0, timer = 0, duration = 0, maxDuration = 0;
             bool logRead = false, crit = false, missed = false;
             uint32 amount = 0;
             std::vector<uint32> triggered;
@@ -4111,6 +4142,10 @@ namespace Harness
         virtual bool WatchedOnTarget() const { return false; }
         /// Whether each step notes, before it acts, the Camel's frozen state and the watched holder.
         virtual bool NotesBeforeStep() const { return false; }
+        /// Whether each read also records the watched holder's periodic timing (PeriodicOf).
+        virtual bool ReadsPeriodic() const { return false; }
+        /// The aura a cast step's spell asks for on its caster, put on him before the cast; 0 for none.
+        virtual uint32 CasterAura() const { return 0; }
         /// The time from one cast step to the next.
         virtual uint32 CastEveryMs() const { return kCastEveryMs; }
         /// The scenario's own category, from what the steps saw.
@@ -4195,6 +4230,13 @@ namespace Harness
             }
             else
             {
+                if (const uint32 casterAura = CasterAura())
+                {
+                    if (!p->HasAura(casterAura))
+                    {
+                        p->CastSpell(p, casterAura, true);
+                    }
+                }
                 const bool hasCritAura = p->HasAura(kCritAura);
                 if (step.crit && !hasCritAura)
                 {
@@ -4233,13 +4275,24 @@ namespace Harness
             m_rec.Open(name);
             seen.read = true;
             seen.healthAfter = st.steps[k].swing ? p->GetHealth() : target->GetHealth();
+            std::string periodic;
             if (const uint32 watched = Watched())
             {
-                seen.holder = HolderOf(WatchedOnTarget() ? static_cast<Unit*>(target) : static_cast<Unit*>(p), watched);
+                Unit* holderUnit = WatchedOnTarget() ? static_cast<Unit*>(target) : static_cast<Unit*>(p);
+                seen.holder = HolderOf(holderUnit, watched);
+                if (ReadsPeriodic())
+                {
+                    seen.periodicRead = PeriodicOf(holderUnit, watched, seen.period, seen.timer, seen.duration, seen.maxDuration);
+                    periodic = seen.periodicRead ? "; its periodic effect: period " + std::to_string(seen.period) + ", next tick in " +
+                                                   std::to_string(seen.timer) + ", duration " + std::to_string(seen.duration) + "/" +
+                                                   std::to_string(seen.maxDuration)
+                                                 : std::string("; no periodic effect");
+                }
             }
             m_rec.Note("his health " + U(p->GetHealth()) + ", mana " + U(p->GetPower(POWER_MANA)) + "; the Camel's health " +
                        U(target->GetHealth()) +
-                       (Watched() ? "; " + U(Watched()) + (WatchedOnTarget() ? " on the Camel: " : " on him: ") + seen.holder : std::string()));
+                       (Watched() ? "; " + U(Watched()) + (WatchedOnTarget() ? " on the Camel: " : " on him: ") + seen.holder : std::string()) +
+                       periodic);
             m_rec.Open(name + "+tick");
         }
 
@@ -4270,7 +4323,7 @@ namespace Harness
                         {
                             seen.missed = seen.missed || go.find(" hit=[] miss=[target:") != std::string::npos;
                         }
-                        else if (spell != kCritAura)
+                        else if (spell != kCritAura && spell != CasterAura())
                         {
                             seen.triggered.push_back(spell);
                         }
@@ -4356,6 +4409,9 @@ namespace Harness
                          p->GetRatingBonusValue(CR_HASTE_SPELL), mastery, p->GetFloatValue(PLAYER_MASTERY));
                 st.stagedText += "; glyphs " + (glyphText.empty() ? std::string("none") : glyphText) + buf;
             }
+            snprintf(buf, sizeof(buf), "; cast-speed field %.6f, cast-haste field %.6f", p->GetFloatValue(UNIT_MOD_CAST_SPEED),
+                     p->GetFloatValue(UNIT_MOD_CAST_HASTE));
+            st.stagedText += buf;
             m_rec.Note("staged: " + st.stagedText);
         }
 
@@ -4927,6 +4983,180 @@ namespace Harness
     };
 
     /**
+     * What the Pyroblast! scenarios share (962, 963): a staged mage who learned Pyroblast! (92315) casts it at the Camel.
+     * Its effect 1 is a periodic damage aura of period 3000 over the spell's 12000 ms, and the spell carries
+     * AttributesEx5 0x2000, under which the client hastes the period and rounds the tick count. Pyroblast! asks for Hot
+     * Streak (48108) on its caster (SpellAuraRestrictions), so each cast step puts it on him first (CasterAura). The
+     * Camel's 92315 holder is the watched one, and each read records its periodic timing.
+     */
+    class MagePyroblastScenario : public MageProcScenario
+    {
+    public:
+        MagePyroblastScenario(char const* name, int order, char const* ownCategory) : MageProcScenario(name, order, ownCategory) {}
+
+    protected:
+        static constexpr uint32 kPyroblast = 92315;
+        static constexpr uint32 kHotStreak = 48108;
+
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return std::vector<std::pair<uint32, uint32> >(); }
+        std::vector<uint32> Spells() const override { return { kPyroblast }; }
+        uint32 CasterAura() const override { return kHotStreak; }
+        uint32 Watched() const override { return kPyroblast; }
+        bool WatchedOnTarget() const override { return true; }
+        bool ReadsPeriodic() const override { return true; }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 92315: 49 fields, fnv 7ef90b4a
+                { 92315, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 48108: 26 fields, fnv 28b4e817
+                { 48108, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 332 }, { "eff0.EffectBasePoints", 92315 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags2", 4096 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// The ticks of Pyroblast! in the periodic logs he is sent in step k's four windows, as the recorder's `tick`
+        /// lines read them.
+        uint32 Ticks(uint32 k) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            const std::string tick = "self.tick." + U(kPyroblast) + "=";
+            uint32 ticks = 0;
+            const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+            for (const char* suffix : suffixes)
+            {
+                std::vector<Recorder::Seen const*> logs = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_PERIODICAURALOG);
+                for (size_t i = 0; i < logs.size(); ++i)
+                {
+                    if (logs[i]->payload.empty())
+                    {
+                        continue;
+                    }
+                    std::vector<std::string> fields = Trace::CombatLogFields(SMSG_PERIODICAURALOG, &logs[i]->payload[0],
+                                                                             logs[i]->payload.size(), roles);
+                    for (size_t f = 0; f < fields.size(); ++f)
+                    {
+                        if (fields[f].find(tick) != std::string::npos)
+                        {
+                            ++ticks;
+                        }
+                    }
+                }
+            }
+            return ticks;
+        }
+
+        /// The watched holder's periodic timing a read recorded, as text.
+        static std::string PeriodicText(Seen const& seen)
+        {
+            return seen.periodicRead ? "period " + std::to_string(seen.period) + ", next tick in " + std::to_string(seen.timer) +
+                                           ", duration " + std::to_string(seen.duration) + "/" + std::to_string(seen.maxDuration)
+                                     : std::string("no holder with a periodic effect");
+        }
+    };
+
+    /**
+     * S962 `mage-fire-pyroblast-haste`: Pyroblast! (92315) at the Camel by a staged mage with kHasteRating haste rating:
+     * 3201 / 128.057 (gtCombatRatings at 85) = 24.9966% spell haste, so his cast-haste multiplier is
+     * 100 / 124.9966 = 0.80002. The client's rule for a spell with AttributesEx5 0x2000: the period is
+     * round(3000 x 0.80002) = 2400, and the duration round(12000 / 2400) = 5 periods, 12000 ms. One cast, read
+     * kCastReadMs after it; the kEveryMs before the end cover every tick.
+     *
+     * `periodic`: `period=<the period of the Camel's 92315 holder's periodic aura, at the read>,duration=<the holder's
+     * maximum duration>,ticks=<the ticks of 92315 in the step's windows>`; OK when they are the client's 2400, 12000
+     * and 5.
+     */
+    class MageFirePyroblastHaste : public MagePyroblastScenario
+    {
+    public:
+        MageFirePyroblastHaste() : MagePyroblastScenario("mage-fire-pyroblast-haste", 962, "periodic") {}
+
+    protected:
+        int32 HasteRating() const override { return kHasteRating; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step pyroblast = Cast(kPyroblast, false);
+            pyroblast.everyMs = kEveryMs;
+            return { pyroblast };
+        }
+
+        std::string Own(St const& st) const override
+        {
+            Seen const& seen = st.seen[0];
+            const uint32 ticks = Ticks(0);
+            const std::string value = "period=" + std::to_string(seen.period) + ",duration=" + std::to_string(seen.maxDuration) +
+                                      ",ticks=" + U(ticks);
+            const bool ok = seen.periodicRead && seen.period == kPeriod && seen.maxDuration == kDuration && ticks == kTicks;
+            const std::string detail = "the Camel's 92315 holder at the read: " + PeriodicText(seen) + "; " + U(ticks) +
+                                       " ticks in the step's windows; the client's rule at the staged multiplier gives period " +
+                                       std::to_string(kPeriod) + ", duration " + std::to_string(kDuration) + ", " + U(kTicks) + " ticks)";
+            return value + (ok ? "(OK: " : "(BUG: ") + detail;
+        }
+
+    private:
+        static constexpr int32 kHasteRating = 3201;
+        static constexpr uint32 kEveryMs = 16000;
+        static constexpr int32 kPeriod = 2400;
+        static constexpr int32 kDuration = 12000;
+        static constexpr uint32 kTicks = 5;
+    };
+
+    /**
+     * S963 `mage-fire-pyroblast-refresh`: Pyroblast! (92315) cast at the Camel twice by a staged mage without haste, the
+     * second kRefreshMs after the first. The missile takes the same time on both casts, so the first holder's ticks come
+     * 3.0, 6.0 and 9.0 s after the first landing and the second landing 7.8 s after it, 1.2 s before the third tick.
+     * The rule for a periodic effect its caster applies again: the time to the next tick is kept and the full duration
+     * comes after it, so the new holder lasts 12000 + 1200 = 13200 ms and ticks 9.0, 12.0, 15.0, 18.0 and 21.0 s after
+     * the first landing: five ticks after the two before.
+     *
+     * `refresh`: `duration=<the maximum duration of the Camel's 92315 holder at the second read>,ticks=<the ticks of 92315
+     * in both steps' windows>`; OK when they are 13200 and 7.
+     */
+    class MageFirePyroblastRefresh : public MagePyroblastScenario
+    {
+    public:
+        MageFirePyroblastRefresh() : MagePyroblastScenario("mage-fire-pyroblast-refresh", 963, "refresh") {}
+
+    protected:
+        std::vector<Step> Steps() const override
+        {
+            Step first = Cast(kPyroblast, false);
+            first.everyMs = kRefreshMs;
+            Step second = Cast(kPyroblast, false);
+            second.everyMs = kEveryMs;
+            return { first, second };
+        }
+
+        std::string Own(St const& st) const override
+        {
+            Seen const& second = st.seen[1];
+            const uint32 before = Ticks(0), after = Ticks(1);
+            const std::string value = "duration=" + std::to_string(second.maxDuration) + ",ticks=" + U(before + after);
+            const bool ok = second.periodicRead && second.maxDuration == kDuration && before + after == kTicks;
+            const std::string detail = "the Camel's 92315 holder at the first read: " + PeriodicText(st.seen[0]) + "; at the second read: " +
+                                       PeriodicText(second) + "; ticks " + U(before) + " in the first step's windows and " + U(after) +
+                                       " in the second's; the rule gives duration " + std::to_string(kDuration) + " and " + U(kTicks) +
+                                       " ticks)";
+            return value + (ok ? "(OK: " : "(BUG: ") + detail;
+        }
+
+    private:
+        static constexpr uint32 kRefreshMs = 7800;
+        static constexpr uint32 kEveryMs = 15000;
+        static constexpr int32 kDuration = 13200;
+        static constexpr uint32 kTicks = 7;
+    };
+
+    /**
      * What the attack power scenarios share (958-961): a human of the scenario's class staged to level 85 with
      * kAttackPower added to his melee and his ranged attack power, the scenario's spell power and its spells
      * (Scenario::StagePlayer), and a Camel (50249) staged to level 85 kTargetYards in front of him
@@ -5446,5 +5676,7 @@ namespace Harness
         r.Register(new PaladinHammerOfWrathAp());
         r.Register(new DeathKnightDeathCoilAp());
         r.Register(new PriestMortarShotPhysical());
+        r.Register(new MageFirePyroblastHaste());
+        r.Register(new MageFirePyroblastRefresh());
     }
 }

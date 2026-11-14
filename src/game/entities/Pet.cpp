@@ -546,6 +546,7 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
     SetUInt32Value(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP_ATTACKABLE | UNIT_FLAG_RENAME);
 
     SetUInt32Value(UNIT_MOD_CAST_SPEED, creature->GetUInt32Value(UNIT_MOD_CAST_SPEED));
+    SetUInt32Value(UNIT_MOD_CAST_HASTE, creature->GetUInt32Value(UNIT_MOD_CAST_HASTE));
 
     return true;
 }
@@ -565,6 +566,7 @@ void Pet::InitStatsForLevel(uint32 petlevel)
     SetLevel(petlevel);
 
     SetFloatValue(UNIT_MOD_CAST_SPEED, 1.0);
+    SetFloatValue(UNIT_MOD_CAST_HASTE, 1.0);
 
     int32 createResistance[MAX_SPELL_SCHOOL] = {0, 0, 0, 0, 0, 0, 0};
 
