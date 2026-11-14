@@ -419,7 +419,8 @@ struct boss_brundir : public CreatureScript
                         return;
                     }
 
-                    // no break here; he uses the other spells as well
+                    // he uses the other spells as well
+                    [[fallthrough]];
                 case PHASE_CHARGE_ONE:
 
                     if (m_uiWhirlTimer < uiDiff)
@@ -435,7 +436,8 @@ struct boss_brundir : public CreatureScript
                         m_uiWhirlTimer -= uiDiff;
                     }
 
-                    // no break here; he uses the other spells as well
+                    // he uses the other spells as well
+                    [[fallthrough]];
                 case PHASE_NO_CHARGE:
 
                     if (m_uiChainLightningTimer < uiDiff)
@@ -640,7 +642,8 @@ struct boss_molgeim : public CreatureScript
                         m_uiRuneSummonTimer -= uiDiff;
                     }
 
-                    // no break here; he uses the other spells as well
+                    // he uses the other spells as well
+                    [[fallthrough]];
                 case PHASE_CHARGE_ONE:
 
                     if (m_uiRuneDeathTimer < uiDiff)
@@ -659,7 +662,8 @@ struct boss_molgeim : public CreatureScript
                         m_uiRuneDeathTimer -= uiDiff;
                     }
 
-                    // no break here; he uses the other spells as well
+                    // he uses the other spells as well
+                    [[fallthrough]];
                 case PHASE_NO_CHARGE:
 
                     if (m_uiShieldTimer < uiDiff)
@@ -823,7 +827,8 @@ struct boss_steelbreaker : public CreatureScript
                         m_uiPowerTimer -= uiDiff;
                     }
 
-                    // no break here; he uses the other spells as well
+                    // he uses the other spells as well
+                    [[fallthrough]];
                 case PHASE_CHARGE_ONE:
 
                     if (m_uiDisruptionTimer < uiDiff)
@@ -847,7 +852,8 @@ struct boss_steelbreaker : public CreatureScript
                         m_uiDisruptionTimer -= uiDiff;
                     }
 
-                    // no break here; he uses the other spells as well
+                    // he uses the other spells as well
+                    [[fallthrough]];
                 case PHASE_NO_CHARGE:
 
                     if (m_uiFusionPunchTimer < uiDiff)

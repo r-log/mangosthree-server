@@ -368,6 +368,8 @@ struct spell_ulduar_water_effect : public SpellScript
 {
     spell_ulduar_water_effect() : SpellScript("spell_ulduar_water_effect") {}
 
+    using SpellScript::EffectScriptEffect;
+
     bool EffectScriptEffect(Unit* /*pCaster*/, uint32 uiSpellId, SpellEffectIndex uiEffIndex, Creature* pCreatureTarget, ObjectGuid /*originalCasterGuid*/)
     {
         if (uiSpellId == SPELL_WATER_EFFECT && uiEffIndex == EFFECT_INDEX_0)

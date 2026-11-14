@@ -148,7 +148,7 @@ struct boss_ormorok : public CreatureScript
                 case NPC_CRYSTAL_SPIKE_TRIGGER:
                     pSummoned->CastSpell(pSummoned, SPELL_CRYSTAL_SPIKE_PRE, true);
                     ++m_uiSpikeCount;
-                    // no break;
+                    [[fallthrough]];
                 case NPC_CRYSTAL_SPIKE_INITIAL:
                     // Update orientation so we can always face the boss
                     pSummoned->SetFacingToObject(m_creature);
@@ -274,17 +274,17 @@ struct spell_crystal_spike_aura : public SpellScript
                 // The following spells define the direction of the spike line
                 // All of the spells are targeting the back of the caster, but some take a small turn to left or right
                 // The exact algorithm is unk but we know that the chances of getting a straight line are about 75%. The other two directions are about 12.5% each
-                uint32 uiSpellId = 0;
+                uint32 uiSpikeSpellId = 0;
                 if (roll_chance_i(75))
                 {
-                    uiSpellId = SPELL_CRYSTAL_SPIKE_BACK;
+                    uiSpikeSpellId = SPELL_CRYSTAL_SPIKE_BACK;
                 }
                 else
                 {
-                    uiSpellId = urand(0, 1) ? SPELL_CRYSTAL_SPIKE_LEFT : SPELL_CRYSTAL_SPIKE_RIGHT;
+                    uiSpikeSpellId = urand(0, 1) ? SPELL_CRYSTAL_SPIKE_LEFT : SPELL_CRYSTAL_SPIKE_RIGHT;
                 }
 
-                pCreatureTarget->CastSpell(pCreatureTarget, uiSpellId, true, nullptr, nullptr, pOrmorok->GetObjectGuid());
+                pCreatureTarget->CastSpell(pCreatureTarget, uiSpikeSpellId, true, nullptr, nullptr, pOrmorok->GetObjectGuid());
                 // always return true when we are handling this spell and effect
                 return true;
             }
