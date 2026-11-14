@@ -513,8 +513,13 @@ bool SpellTakesAttackPower(SpellEntry const* spellProto, DamageEffectType damage
 }
 
 float AttackPowerCoefficient(float coefficient, bool takesAttackPower, SpellBonusEntry const* row,
-                             DamageEffectType damagetype, bool clientData)
+                             DamageEffectType damagetype, bool clientData, bool noDoneBonus)
 {
+    if (clientData && noDoneBonus)
+    {
+        return 0.0f;
+    }
+
     if (clientData && takesAttackPower && coefficient > 0.0f)
     {
         return coefficient;
@@ -532,7 +537,8 @@ float AttackPowerCoefficient(SpellEntry const* spellProto, SpellBonusEntry const
                              bool clientData)
 {
     bool const takesAttackPower = clientData && spellProto->Coefficient > 0.0f && SpellTakesAttackPower(spellProto, damagetype);
-    return AttackPowerCoefficient(spellProto->Coefficient, takesAttackPower, row, damagetype, clientData);
+    return AttackPowerCoefficient(spellProto->Coefficient, takesAttackPower, row, damagetype, clientData,
+                                  spellProto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
 }
 
 /**

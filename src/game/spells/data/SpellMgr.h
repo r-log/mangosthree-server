@@ -194,17 +194,18 @@ bool SpellTakesAttackPower(SpellEffectEntry const* const (&effects)[MAX_EFFECT_I
 bool SpellTakesAttackPower(SpellEntry const* spellProto, DamageEffectType damagetype);
 
 /**
- * The attack-power coefficient that applies to a hit of `damagetype`: `coefficient`, Spell.dbc's m_spellCoefficient,
- * when `clientData` and `takesAttackPower` hold and it is above 0; else the part of `row` for `damagetype`
- * (ap_dot_bonus for DOT, ap_bonus otherwise); else 0. A row fills in where the client's value does not apply and never
- * beats it. `row` may be NULL. Callers pass `clientData` for a player's damage only: the client adds the field to no
- * heal, absorb or pet spell.
+ * The attack-power coefficient that applies to a hit of `damagetype`: none when `clientData` and `noDoneBonus` (the
+ * spell carries SPELL_ATTR_EX3_NO_DONE_BONUS); else `coefficient`, Spell.dbc's m_spellCoefficient, when `clientData`
+ * and `takesAttackPower` hold and it is above 0; else the part of `row` for `damagetype` (ap_dot_bonus for DOT, ap_bonus
+ * otherwise); else 0. A row fills in where the client's value does not apply and never beats it. `row` may be NULL.
+ * Callers pass `clientData` for a player's damage only: the client adds the field to no heal, absorb or pet spell.
  */
 float AttackPowerCoefficient(float coefficient, bool takesAttackPower, SpellBonusEntry const* row,
-                             DamageEffectType damagetype, bool clientData);
+                             DamageEffectType damagetype, bool clientData, bool noDoneBonus);
 
 /**
- * AttackPowerCoefficient over the Coefficient of `spellProto` and SpellTakesAttackPower(spellProto, damagetype).
+ * AttackPowerCoefficient over the Coefficient of `spellProto`, SpellTakesAttackPower(spellProto, damagetype) and its
+ * SPELL_ATTR_EX3_NO_DONE_BONUS.
  */
 float AttackPowerCoefficient(SpellEntry const* spellProto, SpellBonusEntry const* row, DamageEffectType damagetype,
                              bool clientData);

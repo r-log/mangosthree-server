@@ -387,44 +387,44 @@ TEST(SpellCoefficient_AHealAnAbsorbAndTheNoDoneBonusAttributeTakeNoAttackPower)
     CHECK(!SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true));
     // Its field does not apply then, and a row fills in.
     SpellBonusEntry const row = ApRow(0.2f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.5f, SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true), &row, SPELL_DIRECT_DAMAGE, true), 0.2f));
-    CHECK_EQ(AttackPowerCoefficient(0.5f, SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true), NULL, SPELL_DIRECT_DAMAGE, true), 0.0f);
+    CHECK(NearF(AttackPowerCoefficient(0.5f, SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true), &row, SPELL_DIRECT_DAMAGE, true, false), 0.2f));
+    CHECK_EQ(AttackPowerCoefficient(0.5f, SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true), NULL, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
 }
 
 TEST(SpellCoefficient_TheAttackPowerFieldBeatsARowAndARowFillsInBesideAZero)
 {
     // Heroic Throw: the field 0.75, no row.
-    CHECK(NearF(AttackPowerCoefficient(0.75f, true, NULL, SPELL_DIRECT_DAMAGE, true), 0.75f));
+    CHECK(NearF(AttackPowerCoefficient(0.75f, true, NULL, SPELL_DIRECT_DAMAGE, true, false), 0.75f));
     // Instant Poison: the field 0.09 beats the row's 0.1; Deadly Poison's periodic 0.035 beats its row's 0.03.
     SpellBonusEntry const instantPoison = ApRow(0.1f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.09f, true, &instantPoison, SPELL_DIRECT_DAMAGE, true), 0.09f));
+    CHECK(NearF(AttackPowerCoefficient(0.09f, true, &instantPoison, SPELL_DIRECT_DAMAGE, true, false), 0.09f));
     SpellBonusEntry const deadlyPoison = ApRow(0.0f, 0.03f);
-    CHECK(NearF(AttackPowerCoefficient(0.035f, true, &deadlyPoison, DOT, true), 0.035f));
+    CHECK(NearF(AttackPowerCoefficient(0.035f, true, &deadlyPoison, DOT, true, false), 0.035f));
     // Death Coil 47632: the field 0, the row's 0.15 applies.
     SpellBonusEntry const deathCoil = ApRow(0.15f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.0f, true, &deathCoil, SPELL_DIRECT_DAMAGE, true), 0.15f));
+    CHECK(NearF(AttackPowerCoefficient(0.0f, true, &deathCoil, SPELL_DIRECT_DAMAGE, true, false), 0.15f));
     // Rake: the row's periodic part for a tick, its direct part for the hit.
     SpellBonusEntry const rake = ApRow(0.0f, 0.06f);
-    CHECK(NearF(AttackPowerCoefficient(0.0f, true, &rake, DOT, true), 0.06f));
-    CHECK_EQ(AttackPowerCoefficient(0.0f, true, &rake, SPELL_DIRECT_DAMAGE, true), 0.0f);
+    CHECK(NearF(AttackPowerCoefficient(0.0f, true, &rake, DOT, true, false), 0.06f));
+    CHECK_EQ(AttackPowerCoefficient(0.0f, true, &rake, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
     // Holy Shield: a field on a spell whose damage does not take it; the row's part.
     SpellBonusEntry const holyShield = ApRow(0.056f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.0732f, false, &holyShield, SPELL_DIRECT_DAMAGE, true), 0.056f));
+    CHECK(NearF(AttackPowerCoefficient(0.0732f, false, &holyShield, SPELL_DIRECT_DAMAGE, true, false), 0.056f));
     // Neither: 0.
-    CHECK_EQ(AttackPowerCoefficient(0.0f, true, NULL, SPELL_DIRECT_DAMAGE, true), 0.0f);
+    CHECK_EQ(AttackPowerCoefficient(0.0f, true, NULL, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
 }
 
 TEST(SpellCoefficient_AHealAnAbsorbOrAPetTakesTheRowNeverTheField)
 {
     // clientData false: Death Coil's heal 47633 takes its row's 0.15; a field beside it is not read.
     SpellBonusEntry const heal = ApRow(0.15f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.0f, false, &heal, SPELL_DIRECT_DAMAGE, false), 0.15f));
-    CHECK(NearF(AttackPowerCoefficient(0.75f, true, &heal, SPELL_DIRECT_DAMAGE, false), 0.15f));
+    CHECK(NearF(AttackPowerCoefficient(0.0f, false, &heal, SPELL_DIRECT_DAMAGE, false, false), 0.15f));
+    CHECK(NearF(AttackPowerCoefficient(0.75f, true, &heal, SPELL_DIRECT_DAMAGE, false, false), 0.15f));
     // Sacred Shield's absorb: its row's 2.8.
     SpellBonusEntry const sacredShield = ApRow(2.8f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.0f, false, &sacredShield, SPELL_DIRECT_DAMAGE, false), 2.8f));
+    CHECK(NearF(AttackPowerCoefficient(0.0f, false, &sacredShield, SPELL_DIRECT_DAMAGE, false, false), 2.8f));
     // A pet's spell with a field and no row: none.
-    CHECK_EQ(AttackPowerCoefficient(0.0245f, true, NULL, SPELL_DIRECT_DAMAGE, false), 0.0f);
+    CHECK_EQ(AttackPowerCoefficient(0.0245f, true, NULL, SPELL_DIRECT_DAMAGE, false, false), 0.0f);
 }
 
 TEST(SpellCoefficient_TheAttackPowerPartOfAHitIsTruncatedToAnInteger)
