@@ -777,7 +777,7 @@ struct boss_illidan_stormrage : public CreatureScript
                         m_uiTrapTimer -= uiDiff;
                     }
 
-                    // no break;
+                    [[fallthrough]];
                 case PHASE_DUAL_NORMAL:
 
                     // Phase 3 and 5 spells
@@ -815,7 +815,7 @@ struct boss_illidan_stormrage : public CreatureScript
                         m_uiTransformTimer -= uiDiff;
                     }
 
-                    // no break;
+                    [[fallthrough]];
                 case PHASE_AKAMA:
 
                     if (m_uiShearTimer < uiDiff)

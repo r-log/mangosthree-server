@@ -41,8 +41,7 @@ struct is_the_eye : public InstanceScript
     class instance_the_eye : public ScriptedInstance
     {
         public:
-            instance_the_eye(Map* pMap) : ScriptedInstance(pMap),
-                m_uiKaelthasEventPhase(0)
+            instance_the_eye(Map* pMap) : ScriptedInstance(pMap)
             {
                 Initialize();
             }
@@ -160,8 +159,6 @@ struct is_the_eye : public InstanceScript
 
         private:
             uint32 m_auiEncounter[MAX_ENCOUNTER];
-
-            uint32 m_uiKaelthasEventPhase;
     };
 
     InstanceData* GetInstanceData(Map* pMap) override

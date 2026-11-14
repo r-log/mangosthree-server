@@ -142,7 +142,7 @@ struct npc_shaheen : public CreatureScript
                     break;
                 default:
                     pSummoned->AI()->AttackStart(m_creature);
-                    // no break;
+                    [[fallthrough]];
                 case NPC_NEXUS_TERROR:
                     ++m_uiSummonCount;
                     break;

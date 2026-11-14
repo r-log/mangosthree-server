@@ -134,7 +134,7 @@ struct is_arcatraz : public InstanceScript
                 InitializeDialogueHelper(this);
             }
 
-            void OnPlayerEnter(Player* pPlayer) override
+            void OnPlayerEnter([[maybe_unused]] Player* pPlayer) override
             {
                 // Check encounter states
                 if (GetData(TYPE_ENTRANCE) == DONE || GetData(TYPE_ENTRANCE) == IN_PROGRESS)
@@ -182,7 +182,7 @@ struct is_arcatraz : public InstanceScript
                     case NPC_SKYRISS:
                     case NPC_MILLHOUSE:
                         m_lSkyrissEventMobsGuidList.push_back(pCreature->GetObjectGuid());
-                        // no break here because we want them in both lists
+                        [[fallthrough]];
                     case NPC_PRISON_APHPA_POD:
                     case NPC_PRISON_BETA_POD:
                     case NPC_PRISON_DELTA_POD:

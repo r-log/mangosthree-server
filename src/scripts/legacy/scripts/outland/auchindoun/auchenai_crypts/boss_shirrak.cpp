@@ -136,7 +136,7 @@ struct boss_shirrak : public CreatureScript
 
                         DoScriptText(EMOTE_FOCUS, m_creature, pTarget);
                         m_focusTargetGuid = pTarget->GetObjectGuid();
-                        // no break;
+                        [[fallthrough]];
                     }
                     case 2:
                         // we have a delay of 1 sec between the summons

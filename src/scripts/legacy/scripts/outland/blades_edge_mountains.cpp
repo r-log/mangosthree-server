@@ -603,11 +603,11 @@ struct npc_simon_game_bunny : public CreatureScript
                 }
 
                 // Get closest apexis
-                if (GameObject* pGo = GetClosestGameObjectWithEntry(m_creature, GO_APEXIS_RELIC, 5.0f))
+                if (GetClosestGameObjectWithEntry(m_creature, GO_APEXIS_RELIC, 5.0f))
                 {
                     m_bIsLargeEvent = false;
                 }
-                else if (GameObject* pGo = GetClosestGameObjectWithEntry(m_creature, GO_APEXIS_MONUMENT, 17.0f))
+                else if (GetClosestGameObjectWithEntry(m_creature, GO_APEXIS_MONUMENT, 17.0f))
                 {
                     m_bIsLargeEvent = true;
                 }
@@ -878,6 +878,8 @@ struct spell_simon_game_start : public SpellScript
 struct spell_simon_game_move : public SpellScript
 {
     spell_simon_game_move() : SpellScript("spell_simon_game_move") {}
+
+    using SpellScript::EffectScriptEffect;
 
     bool EffectScriptEffect(Unit* pCaster, uint32 uiSpellId, SpellEffectIndex uiEffIndex, Creature* pCreatureTarget, ObjectGuid originalCasterGuid)
     {

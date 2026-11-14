@@ -14866,7 +14866,6 @@ legacy/scripts/world/item_scripts.cpp call ClearMenus
 legacy/scripts/world/item_scripts.cpp call GetAreaId
 legacy/scripts/world/item_scripts.cpp call GetBaseSkillValue
 legacy/scripts/world/item_scripts.cpp call GetEntry
-legacy/scripts/world/item_scripts.cpp call GetGUIDLow
 legacy/scripts/world/item_scripts.cpp call GetName
 legacy/scripts/world/item_scripts.cpp call GetObjectGuid
 legacy/scripts/world/item_scripts.cpp call GetProto

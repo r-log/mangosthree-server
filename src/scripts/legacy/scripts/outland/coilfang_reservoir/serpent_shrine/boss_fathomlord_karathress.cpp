@@ -472,9 +472,9 @@ struct boss_fathomguard_tidalvess : public CreatureScript
                 {
                     switch (urand(0, 2))
                     {
-                        case 0: DoCastSpellIfCan(m_creature, SPELL_SPITFIRE_TOTEM);
-                        case 1: DoCastSpellIfCan(m_creature, SPELL_POISON_CLEANSING_TOTEM);
-                        case 2: DoCastSpellIfCan(m_creature, SPELL_EARTHBIND_TOTEM);
+                        case 0: DoCastSpellIfCan(m_creature, SPELL_SPITFIRE_TOTEM); break;
+                        case 1: DoCastSpellIfCan(m_creature, SPELL_POISON_CLEANSING_TOTEM); break;
+                        case 2: DoCastSpellIfCan(m_creature, SPELL_EARTHBIND_TOTEM); break;
                     }
                     m_uiTotemTimer = urand(30000, 60000);
                 }
