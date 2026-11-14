@@ -26,11 +26,12 @@
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
-/// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count and Living Bomb's exits at the
-/// dummy aura hook. A body that casts, reads a level
-/// or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
-/// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
-/// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura.
+/// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the
+/// dummy aura hook, and Pyromaniac's leaves and its rows at the aura-apply and aura-remove hooks. A body that casts,
+/// reads a level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures
+/// (update fields allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as
+/// the client's data holds them, and a holder put in the creature's holder map where a script asks whether it holds an
+/// aura.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -85,6 +86,11 @@ namespace
     // The id the aura-remove script holds: Hot Streak's buff, which gives the Tier 10 two-piece bonus's haste when it is
     // used up.
     uint32 const HOT_STREAK_BUFF_IDS[] = { 48108 };
+
+    // The ids Pyromaniac's scripts hold at the aura-apply and aura-remove hooks: the seven DoTs it counts (Flamestrike's
+    // ground effect, Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, Pyroblast!) and the talent's two ranks.
+    uint32 const PYROMANIAC_DOT_IDS[] = { 2120, 11366, 12654, 44457, 44614, 83853, 92315 };
+    uint32 const PYROMANIAC_IDS[] = { 34293, 34295 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -256,6 +262,34 @@ namespace
         AddSpellEffectEntry(&dot.effect);
     }
 
+    // Pyromaniac's two ranks (34293, 34295) as the client's data holds them: effect 0 a dummy aura on the caster of 5
+    // and 10, the haste each rank gives. Put into the spell and effect stores once for the rest of the run; no other
+    // test reads them.
+    void AddPyromaniacRanks()
+    {
+        static ServerSpell ranks[2];
+        static bool added = false;
+        if (added)
+        {
+            return;
+        }
+        added = true;
+        uint32 const ids[2] = { 34293, 34295 };
+        int32 const haste[2] = { 5, 10 };
+        for (std::size_t i = 0; i < 2; ++i)
+        {
+            ranks[i].Entry().ID = ids[i];
+            ranks[i].effect.SpellID = ids[i];
+            ranks[i].effect.EffectIndex = EFFECT_INDEX_0;
+            ranks[i].effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            ranks[i].effect.EffectAura = SPELL_AURA_DUMMY;
+            ranks[i].effect.EffectBasePoints = haste[i];
+            ranks[i].effect.ImplicitTarget_0 = TARGET_SELF;
+            sSpellStore.SetEntry(ids[i], &ranks[i].Entry());
+            AddSpellEffectEntry(&ranks[i].effect);
+        }
+    }
+
     // A proc of `spellId`'s effect `effIndex` on `owner`, with the event's spell, flags and the aura's amount given;
     // the event's other unit and its damage too, when given.
     SpellHandlerOutcome<SpellAuraProcResult> Proc(SpellHandlerRegistry const& registry, Unit& owner, uint32 spellId,
@@ -276,13 +310,14 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
     // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Combustion's two boost labels,
-    // Living Bomb at the dummy aura hook and Hot Streak's buff at the aura-remove hook. Frost: the 74396 boost and proc
-    // labels and Summon Water Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of
-    // Elements, Hot Streak and Blazing Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic
-    // Absorption, Arcane Potency and Mana Shield. 38 rows, 38 keys and 3 defaults, none twice.
+    // Living Bomb at the dummy aura hook, Hot Streak's buff at the aura-remove hook, and Pyromaniac's seven DoTs and
+    // two ranks at the aura-apply and aura-remove hooks. Frost: the 74396 boost and proc labels and Summon Water
+    // Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak and
+    // Blazing Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency
+    // and Mana Shield. 56 rows, 56 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(41));
-    CHECK_EQ(registry.Count(), std::size_t(38));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(59));
+    CHECK_EQ(registry.Count(), std::size_t(56));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -294,7 +329,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(9));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(10));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -312,7 +348,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 13, 13, 0 },
+        { &Mage::RegisterFire, 31, 31, 0 },
         { &Mage::RegisterFrost, 8, 8, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
     };
@@ -325,8 +361,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(41));
-    CHECK_EQ(registry.Count(), std::size_t(38));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(59));
+    CHECK_EQ(registry.Count(), std::size_t(56));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -336,7 +372,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(38));
+    CHECK_EQ(mine.size(), std::size_t(56));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -737,16 +773,21 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    // Its explosion is the dummy aura script's; its holder's apply and removal are Pyromaniac's, as for every DoT
+    // Pyromaniac counts.
     for (uint32 spellId : LIVING_BOMB_IDS)
     {
         CHECK(registry.Find<DummyAuraHook>(spellId) != NULL);
         CHECK(game.Find<DummyAuraHook>(spellId) == registry.Find<DummyAuraHook>(spellId));
-        CHECK(registry.Find<AuraRemoveHook>(spellId) == NULL);
-        CHECK(game.Find<AuraRemoveHook>(spellId) == NULL);
-        CHECK(game.Find<AuraApplyHook>(spellId) == NULL);
+        CHECK(registry.Find<AuraApplyHook>(spellId) == registry.Find<AuraApplyHook>(PYROMANIAC_DOT_IDS[0]));
+        CHECK(registry.Find<AuraRemoveHook>(spellId) == registry.Find<AuraRemoveHook>(PYROMANIAC_DOT_IDS[0]));
+        CHECK(game.Find<AuraApplyHook>(spellId) == registry.Find<AuraApplyHook>(spellId));
+        CHECK(game.Find<AuraRemoveHook>(spellId) == registry.Find<AuraRemoveHook>(spellId));
     }
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), sizeof(LIVING_BOMB_IDS) / sizeof(uint32));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), sizeof(HOT_STREAK_BUFF_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), sizeof(HOT_STREAK_BUFF_IDS) / sizeof(uint32) +
+                                                sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) +
+                                                sizeof(PYROMANIAC_IDS) / sizeof(uint32));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
     // out or a dispel it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
@@ -892,5 +933,129 @@ TEST(MageScripts_PushingTheLimitComesOnlyWhenHotStreakIsUsedUpWithTheTier10Bonus
     {
         AuraRemoveContext ranOut(target, &caster, SpellRow(row, 48108), AuraHandle(holder), mode);
         CHECK(registry.Dispatch<AuraRemoveHook>(48108, ranOut).IsReturn());
+    }
+}
+
+TEST(MageScripts_PyromaniacCountsTheMagesFireDamageOverTime)
+{
+    // The holders of the talent's text, "Fire damage over time from your spells": Flamestrike's ground effect,
+    // Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion and Pyroblast!.
+    for (uint32 spellId : PYROMANIAC_DOT_IDS)
+    {
+        CHECK(Mage::PyromaniacCounts(spellId));
+    }
+
+    // Direct hits and the haste itself count for nothing: Fireball, Fire Blast, Combustion's own cast, Living Bomb's
+    // explosion, Flame Orb's hit, Fire Power's explosion and Pyromaniac's haste.
+    for (uint32 spellId : { 133u, 2136u, 11129u, 44461u, 82739u, 83619u, 83582u })
+    {
+        CHECK(!Mage::PyromaniacCounts(spellId));
+    }
+}
+
+TEST(MageScripts_PyromaniacsHasteIsUpFromThreeBurningEnemies)
+{
+    for (uint32 targets : { 0u, 1u, 2u })
+    {
+        CHECK(!Mage::PyromaniacActive(targets));
+    }
+    for (uint32 targets : { 3u, 4u, 9u })
+    {
+        CHECK(Mage::PyromaniacActive(targets));
+    }
+}
+
+TEST(MageScripts_PyromaniacsHasteIsTheRanksEffectValue)
+{
+    // Rank 1 gives its effect 0 value of 5, rank 2 its 10; the haste spell (83582) and no spell are no rank.
+    AddPyromaniacRanks();
+    CHECK_EQ(Mage::PyromaniacHaste(34293), int32(5));
+    CHECK_EQ(Mage::PyromaniacHaste(34295), int32(10));
+    CHECK_EQ(Mage::PyromaniacHaste(83582), int32(0));
+    CHECK_EQ(Mage::PyromaniacHaste(0), int32(0));
+}
+
+TEST(MageScripts_PyromaniacFindsNoBurningEnemyForAMageNoEnemyHates)
+{
+    // No unit's threat list holds a bare creature, so its walk finds no enemy.
+    BareCreature mage;
+    CHECK_EQ(Mage::PyromaniacTargets(mage), uint32(0));
+}
+
+TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+
+    // At the remove hook the seven DoTs share one body; at the apply hook the six but Frostfire Bolt share it, and
+    // Frostfire Bolt's apply is a row of its own, whose body counts as theirs does (the two compile to the same code, so
+    // the linker may give them one address). The two ranks share one body at each hook. The same in the game's table.
+    SpellHandler<AuraApplyHook>::Function const dotApply = registry.Find<AuraApplyHook>(PYROMANIAC_DOT_IDS[0]);
+    SpellHandler<AuraRemoveHook>::Function const dotRemove = registry.Find<AuraRemoveHook>(PYROMANIAC_DOT_IDS[0]);
+    SpellHandler<AuraApplyHook>::Function const frostfireApply = registry.Find<AuraApplyHook>(44614);
+    SpellHandler<AuraApplyHook>::Function const talentApply = registry.Find<AuraApplyHook>(PYROMANIAC_IDS[0]);
+    SpellHandler<AuraRemoveHook>::Function const talentRemove = registry.Find<AuraRemoveHook>(PYROMANIAC_IDS[0]);
+    CHECK(dotApply != NULL);
+    CHECK(dotRemove != NULL);
+    CHECK(frostfireApply != NULL);
+    CHECK(talentApply != NULL);
+    CHECK(talentRemove != NULL);
+    CHECK(talentApply != dotApply);
+    CHECK(talentApply != frostfireApply);
+    CHECK(talentRemove != dotRemove);
+    for (uint32 spellId : PYROMANIAC_DOT_IDS)
+    {
+        CHECK(registry.Find<AuraApplyHook>(spellId) == (spellId == 44614 ? frostfireApply : dotApply));
+        CHECK(registry.Find<AuraRemoveHook>(spellId) == dotRemove);
+        CHECK(game.Find<AuraApplyHook>(spellId) == registry.Find<AuraApplyHook>(spellId));
+        CHECK(game.Find<AuraRemoveHook>(spellId) == dotRemove);
+    }
+    for (uint32 spellId : PYROMANIAC_IDS)
+    {
+        CHECK(registry.Find<AuraApplyHook>(spellId) == talentApply);
+        CHECK(registry.Find<AuraRemoveHook>(spellId) == talentRemove);
+        CHECK(game.Find<AuraApplyHook>(spellId) == talentApply);
+        CHECK(game.Find<AuraRemoveHook>(spellId) == talentRemove);
+    }
+    CHECK_EQ(game.CountAt(AuraApplyHook::Key),
+             sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) + sizeof(PYROMANIAC_IDS) / sizeof(uint32));
+
+    // The DoTs' bodies count only for a caster they may touch: an apply with no caster or a caster that is no player,
+    // and a removal by re-application or with no caster, change nothing and let the holder's boosts run.
+    BareCreature target;
+    BareCreature caster;
+    SpellRowStorage row;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    AuraRemoveMode const modes[] =
+    {
+        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_EXPIRE,
+        AURA_REMOVE_BY_TARGET_LIMIT,
+    };
+    for (uint32 spellId : PYROMANIAC_DOT_IDS)
+    {
+        AuraApplyContext noCaster(target, NULL, SpellRow(row, spellId), AuraHandle(holder), true);
+        CHECK(registry.Dispatch<AuraApplyHook>(spellId, noCaster).IsContinue());
+        AuraApplyContext creatureCaster(target, &caster, SpellRow(row, spellId), AuraHandle(holder), true);
+        CHECK(registry.Dispatch<AuraApplyHook>(spellId, creatureCaster).IsContinue());
+        AuraRemoveContext refreshed(target, &caster, SpellRow(row, spellId), AuraHandle(holder), AURA_REMOVE_BY_STACK);
+        CHECK(registry.Dispatch<AuraRemoveHook>(spellId, refreshed).IsContinue());
+        for (AuraRemoveMode mode : modes)
+        {
+            AuraRemoveContext removed(target, NULL, SpellRow(row, spellId), AuraHandle(holder), mode);
+            CHECK(registry.Dispatch<AuraRemoveHook>(spellId, removed).IsContinue());
+        }
+    }
+
+    // The talent's bodies take the haste off the mage, which holds none here, and let the holder's boosts run.
+    BareCreature mage;
+    for (uint32 spellId : PYROMANIAC_IDS)
+    {
+        AuraApplyContext learned(mage, &mage, SpellRow(row, spellId), AuraHandle(holder), true);
+        CHECK(registry.Dispatch<AuraApplyHook>(spellId, learned).IsContinue());
+        AuraRemoveContext unlearned(mage, &mage, SpellRow(row, spellId), AuraHandle(holder), AURA_REMOVE_BY_DEFAULT);
+        CHECK(registry.Dispatch<AuraRemoveHook>(spellId, unlearned).IsContinue());
+        CHECK(!mage.HasAura(83582));
     }
 }
