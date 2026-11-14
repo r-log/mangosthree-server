@@ -28,9 +28,14 @@
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
+#include "combat/SpellBonus.h"
 #include "entities/Unit.h"
+#include "DBCStores.h"
 #include "Log.h"
 #include "Utilities/Util.h"
+
+#include <algorithm>
+#include <iterator>
 
 /// 11129: Combustion
 static SpellHandlerOutcome<void> AuraBoostMage11129(AuraBoostContext& ctx)
@@ -60,30 +65,62 @@ static SpellHandlerOutcome<void> AuraBoostMage28682(AuraBoostContext& ctx)
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// one body for 5 labels: 11119, 11120, 12846: Ignite; 12847, 12848: absent from the client's spell data: triggers
-/// 12654 for 4 to 20 percent of the damage by rank
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage11119(DummyAuraProcContext& ctx)
-{
-    // Ignite
-    switch (ctx.dummySpell->ID)
-    {
-        case 11119: ctx.basepoints[0] = int32(0.04f * ctx.damage); break;
-        case 11120: ctx.basepoints[0] = int32(0.08f * ctx.damage); break;
-        case 12846: ctx.basepoints[0] = int32(0.12f * ctx.damage); break;
-        case 12847: ctx.basepoints[0] = int32(0.16f * ctx.damage); break;
-        case 12848: ctx.basepoints[0] = int32(0.20f * ctx.damage); break;
-        default:
-            sLog.outError("Unit::HandleDummyAuraProc: non handled spell id: %u (IG)", ctx.dummySpell->ID);
-            return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    ctx.triggered_spell_id = 12654;
-    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
-}
-
 namespace
 {
     typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
+
+    /// Ignite's damage over time, the spell the talent's ranks cast.
+    uint32 const IGNITE_DOT = 12654;
+
+    /// The Fire hits that do not ignite: Living Bomb's explosion, Flame Orb's hits and Fire Power's explosion.
+    uint32 const NOT_IGNITING[] = { 44461, 82739, 83619 };
+
+    /// The ticks Ignite (12654) deals: its duration over its periodic effect's period; 0 when the spell store has no
+    /// 12654 or its effect no period.
+    uint32 IgniteTicks()
+    {
+        SpellEntry const* ignite = sSpellStore.LookupEntry(IGNITE_DOT);
+        SpellEffectEntry const* effect = ignite ? ignite->GetSpellEffect(EFFECT_INDEX_0) : NULL;
+        int32 const duration = GetSpellDuration(ignite);
+        if (!effect || !effect->EffectAuraPeriod || duration <= 0)
+        {
+            return 0;
+        }
+        return uint32(duration) / effect->EffectAuraPeriod;
+    }
+
+    /// 11119, 11120, 12846: Ignite: a critical strike of one of the mage's direct Fire spells puts the aura's percent of
+    /// its damage on the victim as Ignite (12654), two ticks over its duration. The explosion of Living Bomb (44461),
+    /// Flame Orb's hits (82739) and Fire Power's explosion (83619) do not ignite. A share below one point per tick
+    /// banks nothing, so a running Ignite is left as it is.
+    ProcOutcome IgniteProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (!(ctx.procEx & PROC_EX_CRITICAL_HIT))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        if (ctx.procSpell &&
+            std::find(std::begin(NOT_IGNITING), std::end(NOT_IGNITING), ctx.procSpell->ID) != std::end(NOT_IGNITING))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        if (!ctx.victim || !ctx.victim->IsAlive() || ctx.triggerAmount <= 0)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+
+        int32 const tick = Combat::DotShareTick(float(ctx.damage), uint32(ctx.triggerAmount), IgniteTicks());
+        if (tick <= 0)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        int32 const basePoints[MAX_EFFECT_INDEX] = { tick, 0, 0 };
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, *ctx.victim, IGNITE_DOT, basePoints));
+    }
 
     /// 29074, 29075, 29076: Master of Elements: after a spell the proc accepts, gives back the aura's percent of the
     /// spell's base mana cost through 29077.
@@ -166,6 +203,7 @@ namespace
         return SpellHandlerOutcome<void>::Return();
     }
 
+    uint32 const IGNITE[] = { 11119, 11120, 12846 };
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
     uint32 const HOT_STREAK[] = { 44445, 44446, 44448 };
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
@@ -195,17 +233,8 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
         { 28682, &AuraBoostMage28682 },
     };
 
-    static Row<DummyAuraProcMageSite> const dummyAuraProcMage[] =
-    {
-        { 11119, &DummyAuraProcMage11119 },
-        { 11120, &DummyAuraProcMage11119 },
-        { 12846, &DummyAuraProcMage11119 },
-        { 12847, &DummyAuraProcMage11119 },
-        { 12848, &DummyAuraProcMage11119 },
-    };
-
     uint32 rows = RegisterRows(registry, boostMage);
-    rows += RegisterRows(registry, dummyAuraProcMage);
+    rows += RegisterRanks<OnProcHook>(registry, IGNITE, &IgniteProc);
     rows += RegisterRanks<OnProcHook>(registry, MASTER_OF_ELEMENTS, &MasterOfElementsProc);
     rows += RegisterRanks<OnProcHook>(registry, HOT_STREAK, &HotStreakProc);
     rows += RegisterRanks<OnProcHook>(registry, BLAZING_SPEED, &BlazingSpeedProc);
