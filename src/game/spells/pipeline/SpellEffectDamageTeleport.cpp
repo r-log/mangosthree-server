@@ -180,21 +180,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                     damage = uint32(damage * m_caster->GetTotalAttackPowerValue(BASE_ATTACK) / 100);
                     m_caster->ModifyAuraState(AURA_STATE_WARRIOR_VICTORY_RUSH, false);
                 }
-                // Revenge ${$m1+$AP*0.310} to ${$M1+$AP*0.310}
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000000000000400))
-                {
-                    damage+= uint32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.310f);
-                }
-                // Heroic Throw ${$m1+$AP*.50}
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000000100000000))
-                {
-                    damage+= uint32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.5f);
-                }
-                // Shattering Throw ${$m1+$AP*.50}
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0040000000000000))
-                {
-                    damage+= uint32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.5f);
-                }
                 // Shockwave ${$m3/100*$AP}
                 else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000800000000000))
                 {
@@ -204,11 +189,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                         damage += int32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * pct / 100);
                     }
                     break;
-                }
-                // Thunder Clap
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000000000000080))
-                {
-                    damage += int32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 12 / 100);
                 }
                 break;
             }
@@ -345,7 +325,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
             }
             case SPELLFAMILY_DRUID:
             {
-                SpellEffectEntry const* rakeSpellEffect = m_spellInfo->GetSpellEffect(EFFECT_INDEX_2);
                 // Ferocious Bite
                 if (casterPlayer && (classOptions && classOptions->SpellClassMask & UI64LIT(0x000800000)) && m_spellInfo->SpellVisualID[0]==6587)
                 {
@@ -357,17 +336,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                     uint32 used_energy = energy > 30 ? 30 : energy;
                     damage += int32(used_energy * multiple);
                     m_caster->SetPower(POWER_ENERGY, energy - used_energy);
-                }
-                // Rake
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000000000001000) && rakeSpellEffect && rakeSpellEffect->Effect == SPELL_EFFECT_ADD_COMBO_POINTS)
-                {
-                    // $AP*0.01 bonus
-                    damage += int32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) / 100);
-                }
-                // Swipe
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0010000000000000))
-                {
-                    damage += int32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.08f);
                 }
                 break;
             }
@@ -466,30 +434,12 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                         damage *= 2;
                     }
                 }
-                // Steady Shot
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x100000000))
-                {
-                    int32 base = irand((int32)m_caster->GetWeaponDamageRange(RANGED_ATTACK, MINDAMAGE), (int32)m_caster->GetWeaponDamageRange(RANGED_ATTACK, MAXDAMAGE));
-                    uint32 attTime = m_caster->GetAttackTime(RANGED_ATTACK);
-                    damage += attTime ? int32(float(base) / attTime * 2800 + m_caster->GetTotalAttackPowerValue(RANGED_ATTACK) * 0.1f) : 0;
-                }
                 break;
             }
             case SPELLFAMILY_PALADIN:
             {
-                // Judgement of Righteousness - receive benefit from Spell Damage and Attack power
-                if (m_spellInfo->ID == 20187)
-                {
-                    float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
-                    int32 holy = m_caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(m_spellInfo));
-                    if (holy < 0)
-                    {
-                        holy = 0;
-                    }
-                    damage += int32(ap * 0.2f) + int32(holy * 32 / 100);
-                }
-                // Judgement of Vengeance/Corruption ${1+0.22*$SPH+0.14*$AP} + 10% for each application of Holy Vengeance/Blood Corruption on the target
-                else if ((classOptions && classOptions->SpellClassMask & UI64LIT(0x800000000)) && m_spellInfo->SpellIconID==2292)
+                // Judgement of Truth/Corruption: + 10% for each application of Censure on the target
+                if ((classOptions && classOptions->SpellClassMask & UI64LIT(0x800000000)) && m_spellInfo->SpellIconID==2292)
                 {
                     uint32 debuf_id = GetJudgementDebuffSpell(m_spellInfo->ID);
                     if (!debuf_id)
@@ -497,13 +447,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                         return;
                     }
 
-                    float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
-                    int32 holy = m_caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(m_spellInfo));
-                    if (holy < 0)
-                    {
-                        holy = 0;
-                    }
-                    damage += int32(ap * 0.14f) + int32(holy * 22 / 100);
                     // Get stack of Holy Vengeance on the target added by caster
                     uint32 stacks = 0;
                     Unit::AuraList const& auras = unitTarget->GetAurasByType(SPELL_AURA_PERIODIC_DAMAGE);
@@ -521,28 +464,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                         damage += damage * stacks * 10 / 100;
                     }
                 }
-                // Avenger's Shield ($m1+0.07*$SPH+0.07*$AP) - ranged sdb for future
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000000000004000))
-                {
-                    float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
-                    int32 holy = m_caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(m_spellInfo));
-                    if (holy < 0)
-                    {
-                        holy = 0;
-                    }
-                    damage += int32(ap * 0.07f) + int32(holy * 7 / 100);
-                }
-                // Hammer of Wrath ($m1+0.15*$SPH+0.15*$AP) - ranged type sdb future fix
-                else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000008000000000))
-                {
-                    float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
-                    int32 holy = m_caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(m_spellInfo));
-                    if (holy < 0)
-                    {
-                        holy = 0;
-                    }
-                    damage += int32(ap * 0.15f) + int32(holy * 15 / 100);
-                }
                 // Hammer of the Righteous
                 else if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0004000000000000))
                 {
@@ -551,12 +472,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                     int32 count = m_caster->CalculateSpellDamage(unitTarget, m_spellInfo, EFFECT_INDEX_2);
                     uint32 attTime = m_caster->GetAttackTime(BASE_ATTACK);
                     damage += attTime ? count * int32(average * IN_MILLISECONDS) / attTime : 0;
-                }
-                // Judgement
-                else if (m_spellInfo->ID == 20271)
-                {
-                    // [1 + 0.25 * SPH + 0.16 * AP]
-                    damage += int32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.16f);
                 }
                 break;
             }
