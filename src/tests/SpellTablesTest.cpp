@@ -248,7 +248,7 @@ TEST(SpellTables_TheFixedRadiiAreTheSwitchesLabelsAndNoOthers)
 
 TEST(SpellTables_TheFiveFlagSetsHoldTheirSwitchesLiveLabelsAndNoOthers)
 {
-    for (uint32 spellId : { 17941u, 22008u, 34936u, 48108u, 51124u, 54741u, 57761u, 64823u })
+    for (uint32 spellId : { 17941u, 22008u, 34936u, 51124u, 54741u, 57761u, 64823u })
     {
         CHECK(IsOneChargeModifierAura(spellId));
     }
@@ -269,8 +269,9 @@ TEST(SpellTables_TheFiveFlagSetsHoldTheirSwitchesLiveLabelsAndNoOthers)
         CHECK(MayTargetTaxiFlyer(spellId));
     }
 
-    // The switches' ids that are not 4.3.4 spells are in no set, and neither is an id no switch held.
-    for (uint32 spellId : { 31834u, 34754u, 44401u, 12345u })
+    // The switches' ids that are not 4.3.4 spells are in no set, and neither is an id no switch held. Hot Streak's
+    // buff (48108) is in none: in 4.3.4 it holds no modifier effect and no charge.
+    for (uint32 spellId : { 31834u, 34754u, 44401u, 48108u, 12345u })
     {
         CHECK(!IsOneChargeModifierAura(spellId));
     }
