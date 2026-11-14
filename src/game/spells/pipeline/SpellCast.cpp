@@ -63,8 +63,11 @@
 #include "DisableMgr.h"
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"
+#include "spells/ActionBarOverride.h"
 #include "UnitDisableSubject.h"
 #include "Map.h"
+
+#include <vector>
 
 /**
  * @brief Prepares the spell cast, validates conditions, and starts cast processing.
@@ -261,6 +264,33 @@ void Spell::cancel()
     finish(false);
     m_caster->RemoveDynObject(m_spellInfo->ID);
     m_caster->RemoveGameObject(m_spellInfo->ID, true);
+}
+
+namespace
+{
+    /// Removes from the caster the action-bar override buffs the cast uses up (Spells::UsedUpOverrides over his auras
+    /// of type SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS and SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS_2), each holder after the
+    /// walk: the buff that made this spell castable is used up by casting it. An aura without a duration stays.
+    void ConsumeActionBarOverrides(Unit& caster, SpellEntry const& cast)
+    {
+        AuraType const overrideTypes[] = { SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS, SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS_2 };
+        std::vector<Spells::OverrideAuraView> views;
+        for (AuraType type : overrideTypes)
+        {
+            Unit::AuraList const& overrides = caster.GetAurasByType(type);
+            for (Unit::AuraList::const_iterator itr = overrides.begin(); itr != overrides.end(); ++itr)
+            {
+                Aura const* aura = *itr;
+                Spells::OverrideAuraView const view = { uint32(type), aura->GetId(), aura->GetModifier()->m_amount,
+                                                        aura->GetAuraMaxDuration() };
+                views.push_back(view);
+            }
+        }
+        for (uint32 spellId : Spells::UsedUpOverrides(views, cast.ID))
+        {
+            caster.RemoveAurasDueToSpell(spellId);
+        }
+    }
 }
 
 /**
@@ -602,6 +632,7 @@ void Spell::cast(bool skipCheck)
     SendSpellCooldown();
 
     TakePower();
+    ConsumeActionBarOverrides(*m_caster, *m_spellInfo);
     TakeReagents();                                         // we must remove reagents before HandleEffects to allow place crafted item in same slot
     TakeAmmo();
 

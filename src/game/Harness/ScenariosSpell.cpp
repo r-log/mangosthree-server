@@ -4743,16 +4743,20 @@ namespace Harness
     };
 
     /**
-     * S951 `mage-fire-hot-streak`: Hot Streak (44445) on a staged Fire mage. Its dummy aura procs on each Fireball hit
-     * and counts the crits in a row: the second rolls the talent's 33% for Hot Streak! (48108), and a hit that does not
-     * crit starts the count again. Staged: Burning Soul 3, Improved Fire Blast 2, Fire Power 3 and Blazing Speed 2 (the
-     * ten points the third tier asks; none of them procs on his own spells, and Blazing Speed's hits taken never come),
-     * then Hot Streak. Nine Fireballs: crit, crit, hit, crit, hit, crit, crit, crit, crit, so the count reaches two at
-     * casts 2, 7 and 9 and nowhere else. One cast every 4.3 s: under the harness's seed base every Fireball hits, and
-     * the roll passes at cast 2 and fails at casts 7 and 9.
+     * S951 `mage-fire-hot-streak`: Hot Streak (44445) and Improved Hot Streak (44448, rank 2 of 2) on a staged Fire
+     * mage. Hot Streak's dummy aura procs on each Fireball hit: a crit rolls the base chance, which falls with his sheet
+     * spell crit and is 0 at the crit aura's +100, then counts, and the second crit in a row rolls Improved Hot Streak's
+     * 100% for Hot Streak (48108); a hit that does not crit starts the count again. Pyroblast! (92315), which 48108
+     * makes castable, neither counts for nor breaks the streak, and casting it uses 48108 up. Staged: Burning Soul 3,
+     * Improved Fire Blast 2, Fire Power 3, Blazing Speed 2, Hot Streak, Improved Scorch 2 and Cauterize 2 (the fifteen
+     * points the fourth tier asks), then Improved Hot Streak 2. Ten casts: Fireball crit, Fireball crit, Pyroblast!
+     * crit, Fireball hit, Fireball crit, Fireball hit, then four Fireball crits; a cast that must not crit takes the crit
+     * aura at -100. The second crits in a row are casts 2, 8 and 10, the cast of 10 while the 48108 of 8 is still up.
+     * One cast every 4.3 s.
      *
-     * `streak`: the casts after which 48108 was cast; OK when each of them is a cast where the count reached two and at
-     * least one is.
+     * `streak`: the casts after which 48108 was cast, then `gone=` the casts at whose read 48108 was gone from him while
+     * he held it when the cast ran; OK when the first are exactly the second crits in a row of the casts other than
+     * Pyroblast!, and the second exactly the Pyroblast! casts.
      */
     class MageFireHotStreak : public MageProcScenario
     {
@@ -4762,18 +4766,13 @@ namespace Harness
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override
         {
-            return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 }, { 10555, 1 }, { 10573, 0 } };
+            return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 }, { 10555, 1 }, { 10573, 0 }, { 10547, 1 }, { 11433, 1 }, { 12121, 1 } };
         }
 
         std::vector<Step> Steps() const override
         {
-            const bool pattern[] = { true, true, false, true, false, true, true, true, true };
-            std::vector<Step> steps;
-            for (bool crit : pattern)
-            {
-                steps.push_back(Cast(133, crit));
-            }
-            return steps;
+            return { Cast(133, true), Cast(133, true), Cast(kPyroblastInstant, true), Cast(133, false), Cast(133, true),
+                     Cast(133, false), Cast(133, true), Cast(133, true), Cast(133, true), Cast(133, true) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -4798,11 +4797,20 @@ namespace Harness
                 { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 23434: 26 fields, fnv 6bb46cc2
                 { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 92315: 49 fields, fnv 7ef90b4a
+                { 92315, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44448: 49 fields, fnv 2ada6a76
+                { 44448, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 34359738368 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 11367: 26 fields, fnv 5d9994de
+                { 11367, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 14 }, { "eff0.EffectSpellClassMask.Flags", 16 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 86949: 49 fields, fnv 7082c5a5
+                { 86949, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 40 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
             };
         }
 
         uint32 Watched() const override { return 48108; }
         uint32 CastEveryMs() const override { return 4300; }
+        int32 NonCritAuraPoints() const override { return -100; }
 
         std::string Own(St const& st) const override
         {
@@ -4810,6 +4818,10 @@ namespace Harness
             uint32 count = 0;
             for (uint32 k = 0; k < st.steps.size(); ++k)
             {
+                if (st.steps[k].spell == kPyroblastInstant)
+                {
+                    continue;
+                }
                 Seen const& seen = st.seen[k];
                 count = seen.logRead && seen.crit ? count + 1 : 0;
                 if (count == 2)
@@ -4820,14 +4832,21 @@ namespace Harness
             }
             const std::string casts = StepsWhere(st, [&st](uint32 k) { return Triggered(st.seen[k], 48108); });
             const std::string reached = StepsWhere(st, [&second](uint32 k) { return second[k]; });
-            bool ok = casts != "none";
-            for (uint32 k = 0; k < st.steps.size(); ++k)
+            const std::string gone = StepsWhere(st, [&st](uint32 k)
             {
-                ok = ok && (!Triggered(st.seen[k], 48108) || second[k]);
-            }
-            const std::string detail = "48108 cast after casts " + casts + "; the count reached two at casts " + reached + ")";
-            return ok ? casts + "(OK: " + detail : "BUG(" + casts + ": " + detail;
+                return !st.seen[k].watchedBefore.empty() && st.seen[k].watchedBefore != "none" && st.seen[k].holder == "none";
+            });
+            const std::string pyroblasts = StepsWhere(st, [&st](uint32 k) { return st.steps[k].spell == kPyroblastInstant; });
+            const bool ok = casts != "none" && casts == reached && gone == pyroblasts;
+            const std::string value = casts + " gone=" + gone;
+            const std::string detail = "48108 cast after casts " + casts + "; the second crits in a row of the casts other than Pyroblast! at casts " +
+                                       reached + "; 48108 on him when the cast ran and gone at its read at casts " + gone +
+                                       "; Pyroblast! (92315) at casts " + pyroblasts + ")";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
+
+    private:
+        static constexpr uint32 kPyroblastInstant = 92315;
     };
 
     /**

@@ -202,8 +202,30 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, 26470, ctx.victim, basePoints));
     }
 
+    uint32 const HOT_STREAK_TALENT = 44445;
+
+    /// 79684: Offensive State: a mage without Hot Streak (44445) rolls the aura's percent after each damaging spell the
+    /// proc accepts, and on success casts Arcane Missiles! (79683) on himself; a mage with Hot Streak never does.
+    ProcOutcome OffensiveStateProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (ctx.caster.HasAura(HOT_STREAK_TALENT))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
+        }
+        if (!roll_chance_i(ctx.triggerAmount))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), &ctx.caster));
+    }
+
     uint32 const BLINK[] = { 38194 };
     uint32 const PERSISTENT_SHIELD[] = { 26467 };
+    uint32 const OFFENSIVE_STATE[] = { 79684 };
 }
 
 uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
@@ -234,6 +256,7 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
     rows += RegisterRows(registry, dummyAuraProcMage);
     rows += RegisterRanks<SelectTargetsHook>(registry, BLINK, &BlinkSelectTargets);
     rows += RegisterRanks<OnProcHook>(registry, PERSISTENT_SHIELD, &PersistentShieldProc);
+    rows += RegisterRanks<OnProcHook>(registry, OFFENSIVE_STATE, &OffensiveStateProc);
     registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);
