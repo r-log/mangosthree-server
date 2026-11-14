@@ -380,6 +380,7 @@ Spell::Spell(Unit* caster, SpellEntry const* info, bool triggered, ObjectGuid or
     m_glyphIndex = 0;
     m_triggeredByAuraSpell  = NULL;
     m_spellAuraHolder = NULL;
+    m_scriptWord = 0;
 
     // Auto Shot & Shoot (wand)
     m_autoRepeat = IsAutoRepeatRangedSpell(m_spellInfo);

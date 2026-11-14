@@ -1087,14 +1087,17 @@ TEST(MageScripts_CombustionRunsOnTheDummyEffectHook)
     BareCreature caster;
     SpellRowStorage row;
     int32 value = 100;
-    DummyEffectContext noTarget(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_0, value, ObjectGuid());
+    int32 word = 0;
+    DummyEffectContext noTarget(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_0, value, ObjectGuid(), NULL,
+                                word);
     CHECK(registry.Dispatch<DummyEffectHook>(11129, noTarget).IsReturn());
     CHECK_EQ(value, int32(100));
 
     // An effect other than the script effect, with a unit target, ends the effect too and casts nothing: the target
     // holds no aura afterwards.
     BareCreature target;
-    DummyEffectContext otherEffect(caster, &target, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_1, value, ObjectGuid());
+    DummyEffectContext otherEffect(caster, &target, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_1, value, ObjectGuid(),
+                                   &target, word);
     CHECK(registry.Dispatch<DummyEffectHook>(11129, otherEffect).IsReturn());
     CHECK(target.GetSpellAuraHolderMap().empty());
     CHECK_EQ(value, int32(100));

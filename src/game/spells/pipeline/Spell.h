@@ -658,6 +658,7 @@ class Spell
         GameObject* gameObjTarget;
         SpellAuraHolder* m_spellAuraHolder;                 // spell aura holder for current target, created only if spell has aura applying effect
         int32 damage;
+        int32 m_scriptWord;                                 // the word the cast's dummy and script effect scripts share across its targets
 
         // this is set in Spell Hit, but used in Apply Aura handler
         DiminishingLevels m_diminishLevel;

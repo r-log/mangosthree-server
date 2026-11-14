@@ -72,7 +72,8 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
     }
 
     DummyEffectContext dummyCtx(*m_caster, unitTarget, m_CastItem, gameObjTarget, *m_spellInfo,
-                                SpellEffectIndex(effect->EffectIndex), damage, m_originalCasterGUID);
+                                SpellEffectIndex(effect->EffectIndex), damage, m_originalCasterGUID,
+                                m_targets.getUnitTarget(), m_scriptWord);
     if (SpellHandlerRegistry::Game().Dispatch<DummyEffectHook>(m_spellInfo->ID, dummyCtx).IsReturn())
     {
         return;

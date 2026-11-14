@@ -309,7 +309,9 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
         return SpellHandlerOutcome<void>::Return();
     }));
     int32 dummyValue = 0;
-    DummyEffectContext dummyEffect(caster, &target, NULL, NULL, spell, EFFECT_INDEX_2, dummyValue, ObjectGuid());
+    int32 dummyWord = 0;
+    DummyEffectContext dummyEffect(caster, &target, NULL, NULL, spell, EFFECT_INDEX_2, dummyValue, ObjectGuid(), &target,
+                                   dummyWord);
     CHECK(registry.Dispatch<DummyEffectHook>(kHookSpell, dummyEffect).IsReturn());
     CHECK_EQ(dummyValue, 7);
 
