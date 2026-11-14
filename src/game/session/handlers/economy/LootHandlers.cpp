@@ -223,7 +223,6 @@ void LootHandlers::HandleLootMoney(WorldSession& session, WorldPacket & /*recv_d
     }
 
     Loot* pLoot = NULL;
-    Item* pItem = NULL;
     bool shareMoney = true;
 
     switch (guid.GetHigh())

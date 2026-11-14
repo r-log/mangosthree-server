@@ -1086,7 +1086,7 @@ void Spell::ClearCastItem()
  */
 void Spell::GetSpellRangeAndRadius(SpellEffectEntry const* spellEffect, float& radius, uint32& EffectChainTarget, uint32& unMaxTargets) const
 {
-    if (uint32 radiusIndex = spellEffect->GetRadiusIndex())
+    if (spellEffect->GetRadiusIndex())
     {
         radius = GetSpellRadius(sSpellRadiusStore.LookupEntry(spellEffect->GetRadiusIndex()));
     }

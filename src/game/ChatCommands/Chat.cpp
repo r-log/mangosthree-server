@@ -1039,8 +1039,6 @@ void ChatHandler::PSendSysMessage(int32 entry, ...)
  */
 void  ChatHandler::PSendSysMessageMultiline(int32 entry, ...)
 {
-    uint32 linecount = 0;
-
     const char* format = GetMangosString(entry);
     va_list ap;
     char str[2048];
@@ -1064,7 +1062,6 @@ void  ChatHandler::PSendSysMessageMultiline(int32 entry, ...)
         {
             /* Send the player a system message containing the substring from pos to nextpos - pos */
             PSendSysMessage("%s", mangosString.substr(pos, nextpos - pos).c_str());
-            ++linecount;
         }
         pos = nextpos + 2; // +2 because there are two @ as delimiter
     }

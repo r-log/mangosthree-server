@@ -89,9 +89,9 @@ void SpellMgr::LoadSpellPetAuras()
             }
 
             SpellEffectEntry const* spellEffect = spellInfo->GetSpellEffect(eff);
-            if (!spellEffect || spellEffect->Effect != SPELL_EFFECT_DUMMY &&
+            if (!spellEffect || (spellEffect->Effect != SPELL_EFFECT_DUMMY &&
                (spellEffect->Effect != SPELL_EFFECT_APPLY_AURA ||
-                spellEffect->EffectAura != SPELL_AURA_DUMMY))
+                spellEffect->EffectAura != SPELL_AURA_DUMMY)))
             {
                 sLog.outError("Spell %u listed in `spell_pet_auras` does not have dummy aura or dummy effect", spell);
                 continue;

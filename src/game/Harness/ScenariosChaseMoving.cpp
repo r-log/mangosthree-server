@@ -569,7 +569,7 @@ namespace Harness
             for (uint32 i = 1; i <= kTicks; ++i)
             {
                 const uint32 now = i * 100;
-                At(now, [sample, ringStep, now, kMove, kEnd, kMoving, shape]()
+                At(now, [sample, ringStep, now, kEnd, kMoving, shape]()
                 {
                     if (now < kMove || now > kEnd) { return; }
                     const uint32 into = now - kMove;

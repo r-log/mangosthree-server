@@ -898,7 +898,6 @@ void LFGMgr::FindQueueMatches()
 
 void LFGMgr::FindSpecificQueueMatches(ObjectGuid guid)
 {
-    uint64 rawGuid = guid.GetRawValue();
     LFGPlayers* queueInfo = GetPlayerOrPartyData(guid);
     if (queueInfo)
     {
@@ -923,7 +922,6 @@ void LFGMgr::FindSpecificQueueMatches(ObjectGuid guid)
                 // 2a. if an entry is found and the amounts of players-to-roles are compatible, make
                 //     a new map of only the inter-compatible dungeons and use that if the other checks pass
                 // 3. Regardless of outcome, after the end of calculations send a LFGQueueStatus packet
-                bool fullyCompatible = false;
                 std::set<uint32> compatibleDungeons;
 
                 for (std::set<uint32>::iterator dItr = matchInfo->dungeonList.begin(); dItr != matchInfo->dungeonList.end(); ++dItr)

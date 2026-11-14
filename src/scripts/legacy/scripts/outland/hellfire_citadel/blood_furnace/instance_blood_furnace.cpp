@@ -337,11 +337,11 @@ struct is_blood_furnace : public InstanceScript
                     case TYPE_BROGGOK_DO_MOVE:
                         if (Creature *broggok = GetSingleCreatureFromStorage(NPC_BROGGOK))
                         {
-                            float dx, dy;
                             float fRespX, fRespY, fRespZ;
                             fRespX = broggok->Spawn().X();
                             fRespY = broggok->Spawn().Y();
                             fRespZ = broggok->Spawn().Z();
+                            float dx = fRespX, dy = fRespY;
                             GetMovementDistanceForIndex(uiData, dx, dy);
                             broggok->GetMotionMaster()->MovePoint(POINT_EVENT_COMBAT, dx, dy, fRespZ);
                         }
@@ -518,8 +518,16 @@ struct is_blood_furnace : public InstanceScript
 
             void DoNextBroggokEventPhase()
             {
-                // Get Movement Position
-                float dx, dy;
+                // Get Movement Position; without a cell door the orcs stay and Broggok heads for his spawn point
+                float dx = 0.0f, dy = 0.0f;
+                if (m_uiBroggokEventPhase >= MAX_ORC_WAVES)
+                {
+                    if (Creature* pBroggok = GetSingleCreatureFromStorage(NPC_BROGGOK))
+                    {
+                        dx = pBroggok->Spawn().X();
+                        dy = pBroggok->Spawn().Y();
+                    }
+                }
                 GetMovementDistanceForIndex(m_uiBroggokEventPhase, dx, dy);
 
                 // Open door to the final boss now and move boss to the center of the room

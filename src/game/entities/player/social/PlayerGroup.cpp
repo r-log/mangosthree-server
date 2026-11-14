@@ -169,7 +169,7 @@ void Player::SendUpdateToOutOfRangeGroupMembers()
  *   use it without another signature change.
  * @return The party result code describing whether uninvite is allowed.
  */
-PartyResult Player::CanUninviteFromGroup(ObjectGuid guidMember) const
+PartyResult Player::CanUninviteFromGroup(ObjectGuid /*guidMember*/) const
 {
     const Group* grp = GetGroup();
     if (!grp)

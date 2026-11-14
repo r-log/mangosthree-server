@@ -374,7 +374,7 @@ struct boss_sindragosa : public CreatureScript
                         m_uiIceTombSingleTimer -= uiDiff;
                     }
 
-                    // no break
+                    [[fallthrough]];
                 case SINDRAGOSA_PHASE_GROUND:
                     // Phase 1 only
                     if (m_uiPhase == SINDRAGOSA_PHASE_GROUND)

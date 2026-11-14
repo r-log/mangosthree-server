@@ -135,32 +135,11 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
             return;
         }
 
-        /* Checking if the item is prospectable or millable, if it is, it will clear the loot, then it
-         * will check if the count is greater than 5, if it is, it will set the count to 5, then it
-         * will destroy the item.
-         */
-        if (pItem->loot.loot_type == ITEM_FLAG_PROSPECTABLE || pItem->loot.loot_type == ITEM_FLAG_MILLABLE)
+        /* Destroying the item, unless it holds disenchanting loot that is not all taken. */
+        if (pItem->loot.isLooted() || pItem->loot.loot_type != LOOT_DISENCHANTING)
         {
-            /* Clearing the loot vector of the item. */
-            pItem->loot.clear();
-
-            uint32 count = pItem->GetCount();
-            if (count > 5)
-            {
-                count = 5;
-            }
-
-            /* Destroying the item count. */
-            player->DestroyItemCount(pItem, count, true);
-        }
-        else
-        {
-            /* Checking if the item is looted or not. If it is looted, it will destroy the item. */
-            if (pItem->loot.isLooted() || pItem->loot.loot_type != ITEM_FLAG_LOOTABLE)
-            {
-                /* Destroying the item in the player's inventory. */
-                player->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
-            }
+            /* Destroying the item in the player's inventory. */
+            player->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
         }
         return; // item can be looted only single player
     }

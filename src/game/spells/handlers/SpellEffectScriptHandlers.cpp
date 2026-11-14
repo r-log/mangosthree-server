@@ -2399,6 +2399,8 @@ static SpellHandlerOutcome<void> EffectScriptGeneric59789(SpellEffectScriptConte
         case POWER_RUNE:
         case POWER_HEALTH:
             break;
+        default:
+            break;
     }
     return SpellHandlerOutcome<void>::Return();
 }

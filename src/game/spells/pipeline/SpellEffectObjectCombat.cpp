@@ -246,7 +246,7 @@ void Spell::EffectSanctuary(SpellEffectEntry const* /*effect*/)
  *
  * @param effect Unused effect index.
  */
-void Spell::EffectAddComboPoints(SpellEffectEntry const* effect /*effect*/)
+void Spell::EffectAddComboPoints(SpellEffectEntry const* /*effect*/)
 {
     if (!unitTarget)
     {
@@ -356,7 +356,7 @@ void Spell::EffectDuel(SpellEffectEntry const* effect)
  *
  * @param effect Unused effect index.
  */
-void Spell::EffectStuck(SpellEffectEntry const* effect /*effect*/)
+void Spell::EffectStuck(SpellEffectEntry const* /*effect*/)
 {
     Player* pTarget = unitTarget ? unitTarget->ToPlayer() : NULL;
     if (!pTarget)
@@ -1347,7 +1347,7 @@ void Spell::EffectSendTaxi(SpellEffectEntry const* effect)
  *
  * @param effect The effect index containing vertical speed data.
  */
-void Spell::EffectPlayerPull(SpellEffectEntry const* effect)
+void Spell::EffectPlayerPull(SpellEffectEntry const* /*effect*/)
 {
     if (!unitTarget)
     {

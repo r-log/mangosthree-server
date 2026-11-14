@@ -1288,7 +1288,6 @@ void ObjectMgr::LoadCreatureModelRace()
  */
 void ObjectMgr::LoadCreatures()
 {
-    uint32 count = 0;
     std::vector<CreatureSpawnDataRow> rows = SpawnRepository::QueryCreatureSpawns();
 
     if (rows.empty())
@@ -1505,8 +1504,6 @@ void ObjectMgr::LoadCreatures()
                 }
             }
         }
-
-        ++count;
     }
 
     sLog.outString(">> Loaded %zu creatures", m_creatureSpawns.All().size());

@@ -237,7 +237,7 @@ struct is_pinnacle : public InstanceScript
                                     pGrauf->AI()->EnterEvadeMode();
                                 }
 
-                                // no break;
+                                [[fallthrough]];
                             case NOT_STARTED:
                                 // Despawn all summons
                                 for (GuidList::const_iterator itr = m_lskadiGauntletMobsList.begin(); itr != m_lskadiGauntletMobsList.end(); ++itr)
@@ -254,7 +254,7 @@ struct is_pinnacle : public InstanceScript
                                     pGrauf->GetMotionMaster()->MoveTargetedHome();
                                 }
 
-                                // no break;
+                                [[fallthrough]];
                             case IN_PROGRESS:
 
                                 // Remove the summon aura on phase 2 or fail
@@ -342,7 +342,7 @@ struct is_pinnacle : public InstanceScript
                 return 0;
             }
 
-            bool CheckAchievementCriteriaMeet(uint32 uiCriteriaId, Player const* pSource, Unit const* pTarget, uint32 uiMiscValue1 /* = 0*/) const override
+            bool CheckAchievementCriteriaMeet(uint32 uiCriteriaId, Player const* /*pSource*/, Unit const* /*pTarget*/, uint32 /*uiMiscValue1*/ /* = 0*/) const override
             {
                 switch (uiCriteriaId)
                 {

@@ -115,6 +115,7 @@ namespace Movement
              * @param f The MoveSplineFlag to copy.
              */
             MoveSplineFlag(const MoveSplineFlag& f) { raw() = f.raw(); }
+            MoveSplineFlag& operator=(const MoveSplineFlag& f) = default;
 
             // Constant interface
 

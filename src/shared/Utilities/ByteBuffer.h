@@ -155,6 +155,8 @@ class ByteBuffer
         {
         }
 
+        ByteBuffer& operator=(const ByteBuffer& buf) = default;
+
         /**
          * @brief Clear the buffer and reset positions
          *

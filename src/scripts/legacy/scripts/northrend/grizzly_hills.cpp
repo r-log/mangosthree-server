@@ -536,7 +536,7 @@ struct npc_emily : public CreatureScript
                     {
                         pFloppy->CastSpell(pSummoned, SPELL_FLOPPY_BECOMES_LUNCH, true);
                     }
-                    // no break;
+                    [[fallthrough]];
                 case NPC_HUNGRY_WORG:
                     if (Creature* pFloppy = m_creature->GetMap()->GetCreature(m_floppyGuid))
                     {

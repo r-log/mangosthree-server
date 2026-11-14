@@ -922,6 +922,7 @@ void ChatHandlers::HandleTextEmote(WorldSession& session, WorldPacket& recv_data
         case EMOTE_STATE_DANCE:
         case EMOTE_STATE_READ:
             session.GetPlayer()->SetUInt32Value(UNIT_NPC_EMOTESTATE, emote_id);
+            [[fallthrough]];
         default:
         {
             // in feign death state allowed only text emotes.

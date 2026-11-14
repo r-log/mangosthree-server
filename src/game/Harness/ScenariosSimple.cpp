@@ -412,7 +412,7 @@ namespace Harness
                     char relays[160];
                     snprintf(relays, sizeof(relays), "OK(%u distinct destinations laid, charge from %s)",
                              static_cast<uint32>(goals->size()), *spell ? "the Charge spell" : "MoveCharge directly");
-                    char text[420];
+                    char text[460];
                     snprintf(text, sizeof(text), "chargeSelected=%s | arrivesAtTarget=%s | relays=%s | chaseAfter=%s",
                              *selected ? "OK(POINT while the charge runs)" : "BUG(no point behaviour after the charge)",
                              arrives, relays,
@@ -509,7 +509,7 @@ namespace Harness
                     char moves[160];
                     if (*atEight < *atFour) { snprintf(moves, sizeof(moves), "OK(%.1f yd out at 4 s, %.1f yd at 8 s)", *atFour, *atEight); }
                     else { snprintf(moves, sizeof(moves), "BUG(%.1f yd out at 4 s, %.1f yd at 8 s: never closed)", *atFour, *atEight); }
-                    char text[460];
+                    char text[500];
                     snprintf(text, sizeof(text), "stands=%s | chargeHeld=%s | movesAfterRoot=%s", stands, chargeHeld, moves);
                     Verdict(text);
                 });

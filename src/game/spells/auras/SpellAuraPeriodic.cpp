@@ -197,6 +197,8 @@ void Aura::HandleAuraPeriodicDummy(bool apply, bool Real)
             }
             break;
         }
+        default:
+            break;
     }
 
     m_isPeriodic = apply;

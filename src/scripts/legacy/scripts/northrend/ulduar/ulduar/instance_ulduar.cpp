@@ -175,9 +175,9 @@ struct is_ulduar : public InstanceScript
                 m_uiShatterAchievTimer(0),
                 m_uiGauntletStatus(0),
                 m_uiStairsSpawnTimer(0),
+                m_uiThorimSmashIndex(0),
                 m_uiSlayedArenaMobs(0),
-                m_uiRazorCurrentHarpoon(0),
-                m_uiThorimSmashIndex(0)
+                m_uiRazorCurrentHarpoon(0)
             {
                 Initialize();
             }
@@ -269,7 +269,7 @@ struct is_ulduar : public InstanceScript
                 }
             }
 
-            void OnPlayerDeath(Player* pPlayer) override
+            void OnPlayerDeath([[maybe_unused]] Player* pPlayer) override
             {
                 if (IsEncounterInProgress())
                 {
@@ -1597,6 +1597,7 @@ struct is_ulduar : public InstanceScript
                         {
                             return m_vBrokenHarpoonsGuids[m_uiRazorCurrentHarpoon - 1].GetRawValue();
                         }
+                        break;
                     case DATA64_THORIM_RANDOM_ORB:
                         if (!m_lUpperThunderOrbsGuids.empty())
                         {
@@ -1703,7 +1704,7 @@ struct is_ulduar : public InstanceScript
                 OUT_LOAD_INST_DATA_COMPLETE;
             }
 
-            bool CheckAchievementCriteriaMeet(uint32 uiCriteriaId, Player const* pSource, Unit const* pTarget, uint32 uiMiscValue1 /* = 0*/) const override
+            bool CheckAchievementCriteriaMeet(uint32 uiCriteriaId, Player const* /*pSource*/, Unit const* /*pTarget*/, uint32 /*uiMiscValue1*/ /* = 0*/) const override
             {
                 switch (uiCriteriaId)
                 {
@@ -1725,18 +1726,21 @@ struct is_ulduar : public InstanceScript
                         {
                             return m_abAchievCriteria[TYPE_ACHIEV_BRUNDIR - TYPE_ACHIEV_CAT_LADY];
                         }
+                        return false;
                     case ACHIEV_CRIT_MOLGEIM_N:
                     case ACHIEV_CRIT_MOLGEIM_H:
                         if (GetData(TYPE_ASSEMBLY) == SPECIAL)
                         {
                             return m_abAchievCriteria[TYPE_ACHIEV_MOLGEIM - TYPE_ACHIEV_CAT_LADY];
                         }
+                        return false;
                     case ACHIEV_CRIT_STEELBREAKER_N:
                     case ACHIEV_CRIT_STEELBREAKER_H:
                         if (GetData(TYPE_ASSEMBLY) == SPECIAL)
                         {
                             return m_abAchievCriteria[TYPE_ACHIEV_STEELBREAKER - TYPE_ACHIEV_CAT_LADY];
                         }
+                        return false;
                     case ACHIEV_CRIT_STUNNED_BRUND_N:
                     case ACHIEV_CRIT_STUNNED_STEEL_N:
                     case ACHIEV_CRIT_STUNNED_MOLG_N:
@@ -1747,6 +1751,7 @@ struct is_ulduar : public InstanceScript
                         {
                             return m_abAchievCriteria[TYPE_ACHIEV_STUNNED - TYPE_ACHIEV_CAT_LADY];
                         }
+                        return false;
                     case ACHIEV_CRIT_SHATTERED_N:
                     case ACHIEV_CRIT_SHATTERED_H:
                         return m_abAchievCriteria[TYPE_ACHIEV_SHATTERED - TYPE_ACHIEV_CAT_LADY];
@@ -2258,7 +2263,7 @@ struct event_ulduar_spell_shatter : public MapEventScript   //EVENT_ID_SPELL_SHA
 {
     event_ulduar_spell_shatter() : MapEventScript("event_ulduar_spell_shatter") {}
 
-    bool OnReceived(uint32 uiEventId, Object* pSource, Object* /*pTarget*/, bool /*bIsStart*/) override
+    bool OnReceived(uint32 /*uiEventId*/, Object* pSource, Object* /*pTarget*/, bool /*bIsStart*/) override
     {
         if (pSource->GetTypeId() == TYPEID_UNIT)
         {
@@ -2276,7 +2281,7 @@ struct event_ulduar_shutdown : public MapEventScript    //EVENT_ID_SHUTDOWN
 {
     event_ulduar_shutdown() : MapEventScript("event_ulduar_shutdown") {}
 
-    bool OnReceived(uint32 uiEventId, Object* pSource, Object* /*pTarget*/, bool /*bIsStart*/) override
+    bool OnReceived(uint32 /*uiEventId*/, Object* pSource, Object* /*pTarget*/, bool /*bIsStart*/) override
     {
         if (pSource->GetTypeId() == TYPEID_UNIT)
         {
@@ -2294,7 +2299,7 @@ struct event_ulduar_scrap_repair : public MapEventScript    //EVENT_ID_SCRAP_REP
 {
     event_ulduar_scrap_repair() : MapEventScript("event_ulduar_scrap_repair") {}
 
-    bool OnReceived(uint32 uiEventId, Object* pSource, Object* /*pTarget*/, bool /*bIsStart*/) override
+    bool OnReceived(uint32 /*uiEventId*/, Object* pSource, Object* /*pTarget*/, bool /*bIsStart*/) override
     {
         if (pSource->GetTypeId() == TYPEID_UNIT)
         {

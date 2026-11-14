@@ -135,7 +135,7 @@ void Unit::SetPowerByIndex(uint32 powerIndex, int32 val)
         val = 0;
     }
 
-    if (GetPowerByIndex(powerIndex) == val)
+    if (GetPowerByIndex(powerIndex) == uint32(val))
     {
         return;
     }
@@ -301,6 +301,7 @@ uint32 Unit::GetCreatePowers(Powers power) const
         case POWER_SOUL_SHARDS: return 0;
         case POWER_ECLIPSE:     return 0;                   // TODO: fix me
         case POWER_HOLY_POWER:  return 0;
+        default:                break;
     }
 
     return 0;

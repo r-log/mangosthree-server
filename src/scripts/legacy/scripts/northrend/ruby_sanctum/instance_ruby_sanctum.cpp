@@ -67,7 +67,7 @@ struct is_ruby_sanctum : public InstanceScript
                 return false;
             }
 
-            void OnPlayerEnter(Player* pPlayer) override
+            void OnPlayerEnter([[maybe_unused]] Player* pPlayer) override
             {
                 // Return if Halion already dead, or Zarithrian alive
                 if (m_auiEncounter[TYPE_ZARITHRIAN] != DONE || m_auiEncounter[TYPE_HALION] == DONE)
@@ -104,7 +104,7 @@ struct is_ruby_sanctum : public InstanceScript
                         {
                             pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                         }
-                        // no break;
+                        [[fallthrough]];
                     case NPC_BALTHARUS:
                     case NPC_HALION_REAL:
                     case NPC_HALION_TWILIGHT:
@@ -215,7 +215,7 @@ struct is_ruby_sanctum : public InstanceScript
                                 // Note: rest of the cleanup is handled by creature_linking
 
                                 m_uiHalionResetTimer = 30000;
-                                // no break;
+                                [[fallthrough]];
                             case DONE:
                                 // clear debuffs
                                 if (Creature* pController = GetSingleCreatureFromStorage(NPC_HALION_CONTROLLER))
@@ -305,6 +305,7 @@ struct is_ruby_sanctum : public InstanceScript
                                     pSummoner->CastSpell(pSummoner, SPELL_FIERY_EXPLOSION, true);
                                 }
                                 m_uiHalionSummonTimer = 2000;
+                                break;
                             case 3:
                                 // Spawn Halion
                                 if (Creature* pSummoner = GetSingleCreatureFromStorage(NPC_HALION_CONTROLLER))

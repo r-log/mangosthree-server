@@ -609,7 +609,7 @@ struct is_culling_of_stratholme : public InstanceScript
                         {
                             DoSpawnChromieIfNeeded(pPlayer);
                         }
-                        // no break intended!
+                        [[fallthrough]];
                     case TYPE_DATA64_PLAYER_ARTHAS:
                         if (Player *pPlayer = instance->GetPlayer(ObjectGuid(uiData)))
                         {

@@ -194,7 +194,8 @@ struct boss_tharonja : public CreatureScript
                         }
                     }
 
-                    // No break here, the last phase is exactly like the first, but he doesn't change anymore
+                    // The last phase is exactly like the first, but he doesn't change anymore
+                    [[fallthrough]];
                 case PHASE_SKELETAL_END:
                     if (m_uiCurseLifeTimer < uiDiff)
                     {

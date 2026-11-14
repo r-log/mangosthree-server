@@ -116,7 +116,7 @@ void Creature::SelectLevel(uint32 forcedLevel /*= USE_DEFAULT_DATABASE_LEVEL*/)
     SetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE, float(health));
 
     // all power types
-    for (int i = POWER_MANA; i <= POWER_RUNIC_POWER; ++i)
+    for (uint32 i = POWER_MANA; i <= POWER_RUNIC_POWER; ++i)
     {
         uint32 maxValue = 0;
 
@@ -239,7 +239,7 @@ void Creature::SelectLevel(const CreatureInfo* cinfo, float percentHealth /*= 10
     SetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE, float(health));
 
     // all power types
-    for (int i = POWER_MANA; i <= POWER_RUNIC_POWER; ++i)
+    for (uint32 i = POWER_MANA; i <= POWER_RUNIC_POWER; ++i)
     {
         uint32 maxValue = 0;
 

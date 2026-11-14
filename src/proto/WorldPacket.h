@@ -71,6 +71,8 @@ class WorldPacket : public ByteBuffer
             // exactly where it is needed and nowhere the compiler would say so.
         }
 
+        WorldPacket& operator=(const WorldPacket& packet) = default;
+
         /**
          * @brief
          *

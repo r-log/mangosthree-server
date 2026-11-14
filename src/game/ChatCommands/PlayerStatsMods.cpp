@@ -1012,7 +1012,7 @@ bool ChatHandler::HandleModifyMoneyCommand(char* args)
         }
         else
         {
-            if (newmoney > MAX_MONEY_AMOUNT)
+            if (uint64(newmoney) > MAX_MONEY_AMOUNT)
             {
                 newmoney = MAX_MONEY_AMOUNT;
             }
@@ -1033,7 +1033,7 @@ bool ChatHandler::HandleModifyMoneyCommand(char* args)
             ChatHandler(chr).PSendSysMessage(LANG_YOURS_MONEY_GIVEN, GetNameLink().c_str(), MoneyToString(addmoney).c_str());
         }
 
-        if (addmoney >= MAX_MONEY_AMOUNT)
+        if (uint64(addmoney) >= MAX_MONEY_AMOUNT)
         {
             chr->SetMoney(MAX_MONEY_AMOUNT);
         }

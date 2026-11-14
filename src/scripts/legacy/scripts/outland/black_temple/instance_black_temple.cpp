@@ -76,7 +76,7 @@ struct is_black_temple : public InstanceScript
                 return false;
             }
 
-            void OnPlayerEnter(Player* pPlayer) override
+            void OnPlayerEnter([[maybe_unused]] Player* pPlayer) override
             {
                 DoSpawnAkamaIfCan();
             }
@@ -92,6 +92,7 @@ struct is_black_temple : public InstanceScript
                         {
                             break;
                         }
+                        [[fallthrough]];
                     case NPC_AKAMA:
                     case NPC_ILLIDAN_STORMRAGE:
                     case NPC_MAIEV_SHADOWSONG:

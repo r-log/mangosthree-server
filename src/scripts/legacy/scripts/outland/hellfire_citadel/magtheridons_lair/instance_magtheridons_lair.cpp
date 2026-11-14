@@ -144,7 +144,7 @@ struct is_magtheridons_lair : public InstanceScript
                                 m_uiCageBreakTimer = 0;
                                 m_uiCageBreakStage = 0;
 
-                                // no break;
+                                [[fallthrough]];
                             case DONE:
                                 // Reset door on Fail or Done
                                 if (GameObject* pDoor = GetSingleGameObjectFromStorage(GO_DOODAD_HF_MAG_DOOR01))

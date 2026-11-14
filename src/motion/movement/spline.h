@@ -192,9 +192,11 @@ namespace Movement
             static InitMethtod initializers[ModesEnd]; /**< Array of initialization methods */
 
             /**
-             * @brief Uninitialized spline handler.
+             * @brief Uninitialized spline handlers, one for each method table.
              */
-            void UninitializedSpline() const { MANGOS_ASSERT(false);}
+            void UninitializedSplineEvaluationMethod(index_type, float, Vector3&) const { MANGOS_ASSERT(false);}
+            float UninitializedSplineSegLenghtMethod(index_type) const { MANGOS_ASSERT(false); return 0.0f;}
+            void UninitializedSplineInitMethod(const Vector3*, index_type, bool, index_type) { MANGOS_ASSERT(false);}
 
         public:
 

@@ -759,11 +759,11 @@ void PetitionHandlers::HandlePetitionDeclineCallback(std::optional<uint32> const
 
     ObjectGuid ownerguid = ObjectGuid(HIGHGUID_PLAYER, *owner);
 
-    if (Player* owner = sPlayerRegistry.Find(ownerguid))    // petition owner online
+    if (Player* ownerPlayer = sPlayerRegistry.Find(ownerguid))    // petition owner online
     {
         WorldPacket data(MSG_PETITION_DECLINE, 8);
         data << playerGuid;
-        owner->GetSession()->SendPacket(&data);
+        ownerPlayer->GetSession()->SendPacket(&data);
     }
 }
 

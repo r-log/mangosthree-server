@@ -400,9 +400,6 @@ char* DBCFileLoader::AutoProduceStrings(const char* format, char* dataTable, Loc
         return NULL;
     }
 
-    // each string field at load have array of string for each locale
-    size_t stringHolderSize = sizeof(char*) * MAX_LOCALE;
-
     char* stringPool = new char[stringSize];
     memcpy(stringPool, stringTable, stringSize);
 

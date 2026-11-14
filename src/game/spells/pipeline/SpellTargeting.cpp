@@ -181,7 +181,6 @@ struct TargetDistanceOrderNear
 void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList& targetUnitMap)
 {
     SpellEffectEntry const* spellEffect = m_spellInfo->GetSpellEffect(effIndex);
-    SpellClassOptionsEntry const* classOpt = m_spellInfo->GetSpellClassOptions();
     if (!spellEffect)
     {
         return;
@@ -206,7 +205,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
 
             // Get a random point in circle. Use sqrt(rand) to correct distribution when converting polar to Cartesian coordinates.
             radius *= sqrtf(rand_norm_f());
-        // no 'break' expected since we use code in case TARGET_RANDOM_CIRCUMFERENCE_POINT!!!
+            [[fallthrough]];
         case TARGET_RANDOM_CIRCUMFERENCE_POINT:
         {
             // Get a random point AT the circumference
@@ -697,7 +696,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                             tempTargetGOList.erase(itr++);
                             continue;
                         }
-                    // no break here
+                        [[fallthrough]];
                     case TARGET_AREAEFFECT_GO_AROUND_SOURCE:
                     case TARGET_AREAEFFECT_GO_AROUND_DEST:
                     default:

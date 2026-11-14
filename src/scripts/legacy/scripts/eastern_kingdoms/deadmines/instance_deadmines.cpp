@@ -162,6 +162,8 @@ struct is_deadmines : public InstanceScript
                             m_uiIronDoorTimer = 500;
                         }
                         break;
+                    default:
+                        return;
                 }
 
                 m_auiEncounter[uiType] = uiData;

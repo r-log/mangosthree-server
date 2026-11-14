@@ -100,13 +100,11 @@ void WorldSession::SendPetitionQueryCallback(std::optional<PetitionDetailsRow> c
 
     ObjectGuid ownerGuid;
     std::string name = "NO_NAME_FOR_GUID";
-    uint8 signs = 0;
 
     if (row)
     {
         ownerGuid = ObjectGuid(HIGHGUID_PLAYER, row->ownerGuid);
         name      = row->name;
-        signs     = row->signs;
     }
     else
     {

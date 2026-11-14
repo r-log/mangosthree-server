@@ -71,6 +71,7 @@ struct is_obsidian_sanctum : public InstanceScript
                     case NPC_SHADRON:
                     case NPC_VESPERON:
                         pCreature->SetActiveObjectState(true);
+                        [[fallthrough]];
                     case NPC_SARTHARION:
                         m_mNpcEntryGuidStore[pCreature->GetEntry()] = pCreature->GetObjectGuid();
                         break;
@@ -136,7 +137,7 @@ struct is_obsidian_sanctum : public InstanceScript
                 return 0;
             }
 
-            bool CheckAchievementCriteriaMeet(uint32 uiCriteriaId, Player const* pSource, Unit const* pTarget, uint32 uiMiscValue1 /* = 0*/) const override
+            bool CheckAchievementCriteriaMeet(uint32 uiCriteriaId, Player const* pSource, Unit const* /*pTarget*/, uint32 /*uiMiscValue1*/ /* = 0*/) const override
             {
                 switch (uiCriteriaId)
                 {

@@ -642,7 +642,7 @@ MapManager::LivingWorldStartupStats MapManager::LoadContinentActiveEntities()
 
     uint32 continents[] = {0, 1, 369, 530, 571};
 
-    for (int i = 0; i < countof(continents); ++i)
+    for (size_t i = 0; i < countof(continents); ++i)
     {
         Map* map = FindMap(continents[i]);
         if (!map)

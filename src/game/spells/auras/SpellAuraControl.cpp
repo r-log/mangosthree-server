@@ -144,8 +144,6 @@ void Aura::HandleModPossessPet(bool apply, bool Real)
         return;
     }
 
-    Camera& camera = p_caster->GetCamera();
-
     if (apply)
     {
         if (caster->GetTypeId() == TYPEID_PLAYER)

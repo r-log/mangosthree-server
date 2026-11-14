@@ -76,7 +76,7 @@ void WriteGuildBankLogEntry(WorldPacket& data, ByteBuffer& buffer, GuildBankEven
 
     bool itemMoved = entry.EventType == GUILD_BANK_LOG_MOVE_ITEM || entry.EventType == GUILD_BANK_LOG_MOVE_ITEM2;
 
-    bool hasStack = hasItem && entry.ItemStackCount > 1 || itemMoved;
+    bool hasStack = (hasItem && entry.ItemStackCount > 1) || itemMoved;
 
     data.WriteBit(entry.isMoneyEvent());
     data.WriteGuidMask<4, 1>(logGuid);

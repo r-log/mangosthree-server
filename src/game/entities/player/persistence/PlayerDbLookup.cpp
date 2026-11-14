@@ -76,7 +76,7 @@ ObjectGuid Player::GetGuildGuidFromDB(ObjectGuid guid)
 {
     if (uint32 guildId = GetGuildIdFromDB(guid))
     {
-        return ObjectGuid(HIGHGUID_GUILD, GetGuildIdFromDB(guid));
+        return ObjectGuid(HIGHGUID_GUILD, guildId);
     }
     else
     {

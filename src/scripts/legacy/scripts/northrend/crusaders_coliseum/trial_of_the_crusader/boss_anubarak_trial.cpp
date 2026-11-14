@@ -272,7 +272,7 @@ struct boss_anubarak_trial : public CreatureScript
             {
                 case NPC_ANUBARAK_SPIKE:
                     m_PursuingSpikesGuid = pSummoned->GetObjectGuid();
-                    // no break here
+                    [[fallthrough]];
                 case NPC_NERUBIAN_BURROWER:
                 case NPC_SCARAB:
                     pSummoned->AI()->AttackStart(m_creature->getVictim());
@@ -350,7 +350,8 @@ struct boss_anubarak_trial : public CreatureScript
                         }
                     }
 
-                    // No break - the spells are used in both phase 1 and 3
+                    // The spells are used in both phase 1 and 3
+                    [[fallthrough]];
                 case PHASE_LEECHING_SWARM:
 
                     if (m_uiFreezingSlashTimer < uiDiff)

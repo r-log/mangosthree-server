@@ -239,6 +239,8 @@ class SqlStmtParameters
          */
         explicit SqlStmtParameters(uint32 nParams);
 
+        SqlStmtParameters(const SqlStmtParameters& obj) = default;
+
         /**
          * @brief Destructor.
          */

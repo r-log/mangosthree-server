@@ -230,7 +230,6 @@ bool Corpse::LoadFromDB(uint32 lowguid, CorpseDataRow const& row)
     uint8 _class        = row.classId;
     uint32 playerBytes  = row.playerBytes;
     uint32 playerBytes2 = row.playerBytes2;
-    uint32 guildId      = row.guildId;
     uint32 playerFlags  = row.playerFlags;
 
     ObjectGuid guid = ObjectGuid(HIGHGUID_CORPSE, lowguid);

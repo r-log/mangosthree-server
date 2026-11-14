@@ -530,7 +530,7 @@ void PvpHandlers::HandleBattlemasterJoin(WorldSession& session, WorldPacket& rec
     uint32 instanceId;
     uint8 joinAsGroup;
     bool isPremade = false;
-    Group* grp;
+    Group* grp = NULL;
 
     recv_data >> instanceId;                                // instance id, 0 if First Available selected
     recv_data.ReadGuidMask<2, 0, 3, 1, 5>(guid);
@@ -1025,7 +1025,7 @@ void PvpHandlers::HandleBattleFieldPort(WorldSession& session, WorldPacket& recv
  *
  * @param recv_data The received packet data.
  */
-void PvpHandlers::HandleLeaveBattlefield(WorldSession& session, WorldPacket& recv_data)
+void PvpHandlers::HandleLeaveBattlefield(WorldSession& session, WorldPacket& /*recv_data*/)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_LEAVE_BATTLEFIELD");
 
@@ -1340,14 +1340,14 @@ void PvpHandlers::HandleReportPvPAFK(WorldSession& session, WorldPacket& recv_da
     reportedPlayer->ReportedAfkBy(session.GetPlayer());
 }
 
-void PvpHandlers::HandleRequestRatedBGStats(WorldSession& session, WorldPacket& recv_data)
+void PvpHandlers::HandleRequestRatedBGStats(WorldSession& session, WorldPacket& /*recv_data*/)
 {
     // null packet
 
     session.GetPlayer()->SendRatedBGStats();
 }
 
-void PvpHandlers::HandleRequestPvPOptionsEnabled(WorldSession& session, WorldPacket& recv_data)
+void PvpHandlers::HandleRequestPvPOptionsEnabled(WorldSession& session, WorldPacket& /*recv_data*/)
 {
     // null packet
 
@@ -1360,7 +1360,7 @@ void PvpHandlers::HandleRequestPvPOptionsEnabled(WorldSession& session, WorldPac
     session.SendPacket(&data);
 }
 
-void PvpHandlers::HandleRequestPvPRewards(WorldSession& session, WorldPacket& recv_data)
+void PvpHandlers::HandleRequestPvPRewards(WorldSession& session, WorldPacket& /*recv_data*/)
 {
     // null packet
 

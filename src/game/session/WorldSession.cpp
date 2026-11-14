@@ -1725,7 +1725,7 @@ void WorldSession::HandleMoveWorldportAckOpcode()
             }
 
             // mount capability changed
-            if (entry->ID != aura->GetModifier()->m_amount)
+            if (entry->ID != uint32(aura->GetModifier()->m_amount))
             {
                 if (MountCapabilityEntry const* oldEntry = sMountCapabilityStore.LookupEntry(aura->GetModifier()->m_amount))
                 {

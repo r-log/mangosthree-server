@@ -731,7 +731,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericReindeerTransformation(SpellE
 }
 
 /// 26074: Holiday Cheer: the client shows the effect, and the server does nothing; the effect ends
-static SpellHandlerOutcome<void> EffectDummyGenericHolidayCheer(SpellEffectDummyGenericContext& ctx)
+static SpellHandlerOutcome<void> EffectDummyGenericHolidayCheer(SpellEffectDummyGenericContext& /*ctx*/)
 {
     // implemented at client side
     return SpellHandlerOutcome<void>::Return();
@@ -2142,7 +2142,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericSergeantsFlare(SpellEffectDum
     {
         const SpellEntry* pSpell = sSpellStore.LookupEntry(spellCredit[i]);
 
-        if (pSpell->GetEffectMiscValue(EFFECT_INDEX_0) == ctx.unitTarget->GetEntry())
+        if (uint32(pSpell->GetEffectMiscValue(EFFECT_INDEX_0)) == ctx.unitTarget->GetEntry())
         {
             ctx.m_caster->CastSpell(ctx.m_caster, spellCredit[i], true);
             break;

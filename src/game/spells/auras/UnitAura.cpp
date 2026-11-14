@@ -455,7 +455,7 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
 
                 // m_auraname can be modified to SPELL_AURA_NONE for area auras, use original
                 SpellEffectEntry const* spellEffect = aurSpellInfo->GetSpellEffect(SpellEffectIndex(i));
-                AuraType aurNameReal = AuraType(spellEffect ? spellEffect->EffectAura : SPELL_AURA_NONE);
+                AuraType aurNameReal = AuraType(spellEffect ? spellEffect->EffectAura : uint32(SPELL_AURA_NONE));
 
                 switch (aurNameReal)
                 {
@@ -586,9 +586,11 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
                     {
                         break;
                     }
-                    // no break here, track other controlled
+                    [[fallthrough]];
                 case TRACK_AURA_TYPE_SINGLE_TARGET:         // Register spell holder single target
                     scTargets[aurSpellInfo] = GetObjectGuid();
+                    break;
+                default:
                     break;
             }
         }
@@ -911,7 +913,7 @@ void Unit::RemoveAura(uint32 spellId, SpellEffectIndex effindex, Aura* except)
  * @param spellId The spell identifier.
  * @param casterGuid The caster GUID to match.
  */
-void Unit::RemoveAurasByCasterSpell(uint32 spellId, ObjectGuid casterGuid, AuraRemoveMode mode /*=AURA_REMOVE_BY_DEFAULT*/)
+void Unit::RemoveAurasByCasterSpell(uint32 spellId, ObjectGuid casterGuid, AuraRemoveMode /*mode*/ /*=AURA_REMOVE_BY_DEFAULT*/)
 {
     SpellAuraHolderBounds spair = GetSpellAuraHolderBounds(spellId);
     for (SpellAuraHolderMap::iterator iter = spair.first; iter != spair.second;)

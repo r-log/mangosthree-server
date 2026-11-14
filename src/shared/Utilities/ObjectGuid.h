@@ -128,7 +128,7 @@ class ObjectGuid
         HighGuid GetHigh() const
         {
             HighGuid high = HighGuid((m_guid >> 48) & 0xFFFF);
-            return HighGuid(IsLargeHigh(high) ? high :
+            return HighGuid(IsLargeHigh(high) ? uint64(high) :
                 (m_guid >> 52) & 0xFFF);
         }
         uint32   GetEntry() const { return HasEntry() ? uint32((m_guid >> 32) & UI64LIT(0xFFFF)) : 0; }

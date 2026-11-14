@@ -565,6 +565,8 @@ SpellAuraProcResult Unit::HandleHasteAuraProc(Unit* pVictim, uint32 damage, Aura
             }
             break;
         }
+        default:
+            break;
     }
 
     // processed charge only counting case
@@ -634,7 +636,10 @@ SpellAuraProcResult Unit::HandleSpellCritChanceAuraProc(Unit* pVictim, uint32 /*
             {
                 return outcome.GetValue();
             }
+            break;
         }
+        default:
+            break;
     }
 
     // processed charge only counting case
@@ -2617,6 +2622,8 @@ SpellAuraProcResult Unit::HandleAddPctModifierAuraProc(Unit* /*pVictim*/, uint32
             }
             break;
         }
+        default:
+            break;
     }
     return SPELL_AURA_PROC_OK;
 }
@@ -2722,7 +2729,7 @@ SpellAuraProcResult Unit::HandleRemoveByDamageChanceProc(Unit* /*pVictim*/, uint
  *
  * @return SpellAuraProcResult The proc handling result.
  */
-SpellAuraProcResult Unit::HandleInvisibilityAuraProc(Unit* pVictim, uint32 damage, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown)
+SpellAuraProcResult Unit::HandleInvisibilityAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 /*cooldown*/)
 {
     if (triggeredByAura->GetSpellProto()->HasAttribute(SPELL_ATTR_PASSIVE) || triggeredByAura->GetSpellProto()->HasAttribute(SPELL_ATTR_NEGATIVE))
     {

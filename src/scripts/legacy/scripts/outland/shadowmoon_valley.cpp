@@ -377,12 +377,6 @@ struct npc_dragonmaw_peon : public CreatureScript
             }
         }
 
-        bool SetPlayerTarget(ObjectGuid /*playerGuid*/)
-        {
-            // TODO upstream: a stub -- the player guid is never recorded and the function falls off its end without a return.
-            // Check if event already started
-        }
-
         void MovementInform(Motion::Kind uiType, uint32 uiPointId) override
         {
             if (uiType != Motion::Kind::Point)
@@ -1263,7 +1257,7 @@ struct npc_lord_illidan_stormrage : public CreatureScript
 
             if (pSummoned->GetEntry() == NPC_TORLOTH_THE_MAGNIFICENT)
             {
-                if (CreatureAI* pTorlothAI = pSummoned->AI())
+                if (pSummoned->AI())
                 {
                     SendAIEvent(AI_EVENT_CUSTOM_A, p, pSummoned);
                 }

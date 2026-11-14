@@ -236,7 +236,7 @@ bool LFGMgr::ValidateGroupRoles(roleMap groupMap)
 
     // Everyone must have been seated; anyone left over selected no role, or
     // only roles the group has already filled.
-    return (tankCount + dpsCount + healCount == groupMap.size()) ? true : false;
+    return (size_t(tankCount + dpsCount + healCount) == groupMap.size()) ? true : false;
 }
 
 //todo(7b): offer-continue proposals (isNew = false, encounters, groupRawGuid)

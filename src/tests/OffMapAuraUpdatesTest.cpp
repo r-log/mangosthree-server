@@ -126,11 +126,11 @@ TEST(OffMapAuraUpdates_PostsFromSeveralThreadsAllArriveInEachThreadsOrder)
 {
     OffMapAuraUpdates::Take();
 
-    uint32 const threads = 4, posts = 250;
+    static uint32 const threads = 4, posts = 250;
     std::vector<std::thread> posters;
     for (uint32 t = 0; t < threads; ++t)
     {
-        posters.push_back(std::thread([t, posts]()
+        posters.push_back(std::thread([t]()
                                       {
                                           for (uint32 i = 0; i < posts; ++i)
                                           {

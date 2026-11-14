@@ -223,7 +223,7 @@ void Guild::CreateDefaultGuildRanks(int locale_idx)
     CreateRank(sObjectMgr.GetMangosString(LANG_GUILD_MEMBER, locale_idx),   GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
     CreateRank(sObjectMgr.GetMangosString(LANG_GUILD_INITIATE, locale_idx), GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
 
-    SetBankMoneyPerDay((uint32)GR_GUILDMASTER, (uint32)WITHDRAW_MONEY_UNLIMITED);
+    SetBankMoneyPerDay((uint32)GR_GUILDMASTER, WITHDRAW_MONEY_PER_DAY_UNLIMITED);
 }
 
 /**

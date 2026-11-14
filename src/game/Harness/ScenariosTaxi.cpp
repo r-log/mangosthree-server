@@ -592,7 +592,7 @@ namespace Harness
                     }
                 });
             }
-            At(4300, [this, g]()
+            At(4300, [g]()
             {
                 Player* p = sPlayerRegistry.Find(g); if (p) { Unboard(p); }
             });
@@ -1075,7 +1075,7 @@ namespace Harness
             Cast(10000, g, gp, st, &St::flying, "the SAME flying mount with the gate open");
             ReadApply(12000, g, gp, st, &St::flying);
             Sample(12100, 13000, g, gp, st, &St::flying);
-            At(13100, [this, g, gp, st]()
+            At(13100, [this, g, st]()
             {
                 Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
                 st->liftRan = true;

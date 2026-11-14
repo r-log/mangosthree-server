@@ -94,6 +94,7 @@ struct is_temple_of_ahnqiraj : public InstanceScript
                         {
                             break;
                         }
+                        [[fallthrough]];
                     case NPC_KRI:
                     case NPC_VEM:
                     case NPC_YAUJ:
@@ -194,7 +195,7 @@ struct is_temple_of_ahnqiraj : public InstanceScript
                                 {
                                     pSpawner->Respawn();
                                 }
-                                // no break;
+                                [[fallthrough]];
                             case DONE:
                                 // Despawn the sandworm base on Done or Fail
                                 if (GameObject* pBase = GetSingleGameObjectFromStorage(GO_SANDWORM_BASE))

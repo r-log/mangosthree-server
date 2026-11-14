@@ -386,7 +386,7 @@ TEST(MonthlyQuestReset_AMidnightThatDoesNotExistResolvesToTheFirstMomentOfTheFir
 TEST(MonthlyQuestReset_FiresOnceWhenTheGameClockRunsAheadOfTheWallClock)
 {
     const time_t boundary = LocalTime(2027, 2, 1, 0, 0, 0);
-    const time_t lead = 1782;
+    static const time_t lead = 1782;
 
     time_t stored = boundary;
     const int firings = CountFirings(stored, boundary - HOUR, boundary + HOUR, [](time_t gameNow) { return gameNow; });
@@ -395,7 +395,7 @@ TEST(MonthlyQuestReset_FiresOnceWhenTheGameClockRunsAheadOfTheWallClock)
 
     time_t storedFromWallClock = boundary;
     const int wallClockFirings = CountFirings(storedFromWallClock, boundary - HOUR, boundary + HOUR,
-        [lead](time_t gameNow) { return gameNow - lead; });
+        [](time_t gameNow) { return gameNow - lead; });
     CHECK_EQ(wallClockFirings, int(lead));
 }
 
@@ -414,7 +414,7 @@ TEST(MonthlyQuestReset_FiresOnceAtLocalMidnightAcrossADaylightSavingChange)
         const time_t midnight = LocalTime(r.ny, r.nmo, 1, 0, 0, 0);
         CHECK(OffsetsDiffer(computedAt, midnight));
 
-        const time_t lead = 1782;
+        static const time_t lead = 1782;
         time_t stored = NextMonthlyQuestReset(computedAt, 0, false);
         CHECK_EQ(stored, midnight);
         time_t firedAt = 0;
@@ -426,7 +426,7 @@ TEST(MonthlyQuestReset_FiresOnceAtLocalMidnightAcrossADaylightSavingChange)
 
         time_t storedFromWallClock = midnight;
         const int wallClockFirings = CountFirings(storedFromWallClock, midnight - 3 * HOUR, midnight + 3 * HOUR,
-            [lead](time_t gameNow) { return gameNow - lead; });
+            [](time_t gameNow) { return gameNow - lead; });
         CHECK_EQ(wallClockFirings, int(lead));
     }
 }

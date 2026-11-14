@@ -141,6 +141,8 @@ struct WorldLocation
      */
     WorldLocation(WorldLocation const& loc)
         : mapid(loc.mapid), coord_x(loc.coord_x), coord_y(loc.coord_y), coord_z(loc.coord_z), orientation(loc.orientation) {}
+
+    WorldLocation& operator=(WorldLocation const&) = default;
 };
 
 

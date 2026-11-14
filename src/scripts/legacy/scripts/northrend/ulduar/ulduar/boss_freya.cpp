@@ -746,6 +746,8 @@ struct spell_ulduar_summon_allies : public SpellScript
 {
     spell_ulduar_summon_allies() : SpellScript("spell_ulduar_summon_allies") {}
 
+    using SpellScript::EffectScriptEffect;
+
     bool EffectScriptEffect(Unit* pCaster, uint32 uiSpellId, SpellEffectIndex uiEffIndex, Creature* pCreatureTarget, ObjectGuid /*originalCasterGuid*/)
     {
         if ((uiSpellId == SPELL_SUMMON_ALLIES_OF_NATURE || uiSpellId == SPELL_SUMMON_ALLIES_OF_NATURE_H) && uiEffIndex == EFFECT_INDEX_0)

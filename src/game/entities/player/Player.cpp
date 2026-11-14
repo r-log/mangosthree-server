@@ -2096,7 +2096,7 @@ void Player::SetGameMaster(bool on)
 
         if (Pet* pet = GetPet())
         {
-            if (m_ExtraFlags |= PLAYER_EXTRA_GM_ON)
+            if (m_ExtraFlags & PLAYER_EXTRA_GM_ON)
                 pet->setFaction(35);
             pet->GetHostileRefManager().setOnlineOfflineState(false);
         }
@@ -2573,7 +2573,7 @@ void Player::InitStatsForLevel(bool reapplyMods)
     InitDataForForm(reapplyMods);
 
     // save new stats
-    for (int i = POWER_MANA; i < MAX_POWERS; ++i)
+    for (uint32 i = POWER_MANA; i < MAX_POWERS; ++i)
     {
         SetMaxPower(Powers(i), GetCreateMaxPowers(Powers(i)));
     }
@@ -5193,7 +5193,7 @@ uint32 Player::GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 n
     uint8 skintone = GetByteValue(PLAYER_BYTES, 0);
 
     if (hairstyle == newhairstyle && haircolor == newhaircolor && facialhair == newfacialhair &&
-            (skintone == newskintone || newskintone == -1))
+            (skintone == newskintone || newskintone == uint32(-1)))
         return 0;
 
     GtBarberShopCostBaseEntry const* bsc = sGtBarberShopCostBaseStore.LookupEntry(level - 1);
@@ -5220,7 +5220,7 @@ uint32 Player::GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 n
         cost += bsc->Cost * 0.75f;                          // +3/4 of price
     }
 
-    if (skintone != newskintone && newskintone != -1)
+    if (skintone != newskintone && newskintone != uint32(-1))
     {
         cost += bsc->Cost * 0.5f;                           // +1/2 of price
     }
@@ -5418,7 +5418,7 @@ Item* Player::ConvertItem(Item* item, uint32 newItemId)
     return NULL;
 }
 
-bool Player::CanStartFlyInArea(uint32 mapid, uint32 zone, uint32 area) const
+bool Player::CanStartFlyInArea(uint32 mapid, uint32 zone, uint32 /*area*/) const
 {
     if (isGameMaster())
     {
@@ -6109,8 +6109,8 @@ bool Player::FitArmorSpecializationRules(SpellEntry const * spellProto) const
     {
         if (spellProto->ID == armorSpecToTab[i].spellId)
         {
-            if (!armorSpecToTab[i].tab && m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()) == 0 ||
-                armorSpecToTab[i].tab && armorSpecToTab[i].tab != m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()))
+            if ((!armorSpecToTab[i].tab && m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()) == 0) ||
+                (armorSpecToTab[i].tab && armorSpecToTab[i].tab != m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec())))
                 return false;
 
             break;
@@ -6161,7 +6161,7 @@ bool Player::FitArmorSpecializationRules(SpellEntry const * spellProto) const
                     return false;
                 }
 
-                if (item->GetProto()->Class != itemsEntry->EquippedItemClass)
+                if (item->GetProto()->Class != uint32(itemsEntry->EquippedItemClass))
                 {
                     return false;
                 }

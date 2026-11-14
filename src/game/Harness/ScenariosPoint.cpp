@@ -94,7 +94,7 @@ namespace Harness
                 auto st = std::make_shared<St>();
                 st->isVehicle = st->aboard = st->onThisHull = st->left = false;
 
-                At(500, [this, g, b, st, RIDE]()
+                At(500, [this, g, b, st]()
                 {
                     Creature* boat = Get(b); Creature* rider = Get(g);
                     if (!boat || !rider) { return; }
@@ -111,7 +111,7 @@ namespace Harness
                     st->onThisHull = ti && ti->GetTransportGuid() == b;
                     Log("aboard=%d, on this hull=%d", st->aboard ? 1 : 0, st->onThisHull ? 1 : 0);
                 });
-                At(2000, [this, g, RIDE]()
+                At(2000, [this, g]()
                 {
                     if (Creature* rider = Get(g)) { rider->RemoveAurasDueToSpell(RIDE); Log("aura %u removed", RIDE); }
                 });
@@ -543,7 +543,7 @@ namespace Harness
                 });
                 // The circle lands 8 yd NORTH of the creature, across its direction of travel,
                 // so the turn it owes is a quarter turn and unmistakable.
-                At(1500, [this, g, r, st, DISTRACT]()
+                At(1500, [this, g, r, st]()
                 {
                     Creature* a = Get(g); Creature* rogue = Get(r);
                     if (!a || !rogue) { return; }

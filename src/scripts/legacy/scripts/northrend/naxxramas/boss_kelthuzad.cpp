@@ -276,7 +276,7 @@ struct boss_kelthuzad : public CreatureScript
 
             float fAngle = GetLocationAngle(packId + 1);
 
-            float fX, fY, fZ;
+            float fX = 0.0f, fY = 0.0f, fZ = 0.0f;
             GetChamberCenterCoords(fX, fY, fZ);
 
             fX += M_F_RANGE * cos(fAngle);
@@ -321,7 +321,7 @@ struct boss_kelthuzad : public CreatureScript
 
             float fAngle = GetLocationAngle(urand(1, 7));
 
-            float fX, fY, fZ;
+            float fX = 0.0f, fY = 0.0f, fZ = 0.0f;
             GetChamberCenterCoords(fX, fY, fZ);
 
             fX += M_F_RANGE * cos(fAngle);
@@ -359,7 +359,7 @@ struct boss_kelthuzad : public CreatureScript
 
                         if (m_pInstance)
                         {
-                            float fX, fY, fZ;
+                            float fX = 0.0f, fY = 0.0f, fZ = 0.0f;
                             GetChamberCenterCoords(fX, fY, fZ);
                             pSummoned->GetMotionMaster()->MovePoint(0, fX, fY, fZ);
                         }

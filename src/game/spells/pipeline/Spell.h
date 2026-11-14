@@ -866,7 +866,8 @@ namespace MaNGOS
         SpellNotifierCreatureAndPlayer(Spell& spell, Spell::UnitList& data, float radius, SpellNotifyPushType type,
                                        SpellTargets TargetType = SPELL_TARGETS_NOT_FRIENDLY, WorldObject* originalCaster = NULL)
             : i_data(&data), i_spell(spell), i_push_type(type), i_radius(radius), i_TargetType(TargetType),
-              i_originalCaster(originalCaster), i_castingObject(i_spell.GetCastingObject())
+              i_originalCaster(originalCaster), i_castingObject(i_spell.GetCastingObject()),
+              i_centerX(0.0f), i_centerY(0.0f), i_centerZ(0.0f)
         {
             if (!i_originalCaster)
             {

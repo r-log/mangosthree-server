@@ -324,7 +324,7 @@ struct boss_headless_horseman : public CreatureScript
                         m_uiPumpkinTimer -= uiDiff;
                     }
 
-                    // no break;
+                    [[fallthrough]];
                 case PHASE_CONFLAGRATION:
 
                     // conflagration not happening during pumpkin phase
@@ -347,7 +347,7 @@ struct boss_headless_horseman : public CreatureScript
                         }
                     }
 
-                    // no break;
+                    [[fallthrough]];
                 case PHASE_HORSEMAN:
 
                     // cleave - all phases
@@ -390,6 +390,8 @@ struct boss_headless_horseman : public CreatureScript
 struct spell_request_body : public SpellScript
 {
     spell_request_body() : SpellScript("spell_request_body") {}
+
+    using SpellScript::EffectScriptEffect;
 
     bool EffectScriptEffect(Unit* pCaster, uint32 uiSpellId, SpellEffectIndex uiEffIndex, Creature* pCreatureTarget, ObjectGuid /*originalCasterGuid*/)
     {
@@ -512,6 +514,8 @@ struct boss_head_of_horseman : public CreatureScript
 struct spell_send_head : public SpellScript
 {
     spell_send_head() : SpellScript("spell_send_head") {}
+
+    using SpellScript::EffectScriptEffect;
 
     bool EffectScriptEffect(Unit* pCaster, uint32 uiSpellId, SpellEffectIndex uiEffIndex, Creature* pCreatureTarget, ObjectGuid /*originalCasterGuid*/)
     {

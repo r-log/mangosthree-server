@@ -323,7 +323,8 @@ static bool ReadDBCBuildFileText(const std::string& dbc_path, char const* locale
     if (FILE* file = fopen(filename.c_str(), "rb"))
     {
         char buf[100];
-        fread(buf, 1, 100 - 1, file);
+        size_t len = fread(buf, 1, 100 - 1, file);
+        buf[len] = '\0';
         fclose(file);
 
         text = &buf[0];
@@ -346,6 +347,8 @@ int ReadDBCLocale(const std::string sDataPath)
         sFilename  = sDBCpath + "component.wow-" + fullLocaleNameList[uLocaleIndex].name + ".txt";
         if (FILE* file = fopen(sFilename.c_str(), "rb"))
         {
+            fclose(file);
+
             if (uLocaleIndex==0)
             {
                 uLocaleIndex=1;  // Map enus and engb to 0
@@ -783,7 +786,7 @@ void LoadDBCStores(const std::string& dataPath)
                 case SPELL_AURA_PERIODIC_MANA_LEECH:
                 case SPELL_AURA_PERIODIC_ENERGIZE:
                 case SPELL_AURA_POWER_BURN_MANA:
-                    MANGOS_ASSERT(spellEffect->EffectMiscValue_0 >= 0 && spellEffect->EffectMiscValue_0 < MAX_POWERS);
+                    MANGOS_ASSERT(spellEffect->EffectMiscValue_0 >= 0 && spellEffect->EffectMiscValue_0 < int32(MAX_POWERS));
                     break;
             }
 

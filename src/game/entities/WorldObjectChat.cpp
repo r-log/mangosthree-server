@@ -64,7 +64,7 @@
  *
  * Sends a monster say message to nearby players.
  */
-void WorldObject::MonsterSay(const char* text, uint32 language, Unit const* target) const
+void WorldObject::MonsterSay(const char* text, uint32 /*language*/, Unit const* target) const
 {
     sChatNotices.MonsterSaid(*this, CHAT_MSG_MONSTER_SAY, text, target, sGameConfig.getConfig(CONFIG_FLOAT_LISTEN_RANGE_SAY));
 }
@@ -77,7 +77,7 @@ void WorldObject::MonsterSay(const char* text, uint32 language, Unit const* targ
  *
  * Sends a monster yell message to nearby players.
  */
-void WorldObject::MonsterYell(const char* text, uint32 language, Unit const* target) const
+void WorldObject::MonsterYell(const char* text, uint32 /*language*/, Unit const* target) const
 {
     sChatNotices.MonsterSaid(*this, CHAT_MSG_MONSTER_YELL, text, target, sGameConfig.getConfig(CONFIG_FLOAT_LISTEN_RANGE_YELL));
 }

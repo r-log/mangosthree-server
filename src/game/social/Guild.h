@@ -28,6 +28,7 @@
 
 #define WITHDRAW_MONEY_UNLIMITED    UI64LIT(0xFFFFFFFFFFFFFFFF)
 #define WITHDRAW_SLOT_UNLIMITED     0xFFFFFFFF
+#define WITHDRAW_MONEY_PER_DAY_UNLIMITED 0xFFFFFFFF
 
 #include <unordered_map>
 #include "Platform/Define.h"

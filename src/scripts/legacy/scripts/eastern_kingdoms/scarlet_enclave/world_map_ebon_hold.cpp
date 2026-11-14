@@ -134,6 +134,7 @@ struct map_ebon_hold : public ZoneScript
                             pCreature->AI()->AttackStart(pTarget);
                         }
                     }
+                    break;
                 case NPC_KORFAX_CHAMPION_OF_THE_LIGHT:
                 case NPC_LORD_MAXWELL_TYROSUS:
                 case NPC_COMMANDER_ELIGOR_DAWNBRINGER:

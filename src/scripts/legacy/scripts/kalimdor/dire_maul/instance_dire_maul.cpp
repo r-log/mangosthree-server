@@ -356,6 +356,7 @@ struct is_dire_maul : public InstanceScript
                                                     {
                                                         enterEvadeMode = false;
                                                     }
+                                                    [[fallthrough]];
                                                 }
                                                 case NPC_CAPTAIN_KROMCRUSH:
                                                 {

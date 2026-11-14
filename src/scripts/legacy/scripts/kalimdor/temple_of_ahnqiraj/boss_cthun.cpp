@@ -184,7 +184,7 @@ struct boss_eye_of_cthun : public CreatureScript
             {
                 case NPC_EYE_TENTACLE:
                     m_lEyeTentaclesList.push_back(pSummoned->GetObjectGuid());
-                    // no break;
+                    [[fallthrough]];
                 case NPC_CLAW_TENTACLE:
                     if (Unit* pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0))
                     {

@@ -64,7 +64,7 @@ namespace
     /// An equipment set as its saved row.
     EquipmentSetSaveRow EquipmentSetRow(EquipmentSet const& eqset, uint32 index)
     {
-        static_assert(EQUIPMENT_SET_ROW_ITEMS == EQUIPMENT_SLOT_END, "a saved set holds every equipment slot");
+        static_assert(int(EQUIPMENT_SET_ROW_ITEMS) == int(EQUIPMENT_SLOT_END), "a saved set holds every equipment slot");
 
         EquipmentSetSaveRow row;
         row.setGuid = eqset.Guid;
@@ -673,7 +673,7 @@ void Player::_SaveSkills()
  */
 void Player::_SaveSpells()
 {
-    for (PlayerSpellMap::iterator itr = m_spells.begin(), next = m_spells.begin(); itr != m_spells.end();)
+    for (PlayerSpellMap::iterator itr = m_spells.begin(); itr != m_spells.end();)
     {
         uint32 talentCosts = GetTalentSpellCost(itr->first);
 

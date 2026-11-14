@@ -456,7 +456,7 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcGeneric45484(DummyA
 }
 
 /// 46569: Sunwell Exalted Caster Neck: fails
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcGeneric46569(DummyAuraProcContext& ctx)
+static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcGeneric46569(DummyAuraProcContext& /*ctx*/)
 {
     return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);          // old unused version
 // Living Seed
@@ -2263,7 +2263,7 @@ static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggere
 static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered35095(ProcTriggerSpellAuraProcContext& ctx)
 {
     SpellPowerEntry const* spellPower = ctx.procSpell->GetSpellPower();
-    if (!spellPower || !ctx.procSpell || ctx.procSpell->PowerType!=POWER_MANA || spellPower->ManaCost==0 && spellPower->PowerCost==0 && spellPower->ManaCostPerLevel==0)
+    if (!spellPower || !ctx.procSpell || ctx.procSpell->PowerType!=POWER_MANA || (spellPower->ManaCost==0 && spellPower->PowerCost==0 && spellPower->ManaCostPerLevel==0))
     {
         return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
     }

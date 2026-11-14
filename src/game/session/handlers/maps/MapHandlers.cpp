@@ -158,7 +158,7 @@ void MapHandlers::HandleAreaTrigger(WorldSession& session, WorldPacket& recv_dat
     // ghost resurrected at enter attempt to dungeon with corpse (including fail enter cases)
     if (!player->IsAlive() && targetMapEntry->IsDungeon())
     {
-        int32 corpseMapId = 0;
+        uint32 corpseMapId = 0;
         if (Corpse* corpse = player->GetCorpse())
         {
             corpseMapId = corpse->GetMapId();

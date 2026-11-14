@@ -274,6 +274,7 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map* map, uint32 phaseMa
         case GAMEOBJECT_TYPE_DESTRUCTIBLE_BUILDING:
             ForceGameObjectHealth(GetMaxHealth(), NULL);
             SetUInt32Value(GAMEOBJECT_PARENTROTATION, m_goInfo->destructibleBuilding.destructibleData);
+            break;
         case GAMEOBJECT_TYPE_TRANSPORT:
             SetUInt32Value(GAMEOBJECT_LEVEL, getMSTime());
             if (goinfo->transport.startOpen)

@@ -318,7 +318,7 @@ struct npc_kiljaeden_controller : public CreatureScript
             {
                 case NPC_VELEN:
                     pSummoned->GetMotionMaster()->MovePoint(0, aOutroLocations[3].m_fX, aOutroLocations[3].m_fY, aOutroLocations[3].m_fZ);
-                    // no break here
+                    [[fallthrough]];
                 case NPC_LIADRIN:
                     pSummoned->CastSpell(pSummoned, SPELL_TELEPORT_VISUAL, true);
                     break;
@@ -690,7 +690,7 @@ struct boss_kiljaeden : public CreatureScript
                         StartNextDialogueText(PHASE_SACRIFICE);
                     }
 
-                    // no break - use the spells from the phases below;
+                    [[fallthrough]];
                 case PHASE_DARKNESS:
 
                     // In the last phase he uses this spell more often
@@ -724,7 +724,7 @@ struct boss_kiljaeden : public CreatureScript
                         StartNextDialogueText(PHASE_ARMAGEDDON);
                     }
 
-                    // no break - use the spells from the phase below;
+                    [[fallthrough]];
                 case PHASE_INFERNO:
 
                     if (m_uiKalecSummonTimer)

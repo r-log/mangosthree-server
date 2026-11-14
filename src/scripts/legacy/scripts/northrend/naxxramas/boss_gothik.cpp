@@ -274,7 +274,7 @@ struct boss_gothik : public CreatureScript
                         m_uiSpeechTimer -= uiDiff;
                     }
 
-                    // No break here
+                    [[fallthrough]];
 
                 case PHASE_BALCONY:                            // Do summoning
                     if (m_uiTraineeTimer < uiDiff)
@@ -372,7 +372,7 @@ struct boss_gothik : public CreatureScript
                         // as the doors now open, recheck whether mobs are standing around
                         m_uiControlZoneTimer = 1;
                     }
-                    // no break here
+                    [[fallthrough]];
 
                 case PHASE_STOP_TELEPORTING:
                     if (m_uiHarvestSoulTimer < uiDiff)

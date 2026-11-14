@@ -46,6 +46,10 @@ namespace
     BigInt RandomBits(size_t bits)
     {
         std::vector<uint8_t> bytes((bits + 7) / 8);
+        if (bytes.empty())
+        {
+            return BigInt();
+        }
         for (auto& b : bytes) b = uint8_t(g_rng());
         const unsigned top = unsigned((bits - 1) % 8);
         bytes.back() &= uint8_t((2u << top) - 1);

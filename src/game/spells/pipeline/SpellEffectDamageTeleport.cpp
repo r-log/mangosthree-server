@@ -475,6 +475,8 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                 }
                 break;
             }
+            default:
+                break;
         }
 
         if (damage >= 0)
@@ -550,7 +552,7 @@ void Spell::EffectClearQuest(SpellEffectEntry const* effect)
     player->GetQuestStatusMgr().Map()[quest_id].m_rewarded = false;
 }
 
-void Spell::EffectForceCast(SpellEffectEntry const* effect)
+void Spell::EffectForceCast(SpellEffectEntry const* /*effect*/)
 {
     if (!unitTarget)
     {
