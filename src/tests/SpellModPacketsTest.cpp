@@ -107,7 +107,7 @@ namespace
         return data;
     }
 
-    std::vector<SpellModValue> Focus(int32 value)
+    std::vector<SpellModValue> Focus(float value)
     {
         return { { 9, value }, { 11, value }, { 12, value }, { 34, value } };
     }
@@ -187,7 +187,7 @@ TEST(SpellModPackets_TheCountUpFrontIsTheCountWrittenBack)
     std::vector<SpellModValue> every;
     for (int bit = 0; bit < 96; ++bit)
     {
-        every.push_back({ uint8(bit), int32(bit * 3 - 100) });
+        every.push_back({ uint8(bit), float(bit * 3 - 100) });
     }
     std::vector<SpellModChangedFact> facts = {
         Fact(true, 0, {}),

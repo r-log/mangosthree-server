@@ -182,6 +182,10 @@ namespace Combat
      *         field over the mask's schools.
      */
     int32 SpellPowerBenefit(uint32 schoolMask, int32 schoolSpellPower, int32 physicalDamageDone);
+
+    /// The value a mastery effect holds: its bonus coefficient times the player's mastery points, the fraction kept
+    /// (8 points at 2.8 a point give 22.4).
+    float MasteryAmount(float coefficient, float masteryPoints);
 }
 
 #endif // MANGOSSERVER_COMBAT_SPELLBONUS_H

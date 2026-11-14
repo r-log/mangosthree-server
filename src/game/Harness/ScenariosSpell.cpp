@@ -88,8 +88,9 @@
 // 958-960 a warrior, a paladin and a death knight staged to level 85 at a fixed attack power cast Heroic
 // Throw, Hammer of Wrath and Death Coil five times at a level-85 target; 961 a priest staged the same way
 // with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it; 962 a
-// hasted mage's Pyroblast! and its ticks; 963 Pyroblast! cast again before its periodic effect's next tick.
-// The guard of 931-938 and 950-963 (Qualify) fingerprints every spell a scenario reaches and refuses
+// hasted mage's Pyroblast! and its ticks; 963 Pyroblast! cast again before its periodic effect's next tick; 964
+// Ignite's ticks under Flashburn on a staged Fire mage with mastery rating.
+// The guard of 931-938 and 950-964 (Qualify) fingerprints every spell a scenario reaches and refuses
 // the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3903,7 +3904,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962, 963): a human mage staged to level 85 with the scenario's
+     * What the mage scenarios share (951, 952, 954-957, 962-964): a human mage staged to level 85 with the scenario's
      * talents, glyphs, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged to level 85 ten yards in
      * front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario whose spell asks for an aura on its caster (CasterAura), that aura put on him by a
@@ -5653,6 +5654,203 @@ namespace Harness
         static constexpr int32 kSpellPower = 1000;
     };
 
+    /**
+     * S964 `mage-fire-ignite-mastery`: Ignite (12846, rank 3 of 3) under Flashburn (76595) on a staged Fire mage.
+     * Staged: Burning Soul 3 and Improved Fire Blast 2 (the five points the second tier asks; neither procs on his own
+     * spells), then Ignite 3; the first talent makes Fire his primary tree, which teaches Flashburn. The Mastery passive
+     * (86473) learned and kMasteryRating mastery rating, so his mastery is 8 points plus the rating's. Ignite's dummy
+     * aura procs on each Fireball crit and casts 12654 on the Camel with int32(0.12f x the crit's damage) a tick, two
+     * ticks 2 s apart. 12654 takes no damage mods; Flashburn's DoT modifier names it in its class mask. Four Fireball
+     * crits: the first three 4.1 s apart, so each Ignite ends before the next crit lands; the fourth kRefreshEveryMs
+     * after the third, so it lands between the third Ignite's two ticks and re-applies it with one tick left, which
+     * carries its remaining damage (SPELL_ATTR_EX4_STACK_DOT_MODIFIER). The fourth cast waits kLastStepMs, so the
+     * re-applied Ignite ticks out before the verdict.
+     *
+     * `ignite`: per cast, the crit's amount and the 12654 ticks after it, `<crit>/<tick>/...`: two after each of the
+     * first two, one after the third, and the re-applied Ignite's after the fourth. With Done(x) the tick x with
+     * Flashburn's percent added the way the spell modifiers add a percent, x + x x (2.8 x mastery) / 100 in float,
+     * truncated, and share(D) = int32(0.12f x D): OK when every cast crit, each tick of the first three casts is
+     * Done(share), and the re-applied Ignite's n ticks are all Done(x) for one x whose n ticks hold the bank, the new
+     * two ticks of share(D4) and the one tick of share(D3) left, less at most the n - 1 an integer division over n
+     * ticks drops. The bank is counted before the mastery step, so the carried tick takes Flashburn once.
+     */
+    class MageFireIgniteMastery : public MageProcScenario
+    {
+    public:
+        MageFireIgniteMastery() : MageProcScenario("mage-fire-ignite-mastery", 964, "ignite") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10529, 2 } };
+        }
+        std::vector<uint32> Spells() const override { return { 86473 }; }
+        int32 MasteryRating() const override { return kMasteryRating; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step refreshed = Cast(133, true);
+            refreshed.everyMs = kRefreshEveryMs;
+            Step last = Cast(133, true);
+            last.everyMs = kLastStepMs;
+            return { Cast(133, true), Cast(133, true), refreshed, last };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 133: 26 fields, fnv 81dba6e7
+                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76595: 49 fields, fnv ab04106a
+                { 76595, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBonusCoefficient", 1077097267 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 22 }, { "eff0.EffectSpellClassMask.Flags", 580542277877760 }, { "eff0.EffectSpellClassMask.Flags2", 1024 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 280 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 86473: 26 fields, fnv d7de8265
+                { 86473, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 318 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        std::string Own(St const& st) const override
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<uint32> ticks;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+                for (const char* suffix : suffixes)
+                {
+                    std::vector<Recorder::Seen const*> seen = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_PERIODICAURALOG);
+                    for (size_t i = 0; i < seen.size(); ++i)
+                    {
+                        if (seen[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_PERIODICAURALOG, &seen[i]->payload[0],
+                                                                                 seen[i]->payload.size(), roles);
+                        for (size_t f = 0; f < fields.size(); ++f)
+                        {
+                            uint32 amount = 0;
+                            if (sscanf(fields[f].c_str(), "tick self.tick.12654=%u/", &amount) == 1)
+                            {
+                                ticks.push_back(amount);
+                            }
+                        }
+                    }
+                }
+            }
+
+            float mastery = 0.0f;
+            int32 flashburnAmount = 0;
+            float dotPercent = 0.0f;
+            if (Player* p = sPlayerRegistry.Find(st.player))
+            {
+                mastery = p->GetFloatValue(PLAYER_MASTERY);
+                if (Aura const* flashburn = p->GetAura(76595, EFFECT_INDEX_0))
+                {
+                    flashburnAmount = flashburn->GetModifier()->m_amount;
+                }
+                if (SpellModMgr* mods = p->GetSpellMods())
+                {
+                    float probe = 100.0f;
+                    mods->ApplySpellMod(12654, SPELLMOD_DOT, probe);
+                    dotPercent = probe - 100.0f;
+                }
+            }
+            SpellEntry const* flashburnSpell = sSpellStore.LookupEntry(76595);
+            SpellEffectEntry const* flashburnEffect = flashburnSpell ? flashburnSpell->GetSpellEffect(EFFECT_INDEX_0) : NULL;
+            const float percent = (flashburnEffect ? flashburnEffect->EffectBonusCoefficient : 0.0f) * mastery;
+            auto done = [percent](int32 tick) -> uint32
+            {
+                const float tickValue = float(tick);
+                const float withMastery = tickValue + tickValue * percent / 100.0f;
+                return withMastery > 0 ? uint32(withMastery) : 0;
+            };
+
+            // the ticks each cast owns, in order: two, two, one before the re-application, the rest after it
+            const size_t owned[] = { 2, 2, 1, ticks.size() > 5 ? ticks.size() - 5 : 0 };
+            std::string value, text;
+            bool ok = st.steps.size() == 4 && ticks.size() >= 7;
+            char buf[320];
+            size_t next = 0;
+            int32 shares[4] = { 0, 0, 0, 0 };
+            for (uint32 k = 0; k < st.steps.size() && k < 4; ++k)
+            {
+                Seen const& seen = st.seen[k];
+                shares[k] = int32(0.12f * float(seen.amount));
+                ok = ok && seen.logRead && seen.crit;
+                const std::string amount = seen.logRead ? U(seen.amount) : std::string("none");
+                std::string own = amount;
+                std::string tickText;
+                for (size_t i = 0; i < owned[k] && next < ticks.size(); ++i, ++next)
+                {
+                    own += "/" + U(ticks[next]);
+                    tickText += (tickText.empty() ? "" : " ") + U(ticks[next]);
+                    if (k < 3)
+                    {
+                        ok = ok && ticks[next] == done(shares[k]);
+                    }
+                }
+                value += (value.empty() ? "" : ",") + own;
+                const std::string want = k < 3 ? ", want " + U(done(shares[k])) : std::string();
+                snprintf(buf, sizeof(buf), "cast %u: Fireball %s%s, Ignite's share %d a tick, ticks [%s]%s", k + 1, amount.c_str(),
+                         seen.crit ? " crit" : "", shares[k], tickText.c_str(), want.c_str());
+                text += (text.empty() ? "" : "; ") + std::string(buf);
+            }
+
+            // the re-applied Ignite: its ticks share one value Done(x), and its n ticks of x hold the bank
+            const int32 n = int32(owned[3]);
+            const int32 bank = 2 * shares[3] + shares[2];
+            int32 found = -1;
+            if (n >= 2)
+            {
+                const uint32 tick = ticks[5];
+                bool same = true;
+                for (size_t i = 5; i < ticks.size(); ++i)
+                {
+                    same = same && ticks[i] == tick;
+                }
+                for (int32 x = (bank - n + 1) / n; same && x <= bank / n + 1; ++x)
+                {
+                    if (n * x <= bank && n * x >= bank - n + 1 && done(x) == tick)
+                    {
+                        found = x;
+                        break;
+                    }
+                }
+            }
+            ok = ok && found >= 0;
+            const int32 twice = (2 * shares[3] + int32(done(shares[2]))) / (n ? n : 1);
+            const std::string fits = found >= 0 ? U(uint32(found)) + ", so " + U(done(found)) : std::string("none fits");
+            snprintf(buf, sizeof(buf),
+                     "; the re-applied Ignite: %d ticks, bank 2 x %d + %d = %d before the mastery step, a tick %s; a carried tick stepped twice would give about %u",
+                     n, shares[3], shares[2], bank, fits.c_str(), done(twice));
+            text += buf;
+            snprintf(buf, sizeof(buf),
+                     "; %u 12654 ticks in all; mastery %.2f, Flashburn's aura amount %d, the DoT percent the spell modifiers give 12654 %.3f, Flashburn's percent from its coefficient %.3f",
+                     uint32(ticks.size()), mastery, flashburnAmount, dotPercent, percent);
+            text += buf;
+            return ok ? value + "(OK: " + text + ")" : "BUG(" + value + ": " + text + ")";
+        }
+
+    private:
+        static constexpr int32 kMasteryRating = 1000;
+        static constexpr uint32 kRefreshEveryMs = 3700;
+        static constexpr uint32 kLastStepMs = 8000;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -5678,5 +5876,6 @@ namespace Harness
         r.Register(new PriestMortarShotPhysical());
         r.Register(new MageFirePyroblastHaste());
         r.Register(new MageFirePyroblastRefresh());
+        r.Register(new MageFireIgniteMastery());
     }
 }

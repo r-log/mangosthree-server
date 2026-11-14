@@ -50,7 +50,7 @@ void SpellModMgr::Change(SpellModEntry const& entry, bool apply, SpellModChanged
 
         if (entry.mask->IsFitToFamilyMask(_mask, _mask2))
         {
-            int32 val = 0;
+            float val = 0.0f;
             for (std::list<SpellModEntry>::const_iterator itr = m_mods[entry.op].begin(); itr != m_mods[entry.op].end(); ++itr)
             {
                 if (itr->flat == entry.flat && (itr->mask->IsFitToFamilyMask(_mask, _mask2)))
@@ -79,7 +79,7 @@ void SpellModMgr::Change(SpellModEntry const& entry, bool apply, SpellModChanged
     }
 }
 
-template <class T> T SpellModMgr::ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue)
+template <class T> T SpellModMgr::ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, bool masteryOnly)
 {
     SpellEntry const* spellInfo = sSpellStore.LookupEntry(spellId);
     if (!spellInfo)
@@ -87,11 +87,16 @@ template <class T> T SpellModMgr::ApplySpellMod(uint32 spellId, SpellModOp op, T
         return 0;
     }
 
-    int32 totalpct = 0;
-    int32 totalflat = 0;
+    float totalpct = 0.0f;
+    float totalflat = 0.0f;
     for (std::list<SpellModEntry>::iterator itr = m_mods[op].begin(); itr != m_mods[op].end(); ++itr)
     {
         SpellModEntry const& entry = *itr;
+
+        if (masteryOnly && !entry.mastery)
+        {
+            continue;
+        }
 
         if (!spellInfo->IsFitToFamily(SpellFamily(entry.family), *entry.mask))
         {
@@ -119,14 +124,14 @@ template <class T> T SpellModMgr::ApplySpellMod(uint32 spellId, SpellModOp op, T
         }
     }
 
-    float diff = (float)basevalue * (float)totalpct / 100.0f + (float)totalflat;
+    float diff = (float)basevalue * totalpct / 100.0f + totalflat;
     basevalue = T((float)basevalue + diff);
     return T(diff);
 }
 
-template int32 SpellModMgr::ApplySpellMod<int32>(uint32 spellId, SpellModOp op, int32& basevalue);
-template uint32 SpellModMgr::ApplySpellMod<uint32>(uint32 spellId, SpellModOp op, uint32& basevalue);
-template float SpellModMgr::ApplySpellMod<float>(uint32 spellId, SpellModOp op, float& basevalue);
+template int32 SpellModMgr::ApplySpellMod<int32>(uint32 spellId, SpellModOp op, int32& basevalue, bool masteryOnly);
+template uint32 SpellModMgr::ApplySpellMod<uint32>(uint32 spellId, SpellModOp op, uint32& basevalue, bool masteryOnly);
+template float SpellModMgr::ApplySpellMod<float>(uint32 spellId, SpellModOp op, float& basevalue, bool masteryOnly);
 
 void SpellModMgr::Clear()
 {

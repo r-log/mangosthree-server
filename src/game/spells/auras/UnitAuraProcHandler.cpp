@@ -1161,7 +1161,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
             // carried on the auto-repeat spell's DBC) and triggers
             // 76663 for an extra ranged hit with its own weapon-damage
             // formula. Proc chance is the mastery-scaled aura amount
-            // written by Player::UpdateMasteryAuras (StatSystem.cpp:899)
+            // written by Player::UpdateMasteryAuras
             // on EFFECT_0, matching TC-Preservation's spell_hun_wild_-
             // quiver at scripts/Spells/spell_hunter.cpp:893 which hooks
             // EFFECT_0 only. EFFECT_INDEX_0 gate prevents double-firing

@@ -467,7 +467,8 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
                 }
                 CarryPeriodicTimers(holder, foundHolder);
 
-                // Carry over removed Aura's remaining damage if Aura still has ticks remaining
+                // Carry over removed Aura's remaining damage if Aura still has ticks remaining, as it was before the
+                // removed aura's done-side step: the new aura takes that step at its apply, once for all of it
                 if (foundHolder->GetSpellProto()->HasAttribute(SPELL_ATTR_EX4_STACK_DOT_MODIFIER))
                 {
                     for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
@@ -486,7 +487,7 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
                                     const uint32 remainingTicks = existingTicks > existing->GetAuraTicks() ? existingTicks - existing->GetAuraTicks() : 0;
 
                                     aur->GetModifier()->m_amount = Spells::RolledOverTick(aur->GetModifier()->m_amount, ticksBeforeCarry[i],
-                                                                                          existing->GetModifier()->m_amount, remainingTicks,
+                                                                                          existing->GetTickAmountBeforeDone(), remainingTicks,
                                                                                           aur->GetAuraMaxTicks());
                                 }
                                 else
