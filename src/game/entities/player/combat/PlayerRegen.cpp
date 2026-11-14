@@ -236,7 +236,7 @@ void Player::Regenerate(Powers power, uint32 diff)
 
                 if (cd)
                 {
-                    m_runeMgr.SetRuneCooldown(rune, (cd < cd_diff) ? 0 : cd - cd_diff);
+                    m_runeMgr.SetRuneCooldown(runeToRegen, (cd < cd_diff) ? 0 : cd - cd_diff);
                 }
             }
             break;
