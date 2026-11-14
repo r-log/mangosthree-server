@@ -740,6 +740,21 @@ uint32 Aura::GetAuraMaxTicks() const
     return Spells::TickCount(GetAuraMaxDuration(), int32(m_modifier.periodictime), m_firstTickDelay);
 }
 
+void Aura::SetLoadedState(int32 damage, uint32 periodicTime)
+{
+    m_modifier.m_amount = damage;
+    m_tickAmountBeforeDone = damage;
+    m_modifier.periodictime = periodicTime;
+    const bool ticksAtApply = GetSpellProto()->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY);
+    m_firstTickDelay = Spells::FirstTickDelay(int32(periodicTime), ticksAtApply);
+    m_periodicTimer = m_firstTickDelay;
+
+    if (uint32 maxticks = GetAuraMaxTicks())
+    {
+        m_periodicTick = Spells::TicksBeforeLoad(maxticks, GetAuraDuration(), int32(periodicTime), m_firstTickDelay);
+    }
+}
+
 /**
  * @brief Updates periodic aura timing and triggers ticks when due.
  *
@@ -2057,12 +2072,11 @@ void Aura::PeriodicTick()
                 {
                     pdamage = amount;
 
-                    // Wild Growth (1/7 - 6 + 2*ramainTicks) %
+                    // Wild Growth: the ticks fall from the first to the last and sum to the amount times the tick count
                     if (classOptions && classOptions->SpellClassSet == SPELLFAMILY_DRUID && spellProto->SpellIconID == 2864)
                     {
                         int32 ticks = GetAuraMaxTicks();
-                        int32 remainingTicks = ticks - GetAuraTicks();
-                        int32 addition = int32(amount) * ticks * (-6 + 2 * remainingTicks) / 100;
+                        int32 addition = Spells::DecliningTickOffset(int32(amount), ticks, int32(GetAuraTicks()));
 
                         if (GetAuraTicks() != 1)
                             // Item - Druid T10 Restoration 2P Bonus

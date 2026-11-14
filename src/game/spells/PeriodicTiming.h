@@ -26,9 +26,11 @@
 /**
  * @file PeriodicTiming.h
  * @brief The timing of a periodic effect as the 4.3.4 client computes it: the period and the duration a caster's
- * haste gives, and the number of ticks an aura deals. Pure functions over numbers.
+ * haste gives, the time to an aura's first tick, the number of ticks it deals, and how an amount is spread over
+ * those ticks. Pure functions over numbers.
  *
- * Every rounding here is to the nearest integer with ties to even, the client's float-to-int conversion.
+ * Every float-to-int rounding here is to the nearest integer with ties to even, the client's conversion; every
+ * integer division truncates toward zero.
  */
 
 #ifndef MANGOS_SPELLS_PERIODICTIMING_H
@@ -72,6 +74,15 @@ namespace Spells
     int32 HastedDurationDirect(int32 duration, float castHaste);
 
     /**
+     * @brief The time from an aura's apply, or its load from the database, to its first tick.
+     *
+     * @param period The aura's period, in milliseconds: the hasted one, or the one the aura was saved with.
+     * @param ticksAtApply True for an aura that deals a tick at its apply (SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY).
+     * @return 0 for an aura that ticks at its apply; `period` otherwise.
+     */
+    int32 FirstTickDelay(int32 period, bool ticksAtApply);
+
+    /**
      * @brief How many ticks a periodic aura deals over its duration.
      *
      * @param duration The aura's maximum duration, in milliseconds.
@@ -82,6 +93,19 @@ namespace Spells
      *         tick comes after the duration.
      */
     uint32 TickCount(int32 duration, int32 period, int32 firstTickDelay);
+
+    /**
+     * @brief How many ticks an aura loaded from the database had dealt before it was saved, so that the ticks it deals
+     *        after the load end at its tick count.
+     *
+     * @param maxTicks The aura's tick count over its maximum duration.
+     * @param remaining The duration the aura has left, in milliseconds.
+     * @param period The aura's period, in milliseconds.
+     * @param firstTickDelay The time from the load to the first tick, from FirstTickDelay.
+     * @return `maxTicks - TickCount(remaining, period, firstTickDelay)`; 0 when the aura has more ticks left than its
+     *         tick count.
+     */
+    uint32 TicksBeforeLoad(uint32 maxTicks, int32 remaining, int32 period, int32 firstTickDelay);
 
     /**
      * @brief The per-tick amount of a refreshed damage-over-time effect that carries the damage its old aura had left.
@@ -95,6 +119,21 @@ namespace Spells
      *         `totalTicks`, the remainder of the division dropped; `newAmount` when `totalTicks` is 0.
      */
     int32 RolledOverTick(int32 newAmount, uint32 newTicks, int32 oldAmount, uint32 remainingTicks, uint32 totalTicks);
+
+    /**
+     * @brief How far one tick of a declining periodic effect lies above or below the per-tick amount.
+     *
+     * The ticks fall by an even step from the first to the last, centred on the per-tick amount, so they sum to
+     * `amount * ticks` at any tick count. The step is 14% of the per-tick amount; past 15 ticks, where that step
+     * would take the last tick below 0, it is the step that ends the last tick at 0.
+     *
+     * @param amount The per-tick amount.
+     * @param ticks The aura's tick count.
+     * @param tick This tick's number, 1 for the first.
+     * @return `amount * 7 * (ticks + 1 - 2 * tick) / 100`, or `amount * (ticks + 1 - 2 * tick) / (ticks - 1)` when
+     *         `7 * (ticks - 1)` is above 100.
+     */
+    int32 DecliningTickOffset(int32 amount, int32 ticks, int32 tick);
 }
 
 #endif

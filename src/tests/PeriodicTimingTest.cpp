@@ -25,11 +25,13 @@
 
 /// The periodic timing rules (spells/PeriodicTiming.h) against the 4.3.4 client's arithmetic: the hasted period
 /// (Spell_C_GetAuraPeriod, round(period * castHaste)), the duration as a whole number of hasted periods, the hasted
-/// duration of a channel, the tick count of an aura from its first tick, and the per-tick amount of a refreshed
-/// damage-over-time effect that carries its remaining damage. Every rounding is to the nearest, ties to even, as the
-/// client's float-to-int conversion is. The periods and durations are the 4.3.4 DBC's for the spells named: Pyroblast
-/// and Living Bomb 3000 over 12000, Combustion 1000 over 10000, Frostfire Bolt 3000 over 9000, Mind Flay 3000,
-/// Arcane Missiles 2250.
+/// duration of a channel, the time to an aura's first tick after its apply or its load, the tick count of an aura from
+/// its first tick, the ticks a loaded aura had dealt before it was saved, the per-tick amount of a refreshed
+/// damage-over-time effect that carries its remaining damage, and the ticks of a declining effect, which sum to the
+/// per-tick amount times the tick count as the client's tooltip total does. Every float-to-int rounding is to the nearest, ties to even, as the client's conversion is; every
+/// integer division truncates toward zero, as the server's does. The periods and durations are the 4.3.4 DBC's for the
+/// spells named: Pyroblast and Living Bomb 3000 over 12000, Combustion 1000 over 10000, Frostfire Bolt 3000 over 9000,
+/// Mind Flay 3000, Arcane Missiles 2250, Rejuvenation 3000 over 12000, Wild Growth 1000 over 7000.
 
 #include "TestHarness.h"
 
@@ -164,4 +166,176 @@ TEST(PeriodicTiming_ARefreshedDotSpreadsTheOldAndTheNewTotalsOverTheNewTickCount
     CHECK_EQ(Spells::RolledOverTick(2000, 2, 2000, 1, 2), int32(3000));
     // no tick count: the new amount stays
     CHECK_EQ(Spells::RolledOverTick(2000, 2, 2000, 1, 0), int32(2000));
+}
+
+TEST(PeriodicTiming_ALoadedAuraTicksFirstOneSavedPeriodAfterTheLoad)
+{
+    // the period an aura was saved with, the hasted one; 0 for an aura that ticks at its apply
+    CHECK_EQ(Spells::FirstTickDelay(2400, false), int32(2400));
+    CHECK_EQ(Spells::FirstTickDelay(2400, true), int32(0));
+    // a Rejuvenation saved at 25% haste (period 2400) with 9600 left: the ticks at 2.4, 4.8, 7.2 and 9.6 s, four;
+    // with the first tick at the spell's plain 3000 they would fall at 3.0, 5.4 and 7.8 s, three
+    CHECK_EQ(Spells::TickCount(9600, 2400, Spells::FirstTickDelay(2400, false)), uint32(4));
+    CHECK_EQ(Spells::TickCount(9600, 2400, 3000), uint32(3));
+}
+
+TEST(PeriodicTiming_ALoadedAuraEndsItsTicksAtItsTickCount)
+{
+    // an aura that ticks at its apply, 12000 at 3000: ticks at 0, 3, 6, 9 and 12 s, five. Loaded with 6500 left it
+    // ticks at the load and 3.0 and 6.0 s after it, three more, so it had dealt two and the last is the fifth
+    const int32 atApply = Spells::FirstTickDelay(3000, true);
+    const uint32 atApplyMax = Spells::TickCount(12000, 3000, atApply);
+    CHECK_EQ(atApplyMax, uint32(5));
+    CHECK_EQ(Spells::TickCount(6500, 3000, atApply), uint32(3));
+    CHECK_EQ(Spells::TicksBeforeLoad(atApplyMax, 6500, 3000, atApply), uint32(2));
+    // an aura whose first tick comes one period after the apply, 12000 at 3000: four ticks; loaded with 6500 left it
+    // ticks 3.0 and 6.0 s after the load, two more, after two
+    const int32 plain = Spells::FirstTickDelay(3000, false);
+    const uint32 plainMax = Spells::TickCount(12000, 3000, plain);
+    CHECK_EQ(plainMax, uint32(4));
+    CHECK_EQ(Spells::TickCount(6500, 3000, plain), uint32(2));
+    CHECK_EQ(Spells::TicksBeforeLoad(plainMax, 6500, 3000, plain), uint32(2));
+    // for every time left up to the full duration, the ticks before the load and the ticks after it make the tick
+    // count
+    int32 mismatches = 0;
+    for (int32 remaining = 1; remaining <= 12000; ++remaining)
+    {
+        const uint32 atApplyLeft = Spells::TickCount(remaining, 3000, atApply);
+        const uint32 plainLeft = Spells::TickCount(remaining, 3000, plain);
+        if (Spells::TicksBeforeLoad(atApplyMax, remaining, 3000, atApply) + atApplyLeft != atApplyMax ||
+            Spells::TicksBeforeLoad(plainMax, remaining, 3000, plain) + plainLeft != plainMax)
+        {
+            ++mismatches;
+        }
+    }
+    CHECK_EQ(mismatches, int32(0));
+    // more time left than the tick count holds: no tick before the load
+    CHECK_EQ(Spells::TicksBeforeLoad(plainMax, 20000, 3000, plain), uint32(0));
+}
+
+TEST(PeriodicTiming_ADecliningEffectOfSevenTicksKeepsEveryTick)
+{
+    // at 7 ticks, tick by tick: amount x 7 x (2 x remaining ticks - 6) / 100
+    int32 mismatches = 0;
+    for (int32 amount = 0; amount <= 20000; ++amount)
+    {
+        for (int32 tick = 1; tick <= 7; ++tick)
+        {
+            const int32 centredOnSeven = amount * 7 * (-6 + 2 * (7 - tick)) / 100;
+            if (Spells::DecliningTickOffset(amount, 7, tick) != centredOnSeven)
+            {
+                ++mismatches;
+            }
+        }
+    }
+    CHECK_EQ(mismatches, int32(0));
+    // 1000 x 7 x 6 / 100 = 420 up on the first tick, 420 down on the last
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 7, 1), int32(420));
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 7, 4), int32(0));
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 7, 7), int32(-420));
+}
+
+TEST(PeriodicTiming_ADecliningEffectOfEightNineOrTenTicksSumsToItsTooltip)
+{
+    // the step is 14% of the tick amount at every count; a slope centred on 7 ticks would sum 8640, 10620 and 13000
+    struct Case
+    {
+        int32 ticks;
+        int32 first;
+        int32 last;
+    };
+    const Case cases[] = {
+        { 8, 1490, 510 },    // 1000 x 7 x 7 / 100 = 490
+        { 9, 1560, 440 },    // 1000 x 7 x 8 / 100 = 560
+        { 10, 1630, 370 },   // 1000 x 7 x 9 / 100 = 630
+    };
+    for (Case const& c : cases)
+    {
+        int64 sum = 0;
+        for (int32 tick = 1; tick <= c.ticks; ++tick)
+        {
+            sum += 1000 + Spells::DecliningTickOffset(1000, c.ticks, tick);
+        }
+        CHECK_EQ(sum, int64(1000) * c.ticks);
+        CHECK_EQ(1000 + Spells::DecliningTickOffset(1000, c.ticks, 1), c.first);
+        CHECK_EQ(1000 + Spells::DecliningTickOffset(1000, c.ticks, c.ticks), c.last);
+    }
+    // the step between two ticks: 14% of 1000, at 9 ticks as at 7
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 9, 1) - Spells::DecliningTickOffset(1000, 9, 2), int32(140));
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 7, 1) - Spells::DecliningTickOffset(1000, 7, 2), int32(140));
+}
+
+TEST(PeriodicTiming_ADecliningTickTruncatesTowardZero)
+{
+    // 1237 x 7 = 8659; x 8 / 100 = 692.72 -> 692 up on the first of 9 ticks and -692.72 -> -692 down on the last, so
+    // the offsets cancel and the nine ticks sum to 1237 x 9 = 11133
+    CHECK_EQ(Spells::DecliningTickOffset(1237, 9, 1), int32(692));
+    CHECK_EQ(Spells::DecliningTickOffset(1237, 9, 9), int32(-692));
+    // x 6 / 100 = 519.54 -> 519 and -519
+    CHECK_EQ(Spells::DecliningTickOffset(1237, 9, 2), int32(519));
+    CHECK_EQ(Spells::DecliningTickOffset(1237, 9, 8), int32(-519));
+    int64 sum = 0;
+    for (int32 tick = 1; tick <= 9; ++tick)
+    {
+        sum += 1237 + Spells::DecliningTickOffset(1237, 9, tick);
+    }
+    CHECK_EQ(sum, int64(11133));
+    CHECK_EQ(1237 + Spells::DecliningTickOffset(1237, 9, 1), int32(1929));
+    CHECK_EQ(1237 + Spells::DecliningTickOffset(1237, 9, 9), int32(545));
+}
+
+TEST(PeriodicTiming_ADecliningEffectOfOneTickIsItsAmount)
+{
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 1, 1), int32(0));
+    CHECK_EQ(Spells::DecliningTickOffset(1237, 1, 1), int32(0));
+}
+
+TEST(PeriodicTiming_ADecliningEffectKeepsItsStepToFifteenTicks)
+{
+    // 15 ticks: 1000 x 7 x 14 / 100 = 980, so the ticks run 1980 down to 20
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 15, 1), int32(980));
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 15, 8), int32(0));
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 15, 15), int32(-980));
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 15, 1) - Spells::DecliningTickOffset(1000, 15, 2), int32(140));
+}
+
+TEST(PeriodicTiming_PastFifteenTicksADecliningEffectEndsAtZero)
+{
+    // 16 ticks: the 14% step would end at 1000 - 1050 < 0; the step 2 x 1000 / 15 runs 2000 down to 0
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 16, 1), int32(1000));
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 16, 16), int32(-1000));
+    // 1000 x 13 / 15 = 866.67 -> 866 on the second tick
+    CHECK_EQ(Spells::DecliningTickOffset(1000, 16, 2), int32(866));
+    int64 sum = 0;
+    for (int32 tick = 1; tick <= 16; ++tick)
+    {
+        sum += 1000 + Spells::DecliningTickOffset(1000, 16, tick);
+    }
+    CHECK_EQ(sum, int64(16000));
+}
+
+TEST(PeriodicTiming_EveryDecliningEffectSumsToItsTotalWithoutANegativeTick)
+{
+    const int32 amounts[] = { 0, 1, 7, 99, 999, 1000, 1237, 2861, 65535, 1000000 };
+    for (int32 ticks = 1; ticks <= 40; ++ticks)
+    {
+        for (int32 amount : amounts)
+        {
+            int64 sum = 0;
+            int32 previous = 0;
+            bool falls = true;
+            bool negative = false;
+            for (int32 tick = 1; tick <= ticks; ++tick)
+            {
+                const int32 value = amount + Spells::DecliningTickOffset(amount, ticks, tick);
+                sum += value;
+                negative = negative || value < 0;
+                falls = falls && (tick == 1 || value <= previous);
+                previous = value;
+            }
+            CHECK_EQ(sum, int64(amount) * ticks);
+            CHECK(!negative);
+            CHECK(falls);
+        }
+    }
 }

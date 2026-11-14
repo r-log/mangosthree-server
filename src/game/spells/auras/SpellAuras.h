@@ -501,18 +501,10 @@ class  Aura
         }
         uint32 GetStackAmount() const { return GetHolder()->GetStackAmount(); }
 
-        void SetLoadedState(int32 damage, uint32 periodicTime)
-        {
-            m_modifier.m_amount = damage;
-            m_tickAmountBeforeDone = damage;
-            m_modifier.periodictime = periodicTime;
-            m_firstTickDelay = GetSpellProto()->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY) ? 0 : int32(periodicTime);
-
-            if (uint32 maxticks = GetAuraMaxTicks())
-            {
-                m_periodicTick = maxticks - GetAuraDuration() / m_modifier.periodictime;
-            }
-        }
+        /// An aura loaded from the database takes the amount and the period it was saved with; its first tick comes
+        /// one saved period after the load, or at the load for an aura that ticks at its apply, and its tick number
+        /// counts on so that its last tick is its tick count.
+        void SetLoadedState(int32 damage, uint32 periodicTime);
 
         bool IsPositive() { return m_positive; }
         bool IsPersistent() const { return m_isPersistent; }

@@ -68,6 +68,11 @@ namespace Spells
         return RoundToEven(hasted);
     }
 
+    int32 FirstTickDelay(int32 period, bool ticksAtApply)
+    {
+        return ticksAtApply ? 0 : period;
+    }
+
     uint32 TickCount(int32 duration, int32 period, int32 firstTickDelay)
     {
         if (period <= 0 || duration <= 0 || duration < firstTickDelay)
@@ -75,6 +80,12 @@ namespace Spells
             return 0;
         }
         return uint32((duration - firstTickDelay) / period + 1);
+    }
+
+    uint32 TicksBeforeLoad(uint32 maxTicks, int32 remaining, int32 period, int32 firstTickDelay)
+    {
+        const uint32 ticksLeft = TickCount(remaining, period, firstTickDelay);
+        return ticksLeft < maxTicks ? maxTicks - ticksLeft : 0;
     }
 
     int32 RolledOverTick(int32 newAmount, uint32 newTicks, int32 oldAmount, uint32 remainingTicks, uint32 totalTicks)
@@ -85,5 +96,16 @@ namespace Spells
         }
         const int64 total = int64(newAmount) * int64(newTicks) + int64(oldAmount) * int64(remainingTicks);
         return int32(total / int64(totalTicks));
+    }
+
+    int32 DecliningTickOffset(int32 amount, int32 ticks, int32 tick)
+    {
+        // twice this tick's distance from the middle of the effect: ticks - 1 for the first, 1 - ticks for the last
+        const int64 fromMiddle = int64(ticks) + 1 - 2 * int64(tick);
+        if (7 * (int64(ticks) - 1) > 100)
+        {
+            return int32(int64(amount) * fromMiddle / (int64(ticks) - 1));
+        }
+        return int32(int64(amount) * 7 * fromMiddle / 100);
     }
 }
