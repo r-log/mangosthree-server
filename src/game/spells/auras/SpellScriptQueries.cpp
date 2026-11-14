@@ -96,9 +96,11 @@ bool CopyAuraHolder(Unit& from, Unit& to, uint32 spellId, ObjectGuid const& cast
         }
         int32 basePoints = aura->GetBasePoints();
         Aura* made = CreateAura(spellProto, SpellEffectIndex(eff), &basePoints, copy, &to, casterUnit);
-        periodic[eff] = aura->IsPeriodic() && made->GetModifier()->periodictime != 0;
+        periodic[eff] = aura->IsPeriodic() && aura->GetModifier()->periodictime != 0;
         if (periodic[eff])
         {
+            // the source's period as it ticks, not the one the caster's haste gives now
+            made->GetModifier()->periodictime = aura->GetModifier()->periodictime;
             made->CarryTickTimer(aura->GetPeriodicTimer());
             made->GetModifier()->m_amount = aura->GetTickAmountBeforeDone();
         }

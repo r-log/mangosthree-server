@@ -25,7 +25,8 @@
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
 /// target and script word, the aura handle's reads, RegisterRanks, the holder's script words, the holder copy's answer
-/// for a unit holding none, and the game table, whose only hook rows are the mage's scripts.
+/// for a unit holding none and the period, tick time, duration and amount a copy keeps, and the game table, whose only
+/// hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -34,7 +35,8 @@
 /// build, the second tells the clients). The script words of a constructed holder are read from a holder built, on a
 /// spell put into the store as the registry's own holder test does, in storage whose bytes were all 0xA5. The periodic
 /// damage query reads holders and auras made through their constructors, on spells put into the spell, effect and
-/// duration stores, held in a bare creature's holder map.
+/// duration stores, held in a bare creature's holder map; the copy is added through Unit::AddSpellAuraHolder to a bare
+/// creature, which sends nothing out of a world, and removed through Unit::RemoveSpellAuraHolder.
 
 #include "TestHarness.h"
 #include "spells/SpellScriptHooks.h"
@@ -57,6 +59,7 @@ namespace
     const uint32 kDotSpell = 94204;
     const uint32 kOtherDotSpell = 94205;
     const uint32 kNotHeldSpell = 94206;
+    const uint32 kCopiedDotSpell = 94210;
 
     // A creature with its update fields allocated and no world, map, template or AI.
     class BareCreature : public Creature
@@ -682,6 +685,53 @@ TEST(SpellScriptHooks_CopyAuraHolderCopiesNothingFromAUnitThatHoldsNone)
     CHECK(!CopyAuraHolder(from, to, kStoredHolderSpell, mage));
     CHECK(to.GetSpellAuraHolder(kStoredHolderSpell, mage) == NULL);
     CHECK(to.GetSpellAuraHolderMap().empty());
+}
+
+TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
+{
+    // A DoT of 3000 ms for 12 s in the client's data, ticking every 2400 ms on the source as a hasted caster's would,
+    // 1000 ms from its next tick with 7000 ms left. The bare creatures' guids are all empty, so the source's caster is
+    // the unit it is on.
+    static StoredDot rows;
+    SpellEntry const* dot = StoreDot(rows, kCopiedDotSpell, 3000, 12000, false);
+    BareCreature from;
+    BareCreature to;
+    ObjectGuid const caster;
+    SpellAuraHolder* source = DotHolder(dot, from, caster, 500);
+    Aura* sourceAura = source->GetAuraByEffectIndex(EFFECT_INDEX_0);
+    sourceAura->SetPeriodic(true);
+    sourceAura->GetModifier()->periodictime = 2400;
+    sourceAura->CarryTickTimer(1000);
+    source->SetAuraDuration(7000);
+    from.HoldAura(kCopiedDotSpell, *source);
+
+    // The copy ticks at the source's period, not the data's, from the source's time to its next tick, lasts the time
+    // the source has left as its full duration, so it deals the source's three ticks left, and holds its amount.
+    CHECK(CopyAuraHolder(from, to, kCopiedDotSpell, caster));
+    SpellAuraHolder* copy = to.GetSpellAuraHolder(kCopiedDotSpell, caster);
+    CHECK(copy != NULL);
+    if (copy)
+    {
+        Aura* copied = copy->GetAuraByEffectIndex(EFFECT_INDEX_0);
+        CHECK(copied != NULL);
+        if (copied)
+        {
+            CHECK_EQ(copied->GetModifier()->periodictime, uint32(2400));
+            CHECK_EQ(copied->GetPeriodicTimer(), int32(1000));
+            CHECK_EQ(copied->GetModifier()->m_amount, int32(500));
+            CHECK_EQ(copied->GetAuraMaxTicks(), uint32(3));
+        }
+        CHECK_EQ(copy->GetAuraDuration(), int32(7000));
+        CHECK_EQ(copy->GetAuraMaxDuration(), int32(7000));
+
+        // A second copy finds the caster's holder already there and changes nothing.
+        CHECK(!CopyAuraHolder(from, to, kCopiedDotSpell, caster));
+        CHECK_EQ(to.GetSpellAuraHolderMap().size(), std::size_t(1));
+        to.RemoveSpellAuraHolder(copy);
+    }
+    CHECK(to.GetSpellAuraHolderMap().empty());
+    CHECK(from.GetSpellAuraHolder(kCopiedDotSpell, caster) == source);
+    delete source;
 }
 
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
