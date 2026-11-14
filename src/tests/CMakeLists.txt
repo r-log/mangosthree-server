@@ -166,6 +166,7 @@ set(SRC_GRP_TESTS
     SpellHandlerRegistryTest.cpp
     SpellScriptHooksTest.cpp
     MageScriptsTest.cpp
+    SpellProcEventRowsTest.cpp
     RaidBuffTest.cpp
     SpellTargetDistanceOrderTest.cpp
     SpellTargetListTypeTest.cpp
