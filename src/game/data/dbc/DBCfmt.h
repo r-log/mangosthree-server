@@ -122,7 +122,7 @@ const char SpellCastTimefmt[]="niii";
 const char SpellDurationfmt[] = "niii";
 const char SpellDifficultyfmt[] = "niiii";
 //                          1        10        20        30        40        50        60        70        80        90        100       110       120       130       140       150       160
-const char SpellEntryfmt[]="niiiiiiiiiiiiiiifiiiissxxiixxixiiiiiiixiiiiiiiix";
+const char SpellEntryfmt[]="niiiiiiiiiiiiiiifiiiissxxiixxifiiiiiiixiiiiiiiix";
 const char SpellAuraOptionsEntryfmt[]="diiii";
 const char SpellAuraRestrictionsEntryfmt[]="diiiiiiii";
 const char SpellCastingRequirementsEntryfmt[]="dixxixi";

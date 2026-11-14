@@ -2196,7 +2196,7 @@ struct  SpellEntry
     //uint32    spellMissileID;                             // 27       m_spellMissileID not used
     //uint32  spellDescriptionVariableID;                   // 28       m_spellDescriptionVariableID, 3.2.0
     uint32  Difficulty;                              // 29       m_spellDifficultyID - id from SpellDifficulty.dbc
-    //float unk_f1;                                         // 30
+    float     Coefficient;                                  // 30       m_spellCoefficient: the attack-power share of each damage effect
     uint32 ScalingID;                                  // 31       SpellScaling.dbc
     uint32 AuraOptionsID;                              // 32       SpellAuraOptions.dbc
     uint32 AuraRestrictionsID;                         // 33       SpellAuraRestrictions.dbc
