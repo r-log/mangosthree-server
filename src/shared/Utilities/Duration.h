@@ -57,7 +57,7 @@ typedef std::chrono::system_clock::time_point SystemTimePoint;
  * @param days Number of days
  * @return Hours equivalent (24 hours per day)
  */
-constexpr std::chrono::hours operator "" _days(unsigned long long days)
+constexpr std::chrono::hours operator""_days(unsigned long long days)
 {
     return std::chrono::hours(days * Hours(24));
 }

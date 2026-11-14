@@ -53,7 +53,9 @@ public:
         fieldCount = db2.GetCols();
 
         // load raw non-string data
-        m_dataTable = (T*)db2.AutoProduceData(fmt,nCount,(char**&)indexTable);
+        char** rawIndexTable = (char**)indexTable;
+        m_dataTable = (T*)db2.AutoProduceData(fmt,nCount,rawIndexTable);
+        indexTable = (T**)rawIndexTable;
 
         // create string holders for loaded string fields
         m_stringPoolList.push_back(db2.AutoProduceStringsArrayHolders(fmt,(char*)m_dataTable));

@@ -96,7 +96,6 @@ namespace
      * So no width here is ever derived from a value. These are the protocol's.
      */
     const int SRP_EPHEMERAL_WIDTH = 32;                 // N, A, B
-    const int SRP_SESSION_KEY_WIDTH = 40;               // K
     const int SRP_GENERATOR_WIDTH = 1;                  // g
     const int SRP_RECONNECT_WIDTH = 16;
 
@@ -1285,7 +1284,7 @@ bool AuthSocket::_HandleXferResume()
         return false;
     }
 
-    uint64 start_pos;
+    uint64 start_pos = 0;
     recv_skip(MaNGOS::Auth::AuthXferResumeSize -
               sizeof(start_pos));
     recv(reinterpret_cast<char*>(&start_pos), sizeof(start_pos));

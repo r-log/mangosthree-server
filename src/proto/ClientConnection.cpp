@@ -56,9 +56,6 @@ namespace proto
         //   SMSG_AUTH_CHALLENGE  Opcodes.h:56   (0x4542)
         //   CMSG_AUTH_SESSION    Opcodes.h:57   (0x0449)
         //   SMSG_AUTH_RESPONSE   Opcodes.h:58   (0x5DB6)
-        //   CMSG_PING            Opcodes.h:555  (0x444D)
-        //   SMSG_PONG            Opcodes.h:556  (0x4D42)
-        //   CMSG_KEEP_ALIVE      Opcodes.h:1119 (0x0015)
         //
         // CMSG_AUTH_CONTINUED_SESSION is the exception: Opcodes.h carried a
         // placeholder for it (0x1513, from an older list), so its value comes
@@ -80,9 +77,6 @@ namespace proto
         /// parsed -- proto reads none of it.
         const size_t CONTINUED_SESSION_SIZE = 8 + 8 + 20;
         const uint16 SMSG_AUTH_RESPONSE  = 0x5DB6;
-        const uint16 CMSG_PING           = 0x444D;
-        const uint16 SMSG_PONG           = 0x4D42;
-        const uint16 CMSG_KEEP_ALIVE     = 0x0015;
 
         /**
          * @brief Draw the server authentication nonce from the cryptographic RNG.

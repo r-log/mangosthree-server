@@ -112,7 +112,9 @@ class DBCStorage
             fieldCount = dbc.GetCols();
 
             // load raw non-string data
-            m_dataTable = (T*)dbc.AutoProduceData(fmt, nCount, (char**&)indexTable);
+            char** rawIndexTable = (char**)indexTable;
+            m_dataTable = (T*)dbc.AutoProduceData(fmt, nCount, rawIndexTable);
+            indexTable = (T**)rawIndexTable;
 
             // create string holders for loaded string fields
             m_stringPoolList.push_back(dbc.AutoProduceStringsArrayHolders(fmt,(char*)m_dataTable));
