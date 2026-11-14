@@ -107,26 +107,48 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 29077, basePoints));
     }
 
-    /// 44445: Hot Streak; 44446, 44448: Improved Hot Streak: effect 0 counts the hits the proc accepts in the holder's
-    /// script word of effect 0, and the second crit in a row rolls the aura's chance for Hot Streak! (48108). Effect 1
-    /// does nothing, and neither does effect 0 while the owner holds no aura of the spell at effect 1.
+    uint32 const HOT_STREAK_BUFF = 48108;
+    uint32 const PYROBLAST_INSTANT = 92315;
+    uint32 const IMPROVED_HOT_STREAK_RANK_1 = 44446;
+    uint32 const IMPROVED_HOT_STREAK_RANK_2 = 44448;
+
+    /// 44445: Hot Streak: each critical strike of Fireball, Frostfire Bolt, Scorch, Pyroblast or Fire Blast (the proc
+    /// row's spells; Pyroblast! 92315 is left out) rolls HotStreakChance of the caster's sheet crit for the school of
+    /// the spell; when that fails and the caster knows Improved Hot Streak (44448: 100, 44446: 50), two such crits in a
+    /// row roll its percent. A non-crit of those spells starts the count again. Success casts Hot Streak (48108) on the
+    /// caster. The count lives in this holder's script word of effect 0.
     ProcOutcome HotStreakProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
         {
             return ProcOutcome::Continue();
         }
-        if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.caster.GetAura(ctx.spell.ID, EFFECT_INDEX_1))
+        if (ctx.effIndex != EFFECT_INDEX_0)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_OK);
+        }
+        if (!ctx.procSpell)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        if (ctx.procSpell->ID == PYROBLAST_INSTANT)
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_OK);
         }
 
-        if (Mage::CountCritInARow(ctx.aura.ScriptWord(EFFECT_INDEX_0), (ctx.procEx & PROC_EX_CRITICAL_HIT) != 0) &&
-            roll_chance_i(ctx.triggerAmount))
+        bool const crit = (ctx.procEx & PROC_EX_CRITICAL_HIT) != 0;
+        float const sheetCrit = ctx.caster.GetTypeId() == TYPEID_PLAYER
+            ? ctx.caster.GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + GetFirstSchoolInMask(GetSpellSchoolMask(ctx.procSpell)))
+            : 0.0f;
+        int32 const improved = ctx.caster.HasAura(IMPROVED_HOT_STREAK_RANK_2) ? 100
+                             : ctx.caster.HasAura(IMPROVED_HOT_STREAK_RANK_1) ? 50 : 0;
+        bool const baseRoll = crit && roll_chance_f(Mage::HotStreakChance(sheetCrit));
+        bool const improvedRoll = crit && !baseRoll && improved > 0 && roll_chance_i(improved);
+        if (!Mage::HotStreakStep(ctx.aura.ScriptWord(EFFECT_INDEX_0), crit, baseRoll, improvedRoll))
         {
-            ctx.CastTriggered(ctx.caster, 48108);
+            return ProcOutcome::Return(SPELL_AURA_PROC_OK);
         }
-        return ProcOutcome::Return(SPELL_AURA_PROC_OK);
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, HOT_STREAK_BUFF));
     }
 
     /// 31641, 31642: Blazing Speed: a proc-trigger aura whose own trigger spell (18350) the client's data lacks. Its
@@ -167,7 +189,7 @@ namespace
     }
 
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
-    uint32 const HOT_STREAK[] = { 44445, 44446, 44448 };
+    uint32 const HOT_STREAK[] = { 44445 };
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
     uint32 const LIVING_BOMB[] = { 44457 };
 }
@@ -185,6 +207,23 @@ bool Mage::CountCritInARow(int32& crits, bool crit)
     }
     crits = 0;
     return true;
+}
+
+float Mage::HotStreakChance(float sheetCritPercent)
+{
+    float const crit = sheetCritPercent > 0.0f ? sheetCritPercent : 0.0f;
+    float const chance = 95.0f - 2.73f * crit;
+    return chance > 0.0f ? chance : 0.0f;
+}
+
+bool Mage::HotStreakStep(int32& crits, bool crit, bool baseRollPassed, bool improvedRollPassed)
+{
+    if (crit && baseRollPassed)
+    {
+        crits = 0;
+        return true;
+    }
+    return CountCritInARow(crits, crit) && improvedRollPassed;
 }
 
 uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)

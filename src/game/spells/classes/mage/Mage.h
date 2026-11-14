@@ -37,9 +37,9 @@
  *
  * Mage.cpp holds the class-wide bodies, the mage sites' defaults, and ProcEffectIs, CastProcSpell, EffectTriggerSpell
  * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
- * bodies of the three specializations, and Fire.cpp also CountCritInARow, Hot Streak's count. Each file registers its
- * rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks
- * per script hook.
+ * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves: CountCritInARow, HotStreakChance and
+ * HotStreakStep. Each file registers its rows through one function of namespace Mage: a table per legacy site of
+ * SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies and those of the three specializations. Returns the rows and
@@ -86,6 +86,16 @@ namespace Mage
     /// Counts a hit into `crits`, the crits in a row so far: a crit adds one, any other hit sets it to 0. True, with
     /// `crits` set back to 0, when the hit is the second crit in a row. Hot Streak's count; defined in Fire.cpp.
     bool CountCritInARow(int32& crits, bool crit);
+
+    /// Hot Streak's chance, in percent, that one eligible crit makes the next Pyroblast instant, from the caster's sheet
+    /// spell crit chance in percent: 95 less 2.73 times that chance, never below 0; a sheet chance below 0 counts as 0.
+    /// Defined in Fire.cpp.
+    float HotStreakChance(float sheetCritPercent);
+
+    /// One eligible hit against the streak count `crits`: a non-crit clears it and answers false; a crit whose base roll
+    /// passed clears it and answers true; otherwise the crit counts, and the second in a row clears the count and
+    /// answers whether Improved Hot Streak's roll passed. Defined in Fire.cpp.
+    bool HotStreakStep(int32& crits, bool crit, bool baseRollPassed, bool improvedRollPassed);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.
