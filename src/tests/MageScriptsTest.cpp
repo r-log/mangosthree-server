@@ -56,7 +56,7 @@ namespace
 {
     // The labels the class files register at each mage site, in their tables' order.
     uint32 const TRIGGER_SPELL_IDS[] = { 66 };
-    uint32 const BOOST_IDS[] = { 11129, 28682, 74396 };
+    uint32 const BOOST_IDS[] = { 74396 };
     uint32 const EFFECT_DUMMY_IDS[] = { 32826, 38194, 42955, 1459, 61316, 31687 };
     uint32 const DUMMY_PROC_IDS[] = { 56372, 56375, 64411, 74396 };
 
@@ -275,18 +275,18 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // The class-wide file: Invisibility at the trigger-spell site; Polymorph Cast Visual, Blink, Conjure Refreshment
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
-    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Combustion's two boost labels,
-    // Living Bomb at the dummy aura hook and Hot Streak's buff at the aura-remove hook. Frost: the 74396 boost and proc
+    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
+    // Hot Streak's buff at the aura-remove hook and Combustion at the dummy-effect hook. Frost: the 74396 boost and proc
     // labels and Summon Water Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of
     // Elements, Hot Streak and Blazing Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic
-    // Absorption, Arcane Potency and Mana Shield. 38 rows, 38 keys and 3 defaults, none twice.
+    // Absorption, Arcane Potency and Mana Shield. 37 rows, 37 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(41));
-    CHECK_EQ(registry.Count(), std::size_t(38));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(40));
+    CHECK_EQ(registry.Count(), std::size_t(37));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(3));
+    CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
@@ -295,6 +295,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(1));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -312,7 +313,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 13, 13, 0 },
+        { &Mage::RegisterFire, 12, 12, 0 },
         { &Mage::RegisterFrost, 8, 8, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
     };
@@ -325,18 +326,18 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(41));
-    CHECK_EQ(registry.Count(), std::size_t(38));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(40));
+    CHECK_EQ(registry.Count(), std::size_t(37));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
     // files hold the mage sites' other rows: Mirror Image at the periodic dummy tick site, the two Pushing the Limit
     // labels at the boost site, Cold Snap at the dummy-effect site and Focus Magic at the crit-chance proc site. Hot
-    // Streak's buff (48108) is no label of the boost site.
+    // Streak's buff (48108), Combustion (11129) and 28682 are no label of the boost site.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(38));
+    CHECK_EQ(mine.size(), std::size_t(37));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -347,7 +348,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK(game.FindDefault<AuraBoostMageSite>() == registry.FindDefault<AuraBoostMageSite>());
     CHECK_EQ(game.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(5));
+    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(3));
     CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(7));
     CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
@@ -358,7 +359,10 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         CHECK(game.Find<AuraBoostMageSite>(spellId) != NULL);
         CHECK(registry.Find<AuraBoostMageSite>(spellId) == NULL);
     }
-    CHECK(game.Find<AuraBoostMageSite>(48108) == NULL);
+    for (uint32 spellId : { 48108u, 11129u, 28682u })
+    {
+        CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
+    }
     CHECK(game.Find<SpellEffectDummyMageSite>(11958) != NULL);
     CHECK(registry.Find<SpellEffectDummyMageSite>(11958) == NULL);
     CHECK(game.Find<SpellCritChanceAuraProcMageSite>(54646) != NULL);
@@ -394,14 +398,14 @@ TEST(MageScripts_TheIgniteRanksShareOneBodyAtTheProcHook)
     CHECK(procBodies.count(NULL) == 0);
     CHECK_EQ(procBodies.size(), std::size_t(4));
 
-    // Combustion's two labels and the 74396 boost each have their own body.
+    // The 74396 boost is the mage files' one label at the boost site, with a body of its own.
     std::set<SpellHandler<AuraBoostMageSite>::Function> boostBodies;
     for (uint32 spellId : BOOST_IDS)
     {
         boostBodies.insert(registry.Find<AuraBoostMageSite>(spellId));
     }
     CHECK(boostBodies.count(NULL) == 0);
-    CHECK_EQ(boostBodies.size(), std::size_t(3));
+    CHECK_EQ(boostBodies.size(), std::size_t(1));
 }
 
 TEST(MageScripts_TheEffectDummySiteHoldsItsSixLabelsAndNoDefault)

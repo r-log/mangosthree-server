@@ -2237,12 +2237,6 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
                 return false;
             }
 
-            // Combustion and Fire Protection Aura (multi-family check)
-            if (spellInfo_1->ID == 11129 && spellInfo_2->SpellIconID == 33 && spellInfo_2->SpellVisualID[0] == 321)
-            {
-                return false;
-            }
-
             // Arcane Intellect and Insight
             if (spellInfo_1->SpellIconID == 125 && spellInfo_2->ID == 18820)
             {
@@ -2603,12 +2597,6 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
 
             // Blessing of Sanctuary (multi-family check, some from 16 spell icon spells)
             if (spellInfo_2->ID == 67480 && spellInfo_1->ID == 20911)
-            {
-                return false;
-            }
-
-            // Combustion and Fire Protection Aura (multi-family check)
-            if (spellInfo_2->ID == 11129 && spellInfo_1->SpellIconID == 33 && spellInfo_1->SpellVisualID[0] == 321)
             {
                 return false;
             }
