@@ -66,6 +66,7 @@ jobs:
         with:
           key: linux-${{ matrix.name }}-pch${{ matrix.pch == 0 && '-off' || '' }}
           max-size: 2G
+          save: ${{ github.event_name != 'pull_request' }}
 
       - name: Configure the compiler cache
         run: |
