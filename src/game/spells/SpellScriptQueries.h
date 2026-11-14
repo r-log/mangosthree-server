@@ -79,4 +79,8 @@ namespace Spells
     float LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, SpellEntry const& spell);
 }
 
+/// The script word of effect `eff` of the first holder of `spellId` on `unit` that is not deleted, whoever cast it;
+/// NULL when `unit` holds none. The word is the holder's own: zero when the holder is made, never saved or sent.
+int32* ScriptWordOf(Unit& unit, uint32 spellId, SpellEffectIndex eff);
+
 #endif
