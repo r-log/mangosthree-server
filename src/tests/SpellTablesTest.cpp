@@ -286,6 +286,19 @@ TEST(SpellTables_TheFiveFlagSetsHoldTheirSwitchesLiveLabelsAndNoOthers)
     CHECK(!MayTargetTaxiFlyer(12345));
 }
 
+TEST(SpellTables_TheAuraTargetLimitsAreTheTablesRowsAndNoOther)
+{
+    // Living Bomb: "Limit 3 targets."
+    CHECK_EQ(AuraTargetLimit(44457), uint32(3));
+
+    // Its explosion's three is how many enemies the explosion hits, not a limit on the caster's auras; Pyroblast, Focus
+    // Magic ("Limit 1 target", a single-target spell) and an id no table holds have none.
+    for (uint32 spellId : { 44461u, 11366u, 54646u, 12345u, 0u })
+    {
+        CHECK_EQ(AuraTargetLimit(spellId), uint32(0));
+    }
+}
+
 TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
 {
     CHECK_EQ(GetArcanePotencyProcSpell(31571), uint32(57529));
