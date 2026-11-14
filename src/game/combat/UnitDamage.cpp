@@ -631,8 +631,8 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
     }
 
     // A blow that would kill meets one death-prevention aura (Combat::DeathPreventionChoice). It saves when its
-    // follow-up spell is not on cooldown and its chance rolls; the save sets the damage the unit keeps, casts the
-    // follow-up with the heal in the row's effect, starts the lockout and removes the aura when it is used up
+    // follow-up spell is not on cooldown and its chance rolls; the save sets the damage the unit keeps, removes the
+    // aura when the save uses it up, casts the follow-up with the heal in the row's effect and starts the lockout
     if (!deathPreventions.empty() && Combat::WouldKill(RemainingDamage, GetHealth()))
     {
         std::vector<bool> usedUp;
@@ -643,7 +643,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
         std::pair<Aura*, DeathPreventionRow const*> const chosen = deathPreventions[Combat::DeathPreventionChoice(usedUp)];
         Aura* preventing = chosen.first;
         DeathPreventionRow const* row = chosen.second;
-        SpellAuraHolder const* holder = preventing->GetHolder();
+        SpellAuraHolder* holder = preventing->GetHolder();
 
         const time_t now = time(NULL);
         const bool locked = row->lockoutSeconds && m_spellCooldownMgr.HasSpellCooldown(row->followUpSpell, now);
@@ -654,6 +654,14 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                 Combat::SaveFromKillingBlow(row->shape, GetHealth(), GetMaxHealth(), percent > 0 ? uint32(percent) : 0);
             RemainingDamage = outcome.damageKept;
 
+            // An aura the save uses up goes before the follow-up, so the follow-up's heal takes none of its effects;
+            // the aura and its holder stay in memory until the cast that names the aura as its trigger has run
+            if (row->consumed)
+            {
+                preventing->SetInUse(true);
+                holder->SetInUse(true);
+                RemoveAurasDueToSpell(row->spellId);
+            }
             if (row->followUpSpell)
             {
                 int32 basePoints[MAX_EFFECT_INDEX] = { 0, 0, 0 };
@@ -665,13 +673,14 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                 }
                 CastCustomSpell(this, row->followUpSpell, slots[0], slots[1], slots[2], true, NULL, preventing);
             }
+            if (row->consumed)
+            {
+                holder->SetInUse(false);
+                preventing->SetInUse(false);
+            }
             if (row->lockoutSeconds)
             {
                 m_spellCooldownMgr.AddSpellCooldown(row->followUpSpell, 0, now + row->lockoutSeconds);
-            }
-            if (row->consumed)
-            {
-                RemoveAurasDueToSpell(row->spellId);
             }
         }
     }
