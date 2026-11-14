@@ -83,8 +83,9 @@
 // that unit alone; 938 the Creature cooldown model of pets and charmed creatures, recorded as it
 // is; 950 a mage staged to level 85 at a fixed spell power casts Fireball five times at a level-85
 // target; 951, 952 and 954 a staged Fire mage's proc talents: Hot Streak, Master of Elements and
-// Blazing Speed; 955 Combustion's DoT, the per-second sum of his Pyroblast DoT and Ignite on the target;
-// 956 Living Bomb's explosion at expiry and at dispel; 957 Ice Lance at a frozen target, an unfrozen one, and with Fingers of Frost;
+// Blazing Speed; 955 Combustion's DoT, the per-second sum of his Pyroblast DoT and Ignite on the
+// target; 956 Living Bomb's explosion at expiry and at dispel; 957 Ice Lance at a frozen target, an
+// unfrozen one, and with Fingers of Frost;
 // 958-960 a warrior, a paladin and a death knight staged to level 85 at a fixed attack power cast Heroic
 // Throw, Hammer of Wrath and Death Coil five times at a level-85 target; 961 a priest staged the same way
 // with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it; 962 a
