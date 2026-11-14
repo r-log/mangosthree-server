@@ -160,6 +160,7 @@ set(SRC_GRP_TESTS
     UnitSubtypeTest.cpp
     SpellHitResultTest.cpp
     SpellCoefficientTest.cpp
+    PeriodicTimingTest.cpp
     AuraContainerTest.cpp
     SpellHandlerRegistryTest.cpp
     SpellScriptHooksTest.cpp
