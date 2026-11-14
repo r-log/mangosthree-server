@@ -121,6 +121,7 @@ namespace Harness
         std::vector<std::pair<uint32, uint32> > talents;    ///< (talent id, rank index) as Player::LearnTalent takes them
         std::vector<uint32> glyphs;                         ///< GlyphProperties ids, each into the first free slot of its type
         int32 spellPower = 0;                               ///< added as an item's spell power stat adds it
+        int32 attackPower = 0;                              ///< added as an item's attack power stat adds it
         int32 hasteRating = 0;                              ///< added as an item's haste rating adds it
         int32 masteryRating = 0;                            ///< added as an item's mastery rating adds it
         std::vector<uint32> spells;                         ///< each learned by Player::learnSpell(id, false)
@@ -215,8 +216,9 @@ namespace Harness
          *    player already, as the cast check refuses a second copy (SPELL_FAILED_UNIQUE_GLYPH); else into
          *    FirstGlyphSlot's slot, by ApplyGlyph(slot, false), SetGlyph, ApplyGlyph(slot, true), then the talent
          *    data sent.
-         *  - Spell power, haste rating and mastery rating as an item's stats add them (Player::_ApplyItemBonuses):
-         *    ApplySpellPowerBonus; ApplyRatingMod for the melee, ranged and spell haste ratings; ApplyRatingMod for
+         *  - Spell power, attack power, haste rating and mastery rating as an item's stats add them
+         *    (Player::_ApplyItemBonuses): ApplySpellPowerBonus; HandleStatModifier on the melee and the ranged attack
+         *    power, TOTAL_VALUE; ApplyRatingMod for the melee, ranged and spell haste ratings; ApplyRatingMod for
          *    mastery.
          *  - Each spell by Player::learnSpell(id, false).
          * Nothing here writes to a database: the level sequence reaches neither GiveLevel's level mail nor its

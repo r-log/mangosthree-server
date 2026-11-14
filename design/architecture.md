@@ -191,8 +191,7 @@ warrior: `AddComboPoints`, `ClearComboPoints`; the rage `DealDamage` rewards a p
 kill credit and the honor-or-experience test `JustKilledCreature` and the proc checks ask of a player:
 `KilledMonster`, `isHonorOrXPTarget`; the faction a player returns to and the ghost run speed the battleground
 sets: `setFactionForRace`, `InBattleGround`; what two one-off procs ask of a player: `Say`,
-`GetSelectionGuid`; the known rank of the Impurity talent `SpellBonusWithCoeffs` asks
-of a death knight: `GetKnownTalentRankById`; whether a death knight's blood runes are all on cooldown, Blade
+`GetSelectionGuid`; whether a death knight's blood runes are all on cooldown, Blade
 Barrier's test: `IsBaseRuneSlotsOnCooldown`; the passive spells a player's new aura state casts,
 `ModifyAuraState`'s loop: `CastPassiveSpellsForAuraState`; the
 account security level the GM visibility rule and a pet's talent reset compare: `GetAccountSecurityLevel`; whether a player is

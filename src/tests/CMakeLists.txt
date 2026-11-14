@@ -218,7 +218,6 @@ set(SRC_GRP_TESTS
     ObjectTypeHelpersTest.cpp
     UnitFactionAndBattleGroundActionsTest.cpp
     UnitProcOneOffActionsTest.cpp
-    UnitTalentRankTest.cpp
     UnitRuneCooldownTest.cpp
     UnitAuraStatePassiveCastsTest.cpp
     UnitOwnSessionPacketsTest.cpp
@@ -647,11 +646,11 @@ if(Python3_Interpreter_FOUND)
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --self-test)
 
     add_test(NAME player_methods
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 900
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 899
             --class Player --header ${CMAKE_SOURCE_DIR}/src/game/entities/player/Player.h)
 
     add_test(NAME unit_methods
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 673
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 672
             --class Unit --header ${CMAKE_SOURCE_DIR}/src/game/entities/Unit.h)
 
     add_test(NAME world_session_methods
@@ -709,8 +708,8 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME class_logic
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/class_logic.py
             --root ${CMAKE_SOURCE_DIR} --check
-            --gate legacy_sites=83 --gate legacy_rows=1240 --gate family_mentions=319
-            --gate icon_compares=209 --gate mask_literals=310 --gate family_switches=33)
+            --gate legacy_sites=83 --gate legacy_rows=1239 --gate family_mentions=314
+            --gate icon_compares=209 --gate mask_literals=299 --gate family_switches=33)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()

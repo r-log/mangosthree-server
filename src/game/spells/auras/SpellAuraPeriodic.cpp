@@ -186,9 +186,6 @@ void Aura::HandleAuraPeriodicDummy(bool apply, bool Real)
 
     Unit* target = GetTarget();
 
-    // For prevent double apply bonuses
-    bool loading = target->IsLoading();
-
     switch(GetSpellProto()->GetSpellFamilyName())
     {
         case SPELLFAMILY_ROGUE:
@@ -197,17 +194,6 @@ void Aura::HandleAuraPeriodicDummy(bool apply, bool Real)
             if (SpellHandlerRegistry::Game().Dispatch<AuraPeriodicDummyRogueSite>(GetSpellProto()->ID, ctx).IsReturn())
             {
                 return;
-            }
-            break;
-        }
-        case SPELLFAMILY_HUNTER:
-        {
-            Unit* caster = GetCaster();
-
-            // Explosive Shot
-            if (apply && !loading && caster)
-            {
-                m_modifier.m_amount += int32(caster->GetTotalAttackPowerValue(RANGED_ATTACK) * 14 / 100);
             }
             break;
         }
@@ -420,22 +406,6 @@ void Aura::HandlePeriodicDamage(bool apply, bool Real)
                     {
                         m_modifier.m_amount += int32(caster->GetTotalAttackPowerValue(BASE_ATTACK) * AP_per_combo[cp]);
                     }
-                }
-                break;
-            }
-            case SPELLFAMILY_PALADIN:
-            {
-                // Holy Vengeance / Blood Corruption
-                if (classOptions->SpellClassMask & UI64LIT(0x0000080000000000) && spellProto->SpellVisualID[0] == 7902)
-                {
-                    // AP * 0.025 + SPH * 0.013 bonus per tick
-                    float ap = caster->GetTotalAttackPowerValue(BASE_ATTACK);
-                    int32 holy = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto));
-                    if (holy < 0)
-                    {
-                        holy = 0;
-                    }
-                    m_modifier.m_amount += int32(GetStackAmount()) * (int32(ap * 0.025f) + int32(holy * 13 / 1000));
                 }
                 break;
             }

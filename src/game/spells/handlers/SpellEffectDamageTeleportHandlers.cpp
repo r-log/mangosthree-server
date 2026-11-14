@@ -64,7 +64,7 @@ static SpellHandlerOutcome<void> EffectSchoolDmgThundercrash(SpellEffectSchoolDm
 // Intercept (warrior spell trigger)
 }
 
-/// 20253, 61491: Intercept: the damage gains 12% of the caster's attack power
+/// 61491: Intercept: the damage gains 12% of the caster's attack power
 static SpellHandlerOutcome<void> EffectSchoolDmgIntercept(SpellEffectSchoolDmgContext& ctx)
 {
     ctx.damage += uint32(ctx.m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.12f);
@@ -471,7 +471,6 @@ uint32 RegisterSpellEffectDamageTeleportHandlers(SpellHandlerRegistry& registry)
         { 109183, &EffectSchoolDmgDivideAmongTargets },
         { 109184, &EffectSchoolDmgDivideAmongTargets },
         { 25599, &EffectSchoolDmgThundercrash },
-        { 20253, &EffectSchoolDmgIntercept },
         { 61491, &EffectSchoolDmgIntercept },
         { 29142, &EffectSchoolDmgPercentOfMaxHealth },
         { 35139, &EffectSchoolDmgPercentOfMaxHealth },

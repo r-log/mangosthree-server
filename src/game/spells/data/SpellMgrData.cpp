@@ -218,8 +218,26 @@ static void RowPartNotNeeded(float part, float reference, char const* name, char
 }
 
 /**
- * @brief Loads spell bonus coefficients from the database: the attack power parts, and the spell power parts
- * that apply where the client's SpellEffect.dbc holds no coefficient.
+ * The spells whose Spell.dbc attack-power coefficient is above 0.
+ */
+static uint32 CountAttackPowerCoefficients()
+{
+    uint32 count = 0;
+    for (uint32 id = 0; id < sSpellStore.GetNumRows(); ++id)
+    {
+        SpellEntry const* spell = sSpellStore.LookupEntry(id);
+        if (spell && spell->Coefficient > 0.0f)
+        {
+            ++count;
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief Loads spell bonus coefficients from the database: the parts that apply where the client's files hold no
+ * coefficient, SpellEffect.dbc's for spell power and Spell.dbc's for attack power. Ends with the count of the spells
+ * whose Spell.dbc attack-power coefficient is above 0.
  */
 void SpellMgr::LoadSpellBonuses()
 {
@@ -231,6 +249,7 @@ void SpellMgr::LoadSpellBonuses()
         BarGoLink bar(1);
         bar.step();
         sLog.outString(">> Loaded %u spell bonus data", count);
+        sLog.outString(">> Spell.dbc holds an attack-power coefficient for %u spells", CountAttackPowerCoefficients());
         sLog.outString();
         return;
     }
@@ -284,9 +303,16 @@ void SpellMgr::LoadSpellBonuses()
             }
         }
 
+        // The client's attack-power coefficient for the row's two attack power parts: Spell.dbc's, where the spell's
+        // damage of that type takes it.
+        float const clientAp = AttackPowerCoefficient(spell, NULL, SPELL_DIRECT_DAMAGE, true);
+        float const clientApDot = AttackPowerCoefficient(spell, NULL, DOT, true);
+
         std::string notNeeded;
         RowPartNotNeeded(sbe.direct_damage, clientDirect, "direct_bonus", "SpellEffect.dbc", notNeeded);
         RowPartNotNeeded(sbe.dot_damage, clientDot, "dot_bonus", "SpellEffect.dbc", notNeeded);
+        RowPartNotNeeded(sbe.ap_bonus, clientAp, "ap_bonus", "Spell.dbc", notNeeded);
+        RowPartNotNeeded(sbe.ap_dot_bonus, clientApDot, "ap_dot_bonus", "Spell.dbc", notNeeded);
         if (!notNeeded.empty())
         {
             sLog.outErrorDb("`spell_bonus_data` entry for spell %u is not needed: %s", entry, notNeeded.c_str());
@@ -306,6 +332,7 @@ void SpellMgr::LoadSpellBonuses()
     }
 
     sLog.outString(">> Loaded %u extra spell bonus data",  count);
+    sLog.outString(">> Spell.dbc holds an attack-power coefficient for %u spells", CountAttackPowerCoefficients());
     sLog.outString();
 }
 

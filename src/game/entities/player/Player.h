@@ -3928,13 +3928,6 @@ class Player : public Unit
         static QuestStatusMgr::TemplateLookup const& QuestTemplateLookup();
         static QuestStatusMgr::ExclusiveGroupLookup const& QuestExclusiveGroupLookup();
 
-        // The rank of a talent Unit's spell bonus asks for: the one the talent manager knows, or NULL;
-        // private, so only a call through Unit reaches it
-        SpellEntry const* GetKnownTalentRankById(int32 talentId) const override final
-        {
-            return GetTalentMgr().GetKnownTalentRankById(talentId);
-        }
-
         // Whether every base rune of a type is on cooldown, which Unit's Blade Barrier proc asks: what
         // the rune manager answers; private, so only a call through Unit reaches it
         bool IsBaseRuneSlotsOnCooldown(RuneType runeType) const override final
