@@ -916,7 +916,9 @@ int32 GetDiminishingReturnsLimitDuration(DiminishingGroup group, SpellEntry cons
 
 SpellEntry const* GetSpellEntryByDifficulty(uint32 id, Difficulty difficulty, bool isRaid);
 
-int32 GetMasteryCoefficient(SpellEntry const * spellProto);
+/// The mastery coefficient of one effect of a mastery spell: its EffectBonusCoefficient when the spell carries
+/// SPELL_ATTR_EX8_MASTERY and the effect's base points are 0; 0 otherwise.
+float MasteryCoefficient(SpellEntry const* spellProto, SpellEffectEntry const* effect);
 /**
  * Spell proc event related declarations (accessed using SpellMgr functions) (Taken from comments)
  */

@@ -3699,40 +3699,13 @@ SpellEntry const* GetSpellEntryByDifficulty(uint32 id, Difficulty difficulty, bo
     return NULL;
 }
 
-int32 GetMasteryCoefficient(SpellEntry const * spellProto)
+float MasteryCoefficient(SpellEntry const* spellProto, SpellEffectEntry const* effect)
 {
-    if (!spellProto || !spellProto->HasAttribute(SPELL_ATTR_EX8_MASTERY))
+    if (!spellProto || !effect || !spellProto->HasAttribute(SPELL_ATTR_EX8_MASTERY) || effect->CalculateSimpleValue() != 0)
     {
-        return 0;
+        return 0.0f;
     }
 
-    // Find mastery scaling coef
-    int32 coef = 0;
-    for (uint32 j = 0; j < MAX_EFFECT_INDEX; ++j)
-    {
-        SpellEffectEntry const * effectEntry = spellProto->GetSpellEffect(SpellEffectIndex(j));
-        if (!effectEntry)
-        {
-            continue;
-        }
-
-        // mastery scaling coef is stored in dummy aura, except 77215 (Potent Afflictions, zero effect)
-        // and 76808 (Executioner, not stored at all)
-        int32 bp = effectEntry->CalculateSimpleValue();
-        if (spellProto->ID == 76808)
-        {
-            bp = 250;
-        }
-
-        if (!bp)
-        {
-            continue;
-        }
-
-        coef = bp;
-        break;
-    }
-
-    return coef;
+    return effect->EffectBonusCoefficient;
 }
 

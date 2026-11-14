@@ -161,6 +161,7 @@ set(SRC_GRP_TESTS
     SpellHitResultTest.cpp
     SpellCoefficientTest.cpp
     PeriodicTimingTest.cpp
+    MasteryAmountTest.cpp
     AuraContainerTest.cpp
     SpellHandlerRegistryTest.cpp
     SpellScriptHooksTest.cpp

@@ -193,13 +193,27 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
 
 /**
  * Calculates caster part of spell damage bonuses,
- * also includes different bonuses dependent from target auras
+ * also includes different bonuses dependent from target auras.
+ *
+ * A spell with SPELL_ATTR_EX6_NO_DMG_MODS takes none of them: no spell power, no percent aura, no talent and no
+ * ordinary spell modifier. It takes one thing: its caster's spell modifiers of the damage operation (SPELLMOD_DOT for
+ * a tick, SPELLMOD_DAMAGE otherwise) whose aura's spell is a mastery, truncated as the done damage is.
  */
 uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, uint32 pdamage, DamageEffectType damagetype, uint32 stack)
 {
-    if (!spellProto || !pVictim || damagetype == DIRECT_DAMAGE || spellProto->HasAttribute(SPELL_ATTR_EX6_NO_DMG_MODS))
+    if (!spellProto || !pVictim || damagetype == DIRECT_DAMAGE)
     {
         return pdamage;
+    }
+
+    if (spellProto->HasAttribute(SPELL_ATTR_EX6_NO_DMG_MODS))
+    {
+        float masteryDamage = float(pdamage);
+        if (SpellModMgr* modOwner = GetSpellMods())
+        {
+            modOwner->ApplySpellMod(spellProto->ID, damagetype == DOT ? SPELLMOD_DOT : SPELLMOD_DAMAGE, masteryDamage, true);
+        }
+        return masteryDamage > 0 ? uint32(masteryDamage) : 0;
     }
 
     // For totems get damage bonus from owner (statue isn't totem in fact)

@@ -1039,13 +1039,14 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcRogue57934(DummyAur
 // Procs on main-hand auto-attack only; triggered spell
 // 86392 is an off-hand weapon-percent damage hit. The
 // proc chance is the mastery-scaled aura amount written
-// by Player::UpdateMasteryAuras (StatSystem.cpp:899) on
+// by Player::UpdateMasteryAuras on
 // EFFECT_0, matching TC-Preservation's spell_rog_main_-
 // gauche at scripts/Spells/spell_rogue.cpp:784 which
 // hooks EFFECT_0 only. The DBC has a second SPELL_AURA_-
 // DUMMY effect with a non-zero placeholder base value
-// (200) that UpdateMasteryAuras skips per its
-// CalculateSimpleValue guard; without this gate the
+// (200) that UpdateMasteryAuras skips, since
+// MasteryCoefficient is 0 for an effect with base
+// points; without this gate the
 // handler would fire twice per hit and a 200%-clamped
 // roll would proc 100% of the time. No CanProcFrom
 // bypass needed in Unit::ProcDamageAndSpellFor because

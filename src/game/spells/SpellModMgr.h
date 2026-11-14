@@ -36,24 +36,25 @@ class Aura;
 struct ClassFamilyMask;
 
 /// One spell modifier on a list: the aura it comes from (an identity for the removal, never
-/// dereferenced), whether it is flat or a percentage, its amount and its spell class mask by
-/// address (read at each use, so a change to either while it is listed is seen), the modifier
-/// operation and the spell family it applies to.
+/// dereferenced), whether it is flat or a percentage, its amount (with its fraction) and its spell
+/// class mask by address (read at each use, so a change to either while it is listed is seen), the
+/// modifier operation, the spell family it applies to, and whether the aura's spell is a mastery.
 struct SpellModEntry
 {
     Aura const* aura;
     bool flat;
-    int32 const* amount;
+    float const* amount;
     int32 op;
     uint32 family;
     ClassFamilyMask const* mask;
+    bool mastery;
 };
 
 /// One effect bit of a modifier's class mask and the sum the client is told for it.
 struct SpellModValue
 {
     uint8 effect;
-    int32 value;
+    float value;
 };
 
 /// A modifier added or removed: whether the sums are flat or percentages, the operation, and
@@ -75,20 +76,20 @@ typedef std::function<void(SpellModChangedFact const& fact)> SpellModChangedSink
  *
  * The state is one list of modifiers per modifier operation, in the order they were added. An
  * entry holds the addresses of its aura's amount and class mask, and both are read at each use,
- * so a later write to the amount (the mastery update rewrites it in place) changes what the
- * modifier adds.
+ * so a later write to the amount changes what the modifier adds. The amounts and their sums are
+ * floats, so a mastery's percent keeps its fraction.
  *
  * Change adds or removes one modifier. Before the list changes, it computes what the client is
  * told (the sums per class mask bit with the change applied) and reports it through the sink it
  * is handed; an empty sink fails an assertion. ApplySpellMod applies the listed modifiers of an
- * operation that fit a spell to a value in place and returns the difference. The spell store is
- * the one global it reads.
+ * operation that fit a spell to a value in place and returns the difference; with `masteryOnly`,
+ * only those whose aura's spell is a mastery. The spell store is the one global it reads.
  */
 class SpellModMgr
 {
     public:
         void Change(SpellModEntry const& entry, bool apply, SpellModChangedSink const& report);
-        template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue);
+        template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, bool masteryOnly = false);
         /// Forgets every modifier without telling the client, for a unit whose auras were deleted.
         void Clear();
 

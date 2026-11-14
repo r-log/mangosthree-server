@@ -97,6 +97,13 @@ void Aura::HandleAddModifier(bool apply, bool Real)
         }
     }
 
+    // A modifier other than a mastery's is listed with the aura's amount as it is now, which a stack change or a loaded
+    // aura may have written since the aura was made; a mastery's keeps the value with its fraction.
+    if (apply && MasteryCoefficient(GetSpellProto(), m_spellEffect) == 0.0f)
+    {
+        m_modifierValue = float(m_modifier.m_amount);
+    }
+
     targetPlayer->AddSpellMod(this, apply);
 
     ReapplyAffectedPassiveAuras();

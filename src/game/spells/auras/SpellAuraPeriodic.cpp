@@ -417,6 +417,9 @@ void Aura::HandlePeriodicDamage(bool apply, bool Real)
 
         if (m_modifier.m_auraname == SPELL_AURA_PERIODIC_DAMAGE)
         {
+            // the amount a re-application carries is the one before this step, so the new aura's step is its only one
+            m_tickAmountBeforeDone = m_modifier.m_amount;
+
             // SpellDamageBonusDone for magic spells
             uint32 dmgClass = spellProto->GetDmgClass();
             if (dmgClass == SPELL_DAMAGE_CLASS_NONE || dmgClass == SPELL_DAMAGE_CLASS_MAGIC)

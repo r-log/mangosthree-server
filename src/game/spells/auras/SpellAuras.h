@@ -458,6 +458,14 @@ class  Aura
         void SetModifier(AuraType t, int32 a, uint32 pt, int32 miscValue);
         Modifier*       GetModifier()       { return &m_modifier; }
         Modifier const* GetModifier() const { return &m_modifier; }
+        /// The amount a spell modifier of this aura adds, with its fraction: a mastery effect's value, else the amount.
+        float const& ModifierValue() const { return m_modifierValue; }
+        /// Writes the amount a spell modifier of this aura adds, and the integer amount the aura shows.
+        void SetModifierValue(float value)
+        {
+            m_modifierValue = value;
+            m_modifier.m_amount = int32(value);
+        }
         int32 GetMiscValue() const { return m_spellEffect ? m_spellEffect->EffectMiscValue_0 : 0; }
         int32 GetMiscBValue() const { return m_spellEffect ? m_spellEffect->EffectMiscValue_1 : 0; }
 
@@ -476,6 +484,9 @@ class  Aura
         int32 GetAuraDuration() const { return GetHolder()->GetAuraDuration(); }
         time_t GetAuraApplyTime() const { return m_applyTime; }
         uint32 GetAuraTicks() const { return m_periodicTick; }
+        /// A periodic damage aura's tick amount before its caster's done-side step at the apply; the amount itself for an
+        /// aura loaded from the database or not applied yet.
+        int32 GetTickAmountBeforeDone() const { return m_tickAmountBeforeDone; }
         /// How many ticks the aura deals over the holder's maximum duration, its first tick m_firstTickDelay after the
         /// apply (Spells::TickCount).
         uint32 GetAuraMaxTicks() const;
@@ -493,6 +504,7 @@ class  Aura
         void SetLoadedState(int32 damage, uint32 periodicTime)
         {
             m_modifier.m_amount = damage;
+            m_tickAmountBeforeDone = damage;
             m_modifier.periodictime = periodicTime;
             m_firstTickDelay = GetSpellProto()->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY) ? 0 : int32(periodicTime);
 
@@ -570,6 +582,8 @@ class  Aura
         void ReapplyAffectedPassiveAuras();
 
         Modifier m_modifier;
+        float m_modifierValue;                              // what a spell modifier of this aura adds (ModifierValue)
+        int32 m_tickAmountBeforeDone;                       // the tick amount before the done-side step (GetTickAmountBeforeDone)
 
         SpellEffectEntry const* m_spellEffect;
         time_t m_applyTime;
