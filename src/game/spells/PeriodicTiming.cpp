@@ -68,6 +68,11 @@ namespace Spells
         return RoundToEven(hasted);
     }
 
+    int32 FirstTickDelay(int32 period, bool ticksAtApply)
+    {
+        return ticksAtApply ? 0 : period;
+    }
+
     uint32 TickCount(int32 duration, int32 period, int32 firstTickDelay)
     {
         if (period <= 0 || duration <= 0 || duration < firstTickDelay)
@@ -75,6 +80,12 @@ namespace Spells
             return 0;
         }
         return uint32((duration - firstTickDelay) / period + 1);
+    }
+
+    uint32 TicksBeforeLoad(uint32 maxTicks, int32 remaining, int32 period, int32 firstTickDelay)
+    {
+        const uint32 ticksLeft = TickCount(remaining, period, firstTickDelay);
+        return ticksLeft < maxTicks ? maxTicks - ticksLeft : 0;
     }
 
     int32 RolledOverTick(int32 newAmount, uint32 newTicks, int32 oldAmount, uint32 remainingTicks, uint32 totalTicks)

@@ -26,8 +26,8 @@
 /**
  * @file PeriodicTiming.h
  * @brief The timing of a periodic effect as the 4.3.4 client computes it: the period and the duration a caster's
- * haste gives, the number of ticks an aura deals, and how an amount is spread over those ticks. Pure functions over
- * numbers.
+ * haste gives, the time to an aura's first tick, the number of ticks it deals, and how an amount is spread over
+ * those ticks. Pure functions over numbers.
  *
  * Every float-to-int rounding here is to the nearest integer with ties to even, the client's conversion; every
  * integer division truncates toward zero.
@@ -74,6 +74,15 @@ namespace Spells
     int32 HastedDurationDirect(int32 duration, float castHaste);
 
     /**
+     * @brief The time from an aura's apply, or its load from the database, to its first tick.
+     *
+     * @param period The aura's period, in milliseconds: the hasted one, or the one the aura was saved with.
+     * @param ticksAtApply True for an aura that deals a tick at its apply (SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY).
+     * @return 0 for an aura that ticks at its apply; `period` otherwise.
+     */
+    int32 FirstTickDelay(int32 period, bool ticksAtApply);
+
+    /**
      * @brief How many ticks a periodic aura deals over its duration.
      *
      * @param duration The aura's maximum duration, in milliseconds.
@@ -84,6 +93,19 @@ namespace Spells
      *         tick comes after the duration.
      */
     uint32 TickCount(int32 duration, int32 period, int32 firstTickDelay);
+
+    /**
+     * @brief How many ticks an aura loaded from the database had dealt before it was saved, so that the ticks it deals
+     *        after the load end at its tick count.
+     *
+     * @param maxTicks The aura's tick count over its maximum duration.
+     * @param remaining The duration the aura has left, in milliseconds.
+     * @param period The aura's period, in milliseconds.
+     * @param firstTickDelay The time from the load to the first tick, from FirstTickDelay.
+     * @return `maxTicks - TickCount(remaining, period, firstTickDelay)`; 0 when the aura has more ticks left than its
+     *         tick count.
+     */
+    uint32 TicksBeforeLoad(uint32 maxTicks, int32 remaining, int32 period, int32 firstTickDelay);
 
     /**
      * @brief The per-tick amount of a refreshed damage-over-time effect that carries the damage its old aura had left.
