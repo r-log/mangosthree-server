@@ -25,8 +25,9 @@
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
 /// target and script word, the aura handle's reads, RegisterRanks, the holder's script words, the holder copy's answer
-/// for a unit holding none and the period, tick time, duration and amount a copy keeps, and the game table, whose only
-/// hook rows are the mage's scripts.
+/// for a unit holding none and the period, tick time, duration and amount a copy keeps, the low-health multiplier a
+/// script query answers from the caster's class-script auras, and the game table, whose only hook rows are the mage's
+/// scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -37,6 +38,8 @@
 /// damage query reads holders and auras made through their constructors, on spells put into the spell, effect and
 /// duration stores, held in a bare creature's holder map; the copy is added through Unit::AddSpellAuraHolder to a bare
 /// creature, which sends nothing out of a world, and removed through Unit::RemoveSpellAuraHolder.
+/// The low-health multiplier reads class-script auras made through their constructors, on spells put into the spell,
+/// effect and class options stores, held in a bare creature's per-type aura list.
 
 #include "TestHarness.h"
 #include "spells/SpellScriptHooks.h"
@@ -46,6 +49,7 @@
 #include "DBCStores.h"
 #include "data/ServerSpellStore.h"
 
+#include <cmath>
 #include <cstddef>
 #include <list>
 #include <new>
@@ -191,6 +195,146 @@ namespace
             byte = value;
         }
         return *reinterpret_cast<SpellAuraHolder*>(storage.bytes);
+    }
+
+    // The class-script rows of the low-health multiplier's vectors, in no other test: each a Spell.dbc row with one
+    // effect, an OVERRIDE_CLASS_SCRIPTS aura at the caster with the script id, the amount and the class mask of the
+    // client's row, under class options of the client's family.
+    const uint32 kMoltenFury1 = 94301;          // 31679: script 4919, +4
+    const uint32 kMoltenFury2 = 94302;          // 31680: script 4920, +8
+    const uint32 kMoltenFury3 = 94303;          // 86880: script 12368, +12
+    const uint32 kDeathsEmbrace3 = 94304;       // 47200, effect 1: script 6917, +12
+    const uint32 kOtherScript = 94305;          // a class script of another id (Soul Siphon's 4992) on Molten Fury's mask
+    // The spells asked about, with the class options of the client's rows; not in the spell store.
+    const uint32 kPyroblastRow = 94306;         // 11366: mage, A 0x00400000, C 0x00001008
+    const uint32 kIgniteRow = 94307;            // 12654: mage, A 0x08000000, C 0x00000008
+    const uint32 kCorruptionRow = 94308;        // 172: warlock, A 0x00000002
+    // The class options rows, by their own ids.
+    const uint32 kOptionsMage = 94301;          // the talents' own rows: the family alone
+    const uint32 kOptionsWarlock = 94302;
+    const uint32 kOptionsPyroblast = 94303;
+    const uint32 kOptionsIgnite = 94304;
+    const uint32 kOptionsCorruption = 94305;
+
+    // Molten Fury's mask over the mage's damage spells (A 0x20e012f7, B 0x00039048, C 0x00002080), and Death's
+    // Embrace's over the warlock's Shadow spells (A 0x00082483, B 0x00059913).
+    ClassFamilyMask MoltenFuryMask() { return ClassFamilyMask(UI64LIT(0x00039048) << 32 | UI64LIT(0x20e012f7), 0x00002080); }
+    ClassFamilyMask DeathsEmbraceMask() { return ClassFamilyMask(UI64LIT(0x00059913) << 32 | UI64LIT(0x00082483), 0); }
+
+    // One class script's records, kept alive for the rest of the run.
+    struct StoredClassScript
+    {
+        ServerSpell spell;
+    };
+
+    // Puts the class script `spellId` into the spell and effect stores once: its effect `effIndex` an
+    // OVERRIDE_CLASS_SCRIPTS aura at the caster of `amount` with the script id `script` over `mask`, under the class
+    // options `options`.
+    SpellEntry const* StoreClassScript(StoredClassScript& rows, uint32 spellId, SpellEffectIndex effIndex, int32 script,
+                                       int32 amount, ClassFamilyMask const& mask, uint32 options)
+    {
+        if (rows.spell.Entry().ID == spellId)
+        {
+            return &rows.spell.Entry();
+        }
+        rows.spell.Entry().ID = spellId;
+        rows.spell.Entry().ClassOptionsID = options;
+        rows.spell.effect.SpellID = spellId;
+        rows.spell.effect.EffectIndex = effIndex;
+        rows.spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        rows.spell.effect.EffectAura = SPELL_AURA_OVERRIDE_CLASS_SCRIPTS;
+        rows.spell.effect.EffectBasePoints = amount;
+        rows.spell.effect.EffectMiscValue_0 = script;
+        rows.spell.effect.EffectSpellClassMask = mask;
+        rows.spell.effect.ImplicitTarget_0 = TARGET_SELF;
+        sSpellStore.SetEntry(spellId, &rows.spell.Entry());
+        AddSpellEffectEntry(&rows.spell.effect);
+        return &rows.spell.Entry();
+    }
+
+    // Puts the five class options rows into their store once.
+    void StoreClassOptions()
+    {
+        static SpellClassOptionsEntry options[5];
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+        options[0].SpellClassSet = SPELLFAMILY_MAGE;
+        options[1].SpellClassSet = SPELLFAMILY_WARLOCK;
+        options[2].SpellClassSet = SPELLFAMILY_MAGE;
+        options[2].SpellClassMask = ClassFamilyMask(UI64LIT(0x00400000), 0x00001008);
+        options[3].SpellClassSet = SPELLFAMILY_MAGE;
+        options[3].SpellClassMask = ClassFamilyMask(UI64LIT(0x08000000), 0x00000008);
+        options[4].SpellClassSet = SPELLFAMILY_WARLOCK;
+        options[4].SpellClassMask = ClassFamilyMask(UI64LIT(0x00000002));
+        uint32 const ids[] = { kOptionsMage, kOptionsWarlock, kOptionsPyroblast, kOptionsIgnite, kOptionsCorruption };
+        for (std::size_t i = 0; i < 5; ++i)
+        {
+            sSpellClassOptionsStore.SetEntry(ids[i], &options[i]);
+        }
+    }
+
+    // A Spell.dbc row asked about: its id and its class options; it is not in the spell store.
+    SpellEntry const& AskedRow(SpellRowStorage& storage, uint32 spellId, uint32 options)
+    {
+        for (unsigned char& byte : storage.bytes)
+        {
+            byte = 0;
+        }
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(storage.bytes);
+        row->ID = spellId;
+        row->ClassOptionsID = options;
+        return *row;
+    }
+
+    // A bare creature whose class-script auras sit in its per-type list, as Unit::AddSpellAuraHolder files them, from
+    // holders made through their constructors; it deletes them when it goes.
+    class ClassScriptCaster : public BareCreature
+    {
+        public:
+            ~ClassScriptCaster()
+            {
+                Drop();
+            }
+
+            // Holds the class script `spell` through its effect `effIndex`, at the amount of its row.
+            void Hold(SpellEntry const* spell, SpellEffectIndex effIndex)
+            {
+                SpellAuraHolder* holder = new SpellAuraHolder(spell, this, NULL, NULL, NULL);
+                holder->AddAura(CreateAura(spell, effIndex, NULL, holder, this), effIndex);
+                AddAuraToModList(holder->GetAuraByEffectIndex(effIndex));
+                m_held.push_back(holder);
+            }
+
+            // Takes every class script off the list and deletes its holder.
+            void Drop()
+            {
+                m_auras.ByType(SPELL_AURA_OVERRIDE_CLASS_SCRIPTS).clear();
+                for (SpellAuraHolder* holder : m_held)
+                {
+                    delete holder;
+                }
+                m_held.clear();
+            }
+
+        private:
+            std::vector<SpellAuraHolder*> m_held;
+    };
+
+    // Sets the victim's health to `pct` percent of 1000 and its under-35% state as Unit::Update sets it.
+    void SetHealthPct(Unit& victim, uint32 pct)
+    {
+        victim.SetMaxHealth(1000);
+        victim.SetHealth(pct * 10);
+        victim.ModifyAuraState(AURA_STATE_HEALTHLESS_35_PERCENT, victim.GetHealth() < victim.GetMaxHealth() * 0.35f);
+    }
+
+    bool Near(float value, float expected)
+    {
+        return std::fabs(value - expected) < 1e-6f;
     }
 
     // What the bodies saw, written by them and read by the tests.
@@ -638,6 +782,77 @@ TEST(SpellScriptHooks_FindPeriodicDamageReadsTheCastersPeriodicDamageEffectsOnAU
     delete mineToo;
     delete theirs;
     delete mine;
+}
+
+TEST(SpellScriptHooks_LowHealthDamageMultiplierReadsTheCastersClassScriptsAgainstTheVictimsHealth)
+{
+    StoreClassOptions();
+    static StoredClassScript moltenFury1Rows;
+    static StoredClassScript moltenFury2Rows;
+    static StoredClassScript moltenFury3Rows;
+    static StoredClassScript deathsEmbraceRows;
+    static StoredClassScript otherScriptRows;
+    SpellEntry const* moltenFury1 = StoreClassScript(moltenFury1Rows, kMoltenFury1, EFFECT_INDEX_0, 4919, 4, MoltenFuryMask(), kOptionsMage);
+    SpellEntry const* moltenFury2 = StoreClassScript(moltenFury2Rows, kMoltenFury2, EFFECT_INDEX_0, 4920, 8, MoltenFuryMask(), kOptionsMage);
+    SpellEntry const* moltenFury3 = StoreClassScript(moltenFury3Rows, kMoltenFury3, EFFECT_INDEX_0, 12368, 12, MoltenFuryMask(), kOptionsMage);
+    SpellEntry const* deathsEmbrace = StoreClassScript(deathsEmbraceRows, kDeathsEmbrace3, EFFECT_INDEX_1, 6917, 12, DeathsEmbraceMask(),
+                                                       kOptionsWarlock);
+    SpellEntry const* otherScript = StoreClassScript(otherScriptRows, kOtherScript, EFFECT_INDEX_0, 4992, 20, MoltenFuryMask(), kOptionsMage);
+
+    SpellRowStorage pyroblastStorage, igniteStorage, corruptionStorage;
+    SpellEntry const& pyroblast = AskedRow(pyroblastStorage, kPyroblastRow, kOptionsPyroblast);
+    SpellEntry const& ignite = AskedRow(igniteStorage, kIgniteRow, kOptionsIgnite);
+    SpellEntry const& corruption = AskedRow(corruptionStorage, kCorruptionRow, kOptionsCorruption);
+
+    BareCreature victim;
+    ClassScriptCaster caster;
+
+    // No class script: 1.0 at any health.
+    SetHealthPct(victim, 30);
+    CHECK(victim.HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT));
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, pyroblast), 1.0f));
+
+    // Rank 3 on Pyroblast: 1.12 under 35%, 1.0 at 40%, and 1.12 again when the victim falls back under it.
+    caster.Hold(moltenFury3, EFFECT_INDEX_0);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, pyroblast), 1.12f));
+    SetHealthPct(victim, 40);
+    CHECK(!victim.HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT));
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, pyroblast), 1.0f));
+    SetHealthPct(victim, 34);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, pyroblast), 1.12f));
+
+    // Ignite's row is outside Molten Fury's mask: 1.0 whatever the health.
+    SetHealthPct(victim, 30);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, ignite), 1.0f));
+    SetHealthPct(victim, 100);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, ignite), 1.0f));
+
+    // Rank 1 alone: 1.04.
+    caster.Drop();
+    caster.Hold(moltenFury1, EFFECT_INDEX_0);
+    SetHealthPct(victim, 30);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, pyroblast), 1.04f));
+
+    // Two class scripts that affect the spell multiply: 1.08 x 1.12 = 1.2096.
+    caster.Drop();
+    caster.Hold(moltenFury2, EFFECT_INDEX_0);
+    caster.Hold(moltenFury3, EFFECT_INDEX_0);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, pyroblast), 1.08f * 1.12f));
+
+    // A class script of another id over the same mask gives nothing here.
+    caster.Drop();
+    caster.Hold(otherScript, EFFECT_INDEX_0);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, pyroblast), 1.0f));
+
+    // Death's Embrace rank 3 (its effect 1) reaches the warlock's spells in its mask, at the same 35%, and not the
+    // mage's: the family of the spell must be the script's.
+    caster.Drop();
+    caster.Hold(deathsEmbrace, EFFECT_INDEX_1);
+    caster.Hold(moltenFury2, EFFECT_INDEX_0);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, corruption), 1.12f));
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, pyroblast), 1.08f));
+    SetHealthPct(victim, 40);
+    CHECK(Near(Spells::LowHealthDamageMultiplier(caster, victim, corruption), 1.0f));
 }
 
 TEST(SpellScriptHooks_RegisterRanksPutsOneBodyUnderEveryId)
