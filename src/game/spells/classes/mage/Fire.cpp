@@ -113,10 +113,10 @@ namespace
     uint32 const IMPROVED_HOT_STREAK_RANK_2 = 44448;
 
     /// 44445: Hot Streak: each critical strike of Fireball, Frostfire Bolt, Scorch, Pyroblast or Fire Blast (the proc
-    /// row's spells; Pyroblast! 92315 is left out) rolls HotStreakChance of the caster's sheet crit for the school of
-    /// the spell; when that fails and the caster knows Improved Hot Streak (44448: 100, 44446: 50), two such crits in a
-    /// row roll its percent. A non-crit of those spells starts the count again. Success casts Hot Streak (48108) on the
-    /// caster. The count lives in this holder's script word of effect 0.
+    /// row's spells; the script leaves Pyroblast! 92315 out) rolls HotStreakChance of the caster's sheet crit for the
+    /// school of the spell; when that fails and the caster knows Improved Hot Streak (44448: 100, 44446: 50), two such
+    /// crits in a row roll its percent. A non-crit of those spells starts the count again. Success casts Hot Streak
+    /// (48108) on the caster. The count lives in this holder's script word of effect 0.
     ProcOutcome HotStreakProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
@@ -149,6 +149,21 @@ namespace
             return ProcOutcome::Return(SPELL_AURA_PROC_OK);
         }
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, HOT_STREAK_BUFF));
+    }
+
+    uint32 const ITEM_MAGE_T10_2P_BONUS = 70752;
+    uint32 const PUSHING_THE_LIMIT = 70753;
+
+    /// 48108: Hot Streak (the buff): when it is used up, removed in the default mode as casting Pyroblast! removes it,
+    /// and its caster holds Item - Mage T10 2P Bonus (70752), the mage casts Pushing the Limit (70753) on himself for
+    /// that caster. Its running out, a dispel or a cancel gives nothing. The script ends the removal's boosts.
+    SpellHandlerOutcome<void> HotStreakBuffRemove(AuraRemoveContext& ctx)
+    {
+        if (Mage::PushingTheLimitOnRemove(ctx.mode, ctx.caster && ctx.caster->HasAura(ITEM_MAGE_T10_2P_BONUS)))
+        {
+            ctx.CastTriggered(ctx.target, PUSHING_THE_LIMIT);
+        }
+        return SpellHandlerOutcome<void>::Return();
     }
 
     /// 31641, 31642: Blazing Speed: a proc-trigger aura whose own trigger spell (18350) the client's data lacks. Its
@@ -190,6 +205,7 @@ namespace
 
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
     uint32 const HOT_STREAK[] = { 44445 };
+    uint32 const HOT_STREAK_BUFFS[] = { HOT_STREAK_BUFF };
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
     uint32 const LIVING_BOMB[] = { 44457 };
 }
@@ -214,6 +230,11 @@ float Mage::HotStreakChance(float sheetCritPercent)
     float const crit = sheetCritPercent > 0.0f ? sheetCritPercent : 0.0f;
     float const chance = 95.0f - 2.73f * crit;
     return chance > 0.0f ? chance : 0.0f;
+}
+
+bool Mage::PushingTheLimitOnRemove(AuraRemoveMode mode, bool casterHasT10TwoPiece)
+{
+    return mode == AURA_REMOVE_BY_DEFAULT && casterHasT10TwoPiece;
 }
 
 bool Mage::HotStreakStep(int32& crits, bool crit, bool baseRollPassed, bool improvedRollPassed)
@@ -247,6 +268,7 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRows(registry, dummyAuraProcMage);
     rows += RegisterRanks<OnProcHook>(registry, MASTER_OF_ELEMENTS, &MasterOfElementsProc);
     rows += RegisterRanks<OnProcHook>(registry, HOT_STREAK, &HotStreakProc);
+    rows += RegisterRanks<AuraRemoveHook>(registry, HOT_STREAK_BUFFS, &HotStreakBuffRemove);
     rows += RegisterRanks<OnProcHook>(registry, BLAZING_SPEED, &BlazingSpeedProc);
     rows += RegisterRanks<DummyAuraHook>(registry, LIVING_BOMB, &LivingBombDummyAura);
     return rows;
