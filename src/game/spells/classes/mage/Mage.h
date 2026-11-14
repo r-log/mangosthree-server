@@ -42,9 +42,9 @@
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
  * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes) and Impact's
  * (ImpactSpreads). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts and its leaves
- * (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbHitDue, OrbExplosionChance and OrbCostShare). Each file registers
- * its rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and
- * RegisterRanks per script hook.
+ * (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbExplosionChance and OrbCostShare).
+ * Each file registers its rows through one function of namespace Mage: a table per legacy site of
+ * SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -112,16 +112,28 @@ namespace Mage
     /// none. Defined in Orb.cpp.
     Unit* ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& candidates);
 
-    /// Whether the orb's hit is due: never hit yet (`lastHitMs` 0), or `intervalMs` or more since the last. Defined in
-    /// Orb.cpp.
-    bool OrbHitDue(uint32 nowMs, uint32 lastHitMs, uint32 intervalMs);
+    /// The cadence of an orb's hits, in scans of its own aura.
+    struct OrbCadence
+    {
+        uint32 scansPerHit;         ///< a hit on every this many scans: the scan's value over the aura's period (2)
+        uint32 window;              ///< the scans the snare lasts: its duration over the aura's period (30)
+    };
+
+    /// The cadence the client's data gives the orb of `spells`: the scan's value (1000 ms) and the snare's duration
+    /// (15000 ms), each over the period of the orb's own aura (500 ms); 0 and 0 when a spell, the period, the value
+    /// or the duration is missing. Defined in Orb.cpp.
+    OrbCadence OrbCadenceFor(OrbSpells const& spells);
+
+    /// Whether the orb's hit is due at scan `scan`, counted from the scan that found its first enemy (0): on that scan
+    /// and every `scansPerHit`-th one after it, while `scan` is below `window`. Defined in Orb.cpp.
+    bool OrbHitDue(uint32 scan, OrbCadence const& cadence);
 
     /// The percent chance the orb explodes at its end for an owner who knows `talentSpell`: that spell's proc chance
     /// when it is one of the table's explosion talents; 0 for any other spell. Defined in Orb.cpp.
     uint32 OrbExplosionChance(uint32 talentSpell);
 
     /// The base mana cost an orb's hit refunds through Master of Elements: the mage's spell's cost over the hits one orb
-    /// makes (the snare's duration over the scan's value); 0 for a spell that is no orb hit. Defined in Orb.cpp.
+    /// makes (the due scans of OrbCadenceFor's window, 15); 0 for a spell that is no orb hit. Defined in Orb.cpp.
     int32 OrbCostShare(uint32 procSpellId, Unit const& mage);
 
     /// Whether the aura effect a proc runs for is of `auraType`. A proc script runs for every effect of its spell that

@@ -31,7 +31,6 @@
 #include "entities/ObjectLookup.h"
 #include "entities/motion/MotionMaster.h"
 #include "DBCStores.h"
-#include "Utilities/Timer.h"
 #include "Utilities/Util.h"
 
 namespace
@@ -75,11 +74,13 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 82734: the orb's scan, for the enemy it kept: on its first enemy the orb snares itself (82736); while it holds
-    /// the snare, it casts its hit (82739) at the enemy once per the effect's value in milliseconds, with its summoner
-    /// as the original caster, when its summoner is in the world on its map. The time of the last hit is the script
-    /// word of effect 0 of the orb's own aura (82690), and the word of its effect 1 is 1 once an enemy was found. An orb
-    /// without that aura does nothing. The script ends the effect.
+    /// 82734: the orb's scan, for the enemy it kept. On its first enemy the orb snares itself (82736) and counts that
+    /// scan as scan 0. While it holds the snare, each scan with an enemy counts one more, and on the scans
+    /// Mage::OrbHitDue names (scan 0 and every second scan of the 500 ms aura after it, for the 30 scans the snare
+    /// lasts) the orb casts its hit (82739) at the enemy, with its summoner as the original caster, when its summoner is
+    /// in the world on its map. The aura's period carries its remainder from tick to tick, so the hits keep one second
+    /// apart on any update rate. The count is the script word of effect 0 of the orb's own aura (82690), and the word
+    /// of its effect 1 is 1 once an enemy was found. An orb without that aura does nothing. The script ends the effect.
     SpellHandlerOutcome<void> OrbScanEffect(DummyEffectContext& ctx)
     {
         Creature* orb = ctx.caster.ToCreature();
@@ -88,23 +89,24 @@ namespace
         {
             return SpellHandlerOutcome<void>::Return();
         }
-        int32* lastHit = ScriptWordOf(*orb, spells->orbAura, EFFECT_INDEX_0);
+        int32* scans = ScriptWordOf(*orb, spells->orbAura, EFFECT_INDEX_0);
         int32* found = ScriptWordOf(*orb, spells->orbAura, EFFECT_INDEX_1);
-        if (!lastHit || !found)
+        if (!scans || !found)
         {
             return SpellHandlerOutcome<void>::Return();
         }
         if (!*found)
         {
             *found = 1;
+            *scans = 0;
             orb->CastSpell(orb, spells->snareSpell, true);
         }
         if (!orb->HasAura(spells->snareSpell))
         {
             return SpellHandlerOutcome<void>::Return();
         }
-        uint32 const now = getMSTime();
-        if (!Mage::OrbHitDue(now, uint32(*lastHit), uint32(ctx.value)))
+        uint32 const scan = uint32((*scans)++);
+        if (!Mage::OrbHitDue(scan, Mage::OrbCadenceFor(*spells)))
         {
             return SpellHandlerOutcome<void>::Return();
         }
@@ -113,7 +115,6 @@ namespace
         {
             return SpellHandlerOutcome<void>::Return();
         }
-        *lastHit = int32(now);
         orb->CastSpell(ctx.target, spells->hitSpell, true, NULL, NULL, summoner->GetObjectGuid());
         return SpellHandlerOutcome<void>::Return();
     }
@@ -288,9 +289,27 @@ Unit* Mage::ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& ca
     return closest;
 }
 
-bool Mage::OrbHitDue(uint32 nowMs, uint32 lastHitMs, uint32 intervalMs)
+Mage::OrbCadence Mage::OrbCadenceFor(OrbSpells const& spells)
 {
-    return lastHitMs == 0 || getMSTimeDiff(lastHitMs, nowMs) >= intervalMs;
+    OrbCadence cadence = { 0, 0 };
+    SpellEntry const* aura = sSpellStore.LookupEntry(spells.orbAura);
+    SpellEffectEntry const* tick = aura ? aura->GetSpellEffect(EFFECT_INDEX_0) : NULL;
+    SpellEntry const* scan = sSpellStore.LookupEntry(spells.scanSpell);
+    int32 const interval = scan ? scan->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
+    int32 const snare = GetSpellDuration(sSpellStore.LookupEntry(spells.snareSpell));
+    if (!tick || !tick->EffectAuraPeriod || interval <= 0 || snare <= 0)
+    {
+        return cadence;
+    }
+    uint32 const scansPerHit = uint32(interval) / tick->EffectAuraPeriod;
+    cadence.scansPerHit = scansPerHit ? scansPerHit : 1;
+    cadence.window = uint32(snare) / tick->EffectAuraPeriod;
+    return cadence;
+}
+
+bool Mage::OrbHitDue(uint32 scan, OrbCadence const& cadence)
+{
+    return cadence.scansPerHit && scan < cadence.window && scan % cadence.scansPerHit == 0;
 }
 
 uint32 Mage::OrbExplosionChance(uint32 talentSpell)
@@ -318,16 +337,14 @@ int32 Mage::OrbCostShare(uint32 procSpellId, Unit const& mage)
             continue;
         }
         SpellEntry const* cast = sSpellStore.LookupEntry(orb.castSpell);
-        SpellEntry const* scan = sSpellStore.LookupEntry(orb.scanSpell);
-        int32 const window = GetSpellDuration(sSpellStore.LookupEntry(orb.snareSpell));
-        int32 const interval = scan ? scan->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
-        int32 const hits = window > 0 && interval > 0 ? window / interval : 0;
-        if (!cast || hits <= 0)
+        OrbCadence const cadence = OrbCadenceFor(orb);
+        uint32 const hits = cadence.scansPerHit ? (cadence.window + cadence.scansPerHit - 1) / cadence.scansPerHit : 0;
+        if (!cast || !hits)
         {
             return 0;
         }
         int32 const cost = int32(cast->GetManaCost() + cast->GetManaCostPercentage() * mage.GetCreateMana() / 100);
-        return cost / hits;
+        return cost / int32(hits);
     }
     return 0;
 }
