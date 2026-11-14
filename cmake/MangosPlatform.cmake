@@ -55,7 +55,11 @@ if(MSVC)
         /wd4589 /wd4701 /wd4702 /wd4703 /wd4706 /wd4840 /wd4996
     )
 
-    add_compile_options($<$<CONFIG:Release>:/Zi>)
+    if(MSVC_DEBUG_IN_OBJECTS)
+        add_compile_options($<$<CONFIG:Release>:/Z7>)
+    else()
+        add_compile_options($<$<CONFIG:Release>:/Zi>)
+    endif()
     add_link_options($<$<CONFIG:Release>:/DEBUG>
                      $<$<CONFIG:Release>:/OPT:REF>
                      $<$<CONFIG:Release>:/OPT:ICF>)

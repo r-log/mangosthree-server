@@ -100,7 +100,9 @@ jobs:
 
       - name: Reset compiler cache statistics
         shell: bash
-        run: ccache --zero-stats > /dev/null
+        run: |
+          ccache --zero-stats > /dev/null
+          echo "RESTORED_CACHE_FILES=$(ccache --print-stats | awk -F'\t' '$1 == "files_in_cache" { print $2 }')" >> "$GITHUB_ENV"
 
       - name: Compute version
         id: version
@@ -129,8 +131,7 @@ jobs:
           $arguments = @(
             '-S', '.', '-B', $env:BUILD_DIR, '-G', 'Ninja',
             '-DCMAKE_BUILD_TYPE=Release',
-            '-DCMAKE_C_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Z7',
-            '-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Z7',
+            '-DMSVC_DEBUG_IN_OBJECTS=1',
             '-DCMAKE_EXE_LINKER_FLAGS_RELEASE=/DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF',
             '-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=/DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF',
             "-DCMAKE_INSTALL_PREFIX=$env:BUILD_DIR/install",
@@ -159,23 +160,40 @@ jobs:
         shell: bash
         env:
           EXACT_RESTORE: ${{ steps.ccache-restore.outputs.cache-hit }}
+          RESTORED_KEY: ${{ steps.ccache-restore.outputs.cache-matched-key }}
         run: |
           ccache --show-config | grep -iE 'cache_dir|max_size|sloppiness|compiler_check|direct_mode|depend_mode' || true
           ccache --show-stats --verbose
+          read -r hits misses other reasons < <(ccache --print-stats | awk -F'\t' '
+            $1 == "direct_cache_hit" || $1 == "preprocessed_cache_hit" { hits += $2; next }
+            $1 == "cache_miss" { misses += $2; next }
+            $1 ~ /^(direct|preprocessed)_cache_miss$|^(local|remote)_storage_|^(stats|max)_|^(cache_size_kibibyte|files_in_cache|cleanups_performed)$/ { next }
+            $2 > 0 { other += $2; reasons = reasons (reasons ? "," : "") $1 "=" $2 }
+            END { print hits + 0, misses + 0, other + 0, (reasons ? reasons : "none") }')
+          calls=$(( hits + misses + other ))
+          cacheable=$(( hits + misses ))
+          rate=0
+          if [ "$cacheable" -gt 0 ]; then rate=$(( hits * 100 / cacheable )); fi
+          if [ -z "$RESTORED_KEY" ]; then restore=none; floor=0
+          elif [ "${RESTORED_CACHE_FILES:-0}" -eq 0 ]; then restore=empty; floor=0
+          elif [ "$EXACT_RESTORE" = "true" ]; then restore=exact; floor=50
+          else restore=partial; floor=10; fi
+          line="ccache: $cacheable of $calls compiler calls cacheable, $hits hits, $misses misses (hit rate $rate%), $other not cacheable ($reasons); cache restore: $restore${RESTORED_KEY:+ of $RESTORED_KEY with ${RESTORED_CACHE_FILES:-0} files}"
+          echo "$line"
           {
             echo '### ccache (this build)'
+            echo "$line"
             echo '```'
             ccache --show-stats
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$EXACT_RESTORE" = "true" ]; then
-            direct=$(ccache --print-stats | awk -F'\t' '$1 == "direct_cache_hit" {print $2}')
-            pre=$(ccache --print-stats | awk -F'\t' '$1 == "preprocessed_cache_hit" {print $2}')
-            miss=$(ccache --print-stats | awk -F'\t' '$1 == "cache_miss" {print $2}')
-            total=$(( ${direct:-0} + ${pre:-0} + ${miss:-0} ))
-            if [ "$total" -gt 0 ] && [ $(( ${direct:-0} * 100 / total )) -lt 50 ]; then
-              echo "::warning::ccache direct-hit rate below 50% on an exact cache restore (direct=${direct:-0} preprocessed=${pre:-0} miss=${miss:-0}) -- the cache may be broken"
-            fi
+          if [ "$calls" -eq 0 ]; then
+            echo "::warning::ccache saw no compiler calls -- the compiler launcher is not in use"
+          elif [ $(( other * 100 / calls )) -gt 10 ]; then
+            echo "::warning::ccache could not cache $other of $calls compiler calls ($reasons) -- those compiles run cold on every build"
+          fi
+          if [ "$cacheable" -gt 0 ] && [ "$rate" -lt "$floor" ]; then
+            echo "::warning::ccache hit rate $rate% ($hits of $cacheable) is below $floor% after the $restore restore of $RESTORED_KEY -- the cache may be broken"
           fi
 
       - name: Save compiler cache
