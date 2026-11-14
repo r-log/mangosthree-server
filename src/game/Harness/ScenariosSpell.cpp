@@ -43,10 +43,13 @@
 #include "Pet.h"
 #include "HarnessAI.h"
 #include "WorldSession.h"
+#include "WorldPacket.h"
 #include "Map.h"
 #include "MapManager.h"
 #include "MapPhase.h"
 #include "session/handlers/entities/MovementHandlers.h"
+#include "session/handlers/spells/SpellHandlers.h"
+#include "session/packets/spells/CastTargetsPacket.h"
 
 #include <algorithm>
 #include <cmath>
@@ -626,6 +629,30 @@ namespace Harness
             spell->m_glyphIndex = 0;
             spell->SpellStart(&targets, NULL);
             return info->ID;
+        }
+
+        /**
+         * The cast as the 4.3.4 client sends it for a player casting at a unit (Spell_C.cpp, the CMSG_CAST_SPELL branch
+         * of the cast packet's writer, then SpellPutCastTargets in SpellCast.cpp): the cast count (uint8), the spell id
+         * (uint32), the glyph index (uint32, 0), the cast flags (uint8, 0), then the targets as WriteCastTargets writes
+         * them, here the unit target's mask and packed guid. The packet goes to the CAST_SPELL handler itself
+         * (SpellHandlers::HandleCastSpell), which reads it in that order and runs its own checks, the action-bar override
+         * swap among them, before it starts the spell. Returns the spell id sent.
+         */
+        uint32 CastAsClient(Player* p, uint32 spellId, Unit* target, uint8 castCount)
+        {
+            SpellCastTargets targets;
+            targets.setUnitTarget(target);
+            WorldPacket packet(CMSG_CAST_SPELL, 1 + 4 + 4 + 1 + 4 + 9);
+            packet << uint8(castCount);
+            packet << uint32(spellId);
+            packet << uint32(0);
+            packet << uint8(0);
+            WriteCastTargets(packet, targets);
+            m_rec.Note("the client's cast packet: cast count " + U(castCount) + ", spell " + U(spellId) +
+                       ", glyph index 0, cast flags 0, a unit target; handed to the cast handler");
+            SpellHandlers::HandleCastSpell(*SessionOf(*p), packet);
+            return spellId;
         }
 
 
@@ -3929,7 +3956,11 @@ namespace Harness
      *    cast to its read, where the word he had is put back; a cast that clears its cooldown first takes the spell's
      *    cooldown off him by call (Player::RemoveSpellCooldown), since the stepped clock never runs out a cooldown
      *    that ends on time(NULL); a cast the Camel strikes (CastStruckAt) has the Camel's swing at him the step's
-     *    `swingAtMs` after the cast starts, inside the cast's windows, his health set as for a swing first;
+     *    `swingAtMs` after the cast starts, inside the cast's windows, his health set as for a swing first. A cast
+     *    without the caster aura (`noCasterAura`) takes the scenario's caster aura off him by call instead of putting it
+     *    on; a cast as the client (`asClient`) is sent as the client's CMSG_CAST_SPELL to the CAST_SPELL handler itself
+     *    (CastAsClient), so the spell the server casts is the one the handler chooses, and the record reads the step's
+     *    cast from the packets that carry its cast count;
      *  - a self aura: the step's spell cast by him at himself, triggered, with nothing put on him first;
      *  - a swing: his health set to SwingHealth() by call (his maximum unless the scenario names one), then the Camel's
      *    melee swing at him (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
@@ -3961,7 +3992,8 @@ namespace Harness
      * Categories: `template`; `staged` the level, the free talent points against the level's, the primary tree, each
      * talent's rank spell known, the glyph slots, and for a scenario that stages glyphs or ratings each glyph's aura
      * and the two ratings with the haste and mastery they give; its text also names his cast-speed and cast-haste
-     * fields; `steps` each step as the record reads it (a cast's spell, `c` added when its damage log is a crit,
+     * fields; `steps` each step as the record reads it (a cast's spell, `>` and the spell the server cast when a cast
+     * as the client cast another, `c` added when its damage log is a crit,
      * `miss` when SPELL_GO lists the Camel as missed, `none` when no damage log came; an aura cast's spell, `miss`
      * added as for a cast; a swing's `hit` when his health fell, else `swing`; a blow's `blow`; a health step's
      * `full`; a Camel health step's `health` and its percent; a kill's `kill`; a removal's `dispel` or `remove`), a
@@ -4161,6 +4193,8 @@ namespace Harness
             uint32 swingAtMs = 0;               ///< a cast the Camel's swing strikes this long after it starts; 0 for none
             uint32 healthPct = 0;               ///< the Camel's health set to this percent of its maximum; 0 for no such step
             bool kill = false;                  ///< the mage deals the Camel its health as plain damage
+            bool noCasterAura = false;          ///< a cast that takes the scenario's caster aura off him instead of putting it on
+            bool asClient = false;              ///< a cast sent as the client's CMSG_CAST_SPELL to the cast handler (CastAsClient)
         };
         static Step Cast(uint32 spell, bool crit)
         {
@@ -4294,6 +4328,9 @@ namespace Harness
             uint32 wordBefore = 0;                      ///< a moving cast: his client's movement word before the step
             uint32 swingHealthBefore = 0, swingHealthAfter = 0;   ///< a cast the Camel strikes: his health around the swing
             std::map<std::string, int64> reads;         ///< what the scenario's own reads (ReadOwn) kept of the step
+            /// A cast as the client: the spell of the first SMSG_SPELL_START or SMSG_SPELL_GO of the step's cast count in
+            /// its windows, the spell the handler cast; 0 when neither came.
+            uint32 castSpell = 0;
         };
 
         struct St
@@ -4469,6 +4506,132 @@ namespace Harness
                 }
             }
             return amounts;
+        }
+
+        /// The damage logs of `spell` he dealt in step k's windows, in order: each one's amount, `c` added for a crit.
+        std::vector<std::string> HitAmounts(uint32 k, uint32 spell) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<std::string> hits;
+            const std::string hit = "hit self.hit." + U(spell) + "=";
+            const std::vector<std::string> windows = StepWindows(k);
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(windows[w], SMSG_SPELLNONMELEEDAMAGELOG);
+                for (size_t i = 0; i < logs.size(); ++i)
+                {
+                    if (logs[i]->payload.empty())
+                    {
+                        continue;
+                    }
+                    std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &logs[i]->payload[0],
+                                                                             logs[i]->payload.size(), roles);
+                    uint32 amount = 0, crit = 0;
+                    if (fields.size() == 1 && fields[0].compare(0, hit.size(), hit) == 0 &&
+                        sscanf(fields[0].c_str() + hit.size(), "%u/%u", &amount, &crit) == 2)
+                    {
+                        hits.push_back(U(amount) + (crit ? "c" : ""));
+                    }
+                }
+            }
+            return hits;
+        }
+
+        /// The cast count of an SMSG_SPELL_START or SMSG_SPELL_GO payload: the byte after the two packed guids its writer
+        /// puts first (BuildSpellStartPacket, BuildSpellGoPacket); -1 when the payload ends before it.
+        static int32 CastCountOf(std::vector<uint8> const& payload)
+        {
+            size_t pos = 0;
+            for (int guid = 0; guid < 2; ++guid)
+            {
+                if (pos >= payload.size())
+                {
+                    return -1;
+                }
+                const uint8 mask = payload[pos++];
+                for (int bit = 0; bit < 8; ++bit)
+                {
+                    pos += size_t((mask >> bit) & 1u);
+                }
+            }
+            return pos < payload.size() ? int32(payload[pos]) : -1;
+        }
+
+        /// What step k's windows hold of his cast with the step's cast count (k + 1): the spell of the first
+        /// SMSG_SPELL_START, its cast time and the window it came in, the spell of the first SMSG_SPELL_GO and its window,
+        /// and the spell and result of the first SMSG_CAST_FAILED; 0 and -1 where none came. A window is its index in
+        /// StepWindows(k), 0 being the step's own, which closes when the step's calls return.
+        struct CastPath
+        {
+            uint32 start = 0;
+            uint32 castTime = 0;
+            int32 startWindow = -1;
+            uint32 go = 0;
+            int32 goWindow = -1;
+            uint32 failed = 0;
+            int32 result = -1;
+        };
+        CastPath CastPathOf(uint32 k) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            CastPath path;
+            const std::vector<std::string> windows = StepWindows(k);
+            const uint16 casts[] = { uint16(SMSG_SPELL_START), uint16(SMSG_SPELL_GO) };
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                for (const uint16 opcode : casts)
+                {
+                    const bool go = opcode == SMSG_SPELL_GO;
+                    std::vector<Recorder::Seen const*> seen = m_rec.SeenIn(windows[w], opcode);
+                    for (size_t i = 0; i < seen.size(); ++i)
+                    {
+                        std::string text;
+                        uint32 spell = 0;
+                        if (seen[i]->payload.empty() || CastCountOf(seen[i]->payload) != int32(k + 1) ||
+                            !Trace::DecodeSpellCast(go, &seen[i]->payload[0], seen[i]->payload.size(), roles, text) ||
+                            sscanf(text.c_str(), "spell=%u", &spell) != 1)
+                        {
+                            continue;
+                        }
+                        if (go && !path.go)
+                        {
+                            path.go = spell;
+                            path.goWindow = int32(w);
+                        }
+                        else if (!go && !path.start)
+                        {
+                            path.start = spell;
+                            path.startWindow = int32(w);
+                            const size_t at = text.find(" casttime=");
+                            if (at != std::string::npos)
+                            {
+                                sscanf(text.c_str() + at, " casttime=%u", &path.castTime);
+                            }
+                        }
+                    }
+                }
+                std::vector<Recorder::Seen const*> failures = m_rec.SeenIn(windows[w], SMSG_CAST_FAILED);
+                for (size_t i = 0; i < failures.size() && !path.failed; ++i)
+                {
+                    std::string text;
+                    uint32 spell = 0, result = 0;
+                    if (!failures[i]->payload.empty() && uint32(failures[i]->payload[0]) == k + 1 &&
+                        Trace::DecodeCastFailed(&failures[i]->payload[0], failures[i]->payload.size(), text) &&
+                        sscanf(text.c_str(), "spell=%u result=%u", &spell, &result) == 2)
+                    {
+                        path.failed = spell;
+                        path.result = int32(result);
+                    }
+                }
+            }
+            return path;
+        }
+
+        /// The spell step k cast as the record reads it: for a cast as the client, the spell the handler cast when its
+        /// packets came; the step's spell otherwise.
+        static uint32 CastSpellOf(Step const& step, Seen const& seen)
+        {
+            return step.asClient && seen.castSpell ? seen.castSpell : step.spell;
         }
 
         /// Whether `amount` lies in [low, high], one point either side allowed for the float product of the percent
@@ -4729,7 +4892,13 @@ namespace Harness
             {
                 if (const uint32 casterAura = CasterAura())
                 {
-                    if (!p->HasAura(casterAura))
+                    if (step.noCasterAura)
+                    {
+                        const bool held = p->HasAura(casterAura);
+                        p->RemoveAurasDueToSpell(casterAura);
+                        m_rec.Note("his " + U(casterAura) + " taken off by call (" + (held ? "he held it" : "he did not hold it") + ")");
+                    }
+                    else if (!p->HasAura(casterAura))
                     {
                         p->CastSpell(p, casterAura, true);
                     }
@@ -4769,7 +4938,7 @@ namespace Harness
                     m_rec.Note(std::string("his client's movement word forward: ") + (p->isMoving() ? "moving" : "not moving"));
                 }
                 const std::vector<std::pair<uint32, SpellAuraHolder*> > held = HoldOtherTargets(st, k, p);
-                seen.castId = CastAsHandler(p, step.spell, target, uint8(k + 1));
+                seen.castId = step.asClient ? CastAsClient(p, step.spell, target, uint8(k + 1)) : CastAsHandler(p, step.spell, target, uint8(k + 1));
                 seen.removed = ReleaseOtherTargets(held, step.spell);
             }
             ReadOwn(st, k, false, p, target);
@@ -4869,6 +5038,12 @@ namespace Harness
                 Step const& step = st.steps[k];
                 Seen& seen = st.seen[k];
                 const Trace::Roles roles = RolesAt(st, step.target);
+                if (step.asClient)
+                {
+                    const CastPath path = CastPathOf(k);
+                    seen.castSpell = path.start ? path.start : path.go;
+                }
+                const uint32 own = CastSpellOf(step, seen);
                 const std::string base = "step" + U(k + 1);
                 const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
                 for (const char* suffix : suffixes)
@@ -4884,7 +5059,7 @@ namespace Harness
                         {
                             continue;
                         }
-                        if (IsCast(step) && spell == step.spell)
+                        if (IsCast(step) && spell == own)
                         {
                             seen.missed = seen.missed || go.find(" hit=[] miss=[target:") != std::string::npos;
                         }
@@ -4905,7 +5080,7 @@ namespace Harness
                         uint32 spell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
                         if (fields.size() == 1 &&
                             sscanf(fields[0].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted) == 5 &&
-                            spell == step.spell && !seen.logRead)
+                            spell == own && !seen.logRead)
                         {
                             seen.logRead = true;
                             seen.crit = crit != 0;
@@ -5031,6 +5206,8 @@ namespace Harness
             {
                 Step const& step = st.steps[k];
                 Seen const& seen = st.seen[k];
+                const uint32 cast = CastSpellOf(step, seen);
+                const std::string spellText = U(step.spell) + (cast != step.spell ? ">" + U(cast) : std::string());
                 std::string value;
                 if (!seen.ran || seen.refused || !seen.read)
                 {
@@ -5062,15 +5239,15 @@ namespace Harness
                 }
                 else if (step.aura)
                 {
-                    value = U(step.spell) + (seen.missed ? "miss" : "") + (TargetCount() > 1 ? "@" + U(step.target + 1) : std::string());
+                    value = spellText + (seen.missed ? "miss" : "") + (TargetCount() > 1 ? "@" + U(step.target + 1) : std::string());
                 }
                 else if (seen.logRead)
                 {
-                    value = U(step.spell) + (seen.crit ? "c" : "");
+                    value = spellText + (seen.crit ? "c" : "");
                 }
                 else
                 {
-                    value = U(step.spell) + (seen.missed ? "miss" : "none");
+                    value = spellText + (seen.missed ? "miss" : "none");
                 }
                 const bool castBug = step.aura ? seen.missed : step.refusal ? false : (!seen.logRead || seen.crit != step.crit);
                 const bool bug = !seen.ran || seen.refused || !seen.read || (IsCast(step) && castBug);
