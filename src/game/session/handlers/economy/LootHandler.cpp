@@ -135,42 +135,11 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
             return;
         }
 
-        /* Checking if the loot is prospecting or milling loot, if it is, it will clear the loot, then it
-         * will check if the count is greater than 5, if it is, it will set the count to 5, then it
-         * will destroy the item.
-         */
-        if (pItem->loot.loot_type == LOOT_PROSPECTING || pItem->loot.loot_type == LOOT_MILLING)
+        /* Destroying the item, unless it holds disenchanting loot that is not all taken. */
+        if (pItem->loot.isLooted() || pItem->loot.loot_type != LOOT_DISENCHANTING)
         {
-            /* Clearing the loot vector of the item. */
-            pItem->loot.clear();
-
-            uint32 count = pItem->GetCount();
-            if (count > 5)
-            {
-                count = 5;
-            }
-
-            /* Destroying the item count. */
-            player->DestroyItemCount(pItem, count, true);
-        }
-        else if (pItem->loot.loot_type == LOOT_DISENCHANTING)
-        {
-            /* Storing what is left of the disenchanting loot in the bags, then destroying the item. */
-            if (!pItem->loot.isLooted())
-            {
-                player->AutoStoreLoot(pItem->loot);
-            }
-
+            /* Destroying the item in the player's inventory. */
             player->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
-        }
-        else
-        {
-            /* Checking if the item is looted or not. If it is looted, it will destroy the item. */
-            if (pItem->loot.isLooted())
-            {
-                /* Destroying the item in the player's inventory. */
-                player->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
-            }
         }
         return; // item can be looted only single player
     }
