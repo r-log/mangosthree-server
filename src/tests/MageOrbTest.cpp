@@ -23,12 +23,13 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the mage's orb (spells/classes/mage/Orb.cpp): its table row, the creature it names, the cadence of its hits,
-/// the chance of its explosion, the cost share its hits refund through Master of Elements, the enemy its scan keeps,
-/// its rows at the dummy-effect and target hooks with its creature AI's factory, and the script words a script reads of
-/// a unit's holder (SpellScriptQueries). The spells the leaves read are put into the spell stores as the client's data
-/// holds them, once for the rest of the run; no other test reads them. The units are bare creatures (update fields
-/// allocated; no map, template or AI) placed in map 0's world frame.
+/// Tests of the mage's orb (spells/classes/mage/Orb.cpp): its table row, the creature it names, the cadence of its hits
+/// in scans, the chance of its explosion, the cost share its hits refund through Master of Elements, the units an orb
+/// owned by its mage takes, the enemy its scan keeps, its rows at the dummy-effect and target hooks with its creature
+/// AI's factory, and the script words a script reads of a unit's holder (SpellScriptQueries). The spells and faction
+/// templates the leaves read are put into the stores as the client's data holds them, once for the rest of the run; no
+/// other test reads them. The units are bare creatures (update fields allocated; no map, template or AI) placed in map
+/// 0's world frame.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -104,17 +105,20 @@ namespace
     const uint32 kFirePowerOptions = 94304;     // the first of 18459's, 18460's and 54734's SpellAuraOptions rows
 
     // The spells the orb's leaves read, as the client's data holds them: Flame Orb 82731 (6% of base mana, a dummy
-    // effect on the caster), the scan 82734 (a dummy effect of 1000), the snare 82736 (15000 ms), the three ranks of
-    // Fire Power 18459, 18460 and 54734 (proc chance 33, 66 and 100), and Polymorph 118 (a mage spell of class mask A
-    // 0x1000000 whose effect 0 confuses), the transform IsPolymorphed asks for.
+    // effect on the caster), the orb's own aura 82690 (a trigger of the scan every 500 ms), the scan 82734 (a dummy
+    // effect of 1000), the snare 82736 (15000 ms), the three ranks of Fire Power 18459, 18460 and 54734 (proc chance
+    // 33, 66 and 100), and Polymorph 118 (a mage spell of class mask A 0x1000000 whose effect 0 confuses), the
+    // transform IsPolymorphed asks for; and the faction templates 1 (the human player's) and 7 (the Camel's and the
+    // training dummy's) as FactionTemplate.dbc holds them.
     void StoreOrbSpells()
     {
-        static ServerSpell flameOrb, scan, snare, polymorph;
+        static ServerSpell flameOrb, orbAura, scan, snare, polymorph;
         static ServerSpell firePower[3];
         static SpellPowerEntry power;
         static SpellDurationEntry duration;
         static SpellClassOptionsEntry polymorphOptions;
         static SpellAuraOptionsEntry firePowerOptions[3];
+        static FactionTemplateEntry human, creature;
         static bool stored = false;
         if (stored)
         {
@@ -134,6 +138,17 @@ namespace
         flameOrb.effect.ImplicitTarget_0 = TARGET_SELF;
         sSpellStore.SetEntry(82731, &flameOrb.Entry());
         AddSpellEffectEntry(&flameOrb.effect);
+
+        orbAura.Entry().ID = 82690;
+        orbAura.effect.SpellID = 82690;
+        orbAura.effect.EffectIndex = EFFECT_INDEX_0;
+        orbAura.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        orbAura.effect.EffectAura = SPELL_AURA_PERIODIC_TRIGGER_SPELL;
+        orbAura.effect.EffectAuraPeriod = 500;
+        orbAura.effect.EffectTriggerSpell = 82734;
+        orbAura.effect.ImplicitTarget_0 = TARGET_SELF;
+        sSpellStore.SetEntry(82690, &orbAura.Entry());
+        AddSpellEffectEntry(&orbAura.effect);
 
         scan.Entry().ID = 82734;
         scan.effect.SpellID = 82734;
@@ -185,6 +200,19 @@ namespace
         polymorph.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
         sSpellStore.SetEntry(118, &polymorph.Entry());
         AddSpellEffectEntry(&polymorph.effect);
+
+        human = FactionTemplateEntry();
+        human.ID = 1;
+        human.Faction = 1;
+        human.Flags = 72;
+        human.FactionGroup = 3;
+        human.FriendGroup = 2;
+        human.EnemyGroup = 12;
+        sFactionTemplateStore.SetEntry(1, &human);
+        creature = FactionTemplateEntry();
+        creature.ID = 7;
+        creature.Faction = 7;
+        sFactionTemplateStore.SetEntry(7, &creature);
     }
 }
 
@@ -220,18 +248,52 @@ TEST(MageOrb_TheRowNamesTheSpellsAndTheCreatureOfFlameOrb)
     }
 }
 
-TEST(MageOrb_AHitIsDueOncePerTheIntervalAfterTheLast)
+TEST(MageOrb_TheCadenceIsTheScanValueAndTheSnareOverTheAurasPeriod)
 {
-    // Never hit yet: due at once.
-    CHECK(Mage::OrbHitDue(5000, 0, 1000));
-    // Half an interval after the last hit: not due; a whole interval or more: due.
-    CHECK(!Mage::OrbHitDue(5000, 4500, 1000));
-    CHECK(!Mage::OrbHitDue(5000, 4001, 1000));
-    CHECK(Mage::OrbHitDue(5000, 4000, 1000));
-    CHECK(Mage::OrbHitDue(5000, 3999, 1000));
-    // Across the millisecond clock's wrap.
-    CHECK(Mage::OrbHitDue(500, 0xFFFFFF00u, 1000) == false);
-    CHECK(Mage::OrbHitDue(1200, 0xFFFFFF00u, 1000));
+    StoreOrbSpells();
+    Mage::OrbSpells const* orb = Mage::OrbSpellsFor(82731);
+    REQUIRE(orb != NULL);
+
+    // 1000 ms over 500 ms: a hit on every second scan; 15000 ms over 500 ms: 30 scans of snare.
+    Mage::OrbCadence const cadence = Mage::OrbCadenceFor(*orb);
+    CHECK_EQ(cadence.scansPerHit, uint32(2));
+    CHECK_EQ(cadence.window, uint32(30));
+
+    // A row whose spells the store lacks has no cadence.
+    Mage::OrbSpells unknown = *orb;
+    unknown.orbAura = 94399;
+    Mage::OrbCadence const none = Mage::OrbCadenceFor(unknown);
+    CHECK_EQ(none.scansPerHit, uint32(0));
+    CHECK_EQ(none.window, uint32(0));
+}
+
+TEST(MageOrb_AHitIsDueOnEverySecondScanFromTheFirstFindForTheSnaresScans)
+{
+    Mage::OrbCadence const cadence = { 2, 30 };
+
+    // The first find and every second scan after it: scans 0, 2, ..., 28, fifteen hits.
+    uint32 hits = 0;
+    for (uint32 scan = 0; scan < 40; ++scan)
+    {
+        if (Mage::OrbHitDue(scan, cadence))
+        {
+            CHECK_EQ(scan % 2, uint32(0));
+            ++hits;
+        }
+    }
+    CHECK_EQ(hits, uint32(15));
+    CHECK(Mage::OrbHitDue(0, cadence));
+    CHECK(!Mage::OrbHitDue(1, cadence));
+    CHECK(Mage::OrbHitDue(28, cadence));
+    CHECK(!Mage::OrbHitDue(29, cadence));
+
+    // Past the snare's scans nothing is due, even on an even scan.
+    CHECK(!Mage::OrbHitDue(30, cadence));
+    CHECK(!Mage::OrbHitDue(32, cadence));
+
+    // No cadence, no hit.
+    Mage::OrbCadence const none = { 0, 0 };
+    CHECK(!Mage::OrbHitDue(0, none));
 }
 
 TEST(MageOrb_TheExplosionsChanceIsTheFirePowerRanksProcChance)
@@ -299,6 +361,28 @@ TEST(MageOrb_TheScanKeepsTheClosestEnemyTheOrbMayStrike)
 
     // No candidates, no target.
     CHECK(Mage::ClosestOrbTarget(orb, std::list<Unit*>()) == NULL);
+}
+
+TEST(MageOrb_AnOrbOwnedByItsMageTakesTheUnitsHeMayAttack)
+{
+    // The area fill keeps, for a player-controlled caster, every unit not friendly to it, and for any other caster only
+    // the units it is hostile to. An orb of a human mage's faction (1) is neither hostile nor friendly to a Camel or a
+    // training dummy (7).
+    StoreOrbSpells();
+    OrbTestCreature orb;
+    OrbTestCreature camel;
+    orb.setFaction(1);
+    camel.setFaction(7);
+    CHECK(!orb.IsHostileTo(&camel));
+    CHECK(!orb.IsFriendlyTo(&camel));
+
+    // With no owner the orb is no player's, so its scan would keep nothing of the Camel's faction.
+    CHECK(!orb.IsControlledByPlayer());
+
+    // Owned by its mage (a player guid), it is his, so its scan keeps the Camel, which is not friendly to it.
+    orb.SetOwnerGuid(ObjectGuid(HIGHGUID_PLAYER, uint32(4711)));
+    CHECK(orb.IsControlledByPlayer());
+    CHECK(!orb.IsFriendlyTo(&camel));
 }
 
 TEST(MageOrb_TheScansTargetHookCutsTheListToTheClosest)
