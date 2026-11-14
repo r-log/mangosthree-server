@@ -4934,9 +4934,10 @@ namespace Harness
      * calls, one every CastEveryMs(), each read kReadAfterMs after it. Before each cast his power is set to its maximum
      * and the spell's cooldown taken off him by call (a cooldown ends on the wall clock, which the stepped clock does
      * not move), and for a spell that asks for a wounded target the Camel's health is set to TargetHealthPct() percent
-     * of its maximum, as it is once at the staging, before the map update that sets its health aura states. A cast is not made when a holder on either unit that a proc can reach is not one the guard
-     * fingerprinted. Each cast's rolls are drawn in map updates under the map hook's
-     * RNG::Seed(TickSeed(base, order, elapsed)), so every run draws the same ones.
+     * of its maximum, as it is once at the staging, before the map update that sets its health aura states. A cast is
+     * not made when a holder on either unit that a proc can reach is not one the guard fingerprinted. Each cast's rolls
+     * are drawn in map updates under the map hook's RNG::Seed(TickSeed(base, order, elapsed)), so every run draws the
+     * same ones.
      *
      * Categories: `template`; `staged` his level, his melee and ranged attack power with the part the plan added to
      * each, the spell power of the damaging spell's school, his physical damage-done field (the flat physical
