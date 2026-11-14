@@ -165,10 +165,7 @@ void Totem::Summon(Unit* owner)
             CastSpell(this, GetSpell(), true);
             break;
         case TOTEM_STATUE:
-            if (Unit* owner = GetOwner())
-            {
-                CastSpell(owner, GetSpell(), true);
-            }
+            CastSpell(owner, GetSpell(), true);
             break;
         default: break;
     }
