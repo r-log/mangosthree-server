@@ -170,6 +170,18 @@ namespace Combat
      * @return `coefficient` times `attackPower`, truncated to int32 as the done total is.
      */
     int32 AttackPowerBonus(float coefficient, float attackPower);
+
+    /**
+     * @brief The spell power a player's hit or tick takes its coefficient share of, by the spell's school.
+     *
+     * @param schoolMask The spell's school mask.
+     * @param schoolSpellPower The spell power of the school mask (Unit::SpellBaseDamageBonusDone).
+     * @param physicalDamageDone The flat physical damage-done auras alone.
+     * @return `physicalDamageDone` for the physical school alone, `schoolSpellPower` for a mask without the physical
+     *         school, and the larger of the two for a mask holding both, as the client takes the largest damage-done
+     *         field over the mask's schools.
+     */
+    int32 SpellPowerBenefit(uint32 schoolMask, int32 schoolSpellPower, int32 physicalDamageDone);
 }
 
 #endif // MANGOSSERVER_COMBAT_SPELLBONUS_H
