@@ -335,7 +335,7 @@ struct is_stratholme : public InstanceScript
                                     fX = randSpot4.x;
                                     fY = randSpot4.y;
                                     fZ = randSpot4.z;
-                                    if (Creature* pTemp = pBaron->SummonCreature(NPC_BLACK_GUARD, aStratholmeLocation[6].m_fX, aStratholmeLocation[6].m_fY, aStratholmeLocation[6].m_fZ, aStratholmeLocation[6].m_fO, TEMPSPAWN_DEAD_DESPAWN, 0))
+                                    if (Creature* pTemp = pBaron->SummonCreature(NPC_BLACK_GUARD, fX, fY, fZ, aStratholmeLocation[6].m_fO, TEMPSPAWN_DEAD_DESPAWN, 0))
                                     {
                                         m_luiGuardGUIDs.push_back(pTemp->GetObjectGuid());
                                     }

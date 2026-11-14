@@ -166,7 +166,7 @@ struct boss_muru : public CreatureScript
                     // Cast the Entropius spawn effect and force despawn
                     pSummoned->CastSpell(pSummoned, SPELL_ENTROPIUS_SPAWN, true);
                     m_creature->ForcedDespawn(1000);
-                    // no break here; All other summons should behave the same way
+                    [[fallthrough]];
                 default:
                     pSummoned->AI()->AttackStart(m_creature->getVictim());
                     break;

@@ -1872,7 +1872,7 @@ struct npc_highlord_darion_mograine : public CreatureScript
             {
                 case NPC_VOLATILE_GHOUL:
                     pSummoned->CastSpell(pSummoned, SPELL_BIRTH, true);
-                    // no break;
+                    [[fallthrough]];
                 case NPC_WARRIOR_OF_THE_FROZEN_WASTES:
                     m_lAttackersGUIDs.push_back(pSummoned->GetObjectGuid());
                     // make the scourge attack only during the battle
@@ -2318,6 +2318,7 @@ struct npc_highlord_darion_mograine : public CreatureScript
                                 break;
                             case 3:
                                 DoScriptText(EMOTE_LIGHT_OF_DAWN_ARMY_RISE, m_creature);
+                                [[fallthrough]];
                             case 4:
                             case 5:
                             {

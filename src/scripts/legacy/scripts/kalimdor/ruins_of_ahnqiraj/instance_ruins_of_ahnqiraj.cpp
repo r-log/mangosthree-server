@@ -97,6 +97,7 @@ struct is_ruins_of_ahnqiraj : public InstanceScript
                         {
                             break;
                         }
+                        [[fallthrough]];
                     case NPC_BURU:
                     case NPC_OSSIRIAN:
                     case NPC_RAJAXX:
@@ -116,7 +117,7 @@ struct is_ruins_of_ahnqiraj : public InstanceScript
                 }
             }
 
-            void OnPlayerEnter(Player* pPlayer) override
+            void OnPlayerEnter([[maybe_unused]] Player* pPlayer) override
             {
                 // Spawn andorov if necessary
                 if (m_auiEncounter[TYPE_KURINNAXX] == DONE)
@@ -169,7 +170,7 @@ struct is_ruins_of_ahnqiraj : public InstanceScript
                     case NPC_RAJAXX:
                         // Rajaxx yells on evade
                         DoScriptText(SAY_DEAGGRO, pCreature);
-                        // no break;
+                        [[fallthrough]];
                     case NPC_COLONEL_ZERRAN:
                     case NPC_MAJOR_PAKKON:
                     case NPC_MAJOR_YEGGETH:

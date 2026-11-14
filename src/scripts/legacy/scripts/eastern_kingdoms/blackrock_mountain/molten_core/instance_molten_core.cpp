@@ -164,7 +164,7 @@ struct is_molten_core : public InstanceScript
                                     break;
                             }
                         }
-                        // no break here!
+                        [[fallthrough]];
                         // Majordomo event chest
                     case GO_CACHE_OF_THE_FIRE_LORD:
                         // Ragnaros GOs
@@ -186,7 +186,7 @@ struct is_molten_core : public InstanceScript
                             {
                                 case DONE:
                                     pGo->SetLootState(GO_JUST_DEACTIVATED); //TODO fix GameObject::Use for traps
-                                    // no break here!
+                                    [[fallthrough]];
                                 case NOT_STARTED:
                                     pGo->SetGoState(GO_STATE_ACTIVE);
                                 default:
@@ -198,7 +198,7 @@ struct is_molten_core : public InstanceScript
                 }
             }
 
-            void OnPlayerEnter(Player* pPlayer) override
+            void OnPlayerEnter([[maybe_unused]] Player* pPlayer) override
             {
                 // Summon Majordomo if can
                 DoSpawnMajordomoIfCan(true);
@@ -214,7 +214,7 @@ struct is_molten_core : public InstanceScript
                         {
                             DoRespawnGameObject(GO_CACHE_OF_THE_FIRE_LORD, HOUR);
                         }
-                        // no break here!
+                        [[fallthrough]];
                     case TYPE_LUCIFRON:
                     case TYPE_MAGMADAR:
                     case TYPE_GEHENNAS:

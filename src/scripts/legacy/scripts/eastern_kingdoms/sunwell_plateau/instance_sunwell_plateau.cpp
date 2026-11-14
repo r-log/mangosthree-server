@@ -70,7 +70,6 @@ struct is_sunwell_plateau : public InstanceScript
         public:
             instance_sunwell_plateau(Map* pMap) : ScriptedInstance(pMap), DialogueHelper(aFelmystOutroDialogue),
                 m_uiDeceiversKilled(0),
-                m_uiSpectralRealmTimer(5000),
                 m_uiKalecRespawnTimer(0),
                 m_uiMuruBerserkTimer(0),
                 m_uiKiljaedenYellTimer(90000),
@@ -614,7 +613,6 @@ struct is_sunwell_plateau : public InstanceScript
 
             // Misc
             uint8 m_uiDeceiversKilled;
-            uint32 m_uiSpectralRealmTimer;
             uint32 m_uiKalecRespawnTimer;
             uint32 m_uiMuruBerserkTimer;
             uint32 m_uiKiljaedenYellTimer;

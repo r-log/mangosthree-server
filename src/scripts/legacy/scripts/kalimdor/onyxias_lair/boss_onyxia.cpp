@@ -369,7 +369,7 @@ struct boss_onyxia : public CreatureScript
                     {
                         m_uiBellowingRoarTimer -= uiDiff;
                     }
-                    // no break, phase 3 will use same abilities as in 1
+                    [[fallthrough]];
                 case PHASE_START:
                 {
                     if (m_uiFlameBreathTimer < uiDiff)
@@ -562,7 +562,7 @@ struct boss_onyxia : public CreatureScript
                 }
                 case PHASE_BREATH_PRE:                          // Summon first rounds of whelps
                     DidSummonWhelps(uiDiff);
-                    // no break here
+                    [[fallthrough]];
                 default:                                        // Phase-switching phases
                     if (!m_uiPhaseTimer)
                     {

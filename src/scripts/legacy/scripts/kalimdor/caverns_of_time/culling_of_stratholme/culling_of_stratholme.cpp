@@ -429,7 +429,7 @@ struct npc_arthas : public CreatureScript
             }
         }
 
-        void ReceiveAIEvent(AIEventType eventType, Creature* pSender, Unit* pInvoker, uint32 uiMiscValue) override
+        void ReceiveAIEvent(AIEventType eventType, Creature* pSender, Unit* pInvoker, uint32 /*uiMiscValue*/) override
         {
             // on Malganis encounter finished -> evade
             if (pSender->GetEntry() == NPC_MALGANIS && eventType == AI_EVENT_CUSTOM_EVENTAI_B)
@@ -520,7 +520,7 @@ struct npc_arthas : public CreatureScript
                 case NPC_INFINITE_AGENT:
                 case NPC_INFINITE_HUNTER:
                     pSummoned->AI()->AttackStart(m_creature);
-                    // no break;
+                    [[fallthrough]];
                 case NPC_TOWNHALL_CITIZEN:
                 case NPC_TOWNHALL_RESIDENT:
                     m_lSummonedGuidsList.push_back(pSummoned->GetObjectGuid());

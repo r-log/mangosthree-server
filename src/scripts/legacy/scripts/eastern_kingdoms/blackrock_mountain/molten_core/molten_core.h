@@ -111,7 +111,7 @@ struct sSpawnLocation
     float m_fX, m_fY, m_fZ, m_fO;
 };
 
-static sSpawnLocation m_aMajordomoLocations[2] =
+static const sSpawnLocation m_aMajordomoLocations[2] =
 {
     {NPC_MAJORDOMO, 758.089f, -1176.71f, -118.640f, 3.12414f},  // Summon fight position
     {NPC_MAJORDOMO, 847.103f, -816.153f, -229.775f, 4.344f} // Summon and teleport location (near Ragnaros)

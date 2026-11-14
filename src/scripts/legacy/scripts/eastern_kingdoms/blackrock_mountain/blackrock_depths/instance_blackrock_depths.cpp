@@ -47,19 +47,19 @@ struct is_blackrock_depths : public InstanceScript
 };
 
 instance_blackrock_depths::instance_blackrock_depths(Map* pMap) : ScriptedInstance(pMap),
+    m_bIsBarDoorOpen(false),
     m_uiBarAleCount(0),
-    m_uiBrokenKegs(0),
-    m_uiCofferDoorsOpened(0),
-    m_uiDwarfRound(0),
-    m_uiDwarfFightTimer(0),
     m_uiPatronEmoteTimer(2000),
+    m_uiBrokenKegs(0),
     m_uiPatrolTimer(0),
     m_uiStolenAles(0),
     m_uiDagranTimer(0),
+    m_uiCofferDoorsOpened(0),
+    m_uiDwarfFightTimer(0),
+    m_uiDwarfRound(0),
     m_fArenaCenterX(0.0f),
     m_fArenaCenterY(0.0f),
-    m_fArenaCenterZ(0.0f),
-    m_bIsBarDoorOpen(false)
+    m_fArenaCenterZ(0.0f)
 {
     Initialize();
 }
@@ -104,6 +104,7 @@ void instance_blackrock_depths::OnCreatureCreate(Creature* pCreature)
             // Golems in Relict Vault need to have a stoned aura, set manually to prevent reapply when reached home
             pCreature->CastSpell(pCreature, SPELL_STONED, true);
             // Store the Relict Vault Golems into m_sVaultNpcGuids
+            [[fallthrough]];
         case NPC_WATCHER_DOOMGRIP:
             m_sVaultNpcGuids.insert(pCreature->GetObjectGuid());
             break;
@@ -479,7 +480,7 @@ void instance_blackrock_depths::SetData(uint32 uiType, uint32 uiData)
             m_auiEncounter[6] = uiData;
             return;
         case TYPE_SIGNAL:
-            if (AreaTriggerEntry const *at = sAreaTriggerStore.LookupEntry(uiData))
+            if (sAreaTriggerStore.LookupEntry(uiData))
             {
                 m_uiArenaCenterAT = uiData;
             }
@@ -546,7 +547,7 @@ void instance_blackrock_depths::SetData(uint32 uiType, uint32 uiData)
         case TYPE_PLUGGER:
             if (uiData == SPECIAL)
             {
-                if (Creature* pPlugger = GetSingleCreatureFromStorage(NPC_PLUGGER_SPAZZRING))
+                if (GetSingleCreatureFromStorage(NPC_PLUGGER_SPAZZRING))
                 {
                     ++m_uiStolenAles;
                     if (m_uiStolenAles == 3)
@@ -769,8 +770,8 @@ void instance_blackrock_depths::HandleBarPatrol(uint8 uiStep)
                 }
                 // start timer to handle the yells
                 m_uiPatrolTimer = 4000;
-                break;
             }
+            break;
         case 1:
             for (GuidSet::const_iterator itr = m_sBarPatrolGuids.begin(); itr != m_sBarPatrolGuids.end(); ++itr)
             {

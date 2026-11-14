@@ -136,7 +136,7 @@ struct is_shadowfang_keep : public InstanceScript
                     case NPC_HUMMEL:
                         pCreature->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
                         DoScriptText(SAY_HUMMEL_DEATH, pCreature);
-                        // no break;
+                        [[fallthrough]];
                     case NPC_FRYE:
                     case NPC_BAXTER:
                         SetData(TYPE_APOTHECARY, SPECIAL);
