@@ -61,6 +61,7 @@
 #include "data/Language.h"
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/pipeline/SpellRules.h"
+#include "spells/SpellScriptHooks.h"
 #include "GridMap.h"
 
 #define NULL_AURA_SLOT 0xFF
@@ -76,6 +77,13 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
     Unit* target = GetTarget();
 
     SpellClassOptionsEntry const* classOptions = GetSpellProto()->GetSpellClassOptions();
+
+    DummyAuraContext scriptCtx(*target, GetCaster(), *GetSpellProto(), GetEffIndex(), AuraHandle(*GetHolder()), apply,
+                               m_removeMode, m_modifier.m_amount, this);
+    if (SpellHandlerRegistry::Game().Dispatch<DummyAuraHook>(GetId(), scriptCtx).IsReturn())
+    {
+        return;
+    }
 
     // AT APPLY
     if (apply)
@@ -170,17 +178,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         AuraDummyRemoveContext ctx(this, target);
         if (SpellHandlerRegistry::Game().Dispatch<AuraDummyRemoveSite>(GetId(), ctx).IsReturn())
         {
-            return;
-        }
-
-        // Living Bomb
-        if (classOptions && classOptions->SpellClassSet == SPELLFAMILY_MAGE && (classOptions->SpellClassMask & UI64LIT(0x2000000000000)))
-        {
-            if (m_removeMode == AURA_REMOVE_BY_EXPIRE || m_removeMode == AURA_REMOVE_BY_DISPEL)
-            {
-                target->CastSpell(target, m_modifier.m_amount, true, NULL, this);
-            }
-
             return;
         }
     }

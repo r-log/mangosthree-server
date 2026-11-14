@@ -24,7 +24,7 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the aura handle's reads,
-/// RegisterRanks, the holder's script words and the game table, whose only hook rows are the mage's proc scripts.
+/// RegisterRanks, the holder's script words and the game table, whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -153,15 +153,15 @@ namespace
     }
 }
 
-TEST(SpellScriptHooks_TheThirteenKeysAre100To112AboveEveryLegacySite)
+TEST(SpellScriptHooks_TheFourteenKeysAre100To113AboveEveryLegacySite)
 {
     uint32 const keys[] =
     {
         CheckCastHook::Key, SelectTargetsHook::Key, EffectValueHook::Key, DummyEffectHook::Key, AfterHitHook::Key,
         AuraAmountHook::Key, AuraApplyHook::Key, AuraRemoveHook::Key, PeriodicTickHook::Key, CheckProcHook::Key,
-        OnProcHook::Key, DamageDoneHook::Key, CritChanceHook::Key,
+        OnProcHook::Key, DamageDoneHook::Key, CritChanceHook::Key, DummyAuraHook::Key,
     };
-    CHECK_EQ(sizeof(keys) / sizeof(keys[0]), std::size_t(13));
+    CHECK_EQ(sizeof(keys) / sizeof(keys[0]), std::size_t(14));
     for (std::size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
     {
         CHECK_EQ(keys[i], uint32(100 + i));
@@ -170,15 +170,15 @@ TEST(SpellScriptHooks_TheThirteenKeysAre100To112AboveEveryLegacySite)
     }
 
     // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
-    // proc and damage-done hooks.
+    // proc, damage-done and dummy aura hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
     {
         belowHooks += game.CountAt(site);
     }
-    CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key),
-             game.Count());
+    CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key) +
+             game.CountAt(DummyAuraHook::Key), game.Count());
 }
 
 TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
@@ -359,6 +359,37 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     CHECK_EQ(s_seen.triggerAmount, 13);
     CHECK_EQ(s_seen.cooldown, uint32(6));
     CHECK(registry.Dispatch<OnProcHook>(kOtherSpell, onProc).IsMiss());
+
+    // The dummy aura body doubles the amount and sets its effect's script word at the apply and goes on; at the
+    // un-apply it ends the handler. The context has no aura to cast with: the body casts nothing.
+    CHECK(registry.Register<DummyAuraHook>(kHookSpell, [](DummyAuraContext& ctx)
+    {
+        s_seen.mode = ctx.mode;
+        s_seen.duration = ctx.aura.Duration();
+        if (ctx.apply)
+        {
+            ctx.amount *= 2;
+            ctx.aura.ScriptWord(ctx.effIndex) = 9;
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        return SpellHandlerOutcome<void>::Return();
+    }));
+    Forget();
+    int32 dummyAmount = 44;
+    DummyAuraContext dummyApply(owner, &other, spell, EFFECT_INDEX_1, AuraHandle(holder), true, AURA_REMOVE_BY_DEFAULT,
+                                dummyAmount, NULL);
+    CHECK(registry.Dispatch<DummyAuraHook>(kHookSpell, dummyApply).IsContinue());
+    CHECK_EQ(dummyAmount, 88);
+    CHECK_EQ(holder.ScriptWord(EFFECT_INDEX_1), 9);
+    CHECK_EQ(int(s_seen.mode), int(AURA_REMOVE_BY_DEFAULT));
+    CHECK_EQ(s_seen.duration, 9000);
+    Forget();
+    DummyAuraContext dummyRemove(owner, NULL, spell, EFFECT_INDEX_1, AuraHandle(holder), false, AURA_REMOVE_BY_EXPIRE,
+                                 dummyAmount, NULL);
+    CHECK(registry.Dispatch<DummyAuraHook>(kHookSpell, dummyRemove).IsReturn());
+    CHECK_EQ(int(s_seen.mode), int(AURA_REMOVE_BY_EXPIRE));
+    CHECK_EQ(dummyAmount, 88);
+    CHECK(registry.Dispatch<DummyAuraHook>(kOtherSpell, dummyRemove).IsMiss());
 }
 
 TEST(SpellScriptHooks_TheAuraHandleReadsTheHoldersFields)
@@ -448,8 +479,8 @@ TEST(SpellScriptHooks_RegisterScriptPutsOneBodyUnderOneId)
 
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
-    // The proc hook holds the mage's 18 proc scripts, the target hook Blink's and the damage-done hook Ice Lance's
-    // (MageScriptsTest names their ids); no other hook holds a row.
+    // The proc hook holds the mage's 18 proc scripts, the target hook Blink's, the damage-done hook Ice Lance's and the
+    // dummy aura hook Living Bomb's (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, DummyEffectHook::Key, AfterHitHook::Key, AuraAmountHook::Key,
@@ -463,6 +494,7 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(18));
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1260));
+    CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
+    CHECK_EQ(game.Count(), std::size_t(1261));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }

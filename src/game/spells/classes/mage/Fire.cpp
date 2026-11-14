@@ -150,9 +150,26 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, 31643, NULL, basePoints));
     }
 
+    /// 44457: Living Bomb: when its dummy effect is un-applied because the aura ran out or was dispelled, the target
+    /// casts the effect's amount, the explosion (44461), at itself, triggered by this aura effect. Every un-apply ends
+    /// the dummy aura handler; an apply goes on to its other steps.
+    SpellHandlerOutcome<void> LivingBombDummyAura(DummyAuraContext& ctx)
+    {
+        if (ctx.apply)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        if (ctx.mode == AURA_REMOVE_BY_EXPIRE || ctx.mode == AURA_REMOVE_BY_DISPEL)
+        {
+            ctx.CastTriggeredByAura(ctx.target, ctx.target, uint32(ctx.amount));
+        }
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
     uint32 const HOT_STREAK[] = { 44445, 44446, 44448 };
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
+    uint32 const LIVING_BOMB[] = { 44457 };
 }
 
 bool Mage::CountCritInARow(int32& crits, bool crit)
@@ -192,5 +209,6 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<OnProcHook>(registry, MASTER_OF_ELEMENTS, &MasterOfElementsProc);
     rows += RegisterRanks<OnProcHook>(registry, HOT_STREAK, &HotStreakProc);
     rows += RegisterRanks<OnProcHook>(registry, BLAZING_SPEED, &BlazingSpeedProc);
+    rows += RegisterRanks<DummyAuraHook>(registry, LIVING_BOMB, &LivingBombDummyAura);
     return rows;
 }
