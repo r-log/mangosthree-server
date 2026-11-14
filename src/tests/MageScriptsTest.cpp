@@ -27,7 +27,8 @@
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the
-/// dummy aura hook, Combustion's exits at the dummy-effect hook and its tick. A body that casts, reads a level
+/// dummy aura hook, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with the auras of its
+/// icon. A body that casts, reads a level
 /// or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
 /// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
 /// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura.
@@ -916,22 +917,27 @@ TEST(MageScripts_CombustionRunsOnTheDummyEffectHook)
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), sizeof(COMBUSTION_IDS) / sizeof(uint32));
     CHECK(game.Find<AuraBoostMageSite>(28682) == NULL);
 
-    // With no unit target, and for an effect other than the script effect, the script casts nothing and ends the
-    // effect, so the mage family switch does not run; the effect's value stays as it is.
+    // With no unit target the script casts nothing and ends the effect, so the mage family switch does not run; the
+    // effect's value stays as it is.
     BareCreature caster;
     SpellRowStorage row;
     int32 value = 100;
     DummyEffectContext noTarget(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_0, value, ObjectGuid());
     CHECK(registry.Dispatch<DummyEffectHook>(11129, noTarget).IsReturn());
-    DummyEffectContext otherEffect(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_1, value, ObjectGuid());
+    CHECK_EQ(value, int32(100));
+
+    // An effect other than the script effect, with a unit target, ends the effect too and casts nothing: the target
+    // holds no aura afterwards.
+    BareCreature target;
+    DummyEffectContext otherEffect(caster, &target, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_1, value, ObjectGuid());
     CHECK(registry.Dispatch<DummyEffectHook>(11129, otherEffect).IsReturn());
+    CHECK(target.GetSpellAuraHolderMap().empty());
     CHECK_EQ(value, int32(100));
 }
 
 TEST(MageScripts_CombustionTickIsThePerSecondSumWithIgnitesShareBeforeMastery)
 {
-    // The Fire plan's vector: Ignite 2000 every 2 s, Pyroblast 500 and Living Bomb 700 every 3 s: 1000 + 166.67 +
-    // 233.33 = 1400 a second.
+    // Ignite 2000 every 2 s, Pyroblast 500 and Living Bomb 700 every 3 s: 1000 + 166.67 + 233.33 = 1400 a second.
     Mage::DotShare const pyroblastAndBomb[] = { { 500, 3000 }, { 700, 3000 } };
     Mage::DotShare const ignite = { 2000, 2000 };
     CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &ignite, 1.0f), int32(1400));
@@ -961,4 +967,74 @@ TEST(MageScripts_CombustionTickIsThePerSecondSumWithIgnitesShareBeforeMastery)
     CHECK_EQ(Mage::CombustionTick(NULL, 0, &igniteAlone, -1.0f), int32(650));
     Mage::DotShare const negative[] = { { -900, 3000 } };
     CHECK_EQ(Mage::CombustionTick(negative, 1, NULL, 1.0f), int32(0));
+}
+
+namespace
+{
+    // The class options and the Spell.dbc rows of the stacking test, kept alive for the rest of the run.
+    const uint32 kOptionsCombustionDot = 94207;
+    const uint32 kOptionsResistanceAura = 94208;
+    const uint32 kOtherIconSpell = 94209;
+
+    SpellClassOptionsEntry s_optionsCombustionDot;
+    SpellClassOptionsEntry s_optionsResistanceAura;
+    ServerSpell s_combustionDot;
+    ServerSpell s_resistanceAura;
+    ServerSpell s_otherIconSpell;
+
+    // `spell` as one aura effect of `auraType` at its effect 0 with icon 33 and visual `visual`, put into the spell and
+    // effect stores; `classOptionsId` 0 makes it a generic spell.
+    void StoreIconSpell(ServerSpell& spell, uint32 spellId, uint32 classOptionsId, uint32 visual, uint32 auraType)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = classOptionsId;
+        spell.Entry().SpellIconID = 33;
+        spell.Entry().SpellVisualID[0] = visual;
+        spell.effect.SpellID = spellId;
+        spell.effect.EffectIndex = EFFECT_INDEX_0;
+        spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        spell.effect.EffectAura = auraType;
+        spell.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+        sSpellStore.SetEntry(spellId, &spell.Entry());
+        AddSpellEffectEntry(&spell.effect);
+    }
+
+    // Combustion's DoT (83853: mage, class mask C 0x408, a periodic damage aura, icon 33, visual 19968), Resistance
+    // Aura (19891: paladin, a resistance aura, icon 33, visual 321) and a generic resistance aura of icon 33, put into
+    // the stores once.
+    void StoreIcon33Spells()
+    {
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+        s_optionsCombustionDot.SpellClassMask = ClassFamilyMask(0, 0x408);
+        s_optionsCombustionDot.SpellClassSet = SPELLFAMILY_MAGE;
+        s_optionsResistanceAura.SpellClassMask = ClassFamilyMask(0, 0);
+        s_optionsResistanceAura.SpellClassSet = SPELLFAMILY_PALADIN;
+        sSpellClassOptionsStore.SetEntry(kOptionsCombustionDot, &s_optionsCombustionDot);
+        sSpellClassOptionsStore.SetEntry(kOptionsResistanceAura, &s_optionsResistanceAura);
+        StoreIconSpell(s_combustionDot, 83853, kOptionsCombustionDot, 19968, SPELL_AURA_PERIODIC_DAMAGE);
+        StoreIconSpell(s_resistanceAura, 19891, kOptionsResistanceAura, 321, SPELL_AURA_MOD_RESISTANCE);
+        StoreIconSpell(s_otherIconSpell, kOtherIconSpell, 0, 0, SPELL_AURA_MOD_RESISTANCE);
+    }
+}
+
+TEST(MageScripts_CombustionsDoTStacksWithTheOtherAurasOfItsIcon)
+{
+    // Two auras of one icon with no spell modifier effect do not stack (the generic same-icon rule), so a new holder
+    // of one removes the other's from its unit. Combustion's DoT is exempt, both ways: it neither removes Resistance
+    // Aura (or any other aura of icon 33) from its target nor is removed by it.
+    StoreIcon33Spells();
+    CHECK(sSpellStore.LookupEntry(83853) != NULL);
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(83853, 19891));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(19891, 83853));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(83853, kOtherIconSpell));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kOtherIconSpell, 83853));
+
+    // The rule itself stands for the other auras of the icon.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(19891, kOtherIconSpell));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIconSpell, 19891));
 }

@@ -2673,6 +2673,12 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             break;
     }
 
+    // Combustion's DoT (83853) stacks with every other aura of its icon
+    if ((spellId_1 == 83853) != (spellId_2 == 83853))
+    {
+        return false;
+    }
+
     // more generic checks
     if (spellInfo_1->SpellIconID == spellInfo_2->SpellIconID &&
         spellInfo_1->SpellIconID != 0 && spellInfo_2->SpellIconID != 0)
