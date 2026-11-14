@@ -5123,7 +5123,11 @@ namespace Harness
 
             uint32 explosions = 0;
             std::string castText, logText;
-            bool ok = limited == "1:targetLimit" && alive == "2,3,4";
+            bool ok = alive == "2,3,4";
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                ok = ok && st.seen[k].removed == (k == kFourthStep ? std::string("1:targetLimit") : std::string());
+            }
             for (uint32 camel = 0; camel < st.targets.size(); ++camel)
             {
                 explosions += casts[camel];
@@ -5145,6 +5149,7 @@ namespace Harness
         static constexpr uint32 kExplosion = 44461;
         static constexpr uint32 kPrecision = 13843;
         static constexpr uint32 kReadMs = 1000;
+        static constexpr uint32 kFourthStep = 3;
     };
 
     /**
