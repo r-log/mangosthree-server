@@ -53,8 +53,7 @@
 
 namespace
 {
-    /// The flat physical MOD_DAMAGE_DONE auras of `caster`, general or fitting `weapon`: what the physical damage-done
-    /// field holds.
+    /// Adds up the flat physical MOD_DAMAGE_DONE auras of `caster`: the general ones and those fitting `weapon`.
     int32 PhysicalDamageDone(Unit const& caster, Item const* weapon)
     {
         int32 done = 0;
@@ -107,7 +106,8 @@ namespace
  *
  * At the done side, a player's damage of the physical school alone also takes the tooltip's term on the spell power:
  * TextSpellPowerCoefficient, the row's spell power part, through SPELLMOD_SPELL_BONUS_DAMAGE as a percent, taken of
- * the spell power of the magic schools.
+ * the spell power of the magic schools; it does not depend on `benefit`, so the weapon damage call, which passes no
+ * benefit, takes it too.
  *
  * At the done side the attack power share follows, for a player or a pet: AttackPowerCoefficient, Spell.dbc's
  * coefficient for a player's damage when the spell takes attack power, else the row's attack power part, else 0;

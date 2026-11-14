@@ -1691,11 +1691,13 @@ bool ChatHandler::HandleDebugSpellCoefsCommand(char* args)
     bool const physicalSchool = GetSpellSchoolMask(spellEntry) == SPELL_SCHOOL_MASK_NORMAL;
     if (physicalSchool)
     {
-        PSendSysMessage("Spell power benefit: the flat physical damage-done auras alone; a spell_bonus_data spell-power part takes the spell power");
+        PSendSysMessage("Spell power benefit of a player's damage: the flat physical damage-done auras alone%s",
+                        noDoneBonus ? "" : "; a spell_bonus_data spell-power part takes the spell power");
     }
     else
     {
-        PSendSysMessage("Spell power benefit: the spell power of school mask %u", uint32(GetSpellSchoolMask(spellEntry)));
+        PSendSysMessage("Spell power benefit of a player's damage: the spell power of school mask %u",
+                        uint32(GetSpellSchoolMask(spellEntry)));
     }
 
     // The attack power share per damage type: Spell.dbc's coefficient, the row's part, and the one that applies to a
