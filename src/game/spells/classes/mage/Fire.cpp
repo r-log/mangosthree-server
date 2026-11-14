@@ -98,7 +98,8 @@ namespace
     }
 
     /// 29074, 29075, 29076: Master of Elements: after a spell the proc accepts, gives back the aura's percent of the
-    /// spell's base mana cost through 29077.
+    /// spell's base mana cost through 29077. An orb's hit, which costs nothing, counts its share of the orb spell's cost
+    /// (Mage::OrbCostShare).
     ProcOutcome MasterOfElementsProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
@@ -110,7 +111,9 @@ namespace
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
         }
 
-        int32 const cost = ctx.procSpell->GetManaCost() + ctx.procSpell->GetManaCostPercentage() * ctx.caster.GetCreateMana() / 100;
+        int32 const orbShare = Mage::OrbCostShare(ctx.procSpell->ID, ctx.caster);
+        int32 const cost = orbShare > 0 ? orbShare
+                         : int32(ctx.procSpell->GetManaCost() + ctx.procSpell->GetManaCostPercentage() * ctx.caster.GetCreateMana() / 100);
         int32 const basePoints[MAX_EFFECT_INDEX] = { cost * ctx.triggerAmount / 100, 0, 0 };
         if (basePoints[EFFECT_INDEX_0] <= 0)
         {
