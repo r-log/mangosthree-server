@@ -86,4 +86,15 @@ namespace Spells
         const int64 total = int64(newAmount) * int64(newTicks) + int64(oldAmount) * int64(remainingTicks);
         return int32(total / int64(totalTicks));
     }
+
+    int32 DecliningTickOffset(int32 amount, int32 ticks, int32 tick)
+    {
+        // twice this tick's distance from the middle of the effect: ticks - 1 for the first, 1 - ticks for the last
+        const int64 fromMiddle = int64(ticks) + 1 - 2 * int64(tick);
+        if (7 * (int64(ticks) - 1) > 100)
+        {
+            return int32(int64(amount) * fromMiddle / (int64(ticks) - 1));
+        }
+        return int32(int64(amount) * 7 * fromMiddle / 100);
+    }
 }

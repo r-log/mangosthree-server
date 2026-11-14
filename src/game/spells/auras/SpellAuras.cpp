@@ -2057,12 +2057,11 @@ void Aura::PeriodicTick()
                 {
                     pdamage = amount;
 
-                    // Wild Growth (1/7 - 6 + 2*ramainTicks) %
+                    // Wild Growth: the ticks fall from the first to the last and sum to the amount times the tick count
                     if (classOptions && classOptions->SpellClassSet == SPELLFAMILY_DRUID && spellProto->SpellIconID == 2864)
                     {
                         int32 ticks = GetAuraMaxTicks();
-                        int32 remainingTicks = ticks - GetAuraTicks();
-                        int32 addition = int32(amount) * ticks * (-6 + 2 * remainingTicks) / 100;
+                        int32 addition = Spells::DecliningTickOffset(int32(amount), ticks, int32(GetAuraTicks()));
 
                         if (GetAuraTicks() != 1)
                             // Item - Druid T10 Restoration 2P Bonus

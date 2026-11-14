@@ -26,9 +26,11 @@
 /**
  * @file PeriodicTiming.h
  * @brief The timing of a periodic effect as the 4.3.4 client computes it: the period and the duration a caster's
- * haste gives, and the number of ticks an aura deals. Pure functions over numbers.
+ * haste gives, the number of ticks an aura deals, and how an amount is spread over those ticks. Pure functions over
+ * numbers.
  *
- * Every rounding here is to the nearest integer with ties to even, the client's float-to-int conversion.
+ * Every float-to-int rounding here is to the nearest integer with ties to even, the client's conversion; every
+ * integer division truncates toward zero.
  */
 
 #ifndef MANGOS_SPELLS_PERIODICTIMING_H
@@ -95,6 +97,21 @@ namespace Spells
      *         `totalTicks`, the remainder of the division dropped; `newAmount` when `totalTicks` is 0.
      */
     int32 RolledOverTick(int32 newAmount, uint32 newTicks, int32 oldAmount, uint32 remainingTicks, uint32 totalTicks);
+
+    /**
+     * @brief How far one tick of a declining periodic effect lies above or below the per-tick amount.
+     *
+     * The ticks fall by an even step from the first to the last, centred on the per-tick amount, so they sum to
+     * `amount * ticks` at any tick count. The step is 14% of the per-tick amount; past 15 ticks, where that step
+     * would take the last tick below 0, it is the step that ends the last tick at 0.
+     *
+     * @param amount The per-tick amount.
+     * @param ticks The aura's tick count.
+     * @param tick This tick's number, 1 for the first.
+     * @return `amount * 7 * (ticks + 1 - 2 * tick) / 100`, or `amount * (ticks + 1 - 2 * tick) / (ticks - 1)` when
+     *         `7 * (ticks - 1)` is above 100.
+     */
+    int32 DecliningTickOffset(int32 amount, int32 ticks, int32 tick);
 }
 
 #endif
