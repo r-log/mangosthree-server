@@ -156,6 +156,7 @@ set(SRC_GRP_TESTS
     PacketCodecTest.cpp
     CombatLeafTest.cpp
     CombatGoldenVectors.h
+    DeathPreventionTest.cpp
     CreatureThreatTest.cpp
     UnitSubtypeTest.cpp
     SpellHitResultTest.cpp

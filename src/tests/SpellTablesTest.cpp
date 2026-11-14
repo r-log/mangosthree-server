@@ -347,6 +347,81 @@ TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
     }
 }
 
+TEST(SpellTables_TheDeathPreventionRowsAreCheatDeathGuardianSpiritAndCauterize)
+{
+    // Cauterize: effect 0 holds the chance (50/100), effect 1 the health percent (40); 87023 heals through its effect 1;
+    // "once per minute"
+    DeathPreventionRow const* cauterize = DeathPreventionFor(86949);
+    CHECK(cauterize != NULL);
+    if (cauterize)
+    {
+        CHECK_EQ(int32(cauterize->chanceEffect), int32(0));
+        CHECK_EQ(int32(cauterize->percentEffect), int32(1));
+        CHECK(cauterize->shape == DEATH_PREVENTION_FLOOR_AND_HEAL);
+        CHECK_EQ(cauterize->followUpSpell, uint32(87023));
+        CHECK_EQ(int32(cauterize->healEffect), int32(1));
+        CHECK_EQ(cauterize->lockoutSeconds, uint32(60));
+        CHECK(!cauterize->consumed);
+    }
+    DeathPreventionRow const* cauterizeRank1 = DeathPreventionFor(86948);
+    CHECK(cauterizeRank1 != NULL);
+    if (cauterizeRank1)
+    {
+        CHECK_EQ(int32(cauterizeRank1->chanceEffect), int32(0));
+    }
+
+    // Cheat Death: effect 0 holds the chance (33/66/100), the floor is 10%; "once per 90 seconds"
+    DeathPreventionRow const* cheatDeath = DeathPreventionFor(31230);
+    CHECK(cheatDeath != NULL);
+    if (cheatDeath)
+    {
+        CHECK_EQ(int32(cheatDeath->percentEffect), int32(-1));
+        CHECK_EQ(cheatDeath->percent, uint32(10));
+        CHECK(cheatDeath->shape == DEATH_PREVENTION_FLOOR);
+        CHECK_EQ(cheatDeath->followUpSpell, uint32(31231));
+        CHECK_EQ(int32(cheatDeath->healEffect), int32(-1));
+        CHECK_EQ(cheatDeath->lockoutSeconds, uint32(90));
+        CHECK(!cheatDeath->consumed);
+    }
+
+    // Guardian Spirit: always saves, effect 1 holds the percent (50), 48153 heals through its effect 0, and the save
+    // uses the aura up
+    DeathPreventionRow const* guardianSpirit = DeathPreventionFor(47788);
+    CHECK(guardianSpirit != NULL);
+    if (guardianSpirit)
+    {
+        CHECK_EQ(int32(guardianSpirit->chanceEffect), int32(-1));
+        CHECK_EQ(int32(guardianSpirit->percentEffect), int32(1));
+        CHECK(guardianSpirit->shape == DEATH_PREVENTION_HEAL_PERCENT);
+        CHECK_EQ(guardianSpirit->followUpSpell, uint32(48153));
+        CHECK_EQ(int32(guardianSpirit->healEffect), int32(0));
+        CHECK_EQ(guardianSpirit->lockoutSeconds, uint32(0));
+        CHECK(guardianSpirit->consumed);
+    }
+
+    // The follow-ups, Ignite's DoT and an id no table holds have no row
+    for (uint32 spellId : { 87023u, 31231u, 48153u, 12654u, 12345u, 0u })
+    {
+        CHECK(DeathPreventionFor(spellId) == NULL);
+    }
+
+    // The table holds exactly its six rows
+    uint32 rows = 0;
+    for (uint32 spellId = 0; spellId < 1000000; ++spellId)
+    {
+        if (DeathPreventionFor(spellId))
+        {
+            ++rows;
+        }
+    }
+    CHECK_EQ(rows, uint32(6));
+    for (uint32 spellId : { 31228u, 31229u, 31230u, 47788u, 86948u, 86949u })
+    {
+        DeathPreventionRow const* row = DeathPreventionFor(spellId);
+        CHECK(row != NULL && row->spellId == spellId);
+    }
+}
+
 TEST(SpellTables_TheEffectCastAuraAndPacketTablesAnswerTheirSwitchesLiveRows)
 {
     SpellHurtHeal const* penance = FindPenanceSpells(47540);
