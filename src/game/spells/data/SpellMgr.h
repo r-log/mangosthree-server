@@ -156,11 +156,19 @@ float EffectBonusCoefficient(SpellEntry const* spellProto, uint32 level, SpellBo
 
 /**
  * The spell power coefficient that applies: none for a damage kind when `noDoneBonus` (the spell carries
- * SPELL_ATTR_EX3_NO_DONE_BONUS); else `client` when it is nonzero; else the part of `row` for `damagetype` (dot_bonus
- * for DOT, direct_bonus otherwise); else 0. `row` may be NULL.
+ * SPELL_ATTR_EX3_NO_DONE_BONUS); else `client` when it is nonzero; else, unless `physical`, the part of `row` for
+ * `damagetype` (dot_bonus for DOT, direct_bonus otherwise); else 0. `row` may be NULL. `physical`: the amount is
+ * damage of the physical school alone; the row never fills in then, its spell power part being the tooltip's term
+ * on the spell power (TextSpellPowerCoefficient).
  */
 float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonusKind kind, DamageEffectType damagetype,
-                            bool noDoneBonus);
+                            bool noDoneBonus, bool physical);
+
+/**
+ * The tooltip's spell power term of a physical-school damage spell: the part of `row` for `damagetype` (dot_bonus for
+ * DOT, direct_bonus otherwise); 0 without a row or when `noDoneBonus`.
+ */
+float TextSpellPowerCoefficient(SpellBonusEntry const* row, DamageEffectType damagetype, bool noDoneBonus);
 
 /**
  * The spell power coefficient that applies to a pet's spell: none for a damage kind when `noDoneBonus`; else `row`, the

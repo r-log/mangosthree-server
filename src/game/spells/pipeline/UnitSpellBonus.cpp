@@ -97,12 +97,17 @@ namespace
  *
  * The spell power coefficient has three branches, by caster:
  * - a player takes SpellPowerCoefficient: the client's value (EffectBonusCoefficient of the spell's first effect of
- *   `kind`, at the player's level) when it is nonzero, else the spell_bonus_data row's part, else 0;
+ *   `kind`, at the player's level) when it is nonzero, else the spell_bonus_data row's part, else 0; for damage of
+ *   the physical school alone the row never fills in;
  * - a pet takes PetSpellPowerCoefficient: the row's part when it is nonzero, else the client's value at the pet's
  *   level when it is nonzero, else the cast-time default CalculateDefaultCoefficient;
  * - any other creature takes its whole spell power and no row.
  * A damage kind of a spell with SPELL_ATTR_EX3_NO_DONE_BONUS takes none for a player or a pet. A coefficient above 0
  * goes through SPELLMOD_SPELL_BONUS_DAMAGE as a percent.
+ *
+ * At the done side, a player's damage of the physical school alone also takes the tooltip's term on the spell power:
+ * TextSpellPowerCoefficient, the row's spell power part, through SPELLMOD_SPELL_BONUS_DAMAGE as a percent, taken of
+ * the spell power of the magic schools.
  *
  * At the done side the attack power share follows, for a player or a pet: AttackPowerCoefficient, Spell.dbc's
  * coefficient for a player's damage when the spell takes attack power, else the row's attack power part, else 0;
@@ -114,6 +119,7 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
     bool const player = GetTypeId() == TYPEID_PLAYER;
     bool const pet = !player && IsPet();
     SpellBonusEntry const* bonus = player || pet ? sSpellMgr.GetSpellBonusData(spellProto->ID) : NULL;
+    bool const physical = kind == SPELL_BONUS_KIND_DAMAGE && GetSpellSchoolMask(spellProto) == SPELL_SCHOOL_MASK_NORMAL;
 
     if (benefit)
     {
@@ -124,7 +130,7 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
             float const client = EffectBonusCoefficient(spellProto, getLevel(), kind, damagetype);
             if (player)
             {
-                coeff = SpellPowerCoefficient(client, bonus, kind, damagetype, noDoneBonus);
+                coeff = SpellPowerCoefficient(client, bonus, kind, damagetype, noDoneBonus, physical);
             }
             else
             {
@@ -144,6 +150,23 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
             }
 
             total += int32(benefit * coeff);
+        }
+    }
+
+    // the tooltip's term on the spell power of a player's physical damage, at the done side only
+    if (donePart && player && physical)
+    {
+        float coeff = TextSpellPowerCoefficient(bonus, damagetype, spellProto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
+        if (coeff > 0.0f)
+        {
+            if (SpellModMgr* modOwner = GetSpellMods())
+            {
+                coeff *= 100.0f;
+                modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_SPELL_BONUS_DAMAGE, coeff);
+                coeff /= 100.0f;
+            }
+
+            total += int32(SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC) * coeff);
         }
     }
 

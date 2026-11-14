@@ -308,9 +308,14 @@ void SpellMgr::LoadSpellBonuses()
         float const clientAp = AttackPowerCoefficient(spell, NULL, SPELL_DIRECT_DAMAGE, true);
         float const clientApDot = AttackPowerCoefficient(spell, NULL, DOT, true);
 
+        // A physical spell's spell power parts are the tooltip's term on the spell power, which stands beside the
+        // client's coefficient on the flat physical damage-done auras.
         std::string notNeeded;
-        RowPartNotNeeded(sbe.direct_damage, clientDirect, "direct_bonus", "SpellEffect.dbc", notNeeded);
-        RowPartNotNeeded(sbe.dot_damage, clientDot, "dot_bonus", "SpellEffect.dbc", notNeeded);
+        if (GetSpellSchoolMask(spell) != SPELL_SCHOOL_MASK_NORMAL)
+        {
+            RowPartNotNeeded(sbe.direct_damage, clientDirect, "direct_bonus", "SpellEffect.dbc", notNeeded);
+            RowPartNotNeeded(sbe.dot_damage, clientDot, "dot_bonus", "SpellEffect.dbc", notNeeded);
+        }
         RowPartNotNeeded(sbe.ap_bonus, clientAp, "ap_bonus", "Spell.dbc", notNeeded);
         RowPartNotNeeded(sbe.ap_dot_bonus, clientApDot, "ap_dot_bonus", "Spell.dbc", notNeeded);
         if (!notNeeded.empty())

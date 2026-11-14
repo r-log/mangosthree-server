@@ -246,9 +246,9 @@ TEST(SpellCoefficient_AHealWithZeroTakesTheRowOrNothing)
     SpellEffectEntry const heal = Effect(SPELL_EFFECT_HEAL, 0, 0.0f);
     float const client = Pick(&heal, NULL, NULL, SPELL_BONUS_KIND_HEAL, HEAL);
     CHECK_EQ(client, 0.0f);
-    CHECK_EQ(SpellPowerCoefficient(client, NULL, SPELL_BONUS_KIND_HEAL, HEAL, false), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(client, NULL, SPELL_BONUS_KIND_HEAL, HEAL, false, false), 0.0f);
     SpellBonusEntry const row = Row(0.5f, 0.0f);
-    CHECK(NearF(SpellPowerCoefficient(client, &row, SPELL_BONUS_KIND_HEAL, HEAL, false), 0.5f));
+    CHECK(NearF(SpellPowerCoefficient(client, &row, SPELL_BONUS_KIND_HEAL, HEAL, false, false), 0.5f));
 }
 
 TEST(SpellCoefficient_AnAbsorbAuraIsReadOnlyByTheAbsorbCaller)
@@ -258,7 +258,7 @@ TEST(SpellCoefficient_AnAbsorbAuraIsReadOnlyByTheAbsorbCaller)
     float const client = Pick(&ward, NULL, NULL, SPELL_BONUS_KIND_ABSORB, SPELL_DIRECT_DAMAGE);
     CHECK_EQ(client, 0.0f);
     SpellBonusEntry const row = Row(0.807f, 0.0f);
-    CHECK(NearF(SpellPowerCoefficient(client, &row, SPELL_BONUS_KIND_ABSORB, SPELL_DIRECT_DAMAGE, false), 0.807f));
+    CHECK(NearF(SpellPowerCoefficient(client, &row, SPELL_BONUS_KIND_ABSORB, SPELL_DIRECT_DAMAGE, false, false), 0.807f));
 
     // An absorb aura holding a coefficient answers the absorb caller only.
     SpellEffectEntry const manaShield = Effect(SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MANA_SHIELD, 1.0f);
@@ -271,21 +271,21 @@ TEST(SpellCoefficient_ARowBesideAClientZeroApplies)
 {
     // Haunt: SpellEffect.dbc 0, the row 0.6971.
     SpellBonusEntry const haunt = Row(0.6971f, 0.0f);
-    CHECK(NearF(SpellPowerCoefficient(0.0f, &haunt, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false), 0.6971f));
+    CHECK(NearF(SpellPowerCoefficient(0.0f, &haunt, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, false), 0.6971f));
     // Its dot part is the row's 0.
-    CHECK_EQ(SpellPowerCoefficient(0.0f, &haunt, SPELL_BONUS_KIND_DAMAGE, DOT, false), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(0.0f, &haunt, SPELL_BONUS_KIND_DAMAGE, DOT, false, false), 0.0f);
 }
 
 TEST(SpellCoefficient_ARowBesideANonzeroClientValueIsBeaten)
 {
     // Fireball: SpellEffect.dbc 1.236 against the row's 1.0.
     SpellBonusEntry const fireball = Row(1.0f, 0.0f);
-    CHECK(NearF(SpellPowerCoefficient(1.236f, &fireball, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false), 1.236f));
+    CHECK(NearF(SpellPowerCoefficient(1.236f, &fireball, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, false), 1.236f));
     // Corruption: 0.176 against the row's dot 0.2.
     SpellBonusEntry const corruption = Row(0.0f, 0.2f);
-    CHECK(NearF(SpellPowerCoefficient(0.176f, &corruption, SPELL_BONUS_KIND_DAMAGE, DOT, false), 0.176f));
+    CHECK(NearF(SpellPowerCoefficient(0.176f, &corruption, SPELL_BONUS_KIND_DAMAGE, DOT, false, false), 0.176f));
     // No row: the client's value.
-    CHECK(NearF(SpellPowerCoefficient(0.856f, NULL, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false), 0.856f));
+    CHECK(NearF(SpellPowerCoefficient(0.856f, NULL, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, false), 0.856f));
 }
 
 TEST(SpellCoefficient_APetTakesTheRowThenTheClientValueThenTheCastTimeDefault)
@@ -306,12 +306,12 @@ TEST(SpellCoefficient_NoDoneBonusTakesTheShareFromDamageOnly)
 {
     SpellBonusEntry const row = Row(0.5f, 0.25f);
     // A damage effect of a spell with SPELL_ATTR_EX3_NO_DONE_BONUS: no share, and no row fills it.
-    CHECK_EQ(SpellPowerCoefficient(1.236f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true), 0.0f);
-    CHECK_EQ(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true), 0.0f);
-    CHECK_EQ(SpellPowerCoefficient(0.176f, &row, SPELL_BONUS_KIND_DAMAGE, DOT, true), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(1.236f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(0.176f, &row, SPELL_BONUS_KIND_DAMAGE, DOT, true, false), 0.0f);
     // A heal of such a spell keeps its share, the client's or the row's.
-    CHECK(NearF(SpellPowerCoefficient(0.3f, &row, SPELL_BONUS_KIND_HEAL, HEAL, true), 0.3f));
-    CHECK(NearF(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_HEAL, DOT, true), 0.25f));
+    CHECK(NearF(SpellPowerCoefficient(0.3f, &row, SPELL_BONUS_KIND_HEAL, HEAL, true, false), 0.3f));
+    CHECK(NearF(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_HEAL, DOT, true, false), 0.25f));
 }
 
 TEST(SpellCoefficient_TheAttackPowerFieldIsStoredWhereTheLoaderPutsField30)

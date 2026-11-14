@@ -3666,7 +3666,8 @@ namespace Harness
             SpellBonusEntry const* row = sSpellMgr.GetSpellBonusData(info->ID);
             const float client = EffectBonusCoefficient(info, p->getLevel(), SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE);
             const float applies = SpellPowerCoefficient(client, row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE,
-                                                        info->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
+                                                        info->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS),
+                                                        school == SPELL_SCHOOL_MASK_NORMAL);
             char buf[512];
             snprintf(buf, sizeof(buf),
                      "Unit::SpellBonusWithCoeffs over fire spell power %d: Fireball's EffectBonusCoefficient at level %u %.4f, the coefficient that applies %.4f; the target's taken benefit %d",

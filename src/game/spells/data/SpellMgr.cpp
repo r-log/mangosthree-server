@@ -430,7 +430,7 @@ float EffectBonusCoefficient(SpellEntry const* spellProto, uint32 level, SpellBo
 }
 
 float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonusKind kind, DamageEffectType damagetype,
-                            bool noDoneBonus)
+                            bool noDoneBonus, bool physical)
 {
     if (kind == SPELL_BONUS_KIND_DAMAGE && noDoneBonus)
     {
@@ -442,12 +442,22 @@ float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonus
         return client;
     }
 
-    if (row)
+    if (row && !physical)
     {
         return damagetype == DOT ? row->dot_damage : row->direct_damage;
     }
 
     return 0.0f;
+}
+
+float TextSpellPowerCoefficient(SpellBonusEntry const* row, DamageEffectType damagetype, bool noDoneBonus)
+{
+    if (!row || noDoneBonus)
+    {
+        return 0.0f;
+    }
+
+    return damagetype == DOT ? row->dot_damage : row->direct_damage;
 }
 
 float PetSpellPowerCoefficient(float row, float client, float castTimeDefault, SpellBonusKind kind, bool noDoneBonus)
