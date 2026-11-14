@@ -34,6 +34,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "spells/auras/AuraNotices.h"
 #include "spells/PeriodicTiming.h"
+#include "spells/TargetLimit.h"
 #include "Util.h"
 #include "Pet.h"
 #include "Totem.h"
@@ -403,10 +404,11 @@ static void CarryPeriodicTimers(SpellAuraHolder* holder, SpellAuraHolder* previo
 /**
  * @brief Makes room for one more target of a spell its caster may keep on only so many targets at a time.
  *
- * The caster's entries of the spell are taken oldest first. The entry of `target` goes, as the holder that is being
- * added registers it again as the newest, and so does an entry whose unit the map cannot find, which is not counted.
- * While the other targets number the spell's limit or more, the oldest of them loses the caster's aura of the spell
- * with AURA_REMOVE_BY_TARGET_LIMIT.
+ * Reads each of the caster's entries of the spell, oldest first, as the target the holder is being added to, a unit
+ * the map cannot find, a unit without the caster's aura of the spell, or one holding it, and applies
+ * Spells::TargetLimitFates to them: an erased entry leaves the caster's list; a removed one's unit loses the caster's
+ * aura of the spell with AURA_REMOVE_BY_TARGET_LIMIT, whose unregister erases the entry (one it leaves is erased
+ * here).
  *
  * @param caster The caster of the holder being added.
  * @param target The unit the holder is being added to.
@@ -421,34 +423,48 @@ static void RemoveTargetsOverLimit(Unit& caster, Unit& target, SpellEntry const*
     }
 
     Unit::TrackedAuraTargetMap& scTargets = caster.GetTrackedAuraTargets(TRACK_AURA_TYPE_TARGET_LIMIT);
-    std::vector<ObjectGuid> others;                         // a multimap keeps one key's entries in insertion order
+    std::vector<ObjectGuid> guids;                          // a multimap keeps one key's entries in insertion order
+    std::vector<Spells::TargetLimitEntry> entries;
     std::pair<Unit::TrackedAuraTargetMap::iterator, Unit::TrackedAuraTargetMap::iterator> bounds = scTargets.equal_range(spellInfo);
-    for (Unit::TrackedAuraTargetMap::iterator itr = bounds.first; itr != bounds.second;)
+    for (Unit::TrackedAuraTargetMap::iterator itr = bounds.first; itr != bounds.second; ++itr)
     {
-        if (itr->second == target.GetObjectGuid() || !target.GetMap()->GetUnit(itr->second))
+        guids.push_back(itr->second);
+        if (itr->second == target.GetObjectGuid())
         {
-            itr = scTargets.erase(itr);
-            continue;
+            entries.push_back(Spells::TargetLimitEntry::NewTarget);
         }
-        others.push_back(itr->second);
-        ++itr;
+        else if (Unit* unit = target.GetMap()->GetUnit(itr->second))
+        {
+            entries.push_back(unit->GetSpellAuraHolder(spellInfo->ID, caster.GetObjectGuid()) ? Spells::TargetLimitEntry::Holding
+                                                                                               : Spells::TargetLimitEntry::WithoutAura);
+        }
+        else
+        {
+            entries.push_back(Spells::TargetLimitEntry::Missing);
+        }
     }
 
-    for (size_t i = 0; others.size() - i >= limit; ++i)
+    const std::vector<Spells::TargetLimitFate> fates = Spells::TargetLimitFates(entries, limit);
+    for (size_t i = 0; i < guids.size(); ++i)
     {
-        if (Unit* oldest = target.GetMap()->GetUnit(others[i]))
+        if (fates[i] == Spells::TargetLimitFate::Keep)
         {
-            if (SpellAuraHolder* oldestHolder = oldest->GetSpellAuraHolder(spellInfo->ID, caster.GetObjectGuid()))
+            continue;
+        }
+
+        if (fates[i] == Spells::TargetLimitFate::Remove)
+        {
+            Unit* unit = target.GetMap()->GetUnit(guids[i]);
+            if (SpellAuraHolder* holder = unit ? unit->GetSpellAuraHolder(spellInfo->ID, caster.GetObjectGuid()) : NULL)
             {
-                oldest->RemoveSpellAuraHolder(oldestHolder, AURA_REMOVE_BY_TARGET_LIMIT);
+                unit->RemoveSpellAuraHolder(holder, AURA_REMOVE_BY_TARGET_LIMIT);
             }
         }
 
-        // the removal unregisters the entry; one that no holder of the caster answered for goes here
         bounds = scTargets.equal_range(spellInfo);
         for (Unit::TrackedAuraTargetMap::iterator itr = bounds.first; itr != bounds.second; ++itr)
         {
-            if (itr->second == others[i])
+            if (itr->second == guids[i])
             {
                 scTargets.erase(itr);
                 break;
