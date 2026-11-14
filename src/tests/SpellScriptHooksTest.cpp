@@ -495,6 +495,6 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1261));
+    CHECK_EQ(game.Count(), std::size_t(1260));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }

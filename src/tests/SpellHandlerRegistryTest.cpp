@@ -92,7 +92,7 @@
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
-///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTeleportPostSiteHoldsItsThreeLabelsAndNoDefault,
@@ -140,7 +140,7 @@
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
-///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTeleportPostSiteHoldsItsThreeLabelsAndNoDefault,
@@ -185,7 +185,7 @@
 ///                            SpellTargetingHandlers_TheMaxTargetsAndRadiusSitesHoldTheirLabelsAndNoDefault,
 ///                            SpellEffectObjectCombatHandlers_TheQuestCompleteSiteHoldsItsLabelAndNoDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
-///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTeleportPostSiteHoldsItsThreeLabelsAndNoDefault,
@@ -218,7 +218,7 @@
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
-///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits,
 ///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault,
@@ -287,7 +287,7 @@
 ///                            SpellCheckTargetHandlers_TheTargetContextAliasesTheCasterAndTheTarget,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageContextAliasesTheSpell,
-///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageContextAliasesTheSpell,
 ///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellContextAliasesTheSpell,
@@ -330,7 +330,7 @@
 ///                            UnitAuraProcHandlerHandlers_TheGuardsEndTheProcBeforeTheUnitIsRead,
 ///                            UnitAuraProcHandlerHandlers_TheFamilyGuardsEndTheProcBeforeTheUnitIsRead,
 ///                            UnitAuraProcHandlerHandlers_TheProcTriggerGuardsEndTheProcBeforeTheUnitIsRead
-///   a damage value changed   SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///   a damage value changed   SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyThreeLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits,
 ///                            UnitSpellBonusHandlers_TheDamageTakenBodiesScaleByTheAurasAmount,
 ///                            UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount,
@@ -902,7 +902,7 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // quest-complete site's row, the three targeting sites' 10, 1 and 2 rows and two defaults, the max-targets and
     // radius sites' 1 and 8 rows, the cast-check site's 2 rows and default, the
     // target-check site's 3 rows and default, the weapon-damage site's 6 rows, the school-damage, trigger-spell
-    // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 216 rows, the seven dummy-effect
+    // and two teleport sites' 73, 7, 3 and 3 rows, the generic dummy-effect site's 216 rows, the seven dummy-effect
     // family sites' 7, 11, 4, 4, 4, 2 and 1 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and
     // five defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the five periodic dummy
     // tick sites' 44, 1, 2, 1 and 2 rows and five defaults, the five boost sites' 7, 6, 2, 6 and 4 rows and four
@@ -912,7 +912,7 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 21 rows on the proc, target, damage-done and
     // dummy aura hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1261));
+    CHECK_EQ(game.Count(), std::size_t(1260));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(34));
 }
@@ -3458,10 +3458,10 @@ namespace
         109184
     };
 
-    // The fourteen other school-damage labels, in the switch's order.
+    // The thirteen other school-damage labels, in the switch's order.
     uint32 const SCHOOL_DAMAGE_OTHER_IDS[] =
     {
-        25599, 20253, 61491, 29142, 35139, 49882, 55269, 37841, 38441, 50341, 62775, 67485, 68793, 69050
+        25599, 61491, 29142, 35139, 49882, 55269, 37841, 38441, 50341, 62775, 67485, 68793, 69050
     };
 
     // The trigger-spell, recall and post-teleport labels, in the switches' order.
@@ -3469,28 +3469,29 @@ namespace
     uint32 const TELEPORT_RECALL_IDS[] = { 48129, 60320, 60321 };
     uint32 const TELEPORT_POST_IDS[] = { 23442, 36941, 36890 };
 
-    // The file registers 74 + 7 + 3 + 3 rows and no default.
-    uint32 const DAMAGE_TELEPORT_ROWS = 87;
+    // The file registers 73 + 7 + 3 + 3 rows and no default.
+    uint32 const DAMAGE_TELEPORT_ROWS = 86;
 }
 
-TEST(SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault)
+TEST(SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyThreeLabelsAndNoDefault)
 {
     SpellHandlerRegistry registry;
     CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
     CHECK_EQ(registry.Count(), std::size_t(DAMAGE_TELEPORT_ROWS));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
-    CHECK_EQ(registry.CountAt(SpellEffectSchoolDmgSite::Key), std::size_t(74));
+    CHECK_EQ(registry.CountAt(SpellEffectSchoolDmgSite::Key), std::size_t(73));
 
-    // 74 labels, eleven bodies: the sixty divided-damage ids share one, Intercept's two another, the four
-    // percent-of-health ids a third; every other label has its own.
+    // 73 labels, eleven bodies: the sixty divided-damage ids share one, the four percent-of-health ids another;
+    // every other label has its own. Intercept 20253, whose damage takes Spell.dbc's attack-power coefficient, has no
+    // row.
     typedef SpellHandler<SpellEffectSchoolDmgSite>::Function SchoolDamageBody;
     SchoolDamageBody divide = registry.Find<SpellEffectSchoolDmgSite>(24340);
     for (uint32 spellId : SCHOOL_DAMAGE_DIVIDE_IDS)
     {
         CHECK(registry.Find<SpellEffectSchoolDmgSite>(spellId) == divide);
     }
-    SchoolDamageBody intercept = registry.Find<SpellEffectSchoolDmgSite>(20253);
-    CHECK(registry.Find<SpellEffectSchoolDmgSite>(61491) == intercept);
+    SchoolDamageBody intercept = registry.Find<SpellEffectSchoolDmgSite>(61491);
+    CHECK(registry.Find<SpellEffectSchoolDmgSite>(20253) == NULL);
     SchoolDamageBody percent = registry.Find<SpellEffectSchoolDmgSite>(29142);
     for (uint32 spellId : { 35139u, 49882u, 55269u })
     {
@@ -3566,7 +3567,7 @@ TEST(SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLab
     {
         CHECK(game.Find<SpellEffectSchoolDmgSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectSchoolDmgSite::Key), std::size_t(74));
+    CHECK_EQ(game.CountAt(SpellEffectSchoolDmgSite::Key), std::size_t(73));
     CHECK(game.FindDefault<SpellEffectSchoolDmgSite>() == NULL);
 }
 
@@ -3597,13 +3598,10 @@ TEST(SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheU
     CHECK_EQ(damage, int32(200));
     targetUnit.SetUInt32Value(UNIT_FIELD_HEALTH, 1000);
 
-    // Intercept: the damage gains 12% of the caster's attack power.
-    for (uint32 spellId : { 20253u, 61491u })
-    {
-        damage = 100;
-        CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(spellId, ctx).IsContinue());
-        CHECK_EQ(damage, int32(220));
-    }
+    // Intercept 61491: the damage gains 12% of the caster's attack power.
+    damage = 100;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(61491, ctx).IsContinue());
+    CHECK_EQ(damage, int32(220));
 
     // The four percent-of-health labels: the damage is that percent of the target's maximum health.
     for (uint32 spellId : { 29142u, 35139u, 49882u, 55269u })
@@ -4885,9 +4883,9 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(149));
     CHECK_EQ(registry.CountDefaults(), std::size_t(12));
 
-    // The game's table holds these with the other files' 1112 rows and 17 defaults.
+    // The game's table holds these with the other files' 1111 rows and 17 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1261));
+    CHECK_EQ(game.Count(), std::size_t(1260));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
@@ -5762,9 +5760,9 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(302));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
-    // The game's table holds these with the other files' 959 rows and 27 defaults.
+    // The game's table holds these with the other files' 958 rows and 27 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1261));
+    CHECK_EQ(game.Count(), std::size_t(1260));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(283));
     CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
@@ -6453,9 +6451,9 @@ TEST(SpellMgrHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(20));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1241 rows and 29 defaults.
+    // The game's table holds these with the other files' 1240 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1261));
+    CHECK_EQ(game.Count(), std::size_t(1260));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
 }
@@ -6732,9 +6730,9 @@ TEST(UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(11));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1250 rows and 29 defaults.
+    // The game's table holds these with the other files' 1249 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1261));
+    CHECK_EQ(game.Count(), std::size_t(1260));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellDamageTakenSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(SpellHealingDoneSite::Key), std::size_t(2));
@@ -7094,9 +7092,9 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(146));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1115 rows and 29 defaults.
+    // The game's table holds these with the other files' 1114 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1261));
+    CHECK_EQ(game.Count(), std::size_t(1260));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     for (std::size_t k = 0; k < 12; ++k)
     {
