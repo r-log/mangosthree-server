@@ -4149,6 +4149,7 @@ enum TrackedAuraType
     TRACK_AURA_TYPE_NOT_TRACKED                 = 0,        // relation - caster : target is n:m (usual case)
     TRACK_AURA_TYPE_SINGLE_TARGET               = 1,        // relation - caster : target is 1:1. Might get stolen
     TRACK_AURA_TYPE_CONTROL_VEHICLE             = 2,        // relation - caster : target is N:1.
+    TRACK_AURA_TYPE_TARGET_LIMIT                = 3,        // relation - caster : target is 1:N with N the spell's target limit
     MAX_TRACKED_AURA_TYPES
 };
 

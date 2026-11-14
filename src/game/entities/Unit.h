@@ -272,7 +272,8 @@ enum AuraRemoveMode
     AURA_REMOVE_BY_DELETE,          ///< use for speedup and prevent unexpected effects at player logout/pet unsummon (must be used _only_ after save), delete.
     AURA_REMOVE_BY_SHIELD_BREAK,    ///< when absorb shield is removed by damage
     AURA_REMOVE_BY_EXPIRE,          ///< at duration end
-    AURA_REMOVE_BY_TRACKING         ///< aura is removed because of a conflicting tracked aura
+    AURA_REMOVE_BY_TRACKING,        ///< aura is removed because of a conflicting tracked aura
+    AURA_REMOVE_BY_TARGET_LIMIT     ///< the caster applied the spell to one target more than its limit
 };
 
 enum UnitMods
@@ -961,7 +962,7 @@ class Unit : public WorldObject
         typedef std::list<DiminishingReturn> Diminishing;
         typedef std::set < uint32 /*playerGuidLow*/ > ComboPointHolderSet;
         typedef std::map<uint8 /*slot*/, SpellAuraHolder* /*spellId*/> VisibleAuraMap;
-        typedef std::map < SpellEntry const*, ObjectGuid /*targetGuid*/ > TrackedAuraTargetMap;
+        typedef std::multimap < SpellEntry const*, ObjectGuid /*targetGuid*/ > TrackedAuraTargetMap;
 
         virtual ~Unit();
 

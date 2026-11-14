@@ -44,6 +44,7 @@
 
 #include <math.h>
 #include <stdarg.h>
+#include <vector>
 #include "spells/data/SpellTables.h"
 #include "spells/SpellScriptHooks.h"
 #include "Map.h"
@@ -400,6 +401,63 @@ static void CarryPeriodicTimers(SpellAuraHolder* holder, SpellAuraHolder* previo
 }
 
 /**
+ * @brief Makes room for one more target of a spell its caster may keep on only so many targets at a time.
+ *
+ * The caster's entries of the spell are taken oldest first. The entry of `target` goes, as the holder that is being
+ * added registers it again as the newest, and so does an entry whose unit the map cannot find, which is not counted.
+ * While the other targets number the spell's limit or more, the oldest of them loses the caster's aura of the spell
+ * with AURA_REMOVE_BY_TARGET_LIMIT.
+ *
+ * @param caster The caster of the holder being added.
+ * @param target The unit the holder is being added to.
+ * @param spellInfo The holder's spell, which has a target limit (AuraTargetLimit).
+ */
+static void RemoveTargetsOverLimit(Unit& caster, Unit& target, SpellEntry const* spellInfo)
+{
+    const uint32 limit = AuraTargetLimit(spellInfo->ID);
+    if (!limit)
+    {
+        return;
+    }
+
+    Unit::TrackedAuraTargetMap& scTargets = caster.GetTrackedAuraTargets(TRACK_AURA_TYPE_TARGET_LIMIT);
+    std::vector<ObjectGuid> others;                         // a multimap keeps one key's entries in insertion order
+    std::pair<Unit::TrackedAuraTargetMap::iterator, Unit::TrackedAuraTargetMap::iterator> bounds = scTargets.equal_range(spellInfo);
+    for (Unit::TrackedAuraTargetMap::iterator itr = bounds.first; itr != bounds.second;)
+    {
+        if (itr->second == target.GetObjectGuid() || !target.GetMap()->GetUnit(itr->second))
+        {
+            itr = scTargets.erase(itr);
+            continue;
+        }
+        others.push_back(itr->second);
+        ++itr;
+    }
+
+    for (size_t i = 0; others.size() - i >= limit; ++i)
+    {
+        if (Unit* oldest = target.GetMap()->GetUnit(others[i]))
+        {
+            if (SpellAuraHolder* oldestHolder = oldest->GetSpellAuraHolder(spellInfo->ID, caster.GetObjectGuid()))
+            {
+                oldest->RemoveSpellAuraHolder(oldestHolder, AURA_REMOVE_BY_TARGET_LIMIT);
+            }
+        }
+
+        // the removal unregisters the entry; one that no holder of the caster answered for goes here
+        bounds = scTargets.equal_range(spellInfo);
+        for (Unit::TrackedAuraTargetMap::iterator itr = bounds.first; itr != bounds.second; ++itr)
+        {
+            if (itr->second == others[i])
+            {
+                scTargets.erase(itr);
+                break;
+            }
+        }
+    }
+}
+
+/**
  * @brief Adds an aura holder to the unit after stacking and conflict checks.
  *
  * A periodic effect its caster applies again, of a spell that does not stack, keeps the time its old aura had to the
@@ -562,11 +620,18 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
         }
     }
 
-    // update tracked aura targets list (before aura add to aura list, to prevent unexpected remove recently added aura)
+    // update tracked aura targets list (before aura add to aura list, to prevent unexpected remove recently added aura).
+    // A caster keeps one target of a single-target spell, one controlled vehicle, and for a spell with a target limit at
+    // most that many targets, the oldest giving way to the newest.
     if (TrackedAuraType trackedType = holder->GetTrackedAuraType())
     {
         if (Unit* caster = holder->GetCaster())             // caster not in world
         {
+            if (trackedType == TRACK_AURA_TYPE_TARGET_LIMIT)
+            {
+                RemoveTargetsOverLimit(*caster, *this, aurSpellInfo);
+            }
+
             // Only compare TrackedAuras of same tracking type
             TrackedAuraTargetMap& scTargets = caster->GetTrackedAuraTargets(trackedType);
             for (TrackedAuraTargetMap::iterator itr = scTargets.begin(); itr != scTargets.end();)
@@ -625,6 +690,8 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
                         }
                         break;
                     }
+                    case TRACK_AURA_TYPE_TARGET_LIMIT:      // RemoveTargetsOverLimit made room above
+                        break;
                     case TRACK_AURA_TYPE_NOT_TRACKED:       // These two can never happen
                     case MAX_TRACKED_AURA_TYPES:
                         MANGOS_ASSERT(false);
@@ -649,7 +716,11 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
                     }
                     [[fallthrough]];
                 case TRACK_AURA_TYPE_SINGLE_TARGET:         // Register spell holder single target
-                    scTargets[aurSpellInfo] = GetObjectGuid();
+                    scTargets.erase(aurSpellInfo);
+                    scTargets.insert(TrackedAuraTargetMap::value_type(aurSpellInfo, GetObjectGuid()));
+                    break;
+                case TRACK_AURA_TYPE_TARGET_LIMIT:          // Register the spell holder's target as the caster's newest
+                    scTargets.insert(TrackedAuraTargetMap::value_type(aurSpellInfo, GetObjectGuid()));
                     break;
                 default:
                     break;

@@ -4237,6 +4237,7 @@ namespace Harness
                 case AURA_REMOVE_BY_SHIELD_BREAK:   return "shieldBreak";
                 case AURA_REMOVE_BY_EXPIRE:         return "expire";
                 case AURA_REMOVE_BY_TRACKING:       return "tracking";
+                case AURA_REMOVE_BY_TARGET_LIMIT:   return "targetLimit";
             }
             return "mode" + U(uint32(mode));
         }

@@ -1061,7 +1061,7 @@ TEST(AuraDummyHandlers_GetRemoveModeAnswersTheModeSetRemoveModeWrote)
     {
         AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL,
         AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_EXPIRE,
-        AURA_REMOVE_BY_TRACKING,
+        AURA_REMOVE_BY_TRACKING, AURA_REMOVE_BY_TARGET_LIMIT,
     };
     Aura* aura = ModeAura();
     for (AuraRemoveMode mode : modes)
@@ -1130,7 +1130,7 @@ TEST(SpellAuraHolder_GetRemoveModeAnswersTheModeSetRemoveModeWrote)
     {
         AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL,
         AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_EXPIRE,
-        AURA_REMOVE_BY_TRACKING,
+        AURA_REMOVE_BY_TRACKING, AURA_REMOVE_BY_TARGET_LIMIT,
     };
     static unsigned char const fills[] = { 0x00, 0xA5 };
     for (unsigned char fill : fills)

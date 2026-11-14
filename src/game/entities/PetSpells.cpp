@@ -364,8 +364,11 @@ void Pet::_SaveAuras(PlayerPetCache& cache)
         }
 
         // skip all holders from spells that are passive or channeled
-        // do not save single target holders (unless they were cast by the player)
-        if (save && !holder->IsPassive() && !IsChanneledSpell(holder->GetSpellProto()) && (holder->GetCasterGuid() == GetObjectGuid() || holder->GetTrackedAuraType() != TRACK_AURA_TYPE_NOT_TRACKED))
+        // keep the pet's own holders and another caster's single-target or vehicle holders; another caster's holder of
+        // a spell with a target limit stays out, as his untracked holders do
+        const TrackedAuraType trackedType = holder->GetTrackedAuraType();
+        if (save && !holder->IsPassive() && !IsChanneledSpell(holder->GetSpellProto()) &&
+            (holder->GetCasterGuid() == GetObjectGuid() || (trackedType != TRACK_AURA_TYPE_NOT_TRACKED && trackedType != TRACK_AURA_TYPE_TARGET_LIMIT)))
         {
             int32  damage[MAX_EFFECT_INDEX];
             uint32 periodicTime[MAX_EFFECT_INDEX];

@@ -317,6 +317,12 @@ namespace
         uint32 answer;
     };
 
+    /// The spells one caster may keep on only so many targets at a time, and that number.
+    constexpr SpellAnswer AURA_TARGET_LIMITS[] =
+    {
+        { 44457, 3 },       // Living Bomb: "Limit 3 targets."
+    };
+
     constexpr SpellAnswer ARCANE_POTENCY[] =
     {
         { 31571, 57529 },
@@ -632,6 +638,7 @@ namespace
     static_assert(SortedBySpellId(MAX_STACK_AT_CREATE_AURAS), "max-stack ids are sorted, each once");
     static_assert(SortedBySpellId(OVERLOAD_SPELLS), "overload ids are sorted, each once");
     static_assert(SortedBySpellId(TAXI_FLYER_TARGETS), "taxi flyer ids are sorted, each once");
+    static_assert(SortedBySpellId(AURA_TARGET_LIMITS), "aura target limit rows are sorted, each once");
     static_assert(SortedBySpellId(ARCANE_POTENCY), "Arcane Potency rows are sorted, each once");
     static_assert(SortedBySpellId(SECOND_WIND), "Second Wind rows are sorted, each once");
     static_assert(SortedBySpellId(RAPID_RECUPERATION), "Rapid Recuperation rows are sorted, each once");
@@ -710,6 +717,11 @@ bool IsOverloadIgnoringCastTime(uint32 spellId)
 bool MayTargetTaxiFlyer(uint32 spellId)
 {
     return Holds(TAXI_FLYER_TARGETS, spellId);
+}
+
+uint32 AuraTargetLimit(uint32 spellId)
+{
+    return AnswerOf(AURA_TARGET_LIMITS, spellId);
 }
 
 uint32 GetArcanePotencyProcSpell(uint32 rankSpellId)
