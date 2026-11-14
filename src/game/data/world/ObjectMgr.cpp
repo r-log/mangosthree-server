@@ -2266,7 +2266,7 @@ bool ObjectMgr::IsVendorItemValid(bool isTemplate, char const* tableName, uint32
         }
     }
 
-    CurrencyTypesEntry const * currencyEntry;
+    CurrencyTypesEntry const * currencyEntry = NULL;
     if (type == VENDOR_ITEM_TYPE_ITEM)
     {
         if (!GetItemPrototype(item_id))

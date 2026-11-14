@@ -76,6 +76,7 @@ struct CellArea
 struct Cell
 {
     Cell() : data() { };
+    Cell(const Cell& cell) = default;
     explicit Cell(CellPair const& p);
     /**
      * @brief Compute coordinates

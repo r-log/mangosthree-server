@@ -304,8 +304,13 @@ namespace MMAP
         }
 
         dtNavMeshParams params;
-        fread(&params, sizeof(dtNavMeshParams), 1, file);
+        size_t paramsRead = fread(&params, sizeof(dtNavMeshParams), 1, file);
         fclose(file);
+        if (paramsRead != 1)
+        {
+            sLog.outError("MMAP:loadMapData: Error: Could not read mmap file '%s'", fileName.c_str());
+            return false;
+        }
 
         dtNavMesh* mesh = dtAllocNavMesh();
         MANGOS_ASSERT(mesh);
@@ -374,9 +379,7 @@ namespace MMAP
 
         // read header
         MmapTileHeader fileHeader;
-        fread(&fileHeader, sizeof(MmapTileHeader), 1, file);
-
-        if (fileHeader.mmapMagic != MMAP_MAGIC)
+        if (fread(&fileHeader, sizeof(MmapTileHeader), 1, file) != 1 || fileHeader.mmapMagic != MMAP_MAGIC)
         {
             sLog.outError("MMAP:loadMap: Bad header in mmap %04u%02i%02i.mmtile", mapId, filenameTileX, filenameTileY);
             fclose(file);

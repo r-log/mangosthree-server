@@ -262,7 +262,7 @@ uint32 SpellEntry::GetRequiresSpellFocus() const
 uint32 SpellEntry::GetSpellEffectIdByIndex(SpellEffectIndex index) const
 {
     SpellEffectEntry const* effect = GetSpellEffect(index);
-    return effect ? effect->Effect : SPELL_EFFECT_NONE;
+    return effect ? effect->Effect : uint32(SPELL_EFFECT_NONE);
 }
 
 uint32 SpellEntry::GetAuraInterruptFlags() const
@@ -274,7 +274,7 @@ uint32 SpellEntry::GetAuraInterruptFlags() const
 uint32 SpellEntry::GetEffectImplicitTargetAByIndex(SpellEffectIndex index) const
 {
     SpellEffectEntry const* effect = GetSpellEffect(index);
-    return effect ? effect->ImplicitTarget_0 : TARGET_NONE;
+    return effect ? effect->ImplicitTarget_0 : uint32(TARGET_NONE);
 }
 
 int32 SpellEntry::GetAreaGroupId() const

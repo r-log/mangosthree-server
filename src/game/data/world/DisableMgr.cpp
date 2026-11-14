@@ -406,6 +406,8 @@ bool IsDisabledFor(DisableType type, uint32 entry, uint8 flags)
             return true;
         case DISABLE_TYPE_VMAP:
            return (flags & itr->second.flags) != 0;
+        default:
+            break;
     }
 
     return false;

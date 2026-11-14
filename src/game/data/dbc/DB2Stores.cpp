@@ -114,8 +114,6 @@ void LoadDB2Stores(const std::string& dataPath)
 {
     std::string db2Path = dataPath + "dbc/";
 
-    LocaleNameStr const* defaultLocaleNameStr = NULL;
-
     StoreProblemList1 bad_db2_files;
 
     LocalDB2Data availableDb2Locales(LocaleConstant(0));//defaultLocaleNameStr->locale));
@@ -148,7 +146,7 @@ void LoadDB2Stores(const std::string& dataPath)
         !sItemSparseStore.LookupEntry(83086)       ||       // last item added in 4.3.4 (15595)
         !sItemExtendedCostStore.LookupEntry(3872)  )        // last item extended cost added in 4.3.4 (15595)
     {
-        sLog.outString("");
+        sLog.outString();
         sLog.outError("Please extract correct db2 files from build %s", Version::GetAcceptedClientBuildsStr().c_str());
         exit(1);
     }
