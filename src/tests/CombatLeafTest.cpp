@@ -311,3 +311,27 @@ TEST(CombatBlock_SelectWeaponDamageRange)
         CHECK(NearF(range.max_damage, v.expectedMax));
     }
 }
+
+TEST(CombatLeaf_DotShareTick)
+{
+    // Ignite's three ranks, 13, 26 and 40 percent of a 10000 crit over its two ticks.
+    CHECK_EQ(Combat::DotShareTick(10000.0f, 40, 2), int32(2000));
+    CHECK_EQ(Combat::DotShareTick(10000.0f, 26, 2), int32(1300));
+    CHECK_EQ(Combat::DotShareTick(10000.0f, 13, 2), int32(650));
+
+    // The share is an integer before the ticks divide it: 40% of 12345 is 4938, two ticks of 2469.
+    CHECK_EQ(Combat::DotShareTick(12345.0f, 40, 2), int32(2469));
+
+    // A share below the tick count deals nothing: 13% of 1 is 0, and 40% of 3 is 1, below two ticks.
+    CHECK_EQ(Combat::DotShareTick(1.0f, 13, 2), int32(0));
+    CHECK_EQ(Combat::DotShareTick(3.0f, 40, 2), int32(0));
+
+    // Deep Wounds' 16 and 48 percent of a weapon's average damage over its six ticks: 160 / 6, 480 / 6, and 159 / 6
+    // for an average whose share has a fraction.
+    CHECK_EQ(Combat::DotShareTick(1000.0f, 16, 6), int32(26));
+    CHECK_EQ(Combat::DotShareTick(1000.0f, 48, 6), int32(80));
+    CHECK_EQ(Combat::DotShareTick(999.9f, 16, 6), int32(26));
+
+    // No ticks: nothing.
+    CHECK_EQ(Combat::DotShareTick(10000.0f, 40, 0), int32(0));
+}

@@ -41,6 +41,7 @@
 #include "Creature.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
+#include "data/ServerSpellStore.h"
 
 #include <algorithm>
 #include <list>
@@ -181,6 +182,7 @@ namespace
         {
             { 29441, 0, SPELL_AURA_DUMMY }, { 29441, 1, SPELL_AURA_MOD_RESISTANCE },
             { 29074, 0, SPELL_AURA_DUMMY },
+            { 12846, 0, SPELL_AURA_DUMMY },
             { 31571, 0, SPELL_AURA_DUMMY },
             { 44445, 0, SPELL_AURA_DUMMY }, { 44445, 1, SPELL_AURA_DUMMY },
             { 31641, 0, SPELL_AURA_PROC_TRIGGER_SPELL },
@@ -207,15 +209,46 @@ namespace
         }
     }
 
-    // A proc of `spellId`'s effect `effIndex` on `owner`, with the event's spell, flags and the aura's amount given.
+    // Ignite's damage over time (12654) as the client's data holds it: effect 0 a periodic damage aura at the target
+    // every 2000 ms, and duration index 35, 4000 ms; so the DoT ticks twice. Put into the spell, effect and duration
+    // stores once for the rest of the run; no other test reads them.
+    void AddIgniteDot()
+    {
+        static ServerSpell dot;
+        static SpellDurationEntry duration;
+        static bool added = false;
+        if (added)
+        {
+            return;
+        }
+        added = true;
+        duration.ID = 35;
+        duration.Duration[0] = 4000;
+        duration.Duration[1] = 0;
+        duration.Duration[2] = 4000;
+        sSpellDurationStore.SetEntry(duration.ID, &duration);
+        dot.Entry().ID = 12654;
+        dot.Entry().DurationIndex = duration.ID;
+        dot.effect.SpellID = 12654;
+        dot.effect.EffectIndex = EFFECT_INDEX_0;
+        dot.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        dot.effect.EffectAura = SPELL_AURA_PERIODIC_DAMAGE;
+        dot.effect.EffectAuraPeriod = 2000;
+        dot.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+        sSpellStore.SetEntry(dot.Entry().ID, &dot.Entry());
+        AddSpellEffectEntry(&dot.effect);
+    }
+
+    // A proc of `spellId`'s effect `effIndex` on `owner`, with the event's spell, flags and the aura's amount given;
+    // the event's other unit and its damage too, when given.
     SpellHandlerOutcome<SpellAuraProcResult> Proc(SpellHandlerRegistry const& registry, Unit& owner, uint32 spellId,
                                                   SpellEffectIndex effIndex, SpellAuraHolder& holder, SpellEntry const* procSpell,
-                                                  uint32 procEx, int32 amount)
+                                                  uint32 procEx, int32 amount, Unit* victim = NULL, uint32 damage = 900)
     {
         SpellRowStorage row;
         SpellCooldownMgr cooldowns;
-        OnProcContext ctx(owner, NULL, SpellRow(row, spellId), effIndex, AuraHandle(holder), procSpell, 0x10000, procEx, 900,
-                          amount, ObjectGuid(), 0, NULL, cooldowns);
+        OnProcContext ctx(owner, victim, SpellRow(row, spellId), effIndex, AuraHandle(holder), procSpell, 0x10000, procEx,
+                          damage, amount, ObjectGuid(), 0, NULL, cooldowns);
         return registry.Dispatch<OnProcHook>(spellId, ctx);
     }
 }
@@ -529,6 +562,65 @@ TEST(MageScripts_TheProcScriptsKeepTheirEarlyRefusals)
     SpellHandlerOutcome<SpellAuraProcResult> noChance = Proc(registry, owner, 83074, EFFECT_INDEX_0, holder, NULL, PROC_EX_NORMAL_HIT, 0);
     CHECK(noChance.IsReturn());
     CHECK_EQ(int(noChance.GetValue()), int(SPELL_AURA_PROC_FAILED));
+}
+
+TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
+{
+    AddProcEffectRows();
+    AddIgniteDot();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    BareCreature owner;
+    BareCreature victim;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage fireballRow;
+    SpellEntry const& fireball = SpellRow(fireballRow, 133);
+
+    // The DoT's two ticks come from the client's data as the stores hold it: 4000 ms over a period of 2000.
+    SpellEntry const* dot = sSpellStore.LookupEntry(12654);
+    CHECK(dot != NULL);
+    CHECK_EQ(GetSpellDuration(dot), int32(4000));
+    CHECK(dot && dot->GetSpellEffect(EFFECT_INDEX_0) && dot->GetSpellEffect(EFFECT_INDEX_0)->EffectAuraPeriod == 2000);
+    CHECK(victim.IsAlive());
+
+    // An effect that is not the dummy (12846 has no effect 1) is left to the proc handler of its own aura type.
+    CHECK(Proc(registry, owner, 12846, EFFECT_INDEX_1, holder, &fireball, PROC_EX_CRITICAL_HIT, 40, &victim, 10000).IsContinue());
+
+    // A hit that did not crit is refused.
+    SpellHandlerOutcome<SpellAuraProcResult> outcome =
+        Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &fireball, PROC_EX_NORMAL_HIT, 40, &victim, 10000);
+    CHECK(outcome.IsReturn());
+    CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+
+    // A crit of Living Bomb's explosion, of a Flame Orb hit or of Fire Power's explosion is refused, by its id.
+    for (uint32 spellId : { 44461u, 82739u, 83619u })
+    {
+        SpellRowStorage notIgniting;
+        outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &SpellRow(notIgniting, spellId), PROC_EX_CRITICAL_HIT, 40,
+                       &victim, 10000);
+        CHECK(outcome.IsReturn());
+        CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    }
+
+    // A crit whose share is below one point a tick is refused: 40% of 1 is 0, and 40% of 4 is 1, below two ticks.
+    for (uint32 damage : { 1u, 4u })
+    {
+        outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &fireball, PROC_EX_CRITICAL_HIT, 40, &victim, damage);
+        CHECK(outcome.IsReturn());
+        CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    }
+
+    // A crit with no victim is refused, and so is one for an aura whose amount is no percent.
+    outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &fireball, PROC_EX_CRITICAL_HIT, 40, NULL, 10000);
+    CHECK(outcome.IsReturn());
+    CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &fireball, PROC_EX_CRITICAL_HIT, 0, &victim, 10000);
+    CHECK(outcome.IsReturn());
+    CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
+
+    // Nothing was cast: the victim holds no Ignite.
+    CHECK(victim.GetSpellAuraHolder(12654) == NULL);
 }
 
 TEST(MageScripts_IceLanceTriplesTheDamageDoneAtAFrozenTarget)
