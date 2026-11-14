@@ -24,13 +24,17 @@
  */
 
 #include <algorithm>
+#include <utility>
+#include <vector>
 #include "Unit.h"
 #include "combat/ArmorReduction.h"
+#include "combat/DeathPrevention.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "GridMap.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/data/SpellTables.h"
 #include "QuestDef.h"
 #include "Player.h"
 #include "Creature.h"
@@ -51,6 +55,20 @@
 
 #include <math.h>
 #include <stdarg.h>
+
+namespace
+{
+    /// The amount of `holder`'s aura of `effect`; `fallback` when `effect` is -1, 0 when the holder has no aura there.
+    int32 DeathPreventionAmount(SpellAuraHolder const* holder, int8 effect, int32 fallback)
+    {
+        if (effect < 0)
+        {
+            return fallback;
+        }
+        Aura* aura = holder->GetAuraByEffectIndex(SpellEffectIndex(effect));
+        return aura ? aura->GetModifier()->m_amount : 0;
+    }
+}
 
 /**
  * @brief Reduces physical damage by the victim's effective armor.
@@ -79,6 +97,9 @@ uint32 Unit::CalcArmorReducedDamage(Unit* pVictim, const uint32 damage)
 
 /**
  * @brief Calculates resistance, absorbs, and split-damage effects for incoming damage.
+ *
+ * A blow that would still kill the unit after them meets its death-prevention auras (DeathPreventionFor): one of them
+ * may save him, and what it absorbs of the blow is counted in `absorb`.
  *
  * @param pCaster The attacking caster.
  * @param schoolMask The incoming damage school mask.
@@ -159,9 +180,6 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
     uint32 reflectSpell = 0;
     int32  reflectDamage = 0;
     Aura*  reflectTriggeredBy = NULL;                       // expected as not expired at reflect as in current cases
-    // Death Prevention Aura
-    SpellEntry const*  preventDeathSpell = NULL;
-    int32  preventDeathAmount = 0;
 
     // full absorb cases (by chance)
     AuraList const& vAbsorb = GetAurasByType(SPELL_AURA_SCHOOL_ABSORB);
@@ -210,6 +228,9 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
     // Incanter's Absorption, for converting to spell power
     int32 incanterAbsorption = 0;
 
+    // The death-prevention auras the blow meets, with their rows
+    std::vector<std::pair<Aura*, DeathPreventionRow const*> > deathPreventions;
+
     // absorb without mana cost
     AuraList const& vSchoolAbsorb = GetAurasByType(SPELL_AURA_SCHOOL_ABSORB);
     for (AuraList::const_iterator i = vSchoolAbsorb.begin(); i != vSchoolAbsorb.end() && RemainingDamage > 0; ++i)
@@ -221,6 +242,13 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
         }
 
         SpellEntry const* spellProto = (*i)->GetSpellProto();
+
+        // A death-prevention aura absorbs nothing here, keeps its amount and is decided on after the split damage
+        if (DeathPreventionRow const* row = DeathPreventionFor(spellProto->ID))
+        {
+            deathPreventions.push_back(std::make_pair(*i, row));
+            continue;
+        }
 
         // Max Amount can be absorbed by this aura
         int32  currentAbsorb = mod->m_amount;
@@ -320,34 +348,8 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                 }
                 break;
             }
-            case SPELLFAMILY_ROGUE:
-            {
-                // Cheat Death (make less prio with Guardian Spirit case)
-                if (spellProto->SpellIconID == 2109)
-                {
-                    if (!preventDeathSpell &&
-                            GetTypeId() == TYPEID_PLAYER && // Only players
-                            !m_spellCooldownMgr.HasSpellCooldown(31231, time(NULL)) &&
-                            // Only if no cooldown
-                            roll_chance_i((*i)->GetModifier()->m_amount))
-                        // Only if roll
-                    {
-                        preventDeathSpell = (*i)->GetSpellProto();
-                    }
-                    // always skip this spell in charge dropping, absorb amount calculation since it has chance as m_amount and doesn't need to absorb any damage
-                    continue;
-                }
-                break;
-            }
             case SPELLFAMILY_PRIEST:
             {
-                // Guardian Spirit
-                if (spellProto->SpellIconID == 2873)
-                {
-                    preventDeathSpell = (*i)->GetSpellProto();
-                    preventDeathAmount = (*i)->GetModifier()->m_amount;
-                    continue;
-                }
                 // Reflective Shield
                 if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000001)) && canReflect)
                 {
@@ -628,40 +630,52 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
         }
     }
 
-    // Apply death prevention spells effects
-    if (preventDeathSpell && RemainingDamage >= (int32)GetHealth())
+    // A blow that would kill meets one death-prevention aura: the first one its save uses up, else the first one. It
+    // saves when its follow-up spell is not on cooldown and its chance rolls; the save sets the damage the unit keeps,
+    // casts the follow-up with the heal in the row's effect, starts the lockout and removes the aura when it is used up
+    if (!deathPreventions.empty() && Combat::WouldKill(RemainingDamage, GetHealth()))
     {
-        switch(preventDeathSpell->GetSpellFamilyName())
+        std::pair<Aura*, DeathPreventionRow const*> chosen = deathPreventions.front();
+        for (size_t k = 0; k < deathPreventions.size(); ++k)
         {
-                // Cheat Death
-            case SPELLFAMILY_ROGUE:
+            if (deathPreventions[k].second->consumed)
             {
-                // Cheat Death
-                if (preventDeathSpell->SpellIconID == 2109)
-                {
-                    CastSpell(this, 31231, true);
-                    m_spellCooldownMgr.AddSpellCooldown(31231, 0, time(NULL) + 60);
-                    // with health > 10% lost health until health==10%, in other case no losses
-                    uint32 health10 = GetMaxHealth() / 10;
-                    RemainingDamage = GetHealth() > health10 ? GetHealth() - health10 : 0;
-                }
+                chosen = deathPreventions[k];
                 break;
             }
-            // Guardian Spirit
-            case SPELLFAMILY_PRIEST:
+        }
+        Aura* preventing = chosen.first;
+        DeathPreventionRow const* row = chosen.second;
+        SpellAuraHolder const* holder = preventing->GetHolder();
+
+        const time_t now = time(NULL);
+        const bool locked = row->lockoutSeconds && m_spellCooldownMgr.HasSpellCooldown(row->followUpSpell, now);
+        if (!locked && (row->chanceEffect < 0 || roll_chance_i(DeathPreventionAmount(holder, row->chanceEffect, 100))))
+        {
+            const int32 percent = DeathPreventionAmount(holder, row->percentEffect, int32(row->percent));
+            const Combat::DeathPreventionOutcome outcome =
+                Combat::SaveFromKillingBlow(row->shape, GetHealth(), GetMaxHealth(), percent > 0 ? uint32(percent) : 0);
+            RemainingDamage = outcome.damageKept;
+
+            if (row->followUpSpell)
             {
-                // Guardian Spirit
-                if (preventDeathSpell->SpellIconID == 2873)
+                int32 basePoints[MAX_EFFECT_INDEX] = { 0, 0, 0 };
+                int32 const* slots[MAX_EFFECT_INDEX] = { NULL, NULL, NULL };
+                if (row->healEffect >= 0 && row->healEffect < MAX_EFFECT_INDEX && outcome.heal > 0)
                 {
-                    int32 healAmount = GetMaxHealth() * preventDeathAmount / 100;
-                    CastCustomSpell(this, 48153, &healAmount, NULL, NULL, true);
-                    RemoveAurasDueToSpell(preventDeathSpell->ID);
-                    RemainingDamage = 0;
+                    basePoints[row->healEffect] = outcome.heal;
+                    slots[row->healEffect] = &basePoints[row->healEffect];
                 }
-                break;
+                CastCustomSpell(this, row->followUpSpell, slots[0], slots[1], slots[2], true, NULL, preventing);
             }
-            default:
-                break;
+            if (row->lockoutSeconds)
+            {
+                m_spellCooldownMgr.AddSpellCooldown(row->followUpSpell, 0, now + row->lockoutSeconds);
+            }
+            if (row->consumed)
+            {
+                RemoveAurasDueToSpell(row->spellId);
+            }
         }
     }
 

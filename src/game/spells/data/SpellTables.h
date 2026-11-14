@@ -96,6 +96,23 @@ enum DeathPreventionShape
     DEATH_PREVENTION_HEAL_PERCENT       ///< the blow is absorbed whole and the bearer healed by the percent (Guardian Spirit)
 };
 
+/// A death-prevention aura: which effect holds its chance and its health percent, how it saves, what it casts after.
+struct DeathPreventionRow
+{
+    uint32 spellId;
+    int8 chanceEffect;              ///< the effect whose aura amount is the chance in percent; -1 for always
+    int8 percentEffect;             ///< the effect whose aura amount is the health percent; -1 when `percent` holds it
+    uint32 percent;                 ///< the health percent when no effect holds it
+    DeathPreventionShape shape;
+    uint32 followUpSpell;           ///< cast by the bearer on himself, triggered by the aura; 0 for none
+    int8 healEffect;                ///< the follow-up's effect that takes the heal as base points; -1 when none
+    uint32 lockoutSeconds;          ///< the follow-up spell's cooldown on the bearer after a save; 0 for none
+    bool consumed;                  ///< whether the save removes the aura's holder
+};
+
+/// The death-prevention row of `spellId`; NULL when the spell has none.
+DeathPreventionRow const* DeathPreventionFor(uint32 spellId);
+
 /// The damage and the heal a spell casts on an enemy or a friend in its place.
 struct SpellHurtHeal
 {
