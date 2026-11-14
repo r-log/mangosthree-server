@@ -309,6 +309,12 @@ namespace
         42385,  // Alcaz Survey Aura
     };
 
+    /// The spells whose cast an aura triggered starts its caster's procs as a cast of his own does.
+    constexpr uint32 PROC_STARTING_TRIGGERED_CASTS[] =
+    {
+        44461,  // Living Bomb's explosion, cast by the bomb's aura when it runs out
+    };
+
     /// A spell id and the value it answers.
     struct SpellAnswer
     {
@@ -665,6 +671,7 @@ namespace
     static_assert(SortedBySpellId(MAX_STACK_AT_CREATE_AURAS), "max-stack ids are sorted, each once");
     static_assert(SortedBySpellId(OVERLOAD_SPELLS), "overload ids are sorted, each once");
     static_assert(SortedBySpellId(TAXI_FLYER_TARGETS), "taxi flyer ids are sorted, each once");
+    static_assert(SortedBySpellId(PROC_STARTING_TRIGGERED_CASTS), "proc-starting triggered cast ids are sorted, each once");
     static_assert(SortedBySpellId(AURA_TARGET_LIMITS), "aura target limit rows are sorted, each once");
     static_assert(SortedBySpellId(ARCANE_POTENCY), "Arcane Potency rows are sorted, each once");
     static_assert(SortedBySpellId(SECOND_WIND), "Second Wind rows are sorted, each once");
@@ -745,6 +752,11 @@ bool IsOverloadIgnoringCastTime(uint32 spellId)
 bool MayTargetTaxiFlyer(uint32 spellId)
 {
     return Holds(TAXI_FLYER_TARGETS, spellId);
+}
+
+bool TriggeredCastStartsProcs(uint32 spellId)
+{
+    return Holds(PROC_STARTING_TRIGGERED_CASTS, spellId);
 }
 
 uint32 AuraTargetLimit(uint32 spellId)

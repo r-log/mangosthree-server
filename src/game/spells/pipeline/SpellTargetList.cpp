@@ -51,6 +51,7 @@
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/data/SpellTables.h"
 #include "Player.h"
 #include "Unit.h"
 #include "ObjectLookup.h"
@@ -394,6 +395,12 @@ void Spell::prepareDataForTriggerSystem()
     else if (!m_triggeredByAuraSpell)
     {
         m_canTrigger = true;                                // Triggered from SPELL_EFFECT_TRIGGER_SPELL - can trigger
+    }
+
+    // A cast an aura triggered that the table names starts its caster's procs as his own cast does
+    if (!m_canTrigger && !m_CastItem && TriggeredCastStartsProcs(m_spellInfo->ID))
+    {
+        m_canTrigger = true;
     }
 
     if (!m_canTrigger)                                      // Exceptions (some periodic triggers)

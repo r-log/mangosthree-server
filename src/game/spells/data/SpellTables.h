@@ -68,6 +68,9 @@ bool MayTargetTaxiFlyer(uint32 spellId);
 /// How many targets may carry `spellId` from one caster at a time; 0 when the spell has no such limit.
 uint32 AuraTargetLimit(uint32 spellId);
 
+/// Whether a cast of `spellId` that an aura triggered still starts its caster's procs.
+bool TriggeredCastStartsProcs(uint32 spellId);
+
 /// The spells a proc casts for the rank of the aura or of the spell that procs it; 0 for a spell the table does not hold.
 uint32 GetArcanePotencyProcSpell(uint32 rankSpellId);
 uint32 GetSecondWindProcSpell(uint32 rankSpellId);
