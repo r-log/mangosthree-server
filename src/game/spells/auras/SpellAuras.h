@@ -479,6 +479,15 @@ class  Aura
         /// How many ticks the aura deals over the holder's maximum duration, its first tick m_firstTickDelay after the
         /// apply (Spells::TickCount).
         uint32 GetAuraMaxTicks() const;
+        /// The time to the next tick, in milliseconds.
+        int32 GetPeriodicTimer() const { return m_periodicTimer; }
+        /// A refreshed aura's first tick comes `timeToNextTick` after its apply, the time the aura it replaces had left
+        /// to its next tick; the tick count counts from it.
+        void CarryTickTimer(int32 timeToNextTick)
+        {
+            m_periodicTimer = timeToNextTick;
+            m_firstTickDelay = timeToNextTick;
+        }
         uint32 GetStackAmount() const { return GetHolder()->GetStackAmount(); }
 
         void SetLoadedState(int32 damage, uint32 periodicTime)

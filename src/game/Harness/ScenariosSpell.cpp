@@ -513,9 +513,10 @@ namespace Harness
             return buf;
         }
 
-        /// The periodic timing of `spell`'s holder on `unit`: the period of its first periodic aura, and the holder's
-        /// duration left and its maximum. False when the unit holds no such holder or the holder no periodic aura.
-        bool PeriodicOf(Unit* unit, uint32 spell, int32& period, int32& duration, int32& maxDuration)
+        /// The periodic timing of `spell`'s holder on `unit`: the period of its first periodic aura and the time to that
+        /// aura's next tick, and the holder's duration left and its maximum. False when the unit holds no such holder or
+        /// the holder no periodic aura.
+        bool PeriodicOf(Unit* unit, uint32 spell, int32& period, int32& timer, int32& duration, int32& maxDuration)
         {
             SpellAuraHolder* holder = unit ? unit->GetSpellAuraHolder(spell) : NULL;
             if (!holder)
@@ -528,6 +529,7 @@ namespace Harness
                 if (aura && aura->IsPeriodic() && aura->GetModifier()->periodictime)
                 {
                     period = int32(aura->GetModifier()->periodictime);
+                    timer = aura->GetPeriodicTimer();
                     duration = holder->GetAuraDuration();
                     maxDuration = holder->GetAuraMaxDuration();
                     return true;
@@ -4094,7 +4096,7 @@ namespace Harness
             std::string watchedBefore;                  ///< HolderOf the watched spell when the step ran
             std::string holder;                         ///< HolderOf the scenario's watched spell, at the read
             bool periodicRead = false;                  ///< PeriodicOf answered for the watched holder, at the read
-            int32 period = 0, duration = 0, maxDuration = 0;
+            int32 period = 0, timer = 0, duration = 0, maxDuration = 0;
             bool logRead = false, crit = false, missed = false;
             uint32 amount = 0;
             std::vector<uint32> triggered;
@@ -4280,9 +4282,10 @@ namespace Harness
                 seen.holder = HolderOf(holderUnit, watched);
                 if (ReadsPeriodic())
                 {
-                    seen.periodicRead = PeriodicOf(holderUnit, watched, seen.period, seen.duration, seen.maxDuration);
-                    periodic = seen.periodicRead ? "; its periodic effect: period " + std::to_string(seen.period) + ", duration " +
-                                                   std::to_string(seen.duration) + "/" + std::to_string(seen.maxDuration)
+                    seen.periodicRead = PeriodicOf(holderUnit, watched, seen.period, seen.timer, seen.duration, seen.maxDuration);
+                    periodic = seen.periodicRead ? "; its periodic effect: period " + std::to_string(seen.period) + ", next tick in " +
+                                                   std::to_string(seen.timer) + ", duration " + std::to_string(seen.duration) + "/" +
+                                                   std::to_string(seen.maxDuration)
                                                  : std::string("; no periodic effect");
                 }
             }
@@ -5054,8 +5057,8 @@ namespace Harness
         /// The watched holder's periodic timing a read recorded, as text.
         static std::string PeriodicText(Seen const& seen)
         {
-            return seen.periodicRead ? "period " + std::to_string(seen.period) + ", duration " + std::to_string(seen.duration) + "/" +
-                                           std::to_string(seen.maxDuration)
+            return seen.periodicRead ? "period " + std::to_string(seen.period) + ", next tick in " + std::to_string(seen.timer) +
+                                           ", duration " + std::to_string(seen.duration) + "/" + std::to_string(seen.maxDuration)
                                      : std::string("no holder with a periodic effect");
         }
     };

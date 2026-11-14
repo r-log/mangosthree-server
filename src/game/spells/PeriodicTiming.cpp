@@ -76,4 +76,14 @@ namespace Spells
         }
         return uint32((duration - firstTickDelay) / period + 1);
     }
+
+    int32 RolledOverTick(int32 newAmount, uint32 newTicks, int32 oldAmount, uint32 remainingTicks, uint32 totalTicks)
+    {
+        if (!totalTicks)
+        {
+            return newAmount;
+        }
+        const int64 total = int64(newAmount) * int64(newTicks) + int64(oldAmount) * int64(remainingTicks);
+        return int32(total / int64(totalTicks));
+    }
 }

@@ -82,6 +82,19 @@ namespace Spells
      *         tick comes after the duration.
      */
     uint32 TickCount(int32 duration, int32 period, int32 firstTickDelay);
+
+    /**
+     * @brief The per-tick amount of a refreshed damage-over-time effect that carries the damage its old aura had left.
+     *
+     * @param newAmount The new aura's per-tick amount.
+     * @param newTicks The new aura's tick count without the time carried to its first tick.
+     * @param oldAmount The old aura's per-tick amount.
+     * @param remainingTicks The ticks the old aura had left.
+     * @param totalTicks The new aura's tick count with the time carried to its first tick.
+     * @return The new total (`newAmount * newTicks`) and the remaining total (`oldAmount * remainingTicks`) spread over
+     *         `totalTicks`, the remainder of the division dropped; `newAmount` when `totalTicks` is 0.
+     */
+    int32 RolledOverTick(int32 newAmount, uint32 newTicks, int32 oldAmount, uint32 remainingTicks, uint32 totalTicks);
 }
 
 #endif
