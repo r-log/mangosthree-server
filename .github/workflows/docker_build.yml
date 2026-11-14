@@ -32,7 +32,7 @@ jobs:
       packages: write
     env:
       GH_TOKEN: ${{ github.token }}
-      CACHE_TO: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && 'type=gha,scope=server,mode=max' || '' }}
+      CACHE_TO: ${{ github.event_name != 'pull_request' && 'type=gha,scope=server,mode=max' || '' }}
 
     steps:
       - name: Checkout repository
