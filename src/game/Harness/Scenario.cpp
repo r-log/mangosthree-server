@@ -593,6 +593,11 @@ namespace Harness
         {
             player.ApplySpellPowerBonus(plan.spellPower, true);
         }
+        if (plan.attackPower)
+        {
+            player.HandleStatModifier(UNIT_MOD_ATTACK_POWER, TOTAL_VALUE, float(plan.attackPower), true);
+            player.HandleStatModifier(UNIT_MOD_ATTACK_POWER_RANGED, TOTAL_VALUE, float(plan.attackPower), true);
+        }
         if (plan.hasteRating)
         {
             player.ApplyRatingMod(CR_HASTE_MELEE, plan.hasteRating, true);

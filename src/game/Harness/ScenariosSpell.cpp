@@ -84,8 +84,10 @@
 // is; 950 a mage staged to level 85 at a fixed spell power casts Fireball five times at a level-85
 // target; 951, 952, 954 and 955 a staged Fire mage's proc talents: Hot Streak, Master of Elements,
 // Blazing Speed, and Combustion, whose cast leaves no aura to proc; 956 Living Bomb's explosion at
-// expiry and at dispel; 957 Ice Lance at a frozen target, an unfrozen one, and with Fingers of Frost.
-// The guard of 931-938 and 950-957 (Qualify) fingerprints every spell a scenario reaches and refuses
+// expiry and at dispel; 957 Ice Lance at a frozen target, an unfrozen one, and with Fingers of Frost;
+// 958-960 a warrior, a paladin and a death knight staged to level 85 at a fixed attack power cast Heroic
+// Throw, Hammer of Wrath and Death Coil five times at a level-85 target.
+// The guard of 931-938 and 950-960 (Qualify) fingerprints every spell a scenario reaches and refuses
 // the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4922,6 +4924,472 @@ namespace Harness
         static constexpr int32 kMasteryRating = 1500;
     };
 
+    /**
+     * What the attack power scenarios share (958-960): a human of the scenario's class staged to level 85 with
+     * kAttackPower added to his melee and his ranged attack power, the scenario's spell power and its spells
+     * (Scenario::StagePlayer), and a Camel (50249) staged to level 85 kTargetYards in front of him
+     * (Scenario::SpawnTarget). Then kCasts casts of the scenario's spell at the Camel through the CAST_SPELL handler's
+     * calls, one every CastEveryMs(), each read kReadAfterMs after it. Before each cast his power is set to its maximum
+     * and the spell's cooldown taken off him by call (a cooldown ends on the wall clock, which the stepped clock does
+     * not move), and for a spell that asks for a wounded target the Camel's health is set to TargetHealthPct() percent
+     * of its maximum, as it is once at the staging, before the map update that sets its health aura states. A cast is not made when a holder on either unit that a proc can reach is not one the guard
+     * fingerprinted. Each cast's rolls are drawn in map updates under the map hook's
+     * RNG::Seed(TickSeed(base, order, elapsed)), so every run draws the same ones.
+     *
+     * Categories: `template`; `staged` his level, his melee and ranged attack power with the part the plan added to
+     * each, the spell power of the damaging spell's school, his main hand item, his power, the Camel's level, health
+     * and armor and the holders that can proc, OK when the level, the two added parts and the Camel's level are the plan's; `casts`
+     * each cast's SPELL_GO spells and the damage log of the damaging spell with the Camel's health lost equal to its
+     * amount, a BUG when a cast was refused or not read, or neither hit nor missed; `amounts` the amounts in cast order
+     * (a crit marked `c`, a miss `miss`); `noPersistence`; `digest`.
+     */
+    class AttackPowerScenario : public SpellScenario
+    {
+    public:
+        AttackPowerScenario(char const* name, int order)
+            : SpellScenario(name, order, { "template", "staged", "casts", "amounts", "noPersistence", "digest" }) {}
+
+        void Prepare() override
+        {
+            const uint32 level = 85;
+            const std::vector<SpellPrint> prints = Prints();
+
+            QuestPlan plan;
+            plan.quest = 0;
+            plan.classId = Class();
+            plan.level = level;
+            plan.dealsDamage = true;
+            for (size_t i = 0; i < prints.size(); ++i)
+            {
+                if (!prints[i].fields.count("absent"))
+                {
+                    plan.casts.insert(prints[i].spell);
+                }
+            }
+            const std::vector<uint32> spells = Spells();
+            plan.spells.insert(spells.begin(), spells.end());
+            std::string templateOk;
+            QuestPreCheck pre;
+            if (!Qualify(prints, { kCamel }, plan, templateOk, &pre))
+            {
+                return;
+            }
+
+            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z), 0.0f, Class());
+            if (!p)
+            {
+                Verdict(Invalid("spawn failed"));
+                return;
+            }
+            const float tx = P0.x + kTargetYards;
+            Creature* target = SpawnTarget(kCamel, level, tx, P0.y, Ground(tx, P0.y, P0.z), 3.14159f);
+            if (!target)
+            {
+                Verdict(Invalid("the target (50249) did not spawn"));
+                return;
+            }
+            StartTimeSync(p);
+
+            auto st = std::make_shared<St>();
+            st->player = p->GetObjectGuid();
+            st->target = target->GetObjectGuid();
+            st->templateOk = templateOk;
+            st->noReachLevel = pre.levelBound == pre.startLevel;
+            st->achievementsAtSpawn = Achievements(p);
+            st->dealsDamage = plan.dealsDamage;
+            st->plan = plan;
+            for (size_t i = 0; i < prints.size(); ++i)
+            {
+                st->printed.insert(prints[i].spell);
+            }
+            st->casts.resize(kCasts);
+
+            SpellWatch watch;
+            watch.target = st->target;
+            watch.combatLogFields = true;
+            m_rec.Begin(Name(), p, watch);
+            m_rec.Open("stage", false);           // a setup window: logged, never digested
+            StagePlan stage;
+            stage.level = level;
+            stage.attackPower = kAttackPower;
+            stage.spellPower = SpellPower();
+            stage.spells = spells;
+            st->staged = StagePlayer(*p, stage);
+            st->levelSet = p->getLevel();
+            if (const uint32 pct = TargetHealthPct())
+            {
+                // before the first map update, which sets the Camel's health aura states the spell asks for
+                target->SetHealth(target->GetMaxHealth() * pct / 100);
+            }
+            ReadStage(*st, p, target, level);
+
+            for (uint32 k = 0; k < kCasts; ++k)
+            {
+                At(300 + CastEveryMs() * k, [this, st, k]() { RunCast(*st, k); });
+                At(300 + CastEveryMs() * k + kReadAfterMs, [this, st, k]() { ReadCast(*st, k); });
+            }
+            At(300 + CastEveryMs() * kCasts, [this, st]() { Finish(*st); });
+        }
+
+    protected:
+        static constexpr uint32 kCamel = 50249;
+        static constexpr int32 kAttackPower = 1000;
+        static constexpr float kTargetYards = 20.0f;
+        static constexpr uint32 kCasts = 5;
+        static constexpr uint32 kReadAfterMs = 3600;
+
+        /// The class of the human SpawnPlayer builds.
+        virtual uint8 Class() const = 0;
+        /// The spell he casts.
+        virtual uint32 CastSpell() const = 0;
+        /// The spell whose damage log carries each cast's amount: the cast spell, or the spell it casts.
+        virtual uint32 HitSpell() const { return CastSpell(); }
+        /// The spells to stage.
+        virtual std::vector<uint32> Spells() const { return std::vector<uint32>(1, CastSpell()); }
+        /// The spell power to stage.
+        virtual int32 SpellPower() const { return 0; }
+        /// The percent of its maximum the Camel's health is set to before each cast; 0 leaves it.
+        virtual uint32 TargetHealthPct() const { return 0; }
+        /// The time from one cast to the next.
+        virtual uint32 CastEveryMs() const { return 4100; }
+        /// Every spell the scenario reaches: the casts, the holders that can proc and what they cast.
+        virtual std::vector<SpellPrint> Prints() const = 0;
+
+    private:
+        /// One cast, as its two steps saw it.
+        struct Cast
+        {
+            bool ran = false, refused = false, read = false;
+            uint32 castId = 0;
+            uint32 healthBefore = 0, healthAfter = 0;
+            bool logRead = false, crit = false, missed = false;
+            uint32 amount = 0, failed = 0;
+            std::string spells;                 ///< the SPELL_GO spells of its windows, in order
+            std::string hitLine;
+        };
+
+        struct St
+        {
+            ObjectGuid player;
+            ObjectGuid target;
+            std::string templateOk;
+            uint32 levelSet = 0;
+            bool noReachLevel = false;
+            std::set<uint32> achievementsAtSpawn;
+            bool dealsDamage = false;
+            QuestPlan plan;
+            bool staged = false;
+            std::string stagedText;
+            bool stagedOk = false;
+            std::set<uint32> printed;
+            std::vector<Cast> casts;
+        };
+
+        void ReadStage(St& st, Player* p, Creature* target, uint32 level)
+        {
+            SpellEntry const* hit = sSpellStore.LookupEntry(HitSpell());
+            const int32 spellPower = hit ? p->SpellBaseDamageBonusDone(GetSpellSchoolMask(hit)) : 0;
+            const float melee = p->GetTotalAttackPowerValue(BASE_ATTACK);
+            const float ranged = p->GetTotalAttackPowerValue(RANGED_ATTACK);
+            const float meleeAdded = p->GetModifierValue(UNIT_MOD_ATTACK_POWER, TOTAL_VALUE);
+            const float rangedAdded = p->GetModifierValue(UNIT_MOD_ATTACK_POWER_RANGED, TOTAL_VALUE);
+            Item* mainHand = p->GetWeaponForAttack(BASE_ATTACK, true, false);
+            char buf[512];
+            snprintf(buf, sizeof(buf),
+                     "level %u; attack power %.2f melee, %.2f ranged, of which %.2f and %.2f staged; spell power %d (school mask %u); main hand item %u; power %u/%u; target %u level %u, health %u/%u, armor %u",
+                     p->getLevel(), melee, ranged, meleeAdded, rangedAdded, spellPower, hit ? GetSpellSchoolMask(hit) : 0,
+                     mainHand ? mainHand->GetEntry() : 0, p->GetPower(p->GetPowerType()), p->GetMaxPower(p->GetPowerType()),
+                     target->GetEntry(), target->getLevel(), target->GetHealth(), target->GetMaxHealth(), target->GetArmor());
+            st.stagedText = std::string(buf) + "; holders that can proc: self [" + ProcHolders(p) + "] (by chance [" + LiveProcHolders(p) +
+                            "]), target [" + ProcHolders(target) + "]";
+            st.stagedOk = st.staged && p->getLevel() == level && meleeAdded == float(kAttackPower) && rangedAdded == float(kAttackPower) &&
+                          target->getLevel() == level;
+            m_rec.Note("staged: " + st.stagedText);
+        }
+
+        void RunCast(St& st, uint32 k)
+        {
+            Player* p = sPlayerRegistry.Find(st.player);
+            Creature* target = Get(st.target);
+            if (!p || !target || !st.staged)
+            {
+                return;
+            }
+            Cast& c = st.casts[k];
+            const std::string name = "cast" + U(k + 1);
+            m_rec.Open(name);
+            c.ran = true;
+            m_rec.Note("holders that can proc: self [" + ProcHolders(p) + "], target [" + ProcHolders(target) + "]");
+            const std::string unprintedSelf = ProcHolders(p, st.printed);
+            const std::string unprintedTarget = ProcHolders(target, st.printed);
+            if (!unprintedSelf.empty() || !unprintedTarget.empty())
+            {
+                c.refused = true;
+                m_rec.Note("holders that can proc and are not fingerprinted: self [" + unprintedSelf + "], target [" + unprintedTarget +
+                           "]; not cast");
+                m_rec.Open(name + "+tick");
+                return;
+            }
+            p->SetPower(p->GetPowerType(), p->GetMaxPower(p->GetPowerType()));
+            p->RemoveSpellCooldown(CastSpell());
+            if (const uint32 pct = TargetHealthPct())
+            {
+                target->SetHealth(target->GetMaxHealth() * pct / 100);
+            }
+            c.healthBefore = target->GetHealth();
+            m_rec.Note("power " + U(p->GetPower(p->GetPowerType())) + "/" + U(p->GetMaxPower(p->GetPowerType())) + "; target health " +
+                       U(c.healthBefore) + "/" + U(target->GetMaxHealth()));
+            c.castId = CastAsHandler(p, CastSpell(), target, uint8(k + 1));
+            m_rec.Open(name + "+tick");
+        }
+
+        void ReadCast(St& st, uint32 k)
+        {
+            Player* p = sPlayerRegistry.Find(st.player);
+            Creature* target = Get(st.target);
+            Cast& c = st.casts[k];
+            if (!p || !target || !c.ran || c.refused)
+            {
+                return;
+            }
+            const std::string name = "cast" + U(k + 1) + "-read";
+            m_rec.Open(name);
+            c.read = true;
+            c.healthAfter = target->GetHealth();
+            m_rec.Note("target health " + U(c.healthAfter) + "/" + U(target->GetMaxHealth()) + "; power " + U(p->GetPower(p->GetPowerType())));
+            m_rec.Open(name + "+tick");
+        }
+
+        /// Each cast's windows as the record holds them: the SPELL_GO packets, the damage log of HitSpell(), CAST_FAILED.
+        void ReadSeen(St& st) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            for (uint32 k = 0; k < st.casts.size(); ++k)
+            {
+                Cast& c = st.casts[k];
+                const std::string base = "cast" + U(k + 1);
+                const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+                for (const char* suffix : suffixes)
+                {
+                    const std::string window = base + suffix;
+                    c.failed += m_rec.CountIn(window, SMSG_CAST_FAILED);
+                    std::vector<Recorder::Seen const*> gos = m_rec.SeenIn(window, SMSG_SPELL_GO);
+                    for (size_t i = 0; i < gos.size(); ++i)
+                    {
+                        std::string go;
+                        uint32 spell = 0;
+                        if (gos[i]->payload.empty() || !Trace::DecodeSpellCast(true, &gos[i]->payload[0], gos[i]->payload.size(), roles, go) ||
+                            sscanf(go.c_str(), "spell=%u", &spell) != 1)
+                        {
+                            continue;
+                        }
+                        c.spells += (c.spells.empty() ? "" : "+") + U(spell);
+                        if (spell == HitSpell())
+                        {
+                            c.missed = c.missed || go.find(" hit=[] miss=[target:") != std::string::npos;
+                        }
+                    }
+                    std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(window, SMSG_SPELLNONMELEEDAMAGELOG);
+                    for (size_t i = 0; i < logs.size(); ++i)
+                    {
+                        if (logs[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &logs[i]->payload[0],
+                                                                                 logs[i]->payload.size(), roles);
+                        uint32 spell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                        if (fields.size() == 1 &&
+                            sscanf(fields[0].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted) == 5 &&
+                            spell == HitSpell() && !c.logRead)
+                        {
+                            c.logRead = true;
+                            c.crit = crit != 0;
+                            c.amount = amount;
+                            c.hitLine = fields[0];
+                        }
+                    }
+                }
+            }
+        }
+
+        void Finish(St& st)
+        {
+            m_rec.End();   // the sink comes off before the verdict
+            Player* p = sPlayerRegistry.Find(st.player);
+            if (!p)
+            {
+                Verdict(Invalid("the harness player was gone at the verdict"));
+                return;
+            }
+            const std::string persistence = NoPersistence(p, st.achievementsAtSpawn, st.levelSet, st.noReachLevel, st.dealsDamage, &st.plan);
+            if (!st.staged)
+            {
+                const std::string why = "INVALID(StagePlayer refused; its ERR line names the step)";
+                Verdict(Compose({ st.templateOk, why, why, why, persistence, DigestValue("the first cast") }));
+                return;
+            }
+            ReadSeen(st);
+            std::string values, castText, castBug;
+            for (uint32 k = 0; k < st.casts.size(); ++k)
+            {
+                Cast const& c = st.casts[k];
+                std::string value;
+                std::string problem;
+                if (!c.ran || c.refused)
+                {
+                    value = "refused";
+                    problem = "refused before the cast, a holder the guard did not fingerprint can proc";
+                }
+                else if (!c.castId)
+                {
+                    value = "unknown";
+                    problem = "the spellbook refused " + U(CastSpell());
+                }
+                else if (!c.read)
+                {
+                    value = "unread";
+                    problem = "the read step did not run";
+                }
+                else if (c.logRead)
+                {
+                    value = U(c.amount) + (c.crit ? "c" : "");
+                    if (c.amount != c.healthBefore - c.healthAfter)
+                    {
+                        problem = c.hitLine + ", but the target's health " + U(c.healthBefore) + " -> " + U(c.healthAfter);
+                    }
+                }
+                else if (c.missed)
+                {
+                    value = "miss";
+                    if (c.healthBefore != c.healthAfter)
+                    {
+                        problem = "a miss, but the target's health " + U(c.healthBefore) + " -> " + U(c.healthAfter);
+                    }
+                }
+                else
+                {
+                    value = "none";
+                    problem = "no damage log of " + U(HitSpell()) + " and no miss; SPELL_GO [" + c.spells + "], CAST_FAILED x" + U(c.failed);
+                }
+                if (!problem.empty() && castBug.empty())
+                {
+                    castBug = "cast " + U(k + 1) + ": " + problem;
+                }
+                values += (k ? "," : "") + value;
+                castText += (k ? "; " : "") + U(k + 1) + " [" + c.spells + "] " + (c.logRead ? c.hitLine.substr(4) : value) + ", health " +
+                            U(c.healthBefore) + "->" + U(c.healthAfter);
+            }
+            const std::string staged = std::string(st.stagedOk ? "OK" : "BUG") + "(" + st.stagedText + ")";
+            const std::string casts = castBug.empty()
+                                      ? "OK(" + U(st.casts.size()) + " casts of " + U(CastSpell()) + ", each its SPELL_GO spells and the damage log of " +
+                                        U(HitSpell()) + "; the target lost each amount: " + castText + ")"
+                                      : "BUG(" + castBug + ")";
+            const std::string amounts = values + "(" + U(HitSpell()) + " by cast, a crit marked c)";
+            Verdict(Compose({ st.templateOk, staged, casts, amounts, persistence, DigestValue("the first cast") }));
+        }
+    };
+
+    /**
+     * S958 `warrior-heroic-throw-ap`: Heroic Throw (57755) by a warrior. One SCHOOL_DAMAGE effect, physical, its damage
+     * class melee; Spell.dbc's attack power coefficient for it is 0.75. Its cooldown is taken off him before each cast.
+     * Every warrior is created with Defensive State (5301, which names Defensive State 5302, not in the client's data)
+     * and Victorious State (32215, which casts 32216 on a kill): both are fingerprinted.
+     */
+    class WarriorHeroicThrowAp : public AttackPowerScenario
+    {
+    public:
+        WarriorHeroicThrowAp() : AttackPowerScenario("warrior-heroic-throw-ap", 958) {}
+
+    protected:
+        uint8 Class() const override { return CLASS_WARRIOR; }
+        uint32 CastSpell() const override { return 57755; }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 57755: 26 fields, fnv 0f6d1699
+                { 57755, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 5301: 49 fields, fnv de636d32
+                { 5301, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 5302 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 49 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                { 5302, { { "absent", 1 } } },
+                // 32215: 26 fields, fnv 661fa801
+                { 32215, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 32216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 32216: 26 fields, fnv ba87eed9
+                { 32216, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+    };
+
+    /**
+     * S959 `paladin-hammer-of-wrath-ap`: Hammer of Wrath (24275) by a paladin staged with kSpellPower spell power as
+     * well. One SCHOOL_DAMAGE effect, holy, its damage class melee; Spell.dbc's attack power coefficient for it is
+     * 0.39. It asks for a target under 20% of its health, so the Camel's health is set to 15% of its maximum before each
+     * cast, more than one crit takes. One cast every 6100 ms, longer than its 6 s cooldown, which is also taken off him
+     * before each cast.
+     */
+    class PaladinHammerOfWrathAp : public AttackPowerScenario
+    {
+    public:
+        PaladinHammerOfWrathAp() : AttackPowerScenario("paladin-hammer-of-wrath-ap", 959) {}
+
+    protected:
+        uint8 Class() const override { return CLASS_PALADIN; }
+        uint32 CastSpell() const override { return 24275; }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 TargetHealthPct() const override { return 15; }
+        uint32 CastEveryMs() const override { return 6100; }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 24275: 26 fields, fnv 3bacb3fd
+                { 24275, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 350 }, { "eff0.EffectBonusCoefficient", 1039113650 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 37 }, { "eff0.EffectRealPointsPerLevel", 1075419546 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+    private:
+        static constexpr int32 kSpellPower = 1000;
+    };
+
+    /**
+     * S960 `deathknight-death-coil-ap`: Death Coil (47541) by a death knight. Its dummy effect casts Death Coil 47632
+     * at an enemy with its own amount (SpellEffectDummy.cpp), whose one SCHOOL_DAMAGE effect, shadow, its damage
+     * class magic, holds no coefficient in either client file; its attack power share is spell_bonus_data's row for
+     * 47632. His runic power is set to its maximum before each cast. Every death knight is created with Offensive State
+     * (45903, which names 45904, not in the client's data) and Death Strike Enabler (89832), and at level 85 holds Rune
+     * Strike's passive (56816, which casts 56817 on him): all three are fingerprinted.
+     */
+    class DeathKnightDeathCoilAp : public AttackPowerScenario
+    {
+    public:
+        DeathKnightDeathCoilAp() : AttackPowerScenario("deathknight-death-coil-ap", 960) {}
+
+    protected:
+        uint8 Class() const override { return CLASS_DEATH_KNIGHT; }
+        uint32 CastSpell() const override { return 47541; }
+        uint32 HitSpell() const override { return 47632; }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 47541: 26 fields, fnv 00dd029a
+                { 47541, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 167 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 25 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 47632: 26 fields, fnv 111117a2
+                { 47632, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 600 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 45903: 26 fields, fnv 666c5c65
+                { 45903, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 45904 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 45904, { { "absent", 1 } } },
+                // 89832: 26 fields, fnv ba87eed9
+                { 89832, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 56816: 26 fields, fnv 3c5ee47e
+                { 56816, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 56817 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 56817: 26 fields, fnv ba87eed9
+                { 56817, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -4941,5 +5409,8 @@ namespace Harness
         r.Register(new MageFireCombustion());
         r.Register(new MageFireLivingBomb());
         r.Register(new MageFrostIceLance());
+        r.Register(new WarriorHeroicThrowAp());
+        r.Register(new PaladinHammerOfWrathAp());
+        r.Register(new DeathKnightDeathCoilAp());
     }
 }
