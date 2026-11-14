@@ -609,8 +609,8 @@ TEST(RedirectStream_concurrent_sends_reach_the_wire_in_keystream_order)
     // network threads to send at once. This is a race, so one pass proves
     // nothing; the test leans on volume and on threads released together. It
     // cannot fail unless the ordering is broken.
-    constexpr int THREADS = 4;
-    constexpr int PER_THREAD = 400;
+    static constexpr int THREADS = 4;
+    static constexpr int PER_THREAD = 400;
 
     Fixture fixture;
     const std::array<uint8, AuthCrypt::SeedLength> seed =
@@ -625,7 +625,7 @@ TEST(RedirectStream_concurrent_sends_reach_the_wire_in_keystream_order)
 
     for (int t = 0; t < THREADS; ++t)
     {
-        senders.push_back(std::thread([&fixture, &go, t, PER_THREAD]()
+        senders.push_back(std::thread([&fixture, &go, t]()
         {
             while (!go.load(std::memory_order_acquire))
             {

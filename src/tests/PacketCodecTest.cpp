@@ -218,7 +218,7 @@ TEST(PacketCodec_arms_the_decryptor_between_coalesced_packets)
     proto::PacketCodec codec;
 
     // "Encryption" that is exactly invertible and obviously not identity.
-    const uint8 key = 0x5A;
+    static const uint8 key = 0x5A;
 
     std::vector<uint8> wire = Frame(0x0111, { 0xAA });
     std::vector<uint8> second = Frame(0x0222, { 0xBB });
@@ -240,7 +240,7 @@ TEST(PacketCodec_arms_the_decryptor_between_coalesced_packets)
             if (handled.size() == 1)
             {
                 codec.SetHeaderDecryptor(
-                    [key](uint8* header, size_t len)
+                    [](uint8* header, size_t len)
                     {
                         for (size_t i = 0; i < len; ++i)
                         {
