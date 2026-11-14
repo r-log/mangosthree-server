@@ -88,6 +88,14 @@ uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId);
 /// Whether a spell is a rank of Blazing Speed.
 bool IsBlazingSpeedRank(uint32 spellId);
 
+/// How a death-prevention aura saves its bearer from a killing blow.
+enum DeathPreventionShape
+{
+    DEATH_PREVENTION_FLOOR,             ///< the blow leaves the bearer at the floor, never heals (Cheat Death)
+    DEATH_PREVENTION_FLOOR_AND_HEAL,    ///< the bearer ends at the floor: damaged down to it or healed up to it (Cauterize)
+    DEATH_PREVENTION_HEAL_PERCENT       ///< the blow is absorbed whole and the bearer healed by the percent (Guardian Spirit)
+};
+
 /// The damage and the heal a spell casts on an enemy or a friend in its place.
 struct SpellHurtHeal
 {
