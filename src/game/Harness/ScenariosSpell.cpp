@@ -91,8 +91,9 @@
 // hasted mage's Pyroblast! and its ticks; 963 Pyroblast! cast again before its periodic effect's next tick; 964
 // Ignite's ticks under Flashburn on a staged Fire mage with mastery rating; 965 Living Bomb on four targets from
 // one mage, and a refresh; 967 a staged Fire mage's Pyroblast applies Critical Mass and his Arcane Blast crit gives
-// back mana through Master of Elements; 969 a killing blow on a Fire mage with Cauterize, and the burn that follows.
-// The guard of 931-938, 950-965, 967 and 969 (Qualify) fingerprints every spell a scenario reaches and refuses
+// back mana through Master of Elements; 969 a killing blow on a Fire mage with Cauterize, and the burn that follows;
+// 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the first one's end takes it off.
+// The guard of 931-938, 950-965, 967, 969 and 972 (Qualify) fingerprints every spell a scenario reaches and refuses
 // the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3906,7 +3907,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-967, 969): a human mage staged to level 85 with the
+     * What the mage scenarios share (951, 952, 954-957, 962-967, 969, 972): a human mage staged to level 85 with the
      * scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged
      * to level 85 ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in
      * order:
@@ -4159,6 +4160,8 @@ namespace Harness
             bool targetFrozen = false;                  ///< Unit::IsFrozen on the Camel when the step ran
             std::string watchedBefore;                  ///< HolderOf the watched spell when the step ran
             std::string holder;                         ///< HolderOf the scenario's watched spell, at the read
+            int32 watchedAmount = 0;                    ///< the watched holder's effect 0 amount at the read; 0 for none
+            float castSpeed = 0.0f, castHaste = 0.0f;   ///< his cast-speed and cast-haste fields at the read
             bool periodicRead = false;                  ///< PeriodicOf answered for the watched holder, at the read
             int32 period = 0, timer = 0, duration = 0, maxDuration = 0;
             std::vector<std::string> holders;           ///< several Camels: HolderOf the watched spell on each, at the read
@@ -4183,6 +4186,7 @@ namespace Harness
             bool staged = false;
             std::string stagedText;
             bool stagedOk = false;
+            float stagedCastSpeed = 0.0f, stagedCastHaste = 0.0f;   ///< his cast-speed and cast-haste fields once staged
             std::set<uint32> printed;
             std::vector<std::pair<uint32, uint32> > talents;
             std::vector<Step> steps;
@@ -4509,11 +4513,15 @@ namespace Harness
                 seen.healthAfter = step.swing || step.fullHealth ? p->GetHealth() : target->GetHealth();
             }
             seen.watchedOnCooldown = Watched() && p->HasSpellCooldown(Watched());
+            seen.castSpeed = p->GetFloatValue(UNIT_MOD_CAST_SPEED);
+            seen.castHaste = p->GetFloatValue(UNIT_MOD_CAST_HASTE);
             std::string periodic;
             if (const uint32 watched = Watched())
             {
                 Unit* holderUnit = WatchedOnTarget() ? static_cast<Unit*>(target) : static_cast<Unit*>(p);
                 seen.holder = HolderOf(holderUnit, watched);
+                Aura const* watchedAura = holderUnit->GetAura(watched, EFFECT_INDEX_0);
+                seen.watchedAmount = watchedAura ? watchedAura->GetModifier()->m_amount : 0;
                 if (ReadsPeriodic())
                 {
                     seen.periodicRead = PeriodicOf(holderUnit, watched, seen.period, seen.timer, seen.duration, seen.maxDuration);
@@ -4653,8 +4661,9 @@ namespace Harness
                          p->GetRatingBonusValue(CR_HASTE_SPELL), mastery, p->GetFloatValue(PLAYER_MASTERY));
                 st.stagedText += "; glyphs " + (glyphText.empty() ? std::string("none") : glyphText) + buf;
             }
-            snprintf(buf, sizeof(buf), "; cast-speed field %.6f, cast-haste field %.6f", p->GetFloatValue(UNIT_MOD_CAST_SPEED),
-                     p->GetFloatValue(UNIT_MOD_CAST_HASTE));
+            st.stagedCastSpeed = p->GetFloatValue(UNIT_MOD_CAST_SPEED);
+            st.stagedCastHaste = p->GetFloatValue(UNIT_MOD_CAST_HASTE);
+            snprintf(buf, sizeof(buf), "; cast-speed field %.6f, cast-haste field %.6f", st.stagedCastSpeed, st.stagedCastHaste);
             st.stagedText += buf;
             m_rec.Note("staged: " + st.stagedText);
         }
@@ -6657,6 +6666,136 @@ namespace Harness
         static constexpr size_t kBurnTicks = 4;
     };
 
+    /**
+     * S972 `mage-fire-pyromaniac`: Pyromaniac (34295, rank 2 of 2, talent 10559) on a staged Fire mage: "Increases spell
+     * haste by $s1% if 3 or more targets are taking Fire damage over time from your spells." Staged as 967 stages its
+     * tree: Master of Elements 2, Burning Soul 3, Improved Fire Blast 2, Fire Power 3, Blazing Speed 2, Hot Streak
+     * (which keeps Offensive State from casting Arcane Missiles!), Improved Scorch 2, Combustion, Molten Shields,
+     * Improved Hot Streak 2, Firestarter, Improved Flamestrike 2, Dragon's Breath and Molten Fury 2 (the 25 points the
+     * sixth tier asks), then Pyromaniac 2; Living Bomb (44457) learned, and no haste rating, so a bomb lasts its 12 s.
+     * Three Camels stand kTargetSpacing apart, beyond the explosion's 10 yards from one another. Before the first cast he
+     * takes Precision (13843, +6% spell hit), so no cast can miss a level-85 Camel. Steps: a Living Bomb at Camels 1, 2
+     * and 3, 2 s apart, each read kReadMs after its cast; then, 10 s after the third, when Camel 1's bomb has run out
+     * and Camel 2's runs out, the Camel's swing at him, read kSwingReadMs after: one bomb burns then.
+     *
+     * `pyromaniac`: Pyromaniac's haste (83582) on him at each read, `none` or `83582:<its amount>`; OK when it reads
+     * `none,none,83582:<34295's effect 0 value>,none`, and at the third read his cast-speed and cast-haste fields are
+     * the staged ones over one plus that value in percent, and at the fourth read the staged ones again.
+     */
+    class MageFirePyromaniac : public MageProcScenario
+    {
+    public:
+        MageFirePyromaniac() : MageProcScenario("mage-fire-pyromaniac", 972, "pyromaniac") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10545, 1 }, { 10531, 2 }, { 10523, 1 }, { 11434, 2 }, { 10555, 1 }, { 10573, 0 }, { 10547, 1 }, { 10561, 0 },
+                     { 10543, 0 }, { 12121, 1 }, { 11431, 0 }, { 10734, 1 }, { 10571, 0 }, { 10563, 1 }, { kPyromaniacTalent, 1 } };
+        }
+        std::vector<uint32> Spells() const override { return { kLivingBomb }; }
+        bool TakesDamage() const override { return true; }
+        uint32 TargetCount() const override { return 3; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 CasterAura() const override { return kPrecision; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { AuraCastAt(kLivingBomb, 0, 2000), AuraCastAt(kLivingBomb, 1, 2000), AuraCastAt(kLivingBomb, 2, 10000), Swing() };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 44457: 49 fields, fnv 87d07253
+                { 44457, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 3000 }, { "eff0.EffectBasePoints", 153 }, { "eff0.EffectBonusCoefficient", 1048844435 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 44461 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44461: 26 fields, fnv f40ea43f
+                { 44461, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 306 }, { "eff0.EffectBonusCoefficient", 1057216266 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 53 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 34295: 26 fields, fnv fb66c962
+                { 34295, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 83582: 26 fields, fnv fc014937
+                { 83582, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 65 }, { "eff0.EffectBasePoints", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 29075: 26 fields, fnv d8954794
+                { 29075, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 29077: 26 fields, fnv a4e31d4d
+                { 29077, { { "eff0.present", 1 }, { "eff0.Effect", 30 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 44445: 49 fields, fnv effa745d
+                { 44445, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 33 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 34359738368 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44448: 49 fields, fnv 2ada6a76
+                { 44448, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 34359738368 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 48108: 26 fields, fnv 28b4e817
+                { 48108, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 332 }, { "eff0.EffectBasePoints", 92315 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags2", 4096 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return kHaste; }
+
+        std::string Own(St const& st) const override
+        {
+            SpellEntry const* rank = sSpellStore.LookupEntry(kPyromaniacRank2);
+            const int32 haste = rank ? rank->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
+            const std::string hasted = U(kHaste) + ":" + std::to_string(haste);
+            const std::string wanted[] = { "none", "none", hasted, "none" };
+            bool ok = haste > 0 && st.seen.size() == sizeof(wanted) / sizeof(wanted[0]);
+
+            std::string value, text;
+            char buf[256];
+            for (uint32 k = 0; k < st.seen.size(); ++k)
+            {
+                Seen const& seen = st.seen[k];
+                const std::string at = !seen.read ? std::string("unread")
+                                       : seen.holder == "none" ? std::string("none")
+                                       : U(kHaste) + ":" + std::to_string(seen.watchedAmount);
+                value += (k ? "," : "") + at;
+                ok = ok && k < sizeof(wanted) / sizeof(wanted[0]) && at == wanted[k];
+                snprintf(buf, sizeof(buf), "; read %u: %u on him %s, cast-speed field %.6f, cast-haste field %.6f", k + 1, kHaste,
+                         seen.holder.c_str(), seen.castSpeed, seen.castHaste);
+                text += buf;
+            }
+
+            // his fields under the haste: each staged one times 100 / (100 + the haste), as Unit::ApplyCastTimePercentMod
+            // applies a positive percent
+            const float speedHasted = st.stagedCastSpeed * 100.0f / (100.0f + float(haste));
+            const float hasteHasted = st.stagedCastHaste * 100.0f / (100.0f + float(haste));
+            if (ok)
+            {
+                Seen const& lit = st.seen[kLitRead];
+                Seen const& out = st.seen[kOutRead];
+                ok = std::fabs(lit.castSpeed - speedHasted) < kFieldTolerance && std::fabs(lit.castHaste - hasteHasted) < kFieldTolerance &&
+                     std::fabs(out.castSpeed - st.stagedCastSpeed) < kFieldTolerance &&
+                     std::fabs(out.castHaste - st.stagedCastHaste) < kFieldTolerance;
+            }
+            snprintf(buf, sizeof(buf),
+                     "%u's effect 0 value %d; staged with cast-speed field %.6f and cast-haste field %.6f, under the haste %.6f and %.6f",
+                     kPyromaniacRank2, haste, st.stagedCastSpeed, st.stagedCastHaste, speedHasted, hasteHasted);
+            return value + (ok ? "(OK: " : "(BUG: ") + buf + text + ")";
+        }
+
+    private:
+        static constexpr uint32 kLivingBomb = 44457;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kHaste = 83582;
+        static constexpr uint32 kPyromaniacRank2 = 34295;
+        static constexpr uint32 kPyromaniacTalent = 10559;
+        static constexpr uint32 kReadMs = 1000;
+        static constexpr uint32 kLitRead = 2;
+        static constexpr uint32 kOutRead = 3;
+        static constexpr float kFieldTolerance = 0.00001f;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -6687,5 +6826,6 @@ namespace Harness
         r.Register(new MageFireLivingBombLimit());
         r.Register(new MageFireIgnite());
         r.Register(new MageFireCauterize());
+        r.Register(new MageFirePyromaniac());
     }
 }
