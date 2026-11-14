@@ -91,13 +91,14 @@
 // with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it; 962 a
 // hasted mage's Pyroblast! and its ticks; 963 Pyroblast! cast again before its periodic effect's next tick; 964
 // Ignite's ticks under Flashburn on a staged Fire mage with mastery rating; 965 Living Bomb on four targets from
-// one mage, and a refresh; 967 a staged Fire mage's Pyroblast applies Critical Mass and his Arcane Blast crit gives
-// back mana through Master of Elements; 969 a killing blow on a Fire mage with Cauterize, and the burn that follows;
-// 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the first one's end takes it off;
-// 985 the Fire passives that change a hit's damage, a cooldown and a debuff; 986 the Fire passives that change how
-// a cast goes; 987 six Fire glyphs.
-// The guard of 931-938, 950-965, 967, 969, 972 and 985-987 (Qualify) fingerprints every spell a scenario reaches
-// and refuses the random-pick labels, the random chain targets and any script binding.
+// one mage, and a refresh; 966 Ignite banking two Fireball crits that overlap; 967 a staged Fire mage's Pyroblast
+// applies Critical Mass and his Arcane Blast crit gives back mana through Master of Elements; 968 an Impact Fire Blast
+// stuns one Camel and copies the mage's DoTs to the two beside it, not the far one; 969 a killing blow on a Fire mage
+// with Cauterize, and the burn that follows; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste,
+// and the first one's end takes it off; 985 the Fire passives that change a hit's damage, a cooldown and a debuff;
+// 986 the Fire passives that change how a cast goes; 987 six Fire glyphs.
+// The guard of 931-938, 950-969, 972 and 985-987 (Qualify) fingerprints every spell a scenario reaches and refuses
+// the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -3910,7 +3911,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-967, 969, 972, 985-987): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-969, 972, 985-987): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer) and a Camel (50249)
      * staged to level 85 ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's
      * steps, in order:
@@ -3951,7 +3952,8 @@ namespace Harness
      * kTargetSpacing apart, the first of them the recorder's `target`, and each step names its Camel. Around a cast it
      * marks his holders of the cast's spell on the other Camels in use and reads after the cast which of them the cast
      * removed, and with which remove mode; each read notes the watched holder on every Camel; the `steps` category
-     * writes an aura cast's Camel after `@`.
+     * writes an aura cast's Camel after `@`. A scenario may spawn more Camels at offsets of its own from the first
+     * (ExtraTargets), after those.
      *
      * Categories: `template`; `staged` the level, the free talent points against the level's, the primary tree, each
      * talent's rank spell known, the glyph slots, and for a scenario that stages glyphs or ratings each glyph's aura
@@ -4047,6 +4049,20 @@ namespace Harness
                     return;
                 }
                 target = target ? target : spawned;
+                targets.push_back(spawned->GetObjectGuid());
+            }
+            const float firstY = P0.y - float(TargetCount() - 1) / 2.0f * kTargetSpacing;
+            const std::vector<std::pair<float, float> > extra = ExtraTargets();
+            for (size_t camel = 0; camel < extra.size(); ++camel)
+            {
+                const float ex = tx + extra[camel].first;
+                const float ey = firstY + extra[camel].second;
+                Creature* spawned = SpawnTarget(kCamel, level, ex, ey, Ground(ex, ey, P0.z), 3.14159f);
+                if (!spawned)
+                {
+                    Verdict(Invalid("the target (50249) did not spawn"));
+                    return;
+                }
                 targets.push_back(spawned->GetObjectGuid());
             }
             StartTimeSync(p);
@@ -4321,6 +4337,9 @@ namespace Harness
         /// The Camels to spawn: one ten yards in front of him, or several in a line across his front ten yards ahead,
         /// kTargetSpacing apart.
         virtual uint32 TargetCount() const { return 1; }
+        /// More Camels, each at its offset from the first Camel (ahead of him, then across his front), in St::targets
+        /// after TargetCount's; none unless the scenario names some.
+        virtual std::vector<std::pair<float, float> > ExtraTargets() const { return std::vector<std::pair<float, float> >(); }
         /// The spell modifier reads the stage read notes and keeps (ReadModifiers); none by default.
         virtual std::vector<ModifierRead> Modifiers() const { return std::vector<ModifierRead>(); }
         /// The scenario's own reads of step k, right after the step acts (`atRead` false) and at its read (`atRead`
@@ -6929,6 +6948,258 @@ namespace Harness
     };
 
     /**
+     * S968 `mage-fire-impact`: Impact's Fire Blast on a staged Fire mage with kSpellPower spell power and no mastery.
+     * Staged: Burning Soul 3 and Improved Fire Blast 2 (the five points the second tier asks), then Ignite 3 and Impact 2
+     * (12357); Fire Blast (2136) and the Impact buff (64343) learned. Camel 1 stands ten yards in front of him and three
+     * more across his front from it (ExtraTargets): Camel 2 four yards to one side and Camel 3 six yards to the other,
+     * inside the 12 yards of Impact's script effect around Camel 1, and Camel 4 twenty yards out, beyond them. Before each
+     * cast he takes Precision (13843, +6% spell hit), so no cast misses a level-85 Camel. Steps, each read kReadMs after
+     * it: Pyroblast at Camel 1, which must crit (its 3.5 s cast and its flight land it about 3.9 s after the step: its
+     * DoT and an Ignite on the Camel); the Impact buff on him by an aura cast (the talent's own 10% is not forced);
+     * kFireBlastEveryMs later Fire Blast at Camel 1, which must not crit. The buff's proc casts 12355 at Camel 1: its
+     * effect 0 stuns Camel 1 for 2 s and its script effect copies his Pyroblast DoT and Ignite from Camel 1 to every other
+     * Camel within its radius.
+     *
+     * `impact`: `stun=<the Camels holding his 12355>,copies=<the Camels besides Camel 1 holding both his 11366 and his
+     * 12654>,far=<what Camel 4 holds of his>,buff=<his 64343>,pyro=<Camel 1's 11366 tick>,ignite=<Camel 1's 12654 tick>`,
+     * all read at the Fire Blast's read. OK when the Pyroblast crit and the Fire Blast hit without one and cast 12355,
+     * Camel 1 alone is stunned, Camels 2 and 3 alone hold the copies, each copy's tick equal to Camel 1's and its time
+     * left within one period of Camel 1's, Camel 4 holds nothing of his, and his buff is gone unless the Fire Blast cast
+     * it again.
+     */
+    class MageFireImpact : public MageProcScenario
+    {
+    public:
+        MageFireImpact() : MageProcScenario("mage-fire-impact", 968, "impact") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10529, 2 }, { 10537, 1 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFireBlast, kImpactBuff }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override
+        {
+            return { { 0.0f, 4.0f }, { 0.0f, -6.0f }, { 0.0f, 20.0f } };
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Cast(kPyroblast, true), AuraCast(kImpactBuff, kFireBlastEveryMs), Cast(kFireBlast, false) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 11366: 49 fields, fnv 7ef90b4a
+                { 11366, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 2136: 26 fields, fnv 30ec504c
+                { 2136, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 23 }, { "eff0.EffectBonusCoefficient", 1054582243 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 64343: 26 fields, fnv d38ef595
+                { 64343, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 12355 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12355: 49 fields, fnv 58da00a3
+                { 12355, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 12 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 77 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRadiusIndex_0", 32 }, { "eff1.ImplicitTarget_0", 53 }, { "eff1.ImplicitTarget_1", 16 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12357: 26 fields, fnv c557c869
+                { 12357, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 64343 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84254: 26 fields, fnv 68c83b92
+                { 84254, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 70 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 9 }, { "eff0.EffectSpellClassMask.Flags", 26389977761973 }, { "eff0.EffectSpellClassMask.Flags2", 192 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11080: 49 fields, fnv ce553bfe
+                { 11080, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 2 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", 10 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 5 }, { "eff1.EffectSpellClassMask.Flags", 2 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return kImpactBuff; }
+        uint32 CasterAura() const override { return kPrecision; }
+        uint32 CastEveryMs() const override { return kCastEveryMs; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        int32 NonCritAuraPoints() const override { return -100; }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* /*target*/) override
+        {
+            if (!atRead || k + 1 != st.steps.size())
+            {
+                return;
+            }
+            m_read = true;
+            m_camels.assign(st.targets.size(), CamelRead());
+            std::string text;
+            for (uint32 camel = 0; camel < st.targets.size(); ++camel)
+            {
+                CamelRead& found = m_camels[camel];
+                Creature* unit = Get(st.targets[camel]);
+                if (unit)
+                {
+                    found.stunned = unit->GetSpellAuraHolder(kImpactStun, st.player) != NULL;
+                    found.pyro = DotOf(unit, kPyroblast, st.player);
+                    found.ignite = DotOf(unit, kIgniteDot, st.player);
+                    for (uint32 spell : kHisSpells)
+                    {
+                        if (unit->GetSpellAuraHolder(spell, st.player))
+                        {
+                            found.held.push_back(spell);
+                        }
+                    }
+                }
+                text += (camel ? "; " : "") + std::string("Camel ") + U(camel + 1) + (unit ? "" : " gone") +
+                        (found.stunned ? ", 12355" : "") + ", 11366 " + DotText(found.pyro) + ", 12654 " + DotText(found.ignite);
+            }
+            m_rec.Note("his auras on each Camel: " + text);
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != 3 || !m_read || m_camels.size() != 4)
+            {
+                return "BUG(the Fire Blast's read did not run)";
+            }
+            Seen const& pyroblast = st.seen[0];
+            Seen const& buff = st.seen[1];
+            Seen const& fireBlast = st.seen[2];
+            CamelRead const& stunned = m_camels[0];
+
+            std::string stun, copies, farCamel;
+            bool copiesMatch = true;
+            for (uint32 camel = 0; camel < m_camels.size(); ++camel)
+            {
+                CamelRead const& found = m_camels[camel];
+                if (found.stunned)
+                {
+                    stun += (stun.empty() ? "" : "+") + U(camel + 1);
+                }
+                if (camel && found.pyro.held && found.ignite.held)
+                {
+                    copies += (copies.empty() ? "" : "+") + U(camel + 1);
+                    copiesMatch = copiesMatch && SameDot(found.pyro, stunned.pyro) && SameDot(found.ignite, stunned.ignite);
+                }
+            }
+            for (uint32 spell : m_camels[3].held)
+            {
+                farCamel += (farCamel.empty() ? "" : "+") + U(spell);
+            }
+            stun = stun.empty() ? "none" : stun;
+            copies = copies.empty() ? "none" : copies;
+            farCamel = farCamel.empty() ? "none" : farCamel;
+            const bool recast = Triggered(fireBlast, kImpactBuff);
+            const std::string buffNow = fireBlast.holder == "none" ? "none" : "up";
+
+            const bool ok = pyroblast.logRead && pyroblast.crit && !buff.missed && fireBlast.logRead && !fireBlast.crit &&
+                            Triggered(fireBlast, kImpactStun) && stunned.pyro.held && stunned.ignite.held && stun == "1" &&
+                            copies == "2+3" && copiesMatch && farCamel == "none" && (buffNow == "none" || recast);
+            const std::string value = "stun=" + stun + ",copies=" + copies + ",far=" + farCamel + ",buff=" + buffNow + ",pyro=" +
+                                      U(uint32(stunned.pyro.amount)) + ",ignite=" + U(uint32(stunned.ignite.amount));
+            char buf[384];
+            snprintf(buf, sizeof(buf),
+                     "Pyroblast %u%s, Fire Blast %u%s; the Fire Blast's windows cast [%s]; his 64343 at its read: %s",
+                     pyroblast.amount, pyroblast.crit ? " crit" : "", fireBlast.amount, fireBlast.crit ? " crit" : "",
+                     TriggeredText(fireBlast).c_str(), fireBlast.holder.c_str());
+            return ok ? value + "(OK: " + buf + ")" : "BUG(" + value + ": " + buf + ")";
+        }
+
+    private:
+        static constexpr uint32 kPyroblast = 11366;
+        static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kFireBlast = 2136;
+        static constexpr uint32 kImpactBuff = 64343;
+        static constexpr uint32 kImpactStun = 12355;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kCastEveryMs = 4300;
+        static constexpr uint32 kFireBlastEveryMs = 1500;
+        static constexpr uint32 kReadMs = 1000;
+        /// Every aura of his a Camel may hold here: the stun and the five DoTs Impact copies.
+        static constexpr uint32 kHisSpells[] = { 12355, 11366, 92315, 44457, 12654, 83853 };
+
+        /// A periodic damage aura of his on a Camel: its tick, its holder's time left and full duration, its period.
+        struct DotRead
+        {
+            bool held = false;
+            int32 amount = 0;
+            int32 duration = 0;
+            int32 maxDuration = 0;
+            int32 period = 0;
+        };
+
+        /// What the Fire Blast's read found on one Camel.
+        struct CamelRead
+        {
+            bool stunned = false;
+            DotRead pyro;
+            DotRead ignite;
+            std::vector<uint32> held;           ///< the spells of kHisSpells it holds from him
+        };
+
+        bool m_read = false;
+        std::vector<CamelRead> m_camels;
+
+        /// The periodic damage aura of `caster`'s holder of `spell` on `unit`.
+        static DotRead DotOf(Unit* unit, uint32 spell, ObjectGuid const& caster)
+        {
+            DotRead dot;
+            SpellAuraHolder* holder = unit->GetSpellAuraHolder(spell, caster);
+            for (uint32 e = 0; holder && e < MAX_EFFECT_INDEX; ++e)
+            {
+                Aura* aura = holder->GetAuraByEffectIndex(SpellEffectIndex(e));
+                if (aura && aura->GetModifier()->m_auraname == SPELL_AURA_PERIODIC_DAMAGE)
+                {
+                    dot.held = true;
+                    dot.amount = aura->GetModifier()->m_amount;
+                    dot.duration = holder->GetAuraDuration();
+                    dot.maxDuration = holder->GetAuraMaxDuration();
+                    dot.period = int32(aura->GetModifier()->periodictime);
+                    break;
+                }
+            }
+            return dot;
+        }
+
+        static std::string DotText(DotRead const& dot)
+        {
+            if (!dot.held)
+            {
+                return "none";
+            }
+            char buf[96];
+            snprintf(buf, sizeof(buf), "tick %d, left %d of %d, every %d", dot.amount, dot.duration, dot.maxDuration,
+                     dot.period);
+            return buf;
+        }
+
+        /// A copy's tick equals the source's, and its time left is within one period of the source's.
+        static bool SameDot(DotRead const& copy, DotRead const& source)
+        {
+            const int32 apart = copy.duration > source.duration ? copy.duration - source.duration : source.duration - copy.duration;
+            return copy.held && source.held && copy.amount == source.amount && apart <= source.period;
+        }
+
+        static std::string TriggeredText(Seen const& seen)
+        {
+            std::string out;
+            for (size_t i = 0; i < seen.triggered.size(); ++i)
+            {
+                out += (i ? "+" : "") + U(seen.triggered[i]);
+            }
+            return out.empty() ? std::string("none") : out;
+        }
+    };
+
+    /**
      * S969 `mage-fire-cauterize`: a killing blow on a staged Fire mage with Cauterize (86949, rank 2 of 2). Staged:
      * Burning Soul 3, Improved Fire Blast 2, Fire Power 3 and Blazing Speed 2 (the ten points the third tier asks;
      * Blazing Speed's hits taken never come), then Cauterize 2. Its aura holds the chance in effect 0 (100) and the
@@ -7785,6 +8056,7 @@ namespace Harness
         r.Register(new MageFireCriticalMass());
         r.Register(new MageFireLivingBombLimit());
         r.Register(new MageFireIgnite());
+        r.Register(new MageFireImpact());
         r.Register(new MageFireCauterize());
         r.Register(new MageFirePyromaniac());
         r.Register(new MageFireDamagePassives());
