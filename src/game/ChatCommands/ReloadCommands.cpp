@@ -73,7 +73,6 @@ void ChatHandler::SendGlobalSysMessage(const char* str, AccountTypes minSec)
     // need copy to prevent corruption by strtok call in LineFromMessage original string
     char* buf = mangos_strdup(str);
     char* pos = buf;
-    ObjectGuid senderGuid = m_session ? m_session->GetPlayer()->GetObjectGuid() : ObjectGuid();
 
     while (char* line = LineFromMessage(pos))
     {
@@ -187,7 +186,7 @@ bool ChatHandler::HandleReloadAllLootCommand(char* /*args*/)
  * @param args Command arguments.
  * @returns True if the command executed successfully, false otherwise.
  */
-bool ChatHandler::HandleReloadAllNpcCommand(char* args)
+bool ChatHandler::HandleReloadAllNpcCommand(char* /*args*/)
 {
     HandleReloadNpcTrainerCommand((char*)"a");
     HandleReloadNpcVendorCommand((char*)"a");
@@ -744,7 +743,7 @@ bool ChatHandler::HandleReloadMangosStringCommand(char* /*args*/)
  * @param args Command arguments.
  * @returns True if the command executed successfully, false otherwise.
  */
-bool ChatHandler::HandleReloadNpcGossipCommand(char* args)
+bool ChatHandler::HandleReloadNpcGossipCommand(char* /*args*/)
 {
     sLog.outString("Re-Loading 'gossip_menus' Table!");
     sObjectMgr.LoadGossipMenus();
