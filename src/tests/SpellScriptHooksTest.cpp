@@ -23,9 +23,9 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the aura handle's reads,
-/// RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none, and the game table,
-/// whose only hook rows are the mage's scripts.
+/// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
+/// target and script word, the aura handle's reads, RegisterRanks, the holder's script words, the holder copy's answer
+/// for a unit holding none, and the game table, whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -206,6 +206,8 @@ namespace
         uint32 cooldown;
         bool dummy;
         uint32 targetMode;
+        Unit const* castTarget;
+        int32 word;
     };
 
     Seen s_seen;
@@ -353,6 +355,53 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
     CHECK(critChance == 55.0f);
     CHECK(registry.Dispatch<CritChanceHook>(kOtherSpell, critChanceCtx).IsMiss());
     CHECK(critChance == 55.0f);
+}
+
+TEST(SpellScriptHooks_ADummyEffectContextCarriesTheCastsTargetAndItsWord)
+{
+    BareCreature caster;
+    BareCreature stunned;
+    BareCreature beside;
+    SpellEntry const& spell = HookSpell();
+
+    // The body notes the cast's target and the word as it finds them, then adds one to the word.
+    SpellHandlerRegistry registry;
+    CHECK(registry.Register<DummyEffectHook>(kHookSpell, [](DummyEffectContext& ctx)
+    {
+        s_seen.castTarget = ctx.castTarget;
+        s_seen.word = ctx.word;
+        ++ctx.word;
+        return SpellHandlerOutcome<void>::Return();
+    }));
+
+    // One cast's word, zero as the Spell makes it, seen by the effect at each of the cast's targets: the cast's target
+    // is the same at both, and the second finds the first's write.
+    int32 value = 0;
+    int32 word = 0;
+    Forget();
+    DummyEffectContext atStunned(caster, &stunned, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned,
+                                 word);
+    CHECK(registry.Dispatch<DummyEffectHook>(kHookSpell, atStunned).IsReturn());
+    CHECK(s_seen.castTarget == &stunned);
+    CHECK_EQ(s_seen.word, 0);
+    CHECK_EQ(word, 1);
+    Forget();
+    DummyEffectContext atBeside(caster, &beside, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned, word);
+    CHECK(registry.Dispatch<DummyEffectHook>(kHookSpell, atBeside).IsReturn());
+    CHECK(atBeside.target == &beside);
+    CHECK(s_seen.castTarget == &stunned);
+    CHECK_EQ(s_seen.word, 1);
+    CHECK_EQ(word, 2);
+
+    // A cast with no unit target gives NULL; another cast's word is its own.
+    int32 otherWord = 0;
+    Forget();
+    DummyEffectContext noTarget(caster, NULL, NULL, NULL, spell, EFFECT_INDEX_0, value, ObjectGuid(), NULL, otherWord);
+    CHECK(registry.Dispatch<DummyEffectHook>(kHookSpell, noTarget).IsReturn());
+    CHECK(s_seen.castTarget == NULL);
+    CHECK_EQ(s_seen.word, 0);
+    CHECK_EQ(otherWord, 1);
+    CHECK_EQ(word, 2);
 }
 
 TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
