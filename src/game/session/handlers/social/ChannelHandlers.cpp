@@ -455,7 +455,7 @@ void ChannelHandlers::HandleChannelDisplayListQuery(WorldSession& session, World
  *
  * @param recvPacket The received opcode packet.
  */
-void ChannelHandlers::HandleSetChannelWatch(WorldSession& session, WorldPacket& recvPacket)
+void ChannelHandlers::HandleSetChannelWatch(WorldSession& /*session*/, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();

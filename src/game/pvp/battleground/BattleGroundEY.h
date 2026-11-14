@@ -281,6 +281,7 @@ class BattleGroundEY : public BattleGround
         /* Battleground Events */
         void EventPlayerClickedOnFlag(Player* source, GameObject* target_obj) override;
         void EventPlayerDroppedFlag(Player* source) override;
+        using BattleGround::EventPlayerCapturedFlag;
 
         /* achievement req. */
         bool IsAllNodesControlledByTeam(Team team) const override;

@@ -62,6 +62,8 @@ namespace Combat
                     weapon_mindamage = weapon_mindamage / weaponSpeed + weapon_mindamage / 2.5f;
                     weapon_maxdamage = weapon_maxdamage / weaponSpeed + weapon_maxdamage / 2.5f;
                     break;
+                default:
+                    break;
             }
         }
         else if (!canUseEquippedWeapon)                         // check if player not in form but still can't use weapon (broken/etc)

@@ -246,7 +246,7 @@ bool IsValidTargetType(EventAI_Type eventType, EventAI_ActionType actionType, ui
             {
                 sLog.outErrorEventAI("Event %u Action%u uses LIKELY bad Target type %u for event-type %u (must target player)", eventId, action, targetType, eventType);
             }
-            // no break, check if valid at all
+            [[fallthrough]];
         case TARGET_T_HOSTILE:
         case TARGET_T_HOSTILE_SECOND_AGGRO:
         case TARGET_T_HOSTILE_LAST_AGGRO:
@@ -643,7 +643,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         {
                             sLog.outErrorEventAI("Event %u Action %u has set chance param1 >= 100. Text will always be displayed", i, j + 1);
                         }
-                        // no break here to check texts
+                        [[fallthrough]];
                     case ACTION_T_TEXT:
                     {
                         bool not_set = false;

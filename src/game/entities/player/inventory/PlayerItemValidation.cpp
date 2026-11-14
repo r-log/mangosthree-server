@@ -605,7 +605,7 @@ InventoryResult Player::CanUseAmmo(uint32 item) const
  *
  * @param item The ammo item entry to equip.
  */
-void Player::SetAmmo(uint32 item)
+void Player::SetAmmo(uint32 /*item*/)
 {
     //if (!item)
     //    return;

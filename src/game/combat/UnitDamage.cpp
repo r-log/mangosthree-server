@@ -234,8 +234,6 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
 
         // Handle custom absorb auras
         // TODO: try find better way
-        SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();
-
         switch(spellProto->GetSpellFamilyName())
         {
             case SPELLFAMILY_GENERIC:
@@ -662,6 +660,8 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                 }
                 break;
             }
+            default:
+                break;
         }
     }
 
@@ -1375,10 +1375,6 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         if (GetTypeId() == TYPEID_UNIT && AI())
         {
             AI()->KilledUnit(pVictim);
-        }
-
-        if (Creature* killer = ToCreature())
-        {
         }
 
         // Call AI OwnerKilledUnit (for any current summoned minipet/guardian/protector)

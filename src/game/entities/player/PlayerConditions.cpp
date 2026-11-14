@@ -176,6 +176,7 @@ static bool CheckParamRequirements(PlayerCondition const& condition, Player cons
                         sLog.outErrorDb("CONDITION_DEAD_OR_AWAY %u (Player in instance case) - called from %s without map param or from non-instanceable map %i", condition.GetEntry(),  conditionSourceToStr[conditionSourceType], map ? map->GetId() : -1);
                         return false;
                     }
+                    [[fallthrough]];
                 case 3:                                     // Creature source is dead
                     return true;
             }
@@ -545,6 +546,7 @@ bool Meets(PlayerCondition const& condition, Player const* player, Map const* ma
                 case 3:                                     // Creature source is dead
                     return !source || source->GetTypeId() != TYPEID_UNIT || !((Unit*)source)->IsAlive();
             }
+            return false;
         case CONDITION_CREATURE_IN_RANGE:
         {
             Creature* creature = NULL;

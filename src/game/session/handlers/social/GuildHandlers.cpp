@@ -1236,7 +1236,7 @@ void GuildHandlers::HandleGuildBankDepositMoney(WorldSession& session, WorldPack
     // logging money
     if (session.GetPlayer()->GetSession()->GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
     {
-        sLog.outCommand(session.GetPlayer()->GetSession()->GetAccountId(), "GM %s (Account: %u) deposit money (Amount: %u) to guild bank (Guild ID %u)",
+        sLog.outCommand(session.GetPlayer()->GetSession()->GetAccountId(), "GM %s (Account: %u) deposit money (Amount: " UI64FMTD ") to guild bank (Guild ID %u)",
                         session.GetPlayer()->GetName(), session.GetPlayer()->GetSession()->GetAccountId(), money, GuildId);
     }
 

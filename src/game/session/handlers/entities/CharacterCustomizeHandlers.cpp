@@ -672,7 +672,7 @@ void CharacterCustomizeHandlers::HandleSetCurrencyFlags(WorldSession& session, W
     session.GetPlayer()->GetCurrencyMgr().SetFlags(currencyId, uint8(flags));
 }
 
-void CharacterCustomizeHandlers::HandleLoadScreen(WorldSession& session, WorldPacket& recvPacket)
+void CharacterCustomizeHandlers::HandleLoadScreen(WorldSession& /*session*/, WorldPacket& recvPacket)
 {
     DEBUG_LOG("CMSG_LOAD_SCREEN");
     uint32 mapID;

@@ -467,8 +467,6 @@ bool BuildUpdateObjectPacket(UpdateData const& data, WorldPacket* packet)
         WriteUpdateBlock(buf, *itr);
     }
 
-    size_t pSize = buf.wpos();                              // use real used data size
-
     //if (pSize > 100)                                        // compress large packets
     //{
     //    uint32 destsize = compressBound(pSize);

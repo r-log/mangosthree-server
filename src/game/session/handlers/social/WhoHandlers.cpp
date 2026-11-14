@@ -128,9 +128,6 @@ void WhoHandlers::HandleWho(WorldSession& session, WorldPacket& recv_data)
     bool allowTwoSideWhoList = sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_WHO_LIST);
     AccountTypes gmLevelInWhoList = (AccountTypes)sGameConfig.getConfig(CONFIG_UINT32_GM_LEVEL_IN_WHO_LIST);
 
-    uint32 matchcount = 0;
-    uint32 displaycount = 0;
-
     WorldPacket data(SMSG_WHO, 50);                         // guess size
     data << uint32(clientcount);                            // clientcount place holder, listed count
     data << uint32(clientcount);                            // clientcount place holder, online count

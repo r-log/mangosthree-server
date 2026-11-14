@@ -575,7 +575,7 @@ void ScriptMgr::LoadScripts(DBScriptType type)
                                     continue;
                                 }
 
-                                if (spellEffect->Effect == SPELL_EFFECT_SEND_TAXI && spellEffect->EffectMiscValue_0 == tmp.sendTaxiPath.taxiPathId)
+                                if (spellEffect->Effect == SPELL_EFFECT_SEND_TAXI && uint32(spellEffect->EffectMiscValue_0) == tmp.sendTaxiPath.taxiPathId)
                                 {
                                     taxiSpell = i;
                                     break;

@@ -309,5 +309,5 @@ bool Creature::IsSecondChoiceTarget(Unit* pTarget, bool checkThreatArea) const
     return
         pTarget->IsImmunedToDamage(GetMeleeDamageSchoolMask()) ||
         pTarget->hasNegativeAuraWithInterruptFlag(AURA_INTERRUPT_FLAG_DAMAGE) ||
-        checkThreatArea && IsOutOfThreatArea(pTarget);
+        (checkThreatArea && IsOutOfThreatArea(pTarget));
 }

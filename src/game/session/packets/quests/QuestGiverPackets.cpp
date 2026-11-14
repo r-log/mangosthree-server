@@ -81,7 +81,7 @@ void SessionGossipNotices::SendQuestGiverStatus(PlayerSession& session, uint32 q
     DEBUG_LOG("WORLD: Sent SMSG_QUESTGIVER_STATUS for %s", npcGUID.GetString().c_str());
 }
 
-void SessionGossipNotices::SendQuestGiverQuestDetails(PlayerSession& session, Quest const* pQuest, ObjectGuid guid, bool ActivateAccept)
+void SessionGossipNotices::SendQuestGiverQuestDetails(PlayerSession& session, Quest const* pQuest, ObjectGuid guid, bool /*ActivateAccept*/)
 {
     // Retrieve the quest title, details, and objectives
     std::string Title      = pQuest->GetTitle();

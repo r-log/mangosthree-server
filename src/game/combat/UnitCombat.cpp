@@ -488,7 +488,7 @@ void Unit::ReportSwingError(uint8 swingError)
  * @param attackType The related attack type.
  * @return True if the spell is blocked; otherwise, false.
  */
-bool Unit::IsSpellBlocked(Unit* pCaster, SpellEntry const* spellEntry, WeaponAttackType attackType)
+bool Unit::IsSpellBlocked(Unit* pCaster, SpellEntry const* spellEntry, WeaponAttackType /*attackType*/)
 {
     if (!Where().HasInArc(pCaster->Where(), M_PI_F))
     {

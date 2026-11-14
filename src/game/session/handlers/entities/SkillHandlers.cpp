@@ -81,7 +81,7 @@ void SkillHandlers::HandleLearnPreviewTalents(WorldSession& session, WorldPacket
     {
         if (TalentTabEntry const* talentTabEntry = sTalentTabStore.LookupEntry(session.GetPlayer()->GetTalentMgr().PrimaryTree(session.GetPlayer()->GetTalentMgr().ActiveSpec())))
         {
-            if (talentTabEntry->OrderIndex != tabPage)
+            if (talentTabEntry->OrderIndex != uint32(tabPage))
             {
                 recvPacket.rfinish();
                 sLog.outError("SkillHandlers::HandleLearnPreviewTalents: tabPage != talent tabPage for %s (account %u)", session.GetPlayerName(), session.GetAccountId());

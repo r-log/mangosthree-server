@@ -1230,7 +1230,7 @@ void GroupHandlers::HandleSetAllowLowLevelRaid(WorldSession& session, WorldPacke
     session.GetPlayer()->SetAllowLowLevelRaid(allow);
 }
 
-void GroupHandlers::HandleGroupRequestJoinUpdates(WorldSession& session, WorldPacket& recv_data)
+void GroupHandlers::HandleGroupRequestJoinUpdates(WorldSession& session, WorldPacket& /*recv_data*/)
 {
     Group* group = session.GetPlayer()->GetGroup();
     if (!group)

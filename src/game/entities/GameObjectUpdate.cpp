@@ -137,6 +137,7 @@ void GameObject::Update(uint32 update_diff, uint32 p_time)
                                 ResetDoorOrButton();
                             }
                             // flags in AB are type_button and we need to add them here so no break!
+                            [[fallthrough]];
                         default:
                             if (!m_spawnedByDefault)        // despawn timer
                             {
