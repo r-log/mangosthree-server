@@ -40,6 +40,7 @@
 #include "Pet.h"
 #include "Totem.h"
 #include "Unit.h"
+#include "spells/PeriodicTiming.h"
 #include "spells/SpellModMgr.h"
 
 #include <cstdlib>
@@ -403,6 +404,119 @@ TEST(SpellModMgr_TheAmountIsReadAtEachUse)
     float after = 100.0f;
     mgr.ApplySpellMod(kSpellMage, SPELLMOD_DAMAGE, after);
     CHECK(after == 130.0f);
+}
+
+// A percentage keeps its fraction: Flashburn's 22.4 on the DoT operation takes a tick of 1000 to 1224, and 38.018
+// (1000 mastery rating) to 1380; the client is told 22.4, not 22.
+TEST(SpellModMgr_AFractionalPercentageKeepsItsFraction)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    Recorder recorder;
+    FakeModifier flashburn(22.4f, kBit1, 1);
+    mgr.Change(flashburn.Entry(false, SPELLMOD_DOT, SPELLFAMILY_MAGE, true), true, recorder.Sink());
+
+    REQUIRE(recorder.facts.size() == 1u);
+    REQUIRE(recorder.facts[0].values.size() == 1u);
+    CHECK(recorder.facts[0].values[0].value == 22.4f);
+
+    uint32 tick = 1000;
+    CHECK_EQ(mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, tick), uint32(224));
+    CHECK_EQ(tick, uint32(1224));
+
+    flashburn.amount = 38.018f;
+    uint32 rated = 1000;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, rated);
+    CHECK_EQ(rated, uint32(1380));
+}
+
+// The mastery-only apply takes the modifiers whose aura's spell is a mastery and leaves the others out: 22.4 from a
+// mastery beside an ordinary +15 (Critical Mass' shape) gives 1374 in the plain apply and 1224 in the mastery-only
+// one.
+TEST(SpellModMgr_TheMasteryOnlyApplyTakesTheMasteryModifiersAlone)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    Recorder recorder;
+    FakeModifier mastery(22.4f, kBit1, 1);
+    FakeModifier ordinary(15.0f, kBit1, 2);
+    mgr.Change(mastery.Entry(false, SPELLMOD_DOT, SPELLFAMILY_MAGE, true), true, recorder.Sink());
+    mgr.Change(ordinary.Entry(false, SPELLMOD_DOT), true, recorder.Sink());
+
+    uint32 plain = 1000;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, plain);
+    CHECK_EQ(plain, uint32(1374));
+
+    uint32 masteryOnly = 1000;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, masteryOnly, true);
+    CHECK_EQ(masteryOnly, uint32(1224));
+
+    float masteryOnlyFloat = 1000.0f;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, masteryOnlyFloat, true);
+    CHECK(uint32(masteryOnlyFloat) == 1224u);
+
+    // without a mastery listed, the mastery-only apply leaves the value alone
+    mgr.Change(mastery.Entry(false, SPELLMOD_DOT, SPELLFAMILY_MAGE, true), false, recorder.Sink());
+    uint32 none = 1000;
+    CHECK_EQ(mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, none, true), uint32(0));
+    CHECK_EQ(none, uint32(1000));
+}
+
+// Two Ignites in a row under 8 mastery points (Flashburn's 22.4 listed as a mastery on the DoT operation): the first
+// one's tick of 1000 takes the mastery step once, 1224. A second crit with one of the first one's two ticks left
+// re-applies it, and the rollover spreads the new two ticks and the carried one over three (Spells::RolledOverTick):
+// with the carried tick as it was before its own step, (1000 x 2 + 1000 x 1) / 3 = 1000, and the step gives 1224.
+// Carrying the stepped 1224 instead would make (2000 + 1224) / 3 = 1074 and 1314: the carried part would take
+// Flashburn twice.
+TEST(SpellModMgr_ARefreshedIgniteTakesTheMasteryOnce)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    Recorder recorder;
+    FakeModifier flashburn(22.4f, kBit1, 1);
+    mgr.Change(flashburn.Entry(false, SPELLMOD_DOT, SPELLFAMILY_MAGE, true), true, recorder.Sink());
+
+    const int32 share = 1000;
+    float first = float(share);
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, first, true);
+    CHECK_EQ(uint32(first), uint32(1224));
+
+    const int32 carried = Spells::RolledOverTick(share, 2, share, 1, 3);
+    CHECK_EQ(carried, int32(1000));
+    float refreshed = float(carried);
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, refreshed, true);
+    CHECK_EQ(uint32(refreshed), uint32(1224));
+
+    const int32 steppedTwice = Spells::RolledOverTick(share, 2, int32(first), 1, 3);
+    CHECK_EQ(steppedTwice, int32(1074));
+    float twice = float(steppedTwice);
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, twice, true);
+    CHECK_EQ(uint32(twice), uint32(1314));
+}
+
+// A mastery update lists its modifier again: the removal reports the sums without it, the new value is written, and
+// the add reports the sums with it, so the client is told the new fraction.
+TEST(SpellModMgr_ListingAgainReportsTheNewValue)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    Recorder recorder;
+    FakeModifier flashburn(22.4f, kBit1, 1);
+    mgr.Change(flashburn.Entry(false, SPELLMOD_DOT, SPELLFAMILY_MAGE, true), true, recorder.Sink());
+
+    mgr.Change(flashburn.Entry(false, SPELLMOD_DOT, SPELLFAMILY_MAGE, true), false, recorder.Sink());
+    flashburn.amount = 38.018f;
+    mgr.Change(flashburn.Entry(false, SPELLMOD_DOT, SPELLFAMILY_MAGE, true), true, recorder.Sink());
+
+    REQUIRE(recorder.facts.size() == 3u);
+    REQUIRE(recorder.facts[1].values.size() == 1u);
+    REQUIRE(recorder.facts[2].values.size() == 1u);
+    CHECK(recorder.facts[1].values[0].value == 0.0f);
+    CHECK(recorder.facts[2].values[0].value == 38.018f);
+
+    uint32 tick = 1000;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_DOT, tick);
+    CHECK_EQ(tick, uint32(1380));
 }
 
 // The fact of a change is computed from the list before it changes: on an add, the listed sums
