@@ -31,6 +31,7 @@
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "spells/data/SpellMgr.h"
+#include "combat/SpellBonus.h"
 #include "Player.h"
 #include "Unit.h"
 #include "spells/pipeline/Spell.h"
@@ -1726,10 +1727,8 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
                     sLog.outError("Unit::HandleProcTriggerSpellAuraProc: DW unknown spell rank %u", auraSpellInfo->ID);
                     return SPELL_AURA_PROC_FAILED;
                 }
-                basepoints[EFFECT_INDEX_0] = int32(weaponDamage * percent / 100);
-
                 // 1 tick/sec * 6 sec = 6 ticks
-                basepoints[EFFECT_INDEX_0] /= 6;
+                basepoints[EFFECT_INDEX_0] = Combat::DotShareTick(weaponDamage, percent, 6);
 
                 trigger_spell_id = 12721;
                 break;

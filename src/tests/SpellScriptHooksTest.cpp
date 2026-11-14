@@ -479,7 +479,7 @@ TEST(SpellScriptHooks_RegisterScriptPutsOneBodyUnderOneId)
 
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
-    // The proc hook holds the mage's 17 proc scripts, the target hook Blink's, the damage-done hook Ice Lance's, the
+    // The proc hook holds the mage's 20 proc scripts, the target hook Blink's, the damage-done hook Ice Lance's, the
     // dummy aura hook Living Bomb's and the aura-remove hook Hot Streak's buff's (MageScriptsTest names their ids); no
     // other hook holds a row.
     uint32 const emptyKeys[] =
@@ -492,11 +492,11 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     {
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
-    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(17));
+    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(20));
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1259));
+    CHECK_EQ(game.Count(), std::size_t(1257));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }

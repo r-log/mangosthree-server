@@ -908,11 +908,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // tick sites' 44, 1, 2, 1 and 2 rows and five defaults, the five boost sites' 7, 5, 2, 6 and 4 rows and four
     // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
     // script-effect site's 283 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows,
-    // the eight dummy proc sites' 37, 9, 10, 8, 11, 5, 26 and 10 rows, the haste, crit-chance and two
-    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 21 rows on the proc, target, damage-done, dummy
+    // the eight dummy proc sites' 37, 4, 10, 8, 11, 5, 26 and 10 rows, the haste, crit-chance and two
+    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 24 rows on the proc, target, damage-done, dummy
     // aura and aura-remove hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1259));
+    CHECK_EQ(game.Count(), std::size_t(1257));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(34));
 }
@@ -4883,9 +4883,9 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(148));
     CHECK_EQ(registry.CountDefaults(), std::size_t(12));
 
-    // The game's table holds these with the other files' 1111 rows and 17 defaults.
+    // The game's table holds these with the other files' 1109 rows and 17 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1259));
+    CHECK_EQ(game.Count(), std::size_t(1257));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
@@ -5760,9 +5760,9 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(302));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
-    // The game's table holds these with the other files' 957 rows and 27 defaults.
+    // The game's table holds these with the other files' 955 rows and 27 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1259));
+    CHECK_EQ(game.Count(), std::size_t(1257));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(283));
     CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
@@ -6451,9 +6451,9 @@ TEST(SpellMgrHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(20));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1239 rows and 29 defaults.
+    // The game's table holds these with the other files' 1237 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1259));
+    CHECK_EQ(game.Count(), std::size_t(1257));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
 }
@@ -6730,9 +6730,9 @@ TEST(UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(11));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1248 rows and 29 defaults.
+    // The game's table holds these with the other files' 1246 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1259));
+    CHECK_EQ(game.Count(), std::size_t(1257));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellDamageTakenSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(SpellHealingDoneSite::Key), std::size_t(2));
@@ -6940,7 +6940,7 @@ namespace
                                               31871, 31872, 33493, 38196, 39446, 45481, 45482, 45483, 45484, 46569,
                                               48504, 52723, 60501, 57989, 58914, 63305, 63320, 65932, 66063, 66725,
                                               68161, 66808, 68160, 69739, 69755, 71903, 72178 };
-    uint32 const DUMMY_PROC_MAGE_IDS[] = { 11119, 11120, 12846, 12847, 12848, 56372, 56375, 64411, 74396 };
+    uint32 const DUMMY_PROC_MAGE_IDS[] = { 56372, 56375, 64411, 74396 };
     uint32 const DUMMY_PROC_WARLOCK_IDS[] = { 18094, 18095, 56218, 30293, 30295, 30296, 37377, 37381, 39437, 63108 };
     uint32 const DUMMY_PROC_PRIEST_IDS[] = { 15286, 40438, 26169, 39372, 28809, 55677, 55680, 70770 };
     uint32 const DUMMY_PROC_DRUID_IDS[] = { 24932, 28719, 28847, 37288, 37295, 40442, 44835, 54754, 54821, 70664,
@@ -7068,10 +7068,10 @@ namespace
 TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
 {
     // 37, 0, 10, 8, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 20 at the haste, crit-chance
-    // and two proc-trigger sites, and no default: 146 rows and 146 keys, none twice. The mage dummy proc site's 9
+    // and two proc-trigger sites, and no default: 146 rows and 146 keys, none twice. The mage dummy proc site's 4
     // rows are RegisterMageScripts'.
     std::size_t const perSite[] = { 37, 0, 10, 8, 11, 5, 26, 10, 2, 1, 16, 20 };
-    std::size_t const inGame[] = { 37, 9, 10, 8, 11, 5, 26, 10, 2, 1, 16, 20 };
+    std::size_t const inGame[] = { 37, 4, 10, 8, 11, 5, 26, 10, 2, 1, 16, 20 };
     uint32 const siteKeys[] = { DummyAuraProcGenericSite::Key, DummyAuraProcMageSite::Key,
                                 DummyAuraProcWarlockSite::Key, DummyAuraProcPriestSite::Key,
                                 DummyAuraProcDruidSite::Key, DummyAuraProcRogueSite::Key,
@@ -7092,9 +7092,9 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(146));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1113 rows and 29 defaults.
+    // The game's table holds these with the other files' 1111 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1259));
+    CHECK_EQ(game.Count(), std::size_t(1257));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     for (std::size_t k = 0; k < 12; ++k)
     {
@@ -7108,9 +7108,9 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
     RegisterUnitAuraProcHandlerHandlers(registry);
     RegisterMageScripts(registry);                              // the mage dummy proc site's rows
 
-    // The generic site's 37 labels in 31 bodies, the mage site's 9 in 5, the warlock site's 10 in 6; no default.
+    // The generic site's 37 labels in 31 bodies, the mage site's 4 in 4, the warlock site's 10 in 6; no default.
     CheckSiteLabels<DummyAuraProcGenericSite>(registry, DUMMY_PROC_GENERIC_IDS, 31);
-    CheckSiteLabels<DummyAuraProcMageSite>(registry, DUMMY_PROC_MAGE_IDS, 5);
+    CheckSiteLabels<DummyAuraProcMageSite>(registry, DUMMY_PROC_MAGE_IDS, 4);
     CheckSiteLabels<DummyAuraProcWarlockSite>(registry, DUMMY_PROC_WARLOCK_IDS, 6);
     CHECK(registry.FindDefault<DummyAuraProcGenericSite>() == NULL);
     CHECK(registry.FindDefault<DummyAuraProcMageSite>() == NULL);
@@ -7124,10 +7124,6 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
     CHECK(registry.Find<DummyAuraProcGenericSite>(68161) == registry.Find<DummyAuraProcGenericSite>(66725));
     CHECK(registry.Find<DummyAuraProcGenericSite>(68160) == registry.Find<DummyAuraProcGenericSite>(66808));
     CHECK(registry.Find<DummyAuraProcGenericSite>(63305) != registry.Find<DummyAuraProcGenericSite>(58914));
-    for (uint32 spellId : { 11120u, 12846u, 12847u, 12848u })
-    {
-        CHECK(registry.Find<DummyAuraProcMageSite>(spellId) == registry.Find<DummyAuraProcMageSite>(11119));
-    }
     CHECK(registry.Find<DummyAuraProcWarlockSite>(18095) == registry.Find<DummyAuraProcWarlockSite>(18094));
     CHECK(registry.Find<DummyAuraProcWarlockSite>(56218) == registry.Find<DummyAuraProcWarlockSite>(18094));
     CHECK(registry.Find<DummyAuraProcWarlockSite>(30295) == registry.Find<DummyAuraProcWarlockSite>(30293));
@@ -7162,7 +7158,7 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
     // An id the switch never held answers Miss and leaves the locals: 12345, the other two sites' labels, and a priest
     // label (15286, Vampiric Embrace).
     DummyProcLocals locals(NULL);
-    for (uint32 spellId : { 12345u, 11119u, 18094u, 15286u })
+    for (uint32 spellId : { 12345u, 56372u, 18094u, 15286u })
     {
         CHECK(game.Dispatch<DummyAuraProcGenericSite>(spellId, locals.ctx).IsMiss());
     }
@@ -7170,7 +7166,7 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
     {
         CHECK(game.Dispatch<DummyAuraProcMageSite>(spellId, locals.ctx).IsMiss());
     }
-    for (uint32 spellId : { 12345u, 66063u, 11119u, 15286u })
+    for (uint32 spellId : { 12345u, 66063u, 56372u, 15286u })
     {
         CHECK(game.Dispatch<DummyAuraProcWarlockSite>(spellId, locals.ctx).IsMiss());
     }
@@ -7286,28 +7282,21 @@ TEST(UnitAuraProcHandlerHandlers_TheTriggerLabelsSetWhatTheProcCasts)
     }
 }
 
-TEST(UnitAuraProcHandlerHandlers_IgniteTakesItsRanksShareOfTheDamage)
+TEST(UnitAuraProcHandlerHandlers_TheIgniteRanksAreNoLabelOfTheMageSite)
 {
-    // The aura's spell picks the share; each rank triggers 12654 on the victim and goes on to the cast.
-    uint32 const ranks[][2] = { { 11119, 40 }, { 11120, 80 }, { 12846, 120 }, { 12847, 160 }, { 12848, 200 } };
-    for (uint32 const (&rank)[2] : ranks)
+    // Ignite runs at the proc hook (MageScriptsTest): no rank, and neither of the two ids the client's data lacks,
+    // is a label of the mage dummy proc site, so each dispatch there is a miss that leaves the locals.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 11119u, 11120u, 12846u, 12847u, 12848u })
     {
+        CHECK(game.Find<DummyAuraProcMageSite>(spellId) == NULL);
         DummyProcLocals locals(NULL);
-        locals.dummySpell = ProcSpellRow(0, rank[0], SPELL_SCHOOL_MASK_FIRE);
-        CHECK(DispatchDummyProc(DummyAuraProcMageSite::Key, rank[0], locals.ctx).IsContinue());
-        CHECK(locals.BasePointsAre(int32(rank[1])));
-        CHECK_EQ(locals.triggered_spell_id, uint32(12654));
+        locals.dummySpell = ProcSpellRow(0, spellId, SPELL_SCHOOL_MASK_FIRE);
+        CHECK(DispatchDummyProc(DummyAuraProcMageSite::Key, spellId, locals.ctx).IsMiss());
+        CHECK_EQ(locals.triggered_spell_id, uint32(0));
         CHECK(locals.target == ProcVictim());
+        CHECK(locals.BasePointsAre(0));
     }
-
-    // An aura's spell that is no rank fails the proc from inside the body's own switch, triggering nothing.
-    DummyProcLocals locals(NULL);
-    locals.dummySpell = ProcSpellRow(0, 99999, SPELL_SCHOOL_MASK_FIRE);
-    SpellHandlerOutcome<SpellAuraProcResult> outcome = DispatchDummyProc(DummyAuraProcMageSite::Key, 11119, locals.ctx);
-    CHECK(outcome.IsReturn());
-    CHECK(outcome.GetValue() == SPELL_AURA_PROC_FAILED);
-    CHECK_EQ(locals.triggered_spell_id, uint32(0));
-    CHECK(locals.BasePointsAre(0));
 }
 
 TEST(UnitAuraProcHandlerHandlers_TheGuardsEndTheProcBeforeTheUnitIsRead)

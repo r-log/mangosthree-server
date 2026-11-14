@@ -3906,9 +3906,10 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-965, 967): a human mage staged to level 85 with the
-     * scenario's talents, glyphs, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged to level 85
-     * ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
+     * What the mage scenarios share (951, 952, 954-957, 962-967): a human mage staged to level 85 with the
+     * scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged
+     * to level 85 ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in
+     * order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
      *    a hit aura), that aura put on him by a triggered self-cast when he does not hold it; his mana set to its
      *    maximum by call; for a step that must crit, Increased Critical Spell (23434, a spell crit chance aura) put on
@@ -4055,6 +4056,7 @@ namespace Harness
             stage.glyphs = Glyphs();
             stage.hasteRating = HasteRating();
             stage.masteryRating = MasteryRating();
+            stage.spellPower = SpellPower();
             stage.spells = spells;
             st->staged = StagePlayer(*p, stage);
             st->levelSet = p->getLevel();
@@ -4161,6 +4163,8 @@ namespace Harness
         virtual int32 HasteRating() const { return 0; }
         /// The mastery rating to stage.
         virtual int32 MasteryRating() const { return 0; }
+        /// The spell power to stage.
+        virtual int32 SpellPower() const { return 0; }
         /// Whether the mage can take damage besides the Camel's swings.
         virtual bool TakesDamage() const { return false; }
         virtual std::vector<Step> Steps() const = 0;
@@ -5973,17 +5977,17 @@ namespace Harness
      * Staged: Burning Soul 3 and Improved Fire Blast 2 (the five points the second tier asks; neither procs on his own
      * spells), then Ignite 3; the first talent makes Fire his primary tree, which teaches Flashburn. The Mastery passive
      * (86473) learned and kMasteryRating mastery rating, so his mastery is 8 points plus the rating's. Ignite's dummy
-     * aura procs on each Fireball crit and casts 12654 on the Camel with int32(0.12f x the crit's damage) a tick, two
-     * ticks 2 s apart. 12654 takes no damage mods; Flashburn's DoT modifier names it in its class mask. Four Fireball
-     * crits: the first three 4.1 s apart, so each Ignite ends before the next crit lands; the fourth kRefreshEveryMs
-     * after the third, so it lands between the third Ignite's two ticks and re-applies it with one tick left, which
-     * carries its remaining damage (SPELL_ATTR_EX4_STACK_DOT_MODIFIER). The fourth cast waits kLastStepMs, so the
-     * re-applied Ignite ticks out before the verdict.
+     * aura procs on each Fireball crit and casts 12654 on the Camel with the rank's 40% of the crit's damage as an
+     * integer, over two ticks 2 s apart. 12654 takes no damage mods; Flashburn's DoT modifier names it in its class
+     * mask. Four Fireball crits: the first three 4.1 s apart, so each Ignite ends before the next crit lands; the
+     * fourth kRefreshEveryMs after the third, so it lands between the third Ignite's two ticks and re-applies it with
+     * one tick left, which carries its remaining damage (SPELL_ATTR_EX4_STACK_DOT_MODIFIER). The fourth cast waits
+     * kLastStepMs, so the re-applied Ignite ticks out before the verdict.
      *
      * `ignite`: per cast, the crit's amount and the 12654 ticks after it, `<crit>/<tick>/...`: two after each of the
      * first two, one after the third, and the re-applied Ignite's after the fourth. With Done(x) the tick x with
      * Flashburn's percent added the way the spell modifiers add a percent, x + x x (2.8 x mastery) / 100 in float,
-     * truncated, and share(D) = int32(0.12f x D): OK when every cast crit, each tick of the first three casts is
+     * truncated, and share(D) = int(D x 40 / 100) / 2: OK when every cast crit, each tick of the first three casts is
      * Done(share), and the re-applied Ignite's n ticks are all Done(x) for one x whose n ticks hold the bank, the new
      * two ticks of share(D4) and the one tick of share(D3) left, less at most the n - 1 an integer division over n
      * ticks drops. The bank is counted before the mastery step, so the carried tick takes Flashburn once.
@@ -6103,7 +6107,7 @@ namespace Harness
             for (uint32 k = 0; k < st.steps.size() && k < 4; ++k)
             {
                 Seen const& seen = st.seen[k];
-                shares[k] = int32(0.12f * float(seen.amount));
+                shares[k] = int32(uint64(seen.amount) * kIgnitePercent / 100) / 2;
                 ok = ok && seen.logRead && seen.crit;
                 const std::string amount = seen.logRead ? U(seen.amount) : std::string("none");
                 std::string own = amount;
@@ -6161,6 +6165,7 @@ namespace Harness
 
     private:
         static constexpr int32 kMasteryRating = 1000;
+        static constexpr uint32 kIgnitePercent = 40;
         static constexpr uint32 kRefreshEveryMs = 3700;
         static constexpr uint32 kLastStepMs = 8000;
     };
@@ -6258,6 +6263,162 @@ namespace Harness
         }
     };
 
+    /**
+     * S966 `mage-fire-ignite`: Ignite (12846, rank 3 of 3) banks two Fireball crits that overlap, on a staged Fire mage
+     * with kSpellPower spell power and no mastery. Staged: Burning Soul 3 and Improved Fire Blast 2 (the five points
+     * the second tier asks), then Ignite 3; the first talent makes Fire his primary tree, which teaches Flashburn, but
+     * the Mastery passive is not learned, so his mastery is 0 and Flashburn adds nothing. Ignite's dummy aura procs on
+     * each Fireball crit and casts 12654 on the Camel with the rank's 40% of the crit's damage as an integer, over the
+     * DoT's two ticks, 2 s apart. Two Fireball crits kOverlapEveryMs apart: the second lands between the first Ignite's
+     * two ticks and re-applies it with one tick left, so the refreshed Ignite keeps that tick's time, gains the full
+     * duration on top and spreads the two banks over its three ticks (SPELL_ATTR_EX4_STACK_DOT_MODIFIER). The second
+     * cast waits kLastStepMs, so the refreshed Ignite ticks out before the verdict.
+     *
+     * `ignite`: the 12654 ticks in every window, `ticks=<n>,sum=<total>,expected=<e>`. With tick(D) = int(D x 40 / 100)
+     * / 2 for each recorded crit D and carried = (2 x tick(D2) + tick(D1)) / 3, its remainder r dropped by the integer
+     * division: OK when both casts crit, the first tick is tick(D1), the three after the re-application are each
+     * carried, and the sum is e = 2 x tick(D1) + 2 x tick(D2) - r, both banks less that remainder alone.
+     */
+    class MageFireIgnite : public MageProcScenario
+    {
+    public:
+        MageFireIgnite() : MageProcScenario("mage-fire-ignite", 966, "ignite") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10529, 2 } };
+        }
+        int32 SpellPower() const override { return kSpellPower; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step first = Cast(133, true);
+            first.everyMs = kOverlapEveryMs;
+            Step overlapping = Cast(133, true);
+            overlapping.everyMs = kLastStepMs;
+            return { first, overlapping };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 133: 26 fields, fnv 81dba6e7
+                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84254: 26 fields, fnv 68c83b92
+                { 84254, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 70 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 9 }, { "eff0.EffectSpellClassMask.Flags", 26389977761973 }, { "eff0.EffectSpellClassMask.Flags2", 192 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11080: 49 fields, fnv ce553bfe
+                { 11080, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 2 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", 10 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 5 }, { "eff1.EffectSpellClassMask.Flags", 2 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return 12654; }
+        bool WatchedOnTarget() const override { return true; }
+        bool ReadsPeriodic() const override { return true; }
+
+        std::string Own(St const& st) const override
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<uint32> ticks;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+                for (const char* suffix : suffixes)
+                {
+                    std::vector<Recorder::Seen const*> seen = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_PERIODICAURALOG);
+                    for (size_t i = 0; i < seen.size(); ++i)
+                    {
+                        if (seen[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_PERIODICAURALOG, &seen[i]->payload[0],
+                                                                                 seen[i]->payload.size(), roles);
+                        for (size_t f = 0; f < fields.size(); ++f)
+                        {
+                            uint32 amount = 0;
+                            if (sscanf(fields[f].c_str(), "tick self.tick.12654=%u/", &amount) == 1)
+                            {
+                                ticks.push_back(amount);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // the DoT's tick count as the client's data gives it: its duration over its period
+            SpellEntry const* dot = sSpellStore.LookupEntry(12654);
+            SpellEffectEntry const* dotEffect = dot ? dot->GetSpellEffect(EFFECT_INDEX_0) : NULL;
+            const int32 duration = GetSpellDuration(dot);
+            const uint32 period = dotEffect ? dotEffect->EffectAuraPeriod : 0;
+            const uint32 dotTicks = period && duration > 0 ? uint32(duration) / period : 0;
+            int32 percent = 0;
+            int32 spellPower = 0;
+            if (Player* p = sPlayerRegistry.Find(st.player))
+            {
+                if (Aura const* ignite = p->GetAura(12846, EFFECT_INDEX_0))
+                {
+                    percent = ignite->GetModifier()->m_amount;
+                }
+                spellPower = p->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
+            }
+
+            bool ok = st.steps.size() == 2 && dotTicks == 2;
+            uint32 tick[2] = { 0, 0 };
+            std::string crits;
+            for (uint32 k = 0; k < st.steps.size() && k < 2; ++k)
+            {
+                Seen const& seen = st.seen[k];
+                ok = ok && seen.logRead && seen.crit;
+                tick[k] = dotTicks ? uint32(uint64(seen.amount) * kIgnitePercent / 100) / dotTicks : 0;
+                crits += (crits.empty() ? "" : ", ") + (seen.logRead ? U(seen.amount) : std::string("none")) +
+                         (seen.crit ? " crit" : "") + " (a tick of " + U(tick[k]) + ")";
+            }
+            const uint32 bank = 2 * tick[1] + tick[0];
+            const uint32 carried = bank / 3;
+            const uint32 dropped = bank % 3;
+            const uint32 expected = 2 * tick[0] + 2 * tick[1] - dropped;
+            uint32 sum = 0;
+            std::string tickText;
+            for (size_t i = 0; i < ticks.size(); ++i)
+            {
+                sum += ticks[i];
+                tickText += (tickText.empty() ? "" : " ") + U(ticks[i]);
+                ok = ok && ticks[i] == (i == 0 ? tick[0] : carried);
+            }
+            ok = ok && ticks.size() == 4 && sum == expected;
+
+            const std::string value = "ticks=" + U(ticks.size()) + ",sum=" + U(sum) + ",expected=" + U(expected);
+            char buf[512];
+            snprintf(buf, sizeof(buf),
+                     "Fireball %s; 12654 ticks [%s]: the first Ignite's first tick, then the re-applied Ignite's three of (2 x %u + %u) / 3 = %u, "
+                     "%u dropped by the division; %u ticks to an Ignite (%d ms over a period of %u); Ignite's aura amount %d; fire spell power %d",
+                     crits.c_str(), tickText.c_str(), tick[1], tick[0], carried, dropped, dotTicks, duration, period,
+                     percent, spellPower);
+            return ok ? value + "(OK: " + buf + ")" : "BUG(" + value + ": " + buf + ")";
+        }
+
+    private:
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kIgnitePercent = 40;
+        static constexpr uint32 kOverlapEveryMs = 3700;
+        static constexpr uint32 kLastStepMs = 9000;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -6286,5 +6447,6 @@ namespace Harness
         r.Register(new MageFireIgniteMastery());
         r.Register(new MageFireCriticalMass());
         r.Register(new MageFireLivingBombLimit());
+        r.Register(new MageFireIgnite());
     }
 }

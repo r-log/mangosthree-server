@@ -199,4 +199,13 @@ namespace Combat
     {
         return coefficient * masteryPoints;
     }
+
+    int32 DotShareTick(float amount, uint32 percent, uint32 ticks)
+    {
+        if (!ticks)
+        {
+            return 0;
+        }
+        return int32(amount * percent / 100) / int32(ticks);
+    }
 }
