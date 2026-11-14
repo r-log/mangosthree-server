@@ -25,8 +25,8 @@
 
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
-/// refusals of the proc scripts, the count of crits in a row, Ice Lance's damage-done multiplier and Blink's target
-/// count. A body that casts, reads a level or creates an item
+/// refusals of the proc scripts, the count of crits in a row, Ice Lance's damage-done multiplier, Blink's target
+/// count and Living Bomb's exits at the dummy aura hook. A body that casts, reads a level or creates an item
 /// needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map,
 /// template or AI), with the effect rows the scripts read added to the effect store as the client's data holds them.
 
@@ -72,6 +72,9 @@ namespace
     // Lance), and the one id the arm named (Blink).
     uint32 const ICE_LANCE_IDS[] = { 30455 };
     uint32 const BLINK_IDS[] = { 38194 };
+
+    // The id the dummy aura script holds: the one mage spell with Living Bomb's class mask and a dummy aura.
+    uint32 const LIVING_BOMB_IDS[] = { 44457 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -222,13 +225,13 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
     // the target hook and Persistent Shield at the proc hook. Fire: Combustion's two boost labels and the five Ignite
-    // ranks. Frost: the 74396 boost and proc labels and Summon Water Elemental; Ice Lance at the damage-done hook. At
-    // the proc hook, Fire: Master of Elements, Hot Streak and Blazing Speed; Frost: Deep Freeze Immunity State and
-    // Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. 39 rows, 39 keys and 3 defaults,
-    // none twice.
+    // ranks, and Living Bomb at the dummy aura hook. Frost: the 74396 boost and proc labels and Summon Water
+    // Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Master of Elements, Hot Streak and Blazing
+    // Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana
+    // Shield. 40 rows, 40 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(42));
-    CHECK_EQ(registry.Count(), std::size_t(39));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(43));
+    CHECK_EQ(registry.Count(), std::size_t(40));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -239,6 +242,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(18));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -256,7 +260,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 14, 11, 3 },
-        { &Mage::RegisterFire, 15, 15, 0 },
+        { &Mage::RegisterFire, 16, 16, 0 },
         { &Mage::RegisterFrost, 8, 8, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
     };
@@ -269,8 +273,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(42));
-    CHECK_EQ(registry.Count(), std::size_t(39));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(43));
+    CHECK_EQ(registry.Count(), std::size_t(40));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -279,7 +283,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(39));
+    CHECK_EQ(mine.size(), std::size_t(40));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -570,6 +574,46 @@ TEST(MageScripts_BlinkKeepsOneTarget)
     CHECK(registry.Dispatch<SelectTargetsHook>(38194, ctx).IsContinue());
     CHECK_EQ(maxTargets, uint32(1));
     CHECK_EQ(targets.size(), std::size_t(2));
+}
+
+TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : LIVING_BOMB_IDS)
+    {
+        CHECK(registry.Find<DummyAuraHook>(spellId) != NULL);
+        CHECK(game.Find<DummyAuraHook>(spellId) == registry.Find<DummyAuraHook>(spellId));
+        CHECK(registry.Find<AuraRemoveHook>(spellId) == NULL);
+        CHECK(game.Find<AuraRemoveHook>(spellId) == NULL);
+        CHECK(game.Find<AuraApplyHook>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(DummyAuraHook::Key), sizeof(LIVING_BOMB_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(0));
+
+    // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
+    // out or a dispel it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
+    BareCreature target;
+    SpellRowStorage row;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    int32 amount = 44461;
+    DummyAuraContext applied(target, NULL, SpellRow(row, 44457), EFFECT_INDEX_1, AuraHandle(holder), true,
+                             AURA_REMOVE_BY_DEFAULT, amount, NULL);
+    CHECK(registry.Dispatch<DummyAuraHook>(44457, applied).IsContinue());
+    AuraRemoveMode const silent[] =
+    {
+        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEATH,
+        AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_TRACKING,
+    };
+    for (AuraRemoveMode mode : silent)
+    {
+        DummyAuraContext removed(target, NULL, SpellRow(row, 44457), EFFECT_INDEX_1, AuraHandle(holder), false, mode,
+                                 amount, NULL);
+        CHECK(registry.Dispatch<DummyAuraHook>(44457, removed).IsReturn());
+    }
+    CHECK_EQ(amount, int32(44461));
 }
 
 TEST(MageScripts_HotStreakRollsOnTheSecondCritInARow)
