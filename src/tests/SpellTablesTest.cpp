@@ -300,6 +300,29 @@ TEST(SpellTables_TheAuraTargetLimitsAreTheTablesRowsAndNoOther)
     }
 }
 
+TEST(SpellTables_LivingBombsExplosionIsTheOneTriggeredCastThatStartsProcs)
+{
+    // Living Bomb's explosion, which the bomb's aura casts when it runs out
+    CHECK(TriggeredCastStartsProcs(44461));
+
+    // Living Bomb itself, Ignite's DoT, Fire Power's explosion, Flame Orb's hit and an id no table holds do not
+    for (uint32 spellId : { 44457u, 12654u, 83619u, 82739u, 12345u, 0u })
+    {
+        CHECK(!TriggeredCastStartsProcs(spellId));
+    }
+
+    // The table holds exactly its one row
+    uint32 rows = 0;
+    for (uint32 spellId = 0; spellId < 1000000; ++spellId)
+    {
+        if (TriggeredCastStartsProcs(spellId))
+        {
+            ++rows;
+        }
+    }
+    CHECK_EQ(rows, uint32(1));
+}
+
 TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
 {
     CHECK_EQ(GetArcanePotencyProcSpell(31571), uint32(57529));
