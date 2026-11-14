@@ -214,7 +214,7 @@ void Spell::cancel()
         case SPELL_STATE_PREPARING:
             CancelGlobalCooldown();
 
-            //(no break)
+            [[fallthrough]];
         case SPELL_STATE_DELAYED:
         {
             SendInterrupted(0);

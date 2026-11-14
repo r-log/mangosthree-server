@@ -719,6 +719,8 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
             }
             break;
         }
+        default:
+            break;
     }
 
     // pet auras

@@ -113,7 +113,7 @@ void Spell::SendSpellStart()
         m_spellInfo->PowerType != POWER_HEALTH)
         castFlags |= CAST_FLAG_PREDICTED_POWER;
 
-    if (m_casttime && (IsSpellHaveEffect(m_spellInfo, SPELL_EFFECT_HEAL) || IsSpellHaveEffect(m_spellInfo, SPELL_EFFECT_HEAL_PCT)) ||
+    if ((m_casttime && (IsSpellHaveEffect(m_spellInfo, SPELL_EFFECT_HEAL) || IsSpellHaveEffect(m_spellInfo, SPELL_EFFECT_HEAL_PCT))) ||
         IsSpellHaveAura(m_spellInfo, SPELL_AURA_PERIODIC_HEAL))
         {
             castFlags |= CAST_FLAG_HEAL_PREDICTION;

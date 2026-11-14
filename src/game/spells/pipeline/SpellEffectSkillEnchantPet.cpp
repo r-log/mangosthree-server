@@ -1268,6 +1268,8 @@ void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
             }
             break;
         }
+        default:
+            break;
     }
 
     // the spell's attack power share: the weapon damage percent multiplies it as it does the fixed bonus

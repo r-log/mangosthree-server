@@ -609,7 +609,7 @@ void Spell::EffectStealBeneficialBuff(SpellEffectEntry const* effect)
     }
 }
 
-void Spell::EffectWMODamage(SpellEffectEntry const* effect)
+void Spell::EffectWMODamage(SpellEffectEntry const* /*effect*/)
 {
     DEBUG_LOG("Effect: WMODamage");
 
@@ -639,7 +639,7 @@ void Spell::EffectWMODamage(SpellEffectEntry const* effect)
     gameObjTarget->DealGameObjectDamage(uint32(damage), m_spellInfo->ID, caster);
 }
 
-void Spell::EffectWMORepair(SpellEffectEntry const* effect)
+void Spell::EffectWMORepair(SpellEffectEntry const* /*effect*/)
 {
     DEBUG_LOG("Effect: WMORepair");
 
@@ -740,7 +740,7 @@ void Spell::EffectQuestFail(SpellEffectEntry const* effect)
     unitTargetPlayer->FailQuest(effect->EffectMiscValue_0);
 }
 
-void Spell::EffectActivateRune(SpellEffectEntry const* effect)
+void Spell::EffectActivateRune(SpellEffectEntry const* /*effect*/)
 {
     Player* plr = m_caster->ToPlayer();
     if (!plr)
@@ -752,8 +752,6 @@ void Spell::EffectActivateRune(SpellEffectEntry const* effect)
     {
         return;
     }
-
-    int32 count = damage;                                   // max amount of reset runes
 
     plr->ResyncRunes();
 }
@@ -936,7 +934,7 @@ void Spell::EffectRestoreItemCharges(SpellEffectEntry const* effect)
  *
  * @param effect The teleport effect index.
  */
-void Spell::EffectRedirectThreat(SpellEffectEntry const* effect)
+void Spell::EffectRedirectThreat(SpellEffectEntry const* /*effect*/)
 {
     if (!unitTarget)
     {

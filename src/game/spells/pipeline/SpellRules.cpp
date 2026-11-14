@@ -308,7 +308,7 @@ bool IsFitToRequirements(SpellArea const& spellArea, Player const* player, uint3
         if (spellArea.questStart)
         {
             // not in expected required quest state
-            if (!player || (!spellArea.questStartCanActive || !player->GetQuestStatusMgr().IsActiveQuest(spellArea.questStart)) && !player->GetQuestRewardStatus(spellArea.questStart))
+            if (!player || ((!spellArea.questStartCanActive || !player->GetQuestStatusMgr().IsActiveQuest(spellArea.questStart)) && !player->GetQuestRewardStatus(spellArea.questStart)))
             {
                 return false;
             }

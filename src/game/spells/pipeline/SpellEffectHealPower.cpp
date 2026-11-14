@@ -113,7 +113,7 @@ void Spell::EffectUnlearnSpecialization(SpellEffectEntry const* effect)
  */
 void Spell::EffectPowerDrain(SpellEffectEntry const* effect)
 {
-    if (effect->EffectMiscValue_0 < 0 || effect->EffectMiscValue_0 >= MAX_POWERS)
+    if (effect->EffectMiscValue_0 < 0 || uint32(effect->EffectMiscValue_0) >= MAX_POWERS)
     {
         return;
     }
@@ -201,7 +201,7 @@ void Spell::EffectSendEvent(SpellEffectEntry const* effect)
  */
 void Spell::EffectPowerBurn(SpellEffectEntry const* effect)
 {
-    if (effect->EffectMiscValue_0 < 0 || effect->EffectMiscValue_0 >= MAX_POWERS)
+    if (effect->EffectMiscValue_0 < 0 || uint32(effect->EffectMiscValue_0) >= MAX_POWERS)
     {
         return;
     }
@@ -732,7 +732,7 @@ void Spell::EffectEnergize(SpellEffectEntry const* effect)
         return;
     }
 
-    if (effect->EffectMiscValue_0 < 0 || effect->EffectMiscValue_0 >= MAX_POWERS)
+    if (effect->EffectMiscValue_0 < 0 || uint32(effect->EffectMiscValue_0) >= MAX_POWERS)
     {
         return;
     }
@@ -825,7 +825,7 @@ void Spell::EffectEnergisePct(SpellEffectEntry const* effect)
         return;
     }
 
-    if (effect->EffectMiscValue_0 < 0 || effect->EffectMiscValue_0 >= MAX_POWERS)
+    if (effect->EffectMiscValue_0 < 0 || uint32(effect->EffectMiscValue_0) >= MAX_POWERS)
     {
         return;
     }

@@ -285,7 +285,7 @@ uint32 GetSpellCastTimeForBonus(SpellEntry const* spellProto, DamageEffectType d
             continue;
         }
         if (spellEffect->Effect == SPELL_EFFECT_HEALTH_LEECH ||
-            spellEffect->Effect == SPELL_EFFECT_APPLY_AURA && spellEffect->EffectAura == SPELL_AURA_PERIODIC_LEECH)
+            (spellEffect->Effect == SPELL_EFFECT_APPLY_AURA && spellEffect->EffectAura == SPELL_AURA_PERIODIC_LEECH))
         {
             CastingTime /= 2;
             break;
@@ -988,6 +988,8 @@ SpellSpecific GetSpellSpecific(uint32 spellId)
             {
                 return SPELL_PRESENCE;
             }
+            break;
+        default:
             break;
     }
 
@@ -1767,6 +1769,8 @@ bool SpellMgr::canStackSpellRanksInSpellBook(SpellEntry const* spellInfo) const
                     return false;
                 }
                 break;
+            default:
+                break;
         }
     }
     return true;
@@ -2180,6 +2184,8 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
 
                     break;
                 }
+                default:
+                    break;
             }
             // Dragonmaw Illusion, Blood Elf Illusion, Human Illusion, Illidari Agent Illusion, Scarlet Crusade Disguise
             if (spellInfo_1->SpellIconID == 1691 && spellInfo_2->SpellIconID == 1691)
@@ -2199,8 +2205,8 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
                 }
 
                 // Blink & Improved Blink
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x0000000000010000)) && (spellInfo_2->SpellVisualID[0] == 72 && spellInfo_2->SpellIconID == 1499) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x0000000000010000)) && (spellInfo_1->SpellVisualID[0] == 72 && spellInfo_1->SpellIconID == 1499) )
+                if ((classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x0000000000010000)) && (spellInfo_2->SpellVisualID[0] == 72 && spellInfo_2->SpellIconID == 1499)) ||
+                    ((classOptions2->SpellClassMask & UI64LIT(0x0000000000010000)) && (spellInfo_1->SpellVisualID[0] == 72 && spellInfo_1->SpellIconID == 1499)) )
                 {
                     return false;
                 }

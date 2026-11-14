@@ -147,6 +147,8 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 }
                 break;
             }
+            default:
+                break;
         }
     }
     // AT REMOVE
@@ -298,6 +300,8 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             }
             break;
         }
+        default:
+            break;
     }
 
     // pet auras

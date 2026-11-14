@@ -408,6 +408,7 @@ bool IsCastEndProcModifierAura(SpellEntry const* spellInfo, SpellEffectIndex eff
                 default:
                     break;
             }
+            [[fallthrough]];
         }
         case SPELL_AURA_MOD_DAMAGE_PERCENT_DONE:
         {

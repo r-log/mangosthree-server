@@ -192,6 +192,8 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
             }
             break;
         }
+        default:
+            break;
     }
 
     // normal DB scripted effect

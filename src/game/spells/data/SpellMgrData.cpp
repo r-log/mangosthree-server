@@ -664,7 +664,7 @@ static void FillSpellScriptTargets(SpellScriptTargetStore& targets, TableRead<Sp
                 }
 
                 if (spellEffect->ImplicitTarget_0 == TARGET_SCRIPT ||
-                    spellEffect->ImplicitTarget_0 != TARGET_SELF && spellEffect->ImplicitTarget_1 == TARGET_SCRIPT)
+                    (spellEffect->ImplicitTarget_0 != TARGET_SELF && spellEffect->ImplicitTarget_1 == TARGET_SCRIPT))
                 {
                     SpellScriptTargetStore::Bounds bounds = targets.GetBounds(i);
                     if (bounds.first == bounds.second)
