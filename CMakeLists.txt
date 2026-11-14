@@ -41,6 +41,7 @@ option(WITH_CRYPTO_TESTS    "Build the crypto vector and stress tests (CI)" OFF)
 option(DEBUG                "Enable debug build (only on non IDEs)"         OFF)
 option(WITHOUT_GIT          "Disable Git revision detection"                OFF)
 option(MANGOS_STRICT_TICK   "Assert on a synchronous DB acquisition on a tick thread" OFF)
+option(MSVC_DEBUG_IN_OBJECTS "MSVC Release: debug info in each object (/Z7), not a shared compile PDB (/Zi)" OFF)
 message("")
 message(
   "This script builds the MaNGOS server.
@@ -68,6 +69,10 @@ message(
                             build: CI's Linux jobs turn it on so a change that
                             brings a blocking query back into the tick fails there.
                             Staff chat commands are counted apart and never assert.
+    MSVC_DEBUG_IN_OBJECTS   MSVC Release builds write the debug info into each object
+                            (/Z7) instead of a shared compile PDB (/Zi), so ccache can
+                            cache the compiles. The linker still writes the full PDBs.
+                            Off by default; CI turns it on.
     DEBUG                   Debug build, only for systems without IDE (Linux, *BSD)
    Scripting engines:
     SCRIPT_LIB_SD3          Compile with support for ScriptDev3 scripts
