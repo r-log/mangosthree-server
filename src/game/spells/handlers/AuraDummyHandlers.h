@@ -121,8 +121,8 @@ struct AuraDummyRemoveContext
     Unit*& target;      ///< the function's local `Unit* target = GetTarget();`
 };
 
-/// `Aura::HandleAuraDummy`, AT REMOVE `switch (GetId())`: no `default:`, so a miss continues at the Living Bomb
-/// block after it.
+/// `Aura::HandleAuraDummy`, AT REMOVE `switch (GetId())`: no `default:`, so a miss goes on to the AT APPLY & REMOVE
+/// family switch.
 struct AuraDummyRemoveSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_REMOVE;

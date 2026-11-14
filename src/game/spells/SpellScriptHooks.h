@@ -89,8 +89,8 @@ struct SpellEntry;
  *   effect. Return() ends the handler, as a `return` in its family switches does: the switches, the pet aura and
  *   spell area steps and the script library's OnAuraDummy do not run. A body may cast, with this aura effect as the
  *   trigger or with none, remove other auras, change the effect's amount at the apply and set the script words. The
- *   aura is alive: at a removal the holder's effects before this one are already un-applied and those after it not
- *   yet.
+ *   aura is alive: at a holder's removal the holder's effects before this one are already un-applied and those after
+ *   it not yet.
  *
  * EffectValue, AfterHit, AuraAmount, DamageDone and CritChance read no outcome: a body changes the context's values and
  * answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it as they are.

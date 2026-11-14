@@ -1009,7 +1009,7 @@ TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyFourLabelsAndNoDefault)
         CHECK(others.count(registry.Find<AuraDummyRemoveSite>(spellId)) == 0);
     }
 
-    // No default: an id the site never held misses, and the Living Bomb block after it runs.
+    // No default: an id the site never held misses, and the AT APPLY & REMOVE family switch after it runs.
     CHECK(registry.FindDefault<AuraDummyRemoveSite>() == NULL);
     Unit* target = NULL;
     AuraDummyRemoveContext ctx(NULL, target);
