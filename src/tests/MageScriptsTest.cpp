@@ -26,8 +26,8 @@
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
-/// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count and Living Bomb's exits at the
-/// dummy aura hook. A body that casts, reads a level
+/// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the
+/// dummy aura hook, Combustion's exits at the dummy-effect hook and its tick. A body that casts, reads a level
 /// or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
 /// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
 /// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura.
@@ -85,6 +85,9 @@ namespace
     // The id the aura-remove script holds: Hot Streak's buff, which gives the Tier 10 two-piece bonus's haste when it is
     // used up.
     uint32 const HOT_STREAK_BUFF_IDS[] = { 48108 };
+
+    // The id the dummy-effect script holds: Combustion, whose script effect puts its DoT (83853) on the target.
+    uint32 const COMBUSTION_IDS[] = { 11129 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -897,4 +900,65 @@ TEST(MageScripts_PushingTheLimitComesOnlyWhenHotStreakIsUsedUpWithTheTier10Bonus
         AuraRemoveContext ranOut(target, &caster, SpellRow(row, 48108), AuraHandle(holder), mode);
         CHECK(registry.Dispatch<AuraRemoveHook>(48108, ranOut).IsReturn());
     }
+}
+
+TEST(MageScripts_CombustionRunsOnTheDummyEffectHook)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : COMBUSTION_IDS)
+    {
+        CHECK(registry.Find<DummyEffectHook>(spellId) != NULL);
+        CHECK(game.Find<DummyEffectHook>(spellId) == registry.Find<DummyEffectHook>(spellId));
+        CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(DummyEffectHook::Key), sizeof(COMBUSTION_IDS) / sizeof(uint32));
+    CHECK(game.Find<AuraBoostMageSite>(28682) == NULL);
+
+    // With no unit target, and for an effect other than the script effect, the script casts nothing and ends the
+    // effect, so the mage family switch does not run; the effect's value stays as it is.
+    BareCreature caster;
+    SpellRowStorage row;
+    int32 value = 100;
+    DummyEffectContext noTarget(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_0, value, ObjectGuid());
+    CHECK(registry.Dispatch<DummyEffectHook>(11129, noTarget).IsReturn());
+    DummyEffectContext otherEffect(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_1, value, ObjectGuid());
+    CHECK(registry.Dispatch<DummyEffectHook>(11129, otherEffect).IsReturn());
+    CHECK_EQ(value, int32(100));
+}
+
+TEST(MageScripts_CombustionTickIsThePerSecondSumWithIgnitesShareBeforeMastery)
+{
+    // The Fire plan's vector: Ignite 2000 every 2 s, Pyroblast 500 and Living Bomb 700 every 3 s: 1000 + 166.67 +
+    // 233.33 = 1400 a second.
+    Mage::DotShare const pyroblastAndBomb[] = { { 500, 3000 }, { 700, 3000 } };
+    Mage::DotShare const ignite = { 2000, 2000 };
+    CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &ignite, 1.0f), int32(1400));
+
+    // Ignite's tick under 8 mastery points holds Flashburn's 1.224 (2000 x 1.224 = 2448); the multiplier divided out
+    // gives the same 1400, which the engine's Flashburn on 83853 then multiplies once. Without the division Ignite's
+    // share would count 1224 a second and the tick 1624, and Flashburn would reach it twice.
+    Mage::DotShare const masteredIgnite = { 2448, 2000 };
+    CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &masteredIgnite, 1.224f), int32(1400));
+    CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &masteredIgnite, 1.0f), int32(1624));
+
+    // A hasted Pyroblast ticks every 2400 ms, so it gives more a second: 1000 + 208.33 + 233.33 = 1441.67, truncated
+    // once after the sum.
+    Mage::DotShare const hasted[] = { { 500, 2400 }, { 700, 3000 } };
+    CHECK_EQ(Mage::CombustionTick(hasted, 2, &ignite, 1.0f), int32(1441));
+
+    // Nothing to combine gives a tick of 0; Ignite alone gives its share a second.
+    CHECK_EQ(Mage::CombustionTick(NULL, 0, NULL, 1.0f), int32(0));
+    Mage::DotShare const igniteAlone = { 1300, 2000 };
+    CHECK_EQ(Mage::CombustionTick(NULL, 0, &igniteAlone, 1.0f), int32(650));
+
+    // A share with no period adds nothing, a multiplier of 0 or below leaves Ignite's share undivided, and a sum below
+    // 0 is 0.
+    Mage::DotShare const noPeriod[] = { { 500, 0 }, { 700, 3000 } };
+    CHECK_EQ(Mage::CombustionTick(noPeriod, 2, NULL, 1.0f), int32(233));
+    CHECK_EQ(Mage::CombustionTick(NULL, 0, &igniteAlone, 0.0f), int32(650));
+    CHECK_EQ(Mage::CombustionTick(NULL, 0, &igniteAlone, -1.0f), int32(650));
+    Mage::DotShare const negative[] = { { -900, 3000 } };
+    CHECK_EQ(Mage::CombustionTick(negative, 1, NULL, 1.0f), int32(0));
 }
