@@ -38,7 +38,7 @@ namespace Movement
         &SplineBase::EvaluateLinear,
         &SplineBase::EvaluateCatmullRom,
         &SplineBase::EvaluateBezier3,
-        (EvaluationMethtod)& SplineBase::UninitializedSpline,
+        &SplineBase::UninitializedSplineEvaluationMethod,
     };
 
     // Initialize the derivative evaluation methods for different spline modes
@@ -47,7 +47,7 @@ namespace Movement
         &SplineBase::EvaluateDerivativeLinear,
         &SplineBase::EvaluateDerivativeCatmullRom,
         &SplineBase::EvaluateDerivativeBezier3,
-        (EvaluationMethtod)& SplineBase::UninitializedSpline,
+        &SplineBase::UninitializedSplineEvaluationMethod,
     };
 
     // Initialize the segment length calculation methods for different spline modes
@@ -56,7 +56,7 @@ namespace Movement
         &SplineBase::SegLengthLinear,
         &SplineBase::SegLengthCatmullRom,
         &SplineBase::SegLengthBezier3,
-        (SegLenghtMethtod)& SplineBase::UninitializedSpline,
+        &SplineBase::UninitializedSplineSegLenghtMethod,
     };
 
     // Initialize the spline initialization methods for different spline modes
@@ -66,7 +66,7 @@ namespace Movement
         &SplineBase::InitCatmullRom,    // we should use catmullrom initializer even for linear mode! (client's internal structure limitation)
         &SplineBase::InitCatmullRom,
         &SplineBase::InitBezier3,
-        (InitMethtod)& SplineBase::UninitializedSpline,
+        &SplineBase::UninitializedSplineInitMethod,
     };
 
 ///////////

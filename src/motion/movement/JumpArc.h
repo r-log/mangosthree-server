@@ -159,12 +159,12 @@ namespace Movement
          * @param minHeight The floor, in yards.
          * @param maxHeight The ceiling, in yards.
          * @param duration  The flight time, in seconds.
-         * @param gravity   The client's gravity, in yards per second squared.
+         * @param clientGravity The client's gravity, in yards per second squared.
          * @return The clearance to pass to AmplitudeForApex.
          */
-        inline float ApexForFlight(float minHeight, float maxHeight, float duration, float gravity)
+        inline float ApexForFlight(float minHeight, float maxHeight, float duration, float clientGravity)
         {
-            const float natural = gravity * duration * duration / 8.0f;
+            const float natural = clientGravity * duration * duration / 8.0f;
             return std::min(std::max(natural, minHeight), std::max(minHeight, maxHeight));
         }
 
@@ -175,12 +175,12 @@ namespace Movement
         /// @param length    The leg's 3D length in yards -- the spline's own, so the duration is exact.
         /// @param speed     The leg's velocity in yards per second.
         /// @param deltaZ    Destination Z minus launch Z.
-        /// @param gravity   The client's gravity.
+        /// @param clientGravity The client's gravity.
         inline float AmplitudeForLeg(float minHeight, float maxHeight, float length, float speed,
-                                     float deltaZ, float gravity)
+                                     float deltaZ, float clientGravity)
         {
             const float duration = speed > 0.0f ? length / speed : 0.0f;
-            return AmplitudeForApex(ApexForFlight(minHeight, maxHeight, duration, gravity), deltaZ);
+            return AmplitudeForApex(ApexForFlight(minHeight, maxHeight, duration, clientGravity), deltaZ);
         }
     }
 }
