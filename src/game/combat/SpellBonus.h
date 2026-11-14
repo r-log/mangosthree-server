@@ -161,6 +161,15 @@ namespace Combat
                                                 bool hasEffBasePoints, int32 effBasePoints,
                                                 int32 effectBasePoints, int32 effectDieSides,
                                                 float effectPointsPerResource);
+
+    /**
+     * @brief The attack-power part of one hit or tick.
+     *
+     * @param coefficient The attack-power coefficient that applies, after the spell modifiers.
+     * @param attackPower The attack power the part is taken of.
+     * @return `coefficient` times `attackPower`, truncated to int32 as the done total is.
+     */
+    int32 AttackPowerBonus(float coefficient, float attackPower);
 }
 
 #endif // MANGOSSERVER_COMBAT_SPELLBONUS_H

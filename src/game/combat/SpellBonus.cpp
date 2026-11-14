@@ -174,4 +174,9 @@ namespace Combat
         result.comboDamage = comboDamage;
         return result;
     }
+
+    int32 AttackPowerBonus(float coefficient, float attackPower)
+    {
+        return int32(coefficient * attackPower);
+    }
 }

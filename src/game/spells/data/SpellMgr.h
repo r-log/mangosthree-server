@@ -169,6 +169,38 @@ float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonus
  */
 float PetSpellPowerCoefficient(float row, float client, float castTimeDefault, SpellBonusKind kind, bool noDoneBonus);
 
+/**
+ * Whether the client adds attack power to the hits of `damagetype` (periodic for DOT, direct otherwise) of a spell
+ * with `effects`: `noDoneBonus` (the spell carries SPELL_ATTR_EX3_NO_DONE_BONUS) is false and one of `effects` is a
+ * damage effect of the client's kinds for that type. Direct: SCHOOL_DAMAGE, HEALTH_LEECH, WEAPON_DAMAGE_NOSCHOOL,
+ * WEAPON_DAMAGE, NORMALIZED_WEAPON_DMG, and an aura effect carrying DAMAGE_SHIELD or PROC_TRIGGER_DAMAGE; periodic: an
+ * aura effect carrying PERIODIC_DAMAGE or PERIODIC_LEECH (the damage kind of EffectBonusCoefficient).
+ * WEAPON_PERCENT_DAMAGE never counts; a heal or an absorb is never one. `effects` may hold NULL rows.
+ */
+bool SpellTakesAttackPower(SpellEffectEntry const* const (&effects)[MAX_EFFECT_INDEX], DamageEffectType damagetype,
+                           bool noDoneBonus);
+
+/**
+ * SpellTakesAttackPower over the three effects of `spellProto` and its SPELL_ATTR_EX3_NO_DONE_BONUS.
+ */
+bool SpellTakesAttackPower(SpellEntry const* spellProto, DamageEffectType damagetype);
+
+/**
+ * The attack-power coefficient that applies to a hit of `damagetype`: `coefficient`, Spell.dbc's m_spellCoefficient,
+ * when `clientData` and `takesAttackPower` hold and it is above 0; else the part of `row` for `damagetype`
+ * (ap_dot_bonus for DOT, ap_bonus otherwise); else 0. A row fills in where the client's value does not apply and never
+ * beats it. `row` may be NULL. Callers pass `clientData` for a player's damage only: the client adds the field to no
+ * heal, absorb or pet spell.
+ */
+float AttackPowerCoefficient(float coefficient, bool takesAttackPower, SpellBonusEntry const* row,
+                             DamageEffectType damagetype, bool clientData);
+
+/**
+ * AttackPowerCoefficient over the Coefficient of `spellProto` and SpellTakesAttackPower(spellProto, damagetype).
+ */
+float AttackPowerCoefficient(SpellEntry const* spellProto, SpellBonusEntry const* row, DamageEffectType damagetype,
+                             bool clientData);
+
 inline float GetSpellMinRange(SpellRangeEntry const* range, bool friendly = false)
 {
     if (!range)
@@ -737,11 +769,6 @@ inline bool isSpellBreakStealth(SpellEntry const* spellInfo)
 inline bool IsAutoRepeatRangedSpell(SpellEntry const* spellInfo)
 {
     return spellInfo->HasAttribute(SPELL_ATTR_RANGED) && spellInfo->HasAttribute(SPELL_ATTR_EX2_AUTOREPEAT_FLAG);
-}
-
-inline bool IsSpellRequiresRangedAP(SpellEntry const* spellInfo)
-{
-    return (spellInfo->GetSpellFamilyName() == SPELLFAMILY_HUNTER && spellInfo->GetDmgClass() != SPELL_DAMAGE_CLASS_MELEE);
 }
 
 /**

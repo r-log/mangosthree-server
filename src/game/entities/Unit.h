@@ -3514,14 +3514,6 @@ class Unit : public WorldObject
          */
         Player* GetNextRandomRaidMember(float radius);
         /**
-         * The rank of a talent this unit knows; SpellBonusWithCoeffs raises a death knight's attack
-         * power bonus by the rank of Impurity it knows.
-         * @param talentId the talent asked about
-         * @return NULL here, a unit that is not a player knows no talent; Player returns the spell of
-         * the rank its active spec knows, or NULL
-         */
-        virtual SpellEntry const* GetKnownTalentRankById(int32 /*talentId*/) const { return NULL; }
-        /**
          * Whether every base rune of a type is on cooldown; Blade Barrier procs only for a death
          * knight whose base blood runes are all on cooldown.
          * @param runeType the rune type asked about

@@ -470,6 +470,61 @@ float PetSpellPowerCoefficient(float row, float client, float castTimeDefault, S
     return castTimeDefault;
 }
 
+bool SpellTakesAttackPower(SpellEffectEntry const* const (&effects)[MAX_EFFECT_INDEX], DamageEffectType damagetype,
+                           bool noDoneBonus)
+{
+    if (noDoneBonus)
+    {
+        return false;
+    }
+
+    bool const wantPeriodic = damagetype == DOT;
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        bool periodic = false;
+        if (effects[i] && IsSpellBonusEffect(*effects[i], SPELL_BONUS_KIND_DAMAGE, periodic) && periodic == wantPeriodic)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool SpellTakesAttackPower(SpellEntry const* spellProto, DamageEffectType damagetype)
+{
+    SpellEffectEntry const* effects[MAX_EFFECT_INDEX];
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        effects[i] = spellProto->GetSpellEffect(SpellEffectIndex(i));
+    }
+
+    return SpellTakesAttackPower(effects, damagetype, spellProto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
+}
+
+float AttackPowerCoefficient(float coefficient, bool takesAttackPower, SpellBonusEntry const* row,
+                             DamageEffectType damagetype, bool clientData)
+{
+    if (clientData && takesAttackPower && coefficient > 0.0f)
+    {
+        return coefficient;
+    }
+
+    if (row)
+    {
+        return damagetype == DOT ? row->ap_dot_bonus : row->ap_bonus;
+    }
+
+    return 0.0f;
+}
+
+float AttackPowerCoefficient(SpellEntry const* spellProto, SpellBonusEntry const* row, DamageEffectType damagetype,
+                             bool clientData)
+{
+    bool const takesAttackPower = clientData && spellProto->Coefficient > 0.0f && SpellTakesAttackPower(spellProto, damagetype);
+    return AttackPowerCoefficient(spellProto->Coefficient, takesAttackPower, row, damagetype, clientData);
+}
+
 /**
  * @brief Calculates the maximum number of periodic ticks for a spell.
  *

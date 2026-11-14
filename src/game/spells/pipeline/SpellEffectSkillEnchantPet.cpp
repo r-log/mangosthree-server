@@ -1285,6 +1285,13 @@ void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
         }
     }
 
+    // the spell's attack power share: the weapon damage percent multiplies it as it does the fixed bonus
+    if (int32 ap = m_caster->SpellBonusWithCoeffs(m_spellInfo, 0, 0, 0, SPELL_DIRECT_DAMAGE, true, SPELL_BONUS_KIND_DAMAGE))
+    {
+        spell_bonus += ap;
+        spellBonusNeedWeaponDamagePercentMod = true;
+    }
+
     int32 fixed_bonus = 0;
     for (int j = 0; j < MAX_EFFECT_INDEX; ++j)
     {

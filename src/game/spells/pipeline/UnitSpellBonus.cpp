@@ -57,7 +57,7 @@
  * @param spellProto SpellEntry of the used spell
  * @param total current value onto which the shares are added
  * @param benefit the spell power the share is taken of (done or taken)
- * @param ap_benefit additional melee attackpower benefit from auras
+ * @param ap_benefit attack power from auras, added to the attack power the attack power share is taken of
  * @param damagetype DOT for a periodic tick, any other type for a direct amount
  * @param donePart calculate for done or taken
  * @param kind the kind of amount: damage, heal or absorb
@@ -69,8 +69,12 @@
  *   level when it is nonzero, else the cast-time default CalculateDefaultCoefficient;
  * - any other creature takes its whole spell power and no row.
  * A damage kind of a spell with SPELL_ATTR_EX3_NO_DONE_BONUS takes none for a player or a pet. A coefficient above 0
- * goes through SPELLMOD_SPELL_BONUS_DAMAGE as a percent. At the done side the row's attack power part is added after
- * it, for a player or a pet.
+ * goes through SPELLMOD_SPELL_BONUS_DAMAGE as a percent.
+ *
+ * At the done side the attack power share follows, for a player or a pet: AttackPowerCoefficient, Spell.dbc's
+ * coefficient for a player's damage when the spell takes attack power, else the row's attack power part, else 0;
+ * above 0 it goes through SPELLMOD_SPELL_BONUS_DAMAGE as a percent and is taken of the larger of the melee and the
+ * ranged attack power, plus `ap_benefit`. A heal, an absorb and a pet's spell take the row's part only.
  */
 int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int32 benefit, int32 ap_benefit, DamageEffectType damagetype, bool donePart, SpellBonusKind kind)
 {
@@ -110,21 +114,22 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
         }
     }
 
-    // apply ap bonus at done part calculation only (it flat total mod so common with taken)
-    if (bonus && donePart && (bonus->ap_bonus || bonus->ap_dot_bonus))
+    // the attack power share, at the done side only: a flat part of the total, so the taken side shares it
+    if (donePart && (player || pet))
     {
-        float ap_bonus = damagetype == DOT ? bonus->ap_dot_bonus : bonus->ap_bonus;
-
-        // Impurity
-        if (GetTypeId() == TYPEID_PLAYER && spellProto->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT)
+        float coeff = AttackPowerCoefficient(spellProto, bonus, damagetype, player && kind == SPELL_BONUS_KIND_DAMAGE);
+        if (coeff > 0.0f)
         {
-            if (SpellEntry const* spell = GetKnownTalentRankById(2005))
+            if (SpellModMgr* modOwner = GetSpellMods())
             {
-                ap_bonus += ((spell->CalculateSimpleValue(EFFECT_INDEX_0) * ap_bonus) / 100.0f);
+                coeff *= 100.0f;
+                modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_SPELL_BONUS_DAMAGE, coeff);
+                coeff /= 100.0f;
             }
-        }
 
-        total += int32(ap_bonus * (GetTotalAttackPowerValue(IsSpellRequiresRangedAP(spellProto) ? RANGED_ATTACK : BASE_ATTACK) + ap_benefit));
+            float const attackPower = std::max(GetTotalAttackPowerValue(BASE_ATTACK), GetTotalAttackPowerValue(RANGED_ATTACK));
+            total += Combat::AttackPowerBonus(coeff, attackPower + ap_benefit);
+        }
     }
 
     return total;
@@ -1579,16 +1584,10 @@ uint32 Unit::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackTyp
     // ..done pct (by creature type mask)
     DonePercent *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_DONE_VERSUS, creatureTypeMask);
 
-    // Mastery: Unshackled Fury (Fury Warrior 76856) — applies to all
-    // damage dealt scaled by current rage%. Warrior abilities like
-    // Bloodthirst / Raging Blow are SPELL_DAMAGE_CLASS_MELEE and route
-    // through MeleeDamageBonusDone (not SpellDamageBonusDone). Read the
-    // 76856 aura holder directly instead of by aura type because
-    // mangosthree's DBC routes Unshackled Fury through a different aura
-    // type than Mana Adept's 356 (SPELL_AURA_MOD_DAMAGE_DONE_FROM_PCT_POWER);
-    // observed in-game with a temporary diagnostic on 2026-05-17.
-    // m_amount > 0 guard avoids the DBC placeholder bleeding through
-    // when SPELL_AURA_MASTERY isn't yet active on the caster.
+    // Mastery: Unshackled Fury (Fury Warrior 76856) raises the damage a rage user deals by its amount in percent times
+    // his rage over his maximum rage. Melee abilities such as Bloodthirst and Raging Blow reach this function, not
+    // SpellDamageBonusDone. The 76856 holder is read by spell, since its aura is not Mana Adept's
+    // SPELL_AURA_MOD_DAMAGE_DONE_FROM_PCT_POWER; an amount of 0, the mastery not yet active, adds nothing.
     if (GetPowerType() == POWER_RAGE)
     {
         if (SpellAuraHolder* ufHolder = GetSpellAuraHolder(76856))

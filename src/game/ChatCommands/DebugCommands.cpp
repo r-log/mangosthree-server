@@ -1687,6 +1687,21 @@ bool ChatHandler::HandleDebugSpellCoefsCommand(char* args)
         PSendSysMessage("Spell %u: no spell_bonus_data row", spellid);
     }
 
+    // The attack power share per damage type: Spell.dbc's coefficient, the row's part, and the one that applies to a
+    // player's damage and to a heal, an absorb or a pet's spell.
+    PSendSysMessage("Spell %u: Spell.dbc attack-power coefficient %f", spellid, spellEntry->Coefficient);
+    DamageEffectType const apTypes[] = { SPELL_DIRECT_DAMAGE, DOT };
+    for (DamageEffectType type : apTypes)
+    {
+        bool const periodic = type == DOT;
+        float const row = bonus ? (periodic ? bonus->ap_dot_bonus : bonus->ap_bonus) : 0.0f;
+        PSendSysMessage("Attack power, %s: Spell.dbc %f, %s; spell_bonus_data %s %f; a player's damage takes %f, a heal, an absorb or a pet's spell %f",
+                        periodic ? "periodic" : "direct", spellEntry->Coefficient,
+                        SpellTakesAttackPower(spellEntry, type) ? "the spell's damage takes it" : "no damage effect of the spell takes it",
+                        periodic ? "ap_dot_bonus" : "ap_bonus", row, AttackPowerCoefficient(spellEntry, bonus, type, true),
+                        AttackPowerCoefficient(spellEntry, bonus, type, false));
+    }
+
     SpellBonusKind const kinds[] = { SPELL_BONUS_KIND_DAMAGE, SPELL_BONUS_KIND_HEAL, SPELL_BONUS_KIND_ABSORB };
     char const* const kindNames[] = { "damage", "heal", "absorb" };
     for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
