@@ -38,9 +38,9 @@
  * Mage.cpp holds the class-wide bodies, the mage sites' defaults, and ProcEffectIs, CastProcSpell, EffectTriggerSpell
  * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
  * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
- * HotStreakStep and PushingTheLimitOnRemove) and Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
- * and PyromaniacHaste). Each file registers its rows through one function of namespace Mage: a table per legacy site
- * of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
+ * and PyromaniacHaste) and Combustion's (CombustionTick). Each file registers its rows through one function of
+ * namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies and those of the three specializations. Returns the rows and
@@ -101,6 +101,19 @@ namespace Mage
     /// Whether Hot Streak's buff, removed in `mode`, gives Pushing the Limit: only when the buff is used up (the default
     /// mode, in which casting Pyroblast! removes it) and its caster holds Item - Mage T10 2P Bonus. Defined in Fire.cpp.
     bool PushingTheLimitOnRemove(AuraRemoveMode mode, bool casterHasT10TwoPiece);
+
+    /// One DoT's part of Combustion: its tick and its period.
+    struct DotShare
+    {
+        int32 tick;                                 ///< the damage of one tick, as the aura holds it
+        uint32 periodMs;                            ///< the time between ticks, as the aura holds it
+    };
+
+    /// Combustion's tick: the per-second damage of the shares summed (each `tick * 1000 / periodMs`), where the Ignite
+    /// share, when `ignite` is given, is first divided by `igniteMultiplier`, the mastery the engine applies to the new
+    /// DoT once more. Truncated to an integer once, after the sum. A share with a period of 0 adds nothing, a
+    /// multiplier of 0 or below leaves the Ignite share undivided, and a sum below 0 is 0. Defined in Fire.cpp.
+    int32 CombustionTick(DotShare const* shares, size_t count, DotShare const* ignite, float igniteMultiplier);
 
     /// Whether a holder of `spellId` is periodic Fire damage that counts its target for Pyromaniac: Pyroblast (11366,
     /// 92315), Living Bomb (44457), Ignite (12654), Combustion (83853), Flamestrike (2120) and Frostfire Bolt (44614).

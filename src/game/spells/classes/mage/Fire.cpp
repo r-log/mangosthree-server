@@ -24,10 +24,11 @@
  */
 
 #include "spells/classes/mage/Mage.h"
-#include "spells/handlers/AurasHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
+#include "spells/SpellModMgr.h"
+#include "spells/SpellScriptQueries.h"
 #include "combat/SpellBonus.h"
 #include "combat/ThreatManager.h"
 #include "entities/Unit.h"
@@ -37,34 +38,7 @@
 
 #include <algorithm>
 #include <iterator>
-
-/// 11129: Combustion
-static SpellHandlerOutcome<void> AuraBoostMage11129(AuraBoostContext& ctx)
-{
-    if (!ctx.apply)
-    {
-        ctx.spellId1 = 28682;
-    }
-    else
-    {
-        return SpellHandlerOutcome<void>::Return();
-    }
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// 28682: absent from the client's spell data
-static SpellHandlerOutcome<void> AuraBoostMage28682(AuraBoostContext& ctx)
-{
-    if (!ctx.apply)
-    {
-        ctx.spellId1 = 11129;
-    }
-    else
-    {
-        return SpellHandlerOutcome<void>::Return();
-    }
-    return SpellHandlerOutcome<void>::Continue();
-}
+#include <vector>
 
 namespace
 {
@@ -241,6 +215,60 @@ namespace
         return SpellHandlerOutcome<void>::Return();
     }
 
+    /// Combustion's DoT, 83853.
+    uint32 const COMBUSTION_DOT = 83853;
+
+    /// The caster's DoTs Combustion combines besides Ignite: Pyroblast (11366) and Pyroblast! (92315), Living Bomb
+    /// (44457) and Frostfire Bolt (44614), whose periodic effect Glyph of Frostfire gives. Flamestrike's DoT is not
+    /// combined.
+    uint32 const COMBUSTION_SHARES[] = { 11366, 92315, 44457, 44614 };
+
+    /// 11129: Combustion: its script effect puts Combustion (83853) on the target with a tick equal to the per-second
+    /// damage of the caster's Pyroblast (11366, 92315), Living Bomb (44457), Frostfire Bolt (44614) and Ignite (12654)
+    /// on the target at this moment; Ignite's part is taken before the caster's Flashburn, which the engine applies to
+    /// the new DoT. Flamestrike is not combined. With nothing to combine the DoT is still applied, with a tick of 0. The
+    /// script ends the effect, so the mage family switch, which has nothing for 11129, does not run.
+    SpellHandlerOutcome<void> CombustionEffect(DummyEffectContext& ctx)
+    {
+        if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.target)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        ObjectGuid const caster = ctx.caster.GetObjectGuid();
+        std::vector<PeriodicDamageView> found;
+        std::vector<Mage::DotShare> shares;
+        FindPeriodicDamage(*ctx.target, caster, COMBUSTION_SHARES, sizeof(COMBUSTION_SHARES) / sizeof(COMBUSTION_SHARES[0]),
+                           found);
+        for (PeriodicDamageView const& view : found)
+        {
+            Mage::DotShare const share = { view.amount, view.periodMs };
+            shares.push_back(share);
+        }
+
+        uint32 const igniteDot[] = { IGNITE_DOT };
+        Mage::DotShare ignite = { 0, 0 };
+        bool const hasIgnite = FindPeriodicDamage(*ctx.target, caster, igniteDot, 1, found) > 0;
+        if (hasIgnite)
+        {
+            ignite.tick = found[0].amount;
+            ignite.periodMs = found[0].periodMs;
+        }
+
+        // the caster's mastery on Ignite: the step SpellDamageBonusDone takes for a spell without damage modifiers
+        float igniteMultiplier = 1.0f;
+        if (SpellModMgr* mods = ctx.caster.GetSpellMods())
+        {
+            mods->ApplySpellMod(IGNITE_DOT, SPELLMOD_DOT, igniteMultiplier, true);
+        }
+
+        int32 const tick = Mage::CombustionTick(shares.empty() ? NULL : &shares[0], shares.size(), hasIgnite ? &ignite : NULL,
+                                                igniteMultiplier);
+        int32 const basePoints[MAX_EFFECT_INDEX] = { tick, 0, 0 };
+        ctx.CastTriggered(*ctx.target, COMBUSTION_DOT, basePoints);
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     uint32 const PYROMANIAC_RANK_1 = 34293;
     uint32 const PYROMANIAC_RANK_2 = 34295;
     uint32 const PYROMANIAC_HASTE = 83582;
@@ -330,6 +358,7 @@ namespace
     uint32 const HOT_STREAK_BUFFS[] = { HOT_STREAK_BUFF };
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
     uint32 const LIVING_BOMB[] = { 44457 };
+    uint32 const COMBUSTION[] = { 11129 };
     uint32 const PYROMANIAC_DOTS_APPLIED[] = { 2120, 11366, 12654, 44457, 83853, 92315 };
     uint32 const FROSTFIRE_BOLT[] = { 44614 };
     uint32 const PYROMANIAC[] = { PYROMANIAC_RANK_1, PYROMANIAC_RANK_2 };
@@ -370,6 +399,24 @@ bool Mage::HotStreakStep(int32& crits, bool crit, bool baseRollPassed, bool impr
         return true;
     }
     return CountCritInARow(crits, crit) && improvedRollPassed;
+}
+
+int32 Mage::CombustionTick(DotShare const* shares, size_t count, DotShare const* ignite, float igniteMultiplier)
+{
+    double perSecond = 0.0;
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (shares[i].periodMs)
+        {
+            perSecond += double(shares[i].tick) * 1000.0 / double(shares[i].periodMs);
+        }
+    }
+    if (ignite && ignite->periodMs)
+    {
+        double const tick = igniteMultiplier > 0.0f ? double(ignite->tick) / double(igniteMultiplier) : double(ignite->tick);
+        perSecond += tick * 1000.0 / double(ignite->periodMs);
+    }
+    return perSecond > 0.0 ? int32(perSecond) : 0;
 }
 
 bool Mage::PyromaniacCounts(uint32 spellId)
@@ -416,14 +463,7 @@ int32 Mage::PyromaniacHaste(uint32 talentSpell)
 
 uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
 {
-    static Row<AuraBoostMageSite> const boostMage[] =
-    {
-        { 11129, &AuraBoostMage11129 },
-        { 28682, &AuraBoostMage28682 },
-    };
-
-    uint32 rows = RegisterRows(registry, boostMage);
-    rows += RegisterRanks<OnProcHook>(registry, IGNITE, &IgniteProc);
+    uint32 rows = RegisterRanks<OnProcHook>(registry, IGNITE, &IgniteProc);
     rows += RegisterRanks<OnProcHook>(registry, MASTER_OF_ELEMENTS, &MasterOfElementsProc);
     rows += RegisterRanks<OnProcHook>(registry, HOT_STREAK, &HotStreakProc);
     rows += RegisterRanks<AuraRemoveHook>(registry, HOT_STREAK_BUFFS, &HotStreakBuffRemove);
@@ -434,5 +474,6 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AuraRemoveHook>(registry, PYROMANIAC_DOTS, &PyromaniacDotRemove);
     rows += RegisterRanks<AuraApplyHook>(registry, PYROMANIAC, &PyromaniacTalentApply);
     rows += RegisterRanks<AuraRemoveHook>(registry, PYROMANIAC, &PyromaniacTalentRemove);
+    rows += RegisterRanks<DummyEffectHook>(registry, COMBUSTION, &CombustionEffect);
     return rows;
 }

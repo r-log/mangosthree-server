@@ -2237,12 +2237,6 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
                 return false;
             }
 
-            // Combustion and Fire Protection Aura (multi-family check)
-            if (spellInfo_1->ID == 11129 && spellInfo_2->SpellIconID == 33 && spellInfo_2->SpellVisualID[0] == 321)
-            {
-                return false;
-            }
-
             // Arcane Intellect and Insight
             if (spellInfo_1->SpellIconID == 125 && spellInfo_2->ID == 18820)
             {
@@ -2607,12 +2601,6 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
                 return false;
             }
 
-            // Combustion and Fire Protection Aura (multi-family check)
-            if (spellInfo_2->ID == 11129 && spellInfo_1->SpellIconID == 33 && spellInfo_1->SpellVisualID[0] == 321)
-            {
-                return false;
-            }
-
             // *Sanctity Aura -> Unstable Currents and other (multi-family check)
             if (spellInfo_1->SpellIconID==502 && classOptions2->SpellClassSet == SPELLFAMILY_GENERIC && spellInfo_2->SpellIconID==502 && spellInfo_2->SpellVisualID[0]==969 )
             {
@@ -2683,6 +2671,12 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             break;
         default:
             break;
+    }
+
+    // Combustion's DoT (83853) stacks with every other aura of its icon
+    if ((spellId_1 == 83853) != (spellId_2 == 83853))
+    {
+        return false;
     }
 
     // more generic checks

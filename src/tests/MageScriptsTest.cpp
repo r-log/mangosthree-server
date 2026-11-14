@@ -27,10 +27,11 @@
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the
-/// dummy aura hook, and Pyromaniac's leaves and its rows at the aura-apply and aura-remove hooks. A body that casts,
-/// reads a level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures
-/// (update fields allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as
-/// the client's data holds them, and a holder put in the creature's holder map where a script asks whether it holds an
+/// dummy aura hook, Pyromaniac's leaves and its rows at the aura-apply and aura-remove hooks, Combustion's exits at
+/// the dummy-effect hook, its tick and its DoT's stacking with the auras of its icon. A body that casts, reads a
+/// level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update
+/// fields allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the
+/// client's data holds them, and a holder put in the creature's holder map where a script asks whether it holds an
 /// aura.
 
 #include "TestHarness.h"
@@ -57,7 +58,7 @@ namespace
 {
     // The labels the class files register at each mage site, in their tables' order.
     uint32 const TRIGGER_SPELL_IDS[] = { 66 };
-    uint32 const BOOST_IDS[] = { 11129, 28682, 74396 };
+    uint32 const BOOST_IDS[] = { 74396 };
     uint32 const EFFECT_DUMMY_IDS[] = { 32826, 38194, 42955, 1459, 61316, 31687 };
     uint32 const DUMMY_PROC_IDS[] = { 56372, 56375, 64411, 74396 };
 
@@ -91,6 +92,9 @@ namespace
     // ground effect, Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, Pyroblast!) and the talent's two ranks.
     uint32 const PYROMANIAC_DOT_IDS[] = { 2120, 11366, 12654, 44457, 44614, 83853, 92315 };
     uint32 const PYROMANIAC_IDS[] = { 34293, 34295 };
+
+    // The id the dummy-effect script holds: Combustion, whose script effect puts its DoT (83853) on the target.
+    uint32 const COMBUSTION_IDS[] = { 11129 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -309,19 +313,19 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // The class-wide file: Invisibility at the trigger-spell site; Polymorph Cast Visual, Blink, Conjure Refreshment
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
-    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Combustion's two boost labels,
-    // Living Bomb at the dummy aura hook, Hot Streak's buff at the aura-remove hook, and Pyromaniac's seven DoTs and
-    // two ranks at the aura-apply and aura-remove hooks. Frost: the 74396 boost and proc labels and Summon Water
-    // Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak and
-    // Blazing Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency
-    // and Mana Shield. 56 rows, 56 keys and 3 defaults, none twice.
+    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
+    // Hot Streak's buff at the aura-remove hook, Pyromaniac's seven DoTs and two ranks at the aura-apply and
+    // aura-remove hooks, and Combustion at the dummy-effect hook. Frost: the 74396 boost and proc labels and Summon
+    // Water Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak
+    // and Blazing Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane
+    // Potency and Mana Shield. 55 rows, 55 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(59));
-    CHECK_EQ(registry.Count(), std::size_t(56));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(58));
+    CHECK_EQ(registry.Count(), std::size_t(55));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(3));
+    CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
@@ -331,6 +335,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(9));
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(10));
+    CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(1));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -348,7 +353,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 31, 31, 0 },
+        { &Mage::RegisterFire, 30, 30, 0 },
         { &Mage::RegisterFrost, 8, 8, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
     };
@@ -361,18 +366,18 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(59));
-    CHECK_EQ(registry.Count(), std::size_t(56));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(58));
+    CHECK_EQ(registry.Count(), std::size_t(55));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
     // files hold the mage sites' other rows: Mirror Image at the periodic dummy tick site, the two Pushing the Limit
     // labels at the boost site, Cold Snap at the dummy-effect site and Focus Magic at the crit-chance proc site. Hot
-    // Streak's buff (48108) is no label of the boost site.
+    // Streak's buff (48108), Combustion (11129) and 28682 are no label of the boost site.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(56));
+    CHECK_EQ(mine.size(), std::size_t(55));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -383,7 +388,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK(game.FindDefault<AuraBoostMageSite>() == registry.FindDefault<AuraBoostMageSite>());
     CHECK_EQ(game.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(5));
+    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(3));
     CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(7));
     CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
@@ -394,7 +399,10 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         CHECK(game.Find<AuraBoostMageSite>(spellId) != NULL);
         CHECK(registry.Find<AuraBoostMageSite>(spellId) == NULL);
     }
-    CHECK(game.Find<AuraBoostMageSite>(48108) == NULL);
+    for (uint32 spellId : { 48108u, 11129u, 28682u })
+    {
+        CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
+    }
     CHECK(game.Find<SpellEffectDummyMageSite>(11958) != NULL);
     CHECK(registry.Find<SpellEffectDummyMageSite>(11958) == NULL);
     CHECK(game.Find<SpellCritChanceAuraProcMageSite>(54646) != NULL);
@@ -430,14 +438,14 @@ TEST(MageScripts_TheIgniteRanksShareOneBodyAtTheProcHook)
     CHECK(procBodies.count(NULL) == 0);
     CHECK_EQ(procBodies.size(), std::size_t(4));
 
-    // Combustion's two labels and the 74396 boost each have their own body.
+    // The 74396 boost is the mage files' one label at the boost site, with a body of its own.
     std::set<SpellHandler<AuraBoostMageSite>::Function> boostBodies;
     for (uint32 spellId : BOOST_IDS)
     {
         boostBodies.insert(registry.Find<AuraBoostMageSite>(spellId));
     }
     CHECK(boostBodies.count(NULL) == 0);
-    CHECK_EQ(boostBodies.size(), std::size_t(3));
+    CHECK_EQ(boostBodies.size(), std::size_t(1));
 }
 
 TEST(MageScripts_TheEffectDummySiteHoldsItsSixLabelsAndNoDefault)
@@ -1058,4 +1066,140 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
         CHECK(registry.Dispatch<AuraRemoveHook>(spellId, unlearned).IsContinue());
         CHECK(!mage.HasAura(83582));
     }
+}
+
+TEST(MageScripts_CombustionRunsOnTheDummyEffectHook)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : COMBUSTION_IDS)
+    {
+        CHECK(registry.Find<DummyEffectHook>(spellId) != NULL);
+        CHECK(game.Find<DummyEffectHook>(spellId) == registry.Find<DummyEffectHook>(spellId));
+        CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(DummyEffectHook::Key), sizeof(COMBUSTION_IDS) / sizeof(uint32));
+    CHECK(game.Find<AuraBoostMageSite>(28682) == NULL);
+
+    // With no unit target the script casts nothing and ends the effect, so the mage family switch does not run; the
+    // effect's value stays as it is.
+    BareCreature caster;
+    SpellRowStorage row;
+    int32 value = 100;
+    DummyEffectContext noTarget(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_0, value, ObjectGuid());
+    CHECK(registry.Dispatch<DummyEffectHook>(11129, noTarget).IsReturn());
+    CHECK_EQ(value, int32(100));
+
+    // An effect other than the script effect, with a unit target, ends the effect too and casts nothing: the target
+    // holds no aura afterwards.
+    BareCreature target;
+    DummyEffectContext otherEffect(caster, &target, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_1, value, ObjectGuid());
+    CHECK(registry.Dispatch<DummyEffectHook>(11129, otherEffect).IsReturn());
+    CHECK(target.GetSpellAuraHolderMap().empty());
+    CHECK_EQ(value, int32(100));
+}
+
+TEST(MageScripts_CombustionTickIsThePerSecondSumWithIgnitesShareBeforeMastery)
+{
+    // Ignite 2000 every 2 s, Pyroblast 500 and Living Bomb 700 every 3 s: 1000 + 166.67 + 233.33 = 1400 a second.
+    Mage::DotShare const pyroblastAndBomb[] = { { 500, 3000 }, { 700, 3000 } };
+    Mage::DotShare const ignite = { 2000, 2000 };
+    CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &ignite, 1.0f), int32(1400));
+
+    // Ignite's tick under 8 mastery points holds Flashburn's 1.224 (2000 x 1.224 = 2448); the multiplier divided out
+    // gives the same 1400, which the engine's Flashburn on 83853 then multiplies once. Without the division Ignite's
+    // share would count 1224 a second and the tick 1624, and Flashburn would reach it twice.
+    Mage::DotShare const masteredIgnite = { 2448, 2000 };
+    CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &masteredIgnite, 1.224f), int32(1400));
+    CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &masteredIgnite, 1.0f), int32(1624));
+
+    // A hasted Pyroblast ticks every 2400 ms, so it gives more a second: 1000 + 208.33 + 233.33 = 1441.67, truncated
+    // once after the sum.
+    Mage::DotShare const hasted[] = { { 500, 2400 }, { 700, 3000 } };
+    CHECK_EQ(Mage::CombustionTick(hasted, 2, &ignite, 1.0f), int32(1441));
+
+    // Nothing to combine gives a tick of 0; Ignite alone gives its share a second.
+    CHECK_EQ(Mage::CombustionTick(NULL, 0, NULL, 1.0f), int32(0));
+    Mage::DotShare const igniteAlone = { 1300, 2000 };
+    CHECK_EQ(Mage::CombustionTick(NULL, 0, &igniteAlone, 1.0f), int32(650));
+
+    // A share with no period adds nothing, a multiplier of 0 or below leaves Ignite's share undivided, and a sum below
+    // 0 is 0.
+    Mage::DotShare const noPeriod[] = { { 500, 0 }, { 700, 3000 } };
+    CHECK_EQ(Mage::CombustionTick(noPeriod, 2, NULL, 1.0f), int32(233));
+    CHECK_EQ(Mage::CombustionTick(NULL, 0, &igniteAlone, 0.0f), int32(650));
+    CHECK_EQ(Mage::CombustionTick(NULL, 0, &igniteAlone, -1.0f), int32(650));
+    Mage::DotShare const negative[] = { { -900, 3000 } };
+    CHECK_EQ(Mage::CombustionTick(negative, 1, NULL, 1.0f), int32(0));
+}
+
+namespace
+{
+    // The class options and the Spell.dbc rows of the stacking test, kept alive for the rest of the run.
+    const uint32 kOptionsCombustionDot = 94207;
+    const uint32 kOptionsResistanceAura = 94208;
+    const uint32 kOtherIconSpell = 94209;
+
+    SpellClassOptionsEntry s_optionsCombustionDot;
+    SpellClassOptionsEntry s_optionsResistanceAura;
+    ServerSpell s_combustionDot;
+    ServerSpell s_resistanceAura;
+    ServerSpell s_otherIconSpell;
+
+    // `spell` as one aura effect of `auraType` at its effect 0 with icon 33 and visual `visual`, put into the spell and
+    // effect stores; `classOptionsId` 0 makes it a generic spell.
+    void StoreIconSpell(ServerSpell& spell, uint32 spellId, uint32 classOptionsId, uint32 visual, uint32 auraType)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = classOptionsId;
+        spell.Entry().SpellIconID = 33;
+        spell.Entry().SpellVisualID[0] = visual;
+        spell.effect.SpellID = spellId;
+        spell.effect.EffectIndex = EFFECT_INDEX_0;
+        spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        spell.effect.EffectAura = auraType;
+        spell.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+        sSpellStore.SetEntry(spellId, &spell.Entry());
+        AddSpellEffectEntry(&spell.effect);
+    }
+
+    // Combustion's DoT (83853: mage, class mask C 0x408, a periodic damage aura, icon 33, visual 19968), Resistance
+    // Aura (19891: paladin, a resistance aura, icon 33, visual 321) and a generic resistance aura of icon 33, put into
+    // the stores once.
+    void StoreIcon33Spells()
+    {
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+        s_optionsCombustionDot.SpellClassMask = ClassFamilyMask(0, 0x408);
+        s_optionsCombustionDot.SpellClassSet = SPELLFAMILY_MAGE;
+        s_optionsResistanceAura.SpellClassMask = ClassFamilyMask(0, 0);
+        s_optionsResistanceAura.SpellClassSet = SPELLFAMILY_PALADIN;
+        sSpellClassOptionsStore.SetEntry(kOptionsCombustionDot, &s_optionsCombustionDot);
+        sSpellClassOptionsStore.SetEntry(kOptionsResistanceAura, &s_optionsResistanceAura);
+        StoreIconSpell(s_combustionDot, 83853, kOptionsCombustionDot, 19968, SPELL_AURA_PERIODIC_DAMAGE);
+        StoreIconSpell(s_resistanceAura, 19891, kOptionsResistanceAura, 321, SPELL_AURA_MOD_RESISTANCE);
+        StoreIconSpell(s_otherIconSpell, kOtherIconSpell, 0, 0, SPELL_AURA_MOD_RESISTANCE);
+    }
+}
+
+TEST(MageScripts_CombustionsDoTStacksWithTheOtherAurasOfItsIcon)
+{
+    // Two auras of one icon with no spell modifier effect do not stack (the generic same-icon rule), so a new holder
+    // of one removes the other's from its unit. Combustion's DoT is exempt, both ways: it neither removes Resistance
+    // Aura (or any other aura of icon 33) from its target nor is removed by it.
+    StoreIcon33Spells();
+    CHECK(sSpellStore.LookupEntry(83853) != NULL);
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(83853, 19891));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(19891, 83853));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(83853, kOtherIconSpell));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kOtherIconSpell, 83853));
+
+    // The rule itself stands for the other auras of the icon.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(19891, kOtherIconSpell));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIconSpell, 19891));
 }
