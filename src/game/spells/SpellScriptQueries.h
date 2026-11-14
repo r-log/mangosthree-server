@@ -26,7 +26,7 @@
 #ifndef MANGOSSERVER_SPELLS_SPELLSCRIPTQUERIES_H
 #define MANGOSSERVER_SPELLS_SPELLSCRIPTQUERIES_H
 
-#include "Unit.h"                                       // SpellEffectIndex, ObjectGuid
+#include "Unit.h"                                       // SpellEffectIndex, ObjectGuid, SpellEntry
 
 #include <cstddef>
 #include <vector>
@@ -65,5 +65,18 @@ size_t FindPeriodicDamage(Unit const& target, ObjectGuid const& caster, uint32 c
 /// and nothing done, when `from` holds none, when its caster cannot be found, when `to` already holds that caster's, or
 /// when `to` refuses it.
 bool CopyAuraHolder(Unit& from, Unit& to, uint32 spellId, ObjectGuid const& caster);
+
+namespace Spells
+{
+    /**
+     * @brief The multiplier the caster's class-script auras that depend on the victim's health give `spell` right now.
+     *
+     * For each OVERRIDE_CLASS_SCRIPTS aura of the caster's owner (or of the caster, when he has no owner) that affects
+     * the spell and whose script is Molten Fury's (4919, 4920, 12368) or Death's Embrace's (6917, 6926, 6928), the
+     * factor (100 + amount) / 100, while the victim is under 35% health (AURA_STATE_HEALTHLESS_35_PERCENT); 1.0
+     * otherwise. Read at a direct hit and at every tick of a periodic damage effect.
+     */
+    float LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, SpellEntry const& spell);
+}
 
 #endif

@@ -45,6 +45,7 @@
 #include "GameTime.h"
 #include "spells/handlers/UnitSpellBonusHandlers.h"
 #include "spells/SpellScriptHooks.h"
+#include "spells/SpellScriptQueries.h"
 // NOTE: no legacy movement-layout header to avoid here anymore -- the registry
 // in src/proto/wire is the only layout source (P2-B retired MovementStructures.h).
 
@@ -339,19 +340,6 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
 
         switch ((*i)->GetModifier()->m_miscvalue)
         {
-                // Molten Fury
-            case 4920:
-            case 4919:
-            case 6917: // Death's Embrace
-            case 6926:
-            case 6928:
-            {
-                if (pVictim->HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT))
-                {
-                    DoneTotalMod *= (100.0f + (*i)->GetModifier()->m_amount) / 100.0f;
-                }
-                break;
-            }
             // Soul Siphon
             case 4992:
             case 4993:
@@ -463,6 +451,12 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
                 break;
             }
         }
+    }
+
+    // the class scripts that follow the victim's health: a direct hit takes them here, a periodic effect at each tick
+    if (damagetype != DOT)
+    {
+        DoneTotalMod *= Spells::LowHealthDamageMultiplier(*this, *pVictim, *spellProto);
     }
 
     DamageDoneContext damageDoneCtx(*this, *pVictim, *spellProto, DoneTotalMod);
