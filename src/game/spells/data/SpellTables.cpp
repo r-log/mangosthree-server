@@ -263,7 +263,6 @@ namespace
         17941,  // Shadow Trance
         22008,  // Netherwind Focus
         34936,  // Backlash
-        48108,  // Hot Streak
         51124,  // Killing Machine
         54741,  // Firestarter
         57761,  // Fireball!
