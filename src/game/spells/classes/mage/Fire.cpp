@@ -352,6 +352,54 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
+    /// Fire Blast, whose cooldown Impact clears.
+    uint32 const FIRE_BLAST = 2136;
+
+    /// 11103, 12357: Impact: when its proc-trigger effect procs, Fire Blast's (2136) cooldown is cleared and the effect's
+    /// trigger spell, Impact (64343), is cast on the caster.
+    ProcOutcome ImpactProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        ctx.caster.RemoveSpellCooldown(FIRE_BLAST, true);
+        return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), &ctx.caster));
+    }
+
+    /// The caster's DoTs Impact copies, in the order it copies them: Pyroblast (11366), Pyroblast! (92315), Living Bomb
+    /// (44457), Ignite (12654) and Combustion (83853).
+    uint32 const IMPACT_SPREAD_DOTS[] = { 11366, 92315, 44457, 12654, 83853 };
+
+    /// Living Bomb, which Impact copies to IMPACT_BOMB_TARGETS enemies at most.
+    uint32 const IMPACT_LIVING_BOMB = 44457;
+    int32 const IMPACT_BOMB_TARGETS = 2;
+
+    /// 12355: Impact: for each enemy its script effect reaches other than the stunned target, copies the caster's
+    /// Pyroblast, Living Bomb, Ignite and Combustion from the stunned target to it, Living Bomb to two enemies at most;
+    /// an enemy under a confuse or fear is left alone, and so is one already holding the caster's aura of that spell.
+    /// The stun is the spell's own effect 0. The script ends the effect.
+    SpellHandlerOutcome<void> ImpactSpreadEffect(DummyEffectContext& ctx)
+    {
+        Unit* const stunned = ctx.castTarget;
+        if (ctx.effIndex != EFFECT_INDEX_1 || !ctx.target || !stunned || ctx.target == stunned ||
+            ctx.target->HasAuraType(SPELL_AURA_MOD_CONFUSE) || ctx.target->HasAuraType(SPELL_AURA_MOD_FEAR))
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        ObjectGuid const caster = ctx.caster.GetObjectGuid();
+        for (uint32 spellId : IMPACT_SPREAD_DOTS)
+        {
+            // the cast's word counts the Living Bomb copies tried over all of its targets
+            if (Mage::ImpactSpreads(spellId, ctx.word))
+            {
+                CopyAuraHolder(*stunned, *ctx.target, spellId, caster);
+            }
+        }
+        return SpellHandlerOutcome<void>::Return();
+    }
+
     uint32 const IGNITE[] = { 11119, 11120, 12846 };
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
     uint32 const HOT_STREAK[] = { 44445 };
@@ -359,6 +407,8 @@ namespace
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
     uint32 const LIVING_BOMB[] = { 44457 };
     uint32 const COMBUSTION[] = { 11129 };
+    uint32 const IMPACT[] = { 11103, 12357 };
+    uint32 const IMPACT_SPREAD[] = { 12355 };
     uint32 const PYROMANIAC_DOTS_APPLIED[] = { 2120, 11366, 12654, 44457, 83853, 92315 };
     uint32 const FROSTFIRE_BOLT[] = { 44614 };
     uint32 const PYROMANIAC[] = { PYROMANIAC_RANK_1, PYROMANIAC_RANK_2 };
@@ -461,6 +511,25 @@ int32 Mage::PyromaniacHaste(uint32 talentSpell)
     return talent ? talent->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
 }
 
+bool Mage::ImpactSpreads(uint32 spellId, int32& bombsSpread)
+{
+    uint32 const* const dotsEnd = std::end(IMPACT_SPREAD_DOTS);
+    if (std::find(std::begin(IMPACT_SPREAD_DOTS), dotsEnd, spellId) == dotsEnd)
+    {
+        return false;
+    }
+    if (spellId != IMPACT_LIVING_BOMB)
+    {
+        return true;
+    }
+    if (bombsSpread >= IMPACT_BOMB_TARGETS)
+    {
+        return false;
+    }
+    ++bombsSpread;
+    return true;
+}
+
 uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
 {
     uint32 rows = RegisterRanks<OnProcHook>(registry, IGNITE, &IgniteProc);
@@ -475,5 +544,7 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AuraApplyHook>(registry, PYROMANIAC, &PyromaniacTalentApply);
     rows += RegisterRanks<AuraRemoveHook>(registry, PYROMANIAC, &PyromaniacTalentRemove);
     rows += RegisterRanks<DummyEffectHook>(registry, COMBUSTION, &CombustionEffect);
+    rows += RegisterRanks<OnProcHook>(registry, IMPACT, &ImpactProc);
+    rows += RegisterRanks<DummyEffectHook>(registry, IMPACT_SPREAD, &ImpactSpreadEffect);
     return rows;
 }
