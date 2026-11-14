@@ -567,10 +567,15 @@ TEST(SpellScriptHooks_FindPeriodicDamageReadsTheCastersPeriodicDamageEffectsOnAU
     CHECK_EQ(FindPeriodicDamage(target, otherCaster, asked, 3, found), std::size_t(1));
     CHECK(found.size() == 1 && found[0].spellId == kDotSpell && found[0].amount == 900 && found[0].remainingMs == 7500);
 
+    // A holder already removed from the unit, which waits in its map for deletion, gives nothing.
+    mineToo->SetDeleted();
+    CHECK_EQ(FindPeriodicDamage(target, mage, asked, 3, found), std::size_t(1));
+    CHECK(found.size() == 1 && found[0].spellId == kDotSpell && found[0].amount == 500);
+
     // A caster with nothing on the unit, and a list of no ids: nothing, and `out` is cleared.
     CHECK_EQ(FindPeriodicDamage(target, ObjectGuid(), asked, 3, found), std::size_t(0));
     CHECK(found.empty());
-    CHECK_EQ(FindPeriodicDamage(target, mage, asked, 1, found), std::size_t(1));
+    CHECK_EQ(FindPeriodicDamage(target, mage, asked + 2, 1, found), std::size_t(1));
     CHECK_EQ(FindPeriodicDamage(target, mage, asked, 0, found), std::size_t(0));
     CHECK(found.empty());
 
