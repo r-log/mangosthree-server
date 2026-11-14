@@ -25,7 +25,6 @@
 
 #include "spells/classes/mage/Mage.h"
 #include "spells/handlers/AurasHandlers.h"
-#include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "entities/Unit.h"
 #include "entities/Creature.h"
@@ -43,23 +42,6 @@ static SpellHandlerOutcome<void> AuraBoostMage74396(AuraBoostContext& ctx)
         return SpellHandlerOutcome<void>::Return();
     }
     return SpellHandlerOutcome<void>::Continue();
-}
-
-/// 31687: Summon Water Elemental, which has no dummy effect in the client's spell data: a caster with Glyph of Mana
-/// Shield (70937) casts 70908 on itself, any other caster 70907, both absent from the client's spell data; the effect
-/// ends
-static SpellHandlerOutcome<void> EffectDummyMageSummonWaterElemental(SpellEffectDummyMageContext& ctx)
-{
-    if (ctx.m_caster->HasAura(70937))
-    {
-        ctx.m_caster->CastSpell(ctx.m_caster, 70908, true);
-    }
-    else
-    {
-        ctx.m_caster->CastSpell(ctx.m_caster, 70907, true);
-    }
-
-    return SpellHandlerOutcome<void>::Return();
 }
 
 /// 74396: absent from the client's spell data: removes one stack of 74396
@@ -128,18 +110,12 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
         { 74396, &AuraBoostMage74396 },
     };
 
-    static Row<SpellEffectDummyMageSite> const effectDummyMage[] =
-    {
-        { 31687, &EffectDummyMageSummonWaterElemental },
-    };
-
     static Row<DummyAuraProcMageSite> const dummyAuraProcMage[] =
     {
         { 74396, &DummyAuraProcMage74396 },
     };
 
     uint32 rows = RegisterRows(registry, boostMage);
-    rows += RegisterRows(registry, effectDummyMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
     rows += RegisterRanks<DamageDoneHook>(registry, ICE_LANCE, &IceLanceDamageDone);
     rows += RegisterRanks<OnProcHook>(registry, DEEP_FREEZE_IMMUNITY, &DeepFreezeImmunityProc);
