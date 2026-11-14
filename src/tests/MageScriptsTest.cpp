@@ -25,10 +25,12 @@
 
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
-/// refusals of the proc scripts, the count of crits in a row, Ice Lance's damage-done multiplier, Blink's target
-/// count and Living Bomb's exits at the dummy aura hook. A body that casts, reads a level or creates an item
-/// needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map,
-/// template or AI), with the effect rows the scripts read added to the effect store as the client's data holds them.
+/// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
+/// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count and Living Bomb's exits at the
+/// dummy aura hook. A body that casts, reads a level
+/// or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
+/// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
+/// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -44,6 +46,7 @@
 #include "data/ServerSpellStore.h"
 
 #include <algorithm>
+#include <cmath>
 #include <list>
 #include <set>
 #include <utility>
@@ -63,10 +66,11 @@ namespace
     uint32 const IGNITE_IDS[] = { 11119, 11120, 12846 };
     uint32 const MASTER_OF_ELEMENTS_IDS[] = { 29074, 29075, 29076 };
     uint32 const ARCANE_POTENCY_IDS[] = { 31571, 31572 };
-    uint32 const HOT_STREAK_IDS[] = { 44445, 44446, 44448 };
+    uint32 const HOT_STREAK_IDS[] = { 44445 };
     uint32 const BLAZING_SPEED_IDS[] = { 31641, 31642 };
     uint32 const MANA_SHIELD_IDS[] = { 1463 };
     uint32 const PERSISTENT_SHIELD_IDS[] = { 26467 };
+    uint32 const OFFENSIVE_STATE_IDS[] = { 79684 };
     uint32 const DEEP_FREEZE_IMMUNITY_IDS[] = { 71761 };
     uint32 const FINGERS_OF_FROST_IDS[] = { 44543, 44545, 83074 };
 
@@ -77,6 +81,10 @@ namespace
 
     // The id the dummy aura script holds: the one mage spell with Living Bomb's class mask and a dummy aura.
     uint32 const LIVING_BOMB_IDS[] = { 44457 };
+
+    // The id the aura-remove script holds: Hot Streak's buff, which gives the Tier 10 two-piece bonus's haste when it is
+    // used up.
+    uint32 const HOT_STREAK_BUFF_IDS[] = { 48108 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -128,11 +136,19 @@ namespace
                 _InitValues();
             }
 
-            // Unit::CleanupsBeforeDelete tears down an in-world unit only while the update fields exist.
+            // Unit::CleanupsBeforeDelete tears down an in-world unit only while the update fields exist. The holders
+            // HoldAura put in the map are the test's own storage and leave the map first.
             ~BareCreature()
             {
+                m_auras.Holders().clear();
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
+            }
+
+            // Puts `holder` in the holder map under `spellId`, so Unit::HasAura(spellId) finds it.
+            void HoldAura(uint32 spellId, SpellAuraHolder& holder)
+            {
+                m_auras.AddHolder(spellId, &holder);
             }
     };
 
@@ -185,6 +201,7 @@ namespace
             { 12846, 0, SPELL_AURA_DUMMY },
             { 31571, 0, SPELL_AURA_DUMMY },
             { 44445, 0, SPELL_AURA_DUMMY }, { 44445, 1, SPELL_AURA_DUMMY },
+            { 79684, 0, SPELL_AURA_PROC_TRIGGER_SPELL },
             { 31641, 0, SPELL_AURA_PROC_TRIGGER_SPELL },
             { 1463, 0, SPELL_AURA_MANA_SHIELD },
             { 26467, 0, SPELL_AURA_PROC_TRIGGER_SPELL },
@@ -258,11 +275,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // The class-wide file: Invisibility at the trigger-spell site; Polymorph Cast Visual, Blink, Conjure Refreshment
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
-    // the target hook and Persistent Shield at the proc hook. Fire: Combustion's two boost labels, and Living Bomb at
-    // the dummy aura hook. Frost: the 74396 boost and proc labels and Summon Water Elemental; Ice Lance at the
-    // damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak and Blazing Speed; Frost: Deep
-    // Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. 38 rows,
-    // 38 keys and 3 defaults, none twice.
+    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Combustion's two boost labels,
+    // Living Bomb at the dummy aura hook and Hot Streak's buff at the aura-remove hook. Frost: the 74396 boost and proc
+    // labels and Summon Water Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of
+    // Elements, Hot Streak and Blazing Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic
+    // Absorption, Arcane Potency and Mana Shield. 38 rows, 38 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
     CHECK_EQ(RegisterMageScripts(registry), uint32(41));
     CHECK_EQ(registry.Count(), std::size_t(38));
@@ -273,10 +290,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(21));
+    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(20));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(1));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -293,8 +311,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     };
     PerFile const files[] =
     {
-        { &Mage::RegisterClassWide, 14, 11, 3 },
-        { &Mage::RegisterFire, 14, 14, 0 },
+        { &Mage::RegisterClassWide, 15, 12, 3 },
+        { &Mage::RegisterFire, 13, 13, 0 },
         { &Mage::RegisterFrost, 8, 8, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
     };
@@ -312,8 +330,9 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
-    // files hold the mage sites' other rows: Mirror Image at the periodic dummy tick site, the three Pushing the Limit
-    // labels at the boost site, Cold Snap at the dummy-effect site and Focus Magic at the crit-chance proc site.
+    // files hold the mage sites' other rows: Mirror Image at the periodic dummy tick site, the two Pushing the Limit
+    // labels at the boost site, Cold Snap at the dummy-effect site and Focus Magic at the crit-chance proc site. Hot
+    // Streak's buff (48108) is no label of the boost site.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
@@ -328,17 +347,18 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK(game.FindDefault<AuraBoostMageSite>() == registry.FindDefault<AuraBoostMageSite>());
     CHECK_EQ(game.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(6));
+    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(5));
     CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(7));
     CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
     CHECK(game.Find<AuraPeriodicDummyTickMageSite>(55342) != NULL);
     CHECK(registry.Find<AuraPeriodicDummyTickMageSite>(55342) == NULL);
-    for (uint32 spellId : { 44401u, 48108u, 57761u })
+    for (uint32 spellId : { 44401u, 57761u })
     {
         CHECK(game.Find<AuraBoostMageSite>(spellId) != NULL);
         CHECK(registry.Find<AuraBoostMageSite>(spellId) == NULL);
     }
+    CHECK(game.Find<AuraBoostMageSite>(48108) == NULL);
     CHECK(game.Find<SpellEffectDummyMageSite>(11958) != NULL);
     CHECK(registry.Find<SpellEffectDummyMageSite>(11958) == NULL);
     CHECK(game.Find<SpellCritChanceAuraProcMageSite>(54646) != NULL);
@@ -449,7 +469,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
-    // Each talent's ids share one body, and each talent has its own: 21 ids in 10 bodies, the same in the game's table.
+    // Each talent's ids share one body, and each talent has its own: 20 ids in 11 bodies, the same in the game's table.
     std::set<SpellHandler<OnProcHook>::Function> bodies;
     bodies.insert(OneProcBody(registry, MAGIC_ABSORPTION_IDS));
     bodies.insert(OneProcBody(registry, IGNITE_IDS));
@@ -459,16 +479,17 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     bodies.insert(OneProcBody(registry, BLAZING_SPEED_IDS));
     bodies.insert(OneProcBody(registry, MANA_SHIELD_IDS));
     bodies.insert(OneProcBody(registry, PERSISTENT_SHIELD_IDS));
+    bodies.insert(OneProcBody(registry, OFFENSIVE_STATE_IDS));
     bodies.insert(OneProcBody(registry, DEEP_FREEZE_IMMUNITY_IDS));
     bodies.insert(OneProcBody(registry, FINGERS_OF_FROST_IDS));
-    CHECK_EQ(bodies.size(), std::size_t(10));
+    CHECK_EQ(bodies.size(), std::size_t(11));
     std::size_t const ids = sizeof(MAGIC_ABSORPTION_IDS) / sizeof(uint32) + sizeof(IGNITE_IDS) / sizeof(uint32) +
                             sizeof(MASTER_OF_ELEMENTS_IDS) / sizeof(uint32) +
                             sizeof(ARCANE_POTENCY_IDS) / sizeof(uint32) + sizeof(HOT_STREAK_IDS) / sizeof(uint32) +
                             sizeof(BLAZING_SPEED_IDS) / sizeof(uint32) + sizeof(MANA_SHIELD_IDS) / sizeof(uint32) +
-                            sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) +
-                            sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32);
-    CHECK_EQ(ids, std::size_t(21));
+                            sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(OFFENSIVE_STATE_IDS) / sizeof(uint32) +
+                            sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) + sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32);
+    CHECK_EQ(ids, std::size_t(20));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(0));
@@ -476,6 +497,14 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
     // no aura) and 28682 (absent from the client's data), and Arcane Blast's buff (36032 holds no damage-done aura).
     for (uint32 spellId : { 44449u, 44469u, 44470u, 44471u, 44472u, 11129u, 28682u, 36032u })
+    {
+        CHECK(game.Find<OnProcHook>(spellId) == NULL);
+        CHECK(game.Find<CheckProcHook>(spellId) == NULL);
+    }
+
+    // Improved Hot Streak (44446, 44448) holds no script: its procs reach the mage dummy proc site, which has no row
+    // for them and casts nothing; Hot Streak's script reads its rank from the caster's auras by id.
+    for (uint32 spellId : { 44446u, 44448u })
     {
         CHECK(game.Find<OnProcHook>(spellId) == NULL);
         CHECK(game.Find<CheckProcHook>(spellId) == NULL);
@@ -526,16 +555,26 @@ TEST(MageScripts_TheProcScriptsKeepTheirEarlyRefusals)
     CHECK(noSpell.IsReturn());
     CHECK_EQ(int(noSpell.GetValue()), int(SPELL_AURA_PROC_FAILED));
 
-    // Hot Streak: effect 1 does nothing, and effect 0 nothing while the owner holds no aura of the spell at effect 1;
-    // neither touches the count.
+    // Hot Streak: effect 1 does nothing; effect 0 refuses an event with no spell; a crit of Pyroblast! (92315) neither
+    // counts for nor breaks the streak; a hit that does not crit starts the count again. None of these casts.
     AuraHandle(holder).ScriptWord(EFFECT_INDEX_0) = 1;
     SpellHandlerOutcome<SpellAuraProcResult> streak = Proc(registry, owner, 44445, EFFECT_INDEX_1, holder, NULL, PROC_EX_CRITICAL_HIT, 25);
     CHECK(streak.IsReturn());
     CHECK_EQ(int(streak.GetValue()), int(SPELL_AURA_PROC_OK));
+    CHECK_EQ(AuraHandle(holder).ScriptWord(EFFECT_INDEX_0), int32(1));
     streak = Proc(registry, owner, 44445, EFFECT_INDEX_0, holder, NULL, PROC_EX_CRITICAL_HIT, 33);
+    CHECK(streak.IsReturn());
+    CHECK_EQ(int(streak.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    CHECK_EQ(AuraHandle(holder).ScriptWord(EFFECT_INDEX_0), int32(1));
+    SpellRowStorage eventRow;
+    streak = Proc(registry, owner, 44445, EFFECT_INDEX_0, holder, &SpellRow(eventRow, 92315), PROC_EX_CRITICAL_HIT, 33);
     CHECK(streak.IsReturn());
     CHECK_EQ(int(streak.GetValue()), int(SPELL_AURA_PROC_OK));
     CHECK_EQ(AuraHandle(holder).ScriptWord(EFFECT_INDEX_0), int32(1));
+    streak = Proc(registry, owner, 44445, EFFECT_INDEX_0, holder, &SpellRow(eventRow, 133), PROC_EX_NORMAL_HIT, 33);
+    CHECK(streak.IsReturn());
+    CHECK_EQ(int(streak.GetValue()), int(SPELL_AURA_PROC_OK));
+    CHECK_EQ(AuraHandle(holder).ScriptWord(EFFECT_INDEX_0), int32(0));
 
     // Blazing Speed: with no Blazing Speed buff (31643) in the spell store the proc is refused, as the proc-trigger
     // handler refuses a trigger spell the store lacks.
@@ -562,6 +601,21 @@ TEST(MageScripts_TheProcScriptsKeepTheirEarlyRefusals)
     SpellHandlerOutcome<SpellAuraProcResult> noChance = Proc(registry, owner, 83074, EFFECT_INDEX_0, holder, NULL, PROC_EX_NORMAL_HIT, 0);
     CHECK(noChance.IsReturn());
     CHECK_EQ(int(noChance.GetValue()), int(SPELL_AURA_PROC_FAILED));
+
+    // Offensive State: the aura's amount is its chance, so an amount of 0 is refused by the roll; an owner that holds
+    // Hot Streak (44445) cannot trigger it at all, whatever the amount, and no charge or cooldown follows.
+    noChance = Proc(registry, owner, 79684, EFFECT_INDEX_0, holder, NULL, PROC_EX_NORMAL_HIT, 0);
+    CHECK(noChance.IsReturn());
+    CHECK_EQ(int(noChance.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    HolderStorage hotStreakStorage;
+    owner.HoldAura(44445, EmptyHolder(hotStreakStorage));
+    CHECK(owner.HasAura(44445));
+    for (int32 amount : { 0, 40, 100 })
+    {
+        SpellHandlerOutcome<SpellAuraProcResult> silent = Proc(registry, owner, 79684, EFFECT_INDEX_0, holder, NULL, PROC_EX_NORMAL_HIT, amount);
+        CHECK(silent.IsReturn());
+        CHECK_EQ(int(silent.GetValue()), int(SPELL_AURA_PROC_CANT_TRIGGER));
+    }
 }
 
 TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
@@ -692,7 +746,7 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
         CHECK(game.Find<AuraApplyHook>(spellId) == NULL);
     }
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), sizeof(LIVING_BOMB_IDS) / sizeof(uint32));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(0));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), sizeof(HOT_STREAK_BUFF_IDS) / sizeof(uint32));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
     // out or a dispel it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
@@ -738,4 +792,105 @@ TEST(MageScripts_HotStreakRollsOnTheSecondCritInARow)
     CHECK(!Mage::CountCritInARow(crits, true));
     CHECK(Mage::CountCritInARow(crits, true));
     CHECK_EQ(crits, int32(0));
+}
+
+TEST(MageScripts_HotStreakChanceFallsWithTheSheetCrit)
+{
+    // 95 less 2.73 per point of sheet spell crit: 25% gives 26.75, 30% gives 13.1, and about 34.8% reaches 0; a sheet
+    // crit of 100 or more leaves only Improved Hot Streak's roll, and a sheet crit below 0 counts as 0.
+    struct Vector
+    {
+        float sheetCrit;
+        float chance;
+    };
+    Vector const vectors[] =
+    {
+        { 0.0f, 95.0f }, { 25.0f, 26.75f }, { 30.0f, 13.1f }, { 34.8f, 0.0f }, { 100.0f, 0.0f }, { -100.0f, 95.0f },
+    };
+    for (Vector const& v : vectors)
+    {
+        CHECK(std::fabs(Mage::HotStreakChance(v.sheetCrit) - v.chance) < 0.01f);
+    }
+    CHECK(Mage::HotStreakChance(34.8f) >= 0.0f);
+}
+
+TEST(MageScripts_HotStreakStepRollsTheBaseChanceFirstAndImprovedOnTheSecondCrit)
+{
+    // A hit that does not crit clears the count and gives nothing, whatever the rolls.
+    int32 crits = 0;
+    CHECK(!Mage::HotStreakStep(crits, false, true, true));
+    CHECK_EQ(crits, int32(0));
+    crits = 1;
+    CHECK(!Mage::HotStreakStep(crits, false, false, false));
+    CHECK_EQ(crits, int32(0));
+
+    // A crit whose base roll passed gives Hot Streak and clears the count, first in a row or second.
+    crits = 0;
+    CHECK(Mage::HotStreakStep(crits, true, true, false));
+    CHECK_EQ(crits, int32(0));
+    crits = 1;
+    CHECK(Mage::HotStreakStep(crits, true, true, false));
+    CHECK_EQ(crits, int32(0));
+
+    // Otherwise the first crit counts, whatever Improved Hot Streak's roll says.
+    crits = 0;
+    CHECK(!Mage::HotStreakStep(crits, true, false, false));
+    CHECK_EQ(crits, int32(1));
+    crits = 0;
+    CHECK(!Mage::HotStreakStep(crits, true, false, true));
+    CHECK_EQ(crits, int32(1));
+
+    // The second crit in a row clears the count whether or not Improved Hot Streak's roll passed, and gives Hot Streak
+    // when it did.
+    crits = 1;
+    CHECK(Mage::HotStreakStep(crits, true, false, true));
+    CHECK_EQ(crits, int32(0));
+    crits = 1;
+    CHECK(!Mage::HotStreakStep(crits, true, false, false));
+    CHECK_EQ(crits, int32(0));
+}
+
+TEST(MageScripts_PushingTheLimitComesOnlyWhenHotStreakIsUsedUpWithTheTier10Bonus)
+{
+    // The decision: the buff used up (the default mode, in which casting Pyroblast! removes it) by a caster holding
+    // Item - Mage T10 2P Bonus (70752); its running out, a dispel, a cancel, a re-application or a death gives nothing.
+    CHECK(Mage::PushingTheLimitOnRemove(AURA_REMOVE_BY_DEFAULT, true));
+    CHECK(!Mage::PushingTheLimitOnRemove(AURA_REMOVE_BY_DEFAULT, false));
+    AuraRemoveMode const silent[] =
+    {
+        AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_DEATH,
+    };
+    for (AuraRemoveMode mode : silent)
+    {
+        CHECK(!Mage::PushingTheLimitOnRemove(mode, true));
+    }
+
+    // The script stands for 48108 at the aura-remove hook, in the game's table too, and ends the removal's boosts (the
+    // Pushing the Limit row of the mage boost site is gone). With no caster, a caster without the bonus, or a caster
+    // with it and a removal other than the default, it casts nothing.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : HOT_STREAK_BUFF_IDS)
+    {
+        CHECK(registry.Find<AuraRemoveHook>(spellId) != NULL);
+        CHECK(game.Find<AuraRemoveHook>(spellId) == registry.Find<AuraRemoveHook>(spellId));
+        CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
+    }
+    BareCreature target;
+    BareCreature caster;
+    SpellRowStorage row;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    AuraRemoveContext noCaster(target, NULL, SpellRow(row, 48108), AuraHandle(holder), AURA_REMOVE_BY_DEFAULT);
+    CHECK(registry.Dispatch<AuraRemoveHook>(48108, noCaster).IsReturn());
+    AuraRemoveContext noBonus(target, &caster, SpellRow(row, 48108), AuraHandle(holder), AURA_REMOVE_BY_DEFAULT);
+    CHECK(registry.Dispatch<AuraRemoveHook>(48108, noBonus).IsReturn());
+    HolderStorage bonusStorage;
+    caster.HoldAura(70752, EmptyHolder(bonusStorage));
+    for (AuraRemoveMode mode : silent)
+    {
+        AuraRemoveContext ranOut(target, &caster, SpellRow(row, 48108), AuraHandle(holder), mode);
+        CHECK(registry.Dispatch<AuraRemoveHook>(48108, ranOut).IsReturn());
+    }
 }
