@@ -37,9 +37,10 @@
  *
  * Mage.cpp holds the class-wide bodies, the mage sites' defaults, and ProcEffectIs, CastProcSpell, EffectTriggerSpell
  * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
- * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves: CountCritInARow, HotStreakChance,
- * HotStreakStep and PushingTheLimitOnRemove. Each file registers its rows through one function of namespace Mage: a
- * table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
+ * HotStreakStep and PushingTheLimitOnRemove) and Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
+ * and PyromaniacHaste). Each file registers its rows through one function of namespace Mage: a table per legacy site
+ * of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies and those of the three specializations. Returns the rows and
@@ -100,6 +101,22 @@ namespace Mage
     /// Whether Hot Streak's buff, removed in `mode`, gives Pushing the Limit: only when the buff is used up (the default
     /// mode, in which casting Pyroblast! removes it) and its caster holds Item - Mage T10 2P Bonus. Defined in Fire.cpp.
     bool PushingTheLimitOnRemove(AuraRemoveMode mode, bool casterHasT10TwoPiece);
+
+    /// Whether a holder of `spellId` is periodic Fire damage that counts its target for Pyromaniac: Pyroblast (11366,
+    /// 92315), Living Bomb (44457), Ignite (12654), Combustion (83853), Flamestrike (2120) and Frostfire Bolt (44614).
+    /// Defined in Fire.cpp.
+    bool PyromaniacCounts(uint32 spellId);
+
+    /// Whether Pyromaniac's haste is up for `targets` burning enemies: three or more. Defined in Fire.cpp.
+    bool PyromaniacActive(uint32 targets);
+
+    /// The enemies that hold one or more of `mage`'s holders PyromaniacCounts names: the units whose threat list holds
+    /// him, alive and on his map, each counted once. Defined in Fire.cpp.
+    uint32 PyromaniacTargets(Unit& mage);
+
+    /// The haste Pyromaniac gives a mage who knows `talentSpell` (34293 or 34295): that spell's effect 0 value; 0 for
+    /// any other spell, or when the spell store lacks it. Defined in Fire.cpp.
+    int32 PyromaniacHaste(uint32 talentSpell);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.
