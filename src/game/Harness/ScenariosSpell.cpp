@@ -89,8 +89,9 @@
 // Throw, Hammer of Wrath and Death Coil five times at a level-85 target; 961 a priest staged the same way
 // with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it; 962 a
 // hasted mage's Pyroblast! and its ticks; 963 Pyroblast! cast again before its periodic effect's next tick; 964
-// Ignite's ticks under Flashburn on a staged Fire mage with mastery rating.
-// The guard of 931-938 and 950-964 (Qualify) fingerprints every spell a scenario reaches and refuses
+// Ignite's ticks under Flashburn on a staged Fire mage with mastery rating; 967 a staged Fire mage's Pyroblast
+// applies Critical Mass and his Arcane Blast crit gives back mana through Master of Elements.
+// The guard of 931-938, 950-964 and 967 (Qualify) fingerprints every spell a scenario reaches and refuses
 // the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3904,16 +3905,17 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-964): a human mage staged to level 85 with the scenario's
-     * talents, glyphs, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged to level 85 ten yards in
-     * front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
+     * What the mage scenarios share (951, 952, 954-957, 962-964, 967): a human mage staged to level 85 with the
+     * scenario's talents, glyphs, ratings and spells (Scenario::StagePlayer) and a Camel (50249) staged to level 85
+     * ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario whose spell asks for an aura on its caster (CasterAura), that aura put on him by a
      *    triggered self-cast when he does not hold it; his mana set to its maximum by call; for a step that must crit,
      *    Increased Critical Spell (23434, a spell crit chance aura) put on him at kCritAuraPoints by a triggered
-     *    self-cast, and for one that must not, taken off him by call; then the spell cast at the Camel through the
-     *    CAST_SPELL handler's calls. One every CastEveryMs() (kCastEveryMs unless the scenario sets its own), read
-     *    kCastReadMs after. An aura cast is the same cast of a spell that applies an aura and sends no damage log of
-     *    its own;
+     *    self-cast, and for one that must not, taken off him by call, or put on him at NonCritAuraPoints() when the
+     *    scenario names such points (a holder of 23434 at other points is taken off first); then the spell cast at
+     *    the Camel through the CAST_SPELL handler's calls. One every CastEveryMs() (kCastEveryMs unless the scenario
+     *    sets its own), read kCastReadMs after. An aura cast is the same cast of a spell that applies an aura and
+     *    sends no damage log of its own;
      *  - a swing: his health set to its maximum by call, then the Camel's melee swing at him
      *    (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
      *  - a removal: the holder of the step's spell taken off the Camel, by dispel
@@ -4149,6 +4151,8 @@ namespace Harness
         virtual uint32 CasterAura() const { return 0; }
         /// The time from one cast step to the next.
         virtual uint32 CastEveryMs() const { return kCastEveryMs; }
+        /// The points of the crit aura a cast that must not crit puts on him; 0 takes the aura off him instead.
+        virtual int32 NonCritAuraPoints() const { return 0; }
         /// The scenario's own category, from what the steps saw.
         virtual std::string Own(St const& st) const = 0;
 
@@ -4170,6 +4174,33 @@ namespace Harness
         static bool Triggered(Seen const& seen, uint32 spell)
         {
             return std::find(seen.triggered.begin(), seen.triggered.end(), spell) != seen.triggered.end();
+        }
+
+        /// The amounts of `spell`'s SMSG_SPELLENERGIZELOG packets in the windows of step `k` (0-based), joined by `+`;
+        /// "" when there is none.
+        std::string EnergizeAmounts(uint32 k, uint32 spell) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::string amounts;
+            const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+            for (const char* suffix : suffixes)
+            {
+                std::vector<Recorder::Seen const*> logs = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_SPELLENERGIZELOG);
+                for (size_t i = 0; i < logs.size(); ++i)
+                {
+                    std::string log;
+                    uint32 logSpell = 0, power = 0, amount = 0;
+                    if (!logs[i]->payload.empty() &&
+                        Trace::DecodeSpellEnergizeLog(&logs[i]->payload[0], logs[i]->payload.size(), roles, log) &&
+                        log.find(" spell=") != std::string::npos &&
+                        sscanf(log.c_str() + log.find(" spell="), " spell=%u power=%u amount=%u", &logSpell, &power, &amount) == 3 &&
+                        logSpell == spell)
+                    {
+                        amounts += (amounts.empty() ? "" : "+") + U(amount);
+                    }
+                }
+            }
+            return amounts;
         }
 
     private:
@@ -4238,15 +4269,16 @@ namespace Harness
                         p->CastSpell(p, casterAura, true);
                     }
                 }
-                const bool hasCritAura = p->HasAura(kCritAura);
-                if (step.crit && !hasCritAura)
-                {
-                    int32 points = kCritAuraPoints;
-                    p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
-                }
-                else if (!step.crit && hasCritAura)
+                int32 points = step.crit ? kCritAuraPoints : NonCritAuraPoints();
+                Aura const* critAura = p->GetAura(kCritAura, EFFECT_INDEX_0);
+                const bool critAuraHolds = critAura && points && critAura->GetModifier()->m_amount == points;
+                if (critAura && !critAuraHolds)
                 {
                     p->RemoveAurasDueToSpell(kCritAura);
+                }
+                if (points && !critAuraHolds)
+                {
+                    p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
                 }
                 p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA));
                 seen.healthBefore = target->GetHealth();
@@ -4628,30 +4660,11 @@ namespace Harness
 
         std::string Own(St const& st) const override
         {
-            Trace::Roles const& roles = m_rec.Roles();
             std::string value, text;
             bool ok = true;
             for (uint32 k = 0; k < st.steps.size(); ++k)
             {
-                std::string amounts;
-                const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
-                for (const char* suffix : suffixes)
-                {
-                    std::vector<Recorder::Seen const*> logs = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_SPELLENERGIZELOG);
-                    for (size_t i = 0; i < logs.size(); ++i)
-                    {
-                        std::string log;
-                        uint32 spell = 0, power = 0, amount = 0;
-                        if (!logs[i]->payload.empty() &&
-                            Trace::DecodeSpellEnergizeLog(&logs[i]->payload[0], logs[i]->payload.size(), roles, log) &&
-                            log.find(" spell=") != std::string::npos &&
-                            sscanf(log.c_str() + log.find(" spell="), " spell=%u power=%u amount=%u", &spell, &power, &amount) == 3 &&
-                            spell == 29077)
-                        {
-                            amounts += (amounts.empty() ? "" : "+") + U(amount);
-                        }
-                    }
-                }
+                const std::string amounts = EnergizeAmounts(k, 29077);
                 value += (k ? "," : "") + (amounts.empty() ? std::string("-") : amounts);
                 text += (k ? "; " : "") + U(k + 1) + " " + U(st.steps[k].spell) + (st.seen[k].crit ? " crit" : " hit") + ", cost " +
                         U(st.seen[k].cost) + ": " + (amounts.empty() ? std::string("none") : amounts);
@@ -5851,6 +5864,99 @@ namespace Harness
         static constexpr uint32 kLastStepMs = 8000;
     };
 
+    /**
+     * S967 `mage-fire-critical-mass`: the proc rows of Critical Mass (11095's, which its rank 12873 takes) and Master of
+     * Elements (29074's, which its rank 29075 takes) on a staged Fire mage. Staged: Master of Elements 2 (first, so it
+     * names the Fire tree and Pyroblast comes with it), Burning Soul 3, Improved Fire Blast 2, Fire Power 3, Blazing
+     * Speed 2, Hot Streak, Improved Scorch 2, Combustion, Molten Shields, Improved Hot Streak 2, Firestarter, Improved
+     * Flamestrike 2, Dragon's Breath and Molten Fury 2 (the 25 points the sixth tier asks), then Critical Mass 3; Arcane
+     * Blast (30451) learned. Steps: Pyroblast, which must not crit (the crit aura on him at NonCritAuraPoints()), then
+     * Arcane Blast, which must crit. The rows name the spells the talents' texts name: Pyroblast's hit applies Critical
+     * Mass (22959) to the Camel at rank 3's 100%, and the Arcane Blast crit gives back 30% of its base mana cost through
+     * 29077. Without them Critical Mass takes the class mask of its SpellEffect.dbc row, which holds Scorch alone, and
+     * Master of Elements takes Fire and Frost crits alone.
+     *
+     * `criticalMass`: the 22959 holder on the Camel after step 1, read when step 2 runs (Pyroblast's 3.5 s cast and its
+     * flight end after step 1's read), and the 29077 refunds after each step; OK when the holder is there and step 2
+     * alone gave a refund.
+     */
+    class MageFireCriticalMass : public MageProcScenario
+    {
+    public:
+        MageFireCriticalMass() : MageProcScenario("mage-fire-critical-mass", 967, "criticalMass") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10545, 1 }, { 10531, 2 }, { 10523, 1 }, { 11434, 2 }, { 10555, 1 }, { 10573, 0 }, { 10547, 1 }, { 10561, 0 },
+                     { 10543, 0 }, { 12121, 1 }, { 11431, 0 }, { 10734, 1 }, { 10571, 0 }, { 10563, 1 }, { 10541, 2 } };
+        }
+        std::vector<uint32> Spells() const override { return { 30451 }; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Cast(11366, false), Cast(30451, true) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 11366: 49 fields, fnv 7ef90b4a
+                { 11366, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 30451: 49 fields, fnv d3aeb596
+                { 30451, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 841 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 137 }, { "eff0.EffectRealPointsPerLevel", 1084227584 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 64 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 536870912 }, { "eff1.EffectTriggerSpell", 36032 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 36032: 72 fields, fnv 62406494
+                { 36032, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 536875008 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", 150 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 14 }, { "eff1.EffectSpellClassMask.Flags", 536870912 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 107 }, { "eff2.EffectBasePoints", -100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 10 }, { "eff2.EffectSpellClassMask.Flags", 536870912 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 29075: 26 fields, fnv d8954794
+                { 29075, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 29077: 26 fields, fnv a4e31d4d
+                { 29077, { { "eff0.present", 1 }, { "eff0.Effect", 30 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 44445: 49 fields, fnv effa745d
+                { 44445, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 33 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 34359738368 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44448: 49 fields, fnv 2ada6a76
+                { 44448, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 34359738368 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 48108: 26 fields, fnv 28b4e817
+                { 48108, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 332 }, { "eff0.EffectBasePoints", 92315 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags2", 4096 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12873: 72 fields, fnv ab2c2f74
+                { 12873, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 16 }, { "eff0.EffectTriggerSpell", 22959 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", 15 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 281474976710656 }, { "eff1.EffectSpellClassMask.Flags2", 128 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 108 }, { "eff2.EffectBasePoints", 15 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 22 }, { "eff2.EffectSpellClassMask.Flags", 562949953421312 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 22959: 26 fields, fnv dd0d850d
+                { 22959, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 179 }, { "eff0.EffectBasePoints", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return 22959; }
+        bool WatchedOnTarget() const override { return true; }
+        uint32 CastEveryMs() const override { return 4300; }
+        int32 NonCritAuraPoints() const override { return -100; }
+
+        std::string Own(St const& st) const override
+        {
+            const std::string holder = st.seen.size() > 1 && !st.seen[1].watchedBefore.empty() ? st.seen[1].watchedBefore : std::string("none");
+            bool ok = holder != "none";
+            std::string text;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const std::string amounts = EnergizeAmounts(k, 29077);
+                text += "; 29077 after step " + U(k + 1) + ": " + (amounts.empty() ? std::string("none") : amounts);
+                ok = ok && amounts.empty() == (k == 0);
+            }
+            return std::string(ok ? "OK" : "BUG") + "(22959 on the Camel after step 1: " + holder + text + ")";
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -5877,5 +5983,6 @@ namespace Harness
         r.Register(new MageFirePyroblastHaste());
         r.Register(new MageFirePyroblastRefresh());
         r.Register(new MageFireIgniteMastery());
+        r.Register(new MageFireCriticalMass());
     }
 }
