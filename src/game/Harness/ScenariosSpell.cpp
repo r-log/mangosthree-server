@@ -82,9 +82,9 @@
 // caster, which hits him on every cast; 937 Mortar Shot at a unit outside its radius, which hits
 // that unit alone; 938 the Creature cooldown model of pets and charmed creatures, recorded as it
 // is; 950 a mage staged to level 85 at a fixed spell power casts Fireball five times at a level-85
-// target; 951, 952, 954 and 955 a staged Fire mage's proc talents: Hot Streak, Master of Elements,
-// Blazing Speed, and Combustion, whose cast leaves no aura to proc; 956 Living Bomb's explosion at
-// expiry and at dispel; 957 Ice Lance at a frozen target, an unfrozen one, and with Fingers of Frost;
+// target; 951, 952 and 954 a staged Fire mage's proc talents: Hot Streak, Master of Elements and
+// Blazing Speed; 955 Combustion's DoT, the per-second sum of his Pyroblast DoT and Ignite on the target;
+// 956 Living Bomb's explosion at expiry and at dispel; 957 Ice Lance at a frozen target, an unfrozen one, and with Fingers of Frost;
 // 958-960 a warrior, a paladin and a death knight staged to level 85 at a fixed attack power cast Heroic
 // Throw, Hammer of Wrath and Death Coil five times at a level-85 target; 961 a priest staged the same way
 // with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it; 962 a
@@ -4973,13 +4973,21 @@ namespace Harness
     };
 
     /**
-     * S955 `mage-fire-combustion`: Combustion (11129) on a staged Fire mage, where the proc of a Combustion aura cannot
-     * fire: in the client's data 11129 is a script effect and a damage effect and applies no aura, so the mage never
-     * holds one. Staged: Burning Soul 3, Improved Fire Blast 2, Fire Power 3, Blazing Speed 2, Improved Scorch 2,
-     * Cauterize 2 and Blast Wave (the fifteen points the fourth tier asks), then Combustion. Casts: Fireball, Combustion,
-     * Fireball, none of them a crit.
+     * S955 `mage-fire-combustion`: Combustion (11129) on a staged Fire mage puts its DoT (83853) on the Camel with a
+     * tick of the per-second damage of his DoTs there: here his Pyroblast's DoT (11366, every 3 s) and the Ignite
+     * (12654, every 2 s) of the Pyroblast's crit. Staged: Burning Soul 3, Improved Fire Blast 2, Ignite 3, Fire Power 3,
+     * Blazing Speed 2, Hot Streak and Improved Scorch 1 (the fifteen points the fourth tier asks; Impact is left out),
+     * then Combustion, with kSpellPower spell power as 950 stages it. He learns no Mastery passive, so his mastery is 0
+     * and Flashburn adds nothing, and stages no haste, so every period is the client data's. Before each cast he takes
+     * Precision (13843, +6% spell hit), so no cast misses a level-85 Camel. Steps: Pyroblast, which must crit (its
+     * 3.5 s cast and its flight land it about 3.9 s after the step, before the next), then Combustion kCastEveryMs
+     * later, which must not crit (the crit aura on him at NonCritAuraPoints() from then on, so no tick after it crits),
+     * read kLastStepMs on, past the DoT's 10 s.
      *
-     * `combustion`: the 11129 holder on him at each read, OK when there is none at any.
+     * `combustion`: `ticks=<n>,each=<x>,ignite=<i>,pyro=<p>`: the 83853 ticks in every window, the first of them, and
+     * the first 12654 and 11366 ticks. OK when the Pyroblast crit, Ignite and Pyroblast ticked, 83853 ticked its
+     * duration over its period (10) times, every tick x = int(i x 1000 / 2000 + p x 1000 / 3000) with the periods the
+     * client data's, and none a crit.
      */
     class MageFireCombustion : public MageProcScenario
     {
@@ -4989,21 +4997,34 @@ namespace Harness
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override
         {
-            return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 }, { 10555, 1 }, { 10547, 1 }, { 11433, 1 }, { 10551, 0 }, { 10561, 0 } };
+            return { { 10531, 2 }, { 10523, 1 }, { 10529, 2 }, { 11434, 2 }, { 10555, 1 }, { 10573, 0 }, { 10547, 0 }, { 10561, 0 } };
         }
+        int32 SpellPower() const override { return kSpellPower; }
 
         std::vector<Step> Steps() const override
         {
-            return { Cast(133, false), Cast(11129, false), Cast(133, false) };
+            Step combustion = Cast(11129, false);
+            combustion.everyMs = kLastStepMs;
+            return { Cast(11366, true), combustion };
         }
 
         std::vector<SpellPrint> Prints() const override
         {
             return {
-                // 133: 26 fields, fnv 81dba6e7
-                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11366: 49 fields, fnv 7ef90b4a
+                { 11366, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 11129: 49 fields, fnv 9ccc32ac
                 { 11129, { { "eff0.present", 1 }, { "eff0.Effect", 77 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 17867076534295 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 23 }, { "eff1.EffectBonusCoefficient", 1054582243 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 9 }, { "eff1.EffectRealPointsPerLevel", 1058642330 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 83853: 26 fields, fnv 87a2a19f
+                { 83853, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 25 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44445: 49 fields, fnv effa745d
+                { 44445, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 33 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 34359738368 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 48108: 26 fields, fnv 28b4e817
+                { 48108, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 332 }, { "eff0.EffectBasePoints", 92315 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags2", 4096 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 31642: 26 fields, fnv bac9b262
                 { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 { 18350, { { "absent", 1 } } },
@@ -5015,21 +5036,122 @@ namespace Harness
                 { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 71757: 26 fields, fnv 73f2d232
                 { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
             };
         }
 
-        uint32 Watched() const override { return 11129; }
+        uint32 Watched() const override { return kCombustionDot; }
+        bool WatchedOnTarget() const override { return true; }
+        bool ReadsPeriodic() const override { return true; }
+        uint32 CasterAura() const override { return kPrecision; }
+        uint32 CastEveryMs() const override { return kCastEveryMs; }
+        int32 NonCritAuraPoints() const override { return -100; }
 
         std::string Own(St const& st) const override
         {
-            std::string text;
-            bool none = true;
+            // every periodic damage tick of the scenario's windows, by spell, in the order they came
+            Trace::Roles const& roles = m_rec.Roles();
+            std::map<uint32, std::vector<std::pair<uint32, bool> > > ticks;
             for (uint32 k = 0; k < st.steps.size(); ++k)
             {
-                none = none && st.seen[k].holder == "none";
-                text += (k ? "; " : "") + U(k + 1) + " " + st.seen[k].holder;
+                const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+                for (const char* suffix : suffixes)
+                {
+                    std::vector<Recorder::Seen const*> seen = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_PERIODICAURALOG);
+                    for (size_t i = 0; i < seen.size(); ++i)
+                    {
+                        if (seen[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_PERIODICAURALOG, &seen[i]->payload[0],
+                                                                                 seen[i]->payload.size(), roles);
+                        for (size_t f = 0; f < fields.size(); ++f)
+                        {
+                            uint32 spell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                            if (sscanf(fields[f].c_str(), "tick self.tick.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted) == 5)
+                            {
+                                ticks[spell].push_back(std::make_pair(amount, crit != 0));
+                            }
+                        }
+                    }
+                }
             }
-            return std::string(none ? "OK" : "BUG") + "(the 11129 holder on him at each read: " + text + ")";
+
+            // the periods and the tick count as the client's data gives them, the mage staging no haste
+            const uint32 ignitePeriod = PeriodOf(kIgniteDot, EFFECT_INDEX_0);
+            const uint32 pyroblastPeriod = PeriodOf(kPyroblast, EFFECT_INDEX_1);
+            const uint32 combustionPeriod = PeriodOf(kCombustionDot, EFFECT_INDEX_0);
+            const int32 combustionDuration = GetSpellDuration(sSpellStore.LookupEntry(kCombustionDot));
+            const uint32 combustionTicks = combustionPeriod && combustionDuration > 0 ? uint32(combustionDuration) / combustionPeriod : 0;
+
+            std::vector<std::pair<uint32, bool> > const& ignite = ticks[kIgniteDot];
+            std::vector<std::pair<uint32, bool> > const& pyroblast = ticks[kPyroblast];
+            std::vector<std::pair<uint32, bool> > const& combustion = ticks[kCombustionDot];
+            const uint32 i = ignite.empty() ? 0 : ignite[0].first;
+            const uint32 p = pyroblast.empty() ? 0 : pyroblast[0].first;
+            const uint64 periods = uint64(ignitePeriod) * pyroblastPeriod;
+            const uint32 expected = periods ? uint32((uint64(i) * 1000 * pyroblastPeriod + uint64(p) * 1000 * ignitePeriod) / periods) : 0;
+
+            bool ok = st.steps.size() == 2 && st.seen[0].logRead && st.seen[0].crit && !ignite.empty() && !pyroblast.empty() &&
+                      combustionTicks == 10 && combustion.size() == combustionTicks;
+            std::string combustionText;
+            for (size_t t = 0; t < combustion.size(); ++t)
+            {
+                ok = ok && combustion[t].first == expected && !combustion[t].second;
+                combustionText += (t ? " " : "") + U(combustion[t].first) + (combustion[t].second ? "c" : "");
+            }
+            std::string igniteText;
+            for (size_t t = 0; t < ignite.size(); ++t)
+            {
+                igniteText += (t ? " " : "") + U(ignite[t].first) + (ignite[t].second ? "c" : "");
+            }
+            std::string pyroblastText;
+            for (size_t t = 0; t < pyroblast.size(); ++t)
+            {
+                pyroblastText += (t ? " " : "") + U(pyroblast[t].first) + (pyroblast[t].second ? "c" : "");
+            }
+
+            const std::string value = "ticks=" + U(combustion.size()) + ",each=" +
+                                      (combustion.empty() ? std::string("none") : U(combustion[0].first)) + ",ignite=" + U(i) +
+                                      ",pyro=" + U(p);
+            Seen const& pyroblastStep = st.seen[0];
+            Seen const& combustionStep = st.seen.size() > 1 ? st.seen[1] : st.seen[0];
+            const std::string read = combustionStep.periodicRead
+                                     ? "period " + std::to_string(combustionStep.period) + ", duration " +
+                                       std::to_string(combustionStep.duration) + "/" + std::to_string(combustionStep.maxDuration)
+                                     : std::string("no periodic effect");
+            Player* mage = sPlayerRegistry.Find(st.player);
+            const int32 spellPower = mage ? mage->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE) : 0;
+            char buf[768];
+            snprintf(buf, sizeof(buf),
+                     "Pyroblast %u%s; 12654 ticks [%s]; 11366 ticks [%s]; 83853 ticks [%s], %u wanted (%d ms over a period of %u), "
+                     "each int(%u x 1000 / %u + %u x 1000 / %u) = %u; Combustion's direct hit %u%s; 83853 on the Camel at step 2's read: %s; "
+                     "fire spell power %d",
+                     pyroblastStep.amount, pyroblastStep.crit ? " crit" : "", igniteText.c_str(), pyroblastText.c_str(),
+                     combustionText.c_str(), combustionTicks, combustionDuration, combustionPeriod, i, ignitePeriod, p, pyroblastPeriod,
+                     expected, combustionStep.amount, combustionStep.crit ? " crit" : "", read.c_str(), spellPower);
+            return ok ? value + "(OK: " + buf + ")" : "BUG(" + value + ": " + buf + ")";
+        }
+
+    private:
+        static constexpr uint32 kPyroblast = 11366;
+        static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kCombustionDot = 83853;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kCastEveryMs = 4300;
+        static constexpr uint32 kLastStepMs = 12000;
+
+        /// The period of `spell`'s effect `effIndex` in the client's data; 0 when the store has no such effect.
+        static uint32 PeriodOf(uint32 spell, SpellEffectIndex effIndex)
+        {
+            SpellEntry const* entry = sSpellStore.LookupEntry(spell);
+            SpellEffectEntry const* effect = entry ? entry->GetSpellEffect(effIndex) : NULL;
+            return effect ? effect->EffectAuraPeriod : 0;
         }
     };
 
