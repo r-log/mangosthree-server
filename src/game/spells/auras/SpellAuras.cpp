@@ -2725,7 +2725,7 @@ SpellAuraHolder::SpellAuraHolder(SpellEntry const* spellproto, Unit* target, Wor
     m_applyTime      = time(NULL);
     m_isPassive      = IsPassiveSpell(spellproto);
     m_isDeathPersist = IsDeathPersistentSpell(spellproto);
-    m_trackedAuraType= IsSingleTargetSpell(spellproto) ? TRACK_AURA_TYPE_SINGLE_TARGET : IsSpellHaveAura(spellproto, SPELL_AURA_CONTROL_VEHICLE) ? TRACK_AURA_TYPE_CONTROL_VEHICLE : TRACK_AURA_TYPE_NOT_TRACKED;
+    m_trackedAuraType= AuraTargetLimit(spellproto->ID) ? TRACK_AURA_TYPE_TARGET_LIMIT : IsSingleTargetSpell(spellproto) ? TRACK_AURA_TYPE_SINGLE_TARGET : IsSpellHaveAura(spellproto, SPELL_AURA_CONTROL_VEHICLE) ? TRACK_AURA_TYPE_CONTROL_VEHICLE : TRACK_AURA_TYPE_NOT_TRACKED;
     m_procCharges = m_spellProto->GetProcCharges();
 
     m_isRemovedOnShapeLost = (GetCasterGuid() == m_target->GetObjectGuid() &&
@@ -4072,6 +4072,10 @@ bool SpellAuraHolder::IsEmptyHolder() const
 
 /**
  * @brief Unregisters this holder from tracked-aura bookkeeping.
+ *
+ * The caster tracks three relations, each in a list of its own: the one target of a single-target spell (every entry
+ * of the spell goes), the vehicle it controls (its entry goes, with the spell's auras on the caster or on the vehicle),
+ * and the targets of a spell with a target limit (only the entry of this holder's target goes).
  */
 void SpellAuraHolder::UnregisterAndCleanupTrackedAuras()
 {
@@ -4086,6 +4090,22 @@ void SpellAuraHolder::UnregisterAndCleanupTrackedAuras()
         if (Unit* caster = GetCaster())
         {
             caster->GetTrackedAuraTargets(trackedType).erase(GetSpellProto());
+        }
+    }
+    else if (trackedType == TRACK_AURA_TYPE_TARGET_LIMIT)
+    {
+        if (Unit* caster = GetCaster())
+        {
+            Unit::TrackedAuraTargetMap& scTargets = caster->GetTrackedAuraTargets(trackedType);
+            std::pair<Unit::TrackedAuraTargetMap::iterator, Unit::TrackedAuraTargetMap::iterator> bounds = scTargets.equal_range(GetSpellProto());
+            for (Unit::TrackedAuraTargetMap::iterator itr = bounds.first; itr != bounds.second; ++itr)
+            {
+                if (itr->second == m_target->GetObjectGuid())
+                {
+                    scTargets.erase(itr);
+                    break;
+                }
+            }
         }
     }
     else if (trackedType == TRACK_AURA_TYPE_CONTROL_VEHICLE)

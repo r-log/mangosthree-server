@@ -605,7 +605,7 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
     AuraRemoveMode const silent[] =
     {
         AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEATH,
-        AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_TRACKING,
+        AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_TRACKING, AURA_REMOVE_BY_TARGET_LIMIT,
     };
     for (AuraRemoveMode mode : silent)
     {
