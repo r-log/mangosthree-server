@@ -218,6 +218,25 @@ static void RowPartNotNeeded(float part, float reference, char const* name, char
 }
 
 /**
+ * Whether one of `effects` is a damage effect of `damagetype` (periodic for DOT, direct otherwise), the damage kind as
+ * EffectBonusCoefficient reads it. `effects` may hold NULL rows.
+ */
+static bool HasDamageEffect(SpellEffectEntry const* const (&effects)[MAX_EFFECT_INDEX], DamageEffectType damagetype)
+{
+    bool const wantPeriodic = damagetype == DOT;
+    for (SpellEffectEntry const* effect : effects)
+    {
+        bool periodic = false;
+        if (effect && IsSpellBonusEffect(*effect, SPELL_BONUS_KIND_DAMAGE, periodic) && periodic == wantPeriodic)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * The spells whose Spell.dbc attack-power coefficient is above 0.
  */
 static uint32 CountAttackPowerCoefficients()
@@ -308,9 +327,18 @@ void SpellMgr::LoadSpellBonuses()
         float const clientAp = AttackPowerCoefficient(spell, NULL, SPELL_DIRECT_DAMAGE, true);
         float const clientApDot = AttackPowerCoefficient(spell, NULL, DOT, true);
 
+        // A physical spell's spell power part for its damage is the tooltip's term on the spell power, which stands
+        // beside the client's coefficient on the flat physical damage-done auras; a heal or an absorb part is compared.
         std::string notNeeded;
-        RowPartNotNeeded(sbe.direct_damage, clientDirect, "direct_bonus", "SpellEffect.dbc", notNeeded);
-        RowPartNotNeeded(sbe.dot_damage, clientDot, "dot_bonus", "SpellEffect.dbc", notNeeded);
+        bool const physicalSchool = GetSpellSchoolMask(spell) == SPELL_SCHOOL_MASK_NORMAL;
+        if (!physicalSchool || !HasDamageEffect(effects, SPELL_DIRECT_DAMAGE))
+        {
+            RowPartNotNeeded(sbe.direct_damage, clientDirect, "direct_bonus", "SpellEffect.dbc", notNeeded);
+        }
+        if (!physicalSchool || !HasDamageEffect(effects, DOT))
+        {
+            RowPartNotNeeded(sbe.dot_damage, clientDot, "dot_bonus", "SpellEffect.dbc", notNeeded);
+        }
         RowPartNotNeeded(sbe.ap_bonus, clientAp, "ap_bonus", "Spell.dbc", notNeeded);
         RowPartNotNeeded(sbe.ap_dot_bonus, clientApDot, "ap_dot_bonus", "Spell.dbc", notNeeded);
         if (!notNeeded.empty())

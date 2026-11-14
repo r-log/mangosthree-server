@@ -24,7 +24,8 @@
  */
 
 /// The spell power coefficient picker and its precedence, over bare SpellEffect and SpellScaling rows; the attack-power
-/// pickers over bare SpellEffect rows and Spell.dbc's coefficient, and where the loader stores that field.
+/// pickers over bare SpellEffect rows and Spell.dbc's coefficient, and where the loader stores that field; the spell
+/// power a player's share is taken of by the spell's school, and a physical spell's tooltip term from its row.
 ///
 /// The effect rows are built as the loader builds them, with only the effect, the aura and the bonus coefficient
 /// written; the numbers are the 4.3.4 DBC's for the spells named. The scaling rows are Fireball's (18), Smite's (211),
@@ -246,9 +247,9 @@ TEST(SpellCoefficient_AHealWithZeroTakesTheRowOrNothing)
     SpellEffectEntry const heal = Effect(SPELL_EFFECT_HEAL, 0, 0.0f);
     float const client = Pick(&heal, NULL, NULL, SPELL_BONUS_KIND_HEAL, HEAL);
     CHECK_EQ(client, 0.0f);
-    CHECK_EQ(SpellPowerCoefficient(client, NULL, SPELL_BONUS_KIND_HEAL, HEAL, false), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(client, NULL, SPELL_BONUS_KIND_HEAL, HEAL, false, false), 0.0f);
     SpellBonusEntry const row = Row(0.5f, 0.0f);
-    CHECK(NearF(SpellPowerCoefficient(client, &row, SPELL_BONUS_KIND_HEAL, HEAL, false), 0.5f));
+    CHECK(NearF(SpellPowerCoefficient(client, &row, SPELL_BONUS_KIND_HEAL, HEAL, false, false), 0.5f));
 }
 
 TEST(SpellCoefficient_AnAbsorbAuraIsReadOnlyByTheAbsorbCaller)
@@ -258,7 +259,7 @@ TEST(SpellCoefficient_AnAbsorbAuraIsReadOnlyByTheAbsorbCaller)
     float const client = Pick(&ward, NULL, NULL, SPELL_BONUS_KIND_ABSORB, SPELL_DIRECT_DAMAGE);
     CHECK_EQ(client, 0.0f);
     SpellBonusEntry const row = Row(0.807f, 0.0f);
-    CHECK(NearF(SpellPowerCoefficient(client, &row, SPELL_BONUS_KIND_ABSORB, SPELL_DIRECT_DAMAGE, false), 0.807f));
+    CHECK(NearF(SpellPowerCoefficient(client, &row, SPELL_BONUS_KIND_ABSORB, SPELL_DIRECT_DAMAGE, false, false), 0.807f));
 
     // An absorb aura holding a coefficient answers the absorb caller only.
     SpellEffectEntry const manaShield = Effect(SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MANA_SHIELD, 1.0f);
@@ -271,21 +272,21 @@ TEST(SpellCoefficient_ARowBesideAClientZeroApplies)
 {
     // Haunt: SpellEffect.dbc 0, the row 0.6971.
     SpellBonusEntry const haunt = Row(0.6971f, 0.0f);
-    CHECK(NearF(SpellPowerCoefficient(0.0f, &haunt, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false), 0.6971f));
+    CHECK(NearF(SpellPowerCoefficient(0.0f, &haunt, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, false), 0.6971f));
     // Its dot part is the row's 0.
-    CHECK_EQ(SpellPowerCoefficient(0.0f, &haunt, SPELL_BONUS_KIND_DAMAGE, DOT, false), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(0.0f, &haunt, SPELL_BONUS_KIND_DAMAGE, DOT, false, false), 0.0f);
 }
 
 TEST(SpellCoefficient_ARowBesideANonzeroClientValueIsBeaten)
 {
     // Fireball: SpellEffect.dbc 1.236 against the row's 1.0.
     SpellBonusEntry const fireball = Row(1.0f, 0.0f);
-    CHECK(NearF(SpellPowerCoefficient(1.236f, &fireball, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false), 1.236f));
+    CHECK(NearF(SpellPowerCoefficient(1.236f, &fireball, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, false), 1.236f));
     // Corruption: 0.176 against the row's dot 0.2.
     SpellBonusEntry const corruption = Row(0.0f, 0.2f);
-    CHECK(NearF(SpellPowerCoefficient(0.176f, &corruption, SPELL_BONUS_KIND_DAMAGE, DOT, false), 0.176f));
+    CHECK(NearF(SpellPowerCoefficient(0.176f, &corruption, SPELL_BONUS_KIND_DAMAGE, DOT, false, false), 0.176f));
     // No row: the client's value.
-    CHECK(NearF(SpellPowerCoefficient(0.856f, NULL, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false), 0.856f));
+    CHECK(NearF(SpellPowerCoefficient(0.856f, NULL, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, false), 0.856f));
 }
 
 TEST(SpellCoefficient_APetTakesTheRowThenTheClientValueThenTheCastTimeDefault)
@@ -306,12 +307,12 @@ TEST(SpellCoefficient_NoDoneBonusTakesTheShareFromDamageOnly)
 {
     SpellBonusEntry const row = Row(0.5f, 0.25f);
     // A damage effect of a spell with SPELL_ATTR_EX3_NO_DONE_BONUS: no share, and no row fills it.
-    CHECK_EQ(SpellPowerCoefficient(1.236f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true), 0.0f);
-    CHECK_EQ(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true), 0.0f);
-    CHECK_EQ(SpellPowerCoefficient(0.176f, &row, SPELL_BONUS_KIND_DAMAGE, DOT, true), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(1.236f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(0.176f, &row, SPELL_BONUS_KIND_DAMAGE, DOT, true, false), 0.0f);
     // A heal of such a spell keeps its share, the client's or the row's.
-    CHECK(NearF(SpellPowerCoefficient(0.3f, &row, SPELL_BONUS_KIND_HEAL, HEAL, true), 0.3f));
-    CHECK(NearF(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_HEAL, DOT, true), 0.25f));
+    CHECK(NearF(SpellPowerCoefficient(0.3f, &row, SPELL_BONUS_KIND_HEAL, HEAL, true, false), 0.3f));
+    CHECK(NearF(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_HEAL, DOT, true, false), 0.25f));
 }
 
 TEST(SpellCoefficient_TheAttackPowerFieldIsStoredWhereTheLoaderPutsField30)
@@ -385,46 +386,50 @@ TEST(SpellCoefficient_AHealAnAbsorbAndTheNoDoneBonusAttributeTakeNoAttackPower)
     SpellEffectEntry const* effects[MAX_EFFECT_INDEX] = { &school, NULL, NULL };
     CHECK(SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, false));
     CHECK(!SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true));
-    // Its field does not apply then, and a row fills in.
+    // A player's damage of such a spell takes neither its field nor a row.
     SpellBonusEntry const row = ApRow(0.2f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.5f, SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true), &row, SPELL_DIRECT_DAMAGE, true), 0.2f));
-    CHECK_EQ(AttackPowerCoefficient(0.5f, SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true), NULL, SPELL_DIRECT_DAMAGE, true), 0.0f);
+    bool const takes = SpellTakesAttackPower(effects, SPELL_DIRECT_DAMAGE, true);
+    CHECK_EQ(AttackPowerCoefficient(0.5f, takes, &row, SPELL_DIRECT_DAMAGE, true, true), 0.0f);
+    CHECK_EQ(AttackPowerCoefficient(0.5f, takes, NULL, SPELL_DIRECT_DAMAGE, true, true), 0.0f);
+    // A heal, an absorb or a pet's spell of such a spell still takes the row.
+    CHECK(NearF(AttackPowerCoefficient(0.5f, takes, &row, SPELL_DIRECT_DAMAGE, false, true), 0.2f));
+    CHECK_EQ(AttackPowerCoefficient(0.5f, takes, NULL, SPELL_DIRECT_DAMAGE, false, true), 0.0f);
 }
 
 TEST(SpellCoefficient_TheAttackPowerFieldBeatsARowAndARowFillsInBesideAZero)
 {
     // Heroic Throw: the field 0.75, no row.
-    CHECK(NearF(AttackPowerCoefficient(0.75f, true, NULL, SPELL_DIRECT_DAMAGE, true), 0.75f));
+    CHECK(NearF(AttackPowerCoefficient(0.75f, true, NULL, SPELL_DIRECT_DAMAGE, true, false), 0.75f));
     // Instant Poison: the field 0.09 beats the row's 0.1; Deadly Poison's periodic 0.035 beats its row's 0.03.
     SpellBonusEntry const instantPoison = ApRow(0.1f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.09f, true, &instantPoison, SPELL_DIRECT_DAMAGE, true), 0.09f));
+    CHECK(NearF(AttackPowerCoefficient(0.09f, true, &instantPoison, SPELL_DIRECT_DAMAGE, true, false), 0.09f));
     SpellBonusEntry const deadlyPoison = ApRow(0.0f, 0.03f);
-    CHECK(NearF(AttackPowerCoefficient(0.035f, true, &deadlyPoison, DOT, true), 0.035f));
+    CHECK(NearF(AttackPowerCoefficient(0.035f, true, &deadlyPoison, DOT, true, false), 0.035f));
     // Death Coil 47632: the field 0, the row's 0.15 applies.
     SpellBonusEntry const deathCoil = ApRow(0.15f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.0f, true, &deathCoil, SPELL_DIRECT_DAMAGE, true), 0.15f));
+    CHECK(NearF(AttackPowerCoefficient(0.0f, true, &deathCoil, SPELL_DIRECT_DAMAGE, true, false), 0.15f));
     // Rake: the row's periodic part for a tick, its direct part for the hit.
     SpellBonusEntry const rake = ApRow(0.0f, 0.06f);
-    CHECK(NearF(AttackPowerCoefficient(0.0f, true, &rake, DOT, true), 0.06f));
-    CHECK_EQ(AttackPowerCoefficient(0.0f, true, &rake, SPELL_DIRECT_DAMAGE, true), 0.0f);
+    CHECK(NearF(AttackPowerCoefficient(0.0f, true, &rake, DOT, true, false), 0.06f));
+    CHECK_EQ(AttackPowerCoefficient(0.0f, true, &rake, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
     // Holy Shield: a field on a spell whose damage does not take it; the row's part.
     SpellBonusEntry const holyShield = ApRow(0.056f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.0732f, false, &holyShield, SPELL_DIRECT_DAMAGE, true), 0.056f));
+    CHECK(NearF(AttackPowerCoefficient(0.0732f, false, &holyShield, SPELL_DIRECT_DAMAGE, true, false), 0.056f));
     // Neither: 0.
-    CHECK_EQ(AttackPowerCoefficient(0.0f, true, NULL, SPELL_DIRECT_DAMAGE, true), 0.0f);
+    CHECK_EQ(AttackPowerCoefficient(0.0f, true, NULL, SPELL_DIRECT_DAMAGE, true, false), 0.0f);
 }
 
 TEST(SpellCoefficient_AHealAnAbsorbOrAPetTakesTheRowNeverTheField)
 {
     // clientData false: Death Coil's heal 47633 takes its row's 0.15; a field beside it is not read.
     SpellBonusEntry const heal = ApRow(0.15f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.0f, false, &heal, SPELL_DIRECT_DAMAGE, false), 0.15f));
-    CHECK(NearF(AttackPowerCoefficient(0.75f, true, &heal, SPELL_DIRECT_DAMAGE, false), 0.15f));
+    CHECK(NearF(AttackPowerCoefficient(0.0f, false, &heal, SPELL_DIRECT_DAMAGE, false, false), 0.15f));
+    CHECK(NearF(AttackPowerCoefficient(0.75f, true, &heal, SPELL_DIRECT_DAMAGE, false, false), 0.15f));
     // Sacred Shield's absorb: its row's 2.8.
     SpellBonusEntry const sacredShield = ApRow(2.8f, 0.0f);
-    CHECK(NearF(AttackPowerCoefficient(0.0f, false, &sacredShield, SPELL_DIRECT_DAMAGE, false), 2.8f));
+    CHECK(NearF(AttackPowerCoefficient(0.0f, false, &sacredShield, SPELL_DIRECT_DAMAGE, false, false), 2.8f));
     // A pet's spell with a field and no row: none.
-    CHECK_EQ(AttackPowerCoefficient(0.0245f, true, NULL, SPELL_DIRECT_DAMAGE, false), 0.0f);
+    CHECK_EQ(AttackPowerCoefficient(0.0245f, true, NULL, SPELL_DIRECT_DAMAGE, false, false), 0.0f);
 }
 
 TEST(SpellCoefficient_TheAttackPowerPartOfAHitIsTruncatedToAnInteger)
@@ -433,4 +438,59 @@ TEST(SpellCoefficient_TheAttackPowerPartOfAHitIsTruncatedToAnInteger)
     CHECK_EQ(Combat::AttackPowerBonus(0.39f, 1579.0f), int32(615));
     CHECK_EQ(Combat::AttackPowerBonus(0.15f, 1905.0f), int32(285));
     CHECK_EQ(Combat::AttackPowerBonus(0.0f, 1905.0f), int32(0));
+}
+
+TEST(SpellCoefficient_ThePhysicalSchoolTakesTheFlatPhysicalDamageDoneAlone)
+{
+    // Swipe, Mortar Shot: the physical school alone takes the flat physical damage-done auras, never the spell power.
+    CHECK_EQ(Combat::SpellPowerBenefit(SPELL_SCHOOL_MASK_NORMAL, 1189, 0), int32(0));
+    CHECK_EQ(Combat::SpellPowerBenefit(SPELL_SCHOOL_MASK_NORMAL, 1189, 25), int32(25));
+}
+
+TEST(SpellCoefficient_AMagicSchoolTakesItsSpellPower)
+{
+    // Hammer of Wrath: holy takes the holy spell power, the flat physical auras beside it are not read.
+    CHECK_EQ(Combat::SpellPowerBenefit(SPELL_SCHOOL_MASK_HOLY, 1096, 25), int32(1096));
+    // No spell power: 0, whatever the physical auras hold.
+    CHECK_EQ(Combat::SpellPowerBenefit(SPELL_SCHOOL_MASK_SHADOW, 0, 25), int32(0));
+    // Frostfire (fire and frost, 0x14) has no physical bit: its spell power.
+    CHECK_EQ(Combat::SpellPowerBenefit(SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST, 1197, 25), int32(1197));
+}
+
+TEST(SpellCoefficient_AMaskHoldingBothTakesTheLargerOfTheTwo)
+{
+    // Every school (0x7F): the larger, as the client takes the largest damage-done field over the mask's schools.
+    CHECK_EQ(Combat::SpellPowerBenefit(SPELL_SCHOOL_MASK_ALL, 1000, 25), int32(1000));
+    CHECK_EQ(Combat::SpellPowerBenefit(SPELL_SCHOOL_MASK_ALL, 10, 25), int32(25));
+}
+
+TEST(SpellCoefficient_APhysicalSpellsRowNeverFillsInForTheClientsCoefficient)
+{
+    // Earthquake 77478: SpellEffect.dbc 0.11 beside a row's 0.5: the client's value.
+    SpellBonusEntry const row = Row(0.5f, 0.25f);
+    CHECK(NearF(SpellPowerCoefficient(0.11f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, true), 0.11f));
+    // A client 0 beside a row: 0, the row is the tooltip's term and does not fill in.
+    CHECK_EQ(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, true), 0.0f);
+    CHECK_EQ(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_DAMAGE, DOT, false, true), 0.0f);
+    // SPELL_ATTR_EX3_NO_DONE_BONUS: none.
+    CHECK_EQ(SpellPowerCoefficient(0.11f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, true, true), 0.0f);
+    // A magic school as before: the client's value when nonzero, else the row's part.
+    CHECK(NearF(SpellPowerCoefficient(0.11f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, false), 0.11f));
+    CHECK(NearF(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_DAMAGE, SPELL_DIRECT_DAMAGE, false, false), 0.5f));
+    CHECK(NearF(SpellPowerCoefficient(0.0f, &row, SPELL_BONUS_KIND_DAMAGE, DOT, false, false), 0.25f));
+}
+
+TEST(SpellCoefficient_ThePhysicalSpellsTextTermIsTheRowsSpellPowerPart)
+{
+    // Earthquake 77478: the row's direct 0.11 is the term of 61882's text, $SPN*0.11.
+    SpellBonusEntry const earthquake = Row(0.11f, 0.0f);
+    CHECK(NearF(TextSpellPowerCoefficient(&earthquake, SPELL_DIRECT_DAMAGE, false), 0.11f));
+    CHECK_EQ(TextSpellPowerCoefficient(&earthquake, DOT, false), 0.0f);
+    // A tick takes the row's dot part.
+    SpellBonusEntry const periodic = Row(0.0f, 0.04f);
+    CHECK(NearF(TextSpellPowerCoefficient(&periodic, DOT, false), 0.04f));
+    CHECK_EQ(TextSpellPowerCoefficient(&periodic, SPELL_DIRECT_DAMAGE, false), 0.0f);
+    // No row, or SPELL_ATTR_EX3_NO_DONE_BONUS: none.
+    CHECK_EQ(TextSpellPowerCoefficient(NULL, SPELL_DIRECT_DAMAGE, false), 0.0f);
+    CHECK_EQ(TextSpellPowerCoefficient(&earthquake, SPELL_DIRECT_DAMAGE, true), 0.0f);
 }

@@ -1687,6 +1687,19 @@ bool ChatHandler::HandleDebugSpellCoefsCommand(char* args)
         PSendSysMessage("Spell %u: no spell_bonus_data row", spellid);
     }
 
+    // The spell power a player's damage takes its share of, by the spell's school.
+    bool const physicalSchool = GetSpellSchoolMask(spellEntry) == SPELL_SCHOOL_MASK_NORMAL;
+    if (physicalSchool)
+    {
+        PSendSysMessage("Spell power benefit of a player's damage: the flat physical damage-done auras alone%s",
+                        noDoneBonus ? "" : "; a spell_bonus_data spell-power part takes the spell power");
+    }
+    else
+    {
+        PSendSysMessage("Spell power benefit of a player's damage: the spell power of school mask %u",
+                        uint32(GetSpellSchoolMask(spellEntry)));
+    }
+
     // The attack power share per damage type: Spell.dbc's coefficient, the row's part, and the one that applies to a
     // player's damage and to a heal, an absorb or a pet's spell.
     PSendSysMessage("Spell %u: Spell.dbc attack-power coefficient %f", spellid, spellEntry->Coefficient);
@@ -1724,7 +1737,8 @@ bool ChatHandler::HandleDebugSpellCoefsCommand(char* args)
 
             DamageEffectType const type = periodic ? DOT : SPELL_DIRECT_DAMAGE;
             float const client = EffectBonusCoefficient(spellEntry, level, kinds[k], type);
-            float const applies = SpellPowerCoefficient(client, bonus, kinds[k], type, noDoneBonus);
+            float const applies = SpellPowerCoefficient(client, bonus, kinds[k], type, noDoneBonus,
+                                                        physicalSchool && kinds[k] == SPELL_BONUS_KIND_DAMAGE);
             float const row = bonus ? (periodic ? bonus->dot_damage : bonus->direct_damage) : 0.0f;
             PSendSysMessage("Effect %u (%s, %s): SpellEffect.dbc %f; the spell's first %s %s effect at level %u %f; spell_bonus_data %f; applies %f%s",
                             i, kindNames[k], periodic ? "periodic" : "direct", spellEffect->EffectBonusCoefficient,

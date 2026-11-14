@@ -179,4 +179,19 @@ namespace Combat
     {
         return int32(coefficient * attackPower);
     }
+
+    int32 SpellPowerBenefit(uint32 schoolMask, int32 schoolSpellPower, int32 physicalDamageDone)
+    {
+        if (!(schoolMask & uint32(SPELL_SCHOOL_MASK_NORMAL)))
+        {
+            return schoolSpellPower;
+        }
+
+        if (schoolMask == uint32(SPELL_SCHOOL_MASK_NORMAL))
+        {
+            return physicalDamageDone;
+        }
+
+        return std::max(schoolSpellPower, physicalDamageDone);
+    }
 }

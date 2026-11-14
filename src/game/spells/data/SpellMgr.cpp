@@ -430,7 +430,7 @@ float EffectBonusCoefficient(SpellEntry const* spellProto, uint32 level, SpellBo
 }
 
 float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonusKind kind, DamageEffectType damagetype,
-                            bool noDoneBonus)
+                            bool noDoneBonus, bool physical)
 {
     if (kind == SPELL_BONUS_KIND_DAMAGE && noDoneBonus)
     {
@@ -442,12 +442,22 @@ float SpellPowerCoefficient(float client, SpellBonusEntry const* row, SpellBonus
         return client;
     }
 
-    if (row)
+    if (row && !physical)
     {
         return damagetype == DOT ? row->dot_damage : row->direct_damage;
     }
 
     return 0.0f;
+}
+
+float TextSpellPowerCoefficient(SpellBonusEntry const* row, DamageEffectType damagetype, bool noDoneBonus)
+{
+    if (!row || noDoneBonus)
+    {
+        return 0.0f;
+    }
+
+    return damagetype == DOT ? row->dot_damage : row->direct_damage;
 }
 
 float PetSpellPowerCoefficient(float row, float client, float castTimeDefault, SpellBonusKind kind, bool noDoneBonus)
@@ -503,8 +513,13 @@ bool SpellTakesAttackPower(SpellEntry const* spellProto, DamageEffectType damage
 }
 
 float AttackPowerCoefficient(float coefficient, bool takesAttackPower, SpellBonusEntry const* row,
-                             DamageEffectType damagetype, bool clientData)
+                             DamageEffectType damagetype, bool clientData, bool noDoneBonus)
 {
+    if (clientData && noDoneBonus)
+    {
+        return 0.0f;
+    }
+
     if (clientData && takesAttackPower && coefficient > 0.0f)
     {
         return coefficient;
@@ -522,7 +537,8 @@ float AttackPowerCoefficient(SpellEntry const* spellProto, SpellBonusEntry const
                              bool clientData)
 {
     bool const takesAttackPower = clientData && spellProto->Coefficient > 0.0f && SpellTakesAttackPower(spellProto, damagetype);
-    return AttackPowerCoefficient(spellProto->Coefficient, takesAttackPower, row, damagetype, clientData);
+    return AttackPowerCoefficient(spellProto->Coefficient, takesAttackPower, row, damagetype, clientData,
+                                  spellProto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
 }
 
 /**

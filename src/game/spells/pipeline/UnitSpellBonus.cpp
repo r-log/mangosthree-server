@@ -51,12 +51,44 @@
 #include <math.h>
 #include <stdarg.h>
 
+namespace
+{
+    /// Adds up the flat physical MOD_DAMAGE_DONE auras of `caster`: the general ones and those fitting `weapon`.
+    int32 PhysicalDamageDone(Unit const& caster, Item const* weapon)
+    {
+        int32 done = 0;
+        Unit::AuraList const& mModDamageDone = caster.GetAurasByType(SPELL_AURA_MOD_DAMAGE_DONE);
+        for (Unit::AuraList::const_iterator i = mModDamageDone.begin(); i != mModDamageDone.end(); ++i)
+        {
+            if ((*i)->GetModifier()->m_miscvalue & SPELL_SCHOOL_MASK_NORMAL &&           // schoolmask has to fit with the physical school
+                (((*i)->GetSpellProto()->GetEquippedItemClass() == -1) ||                 // general, weapon independent
+                (weapon && weapon->IsFitToSpellRequirements((*i)->GetSpellProto()))))    // OR used weapon fits aura requirements
+            {
+                done += (*i)->GetModifier()->m_amount;
+            }
+        }
+        return done;
+    }
+
+    /// A player's spell power benefit for `spellProto`: Combat::SpellPowerBenefit over the base spell damage bonus of the
+    /// spell's school and the flat physical damage-done auras, each read only when the school mask needs it.
+    int32 PlayerSpellPowerBenefit(Unit& caster, SpellEntry const* spellProto, Item const* weapon)
+    {
+        SpellSchoolMask const schoolMask = GetSpellSchoolMask(spellProto);
+        int32 const schoolSpellPower = schoolMask != SPELL_SCHOOL_MASK_NORMAL ? caster.SpellBaseDamageBonusDone(schoolMask) : 0;
+        int32 const physicalDamageDone = (schoolMask & SPELL_SCHOOL_MASK_NORMAL) ? PhysicalDamageDone(caster, weapon) : 0;
+        return Combat::SpellPowerBenefit(schoolMask, schoolSpellPower, physicalDamageDone);
+    }
+}
+
 /** Adds the spell power share and the attack power share of one hit or tick to `total`
  *
  * this is the caster of the spell/ melee attacker
  * @param spellProto SpellEntry of the used spell
  * @param total current value onto which the shares are added
- * @param benefit the spell power the share is taken of (done or taken)
+ * @param benefit the spell power the share is taken of (done or taken); a player's done benefit for damage is his
+ *        spell power by the spell's school (PlayerSpellPowerBenefit): the spell power of the school, or for the
+ *        physical school alone the flat physical damage-done auras alone
  * @param ap_benefit attack power from auras, added to the attack power the attack power share is taken of
  * @param damagetype DOT for a periodic tick, any other type for a direct amount
  * @param donePart calculate for done or taken
@@ -64,12 +96,18 @@
  *
  * The spell power coefficient has three branches, by caster:
  * - a player takes SpellPowerCoefficient: the client's value (EffectBonusCoefficient of the spell's first effect of
- *   `kind`, at the player's level) when it is nonzero, else the spell_bonus_data row's part, else 0;
+ *   `kind`, at the player's level) when it is nonzero, else the spell_bonus_data row's part, else 0; for damage of
+ *   the physical school alone the row never fills in;
  * - a pet takes PetSpellPowerCoefficient: the row's part when it is nonzero, else the client's value at the pet's
  *   level when it is nonzero, else the cast-time default CalculateDefaultCoefficient;
  * - any other creature takes its whole spell power and no row.
  * A damage kind of a spell with SPELL_ATTR_EX3_NO_DONE_BONUS takes none for a player or a pet. A coefficient above 0
  * goes through SPELLMOD_SPELL_BONUS_DAMAGE as a percent.
+ *
+ * At the done side, a player's damage of the physical school alone also takes the tooltip's term on the spell power:
+ * TextSpellPowerCoefficient, the row's spell power part, through SPELLMOD_SPELL_BONUS_DAMAGE as a percent, taken of
+ * the spell power of the magic schools; it does not depend on `benefit`, so the weapon damage call, which passes no
+ * benefit, takes it too.
  *
  * At the done side the attack power share follows, for a player or a pet: AttackPowerCoefficient, Spell.dbc's
  * coefficient for a player's damage when the spell takes attack power, else the row's attack power part, else 0;
@@ -81,6 +119,7 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
     bool const player = GetTypeId() == TYPEID_PLAYER;
     bool const pet = !player && IsPet();
     SpellBonusEntry const* bonus = player || pet ? sSpellMgr.GetSpellBonusData(spellProto->ID) : NULL;
+    bool const physical = kind == SPELL_BONUS_KIND_DAMAGE && GetSpellSchoolMask(spellProto) == SPELL_SCHOOL_MASK_NORMAL;
 
     if (benefit)
     {
@@ -91,7 +130,7 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
             float const client = EffectBonusCoefficient(spellProto, getLevel(), kind, damagetype);
             if (player)
             {
-                coeff = SpellPowerCoefficient(client, bonus, kind, damagetype, noDoneBonus);
+                coeff = SpellPowerCoefficient(client, bonus, kind, damagetype, noDoneBonus, physical);
             }
             else
             {
@@ -111,6 +150,23 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
             }
 
             total += int32(benefit * coeff);
+        }
+    }
+
+    // the tooltip's term on the spell power of a player's physical damage, at the done side only
+    if (donePart && player && physical)
+    {
+        float coeff = TextSpellPowerCoefficient(bonus, damagetype, spellProto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS));
+        if (coeff > 0.0f)
+        {
+            if (SpellModMgr* modOwner = GetSpellMods())
+            {
+                coeff *= 100.0f;
+                modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_SPELL_BONUS_DAMAGE, coeff);
+                coeff /= 100.0f;
+            }
+
+            total += int32(SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC) * coeff);
         }
     }
 
@@ -530,8 +586,10 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
             break;
     }
 
-    // Done fixed damage bonus auras
-    int32 DoneAdvertisedBenefit = SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto));
+    // Done fixed damage bonus auras; a player's is his spell power by the spell's school
+    int32 DoneAdvertisedBenefit = GetTypeId() == TYPEID_PLAYER
+                                  ? PlayerSpellPowerBenefit(*this, spellProto, GetWeaponForAttack(BASE_ATTACK, true, false))
+                                  : SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto));
 
     // Pets just add their bonus damage to their spell damage
     // note that their spell damage is just gain of their own auras
@@ -1500,8 +1558,12 @@ uint32 Unit::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackTyp
     int32 DoneFlat  = 0;
     int32 APbonus   = 0;
 
-    // ..done flat, already included in weapon damage based spells
-    if (!isWeaponDamageBasedSpell)
+    // ..done flat, already included in weapon damage based spells; a player's is his spell power by the spell's school
+    if (!isWeaponDamageBasedSpell && GetTypeId() == TYPEID_PLAYER)
+    {
+        DoneFlat = PlayerSpellPowerBenefit(*this, spellProto, pWeapon);
+    }
+    else if (!isWeaponDamageBasedSpell)
     {
         AuraList const& mModDamageDone = GetAurasByType(SPELL_AURA_MOD_DAMAGE_DONE);
         for (AuraList::const_iterator i = mModDamageDone.begin(); i != mModDamageDone.end(); ++i)
