@@ -86,8 +86,9 @@
 // Blazing Speed, and Combustion, whose cast leaves no aura to proc; 956 Living Bomb's explosion at
 // expiry and at dispel; 957 Ice Lance at a frozen target, an unfrozen one, and with Fingers of Frost;
 // 958-960 a warrior, a paladin and a death knight staged to level 85 at a fixed attack power cast Heroic
-// Throw, Hammer of Wrath and Death Coil five times at a level-85 target.
-// The guard of 931-938 and 950-960 (Qualify) fingerprints every spell a scenario reaches and refuses
+// Throw, Hammer of Wrath and Death Coil five times at a level-85 target; 961 a priest staged the same way
+// with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it.
+// The guard of 931-938 and 950-961 (Qualify) fingerprints every spell a scenario reaches and refuses
 // the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4925,7 +4926,7 @@ namespace Harness
     };
 
     /**
-     * What the attack power scenarios share (958-960): a human of the scenario's class staged to level 85 with
+     * What the attack power scenarios share (958-961): a human of the scenario's class staged to level 85 with
      * kAttackPower added to his melee and his ranged attack power, the scenario's spell power and its spells
      * (Scenario::StagePlayer), and a Camel (50249) staged to level 85 kTargetYards in front of him
      * (Scenario::SpawnTarget). Then kCasts casts of the scenario's spell at the Camel through the CAST_SPELL handler's
@@ -4937,11 +4938,12 @@ namespace Harness
      * RNG::Seed(TickSeed(base, order, elapsed)), so every run draws the same ones.
      *
      * Categories: `template`; `staged` his level, his melee and ranged attack power with the part the plan added to
-     * each, the spell power of the damaging spell's school, his main hand item, his power, the Camel's level, health
-     * and armor and the holders that can proc, OK when the level, the two added parts and the Camel's level are the plan's; `casts`
-     * each cast's SPELL_GO spells and the damage log of the damaging spell with the Camel's health lost equal to its
-     * amount, a BUG when a cast was refused or not read, or neither hit nor missed; `amounts` the amounts in cast order
-     * (a crit marked `c`, a miss `miss`); `noPersistence`; `digest`.
+     * each, the spell power of the damaging spell's school, his physical damage-done field (the flat physical
+     * damage-done auras), his main hand item, his power, the Camel's level, health and armor and the holders that can
+     * proc, OK when the level, the two added parts and the Camel's level are the plan's; `casts` each cast's SPELL_GO
+     * spells and the damage log of the damaging spell with the Camel's health lost equal to its amount, a BUG when a
+     * cast was refused or not read, or neither hit nor missed; `amounts` the amounts in cast order (a crit marked `c`,
+     * a miss `miss`); `noPersistence`; `digest`.
      */
     class AttackPowerScenario : public SpellScenario
     {
@@ -5096,8 +5098,9 @@ namespace Harness
             Item* mainHand = p->GetWeaponForAttack(BASE_ATTACK, true, false);
             char buf[512];
             snprintf(buf, sizeof(buf),
-                     "level %u; attack power %.2f melee, %.2f ranged, of which %.2f and %.2f staged; spell power %d (school mask %u); main hand item %u; power %u/%u; target %u level %u, health %u/%u, armor %u",
+                     "level %u; attack power %.2f melee, %.2f ranged, of which %.2f and %.2f staged; spell power %d (school mask %u); physical damage-done field %d; main hand item %u; power %u/%u; target %u level %u, health %u/%u, armor %u",
                      p->getLevel(), melee, ranged, meleeAdded, rangedAdded, spellPower, hit ? GetSpellSchoolMask(hit) : 0,
+                     p->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS),
                      mainHand ? mainHand->GetEntry() : 0, p->GetPower(p->GetPowerType()), p->GetMaxPower(p->GetPowerType()),
                      target->GetEntry(), target->getLevel(), target->GetHealth(), target->GetMaxHealth(), target->GetArmor());
             st.stagedText = std::string(buf) + "; holders that can proc: self [" + ProcHolders(p) + "] (by chance [" + LiveProcHolders(p) +
@@ -5390,6 +5393,34 @@ namespace Harness
         }
     };
 
+    /**
+     * S961 `priest-mortar-shot-physical`: Mortar Shot (16786) by a priest staged with kSpellPower spell power. One
+     * SCHOOL_DAMAGE effect, physical, its damage class none, so its damage takes the spell path; SpellEffect.dbc holds
+     * 1.0 for it and Spell.dbc no attack power coefficient. Its targets are filled around the explicit target (A=17 with
+     * B=8, as 937 shows), the Camel alone. It has no hit roll, no cooldown, no cast time and no missile.
+     */
+    class PriestMortarShotPhysical : public AttackPowerScenario
+    {
+    public:
+        PriestMortarShotPhysical() : AttackPowerScenario("priest-mortar-shot-physical", 961) {}
+
+    protected:
+        uint8 Class() const override { return CLASS_PRIEST; }
+        uint32 CastSpell() const override { return 16786; }
+        int32 SpellPower() const override { return kSpellPower; }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 16786: 26 fields, fnv 949067eb
+                { 16786, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_0", 14 }, { "eff0.ImplicitTarget_0", 17 }, { "eff0.ImplicitTarget_1", 8 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+    private:
+        static constexpr int32 kSpellPower = 1000;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -5412,5 +5443,6 @@ namespace Harness
         r.Register(new WarriorHeroicThrowAp());
         r.Register(new PaladinHammerOfWrathAp());
         r.Register(new DeathKnightDeathCoilAp());
+        r.Register(new PriestMortarShotPhysical());
     }
 }
