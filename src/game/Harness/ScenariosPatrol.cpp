@@ -475,7 +475,7 @@ namespace Harness
                     });
                 }
 
-                At(kVerdictAt, [this, ws, wl, kNowhere, kSamples]()
+                At(kVerdictAt, [this, ws, wl]()
                 {
                     char one[340], lap[340];
                     // The standstill path: one node under the walker's feet. Every leg it lays

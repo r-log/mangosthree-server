@@ -418,7 +418,7 @@ namespace Harness
             m_rec.Begin(Name(), p, st->giver, watch);
 
             // ---- accept ----------------------------------------------------------------------
-            At(300, [this, st, questId]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* giver = Get(st->giver);
@@ -449,7 +449,7 @@ namespace Harness
             {
                 const uint32 at = k <= 12 ? 300 + 100 * k : 1700;
                 const uint32 entry = k <= 8 ? 118 : 822;
-                At(at, [this, st, questId, k, entry]()
+                At(at, [this, st, k, entry]()
                 {
                     Player* p = sPlayerRegistry.Find(st->player);
                     CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(entry);
@@ -474,7 +474,7 @@ namespace Harness
             }
 
             // ---- the reward refused while the quest is incomplete (12 of 13) -------------------
-            At(1600, [this, st, questId]()
+            At(1600, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -506,7 +506,7 @@ namespace Harness
             });
 
             // ---- the reward, as the CHOOSE_REWARD handler makes it -------------------------------
-            At(1900, [this, st, questId]()
+            At(1900, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* giver = Get(st->giver);
@@ -551,7 +551,7 @@ namespace Harness
             });
 
             // ---- rewarded once: the second ask is refused at the rewarded check -----------------
-            At(2000, [this, st, questId]()
+            At(2000, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -568,7 +568,7 @@ namespace Harness
             });
 
             // ---- the verdict -----------------------------------------------------------------
-            At(2100, [this, st, questId]()
+            At(2100, [this, st]()
             {
                 m_rec.End();   // the sink comes off before the verdict
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -861,7 +861,7 @@ namespace Harness
             watch.factions.push_back(69);
             m_rec.Begin(Name(), p, ObjectGuid(), watch);
 
-            At(300, [this, st, questId]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -872,7 +872,7 @@ namespace Harness
             // Five stores, the incomplete ask, then the sixth.
             for (uint32 k = 1; k <= 6; ++k)
             {
-                At(300 + 100 * k + (k == 6 ? 100 : 0), [this, st, questId, item, k]()
+                At(300 + 100 * k + (k == 6 ? 100 : 0), [this, st, k]()
                 {
                     Player* p = sPlayerRegistry.Find(st->player);
                     if (!p || !st->accepted) { return; }
@@ -898,7 +898,7 @@ namespace Harness
 
             // ---- the reward asked for with five of six held: the status check (INCOMPLETE) must
             // refuse it before the DELIVER check, which would send ITEM_NOT_FOUND, is reached -----
-            At(900, [this, st, questId, item]()
+            At(900, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -913,7 +913,7 @@ namespace Harness
                 m_rec.Open("canRewardIncomplete+tick");
             });
 
-            At(1100, [this, st, questId, item]()
+            At(1100, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -942,7 +942,7 @@ namespace Harness
                 st->stayedNew = StaysNew(p, questId);
             });
 
-            At(1200, [this, st, questId]()
+            At(1200, [this, st]()
             {
                 m_rec.End();
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -1179,7 +1179,7 @@ namespace Harness
             watch.quests.push_back(questId);
             m_rec.Begin(Name(), p, ObjectGuid(), watch);
 
-            At(300, [this, st, questId, source]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1192,7 +1192,7 @@ namespace Harness
             for (uint32 k = 1; k <= 10; ++k)
             {
                 const uint32 entry = k <= 5 ? 39623 : 39466;
-                At(300 + 100 * k, [this, st, questId, entry, k]()
+                At(300 + 100 * k, [this, st, entry, k]()
                 {
                     Player* p = sPlayerRegistry.Find(st->player);
                     if (!p || !st->accepted) { return; }
@@ -1215,7 +1215,7 @@ namespace Harness
                 });
             }
 
-            At(1400, [this, st, questId, source]()
+            At(1400, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1438,7 +1438,7 @@ namespace Harness
             watch.quests.push_back(questId);
             m_rec.Begin(Name(), p, ObjectGuid(), watch);
 
-            At(300, [this, st, questId]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1447,7 +1447,7 @@ namespace Harness
             });
 
             // ---- the sigil stored as loot would store it, so the reward's own is one too many
-            At(400, [this, st, sigil]()
+            At(400, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->accepted) { return; }
@@ -1459,7 +1459,7 @@ namespace Harness
             // ---- the reward asked for while INCOMPLETE with the sigil held: the base check must
             // refuse it before the overload's fixed-item store check, which would send
             // INVENTORY_CHANGE_FAILURE, is reached ------------------------------------------------
-            At(500, [this, st, questId, sigil]()
+            At(500, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1474,7 +1474,7 @@ namespace Harness
                 m_rec.Open("canRewardIncomplete+tick");
             });
 
-            At(600, [this, st, questId]()
+            At(600, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->incompleteRan) { return; }
@@ -1490,7 +1490,7 @@ namespace Harness
                 m_rec.Open("event+tick");
             });
 
-            At(700, [this, st, questId, sigil]()
+            At(700, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1507,7 +1507,7 @@ namespace Harness
                 m_rec.Open("canRewardHeld+tick");
             });
 
-            At(800, [this, st, sigil]()
+            At(800, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->askRan) { return; }
@@ -1517,7 +1517,7 @@ namespace Harness
                 m_rec.Open("sigilDestroyed+tick");
             });
 
-            At(900, [this, st, questId, sigil]()
+            At(900, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1785,7 +1785,7 @@ namespace Harness
             watch.factions.push_back(1077);
             m_rec.Begin(Name(), p, ObjectGuid(), watch);
 
-            At(300, [this, st, questId]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1793,7 +1793,7 @@ namespace Harness
                 st->accepted = Accept(p, q, p, "accept");
             });
 
-            At(400, [this, st, questId]()
+            At(400, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1807,7 +1807,7 @@ namespace Harness
                 m_rec.Open("canRewardPoor+tick");
             });
 
-            At(500, [this, st, questId]()
+            At(500, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->poorRan) { return; }
@@ -1817,7 +1817,7 @@ namespace Harness
                 m_rec.Open("complete+tick");
             });
 
-            At(600, [this, st, questId]()
+            At(600, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1837,7 +1837,7 @@ namespace Harness
                 m_rec.Open("canRewardPoorComplete+tick");
             });
 
-            At(700, [this, st, questId, price]()
+            At(700, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->completeRan) { return; }
@@ -1849,7 +1849,7 @@ namespace Harness
                 m_rec.Open("seed+tick");
             });
 
-            At(800, [this, st, questId, title]()
+            At(800, [this, st, title]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -1869,7 +1869,7 @@ namespace Harness
                 st->stayedNew = StaysNew(p, questId);
             });
 
-            At(900, [this, st, price]()
+            At(900, [this, st]()
             {
                 m_rec.End();
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -2049,7 +2049,7 @@ namespace Harness
             st->levelSet = p->getLevel();
 
             // Three kills, then three gems; `round` 0 is the first acceptance, 1 the second.
-            auto credit = [this, st, questId, creditEntry, gem](uint32 k, uint32 round)
+            auto credit = [this, st](uint32 k, uint32 round)
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !(round ? st->acceptedAgain : st->accepted)) { return; }
@@ -2079,7 +2079,7 @@ namespace Harness
                 m_rec.Open(window + "+tick");
             };
 
-            At(300, [this, st, questId]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -2091,7 +2091,7 @@ namespace Harness
                 At(300 + 100 * k, [credit, k]() { credit(k, 0); });
             }
 
-            At(1000, [this, st, questId, gem, currency]()
+            At(1000, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -2116,7 +2116,7 @@ namespace Harness
                 st->slotAfter = p->FindQuestSlot(questId);
             });
 
-            At(1100, [this, st, questId]()
+            At(1100, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -2128,7 +2128,7 @@ namespace Harness
                 At(1100 + 100 * (k - 6), [credit, k]() { credit(k, 1); });
             }
 
-            At(1800, [this, st, questId]()
+            At(1800, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -2144,7 +2144,7 @@ namespace Harness
                 st->stayedNew = StaysNew(p, questId);
             });
 
-            At(1900, [this, st, questId, currency]()
+            At(1900, [this, st]()
             {
                 m_rec.End();
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -2621,7 +2621,7 @@ namespace Harness
             SetLevelAsResetDoes(p, level);
             st->levelSet = p->getLevel();
 
-            At(300, [this, st, questId]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -2630,7 +2630,7 @@ namespace Harness
             });
 
             // ---- the scepter stored as loot would store it, so the reward's own is one too many
-            At(400, [this, st, scepter]()
+            At(400, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->accepted) { return; }
@@ -2642,7 +2642,7 @@ namespace Harness
             // ---- the reward asked for while INCOMPLETE with the scepter held: the base check must
             // refuse it before the overload's fixed-item store check, which would send
             // INVENTORY_CHANGE_FAILURE, is reached ------------------------------------------------
-            At(500, [this, st, questId, scepter]()
+            At(500, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -2657,7 +2657,7 @@ namespace Harness
                 m_rec.Open("canRewardIncomplete+tick");
             });
 
-            At(600, [this, st, questId]()
+            At(600, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->incompleteRan) { return; }
@@ -2669,7 +2669,7 @@ namespace Harness
                 m_rec.Open("event+tick");
             });
 
-            At(700, [this, st, questId, scepter]()
+            At(700, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
@@ -2691,7 +2691,7 @@ namespace Harness
                 m_rec.Open("canRewardHeld+tick");
             });
 
-            At(800, [this, st, scepter]()
+            At(800, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->askRan) { return; }
@@ -2701,7 +2701,7 @@ namespace Harness
                 m_rec.Open("scepterDestroyed+tick");
             });
 
-            At(900, [this, st, questId, scepter]()
+            At(900, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);

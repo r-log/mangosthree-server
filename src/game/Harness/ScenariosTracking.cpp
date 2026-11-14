@@ -362,7 +362,7 @@ namespace Harness
                     Log("phase A: the kobold walks %.0f yd straight (+x) to %.1f %.1f", kLine, tx, ty);
                 });
 
-                auto verdict = [this, st, secs, kPhaseAStart, kRadius]()
+                auto verdict = [this, st, secs, kRadius]()
                 {
                     std::string routineBudget, reacquires, noOrbit, engages;
                     char text[512];
@@ -479,7 +479,7 @@ namespace Harness
 
                 for (uint32 i = 1; i <= 400; ++i)
                 {
-                    At(kPhaseAStart + i * 250, [this, g, h, st, secs, verdict, i, kPhaseAStart, kBack, kRadius, kRingPoints]()
+                    At(kPhaseAStart + i * 250, [this, g, h, st, secs, verdict, i, kBack, kRadius]()
                     {
                         if (st->phase >= 6) { return; }
                         Creature* w = Get(g); Creature* k = Get(h); if (!w || !k) { return; }

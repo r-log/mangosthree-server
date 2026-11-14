@@ -777,7 +777,7 @@ namespace Harness
                         }
                     });
                 }
-                At(5000, [this, g, st]()
+                At(5000, [this, st]()
                 {
                     // A bolt is 11-36 yd and the first one is under way well inside four seconds:
                     // ten yards is the line between fleeing and standing, not a measure of the geometry.

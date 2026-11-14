@@ -863,7 +863,7 @@ namespace Harness
             m_rec.Begin(Name(), p, watch);
 
             // ---- the cast, as the CAST_SPELL handler makes it ------------------------------------
-            At(300, [this, st, spellId]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
@@ -942,7 +942,7 @@ namespace Harness
             });
 
             // ---- the verdict -----------------------------------------------------------------
-            At(2400, [this, st, spellId]()
+            At(2400, [this, st]()
             {
                 m_rec.End();   // the sink comes off before the verdict
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -1220,7 +1220,7 @@ namespace Harness
             m_rec.Begin(Name(), p, watch);
 
             // ---- Web: applied, applied again, taken off ------------------------------------
-            At(300, [this, st, WEB]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* c = Get(st->cougar);
@@ -1234,7 +1234,7 @@ namespace Harness
                 m_rec.Open("web+tick");
                 st->ran[0] = true;
             });
-            At(1800, [this, st, WEB]()
+            At(1800, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* c = Get(st->cougar);
@@ -1248,7 +1248,7 @@ namespace Harness
                 m_rec.Open("web-again+tick");
                 st->ran[1] = true;
             });
-            At(3300, [this, st, WEB, NET_GUARD]()
+            At(3300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -1265,7 +1265,7 @@ namespace Harness
             });
 
             // ---- the stances: HandleAuraDummy's warrior labels --------------------------------
-            At(3600, [this, st, STANCE_A, DEF_AURA]()
+            At(3600, [this, st]()
             {
                 Creature* c = Get(st->cougar);
                 if (!c) { return; }
@@ -1277,7 +1277,7 @@ namespace Harness
                 m_rec.Open("stance+tick");
                 st->ran[3] = true;
             });
-            At(3900, [this, st, STANCE_A, DEF_AURA]()
+            At(3900, [this, st]()
             {
                 Creature* c = Get(st->cougar);
                 if (!c) { return; }
@@ -1288,7 +1288,7 @@ namespace Harness
                 m_rec.Open("stance-again+tick");
                 st->ran[4] = true;
             });
-            At(4200, [this, st, STANCE_A, DEF_AURA]()
+            At(4200, [this, st]()
             {
                 Creature* c = Get(st->cougar);
                 if (!c) { return; }
@@ -1300,7 +1300,7 @@ namespace Harness
                 m_rec.Open("stance-removed+tick");
                 st->ran[5] = true;
             });
-            At(4500, [this, st, STANCE_B, DEF_AURA]()
+            At(4500, [this, st]()
             {
                 Creature* c = Get(st->cougar);
                 if (!c) { return; }
@@ -1312,7 +1312,7 @@ namespace Harness
                 m_rec.Open("stance2+tick");
                 st->ran[6] = true;
             });
-            At(4800, [this, st, STANCE_B, DEF_AURA]()
+            At(4800, [this, st]()
             {
                 Creature* c = Get(st->cougar);
                 if (!c) { return; }
@@ -1479,7 +1479,7 @@ namespace Harness
             p->learnSpell(SWP, false);
             st->levelSet = p->getLevel();
 
-            At(kCastAt, [this, st, SWP]()
+            At(kCastAt, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
@@ -1515,7 +1515,7 @@ namespace Harness
                     m_rec.Open("tick" + U(k));
                 });
             }
-            At(kCastAt + kPeriod * kTicks + kPeriod / 2, [this, st, SWP]()
+            At(kCastAt + kPeriod * kTicks + kPeriod / 2, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
@@ -1528,7 +1528,7 @@ namespace Harness
                 m_rec.Open("after+tick");
             });
 
-            At(kCastAt + kPeriod * kTicks + kPeriod / 2 + 300, [this, st, kTicks]()
+            At(kCastAt + kPeriod * kTicks + kPeriod / 2 + 300, [this, st]()
             {
                 m_rec.End();
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -1689,7 +1689,7 @@ namespace Harness
 
             for (uint32 attempt = 0; attempt < kCastAttempts; ++attempt)
             {
-            At(kCastAt + kCastRetry * attempt, [this, st, SWP, attempt]()
+            At(kCastAt + kCastRetry * attempt, [this, st, attempt]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
@@ -1718,7 +1718,7 @@ namespace Harness
                 m_rec.Note("Shadow Word: Pain on the target after attempt " + U(attempt + 1) + ": " + st->holderAfterCast);
             });
             }
-            At(kMoveAt, [this, st, kOtherMap, kQuietSpot]()
+            At(kMoveAt, [this, st, kQuietSpot]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->cast) { return; }
@@ -1738,7 +1738,7 @@ namespace Harness
                     st->healthAfterTick.push_back(target->GetHealth());
                 });
             }
-            At(kCastAt + kPeriod * kTicks + kPeriod / 2, [this, st, SWP, kHarnessMap]()
+            At(kCastAt + kPeriod * kTicks + kPeriod / 2, [this, st, kHarnessMap]()
             {
                 Creature* target = Get(st->target);
                 if (!target || !st->moved) { return; }
@@ -1755,7 +1755,7 @@ namespace Harness
                 }
             });
 
-            At(kCastAt + kPeriod * kTicks + kPeriod / 2 + 300, [this, st, kTicks]()
+            At(kCastAt + kPeriod * kTicks + kPeriod / 2 + 300, [this, st]()
             {
                 m_rec.End();
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -1898,7 +1898,7 @@ namespace Harness
             m_rec.Begin(Name(), p, watch);
 
             // one hit: the cougar's Burning Shadows on the priest, in window `name`
-            auto hit = [this, st, POKE](char const* name, uint32 index)
+            auto hit = [this, st](char const* name, uint32 index)
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* c = Get(st->cougar);
@@ -1910,7 +1910,7 @@ namespace Harness
                 st->ran[index] = true;
             };
 
-            At(300, [this, st, EARTH_SHIELD]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* c = Get(st->cougar);
@@ -1926,13 +1926,13 @@ namespace Harness
                 st->ran[0] = true;
             });
             At(600, [hit]() { hit("hit1", 1); });
-            At(900, [this, st, hit, EARTH_SHIELD]()
+            At(900, [st, hit]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (p) { st->es1 = HolderOf(p, EARTH_SHIELD); }
                 hit("hit2", 2);
             });
-            At(1200, [this, st, EARTH_SHIELD]()
+            At(1200, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -1944,7 +1944,7 @@ namespace Harness
                 m_rec.Open("earth-shield-removed+tick");
                 st->ran[3] = true;
             });
-            At(1500, [this, st, LIGHTNING_SHIELD]()
+            At(1500, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -1956,7 +1956,7 @@ namespace Harness
                 st->ran[4] = true;
             });
             At(1800, [hit]() { hit("hit3", 5); });
-            At(2100, [this, st, LIGHTNING_SHIELD, LS_DAMAGE]()
+            At(2100, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -1971,7 +1971,7 @@ namespace Harness
                 st->ran[6] = true;
             });
             At(2400, [hit]() { hit("hit4", 7); });
-            At(2700, [this, st, LIGHTNING_SHIELD]()
+            At(2700, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -2140,7 +2140,7 @@ namespace Harness
             m_rec.Open("learn", false);          // a setup window: logged, never digested
             p->learnSpell(INNER_FOCUS, false);
 
-            At(300, [this, st, EVERY_MAN]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* c = Get(st->cougar);
@@ -2155,7 +2155,7 @@ namespace Harness
                 m_rec.Open("category+tick");
                 st->ran[0] = true;
             });
-            At(600, [this, st, INNER_FOCUS]()
+            At(600, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -2167,7 +2167,7 @@ namespace Harness
                 m_rec.Open("focus+tick");
                 st->ran[1] = true;
             });
-            At(900, [this, st, INNER_FOCUS]()
+            At(900, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -2178,7 +2178,7 @@ namespace Harness
                 m_rec.Open("focus-removed+tick");
                 st->ran[2] = true;
             });
-            At(1200, [this, st, SMITE, INTERRUPT]()
+            At(1200, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* c = Get(st->cougar);
@@ -2197,7 +2197,7 @@ namespace Harness
                 m_rec.Open("interrupt+tick");
                 st->ran[3] = true;
             });
-            At(1500, [this, st, CATEGORY]()
+            At(1500, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -2207,7 +2207,7 @@ namespace Harness
                 m_rec.Note("after RemoveSpellCategoryCooldown(1182, true): stored keys [" + st->keysAfterClearCategory + "]");
                 st->ran[4] = true;
             });
-            At(1800, [this, st, INNER_FOCUS]()
+            At(1800, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -2227,7 +2227,7 @@ namespace Harness
                 m_rec.Note("after RemoveAllSpellCooldown(): stored keys [" + st->keysAfterClearAll + "]");
                 st->ran[6] = true;
             });
-            At(2400, [this, st, EVERY_MAN]()
+            At(2400, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -2239,7 +2239,7 @@ namespace Harness
                 st->ran[7] = true;
             });
 
-            At(2700, [this, st, EVERY_MAN, INNER_FOCUS]()
+            At(2700, [this, st]()
             {
                 m_rec.End();
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -2403,7 +2403,7 @@ namespace Harness
                 return s ? U(s->m_spellInfo->ID) + " state " + U(s->getState()) : std::string("none");
             };
 
-            At(300, [this, st, SMITE, slot]()
+            At(300, [this, st, slot]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
@@ -2421,7 +2421,7 @@ namespace Harness
                 m_rec.Open("cast1+tick");
                 st->ran[0] = true;
             });
-            At(800, [this, st, BASH, slot]()
+            At(800, [this, st, slot]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* basher = Get(st->basher);
@@ -2435,7 +2435,7 @@ namespace Harness
                 m_rec.Open("bash+tick");
                 st->ran[1] = true;
             });
-            At(1100, [this, st, BASH]()
+            At(1100, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p) { return; }
@@ -2445,7 +2445,7 @@ namespace Harness
                 m_rec.Open("stun-removed+tick");
                 st->ran[2] = true;
             });
-            At(2200, [this, st, SMITE, slot]()
+            At(2200, [this, st, slot]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
@@ -2620,7 +2620,7 @@ namespace Harness
 
             for (uint32 k = 0; k < kHellfireCasts; ++k)
             {
-                At(300 + 1600 * k, [this, st, k, HELLFIRE]()
+                At(300 + 1600 * k, [this, st, k]()
                 {
                     Player* p = sPlayerRegistry.Find(st->player);
                     if (!p || !st->procSelf.empty()) { return; }
@@ -2634,7 +2634,7 @@ namespace Harness
                 // The channel's instant cast lands in the next map update (Spell::update), where
                 // the roll is drawn under the map hook's seed; 200 ms on, before the first 1 s tick
                 // of either aura, the holder is read and the channel ended.
-                At(300 + 1600 * k + 200, [this, st, k, HELLFIRE]()
+                At(300 + 1600 * k + 200, [this, st, k]()
                 {
                     Player* p = sPlayerRegistry.Find(st->player);
                     if (!p || !st->procSelf.empty() || st->castIds.size() != k + 1) { return; }
@@ -2651,7 +2651,7 @@ namespace Harness
                 });
             }
 
-            At(300 + 1600 * kHellfireCasts, [this, st, HELLFIRE]()
+            At(300 + 1600 * kHellfireCasts, [this, st]()
             {
                 m_rec.End();
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -2828,7 +2828,7 @@ namespace Harness
             m_rec.Open("learn", false);          // a setup window: logged, never digested
             p->learnSpell(MORTAR_SHOT, false);
 
-            At(300, [this, st, MORTAR_SHOT]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* target = Get(st->target);
@@ -3168,7 +3168,7 @@ namespace Harness
             m_rec.Open("learn", false);          // a setup window: logged, never digested
             pet->learnSpell(TORMENT);
 
-            At(300, [this, st, TORMENT]()
+            At(300, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Pet* pet = FindPet(st->pet);
@@ -3231,7 +3231,7 @@ namespace Harness
                 m_rec.Open("pet-released", false);   // a setup window: the pet's end
                 EndVoidwalker(sPlayerRegistry.Find(st->player), FindPet(st->pet));
             });
-            At(2600, [this, st, CHARM]()
+            At(2600, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* charmed = Get(st->charmed);
@@ -3243,7 +3243,7 @@ namespace Harness
                 m_rec.Open("charm+tick");
                 st->ran[2] = true;
             });
-            At(2900, [this, st, TORMENT]()
+            At(2900, [this, st]()
             {
                 Player* p = sPlayerRegistry.Find(st->player);
                 Creature* charmed = Get(st->charmed);
@@ -3258,7 +3258,7 @@ namespace Harness
                 m_rec.Open("charmed-cast+tick");
                 st->ran[3] = true;
             });
-            At(3200, [this, st, CHARM]()
+            At(3200, [this, st]()
             {
                 Creature* charmed = Get(st->charmed);
                 m_rec.Open("charm-released", false); // a setup window: the charm taken back
@@ -3275,7 +3275,7 @@ namespace Harness
                 }
             });
 
-            At(3500, [this, st, TORMENT]()
+            At(3500, [this, st]()
             {
                 m_rec.End();
                 Player* p = sPlayerRegistry.Find(st->player);
@@ -3517,7 +3517,7 @@ namespace Harness
 
             for (uint32 k = 0; k < kFireballCasts; ++k)
             {
-                At(300 + kCastEveryMs * k, [this, st, k, FIREBALL]()
+                At(300 + kCastEveryMs * k, [this, st, k]()
                 {
                     Player* p = sPlayerRegistry.Find(st->player);
                     Creature* target = Get(st->target);
@@ -3565,7 +3565,7 @@ namespace Harness
                 });
             }
 
-            At(300 + kCastEveryMs * kFireballCasts, [this, st, FIREBALL]()
+            At(300 + kCastEveryMs * kFireballCasts, [this, st]()
             {
                 m_rec.End();   // the sink comes off before the verdict
                 Player* p = sPlayerRegistry.Find(st->player);
