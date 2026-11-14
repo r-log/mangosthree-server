@@ -59,6 +59,7 @@
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "spells/data/SpellMgr.h"
+#include "combat/SpellBonus.h"
 #include "Player.h"
 #include "Unit.h"
 #include "spells/auras/SpellAuras.h"
@@ -464,7 +465,7 @@ pAuraHandler AuraHandler[TOTAL_AURAS] =
 };
 
 Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBasePoints, SpellAuraHolder* holder, Unit* target, Unit* caster, Item* castItem) :
-    m_periodicTimer(0), m_firstTickDelay(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
+    m_modifierValue(0.0f), m_periodicTimer(0), m_firstTickDelay(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
     m_effIndex(eff), m_positive(false), m_isPeriodic(false), m_isAreaAura(false),
     m_isPersistent(false), m_in_use(0), m_spellAuraHolder(holder)
 {
@@ -527,6 +528,17 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Aura: construct Spellid : %u, Aura : %u Target : %d Damage : %d", spellproto->ID, m_spellEffect->EffectAura, m_spellEffect->ImplicitTarget_0, damage);
 
     SetModifier(AuraType(m_spellEffect->EffectAura), damage, m_spellEffect->EffectAuraPeriod, m_spellEffect->EffectMiscValue_0);
+
+    // A spell modifier of a player's mastery adds the mastery amount with its fraction; any other adds the amount.
+    m_modifierValue = float(m_modifier.m_amount);
+    if (caster && caster->GetTypeId() == TYPEID_PLAYER &&
+        (m_modifier.m_auraname == SPELL_AURA_ADD_FLAT_MODIFIER || m_modifier.m_auraname == SPELL_AURA_ADD_PCT_MODIFIER))
+    {
+        if (float const coefficient = MasteryCoefficient(spellproto, m_spellEffect))
+        {
+            m_modifierValue = Combat::MasteryAmount(coefficient, caster->GetFloatValue(PLAYER_MASTERY));
+        }
+    }
 
     SpellModMgr* modOwner = caster ? caster->GetSpellMods() : NULL;
 

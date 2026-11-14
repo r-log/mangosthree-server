@@ -108,16 +108,16 @@ namespace
     /// A modifier as an aura holds it: an identity, an amount and a class mask the entry points at.
     struct FakeModifier
     {
-        int32 amount;
+        float amount;
         ClassFamilyMask mask;
         Aura const* aura;
 
-        FakeModifier(int32 amountIn, ClassFamilyMask maskIn, uintptr_t identity)
+        FakeModifier(float amountIn, ClassFamilyMask maskIn, uintptr_t identity)
             : amount(amountIn), mask(maskIn), aura(reinterpret_cast<Aura const*>(identity)) { }
 
-        SpellModEntry Entry(bool flat, SpellModOp op, SpellFamily family = SPELLFAMILY_MAGE) const
+        SpellModEntry Entry(bool flat, SpellModOp op, SpellFamily family = SPELLFAMILY_MAGE, bool mastery = false) const
         {
-            SpellModEntry entry = { aura, flat, &amount, int32(op), uint32(family), &mask };
+            SpellModEntry entry = { aura, flat, &amount, int32(op), uint32(family), &mask, mastery };
             return entry;
         }
     };
@@ -136,7 +136,7 @@ namespace
         }
     };
 
-    bool SameValues(SpellModChangedFact const& fact, std::vector<std::pair<int, int32> > const& want)
+    bool SameValues(SpellModChangedFact const& fact, std::vector<std::pair<int, float> > const& want)
     {
         if (fact.values.size() != want.size())
         {
@@ -382,23 +382,23 @@ TEST(SpellModMgr_EachValueType)
 }
 
 // The amount is read through its address at each use: a write to it while the modifier is listed
-// (the mastery update rewrites an aura's amount in place) changes what it adds.
+// changes what it adds.
 TEST(SpellModMgr_TheAmountIsReadAtEachUse)
 {
     SeedStores();
     SpellModMgr mgr;
     Recorder recorder;
-    int32 amount = 10;
+    float amount = 10.0f;
     ClassFamilyMask mask = kBit1;
     SpellModEntry entry = { reinterpret_cast<Aura const*>(uintptr_t(1)), false, &amount, int32(SPELLMOD_DAMAGE),
-                            uint32(SPELLFAMILY_MAGE), &mask };
+                            uint32(SPELLFAMILY_MAGE), &mask, false };
     mgr.Change(entry, true, recorder.Sink());
 
     float before = 100.0f;
     mgr.ApplySpellMod(kSpellMage, SPELLMOD_DAMAGE, before);
     CHECK(before == 110.0f);
 
-    amount = 30;
+    amount = 30.0f;
 
     float after = 100.0f;
     mgr.ApplySpellMod(kSpellMage, SPELLMOD_DAMAGE, after);

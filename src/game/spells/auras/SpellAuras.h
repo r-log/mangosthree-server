@@ -458,6 +458,14 @@ class  Aura
         void SetModifier(AuraType t, int32 a, uint32 pt, int32 miscValue);
         Modifier*       GetModifier()       { return &m_modifier; }
         Modifier const* GetModifier() const { return &m_modifier; }
+        /// The amount a spell modifier of this aura adds, with its fraction: a mastery effect's value, else the amount.
+        float const& ModifierValue() const { return m_modifierValue; }
+        /// Writes the amount a spell modifier of this aura adds, and the integer amount the aura shows.
+        void SetModifierValue(float value)
+        {
+            m_modifierValue = value;
+            m_modifier.m_amount = int32(value);
+        }
         int32 GetMiscValue() const { return m_spellEffect ? m_spellEffect->EffectMiscValue_0 : 0; }
         int32 GetMiscBValue() const { return m_spellEffect ? m_spellEffect->EffectMiscValue_1 : 0; }
 
@@ -570,6 +578,7 @@ class  Aura
         void ReapplyAffectedPassiveAuras();
 
         Modifier m_modifier;
+        float m_modifierValue;                              // what a spell modifier of this aura adds (ModifierValue)
 
         SpellEffectEntry const* m_spellEffect;
         time_t m_applyTime;

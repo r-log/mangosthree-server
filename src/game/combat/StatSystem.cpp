@@ -29,6 +29,7 @@
 #include <vector>
 #include "DBCStores.h"
 #include "Unit.h"
+#include "combat/SpellBonus.h"
 #include "combat/WeaponDamage.h"
 #include "Player.h"
 #include "Pet.h"
@@ -870,14 +871,6 @@ void Player::UpdateMasteryAuras()
 
         SpellEntry const* spellEntry = holder->GetSpellProto();
 
-        // calculate mastery scaling coef
-        int32 masteryCoef = GetMasteryCoefficient(spellEntry);
-        if (!masteryCoef)
-        {
-            continue;
-        }
-
-        // update aura modifiers
         for (uint32 j = 0; j < MAX_EFFECT_INDEX; ++j)
         {
             Aura* aura = holder->GetAuraByEffectIndex(SpellEffectIndex(j));
@@ -886,13 +879,26 @@ void Player::UpdateMasteryAuras()
                 continue;
             }
 
-            if (spellEntry->CalculateSimpleValue(SpellEffectIndex(j)))
+            float const masteryCoefficient = MasteryCoefficient(spellEntry, aura->GetSpellEffect());
+            if (!masteryCoefficient)
             {
                 continue;
             }
 
+            float const amount = Combat::MasteryAmount(masteryCoefficient, masteryValue);
+            Modifier const* mod = aura->GetModifier();
+            if ((mod->m_auraname == SPELL_AURA_ADD_FLAT_MODIFIER || mod->m_auraname == SPELL_AURA_ADD_PCT_MODIFIER) &&
+                mod->m_miscvalue < MAX_SPELLMOD)
+            {
+                // a spell modifier is listed again with the new value, so the sums and the client's packet carry it
+                AddSpellMod(aura, false);
+                aura->SetModifierValue(amount);
+                AddSpellMod(aura, true);
+                continue;
+            }
+
             aura->ApplyModifier(false, false);
-            aura->GetModifier()->m_amount = int32(masteryValue * masteryCoef / 100.0f);
+            aura->GetModifier()->m_amount = int32(amount);
             aura->ApplyModifier(true, false);
         }
     }

@@ -194,4 +194,9 @@ namespace Combat
 
         return std::max(schoolSpellPower, physicalDamageDone);
     }
+
+    float MasteryAmount(float coefficient, float masteryPoints)
+    {
+        return coefficient * masteryPoints;
+    }
 }

@@ -2616,12 +2616,12 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
     bool unitPlayer = GetTypeId() == TYPEID_PLAYER;
     uint32 level = getLevel();
 
-    // calculate basepoints dependent on mastery
-    if (unitPlayer && spellProto->HasAttribute(SPELL_ATTR_EX8_MASTERY) && !spellProto->CalculateSimpleValue(effect_index))
+    // a player's mastery effect holds its bonus coefficient times his mastery points
+    if (unitPlayer)
     {
-        if (int32 masteryCoef = GetMasteryCoefficient(spellProto))
+        if (float const masteryCoefficient = MasteryCoefficient(spellProto, spellEffect))
         {
-            return int32(GetFloatValue(PLAYER_MASTERY) * masteryCoef / 100.0f);
+            return int32(Combat::MasteryAmount(masteryCoefficient, GetFloatValue(PLAYER_MASTERY)));
         }
     }
 
