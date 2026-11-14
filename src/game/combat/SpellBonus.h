@@ -186,6 +186,10 @@ namespace Combat
     /// The value a mastery effect holds: its bonus coefficient times the player's mastery points, the fraction kept
     /// (8 points at 2.8 a point give 22.4).
     float MasteryAmount(float coefficient, float masteryPoints);
+
+    /// The damage one tick of a DoT deals when `percent` of `amount` is spread over `ticks` ticks: the share as an
+    /// integer, then divided by the ticks. 0 when the share is below the tick count.
+    int32 DotShareTick(float amount, uint32 percent, uint32 ticks);
 }
 
 #endif // MANGOSSERVER_COMBAT_SPELLBONUS_H
