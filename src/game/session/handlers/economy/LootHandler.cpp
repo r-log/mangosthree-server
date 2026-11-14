@@ -135,11 +135,11 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
             return;
         }
 
-        /* Checking if the item is prospectable or millable, if it is, it will clear the loot, then it
+        /* Checking if the loot is prospecting or milling loot, if it is, it will clear the loot, then it
          * will check if the count is greater than 5, if it is, it will set the count to 5, then it
          * will destroy the item.
          */
-        if (pItem->loot.loot_type == ITEM_FLAG_PROSPECTABLE || pItem->loot.loot_type == ITEM_FLAG_MILLABLE)
+        if (pItem->loot.loot_type == LOOT_PROSPECTING || pItem->loot.loot_type == LOOT_MILLING)
         {
             /* Clearing the loot vector of the item. */
             pItem->loot.clear();
@@ -153,10 +153,20 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
             /* Destroying the item count. */
             player->DestroyItemCount(pItem, count, true);
         }
+        else if (pItem->loot.loot_type == LOOT_DISENCHANTING)
+        {
+            /* Storing what is left of the disenchanting loot in the bags, then destroying the item. */
+            if (!pItem->loot.isLooted())
+            {
+                player->AutoStoreLoot(pItem->loot);
+            }
+
+            player->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
+        }
         else
         {
             /* Checking if the item is looted or not. If it is looted, it will destroy the item. */
-            if (pItem->loot.isLooted() || pItem->loot.loot_type != ITEM_FLAG_LOOTABLE)
+            if (pItem->loot.isLooted())
             {
                 /* Destroying the item in the player's inventory. */
                 player->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
