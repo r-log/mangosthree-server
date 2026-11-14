@@ -248,7 +248,7 @@ TEST(SpellScriptHooks_TheFourteenKeysAre100To113AboveEveryLegacySite)
     }
 
     // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
-    // proc, damage-done, dummy aura, aura-remove and dummy-effect hooks.
+    // proc, damage-done, dummy aura, aura-apply, aura-remove and dummy-effect hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
@@ -256,7 +256,8 @@ TEST(SpellScriptHooks_TheFourteenKeysAre100To113AboveEveryLegacySite)
         belowHooks += game.CountAt(site);
     }
     CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key) +
-             game.CountAt(DummyAuraHook::Key) + game.CountAt(AuraRemoveHook::Key) + game.CountAt(DummyEffectHook::Key),
+             game.CountAt(DummyAuraHook::Key) + game.CountAt(AuraApplyHook::Key) + game.CountAt(AuraRemoveHook::Key) +
+             game.CountAt(DummyEffectHook::Key),
              game.Count());
 }
 
@@ -622,11 +623,12 @@ TEST(SpellScriptHooks_RegisterScriptPutsOneBodyUnderOneId)
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
     // The proc hook holds the mage's 20 proc scripts, the target hook Blink's, the damage-done hook Ice Lance's, the
-    // dummy aura hook Living Bomb's, the aura-remove hook Hot Streak's buff's and the dummy-effect hook Combustion's
+    // dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's nine (its seven DoTs and two ranks), the
+    // aura-remove hook Hot Streak's buff's and Pyromaniac's nine, and the dummy-effect hook Combustion's
     // (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
-        CheckCastHook::Key, EffectValueHook::Key, AfterHitHook::Key, AuraAmountHook::Key, AuraApplyHook::Key,
+        CheckCastHook::Key, EffectValueHook::Key, AfterHitHook::Key, AuraAmountHook::Key,
         PeriodicTickHook::Key, CheckProcHook::Key, CritChanceHook::Key,
     };
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -638,8 +640,9 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(9));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(10));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1256));
+    CHECK_EQ(game.Count(), std::size_t(1274));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }

@@ -909,10 +909,10 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
     // script-effect site's 283 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows,
     // the eight dummy proc sites' 37, 4, 10, 8, 11, 5, 26 and 10 rows, the haste, crit-chance and two
-    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 25 rows on the proc, target, damage-done, dummy
-    // aura, aura-remove and dummy-effect hooks.
+    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 43 rows on the proc, target, damage-done, dummy
+    // aura, aura-apply, aura-remove and dummy-effect hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1256));
+    CHECK_EQ(game.Count(), std::size_t(1274));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(34));
 }
@@ -4883,9 +4883,9 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(148));
     CHECK_EQ(registry.CountDefaults(), std::size_t(12));
 
-    // The game's table holds these with the other files' 1108 rows and 17 defaults.
+    // The game's table holds these with the other files' 1126 rows and 17 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1256));
+    CHECK_EQ(game.Count(), std::size_t(1274));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
@@ -5763,9 +5763,9 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(302));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
-    // The game's table holds these with the other files' 954 rows and 27 defaults.
+    // The game's table holds these with the other files' 972 rows and 27 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1256));
+    CHECK_EQ(game.Count(), std::size_t(1274));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(283));
     CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
@@ -6454,9 +6454,9 @@ TEST(SpellMgrHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(20));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1236 rows and 29 defaults.
+    // The game's table holds these with the other files' 1254 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1256));
+    CHECK_EQ(game.Count(), std::size_t(1274));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
 }
@@ -6733,9 +6733,9 @@ TEST(UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(11));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1245 rows and 29 defaults.
+    // The game's table holds these with the other files' 1263 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1256));
+    CHECK_EQ(game.Count(), std::size_t(1274));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellDamageTakenSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(SpellHealingDoneSite::Key), std::size_t(2));
@@ -7095,9 +7095,9 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(146));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1110 rows and 29 defaults.
+    // The game's table holds these with the other files' 1128 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1256));
+    CHECK_EQ(game.Count(), std::size_t(1274));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     for (std::size_t k = 0; k < 12; ++k)
     {

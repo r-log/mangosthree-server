@@ -30,6 +30,7 @@
 #include "spells/SpellModMgr.h"
 #include "spells/SpellScriptQueries.h"
 #include "combat/SpellBonus.h"
+#include "combat/ThreatManager.h"
 #include "entities/Unit.h"
 #include "DBCStores.h"
 #include "Log.h"
@@ -268,6 +269,89 @@ namespace
         return SpellHandlerOutcome<void>::Return();
     }
 
+    uint32 const PYROMANIAC_RANK_1 = 34293;
+    uint32 const PYROMANIAC_RANK_2 = 34295;
+    uint32 const PYROMANIAC_HASTE = 83582;
+
+    /// The DoTs Pyromaniac counts: Flamestrike's ground effect (2120), Pyroblast (11366), Ignite (12654), Living Bomb
+    /// (44457), Frostfire Bolt (44614), Combustion (83853) and Pyroblast! (92315).
+    uint32 const PYROMANIAC_DOTS[] = { 2120, 11366, 12654, 44457, 44614, 83853, 92315 };
+
+    /// When `caster`, the caster of a holder of a DoT Pyromaniac counts that was just added to `target` or taken off
+    /// it, is a player in the world on `target`'s map who knows Pyromaniac (34295, else 34293), his burning enemies are
+    /// counted again: Pyromaniac's haste (83582) is cast on him with the rank's value when three or more burn and he
+    /// lacks it, and taken off him when fewer burn and he has it. A caster anywhere else is left as he is.
+    void PyromaniacRecount(Unit* caster, Unit& target)
+    {
+        if (!caster || caster->GetTypeId() != TYPEID_PLAYER || !caster->IsInWorld() || caster->FindMap() != target.FindMap())
+        {
+            return;
+        }
+        uint32 const talent = caster->HasAura(PYROMANIAC_RANK_2) ? PYROMANIAC_RANK_2
+                            : caster->HasAura(PYROMANIAC_RANK_1) ? PYROMANIAC_RANK_1 : 0;
+        if (!talent)
+        {
+            return;
+        }
+
+        bool const active = Mage::PyromaniacActive(Mage::PyromaniacTargets(*caster));
+        bool const hasHaste = caster->HasAura(PYROMANIAC_HASTE);
+        if (active && !hasHaste)
+        {
+            int32 const basePoints[MAX_EFFECT_INDEX] = { Mage::PyromaniacHaste(talent), 0, 0 };
+            caster->CastCustomSpell(caster, PYROMANIAC_HASTE, &basePoints[EFFECT_INDEX_0], NULL, NULL, true);
+        }
+        else if (!active && hasHaste)
+        {
+            caster->RemoveAurasDueToSpell(PYROMANIAC_HASTE);
+        }
+    }
+
+    /// 2120, 11366, 12654, 44457, 83853, 92315: the DoTs Pyromaniac counts, when their holder is added: the caster's
+    /// burning enemies are counted again with the new holder on its target (PyromaniacRecount). The holder's boosts
+    /// still run.
+    SpellHandlerOutcome<void> PyromaniacDotApply(AuraApplyContext& ctx)
+    {
+        PyromaniacRecount(ctx.caster, ctx.target);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 44614: Frostfire Bolt: when its holder is added, the caster's burning enemies are counted again for Pyromaniac,
+    /// as PyromaniacDotApply counts them. The holder's boosts still run.
+    SpellHandlerOutcome<void> FrostfireBoltAuraApply(AuraApplyContext& ctx)
+    {
+        return PyromaniacDotApply(ctx);
+    }
+
+    /// The seven DoTs Pyromaniac counts, when their holder is removed: the caster's burning enemies are counted again
+    /// with the holder gone (PyromaniacRecount). A removal by re-application (AURA_REMOVE_BY_STACK) changes nothing:
+    /// the apply that follows counts. The holder's boosts still run.
+    SpellHandlerOutcome<void> PyromaniacDotRemove(AuraRemoveContext& ctx)
+    {
+        if (ctx.mode != AURA_REMOVE_BY_STACK)
+        {
+            PyromaniacRecount(ctx.caster, ctx.target);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 34293, 34295: Pyromaniac: when the talent's holder is added (a login, a respec, a new rank), Pyromaniac's haste
+    /// (83582) is taken off the mage; the next DoT it counts puts the haste back when it is due. The holder's boosts
+    /// still run.
+    SpellHandlerOutcome<void> PyromaniacTalentApply(AuraApplyContext& ctx)
+    {
+        ctx.RemoveAura(ctx.target, PYROMANIAC_HASTE);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 34293, 34295: Pyromaniac: when the talent's holder is removed, Pyromaniac's haste (83582) is taken off the mage.
+    /// The holder's boosts still run.
+    SpellHandlerOutcome<void> PyromaniacTalentRemove(AuraRemoveContext& ctx)
+    {
+        ctx.RemoveAura(ctx.target, PYROMANIAC_HASTE);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     uint32 const IGNITE[] = { 11119, 11120, 12846 };
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
     uint32 const HOT_STREAK[] = { 44445 };
@@ -275,6 +359,9 @@ namespace
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
     uint32 const LIVING_BOMB[] = { 44457 };
     uint32 const COMBUSTION[] = { 11129 };
+    uint32 const PYROMANIAC_DOTS_APPLIED[] = { 2120, 11366, 12654, 44457, 83853, 92315 };
+    uint32 const FROSTFIRE_BOLT[] = { 44614 };
+    uint32 const PYROMANIAC[] = { PYROMANIAC_RANK_1, PYROMANIAC_RANK_2 };
 }
 
 bool Mage::CountCritInARow(int32& crits, bool crit)
@@ -332,6 +419,48 @@ int32 Mage::CombustionTick(DotShare const* shares, size_t count, DotShare const*
     return perSecond > 0.0 ? int32(perSecond) : 0;
 }
 
+bool Mage::PyromaniacCounts(uint32 spellId)
+{
+    return std::find(std::begin(PYROMANIAC_DOTS), std::end(PYROMANIAC_DOTS), spellId) != std::end(PYROMANIAC_DOTS);
+}
+
+bool Mage::PyromaniacActive(uint32 targets)
+{
+    return targets >= 3;
+}
+
+uint32 Mage::PyromaniacTargets(Unit& mage)
+{
+    uint32 burning = 0;
+    for (HostileReference* ref = mage.GetHostileRefManager().getFirst(); ref; ref = ref->next())
+    {
+        Unit* enemy = ref->getSource()->getOwner();
+        if (!enemy || !enemy->IsAlive() || !enemy->IsInWorld() || enemy->FindMap() != mage.FindMap())
+        {
+            continue;
+        }
+        for (uint32 spellId : PYROMANIAC_DOTS)
+        {
+            if (enemy->GetSpellAuraHolder(spellId, mage.GetObjectGuid()))
+            {
+                ++burning;
+                break;
+            }
+        }
+    }
+    return burning;
+}
+
+int32 Mage::PyromaniacHaste(uint32 talentSpell)
+{
+    if (std::find(std::begin(PYROMANIAC), std::end(PYROMANIAC), talentSpell) == std::end(PYROMANIAC))
+    {
+        return 0;
+    }
+    SpellEntry const* talent = sSpellStore.LookupEntry(talentSpell);
+    return talent ? talent->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
+}
+
 uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
 {
     uint32 rows = RegisterRanks<OnProcHook>(registry, IGNITE, &IgniteProc);
@@ -340,6 +469,11 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AuraRemoveHook>(registry, HOT_STREAK_BUFFS, &HotStreakBuffRemove);
     rows += RegisterRanks<OnProcHook>(registry, BLAZING_SPEED, &BlazingSpeedProc);
     rows += RegisterRanks<DummyAuraHook>(registry, LIVING_BOMB, &LivingBombDummyAura);
+    rows += RegisterRanks<AuraApplyHook>(registry, PYROMANIAC_DOTS_APPLIED, &PyromaniacDotApply);
+    rows += RegisterRanks<AuraApplyHook>(registry, FROSTFIRE_BOLT, &FrostfireBoltAuraApply);
+    rows += RegisterRanks<AuraRemoveHook>(registry, PYROMANIAC_DOTS, &PyromaniacDotRemove);
+    rows += RegisterRanks<AuraApplyHook>(registry, PYROMANIAC, &PyromaniacTalentApply);
+    rows += RegisterRanks<AuraRemoveHook>(registry, PYROMANIAC, &PyromaniacTalentRemove);
     rows += RegisterRanks<DummyEffectHook>(registry, COMBUSTION, &CombustionEffect);
     return rows;
 }
