@@ -379,7 +379,7 @@ void Guild::SetBankMoneyPerDay(uint32 rankId, uint32 money)
 
     if (rankId == GR_GUILDMASTER)
     {
-        money = (uint32)WITHDRAW_MONEY_UNLIMITED;
+        money = WITHDRAW_MONEY_PER_DAY_UNLIMITED;
     }
 
     m_Ranks[rankId].BankMoneyPerDay = money;
@@ -436,7 +436,7 @@ uint32 Guild::GetBankMoneyPerDay(uint32 rankId)
 
     if (rankId == GR_GUILDMASTER)
     {
-        return (uint32)WITHDRAW_MONEY_UNLIMITED;
+        return WITHDRAW_MONEY_PER_DAY_UNLIMITED;
     }
     return m_Ranks[rankId].BankMoneyPerDay;
 }

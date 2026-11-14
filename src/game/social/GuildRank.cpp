@@ -90,7 +90,7 @@ void Guild::DelRank(uint32 rankId)
         return;
     }
 
-    RankList::iterator itr = m_Ranks.erase(m_Ranks.begin() + rankId);
+    m_Ranks.erase(m_Ranks.begin() + rankId);
     // delete lowest guild_rank
     GuildRepository::DeleteRank(m_Id, rankId);
 }
