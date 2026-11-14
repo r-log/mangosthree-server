@@ -31,23 +31,31 @@
 /// passes. The aura handle runs on a holder's storage that was never constructed, its fields written through the
 /// holder's setters; Amount and DropCharge are not called there (the first reads an Aura, which this binary cannot
 /// build, the second tells the clients). The script words of a constructed holder are read from a holder built, on a
-/// spell put into the store as the registry's own holder test does, in storage whose bytes were all 0xA5.
+/// spell put into the store as the registry's own holder test does, in storage whose bytes were all 0xA5. The periodic
+/// damage query reads holders and auras made through their constructors, on spells put into the spell, effect and
+/// duration stores, held in a bare creature's holder map.
 
 #include "TestHarness.h"
 #include "spells/SpellScriptHooks.h"
+#include "spells/SpellScriptQueries.h"
 #include "spells/auras/SpellAuras.h"
 #include "Creature.h"
 #include "DBCStores.h"
+#include "data/ServerSpellStore.h"
 
 #include <cstddef>
 #include <list>
 #include <new>
+#include <vector>
 
 namespace
 {
     const uint32 kHookSpell = 94201;
     const uint32 kOtherSpell = 94202;
     const uint32 kStoredHolderSpell = 94203;
+    const uint32 kDotSpell = 94204;
+    const uint32 kOtherDotSpell = 94205;
+    const uint32 kNotHeldSpell = 94206;
 
     // A creature with its update fields allocated and no world, map, template or AI.
     class BareCreature : public Creature
@@ -58,13 +66,83 @@ namespace
                 _InitValues();
             }
 
-            // Unit::CleanupsBeforeDelete tears down an in-world unit only while the update fields exist.
+            // Unit::CleanupsBeforeDelete tears down an in-world unit only while the update fields exist. The holders
+            // HoldAura put in the map are the test's own and leave the map first.
             ~BareCreature()
             {
+                m_auras.Holders().clear();
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
             }
+
+            // Puts `holder` in the holder map under `spellId`, as Unit::AddSpellAuraHolder files it.
+            void HoldAura(uint32 spellId, SpellAuraHolder& holder)
+            {
+                m_auras.AddHolder(spellId, &holder);
+            }
     };
+
+    // A spell's records in the spell, effect and duration stores, kept alive for the rest of the run.
+    struct StoredDot
+    {
+        ServerSpell spell;
+        SpellDurationEntry duration;
+        SpellEffectEntry dummy;
+    };
+
+    // Puts `spellId` into the stores once: effect 0 a periodic damage aura at the target every `period` ms, a duration
+    // row of its own id of `duration` ms, and with `withDummy` effect 1 a dummy aura at the target.
+    SpellEntry const* StoreDot(StoredDot& dot, uint32 spellId, uint32 period, int32 duration, bool withDummy)
+    {
+        if (dot.spell.Entry().ID == spellId)
+        {
+            return &dot.spell.Entry();
+        }
+        dot.duration.ID = spellId;
+        dot.duration.Duration[0] = duration;
+        dot.duration.Duration[1] = 0;
+        dot.duration.Duration[2] = duration;
+        sSpellDurationStore.SetEntry(spellId, &dot.duration);
+        dot.spell.Entry().ID = spellId;
+        dot.spell.Entry().DurationIndex = spellId;
+        dot.spell.effect.SpellID = spellId;
+        dot.spell.effect.EffectIndex = EFFECT_INDEX_0;
+        dot.spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        dot.spell.effect.EffectAura = SPELL_AURA_PERIODIC_DAMAGE;
+        dot.spell.effect.EffectAuraPeriod = period;
+        dot.spell.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+        sSpellStore.SetEntry(spellId, &dot.spell.Entry());
+        AddSpellEffectEntry(&dot.spell.effect);
+        if (withDummy)
+        {
+            dot.dummy = SpellEffectEntry();
+            dot.dummy.SpellID = spellId;
+            dot.dummy.EffectIndex = EFFECT_INDEX_1;
+            dot.dummy.Effect = SPELL_EFFECT_APPLY_AURA;
+            dot.dummy.EffectAura = SPELL_AURA_DUMMY;
+            dot.dummy.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+            AddSpellEffectEntry(&dot.dummy);
+        }
+        return &dot.spell.Entry();
+    }
+
+    // A holder of `spell` on `target` cast by `caster`, made through its constructor, with an aura made through
+    // CreateAura at every effect the spell has: `amount` at effect 0, 0 at the others.
+    SpellAuraHolder* DotHolder(SpellEntry const* spell, Unit& target, ObjectGuid const& caster, int32 amount)
+    {
+        SpellAuraHolder* holder = new SpellAuraHolder(spell, &target, NULL, NULL, NULL);
+        holder->SetCasterGuid(caster);
+        for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            if (!spell->GetSpellEffect(SpellEffectIndex(eff)))
+            {
+                continue;
+            }
+            int32 basePoints = eff == EFFECT_INDEX_0 ? amount : 0;
+            holder->AddAura(CreateAura(spell, SpellEffectIndex(eff), &basePoints, holder, &target), SpellEffectIndex(eff));
+        }
+        return holder;
+    }
 
     struct SpellRowStorage
     {
@@ -440,6 +518,64 @@ TEST(SpellScriptHooks_AHolderIsMadeWithItsScriptWordsAtZero)
     CHECK_EQ(fresh->ScriptWord(EFFECT_INDEX_1), 2);
     CHECK_EQ(fresh->ScriptWord(EFFECT_INDEX_2), 0);
     fresh->~SpellAuraHolder();
+}
+
+TEST(SpellScriptHooks_FindPeriodicDamageReadsTheCastersPeriodicDamageEffectsOnAUnit)
+{
+    // Two DoTs: one ticking every 3000 ms for 12 s with a dummy aura at effect 1, one every 2000 ms for 4 s. The mage
+    // holds both on the target and another caster the first.
+    static StoredDot dotRows;
+    static StoredDot otherRows;
+    SpellEntry const* dot = StoreDot(dotRows, kDotSpell, 3000, 12000, true);
+    SpellEntry const* other = StoreDot(otherRows, kOtherDotSpell, 2000, 4000, false);
+    BareCreature target;
+    ObjectGuid const mage(HIGHGUID_UNIT, uint32(2961), uint32(400376));
+    ObjectGuid const otherCaster(HIGHGUID_UNIT, uint32(2961), uint32(400377));
+    SpellAuraHolder* mine = DotHolder(dot, target, mage, 500);
+    SpellAuraHolder* theirs = DotHolder(dot, target, otherCaster, 900);
+    SpellAuraHolder* mineToo = DotHolder(other, target, mage, 2000);
+    target.HoldAura(kDotSpell, *mine);
+    target.HoldAura(kDotSpell, *theirs);
+    target.HoldAura(kOtherDotSpell, *mineToo);
+
+    // The mage's, in the order of the ids asked for: the other caster's holder, the dummy effect and the id the unit
+    // does not hold give nothing. Each tick, period and time left is the aura's and the holder's; the ticks left are
+    // the aura's count over the holder's duration, none dealt yet.
+    uint32 const asked[] = { kOtherDotSpell, kNotHeldSpell, kDotSpell };
+    std::vector<PeriodicDamageView> found(1);
+    CHECK_EQ(FindPeriodicDamage(target, mage, asked, 3, found), std::size_t(2));
+    CHECK_EQ(found.size(), std::size_t(2));
+    if (found.size() == 2)
+    {
+        CHECK_EQ(found[0].spellId, kOtherDotSpell);
+        CHECK_EQ(int(found[0].effIndex), int(EFFECT_INDEX_0));
+        CHECK_EQ(found[0].amount, int32(2000));
+        CHECK_EQ(found[0].periodMs, uint32(2000));
+        CHECK_EQ(found[0].remainingMs, int32(4000));
+        CHECK_EQ(found[0].remainingTicks, uint32(2));
+        CHECK_EQ(found[1].spellId, kDotSpell);
+        CHECK_EQ(int(found[1].effIndex), int(EFFECT_INDEX_0));
+        CHECK_EQ(found[1].amount, int32(500));
+        CHECK_EQ(found[1].periodMs, uint32(3000));
+        CHECK_EQ(found[1].remainingMs, int32(12000));
+        CHECK_EQ(found[1].remainingTicks, uint32(4));
+    }
+
+    // The other caster's holder is his alone, and its time left is the holder's as it runs down.
+    theirs->SetAuraDuration(7500);
+    CHECK_EQ(FindPeriodicDamage(target, otherCaster, asked, 3, found), std::size_t(1));
+    CHECK(found.size() == 1 && found[0].spellId == kDotSpell && found[0].amount == 900 && found[0].remainingMs == 7500);
+
+    // A caster with nothing on the unit, and a list of no ids: nothing, and `out` is cleared.
+    CHECK_EQ(FindPeriodicDamage(target, ObjectGuid(), asked, 3, found), std::size_t(0));
+    CHECK(found.empty());
+    CHECK_EQ(FindPeriodicDamage(target, mage, asked, 1, found), std::size_t(1));
+    CHECK_EQ(FindPeriodicDamage(target, mage, asked, 0, found), std::size_t(0));
+    CHECK(found.empty());
+
+    delete mineToo;
+    delete theirs;
+    delete mine;
 }
 
 TEST(SpellScriptHooks_RegisterRanksPutsOneBodyUnderEveryId)
