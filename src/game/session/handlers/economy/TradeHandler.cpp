@@ -68,11 +68,11 @@ void WorldSession::SendTradeStatus(TradeStatus status)
             data << uint32(0);
             break;
         }
-        case 31: // WTF is this?
+        case TRADE_STATUS_FAILED:
         {
-            data.WriteBit(false);
-            data << uint32(0);
-            data << uint32(0);
+            data.WriteBit(false);                           // failure for you
+            data << uint32(0);                              // item id
+            data << uint32(0);                              // inventory result
             break;
         }
         default:
@@ -113,7 +113,7 @@ void WorldSession::SendUpdateTrade(bool trader_state /*= true*/)
 
     uint8 itemCount = 0;
     for (uint8 i = 0; i < TRADE_SLOT_COUNT; ++i)
-        if (Item* item = view_trade->GetItem(TradeSlots(i)))
+        if (view_trade->GetItem(TradeSlots(i)))
         {
             ++itemCount;
         }
