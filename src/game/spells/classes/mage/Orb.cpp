@@ -118,18 +118,19 @@ namespace
         return SpellHandlerOutcome<void>::Return();
     }
 
-    /// The orb of a mage: flies straight ahead from where it was summoned at its run speed, slowed by its snare when it
-    /// finds an enemy; at the end of its summon's duration, when its summoner is alive and on its map, rolls the proc
-    /// chance of the summoner's explosion talent for the explosion (83619), cast with the summoner as the original
-    /// caster, and despawns. It attacks nothing, follows nothing and evades nothing.
+    /// The orb of a mage, owned by him: flies straight ahead from where it was summoned at its run speed, slowed by its
+    /// snare when it finds an enemy; at the end of its summon's duration, when its summoner is alive and on its map,
+    /// rolls the proc chance of the summoner's explosion talent for the explosion (83619), cast with the summoner as the
+    /// original caster, and despawns. It attacks nothing, follows nothing and evades nothing.
     class OrbAI : public CreatureAI
     {
         public:
             explicit OrbAI(Creature* orb) : CreatureAI(orb), m_spells(NULL), m_lifeMs(0), m_ended(false) {}
 
-            /// The orb's start: its row, by the spell that created it; its life, the summon spell's duration; and its
-            /// flight to the point its life at its run speed takes it straight ahead, at its height. An orb of no row
-            /// ends here and does nothing.
+            /// The orb's start: its row, by the spell that created it; its summoner as its owner, so the orb counts as
+            /// his and its scan takes the units he may attack, as his own area spells take them; its life, the summon
+            /// spell's duration; and its flight to the point its life at its run speed takes it straight ahead, at its
+            /// height. An orb of no row ends here and does nothing.
             void Reset() override
             {
                 m_spells = Mage::OrbSpellsFor(m_creature->GetUInt32Value(UNIT_CREATED_BY_SPELL));
@@ -138,6 +139,7 @@ namespace
                 {
                     return;
                 }
+                m_creature->SetOwnerGuid(m_creature->GetSummonerGuid());
                 m_lifeMs = GetSpellDuration(sSpellStore.LookupEntry(m_spells->summonSpell));
                 float const distance = float(m_lifeMs > 0 ? m_lifeMs : 0) / 1000.0f * m_creature->GetSpeed(MOVE_RUN);
                 m_goal = m_creature->Where().PointAhead(distance);
