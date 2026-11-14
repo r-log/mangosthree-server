@@ -476,17 +476,16 @@ class  Aura
         int32 GetAuraDuration() const { return GetHolder()->GetAuraDuration(); }
         time_t GetAuraApplyTime() const { return m_applyTime; }
         uint32 GetAuraTicks() const { return m_periodicTick; }
-        uint32 GetAuraMaxTicks() const
-        {
-            int32 maxDuration = GetAuraMaxDuration();
-            return maxDuration > 0 && m_modifier.periodictime > 0 ? maxDuration / m_modifier.periodictime : 0;
-        }
+        /// How many ticks the aura deals over the holder's maximum duration, its first tick m_firstTickDelay after the
+        /// apply (Spells::TickCount).
+        uint32 GetAuraMaxTicks() const;
         uint32 GetStackAmount() const { return GetHolder()->GetStackAmount(); }
 
         void SetLoadedState(int32 damage, uint32 periodicTime)
         {
             m_modifier.m_amount = damage;
             m_modifier.periodictime = periodicTime;
+            m_firstTickDelay = GetSpellProto()->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY) ? 0 : int32(periodicTime);
 
             if (uint32 maxticks = GetAuraMaxTicks())
             {
@@ -568,6 +567,7 @@ class  Aura
 
         int32 m_currentBasePoints;                          // cache SpellEntry::CalculateSimpleValue and use for set custom base points
         int32 m_periodicTimer;                              // Timer for periodic auras
+        int32 m_firstTickDelay;                             // the time from the apply to the first tick, for the tick count
         uint32 m_periodicTick;                              // Tick count pass (including current if use in tick code) from aura apply, used for some tick count dependent aura effects
 
         AuraRemoveMode m_removeMode: 8;                     // Store info for know remove aura reason

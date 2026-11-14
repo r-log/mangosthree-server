@@ -27,13 +27,67 @@
 
 #include "DBCStores.h"
 #include "Unit.h"
+#include "spells/PeriodicTiming.h"
 #include "spells/SpellModMgr.h"
 #include "spells/handlers/SpellMgrHandlers.h"
 #include "spells/pipeline/Spell.h"
 #include "PlayerConditions.h"
 
 /**
+ * @brief The duration the caster's cast haste gives a spell that has a periodic effect and carries
+ * SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC, as the client computes it: with SPELL_ATTR_EX8_HASTE_AFFECTS_DURATION the
+ * duration times the haste, otherwise a whole number of the first periodic effect's hasted periods.
+ *
+ * @param spellInfo The spell entry.
+ * @param caster The unit casting the spell.
+ * @param duration The duration after the spell modifiers, in milliseconds.
+ * @return The hasted duration; `duration` unchanged for any other spell.
+ */
+static int32 HastedSpellDuration(SpellEntry const* spellInfo, Unit const* caster, int32 duration)
+{
+    if (duration <= 0 || !spellInfo->HasAttribute(SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC) ||
+        spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS))
+    {
+        return duration;
+    }
+
+    SpellEffectEntry const* periodic = NULL;
+    for (int32 i = 0; i < MAX_EFFECT_INDEX && !periodic; ++i)
+    {
+        SpellEffectEntry const* effect = spellInfo->GetSpellEffect(SpellEffectIndex(i));
+        if (effect && effect->EffectAuraPeriod)
+        {
+            periodic = effect;
+        }
+    }
+    if (!periodic)
+    {
+        return duration;
+    }
+
+    const float castHaste = caster->GetFloatValue(UNIT_MOD_CAST_HASTE);
+    if (castHaste < Spells::kMinCastHaste)
+    {
+        return duration;
+    }
+    if (spellInfo->HasAttribute(SPELL_ATTR_EX8_HASTE_AFFECTS_DURATION))
+    {
+        return Spells::HastedDurationDirect(duration, castHaste);
+    }
+
+    int32 period = int32(periodic->EffectAuraPeriod);
+    if (SpellModMgr* modOwner = caster->GetSpellMods())
+    {
+        modOwner->ApplySpellMod(spellInfo->ID, SPELLMOD_ACTIVATION_TIME, period);
+    }
+    return Spells::HastedDuration(duration, Spells::HastedPeriod(period, castHaste));
+}
+
+/**
  * @brief Calculates the effective spell duration for a caster.
+ *
+ * The combo points and the duration modifiers apply first; then a spell whose periodic effect the caster's haste
+ * shortens lasts a whole number of hasted periods, or a hasted duration for a spell whose duration itself is hasted.
  *
  * @param spellInfo The spell entry.
  * @param caster The unit casting the spell.
@@ -62,6 +116,8 @@ int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster)
                 duration = 0;
             }
         }
+
+        duration = HastedSpellDuration(spellInfo, caster, duration);
     }
 
     return duration;

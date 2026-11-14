@@ -63,6 +63,7 @@
 #include "Unit.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/auras/AuraNotices.h"
+#include "spells/PeriodicTiming.h"
 #include "spells/pipeline/Spell.h"
 #include "DynamicObject.h"
 #include "Group.h"
@@ -463,7 +464,7 @@ pAuraHandler AuraHandler[TOTAL_AURAS] =
 };
 
 Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBasePoints, SpellAuraHolder* holder, Unit* target, Unit* caster, Item* castItem) :
-    m_periodicTimer(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
+    m_periodicTimer(0), m_firstTickDelay(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
     m_effIndex(eff), m_positive(false), m_isPeriodic(false), m_isAreaAura(false),
     m_isPersistent(false), m_in_use(0), m_spellAuraHolder(holder)
 {
@@ -535,10 +536,19 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
         modOwner->ApplySpellMod(spellproto->ID, SPELLMOD_ACTIVATION_TIME, m_modifier.periodictime);
     }
 
+    // the caster's cast haste shortens the period after the spell modifiers, as the client's Spell_C_GetAuraPeriod does
+    if (m_modifier.periodictime && spellproto->HasAttribute(SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC) &&
+        !spellproto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS))
+    {
+        const float castHaste = caster ? caster->GetFloatValue(UNIT_MOD_CAST_HASTE) : 1.0f;
+        m_modifier.periodictime = uint32(Spells::HastedPeriod(int32(m_modifier.periodictime), castHaste));
+    }
+
     // Start periodic on next tick or at aura apply
     if (!spellproto->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY))
     {
         m_periodicTimer = m_modifier.periodictime;
+        m_firstTickDelay = m_periodicTimer;
     }
 }
 
@@ -709,6 +719,11 @@ void Aura::SetModifier(AuraType t, int32 a, uint32 pt, int32 miscValue)
     m_modifier.m_amount = a;
     m_modifier.m_miscvalue = miscValue;
     m_modifier.periodictime = pt;
+}
+
+uint32 Aura::GetAuraMaxTicks() const
+{
+    return Spells::TickCount(GetAuraMaxDuration(), int32(m_modifier.periodictime), m_firstTickDelay);
 }
 
 /**
