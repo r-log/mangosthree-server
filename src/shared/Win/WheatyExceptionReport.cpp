@@ -3,7 +3,9 @@
 // MSDN Magazine, 2002
 // FILE: WheatyExceptionReport.CPP
 //==========================================
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #pragma warning(disable:4996)
 #pragma warning(disable:4312)
 #pragma warning(disable:4311)
@@ -694,7 +696,7 @@ void WheatyExceptionReport::WriteStackDetails(
 BOOL CALLBACK
 WheatyExceptionReport::EnumerateSymbolsCallback(
     PSYMBOL_INFO  pSymInfo,
-    ULONG         SymbolSize,
+    ULONG         /*SymbolSize*/,
     PVOID         UserContext)
 {
     char szBuffer[2048];
@@ -724,7 +726,7 @@ bool WheatyExceptionReport::FormatSymbolValue(
     PSYMBOL_INFO pSym,
     STACKFRAME* sf,
     char* pszBuffer,
-    unsigned cbBuffer)
+    unsigned /*cbBuffer*/)
 {
     char* pszCurrBuffer = pszBuffer;
 
@@ -802,7 +804,7 @@ char* WheatyExceptionReport::DumpTypeIndex(
     unsigned nestingLevel,
     DWORD_PTR offset,
     bool& bHandled,
-    char* Name)
+    char* /*Name*/)
 {
     bHandled = false;
 
@@ -933,7 +935,7 @@ char* WheatyExceptionReport::FormatOutputValue(char* pszCurrBuffer,
             if (!IsBadStringPtr(*(PSTR*)pAddress, 32))
             {
                 pszCurrBuffer += sprintf(pszCurrBuffer, " = \"%.31s\"",
-                                         *(PDWORD)pAddress);
+                                         *(PSTR*)pAddress);
             }
             else
                 pszCurrBuffer += sprintf(pszCurrBuffer, " = %X",
