@@ -119,9 +119,10 @@ namespace
     }
 
     /// The orb of a mage, owned by him: flies straight ahead from where it was summoned at its run speed, slowed by its
-    /// snare when it finds an enemy; at the end of its summon's duration, when its summoner is alive and on its map,
-    /// rolls the proc chance of the summoner's explosion talent for the explosion (83619), cast with the summoner as the
-    /// original caster, and despawns. It attacks nothing, follows nothing and evades nothing.
+    /// snare when it finds an enemy; at the end of its summon's duration (the summon's own end, or its life's when it is
+    /// in combat), when its summoner is alive and on its map, rolls the proc chance of the summoner's explosion talent
+    /// for the explosion (83619), cast with the summoner as the original caster, and goes. It attacks nothing, follows
+    /// nothing and evades nothing.
     class OrbAI : public CreatureAI
     {
         public:
@@ -165,7 +166,17 @@ namespace
                 m_lifeMs -= int32(diff);
                 if (m_lifeMs <= 0)
                 {
-                    End();
+                    End(true);
+                }
+            }
+
+            /// The summon's own end (TemporarySummon::UnSummon tells the orb's AI first), which an orb out of combat
+            /// reaches before its life runs out: the orb ends there, and the summon takes it away.
+            void SummonedCreatureDespawn(Creature* summoned) override
+            {
+                if (summoned == m_creature && !m_ended && m_spells)
+                {
+                    End(false);
                 }
             }
 
@@ -198,8 +209,8 @@ namespace
             }
 
             /// The orb's end: the explosion, when its summoner is alive on its map, knows one of the row's explosion
-            /// talents and the talent's chance rolls; then the orb despawns.
-            void End()
+            /// talents and the talent's chance rolls; then, with `despawn`, the orb despawns.
+            void End(bool despawn)
             {
                 m_ended = true;
                 Unit* owner = ObjectLookup::GetUnit(*m_creature, m_creature->GetSummonerGuid());
@@ -219,7 +230,10 @@ namespace
                         m_creature->CastSpell(m_creature, m_spells->explosionSpell, true, NULL, NULL, owner->GetObjectGuid());
                     }
                 }
-                m_creature->ForcedDespawn();
+                if (despawn)
+                {
+                    m_creature->ForcedDespawn();
+                }
             }
 
             Mage::OrbSpells const* m_spells;    ///< the orb's row; NULL until its start
