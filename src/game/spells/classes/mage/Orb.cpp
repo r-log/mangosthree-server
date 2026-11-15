@@ -347,8 +347,9 @@ namespace
             /// The climb, while the orb flies level: where the floor half a second ahead of it, along its line, lies over
             /// its hover line, lays a short leg to a hover height above that floor (Mage::OrbClimbTo), from the orb's live
             /// point. A leg that runs is followed by the next one from where the orb is once it is ORB_CLIMB_RELAY_SEC of
-            /// flight or less from its end and the floor ahead still asks for one, so the orb does not stop between legs. The far goal's x
-            /// and y stay; its z is the height each leg ends at.
+            /// flight or less from its end and the floor ahead still asks for one. The next leg is laid from the live
+            /// point with no stop between the two, so the orb does not stand between legs. The far goal's x and y stay;
+            /// its z is the height each leg ends at.
             void FollowGround()
             {
                 Map* map = m_creature->FindMap();
@@ -385,17 +386,17 @@ namespace
                     return;
                 }
                 m_creature->GetMotionMaster()->MovementExpired(false);
-                m_creature->GetMotionMaster()->MovePoint(ORB_CLIMB, aheadX, aheadY, *climbZ, false);
+                m_creature->GetMotionMaster()->MovePointOnward(ORB_CLIMB, aheadX, aheadY, *climbZ, false);
                 m_climbing = true;
                 m_legX = aheadX;
                 m_legY = aheadY;
                 m_legZ = *climbZ;
             }
 
-            /// A straight flight to the point, with no path generated.
+            /// A straight flight to the point, with no path generated, laid at once from where the orb is.
             void FlyToGoal()
             {
-                m_creature->GetMotionMaster()->MovePoint(ORB_PATH_POINT, m_goal.x, m_goal.y, m_goal.z, false);
+                m_creature->GetMotionMaster()->MovePointOnward(ORB_PATH_POINT, m_goal.x, m_goal.y, m_goal.z, false);
             }
 
             /// The orb's end: the explosion, when its summoner is alive on its map, knows one of the row's explosion
