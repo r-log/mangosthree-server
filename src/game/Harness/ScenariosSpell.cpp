@@ -43,6 +43,7 @@
 #include "Pet.h"
 #include "HarnessAI.h"
 #include "WorldSession.h"
+#include "WorldPacket.h"
 #include "Map.h"
 #include "MapManager.h"
 #include "MapPhase.h"
@@ -51,6 +52,8 @@
 #include "maps/GridNotifiersImpl.h"
 #include "movement/MoveSpline.h"
 #include "session/handlers/entities/MovementHandlers.h"
+#include "session/handlers/spells/SpellHandlers.h"
+#include "session/packets/spells/CastTargetsPacket.h"
 
 #include <algorithm>
 #include <cmath>
@@ -102,9 +105,11 @@
 // target dies does not explode; 971 a staged Fire mage's Flame Orb burns a Camel once a second while it is snared and
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
 // first one's end takes it off; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that
-// falls under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's damage, a
-// cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs.
-// The guard of 931-938, 950-972, 983 and 985-987 (Qualify) fingerprints every spell a scenario reaches and refuses the
+// falls under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's
+// damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
+// Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
+// cast handler and not swapped.
+// The guard of 931-938, 950-972, 983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and refuses the
 // random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -602,8 +607,8 @@ namespace Harness
          * for a player casting at a unit, in window `window`: the spellbook check (HasActiveSpell,
          * not passive), the rank chosen for the target's level (SelectAuraRankForLevel), then
          * `new Spell(caster, info, false, caster guid, NULL)` with the cast count and glyph index
-         * the client would send, and SpellStart. The handler's mover and raid-marker branches and
-         * the action-bar override auras do not apply to a harness player. Returns the spell id
+         * the client would send, and SpellStart. It skips the handler's mover, raid-marker and
+         * action-bar override branches; CastAsClient runs them. Returns the spell id
          * cast, or 0 when the spellbook check refused it (the handler's silent return).
          */
         uint32 CastAsHandler(Player* p, uint32 spellId, Unit* target, uint8 castCount)
@@ -633,6 +638,29 @@ namespace Harness
             return info->ID;
         }
 
+        /**
+         * The cast as the 4.3.4 client sends it for a player casting at a unit (Spell_C.cpp, the CMSG_CAST_SPELL branch
+         * of the cast packet's writer, then SpellPutCastTargets in SpellCast.cpp): the cast count (uint8), the spell id
+         * (uint32), the glyph index (uint32, 0), the cast flags (uint8, 0), then the targets as WriteCastTargets writes
+         * them, here the unit target's mask and packed guid. The packet goes to the CAST_SPELL handler itself
+         * (SpellHandlers::HandleCastSpell), which reads it in that order and runs its own checks, the action-bar override
+         * swap among them, before it starts the spell. Returns the spell id sent.
+         */
+        uint32 CastAsClient(Player* p, uint32 spellId, Unit* target, uint8 castCount)
+        {
+            SpellCastTargets targets;
+            targets.setUnitTarget(target);
+            WorldPacket packet(CMSG_CAST_SPELL, 1 + 4 + 4 + 1 + 4 + 9);
+            packet << uint8(castCount);
+            packet << uint32(spellId);
+            packet << uint32(0);
+            packet << uint8(0);
+            WriteCastTargets(packet, targets);
+            m_rec.Note("the client's cast packet: cast count " + U(castCount) + ", spell " + U(spellId) +
+                       ", glyph index 0, cast flags 0, a unit target; handed to the cast handler");
+            SpellHandlers::HandleCastSpell(*SessionOf(*p), packet);
+            return spellId;
+        }
 
         /**
          * The guard of scenarios 931-938, before any server call and before the spawn: every spell
@@ -3918,7 +3946,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-972, 983, 985-987): a human mage staged to level 85 with
+     * What the mage scenarios share (951, 952, 954-957, 962-972, 983, 985-989): a human mage staged to level 85 with
      * the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him,
      * or at the scenario's TargetDistance (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in
@@ -3935,7 +3963,11 @@ namespace Harness
      *    cast to its read, where the word he had is put back; a cast that clears its cooldown first takes the spell's
      *    cooldown off him by call (Player::RemoveSpellCooldown), since the stepped clock never runs out a cooldown
      *    that ends on time(NULL); a cast the Camel strikes (CastStruckAt) has the Camel's swing at him the step's
-     *    `swingAtMs` after the cast starts, inside the cast's windows, his health set as for a swing first;
+     *    `swingAtMs` after the cast starts, inside the cast's windows, his health set as for a swing first. A cast
+     *    without the caster aura (`noCasterAura`) takes the scenario's caster aura off him by call instead of putting it
+     *    on; a cast as the client (`asClient`) is sent as the client's CMSG_CAST_SPELL to the CAST_SPELL handler itself
+     *    (CastAsClient), so the spell the server casts is the one the handler chooses, and the record reads the step's
+     *    cast from the packets that carry its cast count;
      *  - a self aura: the step's spell cast by him at himself, triggered, with nothing put on him first;
      *  - a swing: his health set to SwingHealth() by call (his maximum unless the scenario names one), then the Camel's
      *    melee swing at him (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
@@ -3967,7 +3999,8 @@ namespace Harness
      * Categories: `template`; `staged` the level, the free talent points against the level's, the primary tree, each
      * talent's rank spell known, the glyph slots, and for a scenario that stages glyphs or ratings each glyph's aura
      * and the two ratings with the haste and mastery they give; its text also names his cast-speed and cast-haste
-     * fields; `steps` each step as the record reads it (a cast's spell, `c` added when its damage log is a crit,
+     * fields; `steps` each step as the record reads it (a cast's spell, `>` and the spell the server cast when a cast
+     * as the client cast another, `c` added when its damage log is a crit,
      * `miss` when SPELL_GO lists the Camel as missed, `none` when no damage log came; an aura cast's spell, `miss`
      * added as for a cast; a swing's `hit` when his health fell, else `swing`; a blow's `blow`; a health step's
      * `full`; a Camel health step's `health` and its percent; a kill's `kill`; a removal's `dispel` or `remove`), a
@@ -4175,6 +4208,8 @@ namespace Harness
             uint32 swingAtMs = 0;               ///< a cast the Camel's swing strikes this long after it starts; 0 for none
             uint32 healthPct = 0;               ///< the Camel's health set to this percent of its maximum; 0 for no such step
             bool kill = false;                  ///< the mage deals the Camel its health as plain damage
+            bool noCasterAura = false;          ///< a cast that takes the scenario's caster aura off him instead of putting it on
+            bool asClient = false;              ///< a cast sent as the client's CMSG_CAST_SPELL to the cast handler (CastAsClient)
         };
         static Step Cast(uint32 spell, bool crit)
         {
@@ -4308,6 +4343,9 @@ namespace Harness
             uint32 wordBefore = 0;                      ///< a moving cast: his client's movement word before the step
             uint32 swingHealthBefore = 0, swingHealthAfter = 0;   ///< a cast the Camel strikes: his health around the swing
             std::map<std::string, int64> reads;         ///< what the scenario's own reads (ReadOwn) kept of the step
+            /// A cast as the client: the spell of the first SMSG_SPELL_START or SMSG_SPELL_GO of the step's cast count in
+            /// its windows, the spell the handler cast; 0 when neither came.
+            uint32 castSpell = 0;
         };
 
         struct St
@@ -4488,6 +4526,132 @@ namespace Harness
                 }
             }
             return amounts;
+        }
+
+        /// The damage logs of `spell` he dealt in step k's windows, in order: each one's amount, `c` added for a crit.
+        std::vector<std::string> HitAmounts(uint32 k, uint32 spell) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<std::string> hits;
+            const std::string hit = "hit self.hit." + U(spell) + "=";
+            const std::vector<std::string> windows = StepWindows(k);
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(windows[w], SMSG_SPELLNONMELEEDAMAGELOG);
+                for (size_t i = 0; i < logs.size(); ++i)
+                {
+                    if (logs[i]->payload.empty())
+                    {
+                        continue;
+                    }
+                    std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &logs[i]->payload[0],
+                                                                             logs[i]->payload.size(), roles);
+                    uint32 amount = 0, crit = 0;
+                    if (fields.size() == 1 && fields[0].compare(0, hit.size(), hit) == 0 &&
+                        sscanf(fields[0].c_str() + hit.size(), "%u/%u", &amount, &crit) == 2)
+                    {
+                        hits.push_back(U(amount) + (crit ? "c" : ""));
+                    }
+                }
+            }
+            return hits;
+        }
+
+        /// The cast count of an SMSG_SPELL_START or SMSG_SPELL_GO payload: the byte after the two packed guids its writer
+        /// puts first (BuildSpellStartPacket, BuildSpellGoPacket); -1 when the payload ends before it.
+        static int32 CastCountOf(std::vector<uint8> const& payload)
+        {
+            size_t pos = 0;
+            for (int guid = 0; guid < 2; ++guid)
+            {
+                if (pos >= payload.size())
+                {
+                    return -1;
+                }
+                const uint8 mask = payload[pos++];
+                for (int bit = 0; bit < 8; ++bit)
+                {
+                    pos += size_t((mask >> bit) & 1u);
+                }
+            }
+            return pos < payload.size() ? int32(payload[pos]) : -1;
+        }
+
+        /// What step k's windows hold of his cast with the step's cast count (k + 1): the spell of the first
+        /// SMSG_SPELL_START, its cast time and the window it came in, the spell of the first SMSG_SPELL_GO and its window,
+        /// and the spell and result of the first SMSG_CAST_FAILED; 0 and -1 where none came. A window is its index in
+        /// StepWindows(k), 0 being the step's own, which closes when the step's calls return.
+        struct CastPath
+        {
+            uint32 start = 0;
+            uint32 castTime = 0;
+            int32 startWindow = -1;
+            uint32 go = 0;
+            int32 goWindow = -1;
+            uint32 failed = 0;
+            int32 result = -1;
+        };
+        CastPath CastPathOf(uint32 k) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            CastPath path;
+            const std::vector<std::string> windows = StepWindows(k);
+            const uint16 casts[] = { uint16(SMSG_SPELL_START), uint16(SMSG_SPELL_GO) };
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                for (const uint16 opcode : casts)
+                {
+                    const bool go = opcode == SMSG_SPELL_GO;
+                    std::vector<Recorder::Seen const*> seen = m_rec.SeenIn(windows[w], opcode);
+                    for (size_t i = 0; i < seen.size(); ++i)
+                    {
+                        std::string text;
+                        uint32 spell = 0;
+                        if (seen[i]->payload.empty() || CastCountOf(seen[i]->payload) != int32(k + 1) ||
+                            !Trace::DecodeSpellCast(go, &seen[i]->payload[0], seen[i]->payload.size(), roles, text) ||
+                            sscanf(text.c_str(), "spell=%u", &spell) != 1)
+                        {
+                            continue;
+                        }
+                        if (go && !path.go)
+                        {
+                            path.go = spell;
+                            path.goWindow = int32(w);
+                        }
+                        else if (!go && !path.start)
+                        {
+                            path.start = spell;
+                            path.startWindow = int32(w);
+                            const size_t at = text.find(" casttime=");
+                            if (at != std::string::npos)
+                            {
+                                sscanf(text.c_str() + at, " casttime=%u", &path.castTime);
+                            }
+                        }
+                    }
+                }
+                std::vector<Recorder::Seen const*> failures = m_rec.SeenIn(windows[w], SMSG_CAST_FAILED);
+                for (size_t i = 0; i < failures.size() && !path.failed; ++i)
+                {
+                    std::string text;
+                    uint32 spell = 0, result = 0;
+                    if (!failures[i]->payload.empty() && uint32(failures[i]->payload[0]) == k + 1 &&
+                        Trace::DecodeCastFailed(&failures[i]->payload[0], failures[i]->payload.size(), text) &&
+                        sscanf(text.c_str(), "spell=%u result=%u", &spell, &result) == 2)
+                    {
+                        path.failed = spell;
+                        path.result = int32(result);
+                    }
+                }
+            }
+            return path;
+        }
+
+        /// The spell step k cast as the record reads it: for a cast as the client, the spell the handler cast when its
+        /// packets came; the step's spell otherwise.
+        static uint32 CastSpellOf(Step const& step, Seen const& seen)
+        {
+            return step.asClient && seen.castSpell ? seen.castSpell : step.spell;
         }
 
         /// Whether `amount` lies in [low, high], one point either side allowed for the float product of the percent
@@ -4748,7 +4912,13 @@ namespace Harness
             {
                 if (const uint32 casterAura = CasterAura())
                 {
-                    if (!p->HasAura(casterAura))
+                    if (step.noCasterAura)
+                    {
+                        const bool held = p->HasAura(casterAura);
+                        p->RemoveAurasDueToSpell(casterAura);
+                        m_rec.Note("his " + U(casterAura) + " taken off by call (" + (held ? "he held it" : "he did not hold it") + ")");
+                    }
+                    else if (!p->HasAura(casterAura))
                     {
                         p->CastSpell(p, casterAura, true);
                     }
@@ -4788,7 +4958,7 @@ namespace Harness
                     m_rec.Note(std::string("his client's movement word forward: ") + (p->isMoving() ? "moving" : "not moving"));
                 }
                 const std::vector<std::pair<uint32, SpellAuraHolder*> > held = HoldOtherTargets(st, k, p);
-                seen.castId = CastAsHandler(p, step.spell, target, uint8(k + 1));
+                seen.castId = step.asClient ? CastAsClient(p, step.spell, target, uint8(k + 1)) : CastAsHandler(p, step.spell, target, uint8(k + 1));
                 seen.removed = ReleaseOtherTargets(held, step.spell);
             }
             ReadOwn(st, k, false, p, target);
@@ -4888,6 +5058,12 @@ namespace Harness
                 Step const& step = st.steps[k];
                 Seen& seen = st.seen[k];
                 const Trace::Roles roles = RolesAt(st, step.target);
+                if (step.asClient)
+                {
+                    const CastPath path = CastPathOf(k);
+                    seen.castSpell = path.start ? path.start : path.go;
+                }
+                const uint32 own = CastSpellOf(step, seen);
                 const std::string base = "step" + U(k + 1);
                 const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
                 for (const char* suffix : suffixes)
@@ -4903,7 +5079,7 @@ namespace Harness
                         {
                             continue;
                         }
-                        if (IsCast(step) && spell == step.spell)
+                        if (IsCast(step) && spell == own)
                         {
                             seen.missed = seen.missed || go.find(" hit=[] miss=[target:") != std::string::npos;
                         }
@@ -4924,7 +5100,7 @@ namespace Harness
                         uint32 spell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
                         if (fields.size() == 1 &&
                             sscanf(fields[0].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted) == 5 &&
-                            spell == step.spell && !seen.logRead)
+                            spell == own && !seen.logRead)
                         {
                             seen.logRead = true;
                             seen.crit = crit != 0;
@@ -5050,6 +5226,8 @@ namespace Harness
             {
                 Step const& step = st.steps[k];
                 Seen const& seen = st.seen[k];
+                const uint32 cast = CastSpellOf(step, seen);
+                const std::string spellText = U(step.spell) + (cast != step.spell ? ">" + U(cast) : std::string());
                 std::string value;
                 if (!seen.ran || seen.refused || !seen.read)
                 {
@@ -5081,15 +5259,15 @@ namespace Harness
                 }
                 else if (step.aura)
                 {
-                    value = U(step.spell) + (seen.missed ? "miss" : "") + (TargetCount() > 1 ? "@" + U(step.target + 1) : std::string());
+                    value = spellText + (seen.missed ? "miss" : "") + (TargetCount() > 1 ? "@" + U(step.target + 1) : std::string());
                 }
                 else if (seen.logRead)
                 {
-                    value = U(step.spell) + (seen.crit ? "c" : "");
+                    value = spellText + (seen.crit ? "c" : "");
                 }
                 else
                 {
-                    value = U(step.spell) + (seen.missed ? "miss" : "none");
+                    value = spellText + (seen.missed ? "miss" : "none");
                 }
                 const bool castBug = step.aura ? seen.missed : step.refusal ? false : (!seen.logRead || seen.crit != step.crit);
                 const bool bug = !seen.ran || seen.refused || !seen.read || (IsCast(step) && castBug);
@@ -8422,6 +8600,332 @@ namespace Harness
     };
 
     /**
+     * What the two Fire proof scenarios share (988, 989): a Fire mage staged with Burning Soul 3, Improved Fire Blast 2
+     * and Fire Power 3 (the eight points of the first two tiers; Burning Soul names the Fire tree, which teaches Fire
+     * Specialization, +25% fire damage, and Pyroblast 11366) and kSpellPower spell power, 1197 with his intellect's.
+     * Fire Specialization and Fire Power 3 multiply a fire spell's done damage by 1.25 x 1.03 = 1.2875. No spell of his
+     * crits: each cast step puts Increased Critical Spell on him at -100 first, and it stays on him to the end.
+     */
+    class MageFireProofScenario : public MageProcScenario
+    {
+    public:
+        MageFireProofScenario(char const* name, int order, char const* ownCategory) : MageProcScenario(name, order, ownCategory) {}
+
+    protected:
+        static constexpr uint32 kPrecision = 13843;
+
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 } }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        int32 NonCritAuraPoints() const override { return -100; }
+
+        /// The prints both scenarios need: the holders on him that can proc and what they cast, Precision and the crit
+        /// aura; `own` are the scenario's spells.
+        static std::vector<SpellPrint> ProofPrints(std::vector<SpellPrint> own)
+        {
+            const std::vector<SpellPrint> shared = {
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+            own.insert(own.end(), shared.begin(), shared.end());
+            return own;
+        }
+
+        /// A read kept by ReadOwn for step k; -1 when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return -1;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+    private:
+        static constexpr int32 kSpellPower = 1000;
+    };
+
+    /**
+     * S988 `mage-fire-molten-armor`: Molten Armor (30482) on a Fire mage staged as MageFireProofScenario stages him, and
+     * its damage on the melee hits he takes. Its effect 0 procs on a hit he takes (proc flags 0x222a8, chance 100, no
+     * charges) and casts 34913 at the attacker: school damage of 190 at 85 (SpellScaling 38: 0.203 of a mage's spell
+     * scaling at 85), bonus coefficient 0, so his spell power adds nothing and his percent auras make 190 x 1.2875 =
+     * 244.6, 244 once truncated. A swing he dodges, or one that misses him, casts nothing: without a spell_proc_event row
+     * the proc asks for a hit (SpellMgr::IsSpellProcEventCanTriggeredBy). Its effect 1 takes 5 off the crit chance of
+     * his attackers (aura 197), its effect 2 adds 3 to his spell crit (aura 57). Steps:
+     *  1. Molten Armor cast through the CAST_SPELL handler's calls, which put Precision (13843, +6 spell hit, so no
+     *     34913 misses the level-85 Camel) and the crit aura at -100 on him first; at the read his fire spell crit
+     *     stands 3 above the staged one with the crit aura's -100 counted, and his attackers' crit chance is 5 lower;
+     *  2.-6. five swings of the Camel at him.
+     *
+     * `moltenArmor`: `procs=<the 34913 casts>/<the swings that hit>,amount=<their amounts, one when all are equal>,
+     * holder=<kept, or changed>,crit=<his crit rise>/<his attackers' crit change>`; OK when each swing that hit logged
+     * one 34913 of 244 that did not crit and took 244 off the Camel's health, each other swing logged none and took
+     * nothing, at least one swing hit, the holder on him read `eff 0x7 charges 0 stack 1` at every read, his crit rose
+     * by 3 and his attackers' fell by 5.
+     */
+    class MageFireMoltenArmor : public MageFireProofScenario
+    {
+    public:
+        MageFireMoltenArmor() : MageFireProofScenario("mage-fire-molten-armor", 988, "moltenArmor") {}
+
+    protected:
+        std::vector<uint32> Spells() const override { return { kMoltenArmor }; }
+        bool TakesDamage() const override { return true; }
+        uint32 CasterAura() const override { return kPrecision; }
+        uint32 Watched() const override { return kMoltenArmor; }
+
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps = { AuraCast(kMoltenArmor, 0) };
+            steps.insert(steps.end(), kSwings, Swing());
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return ProofPrints({
+                // 30482: 72 fields, fnv 920fa0aa
+                { 30482, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 34913 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 197 }, { "eff1.EffectBasePoints", -5 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 57 }, { "eff2.EffectBasePoints", 3 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 1792 }, { "eff2.EffectMiscValue_1", 4 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 34913: 26 fields, fnv aa3af5ec
+                { 34913, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 75 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            });
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            Seen& seen = st.seen[k];
+            if (!atRead)
+            {
+                seen.reads["camel"] = target->GetHealth();
+                if (st.steps[k].swing)
+                {
+                    m_rec.Note("the Camel's health right after the swing " + U(target->GetHealth()));
+                }
+            }
+            else if (st.steps[k].spell == kMoltenArmor)
+            {
+                const float crit = p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_FIRE);
+                const float rise = crit - st.stagedFireCrit - float(NonCritAuraPoints());
+                seen.reads["critRise"] = int64(std::lround(rise * 100.0f));
+                seen.reads["critTaken"] = p->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE);
+                char buf[256];
+                snprintf(buf, sizeof(buf),
+                         "30482 on him: maximum duration %d; spell crit %.2f%% (fire), %.2f at the stage read and %d from the crit aura since: "
+                         "%+.2f from Molten Armor; his attackers' crit chance changed by %lld",
+                         HolderDuration(p, kMoltenArmor), crit, st.stagedFireCrit, NonCritAuraPoints(), rise,
+                         (long long)seen.reads["critTaken"]);
+                m_rec.Note(buf);
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            uint32 hits = 0;
+            size_t procs = 0;
+            bool ok = true;
+            std::set<std::string> distinct;
+            std::string amounts, swings;
+            for (uint32 k = 1; k < st.steps.size(); ++k)
+            {
+                Seen const& seen = st.seen[k];
+                const bool hit = seen.read && seen.healthAfter < seen.healthBefore;
+                const std::vector<std::string> lines = HitAmounts(k, kMoltenArmorHit);
+                const int64 before = Kept(st, k - 1, "camel");
+                const int64 after = Kept(st, k, "camel");
+                const int64 loss = before >= 0 && after >= 0 ? before - after : -1;
+                std::string text;
+                for (size_t i = 0; i < lines.size(); ++i)
+                {
+                    text += (i ? "," : "") + lines[i];
+                    amounts += (amounts.empty() ? "" : ",") + lines[i];
+                    distinct.insert(lines[i]);
+                }
+                hits += hit ? 1 : 0;
+                procs += lines.size();
+                ok = ok && seen.read &&
+                     (hit ? lines.size() == 1 && lines[0] == U(kAmount) && loss == int64(kAmount) : lines.empty() && loss == 0);
+                swings += "; " + U(k + 1) + (hit ? " hit" : " not hit") + ": 34913 [" + text + "], the Camel's health -" +
+                          std::to_string(loss);
+            }
+            bool holderKept = true;
+            std::string holders;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                holderKept = holderKept && st.seen[k].holder == kHolder;
+                holders += (k ? "," : "") + (st.seen[k].holder.empty() ? std::string("unread") : st.seen[k].holder);
+            }
+            const int64 critRise = Kept(st, kArmorStep, "critRise");
+            const int64 critTaken = Kept(st, kArmorStep, "critTaken");
+            char crit[48];
+            snprintf(crit, sizeof(crit), "%+.2f/%lld", critRise / 100.0, (long long)critTaken);
+            const std::string amount = amounts.empty() ? std::string("none") : distinct.size() == 1 ? *distinct.begin() : amounts;
+            const std::string value = "procs=" + std::to_string(procs) + "/" + U(hits) + ",amount=" + amount + ",holder=" +
+                                      (holderKept ? "kept" : "changed") + ",crit=" + crit;
+            ok = ok && hits > 0 && holderKept && critRise >= 299 && critRise <= 301 && critTaken == -5;
+            const std::string detail = "each swing that hits him casts 34913 once for 190 x 1.2875 = " + U(kAmount) +
+                                       " at the Camel, no other swing casts it" + swings + "; the holder at each read " + holders +
+                                       ", wanted " + kHolder + "; his crit +3 and his attackers' -5 wanted)";
+            return value + (ok ? "(OK: " : "(BUG: ") + detail;
+        }
+
+    private:
+        static constexpr uint32 kMoltenArmor = 30482;
+        static constexpr uint32 kMoltenArmorHit = 34913;
+        static constexpr uint32 kAmount = 244;
+        static constexpr uint32 kSwings = 5;
+        static constexpr uint32 kArmorStep = 0;
+        static constexpr char const* kHolder = "eff 0x7 charges 0 stack 1";
+    };
+
+    /**
+     * S989 `mage-fire-pyroblast-path`: the instant Pyroblast's way through the server, on a Fire mage staged as
+     * MageFireProofScenario stages him who learned Pyroblast! (92315). Pyroblast! asks for Hot Streak (48108) on its
+     * caster (SpellAuraRestrictions 1073, read by Spell::CheckCast), and Hot Streak's aura 332 names 92315 for the
+     * spells of class mask C 0x1000, which Pyroblast 11366 carries and 92315 does not: the CAST_SPELL handler casts
+     * 92315 when he sends 11366 under it (SpellHandlers::HandleCastSpell). Hot Streak is the scenario's caster aura, put
+     * on him before each cast step that does not take it off. Steps, every cast one that must not crit:
+     *  1. Precision (13843, +6 spell hit) cast at himself, so no cast misses the level-85 Camel;
+     *  2. Pyroblast! with Hot Streak up, through the handler's calls: accepted and instant, its SMSG_SPELL_START with
+     *     cast time 0 and its SMSG_SPELL_GO in the step's own window, its cost 0, its periodic holder on the Camel at
+     *     the read;
+     *  3. Pyroblast! with Hot Streak taken off: refused, SMSG_CAST_FAILED with SPELL_FAILED_CASTER_AURASTATE, no spell
+     *     start and no spell go;
+     *  4. Pyroblast sent as the client sends it, with Hot Streak up: the handler swaps it, so the spell start (cast time
+     *     0) and the spell go of the step's cast count name 92315 in the step's own window; Hot Streak on him at the read
+     *     is stated, the cast having used it up or not;
+     *  5. Pyroblast sent as the client sends it, with Hot Streak taken off: no swap, the spell start of 11366 with its
+     *     3500 ms cast time, its spell go after the step's own window.
+     * Each hit of Pyroblast! and of Pyroblast: (1238..1572 + int(1197 x 1.545) = 1849) x 1.2875 = 3974..4404.
+     *
+     * `pyroblast`: `instant=<step 2's spell go>/<its spell start's cast time>,refused=<step 3's refusal>,
+     * swapped=<step 4's spell go>,hotStreak=<gone or kept at step 4's read>,plain=<step 5's spell start>/<its cast
+     * time>`; OK when they are 92315/0 in the step's own window with the cost 0 and the holder on the Camel,
+     * CASTER_AURASTATE without a start or a go, 92315 started with cast time 0 in the step's own window, and
+     * 11366/3500 with its go after the step's own window. Hot Streak is stated, not judged, and so are the hits
+     * against their band.
+     */
+    class MageFirePyroblastPath : public MageFireProofScenario
+    {
+    public:
+        MageFirePyroblastPath() : MageFireProofScenario("mage-fire-pyroblast-path", 989, "pyroblast") {}
+
+    protected:
+        std::vector<uint32> Spells() const override { return { kPyroblastInstant }; }
+        uint32 CasterAura() const override { return kHotStreak; }
+        uint32 Watched() const override { return kHotStreak; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step refused = Cast(kPyroblastInstant, false);
+            refused.noCasterAura = true;
+            refused.refusal = true;
+            Step swapped = Cast(kPyroblast, false);
+            swapped.asClient = true;
+            Step plain = Cast(kPyroblast, false);
+            plain.asClient = true;
+            plain.noCasterAura = true;
+            plain.everyMs = kPlainEveryMs;
+            return { SelfAura(kPrecision), Cast(kPyroblastInstant, false), refused, swapped, plain };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return ProofPrints({
+                // 92315: 49 fields, fnv 7ef90b4a
+                { 92315, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 11366: 49 fields, fnv 7ef90b4a
+                { 11366, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 48108: 26 fields, fnv 28b4e817
+                { 48108, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 332 }, { "eff0.EffectBasePoints", 92315 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags2", 4096 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            });
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* target) override
+        {
+            if (atRead && k == kInstantStep)
+            {
+                st.seen[k].reads["dot"] = target->GetSpellAuraHolder(kPyroblastInstant) ? 1 : 0;
+                m_rec.Note("92315 on the Camel: " + HolderOf(target, kPyroblastInstant));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            const CastPath instant = CastPathOf(kInstantStep);
+            const CastPath refused = CastPathOf(kRefusedStep);
+            const CastPath swapped = CastPathOf(kSwappedStep);
+            const CastPath plain = CastPathOf(kPlainStep);
+            Seen const& instantSeen = st.seen[kInstantStep];
+            Seen const& swappedSeen = st.seen[kSwappedStep];
+            const std::string hotStreak = !swappedSeen.read ? "unread" : swappedSeen.holder == "none" ? "gone" : "kept";
+            const std::string value = "instant=" + U(instant.go) + "/" + U(instant.castTime) + ",refused=" + CastResultName(refused.result) +
+                                      ",swapped=" + U(swapped.go) + ",hotStreak=" + hotStreak + ",plain=" + U(plain.start) + "/" +
+                                      U(plain.castTime);
+
+            const bool instantOk = instant.start == kPyroblastInstant && instant.castTime == 0 && instant.startWindow == 0 &&
+                                   instant.go == kPyroblastInstant && instant.goWindow == 0 && !instant.failed &&
+                                   instantSeen.cost == 0 && Kept(st, kInstantStep, "dot") == 1;
+            const bool refusedOk = refused.failed == kPyroblastInstant && refused.result == SPELL_FAILED_CASTER_AURASTATE && !refused.start &&
+                                   !refused.go;
+            const bool swappedOk = swapped.start == kPyroblastInstant && swapped.castTime == 0 && swapped.startWindow == 0 &&
+                                   swapped.go == kPyroblastInstant && swapped.goWindow == 0 && !swapped.failed;
+            const bool plainOk = plain.start == kPyroblast && plain.castTime == kPlainCastTime && plain.startWindow == 0 &&
+                                 plain.go == kPyroblast && plain.goWindow > 0 && !plain.failed;
+
+            std::string hits;
+            const uint32 hitSteps[] = { kInstantStep, kSwappedStep, kPlainStep };
+            for (const uint32 k : hitSteps)
+            {
+                Seen const& seen = st.seen[k];
+                hits += (hits.empty() ? "" : ", ") + std::string("step ") + U(k + 1) + " " +
+                        (!seen.logRead ? std::string("none") : U(seen.amount) + (seen.crit ? " crit" : "") +
+                         (InBand(seen.amount, kHitLow, kHitHigh) ? " in" : " outside") + " the band");
+            }
+            const std::string detail =
+                "step 2 " + PathText(instant) + ", cost " + U(instantSeen.cost) + ", 92315 on the Camel at the read " +
+                (Kept(st, kInstantStep, "dot") == 1 ? "yes" : "no") + ", 48108 on him at the read " +
+                (instantSeen.holder.empty() ? std::string("unread") : instantSeen.holder) + "; step 3 " + PathText(refused) +
+                "; step 4, 11366 sent, " + PathText(swapped) + ", 48108 on him at the read " +
+                (swappedSeen.holder.empty() ? std::string("unread") : swappedSeen.holder) +
+                "; step 5, 11366 sent, " + PathText(plain) + "; the hits against " + U(kHitLow) + ".." + U(kHitHigh) + ": " + hits + ")";
+            return value + (instantOk && refusedOk && swappedOk && plainOk ? "(OK: " : "(BUG: ") + detail;
+        }
+
+    private:
+        static constexpr uint32 kPyroblast = 11366;
+        static constexpr uint32 kPyroblastInstant = 92315;
+        static constexpr uint32 kHotStreak = 48108;
+        static constexpr uint32 kPlainCastTime = 3500;
+        static constexpr uint32 kPlainEveryMs = 6000;
+        static constexpr uint32 kHitLow = 3974;
+        static constexpr uint32 kHitHigh = 4404;
+        static constexpr uint32 kInstantStep = 1;
+        static constexpr uint32 kRefusedStep = 2;
+        static constexpr uint32 kSwappedStep = 3;
+        static constexpr uint32 kPlainStep = 4;
+
+        /// What a step's packets of its cast count held, as text.
+        static std::string PathText(CastPath const& path)
+        {
+            return "start " + (path.start ? U(path.start) + " cast time " + U(path.castTime) + " in window " + std::to_string(path.startWindow)
+                                          : std::string("none")) +
+                   ", go " + (path.go ? U(path.go) + " in window " + std::to_string(path.goWindow) : std::string("none")) +
+                   ", refusal " + (path.failed ? U(path.failed) + " " + CastResultName(path.result) : std::string("none"));
+        }
+    };
+
+    /**
      * S971 `mage-fire-flame-orb`: Flame Orb (82731) on a staged Fire mage with Fire Power 3 (54734, whose proc
      * chance, 100, is the orb's chance to explode). Staged: Burning Soul 3, Improved Fire Blast 2 and Fire Power 3;
      * Flame Orb learned. The Camel stands kOrbDistance yards in front of him and casts Hit Me (100446, +20% spell hit
@@ -8810,5 +9314,7 @@ namespace Harness
         r.Register(new MageFireCastPassives());
         r.Register(new MageFireGlyphs());
         r.Register(new MageFireMoltenFuryTick());
+        r.Register(new MageFireMoltenArmor());
+        r.Register(new MageFirePyroblastPath());
     }
 }
