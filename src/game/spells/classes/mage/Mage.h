@@ -45,9 +45,9 @@
  * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's (ImpactSpreads),
  * Mage Ward's (MageWardTriggersBlazingSpeed) and Improved Flamestrike's (ImprovedFlamestrikeChance). Orb.cpp holds the
  * orb a mage's Flame Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature,
- * ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file
- * registers its rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and
- * RegisterRanks per script hook.
+ * ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
+ * and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table per legacy site of
+ * SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -156,6 +156,16 @@ namespace Mage
     /// times, to within 0.1 yd. Defined in Orb.cpp.
     std::optional<OrbGlidePoint> OrbGlideLanding(OrbGlidePoint start, float facing, float speed, float hover,
                                                  std::function<std::optional<float>(float, float, float)> const& floorAt);
+
+    /// How far ahead of itself an orb flying at `speed` reads the floor for its climb, in yards: half a second of its
+    /// flight, at least 1 yd. Defined in Orb.cpp.
+    float OrbLookAhead(float speed);
+
+    /// The height an orb at `z` climbs to when the floor `lookAhead` yards ahead of it is `floorAhead`: the floor plus
+    /// `hover`, when that line is more than a quarter of a yard over `z` and no more than `lookAhead` over it (up to
+    /// 45 degrees). Nothing for a line at or within a quarter yard of `z`, below it, more than `lookAhead` over it (a
+    /// wall: the orb flies on) or when there is no floor ahead. Defined in Orb.cpp.
+    std::optional<float> OrbClimbTo(float z, std::optional<float> floorAhead, float hover, float lookAhead);
 
     /// Whether the orb's end (its explosion) is due: its snare has run out after it held it (`wasSnared` and not
     /// `snaredNow`: its firing is over), or its life has (`lifeMs` at or below 0). Defined in Orb.cpp.
