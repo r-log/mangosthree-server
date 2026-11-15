@@ -1187,6 +1187,16 @@ TEST(MageScripts_PyromaniacsHasteIsTheRanksEffectValue)
     CHECK_EQ(Mage::PyromaniacHaste(0), int32(0));
 }
 
+TEST(MageScripts_InvisibilityFadeTakesATenthPerTick)
+{
+    // Only the fade (66) takes threat; the state it ends in (32612), its trigger id and other spells take none.
+    CHECK_EQ(Mage::InvisibilityThreatPercent(66), int32(-10));
+    CHECK_EQ(Mage::InvisibilityThreatPercent(32612), int32(0));
+    CHECK_EQ(Mage::InvisibilityThreatPercent(35009), int32(0));
+    CHECK_EQ(Mage::InvisibilityThreatPercent(2136), int32(0));
+    CHECK_EQ(Mage::InvisibilityThreatPercent(0), int32(0));
+}
+
 TEST(MageScripts_PyromaniacFindsNoBurningEnemyForAMageNoEnemyHates)
 {
     // No unit's threat list holds a bare creature, so its walk finds no enemy.
