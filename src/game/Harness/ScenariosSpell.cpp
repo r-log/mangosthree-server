@@ -105,14 +105,14 @@
 // target dies does not explode; 971 a staged Fire mage's Flame Orb burns a Camel once a second while it is snared and
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
 // first one's end takes it off; 980 a Blast Wave on one Camel calls nothing, on three calls the free Flamestrike of
-// Improved Flamestrike, and 990 the same with its first rank, whose free Flamestrike is instant too; 983 a Fire mage
+// Improved Flamestrike, and 991 the same with its first rank, whose free Flamestrike is instant too; 983 a Fire mage
 // with Molten Fury's third rank: his Pyroblast's DoT on a target that falls under 35% health between two ticks, and
 // his Fire Blast at it there; 985 the Fire passives that change a hit's
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
 // Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
-// The guard of 931-938, 950-972, 980-983, 985-989 and 990 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 950-972, 980-983, 985-989 and 991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3949,7 +3949,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-972, 980-983, 985-990): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-972, 980-983, 985-989, 991): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -9746,7 +9746,7 @@ namespace Harness
     };
 
     /**
-     * S990 `mage-fire-improved-flamestrike-rank-one`: 980's staging with Improved Flamestrike's first rank (84673, whose
+     * S991 `mage-fire-improved-flamestrike-rank-one`: 980's staging with Improved Flamestrike's first rank (84673, whose
      * chance is 50 and whose cast-time modifier on Flamestrike is -50%), and kBlasts Blast Waves at Camel A, each with
      * Blast Wave's cooldown taken off him by call first, so the seeded rolls decide which of them call the free
      * Flamestrike (88148). The free Flamestrike is instant at either rank: its SMSG_SPELL_GO comes in the same window
@@ -9760,7 +9760,7 @@ namespace Harness
     {
     public:
         MageFireImprovedFlamestrikeRankOne()
-            : MageFireImprovedFlamestrike("mage-fire-improved-flamestrike-rank-one", 990, "rankOne") {}
+            : MageFireImprovedFlamestrike("mage-fire-improved-flamestrike-rank-one", 991, "rankOne") {}
 
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override
