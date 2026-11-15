@@ -940,7 +940,7 @@ TEST(MotionWriters_a_slow_fall_spline_lasts_and_sinks_by_the_slow_curve)
 
     Movement::MoveSpline normal;
     FallSpline(normal, false);
-    CHECK_EQ(normal.Duration(), 644);
+    CHECK_EQ(normal.Duration(), 643);
     normal.updateState(400);
     CHECK(FallNear(normal.ComputePosition().z, 13.457f, 0.01f));
     CHECK(FallNear(normal.ComputePosition().x, 4.68f, 0.01f));

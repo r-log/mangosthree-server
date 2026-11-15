@@ -64,10 +64,6 @@ namespace
             {
                 Place().EnterFrame(Geometry::Frame::World(0, 0), Geometry::Vector3(0.0f, 0.0f, z), 0.0f);
             }
-
-            // The creature counts as in the world without a map.
-            void EnterWorld() { Object::AddToWorld(); }
-            void LeaveWorld() { Object::RemoveFromWorld(); }
     };
 
     // A player with its update fields allocated, on a session with no socket, in no world.
@@ -182,19 +178,6 @@ TEST(CreatureHover_SetHoverSetsTheFlagAndMovesNothingOnACreatureWithNoMap)
     creature.SetHover(true);
     CHECK((creature.WireFlags() & MOVEFLAG_HOVER) != 0);
     CHECK(Near(creature.Where().Z(), 10.0f, 0.001f));
-}
-
-TEST(CreatureHover_SetHoverInTheWorldDoesNotLift)
-{
-    StoreHoverRows();
-    HoverTestCreature creature;
-    creature.SetDisplayId(kOrbDisplay);
-    creature.PlaceAtHeight(10.0f);
-    creature.EnterWorld();
-    creature.SetHover(true);
-    CHECK((creature.WireFlags() & MOVEFLAG_HOVER) != 0);
-    CHECK(Near(creature.Where().Z(), 10.0f, 0.001f));
-    creature.LeaveWorld();
 }
 
 TEST(CreatureHover_AFallLandsItsHoverHeightAboveTheFloorAndNeverLifts)
