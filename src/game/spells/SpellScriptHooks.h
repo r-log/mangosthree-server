@@ -92,13 +92,14 @@ struct SpellEntry;
  *   trigger or with none, remove other auras, change the effect's amount at the apply and set the script words. The
  *   aura is alive: at a holder's removal the holder's effects before this one are already un-applied and those after
  *   it not yet.
- * - AfterCast: `Spell::finish`, once per cast that finished successfully, after every target of the cast is handled
- *   (an immediate cast's at once, a delayed cast's when its last target is reached, a channel's at its end) and
- *   before the caster's add-target-trigger auras. Its count is the cast's unit targets that the cast hit (a miss
- *   condition of none), other than the caster, that the caster is not friendly to (the units a player's area spell
- *   takes, neutral ones among them; never a pet or a friend); its point is the cast's destination when it carries
- *   one, else its explicit unit target's position, else the caster's. Return() is the same as Continue(): nothing
- *   after the hook depends on it. A body may cast.
+ * - AfterCast: `Spell::finish`, once per cast that finished successfully, only for a spell with a row, after the
+ *   cast's targets are handled (an immediate cast's at once, a delayed cast's when its last target is reached, a
+ *   channel's at its end; an effect that ends its own cast runs the hook with the targets handled so far) and before
+ *   the caster's add-target-trigger auras. Its count is the cast's unit targets whose miss condition is none when the
+ *   cast finishes (a delayed spell's target that turned immune or evaded in flight keeps it), other than the caster,
+ *   that the caster is not friendly to (the units a player's area spell takes, neutral ones among them; never a pet
+ *   or a friend); its point is the cast's destination when it carries one, else its explicit unit target's position,
+ *   else the caster's. Return() is the same as Continue(): nothing after the hook depends on it. A body may cast.
  *
  * EffectValue, AfterHit, AuraAmount, DamageDone, CritChance and AfterCast read no outcome: a body changes the
  * context's values or casts, and answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it
