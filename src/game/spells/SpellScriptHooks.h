@@ -62,11 +62,12 @@ struct SpellEntry;
  *   effect; otherwise the family switches and the script library run. A body may cast and remove auras, and keep a
  *   count across the cast's effects and targets in the cast's script word.
  * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt; the target may be dead. A body may
- *   cast and remove auras.
+ *   cast and remove auras, and set the stacks and amounts of a holder through AuraHandle.
  * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
  *   body changes only the amount: the aura is not built yet.
  * - AuraApply: `Unit::AddSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(true)` runs. Return()
- *   skips the boosts. A body may cast, remove other auras and set the script words.
+ *   skips the boosts. A body may cast, remove other auras, take an effect off its own holder (AuraHandle::RemoveEffect,
+ *   which never takes the last) and set the script words.
  * - AuraRemove: `Unit::RemoveSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(false)` runs, so
  *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts. A body may cast and remove other auras. It is the
  *   boosts' moment; a dummy effect's own body runs on DummyAura.
@@ -141,8 +142,18 @@ class AuraHandle
         bool DropCharge();
         /// The amount of the holder's aura at `eff`; 0 when the holder has no aura there.
         int32 Amount(SpellEffectIndex eff) const;
-        /// Writes the amount of the holder's aura at `eff`, when there is one, without applying the aura again.
+        /// Writes the amount of the holder's aura at `eff`, when there is one, without applying the aura again. When the
+        /// amount changes and the holder sends its effects' amounts (AFLAG_EFFECT_AMOUNT_SEND), the clients are told.
         void SetAmount(SpellEffectIndex eff, int32 amount);
+        /// The holder's stack count.
+        uint32 Stacks() const;
+        /// Sets the holder's stack count to `stacks`, recomputing and re-applying every aura's amount as a stack change
+        /// does: a count at or above the holder's refreshes its duration, and the clients are told. Nothing for 0.
+        void SetStacks(uint32 stacks);
+        /// Takes the holder's aura at `eff` off its target and out of the holder, then tells the clients the effects the
+        /// holder keeps. Nothing when the holder has no aura there, or when that aura is the holder's last: a holder is
+        /// removed whole, by the unit's own removal.
+        void RemoveEffect(SpellEffectIndex eff);
         /// The script's word for `eff`: zero when the holder is made, never saved or sent.
         int32& ScriptWord(SpellEffectIndex eff);
         /// Why the holder is removed; AURA_REMOVE_BY_DEFAULT until a removal sets it.

@@ -44,10 +44,41 @@ int32 AuraHandle::Amount(SpellEffectIndex eff) const
 
 void AuraHandle::SetAmount(SpellEffectIndex eff, int32 amount)
 {
-    if (Aura* aura = m_holder.GetAuraByEffectIndex(eff))
+    Aura* aura = m_holder.GetAuraByEffectIndex(eff);
+    if (!aura || aura->GetModifier()->m_amount == amount)
     {
-        aura->GetModifier()->m_amount = amount;
+        return;
     }
+    aura->GetModifier()->m_amount = amount;
+    if (m_holder.GetAuraFlags() & AFLAG_EFFECT_AMOUNT_SEND)
+    {
+        m_holder.SendAuraUpdate(false);
+    }
+}
+
+uint32 AuraHandle::Stacks() const
+{
+    return m_holder.GetStackAmount();
+}
+
+void AuraHandle::SetStacks(uint32 stacks)
+{
+    if (stacks)
+    {
+        m_holder.SetStackAmount(stacks);
+    }
+}
+
+void AuraHandle::RemoveEffect(SpellEffectIndex eff)
+{
+    Aura* aura = m_holder.GetAuraByEffectIndex(eff);
+    Unit* target = m_holder.GetTarget();
+    if (!aura || !target || aura->IsLastAuraOnHolder())
+    {
+        return;
+    }
+    target->RemoveSingleAuraFromSpellAuraHolder(&m_holder, eff);
+    m_holder.SendAuraUpdate(false);
 }
 
 int32& AuraHandle::ScriptWord(SpellEffectIndex eff)
