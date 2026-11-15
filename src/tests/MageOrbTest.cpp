@@ -607,3 +607,31 @@ TEST(MageOrb_TheGlideStartsOnlyTwoHoverHeightsAboveTheFloor)
     CHECK(GlideNear(landing->x, 3.22f, 0.01f));
     CHECK(GlideNear(landing->z, 11.0f, 0.001f));
 }
+
+TEST(MageOrb_TheLookAheadIsHalfASecondOfFlightAndAtLeastAYard)
+{
+    CHECK(GlideNear(Mage::OrbLookAhead(10.0f), 5.0f, 0.0001f));
+    CHECK(GlideNear(Mage::OrbLookAhead(1.0f), 1.0f, 0.0001f));
+    CHECK(GlideNear(Mage::OrbLookAhead(1.42857f), 1.0f, 0.0001f));
+    CHECK(GlideNear(Mage::OrbLookAhead(20.0f), 10.0f, 0.0001f));
+}
+
+TEST(MageOrb_TheClimbGoesToTheHoverLineOverTheFloorAheadUpToTheLookAhead)
+{
+    typedef std::optional<float> Level;
+    // a flat floor, and a sag within a quarter yard: no climb
+    CHECK(!Mage::OrbClimbTo(11.0f, Level(10.0f), 1.0f, 5.0f).has_value());
+    CHECK(!Mage::OrbClimbTo(11.0f, Level(10.2f), 1.0f, 5.0f).has_value());
+    // a line 0.3 yd over the orb, one yard over it and at the look-ahead
+    CHECK(GlideNear(*Mage::OrbClimbTo(11.0f, Level(10.3f), 1.0f, 5.0f), 11.3f, 0.001f));
+    CHECK(GlideNear(*Mage::OrbClimbTo(11.0f, Level(11.0f), 1.0f, 5.0f), 12.0f, 0.001f));
+    CHECK(GlideNear(*Mage::OrbClimbTo(11.0f, Level(15.0f), 1.0f, 5.0f), 16.0f, 0.001f));
+    // a rise over the look-ahead is a wall
+    CHECK(!Mage::OrbClimbTo(11.0f, Level(15.1f), 1.0f, 5.0f).has_value());
+    // the snared crawl: a 1 yd look-ahead
+    CHECK(GlideNear(*Mage::OrbClimbTo(11.0f, Level(10.5f), 1.0f, 1.0f), 11.5f, 0.001f));
+    CHECK(!Mage::OrbClimbTo(11.0f, Level(12.5f), 1.0f, 1.0f).has_value());
+    // no floor ahead, and a floor below the orb's line (the descent's, not the climb's)
+    CHECK(!Mage::OrbClimbTo(11.0f, Level(), 1.0f, 5.0f).has_value());
+    CHECK(!Mage::OrbClimbTo(11.0f, Level(9.0f), 1.0f, 5.0f).has_value());
+}
