@@ -87,7 +87,7 @@ namespace Movement
                 // flags that shouldn't be appended into SMSG_MONSTER_MOVE\SMSG_MONSTER_MOVE_TRANSPORT packet, should be more probably
                 Mask_No_Monster_Move = Mask_Final_Facing | Mask_Animations | Done,
                 // Unused, not suported flags
-                Mask_Unused = No_Spline | Enter_Cycle | Frozen | FallingSlow | Unknown2 | Unknown3 | Unknown4 | SmoothGroundPath | Unknown6 | Unknown7 | Unknown8 | Unknown9,
+                Mask_Unused = No_Spline | Enter_Cycle | Frozen | Unknown2 | Unknown3 | Unknown4 | SmoothGroundPath | Unknown6 | Unknown7 | Unknown8 | Unknown9,
             };
 
             /**
