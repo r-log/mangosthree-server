@@ -117,8 +117,9 @@
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
-// Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
-// The guard of 931-938, 950-977, 980-989 and 991 (Qualify) fingerprints every spell a scenario reaches and
+// Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed; 990 Invisibility fade takes a tenth of a Fire mage threat from the Camel each second,
+// its end drops him from the list, and a cancelled fade keeps what its ticks took.
+// The guard of 931-938, 950-977 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3955,7 +3956,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-975, 977, 980-989, 991): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-975, 977, 980-991): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -4216,6 +4217,8 @@ namespace Harness
             uint32 swingAtMs = 0;               ///< a cast the Camel's swing strikes this long after it starts; 0 for none
             uint32 healthPct = 0;               ///< the Camel's health set to this percent of its maximum; 0 for no such step
             bool kill = false;                  ///< the mage deals the Camel its health as plain damage
+            bool wait = false;                  ///< nothing done: the step only marks a moment for its reads
+            bool selfRemoval = false;           ///< the holder of `spell` on the mage cancelled as the client's right-click does
             bool noCasterAura = false;          ///< a cast that takes the scenario's caster aura off him instead of putting it on
             bool asClient = false;              ///< a cast sent as the client's CMSG_CAST_SPELL to the cast handler (CastAsClient)
         };
@@ -4304,6 +4307,23 @@ namespace Harness
             s.everyMs = everyMs;
             return s;
         }
+        /// Nothing done; the step's reads mark a moment, `everyMs` before the next step.
+        static Step Wait(uint32 everyMs)
+        {
+            Step s;
+            s.wait = true;
+            s.everyMs = everyMs;
+            return s;
+        }
+        /// The holder of `spell` on the mage cancelled through Unit::RemoveAurasDueToSpellByCancel.
+        static Step SelfRemoval(uint32 spell, uint32 everyMs)
+        {
+            Step s;
+            s.spell = spell;
+            s.selfRemoval = true;
+            s.everyMs = everyMs;
+            return s;
+        }
         /// The mage's kill of the Camel: he deals it its health as plain damage.
         static Step Kill(uint32 everyMs)
         {
@@ -4316,7 +4336,7 @@ namespace Harness
         /// health step nor a kill.
         static bool IsCast(Step const& step)
         {
-            return !step.swing && !step.remove && !step.blow && !step.fullHealth && !step.healthPct && !step.kill;
+            return !step.swing && !step.remove && !step.blow && !step.fullHealth && !step.healthPct && !step.kill && !step.wait && !step.selfRemoval;
         }
 
         /// One spell modifier read: what the player's modifiers of `op` make of `base` for `spell`.
@@ -4904,6 +4924,15 @@ namespace Harness
                 p->DealDamage(target, target->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
                 m_rec.Note("the Camel's health right after " + U(target->GetHealth()) + (target->IsAlive() ? "" : ", dead"));
             }
+            else if (step.wait)
+            {
+                m_rec.Note("nothing done: the step marks a moment");
+            }
+            else if (step.selfRemoval)
+            {
+                m_rec.Note("his " + U(step.spell) + ": " + HolderOf(p, step.spell) + "; cancelled as the client's right-click does");
+                p->RemoveAurasDueToSpellByCancel(step.spell);
+            }
             else if (step.healthPct)
             {
                 seen.healthBefore = target->GetHealth();
@@ -5266,6 +5295,14 @@ namespace Harness
                 else if (step.remove)
                 {
                     value = step.mode == AURA_REMOVE_BY_DISPEL ? "dispel" : "remove";
+                }
+                else if (step.wait)
+                {
+                    value = "wait";
+                }
+                else if (step.selfRemoval)
+                {
+                    value = "cancel";
                 }
                 else if (step.healthPct)
                 {
@@ -10961,6 +10998,182 @@ namespace Harness
         }
     };
 
+    /**
+     * S990 `mage-fire-invisibility-fade`: Invisibility's fade (66) on a staged Fire mage who has Fire Blast at the Camel
+     * on his threat list. 66 ticks every second for three seconds, each tick taking a tenth of his threat from every
+     * list that holds him; its expiry casts Invisibility (32612), whose sanctuary effect takes him off every list and
+     * out of combat. Staged as 983 stages him (Precision before each cast, the crit aura at -100). Steps (T the time of
+     * step 2):
+     *  1. Fire Blast at the Camel: he enters its list;
+     *  2. the fade, cast by him at himself, its ticks at T+1, T+2 and T+3 s and its expiry at T+3 s;
+     *  3. a wait read at T+1.5 s and 4. a wait read at T+2.5 s, between ticks;
+     *  5. a wait read at T+3.5 s, after the expiry, four seconds long so the Camel's evade ends before step 6;
+     *  6. Fire Blast again: it removes 32612 and lands, so he is on the list once more;
+     *  7. the fade again, 8. a wait read at T'+1.5 s, 9. a wait read at T'+2.5 s, 10. the fade cancelled at T'+2.7 s,
+     *     before its third tick.
+     * At each step's act and read the scenario keeps his threat on the Camel, whether the Camel's list is empty,
+     * whether he is in combat and whether he holds 66 and 32612.
+     *
+     * `fade`: `fade=<t0>,<t1>,<t2>,end=<e>,<empty>,<combat>,<invis>,
+     * cancel=<u0>,<u1>,<u2>,<u3>,<fade>,<invis>,<combat>`;
+     * OK when t1 is int(t0 x 0.9) and t2 int(t1 x 0.9), one point either side, e is 0 with the list empty, he out of
+     * combat and holding 32612; u1 and u2 follow u0 the same way, u3 equals u2, 66 and 32612 are gone, and he is in
+     * combat with the list not empty.
+     */
+    class MageFireInvisibilityFade : public MageProcScenario
+    {
+    public:
+        MageFireInvisibilityFade() : MageProcScenario("mage-fire-invisibility-fade", 990, "fade") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10555, 1 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFade, kFireBlast }; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 Watched() const override { return kFade; }
+        bool ReadsPeriodic() const override { return true; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step first = Cast(kFireBlast, false);
+            first.clearCooldown = true;
+            Step second = Cast(kFireBlast, false);
+            second.clearCooldown = true;
+            Step fade = SelfAura(kFade, 1500);
+            Step fadeAgain = SelfAura(kFade, 1500);
+            fadeAgain.clearCooldown = true;
+            return { first, fade, Wait(1000), Wait(1000), Wait(4000), second, fadeAgain, Wait(1000), Wait(200),
+                     SelfRemoval(kFade, kCastEveryMs) };
+        }
+
+        /// At each act (`atRead` false) and read: his threat on the Camel (rounded), whether the Camel's list is empty,
+        /// whether he is in combat and whether he holds 32612 and 66; kept in Seen::reads under `a_` for the act.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            const std::string prefix = atRead ? "" : "a_";
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            reads[prefix + "threat"] = int64(target->GetThreatManager().getThreat(p) + 0.5f);
+            reads[prefix + "empty"] = target->GetThreatManager().isThreatListEmpty() ? 1 : 0;
+            reads[prefix + "combat"] = p->IsInCombat() ? 1 : 0;
+            reads[prefix + "invis"] = HolderOf(p, kInvisible) != "none" ? 1 : 0;
+            reads[prefix + "fade"] = HolderOf(p, kFade) != "none" ? 1 : 0;
+            m_rec.Note(std::string(atRead ? "at the read" : "at the act") + ": his threat on the Camel " + U(reads[prefix + "threat"]) +
+                       ", its list " + (reads[prefix + "empty"] ? "empty" : "not empty") + ", he " + (reads[prefix + "combat"] ? "in" : "out of") +
+                       " combat, 32612 " + HolderOf(p, kInvisible) + ", 66 " + HolderOf(p, kFade));
+        }
+
+        /// What ReadOwn kept under `key` for step k; -1 when unread.
+        static int64 Kept(St const& st, uint32 k, char const* key)
+        {
+            if (k >= st.seen.size())
+            {
+                return -1;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(key);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        /// Whether `value` is within one point of `expected`.
+        static bool Near(int64 value, int64 expected)
+        {
+            return value >= 0 && value + 1 >= expected && value <= expected + 1;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 2136: 26 fields, fnv 30ec504c
+                { 2136, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 23 }, { "eff0.EffectBonusCoefficient", 1054582243 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 66: 49 fields, fnv a17ad32c
+                { 66, { { "eff0.present", 0 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 23 }, { "eff1.EffectAuraPeriod", 1000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 35009 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.EffectBasePoints", 100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectIndex", 2 } } },
+                { 35009, { { "absent", 1 } } },
+                // 32612: 72 fields, fnv c904b48b
+                { 32612, { { "eff0.present", 1 }, { "eff0.Effect", 176 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 18 }, { "eff1.EffectBasePoints", 340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRealPointsPerLevel", 1084227584 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 335 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != 10)
+            {
+                return "BUG(steps)";
+            }
+            const int64 t0 = Kept(st, kFadeStep, "a_threat");
+            const int64 t1 = Kept(st, kFirstWait, "a_threat");
+            const int64 t2 = Kept(st, kSecondWait, "a_threat");
+            const int64 e = Kept(st, kEndStep, "threat");
+            const int64 endEmpty = Kept(st, kEndStep, "empty");
+            const int64 endCombat = Kept(st, kEndStep, "combat");
+            const int64 endInvis = Kept(st, kEndStep, "invis");
+            const int64 u0 = Kept(st, kSecondHit, "threat");
+            const int64 u1 = Kept(st, kCancelFirstWait, "a_threat");
+            const int64 u2 = Kept(st, kCancelSecondWait, "a_threat");
+            const int64 u3 = Kept(st, kCancelStep, "a_threat");
+            const int64 cancelFade = Kept(st, kCancelStep, "fade");
+            const int64 cancelInvis = Kept(st, kCancelStep, "invis");
+            const int64 cancelCombat = Kept(st, kCancelStep, "combat");
+            const int64 cancelEmpty = Kept(st, kCancelStep, "empty");
+
+            const bool fadeOk = t0 > 0 && Near(t1, int64(t0 * 0.9) ) && Near(t2, int64(t1 * 0.9));
+            const bool endOk = e == 0 && endEmpty == 1 && endCombat == 0 && endInvis == 1;
+            const bool cancelOk = u0 > 0 && Near(u1, int64(u0 * 0.9)) && Near(u2, int64(u1 * 0.9)) && u3 == u2 && cancelFade == 0 &&
+                                  cancelInvis == 0 && cancelCombat == 1 && cancelEmpty == 0;
+
+            Seen const& hit = st.seen[0];
+            const std::string value = "fade=" + U(uint64(t0 < 0 ? 0 : t0)) + "," + U(uint64(t1 < 0 ? 0 : t1)) + "," + U(uint64(t2 < 0 ? 0 : t2)) +
+                                      ",end=" + U(uint64(e < 0 ? 0 : e)) + "," + U(uint64(endEmpty < 0 ? 0 : endEmpty)) + "," +
+                                      U(uint64(endCombat < 0 ? 0 : endCombat)) + "," + U(uint64(endInvis < 0 ? 0 : endInvis)) + ",cancel=" +
+                                      U(uint64(u0 < 0 ? 0 : u0)) + "," + U(uint64(u1 < 0 ? 0 : u1)) + "," + U(uint64(u2 < 0 ? 0 : u2)) + "," +
+                                      U(uint64(u3 < 0 ? 0 : u3)) + "," + U(uint64(cancelFade < 0 ? 0 : cancelFade)) + "," +
+                                      U(uint64(cancelInvis < 0 ? 0 : cancelInvis)) + "," + U(uint64(cancelCombat < 0 ? 0 : cancelCombat));
+            char buf[1024];
+            snprintf(buf, sizeof(buf),
+                     "Fire Blast's hit %s %u and his threat after it %lld; each tick keeps 90%% of what the list held, one point either side "
+                     "(fade %s: int(%lld x 0.9) = %lld wanted at the first wait, int(%lld x 0.9) = %lld at the second); after the expiry %lld "
+                     "with the list %s, he %s and 32612 %s (%s); the cancelled fade: int(%lld x 0.9) = %lld wanted at the first wait, "
+                     "int(%lld x 0.9) = %lld at the second, %lld right after the cancel, 66 %s, 32612 %s, he %s, the list %s (%s)",
+                     hit.logRead ? "of" : "unread", hit.amount, (long long)t0, fadeOk ? "OK" : "BUG", (long long)t0, (long long)int64(t0 * 0.9),
+                     (long long)t1, (long long)int64(t1 * 0.9), (long long)e, endEmpty == 1 ? "empty" : "not empty",
+                     endCombat == 1 ? "in combat" : "out of combat", endInvis == 1 ? "held" : "gone", endOk ? "OK" : "BUG",
+                     (long long)u0, (long long)int64(u0 * 0.9), (long long)u1, (long long)int64(u1 * 0.9), (long long)u3,
+                     cancelFade == 1 ? "held" : "gone", cancelInvis == 1 ? "held" : "gone", cancelCombat == 1 ? "in combat" : "out of combat",
+                     cancelEmpty == 1 ? "empty" : "not empty", cancelOk ? "OK" : "BUG");
+            return value + ((fadeOk && endOk && cancelOk) ? "(OK: " : "(BUG: ") + buf + ")";
+        }
+
+    private:
+        static constexpr uint32 kFade = 66;
+        static constexpr uint32 kInvisible = 32612;
+        static constexpr uint32 kFireBlast = 2136;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kFadeStep = 1;
+        static constexpr uint32 kFirstWait = 2;
+        static constexpr uint32 kSecondWait = 3;
+        static constexpr uint32 kEndStep = 4;
+        static constexpr uint32 kSecondHit = 5;
+        static constexpr uint32 kCancelFirstWait = 7;
+        static constexpr uint32 kCancelSecondWait = 8;
+        static constexpr uint32 kCancelStep = 9;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -11011,5 +11224,6 @@ namespace Harness
         r.Register(new MageFireMageWardBreak());
         r.Register(new MageFireImprovedFlamestrike());
         r.Register(new MageFireImprovedFlamestrikeRankOne());
+        r.Register(new MageFireInvisibilityFade());
     }
 }
