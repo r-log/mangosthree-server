@@ -114,8 +114,8 @@ class MotionMaster
         bool MoveJump(Position& pos, float horizontalSpeed, float max_height, uint32 id = 0);
         /// A jump that ends facing a target, or a given orientation (was MoveDestination: a raw spline; now an Effect like every jump).
         bool MoveJump(float x, float y, float z, float o, float horizontalSpeed, float max_height, Unit* target);
-        /// Where a fall from `z` lands: the floor plus `hoverOffset` when `z` is more than `minDrop` above that; nothing
-        /// without a floor, or at or under it (a fall never lifts).
+        /// Where a fall from `z` lands: the floor plus `hoverOffset` when `z` is at least `minDrop` above that; nothing
+        /// without a floor, or when `z` is nearer than `minDrop` to it (a fall never lifts).
         static std::optional<float> FallLanding(float z, std::optional<float> floor, float hoverOffset, float minDrop = 0.1f);
         /// Falls to the floor under the unit, a hoverer to its hover height above it.
         void MoveFall();
