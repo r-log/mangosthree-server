@@ -142,18 +142,27 @@ class AuraHandle
         bool DropCharge();
         /// The amount of the holder's aura at `eff`; 0 when the holder has no aura there.
         int32 Amount(SpellEffectIndex eff) const;
+        /// Whether the holder has an aura at `eff`.
+        bool HasEffect(SpellEffectIndex eff) const;
         /// Writes the amount of the holder's aura at `eff`, when there is one, without applying the aura again. When the
         /// amount changes and the holder sends its effects' amounts (AFLAG_EFFECT_AMOUNT_SEND), the clients are told.
         void SetAmount(SpellEffectIndex eff, int32 amount);
         /// The holder's stack count.
         uint32 Stacks() const;
         /// Sets the holder's stack count to `stacks`, recomputing and re-applying every aura's amount as a stack change
-        /// does: a count at or above the holder's refreshes its duration, and the clients are told. Nothing for 0.
+        /// does: a count at or above the holder's refreshes its duration, and the clients are told. Nothing for 0, and
+        /// nothing when the holder's caster cannot be found; the count is not held to the spell's stack limit. Safe at
+        /// the after-hit and aura-apply hooks; not at the aura-remove hook, where it would refresh and send a holder
+        /// already taken off.
         void SetStacks(uint32 stacks);
         /// Takes the holder's aura at `eff` off its target and out of the holder, then tells the clients the effects the
         /// holder keeps. Nothing when the holder has no aura there, or when that aura is the holder's last: a holder is
-        /// removed whole, by the unit's own removal.
+        /// removed whole, by the unit's own removal. Safe at the aura-apply hook; not at the dummy-aura hook, which
+        /// runs inside the holder's apply loop, where it would un-apply an aura the loop has not applied yet.
         void RemoveEffect(SpellEffectIndex eff);
+        /// Sets the time the holder has left to 0: the unit removes it as expired at its next update, with no tick.
+        /// Nothing is removed here, so it is safe wherever the holder is kept alive.
+        void Expire();
         /// The script's word for `eff`: zero when the holder is made, never saved or sent.
         int32& ScriptWord(SpellEffectIndex eff);
         /// Why the holder is removed; AURA_REMOVE_BY_DEFAULT until a removal sets it.

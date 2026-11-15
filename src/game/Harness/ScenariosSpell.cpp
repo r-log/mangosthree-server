@@ -110,13 +110,14 @@
 // lands; 980 a Blast Wave on one Camel calls nothing, on three calls the free Flamestrike of Improved Flamestrike, and
 // 991 the same with its first rank, whose free Flamestrike is instant too; 983 a Fire mage with Molten Fury's third
 // rank: his Pyroblast's DoT on a target that falls under 35% health between two ticks, and his Fire Blast at it there;
-// 984 three Frostfire Bolts under Glyph of Frostfire stack their DoT to three, each tick its stacks' share of the
-// latest hit, and do not slow; 985 the Fire passives that change a hit's
+// 984 four Frostfire Bolts under Glyph of Frostfire stack their DoT to three, each tick its stacks' share of the
+// latest hit, and do not slow; 990 an unglyphed Frostfire Bolt on a target immune to its slow leaves no DoT, no tick and
+// no holder; 985 the Fire passives that change a hit's
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
 // Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
-// The guard of 931-938, 950-975, 980-989 and 991 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 950-975 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3953,7 +3954,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-975, 980-989, 991): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-975, 980-991): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -7885,20 +7886,22 @@ namespace Harness
      * Speed 2, Blast Wave and Improved Scorch 2. He learns no Mastery passive, so his mastery adds nothing, and Frostfire
      * Bolt (44614) is learned. The glyph adds 15% to the bolt's hit and 3000 ms to its holder (12000 ms in all); its
      * effect 2 (3) is the percent of the hit the bolt's DoT deals over the holder's ticks, a further bolt adds a stack up
-     * to the client data's three, and the bolt does not slow. Before each cast he takes Precision (13843, +6% spell
+     * to the client data's three and a fourth keeps three and rewrites the DoT with its own hit, and the bolt does not
+     * slow. Before each cast he takes Precision (13843, +6% spell
      * hit), so no cast misses a level-85 Camel, and each cast puts Increased Critical Spell on him at -100, so no hit or
-     * tick crits. Steps: three bolts, kBoltEveryMs apart, each read kBoltReadMs after its cast (its 2.5 s cast and its
-     * flight land it about 2.8 s after the step, before its read and before the next cast); the third has kLastStepMs to
+     * tick crits. Steps: four bolts, kBoltEveryMs apart, each read kBoltReadMs after its cast (its 2.5 s cast and its
+     * flight land it about 2.8 s after the step, before its read and before the next cast); the fourth has kLastStepMs to
      * the end, past the holder's 12 s. Each read notes the holder's slow (effect 0) and periodic damage (effect 2).
      *
-     * `frostfire`: `stacks=<s1>,<s2>,<s3>,eff=<m1>/<m2>/<m3>,slow=<the slow's amounts at the reads, or absent>,
-     * hits=<h1>+<h2>+<h3>,ticks=<after the first hit>/<after the second>/<after the third>`, the masks those of the
+     * `frostfire`: `stacks=<s1>,<s2>,<s3>,<s4>,eff=<m1>/<m2>/<m3>/<m4>,slow=<the slow's amounts at the reads, or
+     * absent>,hits=<h1>+<h2>+<h3>+<h4>,ticks=<after the first hit>/<after the second>/<after the third>/<after the
+     * fourth>`, the masks those of the
      * holder's effects that hold an aura, the hits each the damage dealt and absorbed, each tick group its amounts with
-     * their count; OK when the holder reads stacks 1, 2 and 3 with its periodic damage and without its slow (0x4) and no
+     * their count; OK when the holder reads stacks 1, 2, 3 and 3 with its periodic damage and without its slow (0x4) and no
      * slow, each hit is no crit and lies in (782..996 + int(1197 x 0.977) = 1169) x 1.2875 x 1.15 = 2888..3205, no tick
-     * crits, and the ticks after hit n are each n x int(h_n x <61205's effect 2> / 100) / <ticks>, where <ticks> is the
-     * holder's full duration over its period at the third read (12000 / 3000 = 4): one after the first hit, one after
-     * the second and <ticks> after the third. BUG with the value in the detail otherwise.
+     * crits, and the ticks after hit n are each min(n, 3) x int(h_n x <61205's effect 2> / 100) / <ticks>, where <ticks>
+     * is the holder's full duration over its period at the fourth read (12000 / 3000 = 4): one after each of the first
+     * three hits and <ticks> after the fourth. BUG with the value in the detail otherwise.
      */
     class MageFireGlyphOfFrostfire : public MageProcScenario
     {
@@ -7920,8 +7923,9 @@ namespace Harness
             first.everyMs = kBoltEveryMs;
             Step second = first;
             Step third = first;
-            third.everyMs = kLastStepMs;
-            return { first, second, third };
+            Step fourth = first;
+            fourth.everyMs = kLastStepMs;
+            return { first, second, third, fourth };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -8028,7 +8032,7 @@ namespace Harness
             }
 
             // the share's percent from the glyph's row, and the holder's tick count over its full duration at the
-            // third read
+            // fourth read
             SpellEntry const* glyph = sSpellStore.LookupEntry(kGlyphOfFrostfire);
             const int32 percent = glyph ? glyph->CalculateSimpleValue(EFFECT_INDEX_2) : 0;
             Seen const& last = st.seen[kBolts - 1];
@@ -8047,7 +8051,7 @@ namespace Harness
                 snprintf(maskText, sizeof(maskText), "0x%llx", (unsigned long long)(mask < 0 ? 0 : mask));
                 masks += (k ? "/" : "") + std::string(maskText);
                 slows += (k ? "/" : "") + (slow == kNone ? std::string("absent") : std::to_string(slow));
-                ok = ok && stack == int64(k + 1) && mask == int64(1u << EFFECT_INDEX_2) && slow == kNone;
+                ok = ok && stack == int64(std::min(k + 1, kMaxStacks)) && mask == int64(1u << EFFECT_INDEX_2) && slow == kNone;
             }
             for (size_t n = 0; n < hits.size(); ++n)
             {
@@ -8056,7 +8060,8 @@ namespace Harness
             }
             for (size_t n = 1; n < ticks.size(); ++n)
             {
-                const uint32 expected = percent > 0 && fullTicks ? uint32(n) * (hits[n - 1] * uint32(percent) / 100 / fullTicks) : 0;
+                const uint32 expected = percent > 0 && fullTicks ? std::min(uint32(n), kMaxStacks) *
+                                                                       (hits[n - 1] * uint32(percent) / 100 / fullTicks) : 0;
                 const size_t wanted = n < kBolts ? 1 : fullTicks;
                 tickText += (n > 1 ? "/" : "") + TickGroup(ticks[n]);
                 expectedText += (n > 1 ? "/" : "") + U(expected) + "x" + U(wanted);
@@ -8074,7 +8079,7 @@ namespace Harness
                                        "n x int(h_n x " + std::to_string(percent) + " / 100) / " + U(fullTicks) + ": " +
                                        (expectedText.empty() ? std::string("none") : expectedText) + "; ticks before the first hit " +
                                        U(ticks[0].size()) + (tickCrit ? "; a tick crit" : "") + (hitCrit ? "; a hit crit" : "") +
-                                       "; the holder at the third read " + last.holder + ", its periodic effect period " +
+                                       "; the holder at the fourth read " + last.holder + ", its periodic effect period " +
                                        std::to_string(last.period) + ", duration " + std::to_string(last.duration) + "/" +
                                        std::to_string(last.maxDuration) + ")";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
@@ -8089,7 +8094,8 @@ namespace Harness
         static constexpr uint32 kBoltEveryMs = 3300;
         static constexpr uint32 kBoltReadMs = 3100;
         static constexpr uint32 kLastStepMs = 15500;
-        static constexpr uint32 kBolts = 3;
+        static constexpr uint32 kBolts = 4;
+        static constexpr uint32 kMaxStacks = 3;
         static constexpr uint32 kHitLow = 2888;
         static constexpr uint32 kHitHigh = 3205;
         static constexpr int64 kNone = -1;
@@ -8128,6 +8134,143 @@ namespace Harness
                 out += (j ? "+" : "") + U(counted[j].first) + "x" + U(counted[j].second);
             }
             return out.empty() ? std::string("none") : out;
+        }
+    };
+
+    /**
+     * S990 `mage-fire-frostfire-snare-immune`: 984's staging without Glyph of Frostfire, against a Camel that holds
+     * Hand of Freedom (1044), whose second effect makes it immune to the snare mechanic. His Frostfire Bolt (44614) hits
+     * it, but its slow never reaches the holder, and without the glyph the bolt has no DoT of its own: the holder is
+     * left with the periodic damage alone and runs out at the unit's next update. One bolt; the read comes
+     * kBoltReadMs after the cast, one update after the hit, and the step runs on past the time the first tick would
+     * come.
+     *
+     * `snareimmune`: `immune=<1 when the Camel holds Hand of Freedom at the read>,held=<1 when it holds 44614 of his>,
+     * hits=<the hit, dealt and absorbed>,ticks=<the count of the bolt's periodic damage in the record>`; OK when the
+     * Camel is immune, holds no 44614 at the read, the hit is no crit and lies in (782..996 + int(1197 x 0.977) = 1169)
+     * x 1.2875 x 1.0 = 2511..2787 (the glyph's +15% absent) and no tick came. BUG with the value in the detail
+     * otherwise.
+     */
+    class MageFireFrostfireSnareImmune : public MageProcScenario
+    {
+    public:
+        MageFireFrostfireSnareImmune() : MageProcScenario("mage-fire-frostfire-snare-immune", 990, "snareimmune") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 }, { 10555, 1 }, { 10551, 0 }, { 10547, 1 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFrostfireBolt }; }
+        int32 SpellPower() const override { return kSpellPower; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step bolt = Cast(kFrostfireBolt, false);
+            bolt.everyMs = kEndMs;
+            return { bolt };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 44614: 72 fields, fnv 0aade896
+                { 44614, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 628 }, { "eff1.EffectBonusCoefficient", 1064967340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 103 }, { "eff1.EffectRealPointsPerLevel", 1081711002 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 3 }, { "eff2.EffectAuraPeriod", 3000 }, { "eff2.EffectBasePoints", 1 }, { "eff2.EffectBonusCoefficient", 1005596799 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return kFrostfireBolt; }
+        bool WatchedOnTarget() const override { return true; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 CastReadMs() const override { return kBoltReadMs; }
+        uint32 TargetAura() const override { return kHandOfFreedom; }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* target) override
+        {
+            if (!atRead)
+            {
+                return;
+            }
+            Seen& seen = st.seen[k];
+            seen.reads["immune"] = target->HasAura(kHandOfFreedom) ? 1 : 0;
+            seen.reads["held"] = target->GetSpellAuraHolder(kFrostfireBolt) ? 1 : 0;
+            m_rec.Note("44614 on the Camel: " + HolderOf(target, kFrostfireBolt) + "; Hand of Freedom (1044) " +
+                       HolderOf(target, kHandOfFreedom));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<uint32> hits;
+            uint32 ticks = 0;
+            bool hitCrit = false;
+            std::vector<Recorder::Seen> const& packets = m_rec.Packets();
+            for (size_t i = 0; i < packets.size(); ++i)
+            {
+                Recorder::Seen const& packet = packets[i];
+                const bool hit = packet.opcode == SMSG_SPELLNONMELEEDAMAGELOG;
+                if ((!hit && packet.opcode != SMSG_PERIODICAURALOG) || packet.payload.empty())
+                {
+                    continue;
+                }
+                const std::vector<std::string> fields = Trace::CombatLogFields(packet.opcode, &packet.payload[0], packet.payload.size(), roles);
+                for (size_t f = 0; f < fields.size(); ++f)
+                {
+                    uint32 spell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                    const int parsed = hit ? sscanf(fields[f].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted)
+                                           : sscanf(fields[f].c_str(), "tick self.tick.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted);
+                    if (parsed != 5 || spell != kFrostfireBolt)
+                    {
+                        continue;
+                    }
+                    if (hit)
+                    {
+                        hits.push_back(amount + absorbed);
+                        hitCrit = hitCrit || crit != 0;
+                    }
+                    else
+                    {
+                        ++ticks;
+                    }
+                }
+            }
+
+            const int64 immune = Kept(st, 0, "immune");
+            const int64 held = Kept(st, 0, "held");
+            const bool ok = hits.size() == 1 && !hitCrit && InBand(hits[0], kHitLow, kHitHigh) && ticks == 0 && immune == 1 && held == 0;
+            const std::string value = "immune=" + std::to_string(immune) + ",held=" + std::to_string(held) + ",hits=" +
+                                      (hits.empty() ? std::string("none") : U(hits[0])) + ",ticks=" + U(ticks);
+            const std::string detail = "the hit dealt and absorbed in " + U(kHitLow) + ".." + U(kHitHigh) + ", no crit; " +
+                                       std::to_string(hits.size()) + " hits" + (hitCrit ? "; a hit crit" : "") + ")";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kFrostfireBolt = 44614;
+        static constexpr uint32 kHandOfFreedom = 1044;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kBoltReadMs = 3100;
+        static constexpr uint32 kEndMs = 7000;
+        static constexpr uint32 kHitLow = 2511;
+        static constexpr uint32 kHitHigh = 2787;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
         }
     };
 
@@ -9198,8 +9341,8 @@ namespace Harness
      * Improved Fire Blast 2 and Master of Elements 2; Fire Power 3 and Blazing Speed 2; Blast Wave and Improved Scorch
      * 2. Blazing Speed (31643) holds a root dispel of 100 in its second effect and a snare dispel of 0 in its third,
      * which Molten Shields (11094) raises by 100. The steps are casts by him at himself and the Camel's blows: his
-     * Frostfire Bolt (44614) at himself has no flight, so its slow (-40%, the snare mechanic), its hit and its DoT reach
-     * him at once. Blazing Speed's own proc (31642) answers the melee and ranged hits he takes, and none comes. At each
+     * Frostfire Bolt (44614) at himself has no flight, so its slow (-40%, the snare mechanic) and its hit reach him at
+     * once; without the glyph the bolt has no DoT. Blazing Speed's own proc (31642) answers the melee and ranged hits he takes, and none comes. At each
      * read the scenario notes whether he holds Frostfire Bolt and Blazing Speed, and the amount of his Mage Ward (543).
      */
     class MageMoltenShieldsScenario : public MageProcScenario
@@ -10702,6 +10845,7 @@ namespace Harness
         r.Register(new MageFireFlameOrbDownhill());
         r.Register(new MageFirePyromaniac());
         r.Register(new MageFireGlyphOfFrostfire());
+        r.Register(new MageFireFrostfireSnareImmune());
         r.Register(new MageFireDamagePassives());
         r.Register(new MageFireCastPassives());
         r.Register(new MageFireGlyphs());

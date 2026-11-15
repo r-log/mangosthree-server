@@ -1778,10 +1778,13 @@ TEST(MageScripts_FrostfireBoltsApplyTakesTheSlowOffWithTheGlyphAndTheDamageOffWi
 
     // A caster without it: the holder loses the periodic damage, effect 2, and keeps the slow.
     BareCreature plain;
+    // A holder that keeps its slow keeps its time.
     SpellAuraHolder* withoutGlyph = AuraHolder(spell, target);
+    withoutGlyph->SetAuraDuration(9000);
     AuraApplyContext plainApply(target, &plain, SpellRow(row, kFrostfireBolt), AuraHandle(*withoutGlyph), true);
     CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, plainApply).IsContinue());
     CHECK_EQ(EffectsHeld(*withoutGlyph), uint32(0x3));
+    CHECK_EQ(withoutGlyph->GetAuraDuration(), int32(9000));
     delete withoutGlyph;
 
     // An apply that is not real, and one whose caster cannot be found, take nothing off.
@@ -1793,6 +1796,122 @@ TEST(MageScripts_FrostfireBoltsApplyTakesTheSlowOffWithTheGlyphAndTheDamageOffWi
     CHECK_EQ(EffectsHeld(*untouched), uint32(0x7));
     delete untouched;
     CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+namespace
+{
+    const uint32 kPeriodicSpell = 94263;
+    const int32 kGlyphPercent = 3;
+
+    struct StoredPeriodic
+    {
+        ServerSpell spell;
+    };
+
+    // Puts `spellId` into the stores once with a periodic damage aura at effect 0 every 3000 ms; no other test reads it.
+    SpellEntry const* StorePeriodic(StoredPeriodic& rows, uint32 spellId)
+    {
+        if (rows.spell.Entry().ID == spellId)
+        {
+            return &rows.spell.Entry();
+        }
+        rows.spell.Entry().ID = spellId;
+        rows.spell.effect.SpellID = spellId;
+        rows.spell.effect.EffectIndex = EFFECT_INDEX_0;
+        rows.spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        rows.spell.effect.EffectAura = SPELL_AURA_PERIODIC_DAMAGE;
+        rows.spell.effect.EffectAuraPeriod = 3000;
+        rows.spell.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+        sSpellStore.SetEntry(spellId, &rows.spell.Entry());
+        AddSpellEffectEntry(&rows.spell.effect);
+        return &rows.spell.Entry();
+    }
+
+    // A holder of `spell` on `target` with one aura, at `eff`, of `amount`.
+    SpellAuraHolder* HolderWithOneAura(SpellEntry const* spell, Unit& target, SpellEffectIndex eff, int32 amount)
+    {
+        SpellAuraHolder* holder = new SpellAuraHolder(spell, &target, NULL, NULL, NULL);
+        int32 basePoints = amount;
+        holder->AddAura(CreateAura(spell, eff, &basePoints, holder, &target), eff);
+        return holder;
+    }
+}
+
+TEST(MageScripts_FrostfireBoltsHolderWithoutASlowRunsOut)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 5);
+    SpellRowStorage row;
+    BareCreature target;
+    BareCreature plain;
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+
+    // A target immune to the slow: the holder reaches the hook with effect 2 alone. Without the glyph that last effect
+    // is not removed, and the holder is left with no time, so the unit removes it as expired with no tick, and
+    // Pyromaniac and Combustion pass over it.
+    SpellAuraHolder* immune = HolderWithOneAura(spell, target, EFFECT_INDEX_2, 5);
+    immune->SetAuraDuration(9000);
+    AuraApplyContext plainApply(target, &plain, SpellRow(row, kFrostfireBolt), AuraHandle(*immune), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, plainApply).IsContinue());
+    CHECK_EQ(EffectsHeld(*immune), uint32(0x4));
+    CHECK_EQ(immune->GetAuraDuration(), int32(0));
+
+    // The after-hit takes the time again when the holder was given it back.
+    immune->SetAuraDuration(9000);
+    AfterHitContext plainHit(plain, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, false);
+    target.HoldAura(kFrostfireBolt, *immune);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, plainHit).IsContinue());
+    CHECK_EQ(immune->GetAuraDuration(), int32(0));
+    delete immune;
+
+    // With the glyph the periodic damage is the bolt's, and its time stays.
+    SpellAuraHolder* burning = HolderWithOneAura(spell, target, EFFECT_INDEX_2, 5);
+    burning->SetAuraDuration(12000);
+    AuraApplyContext glyphedApply(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*burning), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, glyphedApply).IsContinue());
+    CHECK_EQ(burning->GetAuraDuration(), int32(12000));
+    delete burning;
+}
+
+TEST(MageScripts_FrostfireBoltsFourthGlyphedBoltRewritesTheBurnWithItsOwnHitAtThreeStacks)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    static StoredAuras glyphRows;
+    static StoredPeriodic periodicRows;
+    StoreAuras(glyphRows, kGlyphOfFrostfire, MAX_EFFECT_INDEX, kGlyphPercent);
+    SpellEntry const* periodic = StorePeriodic(periodicRows, kPeriodicSpell);
+    SpellRowStorage row;
+    BareCreature target;
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+
+    // The caster's holder at three stacks with the third bolt's tick of 69 and the time that bolt left it.
+    SpellAuraHolder* holder = HolderWithOneAura(periodic, target, EFFECT_INDEX_0, 1);
+    holder->SetStackAmount(3);
+    holder->SetAuraMaxDuration(12000);
+    holder->SetAuraDuration(12000);
+    target.HoldAura(kFrostfireBolt, *holder);
+    AuraHandle(*holder).SetAmount(EFFECT_INDEX_0, 69);
+    CHECK_EQ(holder->GetStackAmount(), uint32(3));
+
+    // The fourth bolt's hit, 3130 (3000 dealt and 130 absorbed): the stacks stay at three and the tick is the newest
+    // hit's share times three, 3 x (int(3130 x 3 / 100) / 4) = 69, not the 23 of one stack; a hit of 4000 gives
+    // 3 x (120 / 4) = 90.
+    AfterHitContext fourth(glyphed, target, SpellRow(row, kFrostfireBolt), 3000, false, 130, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, fourth).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(3));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(69));
+    AfterHitContext bigger(glyphed, target, SpellRow(row, kFrostfireBolt), 4000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, bigger).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(3));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(90));
+    delete holder;
 }
 
 TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
@@ -1823,8 +1942,8 @@ TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
     target.HoldAura(kFrostfireBolt, *holder);
     CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-120));
 
-    // With Glyph of Frostfire on the caster the stacks stay; the client data's glyph is not in this binary's spell
-    // store, so no share is written either.
+    // With Glyph of Frostfire on the caster the stacks stay; the glyph's row is not in the spell store here, and the
+    // holder has no periodic damage, so no share is written either.
     BareCreature glyphed;
     HolderStorage glyph;
     glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));

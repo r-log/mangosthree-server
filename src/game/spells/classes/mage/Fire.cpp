@@ -246,8 +246,9 @@ namespace
     /// 11129: Combustion: its script effect puts Combustion (83853) on the target with a tick equal to the per-second
     /// damage of the caster's Pyroblast (11366, 92315), Living Bomb (44457), Frostfire Bolt (44614) and Ignite (12654)
     /// on the target at this moment; Ignite's part is taken before the caster's Flashburn, which the engine applies to
-    /// the new DoT. Flamestrike is not combined. With nothing to combine the DoT is still applied, with a tick of 0. The
-    /// script ends the effect, so the mage family switch, which has nothing for 11129, does not run.
+    /// the new DoT. Flamestrike is not combined, nor is a holder with no time left. With nothing to combine the DoT is
+    /// still applied, with a tick of 0. The script ends the effect, so the mage family switch, which has nothing for
+    /// 11129, does not run.
     SpellHandlerOutcome<void> CombustionEffect(DummyEffectContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.target)
@@ -262,6 +263,10 @@ namespace
                            found);
         for (PeriodicDamageView const& view : found)
         {
+            if (view.remainingMs == 0)
+            {
+                continue;
+            }
             Mage::DotShare const share = { view.amount, view.periodMs };
             shares.push_back(share);
         }
@@ -342,17 +347,34 @@ namespace
     uint32 const FROSTFIRE_BOLT_SPELL = 44614;
     uint32 const GLYPH_OF_FROSTFIRE = 61205;
 
+    /// A Frostfire Bolt holder of a caster without Glyph of Frostfire that holds no slow, because its target is immune
+    /// to the slow, has only the periodic damage the bolt does not deal: its time is set to run out, and the unit's own
+    /// expiry removes it at its next update with no tick. Mage::PyromaniacBurns and Combustion pass over a holder with
+    /// no time left.
+    void ExpireWithoutSlow(AuraHandle& aura)
+    {
+        if (!aura.HasEffect(EFFECT_INDEX_0))
+        {
+            aura.Expire();
+        }
+    }
+
     /// 44614: Frostfire Bolt: when its holder is added, a caster with Glyph of Frostfire (61205) takes the slow (effect
     /// 0) off it and any other caster the periodic damage (effect 2), so the bolt slows or burns, never both; a holder
-    /// left with one of the two by the target's immunities keeps it (AuraHandle::RemoveEffect). Then, with the holder
-    /// as that leaves it, the caster's burning enemies are counted again for Pyromaniac, as PyromaniacDotApply counts
-    /// them: a bolt without its periodic damage makes no enemy burn (Mage::PyromaniacBurns). The holder's boosts still
-    /// run.
+    /// left with the periodic damage alone by its target's immunity to the slow runs out (ExpireWithoutSlow). Then,
+    /// with the holder as that leaves it, the caster's burning enemies are counted again for Pyromaniac, as
+    /// PyromaniacDotApply counts them: a bolt without its periodic damage or its time makes no enemy burn
+    /// (Mage::PyromaniacBurns). The holder's boosts still run.
     SpellHandlerOutcome<void> FrostfireBoltAuraApply(AuraApplyContext& ctx)
     {
         if (ctx.real && ctx.caster)
         {
-            ctx.aura.RemoveEffect(ctx.caster->HasAura(GLYPH_OF_FROSTFIRE) ? EFFECT_INDEX_0 : EFFECT_INDEX_2);
+            bool const glyphed = ctx.caster->HasAura(GLYPH_OF_FROSTFIRE);
+            ctx.aura.RemoveEffect(glyphed ? EFFECT_INDEX_0 : EFFECT_INDEX_2);
+            if (!glyphed)
+            {
+                ExpireWithoutSlow(ctx.aura);
+            }
         }
         return PyromaniacDotApply(ctx);
     }
@@ -362,7 +384,8 @@ namespace
     /// of the damage dealt and absorbed, taken before the caster's bonus at the target's low health, Molten Fury, which
     /// each tick takes again (Mage::FrostfireGlyphHit); spread over the ticks the holder's time left holds at its
     /// period, times the holder's stacks, with the caster's mastery on the spell (Mage::FrostfireGlyphTick). Without
-    /// the glyph a holder that stacked is set back to one stack, so the slow keeps its own value.
+    /// the glyph a holder that stacked is set back to one stack, so the slow keeps its own value, and one with no slow
+    /// runs out (ExpireWithoutSlow).
     SpellHandlerOutcome<void> FrostfireBoltAfterHit(AfterHitContext& ctx)
     {
         if (ctx.heal)
@@ -382,6 +405,7 @@ namespace
             {
                 aura.SetStacks(1);
             }
+            ExpireWithoutSlow(aura);
             return SpellHandlerOutcome<void>::Continue();
         }
 
@@ -630,8 +654,14 @@ uint32 Mage::PyromaniacTargets(Unit& mage)
             {
                 continue;
             }
-            uint32 const held[] = { spellId };
-            if (PyromaniacBurns(spellId, FindPeriodicDamage(*enemy, caster, held, 1, found) > 0))
+            bool holdsPeriodicDamage = false;
+            if (spellId == FROSTFIRE_BOLT_SPELL)
+            {
+                uint32 const held[] = { spellId };
+                holdsPeriodicDamage = FindPeriodicDamage(*enemy, caster, held, 1, found) > 0 &&
+                                      found[0].remainingMs != 0;
+            }
+            if (PyromaniacBurns(spellId, holdsPeriodicDamage))
             {
                 ++burning;
                 break;

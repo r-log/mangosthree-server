@@ -42,6 +42,11 @@ int32 AuraHandle::Amount(SpellEffectIndex eff) const
     return aura ? aura->GetModifier()->m_amount : 0;
 }
 
+bool AuraHandle::HasEffect(SpellEffectIndex eff) const
+{
+    return m_holder.GetAuraByEffectIndex(eff) != NULL;
+}
+
 void AuraHandle::SetAmount(SpellEffectIndex eff, int32 amount)
 {
     Aura* aura = m_holder.GetAuraByEffectIndex(eff);
@@ -79,6 +84,11 @@ void AuraHandle::RemoveEffect(SpellEffectIndex eff)
     }
     target->RemoveSingleAuraFromSpellAuraHolder(&m_holder, eff);
     m_holder.SendAuraUpdate(false);
+}
+
+void AuraHandle::Expire()
+{
+    m_holder.SetAuraDuration(0);
 }
 
 int32& AuraHandle::ScriptWord(SpellEffectIndex eff)

@@ -652,8 +652,8 @@ bool Spell::IsTriggeredSpellWithRedundentCastTime() const
     }
 
     // Overload spells: zero-cost triggered copies of the caster's spell that carry its cast time, which the triggering
-    // spell has already spent, and triggered spells whose scaling row repeats the cast time of the spell that triggered
-    // them, so the mana-cost test above misses them.
+    // spell has already spent, and triggered copies whose scaling row repeats the cast time of the spell they copy, so
+    // the mana-cost test above misses them.
     if (m_IsTriggeredSpell && IsOverloadIgnoringCastTime(m_spellInfo->ID))
     {
         return true;
