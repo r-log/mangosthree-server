@@ -384,9 +384,9 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
     // Hot Streak's buff at the aura-remove hook, Pyromaniac's seven DoTs and two ranks at the aura-apply and
     // aura-remove hooks, and Combustion and Impact's spread at the dummy-effect hook. Frost: the 74396 boost and proc
-    // labels; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of
-    // Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane:
-    // Magic Absorption, Arcane Potency and Mana Shield. 56 rows, 56 keys and 3 defaults, none twice.
+    // labels; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak,
+    // Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption,
+    // Arcane Potency and Mana Shield. 56 rows, 56 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
     CHECK_EQ(RegisterMageScripts(registry), uint32(59));
     CHECK_EQ(registry.Count(), std::size_t(56));

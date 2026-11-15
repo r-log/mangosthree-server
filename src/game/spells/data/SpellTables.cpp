@@ -264,7 +264,7 @@ namespace
         22008,  // Netherwind Focus
         34936,  // Backlash
         51124,  // Killing Machine
-        57761,  // Fireball!
+        57761,  // Brain Freeze
         64823,  // Elune's Wrath (Balance druid t8 set)
     };
 
