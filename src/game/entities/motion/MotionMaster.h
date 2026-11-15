@@ -96,6 +96,8 @@ class MotionMaster
         void MoveConfused(uint64 claim = 0);                                     ///< a Confused claim; 0 derives the script identity
         void MoveFleeing(Unit* enemy, uint32 timeLimit = 0, uint64 claim = 0);   ///< a Fear claim; 0 derives a script identity from the enemy
         void MovePoint(uint32 id, float x, float y, float z, bool generatePath = true);
+        /// A point whose leg goes out at once from where the unit is, with no stop first: for a leg that replaces a running one.
+        void MovePointOnward(uint32 id, float x, float y, float z, bool generatePath = false);
         void MoveSeekAssistance(float x, float y, float z);
         void MoveSeekAssistanceDistract(uint32 timer);
         void MoveWaypoint(int32 id = 0, uint32 source = 0, uint32 initialDelay = 0, uint32 overwriteEntry = 0);
@@ -309,6 +311,7 @@ class MotionMaster
         Motion::Arbiter const& Arbiter() const { return m_arbiter; }
 
     private:
+        void RequestPoint(uint32 id, float x, float y, float z, bool generatePath, bool onward);
         /// One held entry's behaviour, keyed by the arbiter's sequence.
         struct Bound
         {

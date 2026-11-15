@@ -1007,11 +1007,30 @@ void MotionMaster::MoveFollow(Unit* target, float dist, float angle)
  */
 void MotionMaster::MovePoint(uint32 id, float x, float y, float z, bool generatePath)
 {
+    RequestPoint(id, x, y, z, generatePath, false);
+}
+
+/**
+ * @brief Moves the unit to a point, the leg going out at once with no stop first.
+ * @param id ID of the movement.
+ * @param x X-coordinate of the destination.
+ * @param y Y-coordinate of the destination.
+ * @param z Z-coordinate of the destination.
+ * @param generatePath Whether to generate a path to the destination.
+ */
+void MotionMaster::MovePointOnward(uint32 id, float x, float y, float z, bool generatePath)
+{
+    RequestPoint(id, x, y, z, generatePath, true);
+}
+
+void MotionMaster::RequestPoint(uint32 id, float x, float y, float z, bool generatePath, bool onward)
+{
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s targeted point (Id: %u X: %f Y: %f Z: %f)", m_owner->GetGuidStr().c_str(), id, x, y, z);
     Motion::PointBehaviour::Params p;
     p.id = id;
     p.goal = Motion::Vector3(x, y, z);
     p.flags = generatePath ? Motion::MOVE_NONE : Motion::MOVE_STRAIGHT;
+    p.onward = onward;
     Request(R(Motion::Kind::Point, id), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
 }
 
