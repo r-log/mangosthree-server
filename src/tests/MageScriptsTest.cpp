@@ -28,14 +28,18 @@
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the dummy aura hook, Pyromaniac's
-/// leaves and its rows at the aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick
-/// and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads,
-/// the exits of its spread at the dummy-effect hook, Improved Flamestrike's chance, and Blast Wave's refusals at the
-/// after-cast hook; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or
-/// creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template
-/// or AI), with the effect rows the scripts read added to the effect store as the client's data holds them, and a
-/// holder put in the creature's holder map where a script asks whether it holds an aura. The cooldown Impact clears is
-/// a player's: a player on a session with no socket, in no world, whose cooldown sinks the test installs.
+/// leaves (a Frostfire Bolt burning only with its periodic damage among them) and its rows at the aura-apply and
+/// aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with the auras of
+/// its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of its spread at the
+/// dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of Frostfire's
+/// hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's apply and its after-hit
+/// exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or creates an
+/// item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no
+/// map, template or AI), with the effect rows the scripts read added to the effect store as the client's data holds
+/// them, and a holder put in the creature's holder map where a script asks whether it holds an aura. The cooldown
+/// Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown sinks the test
+/// installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three auras
+/// whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -99,7 +103,8 @@ namespace
     uint32 const MAGE_WARD_IDS[] = { 543 };
 
     // The ids Pyromaniac's scripts hold at the aura-apply and aura-remove hooks: the eight DoTs it counts (Flamestrike's
-    // ground effect, Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, Pyroblast!) and the talent's two ranks.
+    // ground effect, Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, the free Flamestrike's ground effect,
+    // Pyroblast!) and the talent's two ranks.
     uint32 const PYROMANIAC_DOT_IDS[] = { 2120, 11366, 12654, 44457, 44614, 83853, 88148, 92315 };
     uint32 const PYROMANIAC_IDS[] = { 34293, 34295 };
 
@@ -423,14 +428,15 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
     // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
     // Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the aura-apply and
-    // aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, and Blast Wave at the after-cast hook.
-    // Frost: the 74396 boost and proc labels; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master
-    // of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane:
-    // Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the dummy-effect hook, and the orb's scan
-    // at the target and dummy-effect hooks. 63 rows, 63 keys and 3 defaults, none twice.
+    // aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the after-cast hook, and
+    // Frostfire Bolt at the after-hit hook. Frost: the 74396 boost and proc labels; Ice Lance at the damage-done hook. At
+    // the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity
+    // State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the
+    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. 64 rows, 64 keys and 3 defaults, none
+    // twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(66));
-    CHECK_EQ(registry.Count(), std::size_t(63));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(67));
+    CHECK_EQ(registry.Count(), std::size_t(64));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -446,6 +452,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(12));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(1));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -463,7 +470,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 36, 36, 0 },
+        { &Mage::RegisterFire, 37, 37, 0 },
         { &Mage::RegisterFrost, 7, 7, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
@@ -477,8 +484,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(66));
-    CHECK_EQ(registry.Count(), std::size_t(63));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(67));
+    CHECK_EQ(registry.Count(), std::size_t(64));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -489,7 +496,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(63));
+    CHECK_EQ(mine.size(), std::size_t(64));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -1121,7 +1128,7 @@ TEST(MageScripts_AMageWardThatDamageUsesUpBringsBlazingSpeedOnlyWithMoltenShield
 TEST(MageScripts_PyromaniacCountsTheMagesFireDamageOverTime)
 {
     // The holders of the talent's text, "Fire damage over time from your spells": Flamestrike's ground effect,
-    // Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion and Pyroblast!.
+    // Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, the free Flamestrike's ground effect and Pyroblast!.
     for (uint32 spellId : PYROMANIAC_DOT_IDS)
     {
         CHECK(Mage::PyromaniacCounts(spellId));
@@ -1132,6 +1139,29 @@ TEST(MageScripts_PyromaniacCountsTheMagesFireDamageOverTime)
     for (uint32 spellId : { 133u, 2136u, 11129u, 44461u, 82739u, 83619u, 83582u })
     {
         CHECK(!Mage::PyromaniacCounts(spellId));
+    }
+}
+
+TEST(MageScripts_PyromaniacCountsAFrostfireBoltOnlyWhileItDealsDamageOverTime)
+{
+    // Frostfire Bolt's holder makes its enemy burn with its periodic damage (the glyphed bolt) and not without it (the
+    // unglyphed bolt, which only slows).
+    CHECK(Mage::PyromaniacBurns(44614, true));
+    CHECK(!Mage::PyromaniacBurns(44614, false));
+
+    // Every other DoT the talent counts makes its enemy burn whatever the flag, and a spell it does not count never.
+    for (uint32 spellId : PYROMANIAC_DOT_IDS)
+    {
+        if (spellId != 44614)
+        {
+            CHECK(Mage::PyromaniacBurns(spellId, true));
+            CHECK(Mage::PyromaniacBurns(spellId, false));
+        }
+    }
+    for (uint32 spellId : { 133u, 2136u, 44461u, 83582u })
+    {
+        CHECK(!Mage::PyromaniacBurns(spellId, true));
+        CHECK(!Mage::PyromaniacBurns(spellId, false));
     }
 }
 
@@ -1171,8 +1201,8 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
     // At the remove hook the eight DoTs share one body; at the apply hook the seven but Frostfire Bolt share it, and
-    // Frostfire Bolt's apply is a row of its own, whose body counts as theirs does (the two compile to the same code, so
-    // the linker may give them one address). The two ranks share one body at each hook. The same in the game's table.
+    // Frostfire Bolt's apply is a row of its own, whose body takes one effect off the holder and then counts as theirs
+    // does. The two ranks share one body at each hook. The same in the game's table.
     SpellHandler<AuraApplyHook>::Function const dotApply = registry.Find<AuraApplyHook>(PYROMANIAC_DOT_IDS[0]);
     SpellHandler<AuraRemoveHook>::Function const dotRemove = registry.Find<AuraRemoveHook>(PYROMANIAC_DOT_IDS[0]);
     SpellHandler<AuraApplyHook>::Function const frostfireApply = registry.Find<AuraApplyHook>(44614);
@@ -1185,6 +1215,7 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
     CHECK(talentRemove != NULL);
     CHECK(talentApply != dotApply);
     CHECK(talentApply != frostfireApply);
+    CHECK(frostfireApply != dotApply);
     CHECK(talentRemove != dotRemove);
     for (uint32 spellId : PYROMANIAC_DOT_IDS)
     {
@@ -1611,4 +1642,325 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
     CHECK(body(two).IsContinue());
     CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
     CHECK_EQ(caster.GetSpellAuraHolderMap().size(), std::size_t(1));
+}
+
+TEST(MageScripts_FrostfireGlyphTickIsTheStacksShareOfTheHitWithMastery)
+{
+    // 3% of a 3000 hit over four ticks: 90 / 4 = 22 a tick for one stack, 66 for three.
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 4, 1, 1.0f), int32(22));
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 4, 3, 1.0f), int32(66));
+
+    // A holder that ticks five times in its time left (a hasted one): 90 / 5 = 18 a tick, 54 for three stacks.
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 5, 3, 1.0f), int32(54));
+
+    // Flashburn's 22.4% at 8 mastery points: 66 x 1.224 = 80.78, truncated.
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 4, 3, 1.224f), int32(80));
+
+    // A share below one point a tick deals nothing, and so do no hit and no tick.
+    CHECK_EQ(Mage::FrostfireGlyphTick(100, 3, 4, 3, 1.0f), int32(0));
+    CHECK_EQ(Mage::FrostfireGlyphTick(0, 3, 4, 1, 1.0f), int32(0));
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 0, 1, 1.0f), int32(0));
+}
+
+TEST(MageScripts_FrostfireGlyphShareLeavesOutMoltenFurySoEachTickTakesItOnce)
+{
+    // A 3000 hit that Molten Fury's third rank raised by 12% at a target under 35% health deals 3360; the share is
+    // taken from the 3000 before it, the nearest whole hit, and from 3000 itself, Molten Fury's first rank's 3120 and
+    // no bonus at all.
+    CHECK_EQ(Mage::FrostfireGlyphHit(3360, 1.12f), uint32(3000));
+    CHECK_EQ(Mage::FrostfireGlyphHit(3120, 1.04f), uint32(3000));
+    CHECK_EQ(Mage::FrostfireGlyphHit(3000, 1.0f), uint32(3000));
+    CHECK_EQ(Mage::FrostfireGlyphHit(0, 1.12f), uint32(0));
+    CHECK_EQ(Mage::FrostfireGlyphHit(3000, 0.0f), uint32(3000));
+
+    // At 30% health the tick takes the 12% once, as Aura::PeriodicTick multiplies it: one stack int(22 x 1.12) = 24,
+    // three int(66 x 1.12) = 73. A share taken from the raised 3360 would tick int(25 x 1.12) = 28 and int(75 x 1.12)
+    // = 84, the bonus twice.
+    float const moltenFury = 1.12f;
+    int32 const oneStack = Mage::FrostfireGlyphTick(Mage::FrostfireGlyphHit(3360, moltenFury), 3, 4, 1, 1.0f);
+    int32 const threeStacks = Mage::FrostfireGlyphTick(Mage::FrostfireGlyphHit(3360, moltenFury), 3, 4, 3, 1.0f);
+    CHECK_EQ(oneStack, int32(22));
+    CHECK_EQ(threeStacks, int32(66));
+    CHECK_EQ(uint32(uint32(oneStack) * moltenFury), uint32(24));
+    CHECK_EQ(uint32(uint32(threeStacks) * moltenFury), uint32(73));
+    CHECK_EQ(uint32(uint32(Mage::FrostfireGlyphTick(3360, 3, 4, 1, 1.0f)) * moltenFury), uint32(28));
+    CHECK_EQ(uint32(uint32(Mage::FrostfireGlyphTick(3360, 3, 4, 3, 1.0f)) * moltenFury), uint32(84));
+}
+
+namespace
+{
+    const uint32 kFrostfireBolt = 44614;
+    const uint32 kGlyphOfFrostfire = 61205;
+    const uint32 kThreeAuraSpell = 94261;
+    const uint32 kSlowAuraSpell = 94262;
+
+    // A spell's records in the spell and effect stores, kept alive for the rest of the run.
+    struct StoredAuras
+    {
+        ServerSpell spell;
+        SpellEffectEntry more[MAX_EFFECT_INDEX - 1];
+    };
+
+    // Puts `spellId` into the stores once with `effects` effects, each an aura at the target whose apply and removal
+    // change nothing on the unit (SPELL_AURA_MOD_DAMAGE_FROM_CASTER), of `basePoints`; no other test reads it.
+    SpellEntry const* StoreAuras(StoredAuras& rows, uint32 spellId, uint32 effects, int32 basePoints)
+    {
+        if (rows.spell.Entry().ID == spellId)
+        {
+            return &rows.spell.Entry();
+        }
+        rows.spell.Entry().ID = spellId;
+        for (uint32 eff = 0; eff < effects && eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            SpellEffectEntry& row = eff == 0 ? rows.spell.effect : rows.more[eff - 1];
+            row = SpellEffectEntry();
+            row.SpellID = spellId;
+            row.EffectIndex = eff;
+            row.Effect = SPELL_EFFECT_APPLY_AURA;
+            row.EffectAura = SPELL_AURA_MOD_DAMAGE_FROM_CASTER;
+            row.EffectBasePoints = basePoints;
+            row.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+            AddSpellEffectEntry(&row);
+        }
+        sSpellStore.SetEntry(spellId, &rows.spell.Entry());
+        return &rows.spell.Entry();
+    }
+
+    // A holder of `spell` on `target`, made through its constructor with no caster, so its caster's guid is the
+    // target's, with an aura made through CreateAura at every effect the spell has, of the effect's base points.
+    SpellAuraHolder* AuraHolder(SpellEntry const* spell, Unit& target)
+    {
+        SpellAuraHolder* holder = new SpellAuraHolder(spell, &target, NULL, NULL, NULL);
+        for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            SpellEffectEntry const* row = spell->GetSpellEffect(SpellEffectIndex(eff));
+            if (!row)
+            {
+                continue;
+            }
+            int32 basePoints = row->EffectBasePoints;
+            holder->AddAura(CreateAura(spell, SpellEffectIndex(eff), &basePoints, holder, &target), SpellEffectIndex(eff));
+        }
+        return holder;
+    }
+
+    // Which effects of `holder` hold an aura, as a mask of the effect indexes.
+    uint32 EffectsHeld(SpellAuraHolder const& holder)
+    {
+        uint32 mask = 0;
+        for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            mask |= holder.GetAuraByEffectIndex(SpellEffectIndex(eff)) ? 1u << eff : 0u;
+        }
+        return mask;
+    }
+}
+
+TEST(MageScripts_FrostfireBoltsApplyTakesTheSlowOffWithTheGlyphAndTheDamageOffWithout)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 5);
+    SpellRowStorage row;
+    BareCreature target;
+
+    // A caster with Glyph of Frostfire: the holder loses the slow, effect 0, and keeps effects 1 and 2. The caster is a
+    // creature, so Pyromaniac counts nothing, and the holder's boosts still run.
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+    SpellAuraHolder* withGlyph = AuraHolder(spell, target);
+    AuraApplyContext glyphedApply(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*withGlyph), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, glyphedApply).IsContinue());
+    CHECK_EQ(EffectsHeld(*withGlyph), uint32(0x6));
+    delete withGlyph;
+
+    // A caster without it: the holder loses the periodic damage, effect 2, and keeps the slow.
+    BareCreature plain;
+    // A holder that keeps its slow keeps its time.
+    SpellAuraHolder* withoutGlyph = AuraHolder(spell, target);
+    withoutGlyph->SetAuraDuration(9000);
+    AuraApplyContext plainApply(target, &plain, SpellRow(row, kFrostfireBolt), AuraHandle(*withoutGlyph), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, plainApply).IsContinue());
+    CHECK_EQ(EffectsHeld(*withoutGlyph), uint32(0x3));
+    CHECK_EQ(withoutGlyph->GetAuraDuration(), int32(9000));
+    delete withoutGlyph;
+
+    // An apply that is not real, and one whose caster cannot be found, take nothing off.
+    SpellAuraHolder* untouched = AuraHolder(spell, target);
+    AuraApplyContext notReal(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*untouched), false);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, notReal).IsContinue());
+    AuraApplyContext noCaster(target, NULL, SpellRow(row, kFrostfireBolt), AuraHandle(*untouched), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, noCaster).IsContinue());
+    CHECK_EQ(EffectsHeld(*untouched), uint32(0x7));
+    delete untouched;
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+namespace
+{
+    const uint32 kPeriodicSpell = 94263;
+    const int32 kGlyphPercent = 3;
+
+    struct StoredPeriodic
+    {
+        ServerSpell spell;
+    };
+
+    // Puts `spellId` into the stores once with a periodic damage aura at effect 0 every 3000 ms; no other test reads it.
+    SpellEntry const* StorePeriodic(StoredPeriodic& rows, uint32 spellId)
+    {
+        if (rows.spell.Entry().ID == spellId)
+        {
+            return &rows.spell.Entry();
+        }
+        rows.spell.Entry().ID = spellId;
+        rows.spell.effect.SpellID = spellId;
+        rows.spell.effect.EffectIndex = EFFECT_INDEX_0;
+        rows.spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        rows.spell.effect.EffectAura = SPELL_AURA_PERIODIC_DAMAGE;
+        rows.spell.effect.EffectAuraPeriod = 3000;
+        rows.spell.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+        sSpellStore.SetEntry(spellId, &rows.spell.Entry());
+        AddSpellEffectEntry(&rows.spell.effect);
+        return &rows.spell.Entry();
+    }
+
+    // A holder of `spell` on `target` with one aura, at `eff`, of `amount`.
+    SpellAuraHolder* HolderWithOneAura(SpellEntry const* spell, Unit& target, SpellEffectIndex eff, int32 amount)
+    {
+        SpellAuraHolder* holder = new SpellAuraHolder(spell, &target, NULL, NULL, NULL);
+        int32 basePoints = amount;
+        holder->AddAura(CreateAura(spell, eff, &basePoints, holder, &target), eff);
+        return holder;
+    }
+}
+
+TEST(MageScripts_FrostfireBoltsHolderWithoutASlowRunsOut)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 5);
+    SpellRowStorage row;
+    BareCreature target;
+    BareCreature plain;
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+
+    // A target immune to the slow: the holder reaches the hook with effect 2 alone. Without the glyph that last effect
+    // is not removed, and the holder is left with no time, so the unit removes it as expired with no tick, and
+    // Pyromaniac and Combustion pass over it.
+    SpellAuraHolder* immune = HolderWithOneAura(spell, target, EFFECT_INDEX_2, 5);
+    immune->SetAuraDuration(9000);
+    AuraApplyContext plainApply(target, &plain, SpellRow(row, kFrostfireBolt), AuraHandle(*immune), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, plainApply).IsContinue());
+    CHECK_EQ(EffectsHeld(*immune), uint32(0x4));
+    CHECK_EQ(immune->GetAuraDuration(), int32(0));
+
+    // The after-hit takes the time again when the holder was given it back.
+    immune->SetAuraDuration(9000);
+    AfterHitContext plainHit(plain, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, false);
+    target.HoldAura(kFrostfireBolt, *immune);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, plainHit).IsContinue());
+    CHECK_EQ(immune->GetAuraDuration(), int32(0));
+    delete immune;
+
+    // With the glyph the periodic damage is the bolt's, and its time stays.
+    SpellAuraHolder* burning = HolderWithOneAura(spell, target, EFFECT_INDEX_2, 5);
+    burning->SetAuraDuration(12000);
+    AuraApplyContext glyphedApply(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*burning), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, glyphedApply).IsContinue());
+    CHECK_EQ(burning->GetAuraDuration(), int32(12000));
+    delete burning;
+}
+
+TEST(MageScripts_FrostfireBoltsFourthGlyphedBoltRewritesTheBurnWithItsOwnHitAtThreeStacks)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    static StoredAuras glyphRows;
+    static StoredPeriodic periodicRows;
+    StoreAuras(glyphRows, kGlyphOfFrostfire, MAX_EFFECT_INDEX, kGlyphPercent);
+    SpellEntry const* periodic = StorePeriodic(periodicRows, kPeriodicSpell);
+    SpellRowStorage row;
+    BareCreature target;
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+
+    // The caster's holder at three stacks with the third bolt's tick of 69 and the time that bolt left it.
+    SpellAuraHolder* holder = HolderWithOneAura(periodic, target, EFFECT_INDEX_0, 1);
+    holder->SetStackAmount(3);
+    holder->SetAuraMaxDuration(12000);
+    holder->SetAuraDuration(12000);
+    target.HoldAura(kFrostfireBolt, *holder);
+    AuraHandle(*holder).SetAmount(EFFECT_INDEX_0, 69);
+    CHECK_EQ(holder->GetStackAmount(), uint32(3));
+
+    // The fourth bolt's hit, 3130 (3000 dealt and 130 absorbed): the stacks stay at three and the tick is the newest
+    // hit's share times three, 3 x (int(3130 x 3 / 100) / 4) = 69, not the 23 of one stack; a hit of 4000 gives
+    // 3 x (120 / 4) = 90.
+    AfterHitContext fourth(glyphed, target, SpellRow(row, kFrostfireBolt), 3000, false, 130, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, fourth).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(3));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(69));
+    AfterHitContext bigger(glyphed, target, SpellRow(row, kFrostfireBolt), 4000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, bigger).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(3));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(90));
+    delete holder;
+}
+
+TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK(registry.Find<AfterHitHook>(kFrostfireBolt) != NULL);
+    CHECK(game.Find<AfterHitHook>(kFrostfireBolt) == registry.Find<AfterHitHook>(kFrostfireBolt));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
+
+    // A heal, and a hit on a target that holds no Frostfire Bolt of the caster, change nothing.
+    BareCreature caster;
+    BareCreature target;
+    SpellRowStorage row;
+    AfterHitContext heal(caster, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, true);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, heal).IsContinue());
+    AfterHitContext nothingHeld(caster, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, nothingHeld).IsContinue());
+    CHECK(target.GetSpellAuraHolderMap().empty());
+
+    // The caster's holder of the bolt on the target, its one aura a slow of -40, stacked to three by the engine: -120.
+    // The bare creatures' guids are all empty, so the holder is the caster's.
+    static StoredAuras rows;
+    SpellEntry const* slow = StoreAuras(rows, kSlowAuraSpell, 1, -40);
+    SpellAuraHolder* holder = AuraHolder(slow, target);
+    holder->SetStackAmount(3);
+    target.HoldAura(kFrostfireBolt, *holder);
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-120));
+
+    // With Glyph of Frostfire on the caster the stacks stay; the glyph's row is not in the spell store here, and the
+    // holder has no periodic damage, so no share is written either.
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+    AfterHitContext glyphedHit(glyphed, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, glyphedHit).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(3));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-120));
+
+    // Without the glyph the holder is set back to one stack, and the slow to its own -40.
+    AfterHitContext plainHit(caster, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, plainHit).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(1));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-40));
+
+    // At one stack a second hit changes nothing.
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, plainHit).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(1));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-40));
+    delete holder;
 }

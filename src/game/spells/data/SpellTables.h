@@ -59,7 +59,8 @@ bool IsHealthToMaxAura(uint32 spellId);
 /// Whether an aura holder starts at the spell's maximum stack.
 bool IsMaxStackAtCreateAura(uint32 spellId);
 
-/// Whether a triggered overload spell ignores the cast time it carries from the spell that triggered it.
+/// Whether a triggered overload spell ignores the cast time it carries from the spell that triggered it, or a triggered
+/// copy whose scaling row repeats the cast time of the spell it copies.
 bool IsOverloadIgnoringCastTime(uint32 spellId);
 
 /// Whether a spell may target a player on a taxi flight.
