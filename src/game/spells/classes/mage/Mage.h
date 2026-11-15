@@ -39,9 +39,9 @@
  * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
  * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
- * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes) and Impact's
- * (ImpactSpreads). Each file registers its rows through one function of namespace Mage: a table per legacy site of
- * SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's (ImpactSpreads)
+ * and Mage Ward's (MageWardTriggersBlazingSpeed). Each file registers its rows through one function of namespace Mage:
+ * a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies and those of the three specializations. Returns the rows and
@@ -140,6 +140,10 @@ namespace Mage
     /// Whether a Living Bomb whose dummy aura is un-applied for `mode` explodes: only when the aura ran out
     /// (AURA_REMOVE_BY_EXPIRE). Defined in Fire.cpp.
     bool LivingBombExplodes(AuraRemoveMode mode);
+
+    /// Whether a Mage Ward removed in `mode` brings Blazing Speed: only when damage used up its last point
+    /// (AURA_REMOVE_BY_SHIELD_BREAK) and its caster knows Molten Shields. Defined in Fire.cpp.
+    bool MageWardTriggersBlazingSpeed(AuraRemoveMode mode, bool casterKnowsMoltenShields);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.
