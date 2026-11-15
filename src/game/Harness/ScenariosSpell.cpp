@@ -104,13 +104,14 @@
 // with Cauterize, and the burn that follows; 970 Living Bomb's explosion starts the mage's procs, and a bomb whose
 // target dies does not explode; 971 a staged Fire mage's Flame Orb burns a Camel once a second while it is snared and
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
-// first one's end takes it off; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that falls
+// first one's end takes it off; 980 a Blast Wave on one Camel calls nothing, on three calls the free Flamestrike of
+// Improved Flamestrike; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that falls
 // under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
 // Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
-// The guard of 931-938, 950-972, 981-983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 950-972, 980-983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3947,7 +3948,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-972, 981-983, 985-989): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-972, 980-983, 985-989): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -9512,6 +9513,235 @@ namespace Harness
         ObjectGuid m_camel;
     };
 
+    /**
+     * S980 `mage-fire-improved-flamestrike`: Improved Flamestrike (84674, rank 2 of 2, whose chance is 100) on a staged
+     * Fire mage with kSpellPower spell power, 1197 with his intellect's, and no mastery. Staged: Burning Soul 3,
+     * Improved Fire Blast 2 and Master of Elements 2; Fire Power 3 and Blazing Speed 2; Blast Wave, Improved Scorch 2
+     * and Cauterize 2; Molten Shields, Combustion and Firestarter (the 20 points the fifth tier asks), then Improved
+     * Flamestrike 2. Burning Soul names the Fire tree, which teaches Fire Specialization (+25% fire damage); with Fire
+     * Power 3 every fire hit and tick is multiplied by 1.25 x 1.03 = 1.2875. Camel A stands ten yards in front of him,
+     * Camels B and C kOffsetB and kOffsetC yards from it to either side, inside the 8 yards of Blast Wave and of
+     * Flamestrike around it, and Camel D kOffsetD yards from it, beyond them (ExtraTargets). Before each cast he takes
+     * Precision (13843), so no cast misses, and the crit aura at -100, so no hit or tick crits. Steps:
+     *  1. Blast Wave (11113) at Camel D, which it hits alone: one enemy, so no free Flamestrike;
+     *  2. its cooldown taken off him by call, Blast Wave at Camel A, which it hits with B and C: the free Flamestrike
+     *     (88148) comes down there, hits the three, and its ground effect ticks on each every 2 s for 8 s, read for
+     *     kLastStepMs.
+     * The cast the harness builds carries a unit target and no destination, so the free Flamestrike's point is Camel
+     * A's position. Blast Wave hits for (851..1003 + int(1197 x 0.143)) x 1.2875 = 1315..1511, the free Flamestrike
+     * for (558..682 + int(1197 x 0.146)) x 1.2875 = 942..1102, and each of its ticks for (96 + int(1197 x 0.061)) x
+     * 1.2875 = 217; the spell power shares are read from the effects' coefficients.
+     *
+     * `flamestrike`: `free=<the 88148 casts in step 1's windows>/<in step 2's>,hits=<its hits in step 1's
+     * windows>/<in step 2's>,ticks=<its ticks in step 1's windows>/<in step 2's>`, a step with no 88148 cast written
+     * `-`; OK when it reads free=-/1,hits=0/3,ticks=0/12, Blast Wave hit one Camel at step 1 and three at step 2, and
+     * every hit and tick lies in its band, one point either side allowed for the float product of the percent auras.
+     */
+    class MageFireImprovedFlamestrike : public MageProcScenario
+    {
+    public:
+        MageFireImprovedFlamestrike() : MageProcScenario("mage-fire-improved-flamestrike", 980, "flamestrike") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10545, 1 }, { 11434, 2 }, { 10555, 1 }, { 10551, 0 }, { 10547, 1 }, { 11433, 1 },
+                     { 10543, 0 }, { 10561, 0 }, { 11431, 0 }, { 10734, 1 } };
+        }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override
+        {
+            return { { 0.0f, kOffsetB }, { 0.0f, -kOffsetC }, { 0.0f, kOffsetD } };
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            Step alone = Cast(kBlastWave, false);
+            alone.target = kCamelD;
+            Step three = Cast(kBlastWave, false);
+            three.target = kCamelA;
+            three.clearCooldown = true;
+            three.everyMs = kLastStepMs;
+            return { alone, three };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 11113: 49 fields, fnv ac35ef1b
+                { 11113, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 153 }, { "eff0.EffectBonusCoefficient", 1041395352 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 33 }, { "eff0.EffectRadiusIndex_0", 14 }, { "eff0.EffectRealPointsPerLevel", 1065353216 }, { "eff0.ImplicitTarget_0", 16 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 33 }, { "eff1.EffectBasePoints", -70 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 11 }, { "eff1.EffectRadiusIndex_0", 14 }, { "eff1.ImplicitTarget_0", 16 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 88148: 49 fields, fnv d69ff162
+                { 88148, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 51 }, { "eff0.EffectBonusCoefficient", 1041596678 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 17 }, { "eff0.EffectRadiusIndex_0", 14 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 16 }, { "eff1.present", 1 }, { "eff1.Effect", 27 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 2000 }, { "eff1.EffectBasePoints", 12 }, { "eff1.EffectBonusCoefficient", 1031396131 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRadiusIndex_0", 14 }, { "eff1.ImplicitTarget_0", 28 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 84674: 49 fields, fnv 2a349246
+                { 84674, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 18 }, { "eff0.EffectSpellClassMask.Flags", 274877906944 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", -100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 10 }, { "eff1.EffectSpellClassMask.Flags", 4 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 29075: 26 fields, fnv d8954794
+                { 29075, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 29077: 26 fields, fnv a4e31d4d
+                { 29077, { { "eff0.present", 1 }, { "eff0.Effect", 30 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At each read: the free Flamestrike's holder on every Camel, noted.
+        void ReadOwn(St& st, uint32 /*k*/, bool atRead, Player* /*p*/, Creature* /*target*/) override
+        {
+            if (!atRead)
+            {
+                return;
+            }
+            static char const* const names[] = { "A", "B", "C", "D" };
+            std::string text;
+            for (uint32 camel = 0; camel < st.targets.size() && camel < 4; ++camel)
+            {
+                text += (camel ? "; " : "") + std::string("Camel ") + names[camel] + " " + HolderOf(Get(st.targets[camel]), kFreeFlamestrike);
+            }
+            m_rec.Note(U(kFreeFlamestrike) + " on each Camel: " + text);
+        }
+
+        std::string Own(St const& st) const override
+        {
+            int32 spellPower = 0;
+            if (Player* p = sPlayerRegistry.Find(st.player))
+            {
+                spellPower = p->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
+            }
+            const int32 blastShare = Share(spellPower, kBlastWave, EFFECT_INDEX_0);
+            const int32 hitShare = Share(spellPower, kFreeFlamestrike, EFFECT_INDEX_0);
+            const int32 tickShare = Share(spellPower, kFreeFlamestrike, EFFECT_INDEX_1);
+            const uint32 blastLow = uint32(float(kBlastWaveLow + blastShare) * kDoneMultiplier);
+            const uint32 blastHigh = uint32(float(kBlastWaveHigh + blastShare) * kDoneMultiplier);
+            const uint32 hitLow = uint32(float(kFlamestrikeLow + hitShare) * kDoneMultiplier);
+            const uint32 hitHigh = uint32(float(kFlamestrikeHigh + hitShare) * kDoneMultiplier);
+            const uint32 tick = uint32(float(kFlamestrikeTick + tickShare) * kDoneMultiplier);
+
+            static uint32 const wantedBlasts[] = { 1, 3 };
+            static uint32 const wantedCasts[] = { 0, 1 };
+            static uint32 const wantedHits[] = { 0, 3 };
+            static uint32 const wantedTicks[] = { 0, 12 };
+            bool ok = st.steps.size() == 2;
+            std::string free, hits, ticks, detail;
+            for (uint32 k = 0; k < st.steps.size() && k < 2; ++k)
+            {
+                const uint32 casts = uint32(std::count(st.seen[k].triggered.begin(), st.seen[k].triggered.end(), kFreeFlamestrike));
+                const std::vector<std::pair<uint32, bool> > blasts = HitsOf(k, kBlastWave);
+                const std::vector<std::pair<uint32, bool> > flames = HitsOf(k, kFreeFlamestrike);
+                const std::vector<uint32> flameTicks = TickAmounts(k, kFreeFlamestrike);
+                ok = ok && blasts.size() == wantedBlasts[k] && casts == wantedCasts[k] && flames.size() == wantedHits[k] &&
+                     flameTicks.size() == wantedTicks[k];
+
+                std::string blastText, flameText, tickText;
+                for (size_t i = 0; i < blasts.size(); ++i)
+                {
+                    blastText += (i ? "+" : "") + U(blasts[i].first) + (blasts[i].second ? " crit" : "");
+                    ok = ok && !blasts[i].second && InBand(blasts[i].first, blastLow, blastHigh);
+                }
+                for (size_t i = 0; i < flames.size(); ++i)
+                {
+                    flameText += (i ? "+" : "") + U(flames[i].first) + (flames[i].second ? " crit" : "");
+                    ok = ok && !flames[i].second && InBand(flames[i].first, hitLow, hitHigh);
+                }
+                for (size_t i = 0; i < flameTicks.size(); ++i)
+                {
+                    tickText += (i ? "+" : "") + U(flameTicks[i]);
+                    ok = ok && InBand(flameTicks[i], tick, tick);
+                }
+
+                const char* sep = k ? "/" : "";
+                free += sep + (casts ? U(casts) : std::string("-"));
+                hits += sep + U(uint32(flames.size()));
+                ticks += sep + U(uint32(flameTicks.size()));
+                detail += std::string(k ? "; " : "") + "step " + U(k + 1) + ": Blast Wave hit " + U(uint32(blasts.size())) + " Camel(s) (" +
+                          (blastText.empty() ? std::string("none") : blastText) + "), 88148 cast " + U(casts) + " time(s), its hits " +
+                          (flameText.empty() ? std::string("none") : flameText) + ", its ticks " +
+                          (tickText.empty() ? std::string("none") : tickText);
+            }
+
+            const std::string value = "free=" + free + ",hits=" + hits + ",ticks=" + ticks;
+            char buf[384];
+            snprintf(buf, sizeof(buf),
+                     "; fire spell power %d; Blast Wave (%d..%d + %d) x %.4f = %u..%u, the free Flamestrike (%d..%d + %d) x %.4f = "
+                     "%u..%u, its tick (%d + %d) x %.4f = %u; wanted free=-/1,hits=0/3,ticks=0/12 with one Camel hit at step 1 and three "
+                     "at step 2",
+                     spellPower, kBlastWaveLow, kBlastWaveHigh, blastShare, kDoneMultiplier, blastLow, blastHigh, kFlamestrikeLow,
+                     kFlamestrikeHigh, hitShare, kDoneMultiplier, hitLow, hitHigh, kFlamestrikeTick, tickShare, kDoneMultiplier, tick);
+            return value + (ok ? "(OK: " : "(BUG: ") + detail + buf + ")";
+        }
+
+    private:
+        static constexpr uint32 kBlastWave = 11113;
+        static constexpr uint32 kFreeFlamestrike = 88148;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kCamelA = 0;
+        static constexpr uint32 kCamelD = 3;
+        static constexpr float kOffsetB = 3.0f;
+        static constexpr float kOffsetC = 5.0f;
+        static constexpr float kOffsetD = 20.0f;
+        static constexpr uint32 kLastStepMs = 10000;
+        static constexpr int32 kBlastWaveLow = 851;
+        static constexpr int32 kBlastWaveHigh = 1003;
+        static constexpr int32 kFlamestrikeLow = 558;
+        static constexpr int32 kFlamestrikeHigh = 682;
+        static constexpr int32 kFlamestrikeTick = 96;
+        static constexpr float kDoneMultiplier = 1.25f * 1.03f;
+
+        /// int(spellPower x the bonus coefficient of `spell`'s effect `eff`), as the done bonus takes it; 0 when the
+        /// spell store lacks the effect.
+        static int32 Share(int32 spellPower, uint32 spell, SpellEffectIndex eff)
+        {
+            SpellEntry const* info = sSpellStore.LookupEntry(spell);
+            SpellEffectEntry const* effect = info ? info->GetSpellEffect(eff) : NULL;
+            return effect ? int32(spellPower * effect->EffectBonusCoefficient) : 0;
+        }
+
+        /// The amounts and crit flags of the damage logs of `spell` he dealt in step k's windows, in order.
+        std::vector<std::pair<uint32, bool> > HitsOf(uint32 k, uint32 spell) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<std::pair<uint32, bool> > hits;
+            const std::string hit = "hit self.hit." + U(spell) + "=";
+            const std::vector<std::string> windows = StepWindows(k);
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(windows[w], SMSG_SPELLNONMELEEDAMAGELOG);
+                for (size_t i = 0; i < logs.size(); ++i)
+                {
+                    if (logs[i]->payload.empty())
+                    {
+                        continue;
+                    }
+                    std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &logs[i]->payload[0],
+                                                                             logs[i]->payload.size(), roles);
+                    for (size_t f = 0; f < fields.size(); ++f)
+                    {
+                        uint32 amount = 0, crit = 0;
+                        if (fields[f].compare(0, hit.size(), hit) == 0 && sscanf(fields[f].c_str() + hit.size(), "%u/%u", &amount, &crit) == 2)
+                        {
+                            hits.push_back(std::make_pair(amount, crit != 0));
+                        }
+                    }
+                }
+            }
+            return hits;
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -9554,5 +9784,6 @@ namespace Harness
         r.Register(new MageFirePyroblastPath());
         r.Register(new MageFireBlazingSpeedDispel());
         r.Register(new MageFireMageWardBreak());
+        r.Register(new MageFireImprovedFlamestrike());
     }
 }
