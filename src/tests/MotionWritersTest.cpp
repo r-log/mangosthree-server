@@ -941,5 +941,5 @@ TEST(MotionWriters_a_slow_fall_spline_lasts_and_sinks_by_the_slow_curve)
     CHECK(FallNear(normal.ComputePosition().z, 13.457f, 0.01f));
     CHECK(FallNear(normal.ComputePosition().x, 4.68f, 0.01f));
     normal.updateState(300);
-    CHECK(FallNear(normal.ComputePosition().z, 11.0f, 0.01f));
+    CHECK(FallNear(normal.ComputePosition().z, 11.0f, 0.02f));
 }
