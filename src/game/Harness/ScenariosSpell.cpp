@@ -106,8 +106,11 @@
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
 // first one's end takes it off; 973 the orb of a Fire mage without Fire Power skips a critter and a polymorphed
 // enemy and hits the next one; 974 the orb of a mage cast from a height glides to its hover height and flies level;
-// 975 the orb of a mage facing downhill glides when the floor falls away under it in flight; 980 a Blast Wave on one Camel calls nothing, on three calls the free Flamestrike of Improved Flamestrike, and 991 the same with its first rank, whose free Flamestrike is instant too; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that falls
-// under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's
+// 975 the orb of a mage facing downhill glides when the floor falls away under it in flight and flies on after it
+// lands; 980 a Blast Wave on one Camel calls nothing, on three calls the free Flamestrike of Improved Flamestrike, and
+// 991 the same with its first rank, whose free Flamestrike is instant too; 983 a Fire mage with Molten Fury's third
+// rank: his Pyroblast's DoT on a target that falls under 35% health between two ticks, and his Fire Blast at it there;
+// 985 the Fire passives that change a hit's
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
@@ -9710,9 +9713,9 @@ namespace Harness
      * cast and at the step's read: the orb's spline and placement, their distance ahead of the orb's spawn in the plane,
      * their z, and the orb's z over the ground under it.
      *
-     * `descent`: `spawn=<the orb's placement z over the ground under it right after the cast, kStartReadMs after it and
-     * before the orb's first update, within 0.01 of kPlayerLift> ahead400=<the spline's distance ahead of the spawn at the
-     * first read, kAheadLow..kAheadHigh> sunk400=<the spline's z below the spawn's at the first read, kSunkLow..kSunkHigh>
+     * `descent`: `spawn=<the orb's placement z over the ground under it kStartReadMs after the cast, in the tick of
+     * the orb's first update: after the glide is launched, before the placement moves, within 0.01 of kPlayerLift>
+     * ahead400=<the spline's distance ahead of the spawn at the first read, kAheadLow..kAheadHigh> sunk400=<the spline's z below the spawn's at the first read, kSunkLow..kSunkHigh>
      * ahead500=<the same distance at 500 ms, kAhead500Low..kAhead500High: a fall without the slow flag would be done sooner
      * and ahead of it> landed=<the orb's z over the ground under it at the last early
      * read, 1.00 within 0.01, with the orb kLandedAhead yards or more ahead> flew=<yes when at the step's read the orb is
@@ -9964,15 +9967,15 @@ namespace Harness
 
         OrbSample m_early[4];
         OrbSample m_final;
-        OrbSample m_start;                              ///< the orb's placement right after the cast, before its first update
+        OrbSample m_start;                              ///< its placement in the first update's tick, after the launch, before it moves
         ObjectGuid m_player;
     };
 
     /**
-     * S975 `mage-fire-flame-orb-downhill`: the glide that starts in flight. The mage of 974 stands kPlayerLift (1.5)
-     * yards over the ground, which is under two hover heights, facing 247.5 degrees (down and to the side of -x), where the
-     * plain falls away about 0.8 yd over its first 10 yd and 1.2 yd over 20 (read from the harness map's floor on the 16
-     * bearings from his point; the plain around it rises on most others). He casts Flame Orb once. The orb spawns level with him, a hover height and a half over the
+     * S975 `mage-fire-flame-orb-downhill`: the glide that starts in flight. The mage of 974 stands 1.5 yards over the
+     * ground (PlayerLift), which is under two hover heights, facing 247.5 degrees (mostly toward -y, 22.5 degrees off it
+     * toward -x), where the plain falls away about 0.8 yd over its first 10 yd and 1.2 yd over 20 (it rises on most
+     * other bearings). He casts Flame Orb once. The orb spawns level with him, a hover height and a half over the
      * ground: it does not glide at its start. It flies level until the floor under it is two hover heights below its
      * line, then glides forward on the slow-fall curve to a hover height over the floor ahead and flies level again, and
      * so on down the slope. Reads every kReadMs from kReadMs after the cast, kReads of them (the last within the 40 yd the
@@ -9984,9 +9987,10 @@ namespace Harness
      * first=<the first read the spline is more than kDrop below the spawn's z: the glide began in flight> ahead=<the
      * orb's distance ahead gained between that read and the one before it, over kAheadGain: it kept flying forward while it
      * sank> over=<the lowest and the highest height of the spline over the ground under it at any read, within
-     * kRiseLow..kRiseHigh: it never went under its hover line, and the floor falling away did not leave it more than two
-     * hover heights over it> line=<yes when every read has the placement on the spawn's line within 0.01>`; OK when all
-     * hold. Hits are not read.
+     * kRiseLow..kRiseHigh (2.5, two hover heights and one tick of slope): it never went under its hover line, and the
+     * floor falling away did not leave it further over it> line=<yes when every read has the placement on the spawn's
+     * line within 0.01>`, and the orb flies on after it lands: the last read has the placement farther ahead than at the
+     * `first` read and at the same z within 0.01. OK when all hold. Hits are not read.
      */
     class MageFireFlameOrbDownhill : public MageFireFlameOrbDescends
     {
@@ -10046,6 +10050,9 @@ namespace Harness
             const float gained = first >= 1 ? m_samples[first].splineAhead - m_samples[first - 1].splineAhead : 0.0f;
             const bool glideOk = first >= 1 && gained >= kAheadGain;
             const bool overOk = allFound && lowest >= kRiseLow && highest <= kRiseHigh;
+            const bool flewOk = first >= 0 && first + 1 < int(kReads) && m_samples[first].found && m_samples[kReads - 1].found &&
+                                std::fabs(m_samples[kReads - 1].placeZ - m_samples[first].placeZ) < kTolerance &&
+                                m_samples[kReads - 1].placeAhead > m_samples[first].placeAhead;
 
             char value[200];
             snprintf(value, sizeof(value), "level=%.2f first=%d ahead=%.2f over=%.2f..%.2f line=%s", m_samples[0].splineSunk, first + 1, gained,
@@ -10055,7 +10062,7 @@ namespace Harness
             {
                 reads += (i ? ", " : "") + std::to_string((i + 1) * kReadMs) + " ms: " + Describe(m_samples[i]);
             }
-            return (levelOk && glideOk && overOk && lineOk ? "OK(" : "BUG(") + std::string(value) + "; the reads: " + reads + ")";
+            return (levelOk && glideOk && overOk && lineOk && flewOk ? "OK(" : "BUG(") + std::string(value) + "; the reads: " + reads + ")";
         }
 
     private:
