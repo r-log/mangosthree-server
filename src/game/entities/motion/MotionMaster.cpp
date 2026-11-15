@@ -1291,14 +1291,14 @@ bool MotionMaster::MoveJump(float x, float y, float z, float o, float horizontal
     return RequestEffect(0, launch);
 }
 
-std::optional<float> MotionMaster::FallLanding(float z, std::optional<float> floor, float hoverOffset)
+std::optional<float> MotionMaster::FallLanding(float z, std::optional<float> floor, float hoverOffset, float minDrop)
 {
     if (!floor)
     {
         return std::nullopt;
     }
     const float landing = *floor + hoverOffset;
-    if (z - landing <= 0.1f)
+    if (z - landing < minDrop)
     {
         return std::nullopt;
     }
@@ -1307,10 +1307,8 @@ std::optional<float> MotionMaster::FallLanding(float z, std::optional<float> flo
 
 /**
  * @brief Makes the unit fall to the ground, a hoverer to its hover height above it.
- *
- * @return Whether a fall was requested.
  */
-bool MotionMaster::MoveFall()
+void MotionMaster::MoveFall()
 {
     // Use larger distance for vmap height search than in most other cases
     const auto floor = m_owner->GetMap()->Floor(m_owner->GetPhaseMask(), m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z());
@@ -1318,20 +1316,36 @@ bool MotionMaster::MoveFall()
     {
         DEBUG_LOG("MotionMaster::MoveFall: unable retrive a proper height at map %u (x: %f, y: %f, z: %f).",
                   m_owner->GetMap()->GetId(), m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z());
-        return false;
+        return;
     }
     const float hover = (m_owner->WireFlags() & MOVEFLAG_HOVER) ? m_owner->GetFloatValue(UNIT_FIELD_HOVERHEIGHT) : 0.0f;
     // Abort too if the landing is very near
     const std::optional<float> landing = FallLanding(m_owner->Where().Z(), floor, hover);
     if (!landing)
     {
-        return false;
+        return;
     }
     Motion::EffectLaunch launch;
     launch.kind = Motion::EffectLaunch::Fall;
     launch.point = Motion::Vector3(m_owner->Where().X(), m_owner->Where().Y(), *landing);
     RequestEffect(0, launch);   // never refused: a fall is not a Jump, and the dying flyer's is requested after the death inhibit
-    return true;
+}
+
+/**
+ * @brief Makes the unit fall to a point; a point ahead of it makes the fall a glide.
+ *
+ * @param id ID of the movement, informed when the fall ends.
+ * @param x X-coordinate of the destination.
+ * @param y Y-coordinate of the destination.
+ * @param z Z-coordinate of the destination.
+ * @return Whether the fall was requested.
+ */
+bool MotionMaster::MoveFallTo(uint32 id, float x, float y, float z)
+{
+    Motion::EffectLaunch launch;
+    launch.kind = Motion::EffectLaunch::Fall;
+    launch.point = Motion::Vector3(x, y, z);
+    return RequestEffect(id, launch);
 }
 
 /**
