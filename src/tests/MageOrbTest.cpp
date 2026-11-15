@@ -24,9 +24,10 @@
  */
 
 /// Tests of the mage's orb (spells/classes/mage/Orb.cpp): its table row, the creature it names, the cadence of its hits
-/// in scans, the chance of its explosion, the cost share its hits refund through Master of Elements, the units an orb
-/// owned by its mage takes, the enemy its scan keeps, its rows at the dummy-effect and target hooks with its creature
-/// AI's factory, and the script words a script reads of a unit's holder (SpellScriptQueries). The spells and faction
+/// in scans, when its end is due, the chance of its explosion, the cost share its hits refund through Master of
+/// Elements, the units an orb owned by its mage takes, the enemy its scan keeps, its rows at the dummy-effect and
+/// target hooks with its creature AI's factory, and the script words a script reads of a unit's holder
+/// (SpellScriptQueries). The spells and faction
 /// templates the leaves read are put into the stores as the client's data holds them, once for the rest of the run; no
 /// other test reads them. The units are bare creatures (update fields allocated; no map, template or AI) placed in map
 /// 0's world frame.
@@ -294,6 +295,22 @@ TEST(MageOrb_AHitIsDueOnEverySecondScanFromTheFirstFindForTheSnaresScans)
     // No cadence, no hit.
     Mage::OrbCadence const none = { 0, 0 };
     CHECK(!Mage::OrbHitDue(0, none));
+}
+
+TEST(MageOrb_TheEndIsDueWhenTheSnareRanOutAfterAFindOrTheLifeDid)
+{
+    // Flying with life left and no enemy found: not due; just snared, or snared and firing: not due.
+    CHECK(!Mage::OrbEndDue(false, false, 18000));
+    CHECK(!Mage::OrbEndDue(false, true, 17500));
+    CHECK(!Mage::OrbEndDue(true, true, 2500));
+
+    // The snare ran out after the orb held it: its firing is over, the end is due with life to spare.
+    CHECK(Mage::OrbEndDue(true, false, 2000));
+
+    // The life ran out: due whether or not the orb ever found an enemy, and while it still holds its snare.
+    CHECK(Mage::OrbEndDue(false, false, 0));
+    CHECK(Mage::OrbEndDue(false, false, -50));
+    CHECK(Mage::OrbEndDue(true, true, -50));
 }
 
 TEST(MageOrb_TheExplosionsChanceIsTheFirePowerRanksProcChance)
