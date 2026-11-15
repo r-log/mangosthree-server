@@ -32,6 +32,7 @@
 
 #include "TestHarness.h"
 #include "Creature.h"
+#include "MotionMaster.h"
 #include "Player.h"
 #include "WorldSession.h"
 #include "Auth/BigNumber.h"
@@ -39,6 +40,7 @@
 #include "DBCStructure.h"
 
 #include <cmath>
+#include <optional>
 
 namespace
 {
@@ -193,4 +195,22 @@ TEST(CreatureHover_SetHoverInTheWorldDoesNotLift)
     CHECK((creature.WireFlags() & MOVEFLAG_HOVER) != 0);
     CHECK(Near(creature.Where().Z(), 10.0f, 0.001f));
     creature.LeaveWorld();
+}
+
+TEST(CreatureHover_AFallLandsItsHoverHeightAboveTheFloorAndNeverLifts)
+{
+    typedef std::optional<float> Landing;
+    const Landing ledge = MotionMaster::FallLanding(15.0f, 10.0f, 1.0f);
+    REQUIRE(ledge.has_value());
+    CHECK(Near(*ledge, 11.0f, 0.001f));
+    CHECK(!MotionMaster::FallLanding(11.0f, 10.0f, 1.0f).has_value());
+    CHECK(!MotionMaster::FallLanding(11.05f, 10.0f, 1.0f).has_value());
+    const Landing over = MotionMaster::FallLanding(11.2f, 10.0f, 1.0f);
+    REQUIRE(over.has_value());
+    CHECK(Near(*over, 11.0f, 0.001f));
+    const Landing plain = MotionMaster::FallLanding(15.0f, 10.0f, 0.0f);
+    REQUIRE(plain.has_value());
+    CHECK(Near(*plain, 10.0f, 0.001f));
+    CHECK(!MotionMaster::FallLanding(10.0f, 10.0f, 1.0f).has_value());
+    CHECK(!MotionMaster::FallLanding(15.0f, std::nullopt, 1.0f).has_value());
 }
