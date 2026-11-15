@@ -58,9 +58,13 @@
 #include "spells/handlers/SpellEffectTailHandlers.h"
 
 /**
- * @brief Removes auras from the target that match the specified mechanic.
+ * @brief Removes from the target the holders that carry the effect's mechanic. For the mount mechanic every such
+ * holder goes, whatever the effect's value: a mount dispel always dismounts. For any other mechanic at most as many go
+ * as the effect's value (after the caster's spell modifiers) says, and a value of 0 removes none. The holders go one at
+ * a time, in the order of the target's holder map. Blazing Speed removes up to 100 roots and, with Molten Shields'
+ * modifier on its third effect, up to 100 snares; Tremor Totem removes one fear, one charm and one sleep a pulse.
  *
- * @param effect The effect index containing the mechanic id.
+ * @param effect The effect, whose misc value is the mechanic.
  */
 void Spell::EffectDispelMechanic(SpellEffectEntry const* effect)
 {
@@ -70,24 +74,27 @@ void Spell::EffectDispelMechanic(SpellEffectEntry const* effect)
     }
 
     uint32 mechanic = effect->EffectMiscValue_0;
+    bool const dismount = mechanic == MECHANIC_MOUNT;
+
+    int32 left = damage;
+    if (!dismount && left <= 0)
+    {
+        return;
+    }
 
     Unit::SpellAuraHolderMap& Auras = unitTarget->GetSpellAuraHolderMap();
     for (Unit::SpellAuraHolderMap::iterator iter = Auras.begin(), next; iter != Auras.end(); iter = next)
     {
         next = iter;
         ++next;
-        SpellEntry const* spell = iter->second->GetSpellProto();
         if (iter->second->HasMechanic(mechanic))
         {
-            unitTarget->RemoveAurasDueToSpell(spell->ID);
-            if (Auras.empty())
+            unitTarget->RemoveSpellAuraHolder(iter->second);
+            if ((!dismount && --left == 0) || Auras.empty())
             {
                 break;
             }
-            else
-            {
-                next = Auras.begin();
-            }
+            next = Auras.begin();
         }
     }
 }
