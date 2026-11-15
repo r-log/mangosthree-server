@@ -1291,10 +1291,26 @@ bool MotionMaster::MoveJump(float x, float y, float z, float o, float horizontal
     return RequestEffect(0, launch);
 }
 
+std::optional<float> MotionMaster::FallLanding(float z, std::optional<float> floor, float hoverOffset)
+{
+    if (!floor)
+    {
+        return std::nullopt;
+    }
+    const float landing = *floor + hoverOffset;
+    if (z - landing <= 0.1f)
+    {
+        return std::nullopt;
+    }
+    return landing;
+}
+
 /**
- * @brief Makes the unit fall to the ground.
+ * @brief Makes the unit fall to the ground, a hoverer to its hover height above it.
+ *
+ * @return Whether a fall was requested.
  */
-void MotionMaster::MoveFall()
+bool MotionMaster::MoveFall()
 {
     // Use larger distance for vmap height search than in most other cases
     const auto floor = m_owner->GetMap()->Floor(m_owner->GetPhaseMask(), m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z());
@@ -1302,18 +1318,20 @@ void MotionMaster::MoveFall()
     {
         DEBUG_LOG("MotionMaster::MoveFall: unable retrive a proper height at map %u (x: %f, y: %f, z: %f).",
                   m_owner->GetMap()->GetId(), m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z());
-        return;
+        return false;
     }
-    // Abort too if the ground is very near
-    const float tz = *floor;
-    if (fabs(m_owner->Where().Z() - tz) < 0.1f)
+    const float hover = (m_owner->WireFlags() & MOVEFLAG_HOVER) ? m_owner->GetFloatValue(UNIT_FIELD_HOVERHEIGHT) : 0.0f;
+    // Abort too if the landing is very near
+    const std::optional<float> landing = FallLanding(m_owner->Where().Z(), floor, hover);
+    if (!landing)
     {
-        return;
+        return false;
     }
     Motion::EffectLaunch launch;
     launch.kind = Motion::EffectLaunch::Fall;
-    launch.point = Motion::Vector3(m_owner->Where().X(), m_owner->Where().Y(), tz);
+    launch.point = Motion::Vector3(m_owner->Where().X(), m_owner->Where().Y(), *landing);
     RequestEffect(0, launch);   // never refused: a fall is not a Jump, and the dying flyer's is requested after the death inhibit
+    return true;
 }
 
 /**
