@@ -29,7 +29,6 @@
 #include "ai/CreatureAI.h"
 #include "entities/Creature.h"
 #include "Map.h"
-#include "entities/ObjectLookup.h"
 #include "entities/motion/MotionMaster.h"
 #include "DBCStores.h"
 #include "Utilities/Util.h"
@@ -90,13 +89,14 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 82734: the orb's scan, for the enemy it kept. On its first enemy the orb snares itself (82736) and counts that
-    /// scan as scan 0. While it holds the snare, each scan with an enemy counts one more, and on the scans
+    /// 82734: the orb's scan, for the enemy it kept. On its first enemy the orb snares itself (82736) and counts
+    /// that scan as scan 0. While it holds the snare, each scan with an enemy counts one more, and on the scans
     /// Mage::OrbHitDue names (scan 0 and every second scan of the 500 ms aura after it, for the 30 scans the snare
-    /// lasts) the orb casts its hit (82739) at the enemy, with its summoner as the original caster, when its summoner is
-    /// in the world on its map. The aura's period carries its remainder from tick to tick, so the hits keep one second
-    /// apart on any update rate. The count is the script word of effect 0 of the orb's own aura (82690), and the word
-    /// of its effect 1 is 1 once an enemy was found. An orb without that aura does nothing. The script ends the effect.
+    /// lasts) the orb casts its hit (82739) at the enemy, with its summoner as the original caster, when its
+    /// summoner is alive and in the world on its map (Mage::OrbOwnerActs). The aura's period carries its remainder
+    /// from tick to tick, so the hits keep one second apart on any update rate. The count is the script word of
+    /// effect 0 of the orb's own aura (82690), and the word of its effect 1 is 1 once an enemy was found. An orb
+    /// without that aura does nothing. The script ends the effect.
     SpellHandlerOutcome<void> OrbScanEffect(DummyEffectContext& ctx)
     {
         Creature* orb = ctx.caster.ToCreature();
@@ -160,7 +160,7 @@ namespace
                     return;
                 }
                 m_creature->SetOwnerGuid(m_creature->GetSummonerGuid());
-                if (Unit* summoner = ObjectLookup::GetUnit(*m_creature, m_creature->GetSummonerGuid()))
+                if (Unit* summoner = ActingOwner(*m_creature))
                 {
                     m_creature->SetLevel(summoner->getLevel());
                 }

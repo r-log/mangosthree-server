@@ -8939,10 +8939,10 @@ namespace Harness
      * 300 ms (1 yard out), 700 ms (5), 1100 ms (9), and so on; the scans come at 500 ms, 1000 ms, 1500 ms. So the
      * first scan is centred 1 yard out while the orb itself is 3 yards out, the second 5 yards out while the orb is
      * at 8, the third 9 while the orb is at 13. A Camel 10 yards out, about 0.9 yards off the orb's line, is 9.05
-     * yards from the first scan's centre: the orb finds it there, 7 yards ahead, slows to 1 yard a second from its fourth
-     * yard, makes its fifteenth hit 14 s later from about 18 yards out (8 from the Camel) and explodes a second after
-     * that from about 19 (9 from the Camel), both within the 10 yards of the hit's scan and the explosion. The early
-     * reads note the placement and the spline position around the first two scans.
+     * yards from the first scan's centre: the orb finds it there, 7 yards ahead, slows to 1 yard a second from
+     * its fourth yard, makes its fifteenth hit 14 s later from about 18 yards out (8 from the Camel) and explodes
+     * a second after that from about 19 (9 from the Camel), both within the 10 yards of the hit's scan and the
+     * explosion. The early reads note the placement and the spline position around the first two scans.
      *
      * His orb is the one creature 44214 within kOrbSearchRange of him: kEarlyReadsMs after the cast its placement, its
      * spline position, the Camel's distance and its snare are noted; at the step's read its holders of 82690 and 82736
@@ -8954,9 +8954,10 @@ namespace Harness
      * explosion, his and a crit of kBlastLow..kBlastHigh, the orb at the read holds 82690 and 82736 at a run speed rate
      * of its template's SpeedRun times kSnareRate, and no orb is left at the end.
      *
-     * The bands, at kSpellPower staged (fire spell power 1197 with his intellect) and every number his, the orb's
-     * casts being computed on their original caster: a hit is (228..292, the hit's scaling 0.278 of the mage's
-     * level-85 value 937.33 with a quarter of variance, + int(1197 x 0.134) = 160) x 1.25 (Fire Specialization) x 1.03
+     * The bands, at kSpellPower staged (fire spell power 1197 with his intellect): the base damage is the orb's, at
+     * the level it takes from its owner, and the mage supplies the spell power, the done mods and the crit. A hit is
+     * (228..292, the hit's scaling 0.278 of the level-85 value 937.33 with a quarter of variance, + int(1197 x 0.134)
+     * = 160) x 1.25 (Fire Specialization) x 1.03
      * (Fire Power), truncated, 499..581, then the crit: half again and 33% of that, 994..1158. The explosion is
      * (1134..1336, 1.318 of the same value with 0.164 of variance, + int(1197 x 0.193) = 231) x 1.2875, 1757..2017,
      * then the crit, 3504..4023.
