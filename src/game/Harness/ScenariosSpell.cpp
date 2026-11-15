@@ -105,13 +105,14 @@
 // target dies does not explode; 971 a staged Fire mage's Flame Orb burns a Camel once a second while it is snared and
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
 // first one's end takes it off; 973 the orb of a Fire mage without Fire Power skips a critter and a polymorphed
-// enemy and hits the next one; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that falls
+// enemy and hits the next one; 974 the orb of a mage cast from a height glides to its hover height and flies level;
+// 975 the orb of a mage facing downhill glides when the floor falls away under it in flight; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that falls
 // under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
 // Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
-// The guard of 931-938, 950-974, 981-983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 950-975, 981-983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3948,7 +3949,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-974, 981-983, 985-989): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-975, 981-983, 985-989): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -4077,7 +4078,7 @@ namespace Harness
                 return;
             }
 
-            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z) + PlayerLift(), 0.0f, CLASS_MAGE);
+            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z) + PlayerLift(), PlayerFacing(), CLASS_MAGE);
             if (!p)
             {
                 Verdict(Invalid("spawn failed"));
@@ -4412,6 +4413,8 @@ namespace Harness
         virtual uint32 TargetAura() const { return 0; }
         /// The yards above the ground the mage stands at; none by default.
         virtual float PlayerLift() const { return 0.0f; }
+        /// The way the mage faces, in radians; +x by default.
+        virtual float PlayerFacing() const { return 0.0f; }
         /// The time from one cast step to the next.
         virtual uint32 CastEveryMs() const { return kCastEveryMs; }
         /// The points of the crit aura a cast that must not crit puts on him; 0 takes the aura off him instead.
@@ -9707,9 +9710,11 @@ namespace Harness
      * cast and at the step's read: the orb's spline and placement, their distance ahead of the orb's spawn in the plane,
      * their z, and the orb's z over the ground under it.
      *
-     * `descent`: `spawn=<the orb's spawn z less the ground under it, within 0.01 of kPlayerLift> ahead400=<the
-     * spline's distance ahead of the spawn at the first read, kAheadLow..kAheadHigh> sunk400=<the spline's z below the
-     * spawn's at the first read, kSunkLow..kSunkHigh> landed=<the orb's z over the ground under it at the last early
+     * `descent`: `spawn=<the orb's placement z over the ground under it right after the cast, kStartReadMs after it and
+     * before the orb's first update, within 0.01 of kPlayerLift> ahead400=<the spline's distance ahead of the spawn at the
+     * first read, kAheadLow..kAheadHigh> sunk400=<the spline's z below the spawn's at the first read, kSunkLow..kSunkHigh>
+     * ahead500=<the same distance at 500 ms, kAhead500Low..kAhead500High: a fall without the slow flag would be done sooner
+     * and ahead of it> landed=<the orb's z over the ground under it at the last early
      * read, 1.00 within 0.01, with the orb kLandedAhead yards or more ahead> flew=<yes when at the step's read the orb is
      * at the z of the last early read within 0.01, on the spawn's line within 0.01 and farther ahead>`; OK when all hold.
      * The orb's hits and explosion are counted in the detail, not pinned. The glide is launched with the orb's first update,
@@ -9719,7 +9724,7 @@ namespace Harness
     class MageFireFlameOrbDescends : public MageProcScenario
     {
     public:
-        MageFireFlameOrbDescends() : MageProcScenario("mage-fire-flame-orb-descends", 974, "descent") {}
+        MageFireFlameOrbDescends() : MageFireFlameOrbDescends("mage-fire-flame-orb-descends", 974, "descent") {}
 
         void Prepare() override
         {
@@ -9728,11 +9733,14 @@ namespace Harness
                 sample = OrbSample();
             }
             m_final = OrbSample();
+            m_start = OrbSample();
             m_player = ObjectGuid();
             MageProcScenario::Prepare();
         }
 
     protected:
+        MageFireFlameOrbDescends(char const* name, int order, char const* category) : MageProcScenario(name, order, category) {}
+
         float PlayerLift() const override { return kPlayerLift; }
         std::vector<std::pair<uint32, uint32> > Talents() const override
         {
@@ -9797,6 +9805,7 @@ namespace Harness
                 Sample(m_final, "at the step's read");
                 return;
             }
+            At(kStartReadMs, [this]() { Sample(m_start, "at the start"); });
             for (size_t i = 0; i < kEarlyCount; ++i)
             {
                 At(kEarlyReadsMs[i], [this, i]() { Sample(m_early[i], std::to_string(kEarlyReadsMs[i]) + " ms after the cast"); });
@@ -9829,7 +9838,9 @@ namespace Harness
 
             const OrbSample& first = m_early[0];
             const OrbSample& last = m_early[kEarlyCount - 1];
-            const bool spawnOk = first.found && std::fabs(first.spawnRise - kPlayerLift) < kTolerance;
+            const OrbSample& second = m_early[1];
+            const bool spawnOk = m_start.found && std::fabs(m_start.placeRise - kPlayerLift) < kTolerance;
+            const bool ahead500Ok = second.found && second.splineAhead >= kAhead500Low && second.splineAhead <= kAhead500High;
             const bool aheadOk = first.found && first.splineAhead >= kAheadLow && first.splineAhead <= kAheadHigh;
             const bool sunkOk = first.found && first.splineSunk >= kSunkLow && first.splineSunk <= kSunkHigh;
             const bool landedOk = last.found && std::fabs(last.placeRise - 1.0f) < kTolerance && last.placeAhead >= kLandedAhead;
@@ -9837,18 +9848,18 @@ namespace Harness
                                 std::fabs(m_final.placeSide) < kTolerance && m_final.placeAhead > last.placeAhead;
 
             char value[160];
-            snprintf(value, sizeof(value), "spawn=%.2f ahead400=%.2f sunk400=%.2f landed=%.2f flew=%s", first.spawnRise, first.splineAhead,
-                     first.splineSunk, last.placeRise, flewOk ? "yes" : "no");
+            snprintf(value, sizeof(value), "spawn=%.2f ahead400=%.2f sunk400=%.2f ahead500=%.2f landed=%.2f flew=%s", m_start.placeRise,
+                     first.splineAhead, first.splineSunk, second.splineAhead, last.placeRise, flewOk ? "yes" : "no");
             std::string reads;
             for (size_t i = 0; i < kEarlyCount; ++i)
             {
                 reads += (i ? ", " : "") + std::to_string(kEarlyReadsMs[i]) + " ms: " + Describe(m_early[i]);
             }
             reads += ", at the step's read: " + Describe(m_final);
-            return (spawnOk && aheadOk && sunkOk && landedOk && flewOk ? "OK(" : "BUG(") + std::string(value) + "; the reads: " + reads + "; " + U(hits) + " hit(s) and " + U(blasts) + " explosion(s) on the Camel)";
+            return (spawnOk && aheadOk && sunkOk && ahead500Ok && landedOk && flewOk ? "OK(" : "BUG(") + std::string(value) + "; the reads: " + reads + "; " + U(hits) + " hit(s) and " + U(blasts) + " explosion(s) on the Camel)";
         }
 
-    private:
+    protected:
         /// What one read of the orb found.
         struct OrbSample
         {
@@ -9860,6 +9871,7 @@ namespace Harness
             float placeSide = 0.0f;                     ///< its placement's y less its spawn's
             float splineAhead = 0.0f;                   ///< its spline's distance from its spawn in the plane
             float splineSunk = 0.0f;                    ///< its spawn's z less its spline's
+            float splineRise = 0.0f;                    ///< its spline's z over the ground under the spline
         };
 
         static std::string Describe(OrbSample const& s)
@@ -9924,6 +9936,7 @@ namespace Harness
             out.placeSide = orb->Where().Y() - spawn.Y();
             out.splineAhead = std::hypot(sx - spawn.X(), sy - spawn.Y());
             out.splineSunk = spawn.Z() - sz;
+            out.splineRise = sz - Ground(sx, sy, sz);
             m_rec.Note(when + ": " + Describe(out) + "; its spawn is " + std::to_string(out.spawnRise) + " over the ground");
         }
 
@@ -9942,12 +9955,115 @@ namespace Harness
         static constexpr float kSunkLow = 0.6f;
         static constexpr float kSunkHigh = 1.1f;
         static constexpr float kLandedAhead = 5.0f;
+        static constexpr float kAhead500Low = 3.75f;
+        static constexpr float kAhead500High = 4.25f;
+        static constexpr uint32 kStartReadMs = 10;
         static constexpr size_t kEarlyCount = 4;
         static constexpr uint32 kEarlyReadsMs[4] = { 400, 500, 900, 1000 };
 
         OrbSample m_early[4];
         OrbSample m_final;
+        OrbSample m_start;                              ///< the orb's placement right after the cast, before its first update
         ObjectGuid m_player;
+    };
+
+    /**
+     * S975 `mage-fire-flame-orb-downhill`: the glide that starts in flight. The mage of 974 stands kPlayerLift (1.5)
+     * yards over the ground, which is under two hover heights, facing -x, where the plain falls away at about a tenth of
+     * a yard to the yard. He casts Flame Orb once. The orb spawns level with him, a hover height and a half over the
+     * ground: it does not glide at its start. It flies level until the floor under it is two hover heights below its
+     * line, then glides forward on the slow-fall curve to a hover height over the floor ahead and flies level again, and
+     * so on down the slope. Reads every kReadMs from kReadMs after the cast, kReads of them: the orb's spline and
+     * placement, their distance ahead of the orb's spawn in the plane, the spline's z below the spawn's, and the
+     * spline's z over the ground under it.
+     *
+     * `glide`: `level=<the spline's z below the spawn's at the first read, 0.00 within 0.01: no glide at the start>
+     * first=<the first read the spline is more than kDrop below the spawn's z: the glide began in flight> ahead=<the
+     * orb's distance ahead gained between that read and the one before it, over kAheadGain: it kept flying forward while it
+     * sank> over=<the lowest and the highest height of the spline over the ground under it at any read, within
+     * kRiseLow..kRiseHigh: it never went under its hover line, and the floor falling away did not leave it more than two
+     * hover heights over it> line=<yes when every read has the placement on the spawn's line within 0.01>`; OK when all
+     * hold. Hits are not read.
+     */
+    class MageFireFlameOrbDownhill : public MageFireFlameOrbDescends
+    {
+    public:
+        MageFireFlameOrbDownhill() : MageFireFlameOrbDescends("mage-fire-flame-orb-downhill", 975, "glide") {}
+
+        void Prepare() override
+        {
+            for (OrbSample& sample : m_samples)
+            {
+                sample = OrbSample();
+            }
+            MageFireFlameOrbDescends::Prepare();
+        }
+
+    protected:
+        float PlayerLift() const override { return 1.5f; }
+        float PlayerFacing() const override { return 3.14159f; }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* /*target*/) override
+        {
+            if (k != 0 || atRead)
+            {
+                return;
+            }
+            m_player = st.player;
+            for (size_t i = 0; i < kReads; ++i)
+            {
+                At(uint32(i + 1) * kReadMs, [this, i]() { Sample(m_samples[i], std::to_string((i + 1) * kReadMs) + " ms after the cast"); });
+            }
+        }
+
+        std::string Own(St const& /*st*/) const override
+        {
+            const bool levelOk = m_samples[0].found && std::fabs(m_samples[0].splineSunk) < kTolerance;
+            int first = -1;
+            float lowest = 1000.0f;
+            float highest = -1000.0f;
+            bool lineOk = true;
+            bool allFound = true;
+            for (size_t i = 0; i < kReads; ++i)
+            {
+                OrbSample const& s = m_samples[i];
+                if (!s.found)
+                {
+                    allFound = false;
+                    continue;
+                }
+                if (first < 0 && s.splineSunk > kDrop)
+                {
+                    first = int(i);
+                }
+                lowest = std::min(lowest, s.splineRise);
+                highest = std::max(highest, s.splineRise);
+                lineOk = lineOk && std::fabs(s.placeSide) < kTolerance;
+            }
+            const float gained = first >= 1 ? m_samples[first].splineAhead - m_samples[first - 1].splineAhead : 0.0f;
+            const bool glideOk = first >= 1 && gained >= kAheadGain;
+            const bool overOk = allFound && lowest >= kRiseLow && highest <= kRiseHigh;
+
+            char value[200];
+            snprintf(value, sizeof(value), "level=%.2f first=%d ahead=%.2f over=%.2f..%.2f line=%s", m_samples[0].splineSunk, first + 1, gained,
+                     lowest, highest, lineOk ? "yes" : "no");
+            std::string reads;
+            for (size_t i = 0; i < kReads; ++i)
+            {
+                reads += (i ? ", " : "") + std::to_string((i + 1) * kReadMs) + " ms: " + Describe(m_samples[i]);
+            }
+            return (levelOk && glideOk && overOk && lineOk ? "OK(" : "BUG(") + std::string(value) + "; the reads: " + reads + ")";
+        }
+
+    private:
+        static constexpr size_t kReads = 12;
+        static constexpr uint32 kReadMs = 500;
+        static constexpr float kDrop = 0.2f;
+        static constexpr float kAheadGain = 1.0f;
+        static constexpr float kRiseLow = 0.99f;
+        static constexpr float kRiseHigh = 2.5f;
+
+        OrbSample m_samples[12];
     };
 
     void RegisterSpellScenarios(Runner& r)
@@ -9985,6 +10101,7 @@ namespace Harness
         r.Register(new MageFireFlameOrb());
         r.Register(new MageFireFlameOrbSkips());
         r.Register(new MageFireFlameOrbDescends());
+        r.Register(new MageFireFlameOrbDownhill());
         r.Register(new MageFirePyromaniac());
         r.Register(new MageFireDamagePassives());
         r.Register(new MageFireCastPassives());
