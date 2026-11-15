@@ -30,12 +30,15 @@
 /// Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the dummy aura hook, Pyromaniac's
 /// leaves and its rows at the aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick
 /// and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads,
-/// the exits of its spread at the dummy-effect hook, Improved Flamestrike's chance, and Blast Wave's refusals at the
-/// after-cast hook; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or
-/// creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template
-/// or AI), with the effect rows the scripts read added to the effect store as the client's data holds them, and a
-/// holder put in the creature's holder map where a script asks whether it holds an aura. The cooldown Impact clears is
-/// a player's: a player on a session with no socket, in no world, whose cooldown sinks the test installs.
+/// the exits of its spread at the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the
+/// after-cast hook, Glyph of Frostfire's tick, and Frostfire Bolt's effect taken off at its holder's apply and its
+/// after-hit exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or
+/// creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
+/// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
+/// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura. The
+/// cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown sinks the
+/// test installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three
+/// auras whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -1614,4 +1617,181 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
     CHECK(body(two).IsContinue());
     CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
     CHECK_EQ(caster.GetSpellAuraHolderMap().size(), std::size_t(1));
+}
+
+TEST(MageScripts_FrostfireGlyphTickIsTheStacksShareOfTheHitWithMastery)
+{
+    // 3% of a 3000 hit over four ticks: 90 / 4 = 22 a tick for one stack, 66 for three.
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 4, 1, 1.0f), int32(22));
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 4, 3, 1.0f), int32(66));
+
+    // A holder that ticks five times in its time left (a hasted one): 90 / 5 = 18 a tick, 54 for three stacks.
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 5, 3, 1.0f), int32(54));
+
+    // Flashburn's 22.4% at 8 mastery points: 66 x 1.224 = 80.78, truncated.
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 4, 3, 1.224f), int32(80));
+
+    // A share below one point a tick deals nothing, and so do no hit and no tick.
+    CHECK_EQ(Mage::FrostfireGlyphTick(100, 3, 4, 3, 1.0f), int32(0));
+    CHECK_EQ(Mage::FrostfireGlyphTick(0, 3, 4, 1, 1.0f), int32(0));
+    CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 0, 1, 1.0f), int32(0));
+}
+
+namespace
+{
+    const uint32 kFrostfireBolt = 44614;
+    const uint32 kGlyphOfFrostfire = 61205;
+    const uint32 kThreeAuraSpell = 94261;
+    const uint32 kSlowAuraSpell = 94262;
+
+    // A spell's records in the spell and effect stores, kept alive for the rest of the run.
+    struct StoredAuras
+    {
+        ServerSpell spell;
+        SpellEffectEntry more[MAX_EFFECT_INDEX - 1];
+    };
+
+    // Puts `spellId` into the stores once with `effects` effects, each an aura at the target whose apply and removal
+    // change nothing on the unit (SPELL_AURA_MOD_DAMAGE_FROM_CASTER), of `basePoints`; no other test reads it.
+    SpellEntry const* StoreAuras(StoredAuras& rows, uint32 spellId, uint32 effects, int32 basePoints)
+    {
+        if (rows.spell.Entry().ID == spellId)
+        {
+            return &rows.spell.Entry();
+        }
+        rows.spell.Entry().ID = spellId;
+        for (uint32 eff = 0; eff < effects && eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            SpellEffectEntry& row = eff == 0 ? rows.spell.effect : rows.more[eff - 1];
+            row = SpellEffectEntry();
+            row.SpellID = spellId;
+            row.EffectIndex = eff;
+            row.Effect = SPELL_EFFECT_APPLY_AURA;
+            row.EffectAura = SPELL_AURA_MOD_DAMAGE_FROM_CASTER;
+            row.EffectBasePoints = basePoints;
+            row.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+            AddSpellEffectEntry(&row);
+        }
+        sSpellStore.SetEntry(spellId, &rows.spell.Entry());
+        return &rows.spell.Entry();
+    }
+
+    // A holder of `spell` on `target`, made through its constructor with no caster, so its caster's guid is the
+    // target's, with an aura made through CreateAura at every effect the spell has, of the effect's base points.
+    SpellAuraHolder* AuraHolder(SpellEntry const* spell, Unit& target)
+    {
+        SpellAuraHolder* holder = new SpellAuraHolder(spell, &target, NULL, NULL, NULL);
+        for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            SpellEffectEntry const* row = spell->GetSpellEffect(SpellEffectIndex(eff));
+            if (!row)
+            {
+                continue;
+            }
+            int32 basePoints = row->EffectBasePoints;
+            holder->AddAura(CreateAura(spell, SpellEffectIndex(eff), &basePoints, holder, &target), SpellEffectIndex(eff));
+        }
+        return holder;
+    }
+
+    // Which effects of `holder` hold an aura, as a mask of the effect indexes.
+    uint32 EffectsHeld(SpellAuraHolder const& holder)
+    {
+        uint32 mask = 0;
+        for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            mask |= holder.GetAuraByEffectIndex(SpellEffectIndex(eff)) ? 1u << eff : 0u;
+        }
+        return mask;
+    }
+}
+
+TEST(MageScripts_FrostfireBoltsApplyTakesTheSlowOffWithTheGlyphAndTheDamageOffWithout)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 5);
+    SpellRowStorage row;
+    BareCreature target;
+
+    // A caster with Glyph of Frostfire: the holder loses the slow, effect 0, and keeps effects 1 and 2. The caster is a
+    // creature, so Pyromaniac counts nothing, and the holder's boosts still run.
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+    SpellAuraHolder* withGlyph = AuraHolder(spell, target);
+    AuraApplyContext glyphedApply(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*withGlyph), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, glyphedApply).IsContinue());
+    CHECK_EQ(EffectsHeld(*withGlyph), uint32(0x6));
+    delete withGlyph;
+
+    // A caster without it: the holder loses the periodic damage, effect 2, and keeps the slow.
+    BareCreature plain;
+    SpellAuraHolder* withoutGlyph = AuraHolder(spell, target);
+    AuraApplyContext plainApply(target, &plain, SpellRow(row, kFrostfireBolt), AuraHandle(*withoutGlyph), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, plainApply).IsContinue());
+    CHECK_EQ(EffectsHeld(*withoutGlyph), uint32(0x3));
+    delete withoutGlyph;
+
+    // An apply that is not real, and one whose caster cannot be found, take nothing off.
+    SpellAuraHolder* untouched = AuraHolder(spell, target);
+    AuraApplyContext notReal(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*untouched), false);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, notReal).IsContinue());
+    AuraApplyContext noCaster(target, NULL, SpellRow(row, kFrostfireBolt), AuraHandle(*untouched), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, noCaster).IsContinue());
+    CHECK_EQ(EffectsHeld(*untouched), uint32(0x7));
+    delete untouched;
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK(registry.Find<AfterHitHook>(kFrostfireBolt) != NULL);
+    CHECK(game.Find<AfterHitHook>(kFrostfireBolt) == registry.Find<AfterHitHook>(kFrostfireBolt));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
+
+    // A heal, and a hit on a target that holds no Frostfire Bolt of the caster, change nothing.
+    BareCreature caster;
+    BareCreature target;
+    SpellRowStorage row;
+    AfterHitContext heal(caster, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, true);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, heal).IsContinue());
+    AfterHitContext nothingHeld(caster, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, nothingHeld).IsContinue());
+    CHECK(target.GetSpellAuraHolderMap().empty());
+
+    // The caster's holder of the bolt on the target, its one aura a slow of -40, stacked to three by the engine: -120.
+    // The bare creatures' guids are all empty, so the holder is the caster's.
+    static StoredAuras rows;
+    SpellEntry const* slow = StoreAuras(rows, kSlowAuraSpell, 1, -40);
+    SpellAuraHolder* holder = AuraHolder(slow, target);
+    holder->SetStackAmount(3);
+    target.HoldAura(kFrostfireBolt, *holder);
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-120));
+
+    // With Glyph of Frostfire on the caster the stacks stay; the client data's glyph is not in this binary's spell
+    // store, so no share is written either.
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+    AfterHitContext glyphedHit(glyphed, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, glyphedHit).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(3));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-120));
+
+    // Without the glyph the holder is set back to one stack, and the slow to its own -40.
+    AfterHitContext plainHit(caster, target, SpellRow(row, kFrostfireBolt), 3000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, plainHit).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(1));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-40));
+
+    // At one stack a second hit changes nothing.
+    CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, plainHit).IsContinue());
+    CHECK_EQ(holder->GetStackAmount(), uint32(1));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-40));
+    delete holder;
 }
