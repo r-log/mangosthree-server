@@ -7132,7 +7132,7 @@ namespace Harness
      * `rules`: `expiry=<the 44461 damage logs in the first step's windows> refreshed=<yes when 79683 has more than
      * kRefreshedAboveMs left on him at the swing's read> death=<the 44461 damage logs in the kill's windows, none for
      * none>`; OK at one, yes and none, with the Camel dead at the kill's read. Cast again at the explosion, 1.3 s
-     * before that read, 79683 has about 18.7 s left; cast only at the first step's cast, about 6.7 s.
+     * before that read, 79683 has about 18.7 s left; not cast again: none on him.
      */
     class MageFireLivingBombRules : public MageProcScenario
     {

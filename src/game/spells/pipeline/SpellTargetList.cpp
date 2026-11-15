@@ -397,7 +397,8 @@ void Spell::prepareDataForTriggerSystem()
         m_canTrigger = true;                                // Triggered from SPELL_EFFECT_TRIGGER_SPELL - can trigger
     }
 
-    // A cast an aura triggered that the table names starts its caster's procs as his own cast does
+    // A cast an aura triggered that the table names starts the procs of the unit it is cast for and of the units it
+    // hits, as that unit's own cast does
     if (!m_canTrigger && !m_CastItem && TriggeredCastStartsProcs(m_spellInfo->ID))
     {
         m_canTrigger = true;

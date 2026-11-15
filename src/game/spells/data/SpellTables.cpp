@@ -309,10 +309,11 @@ namespace
         42385,  // Alcaz Survey Aura
     };
 
-    /// The spells whose cast an aura triggered starts its caster's procs as a cast of his own does.
+    /// The spells whose cast an aura triggered starts the procs of the unit it is cast for and of the units it hits, as
+    /// a cast of that unit's own does.
     constexpr uint32 PROC_STARTING_TRIGGERED_CASTS[] =
     {
-        44461,  // Living Bomb's explosion, cast by the bomb's aura when it runs out
+        44461,  // Living Bomb's explosion, cast for the mage by the bomb's aura when it runs out
     };
 
     /// A spell id and the value it answers.
