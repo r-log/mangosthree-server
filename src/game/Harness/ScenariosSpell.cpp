@@ -9868,7 +9868,7 @@ namespace Harness
             float placeAhead = 0.0f;                    ///< its placement's distance from its spawn in the plane
             float placeZ = 0.0f;                        ///< its placement's z
             float placeRise = 0.0f;                     ///< its placement's z less the ground under it
-            float placeSide = 0.0f;                     ///< its placement's y less its spawn's
+            float placeSide = 0.0f;                     ///< its placement's distance from the line its spawn faces
             float splineAhead = 0.0f;                   ///< its spline's distance from its spawn in the plane
             float splineSunk = 0.0f;                    ///< its spawn's z less its spline's
             float splineRise = 0.0f;                    ///< its spline's z over the ground under the spline
@@ -9933,7 +9933,8 @@ namespace Harness
             out.placeAhead = std::hypot(orb->Where().X() - spawn.X(), orb->Where().Y() - spawn.Y());
             out.placeZ = orb->Where().Z();
             out.placeRise = orb->Where().Z() - Ground(orb->Where().X(), orb->Where().Y(), orb->Where().Z());
-            out.placeSide = orb->Where().Y() - spawn.Y();
+            out.placeSide = (orb->Where().Y() - spawn.Y()) * std::cos(spawn.Facing()) -
+                            (orb->Where().X() - spawn.X()) * std::sin(spawn.Facing());
             out.splineAhead = std::hypot(sx - spawn.X(), sy - spawn.Y());
             out.splineSunk = spawn.Z() - sz;
             out.splineRise = sz - Ground(sx, sy, sz);
