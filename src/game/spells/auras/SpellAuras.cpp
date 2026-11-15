@@ -82,6 +82,7 @@
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"
 #include "spells/SpellScriptHooks.h"
+#include "spells/SpellScriptQueries.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -1820,6 +1821,11 @@ void Aura::PeriodicTick()
             uint32 dmgClass = spellProto->GetDmgClass();
             if (dmgClass == SPELL_DAMAGE_CLASS_NONE || dmgClass == SPELL_DAMAGE_CLASS_MAGIC)
             {
+                // the caster's class scripts that follow the target's health, read at this tick
+                if (m_modifier.m_auraname == SPELL_AURA_PERIODIC_DAMAGE)
+                {
+                    pdamage = uint32(pdamage * Spells::LowHealthDamageMultiplier(*pCaster, *target, *spellProto));
+                }
                 pdamage = target->SpellDamageBonusTaken(pCaster, spellProto, pdamage, DOT, GetStackAmount());
             }
             // MeleeDamagebonus for weapon based spells

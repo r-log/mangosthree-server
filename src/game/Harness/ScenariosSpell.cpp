@@ -96,9 +96,10 @@
 // stuns one Camel and copies the mage's DoTs to the two beside it, not the far one; 969 a killing blow on a Fire mage
 // with Cauterize, and the burn that follows; 970 Living Bomb's explosion starts the mage's procs, and a bomb whose
 // target dies does not explode; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the first
-// one's end takes it off; 985 the Fire passives that change a hit's damage, a cooldown and a debuff; 986 the Fire
-// passives that change how a cast goes; 987 six Fire glyphs.
-// The guard of 931-938, 950-970, 972 and 985-987 (Qualify) fingerprints every spell a scenario reaches and refuses
+// one's end takes it off; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that falls
+// under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's
+// damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs.
+// The guard of 931-938, 950-970, 972, 983 and 985-987 (Qualify) fingerprints every spell a scenario reaches and refuses
 // the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3912,8 +3913,8 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-970, 972, 985-987): a human mage staged to level 85 with
-     * the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
+     * What the mage scenarios share (951, 952, 954-957, 962-970, 972, 983, 985-987): a human mage staged to level 85
+     * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
@@ -8210,6 +8211,197 @@ namespace Harness
         static constexpr uint32 kBombStep = 2;
     };
 
+    /**
+     * S983 `mage-fire-molten-fury-tick`: Molten Fury rank 3 (86880, class script 12368, +12 against a target under 35%
+     * health) on a staged Fire mage with kSpellPower spell power, 1197 with his intellect's, and no mastery. Staged:
+     * Burning Soul 3, Improved Fire Blast 2 and Master of Elements 2; Fire Power 3 and Blazing Speed 2; Blast Wave,
+     * Improved Scorch 2 and Cauterize 2; Molten Shields, Combustion and Firestarter (the 20 points the fifth tier
+     * asks), then Molten Fury 3; Fire Blast (2136) learned. Burning Soul names the Fire tree, which teaches Fire
+     * Specialization (+25% fire damage) and Pyroblast; with Fire Power 3 every fire hit and tick is multiplied by
+     * 1.25 x 1.03 = 1.2875. Before each cast he takes Precision (13843), so no cast misses, and the crit aura at -100,
+     * so neither cast nor tick crits. Steps:
+     *  1. Pyroblast (11366) at the Camel at full health: it lands about 3.9 s after the cast starts, and its DoT ticks
+     *     every 3000 ms for 12 s, (164 + int(1197 x 0.18)) x 1.2875 = 487 a tick;
+     *  2. kHealthAfterMs after the cast, between the first tick and the second, the Camel's health set to kUnderPct
+     *     percent of its maximum; its next update sets its under-35% state;
+     *  3. kTicksEveryMs later, after the DoT's last tick, Fire Blast at the Camel under 35%.
+     * Molten Fury is read at each tick of a periodic damage effect and at a direct hit: the first tick, dealt above
+     * 35%, is the plain tick; the three after the health step are int(plain x 1.12); Fire Blast's hit is (955..1131 +
+     * int(1197 x 0.429)) x 1.2875 x 1.12 = 2116..2370.
+     *
+     * `moltenFury`: `ticks=<the 11366 ticks in the steps' windows, in order>,direct=<Fire Blast's hit>`; OK when there
+     * are four ticks, the first is kPlainTick, the three after it are each the first times (100 + the amount of 86880's
+     * aura on him) / 100 within one point, the Camel was not under 35% at the first read and was at the second, and the
+     * hit lies in the band of Fire Blast's base, his fire spell power's share and the two multipliers, one point either
+     * side allowed for the float product of the multipliers.
+     */
+    class MageFireMoltenFuryTick : public MageProcScenario
+    {
+    public:
+        MageFireMoltenFuryTick() : MageProcScenario("mage-fire-molten-fury-tick", 983, "moltenFury") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10545, 1 }, { 11434, 2 }, { 10555, 1 }, { 10551, 0 }, { 10547, 1 }, { 11433, 1 },
+                     { 10543, 0 }, { 10561, 0 }, { 11431, 0 }, { 10563, 2 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFireBlast }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 Watched() const override { return kPyroblast; }
+        bool WatchedOnTarget() const override { return true; }
+        bool ReadsPeriodic() const override { return true; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step pyroblast = Cast(kPyroblast, false);
+            pyroblast.everyMs = kHealthAfterMs;
+            return { pyroblast, TargetHealth(kUnderPct, kTicksEveryMs), Cast(kFireBlast, false) };
+        }
+
+        /// At each read: whether the Camel's under-35% state (AURA_STATE_HEALTHLESS_35_PERCENT) is set, kept as
+        /// `under35`.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* target) override
+        {
+            if (!atRead)
+            {
+                return;
+            }
+            const bool under = target->HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT);
+            st.seen[k].reads["under35"] = under ? 1 : 0;
+            m_rec.Note("the Camel's health " + U(target->GetHealth()) + " of " + U(target->GetMaxHealth()) +
+                       (under ? ", under 35%" : ", not under 35%"));
+        }
+
+        /// What ReadOwn kept of step k: 1 when the Camel was under 35% at its read, 0 when not, -1 when unread.
+        static int64 Under35(St const& st, uint32 k)
+        {
+            if (k >= st.seen.size())
+            {
+                return -1;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find("under35");
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        static char const* Under35Text(int64 under)
+        {
+            return under == 1 ? "yes" : under == 0 ? "no" : "unread";
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 11366: 49 fields, fnv 7ef90b4a
+                { 11366, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 2136: 26 fields, fnv 30ec504c
+                { 2136, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 23 }, { "eff0.EffectBonusCoefficient", 1054582243 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 29075: 26 fields, fnv d8954794
+                { 29075, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 29077: 26 fields, fnv a4e31d4d
+                { 29077, { { "eff0.present", 1 }, { "eff0.Effect", 30 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        std::string Own(St const& st) const override
+        {
+            std::vector<uint32> ticks;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const std::vector<uint32> stepTicks = TickAmounts(k, kPyroblast);
+                ticks.insert(ticks.end(), stepTicks.begin(), stepTicks.end());
+            }
+
+            int32 amount = 0;
+            int32 spellPower = 0;
+            if (Player* p = sPlayerRegistry.Find(st.player))
+            {
+                if (Aura const* moltenFury = p->GetAura(kMoltenFury3, EFFECT_INDEX_0))
+                {
+                    amount = moltenFury->GetModifier()->m_amount;
+                }
+                spellPower = p->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
+            }
+            SpellEntry const* fireBlast = sSpellStore.LookupEntry(kFireBlast);
+            SpellEffectEntry const* fireBlastHit = fireBlast ? fireBlast->GetSpellEffect(EFFECT_INDEX_0) : NULL;
+            const float coefficient = fireBlastHit ? fireBlastHit->EffectBonusCoefficient : 0.0f;
+            const int32 share = int32(spellPower * coefficient);
+            const float lowHealth = (100.0f + amount) / 100.0f;
+            const uint32 low = uint32(float(kFireBlastLow + share) * kDoneMultiplier * lowHealth);
+            const uint32 high = uint32(float(kFireBlastHigh + share) * kDoneMultiplier * lowHealth);
+            const uint32 plainLow = uint32(float(kFireBlastLow + share) * kDoneMultiplier);
+            const uint32 plainHigh = uint32(float(kFireBlastHigh + share) * kDoneMultiplier);
+
+            Seen const& pyroblast = st.seen[0];
+            Seen const& health = st.seen[1];
+            Seen const& direct = st.seen[2];
+            const uint32 first = ticks.empty() ? 0 : ticks[0];
+            const uint32 raised = uint32(first * lowHealth);
+            const int64 underAtFirst = Under35(st, 0);
+            const int64 underAtHealth = Under35(st, 1);
+            bool ok = st.steps.size() == 3 && amount > 0 && ticks.size() == kTicks && first == kPlainTick && underAtFirst == 0 &&
+                      underAtHealth == 1 && direct.logRead && !direct.crit && InBand(direct.amount, low, high);
+            std::string tickText;
+            for (size_t i = 0; i < ticks.size(); ++i)
+            {
+                tickText += (i ? "," : "") + U(ticks[i]);
+                if (i > 0)
+                {
+                    ok = ok && InBand(ticks[i], raised, raised);
+                }
+            }
+
+            const std::string value = "ticks=" + (tickText.empty() ? std::string("none") : tickText) + ",direct=" +
+                                      (direct.logRead ? U(direct.amount) : std::string("none"));
+            const std::string directText = direct.logRead ? U(direct.amount) + (direct.crit ? " crit" : "") : std::string("none");
+            const std::string pyroblastText = pyroblast.logRead ? U(pyroblast.amount) + (pyroblast.crit ? " crit" : "") : std::string("none");
+            char buf[768];
+            snprintf(buf, sizeof(buf),
+                     "%u ticks of 11366 (%u wanted), the first %u above 35%% (the plain tick %u wanted); each tick after the health "
+                     "step int(%u x %.2f) = %u wanted, one point either side; the Camel under 35%% at the first read %s, at the "
+                     "second %s (its health %u -> %u); 86880's amount on him %d; fire spell power %d, Fire Blast's share int(%d x "
+                     "%.3f) = %d; Fire Blast's hit %s, the band (%d..%d + %d) x %.4f x %.2f = %u..%u (without Molten Fury %u..%u); "
+                     "Pyroblast's hit %s",
+                     uint32(ticks.size()), uint32(kTicks), first, kPlainTick, first, lowHealth, raised,
+                     Under35Text(underAtFirst), Under35Text(underAtHealth), health.healthBefore,
+                     health.healthAfter, amount, spellPower, spellPower, coefficient, share, directText.c_str(), kFireBlastLow,
+                     kFireBlastHigh, share, kDoneMultiplier, lowHealth, low, high, plainLow, plainHigh, pyroblastText.c_str());
+            return value + (ok ? "(OK: " : "(BUG: ") + buf + ")";
+        }
+
+    private:
+        static constexpr uint32 kPyroblast = 11366;
+        static constexpr uint32 kFireBlast = 2136;
+        static constexpr uint32 kMoltenFury3 = 86880;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kHealthAfterMs = 7800;
+        static constexpr uint32 kTicksEveryMs = 9000;
+        static constexpr uint32 kUnderPct = 30;
+        static constexpr size_t kTicks = 4;
+        static constexpr uint32 kPlainTick = 487;
+        static constexpr int32 kFireBlastLow = 955;
+        static constexpr int32 kFireBlastHigh = 1131;
+        static constexpr float kDoneMultiplier = 1.25f * 1.03f;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -8246,5 +8438,6 @@ namespace Harness
         r.Register(new MageFireDamagePassives());
         r.Register(new MageFireCastPassives());
         r.Register(new MageFireGlyphs());
+        r.Register(new MageFireMoltenFuryTick());
     }
 }

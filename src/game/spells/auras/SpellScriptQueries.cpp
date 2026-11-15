@@ -127,3 +127,49 @@ bool CopyAuraHolder(Unit& from, Unit& to, uint32 spellId, ObjectGuid const& cast
     }
     return true;
 }
+
+namespace
+{
+    /// The class-script ids whose bonus holds while the victim is under 35% health: Molten Fury's three ranks (31679,
+    /// 31680, 86880) and Death's Embrace's three (47198, 47199, 47200).
+    int32 const LOW_HEALTH_SCRIPTS[] = { 4919, 4920, 12368, 6917, 6926, 6928 };
+
+    bool IsLowHealthScript(int32 script)
+    {
+        for (int32 id : LOW_HEALTH_SCRIPTS)
+        {
+            if (id == script)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+float Spells::LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, SpellEntry const& spell)
+{
+    if (!victim.HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT))
+    {
+        return 1.0f;
+    }
+
+    // the talents of a pet's or a totem's owner count for its spells
+    Unit const* owner = caster.GetOwner();
+    if (!owner)
+    {
+        owner = &caster;
+    }
+
+    float multiplier = 1.0f;
+    Unit::AuraList const& scripts = owner->GetAurasByType(SPELL_AURA_OVERRIDE_CLASS_SCRIPTS);
+    for (Unit::AuraList::const_iterator i = scripts.begin(); i != scripts.end(); ++i)
+    {
+        Modifier const* mod = (*i)->GetModifier();
+        if (IsLowHealthScript(mod->m_miscvalue) && (*i)->isAffectedOnSpell(&spell))
+        {
+            multiplier *= (100.0f + mod->m_amount) / 100.0f;
+        }
+    }
+    return multiplier;
+}
