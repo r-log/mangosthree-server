@@ -29,6 +29,7 @@
 #include "spells/data/SpellTables.h"
 #include "spells/SpellModMgr.h"
 #include "spells/SpellScriptQueries.h"
+#include "spells/PeriodicTiming.h"
 #include "combat/SpellBonus.h"
 #include "combat/ThreatManager.h"
 #include "entities/Unit.h"
@@ -336,11 +337,71 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 44614: Frostfire Bolt: when its holder is added, the caster's burning enemies are counted again for Pyromaniac,
-    /// as PyromaniacDotApply counts them. The holder's boosts still run.
+    /// Frostfire Bolt, and Glyph of Frostfire, whose effect 2 holds the percent of a bolt's hit the bolt's DoT deals.
+    uint32 const FROSTFIRE_BOLT_SPELL = 44614;
+    uint32 const GLYPH_OF_FROSTFIRE = 61205;
+
+    /// 44614: Frostfire Bolt: when its holder is added, a caster with Glyph of Frostfire (61205) takes the slow (effect
+    /// 0) off it and any other caster the periodic damage (effect 2), so the bolt slows or burns, never both; a holder
+    /// left with one of the two by the target's immunities keeps it (AuraHandle::RemoveEffect). Then the caster's
+    /// burning enemies are counted again for Pyromaniac, as PyromaniacDotApply counts them. The holder's boosts still
+    /// run.
     SpellHandlerOutcome<void> FrostfireBoltAuraApply(AuraApplyContext& ctx)
     {
+        if (ctx.real && ctx.caster)
+        {
+            ctx.aura.RemoveEffect(ctx.caster->HasAura(GLYPH_OF_FROSTFIRE) ? EFFECT_INDEX_0 : EFFECT_INDEX_2);
+        }
         return PyromaniacDotApply(ctx);
+    }
+
+    /// 44614: Frostfire Bolt: after its hit lands, on the caster's own holder of it on the target. With Glyph of
+    /// Frostfire (61205) the holder's periodic damage becomes the glyph's share of the hit: its effect 2, in percent, of
+    /// the damage dealt and absorbed, spread over the ticks the holder's time left holds at its period, times the
+    /// holder's stacks, with the caster's mastery on the spell (Mage::FrostfireGlyphTick). Without the glyph a holder
+    /// that stacked is set back to one stack, so the slow keeps its own value.
+    SpellHandlerOutcome<void> FrostfireBoltAfterHit(AfterHitContext& ctx)
+    {
+        if (ctx.heal)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        ObjectGuid const caster = ctx.caster.GetObjectGuid();
+        SpellAuraHolder* holder = ctx.target.GetSpellAuraHolder(FROSTFIRE_BOLT_SPELL, caster);
+        if (!holder)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        AuraHandle aura(*holder);
+        if (!ctx.caster.HasAura(GLYPH_OF_FROSTFIRE))
+        {
+            if (aura.Stacks() > 1)
+            {
+                aura.SetStacks(1);
+            }
+            return SpellHandlerOutcome<void>::Continue();
+        }
+
+        SpellEntry const* glyph = sSpellStore.LookupEntry(GLYPH_OF_FROSTFIRE);
+        int32 const percent = glyph ? glyph->CalculateSimpleValue(EFFECT_INDEX_2) : 0;
+        uint32 const bolt[] = { FROSTFIRE_BOLT_SPELL };
+        std::vector<PeriodicDamageView> found;
+        if (percent <= 0 || !FindPeriodicDamage(ctx.target, caster, bolt, 1, found))
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        PeriodicDamageView const& dot = found[0];
+        uint32 const ticks = Spells::TickCount(dot.remainingMs, int32(dot.periodMs), int32(dot.periodMs));
+
+        // the caster's mastery on the DoT: the step SpellDamageBonusDone takes for a spell in the mastery's mask
+        float mastery = 1.0f;
+        if (SpellModMgr* mods = ctx.caster.GetSpellMods())
+        {
+            mods->ApplySpellMod(FROSTFIRE_BOLT_SPELL, SPELLMOD_DOT, mastery, true);
+        }
+        aura.SetAmount(dot.effIndex, Mage::FrostfireGlyphTick(ctx.amount + ctx.absorbed, uint32(percent), ticks, aura.Stacks(),
+                                                              mastery));
+        return SpellHandlerOutcome<void>::Continue();
     }
 
     /// The eight DoTs Pyromaniac counts, when their holder is removed: the caster's burning enemies are counted again
@@ -456,7 +517,7 @@ namespace
     uint32 const IMPACT[] = { 11103, 12357 };
     uint32 const IMPACT_SPREAD[] = { 12355 };
     uint32 const PYROMANIAC_DOTS_APPLIED[] = { 2120, 11366, 12654, 44457, 83853, 88148, 92315 };
-    uint32 const FROSTFIRE_BOLT[] = { 44614 };
+    uint32 const FROSTFIRE_BOLT[] = { FROSTFIRE_BOLT_SPELL };
     uint32 const PYROMANIAC[] = { PYROMANIAC_RANK_1, PYROMANIAC_RANK_2 };
     uint32 const BLAST_WAVE[] = { 11113 };
     uint32 const IMPROVED_FLAMESTRIKE[] = { IMPROVED_FLAMESTRIKE_RANK_1, IMPROVED_FLAMESTRIKE_RANK_2 };
@@ -580,6 +641,11 @@ int32 Mage::ImprovedFlamestrikeChance(uint32 talentSpell)
     return talent ? talent->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
 }
 
+int32 Mage::FrostfireGlyphTick(uint32 hit, uint32 percent, uint32 ticks, uint32 stacks, float masteryMultiplier)
+{
+    return int32(float(int32(stacks) * Combat::DotShareTick(float(hit), percent, ticks)) * masteryMultiplier);
+}
+
 bool Mage::ImpactSpreads(uint32 spellId, int32& bombsSpread)
 {
     uint32 const* const dotsEnd = std::end(IMPACT_SPREAD_DOTS);
@@ -610,6 +676,7 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<DummyAuraHook>(registry, LIVING_BOMB, &LivingBombDummyAura);
     rows += RegisterRanks<AuraApplyHook>(registry, PYROMANIAC_DOTS_APPLIED, &PyromaniacDotApply);
     rows += RegisterRanks<AuraApplyHook>(registry, FROSTFIRE_BOLT, &FrostfireBoltAuraApply);
+    rows += RegisterRanks<AfterHitHook>(registry, FROSTFIRE_BOLT, &FrostfireBoltAfterHit);
     rows += RegisterRanks<AuraRemoveHook>(registry, PYROMANIAC_DOTS, &PyromaniacDotRemove);
     rows += RegisterRanks<AuraApplyHook>(registry, PYROMANIAC, &PyromaniacTalentApply);
     rows += RegisterRanks<AuraRemoveHook>(registry, PYROMANIAC, &PyromaniacTalentRemove);

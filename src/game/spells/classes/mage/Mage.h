@@ -43,11 +43,11 @@
  * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
  * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's (ImpactSpreads),
- * Mage Ward's (MageWardTriggersBlazingSpeed) and Improved Flamestrike's (ImprovedFlamestrikeChance). Orb.cpp holds the
- * orb a mage's Flame Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature,
- * ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file
- * registers its rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and
- * RegisterRanks per script hook.
+ * Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and Glyph of
+ * Frostfire's (FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts
+ * and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbEndDue, OrbOwnerActs,
+ * OrbExplosionChance and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table
+ * per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -242,6 +242,11 @@ namespace Mage
     /// 84674) calls the free Flamestrike: that spell's effect 0 value; 0 for any other spell, or when the spell store
     /// lacks it. Defined in Fire.cpp.
     int32 ImprovedFlamestrikeChance(uint32 talentSpell);
+
+    /// The tick of the Frostfire Bolt DoT under Glyph of Frostfire: `stacks` times the share of one bolt's hit
+    /// (Combat::DotShareTick(hit, percent, ticks)), then the caster's mastery modifier on the spell, truncated. Defined
+    /// in Fire.cpp.
+    int32 FrostfireGlyphTick(uint32 hit, uint32 percent, uint32 ticks, uint32 stacks, float masteryMultiplier);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.

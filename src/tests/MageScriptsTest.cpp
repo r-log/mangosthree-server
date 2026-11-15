@@ -423,14 +423,15 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
     // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
     // Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the aura-apply and
-    // aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, and Blast Wave at the after-cast hook.
-    // Frost: the 74396 boost and proc labels; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master
-    // of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane:
-    // Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the dummy-effect hook, and the orb's scan
-    // at the target and dummy-effect hooks. 63 rows, 63 keys and 3 defaults, none twice.
+    // aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the after-cast hook, and
+    // Frostfire Bolt at the after-hit hook. Frost: the 74396 boost and proc labels; Ice Lance at the damage-done hook. At
+    // the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity
+    // State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the
+    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. 64 rows, 64 keys and 3 defaults, none
+    // twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(66));
-    CHECK_EQ(registry.Count(), std::size_t(63));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(67));
+    CHECK_EQ(registry.Count(), std::size_t(64));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -446,6 +447,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(12));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(1));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -463,7 +465,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 36, 36, 0 },
+        { &Mage::RegisterFire, 37, 37, 0 },
         { &Mage::RegisterFrost, 7, 7, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
@@ -477,8 +479,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(66));
-    CHECK_EQ(registry.Count(), std::size_t(63));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(67));
+    CHECK_EQ(registry.Count(), std::size_t(64));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -489,7 +491,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(63));
+    CHECK_EQ(mine.size(), std::size_t(64));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -1171,8 +1173,8 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
     // At the remove hook the eight DoTs share one body; at the apply hook the seven but Frostfire Bolt share it, and
-    // Frostfire Bolt's apply is a row of its own, whose body counts as theirs does (the two compile to the same code, so
-    // the linker may give them one address). The two ranks share one body at each hook. The same in the game's table.
+    // Frostfire Bolt's apply is a row of its own, whose body takes one effect off the holder and then counts as theirs
+    // does. The two ranks share one body at each hook. The same in the game's table.
     SpellHandler<AuraApplyHook>::Function const dotApply = registry.Find<AuraApplyHook>(PYROMANIAC_DOT_IDS[0]);
     SpellHandler<AuraRemoveHook>::Function const dotRemove = registry.Find<AuraRemoveHook>(PYROMANIAC_DOT_IDS[0]);
     SpellHandler<AuraApplyHook>::Function const frostfireApply = registry.Find<AuraApplyHook>(44614);
@@ -1185,6 +1187,7 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
     CHECK(talentRemove != NULL);
     CHECK(talentApply != dotApply);
     CHECK(talentApply != frostfireApply);
+    CHECK(frostfireApply != dotApply);
     CHECK(talentRemove != dotRemove);
     for (uint32 spellId : PYROMANIAC_DOT_IDS)
     {
