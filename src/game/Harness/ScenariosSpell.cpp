@@ -9205,11 +9205,11 @@ namespace Harness
      *
      * `orb`: `hits=<82739 damage logs on the Camel> explosion=<83619 damage logs on the Camel> snared=<yes when the
      * orb held 82736 at the read> hover=<yes when its movement flags carried MOVEFLAG_HOVER at the read>
-     * height=<its UNIT_FIELD_HOVERHEIGHT at the read> lift=<its z over the ground under it at the first early read>`; OK when there are
-     * kOrbHits hits, each his and a crit of kHitLow..kHitHigh, one explosion, his and a crit of kBlastLow..kBlastHigh,
-     * the orb at the read holds 82690 and 82736 at a run speed rate of its template's SpeedRun times kSnareRate, it
-     * hovers at a height of 1.0, its lift is within kLiftLow..kLiftHigh (a hover height over the ground, less the
-     * quarter of one its climb legs may sag under it), and no orb is left at the end.
+     * height=<its UNIT_FIELD_HOVERHEIGHT at the read> lift=<its z over the ground under it kLiftReadMs after the
+     * cast, in its first tick, where the placement is still the lifted spawn>`; OK when there are kOrbHits hits,
+     * each his and a crit of kHitLow..kHitHigh, one explosion, his and a crit of kBlastLow..kBlastHigh, the orb at
+     * the read holds 82690 and 82736 at a run speed rate of its template's SpeedRun times kSnareRate, it hovers at a
+     * height of 1.0, its lift is a hover height, 1.00 within kLiftTolerance, and no orb is left at the end.
      *
      * The bands, at kSpellPower staged (fire spell power 1197 with his intellect): the base damage is the orb's, at
      * the level it takes from its owner, and the mage supplies the spell power, the done mods and the crit. A hit is
@@ -9296,6 +9296,7 @@ namespace Harness
             m_camel = st.target;
             if (!atRead)
             {
+                At(kLiftReadMs, [this]() { ReadLift(); });
                 for (uint32 ms : kEarlyReadsMs)
                 {
                     At(ms, [this, ms]() { ReadEarly(ms); });
@@ -9372,7 +9373,7 @@ namespace Harness
             bool ok = hits.size() == kOrbHits && blasts.size() == 1 && elsewhere == 0 && left == 0 && m_read.done &&
                       m_read.alive == 1 && m_read.scan && m_read.snared && info && std::fabs(m_read.runRate - wantedRate) < kRateTolerance &&
                       m_read.hover && std::fabs(m_read.height - 1.0f) < kHeightTolerance && m_liftRead &&
-                      m_lift >= kLiftLow && m_lift <= kLiftHigh;
+                      std::fabs(m_lift - kLift) < kLiftTolerance;
             std::string hitText;
             for (size_t i = 0; i < hits.size(); ++i)
             {
@@ -9463,6 +9464,18 @@ namespace Harness
             return camel ? orb.Where().DistanceTo(camel->Where()) : -1.0f;
         }
 
+        /// kLiftReadMs after the cast, in the orb's first tick: its z over the ground under it.
+        void ReadLift()
+        {
+            uint32 alive = 0;
+            Creature* orb = LiveOrb(alive);
+            if (orb && sPlayerRegistry.Find(m_player))
+            {
+                m_lift = orb->Where().Z() - Ground(orb->Where().X(), orb->Where().Y(), orb->Where().Z());
+                m_liftRead = true;
+            }
+        }
+
         /// `ms` after the cast, around the orb's first scans: the orb's placement, where its spline has it, the Camel's
         /// distance from the placement, and whether the orb holds its snare.
         void ReadEarly(uint32 ms)
@@ -9485,14 +9498,6 @@ namespace Harness
                 sx = live.x;
                 sy = live.y;
                 sz = live.z;
-            }
-            if (!m_liftRead)
-            {
-                if (sPlayerRegistry.Find(m_player))
-                {
-                    m_lift = orb->Where().Z() - Ground(orb->Where().X(), orb->Where().Y(), orb->Where().Z());
-                    m_liftRead = true;
-                }
             }
             snprintf(buf, sizeof(buf),
                      "%u ms after the cast: the orb's placement (%.2f, %.2f, %.2f), %.2f yd from the Camel; its spline at (%.2f, %.2f, %.2f); %u %s",
@@ -9540,12 +9545,13 @@ namespace Harness
         static constexpr float kSnareRate = 0.1f;
         static constexpr float kRateTolerance = 0.0001f;
         static constexpr float kHeightTolerance = 0.001f;
-        static constexpr float kLiftLow = 0.75f;
-        static constexpr float kLiftHigh = 1.25f;
+        static constexpr uint32 kLiftReadMs = 10;
+        static constexpr float kLift = 1.0f;
+        static constexpr float kLiftTolerance = 0.01f;
 
         OrbRead m_read;
-        float m_lift = 0.0f;                            ///< the orb's z over the ground under it, at the first early read
-        bool m_liftRead = false;                        ///< the first early read found the orb
+        float m_lift = 0.0f;                            ///< the orb's z over the ground under it, in its first tick
+        bool m_liftRead = false;                        ///< the first-tick read found the orb
         ObjectGuid m_player;
         ObjectGuid m_camel;
     };
@@ -10006,10 +10012,10 @@ namespace Harness
      * orb's distance ahead gained between that read and the one before it, over kAheadGain: it kept flying forward while it
      * sank> over=<the lowest and the highest height of the spline over the ground under it at any read, within
      * kRiseLow..kRiseHigh (2.5: two hover heights, and half of one for the floor's fall in a tick): it never went
-     * under its hover line, and the
-     * floor falling away did not leave it further over it> line=<yes when every read has the placement on the spawn's
-     * line within 0.01>`, and the orb flies on after it lands: the last read has the placement farther ahead than at the
-     * `first` read and at the same z within 0.01. OK when all hold. Hits are not read.
+     * under its hover line, and the floor falling away did not leave it further over it> line=<yes when every read
+     * has the placement on the spawn's line within 0.01>`, and the orb flies on after it lands: the read after
+     * `first` has its spline farther ahead than `first`'s, and the last read has the placement farther ahead than at
+     * the `first` read and at the same z within 0.01. OK when all hold. Hits are not read.
      */
     class MageFireFlameOrbDownhill : public MageFireFlameOrbDescends
     {
