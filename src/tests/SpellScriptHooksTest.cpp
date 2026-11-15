@@ -23,8 +23,10 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the aura handle's reads,
-/// RegisterRanks, the holder's script words and the game table, whose only hook rows are the mage's scripts.
+/// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
+/// target and script word, the aura handle's reads, RegisterRanks, the holder's script words, the holder copy's answer
+/// for a unit holding none and the period, tick time, duration and amount a copy keeps, and the game table, whose only
+/// hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -33,7 +35,8 @@
 /// build, the second tells the clients). The script words of a constructed holder are read from a holder built, on a
 /// spell put into the store as the registry's own holder test does, in storage whose bytes were all 0xA5. The periodic
 /// damage query reads holders and auras made through their constructors, on spells put into the spell, effect and
-/// duration stores, held in a bare creature's holder map.
+/// duration stores, held in a bare creature's holder map; the copy is added through Unit::AddSpellAuraHolder to a bare
+/// creature, which sends nothing out of a world, and removed through Unit::RemoveSpellAuraHolder.
 
 #include "TestHarness.h"
 #include "spells/SpellScriptHooks.h"
@@ -56,6 +59,7 @@ namespace
     const uint32 kDotSpell = 94204;
     const uint32 kOtherDotSpell = 94205;
     const uint32 kNotHeldSpell = 94206;
+    const uint32 kCopiedDotSpell = 94210;
 
     // A creature with its update fields allocated and no world, map, template or AI.
     class BareCreature : public Creature
@@ -205,6 +209,8 @@ namespace
         uint32 cooldown;
         bool dummy;
         uint32 targetMode;
+        Unit const* castTarget;
+        int32 word;
     };
 
     Seen s_seen;
@@ -309,7 +315,9 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
         return SpellHandlerOutcome<void>::Return();
     }));
     int32 dummyValue = 0;
-    DummyEffectContext dummyEffect(caster, &target, NULL, NULL, spell, EFFECT_INDEX_2, dummyValue, ObjectGuid());
+    int32 dummyWord = 0;
+    DummyEffectContext dummyEffect(caster, &target, NULL, NULL, spell, EFFECT_INDEX_2, dummyValue, ObjectGuid(), &target,
+                                   dummyWord);
     CHECK(registry.Dispatch<DummyEffectHook>(kHookSpell, dummyEffect).IsReturn());
     CHECK_EQ(dummyValue, 7);
 
@@ -350,6 +358,53 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
     CHECK(critChance == 55.0f);
     CHECK(registry.Dispatch<CritChanceHook>(kOtherSpell, critChanceCtx).IsMiss());
     CHECK(critChance == 55.0f);
+}
+
+TEST(SpellScriptHooks_ADummyEffectContextCarriesTheCastsTargetAndItsWord)
+{
+    BareCreature caster;
+    BareCreature stunned;
+    BareCreature beside;
+    SpellEntry const& spell = HookSpell();
+
+    // The body notes the cast's target and the word as it finds them, then adds one to the word.
+    SpellHandlerRegistry registry;
+    CHECK(registry.Register<DummyEffectHook>(kHookSpell, [](DummyEffectContext& ctx)
+    {
+        s_seen.castTarget = ctx.castTarget;
+        s_seen.word = ctx.word;
+        ++ctx.word;
+        return SpellHandlerOutcome<void>::Return();
+    }));
+
+    // One cast's word, zero as the Spell makes it, seen by the effect at each of the cast's targets: the cast's target
+    // is the same at both, and the second finds the first's write.
+    int32 value = 0;
+    int32 word = 0;
+    Forget();
+    DummyEffectContext atStunned(caster, &stunned, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned,
+                                 word);
+    CHECK(registry.Dispatch<DummyEffectHook>(kHookSpell, atStunned).IsReturn());
+    CHECK(s_seen.castTarget == &stunned);
+    CHECK_EQ(s_seen.word, 0);
+    CHECK_EQ(word, 1);
+    Forget();
+    DummyEffectContext atBeside(caster, &beside, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned, word);
+    CHECK(registry.Dispatch<DummyEffectHook>(kHookSpell, atBeside).IsReturn());
+    CHECK(atBeside.target == &beside);
+    CHECK(s_seen.castTarget == &stunned);
+    CHECK_EQ(s_seen.word, 1);
+    CHECK_EQ(word, 2);
+
+    // A cast with no unit target gives NULL; another cast's word is its own.
+    int32 otherWord = 0;
+    Forget();
+    DummyEffectContext noTarget(caster, NULL, NULL, NULL, spell, EFFECT_INDEX_0, value, ObjectGuid(), NULL, otherWord);
+    CHECK(registry.Dispatch<DummyEffectHook>(kHookSpell, noTarget).IsReturn());
+    CHECK(s_seen.castTarget == NULL);
+    CHECK_EQ(s_seen.word, 0);
+    CHECK_EQ(otherWord, 1);
+    CHECK_EQ(word, 2);
 }
 
 TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
@@ -620,12 +675,71 @@ TEST(SpellScriptHooks_RegisterScriptPutsOneBodyUnderOneId)
     CHECK(registry.Find<OnProcHook>(11119) == &TestProcBody);
 }
 
+TEST(SpellScriptHooks_CopyAuraHolderCopiesNothingFromAUnitThatHoldsNone)
+{
+    // A unit that holds no holder of the spell from the caster gives nothing to copy: false, and the other unit is left
+    // without a holder.
+    BareCreature from;
+    BareCreature to;
+    ObjectGuid const mage(HIGHGUID_UNIT, uint32(2961), uint32(400378));
+    CHECK(!CopyAuraHolder(from, to, kStoredHolderSpell, mage));
+    CHECK(to.GetSpellAuraHolder(kStoredHolderSpell, mage) == NULL);
+    CHECK(to.GetSpellAuraHolderMap().empty());
+}
+
+TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
+{
+    // A DoT of 3000 ms for 12 s in the client's data, ticking every 2400 ms on the source as a hasted caster's would,
+    // 1000 ms from its next tick with 7000 ms left. The bare creatures' guids are all empty, so the source's caster is
+    // the unit it is on.
+    static StoredDot rows;
+    SpellEntry const* dot = StoreDot(rows, kCopiedDotSpell, 3000, 12000, false);
+    BareCreature from;
+    BareCreature to;
+    ObjectGuid const caster;
+    SpellAuraHolder* source = DotHolder(dot, from, caster, 500);
+    Aura* sourceAura = source->GetAuraByEffectIndex(EFFECT_INDEX_0);
+    sourceAura->SetPeriodic(true);
+    sourceAura->GetModifier()->periodictime = 2400;
+    sourceAura->CarryTickTimer(1000);
+    source->SetAuraDuration(7000);
+    from.HoldAura(kCopiedDotSpell, *source);
+
+    // The copy ticks at the source's period, not the data's, from the source's time to its next tick, lasts the time
+    // the source has left as its full duration, so it deals the source's three ticks left, and holds its amount.
+    CHECK(CopyAuraHolder(from, to, kCopiedDotSpell, caster));
+    SpellAuraHolder* copy = to.GetSpellAuraHolder(kCopiedDotSpell, caster);
+    CHECK(copy != NULL);
+    if (copy)
+    {
+        Aura* copied = copy->GetAuraByEffectIndex(EFFECT_INDEX_0);
+        CHECK(copied != NULL);
+        if (copied)
+        {
+            CHECK_EQ(copied->GetModifier()->periodictime, uint32(2400));
+            CHECK_EQ(copied->GetPeriodicTimer(), int32(1000));
+            CHECK_EQ(copied->GetModifier()->m_amount, int32(500));
+            CHECK_EQ(copied->GetAuraMaxTicks(), uint32(3));
+        }
+        CHECK_EQ(copy->GetAuraDuration(), int32(7000));
+        CHECK_EQ(copy->GetAuraMaxDuration(), int32(7000));
+
+        // A second copy finds the caster's holder already there and changes nothing.
+        CHECK(!CopyAuraHolder(from, to, kCopiedDotSpell, caster));
+        CHECK_EQ(to.GetSpellAuraHolderMap().size(), std::size_t(1));
+        to.RemoveSpellAuraHolder(copy);
+    }
+    CHECK(to.GetSpellAuraHolderMap().empty());
+    CHECK(from.GetSpellAuraHolder(kCopiedDotSpell, caster) == source);
+    delete source;
+}
+
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
-    // The proc hook holds the mage's 20 proc scripts, the target hook Blink's, the damage-done hook Ice Lance's, the
+    // The proc hook holds the mage's 22 proc scripts, the target hook Blink's, the damage-done hook Ice Lance's, the
     // dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's nine (its seven DoTs and two ranks), the
-    // aura-remove hook Hot Streak's buff's and Pyromaniac's nine, and the dummy-effect hook Combustion's
-    // (MageScriptsTest names their ids); no other hook holds a row.
+    // aura-remove hook Hot Streak's buff's and Pyromaniac's nine, and the dummy-effect hook Combustion's and Impact's
+    // spread (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AfterHitHook::Key, AuraAmountHook::Key,
@@ -636,13 +750,13 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     {
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
-    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(20));
+    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(22));
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(9));
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(10));
-    CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1274));
+    CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(2));
+    CHECK_EQ(game.Count(), std::size_t(1277));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }

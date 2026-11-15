@@ -28,11 +28,13 @@
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the
 /// dummy aura hook, Pyromaniac's leaves and its rows at the aura-apply and aura-remove hooks, Combustion's exits at
-/// the dummy-effect hook, its tick and its DoT's stacking with the auras of its icon. A body that casts, reads a
+/// the dummy-effect hook, its tick and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast
+/// cooldown, which DoTs Impact spreads, and the exits of its spread at the dummy-effect hook. A body that casts, reads a
 /// level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update
 /// fields allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the
 /// client's data holds them, and a holder put in the creature's holder map where a script asks whether it holds an
-/// aura.
+/// aura. The cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown
+/// sinks the test installs.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -43,12 +45,16 @@
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "Creature.h"
+#include "Player.h"
+#include "WorldSession.h"
+#include "Auth/BigNumber.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
 #include "data/ServerSpellStore.h"
 
 #include <algorithm>
 #include <cmath>
+#include <ctime>
 #include <list>
 #include <set>
 #include <utility>
@@ -95,6 +101,12 @@ namespace
 
     // The id the dummy-effect script holds: Combustion, whose script effect puts its DoT (83853) on the target.
     uint32 const COMBUSTION_IDS[] = { 11129 };
+
+    // Impact's ids at the proc hook: the talent's two ranks.
+    uint32 const IMPACT_IDS[] = { 11103, 12357 };
+
+    // The id Impact's spread holds at the dummy-effect hook: the spell the Impact buff casts at its Fire Blast's victim.
+    uint32 const IMPACT_SPREAD_IDS[] = { 12355 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -151,6 +163,10 @@ namespace
             ~BareCreature()
             {
                 m_auras.Holders().clear();
+                for (AuraType type : m_markedTypes)
+                {
+                    m_auras.ByType(type).clear();
+                }
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
             }
@@ -159,6 +175,33 @@ namespace
             void HoldAura(uint32 spellId, SpellAuraHolder& holder)
             {
                 m_auras.AddHolder(spellId, &holder);
+            }
+
+            // Puts an entry with no aura in the list of `type`, so Unit::HasAuraType(type) answers true; the list is
+            // emptied before the creature goes.
+            void MarkAuraType(AuraType type)
+            {
+                m_auras.ByType(type).push_back(NULL);
+                m_markedTypes.push_back(type);
+            }
+
+        private:
+            std::vector<AuraType> m_markedTypes;
+    };
+
+    // A player with its update fields allocated, on a session with no socket, in no world.
+    class SessionPlayer : public Player
+    {
+        public:
+            explicit SessionPlayer(WorldSession& session) : Player(&session)
+            {
+                Object::_Create(1, 0, HIGHGUID_PLAYER);
+            }
+
+            ~SessionPlayer()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
             }
     };
 
@@ -294,6 +337,31 @@ namespace
         }
     }
 
+    // Impact's proc-trigger effect as the client's data holds it, effect 0 of both ranks with the Impact buff (64343) as
+    // its trigger spell, put into the effect store once for the rest of the run; no other test uses these ids. The
+    // buff itself is not in the test's spell store.
+    void AddImpactEffectRows()
+    {
+        static SpellEffectEntry effects[sizeof(IMPACT_IDS) / sizeof(IMPACT_IDS[0])];
+        static bool added = false;
+        if (added)
+        {
+            return;
+        }
+        added = true;
+        for (std::size_t i = 0; i < sizeof(IMPACT_IDS) / sizeof(IMPACT_IDS[0]); ++i)
+        {
+            effects[i] = SpellEffectEntry();
+            effects[i].SpellID = IMPACT_IDS[i];
+            effects[i].EffectIndex = EFFECT_INDEX_0;
+            effects[i].Effect = SPELL_EFFECT_APPLY_AURA;
+            effects[i].EffectAura = SPELL_AURA_PROC_TRIGGER_SPELL;
+            effects[i].EffectTriggerSpell = 64343;
+            effects[i].ImplicitTarget_0 = TARGET_SELF;
+            AddSpellEffectEntry(&effects[i]);
+        }
+    }
+
     // A proc of `spellId`'s effect `effIndex` on `owner`, with the event's spell, flags and the aura's amount given;
     // the event's other unit and its damage too, when given.
     SpellHandlerOutcome<SpellAuraProcResult> Proc(SpellHandlerRegistry const& registry, Unit& owner, uint32 spellId,
@@ -315,13 +383,13 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
     // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
     // Hot Streak's buff at the aura-remove hook, Pyromaniac's seven DoTs and two ranks at the aura-apply and
-    // aura-remove hooks, and Combustion at the dummy-effect hook. Frost: the 74396 boost and proc labels and Summon
-    // Water Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak
-    // and Blazing Speed; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane
-    // Potency and Mana Shield. 55 rows, 55 keys and 3 defaults, none twice.
+    // aura-remove hooks, and Combustion and Impact's spread at the dummy-effect hook. Frost: the 74396 boost and proc
+    // labels and Summon Water Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of
+    // Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane:
+    // Magic Absorption, Arcane Potency and Mana Shield. 58 rows, 58 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(58));
-    CHECK_EQ(registry.Count(), std::size_t(55));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(61));
+    CHECK_EQ(registry.Count(), std::size_t(58));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -329,13 +397,13 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(20));
+    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(22));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(9));
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(10));
-    CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(2));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -353,7 +421,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 30, 30, 0 },
+        { &Mage::RegisterFire, 33, 33, 0 },
         { &Mage::RegisterFrost, 8, 8, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
     };
@@ -366,8 +434,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(58));
-    CHECK_EQ(registry.Count(), std::size_t(55));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(61));
+    CHECK_EQ(registry.Count(), std::size_t(58));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -377,7 +445,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(55));
+    CHECK_EQ(mine.size(), std::size_t(58));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -513,7 +581,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
-    // Each talent's ids share one body, and each talent has its own: 20 ids in 11 bodies, the same in the game's table.
+    // Each talent's ids share one body, and each talent has its own: 22 ids in 12 bodies, the same in the game's table.
     std::set<SpellHandler<OnProcHook>::Function> bodies;
     bodies.insert(OneProcBody(registry, MAGIC_ABSORPTION_IDS));
     bodies.insert(OneProcBody(registry, IGNITE_IDS));
@@ -526,14 +594,16 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     bodies.insert(OneProcBody(registry, OFFENSIVE_STATE_IDS));
     bodies.insert(OneProcBody(registry, DEEP_FREEZE_IMMUNITY_IDS));
     bodies.insert(OneProcBody(registry, FINGERS_OF_FROST_IDS));
-    CHECK_EQ(bodies.size(), std::size_t(11));
+    bodies.insert(OneProcBody(registry, IMPACT_IDS));
+    CHECK_EQ(bodies.size(), std::size_t(12));
     std::size_t const ids = sizeof(MAGIC_ABSORPTION_IDS) / sizeof(uint32) + sizeof(IGNITE_IDS) / sizeof(uint32) +
                             sizeof(MASTER_OF_ELEMENTS_IDS) / sizeof(uint32) +
                             sizeof(ARCANE_POTENCY_IDS) / sizeof(uint32) + sizeof(HOT_STREAK_IDS) / sizeof(uint32) +
                             sizeof(BLAZING_SPEED_IDS) / sizeof(uint32) + sizeof(MANA_SHIELD_IDS) / sizeof(uint32) +
                             sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(OFFENSIVE_STATE_IDS) / sizeof(uint32) +
-                            sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) + sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32);
-    CHECK_EQ(ids, std::size_t(20));
+                            sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) + sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32) +
+                            sizeof(IMPACT_IDS) / sizeof(uint32);
+    CHECK_EQ(ids, std::size_t(22));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(0));
@@ -1095,7 +1165,8 @@ TEST(MageScripts_CombustionRunsOnTheDummyEffectHook)
         CHECK(game.Find<DummyEffectHook>(spellId) == registry.Find<DummyEffectHook>(spellId));
         CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(DummyEffectHook::Key), sizeof(COMBUSTION_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(DummyEffectHook::Key),
+             sizeof(COMBUSTION_IDS) / sizeof(uint32) + sizeof(IMPACT_SPREAD_IDS) / sizeof(uint32));
     CHECK(game.Find<AuraBoostMageSite>(28682) == NULL);
 
     // With no unit target the script casts nothing and ends the effect, so the mage family switch does not run; the
@@ -1103,14 +1174,17 @@ TEST(MageScripts_CombustionRunsOnTheDummyEffectHook)
     BareCreature caster;
     SpellRowStorage row;
     int32 value = 100;
-    DummyEffectContext noTarget(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_0, value, ObjectGuid());
+    int32 word = 0;
+    DummyEffectContext noTarget(caster, NULL, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_0, value, ObjectGuid(), NULL,
+                                word);
     CHECK(registry.Dispatch<DummyEffectHook>(11129, noTarget).IsReturn());
     CHECK_EQ(value, int32(100));
 
     // An effect other than the script effect, with a unit target, ends the effect too and casts nothing: the target
     // holds no aura afterwards.
     BareCreature target;
-    DummyEffectContext otherEffect(caster, &target, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_1, value, ObjectGuid());
+    DummyEffectContext otherEffect(caster, &target, NULL, NULL, SpellRow(row, 11129), EFFECT_INDEX_1, value, ObjectGuid(),
+                                   &target, word);
     CHECK(registry.Dispatch<DummyEffectHook>(11129, otherEffect).IsReturn());
     CHECK(target.GetSpellAuraHolderMap().empty());
     CHECK_EQ(value, int32(100));
@@ -1218,4 +1292,152 @@ TEST(MageScripts_CombustionsDoTStacksWithTheOtherAurasOfItsIcon)
     // The rule itself stands for the other auras of the icon.
     CHECK(sSpellMgr.IsNoStackSpellDueToSpell(19891, kOtherIconSpell));
     CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIconSpell, 19891));
+}
+
+TEST(MageScripts_ImpactSpreadsPyroblastIgniteAndCombustionAlwaysAndLivingBombToTwoEnemies)
+{
+    // Pyroblast, Pyroblast!, Ignite and Combustion always, and the count of Living Bombs stays as it is.
+    int32 bombs = 0;
+    for (uint32 spellId : { 11366u, 92315u, 12654u, 83853u })
+    {
+        CHECK(Mage::ImpactSpreads(spellId, bombs));
+        CHECK_EQ(bombs, int32(0));
+    }
+
+    // Living Bomb at the first two enemies, each counted; not at a third, and the count stays at two.
+    CHECK(Mage::ImpactSpreads(44457, bombs));
+    CHECK_EQ(bombs, int32(1));
+    CHECK(Mage::ImpactSpreads(44457, bombs));
+    CHECK_EQ(bombs, int32(2));
+    CHECK(!Mage::ImpactSpreads(44457, bombs));
+    CHECK_EQ(bombs, int32(2));
+    CHECK(Mage::ImpactSpreads(11366, bombs));
+    CHECK_EQ(bombs, int32(2));
+
+    // Not Flamestrike's DoT (2120), Living Bomb's explosion (44461) or Frostfire Bolt (44614), and none of them counts.
+    int32 none = 0;
+    for (uint32 spellId : { 2120u, 44461u, 44614u })
+    {
+        CHECK(!Mage::ImpactSpreads(spellId, none));
+    }
+    CHECK_EQ(none, int32(0));
+}
+
+TEST(MageScripts_ImpactClearsFireBlastsCooldownWhenItsProcTriggerEffectProcs)
+{
+    AddImpactEffectRows();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    OneProcBody(registry, IMPACT_IDS);
+
+    // A player whose Fire Blast (2136) is on cooldown; what his cooldown sink is told is kept.
+    WorldSession session(1, "impact", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    SessionPlayer mage(session);
+    static std::vector<uint32> s_cleared;
+    s_cleared.clear();
+    CooldownSinks sinks;
+    sinks.cleared = [](CooldownsClearedFact const& fact)
+    {
+        s_cleared.insert(s_cleared.end(), fact.spellIds.begin(), fact.spellIds.end());
+    };
+    mage.SetCooldownSinks(sinks);
+    time_t const now = time(NULL);
+    mage.GetSpellCooldownMgr().AddSpellCooldown(2136, 0, now + 8);
+    CHECK(mage.GetSpellCooldownMgr().HasSpellCooldown(2136, now));
+
+    // An effect other than the proc-trigger one goes on to its handler and leaves the cooldown.
+    HolderStorage storage;
+    CHECK(Proc(registry, mage, 11103, EFFECT_INDEX_1, EmptyHolder(storage), NULL, PROC_EX_NORMAL_HIT, 0).IsContinue());
+    CHECK(mage.GetSpellCooldownMgr().HasSpellCooldown(2136, now));
+    CHECK(s_cleared.empty());
+
+    // The proc-trigger effect of either rank clears the cooldown and tells the client, then casts the effect's trigger
+    // spell, the Impact buff (64343), which the test's spell store does not hold: the proc fails there.
+    for (uint32 spellId : IMPACT_IDS)
+    {
+        mage.GetSpellCooldownMgr().AddSpellCooldown(2136, 0, now + 8);
+        s_cleared.clear();
+        SpellHandlerOutcome<SpellAuraProcResult> const proc =
+            Proc(registry, mage, spellId, EFFECT_INDEX_0, EmptyHolder(storage), NULL, PROC_EX_NORMAL_HIT, 0);
+        CHECK(proc.IsReturn());
+        CHECK_EQ(int(proc.GetValue()), int(SPELL_AURA_PROC_FAILED));
+        CHECK(!mage.GetSpellCooldownMgr().HasSpellCooldown(2136, now));
+        CHECK_EQ(s_cleared.size(), std::size_t(1));
+        CHECK(!s_cleared.empty() && s_cleared[0] == 2136);
+    }
+}
+
+TEST(MageScripts_ImpactsSpreadEndsItsEffectAndCountsTheLivingBombsOverTheCast)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : IMPACT_SPREAD_IDS)
+    {
+        CHECK(registry.Find<DummyEffectHook>(spellId) != NULL);
+        CHECK(game.Find<DummyEffectHook>(spellId) == registry.Find<DummyEffectHook>(spellId));
+    }
+    CHECK_EQ(game.CountAt(DummyEffectHook::Key),
+             sizeof(COMBUSTION_IDS) / sizeof(uint32) + sizeof(IMPACT_SPREAD_IDS) / sizeof(uint32));
+
+    BareCreature caster;
+    BareCreature stunned;
+    BareCreature beside;
+    SpellRowStorage row;
+    SpellEntry const& spell = SpellRow(row, 12355);
+    int32 value = 0;
+    int32 word = 0;
+
+    // The stun's effect, the stunned target itself, a cast with no unit target and an effect with none: the script
+    // ends the effect and counts nothing.
+    DummyEffectContext stun(caster, &stunned, NULL, NULL, spell, EFFECT_INDEX_0, value, ObjectGuid(), &stunned, word);
+    CHECK(registry.Dispatch<DummyEffectHook>(12355, stun).IsReturn());
+    DummyEffectContext self(caster, &stunned, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned, word);
+    CHECK(registry.Dispatch<DummyEffectHook>(12355, self).IsReturn());
+    DummyEffectContext noCastTarget(caster, &beside, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), NULL, word);
+    CHECK(registry.Dispatch<DummyEffectHook>(12355, noCastTarget).IsReturn());
+    DummyEffectContext noTarget(caster, NULL, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned, word);
+    CHECK(registry.Dispatch<DummyEffectHook>(12355, noTarget).IsReturn());
+    CHECK_EQ(word, int32(0));
+
+    // An enemy under a confuse or a fear aura is left alone: nothing is tried, so nothing counts.
+    BareCreature confused;
+    confused.MarkAuraType(SPELL_AURA_MOD_CONFUSE);
+    BareCreature feared;
+    feared.MarkAuraType(SPELL_AURA_MOD_FEAR);
+    for (BareCreature* skipped : { &confused, &feared })
+    {
+        DummyEffectContext ctx(caster, skipped, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned, word);
+        CHECK(registry.Dispatch<DummyEffectHook>(12355, ctx).IsReturn());
+    }
+    CHECK_EQ(word, int32(0));
+
+    // Three enemies beside a stunned target that holds nothing of the caster's: nothing is copied, but Living Bomb is
+    // tried at the first two and counts there, not at the third, the cast's word holding the count across its targets.
+    BareCreature second;
+    BareCreature third;
+    for (BareCreature* enemy : { &beside, &second, &third })
+    {
+        DummyEffectContext ctx(caster, enemy, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned, word);
+        CHECK(registry.Dispatch<DummyEffectHook>(12355, ctx).IsReturn());
+        CHECK(enemy->GetSpellAuraHolderMap().empty());
+    }
+    CHECK_EQ(word, int32(2));
+
+    // Another cast: the stunned target holds the caster's Pyroblast, and the enemy beside it already holds his own. The
+    // copy is refused, and the enemy keeps the one holder it had; Living Bomb is tried and counts in this cast's word.
+    int32 nextWord = 0;
+    HolderStorage stunnedPyroblast;
+    HolderStorage besidePyroblast;
+    SpellAuraHolder& theirs = EmptyHolder(besidePyroblast);
+    stunned.HoldAura(11366, EmptyHolder(stunnedPyroblast));
+    beside.HoldAura(11366, theirs);
+    DummyEffectContext atBeside(caster, &beside, NULL, NULL, spell, EFFECT_INDEX_1, value, ObjectGuid(), &stunned,
+                                nextWord);
+    CHECK(registry.Dispatch<DummyEffectHook>(12355, atBeside).IsReturn());
+    CHECK(beside.GetSpellAuraHolder(11366) == &theirs);
+    CHECK_EQ(beside.GetSpellAuraHolderMap().size(), std::size_t(1));
+    CHECK_EQ(nextWord, int32(1));
+    CHECK_EQ(word, int32(2));
+    CHECK_EQ(value, int32(0));
 }

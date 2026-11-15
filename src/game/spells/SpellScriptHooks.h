@@ -59,7 +59,8 @@ struct SpellEntry;
  * - EffectValue: `Spell::HandleEffects`, after the effect's value for this target is calculated. A body changes only
  *   the value.
  * - DummyEffect: `Spell::EffectDummy` and `Spell::EffectScriptEffect`, before their family switches. Return() ends the
- *   effect; otherwise the family switches and the script library run. A body may cast and remove auras.
+ *   effect; otherwise the family switches and the script library run. A body may cast and remove auras, and keep a
+ *   count across the cast's effects and targets in the cast's script word.
  * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt; the target may be dead. A body may
  *   cast and remove auras.
  * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
@@ -202,9 +203,10 @@ struct DummyEffectContext
 {
     DummyEffectContext(Unit& casterUnit, Unit* targetUnit, Item* item, GameObject* gameObject,
                        SpellEntry const& spellEntry, SpellEffectIndex effectIndex, int32& effectValue,
-                       ObjectGuid originalCasterGuid)
+                       ObjectGuid originalCasterGuid, Unit* castTargetUnit, int32& scriptWord)
         : caster(casterUnit), target(targetUnit), castItem(item), gameObjectTarget(gameObject), spell(spellEntry),
-          effIndex(effectIndex), value(effectValue), originalCaster(originalCasterGuid)
+          effIndex(effectIndex), value(effectValue), originalCaster(originalCasterGuid), castTarget(castTargetUnit),
+          word(scriptWord)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -223,6 +225,9 @@ struct DummyEffectContext
     SpellEffectIndex effIndex;                      ///< the effect handled
     int32& value;                                   ///< the effect's value for this target, which a body may change
     ObjectGuid originalCaster;                      ///< the spell's original caster
+    Unit* castTarget;                               ///< the cast's explicit unit target; NULL when it has none
+    int32& word;                                    ///< the cast's script word: zero when the cast starts, shared by
+                                                    ///< every effect and target of it
 };
 
 /// AfterHit's context. Value: void.

@@ -33,7 +33,7 @@
 
 /**
  * @file SpellScriptQueries.h
- * @brief What a spell script reads of the auras on a unit, without the aura headers.
+ * @brief What a spell script reads of the auras on a unit, and copies between units, without the aura headers.
  *
  * The bodies sit in spells/auras/SpellScriptQueries.cpp, beside the aura holders they read.
  */
@@ -54,5 +54,16 @@ struct PeriodicDamageView
 /// effects; answers how many were found.
 size_t FindPeriodicDamage(Unit const& target, ObjectGuid const& caster, uint32 const* spellIds, size_t count,
                           std::vector<PeriodicDamageView>& out);
+
+/// Puts on `to` a copy of the holder of `spellId` that `caster` has on `from`: the same caster, stack and charges, each
+/// aura made from the source aura's base points with the source's period and time to its next tick, and the time the
+/// source has left as both the copy's duration and its full duration, so the copy's tick count is the ticks the source
+/// has left. A periodic aura of the copy starts from the source aura's amount before its caster's bonus (a rolled-over
+/// bank included), so a later re-application carries what the source would. The copy is added as a new holder
+/// (Unit::AddSpellAuraHolder), so the stacking and target limit rules apply; then each periodic aura of it takes the
+/// source aura's amount, which already holds the caster's bonus, so the apply's own bonus is not taken twice. False,
+/// and nothing done, when `from` holds none, when its caster cannot be found, when `to` already holds that caster's, or
+/// when `to` refuses it.
+bool CopyAuraHolder(Unit& from, Unit& to, uint32 spellId, ObjectGuid const& caster);
 
 #endif

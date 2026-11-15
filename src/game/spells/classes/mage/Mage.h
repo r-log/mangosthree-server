@@ -39,9 +39,9 @@
  * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
  * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
- * and PyromaniacHaste), Combustion's (CombustionTick) and Living Bomb's (LivingBombExplodes). Each file registers
- * its rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and
- * RegisterRanks per script hook.
+ * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes) and Impact's
+ * (ImpactSpreads). Each file registers its rows through one function of namespace Mage: a table per legacy site of
+ * SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies and those of the three specializations. Returns the rows and
@@ -131,6 +131,11 @@ namespace Mage
     /// The haste Pyromaniac gives a mage who knows `talentSpell` (34293 or 34295): that spell's effect 0 value; 0 for
     /// any other spell, or when the spell store lacks it. Defined in Fire.cpp.
     int32 PyromaniacHaste(uint32 talentSpell);
+
+    /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
+    /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
+    /// one to `bombsSpread` when it answers true for it. Defined in Fire.cpp.
+    bool ImpactSpreads(uint32 spellId, int32& bombsSpread);
 
     /// Whether a Living Bomb whose dummy aura is un-applied for `mode` explodes: only when the aura ran out
     /// (AURA_REMOVE_BY_EXPIRE). Defined in Fire.cpp.
