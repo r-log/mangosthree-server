@@ -868,7 +868,7 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
                                                 sizeof(PYROMANIAC_IDS) / sizeof(uint32));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
-    // out or a dispel it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
+    // out it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
     BareCreature target;
     SpellRowStorage row;
     HolderStorage storage;
@@ -879,8 +879,8 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
     CHECK(registry.Dispatch<DummyAuraHook>(44457, applied).IsContinue());
     AuraRemoveMode const silent[] =
     {
-        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEATH,
-        AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_TRACKING, AURA_REMOVE_BY_TARGET_LIMIT,
+        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEATH,
+        AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_TRACKING, AURA_REMOVE_BY_TARGET_LIMIT,
     };
     for (AuraRemoveMode mode : silent)
     {
@@ -889,6 +889,22 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
         CHECK(registry.Dispatch<DummyAuraHook>(44457, removed).IsReturn());
     }
     CHECK_EQ(amount, int32(44461));
+}
+
+TEST(MageScripts_LivingBombExplodesOnlyWhenItsAuraRunsOut)
+{
+    // The aura running out explodes the bomb; a dispel, its target's death, a plain removal, a re-application, a
+    // cancel, a broken shield, a tracked aura's replacement, the caster's fourth bomb and a delete do not.
+    CHECK(Mage::LivingBombExplodes(AURA_REMOVE_BY_EXPIRE));
+    AuraRemoveMode const silent[] =
+    {
+        AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL,
+        AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_TRACKING, AURA_REMOVE_BY_TARGET_LIMIT, AURA_REMOVE_BY_DELETE,
+    };
+    for (AuraRemoveMode mode : silent)
+    {
+        CHECK(!Mage::LivingBombExplodes(mode));
+    }
 }
 
 TEST(MageScripts_HotStreakRollsOnTheSecondCritInARow)

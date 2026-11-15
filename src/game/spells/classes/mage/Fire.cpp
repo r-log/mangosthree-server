@@ -199,16 +199,16 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, 31643, NULL, basePoints));
     }
 
-    /// 44457: Living Bomb: when its dummy effect is un-applied because the aura ran out or was dispelled, the target
-    /// casts the effect's amount, the explosion (44461), at itself, triggered by this aura effect. Every un-apply ends
-    /// the dummy aura handler; an apply goes on to its other steps.
+    /// 44457: Living Bomb: when its dummy effect is un-applied because the aura ran out (Mage::LivingBombExplodes),
+    /// the target casts the effect's amount, the explosion (44461), at itself, triggered by this aura effect; any
+    /// other removal casts nothing. Every un-apply ends the dummy aura handler; an apply goes on to its other steps.
     SpellHandlerOutcome<void> LivingBombDummyAura(DummyAuraContext& ctx)
     {
         if (ctx.apply)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
-        if (ctx.mode == AURA_REMOVE_BY_EXPIRE || ctx.mode == AURA_REMOVE_BY_DISPEL)
+        if (Mage::LivingBombExplodes(ctx.mode))
         {
             ctx.CastTriggeredByAura(ctx.target, ctx.target, uint32(ctx.amount));
         }
@@ -439,6 +439,11 @@ float Mage::HotStreakChance(float sheetCritPercent)
 bool Mage::PushingTheLimitOnRemove(AuraRemoveMode mode, bool casterHasT10TwoPiece)
 {
     return mode == AURA_REMOVE_BY_DEFAULT && casterHasT10TwoPiece;
+}
+
+bool Mage::LivingBombExplodes(AuraRemoveMode mode)
+{
+    return mode == AURA_REMOVE_BY_EXPIRE;
 }
 
 bool Mage::HotStreakStep(int32& crits, bool crit, bool baseRollPassed, bool improvedRollPassed)
