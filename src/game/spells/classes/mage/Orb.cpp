@@ -119,20 +119,22 @@ namespace
         return SpellHandlerOutcome<void>::Return();
     }
 
-    /// The orb of a mage, owned by him: flies straight ahead from where it was summoned at its run speed, slowed by its
-    /// snare when it finds an enemy; at the end of its summon's duration (the summon's own end, or its life's when it is
-    /// in combat), when its summoner is alive and on its map, rolls the proc chance of the summoner's explosion talent
-    /// for the explosion (83619), cast with the summoner as the original caster, and goes. It attacks nothing, follows
-    /// nothing and evades nothing.
+    /// The orb of a mage, owned by him and of his level: flies straight ahead from where it was summoned at its run
+    /// speed, slowed by its snare when it finds an enemy; when the snare runs out (its firing is over), or for an orb
+    /// that found nothing at its summon's end (the summon's own end, or its life's when it is in combat), when its
+    /// summoner is alive and on its map, rolls the proc chance of the summoner's explosion talent for the explosion
+    /// (83619), cast with the summoner as the original caster, and goes. It attacks nothing, follows nothing and evades
+    /// nothing.
     class OrbAI : public CreatureAI
     {
         public:
-            explicit OrbAI(Creature* orb) : CreatureAI(orb), m_spells(NULL), m_lifeMs(0), m_ended(false) {}
+            explicit OrbAI(Creature* orb) : CreatureAI(orb), m_spells(NULL), m_lifeMs(0), m_ended(false), m_snared(false) {}
 
             /// The orb's start: its row, by the spell that created it; its summoner as its owner, so the orb counts as
-            /// his and its scan takes the units he may attack, as his own area spells take them; its life, the summon
-            /// spell's duration; and its flight to the point its life at its run speed takes it straight ahead, at its
-            /// height. An orb of no row ends here and does nothing.
+            /// his and its scan takes the units he may attack, as his own area spells take them; its summoner's level,
+            /// as a totem takes its owner's, so its hit and its explosion roll against their target by his level; its
+            /// life, the summon spell's duration; and its flight to the point its life at its run speed takes it
+            /// straight ahead, at its height. An orb of no row ends here and does nothing.
             void Reset() override
             {
                 m_spells = Mage::OrbSpellsFor(m_creature->GetUInt32Value(UNIT_CREATED_BY_SPELL));
@@ -142,6 +144,10 @@ namespace
                     return;
                 }
                 m_creature->SetOwnerGuid(m_creature->GetSummonerGuid());
+                if (Unit* summoner = ObjectLookup::GetUnit(*m_creature, m_creature->GetSummonerGuid()))
+                {
+                    m_creature->SetLevel(summoner->getLevel());
+                }
                 m_lifeMs = GetSpellDuration(sSpellStore.LookupEntry(m_spells->summonSpell));
                 float const distance = float(m_lifeMs > 0 ? m_lifeMs : 0) / 1000.0f * m_creature->GetSpeed(MOVE_RUN);
                 m_goal = m_creature->Where().PointAhead(distance);
@@ -149,7 +155,7 @@ namespace
             }
 
             /// Starts the orb on its first update, when the summon has set the spell that created it; then counts its
-            /// life down and ends it when the life runs out.
+            /// life down, notes its snare, and ends it when the snare has run out or the life has (Mage::OrbEndDue).
             void UpdateAI(uint32 const diff) override
             {
                 if (m_ended)
@@ -165,14 +171,17 @@ namespace
                     }
                 }
                 m_lifeMs -= int32(diff);
-                if (m_lifeMs <= 0)
+                bool const snared = m_creature->HasAura(m_spells->snareSpell);
+                if (Mage::OrbEndDue(m_snared, snared, m_lifeMs))
                 {
                     End(true);
+                    return;
                 }
+                m_snared = m_snared || snared;
             }
 
-            /// The summon's own end (TemporarySummon::UnSummon tells the orb's AI first), which an orb out of combat
-            /// reaches before its life runs out: the orb ends there, and the summon takes it away.
+            /// The summon's own end (TemporarySummon::UnSummon tells the orb's AI first), which an orb that found
+            /// nothing reaches before its life runs out: the orb ends there, and the summon takes it away.
             void SummonedCreatureDespawn(Creature* summoned) override
             {
                 if (summoned == m_creature && !m_ended && m_spells)
@@ -240,8 +249,14 @@ namespace
             Mage::OrbSpells const* m_spells;    ///< the orb's row; NULL until its start
             int32 m_lifeMs;                     ///< the milliseconds the orb has left
             bool m_ended;                       ///< the orb ended, or had no row
+            bool m_snared;                      ///< the orb has held its snare: it found an enemy
             Geometry::Vector3 m_goal;           ///< the point the orb flies to
     };
+}
+
+bool Mage::OrbEndDue(bool wasSnared, bool snaredNow, int32 lifeMs)
+{
+    return (wasSnared && !snaredNow) || lifeMs <= 0;
 }
 
 Mage::OrbSpells const* Mage::OrbSpellsFor(uint32 spellId)
