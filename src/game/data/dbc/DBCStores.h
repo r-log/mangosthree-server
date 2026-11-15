@@ -217,6 +217,10 @@ PvPDifficultyEntry const* GetBattlegroundBracketById(uint32 mapid, BattleGroundB
 
 float GetCurrencyPrecision(uint32 currencyId);
 
+/// The hover height of the model behind display `displayId` (CreatureDisplayInfo -> CreatureModelData field 30);
+/// 1.0 when the display or its model has no row.
+float HoverHeightOfDisplay(uint32 displayId);
+
 extern DBCStorage <AchievementEntry>             sAchievementStore;
 extern DBCStorage <AchievementCriteriaEntry>     sAchievementCriteriaStore;
 extern DBCStorage <AreaTableEntry>               sAreaStore;// recommend access using functions

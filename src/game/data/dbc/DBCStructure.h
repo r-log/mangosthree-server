@@ -825,7 +825,8 @@ struct CreatureModelDataEntry
     //float CollisionWidth;                                 // 14
     float CollisionHeight;                                  // 15
     float MountHeight;                                      // 16 Used in calculation of unit collision data when mounted
-    //float Unks[14]                                        // 17-30
+    //float Unks[13]                                        // 17-29
+    float HoverHeight;                                      // 30
 };
 
 #define MAX_CREATURE_SPELL_DATA_SLOT 4

@@ -170,6 +170,7 @@ set(SRC_GRP_TESTS
     SpellScriptHooksTest.cpp
     MageScriptsTest.cpp
     MageOrbTest.cpp
+    CreatureHoverTest.cpp
     SpellProcEventRowsTest.cpp
     RaidBuffTest.cpp
     SpellTargetDistanceOrderTest.cpp

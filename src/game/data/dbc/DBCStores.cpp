@@ -1695,6 +1695,17 @@ float GetCurrencyPrecision(uint32 currencyId)
     return entry ? entry->GetPrecision() : 1.0f;
 }
 
+float HoverHeightOfDisplay(uint32 displayId)
+{
+    CreatureDisplayInfoEntry const* display = sCreatureDisplayInfoStore.LookupEntry(displayId);
+    if (!display)
+    {
+        return 1.0f;
+    }
+    CreatureModelDataEntry const* model = sCreatureModelDataStore.LookupEntry(display->ModelID);
+    return model ? model->HoverHeight : 1.0f;
+}
+
 // script support functions
  DBCStorage <SoundEntriesEntry>  const* GetSoundEntriesStore()   { return &sSoundEntriesStore;   }
  DBCStorage <SpellEntry>         const* GetSpellStore()          { return &sSpellStore;          }

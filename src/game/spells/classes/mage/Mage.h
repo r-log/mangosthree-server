@@ -30,7 +30,9 @@
 #include "spells/SpellScriptHooks.h"
 
 #include <cstddef>
+#include <functional>
 #include <list>
+#include <optional>
 
 /**
  * @file Mage.h
@@ -127,6 +129,32 @@ namespace Mage
     /// Whether the orb's hit is due at scan `scan`, counted from the scan that found its first enemy (0): on that scan
     /// and every `scansPerHit`-th one after it, while `scan` is below `window`. Defined in Orb.cpp.
     bool OrbHitDue(uint32 scan, OrbCadence const& cadence);
+
+    /// A point of the orb's glide: x, y and z in yards.
+    struct OrbGlidePoint
+    {
+        float x;
+        float y;
+        float z;
+    };
+
+    /// The yards ahead a glide of `drop` yards on the slow-fall curve carries an orb flying at `speed`: the speed over
+    /// the time that fall takes; 0 for a drop of nothing or less. Defined in Orb.cpp.
+    float OrbGlideDistance(float speed, float drop);
+
+    /// The floor an orb glides to under a point: `floor` (Map::Floor, solid ground only), or, for an orb that walks on
+    /// water (`walksOnWater`), the higher of it and the water's surface `water` when there is one; the water alone when
+    /// there is no floor. Defined in Orb.cpp.
+    std::optional<float> OrbGlideFloor(std::optional<float> floor, std::optional<float> water, bool walksOnWater);
+
+    /// The point an orb at `start` facing `facing` (radians), flying at `speed`, glides to on the slow-fall curve: the
+    /// floor plus `hover` at the end of a glide of OrbGlideDistance yards ahead. `floorAt(x, y, z)` is the floor under
+    /// (x, y) seen from `z`. Nothing when the orb is less than `hover` above its hover line (it is on its line), when the
+    /// floor ahead is at or above `start.z - hover` (a rise or a wall: the level flight goes on) or when there is no
+    /// floor under the start; a missing floor ahead keeps the previous estimate. The landing is refined up to three
+    /// times, to within 0.1 yd. Defined in Orb.cpp.
+    std::optional<OrbGlidePoint> OrbGlideLanding(OrbGlidePoint start, float facing, float speed, float hover,
+                                                 std::function<std::optional<float>(float, float, float)> const& floorAt);
 
     /// Whether the orb's end (its explosion) is due: its snare has run out after it held it (`wasSnared` and not
     /// `snaredNow`: its firing is over), or its life has (`lifeMs` at or below 0). Defined in Orb.cpp.
