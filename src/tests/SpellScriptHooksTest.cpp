@@ -24,10 +24,10 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
-/// target and script word, the aura handle's reads, RegisterRanks, the holder's script words, the holder copy's answer
-/// for a unit holding none and the period, tick time, duration and amount a copy keeps, the low-health multiplier a
-/// script query answers from the caster's class-script auras, and the game table, whose only hook rows are the mage's
-/// scripts.
+/// target and script word, the after-cast context's count and point, the aura handle's reads, RegisterRanks, the
+/// holder's script words, the holder copy's answer for a unit holding none and the period, tick time, duration and
+/// amount a copy keeps, the low-health multiplier a script query answers from the caster's class-script auras, and the
+/// game table, whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -361,6 +361,9 @@ namespace
         uint32 targetMode;
         Unit const* castTarget;
         int32 word;
+        uint32 enemies;
+        bool destination;
+        float x, y, z;
     };
 
     Seen s_seen;
@@ -387,24 +390,25 @@ namespace
     }
 }
 
-TEST(SpellScriptHooks_TheFourteenKeysAre100To113AboveEveryLegacySite)
+TEST(SpellScriptHooks_TheFifteenKeysAre100To114AboveEveryLegacySite)
 {
     uint32 const keys[] =
     {
         CheckCastHook::Key, SelectTargetsHook::Key, EffectValueHook::Key, DummyEffectHook::Key, AfterHitHook::Key,
         AuraAmountHook::Key, AuraApplyHook::Key, AuraRemoveHook::Key, PeriodicTickHook::Key, CheckProcHook::Key,
-        OnProcHook::Key, DamageDoneHook::Key, CritChanceHook::Key, DummyAuraHook::Key,
+        OnProcHook::Key, DamageDoneHook::Key, CritChanceHook::Key, DummyAuraHook::Key, AfterCastHook::Key,
     };
-    CHECK_EQ(sizeof(keys) / sizeof(keys[0]), std::size_t(14));
+    CHECK_EQ(sizeof(keys) / sizeof(keys[0]), std::size_t(15));
     for (std::size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
     {
         CHECK_EQ(keys[i], uint32(100 + i));
         // SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_DRUID is the last and highest legacy site.
         CHECK(keys[i] > uint32(SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_DRUID));
     }
+    CHECK(AfterCastHook::Key > DummyAuraHook::Key);
 
     // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
-    // proc, damage-done, dummy aura, aura-apply, aura-remove and dummy-effect hooks.
+    // proc, damage-done, dummy aura, aura-apply, aura-remove, dummy-effect and after-cast hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
@@ -413,8 +417,49 @@ TEST(SpellScriptHooks_TheFourteenKeysAre100To113AboveEveryLegacySite)
     }
     CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key) +
              game.CountAt(DummyAuraHook::Key) + game.CountAt(AuraApplyHook::Key) + game.CountAt(AuraRemoveHook::Key) +
-             game.CountAt(DummyEffectHook::Key),
+             game.CountAt(DummyEffectHook::Key) + game.CountAt(AfterCastHook::Key),
              game.Count());
+}
+
+TEST(SpellScriptHooks_TheAfterCastHookCarriesTheCastsCountAndPoint)
+{
+    BareCreature caster;
+    BareCreature target;
+    SpellEntry const& spell = HookSpell();
+
+    // The body notes what the context carries; a fresh registry reaches it for its spell and misses another.
+    SpellHandlerRegistry registry;
+    CHECK(registry.Register<AfterCastHook>(kHookSpell, [](AfterCastContext& ctx)
+    {
+        s_seen.enemies = ctx.enemiesHit;
+        s_seen.castTarget = ctx.target;
+        s_seen.destination = ctx.hasDestination;
+        s_seen.x = ctx.destX;
+        s_seen.y = ctx.destY;
+        s_seen.z = ctx.destZ;
+        return SpellHandlerOutcome<void>::Continue();
+    }));
+    CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
+
+    // A cast with two enemies hit and a destination carries the count, the three floats and the flag.
+    Forget();
+    AfterCastContext aimed(caster, spell, 2, &target, true, 12.5f, -40.25f, 7.0f);
+    CHECK(registry.Dispatch<AfterCastHook>(kHookSpell, aimed).IsContinue());
+    CHECK_EQ(s_seen.enemies, uint32(2));
+    CHECK(s_seen.castTarget == &target);
+    CHECK(s_seen.destination);
+    CHECK(s_seen.x == 12.5f);
+    CHECK(s_seen.y == -40.25f);
+    CHECK(s_seen.z == 7.0f);
+
+    // A cast with no destination and no unit target says so; another spell's cast reaches no body.
+    Forget();
+    AfterCastContext unaimed(caster, spell, 0, NULL, false, 1.0f, 2.0f, 3.0f);
+    CHECK(registry.Dispatch<AfterCastHook>(kHookSpell, unaimed).IsContinue());
+    CHECK_EQ(s_seen.enemies, uint32(0));
+    CHECK(s_seen.castTarget == NULL);
+    CHECK(!s_seen.destination);
+    CHECK(registry.Dispatch<AfterCastHook>(kOtherSpell, unaimed).IsMiss());
 }
 
 TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
@@ -958,10 +1003,10 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
     // The proc hook holds the mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the damage-done
-    // hook Ice Lance's, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's nine (its seven DoTs and
-    // two ranks), the aura-remove hook Hot Streak's buff's, Mage Ward's and Pyromaniac's nine, and the dummy-effect
-    // hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's (MageScriptsTest names their ids); no other
-    // hook holds a row.
+    // hook Ice Lance's, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and
+    // two ranks), the aura-remove hook Hot Streak's buff's, Mage Ward's and Pyromaniac's ten, the dummy-effect
+    // hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's, and the after-cast hook Blast Wave's
+    // (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AfterHitHook::Key, AuraAmountHook::Key,
@@ -976,10 +1021,11 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(9));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(11));
+    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(10));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(12));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
-    CHECK_EQ(game.Count(), std::size_t(1278));
+    CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
+    CHECK_EQ(game.Count(), std::size_t(1281));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 

@@ -103,6 +103,11 @@ void DummyAuraContext::RemoveAura(Unit& from, uint32 spellId)
     from.RemoveAurasDueToSpell(spellId);
 }
 
+void AfterCastContext::CastTriggeredAt(float x, float y, float z, uint32 spellId)
+{
+    caster.CastSpell(x, y, z, spellId, true, NULL, NULL, ObjectGuid(), &spell);
+}
+
 Item* OnProcContext::CastItem() const
 {
     return m_castItemGuid ? caster.GetItemByGuid(m_castItemGuid) : NULL;

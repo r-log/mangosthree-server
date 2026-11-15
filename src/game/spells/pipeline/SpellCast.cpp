@@ -64,6 +64,7 @@
 #include "spells/data/SpellTables.h"
 #include "spells/pipeline/SpellRules.h"
 #include "spells/ActionBarOverride.h"
+#include "spells/SpellScriptHooks.h"
 #include "UnitDisableSubject.h"
 #include "Map.h"
 
@@ -1104,6 +1105,38 @@ void Spell::finish(bool ok)
     if (!ok)
     {
         return;
+    }
+
+    // the cast's script once it is over, when the spell has one: the units it hit that the caster is not friendly to,
+    // and the point it was aimed at
+    if (SpellHandlerRegistry::Game().Find<AfterCastHook>(m_spellInfo->ID))
+    {
+        uint32 enemiesHit = 0;
+        for (TargetList::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
+        {
+            if (ihit->missCondition != SPELL_MISS_NONE || ihit->targetGUID == m_caster->GetObjectGuid())
+            {
+                continue;
+            }
+            Unit* hit = ObjectLookup::GetUnit(*m_caster, ihit->targetGUID);
+            if (hit && !m_caster->IsFriendlyTo(hit))
+            {
+                ++enemiesHit;
+            }
+        }
+        Unit* explicitTarget = m_targets.getUnitTargetGuid().IsEmpty()
+                                   ? NULL
+                                   : ObjectLookup::GetUnit(*m_caster, m_targets.getUnitTargetGuid());
+        bool const hasDestination = (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION) != 0;
+        Unit const* aimedAt = explicitTarget ? explicitTarget : m_caster;
+        float destX = aimedAt->Where().X(), destY = aimedAt->Where().Y(), destZ = aimedAt->Where().Z();
+        if (hasDestination)
+        {
+            m_targets.getDestination(destX, destY, destZ);
+        }
+        AfterCastContext afterCast(*m_caster, *m_spellInfo, enemiesHit, explicitTarget, hasDestination, destX, destY,
+                                   destZ);
+        SpellHandlerRegistry::Game().Dispatch<AfterCastHook>(m_spellInfo->ID, afterCast);
     }
 
     // handle SPELL_AURA_ADD_TARGET_TRIGGER auras

@@ -260,7 +260,7 @@ TEST(SpellTables_TheFiveFlagSetsHoldTheirSwitchesLiveLabelsAndNoOthers)
     {
         CHECK(IsMaxStackAtCreateAura(spellId));
     }
-    for (uint32 spellId : { 45284u, 45297u, 77451u })
+    for (uint32 spellId : { 45284u, 45297u, 77451u, 88148u })
     {
         CHECK(IsOverloadIgnoringCastTime(spellId));
     }
@@ -280,7 +280,7 @@ TEST(SpellTables_TheFiveFlagSetsHoldTheirSwitchesLiveLabelsAndNoOthers)
     {
         CHECK(!IsMaxStackAtCreateAura(spellId));
     }
-    for (uint32 spellId : { 45286u, 45296u, 49239u, 49240u, 45298u, 45302u, 49268u, 49269u, 12345u })
+    for (uint32 spellId : { 45286u, 45296u, 49239u, 49240u, 45298u, 45302u, 49268u, 49269u, 2120u, 12345u })
     {
         CHECK(!IsOverloadIgnoringCastTime(spellId));
     }
