@@ -36,6 +36,7 @@
 #include "Log.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
+#include "DBCStores.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
 #include "QuestDef.h"
@@ -3567,6 +3568,12 @@ void Unit::UpdateModelData()
         {
             SetFloatValue(UNIT_FIELD_COMBATREACH, GetObjectScale() * modelInfo->combat_reach);
         }
+    }
+
+    // A creature carries its model's hover height; the client reads it only under the hover flag.
+    if (GetTypeId() == TYPEID_UNIT)
+    {
+        SetFloatValue(UNIT_FIELD_HOVERHEIGHT, HoverHeightOfDisplay(GetDisplayId()));
     }
 }
 

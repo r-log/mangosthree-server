@@ -888,3 +888,58 @@ TEST(MotionWriters_the_curve_strays_from_the_polyline_in_proportion_to_the_leg)
     CHECK(MaxStrayFromPolyline(wide, 3) > 4.0f);
     CHECK(MaxStrayFromPolyline(wide, 3) < 8.0f * 60.0f / 27.0f);
 }
+
+// ---- the fall: slow and normal ----------------------------------------------------------
+
+namespace
+{
+    bool FallNear(float a, float b, float tolerance)
+    {
+        return (a > b ? a - b : b - a) <= tolerance;
+    }
+
+    /// A fall spline from (0, 0, 15) to (7.53, 0, 11), a glide of 10 yd/s over the fall, slow when `slow`.
+    void FallSpline(Movement::MoveSpline& out, bool slow)
+    {
+        Movement::MoveSplineInitArgs args;
+        args.path.push_back(Movement::Vector3(0.0f, 0.0f, 15.0f));
+        args.path.push_back(Movement::Vector3(7.53f, 0.0f, 11.0f));
+        args.flags.falling = true;
+        args.flags.fallingSlow = slow;
+        args.splineId = 3;
+        out.Initialize(args);
+    }
+}
+
+TEST(MotionWriters_the_slow_fall_clock_and_curve_follow_the_slow_flag)
+{
+    CHECK(FallNear(Movement::computeFallTime(4.0f, true), 0.7529f, 0.001f));
+    CHECK(FallNear(Movement::computeFallTime(4.0f, false), 0.6440f, 0.001f));
+    CHECK(FallNear(Movement::computeFallTime(50.0f, true), 7.3243f, 0.001f));
+    CHECK(FallNear(Movement::computeFallTime(50.0f, false), 2.2768f, 0.001f));
+    CHECK(FallNear(Movement::computeFallTime(1.0f, true), 0.3220f, 0.001f));
+    CHECK(FallNear(Movement::computeFallElevation(0.4f, true, 0.0f), 1.5300f, 0.001f));
+    CHECK(FallNear(Movement::computeFallElevation(0.4f, false, 0.0f), 1.5433f, 0.001f));
+    CHECK(FallNear(Movement::computeFallElevation(0.2f, true, 0.0f), 0.3858f, 0.001f));
+}
+
+TEST(MotionWriters_a_slow_fall_spline_lasts_and_sinks_by_the_slow_curve)
+{
+    Movement::MoveSpline slow;
+    FallSpline(slow, true);
+    CHECK_EQ(slow.Duration(), 752);
+    slow.updateState(400);
+    CHECK(FallNear(slow.ComputePosition().z, 13.47f, 0.01f));
+    CHECK(FallNear(slow.ComputePosition().x, 4.00f, 0.01f));
+    slow.updateState(300);
+    CHECK(FallNear(slow.ComputePosition().z, 11.37f, 0.01f));
+
+    Movement::MoveSpline normal;
+    FallSpline(normal, false);
+    CHECK_EQ(normal.Duration(), 643);
+    normal.updateState(400);
+    CHECK(FallNear(normal.ComputePosition().z, 13.457f, 0.01f));
+    CHECK(FallNear(normal.ComputePosition().x, 4.68f, 0.01f));
+    normal.updateState(300);
+    CHECK(FallNear(normal.ComputePosition().z, 11.0f, 0.02f));
+}

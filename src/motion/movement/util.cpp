@@ -149,11 +149,11 @@ namespace Movement
             start_velocity = termVel;
         }
 
-        float terminal_time = terminalFallTime - start_velocity / gravity; // the time needed to reach terminalVelocity
+        float terminal_time = float(termVel / gravity) - start_velocity / gravity; // the time needed to reach termVel
 
         if (t_passed > terminal_time)
         {
-            result = terminalVelocity * (t_passed - terminal_time) +
+            result = termVel * (t_passed - terminal_time) +
                      start_velocity * terminal_time + gravity * terminal_time * terminal_time * 0.5f;
         }
         else

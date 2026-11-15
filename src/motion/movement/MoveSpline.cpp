@@ -143,7 +143,7 @@ namespace Movement
      */
     void MoveSpline::computeFallElevation(float& el) const
     {
-        float z_now = spline.getPoint(spline.first()).z - Movement::computeFallElevation(MSToSec(time_passed));
+        float z_now = spline.getPoint(spline.first()).z - Movement::computeFallElevation(MSToSec(time_passed), splineflags.fallingSlow, 0.f);
         float final_z = FinalDestination().z;
         if (z_now < final_z)
         {
@@ -171,11 +171,12 @@ namespace Movement
      */
     struct FallInitializer
     {
-        FallInitializer(float _start_elevation) : start_elevation(_start_elevation) {}
+        FallInitializer(float _start_elevation, bool _slow) : start_elevation(_start_elevation), slow(_slow) {}
         float start_elevation;
+        bool slow;
         inline int32 operator()(Spline<int32>& s, int32 i)
         {
-            return Movement::computeFallTime(start_elevation - s.getPoint(i + 1).z, false) * 1000.f;
+            return Movement::computeFallTime(start_elevation - s.getPoint(i + 1).z, slow) * 1000.f;
         }
     };
 
@@ -222,7 +223,7 @@ namespace Movement
         // init spline timestamps
         if (splineflags.falling)
         {
-            FallInitializer init(spline.getPoint(spline.first()).z);
+            FallInitializer init(spline.getPoint(spline.first()).z, splineflags.fallingSlow);
             spline.initLengths(init);
         }
         else

@@ -114,7 +114,15 @@ class MotionMaster
         bool MoveJump(Position& pos, float horizontalSpeed, float max_height, uint32 id = 0);
         /// A jump that ends facing a target, or a given orientation (was MoveDestination: a raw spline; now an Effect like every jump).
         bool MoveJump(float x, float y, float z, float o, float horizontalSpeed, float max_height, Unit* target);
+        /// Where a fall from `z` lands: the floor plus `hoverOffset` when `z` is at least `minDrop` above that; nothing
+        /// without a floor, or when `z` is nearer than `minDrop` to it (a fall never lifts).
+        static std::optional<float> FallLanding(float z, std::optional<float> floor, float hoverOffset, float minDrop = 0.1f);
+        /// Falls to the floor under the unit, a hoverer to its hover height above it.
         void MoveFall();
+        /// A fall to the point (x, y, z), at the unit's own fall (slow under its safe-fall flag): its x and y follow the
+        /// path over the fall's duration, so a point ahead is a glide. Informs Kind::Effect `id` when it lands.
+        /// @return Whether the fall was requested.
+        bool MoveFallTo(uint32 id, float x, float y, float z);
         void MoveFlyOrLand(uint32 id, float x, float y, float z, bool liftOff);
         /// The charge (P5-B family 1 section 6): a point that follows its target's contact point at `speed`, routed with a forced destination, informing nothing.
         void MoveCharge(Unit* target, float speed);

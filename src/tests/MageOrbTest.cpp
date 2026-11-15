@@ -42,7 +42,9 @@
 #include "DBCStructure.h"
 #include "data/ServerSpellStore.h"
 
+#include <cmath>
 #include <list>
+#include <optional>
 #include <vector>
 
 namespace
@@ -522,4 +524,86 @@ TEST(MageOrb_AScriptReadsTheWordsOfAUnitsHolder)
     CHECK(ScriptWordOf(orb, 82733, EFFECT_INDEX_0) == NULL);
     holder.SetDeleted();
     CHECK(ScriptWordOf(orb, 82690, EFFECT_INDEX_0) == NULL);
+}
+
+namespace
+{
+    typedef std::optional<float> Floor;
+
+    bool GlideNear(float a, float b, float tolerance)
+    {
+        return std::fabs(a - b) <= tolerance;
+    }
+
+    // The floor 10 under every point.
+    Floor FlatFloor(float, float, float) { return 10.0f; }
+
+    // The floor 10 for x below 5 and 5 beyond.
+    Floor SteppedFloor(float x, float, float) { return x < 5.0f ? 10.0f : 5.0f; }
+
+    // The floor 10 for x below 3 and 14.5 beyond.
+    Floor RisingFloor(float x, float, float) { return x < 3.0f ? 10.0f : 14.5f; }
+
+    // The floor 10 under the start and none beyond.
+    Floor FloorUnderTheStartOnly(float x, float, float) { return x < 0.5f ? Floor(10.0f) : Floor(); }
+}
+
+TEST(MageOrb_AnOrbThatWalksOnWaterGlidesToTheHigherOfTheFloorAndTheWater)
+{
+    typedef std::optional<float> Level;
+    // the water above the floor: the surface
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(10.0f), Level(14.0f), true), 14.0f, 0.001f));
+    // the water below the floor: the floor
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(10.0f), Level(6.0f), true), 10.0f, 0.001f));
+    // no water: the floor
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(10.0f), Level(), true), 10.0f, 0.001f));
+    // no floor under the water: the surface
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(), Level(14.0f), true), 14.0f, 0.001f));
+    // a unit that does not walk on water: the floor, whatever the water
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(10.0f), Level(14.0f), false), 10.0f, 0.001f));
+    CHECK(!Mage::OrbGlideFloor(Level(), Level(14.0f), false).has_value());
+}
+
+TEST(MageOrb_AGlideReachesTheSpeedOverTheSlowFallsTime)
+{
+    CHECK(GlideNear(Mage::OrbGlideDistance(10.0f, 4.0f), 7.529f, 0.005f));
+    CHECK(GlideNear(Mage::OrbGlideDistance(10.0f, 50.0f), 73.24f, 0.01f));
+    CHECK(GlideNear(Mage::OrbGlideDistance(1.0f, 4.0f), 0.753f, 0.001f));
+    CHECK(GlideNear(Mage::OrbGlideDistance(10.0f, 1.0f), 3.220f, 0.005f));
+    CHECK(GlideNear(Mage::OrbGlideDistance(10.0f, 0.0f), 0.0f, 0.0001f));
+}
+
+TEST(MageOrb_TheGlideLandsAHoverHeightOverTheFloorAheadAndRefusesARise)
+{
+    const Mage::OrbGlidePoint high = { 0.0f, 0.0f, 15.0f };
+
+    std::optional<Mage::OrbGlidePoint> landing = Mage::OrbGlideLanding(high, 0.0f, 10.0f, 1.0f, FlatFloor);
+    REQUIRE(landing.has_value());
+    CHECK(GlideNear(landing->x, 7.53f, 0.01f));
+    CHECK(GlideNear(landing->y, 0.0f, 0.001f));
+    CHECK(GlideNear(landing->z, 11.0f, 0.001f));
+
+    landing = Mage::OrbGlideLanding(high, 0.0f, 10.0f, 1.0f, SteppedFloor);
+    REQUIRE(landing.has_value());
+    CHECK(GlideNear(landing->x, 14.67f, 0.01f));
+    CHECK(GlideNear(landing->z, 6.0f, 0.001f));
+
+    CHECK(!Mage::OrbGlideLanding(high, 0.0f, 10.0f, 1.0f, RisingFloor).has_value());
+
+    landing = Mage::OrbGlideLanding(high, 0.0f, 10.0f, 1.0f, FloorUnderTheStartOnly);
+    REQUIRE(landing.has_value());
+    CHECK(GlideNear(landing->x, 7.53f, 0.01f));
+    CHECK(GlideNear(landing->z, 11.0f, 0.001f));
+}
+
+TEST(MageOrb_TheGlideStartsOnlyTwoHoverHeightsAboveTheFloor)
+{
+    const Mage::OrbGlidePoint within = { 0.0f, 0.0f, 11.9f };
+    CHECK(!Mage::OrbGlideLanding(within, 0.0f, 10.0f, 1.0f, FlatFloor).has_value());
+
+    const Mage::OrbGlidePoint atTheBand = { 0.0f, 0.0f, 12.0f };
+    const std::optional<Mage::OrbGlidePoint> landing = Mage::OrbGlideLanding(atTheBand, 0.0f, 10.0f, 1.0f, FlatFloor);
+    REQUIRE(landing.has_value());
+    CHECK(GlideNear(landing->x, 3.22f, 0.01f));
+    CHECK(GlideNear(landing->z, 11.0f, 0.001f));
 }
