@@ -30,7 +30,8 @@
 /// Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the dummy aura hook, Pyromaniac's
 /// leaves and its rows at the aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick
 /// and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads,
-/// and the exits of its spread at the dummy-effect hook. A body that casts, reads a level or creates an item needs a
+/// and the exits of its spread at the dummy-effect hook; the orb's rows are counted here and tested in MageOrbTest. A
+/// body that casts, reads a level or creates an item needs a
 /// live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template
 /// or AI), with the effect rows the scripts read added to the effect store as the client's data holds them, and a
 /// holder put in the creature's holder map where a script asks whether it holds an aura. The cooldown Impact clears is
@@ -110,6 +111,11 @@ namespace
 
     // The id Impact's spread holds at the dummy-effect hook: the spell the Impact buff casts at its Fire Blast's victim.
     uint32 const IMPACT_SPREAD_IDS[] = { 12355 };
+
+    // The orb's ids: Flame Orb and the orb's scan at the dummy-effect hook, the orb's scan at the target hook
+    // (MageOrbTest tests their bodies).
+    uint32 const ORB_DUMMY_EFFECT_IDS[] = { 82731, 82734 };
+    uint32 const ORB_TARGET_IDS[] = { 82734 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -389,10 +395,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // aura-remove hooks, and Combustion and Impact's spread at the dummy-effect hook. Frost: the 74396 boost and proc
     // labels; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak,
     // Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption,
-    // Arcane Potency and Mana Shield. 57 rows, 57 keys and 3 defaults, none twice.
+    // Arcane Potency and Mana Shield. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and
+    // dummy-effect hooks. 60 rows, 60 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(60));
-    CHECK_EQ(registry.Count(), std::size_t(57));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(63));
+    CHECK_EQ(registry.Count(), std::size_t(60));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -401,12 +408,12 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(21));
-    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(9));
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(11));
-    CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -427,6 +434,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterFire, 33, 33, 0 },
         { &Mage::RegisterFrost, 7, 7, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
+        { &Mage::RegisterOrb, 3, 3, 0 },
     };
     for (PerFile const& file : files)
     {
@@ -437,8 +445,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(60));
-    CHECK_EQ(registry.Count(), std::size_t(57));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(63));
+    CHECK_EQ(registry.Count(), std::size_t(60));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -449,7 +457,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(57));
+    CHECK_EQ(mine.size(), std::size_t(60));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -830,7 +838,8 @@ TEST(MageScripts_BlinkKeepsOneTarget)
         CHECK(registry.Find<SelectTargetsHook>(spellId) != NULL);
         CHECK(game.Find<SelectTargetsHook>(spellId) == registry.Find<SelectTargetsHook>(spellId));
     }
-    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), sizeof(BLINK_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(SelectTargetsHook::Key),
+             sizeof(BLINK_IDS) / sizeof(uint32) + sizeof(ORB_TARGET_IDS) / sizeof(uint32));
 
     // Blink sets the count the cut after the hook keeps to one and continues, so the cut runs; the list is untouched.
     BareCreature caster;
@@ -1213,7 +1222,8 @@ TEST(MageScripts_CombustionRunsOnTheDummyEffectHook)
         CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
     }
     CHECK_EQ(game.CountAt(DummyEffectHook::Key),
-             sizeof(COMBUSTION_IDS) / sizeof(uint32) + sizeof(IMPACT_SPREAD_IDS) / sizeof(uint32));
+             sizeof(COMBUSTION_IDS) / sizeof(uint32) + sizeof(IMPACT_SPREAD_IDS) / sizeof(uint32) +
+                 sizeof(ORB_DUMMY_EFFECT_IDS) / sizeof(uint32));
     CHECK(game.Find<AuraBoostMageSite>(28682) == NULL);
 
     // With no unit target the script casts nothing and ends the effect, so the mage family switch does not run; the
@@ -1425,7 +1435,8 @@ TEST(MageScripts_ImpactsSpreadEndsItsEffectAndCountsTheLivingBombsOverTheCast)
         CHECK(game.Find<DummyEffectHook>(spellId) == registry.Find<DummyEffectHook>(spellId));
     }
     CHECK_EQ(game.CountAt(DummyEffectHook::Key),
-             sizeof(COMBUSTION_IDS) / sizeof(uint32) + sizeof(IMPACT_SPREAD_IDS) / sizeof(uint32));
+             sizeof(COMBUSTION_IDS) / sizeof(uint32) + sizeof(IMPACT_SPREAD_IDS) / sizeof(uint32) +
+                 sizeof(ORB_DUMMY_EFFECT_IDS) / sizeof(uint32));
 
     BareCreature caster;
     BareCreature stunned;

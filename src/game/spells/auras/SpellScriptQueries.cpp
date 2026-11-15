@@ -173,3 +173,16 @@ float Spells::LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, 
     }
     return multiplier;
 }
+
+int32* ScriptWordOf(Unit& unit, uint32 spellId, SpellEffectIndex eff)
+{
+    Unit::SpellAuraHolderBounds const bounds = unit.GetSpellAuraHolderBounds(spellId);
+    for (Unit::SpellAuraHolderMap::iterator itr = bounds.first; itr != bounds.second; ++itr)
+    {
+        if (!itr->second->IsDeleted())
+        {
+            return &itr->second->ScriptWord(eff);
+        }
+    }
+    return NULL;
+}

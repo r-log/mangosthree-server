@@ -30,6 +30,7 @@
 #include "spells/SpellScriptHooks.h"
 
 #include <cstddef>
+#include <list>
 
 /**
  * @file Mage.h
@@ -40,13 +41,15 @@
  * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
  * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's (ImpactSpreads)
- * and Mage Ward's (MageWardTriggersBlazingSpeed). Each file registers its rows through one function of namespace Mage:
- * a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * and Mage Ward's (MageWardTriggersBlazingSpeed). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI,
+ * its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbEndDue,
+ * OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows through one function of namespace
+ * Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
-/// Registers every mage row: the class-wide bodies and those of the three specializations. Returns the rows and
-/// defaults registered; a row whose key was taken does not change the table, so a caller that finds fewer keys than
-/// rows has a duplicate.
+/// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
+/// and defaults registered; a row whose key was taken does not change the table, so a caller that finds fewer keys
+/// than rows has a duplicate.
 uint32 RegisterMageScripts(SpellHandlerRegistry& registry);
 
 namespace Mage
@@ -79,6 +82,67 @@ namespace Mage
     uint32 RegisterFrost(SpellHandlerRegistry& registry);
     /// Registers the Arcane specialization's rows. Returns the rows registered.
     uint32 RegisterArcane(SpellHandlerRegistry& registry);
+    /// Registers the orb's scripts and its creature AI, whose factory is added to the creature AI registry once.
+    /// Returns the rows registered.
+    uint32 RegisterOrb(SpellHandlerRegistry& registry);
+
+    /// The spells and the creature an orb is made of, by the spell that created it.
+    struct OrbSpells
+    {
+        uint32 castSpell;           ///< the mage's spell (82731), whose cost the orb's hits share
+        uint32 summonSpell;         ///< the summon the mage's spell casts (84765)
+        uint32 creature;            ///< the creature the summon makes (44214)
+        uint32 orbAura;             ///< the orb's own aura (82690): it casts the scan, and its script words are the orb's
+        uint32 scanSpell;           ///< the dummy the orb's own aura casts every half second (82734)
+        uint32 hitSpell;            ///< the hit the orb casts at the closest enemy (82739)
+        uint32 snareSpell;          ///< the slow the orb puts on itself when it finds its first enemy (82736)
+        uint32 explosionSpell;      ///< the explosion at the orb's end (83619)
+        uint32 explosionTalents[3]; ///< the owner's talents whose proc chance is the explosion's; 0 pads (18459, 18460,
+                                    ///< 54734)
+    };
+
+    /// The orb row of the mage's spell (82731) or of the orb's created-by spell (84765); NULL for any other id. Defined
+    /// in Orb.cpp.
+    OrbSpells const* OrbSpellsFor(uint32 spellId);
+
+    /// Whether `creatureEntry` is an orb of the table. Defined in Orb.cpp.
+    bool IsOrbCreature(uint32 creatureEntry);
+
+    /// The closest of `candidates` to `from` that an orb may strike: alive, not a critter, not polymorphed; NULL when
+    /// none. Defined in Orb.cpp.
+    Unit* ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& candidates);
+
+    /// The cadence of an orb's hits, in scans of its own aura.
+    struct OrbCadence
+    {
+        uint32 scansPerHit;         ///< a hit on every this many scans: the scan's value over the aura's period (2)
+        uint32 window;              ///< the scans the snare lasts: its duration over the aura's period (30)
+    };
+
+    /// The cadence the client's data gives the orb of `spells`: the scan's value (1000 ms) and the snare's duration
+    /// (15000 ms), each over the period of the orb's own aura (500 ms); 0 and 0 when a spell, the period, the value
+    /// or the duration is missing. Defined in Orb.cpp.
+    OrbCadence OrbCadenceFor(OrbSpells const& spells);
+
+    /// Whether the orb's hit is due at scan `scan`, counted from the scan that found its first enemy (0): on that scan
+    /// and every `scansPerHit`-th one after it, while `scan` is below `window`. Defined in Orb.cpp.
+    bool OrbHitDue(uint32 scan, OrbCadence const& cadence);
+
+    /// Whether the orb's end (its explosion) is due: its snare has run out after it held it (`wasSnared` and not
+    /// `snaredNow`: its firing is over), or its life has (`lifeMs` at or below 0). Defined in Orb.cpp.
+    bool OrbEndDue(bool wasSnared, bool snaredNow, int32 lifeMs);
+
+    /// Whether the orb's owner may have it act for him: he is found, alive, in the world and on the orb's map. The
+    /// orb's hits and its explosion are cast only then. Defined in Orb.cpp.
+    bool OrbOwnerActs(bool found, bool alive, bool inWorld, bool onOrbsMap);
+
+    /// The percent chance the orb explodes at its end for an owner who knows `talentSpell`: that spell's proc chance
+    /// when it is one of the table's explosion talents; 0 for any other spell. Defined in Orb.cpp.
+    uint32 OrbExplosionChance(uint32 talentSpell);
+
+    /// The base mana cost an orb's hit refunds through Master of Elements: the mage's spell's cost over the hits one orb
+    /// makes (the due scans of OrbCadenceFor's window, 15); 0 for a spell that is no orb hit. Defined in Orb.cpp.
+    int32 OrbCostShare(uint32 procSpellId, Unit const& mage);
 
     /// Whether the aura effect a proc runs for is of `auraType`. A proc script runs for every effect of its spell that
     /// passed the proc's class-mask checks; it acts for the effects of the aura type whose proc handler it stands for,
