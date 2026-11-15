@@ -3948,9 +3948,8 @@ namespace Harness
     /**
      * What the mage scenarios share (951, 952, 954-957, 962-972, 983, 985-989): a human mage staged to level 85 with
      * the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
-     * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him,
-     * or at the scenario's TargetDistance (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in
-     * order:
+     * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
+     * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
      *    a hit aura), that aura put on him by a triggered self-cast when he does not hold it; his mana set to its
      *    maximum by call; for a step that must crit, Increased Critical Spell (23434, a spell crit chance aura) put on
@@ -4082,7 +4081,7 @@ namespace Harness
                 Verdict(Invalid("spawn failed"));
                 return;
             }
-            const float tx = P0.x + TargetDistance();
+            const float tx = P0.x + 10.0f;
             Creature* target = NULL;
             std::vector<ObjectGuid> targets;
             for (uint32 camel = 0; camel < TargetCount(); ++camel)
@@ -4417,8 +4416,6 @@ namespace Harness
         /// The Camels to spawn: one ten yards in front of him, or several in a line across his front ten yards ahead,
         /// kTargetSpacing apart.
         virtual uint32 TargetCount() const { return 1; }
-        /// How far in front of him the Camels stand, in yards: ten unless the scenario names its own distance.
-        virtual float TargetDistance() const { return 10.0f; }
         /// More Camels, each at its offset from the first Camel (ahead of him, then across his front), in St::targets
         /// after TargetCount's; none unless the scenario names some.
         virtual std::vector<std::pair<float, float> > ExtraTargets() const { return std::vector<std::pair<float, float> >(); }
@@ -8928,7 +8925,7 @@ namespace Harness
     /**
      * S971 `mage-fire-flame-orb`: Flame Orb (82731) on a staged Fire mage with Fire Power 3 (54734, whose proc
      * chance, 100, is the orb's chance to explode). Staged: Burning Soul 3, Improved Fire Blast 2 and Fire Power 3;
-     * Flame Orb learned. The Camel stands kOrbDistance yards in front of him and casts Hit Me (100446, +20% spell hit
+     * Flame Orb learned. The Camel stands ten yards in front of him and casts Hit Me (100446, +20% spell hit
      * for whoever casts at it) on itself at its spawn: the orb's hit and its explosion are the orb's own rolls, at his
      * level (96% against a level-85 Camel), which the Camel's aura caps at 100%; an aura on him would not reach them.
      * One step: Flame Orb, an aura cast under the crit aura at +100, so every hit and the explosion crit; kStepMs to
@@ -8941,13 +8938,11 @@ namespace Harness
      * (Unit::UpdateSplineMovement). The orb's flight starts 200 ms after the cast and the placement is written at
      * 300 ms (1 yard out), 700 ms (5), 1100 ms (9), and so on; the scans come at 500 ms, 1000 ms, 1500 ms. So the
      * first scan is centred 1 yard out while the orb itself is 3 yards out, the second 5 yards out while the orb is
-     * at 8, the third 9 while the orb is at 13. A Camel 10 yards out (and 2 yards above the orb's line) is 9.2 yards
-     * from the first scan's centre: the orb finds it there, 7 yards ahead, slows to 1 yard a second from its fourth
+     * at 8, the third 9 while the orb is at 13. A Camel 10 yards out, about 0.9 yards off the orb's line, is 9.05
+     * yards from the first scan's centre: the orb finds it there, 7 yards ahead, slows to 1 yard a second from its fourth
      * yard, makes its fifteenth hit 14 s later from about 18 yards out (8 from the Camel) and explodes a second after
-     * that from about 19 (9 from the Camel), both within the 10 yards of the hit's scan and the explosion. A Camel
-     * found at a later scan is left behind before the fifteenth hit: at 16 yards the third scan found it with the orb
-     * 13 yards out, and it took 12 hits. The early reads note the placement and the spline position around the first
-     * two scans.
+     * that from about 19 (9 from the Camel), both within the 10 yards of the hit's scan and the explosion. The early
+     * reads note the placement and the spline position around the first two scans.
      *
      * His orb is the one creature 44214 within kOrbSearchRange of him: kEarlyReadsMs after the cast its placement, its
      * spline position, the Camel's distance and its snare are noted; at the step's read its holders of 82690 and 82736
@@ -8986,7 +8981,6 @@ namespace Harness
         }
         std::vector<uint32> Spells() const override { return { kFlameOrb }; }
         int32 SpellPower() const override { return kSpellPower; }
-        float TargetDistance() const override { return kOrbDistance; }
         uint32 TargetAura() const override { return kHitMe; }
 
         std::vector<Step> Steps() const override
@@ -9258,7 +9252,6 @@ namespace Harness
         static constexpr uint32 kBlast = 83619;
         static constexpr uint32 kHitMe = 100446;
         static constexpr int32 kSpellPower = 1000;
-        static constexpr float kOrbDistance = 10.0f;
         static constexpr float kOrbSearchRange = 40.0f;
         static constexpr uint32 kStepMs = 20000;
         static constexpr uint32 kEarlyReadsMs[4] = { 400, 500, 900, 1000 };
