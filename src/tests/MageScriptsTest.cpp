@@ -28,8 +28,8 @@
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the dummy aura hook, Pyromaniac's
-/// leaves and its rows at the aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick
-/// and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads,
+/// leaves (a Frostfire Bolt burning only with its periodic damage among them) and its rows at the aura-apply and
+/// aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads,
 /// the exits of its spread at the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the
 /// after-cast hook, Glyph of Frostfire's tick, and Frostfire Bolt's effect taken off at its holder's apply and its
 /// after-hit exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or
@@ -1137,6 +1137,29 @@ TEST(MageScripts_PyromaniacCountsTheMagesFireDamageOverTime)
     for (uint32 spellId : { 133u, 2136u, 11129u, 44461u, 82739u, 83619u, 83582u })
     {
         CHECK(!Mage::PyromaniacCounts(spellId));
+    }
+}
+
+TEST(MageScripts_PyromaniacCountsAFrostfireBoltOnlyWhileItDealsDamageOverTime)
+{
+    // Frostfire Bolt's holder makes its enemy burn with its periodic damage (the glyphed bolt) and not without it (the
+    // unglyphed bolt, which only slows).
+    CHECK(Mage::PyromaniacBurns(44614, true));
+    CHECK(!Mage::PyromaniacBurns(44614, false));
+
+    // Every other DoT the talent counts makes its enemy burn whatever the flag, and a spell it does not count never.
+    for (uint32 spellId : PYROMANIAC_DOT_IDS)
+    {
+        if (spellId != 44614)
+        {
+            CHECK(Mage::PyromaniacBurns(spellId, true));
+            CHECK(Mage::PyromaniacBurns(spellId, false));
+        }
+    }
+    for (uint32 spellId : { 133u, 2136u, 44461u, 83582u })
+    {
+        CHECK(!Mage::PyromaniacBurns(spellId, true));
+        CHECK(!Mage::PyromaniacBurns(spellId, false));
     }
 }
 

@@ -299,9 +299,10 @@ namespace
     uint32 const PYROMANIAC_DOTS[] = { 2120, 11366, 12654, 44457, 44614, 83853, 88148, 92315 };
 
     /// When `caster`, the caster of a holder of a DoT Pyromaniac counts that was just added to `target` or taken off
-    /// it, is a player in the world on `target`'s map who knows Pyromaniac (34295, else 34293), his burning enemies are
-    /// counted again: Pyromaniac's haste (83582) is cast on him with the rank's value when three or more burn and he
-    /// lacks it, and taken off him when fewer burn and he has it. A caster anywhere else is left as he is.
+    /// it, is a player in the world on `target`'s map who knows Pyromaniac (34295, else 34293), his burning enemies
+    /// (Mage::PyromaniacTargets) are counted again: Pyromaniac's haste (83582) is cast on him with the rank's value
+    /// when three or more burn and he lacks it, and taken off him when fewer burn and he has it. A caster anywhere else
+    /// is left as he is.
     void PyromaniacRecount(Unit* caster, Unit& target)
     {
         if (!caster || caster->GetTypeId() != TYPEID_PLAYER || !caster->IsInWorld() || caster->FindMap() != target.FindMap())
@@ -343,8 +344,9 @@ namespace
 
     /// 44614: Frostfire Bolt: when its holder is added, a caster with Glyph of Frostfire (61205) takes the slow (effect
     /// 0) off it and any other caster the periodic damage (effect 2), so the bolt slows or burns, never both; a holder
-    /// left with one of the two by the target's immunities keeps it (AuraHandle::RemoveEffect). Then the caster's
-    /// burning enemies are counted again for Pyromaniac, as PyromaniacDotApply counts them. The holder's boosts still
+    /// left with one of the two by the target's immunities keeps it (AuraHandle::RemoveEffect). Then, with the holder
+    /// as that leaves it, the caster's burning enemies are counted again for Pyromaniac, as PyromaniacDotApply counts
+    /// them: a bolt without its periodic damage makes no enemy burn (Mage::PyromaniacBurns). The holder's boosts still
     /// run.
     SpellHandlerOutcome<void> FrostfireBoltAuraApply(AuraApplyContext& ctx)
     {
@@ -593,6 +595,15 @@ bool Mage::PyromaniacCounts(uint32 spellId)
     return std::find(std::begin(PYROMANIAC_DOTS), std::end(PYROMANIAC_DOTS), spellId) != std::end(PYROMANIAC_DOTS);
 }
 
+bool Mage::PyromaniacBurns(uint32 spellId, bool holdsPeriodicDamage)
+{
+    if (spellId == FROSTFIRE_BOLT_SPELL)
+    {
+        return holdsPeriodicDamage;
+    }
+    return PyromaniacCounts(spellId);
+}
+
 bool Mage::PyromaniacActive(uint32 targets)
 {
     return targets >= 3;
@@ -600,6 +611,8 @@ bool Mage::PyromaniacActive(uint32 targets)
 
 uint32 Mage::PyromaniacTargets(Unit& mage)
 {
+    ObjectGuid const caster = mage.GetObjectGuid();
+    std::vector<PeriodicDamageView> found;
     uint32 burning = 0;
     for (HostileReference* ref = mage.GetHostileRefManager().getFirst(); ref; ref = ref->next())
     {
@@ -610,7 +623,12 @@ uint32 Mage::PyromaniacTargets(Unit& mage)
         }
         for (uint32 spellId : PYROMANIAC_DOTS)
         {
-            if (enemy->GetSpellAuraHolder(spellId, mage.GetObjectGuid()))
+            if (!enemy->GetSpellAuraHolder(spellId, caster))
+            {
+                continue;
+            }
+            uint32 const held[] = { spellId };
+            if (PyromaniacBurns(spellId, FindPeriodicDamage(*enemy, caster, held, 1, found) > 0))
             {
                 ++burning;
                 break;

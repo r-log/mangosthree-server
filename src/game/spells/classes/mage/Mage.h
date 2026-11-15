@@ -41,11 +41,11 @@
  * Mage.cpp holds the class-wide bodies, the mage sites' defaults, and ProcEffectIs, CastProcSpell, EffectTriggerSpell
  * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
  * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
- * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
- * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's (ImpactSpreads),
- * Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and Glyph of
- * Frostfire's (FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts
- * and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbEndDue, OrbOwnerActs,
+ * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacBurns, PyromaniacActive,
+ * PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's
+ * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and
+ * Glyph of Frostfire's (FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its
+ * scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbEndDue, OrbOwnerActs,
  * OrbExplosionChance and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table
  * per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
@@ -214,11 +214,16 @@ namespace Mage
     /// Defined in Fire.cpp.
     bool PyromaniacCounts(uint32 spellId);
 
+    /// Whether a holder of `spellId` on an enemy makes it burn for Pyromaniac, given whether the holder holds a periodic
+    /// damage effect: a DoT PyromaniacCounts names, but Frostfire Bolt (44614) only with its periodic damage, which
+    /// Glyph of Frostfire keeps and which the bolt loses without the glyph. Defined in Fire.cpp.
+    bool PyromaniacBurns(uint32 spellId, bool holdsPeriodicDamage);
+
     /// Whether Pyromaniac's haste is up for `targets` burning enemies: three or more. Defined in Fire.cpp.
     bool PyromaniacActive(uint32 targets);
 
-    /// The enemies that hold one or more of `mage`'s holders PyromaniacCounts names: the units whose threat list holds
-    /// him, alive and on his map, each counted once. Defined in Fire.cpp.
+    /// The enemies that hold one or more of `mage`'s holders that make them burn (PyromaniacBurns): the units whose
+    /// threat list holds him, alive and on his map, each counted once. Defined in Fire.cpp.
     uint32 PyromaniacTargets(Unit& mage);
 
     /// The haste Pyromaniac gives a mage who knows `talentSpell` (34293 or 34295): that spell's effect 0 value; 0 for
