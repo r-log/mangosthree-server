@@ -111,7 +111,7 @@
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
 // Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
-// The guard of 931-938, 950-973, 981-983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 950-974, 981-983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3948,7 +3948,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-973, 981-983, 985-989): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-974, 981-983, 985-989): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -4077,7 +4077,7 @@ namespace Harness
                 return;
             }
 
-            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z), 0.0f, CLASS_MAGE);
+            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z) + PlayerLift(), 0.0f, CLASS_MAGE);
             if (!p)
             {
                 Verdict(Invalid("spawn failed"));
@@ -4410,6 +4410,8 @@ namespace Harness
         /// The aura each Camel casts on itself at its spawn: one that keeps the casts of a unit other than him from
         /// missing it; 0 for none.
         virtual uint32 TargetAura() const { return 0; }
+        /// The yards above the ground the mage stands at; none by default.
+        virtual float PlayerLift() const { return 0.0f; }
         /// The time from one cast step to the next.
         virtual uint32 CastEveryMs() const { return kCastEveryMs; }
         /// The points of the crit aura a cast that must not crit puts on him; 0 takes the aura off him instead.
@@ -9697,6 +9699,257 @@ namespace Harness
         ObjectGuid m_chicken;
     };
 
+    /**
+     * S974 `mage-fire-flame-orb-descends`: Flame Orb cast from a height. The mage of 971 (same talents, spells, spell
+     * power and Camel) stands kPlayerLift yards above the ground (PlayerLift) and casts Flame Orb once. The summon puts
+     * the orb at his exact point; the orb glides forward at its flight speed while it sinks on the slow-fall curve to
+     * one hover height above the ground, then flies level from there on the same line. Reads at kEarlyReadsMs after the
+     * cast and at the step's read: the orb's spline and placement, their distance ahead of the orb's spawn in the plane,
+     * their z, and the orb's z over the ground under it.
+     *
+     * `descent`: `spawn=<the orb's spawn z less the ground under it, within 0.01 of kPlayerLift> ahead400=<the
+     * spline's distance ahead of the spawn at the first read, kAheadLow..kAheadHigh> sunk400=<the spline's z below the
+     * spawn's at the first read, kSunkLow..kSunkHigh> landed=<the orb's z over the ground under it at the last early
+     * read, 1.00 within 0.01, with the orb kLandedAhead yards or more ahead> flew=<yes when at the step's read the orb is
+     * at the z of the last early read within 0.01, on the spawn's line within 0.01 and farther ahead>`; OK when all hold.
+     * The orb's hits and explosion are counted in the detail, not pinned. The glide is launched with the orb's first update,
+     * 100 ms after the cast, at 10 yd/s: at the first read it has run 0.3 s, 3.00 yd ahead and 0.87 yd down the slow-fall
+     * curve.
+     */
+    class MageFireFlameOrbDescends : public MageProcScenario
+    {
+    public:
+        MageFireFlameOrbDescends() : MageProcScenario("mage-fire-flame-orb-descends", 974, "descent") {}
+
+        void Prepare() override
+        {
+            for (OrbSample& sample : m_early)
+            {
+                sample = OrbSample();
+            }
+            m_final = OrbSample();
+            m_player = ObjectGuid();
+            MageProcScenario::Prepare();
+        }
+
+    protected:
+        float PlayerLift() const override { return kPlayerLift; }
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFlameOrb }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 TargetAura() const override { return kHitMe; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step cast = AuraCast(kFlameOrb, kStepMs);
+            cast.crit = true;
+            return { cast };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 82731: 26 fields, fnv 53501c97
+                { 82731, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84765: 26 fields, fnv 83712bbf
+                { 84765, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 44214 }, { "eff0.EffectMiscValue_1", 3019 }, { "eff0.EffectRadiusIndex_0", 36 }, { "eff0.ImplicitTarget_0", 47 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 82690: 49 fields, fnv 738c6c61
+                { 82690, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 82734 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 104 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 82734: 26 fields, fnv af0731ee
+                { 82734, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 82733: 26 fields, fnv ba87eed9
+                { 82733, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 82736: 26 fields, fnv 63cfd739
+                { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 82739: 26 fields, fnv 47d44820
+                { 82739, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 174 }, { "eff0.EffectBonusCoefficient", 1040791372 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 22 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 83619: 26 fields, fnv dea68555
+                { 83619, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectBonusCoefficient", 1044750795 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.ImplicitTarget_0", 87 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 54734: 26 fields, fnv 601fb247
+                { 54734, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 79 }, { "eff0.EffectBasePoints", 3 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 4 }, { "eff0.EffectSpellClassMask.Flags", 17592186177537 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 100446: 72 fields, fnv d831e1e8
+                { 100446, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 49 }, { "eff0.EffectBasePoints", -10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 184 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 186 }, { "eff2.EffectBasePoints", 20 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* /*target*/) override
+        {
+            if (k != 0)
+            {
+                return;
+            }
+            m_player = st.player;
+            if (atRead)
+            {
+                Sample(m_final, "at the step's read");
+                return;
+            }
+            for (size_t i = 0; i < kEarlyCount; ++i)
+            {
+                At(kEarlyReadsMs[i], [this, i]() { Sample(m_early[i], std::to_string(kEarlyReadsMs[i]) + " ms after the cast"); });
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            uint32 hits = 0, blasts = 0;
+            const uint64 camel = st.target.GetRawValue();
+            const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                for (const char* suffix : suffixes)
+                {
+                    std::vector<Recorder::Seen const*> logs = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_SPELLNONMELEEDAMAGELOG);
+                    for (size_t i = 0; i < logs.size(); ++i)
+                    {
+                        Trace::SpellDamageLog log;
+                        if (logs[i]->payload.empty() || !Trace::ReadSpellDamageLog(&logs[i]->payload[0], logs[i]->payload.size(), log) ||
+                            log.target != camel)
+                        {
+                            continue;
+                        }
+                        hits += log.spell == kHit ? 1 : 0;
+                        blasts += log.spell == kBlast ? 1 : 0;
+                    }
+                }
+            }
+
+            const OrbSample& first = m_early[0];
+            const OrbSample& last = m_early[kEarlyCount - 1];
+            const bool spawnOk = first.found && std::fabs(first.spawnRise - kPlayerLift) < kTolerance;
+            const bool aheadOk = first.found && first.splineAhead >= kAheadLow && first.splineAhead <= kAheadHigh;
+            const bool sunkOk = first.found && first.splineSunk >= kSunkLow && first.splineSunk <= kSunkHigh;
+            const bool landedOk = last.found && std::fabs(last.placeRise - 1.0f) < kTolerance && last.placeAhead >= kLandedAhead;
+            const bool flewOk = last.found && m_final.found && std::fabs(m_final.placeZ - last.placeZ) < kTolerance &&
+                                std::fabs(m_final.placeSide) < kTolerance && m_final.placeAhead > last.placeAhead;
+
+            char value[160];
+            snprintf(value, sizeof(value), "spawn=%.2f ahead400=%.2f sunk400=%.2f landed=%.2f flew=%s", first.spawnRise, first.splineAhead,
+                     first.splineSunk, last.placeRise, flewOk ? "yes" : "no");
+            std::string reads;
+            for (size_t i = 0; i < kEarlyCount; ++i)
+            {
+                reads += (i ? ", " : "") + std::to_string(kEarlyReadsMs[i]) + " ms: " + Describe(m_early[i]);
+            }
+            reads += ", at the step's read: " + Describe(m_final);
+            return (spawnOk && aheadOk && sunkOk && landedOk && flewOk ? "OK(" : "BUG(") + std::string(value) + "; the reads: " + reads + "; " + U(hits) + " hit(s) and " + U(blasts) + " explosion(s) on the Camel)";
+        }
+
+    private:
+        /// What one read of the orb found.
+        struct OrbSample
+        {
+            bool found = false;
+            float spawnRise = 0.0f;                     ///< the orb's spawn z less the ground under its spawn
+            float placeAhead = 0.0f;                    ///< its placement's distance from its spawn in the plane
+            float placeZ = 0.0f;                        ///< its placement's z
+            float placeRise = 0.0f;                     ///< its placement's z less the ground under it
+            float placeSide = 0.0f;                     ///< its placement's y less its spawn's
+            float splineAhead = 0.0f;                   ///< its spline's distance from its spawn in the plane
+            float splineSunk = 0.0f;                    ///< its spawn's z less its spline's
+        };
+
+        static std::string Describe(OrbSample const& s)
+        {
+            char buf[128];
+            if (!s.found)
+            {
+                return "no orb";
+            }
+            snprintf(buf, sizeof(buf), "placement %.2f ahead at %.2f (%.2f over the ground), spline %.2f ahead and %.2f below the spawn", s.placeAhead,
+                     s.placeZ, s.placeRise, s.splineAhead, s.splineSunk);
+            return buf;
+        }
+
+        /// The first live creature 44214 within kOrbSearchRange of him, or NULL.
+        Creature* FindOrb() const
+        {
+            Player* p = sPlayerRegistry.Find(m_player);
+            if (!p || !p->IsInWorld())
+            {
+                return NULL;
+            }
+            std::list<Creature*> found;
+            MaNGOS::AllCreaturesOfEntryInRangeCheck check(p, kOrb, kOrbSearchRange);
+            MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(found, check);
+            Cell::VisitGridObjects(p, searcher, kOrbSearchRange);
+            for (Creature* orb : found)
+            {
+                if (orb->IsAlive())
+                {
+                    return orb;
+                }
+            }
+            return NULL;
+        }
+
+        /// Notes and keeps what the orb's placement and spline show against its spawn.
+        void Sample(OrbSample& out, std::string const& when)
+        {
+            Creature* orb = FindOrb();
+            if (!orb)
+            {
+                m_rec.Note(when + ": no creature " + U(kOrb) + " within " + U(uint32(kOrbSearchRange)) + " yd of him");
+                return;
+            }
+            Geometry::Placement const& spawn = orb->Spawn();
+            float sx = orb->Where().X();
+            float sy = orb->Where().Y();
+            float sz = orb->Where().Z();
+            if (orb->movespline && !orb->movespline->Finalized())
+            {
+                Movement::Location const live = orb->movespline->ComputePosition();
+                sx = live.x;
+                sy = live.y;
+                sz = live.z;
+            }
+            out.found = true;
+            out.spawnRise = spawn.Z() - Ground(spawn.X(), spawn.Y(), spawn.Z());
+            out.placeAhead = std::hypot(orb->Where().X() - spawn.X(), orb->Where().Y() - spawn.Y());
+            out.placeZ = orb->Where().Z();
+            out.placeRise = orb->Where().Z() - Ground(orb->Where().X(), orb->Where().Y(), orb->Where().Z());
+            out.placeSide = orb->Where().Y() - spawn.Y();
+            out.splineAhead = std::hypot(sx - spawn.X(), sy - spawn.Y());
+            out.splineSunk = spawn.Z() - sz;
+            m_rec.Note(when + ": " + Describe(out) + "; its spawn is " + std::to_string(out.spawnRise) + " over the ground");
+        }
+
+        static constexpr uint32 kFlameOrb = 82731;
+        static constexpr uint32 kOrb = 44214;
+        static constexpr uint32 kHit = 82739;
+        static constexpr uint32 kBlast = 83619;
+        static constexpr uint32 kHitMe = 100446;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr float kOrbSearchRange = 40.0f;
+        static constexpr uint32 kStepMs = 20000;
+        static constexpr float kPlayerLift = 5.0f;
+        static constexpr float kTolerance = 0.01f;
+        static constexpr float kAheadLow = 2.5f;
+        static constexpr float kAheadHigh = 3.5f;
+        static constexpr float kSunkLow = 0.6f;
+        static constexpr float kSunkHigh = 1.1f;
+        static constexpr float kLandedAhead = 5.0f;
+        static constexpr size_t kEarlyCount = 4;
+        static constexpr uint32 kEarlyReadsMs[4] = { 400, 500, 900, 1000 };
+
+        OrbSample m_early[4];
+        OrbSample m_final;
+        ObjectGuid m_player;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -9731,6 +9984,7 @@ namespace Harness
         r.Register(new MageFireLivingBombRules());
         r.Register(new MageFireFlameOrb());
         r.Register(new MageFireFlameOrbSkips());
+        r.Register(new MageFireFlameOrbDescends());
         r.Register(new MageFirePyromaniac());
         r.Register(new MageFireDamagePassives());
         r.Register(new MageFireCastPassives());
