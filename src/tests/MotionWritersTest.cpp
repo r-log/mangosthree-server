@@ -891,12 +891,6 @@ TEST(MotionWriters_the_curve_strays_from_the_polyline_in_proportion_to_the_leg)
 
 // ---- the fall: slow and normal ----------------------------------------------------------
 
-namespace Movement
-{
-    extern float computeFallTime(float path_length, bool isSafeFall);
-    extern float computeFallElevation(float t_passed, bool isSafeFall, float start_velocity);
-}
-
 namespace
 {
     bool FallNear(float a, float b, float tolerance)
@@ -937,6 +931,8 @@ TEST(MotionWriters_a_slow_fall_spline_lasts_and_sinks_by_the_slow_curve)
     slow.updateState(400);
     CHECK(FallNear(slow.ComputePosition().z, 13.47f, 0.01f));
     CHECK(FallNear(slow.ComputePosition().x, 4.00f, 0.01f));
+    slow.updateState(300);
+    CHECK(FallNear(slow.ComputePosition().z, 11.37f, 0.01f));
 
     Movement::MoveSpline normal;
     FallSpline(normal, false);
@@ -944,4 +940,6 @@ TEST(MotionWriters_a_slow_fall_spline_lasts_and_sinks_by_the_slow_curve)
     normal.updateState(400);
     CHECK(FallNear(normal.ComputePosition().z, 13.457f, 0.01f));
     CHECK(FallNear(normal.ComputePosition().x, 4.68f, 0.01f));
+    normal.updateState(300);
+    CHECK(FallNear(normal.ComputePosition().z, 11.0f, 0.01f));
 }
