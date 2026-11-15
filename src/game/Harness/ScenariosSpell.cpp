@@ -111,13 +111,13 @@
 // 991 the same with its first rank, whose free Flamestrike is instant too; 983 a Fire mage with Molten Fury's third
 // rank: his Pyroblast's DoT on a target that falls under 35% health between two ticks, and his Fire Blast at it there;
 // 984 four Frostfire Bolts under Glyph of Frostfire stack their DoT to three, each tick its stacks' share of the
-// latest hit, and do not slow; 990 an unglyphed Frostfire Bolt on a target immune to its slow leaves no DoT, no tick and
+// latest hit, and do not slow; 977 an unglyphed Frostfire Bolt on a target immune to its slow leaves no DoT, no tick and
 // no holder; 985 the Fire passives that change a hit's
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
 // Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
-// The guard of 931-938, 950-975 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 950-975, 977, 980-989 and 991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3954,7 +3954,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-975, 980-991): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-975, 977, 980-989, 991): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -8138,7 +8138,7 @@ namespace Harness
     };
 
     /**
-     * S990 `mage-fire-frostfire-snare-immune`: 984's staging without Glyph of Frostfire, against a Camel that holds
+     * S977 `mage-fire-frostfire-snare-immune`: 984's staging without Glyph of Frostfire, against a Camel that holds
      * Hand of Freedom (1044), whose second effect makes it immune to the snare mechanic. His Frostfire Bolt (44614) hits
      * it, but its slow never reaches the holder, and without the glyph the bolt has no DoT of its own: the holder is
      * left with the periodic damage alone and runs out at the unit's next update. One bolt; the read comes
@@ -8154,7 +8154,7 @@ namespace Harness
     class MageFireFrostfireSnareImmune : public MageProcScenario
     {
     public:
-        MageFireFrostfireSnareImmune() : MageProcScenario("mage-fire-frostfire-snare-immune", 990, "snareimmune") {}
+        MageFireFrostfireSnareImmune() : MageProcScenario("mage-fire-frostfire-snare-immune", 977, "snareimmune") {}
 
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override
