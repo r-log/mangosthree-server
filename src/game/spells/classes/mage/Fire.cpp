@@ -419,6 +419,31 @@ namespace
         return SpellHandlerOutcome<void>::Return();
     }
 
+    uint32 const IMPROVED_FLAMESTRIKE_RANK_1 = 84673;
+    uint32 const IMPROVED_FLAMESTRIKE_RANK_2 = 84674;
+    uint32 const FREE_FLAMESTRIKE = 88148;
+
+    /// 11113: Blast Wave: when the cast hit two or more units the caster is not friendly to (the context's count) and
+    /// the caster knows Improved Flamestrike (84674, or 84673), the rank's chance (ImprovedFlamestrikeChance) is rolled
+    /// and on success the caster casts the free Flamestrike (88148) at the Blast Wave's point, triggered with no
+    /// triggering aura. A cast with neither a destination nor a unit target has no point of its own and calls nothing.
+    SpellHandlerOutcome<void> BlastWaveAfterCast(AfterCastContext& ctx)
+    {
+        if (ctx.enemiesHit < 2 || (!ctx.hasDestination && !ctx.target))
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        uint32 const talent = ctx.caster.HasAura(IMPROVED_FLAMESTRIKE_RANK_2) ? IMPROVED_FLAMESTRIKE_RANK_2
+                            : ctx.caster.HasAura(IMPROVED_FLAMESTRIKE_RANK_1) ? IMPROVED_FLAMESTRIKE_RANK_1 : 0;
+        int32 const chance = Mage::ImprovedFlamestrikeChance(talent);
+        if (chance <= 0 || !roll_chance_i(chance))
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        ctx.CastTriggeredAt(ctx.destX, ctx.destY, ctx.destZ, FREE_FLAMESTRIKE);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     uint32 const IGNITE[] = { 11119, 11120, 12846 };
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075 };
     uint32 const HOT_STREAK[] = { 44445 };
@@ -432,6 +457,8 @@ namespace
     uint32 const PYROMANIAC_DOTS_APPLIED[] = { 2120, 11366, 12654, 44457, 83853, 92315 };
     uint32 const FROSTFIRE_BOLT[] = { 44614 };
     uint32 const PYROMANIAC[] = { PYROMANIAC_RANK_1, PYROMANIAC_RANK_2 };
+    uint32 const BLAST_WAVE[] = { 11113 };
+    uint32 const IMPROVED_FLAMESTRIKE[] = { IMPROVED_FLAMESTRIKE_RANK_1, IMPROVED_FLAMESTRIKE_RANK_2 };
 }
 
 bool Mage::CountCritInARow(int32& crits, bool crit)
@@ -541,6 +568,17 @@ int32 Mage::PyromaniacHaste(uint32 talentSpell)
     return talent ? talent->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
 }
 
+int32 Mage::ImprovedFlamestrikeChance(uint32 talentSpell)
+{
+    uint32 const* const ranksEnd = std::end(IMPROVED_FLAMESTRIKE);
+    if (std::find(std::begin(IMPROVED_FLAMESTRIKE), ranksEnd, talentSpell) == ranksEnd)
+    {
+        return 0;
+    }
+    SpellEntry const* talent = sSpellStore.LookupEntry(talentSpell);
+    return talent ? talent->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
+}
+
 bool Mage::ImpactSpreads(uint32 spellId, int32& bombsSpread)
 {
     uint32 const* const dotsEnd = std::end(IMPACT_SPREAD_DOTS);
@@ -577,5 +615,6 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<DummyEffectHook>(registry, COMBUSTION, &CombustionEffect);
     rows += RegisterRanks<OnProcHook>(registry, IMPACT, &ImpactProc);
     rows += RegisterRanks<DummyEffectHook>(registry, IMPACT_SPREAD, &ImpactSpreadEffect);
+    rows += RegisterRanks<AfterCastHook>(registry, BLAST_WAVE, &BlastWaveAfterCast);
     return rows;
 }
