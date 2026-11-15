@@ -224,13 +224,35 @@ void Creature::SetFeatherFall(bool enable)
     SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::FeatherFall, enable), GameTime::GetGameTimeMS()));
 }
 
+float Creature::HoverLiftedZ(float z, float floor, float hover)
+{
+    if (hover > 0.0f && floor > INVALID_HEIGHT + 1.0f && z - floor < hover)
+    {
+        return z + hover;
+    }
+    return z;
+}
+
 /**
- * @brief Enables or disables hover movement behavior.
+ * @brief Enables or disables hover movement behavior; a hover set before the creature enters the world lifts it by its hover height.
  *
  * @param enable true to hover; false to unset hover.
  */
 void Creature::SetHover(bool enable)
 {
+    if (enable && !IsInWorld())
+    {
+        if (Map* map = FindMap())
+        {
+            const float z = Where().Z();
+            const float lifted = HoverLiftedZ(z, map->GetHeight(GetPhaseMask(), Where().X(), Where().Y(), z),
+                                              GetFloatValue(UNIT_FIELD_HOVERHEIGHT));
+            if (lifted != z)
+            {
+                Place().MoveTo(Where().X(), Where().Y(), lifted, Where().Facing());
+            }
+        }
+    }
     SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::Hover, enable), GameTime::GetGameTimeMS()));
 }
 

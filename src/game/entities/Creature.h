@@ -319,6 +319,9 @@ class Creature : public Unit
         void SetCanFly(bool enable) override;
         void SetFeatherFall(bool enable) override;
         void SetHover(bool enable) override;
+        /// The z a hoverer of height `hover` stands at when placed at `z` over a floor at `floor`: lifted by `hover`
+        /// when it is within `hover` of the floor, `z` when `hover` is 0 or the floor is unknown.
+        static float HoverLiftedZ(float z, float floor, float hover);
         void SetRoot(bool enable) override;
         void SetWaterWalk(bool enable) override;
 
