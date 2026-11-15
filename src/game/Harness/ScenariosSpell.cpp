@@ -9884,6 +9884,7 @@ namespace Harness
             float splineRise = 0.0f;                    ///< its spline's z over the ground under the spline
             float spawnGround = 0.0f;                   ///< the ground under its spawn
             float placeGround = 0.0f;                   ///< the ground under its placement
+            bool moving = false;                        ///< its spline was still running at the read
         };
 
         static std::string Describe(OrbSample const& s)
@@ -9944,6 +9945,7 @@ namespace Harness
                 sz = live.z;
             }
             out.found = true;
+            out.moving = orb->movespline && !orb->movespline->Finalized();
             out.spawnGround = Ground(spawn.X(), spawn.Y(), spawn.Z());
             out.spawnRise = spawn.Z() - out.spawnGround;
             out.placeAhead = std::hypot(orb->Where().X() - spawn.X(), orb->Where().Y() - spawn.Y());
@@ -10097,19 +10099,23 @@ namespace Harness
 
     /**
      * S976 `mage-fire-flame-orb-climbs`: the orb follows rising ground. The mage of 974 stands on the ground
-     * (PlayerLift 0) facing 64 degrees (1.11701 rad), 26 degrees from +y toward +x, over a plain that rises 4.0 yd in its first
-     * 30 yd and 6.5 by 50, falls back to 2.6 at 70, and rises again to 12.1 by 180, with no step over 1.8 yd in 5 yd
-     * anywhere (a wall would stop a climb). His Camel stands kTargetDistance yd out on +x, 22 yd from the line, so no
-     * scan of the orb finds it and the orb never snares. The orb is lifted to its hover line at its spawn, flies its
-     * 18 s at 10 yd/s, and is read every kReadMs from kReadMs after the cast, kReads of them (the last 98 yd out, in
-     * kSearchRange): the orb's spline and placement, their distance ahead of the orb's spawn in the plane, the spline's
-     * z over the ground under it, and the placement's distance from the spawn's line.
+     * (PlayerLift 0) facing 64 degrees (1.11701 rad), 26 degrees from +y toward +x, over a plain that rises 4.0 yd in
+     * its first 30 yd and 6.5 by 50, falls back to 2.6 at 70, and rises again to 12.1 by 180, with no step over 1.8 yd
+     * in 5 yd anywhere (a wall would stop a climb). His Camel stands kTargetDistance yd out on +x, 22 yd from the
+     * line, so no scan of the orb finds it and the orb never snares. The orb is lifted to its hover line at its
+     * spawn and flies its 18 s at 10 yd/s. It is read every kReadMs from kReadMs after the cast, kReads of them, the
+     * first 98 yd of its flight (the harness orbs stop updating about 100 yd from the mage): the orb's spline and
+     * placement, their distance ahead of the orb's spawn in the plane, the spline's z over the ground under it,
+     * whether the spline still ran, and the placement's distance from the spawn's line.
      *
-     * `climb`: `rise=<the ground under the orb at the last read less the ground under its spawn, kRiseMin or more: the
-     * line rose> over=<the lowest and the highest height of the spline over the ground under it at any read, within
-     * kBandLow..kBandHigh: a quarter hover height of sag under the hover line, and two hover heights over it, with
-     * half of one for the floor's fall in a tick, where the glide takes over>`; OK when every read found the orb, every height is in the band and
-     * every placement is on the spawn's line within 0.01. Hits are not read.
+     * `climb`: `rise=<the ground under the orb at the last read less the ground under its spawn, kRiseMin or more:
+     * the line rose> over=<the lowest and the highest height of the spline over the ground under it at any read,
+     * within kBandLow..kBandHigh: a quarter hover height of sag under the hover line, and two hover heights over
+     * it, with half of one for the floor's fall in a tick, where the glide takes over> pace=<the spline's distance
+     * gained from the first read to the ninth, over their 8 s, kPaceMin or more: it keeps its pace on the slope>
+     * standing=<the reads from the first to the ninth at which the spline had ended, 0: it never stood between
+     * legs> line=<yes when every placement is on the spawn's line within 0.01>`; OK when every read found the orb
+     * and all five hold. Hits are not read.
      */
     class MageFireFlameOrbClimbs : public MageFireFlameOrbDescends
     {
@@ -10167,10 +10173,18 @@ namespace Harness
             const float rise = last.found ? last.placeGround - m_samples[0].spawnGround : 0.0f;
             const bool overOk = allFound && lowest >= kBandLow && highest <= kBandHigh;
             const bool riseOk = last.found && rise >= kRiseMin;
+            const float pace = (m_samples[kPaceTo].splineAhead - m_samples[kPaceFrom].splineAhead) /
+                               float((kPaceTo - kPaceFrom) * kReadMs / 1000);
+            uint32 standing = 0;
+            for (size_t i = kPaceFrom; i <= kPaceTo; ++i)
+            {
+                standing += m_samples[i].moving ? 0 : 1;
+            }
+            const bool paceOk = allFound && pace >= kPaceMin;
 
-            char value[160];
-            snprintf(value, sizeof(value), "rise=%.2f over=%.2f..%.2f", rise, allFound ? lowest : 0.0f,
-                     allFound ? highest : 0.0f);
+            char value[200];
+            snprintf(value, sizeof(value), "rise=%.2f over=%.2f..%.2f pace=%.2f standing=%u line=%s", rise,
+                     allFound ? lowest : 0.0f, allFound ? highest : 0.0f, pace, standing, lineOk ? "yes" : "no");
             std::string reads;
             for (size_t i = 0; i < kReads; ++i)
             {
@@ -10181,13 +10195,16 @@ namespace Harness
                 snprintf(buf, sizeof(buf), "%.2f over the ground, %.2f ahead", s.splineRise, s.splineAhead);
                 reads += s.found ? buf : "no orb";
             }
-            const bool ok = allFound && overOk && lineOk && riseOk;
+            const bool ok = allFound && overOk && lineOk && riseOk && paceOk && standing == 0;
             return (ok ? "OK(" : "BUG(") + std::string(value) + "; the reads: " + reads + ")";
         }
 
     private:
         static constexpr size_t kReads = 12;
         static constexpr uint32 kReadMs = 1000;
+        static constexpr size_t kPaceFrom = 0;           ///< the read at 1000 ms
+        static constexpr size_t kPaceTo = 8;             ///< the read at 9000 ms
+        static constexpr float kPaceMin = 9.0f;          ///< the orb's 10 yd/s less the slope's cosine
         static constexpr float kTargetDistance = 25.0f;
         static constexpr float kSearchRange = 200.0f;
         static constexpr float kRiseMin = 3.0f;
