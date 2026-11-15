@@ -42,8 +42,8 @@
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
  * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes) and Impact's
  * (ImpactSpreads). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts and its leaves
- * (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbEndDue, OrbExplosionChance and
- * OrbCostShare).
+ * (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbEndDue, OrbOwnerActs,
+ * OrbExplosionChance and OrbCostShare).
  * Each file registers its rows through one function of namespace Mage: a table per legacy site of
  * SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
@@ -132,6 +132,10 @@ namespace Mage
     /// Whether the orb's end (its explosion) is due: its snare has run out after it held it (`wasSnared` and not
     /// `snaredNow`: its firing is over), or its life has (`lifeMs` at or below 0). Defined in Orb.cpp.
     bool OrbEndDue(bool wasSnared, bool snaredNow, int32 lifeMs);
+
+    /// Whether the orb's owner may have it act for him: he is found, alive, in the world and on the orb's map. The
+    /// orb's hits and its explosion are cast only then. Defined in Orb.cpp.
+    bool OrbOwnerActs(bool found, bool alive, bool inWorld, bool onOrbsMap);
 
     /// The percent chance the orb explodes at its end for an owner who knows `talentSpell`: that spell's proc chance
     /// when it is one of the table's explosion talents; 0 for any other spell. Defined in Orb.cpp.

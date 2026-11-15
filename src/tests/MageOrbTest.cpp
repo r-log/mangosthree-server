@@ -23,14 +23,13 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the mage's orb (spells/classes/mage/Orb.cpp): its table row, the creature it names, the cadence of its hits
-/// in scans, when its end is due, the chance of its explosion, the cost share its hits refund through Master of
-/// Elements, the units an orb owned by its mage takes, the enemy its scan keeps, its rows at the dummy-effect and
-/// target hooks with its creature AI's factory, and the script words a script reads of a unit's holder
-/// (SpellScriptQueries). The spells and faction
-/// templates the leaves read are put into the stores as the client's data holds them, once for the rest of the run; no
-/// other test reads them. The units are bare creatures (update fields allocated; no map, template or AI) placed in map
-/// 0's world frame.
+/// Tests of the mage's orb (spells/classes/mage/Orb.cpp): its table row, the creature it names, the cadence of its
+/// hits in scans, when its end is due, when its owner may have it act, the chance of its explosion, the cost share
+/// its hits refund through Master of Elements, the units an orb owned by its mage takes, the enemy its scan keeps,
+/// its rows at the dummy-effect and target hooks with its creature AI's factory, and the script words a script reads
+/// of a unit's holder (SpellScriptQueries). The spells and faction templates the leaves read are put into the stores
+/// as the client's data holds them, once for the rest of the run; no other test reads them. The units are bare
+/// creatures (update fields allocated; no map, template or AI) placed in map 0's world frame.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -100,10 +99,10 @@ namespace
         return *reinterpret_cast<SpellAuraHolder*>(storage.bytes);
     }
 
-    const uint32 kOrbPower = 94301;             // 82731's SpellPower row
-    const uint32 kSnareDuration = 94302;        // 82736's SpellDuration row
-    const uint32 kPolymorphOptions = 94303;     // 118's SpellClassOptions row
-    const uint32 kFirePowerOptions = 94304;     // the first of 18459's, 18460's and 54734's SpellAuraOptions rows
+    const uint32 kOrbPower = 94401;             // 82731's SpellPower row
+    const uint32 kSnareDuration = 94402;        // 82736's SpellDuration row
+    const uint32 kPolymorphOptions = 94403;     // 118's SpellClassOptions row
+    const uint32 kFirePowerOptions = 94404;     // the first of 18459's, 18460's and 54734's SpellAuraOptions rows
 
     // The spells the orb's leaves read, as the client's data holds them: Flame Orb 82731 (6% of base mana, a dummy
     // effect on the caster), the orb's own aura 82690 (a trigger of the scan every 500 ms), the scan 82734 (a dummy
@@ -297,6 +296,26 @@ TEST(MageOrb_AHitIsDueOnEverySecondScanFromTheFirstFindForTheSnaresScans)
     CHECK(!Mage::OrbHitDue(0, none));
 }
 
+TEST(MageOrb_TheOwnerActsOnlyWhenFoundAliveInTheWorldAndOnTheOrbsMap)
+{
+    // A living owner in the world on the orb's map: the orb acts for him.
+    CHECK(Mage::OrbOwnerActs(true, true, true, true));
+
+    // No owner found: no explosion and no hit, whatever the other answers say.
+    CHECK(!Mage::OrbOwnerActs(false, false, false, false));
+    CHECK(!Mage::OrbOwnerActs(false, true, true, true));
+
+    // A dead owner.
+    CHECK(!Mage::OrbOwnerActs(true, false, true, true));
+
+    // An owner out of the world.
+    CHECK(!Mage::OrbOwnerActs(true, true, false, true));
+    CHECK(!Mage::OrbOwnerActs(true, false, false, true));
+
+    // An owner on another map.
+    CHECK(!Mage::OrbOwnerActs(true, true, true, false));
+}
+
 TEST(MageOrb_TheEndIsDueWhenTheSnareRanOutAfterAFindOrTheLifeDid)
 {
     // Flying with life left and no enemy found: not due; just snared, or snared and firing: not due.
@@ -488,16 +507,16 @@ TEST(MageOrb_AScriptReadsTheWordsOfAUnitsHolder)
 
     // The holder's own words, each effect its own.
     orb.HoldAura(82690, holder);
-    int32* last = ScriptWordOf(orb, 82690, EFFECT_INDEX_0);
+    int32* scans = ScriptWordOf(orb, 82690, EFFECT_INDEX_0);
     int32* found = ScriptWordOf(orb, 82690, EFFECT_INDEX_1);
-    REQUIRE(last != NULL);
+    REQUIRE(scans != NULL);
     REQUIRE(found != NULL);
-    CHECK(last == &holder.ScriptWord(EFFECT_INDEX_0));
+    CHECK(scans == &holder.ScriptWord(EFFECT_INDEX_0));
     CHECK(found == &holder.ScriptWord(EFFECT_INDEX_1));
     *found = 1;
-    *last = 4000;
+    *scans = 8;
     CHECK_EQ(holder.ScriptWord(EFFECT_INDEX_1), int32(1));
-    CHECK_EQ(holder.ScriptWord(EFFECT_INDEX_0), int32(4000));
+    CHECK_EQ(holder.ScriptWord(EFFECT_INDEX_0), int32(8));
 
     // Another spell's holder is not this one's, and a deleted holder has no word.
     CHECK(ScriptWordOf(orb, 82733, EFFECT_INDEX_0) == NULL);

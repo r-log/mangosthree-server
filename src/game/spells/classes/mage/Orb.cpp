@@ -28,6 +28,7 @@
 #include "spells/SpellScriptQueries.h"
 #include "ai/CreatureAI.h"
 #include "entities/Creature.h"
+#include "Map.h"
 #include "entities/ObjectLookup.h"
 #include "entities/motion/MotionMaster.h"
 #include "DBCStores.h"
@@ -49,6 +50,21 @@ namespace
 
     /// How far from its point the orb may stand for its flight to count as ended there, in yards.
     float const ORB_PATH_END = 1.0f;
+
+    /// The orb's owner when he may have the orb act for him (Mage::OrbOwnerActs): looked up on the orb's own map by
+    /// the guid of his summon; NULL otherwise.
+    Unit* ActingOwner(Creature const& orb)
+    {
+        Map* map = orb.FindMap();
+        Unit* owner = map ? map->GetUnit(orb.GetSummonerGuid()) : NULL;
+        bool const found = owner != NULL;
+        if (!Mage::OrbOwnerActs(found, found && owner->IsAlive(), found && owner->IsInWorld(),
+                                found && owner->FindMap() == map))
+        {
+            return NULL;
+        }
+        return owner;
+    }
 
     /// 82731: Flame Orb: the mage casts the summon of his orb (84765), triggered. The script ends the effect.
     SpellHandlerOutcome<void> FlameOrbEffect(DummyEffectContext& ctx)
@@ -110,8 +126,8 @@ namespace
         {
             return SpellHandlerOutcome<void>::Return();
         }
-        Unit* summoner = ObjectLookup::GetUnit(*orb, orb->GetSummonerGuid());
-        if (!summoner || !summoner->IsInWorld() || summoner->FindMap() != orb->FindMap())
+        Unit* summoner = ActingOwner(*orb);
+        if (!summoner)
         {
             return SpellHandlerOutcome<void>::Return();
         }
@@ -223,8 +239,7 @@ namespace
             void End(bool despawn)
             {
                 m_ended = true;
-                Unit* owner = ObjectLookup::GetUnit(*m_creature, m_creature->GetSummonerGuid());
-                if (owner && owner->IsInWorld() && owner->FindMap() == m_creature->FindMap() && owner->IsAlive())
+                if (Unit* owner = ActingOwner(*m_creature))
                 {
                     uint32 talent = 0;
                     for (uint32 spellId : m_spells->explosionTalents)
@@ -252,6 +267,11 @@ namespace
             bool m_snared;                      ///< the orb has held its snare: it found an enemy
             Geometry::Vector3 m_goal;           ///< the point the orb flies to
     };
+}
+
+bool Mage::OrbOwnerActs(bool found, bool alive, bool inWorld, bool onOrbsMap)
+{
+    return found && alive && inWorld && onOrbsMap;
 }
 
 bool Mage::OrbEndDue(bool wasSnared, bool snaredNow, int32 lifeMs)
