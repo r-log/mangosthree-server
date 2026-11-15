@@ -9969,11 +9969,13 @@ namespace Harness
 
     /**
      * S975 `mage-fire-flame-orb-downhill`: the glide that starts in flight. The mage of 974 stands kPlayerLift (1.5)
-     * yards over the ground, which is under two hover heights, facing -x, where the plain falls away at about a tenth of
-     * a yard to the yard. He casts Flame Orb once. The orb spawns level with him, a hover height and a half over the
+     * yards over the ground, which is under two hover heights, facing 247.5 degrees (down and to the side of -x), where the
+     * plain falls away about 0.8 yd over its first 10 yd and 1.2 yd over 20 (read from the harness map's floor on the 16
+     * bearings from his point; the plain around it rises on most others). He casts Flame Orb once. The orb spawns level with him, a hover height and a half over the
      * ground: it does not glide at its start. It flies level until the floor under it is two hover heights below its
      * line, then glides forward on the slow-fall curve to a hover height over the floor ahead and flies level again, and
-     * so on down the slope. Reads every kReadMs from kReadMs after the cast, kReads of them: the orb's spline and
+     * so on down the slope. Reads every kReadMs from kReadMs after the cast, kReads of them (the last within the 40 yd the
+     * orb is looked for and before the plain rises back over the orb's line): the orb's spline and
      * placement, their distance ahead of the orb's spawn in the plane, the spline's z below the spawn's, and the
      * spline's z over the ground under it.
      *
@@ -10001,7 +10003,7 @@ namespace Harness
 
     protected:
         float PlayerLift() const override { return 1.5f; }
-        float PlayerFacing() const override { return 3.14159f; }
+        float PlayerFacing() const override { return 4.31969f; }
 
         void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* /*target*/) override
         {
@@ -10056,14 +10058,14 @@ namespace Harness
         }
 
     private:
-        static constexpr size_t kReads = 12;
-        static constexpr uint32 kReadMs = 500;
-        static constexpr float kDrop = 0.2f;
+        static constexpr size_t kReads = 6;
+        static constexpr uint32 kReadMs = 400;
+        static constexpr float kDrop = 0.1f;
         static constexpr float kAheadGain = 1.0f;
         static constexpr float kRiseLow = 0.99f;
         static constexpr float kRiseHigh = 2.5f;
 
-        OrbSample m_samples[12];
+        OrbSample m_samples[6];
     };
 
     void RegisterSpellScenarios(Runner& r)
