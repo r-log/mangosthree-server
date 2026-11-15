@@ -97,7 +97,7 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, *ctx.victim, IGNITE_DOT, basePoints));
     }
 
-    /// 29074, 29075, 29076: Master of Elements: after a spell the proc accepts, gives back the aura's percent of the
+    /// 29074, 29075: Master of Elements: after a spell the proc accepts, gives back the aura's percent of the
     /// spell's base mana cost through 29077. An orb's hit, which costs nothing, counts its share of the orb spell's cost
     /// (Mage::OrbCostShare).
     ProcOutcome MasterOfElementsProc(OnProcContext& ctx)
@@ -404,7 +404,7 @@ namespace
     }
 
     uint32 const IGNITE[] = { 11119, 11120, 12846 };
-    uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075, 29076 };
+    uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075 };
     uint32 const HOT_STREAK[] = { 44445 };
     uint32 const HOT_STREAK_BUFFS[] = { HOT_STREAK_BUFF };
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };

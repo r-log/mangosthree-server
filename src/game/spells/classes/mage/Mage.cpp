@@ -37,7 +37,7 @@
 /// 66: Invisibility
 static SpellHandlerOutcome<void> AuraTriggerSpellMage66(AuraTriggerSpellContext& /*ctx*/)
 {
-    // Here need periodic trigger reducing threat spell (or do it manually)
+    // Its trigger spell, 35009, is not in the client's spell data: the tick casts nothing
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -147,7 +147,7 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56372(DummyAura
         return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
     }
 
-    // not 100% safe with client version switches but for 3.1.3 no spells with cooldown that can have mage player except Frost Nova.
+    // Frost Nova is the mage's one spell of category 35: the glyph resets its cooldown
     ctx.unit->RemoveSpellCategoryCooldown(35, true);
     return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
 }

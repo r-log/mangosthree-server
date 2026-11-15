@@ -1986,7 +1986,7 @@ static SpellHandlerOutcome<void> AuraBoostGenericDefault(AuraBoostContext& /*ctx
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// one body for 2 labels: 44401: absent from the client's spell data, 57761: Brain Freeze
+/// 57761: Brain Freeze
 static SpellHandlerOutcome<void> AuraBoostMagePushingTheLimit(AuraBoostContext& ctx)
 {
     // consumed aura (at proc charges 0)
@@ -2521,7 +2521,6 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
 
     static AurasRow<AuraBoostMageSite> const boostMage[] =
     {
-        { 44401, &AuraBoostMagePushingTheLimit },
         { 57761, &AuraBoostMagePushingTheLimit },
     };
 

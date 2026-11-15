@@ -570,7 +570,6 @@ bool ChatHandler::HandleLearnAllCommand(char* /*args*/)
         "15060",
         "12042",
         "12341",
-        "12848",
         "12344",
         "12353",
         "18460",
