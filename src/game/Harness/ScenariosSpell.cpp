@@ -104,13 +104,14 @@
 // with Cauterize, and the burn that follows; 970 Living Bomb's explosion starts the mage's procs, and a bomb whose
 // target dies does not explode; 971 a staged Fire mage's Flame Orb burns a Camel once a second while it is snared and
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
-// first one's end takes it off; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that
-// falls under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's
+// first one's end takes it off; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that falls
+// under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
-// cast handler and not swapped.
-// The guard of 931-938, 950-972, 983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and refuses the
-// random-pick labels, the random chain targets and any script binding.
+// cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
+// Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
+// The guard of 931-938, 950-972, 981-983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and
+// refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -3946,8 +3947,8 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-972, 983, 985-989): a human mage staged to level 85 with
-     * the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
+     * What the mage scenarios share (951, 952, 954-957, 962-972, 981-983, 985-989): a human mage staged to level 85
+     * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
@@ -4277,13 +4278,14 @@ namespace Harness
             s.swingAtMs = swingAtMs;
             return s;
         }
-        /// An aura cast by him at himself.
-        static Step SelfAura(uint32 spell)
+        /// An aura cast by him at himself; `everyMs` the time to the next step, 0 for a cast step's own.
+        static Step SelfAura(uint32 spell, uint32 everyMs = 0)
         {
             Step s;
             s.spell = spell;
             s.aura = true;
             s.self = true;
+            s.everyMs = everyMs;
             return s;
         }
         /// The Camel's health set to `pct` percent of its maximum.
@@ -4902,6 +4904,11 @@ namespace Harness
                 snprintf(buf, sizeof(buf), "he casts %u at himself, triggered; spell crit %.2f%% (fire)", step.spell,
                          p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_FIRE));
                 m_rec.Note(buf);
+                if (step.clearCooldown)
+                {
+                    p->RemoveSpellCooldown(step.spell, true);
+                    m_rec.Note("his cooldown of " + U(step.spell) + " taken off by call; stored keys [" + CooldownKeys(p) + "]");
+                }
                 p->CastSpell(p, step.spell, true);
                 seen.castId = step.spell;
             }
@@ -8923,6 +8930,241 @@ namespace Harness
     };
 
     /**
+     * What the Molten Shields scenarios share (981, 982): a staged Fire mage with kSpellPower spell power, 1197 with
+     * his intellect's, and FireTalents(), the fifteen points Molten Shields' tier asks, row by row: Burning Soul 3,
+     * Improved Fire Blast 2 and Master of Elements 2; Fire Power 3 and Blazing Speed 2; Blast Wave and Improved Scorch
+     * 2. Blazing Speed (31643) holds a root dispel of 100 in its second effect and a snare dispel of 0 in its third,
+     * which Molten Shields (11094) raises by 100. The steps are casts by him at himself and the Camel's blows: his
+     * Frostfire Bolt (44614) at himself has no flight, so its slow (-40%, the snare mechanic), its hit and its DoT reach
+     * him at once. Blazing Speed's own proc (31642) answers the melee and ranged hits he takes, and none comes. At each
+     * read the scenario notes whether he holds Frostfire Bolt and Blazing Speed, and the amount of his Mage Ward (543).
+     */
+    class MageMoltenShieldsScenario : public MageProcScenario
+    {
+    public:
+        MageMoltenShieldsScenario(char const* name, int order, char const* ownCategory)
+            : MageProcScenario(name, order, ownCategory) {}
+
+    protected:
+        static constexpr uint32 kFrostfireBolt = 44614;
+        static constexpr uint32 kBlazingSpeed = 31643;
+        static constexpr uint32 kMageWard = 543;
+        static constexpr int32 kSpellPower = 1000;
+
+        /// The fifteen points before Molten Shields' tier, as (talent id, rank index).
+        static std::vector<std::pair<uint32, uint32> > FireTalents()
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10545, 1 }, { 11434, 2 }, { 10555, 1 }, { 10551, 0 }, { 10547, 1 } };
+        }
+
+        int32 SpellPower() const override { return kSpellPower; }
+        bool TakesDamage() const override { return true; }
+
+        /// `own` with the spells both scenarios reach: Frostfire Bolt and Blazing Speed, and the holders that can proc
+        /// with what they cast: Blazing Speed's rank 2 (its trigger spell absent), Master of Elements' rank 2 and its
+        /// mana, Offensive State and Arcane Missiles!, Deep Freeze Immunity State and its hit.
+        static std::vector<SpellPrint> SharedPrints(std::vector<SpellPrint> own)
+        {
+            const std::vector<SpellPrint> shared = {
+                // 44614: 72 fields, fnv 0aade896
+                { 44614, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 628 }, { "eff1.EffectBonusCoefficient", 1064967340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 103 }, { "eff1.EffectRealPointsPerLevel", 1081711002 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 3 }, { "eff2.EffectAuraPeriod", 3000 }, { "eff2.EffectBasePoints", 1 }, { "eff2.EffectBonusCoefficient", 1005596799 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 31643: 72 fields, fnv b499aeb8
+                { 31643, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 31 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 108 }, { "eff1.EffectBasePoints", 100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 7 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 108 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 11 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 29075: 26 fields, fnv d8954794
+                { 29075, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 29077: 26 fields, fnv a4e31d4d
+                { 29077, { { "eff0.present", 1 }, { "eff0.Effect", 30 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+            own.insert(own.end(), shared.begin(), shared.end());
+            return own;
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            Seen& seen = st.seen[k];
+            Aura const* ward = p->GetAura(kMageWard, EFFECT_INDEX_0);
+            if (!atRead)
+            {
+                seen.reads["wardAtCast"] = ward ? ward->GetModifier()->m_amount : -1;
+                return;
+            }
+            seen.reads["slow"] = p->HasAura(kFrostfireBolt) ? 1 : 0;
+            seen.reads["speed"] = p->HasAura(kBlazingSpeed) ? 1 : 0;
+            seen.reads["ward"] = ward ? ward->GetModifier()->m_amount : -1;
+            m_rec.Note("on him: " + U(kFrostfireBolt) + " " + HolderOf(p, kFrostfireBolt) + "; " + U(kBlazingSpeed) +
+                       " " + HolderOf(p, kBlazingSpeed) + "; " + U(kMageWard) + " " + HolderOf(p, kMageWard) +
+                       (ward ? ", amount " + std::to_string(ward->GetModifier()->m_amount) : std::string()));
+        }
+
+        /// What ReadOwn kept of step k under `name`; -2 when the step was not read.
+        static int64 ReadAt(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return -2;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -2 : i->second;
+        }
+    };
+
+    /**
+     * S981 `mage-fire-blazing-speed-dispel`: Blazing Speed's snare dispel on a staged Fire mage without Molten Shields,
+     * whose text gives the snare removal to the talent: "your Blazing Speed also removes any movement slowing effects
+     * when triggered". Steps: his Frostfire Bolt at himself, whose slow he then holds; Blazing Speed at himself, whose
+     * snare dispel holds 0.
+     *
+     * `dispel`: `snare=<kept when Frostfire Bolt's holder is on him at Blazing Speed's read, else gone>`; OK at kept,
+     * with the holder on him at the first read and Blazing Speed on him at the second.
+     */
+    class MageFireBlazingSpeedDispel : public MageMoltenShieldsScenario
+    {
+    public:
+        MageFireBlazingSpeedDispel() : MageMoltenShieldsScenario("mage-fire-blazing-speed-dispel", 981, "dispel") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return FireTalents(); }
+
+        std::vector<Step> Steps() const override
+        {
+            return { SelfAura(kFrostfireBolt), SelfAura(kBlazingSpeed) };
+        }
+
+        std::vector<SpellPrint> Prints() const override { return SharedPrints(std::vector<SpellPrint>()); }
+        uint32 Watched() const override { return kFrostfireBolt; }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const bool slowed = ReadAt(st, kSlowStep, "slow") == 1;
+            const bool kept = ReadAt(st, kDispelStep, "slow") == 1;
+            const bool sped = ReadAt(st, kDispelStep, "speed") == 1;
+            const std::string value = std::string("snare=") + (kept ? "kept" : "gone");
+            const std::string detail = U(kFrostfireBolt) + " on him at the first read: " + st.seen[kSlowStep].holder +
+                                       "; at " + U(kBlazingSpeed) + "'s read: " + st.seen[kDispelStep].holder + ", " +
+                                       U(kBlazingSpeed) + (sped ? " on him" : " not on him") +
+                                       "; no Molten Shields, so the snare dispel holds 0";
+            return value + (slowed && kept && sped ? "(OK: " : "(BUG: ") + detail + ")";
+        }
+
+    private:
+        static constexpr size_t kSteps = 2;
+        static constexpr uint32 kSlowStep = 0;
+        static constexpr uint32 kDispelStep = 1;
+    };
+
+    /**
+     * S982 `mage-fire-mage-ward-break`: Molten Shields (11094) on a staged Fire mage, staged as 981 with Molten Shields
+     * as the sixteenth point: "your Blazing Speed also removes any movement slowing effects when triggered and is also
+     * triggered any time Mage Ward dissipates from absorbing damage". Steps:
+     *  1. his Frostfire Bolt at himself, whose slow he then holds;
+     *  2. Blazing Speed at himself: with Molten Shields its snare dispel holds 100, so the slow goes;
+     *  3. Mage Ward (543) at himself, kWardEveryMs before the next step, so step 2's Blazing Speed has run out by then;
+     *  4. the Camel's blow of kBlow fire damage at him: the ward absorbs its whole amount and is removed as broken, and
+     *     the rest reaches him;
+     *  5. Mage Ward at himself again, its cooldown taken off by call first, left to run out its 30 s;
+     *  6. his health set to its maximum kExpireEveryMs after step 5, once the ward has run out, for a read.
+     *
+     * `ward`: `dispel=<gone when Frostfire Bolt is off him at step 2's read, else kept>,ward=<broken when step 3's ward
+     * is off him at the blow's read and his health fell by the blow less that ward's amount, else held>,speed=<up when
+     * the blow's windows sent Blazing Speed and it is on him at the blow's read, else none>,expire=<silent when no
+     * Blazing Speed went in the windows of steps 5 and 6, step 5's ward was on him right after its cast, and neither
+     * a ward nor Blazing Speed is on him at step 6's read, else cast>`; OK at gone, broken, up and silent, with
+     * Frostfire Bolt on him at step 1's read.
+     */
+    class MageFireMageWardBreak : public MageMoltenShieldsScenario
+    {
+    public:
+        MageFireMageWardBreak() : MageMoltenShieldsScenario("mage-fire-mage-ward-break", 982, "ward") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            std::vector<std::pair<uint32, uint32> > talents = FireTalents();
+            talents.push_back(std::make_pair(kMoltenShieldsTalent, 0u));
+            return talents;
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            Step secondWard = SelfAura(kMageWard, kExpireEveryMs);
+            secondWard.clearCooldown = true;
+            return { SelfAura(kFrostfireBolt), SelfAura(kBlazingSpeed), SelfAura(kMageWard, kWardEveryMs),
+                     Blow(kBlow, SPELL_SCHOOL_MASK_FIRE, kBlowEveryMs), secondWard, FullHealth(kLastEveryMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return SharedPrints({
+                // 543: 49 fields, fnv 94d386bd
+                { 543, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 165 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 84 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAmplitude", 1065353216 }, { "eff1.EffectAura", 74 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 4 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+            });
+        }
+
+        uint32 Watched() const override { return kBlazingSpeed; }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            Seen const& blow = st.seen[kBlowStep];
+            const int64 wardAmount = ReadAt(st, kWardStep, "ward");
+            const int64 fell = int64(blow.healthBefore) - int64(blow.healthAfter);
+            const bool slowed = ReadAt(st, kSlowStep, "slow") == 1;
+            const bool gone = ReadAt(st, kDispelStep, "slow") == 0;
+            const bool broken = wardAmount > 0 && blow.read && ReadAt(st, kBlowStep, "ward") == -1 &&
+                                fell == int64(kBlow) - wardAmount;
+            const bool up = Triggered(blow, kBlazingSpeed) && ReadAt(st, kBlowStep, "speed") == 1;
+            const bool silent = !Triggered(st.seen[kExpireStep], kBlazingSpeed) &&
+                                !Triggered(st.seen[kLastStep], kBlazingSpeed) && ReadAt(st, kExpireStep, "wardAtCast") > 0 &&
+                                ReadAt(st, kLastStep, "ward") == -1 && ReadAt(st, kLastStep, "speed") == 0;
+            const std::string value = std::string("dispel=") + (gone ? "gone" : "kept") + ",ward=" +
+                                      (broken ? "broken" : "held") + ",speed=" + (up ? "up" : "none") + ",expire=" +
+                                      (silent ? "silent" : "cast");
+            const std::string detail = U(kFrostfireBolt) + " on him at step 1's read " + (slowed ? "yes" : "no") +
+                                       "; the ward's amount at step 3's read " + std::to_string(wardAmount) +
+                                       ", his health around the blow of " + U(kBlow) + " " + U(blow.healthBefore) + "->" +
+                                       U(blow.healthAfter) + " (fell " + std::to_string(fell) + "); " + U(kBlazingSpeed) +
+                                       " on him at the blow's read: " + blow.holder + "; the ward right after step 5's cast " +
+                                       std::to_string(ReadAt(st, kExpireStep, "wardAtCast")) + ", at step 6's read " +
+                                       std::to_string(ReadAt(st, kLastStep, "ward")) + ", and " + U(kBlazingSpeed) +
+                                       " at step 6's read " + st.seen[kLastStep].holder;
+            return value + (slowed && gone && broken && up && silent ? "(OK: " : "(BUG: ") + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kMoltenShieldsTalent = 10543;
+        static constexpr uint32 kBlow = 4000;
+        static constexpr uint32 kWardEveryMs = 6000;
+        static constexpr uint32 kBlowEveryMs = 4100;
+        static constexpr uint32 kExpireEveryMs = 31000;
+        static constexpr uint32 kLastEveryMs = 1000;
+        static constexpr size_t kSteps = 6;
+        static constexpr uint32 kSlowStep = 0;
+        static constexpr uint32 kDispelStep = 1;
+        static constexpr uint32 kWardStep = 2;
+        static constexpr uint32 kBlowStep = 3;
+        static constexpr uint32 kExpireStep = 4;
+        static constexpr uint32 kLastStep = 5;
+    };
+
+    /**
      * S971 `mage-fire-flame-orb`: Flame Orb (82731) on a staged Fire mage with Fire Power 3 (54734, whose proc
      * chance, 100, is the orb's chance to explode). Staged: Burning Soul 3, Improved Fire Blast 2 and Fire Power 3;
      * Flame Orb learned. The Camel stands ten yards in front of him and casts Hit Me (100446, +20% spell hit
@@ -9310,5 +9552,7 @@ namespace Harness
         r.Register(new MageFireMoltenFuryTick());
         r.Register(new MageFireMoltenArmor());
         r.Register(new MageFirePyroblastPath());
+        r.Register(new MageFireBlazingSpeedDispel());
+        r.Register(new MageFireMageWardBreak());
     }
 }

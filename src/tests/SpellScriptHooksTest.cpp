@@ -40,11 +40,17 @@
 /// creature, which sends nothing out of a world, and removed through Unit::RemoveSpellAuraHolder.
 /// The low-health multiplier reads class-script auras made through their constructors, on spells put into the spell,
 /// effect and class options stores, held in a bare creature's per-type aura list.
+///
+/// The dispel-mechanic effect's count, and its mount dispel that takes every mount, run Spell::EffectDispelMechanic of a
+/// spell built on a bare creature, with the target and the value Spell::HandleEffects would set, at holders made
+/// through their constructor with no aura, their mechanic the spell's own (a SpellCategories row), held in a bare
+/// creature's holder map; each holder the effect takes leaves through Unit::RemoveSpellAuraHolder.
 
 #include "TestHarness.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/SpellScriptQueries.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/pipeline/Spell.h"
 #include "Creature.h"
 #include "DBCStores.h"
 #include "data/ServerSpellStore.h"
@@ -952,9 +958,10 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
     // The proc hook holds the mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the damage-done
-    // hook Ice Lance's, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's nine (its seven DoTs and two
-    // ranks), the aura-remove hook Hot Streak's buff's and Pyromaniac's nine, and the dummy-effect hook Combustion's,
-    // Impact's spread, Flame Orb's and the orb's scan's (MageScriptsTest names their ids); no other hook holds a row.
+    // hook Ice Lance's, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's nine (its seven DoTs and
+    // two ranks), the aura-remove hook Hot Streak's buff's, Mage Ward's and Pyromaniac's nine, and the dummy-effect
+    // hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's (MageScriptsTest names their ids); no other
+    // hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AfterHitHook::Key, AuraAmountHook::Key,
@@ -970,8 +977,171 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(9));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(10));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(11));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
-    CHECK_EQ(game.Count(), std::size_t(1277));
+    CHECK_EQ(game.Count(), std::size_t(1278));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
+}
+
+namespace
+{
+    const uint32 kSnareSpell = 94220;
+    const uint32 kOtherSnareSpell = 94221;
+    const uint32 kRootSpell = 94222;
+    const uint32 kDispelSpell = 94223;
+    const uint32 kMountSpell = 94224;
+    const uint32 kSnareCategories = 94220;
+    const uint32 kRootCategories = 94222;
+    const uint32 kMountCategories = 94224;
+
+    // SpellCategories.dbc rows: { Category, DefenseType, DispelType, Mechanic, PreventionType, StartRecoveryCategory }.
+    SpellCategoriesEntry s_snareCategories = { 0, 0, 0, MECHANIC_SNARE, 0, 0 };
+    SpellCategoriesEntry s_rootCategories = { 0, 0, 0, MECHANIC_ROOT, 0, 0 };
+    SpellCategoriesEntry s_mountCategories = { 0, 0, 0, MECHANIC_MOUNT, 0, 0 };
+
+    SpellRowStorage s_snareRow = {};
+    SpellRowStorage s_otherSnareRow = {};
+    SpellRowStorage s_rootRow = {};
+    SpellRowStorage s_dispelRow = {};
+    SpellRowStorage s_mountRow = {};
+
+    // A Spell.dbc row with only its id and its SpellCategories row (none for 0), put into the spell store once, beside
+    // the three SpellCategories rows.
+    SpellEntry const* StoredMechanicSpell(SpellRowStorage& storage, uint32 spellId, uint32 categoriesId)
+    {
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(storage.bytes);
+        if (row->ID != spellId)
+        {
+            sSpellCategoriesStore.SetEntry(kSnareCategories, &s_snareCategories);
+            sSpellCategoriesStore.SetEntry(kRootCategories, &s_rootCategories);
+            sSpellCategoriesStore.SetEntry(kMountCategories, &s_mountCategories);
+            row->ID = spellId;
+            row->CategoriesID = categoriesId;
+            sSpellStore.SetEntry(spellId, row);
+        }
+        return row;
+    }
+
+    // A spell cast by `caster` whose dispel-mechanic effect reaches `target` with the value `value`, as
+    // Spell::HandleEffects leaves its target and value before it runs the effect.
+    class DispelCast : public Spell
+    {
+        public:
+            DispelCast(Unit& caster, Unit& target, int32 value)
+                : Spell(&caster, StoredMechanicSpell(s_dispelRow, kDispelSpell, 0), true)
+            {
+                unitTarget = &target;
+                damage = value;
+            }
+    };
+
+    // A holder of `spell` on `target`, made through its constructor with no aura, put in the target's holder map. Its
+    // caster is the target, whose guid is empty, so its removal looks up no other unit.
+    SpellAuraHolder* HeldHolder(SpellEntry const* spell, BareCreature& target)
+    {
+        SpellAuraHolder* holder = new SpellAuraHolder(spell, &target, NULL, NULL, NULL);
+        target.HoldAura(spell->ID, *holder);
+        return holder;
+    }
+
+    // A dispel-mechanic effect row for `mechanic`.
+    SpellEffectEntry MechanicDispel(Mechanics mechanic)
+    {
+        SpellEffectEntry effect = SpellEffectEntry();
+        effect.SpellID = kDispelSpell;
+        effect.Effect = SPELL_EFFECT_DISPEL_MECHANIC;
+        effect.EffectMiscValue_0 = mechanic;
+        return effect;
+    }
+}
+
+TEST(SpellEffects_ADispelMechanicEffectRemovesAsManyHoldersAsItsValue)
+{
+    // Two snares and a root on the target, the snares first in its holder map, which orders holders by spell id.
+    SpellEntry const* snare = StoredMechanicSpell(s_snareRow, kSnareSpell, kSnareCategories);
+    SpellEntry const* otherSnare = StoredMechanicSpell(s_otherSnareRow, kOtherSnareSpell, kSnareCategories);
+    SpellEntry const* root = StoredMechanicSpell(s_rootRow, kRootSpell, kRootCategories);
+    BareCreature caster;
+    BareCreature target;
+    SpellEffectEntry const effect = MechanicDispel(MECHANIC_SNARE);
+    SpellAuraHolder* firstSnare = HeldHolder(snare, target);
+    SpellAuraHolder* secondSnare = HeldHolder(otherSnare, target);
+    SpellAuraHolder* rooted = HeldHolder(root, target);
+    CHECK(firstSnare->HasMechanic(MECHANIC_SNARE));
+    CHECK(secondSnare->HasMechanic(MECHANIC_SNARE));
+    CHECK(!rooted->HasMechanic(MECHANIC_SNARE));
+
+    // A value of 0, Blazing Speed's snare effect without Molten Shields, removes none, and so does one below 0.
+    for (int32 value : { 0, -1 })
+    {
+        DispelCast cast(caster, target, value);
+        cast.EffectDispelMechanic(&effect);
+        CHECK_EQ(target.GetSpellAuraHolderMap().size(), std::size_t(3));
+    }
+
+    // A value of 1, Tremor Totem's, removes the first snare and leaves the second.
+    DispelCast one(caster, target, 1);
+    one.EffectDispelMechanic(&effect);
+    CHECK(target.GetSpellAuraHolder(kSnareSpell) == NULL);
+    CHECK(target.GetSpellAuraHolder(kOtherSnareSpell) == secondSnare);
+    CHECK(target.GetSpellAuraHolder(kRootSpell) == rooted);
+    CHECK_EQ(target.GetSpellAuraHolderMap().size(), std::size_t(2));
+
+    // A value of 100, Blazing Speed's with Molten Shields, removes every snare, and the root stays.
+    firstSnare = HeldHolder(snare, target);
+    CHECK(firstSnare->HasMechanic(MECHANIC_SNARE));
+    DispelCast all(caster, target, 100);
+    all.EffectDispelMechanic(&effect);
+    CHECK(target.GetSpellAuraHolder(kSnareSpell) == NULL);
+    CHECK(target.GetSpellAuraHolder(kOtherSnareSpell) == NULL);
+    CHECK(target.GetSpellAuraHolder(kRootSpell) == rooted);
+    CHECK_EQ(target.GetSpellAuraHolderMap().size(), std::size_t(1));
+
+    // The value counts holders, not spells: of two holders of one snare spell, 1 removes one.
+    firstSnare = HeldHolder(snare, target);
+    secondSnare = HeldHolder(snare, target);
+    CHECK(firstSnare != secondSnare);
+    DispelCast oneOfTwo(caster, target, 1);
+    oneOfTwo.EffectDispelMechanic(&effect);
+    CHECK_EQ(target.GetSpellAuraHolderMap().size(), std::size_t(2));
+    CHECK(target.GetSpellAuraHolder(kSnareSpell) != NULL);
+    CHECK(target.GetSpellAuraHolder(kRootSpell) == rooted);
+
+    // What is left leaves through the engine's own removal.
+    while (SpellAuraHolder* left = target.GetSpellAuraHolder(kSnareSpell))
+    {
+        target.RemoveSpellAuraHolder(left);
+    }
+    target.RemoveSpellAuraHolder(rooted);
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+TEST(SpellEffects_AMountDispelRemovesEveryMountWhateverItsValue)
+{
+    // Two holders of a mount spell and a snare on the target. A mount dispel of value 0, the creature Polymorphs' and
+    // the dismount spells', or of 1, Dazed's, removes both mounts; the snare is no mount and stays.
+    SpellEntry const* mount = StoredMechanicSpell(s_mountRow, kMountSpell, kMountCategories);
+    SpellEntry const* snare = StoredMechanicSpell(s_snareRow, kSnareSpell, kSnareCategories);
+    BareCreature caster;
+    BareCreature target;
+    SpellEffectEntry const effect = MechanicDispel(MECHANIC_MOUNT);
+    SpellAuraHolder* slowed = HeldHolder(snare, target);
+    for (int32 value : { 0, 1 })
+    {
+        SpellAuraHolder* firstMount = HeldHolder(mount, target);
+        SpellAuraHolder* secondMount = HeldHolder(mount, target);
+        CHECK(firstMount->HasMechanic(MECHANIC_MOUNT));
+        CHECK(secondMount->HasMechanic(MECHANIC_MOUNT));
+        CHECK(!slowed->HasMechanic(MECHANIC_MOUNT));
+        CHECK_EQ(target.GetSpellAuraHolderMap().size(), std::size_t(3));
+        DispelCast cast(caster, target, value);
+        cast.EffectDispelMechanic(&effect);
+        CHECK(target.GetSpellAuraHolder(kMountSpell) == NULL);
+        CHECK(target.GetSpellAuraHolder(kSnareSpell) == slowed);
+        CHECK_EQ(target.GetSpellAuraHolderMap().size(), std::size_t(1));
+    }
+
+    // What is left leaves through the engine's own removal.
+    target.RemoveSpellAuraHolder(slowed);
+    CHECK(target.GetSpellAuraHolderMap().empty());
 }

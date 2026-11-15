@@ -26,15 +26,16 @@
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
-/// removal of Hot Streak's buff, Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the
-/// dummy aura hook, Pyromaniac's leaves and its rows at the aura-apply and aura-remove hooks, Combustion's exits at
-/// the dummy-effect hook, its tick and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast
-/// cooldown, which DoTs Impact spreads, and the exits of its spread at the dummy-effect hook; the orb's rows are counted
-/// here and tested in MageOrbTest. A body that casts, reads a level or creates an item needs a live unit and a spell;
-/// the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template or AI), with the effect
-/// rows the scripts read added to the effect store as the client's data holds them, and a holder put in the creature's
-/// holder map where a script asks whether it holds an aura. The cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown
-/// sinks the test installs.
+/// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
+/// Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the dummy aura hook, Pyromaniac's
+/// leaves and its rows at the aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick
+/// and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads,
+/// and the exits of its spread at the dummy-effect hook; the orb's rows are counted here and tested in MageOrbTest. A
+/// body that casts, reads a level or creates an item needs a
+/// live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template
+/// or AI), with the effect rows the scripts read added to the effect store as the client's data holds them, and a
+/// holder put in the creature's holder map where a script asks whether it holds an aura. The cooldown Impact clears is
+/// a player's: a player on a session with no socket, in no world, whose cooldown sinks the test installs.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -93,6 +94,9 @@ namespace
     // The id the aura-remove script holds: Hot Streak's buff, which gives the Tier 10 two-piece bonus's haste when it is
     // used up.
     uint32 const HOT_STREAK_BUFF_IDS[] = { 48108 };
+
+    // The id Molten Shields' aura-remove script holds: Mage Ward, whose break by damage brings Blazing Speed.
+    uint32 const MAGE_WARD_IDS[] = { 543 };
 
     // The ids Pyromaniac's scripts hold at the aura-apply and aura-remove hooks: the seven DoTs it counts (Flamestrike's
     // ground effect, Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, Pyroblast!) and the talent's two ranks.
@@ -387,15 +391,15 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
     // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
-    // Hot Streak's buff at the aura-remove hook, Pyromaniac's seven DoTs and two ranks at the aura-apply and
+    // Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's seven DoTs and two ranks at the aura-apply and
     // aura-remove hooks, and Combustion and Impact's spread at the dummy-effect hook. Frost: the 74396 boost and proc
-    // labels and Summon Water Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of
-    // Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane:
-    // Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the dummy-effect hook, and the orb's scan
-    // at the target and dummy-effect hooks. 59 rows, 59 keys and 3 defaults, none twice.
+    // labels; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak,
+    // Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption,
+    // Arcane Potency and Mana Shield. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and
+    // dummy-effect hooks. 60 rows, 60 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(62));
-    CHECK_EQ(registry.Count(), std::size_t(59));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(63));
+    CHECK_EQ(registry.Count(), std::size_t(60));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -408,7 +412,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(9));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(10));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(11));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
@@ -427,7 +431,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 32, 32, 0 },
+        { &Mage::RegisterFire, 33, 33, 0 },
         { &Mage::RegisterFrost, 7, 7, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
@@ -441,8 +445,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(62));
-    CHECK_EQ(registry.Count(), std::size_t(59));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(63));
+    CHECK_EQ(registry.Count(), std::size_t(60));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -453,7 +457,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(59));
+    CHECK_EQ(mine.size(), std::size_t(60));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -870,6 +874,7 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
     }
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), sizeof(LIVING_BOMB_IDS) / sizeof(uint32));
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), sizeof(HOT_STREAK_BUFF_IDS) / sizeof(uint32) +
+                                                sizeof(MAGE_WARD_IDS) / sizeof(uint32) +
                                                 sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) +
                                                 sizeof(PYROMANIAC_IDS) / sizeof(uint32));
 
@@ -1034,6 +1039,51 @@ TEST(MageScripts_PushingTheLimitComesOnlyWhenHotStreakIsUsedUpWithTheTier10Bonus
         AuraRemoveContext ranOut(target, &caster, SpellRow(row, 48108), AuraHandle(holder), mode);
         CHECK(registry.Dispatch<AuraRemoveHook>(48108, ranOut).IsReturn());
     }
+}
+
+TEST(MageScripts_AMageWardThatDamageUsesUpBringsBlazingSpeedOnlyWithMoltenShields)
+{
+    // The decision: the ward's last point used up by damage (the shield-break mode) with a caster who knows Molten
+    // Shields; a break for a caster without the talent gives nothing, and so do its running out, a cancel, a dispel, a
+    // plain removal, a re-application, a death, a delete, a tracked aura's replacement and a target limit.
+    CHECK(Mage::MageWardTriggersBlazingSpeed(AURA_REMOVE_BY_SHIELD_BREAK, true));
+    CHECK(!Mage::MageWardTriggersBlazingSpeed(AURA_REMOVE_BY_SHIELD_BREAK, false));
+    AuraRemoveMode const silent[] =
+    {
+        AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEFAULT,
+        AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_TRACKING,
+        AURA_REMOVE_BY_TARGET_LIMIT,
+    };
+    for (AuraRemoveMode mode : silent)
+    {
+        CHECK(!Mage::MageWardTriggersBlazingSpeed(mode, true));
+        CHECK(!Mage::MageWardTriggersBlazingSpeed(mode, false));
+    }
+
+    // The script stands for 543 at the aura-remove hook, in the game's table too, and lets the removal's boosts run
+    // every time. A ward that ran out, a break with no caster (one the server cannot find) and a break whose caster
+    // lacks Molten Shields (11094) cast nothing; a break whose caster holds 11094 goes on to the cast of Blazing Speed
+    // (31643), which the test's spell store lacks, so nothing is cast.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<AuraRemoveHook>(registry, MAGE_WARD_IDS);
+    BareCreature mage;
+    SpellRowStorage row;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    AuraRemoveContext ranOut(mage, &mage, SpellRow(row, 543), AuraHandle(holder), AURA_REMOVE_BY_EXPIRE);
+    CHECK(registry.Dispatch<AuraRemoveHook>(543, ranOut).IsContinue());
+    AuraRemoveContext noCaster(mage, NULL, SpellRow(row, 543), AuraHandle(holder), AURA_REMOVE_BY_SHIELD_BREAK);
+    CHECK(registry.Dispatch<AuraRemoveHook>(543, noCaster).IsContinue());
+    AuraRemoveContext noTalent(mage, &mage, SpellRow(row, 543), AuraHandle(holder), AURA_REMOVE_BY_SHIELD_BREAK);
+    CHECK(registry.Dispatch<AuraRemoveHook>(543, noTalent).IsContinue());
+    HolderStorage talentStorage;
+    mage.HoldAura(11094, EmptyHolder(talentStorage));
+    CHECK(mage.HasAura(11094));
+    AuraRemoveContext broken(mage, &mage, SpellRow(row, 543), AuraHandle(holder), AURA_REMOVE_BY_SHIELD_BREAK);
+    CHECK(registry.Dispatch<AuraRemoveHook>(543, broken).IsContinue());
+    CHECK(sSpellStore.LookupEntry(31643) == NULL);
+    CHECK(!mage.HasAura(31643));
 }
 
 TEST(MageScripts_PyromaniacCountsTheMagesFireDamageOverTime)

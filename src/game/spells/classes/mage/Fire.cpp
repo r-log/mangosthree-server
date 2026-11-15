@@ -202,6 +202,22 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, 31643, NULL, basePoints));
     }
 
+    uint32 const MOLTEN_SHIELDS = 11094;
+    uint32 const BLAZING_SPEED_BUFF = 31643;
+
+    /// 543: Mage Ward: when the ward is removed because damage used up its last point and its caster knows Molten
+    /// Shields (11094), Blazing Speed (31643) is cast on that caster from the unit the ward was on, for him; the ward
+    /// is self-cast, so both are the mage, and his spell modifiers reach the cast. Any other removal casts nothing.
+    /// The removal's boosts still run.
+    SpellHandlerOutcome<void> MageWardAuraRemove(AuraRemoveContext& ctx)
+    {
+        if (Mage::MageWardTriggersBlazingSpeed(ctx.mode, ctx.caster && ctx.caster->HasAura(MOLTEN_SHIELDS)))
+        {
+            ctx.CastTriggered(*ctx.caster, BLAZING_SPEED_BUFF);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     /// 44457: Living Bomb: when its dummy effect is un-applied because the aura ran out (Mage::LivingBombExplodes),
     /// the target casts the effect's amount, the explosion (44461), at itself, triggered by this aura effect; any
     /// other removal casts nothing. Every un-apply ends the dummy aura handler; an apply goes on to its other steps.
@@ -408,6 +424,7 @@ namespace
     uint32 const HOT_STREAK[] = { 44445 };
     uint32 const HOT_STREAK_BUFFS[] = { HOT_STREAK_BUFF };
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
+    uint32 const MAGE_WARD[] = { 543 };
     uint32 const LIVING_BOMB[] = { 44457 };
     uint32 const COMBUSTION[] = { 11129 };
     uint32 const IMPACT[] = { 11103, 12357 };
@@ -447,6 +464,11 @@ bool Mage::PushingTheLimitOnRemove(AuraRemoveMode mode, bool casterHasT10TwoPiec
 bool Mage::LivingBombExplodes(AuraRemoveMode mode)
 {
     return mode == AURA_REMOVE_BY_EXPIRE;
+}
+
+bool Mage::MageWardTriggersBlazingSpeed(AuraRemoveMode mode, bool casterKnowsMoltenShields)
+{
+    return mode == AURA_REMOVE_BY_SHIELD_BREAK && casterKnowsMoltenShields;
 }
 
 bool Mage::HotStreakStep(int32& crits, bool crit, bool baseRollPassed, bool improvedRollPassed)
@@ -545,6 +567,7 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<OnProcHook>(registry, HOT_STREAK, &HotStreakProc);
     rows += RegisterRanks<AuraRemoveHook>(registry, HOT_STREAK_BUFFS, &HotStreakBuffRemove);
     rows += RegisterRanks<OnProcHook>(registry, BLAZING_SPEED, &BlazingSpeedProc);
+    rows += RegisterRanks<AuraRemoveHook>(registry, MAGE_WARD, &MageWardAuraRemove);
     rows += RegisterRanks<DummyAuraHook>(registry, LIVING_BOMB, &LivingBombDummyAura);
     rows += RegisterRanks<AuraApplyHook>(registry, PYROMANIAC_DOTS_APPLIED, &PyromaniacDotApply);
     rows += RegisterRanks<AuraApplyHook>(registry, FROSTFIRE_BOLT, &FrostfireBoltAuraApply);
