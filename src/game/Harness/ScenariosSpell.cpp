@@ -84,8 +84,8 @@
 // is; 950 a mage staged to level 85 at a fixed spell power casts Fireball five times at a level-85
 // target; 951, 952 and 954 a staged Fire mage's proc talents: Hot Streak, Master of Elements and
 // Blazing Speed; 955 Combustion's DoT, the per-second sum of his Pyroblast DoT and Ignite on the
-// target; 956 Living Bomb's explosion at expiry and at dispel; 957 Ice Lance at a frozen target, an
-// unfrozen one, and with Fingers of Frost;
+// target; 956 Living Bomb's explosion at expiry, and none at a dispel or a removal; 957 Ice Lance at a
+// frozen target, an unfrozen one, and with Fingers of Frost;
 // 958-960 a warrior, a paladin and a death knight staged to level 85 at a fixed attack power cast Heroic
 // Throw, Hammer of Wrath and Death Coil five times at a level-85 target; 961 a priest staged the same way
 // with a fixed spell power casts Mortar Shot, a physical spell on the spell path, five times at it; 962 a
@@ -93,11 +93,12 @@
 // Ignite's ticks under Flashburn on a staged Fire mage with mastery rating; 965 Living Bomb on four targets from
 // one mage, and a refresh; 967 a staged Fire mage's Pyroblast applies Critical Mass and his Arcane Blast crit gives
 // back mana through Master of Elements; 969 a killing blow on a Fire mage with Cauterize, and the burn that follows;
+// 970 Living Bomb's explosion starts the mage's procs, and a bomb whose target dies does not explode;
 // 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the first one's end takes it off;
 // 985 the Fire passives that change a hit's damage, a cooldown and a debuff; 986 the Fire passives that change how
 // a cast goes; 987 six Fire glyphs.
-// The guard of 931-938, 950-965, 967, 969, 972 and 985-987 (Qualify) fingerprints every spell a scenario reaches
-// and refuses the random-pick labels, the random chain targets and any script binding.
+// The guard of 931-938, 950-965, 967, 969, 970, 972 and 985-987 (Qualify) fingerprints every spell a scenario
+// reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -3910,10 +3911,10 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-967, 969, 972, 985-987): a human mage staged to level 85
-     * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer) and a Camel (50249)
-     * staged to level 85 ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's
-     * steps, in order:
+     * What the mage scenarios share (951, 952, 954-957, 962-967, 969, 970, 972, 985-987): a human mage staged to level
+     * 85 with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
+     * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
+     * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
      *    a hit aura), that aura put on him by a triggered self-cast when he does not hold it; his mana set to its
      *    maximum by call; for a step that must crit, Increased Critical Spell (23434, a spell crit chance aura) put on
@@ -3936,6 +3937,7 @@ namespace Harness
      *    right after it. Read kSwingReadMs after; a blow that killed him has him resurrected at full health there, so
      *    the steps after it run;
      *  - his health set to its maximum by call, read kSwingReadMs after;
+     *  - a kill: he deals the Camel its health as plain damage (Unit::DealDamage, no spell), read kSwingReadMs after;
      *  - a removal: the holder of the step's spell taken off the Camel, by dispel
      *    (Unit::RemoveAuraHolderDueToSpellByDispel, one stack) or by the plain call (Unit::RemoveAurasDueToSpell),
      *    read kSwingReadMs after;
@@ -3959,9 +3961,9 @@ namespace Harness
      * fields; `steps` each step as the record reads it (a cast's spell, `c` added when its damage log is a crit,
      * `miss` when SPELL_GO lists the Camel as missed, `none` when no damage log came; an aura cast's spell, `miss`
      * added as for a cast; a swing's `hit` when his health fell, else `swing`; a blow's `blow`; a health step's
-     * `full`; a Camel health step's `health` and its percent; a removal's `dispel` or `remove`), a BUG when a step
-     * was refused or not read, a cast's crit flag is not the step's or an aura cast missed, but not for a cast whose
-     * refusal the step wants (`refusal`), which the scenario's own category judges;
+     * `full`; a Camel health step's `health` and its percent; a kill's `kill`; a removal's `dispel` or `remove`), a
+     * BUG when a step was refused or not read, a cast's crit flag is not the step's or an aura cast missed, but not
+     * for a cast whose refusal the step wants (`refusal`), which the scenario's own category judges;
      * `triggered` the spells of the SPELL_GO packets in each step's windows other than the step's own, the crit
      * aura's and the caster aura's, which are what his procs and the auras cast; the scenario's own category;
      * `noPersistence`; `digest`.
@@ -3990,6 +3992,10 @@ namespace Harness
             for (size_t i = 0; i < steps.size(); ++i)
             {
                 plan.takesDamage = plan.takesDamage || steps[i].swing || steps[i].blow || steps[i].swingAtMs;
+                if (steps[i].kill)
+                {
+                    ++plan.kills[kCamel];
+                }
             }
             for (size_t i = 0; i < prints.size(); ++i)
             {
@@ -4082,6 +4088,10 @@ namespace Harness
             stage.spellPower = SpellPower();
             stage.spells = spells;
             st->staged = StagePlayer(*p, stage);
+            if (st->staged)
+            {
+                AfterStage(*p);
+            }
             st->levelSet = p->getLevel();
             ReadStage(*st, p, target, level);
             ReadModifiers(*st, p);
@@ -4112,7 +4122,7 @@ namespace Harness
 
         /// One step of a scenario: the Camel's swing at the mage, the mage's cast of `spell` at the Camel or at himself,
         /// the removal of `spell`'s holder from the Camel, the Camel's blow of `amount` damage of `school` at the mage,
-        /// the mage's health set to its maximum, or the Camel's health set.
+        /// the mage's health set to its maximum, the Camel's health set, or the mage's kill of the Camel.
         struct Step
         {
             bool swing = false;
@@ -4133,6 +4143,7 @@ namespace Harness
             bool refusal = false;               ///< a cast whose refusal the step wants: the own category judges it
             uint32 swingAtMs = 0;               ///< a cast the Camel's swing strikes this long after it starts; 0 for none
             uint32 healthPct = 0;               ///< the Camel's health set to this percent of its maximum; 0 for no such step
+            bool kill = false;                  ///< the mage deals the Camel its health as plain damage
         };
         static Step Cast(uint32 spell, bool crit)
         {
@@ -4218,9 +4229,20 @@ namespace Harness
             s.everyMs = everyMs;
             return s;
         }
-        /// Whether a step is a cast of the mage's, at the Camel or at himself: neither a swing, a removal, a blow nor a
-        /// health step.
-        static bool IsCast(Step const& step) { return !step.swing && !step.remove && !step.blow && !step.fullHealth && !step.healthPct; }
+        /// The mage's kill of the Camel: he deals it its health as plain damage.
+        static Step Kill(uint32 everyMs)
+        {
+            Step s;
+            s.kill = true;
+            s.everyMs = everyMs;
+            return s;
+        }
+        /// Whether a step is a cast of the mage's, at the Camel or at himself: neither a swing, a removal, a blow, a
+        /// health step nor a kill.
+        static bool IsCast(Step const& step)
+        {
+            return !step.swing && !step.remove && !step.blow && !step.fullHealth && !step.healthPct && !step.kill;
+        }
 
         /// One spell modifier read: what the player's modifiers of `op` make of `base` for `spell`.
         struct ModifierRead
@@ -4236,8 +4258,8 @@ namespace Harness
             bool ran = false, refused = false, read = false;
             uint32 castId = 0;
             uint32 cost = 0;                            ///< a cast's mana cost, Spell::CalculatePowerCost
-            /// The Camel's for a cast, the mage's for a swing, a blow and a health step: before the step, and at its
-            /// read, or for a blow right after it.
+            /// The Camel's for a cast and a kill, the mage's for a swing, a blow and a health step: before the step,
+            /// and at its read, or for a blow right after it.
             uint32 healthBefore = 0, healthAfter = 0;
             bool targetFrozen = false;                  ///< Unit::IsFrozen on the Camel when the step ran
             std::string watchedBefore;                  ///< HolderOf the watched spell when the step ran
@@ -4298,6 +4320,8 @@ namespace Harness
         virtual bool Heals() const { return false; }
         /// His health set before a swing or a blow; 0 for his maximum.
         virtual uint32 SwingHealth() const { return 0; }
+        /// What the scenario does to him right after he is staged, before the staged line is read.
+        virtual void AfterStage(Player& /*p*/) {}
         virtual std::vector<Step> Steps() const = 0;
         /// Every spell the scenario reaches: the casts, the holders that can proc and what they cast, the crit aura.
         virtual std::vector<SpellPrint> Prints() const = 0;
@@ -4657,6 +4681,13 @@ namespace Harness
                 p->SetHealth(p->GetMaxHealth());
                 m_rec.Note("his health " + U(seen.healthBefore) + " set to his maximum " + U(p->GetHealth()));
             }
+            else if (step.kill)
+            {
+                seen.healthBefore = target->GetHealth();
+                m_rec.Note("the Camel's health " + U(seen.healthBefore) + "; he deals it that much as plain damage");
+                p->DealDamage(target, target->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+                m_rec.Note("the Camel's health right after " + U(target->GetHealth()) + (target->IsAlive() ? "" : ", dead"));
+            }
             else if (step.healthPct)
             {
                 seen.healthBefore = target->GetHealth();
@@ -5004,6 +5035,10 @@ namespace Harness
                 else if (step.healthPct)
                 {
                     value = "health" + U(step.healthPct);
+                }
+                else if (step.kill)
+                {
+                    value = "kill";
                 }
                 else if (step.aura)
                 {
@@ -5462,11 +5497,11 @@ namespace Harness
      * S956 `mage-fire-living-bomb`: Living Bomb (44457) on the Camel, cast by a staged mage who learned the talent's
      * spell (which takes its one point), with Glyph of Living Bomb (928) and kHasteRating haste rating, as a level-85
      * Fire mage has them. Its dummy aura (effect 1) holds the explosion's spell, 44461, which the Camel casts for the
-     * mage when the aura is removed by expiry or by dispel, and not when it is removed otherwise. Steps: Living Bomb,
-     * left to run out its 12 s; Living Bomb, then dispelled; Living Bomb, then removed by the plain call.
+     * mage when the aura runs out, and not when it is removed otherwise. Steps: Living Bomb, left to run out its 12 s;
+     * Living Bomb, then dispelled; Living Bomb, then removed by the plain call.
      *
      * `explosion`: the steps after which 44461 was cast, with its damage logs; OK when they are the expiry's (1) and
-     * the dispel's (3) and no other.
+     * no other.
      */
     class MageFireLivingBomb : public MageProcScenario
     {
@@ -5538,7 +5573,7 @@ namespace Harness
             }
             const std::string casts = StepsWhere(st, [&st](uint32 k) { return Triggered(st.seen[k], 44461); });
             const std::string detail = "44461 cast after steps " + casts + "; its damage logs: " + (logs.empty() ? std::string("none") : logs) + ")";
-            return casts == "1,3" ? casts + "(OK: " + detail : "BUG(" + casts + ": " + detail;
+            return casts == "1" ? casts + "(OK: " + detail : "BUG(" + casts + ": " + detail;
         }
 
     private:
@@ -7083,6 +7118,154 @@ namespace Harness
     };
 
     /**
+     * S970 `mage-fire-living-bomb-rules`: Living Bomb (44457) cast by a staged mage with no talents who learned the
+     * spell, without haste rating, so a bomb lasts its 12 s. Once staged, his Offensive State (79684) is taken off and
+     * put back at kOffensiveStatePoints, so each damaging spell of his the proc accepts casts Arcane Missiles! (79683,
+     * 20 s) on him; he knows no Hot Streak, so nothing refuses it. Before the first cast he takes Precision (13843, +6%
+     * spell hit), so no cast can miss a level-85 Camel. The explosion (44461), which the Camel casts for him when the
+     * aura runs out, is one of his hits and starts his procs: it casts 79683 on him again. A bomb whose Camel dies
+     * leaves with AURA_REMOVE_BY_DEATH and does not explode. Steps: Living Bomb, left to run out its 12 s; 13 s after
+     * it, the Camel's swing at him, which is no spell of his; Living Bomb again; 2 s later he deals the Camel its
+     * health as plain damage. A cast is read kReadMs after it; at the swing's read the scenario notes the time 79683
+     * has left on him.
+     *
+     * `rules`: `expiry=<the 44461 damage logs in the first step's windows> refreshed=<yes when 79683 has more than
+     * kRefreshedAboveMs left on him at the swing's read> death=<the 44461 damage logs in the kill's windows, none for
+     * none>`; OK at one, yes and none, with the Camel dead at the kill's read. Cast again at the explosion, 1.3 s
+     * before that read, 79683 has about 18.7 s left; not cast again: none on him.
+     */
+    class MageFireLivingBombRules : public MageProcScenario
+    {
+    public:
+        MageFireLivingBombRules() : MageProcScenario("mage-fire-living-bomb-rules", 970, "rules") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return std::vector<std::pair<uint32, uint32> >(); }
+        std::vector<uint32> Spells() const override { return { kLivingBomb }; }
+        bool TakesDamage() const override { return true; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 CasterAura() const override { return kPrecision; }
+
+        void AfterStage(Player& p) override
+        {
+            p.RemoveAurasDueToSpell(kOffensiveState);
+            int32 points = kOffensiveStatePoints;
+            p.CastCustomSpell(&p, kOffensiveState, &points, NULL, NULL, true);
+            Aura const* offensiveState = p.GetAura(kOffensiveState, EFFECT_INDEX_0);
+            m_rec.Note("his " + U(kOffensiveState) + " taken off and cast again at " + U(uint32(kOffensiveStatePoints)) + ": " +
+                       (offensiveState ? "its effect 0 holds " + std::to_string(offensiveState->GetModifier()->m_amount)
+                                       : std::string("not on him")));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            return { AuraCast(kLivingBomb, kExpiryEveryMs), Swing(), AuraCast(kLivingBomb, kKillEveryMs), Kill(kKillEveryMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 44457: 49 fields, fnv 87d07253
+                { 44457, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 3000 }, { "eff0.EffectBasePoints", 153 }, { "eff0.EffectBonusCoefficient", 1048844435 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 44461 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44461: 26 fields, fnv f40ea43f
+                { 44461, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 306 }, { "eff0.EffectBonusCoefficient", 1057216266 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 53 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return kArcaneMissilesBuff; }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (!atRead || k != kSwingStep)
+            {
+                return;
+            }
+            SpellAuraHolder const* holder = p->GetSpellAuraHolder(kArcaneMissilesBuff);
+            st.seen[k].reads["left"] = holder ? holder->GetAuraDuration() : -1;
+            m_rec.Note(U(kArcaneMissilesBuff) + " on him: " + (holder ? std::to_string(holder->GetAuraDuration()) + " ms left of " +
+                                                                  std::to_string(holder->GetAuraMaxDuration())
+                                                                : std::string("none")));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<uint32> hits(st.steps.size(), 0);
+            std::string logs;
+            const std::string hit = ".hit." + U(kExplosion) + "=";
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                for (std::string const& window : StepWindows(k))
+                {
+                    std::vector<Recorder::Seen const*> seen = m_rec.SeenIn(window, SMSG_SPELLNONMELEEDAMAGELOG);
+                    for (size_t i = 0; i < seen.size(); ++i)
+                    {
+                        if (seen[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &seen[i]->payload[0],
+                                                                                 seen[i]->payload.size(), roles);
+                        for (size_t f = 0; f < fields.size(); ++f)
+                        {
+                            if (fields[f].find(hit) != std::string::npos)
+                            {
+                                ++hits[k];
+                                logs += (logs.empty() ? "" : "; ") + U(k + 1) + " " + fields[f];
+                            }
+                        }
+                    }
+                }
+            }
+
+            Seen const& swing = st.seen[kSwingStep];
+            Seen const& kill = st.seen[kKillStep];
+            std::map<std::string, int64>::const_iterator left = swing.reads.find("left");
+            const int64 leftMs = left == swing.reads.end() ? -1 : left->second;
+            const bool refreshed = swing.read && leftMs > kRefreshedAboveMs;
+            const bool dead = kill.read && kill.healthAfter == 0;
+            const std::string value = "expiry=" + U(hits[kExpiryStep]) + " refreshed=" + (refreshed ? "yes" : "no") + " death=" +
+                                      (hits[kKillStep] ? U(hits[kKillStep]) : std::string("none"));
+            const bool ok = hits[kExpiryStep] == 1 && refreshed && hits[kKillStep] == 0 && dead;
+            const std::string detail = U(kArcaneMissilesBuff) + " on him at the swing's read: " + swing.holder + ", " +
+                                       std::to_string(leftMs) + " ms left; the Camel's health at the kill's read " +
+                                       U(kill.healthAfter) + "; the " + U(kExplosion) + " damage logs by step: " +
+                                       (logs.empty() ? std::string("none") : logs);
+            return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kLivingBomb = 44457;
+        static constexpr uint32 kExplosion = 44461;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kArcaneMissilesBuff = 79683;
+        static constexpr int32 kOffensiveStatePoints = 100;
+        static constexpr uint32 kReadMs = 1000;
+        static constexpr uint32 kExpiryEveryMs = 13000;
+        static constexpr uint32 kKillEveryMs = 2000;
+        static constexpr int64 kRefreshedAboveMs = 15000;
+        static constexpr size_t kSteps = 4;
+        static constexpr uint32 kExpiryStep = 0;
+        static constexpr uint32 kSwingStep = 1;
+        static constexpr uint32 kKillStep = 3;
+    };
+
+    /**
      * S972 `mage-fire-pyromaniac`: Pyromaniac (34295, rank 2 of 2, talent 10559) on a staged Fire mage: "Increases spell
      * haste by $s1% if 3 or more targets are taking Fire damage over time from your spells." Staged as 967 stages its
      * tree: Master of Elements 2, Burning Soul 3, Improved Fire Blast 2, Fire Power 3, Blazing Speed 2, Hot Streak
@@ -7786,6 +7969,7 @@ namespace Harness
         r.Register(new MageFireLivingBombLimit());
         r.Register(new MageFireIgnite());
         r.Register(new MageFireCauterize());
+        r.Register(new MageFireLivingBombRules());
         r.Register(new MageFirePyromaniac());
         r.Register(new MageFireDamagePassives());
         r.Register(new MageFireCastPassives());
