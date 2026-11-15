@@ -513,7 +513,8 @@ struct AfterCastContext
     SpellEntry const& spell;                        ///< the spell cast
     uint32 enemiesHit;                              ///< the cast's unit targets it hit (miss condition none), other
                                                     ///< than the caster, that the caster is not friendly to
-    Unit* target;                                   ///< the cast's explicit unit target; NULL when it had none
+    Unit* target;                                   ///< the cast's explicit unit target; NULL when it had none or
+                                                    ///< the unit can no longer be found
     bool hasDestination;                            ///< whether the cast carried a destination
     float destX, destY, destZ;                      ///< the destination when hasDestination; the explicit target's
                                                     ///< position otherwise; else the caster's

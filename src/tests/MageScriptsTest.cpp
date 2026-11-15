@@ -103,7 +103,8 @@ namespace
     uint32 const MAGE_WARD_IDS[] = { 543 };
 
     // The ids Pyromaniac's scripts hold at the aura-apply and aura-remove hooks: the eight DoTs it counts (Flamestrike's
-    // ground effect, Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, Pyroblast!) and the talent's two ranks.
+    // ground effect, Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, the free Flamestrike's ground effect,
+    // Pyroblast!) and the talent's two ranks.
     uint32 const PYROMANIAC_DOT_IDS[] = { 2120, 11366, 12654, 44457, 44614, 83853, 88148, 92315 };
     uint32 const PYROMANIAC_IDS[] = { 34293, 34295 };
 
@@ -1127,7 +1128,7 @@ TEST(MageScripts_AMageWardThatDamageUsesUpBringsBlazingSpeedOnlyWithMoltenShield
 TEST(MageScripts_PyromaniacCountsTheMagesFireDamageOverTime)
 {
     // The holders of the talent's text, "Fire damage over time from your spells": Flamestrike's ground effect,
-    // Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion and Pyroblast!.
+    // Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, the free Flamestrike's ground effect and Pyroblast!.
     for (uint32 spellId : PYROMANIAC_DOT_IDS)
     {
         CHECK(Mage::PyromaniacCounts(spellId));

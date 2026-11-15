@@ -24,10 +24,10 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
-/// target and script word, the after-cast context's count and point, the aura handle's reads, its removal of one effect and its stack count, RegisterRanks, the
-/// holder's script words, the holder copy's answer for a unit holding none and the period, tick time, duration and
-/// amount a copy keeps, the low-health multiplier a script query answers from the caster's class-script auras, and the
-/// game table, whose only hook rows are the mage's scripts.
+/// target and script word, the after-cast context's count and point, the aura handle's reads, its removal of one effect
+/// and its stack count, RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and
+/// the period, tick time, duration and amount a copy keeps, the low-health multiplier a script query answers from the
+/// caster's class-script auras, and the game table, whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
