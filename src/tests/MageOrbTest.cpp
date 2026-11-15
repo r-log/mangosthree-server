@@ -548,6 +548,22 @@ namespace
     Floor FloorUnderTheStartOnly(float x, float, float) { return x < 0.5f ? Floor(10.0f) : Floor(); }
 }
 
+TEST(MageOrb_AnOrbThatWalksOnWaterGlidesToTheHigherOfTheFloorAndTheWater)
+{
+    typedef std::optional<float> Level;
+    // the water above the floor: the surface
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(10.0f), Level(14.0f), true), 14.0f, 0.001f));
+    // the water below the floor: the floor
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(10.0f), Level(6.0f), true), 10.0f, 0.001f));
+    // no water: the floor
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(10.0f), Level(), true), 10.0f, 0.001f));
+    // no floor under the water: the surface
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(), Level(14.0f), true), 14.0f, 0.001f));
+    // a unit that does not walk on water: the floor, whatever the water
+    CHECK(GlideNear(*Mage::OrbGlideFloor(Level(10.0f), Level(14.0f), false), 10.0f, 0.001f));
+    CHECK(!Mage::OrbGlideFloor(Level(), Level(14.0f), false).has_value());
+}
+
 TEST(MageOrb_AGlideReachesTheSpeedOverTheSlowFallsTime)
 {
     CHECK(GlideNear(Mage::OrbGlideDistance(10.0f, 4.0f), 7.529f, 0.005f));

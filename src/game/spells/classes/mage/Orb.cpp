@@ -29,6 +29,7 @@
 #include "ai/CreatureAI.h"
 #include "entities/Creature.h"
 #include "Map.h"
+#include "GridMap.h"
 #include "entities/motion/MotionMaster.h"
 #include "DBCStores.h"
 #include "Utilities/Util.h"
@@ -148,11 +149,11 @@ namespace
 
     /// The orb of a mage, owned by him and of his level: glides forward on the slow-fall curve to its hover height above
     /// the floor when it is summoned higher or the floor falls away under it, then flies straight ahead from where it
-    /// stands at its run speed, slowed by its snare when it finds an enemy; when the snare runs out (its firing is over), or for an orb
-    /// that found nothing at its summon's end (the summon's own end, or its life's when it is in combat), when its
-    /// summoner is alive and on its map, rolls the proc chance of the summoner's explosion talent for the explosion
-    /// (83619), cast with the summoner as the original caster, and goes. It attacks nothing, follows nothing and evades
-    /// nothing.
+    /// stands at its run speed, slowed by its snare when it finds an enemy; when the snare runs out (its firing is
+    /// over), or for an orb that found nothing at its summon's end (the summon's own end, or its life's when it is in
+    /// combat), when its summoner is alive and on its map, rolls the proc chance of the summoner's explosion talent for
+    /// the explosion (83619), cast with the summoner as the original caster, and goes. It attacks nothing, follows
+    /// nothing and evades nothing.
     class OrbAI : public CreatureAI
     {
         public:
@@ -269,12 +270,12 @@ namespace
                 FlyToGoal();
             }
 
-            /// The glide, for an orb that hovers and falls slowly, when it is more than its hover height above its hover
-            /// line (`inFlight`: two hover heights above the floor under it, from where its spline has it; at its start,
-            /// from its placement): the point it
-            /// goes to is Mage::OrbGlideLanding's, along the line it faces, and the point it held is expired first, since
-            /// the glide is a forced movement that would otherwise leave the flight to resume to its old goal. Never
-            /// again for the snare. @return Whether a glide began.
+            /// The glide, for an orb that hovers and falls slowly, when it is at least a hover height above its hover line
+            /// (`inFlight`: two hover heights above the floor under it, from where its spline has it; at its start, from
+            /// its placement). The point it goes to is Mage::OrbGlideLanding's, along the line it faces, over the floor or,
+            /// for an orb that walks on water, the water's surface. The point it held is expired first, since the glide is
+            /// a forced movement that would otherwise leave the flight to resume to its old goal. Never again for the
+            /// snare. @return Whether a glide began.
             bool StartGlide(bool inFlight)
             {
                 Map* map = m_creature->FindMap();
@@ -293,9 +294,11 @@ namespace
                     start.z = live.z;
                 }
                 uint32 const phase = m_creature->GetPhaseMask();
-                std::function<std::optional<float>(float, float, float)> floorAt = [map, phase](float x, float y, float z)
+                bool const walksOnWater = (m_creature->WireFlags() & MOVEFLAG_WATERWALKING) != 0;
+                std::function<std::optional<float>(float, float, float)> floorAt = [map, phase, walksOnWater](float x, float y, float z)
                 {
-                    return map->Floor(phase, x, y, z);
+                    return Mage::OrbGlideFloor(map->Floor(phase, x, y, z),
+                                               walksOnWater ? map->GetTerrain()->GetWaterLevel(x, y, z) : std::nullopt, walksOnWater);
                 };
                 std::optional<Mage::OrbGlidePoint> const landing = Mage::OrbGlideLanding(
                     start, m_creature->Where().Facing(), m_creature->GetSpeed(MOVE_RUN), hover, floorAt);
@@ -358,6 +361,15 @@ namespace
             uint32 m_glideMs;                   ///< the milliseconds the glide has run
             Geometry::Vector3 m_goal;           ///< the point the orb flies to
     };
+}
+
+std::optional<float> Mage::OrbGlideFloor(std::optional<float> floor, std::optional<float> water, bool walksOnWater)
+{
+    if (!walksOnWater || !water)
+    {
+        return floor;
+    }
+    return floor && *floor > *water ? floor : water;
 }
 
 float Mage::OrbGlideDistance(float speed, float drop)

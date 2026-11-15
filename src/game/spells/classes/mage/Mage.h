@@ -142,6 +142,11 @@ namespace Mage
     /// the time that fall takes; 0 for a drop of nothing or less. Defined in Orb.cpp.
     float OrbGlideDistance(float speed, float drop);
 
+    /// The floor an orb glides to under a point: `floor` (Map::Floor, solid ground only), or, for an orb that walks on
+    /// water (`walksOnWater`), the higher of it and the water's surface `water` when there is one; the water alone when
+    /// there is no floor. Defined in Orb.cpp.
+    std::optional<float> OrbGlideFloor(std::optional<float> floor, std::optional<float> water, bool walksOnWater);
+
     /// The point an orb at `start` facing `facing` (radians), flying at `speed`, glides to on the slow-fall curve: the
     /// floor plus `hover` at the end of a glide of OrbGlideDistance yards ahead. `floorAt(x, y, z)` is the floor under
     /// (x, y) seen from `z`. Nothing when the orb is less than `hover` above its hover line (it is on its line), when the
