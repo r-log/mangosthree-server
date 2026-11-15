@@ -65,14 +65,14 @@ namespace
     // The labels the class files register at each mage site, in their tables' order.
     uint32 const TRIGGER_SPELL_IDS[] = { 66 };
     uint32 const BOOST_IDS[] = { 74396 };
-    uint32 const EFFECT_DUMMY_IDS[] = { 32826, 38194, 42955, 1459, 61316, 31687 };
+    uint32 const EFFECT_DUMMY_IDS[] = { 32826, 38194, 42955, 1459, 61316 };
     uint32 const DUMMY_PROC_IDS[] = { 56372, 56375, 64411, 74396 };
 
     // The ids each proc script holds at the proc hook: every mage spell with the talent's icon (or class mask) and an
     // aura of the type the script stands for, in the client's data.
     uint32 const MAGIC_ABSORPTION_IDS[] = { 29441, 29444 };
     uint32 const IGNITE_IDS[] = { 11119, 11120, 12846 };
-    uint32 const MASTER_OF_ELEMENTS_IDS[] = { 29074, 29075, 29076 };
+    uint32 const MASTER_OF_ELEMENTS_IDS[] = { 29074, 29075 };
     uint32 const ARCANE_POTENCY_IDS[] = { 31571, 31572 };
     uint32 const HOT_STREAK_IDS[] = { 44445 };
     uint32 const BLAZING_SPEED_IDS[] = { 31641, 31642 };
@@ -384,20 +384,20 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
     // Hot Streak's buff at the aura-remove hook, Pyromaniac's seven DoTs and two ranks at the aura-apply and
     // aura-remove hooks, and Combustion and Impact's spread at the dummy-effect hook. Frost: the 74396 boost and proc
-    // labels and Summon Water Elemental; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of
-    // Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane:
-    // Magic Absorption, Arcane Potency and Mana Shield. 58 rows, 58 keys and 3 defaults, none twice.
+    // labels; Ice Lance at the damage-done hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak,
+    // Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption,
+    // Arcane Potency and Mana Shield. 56 rows, 56 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(61));
-    CHECK_EQ(registry.Count(), std::size_t(58));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(59));
+    CHECK_EQ(registry.Count(), std::size_t(56));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
+    CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(5));
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(22));
+    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(21));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
@@ -421,8 +421,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 33, 33, 0 },
-        { &Mage::RegisterFrost, 8, 8, 0 },
+        { &Mage::RegisterFire, 32, 32, 0 },
+        { &Mage::RegisterFrost, 7, 7, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
     };
     for (PerFile const& file : files)
@@ -434,18 +434,19 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(61));
-    CHECK_EQ(registry.Count(), std::size_t(58));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(59));
+    CHECK_EQ(registry.Count(), std::size_t(56));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
-    // files hold the mage sites' other rows: Mirror Image at the periodic dummy tick site, the two Pushing the Limit
-    // labels at the boost site, Cold Snap at the dummy-effect site and Focus Magic at the crit-chance proc site. Hot
-    // Streak's buff (48108), Combustion (11129) and 28682 are no label of the boost site.
+    // files hold the mage sites' other rows: Mirror Image at the periodic dummy tick site, Brain Freeze's Pushing the
+    // Limit label (57761) at the boost site, Cold Snap at the dummy-effect site and Focus Magic at the crit-chance proc
+    // site. Hot Streak's buff (48108), Combustion (11129), and 28682 and 44401, which the client's data lacks, are no
+    // label of the boost site.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(58));
+    CHECK_EQ(mine.size(), std::size_t(56));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -456,18 +457,15 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK(game.FindDefault<AuraBoostMageSite>() == registry.FindDefault<AuraBoostMageSite>());
     CHECK_EQ(game.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(3));
-    CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(7));
+    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(2));
+    CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
     CHECK(game.Find<AuraPeriodicDummyTickMageSite>(55342) != NULL);
     CHECK(registry.Find<AuraPeriodicDummyTickMageSite>(55342) == NULL);
-    for (uint32 spellId : { 44401u, 57761u })
-    {
-        CHECK(game.Find<AuraBoostMageSite>(spellId) != NULL);
-        CHECK(registry.Find<AuraBoostMageSite>(spellId) == NULL);
-    }
-    for (uint32 spellId : { 48108u, 11129u, 28682u })
+    CHECK(game.Find<AuraBoostMageSite>(57761) != NULL);
+    CHECK(registry.Find<AuraBoostMageSite>(57761) == NULL);
+    for (uint32 spellId : { 48108u, 11129u, 28682u, 44401u })
     {
         CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
     }
@@ -516,25 +514,25 @@ TEST(MageScripts_TheIgniteRanksShareOneBodyAtTheProcHook)
     CHECK_EQ(boostBodies.size(), std::size_t(1));
 }
 
-TEST(MageScripts_TheEffectDummySiteHoldsItsSixLabelsAndNoDefault)
+TEST(MageScripts_TheEffectDummySiteHoldsItsFiveLabelsAndNoDefault)
 {
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
-    CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
+    CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(5));
 
-    // Six labels, five bodies: the two raid buffs share one; every other label has its own.
+    // Five labels, four bodies: the two raid buffs share one; every other label has its own.
     typedef SpellHandler<SpellEffectDummyMageSite>::Function MageBody;
     MageBody raidBuff = registry.Find<SpellEffectDummyMageSite>(1459);
     CHECK(raidBuff != NULL);
     CHECK(registry.Find<SpellEffectDummyMageSite>(61316) == raidBuff);
     std::set<MageBody> bodies;
-    for (uint32 spellId : { 31687u, 32826u, 38194u, 42955u })
+    for (uint32 spellId : { 32826u, 38194u, 42955u })
     {
         bodies.insert(registry.Find<SpellEffectDummyMageSite>(spellId));
     }
     CHECK(bodies.count(NULL) == 0);
     CHECK(bodies.count(raidBuff) == 0);
-    CHECK_EQ(bodies.size(), std::size_t(4));
+    CHECK_EQ(bodies.size(), std::size_t(3));
 
     // No default: an id with no row (the warrior's Last Stand) finds nothing, and its dispatch is a miss, so the
     // family's case goes on to the Conjure Mana Gem check with nothing changed.
@@ -557,8 +555,8 @@ TEST(MageScripts_TheEffectDummySiteHoldsItsSixLabelsAndNoDefault)
     CHECK_EQ(effect->EffectIndex, uint32(1));
 
     // The bodies that need no live unit end the effect with no unit target: Polymorph Cast Visual, Blink and the raid
-    // buffs. Summon Water Elemental casts, and Conjure Refreshment reads the target's level and creates an item through
-    // the spell; both need a live unit and a spell.
+    // buffs. Conjure Refreshment reads the target's level and creates an item through the spell; it needs a live unit
+    // and a spell.
     for (uint32 spellId : { 32826u, 38194u, 1459u, 61316u })
     {
         SpellHandlerOutcome<void> noTarget = registry.Dispatch<SpellEffectDummyMageSite>(spellId, ctx);
@@ -581,7 +579,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
-    // Each talent's ids share one body, and each talent has its own: 22 ids in 12 bodies, the same in the game's table.
+    // Each talent's ids share one body, and each talent has its own: 21 ids in 12 bodies, the same in the game's table.
     std::set<SpellHandler<OnProcHook>::Function> bodies;
     bodies.insert(OneProcBody(registry, MAGIC_ABSORPTION_IDS));
     bodies.insert(OneProcBody(registry, IGNITE_IDS));
@@ -603,7 +601,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
                             sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(OFFENSIVE_STATE_IDS) / sizeof(uint32) +
                             sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) + sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32) +
                             sizeof(IMPACT_IDS) / sizeof(uint32);
-    CHECK_EQ(ids, std::size_t(22));
+    CHECK_EQ(ids, std::size_t(21));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(0));
