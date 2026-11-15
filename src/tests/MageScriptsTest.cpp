@@ -29,16 +29,17 @@
 /// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// Ice Lance's damage-done multiplier, Blink's target count, Living Bomb's exits at the dummy aura hook, Pyromaniac's
 /// leaves (a Frostfire Bolt burning only with its periodic damage among them) and its rows at the aura-apply and
-/// aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads,
-/// the exits of its spread at the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the
-/// after-cast hook, Glyph of Frostfire's tick, and Frostfire Bolt's effect taken off at its holder's apply and its
-/// after-hit exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or
-/// creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
-/// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
-/// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura. The
-/// cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown sinks the
-/// test installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three
-/// auras whose apply and removal change nothing on the unit.
+/// aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with the auras of
+/// its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of its spread at the
+/// dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of Frostfire's
+/// hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's apply and its after-hit
+/// exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or creates an
+/// item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no
+/// map, template or AI), with the effect rows the scripts read added to the effect store as the client's data holds
+/// them, and a holder put in the creature's holder map where a script asks whether it holds an aura. The cooldown
+/// Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown sinks the test
+/// installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three auras
+/// whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -1658,6 +1659,31 @@ TEST(MageScripts_FrostfireGlyphTickIsTheStacksShareOfTheHitWithMastery)
     CHECK_EQ(Mage::FrostfireGlyphTick(100, 3, 4, 3, 1.0f), int32(0));
     CHECK_EQ(Mage::FrostfireGlyphTick(0, 3, 4, 1, 1.0f), int32(0));
     CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 0, 1, 1.0f), int32(0));
+}
+
+TEST(MageScripts_FrostfireGlyphShareLeavesOutMoltenFurySoEachTickTakesItOnce)
+{
+    // A 3000 hit that Molten Fury's third rank raised by 12% at a target under 35% health deals 3360; the share is
+    // taken from the 3000 before it, the nearest whole hit, and from 3000 itself, Molten Fury's first rank's 3120 and
+    // no bonus at all.
+    CHECK_EQ(Mage::FrostfireGlyphHit(3360, 1.12f), uint32(3000));
+    CHECK_EQ(Mage::FrostfireGlyphHit(3120, 1.04f), uint32(3000));
+    CHECK_EQ(Mage::FrostfireGlyphHit(3000, 1.0f), uint32(3000));
+    CHECK_EQ(Mage::FrostfireGlyphHit(0, 1.12f), uint32(0));
+    CHECK_EQ(Mage::FrostfireGlyphHit(3000, 0.0f), uint32(3000));
+
+    // At 30% health the tick takes the 12% once, as Aura::PeriodicTick multiplies it: one stack int(22 x 1.12) = 24,
+    // three int(66 x 1.12) = 73. A share taken from the raised 3360 would tick int(25 x 1.12) = 28 and int(75 x 1.12)
+    // = 84, the bonus twice.
+    float const moltenFury = 1.12f;
+    int32 const oneStack = Mage::FrostfireGlyphTick(Mage::FrostfireGlyphHit(3360, moltenFury), 3, 4, 1, 1.0f);
+    int32 const threeStacks = Mage::FrostfireGlyphTick(Mage::FrostfireGlyphHit(3360, moltenFury), 3, 4, 3, 1.0f);
+    CHECK_EQ(oneStack, int32(22));
+    CHECK_EQ(threeStacks, int32(66));
+    CHECK_EQ(uint32(uint32(oneStack) * moltenFury), uint32(24));
+    CHECK_EQ(uint32(uint32(threeStacks) * moltenFury), uint32(73));
+    CHECK_EQ(uint32(uint32(Mage::FrostfireGlyphTick(3360, 3, 4, 1, 1.0f)) * moltenFury), uint32(28));
+    CHECK_EQ(uint32(uint32(Mage::FrostfireGlyphTick(3360, 3, 4, 3, 1.0f)) * moltenFury), uint32(84));
 }
 
 namespace

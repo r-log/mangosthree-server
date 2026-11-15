@@ -358,10 +358,11 @@ namespace
     }
 
     /// 44614: Frostfire Bolt: after its hit lands, on the caster's own holder of it on the target. With Glyph of
-    /// Frostfire (61205) the holder's periodic damage becomes the glyph's share of the hit: its effect 2, in percent, of
-    /// the damage dealt and absorbed, spread over the ticks the holder's time left holds at its period, times the
-    /// holder's stacks, with the caster's mastery on the spell (Mage::FrostfireGlyphTick). Without the glyph a holder
-    /// that stacked is set back to one stack, so the slow keeps its own value.
+    /// Frostfire (61205) the holder's periodic damage becomes the glyph's share of the hit: its effect 2, in percent,
+    /// of the damage dealt and absorbed, taken before the caster's bonus at the target's low health, Molten Fury, which
+    /// each tick takes again (Mage::FrostfireGlyphHit); spread over the ticks the holder's time left holds at its
+    /// period, times the holder's stacks, with the caster's mastery on the spell (Mage::FrostfireGlyphTick). Without
+    /// the glyph a holder that stacked is set back to one stack, so the slow keeps its own value.
     SpellHandlerOutcome<void> FrostfireBoltAfterHit(AfterHitContext& ctx)
     {
         if (ctx.heal)
@@ -401,8 +402,10 @@ namespace
         {
             mods->ApplySpellMod(FROSTFIRE_BOLT_SPELL, SPELLMOD_DOT, mastery, true);
         }
-        aura.SetAmount(dot.effIndex, Mage::FrostfireGlyphTick(ctx.amount + ctx.absorbed, uint32(percent), ticks, aura.Stacks(),
-                                                              mastery));
+        // the hit before the caster's bonus at the target's low health, which each tick of the DoT takes again
+        float const lowHealth = Spells::LowHealthDamageMultiplier(ctx.caster, ctx.target, ctx.spell);
+        uint32 const hit = Mage::FrostfireGlyphHit(ctx.amount + ctx.absorbed, lowHealth);
+        aura.SetAmount(dot.effIndex, Mage::FrostfireGlyphTick(hit, uint32(percent), ticks, aura.Stacks(), mastery));
         return SpellHandlerOutcome<void>::Continue();
     }
 
@@ -657,6 +660,15 @@ int32 Mage::ImprovedFlamestrikeChance(uint32 talentSpell)
     }
     SpellEntry const* talent = sSpellStore.LookupEntry(talentSpell);
     return talent ? talent->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
+}
+
+uint32 Mage::FrostfireGlyphHit(uint32 dealtAndAbsorbed, float lowHealthMultiplier)
+{
+    if (lowHealthMultiplier <= 0.0f)
+    {
+        return dealtAndAbsorbed;
+    }
+    return uint32(float(dealtAndAbsorbed) / lowHealthMultiplier + 0.5f);
 }
 
 int32 Mage::FrostfireGlyphTick(uint32 hit, uint32 percent, uint32 ticks, uint32 stacks, float masteryMultiplier)
