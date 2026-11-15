@@ -291,13 +291,14 @@ namespace
         71564,  // Deadly Precision
     };
 
-    /// The overload spells: zero-cost triggered copies of the caster's spell that carry its cast time, which the
-    /// triggering spell has already spent.
+    /// The overload spells: zero-cost triggered copies of a spell that carry its cast time, which the triggering
+    /// spell has already spent, or whose scaling row repeats the copied spell's cast time.
     constexpr uint32 OVERLOAD_SPELLS[] =
     {
         45284,  // Lightning Bolt overload
         45297,  // Chain Lightning overload
         77451,  // Lava Burst overload
+        88148,  // Flamestrike, the free one
     };
 
     /// The spells that may target a player on a taxi flight.

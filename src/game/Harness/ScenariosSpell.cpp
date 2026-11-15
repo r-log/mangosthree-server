@@ -105,13 +105,14 @@
 // target dies does not explode; 971 a staged Fire mage's Flame Orb burns a Camel once a second while it is snared and
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
 // first one's end takes it off; 980 a Blast Wave on one Camel calls nothing, on three calls the free Flamestrike of
-// Improved Flamestrike; 983 a Fire mage with Molten Fury's third rank: his Pyroblast's DoT on a target that falls
-// under 35% health between two ticks, and his Fire Blast at it there; 985 the Fire passives that change a hit's
+// Improved Flamestrike, and 990 the same with its first rank, whose free Flamestrike is instant too; 983 a Fire mage
+// with Molten Fury's third rank: his Pyroblast's DoT on a target that falls under 35% health between two ticks, and
+// his Fire Blast at it there; 985 the Fire passives that change a hit's
 // damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
 // Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
 // cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
 // Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed.
-// The guard of 931-938, 950-972, 980-983 and 985-989 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 950-972, 980-983, 985-989 and 990 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3948,7 +3949,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-972, 980-983, 985-989): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-972, 980-983, 985-990): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -9543,6 +9544,8 @@ namespace Harness
         MageFireImprovedFlamestrike() : MageProcScenario("mage-fire-improved-flamestrike", 980, "flamestrike") {}
 
     protected:
+        MageFireImprovedFlamestrike(char const* name, int order, char const* category) : MageProcScenario(name, order, category) {}
+
         std::vector<std::pair<uint32, uint32> > Talents() const override
         {
             return { { 10531, 2 }, { 10523, 1 }, { 10545, 1 }, { 11434, 2 }, { 10555, 1 }, { 10551, 0 }, { 10547, 1 }, { 11433, 1 },
@@ -9683,7 +9686,7 @@ namespace Harness
             return value + (ok ? "(OK: " : "(BUG: ") + detail + buf + ")";
         }
 
-    private:
+    protected:
         static constexpr uint32 kBlastWave = 11113;
         static constexpr uint32 kFreeFlamestrike = 88148;
         static constexpr uint32 kPrecision = 13843;
@@ -9742,6 +9745,109 @@ namespace Harness
         }
     };
 
+    /**
+     * S990 `mage-fire-improved-flamestrike-rank-one`: 980's staging with Improved Flamestrike's first rank (84673, whose
+     * chance is 50 and whose cast-time modifier on Flamestrike is -50%), and kBlasts Blast Waves at Camel A, each with
+     * Blast Wave's cooldown taken off him by call first, so the seeded rolls decide which of them call the free
+     * Flamestrike (88148). The free Flamestrike is instant at either rank: its SMSG_SPELL_GO comes in the same window
+     * of a step as its Blast Wave's.
+     *
+     * `rankOne`: `casts=<the steps whose Blast Wave called 88148>/<kBlasts>,sameWindow=<of those, the steps whose
+     * 88148 SMSG_SPELL_GO came in the window of its Blast Wave's>`; OK when at least one cast came, every one is in its
+     * Blast Wave's window, and every Blast Wave hit the three Camels.
+     */
+    class MageFireImprovedFlamestrikeRankOne : public MageFireImprovedFlamestrike
+    {
+    public:
+        MageFireImprovedFlamestrikeRankOne()
+            : MageFireImprovedFlamestrike("mage-fire-improved-flamestrike-rank-one", 990, "rankOne") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            std::vector<std::pair<uint32, uint32> > talents = MageFireImprovedFlamestrike::Talents();
+            talents.back().second = 0;
+            return talents;
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps;
+            for (uint32 i = 0; i < kBlasts; ++i)
+            {
+                Step blast = Cast(kBlastWave, false);
+                blast.target = kCamelA;
+                blast.clearCooldown = true;
+                steps.push_back(blast);
+            }
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            std::vector<SpellPrint> prints = MageFireImprovedFlamestrike::Prints();
+            for (size_t i = 0; i < prints.size(); ++i)
+            {
+                if (prints[i].spell == 84674)
+                {
+                    prints[i].spell = 84673;
+                    prints[i].fields["eff0.EffectBasePoints"] = 50;
+                    prints[i].fields["eff1.EffectBasePoints"] = -50;
+                }
+            }
+            return prints;
+        }
+
+        std::string Own(St const& st) const override
+        {
+            uint32 casts = 0, same = 0, hitAll = 0;
+            std::string detail;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const int32 blastAt = GoWindowOf(k, kBlastWave);
+                const int32 flameAt = GoWindowOf(k, kFreeFlamestrike);
+                const bool hit = HitsOf(k, kBlastWave).size() == 3;
+                hitAll += hit ? 1 : 0;
+                if (flameAt >= 0)
+                {
+                    ++casts;
+                    same += flameAt == blastAt ? 1 : 0;
+                }
+                detail += std::string(k ? "; " : "") + "step " + U(k + 1) + ": Blast Wave go in window " + std::to_string(blastAt) +
+                          ", 88148 go in window " + std::to_string(flameAt) + ", Blast Wave hit " + U(uint32(HitsOf(k, kBlastWave).size())) +
+                          " Camel(s)";
+            }
+            const bool ok = st.steps.size() == kBlasts && casts >= 1 && same == casts && hitAll == kBlasts;
+            const std::string value = "casts=" + U(casts) + "/" + U(kBlasts) + ",sameWindow=" + U(same);
+            return value + (ok ? "(OK: " : "(BUG: ") + detail + "; the windows are StepWindows' indexes, 0 the step's own)";
+        }
+
+    private:
+        static constexpr uint32 kBlasts = 6;
+
+        /// The index in StepWindows(k) of the window of the first SMSG_SPELL_GO of `spell` in step k; -1 when none came.
+        int32 GoWindowOf(uint32 k, uint32 spell) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            const std::vector<std::string> windows = StepWindows(k);
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                std::vector<Recorder::Seen const*> gos = m_rec.SeenIn(windows[w], SMSG_SPELL_GO);
+                for (size_t i = 0; i < gos.size(); ++i)
+                {
+                    std::string text;
+                    uint32 seenSpell = 0;
+                    if (!gos[i]->payload.empty() && Trace::DecodeSpellCast(true, &gos[i]->payload[0], gos[i]->payload.size(), roles, text) &&
+                        sscanf(text.c_str(), "spell=%u", &seenSpell) == 1 && seenSpell == spell)
+                    {
+                        return int32(w);
+                    }
+                }
+            }
+            return -1;
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -9785,5 +9891,6 @@ namespace Harness
         r.Register(new MageFireBlazingSpeedDispel());
         r.Register(new MageFireMageWardBreak());
         r.Register(new MageFireImprovedFlamestrike());
+        r.Register(new MageFireImprovedFlamestrikeRankOne());
     }
 }
