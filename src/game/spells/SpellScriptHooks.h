@@ -92,9 +92,17 @@ struct SpellEntry;
  *   trigger or with none, remove other auras, change the effect's amount at the apply and set the script words. The
  *   aura is alive: at a holder's removal the holder's effects before this one are already un-applied and those after
  *   it not yet.
+ * - AfterCast: `Spell::finish`, once per cast that finished successfully, after every target of the cast is handled
+ *   (an immediate cast's at once, a delayed cast's when its last target is reached, a channel's at its end) and
+ *   before the caster's add-target-trigger auras. Its count is the cast's unit targets that the cast hit (a miss
+ *   condition of none), other than the caster, that the caster is not friendly to (the units a player's area spell
+ *   takes, neutral ones among them; never a pet or a friend); its point is the cast's destination when it carries
+ *   one, else its explicit unit target's position, else the caster's. Return() is the same as Continue(): nothing
+ *   after the hook depends on it. A body may cast.
  *
- * EffectValue, AfterHit, AuraAmount, DamageDone and CritChance read no outcome: a body changes the context's values and
- * answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it as they are.
+ * EffectValue, AfterHit, AuraAmount, DamageDone, CritChance and AfterCast read no outcome: a body changes the
+ * context's values or casts, and answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it
+ * as they are.
  *
  * A context holds references to the live objects and to the values a script may change. Built, it checks that this
  * thread owns the unit the hook runs on (`Unit::AssertSpellSeamOwner`).
@@ -116,7 +124,8 @@ enum SpellScriptHook
     SPELL_SCRIPT_HOOK_ON_PROC           = 110,
     SPELL_SCRIPT_HOOK_DAMAGE_DONE       = 111,
     SPELL_SCRIPT_HOOK_CRIT_CHANCE       = 112,
-    SPELL_SCRIPT_HOOK_DUMMY_AURA        = 113
+    SPELL_SCRIPT_HOOK_DUMMY_AURA        = 113,
+    SPELL_SCRIPT_HOOK_AFTER_CAST        = 114
 };
 
 /// What a script may ask of the aura holder it runs for, without the aura headers.
@@ -473,6 +482,31 @@ struct DummyAuraContext
         Aura* m_aura;                               ///< this aura effect, the trigger of CastTriggeredByAura
 };
 
+/// AfterCast's context: the cast that just finished, what it hit and where it was aimed. Value: void.
+struct AfterCastContext
+{
+    AfterCastContext(Unit& casterUnit, SpellEntry const& spellEntry, uint32 enemies, Unit* explicitTarget,
+                     bool destinationSet, float x, float y, float z)
+        : caster(casterUnit), spell(spellEntry), enemiesHit(enemies), target(explicitTarget),
+          hasDestination(destinationSet), destX(x), destY(y), destZ(z)
+    {
+        caster.AssertSpellSeamOwner();
+    }
+
+    /// The caster casts `spellId` at the point, triggered, with this cast's spell as the trigger and no triggering
+    /// aura.
+    void CastTriggeredAt(float x, float y, float z, uint32 spellId);
+
+    Unit& caster;                                   ///< the caster
+    SpellEntry const& spell;                        ///< the spell cast
+    uint32 enemiesHit;                              ///< the cast's unit targets it hit (miss condition none), other
+                                                    ///< than the caster, that the caster is not friendly to
+    Unit* target;                                   ///< the cast's explicit unit target; NULL when it had none
+    bool hasDestination;                            ///< whether the cast carried a destination
+    float destX, destY, destZ;                      ///< the destination when hasDestination; the explicit target's
+                                                    ///< position otherwise; else the caster's
+};
+
 /// `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) refuses the cast unless the result
 /// is SPELL_CAST_OK.
 struct CheckCastHook
@@ -586,6 +620,15 @@ struct DummyAuraHook
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_DUMMY_AURA;
     typedef void Value;
     typedef DummyAuraContext Context;
+};
+
+/// `Spell::finish`, once per cast that finished successfully, before the add-target-trigger auras. The outcome is not
+/// read: Return() is the same as Continue().
+struct AfterCastHook
+{
+    static constexpr uint32 Key = SPELL_SCRIPT_HOOK_AFTER_CAST;
+    typedef void Value;
+    typedef AfterCastContext Context;
 };
 
 /// Registers `f` for `spellId` on `Hook`; false, and nothing changes, when the key is taken or `f` is NULL. A legacy
