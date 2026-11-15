@@ -35,9 +35,11 @@
 #include "Utilities/Util.h"
 
 /// 66: Invisibility
-static SpellHandlerOutcome<void> AuraTriggerSpellMage66(AuraTriggerSpellContext& /*ctx*/)
+static SpellHandlerOutcome<void> AuraTriggerSpellMage66(AuraTriggerSpellContext& ctx)
 {
-    // Its trigger spell, 35009, is not in the client's spell data: the tick casts nothing
+    // Its trigger spell, 35009, is not in the client's spell data: the tick takes a tenth of the mage's threat from
+    // every enemy's list instead and casts nothing
+    ctx.target->GetHostileRefManager().addThreatPercent(Mage::InvisibilityThreatPercent(ctx.auraId));
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -267,6 +269,13 @@ bool Mage::ProcEffectIs(OnProcContext const& ctx, uint32 auraType)
 {
     SpellEffectEntry const* effect = ctx.spell.GetSpellEffect(ctx.effIndex);
     return effect && effect->EffectAura == auraType;
+}
+
+int32 Mage::InvisibilityThreatPercent(uint32 spellId)
+{
+    constexpr uint32 INVISIBILITY_FADE = 66;
+    constexpr int32 FADE_TICK_PERCENT = -10;
+    return spellId == INVISIBILITY_FADE ? FADE_TICK_PERCENT : 0;
 }
 
 SpellAuraProcResult Mage::CastProcSpell(OnProcContext& ctx, Unit& to, uint32 spellId, int32 const* basePoints)

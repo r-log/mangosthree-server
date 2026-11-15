@@ -241,6 +241,10 @@ namespace Mage
     /// any other spell, or when the spell store lacks it. Defined in Fire.cpp.
     int32 PyromaniacHaste(uint32 talentSpell);
 
+    /// The percent of his threat one tick of Invisibility's fade (66) takes from every enemy's list, as
+    /// HostileRefManager::addThreatPercent takes it: -10 for 66; 0 for any other spell. Defined in Mage.cpp.
+    int32 InvisibilityThreatPercent(uint32 spellId);
+
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
     /// one to `bombsSpread` when it answers true for it. Defined in Fire.cpp.
