@@ -1003,8 +1003,8 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
     // The proc hook holds the mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the damage-done
-    // hook Ice Lance's, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's nine (its seven DoTs and
-    // two ranks), the aura-remove hook Hot Streak's buff's, Mage Ward's and Pyromaniac's nine, the dummy-effect
+    // hook Ice Lance's, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and
+    // two ranks), the aura-remove hook Hot Streak's buff's, Mage Ward's and Pyromaniac's ten, the dummy-effect
     // hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's, and the after-cast hook Blast Wave's
     // (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
@@ -1021,11 +1021,11 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(9));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(11));
+    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(10));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(12));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1279));
+    CHECK_EQ(game.Count(), std::size_t(1281));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 

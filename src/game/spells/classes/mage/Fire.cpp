@@ -293,8 +293,9 @@ namespace
     uint32 const PYROMANIAC_HASTE = 83582;
 
     /// The DoTs Pyromaniac counts: Flamestrike's ground effect (2120), Pyroblast (11366), Ignite (12654), Living Bomb
-    /// (44457), Frostfire Bolt (44614), Combustion (83853) and Pyroblast! (92315).
-    uint32 const PYROMANIAC_DOTS[] = { 2120, 11366, 12654, 44457, 44614, 83853, 92315 };
+    /// (44457), Frostfire Bolt (44614), Combustion (83853), the free Flamestrike's ground effect (88148) and Pyroblast!
+    /// (92315).
+    uint32 const PYROMANIAC_DOTS[] = { 2120, 11366, 12654, 44457, 44614, 83853, 88148, 92315 };
 
     /// When `caster`, the caster of a holder of a DoT Pyromaniac counts that was just added to `target` or taken off
     /// it, is a player in the world on `target`'s map who knows Pyromaniac (34295, else 34293), his burning enemies are
@@ -326,9 +327,9 @@ namespace
         }
     }
 
-    /// 2120, 11366, 12654, 44457, 83853, 92315: the DoTs Pyromaniac counts, when their holder is added: the caster's
-    /// burning enemies are counted again with the new holder on its target (PyromaniacRecount). The holder's boosts
-    /// still run.
+    /// 2120, 11366, 12654, 44457, 83853, 88148, 92315: the DoTs Pyromaniac counts, when their holder is added:
+    /// the caster's burning enemies are counted again with the new holder on its target (PyromaniacRecount). The
+    /// holder's boosts still run.
     SpellHandlerOutcome<void> PyromaniacDotApply(AuraApplyContext& ctx)
     {
         PyromaniacRecount(ctx.caster, ctx.target);
@@ -342,7 +343,7 @@ namespace
         return PyromaniacDotApply(ctx);
     }
 
-    /// The seven DoTs Pyromaniac counts, when their holder is removed: the caster's burning enemies are counted again
+    /// The eight DoTs Pyromaniac counts, when their holder is removed: the caster's burning enemies are counted again
     /// with the holder gone (PyromaniacRecount). A removal by re-application (AURA_REMOVE_BY_STACK) changes nothing:
     /// the apply that follows counts. The holder's boosts still run.
     SpellHandlerOutcome<void> PyromaniacDotRemove(AuraRemoveContext& ctx)
@@ -454,7 +455,7 @@ namespace
     uint32 const COMBUSTION[] = { 11129 };
     uint32 const IMPACT[] = { 11103, 12357 };
     uint32 const IMPACT_SPREAD[] = { 12355 };
-    uint32 const PYROMANIAC_DOTS_APPLIED[] = { 2120, 11366, 12654, 44457, 83853, 92315 };
+    uint32 const PYROMANIAC_DOTS_APPLIED[] = { 2120, 11366, 12654, 44457, 83853, 88148, 92315 };
     uint32 const FROSTFIRE_BOLT[] = { 44614 };
     uint32 const PYROMANIAC[] = { PYROMANIAC_RANK_1, PYROMANIAC_RANK_2 };
     uint32 const BLAST_WAVE[] = { 11113 };
