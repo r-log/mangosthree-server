@@ -904,12 +904,12 @@ namespace
         return (a > b ? a - b : b - a) <= tolerance;
     }
 
-    /// A fall spline straight down from (0, 0, 15) to (0, 0, 11), slow when `slow`.
+    /// A fall spline from (0, 0, 15) to (7.53, 0, 11), a glide of 10 yd/s over the fall, slow when `slow`.
     void FallSpline(Movement::MoveSpline& out, bool slow)
     {
         Movement::MoveSplineInitArgs args;
         args.path.push_back(Movement::Vector3(0.0f, 0.0f, 15.0f));
-        args.path.push_back(Movement::Vector3(0.0f, 0.0f, 11.0f));
+        args.path.push_back(Movement::Vector3(7.53f, 0.0f, 11.0f));
         args.flags.falling = true;
         args.flags.fallingSlow = slow;
         args.splineId = 3;
@@ -936,10 +936,12 @@ TEST(MotionWriters_a_slow_fall_spline_lasts_and_sinks_by_the_slow_curve)
     CHECK_EQ(slow.Duration(), 752);
     slow.updateState(400);
     CHECK(FallNear(slow.ComputePosition().z, 13.47f, 0.01f));
+    CHECK(FallNear(slow.ComputePosition().x, 4.00f, 0.01f));
 
     Movement::MoveSpline normal;
     FallSpline(normal, false);
     CHECK_EQ(normal.Duration(), 644);
     normal.updateState(400);
     CHECK(FallNear(normal.ComputePosition().z, 13.457f, 0.01f));
+    CHECK(FallNear(normal.ComputePosition().x, 4.68f, 0.01f));
 }

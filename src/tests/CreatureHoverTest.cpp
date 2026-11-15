@@ -214,3 +214,14 @@ TEST(CreatureHover_AFallLandsItsHoverHeightAboveTheFloorAndNeverLifts)
     CHECK(!MotionMaster::FallLanding(10.0f, 10.0f, 1.0f).has_value());
     CHECK(!MotionMaster::FallLanding(15.0f, std::nullopt, 1.0f).has_value());
 }
+
+TEST(CreatureHover_AFallsMinimumDropIsAParameter)
+{
+    const std::optional<float> atBand = MotionMaster::FallLanding(12.0f, 10.0f, 1.0f, 1.0f);
+    REQUIRE(atBand.has_value());
+    CHECK(Near(*atBand, 11.0f, 0.001f));
+    CHECK(!MotionMaster::FallLanding(11.9f, 10.0f, 1.0f, 1.0f).has_value());
+    const std::optional<float> byDefault = MotionMaster::FallLanding(11.2f, 10.0f, 1.0f);
+    REQUIRE(byDefault.has_value());
+    CHECK(Near(*byDefault, 11.0f, 0.001f));
+}
