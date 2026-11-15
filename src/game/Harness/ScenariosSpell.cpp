@@ -602,8 +602,8 @@ namespace Harness
          * for a player casting at a unit, in window `window`: the spellbook check (HasActiveSpell,
          * not passive), the rank chosen for the target's level (SelectAuraRankForLevel), then
          * `new Spell(caster, info, false, caster guid, NULL)` with the cast count and glyph index
-         * the client would send, and SpellStart. The handler's mover and raid-marker branches and
-         * the action-bar override auras do not apply to a harness player. Returns the spell id
+         * the client would send, and SpellStart. It skips the handler's mover, raid-marker and
+         * action-bar override branches; CastAsClient runs them. Returns the spell id
          * cast, or 0 when the spellbook check refused it (the handler's silent return).
          */
         uint32 CastAsHandler(Player* p, uint32 spellId, Unit* target, uint8 castCount)
@@ -656,7 +656,6 @@ namespace Harness
             SpellHandlers::HandleCastSpell(*SessionOf(*p), packet);
             return spellId;
         }
-
 
         /**
          * The guard of scenarios 931-938, before any server call and before the spawn: every spell

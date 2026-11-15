@@ -236,3 +236,12 @@ TEST(SpellProcEventRows_HotStreaksBuffWithNoRowTakesNoProcEvent)
     CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, EventFlags(NULL, 0), Row(kPyroblastInstant), kHarmfulSpellLanded,
                                                     PROC_EX_CAST_END));
 }
+
+TEST(SpellProcEventRows_MoltenArmorWithNoRowTakesTheSwingsThatHitAndNotTheOnesThatMissOrDodge)
+{
+    // 30482: Spell.dbc proc flags 0x222a8 (including a melee hit taken), and no row.
+    uint32 const kMoltenArmorFlags = 0x222a8;
+    CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kMoltenArmorFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT, PROC_EX_DODGE));
+    CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kMoltenArmorFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT, PROC_EX_MISS));
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kMoltenArmorFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT, PROC_EX_NORMAL_HIT));
+}
