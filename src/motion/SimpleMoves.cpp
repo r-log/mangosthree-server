@@ -34,7 +34,7 @@ namespace Motion
     Step PointBehaviour::Activate(Sight const& sight, Services& /*svc*/)
     {
         // The generator's Initialize: under CAN_NOT_REACT | NOT_MOVE it returned at once;
-        // otherwise StopMoving, both roaming bits, and the leg laid on the first tick.
+        // otherwise StopMoving (unless onward), both roaming bits, and the leg laid on the first tick.
         Step s;
         if (!sight.canReact || !sight.canMove)
         {

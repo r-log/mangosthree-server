@@ -233,8 +233,8 @@ namespace Mage
     /// Whether Pyromaniac's haste is up for `targets` burning enemies: three or more. Defined in Fire.cpp.
     bool PyromaniacActive(uint32 targets);
 
-    /// The enemies that hold one or more of `mage`'s holders that make them burn (PyromaniacBurns): the units whose
-    /// threat list holds him, alive and on his map, each counted once. Defined in Fire.cpp.
+    /// The enemies that hold one or more of `mage`'s holders that make them burn (PyromaniacBurns) and still have time
+    /// left: the units whose threat list holds him, alive and on his map, each counted once. Defined in Fire.cpp.
     uint32 PyromaniacTargets(Unit& mage);
 
     /// The haste Pyromaniac gives a mage who knows `talentSpell` (34293 or 34295): that spell's effect 0 value; 0 for

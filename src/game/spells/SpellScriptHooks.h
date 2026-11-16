@@ -160,8 +160,9 @@ class AuraHandle
         /// removed whole, by the unit's own removal. Safe at the aura-apply hook; not at the dummy-aura hook, which
         /// runs inside the holder's apply loop, where it would un-apply an aura the loop has not applied yet.
         void RemoveEffect(SpellEffectIndex eff);
-        /// Sets the time the holder has left to 0: the unit removes it as expired at its next update, with no tick.
-        /// Nothing is removed here, so it is safe wherever the holder is kept alive.
+        /// Sets the time the holder has left to 0: the unit removes it as expired at its next update, after any tick
+        /// due in that update; a permanent or passive holder is never removed this way. Nothing is removed here, so
+        /// it is safe wherever the holder is kept alive.
         void Expire();
         /// The script's word for `eff`: zero when the holder is made, never saved or sent.
         int32& ScriptWord(SpellEffectIndex eff);

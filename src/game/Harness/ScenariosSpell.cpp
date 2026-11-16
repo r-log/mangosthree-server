@@ -111,14 +111,14 @@
 // Wave on one Camel calls nothing, on three calls the free Flamestrike of Improved Flamestrike, and
 // 991 the same with its first rank, whose free Flamestrike is instant too; 983 a Fire mage with Molten Fury's third
 // rank: his Pyroblast's DoT on a target that falls under 35% health between two ticks, and his Fire Blast at it there;
-// 984 four Frostfire Bolts under Glyph of Frostfire stack their DoT to three, each tick its stacks' share of the
-// latest hit, and do not slow; 977 an unglyphed Frostfire Bolt on a target immune to its slow leaves no DoT, no tick and
-// no holder; 985 the Fire passives that change a hit's
-// damage, a cooldown and a debuff; 986 the Fire passives that change how a cast goes; 987 six Fire glyphs; 988 Molten
-// Armor's damage on each melee hit a Fire mage takes; 989 the instant Pyroblast accepted, refused, swapped in by the
-// cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's snare without Molten Shields; 982 with Molten
-// Shields it removes the snare, and a Mage Ward a blow breaks brings Blazing Speed; 990 Invisibility fade takes a tenth of a Fire mage threat from the Camel each second,
-// its end drops him from the list, and a cancelled fade keeps what its ticks took.
+// 984 four Frostfire Bolts under Glyph of Frostfire stack their DoT to three, each tick its stacks' share of the latest
+// hit, and do not slow; 977 an unglyphed Frostfire Bolt on a target immune to its slow leaves no DoT, no tick and no
+// holder; 985 the Fire passives that change a hit's damage, a cooldown and a debuff; 986 the Fire passives that change
+// how a cast goes; 987 six Fire glyphs; 988 Molten Armor's damage on each melee hit a Fire mage takes; 989 the instant
+// Pyroblast accepted, refused, swapped in by the cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's
+// snare without Molten Shields; 982 with Molten Shields it removes the snare, and a Mage Ward a blow breaks brings
+// Blazing Speed; 990 Invisibility's fade takes a tenth of a Fire mage's threat from the Camel each second, its end
+// drops him from the list, and a cancelled fade keeps what its ticks took.
 // The guard of 931-938, 950-977 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
@@ -3956,7 +3956,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-975, 977, 980-991): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-977, 980-991): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -7923,25 +7923,25 @@ namespace Harness
      * S984 `mage-fire-glyph-of-frostfire`: Glyph of Frostfire (591, its aura 61205) on a staged Fire mage with
      * kSpellPower spell power, 1197 with his intellect's, and thirteen talent points: Burning Soul 3, which names the
      * Fire tree and so teaches Fire Specialization (+25% fire damage), Improved Fire Blast 2, Fire Power 3, Blazing
-     * Speed 2, Blast Wave and Improved Scorch 2. He learns no Mastery passive, so his mastery adds nothing, and Frostfire
-     * Bolt (44614) is learned. The glyph adds 15% to the bolt's hit and 3000 ms to its holder (12000 ms in all); its
-     * effect 2 (3) is the percent of the hit the bolt's DoT deals over the holder's ticks, a further bolt adds a stack up
-     * to the client data's three and a fourth keeps three and rewrites the DoT with its own hit, and the bolt does not
-     * slow. Before each cast he takes Precision (13843, +6% spell
-     * hit), so no cast misses a level-85 Camel, and each cast puts Increased Critical Spell on him at -100, so no hit or
-     * tick crits. Steps: four bolts, kBoltEveryMs apart, each read kBoltReadMs after its cast (its 2.5 s cast and its
-     * flight land it about 2.8 s after the step, before its read and before the next cast); the fourth has kLastStepMs to
-     * the end, past the holder's 12 s. Each read notes the holder's slow (effect 0) and periodic damage (effect 2).
+     * Speed 2, Blast Wave and Improved Scorch 2. He learns no Mastery passive, so his mastery adds nothing, and
+     * Frostfire Bolt (44614) is learned. The glyph adds 15% to the bolt's hit and 3000 ms to its holder (12000 ms in
+     * all); its effect 2 (3) is the percent of the hit the bolt's DoT deals over the holder's ticks, a further bolt adds
+     * a stack up to the client data's three and a fourth keeps three and rewrites the DoT with its own hit, and the
+     * bolt does not slow. Before each cast he takes Precision (13843, +6% spell hit), so no cast misses a level-85
+     * Camel, and each cast puts Increased Critical Spell on him at -100, so no hit or tick crits. Steps: four bolts,
+     * kBoltEveryMs apart, each read kBoltReadMs after its cast (its 2.5 s cast and its flight land it about 2.8 s after
+     * the step, before its read and before the next cast); the fourth has kLastStepMs to the end, past the holder's
+     * 12 s. Each read notes the holder's slow (effect 0) and periodic damage (effect 2).
      *
      * `frostfire`: `stacks=<s1>,<s2>,<s3>,<s4>,eff=<m1>/<m2>/<m3>/<m4>,slow=<the slow's amounts at the reads, or
      * absent>,hits=<h1>+<h2>+<h3>+<h4>,ticks=<after the first hit>/<after the second>/<after the third>/<after the
-     * fourth>`, the masks those of the
-     * holder's effects that hold an aura, the hits each the damage dealt and absorbed, each tick group its amounts with
-     * their count; OK when the holder reads stacks 1, 2, 3 and 3 with its periodic damage and without its slow (0x4) and no
-     * slow, each hit is no crit and lies in (782..996 + int(1197 x 0.977) = 1169) x 1.2875 x 1.15 = 2888..3205, no tick
-     * crits, and the ticks after hit n are each min(n, 3) x int(h_n x <61205's effect 2> / 100) / <ticks>, where <ticks>
-     * is the holder's full duration over its period at the fourth read (12000 / 3000 = 4): one after each of the first
-     * three hits and <ticks> after the fourth. BUG with the value in the detail otherwise.
+     * fourth>`, the masks those of the holder's effects that hold an aura, the hits each the damage dealt and absorbed,
+     * each tick group its amounts with their count; OK when the holder reads stacks 1, 2, 3 and 3 with its periodic
+     * damage and without its slow (0x4) and no slow, each hit is no crit and lies in (782..996 + int(1197 x 0.977) =
+     * 1169) x 1.2875 x 1.15 = 2888..3205, no tick crits, and the ticks after hit n are each min(n, 3) x int(h_n x
+     * <61205's effect 2> / 100) / <ticks>, where <ticks> is the holder's full duration over its period at the fourth
+     * read (12000 / 3000 = 4): one after each of the first three hits and <ticks> after the fourth. BUG with the value
+     * in the detail otherwise.
      */
     class MageFireGlyphOfFrostfire : public MageProcScenario
     {
@@ -8116,7 +8116,7 @@ namespace Harness
                                       (hitText.empty() ? std::string("none") : hitText) + ",ticks=" +
                                       (tickText.empty() ? std::string("none") : tickText);
             const std::string detail = "each hit dealt and absorbed in " + U(kHitLow) + ".." + U(kHitHigh) + ", no crit; the ticks after hit n " +
-                                       "n x int(h_n x " + std::to_string(percent) + " / 100) / " + U(fullTicks) + ": " +
+                                       "min(n, 3) x int(h_n x " + std::to_string(percent) + " / 100) / " + U(fullTicks) + ": " +
                                        (expectedText.empty() ? std::string("none") : expectedText) + "; ticks before the first hit " +
                                        U(ticks[0].size()) + (tickCrit ? "; a tick crit" : "") + (hitCrit ? "; a hit crit" : "") +
                                        "; the holder at the fourth read " + last.holder + ", its periodic effect period " +
@@ -8179,8 +8179,8 @@ namespace Harness
 
     /**
      * S977 `mage-fire-frostfire-snare-immune`: 984's staging without Glyph of Frostfire, against a Camel that holds
-     * Hand of Freedom (1044), whose second effect makes it immune to the snare mechanic. His Frostfire Bolt (44614) hits
-     * it, but its slow never reaches the holder, and without the glyph the bolt has no DoT of its own: the holder is
+     * Hand of Freedom (1044), whose second effect makes it immune to the snare mechanic. His Frostfire Bolt (44614)
+     * hits it, but its slow never reaches the holder, and without the glyph the bolt has no DoT of its own: the holder is
      * left with the periodic damage alone and runs out at the unit's next update. One bolt; the read comes
      * kBoltReadMs after the cast, one update after the hit, and the step runs on past the time the first tick would
      * come.
@@ -8216,6 +8216,8 @@ namespace Harness
             return {
                 // 44614: 72 fields, fnv 0aade896
                 { 44614, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 628 }, { "eff1.EffectBonusCoefficient", 1064967340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 103 }, { "eff1.EffectRealPointsPerLevel", 1081711002 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 3 }, { "eff2.EffectAuraPeriod", 3000 }, { "eff2.EffectBasePoints", 1 }, { "eff2.EffectBonusCoefficient", 1005596799 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 1044: 49 fields, fnv 77cb6288
+                { 1044, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 77 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 77 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 11 }, { "eff1.ImplicitTarget_0", 21 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 31642: 26 fields, fnv bac9b262
                 { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 { 18350, { { "absent", 1 } } },
@@ -9394,8 +9396,8 @@ namespace Harness
      * 2. Blazing Speed (31643) holds a root dispel of 100 in its second effect and a snare dispel of 0 in its third,
      * which Molten Shields (11094) raises by 100. The steps are casts by him at himself and the Camel's blows: his
      * Frostfire Bolt (44614) at himself has no flight, so its slow (-40%, the snare mechanic) and its hit reach him at
-     * once; without the glyph the bolt has no DoT. Blazing Speed's own proc (31642) answers the melee and ranged hits he takes, and none comes. At each
-     * read the scenario notes whether he holds Frostfire Bolt and Blazing Speed, and the amount of his Mage Ward (543).
+     * once; without the glyph the bolt has no DoT. Blazing Speed's own proc (31642) answers the melee and ranged hits
+     * he takes, and none comes. At each read the scenario notes whether he holds Frostfire Bolt and Blazing Speed, and the amount of his Mage Ward (543).
      */
     class MageMoltenShieldsScenario : public MageProcScenario
     {
@@ -9635,10 +9637,10 @@ namespace Harness
      * holds; when the snare runs out the orb casts Fire Power's explosion 83619 and goes.
      *
      * The scan is centred on the orb's placement, which the engine writes from its spline every 400 ms of flight
-     * (Unit::UpdateSplineMovement). The orb's flight starts 200 ms after the cast and the placement is written at
-     * 300 ms (1 yard out), 700 ms (5), 1100 ms (9), and so on; the scans come at 500 ms, 1000 ms, 1500 ms. So the
-     * first scan is centred 1 yard out while the orb itself is 3 yards out, the second 5 yards out while the orb is
-     * at 8, the third 9 while the orb is at 13. A Camel 10 yards out, about 0.9 yards off the orb's line, is 9.05
+     * (Unit::UpdateSplineMovement). The orb's flight starts 100 ms after the cast and the placement is written at
+     * 200 ms (1 yard out), 600 ms (5), 1000 ms (9), and so on; the scans come at 500 ms, 1000 ms, 1500 ms. So the
+     * first scan is centred 1 yard out while the orb itself is 4 yards out, and each later scan is centred a few
+     * yards behind the orb the same way. A Camel 10 yards out, about 0.9 yards off the orb's line, is 9.05
      * yards from the first scan's centre: the orb finds it there, 7 yards ahead, slows to 1 yard a second from
      * its fourth yard, makes its fifteenth hit 14 s later from about 18 yards out (8 from the Camel) and explodes
      * a second after that from about 19 (9 from the Camel), both within the 10 yards of the hit's scan and the
@@ -10556,7 +10558,8 @@ namespace Harness
      * in 5 yd anywhere (a wall would stop a climb). His Camel stands kTargetDistance yd out on +x, 22 yd from the
      * line, so no scan of the orb finds it and the orb never snares. The orb is lifted to its hover line at its
      * spawn and flies its 18 s at 10 yd/s. It is read every kReadMs from kReadMs after the cast, kReads of them, the
-     * first 98 yd of its flight (the harness orbs stop updating about 100 yd from the mage): the orb's spline and
+     * first 98 yd of its flight for the first ten reads; the last two sit at about 107.7 yd, where the harness
+     * stops updating the orb, so they read its last placement: the orb's spline and
      * placement, their distance ahead of the orb's spawn in the plane, the spline's z over the ground under it,
      * whether the spline still ran, and the placement's distance from the spawn's line.
      *

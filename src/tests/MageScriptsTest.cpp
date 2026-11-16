@@ -1818,7 +1818,8 @@ namespace
         ServerSpell spell;
     };
 
-    // Puts `spellId` into the stores once with a periodic damage aura at effect 0 every 3000 ms; no other test reads it.
+    // Puts `spellId` into the stores once with a periodic damage aura at effect 0 every 3000 ms; no other test reads
+    // it.
     SpellEntry const* StorePeriodic(StoredPeriodic& rows, uint32 spellId)
     {
         if (rows.spell.Entry().ID == spellId)
@@ -1910,13 +1911,13 @@ TEST(MageScripts_FrostfireBoltsFourthGlyphedBoltRewritesTheBurnWithItsOwnHitAtTh
     AuraHandle(*holder).SetAmount(EFFECT_INDEX_0, 69);
     CHECK_EQ(holder->GetStackAmount(), uint32(3));
 
-    // The fourth bolt's hit, 3130 (3000 dealt and 130 absorbed): the stacks stay at three and the tick is the newest
-    // hit's share times three, 3 x (int(3130 x 3 / 100) / 4) = 69, not the 23 of one stack; a hit of 4000 gives
-    // 3 x (120 / 4) = 90.
-    AfterHitContext fourth(glyphed, target, SpellRow(row, kFrostfireBolt), 3000, false, 130, 0, false);
+    // The fourth bolt's hit, 2000 (1900 dealt and 100 absorbed): the stacks stay at three and the tick is the newest
+    // hit's share times three, 3 x (int(2000 x 3 / 100) / 4) = 45, below the 69 it replaces, not the 15 of one
+    // stack; a hit of 4000 gives 3 x (120 / 4) = 90.
+    AfterHitContext fourth(glyphed, target, SpellRow(row, kFrostfireBolt), 1900, false, 100, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, fourth).IsContinue());
     CHECK_EQ(holder->GetStackAmount(), uint32(3));
-    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(69));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(45));
     AfterHitContext bigger(glyphed, target, SpellRow(row, kFrostfireBolt), 4000, false, 0, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, bigger).IsContinue());
     CHECK_EQ(holder->GetStackAmount(), uint32(3));

@@ -96,7 +96,8 @@ class MotionMaster
         void MoveConfused(uint64 claim = 0);                                     ///< a Confused claim; 0 derives the script identity
         void MoveFleeing(Unit* enemy, uint32 timeLimit = 0, uint64 claim = 0);   ///< a Fear claim; 0 derives a script identity from the enemy
         void MovePoint(uint32 id, float x, float y, float z, bool generatePath = true);
-        /// A point whose leg goes out at once from where the unit is, with no stop first: for a leg that replaces a running one.
+        /// A point whose leg goes out at once from where the unit is, with no stop first when the running point has
+        /// ended or been expired (MovementExpired) first.
         void MovePointOnward(uint32 id, float x, float y, float z, bool generatePath = false);
         void MoveSeekAssistance(float x, float y, float z);
         void MoveSeekAssistanceDistract(uint32 timer);
