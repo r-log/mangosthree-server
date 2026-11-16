@@ -41,13 +41,14 @@
  * Mage.cpp holds the class-wide bodies, the mage sites' defaults, and ProcEffectIs, CastProcSpell, EffectTriggerSpell
  * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
  * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
- * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacActive, PyromaniacTargets
- * and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's (ImpactSpreads),
- * Mage Ward's (MageWardTriggersBlazingSpeed) and Improved Flamestrike's (ImprovedFlamestrikeChance). Orb.cpp holds the
- * orb a mage's Flame Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature,
- * ClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
- * and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table per legacy site of
- * SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacBurns, PyromaniacActive,
+ * PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's
+ * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and
+ * Glyph of Frostfire's (FrostfireGlyphHit and FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its
+ * creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue,
+ * OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows
+ * through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per
+ * script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -224,11 +225,16 @@ namespace Mage
     /// Defined in Fire.cpp.
     bool PyromaniacCounts(uint32 spellId);
 
+    /// Whether a holder of `spellId` on an enemy makes it burn for Pyromaniac, given whether the holder holds a
+    /// periodic damage effect: a DoT PyromaniacCounts names, but Frostfire Bolt (44614) only with its periodic damage,
+    /// which Glyph of Frostfire keeps and which the bolt loses without the glyph. Defined in Fire.cpp.
+    bool PyromaniacBurns(uint32 spellId, bool holdsPeriodicDamage);
+
     /// Whether Pyromaniac's haste is up for `targets` burning enemies: three or more. Defined in Fire.cpp.
     bool PyromaniacActive(uint32 targets);
 
-    /// The enemies that hold one or more of `mage`'s holders PyromaniacCounts names: the units whose threat list holds
-    /// him, alive and on his map, each counted once. Defined in Fire.cpp.
+    /// The enemies that hold one or more of `mage`'s holders that make them burn (PyromaniacBurns): the units whose
+    /// threat list holds him, alive and on his map, each counted once. Defined in Fire.cpp.
     uint32 PyromaniacTargets(Unit& mage);
 
     /// The haste Pyromaniac gives a mage who knows `talentSpell` (34293 or 34295): that spell's effect 0 value; 0 for
@@ -252,6 +258,17 @@ namespace Mage
     /// 84674) calls the free Flamestrike: that spell's effect 0 value; 0 for any other spell, or when the spell store
     /// lacks it. Defined in Fire.cpp.
     int32 ImprovedFlamestrikeChance(uint32 talentSpell);
+
+    /// The hit Glyph of Frostfire's share is taken from: `dealtAndAbsorbed`, the bolt's damage dealt and absorbed,
+    /// over `lowHealthMultiplier`, the caster's bonus at the target's low health that the hit took and that each tick
+    /// of the DoT takes again (Spells::LowHealthDamageMultiplier), rounded to the nearest; the damage as it is for a
+    /// multiplier of 0 or below. Defined in Fire.cpp.
+    uint32 FrostfireGlyphHit(uint32 dealtAndAbsorbed, float lowHealthMultiplier);
+
+    /// The tick of the Frostfire Bolt DoT under Glyph of Frostfire: `stacks` times the share of one bolt's hit
+    /// (Combat::DotShareTick(hit, percent, ticks)), then the caster's mastery modifier on the spell, truncated. Defined
+    /// in Fire.cpp.
+    int32 FrostfireGlyphTick(uint32 hit, uint32 percent, uint32 ticks, uint32 stacks, float masteryMultiplier);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.

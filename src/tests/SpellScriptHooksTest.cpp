@@ -24,10 +24,10 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
-/// target and script word, the after-cast context's count and point, the aura handle's reads, RegisterRanks, the
-/// holder's script words, the holder copy's answer for a unit holding none and the period, tick time, duration and
-/// amount a copy keeps, the low-health multiplier a script query answers from the caster's class-script auras, and the
-/// game table, whose only hook rows are the mage's scripts.
+/// target and script word, the after-cast context's count and point, the aura handle's reads, its removal of one effect
+/// and its stack count, RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and
+/// the period, tick time, duration and amount a copy keeps, the low-health multiplier a script query answers from the
+/// caster's class-script auras, and the game table, whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -37,7 +37,8 @@
 /// spell put into the store as the registry's own holder test does, in storage whose bytes were all 0xA5. The periodic
 /// damage query reads holders and auras made through their constructors, on spells put into the spell, effect and
 /// duration stores, held in a bare creature's holder map; the copy is added through Unit::AddSpellAuraHolder to a bare
-/// creature, which sends nothing out of a world, and removed through Unit::RemoveSpellAuraHolder.
+/// creature, which sends nothing out of a world, and removed through Unit::RemoveSpellAuraHolder. The effect removal
+/// and the stack count run on holders made the same way, of auras whose apply and removal change nothing on the unit.
 /// The low-health multiplier reads class-script auras made through their constructors, on spells put into the spell,
 /// effect and class options stores, held in a bare creature's per-type aura list.
 ///
@@ -70,6 +71,8 @@ namespace
     const uint32 kOtherDotSpell = 94205;
     const uint32 kNotHeldSpell = 94206;
     const uint32 kCopiedDotSpell = 94210;
+    const uint32 kThreeAuraSpell = 94251;
+    const uint32 kStackedAuraSpell = 94252;
 
     // A creature with its update fields allocated and no world, map, template or AI.
     class BareCreature : public Creature
@@ -153,6 +156,60 @@ namespace
                 continue;
             }
             int32 basePoints = eff == EFFECT_INDEX_0 ? amount : 0;
+            holder->AddAura(CreateAura(spell, SpellEffectIndex(eff), &basePoints, holder, &target), SpellEffectIndex(eff));
+        }
+        return holder;
+    }
+
+    // A spell's records in the spell and effect stores, kept alive for the rest of the run.
+    struct StoredAuras
+    {
+        ServerSpell spell;
+        SpellEffectEntry more[MAX_EFFECT_INDEX - 1];
+    };
+
+    // Puts `spellId` into the stores once with `effects` effects, each an aura at the target that the unit's damage
+    // taken reads and whose apply and removal change nothing (SPELL_AURA_MOD_DAMAGE_FROM_CASTER), of `basePoints`.
+    SpellEntry const* StoreAuras(StoredAuras& rows, uint32 spellId, uint32 effects, int32 basePoints)
+    {
+        if (rows.spell.Entry().ID == spellId)
+        {
+            return &rows.spell.Entry();
+        }
+        rows.spell.Entry().ID = spellId;
+        for (uint32 eff = 0; eff < effects && eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            SpellEffectEntry& row = eff == 0 ? rows.spell.effect : rows.more[eff - 1];
+            row = SpellEffectEntry();
+            row.SpellID = spellId;
+            row.EffectIndex = eff;
+            row.Effect = SPELL_EFFECT_APPLY_AURA;
+            row.EffectAura = SPELL_AURA_MOD_DAMAGE_FROM_CASTER;
+            row.EffectBasePoints = basePoints;
+            row.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+            if (eff > 0)
+            {
+                AddSpellEffectEntry(&row);
+            }
+        }
+        sSpellStore.SetEntry(spellId, &rows.spell.Entry());
+        AddSpellEffectEntry(&rows.spell.effect);
+        return &rows.spell.Entry();
+    }
+
+    // A holder of `spell` on `target`, made through its constructor with no caster, so the target is its caster, and an
+    // aura made through CreateAura at every effect the spell has, of the effect's base points.
+    SpellAuraHolder* AuraHolder(SpellEntry const* spell, Unit& target)
+    {
+        SpellAuraHolder* holder = new SpellAuraHolder(spell, &target, NULL, NULL, NULL);
+        for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
+        {
+            SpellEffectEntry const* row = spell->GetSpellEffect(SpellEffectIndex(eff));
+            if (!row)
+            {
+                continue;
+            }
+            int32 basePoints = row->EffectBasePoints;
             holder->AddAura(CreateAura(spell, SpellEffectIndex(eff), &basePoints, holder, &target), SpellEffectIndex(eff));
         }
         return holder;
@@ -408,7 +465,7 @@ TEST(SpellScriptHooks_TheFifteenKeysAre100To114AboveEveryLegacySite)
     CHECK(AfterCastHook::Key > DummyAuraHook::Key);
 
     // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
-    // proc, damage-done, dummy aura, aura-apply, aura-remove, dummy-effect and after-cast hooks.
+    // proc, damage-done, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast and after-hit hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
@@ -417,7 +474,7 @@ TEST(SpellScriptHooks_TheFifteenKeysAre100To114AboveEveryLegacySite)
     }
     CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key) +
              game.CountAt(DummyAuraHook::Key) + game.CountAt(AuraApplyHook::Key) + game.CountAt(AuraRemoveHook::Key) +
-             game.CountAt(DummyEffectHook::Key) + game.CountAt(AfterCastHook::Key),
+             game.CountAt(DummyEffectHook::Key) + game.CountAt(AfterCastHook::Key) + game.CountAt(AfterHitHook::Key),
              game.Count());
 }
 
@@ -754,6 +811,76 @@ TEST(SpellScriptHooks_TheAuraHandleReadsTheHoldersFields)
     }
 }
 
+TEST(SpellScriptHooks_TheAuraHandleTakesOneEffectOffItsHolderButNeverTheLast)
+{
+    // A holder of three auras of 7 on a bare creature: the handle takes the aura at effect 0 off its target and out of
+    // the holder, with its effect bit, and leaves the other two as they were.
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 7);
+    BareCreature target;
+    SpellAuraHolder* holder = AuraHolder(spell, target);
+    uint32 const effectBits = AFLAG_EFF_INDEX_0 | AFLAG_EFF_INDEX_1 | AFLAG_EFF_INDEX_2;
+    AuraHandle handle(*holder);
+    CHECK_EQ(uint32(holder->GetAuraFlags()) & effectBits, effectBits);
+
+    handle.RemoveEffect(EFFECT_INDEX_0);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_0) == NULL);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_1) != NULL);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_2) != NULL);
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(0));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_1), int32(7));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_2), int32(7));
+    CHECK_EQ(uint32(holder->GetAuraFlags()) & effectBits, uint32(AFLAG_EFF_INDEX_1 | AFLAG_EFF_INDEX_2));
+
+    // An effect the holder no longer has changes nothing.
+    handle.RemoveEffect(EFFECT_INDEX_0);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_1) != NULL);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_2) != NULL);
+
+    // Its last aura stays: the holder is never left empty by the handle.
+    handle.RemoveEffect(EFFECT_INDEX_1);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_1) == NULL);
+    handle.RemoveEffect(EFFECT_INDEX_2);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_2) != NULL);
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_2), int32(7));
+    CHECK_EQ(uint32(holder->GetAuraFlags()) & effectBits, uint32(AFLAG_EFF_INDEX_2));
+    CHECK(target.GetSpellAuraHolderMap().empty());
+    delete holder;
+}
+
+TEST(SpellScriptHooks_TheAuraHandleSetsTheStacksAsAStackChangeDoes)
+{
+    // A holder of one aura of -40 on a bare creature that is its caster: two stacks make the amount -80, one stack
+    // -40 again, each recomputed from the aura's base points; 0 stacks changes nothing.
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kStackedAuraSpell, 1, -40);
+    BareCreature target;
+    SpellAuraHolder* holder = AuraHolder(spell, target);
+    AuraHandle handle(*holder);
+    CHECK_EQ(handle.Stacks(), uint32(1));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-40));
+
+    handle.SetStacks(2);
+    CHECK_EQ(handle.Stacks(), uint32(2));
+    CHECK_EQ(holder->GetStackAmount(), uint32(2));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-80));
+
+    handle.SetStacks(1);
+    CHECK_EQ(handle.Stacks(), uint32(1));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-40));
+
+    handle.SetStacks(0);
+    CHECK_EQ(handle.Stacks(), uint32(1));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-40));
+
+    // The amount written through the handle is the aura's; an effect the holder has no aura at takes nothing.
+    handle.SetAmount(EFFECT_INDEX_0, -25);
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-25));
+    handle.SetAmount(EFFECT_INDEX_1, 9);
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_1), int32(0));
+    delete holder;
+}
+
 TEST(SpellScriptHooks_AHolderIsMadeWithItsScriptWordsAtZero)
 {
     // The holder is made in storage whose every byte is 0xA5, so a word reads zero only when the constructor wrote it.
@@ -1005,11 +1132,11 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     // The proc hook holds the mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the damage-done
     // hook Ice Lance's, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and
     // two ranks), the aura-remove hook Hot Streak's buff's, Mage Ward's and Pyromaniac's ten, the dummy-effect
-    // hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's, and the after-cast hook Blast Wave's
-    // (MageScriptsTest names their ids); no other hook holds a row.
+    // hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's, the after-cast hook Blast Wave's and the
+    // after-hit hook Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
-        CheckCastHook::Key, EffectValueHook::Key, AfterHitHook::Key, AuraAmountHook::Key,
+        CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
         PeriodicTickHook::Key, CheckProcHook::Key, CritChanceHook::Key,
     };
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -1025,7 +1152,8 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(12));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1281));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
+    CHECK_EQ(game.Count(), std::size_t(1282));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 
