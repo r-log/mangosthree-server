@@ -1818,8 +1818,7 @@ namespace
         ServerSpell spell;
     };
 
-    // Puts `spellId` into the stores once with a periodic damage aura at effect 0 every 3000 ms; no other test reads
-    // it.
+    // Puts `spellId` into the stores once with a periodic damage aura at effect 0 every 3000 ms; no other test reads it.
     SpellEntry const* StorePeriodic(StoredPeriodic& rows, uint32 spellId)
     {
         if (rows.spell.Entry().ID == spellId)

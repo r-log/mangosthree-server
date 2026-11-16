@@ -118,7 +118,7 @@
 // Pyroblast accepted, refused, swapped in by the cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's
 // snare without Molten Shields; 982 with Molten Shields it removes the snare, and a Mage Ward a blow breaks brings
 // Blazing Speed; 990 Invisibility's fade takes a tenth of a Fire mage's threat from the Camel each second, its end
-// drops him from the list, and a cancelled fade keeps what its ticks took.
+// drops the mage from the list, and a cancelled fade keeps what its ticks took.
 // The guard of 931-938, 950-977 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
@@ -3991,7 +3991,10 @@ namespace Harness
      *    (Unit::RemoveAuraHolderDueToSpellByDispel, one stack) or by the plain call (Unit::RemoveAurasDueToSpell),
      *    read kSwingReadMs after;
      *  - a Camel health step (TargetHealth): the Camel's health set by call to the step's percent of its maximum, read
-     *    kSwingReadMs after.
+     *    kSwingReadMs after;
+     *  - a wait: nothing done, read kSwingReadMs after;
+     *  - a cancel: the holder of the step's spell on him removed through RemoveAurasDueToSpellByCancel, as the client's
+     *    right-click does, read kSwingReadMs after.
      * A step that names its own time to the next step takes it instead. A step is not run when a holder on either
      * unit that a proc can reach is not one the guard fingerprinted. Each step's rolls are drawn in map updates under
      * the map hook's RNG::Seed(TickSeed(base, order, elapsed)), so every run draws the same ones. Right after a step
@@ -4195,7 +4198,8 @@ namespace Harness
 
         /// One step of a scenario: the Camel's swing at the mage, the mage's cast of `spell` at the Camel or at himself,
         /// the removal of `spell`'s holder from the Camel, the Camel's blow of `amount` damage of `school` at the mage,
-        /// the mage's health set to its maximum, the Camel's health set, or the mage's kill of the Camel.
+        /// the mage's health set to its maximum, the Camel's health set, the mage's kill of the Camel, a wait that only
+        /// marks a moment for its reads, or the cancel of `spell`'s holder on the mage.
         struct Step
         {
             bool swing = false;
@@ -4333,7 +4337,7 @@ namespace Harness
             return s;
         }
         /// Whether a step is a cast of the mage's, at the Camel or at himself: neither a swing, a removal, a blow, a
-        /// health step nor a kill.
+        /// health step, a kill, a wait nor a cancel.
         static bool IsCast(Step const& step)
         {
             return !step.swing && !step.remove && !step.blow && !step.fullHealth && !step.healthPct && !step.kill && !step.wait && !step.selfRemoval;
@@ -4372,6 +4376,7 @@ namespace Harness
             uint32 wordBefore = 0;                      ///< a moving cast: his client's movement word before the step
             uint32 swingHealthBefore = 0, swingHealthAfter = 0;   ///< a cast the Camel strikes: his health around the swing
             std::map<std::string, int64> reads;         ///< what the scenario's own reads (ReadOwn) kept of the step
+            int64 threatUpdate = -1;                    ///< the last SMSG_THREAT_UPDATE value for the mage in the windows; -1 for none
             /// A cast as the client: the spell of the first SMSG_SPELL_START or SMSG_SPELL_GO of the step's cast count in
             /// its windows, the spell the handler cast; 0 when neither came.
             uint32 castSpell = 0;
@@ -5152,6 +5157,19 @@ namespace Harness
                             seen.logRead = true;
                             seen.crit = crit != 0;
                             seen.amount = amount;
+                        }
+                    }
+                    std::vector<Recorder::Seen const*> updates = m_rec.SeenIn(window, SMSG_THREAT_UPDATE);
+                    for (size_t i = 0; i < updates.size(); ++i)
+                    {
+                        std::string text;
+                        uint32 value = 0;
+                        Recorder::Seen const& update = *updates[i];
+                        if (!update.payload.empty() && Trace::DecodeThreatUpdate(&update.payload[0], update.payload.size(), roles, text) &&
+                            text.find(" count=1 list=[self:") != std::string::npos &&
+                            sscanf(text.c_str() + text.find("list=[self:"), "list=[self:%u]", &value) == 1)
+                        {
+                            seen.threatUpdate = value;
                         }
                     }
                 }
@@ -7925,9 +7943,9 @@ namespace Harness
      * Fire tree and so teaches Fire Specialization (+25% fire damage), Improved Fire Blast 2, Fire Power 3, Blazing
      * Speed 2, Blast Wave and Improved Scorch 2. He learns no Mastery passive, so his mastery adds nothing, and
      * Frostfire Bolt (44614) is learned. The glyph adds 15% to the bolt's hit and 3000 ms to its holder (12000 ms in
-     * all); its effect 2 (3) is the percent of the hit the bolt's DoT deals over the holder's ticks, a further bolt adds
-     * a stack up to the client data's three and a fourth keeps three and rewrites the DoT with its own hit, and the
-     * bolt does not slow. Before each cast he takes Precision (13843, +6% spell hit), so no cast misses a level-85
+     * all); its effect 2 (3) is the percent of the hit the bolt's DoT deals over the holder's ticks, a further bolt
+     * adds a stack up to the client data's three and a fourth keeps three and rewrites the DoT with its own hit, and
+     * the bolt does not slow. Before each cast he takes Precision (13843, +6% spell hit), so no cast misses a level-85
      * Camel, and each cast puts Increased Critical Spell on him at -100, so no hit or tick crits. Steps: four bolts,
      * kBoltEveryMs apart, each read kBoltReadMs after its cast (its 2.5 s cast and its flight land it about 2.8 s after
      * the step, before its read and before the next cast); the fourth has kLastStepMs to the end, past the holder's
@@ -8180,8 +8198,8 @@ namespace Harness
     /**
      * S977 `mage-fire-frostfire-snare-immune`: 984's staging without Glyph of Frostfire, against a Camel that holds
      * Hand of Freedom (1044), whose second effect makes it immune to the snare mechanic. His Frostfire Bolt (44614)
-     * hits it, but its slow never reaches the holder, and without the glyph the bolt has no DoT of its own: the holder is
-     * left with the periodic damage alone and runs out at the unit's next update. One bolt; the read comes
+     * hits it, but its slow never reaches the holder, and without the glyph the bolt has no DoT of its own: the holder
+     * is left with the periodic damage alone and runs out at the unit's next update. One bolt; the read comes
      * kBoltReadMs after the cast, one update after the hit, and the step runs on past the time the first tick would
      * come.
      *
@@ -9397,7 +9415,8 @@ namespace Harness
      * which Molten Shields (11094) raises by 100. The steps are casts by him at himself and the Camel's blows: his
      * Frostfire Bolt (44614) at himself has no flight, so its slow (-40%, the snare mechanic) and its hit reach him at
      * once; without the glyph the bolt has no DoT. Blazing Speed's own proc (31642) answers the melee and ranged hits
-     * he takes, and none comes. At each read the scenario notes whether he holds Frostfire Bolt and Blazing Speed, and the amount of his Mage Ward (543).
+     * he takes, and none comes. At each read the scenario notes whether he holds Frostfire Bolt and Blazing Speed, and
+     * the amount of his Mage Ward (543).
      */
     class MageMoltenShieldsScenario : public MageProcScenario
     {
@@ -10559,9 +10578,9 @@ namespace Harness
      * line, so no scan of the orb finds it and the orb never snares. The orb is lifted to its hover line at its
      * spawn and flies its 18 s at 10 yd/s. It is read every kReadMs from kReadMs after the cast, kReads of them, the
      * first 98 yd of its flight for the first ten reads; the last two sit at about 107.7 yd, where the harness
-     * stops updating the orb, so they read its last placement: the orb's spline and
-     * placement, their distance ahead of the orb's spawn in the plane, the spline's z over the ground under it,
-     * whether the spline still ran, and the placement's distance from the spawn's line.
+     * stops updating the orb, so they read its last placement: the orb's spline and placement, their distance ahead
+     * of the orb's spawn in the plane, the spline's z over the ground under it, whether the spline still ran, and the
+     * placement's distance from the spawn's line.
      *
      * `climb`: `rise=<the ground under the orb at the last read less the ground under its spawn, kRiseMin or more:
      * the line rose> over=<the lowest and the highest height of the spline over the ground under it at any read,
@@ -11003,25 +11022,28 @@ namespace Harness
 
     /**
      * S990 `mage-fire-invisibility-fade`: Invisibility's fade (66) on a staged Fire mage who has Fire Blast at the Camel
-     * on his threat list. 66 ticks every second for three seconds, each tick taking a tenth of his threat from every
-     * list that holds him; its expiry casts Invisibility (32612), whose sanctuary effect takes him off every list and
-     * out of combat. Staged as 983 stages him (Precision before each cast, the crit aura at -100). Steps (T the time of
-     * step 2):
-     *  1. Fire Blast at the Camel: he enters its list;
+     * on the Camel's threat list. 66 ticks every second for three seconds, each tick taking a tenth of the mage's
+     * threat from every list that holds the mage; its expiry casts Invisibility (32612), whose sanctuary effect takes
+     * the mage off every list and out of combat. Staged as 983 stages him (Precision before each cast, the crit aura at
+     * -100). Steps (T the time of step 2):
+     *  1. Fire Blast at the Camel: the mage enters its list;
      *  2. the fade, cast by him at himself, its ticks at T+1, T+2 and T+3 s and its expiry at T+3 s;
      *  3. a wait read at T+1.5 s and 4. a wait read at T+2.5 s, between ticks;
      *  5. a wait read at T+3.5 s, after the expiry, four seconds long so the Camel's evade ends before step 6;
-     *  6. Fire Blast again: it removes 32612 and lands, so he is on the list once more;
+     *  6. Fire Blast again: it removes 32612 and lands, so the mage is on the list once more;
      *  7. the fade again, 8. a wait read at T'+1.5 s, 9. a wait read at T'+2.5 s, 10. the fade cancelled at T'+2.7 s,
      *     before its third tick.
-     * At each step's act and read the scenario keeps his threat on the Camel, whether the Camel's list is empty,
-     * whether he is in combat and whether he holds 66 and 32612.
+     * At each step's act and read the scenario keeps the mage's threat on the Camel, whether the Camel's list is
+     * empty, whether he is in combat and whether he holds 66 and 32612; for each step it also keeps the last
+     * SMSG_THREAT_UPDATE value the client was sent for the mage in the step's windows.
      *
      * `fade`: `fade=<t0>,<t1>,<t2>,end=<e>,<empty>,<combat>,<invis>,
-     * cancel=<u0>,<u1>,<u2>,<u3>,<fade>,<invis>,<combat>`;
+     * cancel=<u0>,<u1>,<u2>,<u3>,<fade>,<invis>,<combat>,sent=<s1>,<s2>`;
      * OK when t1 is int(t0 x 0.9) and t2 int(t1 x 0.9), one point either side, e is 0 with the list empty, he out of
-     * combat and holding 32612; u1 and u2 follow u0 the same way, u3 equals u2, 66 and 32612 are gone, and he is in
-     * combat with the list not empty.
+     * combat and holding 32612; u1 and u2 follow u0 the same way, u3 (the second fade's own read, after the cancel)
+     * equals u2, 66 and 32612 are gone, and he is in combat with the list not empty; the last threat update the client
+     * was sent through the first fade's second wait is above 0 and below t0, and the last of the whole record is above
+     * 0 and at most u1 + 1.
      */
     class MageFireInvisibilityFade : public MageProcScenario
     {
@@ -11052,8 +11074,8 @@ namespace Harness
                      SelfRemoval(kFade, kCastEveryMs) };
         }
 
-        /// At each act (`atRead` false) and read: his threat on the Camel (rounded), whether the Camel's list is empty,
-        /// whether he is in combat and whether he holds 32612 and 66; kept in Seen::reads under `a_` for the act.
+        /// At each act (`atRead` false) and read: the mage's threat on the Camel (rounded), whether the Camel's list is
+        /// empty, whether he is in combat and whether he holds 32612 and 66; kept in Seen::reads under `a_` for the act.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             const std::string prefix = atRead ? "" : "a_";
@@ -11129,16 +11151,27 @@ namespace Harness
             const int64 u0 = Kept(st, kSecondHit, "threat");
             const int64 u1 = Kept(st, kCancelFirstWait, "a_threat");
             const int64 u2 = Kept(st, kCancelSecondWait, "a_threat");
-            const int64 u3 = Kept(st, kCancelStep, "a_threat");
+            const int64 u3 = Kept(st, kFadeAgainStep, "threat");
             const int64 cancelFade = Kept(st, kCancelStep, "fade");
             const int64 cancelInvis = Kept(st, kCancelStep, "invis");
             const int64 cancelCombat = Kept(st, kCancelStep, "combat");
             const int64 cancelEmpty = Kept(st, kCancelStep, "empty");
 
+            int64 sent1 = -1, sent2 = -1;
+            for (uint32 k = 0; k <= kSecondWait; ++k)
+            {
+                sent1 = st.seen[k].threatUpdate >= 0 ? st.seen[k].threatUpdate : sent1;
+            }
+            for (uint32 k = 0; k < st.seen.size(); ++k)
+            {
+                sent2 = st.seen[k].threatUpdate >= 0 ? st.seen[k].threatUpdate : sent2;
+            }
+
             const bool fadeOk = t0 > 0 && Near(t1, int64(t0 * 0.9) ) && Near(t2, int64(t1 * 0.9));
             const bool endOk = e == 0 && endEmpty == 1 && endCombat == 0 && endInvis == 1;
             const bool cancelOk = u0 > 0 && Near(u1, int64(u0 * 0.9)) && Near(u2, int64(u1 * 0.9)) && u3 == u2 && cancelFade == 0 &&
                                   cancelInvis == 0 && cancelCombat == 1 && cancelEmpty == 0;
+            const bool sentOk = sent1 > 0 && sent1 < t0 && sent2 > 0 && sent2 <= u1 + 1;
 
             Seen const& hit = st.seen[0];
             const std::string value = "fade=" + U(uint64(t0 < 0 ? 0 : t0)) + "," + U(uint64(t1 < 0 ? 0 : t1)) + "," + U(uint64(t2 < 0 ? 0 : t2)) +
@@ -11146,20 +11179,26 @@ namespace Harness
                                       U(uint64(endCombat < 0 ? 0 : endCombat)) + "," + U(uint64(endInvis < 0 ? 0 : endInvis)) + ",cancel=" +
                                       U(uint64(u0 < 0 ? 0 : u0)) + "," + U(uint64(u1 < 0 ? 0 : u1)) + "," + U(uint64(u2 < 0 ? 0 : u2)) + "," +
                                       U(uint64(u3 < 0 ? 0 : u3)) + "," + U(uint64(cancelFade < 0 ? 0 : cancelFade)) + "," +
-                                      U(uint64(cancelInvis < 0 ? 0 : cancelInvis)) + "," + U(uint64(cancelCombat < 0 ? 0 : cancelCombat));
-            char buf[1024];
+                                      U(uint64(cancelInvis < 0 ? 0 : cancelInvis)) + "," + U(uint64(cancelCombat < 0 ? 0 : cancelCombat)) +
+                                      ",sent=" +
+                                      U(uint64(sent1 < 0 ? 0 : sent1)) + "," + U(uint64(sent2 < 0 ? 0 : sent2));
+            char buf[1280];
             snprintf(buf, sizeof(buf),
                      "Fire Blast's hit %s %u and his threat after it %lld; each tick keeps 90%% of what the list held, one point either side "
                      "(fade %s: int(%lld x 0.9) = %lld wanted at the first wait, int(%lld x 0.9) = %lld at the second); after the expiry %lld "
                      "with the list %s, he %s and 32612 %s (%s); the cancelled fade: int(%lld x 0.9) = %lld wanted at the first wait, "
-                     "int(%lld x 0.9) = %lld at the second, %lld right after the cancel, 66 %s, 32612 %s, he %s, the list %s (%s)",
+                     "int(%lld x 0.9) = %lld at the second, %lld at the read of the fade it cancels, 66 %s, 32612 %s, he %s, the list %s (%s); the last SMSG_THREAT_UPDATE the client was sent by "
+                     "the second wait of the first fade carries %lld, wanted below %lld "
+                     "(%s), and by the end of the record %lld, wanted at most %lld (%s)",
                      hit.logRead ? "of" : "unread", hit.amount, (long long)t0, fadeOk ? "OK" : "BUG", (long long)t0, (long long)int64(t0 * 0.9),
                      (long long)t1, (long long)int64(t1 * 0.9), (long long)e, endEmpty == 1 ? "empty" : "not empty",
                      endCombat == 1 ? "in combat" : "out of combat", endInvis == 1 ? "held" : "gone", endOk ? "OK" : "BUG",
                      (long long)u0, (long long)int64(u0 * 0.9), (long long)u1, (long long)int64(u1 * 0.9), (long long)u3,
                      cancelFade == 1 ? "held" : "gone", cancelInvis == 1 ? "held" : "gone", cancelCombat == 1 ? "in combat" : "out of combat",
-                     cancelEmpty == 1 ? "empty" : "not empty", cancelOk ? "OK" : "BUG");
-            return value + ((fadeOk && endOk && cancelOk) ? "(OK: " : "(BUG: ") + buf + ")";
+                     cancelEmpty == 1 ? "empty" : "not empty", cancelOk ? "OK" : "BUG",
+                     (long long)sent1, (long long)t0, (sent1 > 0 && sent1 < t0) ? "OK" : "BUG", (long long)sent2, (long long)u1 + 1,
+                     (sent2 > 0 && sent2 <= u1 + 1) ? "OK" : "BUG");
+            return value + ((fadeOk && endOk && cancelOk && sentOk) ? "(OK: " : "(BUG: ") + buf + ")";
         }
 
     private:
@@ -11172,6 +11211,7 @@ namespace Harness
         static constexpr uint32 kSecondWait = 3;
         static constexpr uint32 kEndStep = 4;
         static constexpr uint32 kSecondHit = 5;
+        static constexpr uint32 kFadeAgainStep = 6;
         static constexpr uint32 kCancelFirstWait = 7;
         static constexpr uint32 kCancelSecondWait = 8;
         static constexpr uint32 kCancelStep = 9;

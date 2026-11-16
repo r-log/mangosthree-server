@@ -234,14 +234,14 @@ namespace Mage
     bool PyromaniacActive(uint32 targets);
 
     /// The enemies that hold one or more of `mage`'s holders that make them burn (PyromaniacBurns) and still have time
-    /// left: the units whose threat list holds him, alive and on his map, each counted once. Defined in Fire.cpp.
+    /// left: the units whose threat list holds the mage, alive and on his map, each counted once. Defined in Fire.cpp.
     uint32 PyromaniacTargets(Unit& mage);
 
     /// The haste Pyromaniac gives a mage who knows `talentSpell` (34293 or 34295): that spell's effect 0 value; 0 for
     /// any other spell, or when the spell store lacks it. Defined in Fire.cpp.
     int32 PyromaniacHaste(uint32 talentSpell);
 
-    /// The percent of his threat one tick of Invisibility's fade (66) takes from every enemy's list, as
+    /// The percent of the mage's threat one tick of Invisibility's fade (66) takes from every enemy's list, as
     /// HostileRefManager::addThreatPercent takes it: -10 for 66; 0 for any other spell. Defined in Mage.cpp.
     int32 InvisibilityThreatPercent(uint32 spellId);
 

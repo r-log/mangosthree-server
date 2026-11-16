@@ -1011,8 +1011,8 @@ void MotionMaster::MovePoint(uint32 id, float x, float y, float z, bool generate
 }
 
 /**
- * @brief Moves the unit to a point, the leg going out at once with no stop first when the running point has ended or
- * been expired (MovementExpired) first.
+ * @brief Moves the unit to a point, the leg going out at once with no stop when the running point has ended or been
+ * expired (MovementExpired).
  * @param id ID of the movement.
  * @param x X-coordinate of the destination.
  * @param y Y-coordinate of the destination.

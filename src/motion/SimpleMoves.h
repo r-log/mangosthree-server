@@ -62,7 +62,8 @@ namespace Motion
                 bool         assist = false;             ///< the assistance run: its finisher calls assistance, then the distract; it never informs
                 float        relayDrift = 2.0f;          ///< the charge: re-lay when the goal drifted more than this
                 uint32       relayEveryMs = 500;         ///< the charge: at most one re-lay per this
-                bool         onward = false;             ///< lay the leg at activation from where the unit is, with no stop once the running point has ended or been expired
+                bool         onward = false;             ///< lay the leg at activation from where the unit is, with no stop
+                                                         ///< once the running point has ended or been expired
             };
             explicit PointBehaviour(Params const& p);
             Motion::Kind Kind() const override { return Motion::Kind::Point; }
