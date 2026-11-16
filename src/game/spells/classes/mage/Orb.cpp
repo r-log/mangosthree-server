@@ -36,6 +36,7 @@
 #include "movement/MoveSpline.h"
 #include "movement/typedefs.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace
@@ -57,6 +58,12 @@ namespace
 
     /// The id of the glide the orb makes down to its hover line.
     uint32 const ORB_GLIDE = 2;
+
+    /// The id of each short leg the orb flies up to its hover line over rising ground.
+    uint32 const ORB_CLIMB = 3;
+
+    /// How long a climb leg may have left before the next one is laid from where the orb is, in seconds.
+    float const ORB_CLIMB_RELAY_SEC = 0.15f;
 
     /// How long a glide may have run before the orb takes a finished movement without its inform as the glide's end, in
     /// milliseconds.
@@ -149,15 +156,15 @@ namespace
 
     /// The orb of a mage, owned by him and of his level: glides forward on the slow-fall curve to its hover height above
     /// the floor when it is summoned higher or the floor falls away under it, then flies straight ahead from where it
-    /// stands at its run speed, slowed by its snare when it finds an enemy; when the snare runs out (its firing is
-    /// over), or for an orb that found nothing at its summon's end (the summon's own end, or its life's when it is in
-    /// combat), when its summoner is alive and on its map, rolls the proc chance of the summoner's explosion talent for
-    /// the explosion (83619), cast with the summoner as the original caster, and goes. It attacks nothing, follows
-    /// nothing and evades nothing.
+    /// stands at its run speed, in short legs up to its hover line where the floor rises ahead of it, slowed by its
+    /// snare when it finds an enemy; when the snare runs out (its firing is over), or for an orb that found nothing at
+    /// its summon's end (the summon's own end, or its life's when it is in combat), when its summoner is alive and on its
+    /// map, rolls the proc chance of the summoner's explosion talent for the explosion (83619), cast with the summoner
+    /// as the original caster, and goes. It attacks nothing, follows nothing and evades nothing.
     class OrbAI : public CreatureAI
     {
         public:
-            explicit OrbAI(Creature* orb) : CreatureAI(orb), m_spells(NULL), m_lifeMs(0), m_ended(false), m_snared(false), m_flying(false), m_gliding(false), m_glideMs(0) {}
+            explicit OrbAI(Creature* orb) : CreatureAI(orb), m_spells(NULL), m_lifeMs(0), m_ended(false), m_snared(false), m_flying(false), m_gliding(false), m_climbing(false), m_glideMs(0), m_facing(0.0f), m_legX(0.0f), m_legY(0.0f), m_legZ(0.0f) {}
 
             /// The orb's start: its row, by the spell that created it; its summoner as its owner, so the orb counts as
             /// his and its scan takes the units he may attack, as his own area spells take them; its summoner's level,
@@ -216,9 +223,9 @@ namespace
                         StartFlight();
                     }
                 }
-                else if (m_flying)
+                else if (m_flying && !StartGlide(true))
                 {
-                    StartGlide(true);
+                    FollowGround();
                 }
             }
 
@@ -232,9 +239,17 @@ namespace
                 }
             }
 
-            /// Starts the flight when the glide ended; flies on to the point when the flight ended short of it.
+            /// Starts the flight when the glide ended; flies on to the point when the flight ended short of it, and from
+            /// the height a climb leg reached when the leg ended.
             void MovementInform(Motion::Kind kind, uint32 id) override
             {
+                if (kind == Motion::Kind::Point && id == ORB_CLIMB && !m_ended && m_spells && m_climbing)
+                {
+                    m_climbing = false;
+                    m_goal.z = m_creature->Where().Z();
+                    FlyToGoal();
+                    return;
+                }
                 if (kind == Motion::Kind::Effect && id == ORB_GLIDE && !m_ended && m_spells && m_gliding)
                 {
                     StartFlight();
@@ -264,7 +279,9 @@ namespace
             void StartFlight()
             {
                 m_gliding = false;
+                m_climbing = false;
                 m_flying = true;
+                m_facing = m_creature->Where().Facing();
                 float const distance = float(m_lifeMs > 0 ? m_lifeMs : 0) / 1000.0f * m_creature->GetSpeed(MOVE_RUN);
                 m_goal = m_creature->Where().PointAhead(distance);
                 FlyToGoal();
@@ -293,15 +310,8 @@ namespace
                     start.y = live.y;
                     start.z = live.z;
                 }
-                uint32 const phase = m_creature->GetPhaseMask();
-                bool const walksOnWater = (m_creature->WireFlags() & MOVEFLAG_WATERWALKING) != 0;
-                std::function<std::optional<float>(float, float, float)> floorAt = [map, phase, walksOnWater](float x, float y, float z)
-                {
-                    return Mage::OrbGlideFloor(map->Floor(phase, x, y, z),
-                                               walksOnWater ? map->GetTerrain()->GetWaterLevel(x, y, z) : std::nullopt, walksOnWater);
-                };
                 std::optional<Mage::OrbGlidePoint> const landing = Mage::OrbGlideLanding(
-                    start, m_creature->Where().Facing(), m_creature->GetSpeed(MOVE_RUN), hover, floorAt);
+                    start, m_creature->Where().Facing(), m_creature->GetSpeed(MOVE_RUN), hover, FloorAt(*map));
                 if (!landing)
                 {
                     return false;
@@ -315,14 +325,78 @@ namespace
                     return false;
                 }
                 m_gliding = true;
+                m_climbing = false;
                 m_glideMs = 0;
                 return true;
             }
 
-            /// A straight flight to the point, with no path generated.
+            /// The floor an orb finds under (x, y) seen from z on `map`: the ground, or for an orb that walks on water the
+            /// higher of it and the water's surface (Mage::OrbGlideFloor).
+            std::function<std::optional<float>(float, float, float)> FloorAt(Map& map) const
+            {
+                Map* const mapPtr = &map;
+                uint32 const phase = m_creature->GetPhaseMask();
+                bool const walksOnWater = (m_creature->WireFlags() & MOVEFLAG_WATERWALKING) != 0;
+                return [mapPtr, phase, walksOnWater](float x, float y, float z)
+                {
+                    return Mage::OrbGlideFloor(mapPtr->Floor(phase, x, y, z),
+                                               walksOnWater ? mapPtr->GetTerrain()->GetWaterLevel(x, y, z) : std::nullopt, walksOnWater);
+                };
+            }
+
+            /// The climb, while the orb flies level: where the floor half a second ahead of it, along its line, lies over
+            /// its hover line, lays a short leg to a hover height above that floor (Mage::OrbClimbTo), from the orb's live
+            /// point. A leg that runs is followed by the next one from where the orb is once it is ORB_CLIMB_RELAY_SEC of
+            /// flight or less from its end and the floor ahead still asks for one. The next leg is laid from the live
+            /// point with no stop between the two, so the orb does not stand between legs. The far goal's x and y stay;
+            /// its z is the height each leg ends at.
+            void FollowGround()
+            {
+                Map* map = m_creature->FindMap();
+                float const hover = m_creature->GetFloatValue(UNIT_FIELD_HOVERHEIGHT);
+                if (!map || hover <= 0.0f)
+                {
+                    return;
+                }
+                bool const spline = m_creature->movespline && !m_creature->movespline->Finalized();
+                float x = m_creature->Where().X();
+                float y = m_creature->Where().Y();
+                float z = m_creature->Where().Z();
+                if (spline)
+                {
+                    Movement::Location const live = m_creature->movespline->ComputePosition();
+                    x = live.x;
+                    y = live.y;
+                    z = live.z;
+                }
+                float const speed = m_creature->GetSpeed(MOVE_RUN);
+                if (m_climbing && spline &&
+                    std::sqrt((x - m_legX) * (x - m_legX) + (y - m_legY) * (y - m_legY) + (z - m_legZ) * (z - m_legZ)) >
+                        ORB_CLIMB_RELAY_SEC * speed)
+                {
+                    return;
+                }
+                float const lookAhead = Mage::OrbLookAhead(speed);
+                float const aheadX = x + std::cos(m_facing) * lookAhead;
+                float const aheadY = y + std::sin(m_facing) * lookAhead;
+                std::optional<float> const climbZ =
+                    Mage::OrbClimbTo(z, FloorAt(*map)(aheadX, aheadY, z + lookAhead + hover), hover, lookAhead);
+                if (!climbZ)
+                {
+                    return;
+                }
+                m_creature->GetMotionMaster()->MovementExpired(false);
+                m_creature->GetMotionMaster()->MovePointOnward(ORB_CLIMB, aheadX, aheadY, *climbZ, false);
+                m_climbing = true;
+                m_legX = aheadX;
+                m_legY = aheadY;
+                m_legZ = *climbZ;
+            }
+
+            /// A straight flight to the point, with no path generated, laid at once from where the orb is.
             void FlyToGoal()
             {
-                m_creature->GetMotionMaster()->MovePoint(ORB_PATH_POINT, m_goal.x, m_goal.y, m_goal.z, false);
+                m_creature->GetMotionMaster()->MovePointOnward(ORB_PATH_POINT, m_goal.x, m_goal.y, m_goal.z, false);
             }
 
             /// The orb's end: the explosion, when its summoner is alive on its map, knows one of the row's explosion
@@ -358,7 +432,12 @@ namespace
             bool m_snared;                      ///< the orb has held its snare: it found an enemy
             bool m_flying;                      ///< the level flight has started
             bool m_gliding;                     ///< the glide to its hover line is under way
+            bool m_climbing;                    ///< a climb leg is the movement it asked for last
             uint32 m_glideMs;                   ///< the milliseconds the glide has run
+            float m_facing;                     ///< the direction of the line the orb flies along
+            float m_legX;                       ///< the end of the climb leg it asked for last
+            float m_legY;
+            float m_legZ;
             Geometry::Vector3 m_goal;           ///< the point the orb flies to
     };
 }
@@ -375,6 +454,22 @@ std::optional<float> Mage::OrbGlideFloor(std::optional<float> floor, std::option
 float Mage::OrbGlideDistance(float speed, float drop)
 {
     return drop > 0.0f ? speed * Movement::computeFallTime(drop, true) : 0.0f;
+}
+
+float Mage::OrbLookAhead(float speed)
+{
+    return std::max(1.0f, 0.5f * speed);
+}
+
+std::optional<float> Mage::OrbClimbTo(float z, std::optional<float> floorAhead, float hover, float lookAhead)
+{
+    if (!floorAhead)
+    {
+        return std::nullopt;
+    }
+    float const line = *floorAhead + hover;
+    float const rise = line - z;
+    return rise > 0.25f && rise <= lookAhead ? std::optional<float>(line) : std::nullopt;
 }
 
 std::optional<Mage::OrbGlidePoint> Mage::OrbGlideLanding(OrbGlidePoint start, float facing, float speed, float hover,

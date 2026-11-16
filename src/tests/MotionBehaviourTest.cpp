@@ -286,6 +286,37 @@ TEST(MotionBehaviour_PointActivatesThenLaysItsLegOnTheFirstTick)
     CHECK(t.roaming == Roaming::SetBoth);
 }
 
+TEST(MotionBehaviour_PointLaidOnwardMovesAtActivationWithoutAStop)
+{
+    PointBehaviour::Params p = PointTo(10.0f, 0.0f, 0.0f);
+    p.onward = true;
+    p.flags = MOVE_STRAIGHT;
+    PointBehaviour b(p);
+    Step a = b.Activate(Free(), g_svc);
+    CHECK(!a.stop);
+    CHECK(a.resetLeg);
+    CHECK(a.roaming == Roaming::SetBoth);
+    CHECK(a.apply);
+    CHECK(a.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(a.intent.goal.x, 10.0f);
+    CHECK(a.intent.flags == MOVE_STRAIGHT);
+    Step t = b.Tick(Free(), g_svc, 100);
+    CHECK(t.apply);
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(t.intent.goal.x, 10.0f);
+    CHECK(b.Suspend().interrupt);
+    Step r = b.Resume(Free(), g_svc, true);
+    CHECK(!r.stop);
+    CHECK(r.apply);
+    CHECK(r.intent.act == MoveIntent::Act::Move);
+    Sight s = Free();
+    s.canReact = false;
+    PointBehaviour quiet(p);
+    Step n = quiet.Activate(s, g_svc);
+    CHECK(!n.apply);
+    CHECK(!n.stop);
+}
+
 TEST(MotionBehaviour_PointActivationUnderCanNotReactDoesNothing)
 {
     PointBehaviour b(PointTo(10.0f, 0.0f, 0.0f));

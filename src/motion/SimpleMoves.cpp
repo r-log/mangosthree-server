@@ -40,9 +40,19 @@ namespace Motion
         {
             return s;
         }
-        s.stop = true;
         s.roaming = Roaming::SetBoth;
         s.resetLeg = true;
+        if (m_p.onward)
+        {
+            // A leg that replaces a running one: laid now from the live point, with no stop first.
+            m_laid = m_p.goal;
+            m_haveLaid = true;
+            Step onward = Step::Of(MoveIntent::Move(m_p.goal, m_p.flags).AtSpeed(m_p.speed));
+            onward.roaming = Roaming::SetBoth;
+            onward.resetLeg = true;
+            return onward;
+        }
+        s.stop = true;
         m_haveLaid = false;
         return s;
     }
