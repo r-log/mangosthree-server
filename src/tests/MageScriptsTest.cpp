@@ -1357,7 +1357,7 @@ TEST(MageScripts_CombustionTickIsThePerSecondSumWithIgnitesShareBeforeMastery)
 TEST(MageScripts_CombustionTickRaisesEachShareByItsLowHealthBonusButNotIgnites)
 {
     // Pyroblast 487 and Living Bomb 700 every 3 s at Molten Fury's 1.12: 162.33 x 1.12 + 233.33 x 1.12 = 443.1.
-    Mage::DotShare const ignite = { 2000, 2000 };
+    Mage::DotShare const ignite = { 2000, 2000, 1.12f };
     Mage::DotShare const raised[] = { { 487, 3000, 1.12f }, { 700, 3000, 1.12f } };
     CHECK_EQ(Mage::CombustionTick(raised, 2, NULL, 1.0f), int32(443));
 

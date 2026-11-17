@@ -37,6 +37,7 @@
 #include "movement/typedefs.h"
 
 #include <algorithm>
+#include <functional>
 #include <cmath>
 
 namespace
@@ -99,7 +100,8 @@ namespace
     /// (Mage::ClosestOrbTarget), or none.
     SpellHandlerOutcome<void> OrbScanTargets(SelectTargetsContext& ctx)
     {
-        Unit* closest = Mage::ClosestOrbTarget(ctx.caster, ctx.targets);
+        Unit* closest = Mage::ClosestOrbTarget(ctx.caster, ctx.targets,
+            [&ctx](Unit const& unit) { return HasLineOfSight(unit, ctx.caster); });
         ctx.targets.clear();
         if (closest)
         {
@@ -539,14 +541,15 @@ bool Mage::IsOrbCreature(uint32 creatureEntry)
     return false;
 }
 
-Unit* Mage::ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& candidates)
+Unit* Mage::ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& candidates,
+                             std::function<bool(Unit const&)> const& sees)
 {
     Unit* closest = NULL;
     float closestDistance = 0.0f;
     for (Unit* unit : candidates)
     {
         if (!unit || !unit->IsAlive() || unit->GetCreatureType() == CREATURE_TYPE_CRITTER || unit->IsPolymorphed() ||
-            !from.Where().ShareFrame(unit->Where()))
+            !from.Where().ShareFrame(unit->Where()) || !sees(*unit))
         {
             continue;
         }

@@ -112,9 +112,10 @@ namespace Mage
     /// Whether `creatureEntry` is an orb of the table. Defined in Orb.cpp.
     bool IsOrbCreature(uint32 creatureEntry);
 
-    /// The closest of `candidates` to `from` that an orb may strike: alive, not a critter, not polymorphed; NULL when
-    /// none. Defined in Orb.cpp.
-    Unit* ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& candidates);
+    /// The closest of `candidates` to `from` that an orb may strike: alive, not a critter, not polymorphed, and one
+    /// `sees` accepts; NULL when none. Defined in Orb.cpp.
+    Unit* ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& candidates,
+                           std::function<bool(Unit const&)> const& sees);
 
     /// The cadence of an orb's hits, in scans of its own aura.
     struct OrbCadence
