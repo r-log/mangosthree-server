@@ -24,6 +24,7 @@
  */
 
 #include "spells/data/SpellTables.h"
+#include "spells/data/SpellAuraDefines.h"
 #include "data/dbc/SharedDefines.h"
 
 #include <algorithm>
@@ -777,6 +778,25 @@ bool TriggeredCastStartsProcsOf(uint32 castSpellId, uint32 auraAttributesEx3)
 bool DamageBreaksAuras(uint32 attributesEx4)
 {
     return !(attributesEx4 & SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC);
+}
+
+bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ownSpell, uint32 procAttributesEx4,
+                        uint32 auraInterruptFlags, uint32 auraType)
+{
+    if (!takenDamage || !damage || charges || ownSpell || !DamageBreaksAuras(procAttributesEx4))
+    {
+        return false;
+    }
+
+    switch (auraType)
+    {
+        case SPELL_AURA_MOD_CONFUSE:
+            return true;
+        case SPELL_AURA_MOD_STUN:
+            return (auraInterruptFlags & AURA_INTERRUPT_FLAG_DAMAGE) != 0;
+        default:
+            return false;
+    }
 }
 
 uint32 AuraTargetLimit(uint32 spellId)

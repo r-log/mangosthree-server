@@ -49,14 +49,14 @@ pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
     &Unit::HandleNULLProc,                                  //  2 SPELL_AURA_MOD_POSSESS
     &Unit::HandleNULLProc,                                  //  3 SPELL_AURA_PERIODIC_DAMAGE
     &Unit::HandleDummyAuraProc,                             //  4 SPELL_AURA_DUMMY
-    &Unit::HandleNULLProc,                                  //  5 SPELL_AURA_MOD_CONFUSE
+    &Unit::HandleRemoveByDamageProc,                        //  5 SPELL_AURA_MOD_CONFUSE
     &Unit::HandleNULLProc,                                  //  6 SPELL_AURA_MOD_CHARM
-    &Unit::HandleRemoveByDamageChanceProc,                  //  7 SPELL_AURA_MOD_FEAR
+    &Unit::HandleRemoveByDamageProc,                        //  7 SPELL_AURA_MOD_FEAR
     &Unit::HandleNULLProc,                                  //  8 SPELL_AURA_PERIODIC_HEAL
     &Unit::HandleNULLProc,                                  //  9 SPELL_AURA_MOD_ATTACKSPEED
     &Unit::HandleNULLProc,                                  // 10 SPELL_AURA_MOD_THREAT
     &Unit::HandleNULLProc,                                  // 11 SPELL_AURA_MOD_TAUNT
-    &Unit::HandleNULLProc,                                  // 12 SPELL_AURA_MOD_STUN
+    &Unit::HandleRemoveByDamageProc,                        // 12 SPELL_AURA_MOD_STUN
     &Unit::HandleNULLProc,                                  // 13 SPELL_AURA_MOD_DAMAGE_DONE
     &Unit::HandleNULLProc,                                  // 14 SPELL_AURA_MOD_DAMAGE_TAKEN
     &Unit::HandleNULLProc,                                  // 15 SPELL_AURA_DAMAGE_SHIELD
@@ -70,7 +70,7 @@ pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
     &Unit::HandleNULLProc,                                  // 23 SPELL_AURA_PERIODIC_TRIGGER_SPELL
     &Unit::HandleNULLProc,                                  // 24 SPELL_AURA_PERIODIC_ENERGIZE
     &Unit::HandleNULLProc,                                  // 25 SPELL_AURA_MOD_PACIFY
-    &Unit::HandleRemoveByDamageChanceProc,                  // 26 SPELL_AURA_MOD_ROOT
+    &Unit::HandleRemoveByDamageProc,                        // 26 SPELL_AURA_MOD_ROOT
     &Unit::HandleNULLProc,                                  // 27 SPELL_AURA_MOD_SILENCE
     &Unit::HandleNULLProc,                                  // 28 SPELL_AURA_REFLECT_SPELLS
     &Unit::HandleNULLProc,                                  // 29 SPELL_AURA_MOD_STAT
@@ -104,7 +104,7 @@ pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
     &Unit::HandleSpellCritChanceAuraProc,                   // 57 SPELL_AURA_MOD_SPELL_CRIT_CHANCE
     &Unit::HandleNULLProc,                                  // 58 SPELL_AURA_MOD_INCREASE_SWIM_SPEED
     &Unit::HandleNULLProc,                                  // 59 SPELL_AURA_MOD_DAMAGE_DONE_CREATURE
-    &Unit::HandleRemoveByDamageChanceProc,                  // 60 SPELL_AURA_MOD_PACIFY_SILENCE
+    &Unit::HandleRemoveByDamageProc,                        // 60 SPELL_AURA_MOD_PACIFY_SILENCE
     &Unit::HandleNULLProc,                                  // 61 SPELL_AURA_MOD_SCALE
     &Unit::HandleNULLProc,                                  // 62 SPELL_AURA_PERIODIC_HEALTH_FUNNEL
     &Unit::HandleNULLProc,                                  // 63 unused (3.0.8a-4.3.4) old SPELL_AURA_PERIODIC_MANA_FUNNEL
@@ -439,14 +439,12 @@ namespace
                 continue;
             }
 
+            // a confuse, a stun or a pacify breaks on damage through its charges or its interrupt flags; any other
+            // aura through the handler that removes it on damage
             AuraType const type = aura->GetModifier()->m_auraname;
-            if (AuraProcHandler[type] == &Unit::HandleRemoveByDamageChanceProc)
-            {
-                return true;
-            }
-
-            bool const crowdControl = type == SPELL_AURA_MOD_CONFUSE || type == SPELL_AURA_MOD_STUN || type == SPELL_AURA_MOD_PACIFY;
-            if (crowdControl && holder.GetAuraCharges() > 0)
+            bool const crowdControl =
+                type == SPELL_AURA_MOD_CONFUSE || type == SPELL_AURA_MOD_STUN || type == SPELL_AURA_MOD_PACIFY;
+            if (crowdControl ? holder.GetAuraCharges() > 0 : AuraProcHandler[type] == &Unit::HandleRemoveByDamageProc)
             {
                 return true;
             }
@@ -2742,24 +2740,44 @@ SpellAuraProcResult Unit::HandleModResistanceAuraProc(Unit* /*pVictim*/, uint32 
 }
 
 /**
- * @brief Handles procs that remove an aura based on incoming damage chance.
+ * @brief Handles procs that remove an aura on incoming damage. A confuse or a stun is removed by each hit
+ *        BreaksOnDamageProc accepts (Polymorph, Wyvern Sting); a fear, a root or a pacify-silence by a chance that grows
+ *        with the damage.
  *
- * @return SpellAuraProcResult The proc handling result.
+ * @return SpellAuraProcResult The proc handling result. A confuse or a stun that stays answers OK, as an aura type with
+ *         no proc handler does, so a holder with charges still spends one.
  */
-SpellAuraProcResult Unit::HandleRemoveByDamageChanceProc(Unit* /*pVictim*/, uint32 damage, Aura* triggeredByAura, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 /*cooldown*/)
+SpellAuraProcResult Unit::HandleRemoveByDamageProc(Unit* /*pVictim*/, uint32 damage, Aura* triggeredByAura,
+                                                   SpellEntry const* procSpell, uint32 procFlag, uint32 /*procEx*/,
+                                                   uint32 /*cooldown*/)
 {
-    // The chance to dispel an aura depends on the damage taken with respect to the casters level.
-    uint32 max_dmg = getLevel() > 8 ? 25 * getLevel() - 150 : 50;
-    float chance = float(damage) / max_dmg * 100.0f;
-    if (roll_chance_f(chance))
+    AuraType const type = triggeredByAura->GetModifier()->m_auraname;
+    if (type == SPELL_AURA_MOD_CONFUSE || type == SPELL_AURA_MOD_STUN)
     {
-        triggeredByAura->SetInUse(true);
-        RemoveAurasByCasterSpell(triggeredByAura->GetId(), triggeredByAura->GetCasterGuid());
-        triggeredByAura->SetInUse(false);
-        return SPELL_AURA_PROC_OK;
+        SpellEntry const* spellInfo = triggeredByAura->GetSpellProto();
+        if (!BreaksOnDamageProc(damage, (procFlag & PROC_FLAG_TAKEN_ANY_DAMAGE) != 0,
+                                triggeredByAura->GetHolder()->GetAuraCharges(),
+                                procSpell && procSpell->ID == spellInfo->ID, procSpell ? procSpell->AttributesExD : 0,
+                                spellInfo->GetAuraInterruptFlags(), type))
+        {
+            return SPELL_AURA_PROC_OK;
+        }
+    }
+    else
+    {
+        // the chance to remove the aura: the damage taken over 25 x the holder's level - 150, or over 50 to level 8
+        uint32 max_dmg = getLevel() > 8 ? 25 * getLevel() - 150 : 50;
+        float chance = float(damage) / max_dmg * 100.0f;
+        if (!roll_chance_f(chance))
+        {
+            return SPELL_AURA_PROC_FAILED;
+        }
     }
 
-    return SPELL_AURA_PROC_FAILED;
+    triggeredByAura->SetInUse(true);
+    RemoveAurasByCasterSpell(triggeredByAura->GetId(), triggeredByAura->GetCasterGuid());
+    triggeredByAura->SetInUse(false);
+    return SPELL_AURA_PROC_OK;
 }
 
 /**

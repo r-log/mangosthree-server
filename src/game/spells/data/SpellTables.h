@@ -82,6 +82,14 @@ bool TriggeredCastStartsProcsOf(uint32 castSpellId, uint32 auraAttributesEx3);
 /// a reactive damage proc (SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC) does not.
 bool DamageBreaksAuras(uint32 attributesEx4);
 
+/// Whether a damage proc removes a confuse or a stun that breaks on any damage (Polymorph, Wyvern Sting). It does when
+/// the hit is damage taken (`takenDamage`) of which `damage` gets through the absorbs, the holder has no charges (a
+/// holder with charges spends them instead), and the hit is neither of the aura's own spell (`ownSpell`) nor a reactive
+/// damage proc (DamageBreaksAuras of the hit's `procAttributesEx4`). A confuse then breaks; a stun breaks when its aura
+/// interrupt flags hold AURA_INTERRUPT_FLAG_DAMAGE; an aura of any other type never breaks here.
+bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ownSpell, uint32 procAttributesEx4,
+                        uint32 auraInterruptFlags, uint32 auraType);
+
 /// The spells a proc casts for the rank of the aura or of the spell that procs it; 0 for a spell the table does not hold.
 uint32 GetArcanePotencyProcSpell(uint32 rankSpellId);
 uint32 GetSecondWindProcSpell(uint32 rankSpellId);
