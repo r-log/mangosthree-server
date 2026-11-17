@@ -1424,7 +1424,7 @@ TEST(MageScripts_CombustionTickBuildsLivingBombAndPyroblastFromSpellPowerAndMast
 {
     // Living Bomb (500 + 0.3 x spell power) and Pyroblast (280 + 0.11 x spell power) rebuilt at the cast over their
     // unhasted 3 s period, each tick holding the cast's Flashburn and divided by it, so that the engine's Flashburn on
-    // 83853 gives it back once. Ignite's stored tick is 2000 every 2 s and holds its own Flashburn.
+    // 83853 gives it back once. Ignite's tick before its mastery is 2000 every 2 s.
     double const spellPowers[] = { 3000.0, 5200.0 };
     double const masteries[] = { 1.0, 1.224, 1.31 };
     for (double spellPower : spellPowers)
@@ -1439,8 +1439,8 @@ TEST(MageScripts_CombustionTickBuildsLivingBombAndPyroblastFromSpellPowerAndMast
             Mage::DotShare const ignite = { 2000, 2000 };
             int32 const tick = EngineTick(Mage::CombustionTick(shares, 2, &ignite), flashburn);
 
-            // Ignite/2 + LB(SP, M)/3 + Pyroblast(SP, M)/3: Flashburn once in each term.
-            double const expected = 1000.0 + double(bomb) / 3.0 + double(pyroblast) / 3.0;
+            // Ignite/2 x M + LB(SP, M)/3 + Pyroblast(SP, M)/3: Flashburn once in each term.
+            double const expected = 1000.0 * flashburn + double(bomb) / 3.0 + double(pyroblast) / 3.0;
             CHECK(double(tick) >= expected - 2.0 && double(tick) <= expected + 0.001);
         }
     }
