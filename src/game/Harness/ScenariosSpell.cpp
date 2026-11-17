@@ -36,6 +36,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
+#include "combat/HitInheritance.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "combat/SpellBonus.h"
@@ -124,10 +125,13 @@
 // health ticks with the Molten Fury of the Pyroblast DoT it combines; 941 Ignite and Glyph of Frostfire's DoT take their
 // share of a hit before the target's damage-taken effects, on a Camel under Curse of the Elements and on a bare one.
 // 942 a staged Fire mage's Slow and Polymorph hits roll Arcane Missiles! and never Impact, a Slow that misses rolls
-// neither, and Living Bomb's cast rolls Impact. 992 a staged Frost mage's Ice Lance does double damage to a Camel that
-// Frost Nova froze, and 2000 rolls of Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
+// neither, and Living Bomb's cast rolls Impact.
+// 943 a hit-capped Frost mage's Water Elemental casts twenty Waterbolts at a Camel three levels above it and none
+// misses; 944 a hit-capped Fire mage's Flame Orb hits a Camel three levels above it fifteen times and none misses;
+// 946 and 947 are the same without the hit, with the pet's and the orb's share in proportion. 992 a staged Frost mage's
+// Ice Lance does double damage to a Camel that Frost Nova froze, and 2000 rolls of Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
 // sheet chance and Glyph of Frostbolt's 5 together.
-// The guard of 931-938, 941, 942, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 941-944, 946, 947, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4108,7 +4112,7 @@ namespace Harness
             for (uint32 camel = 0; camel < TargetCount(); ++camel)
             {
                 const float ty = P0.y + (float(camel) - float(TargetCount() - 1) / 2.0f) * kTargetSpacing;
-                Creature* spawned = SpawnTarget(kCamel, level, tx, ty, Ground(tx, ty, P0.z), 3.14159f);
+                Creature* spawned = SpawnTarget(kCamel, TargetLevel(), tx, ty, Ground(tx, ty, P0.z), 3.14159f);
                 if (!spawned)
                 {
                     Verdict(Invalid("the target (50249) did not spawn"));
@@ -4127,7 +4131,7 @@ namespace Harness
             {
                 const float ex = tx + extra[camel].first;
                 const float ey = firstY + extra[camel].second;
-                Creature* spawned = SpawnTarget(kCamel, level, ex, ey, Ground(ex, ey, P0.z), 3.14159f);
+                Creature* spawned = SpawnTarget(kCamel, TargetLevel(), ex, ey, Ground(ex, ey, P0.z), 3.14159f);
                 if (!spawned)
                 {
                     Verdict(Invalid("the target (50249) did not spawn"));
@@ -4175,6 +4179,13 @@ namespace Harness
             if (st->staged)
             {
                 AfterStage(*p);
+                if (const uint32 petEntry = PetEntry())
+                {
+                    if (!BuildOwnedPet(p, petEntry, P0.x, P0.y + kPetOffset, 0.0f))
+                    {
+                        st->staged = false;
+                    }
+                }
             }
             st->levelSet = p->getLevel();
             ReadStage(*st, p, target, level);
@@ -4203,6 +4214,7 @@ namespace Harness
         static constexpr uint32 kSwingEveryMs = 600;
         static constexpr uint32 kSwingReadMs = 300;
         static constexpr float kTargetSpacing = 15.0f;
+        static constexpr float kPetOffset = 4.0f;
 
         /// One step of a scenario: the Camel's swing at the mage, the mage's cast of `spell` at the Camel or at himself,
         /// the removal of `spell`'s holder from the Camel, the Camel's blow of `amount` damage of `school` at the mage,
@@ -4233,7 +4245,29 @@ namespace Harness
             bool selfRemoval = false;           ///< the holder of `spell` on the mage cancelled as the client's right-click does
             bool noCasterAura = false;          ///< a cast that takes the scenario's caster aura off him instead of putting it on
             bool asClient = false;              ///< a cast sent as the client's CMSG_CAST_SPELL to the cast handler (CastAsClient)
+            bool petCast = false;               ///< a cast by his pet at the Camel; its own category judges it
         };
+        /// The aura of `spell` put on `unit` as the GM aura command puts it: a holder and one aura per aura effect,
+        /// with no cast.
+        static void PutAura(Unit* unit, uint32 spell)
+        {
+            SpellEntry const* info = sSpellStore.LookupEntry(spell);
+            if (!info)
+            {
+                return;
+            }
+            SpellAuraHolder* holder = CreateSpellAuraHolder(info, unit, unit);
+            for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+            {
+                SpellEffectEntry const* effect = info->GetSpellEffect(SpellEffectIndex(i));
+                if (effect && effect->Effect < TOTAL_SPELL_EFFECTS &&
+                    (IsAreaAuraEffect(effect->Effect) || effect->Effect == SPELL_EFFECT_APPLY_AURA || effect->Effect == SPELL_EFFECT_PERSISTENT_AREA_AURA))
+                {
+                    holder->AddAura(CreateAura(info, SpellEffectIndex(i), NULL, holder, unit), SpellEffectIndex(i));
+                }
+            }
+            unit->AddSpellAuraHolder(holder);
+        }
         static Step Cast(uint32 spell, bool crit)
         {
             Step s;
@@ -4245,6 +4279,15 @@ namespace Harness
         {
             Step s;
             s.swing = true;
+            return s;
+        }
+        /// A cast of `spell` by his pet at the Camel, `everyMs` before the next step.
+        static Step PetCast(uint32 spell, uint32 everyMs)
+        {
+            Step s;
+            s.spell = spell;
+            s.petCast = true;
+            s.everyMs = everyMs;
             return s;
         }
         static Step AuraCast(uint32 spell, uint32 everyMs)
@@ -4378,7 +4421,7 @@ namespace Harness
             std::vector<std::string> holders;           ///< several Camels: HolderOf the watched spell on each, at the read
             std::string removed;                        ///< several Camels: what ReleaseOtherTargets answered
             bool watchedOnCooldown = false;             ///< the watched spell on cooldown on the mage, at the read
-            bool logRead = false, crit = false, missed = false;
+            bool logRead = false, crit = false, missed = false, goSeen = false;
             uint32 amount = 0;
             std::vector<uint32> triggered;
             uint32 wordBefore = 0;                      ///< a moving cast: his client's movement word before the step
@@ -4447,9 +4490,17 @@ namespace Harness
         /// The aura put on him before a cast step when he does not hold it: one the step's spell asks for on its caster,
         /// or one that keeps the cast from missing; 0 for none.
         virtual uint32 CasterAura() const { return 0; }
+        /// Whether the caster aura is put on him as the GM aura command puts it (PutAura), with no cast and so no area
+        /// or other cast check; false for a triggered self-cast.
+        virtual bool CasterAuraPut() const { return false; }
         /// The aura each Camel casts on itself at its spawn: one that keeps the casts of a unit other than him from
         /// missing it; 0 for none.
         virtual uint32 TargetAura() const { return 0; }
+        /// The level the Camels are spawned at; 85 by default.
+        virtual uint32 TargetLevel() const { return 85; }
+        /// The creature entry of a pet built for him after he is staged (Scenario::BuildOwnedPet), kPetOffset yards to
+        /// his side; 0 for none.
+        virtual uint32 PetEntry() const { return 0; }
         /// The yards above the ground the mage stands at; none by default.
         virtual float PlayerLift() const { return 0.0f; }
         /// The way the mage faces, in radians; +x by default.
@@ -4953,6 +5004,33 @@ namespace Harness
                 m_rec.Note("the Camel's health " + U(seen.healthBefore) + " set to " + U(step.healthPct) + "% of " + U(target->GetMaxHealth()) +
                            ": " + U(target->GetHealth()) + (target->HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT) ? ", under 35%" : ""));
             }
+            else if (step.petCast)
+            {
+                Pet* pet = p->GetPet();
+                if (!pet)
+                {
+                    seen.refused = true;
+                    m_rec.Note("he has no pet; the step is not run");
+                    m_rec.Open(name + "+tick");
+                    return;
+                }
+                if (const uint32 casterAura = CasterAura())
+                {
+                    if (!p->HasAura(casterAura))
+                    {
+                        PutAura(p, casterAura);
+                    }
+                }
+                pet->SetPower(POWER_MANA, pet->GetMaxPower(POWER_MANA));
+                seen.healthBefore = target->GetHealth();
+                char buf[224];
+                snprintf(buf, sizeof(buf), "his pet (level %u) casts %u at the Camel, which it reads at level %u; his spell hit %.2f%%, the pet's own %.2f%%; target health %u",
+                         pet->getLevel(), step.spell, target->GetLevelForTarget(pet), p->m_modSpellHitChance, pet->m_modSpellHitChance,
+                         seen.healthBefore);
+                m_rec.Note(buf);
+                pet->CastSpell(target, step.spell, false);
+                seen.castId = step.spell;
+            }
             else if (step.self)
             {
                 seen.healthBefore = target->GetHealth();
@@ -4980,7 +5058,14 @@ namespace Harness
                     }
                     else if (!p->HasAura(casterAura))
                     {
-                        p->CastSpell(p, casterAura, true);
+                        if (CasterAuraPut())
+                        {
+                            PutAura(p, casterAura);
+                        }
+                        else
+                        {
+                            p->CastSpell(p, casterAura, true);
+                        }
                     }
                 }
                 int32 points = step.crit ? kCritAuraPoints : NonCritAuraPoints();
@@ -5141,6 +5226,7 @@ namespace Harness
                         }
                         if (IsCast(step) && spell == own)
                         {
+                            seen.goSeen = true;
                             seen.missed = seen.missed || go.find(" hit=[] miss=[target:") != std::string::npos;
                         }
                         else if (spell != kCritAura && spell != CasterAura())
@@ -5222,7 +5308,7 @@ namespace Harness
                             ProcHolders(target) + "]";
             st.stagedOk = st.staged && p->getLevel() == level && p->GetTalentMgr().FreePoints() + spent == points && allKnown &&
                           p->GetTalentMgr().PrimaryTree(p->GetTalentMgr().ActiveSpec()) == tree &&
-                          p->GetUInt32Value(PLAYER_GLYPHS_ENABLED) == 0x1ff && target->getLevel() == level;
+                          p->GetUInt32Value(PLAYER_GLYPHS_ENABLED) == 0x1ff && target->getLevel() == TargetLevel();
             const std::vector<uint32> glyphs = Glyphs();
             if (!glyphs.empty() || HasteRating() || MasteryRating())
             {
@@ -5350,7 +5436,7 @@ namespace Harness
                 {
                     value = spellText + (seen.missed ? "miss" : "none");
                 }
-                const bool castBug = step.aura ? seen.missed && !step.refusal : step.refusal ? false : (!seen.logRead || seen.crit != step.crit);
+                const bool castBug = step.aura ? seen.missed && !step.refusal : (step.refusal || step.petCast) ? false : (!seen.logRead || seen.crit != step.crit);
                 const bool bug = !seen.ran || seen.refused || !seen.read || (IsCast(step) && castBug);
                 if (bug && stepsBug.empty())
                 {
@@ -6048,9 +6134,11 @@ namespace Harness
     class MageFrostIceLance : public MageProcScenario
     {
     public:
-        MageFrostIceLance() : MageProcScenario("mage-frost-ice-lance", 957, "iceLance") {}
+        MageFrostIceLance() : MageFrostIceLance("mage-frost-ice-lance", 957, "iceLance") {}
 
     protected:
+        MageFrostIceLance(char const* name, int order, char const* category) : MageProcScenario(name, order, category) {}
+
         std::vector<std::pair<uint32, uint32> > Talents() const override
         {
             return { { 9862, 1 }, { 11157, 2 }, { 9846, 2 }, { 11325, 1 }, { 9876, 2 } };
@@ -10004,11 +10092,12 @@ namespace Harness
     class MageFireFlameOrb : public MageProcScenario
     {
     public:
-        MageFireFlameOrb() : MageProcScenario("mage-fire-flame-orb", 971, "orb") {}
+        MageFireFlameOrb() : MageFireFlameOrb("mage-fire-flame-orb", 971, "orb") {}
 
         void Prepare() override
         {
             m_read = OrbRead();
+            m_orbShare = Combat::OwnerHitShare();
             m_lift = 0.0f;
             m_liftRead = false;
             m_player = ObjectGuid();
@@ -10017,6 +10106,8 @@ namespace Harness
         }
 
     protected:
+        MageFireFlameOrb(char const* name, int order, char const* category) : MageProcScenario(name, order, category) {}
+
         std::vector<std::pair<uint32, uint32> > Talents() const override
         {
             return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 } };
@@ -10093,6 +10184,7 @@ namespace Harness
                 m_read.runRate = orb->GetSpeedRate(MOVE_RUN);
                 m_read.hover = (orb->WireFlags() & MOVEFLAG_HOVER) != 0;
                 m_read.height = orb->GetFloatValue(UNIT_FIELD_HOVERHEIGHT);
+                m_orbShare = Combat::OwnerShareOf(*orb);
             }
             At(kLateReadMs - CastReadMs(), [this]() { ReadLate(); });
 
@@ -10180,6 +10272,9 @@ namespace Harness
                                        U(kBlastLow) + ".." + U(kBlastHigh) + "); " + U(elsewhere) + " on other units" + buf;
             return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
         }
+
+        /// The share the orb held at the step's read.
+        Combat::OwnerHitShare m_orbShare;
 
     private:
         /// What the step's read found of his orb.
@@ -11960,6 +12055,197 @@ namespace Harness
         }
     };
 
+    /**
+     * S943 `mage-pet-owner-hit`: a Water Elemental (510) that a Frost mage owns casts Waterbolt (31707) at a Camel
+     * three levels above it. The mage is staged as 957 stages him and holds Don't Miss! (73411, +100 spell hit and
+     * +100 hit), which keeps him at his spell hit cap; the Camel is level 88 and holds nothing; the pet is built
+     * kPetOffset yards to his side after he is staged and holds nothing of its own. Twenty steps, one every 3 s: the
+     * pet casts Waterbolt at the Camel. S946 `mage-pet-owner-hit-uncapped` is the same without Don't Miss!.
+     *
+     * `petHit`: `misses=<casts whose SPELL_GO lists the Camel as missed>/<casts seen>,owner=<his spell hit field>,
+     * pet=<the pet's spell hit field>,share=<the spell hit of Combat::OwnerShareOf(pet)>/<its expertise>`; OK when
+     * every one of the twenty casts was seen, the owner's field is 100 (S946: under the spell cap), the pet's own field
+     * is 0 and the share is the spell cap of 17 with 650 expertise and no cast missed (S946: the owner's hit in
+     * proportion, and no miss is asked of it): the owner's hit is read at each roll, not copied into the pet.
+     */
+    class MageFrostPetOwnerHit : public MageFrostIceLance
+    {
+    public:
+        MageFrostPetOwnerHit() : MageFrostPetOwnerHit("mage-pet-owner-hit", 943, true) {}
+        MageFrostPetOwnerHit(char const* name, int order, bool capped) : MageFrostIceLance(name, order, "petHit"), m_capped(capped) {}
+
+    protected:
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps;
+            for (uint32 i = 0; i < kCasts; ++i)
+            {
+                steps.push_back(PetCast(kWaterbolt, kPetCastEveryMs));
+            }
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            std::vector<SpellPrint> prints = MageFrostIceLance::Prints();
+            prints.push_back(
+                { 73411, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } }
+            );
+            prints.push_back(
+                { 31707, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 255 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 73 }, { "eff0.EffectRealPointsPerLevel", 1094189056 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } }
+            );
+            return prints;
+        }
+
+        uint32 Watched() const override { return 0; }
+        bool NotesBeforeStep() const override { return false; }
+        uint32 CasterAura() const override { return m_capped ? kDontMiss : 0; }
+        bool CasterAuraPut() const override { return true; }
+        uint32 TargetLevel() const override { return kTargetLevel; }
+        uint32 PetEntry() const override { return kWaterElemental; }
+        uint32 CastReadMs() const override { return kPetCastReadMs; }
+
+        std::string Own(St const& st) const override
+        {
+            uint32 seen = 0, missed = 0;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                seen += st.seen[k].goSeen ? 1 : 0;
+                missed += st.seen[k].missed ? 1 : 0;
+            }
+            float owner = 0.0f, pet = 0.0f;
+            Combat::OwnerHitShare share;
+            if (Player* p = sPlayerRegistry.Find(st.player))
+            {
+                owner = p->m_modSpellHitChance;
+                if (Pet* own = p->GetPet())
+                {
+                    pet = own->m_modSpellHitChance;
+                    share = Combat::OwnerShareOf(*own);
+                }
+            }
+            const Combat::HitCaps caps = Combat::BossHitCaps();
+            const float wantShare = m_capped ? caps.spell : Combat::InheritedHit(owner, caps.spell, caps.spell);
+            const int32 wantExpertise = m_capped ? 650 : Combat::InheritedExpertise(owner, caps.spell);
+            char buf[160];
+            snprintf(buf, sizeof(buf), "misses=%u/%u,owner=%.0f,pet=%.0f,share=%.2f/%d", missed, seen, owner, pet, share.spell, share.expertise);
+            const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
+            const bool shareOk = std::fabs(share.spell - wantShare) < 0.005f && share.expertise == wantExpertise;
+            const bool ok = seen == kCasts && (!m_capped || missed == 0) && ownerOk && pet == 0.0f && shareOk;
+            return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
+        }
+
+    private:
+        static constexpr uint32 kCasts = 20;
+        static constexpr uint32 kWaterbolt = 31707;
+        static constexpr uint32 kDontMiss = 73411;
+        static constexpr uint32 kWaterElemental = 510;
+        static constexpr uint32 kTargetLevel = 88;
+        static constexpr uint32 kPetCastEveryMs = 3000;
+        static constexpr uint32 kPetCastReadMs = 2900;
+
+        bool m_capped;
+    };
+
+    /**
+     * S944 `mage-fire-flame-orb-owner-hit`: 971's mage and orb with the Camel at level 88 holding no Hit Me and the mage
+     * holding Don't Miss! (73411, +100 spell hit and +100 hit), so he is at his spell hit cap. One step: Flame Orb under
+     * the crit aura, kStepMs to the end. S947 `mage-fire-flame-orb-owner-hit-uncapped` is the same without Don't Miss!.
+     *
+     * `orbHit`: `goes=<SPELL_GO of the orb's hit>,misses=<of them listing the Camel as missed>,hits=<its damage logs on
+     * the Camel>,owner=<his spell hit field>,share=<the spell hit of Combat::OwnerShareOf(orb)>/<its expertise>`; OK
+     * when there are kOrbHits goes and every one is a hit or a miss, the owner's field is 100 (S947: under the spell
+     * cap) and the share is the spell cap of 17 with 650 expertise and no hit missed (S947: the owner's hit in
+     * proportion, and misses are allowed): the orb rolls with its summoner's hit as of its summon.
+     */
+    class MageFireFlameOrbOwnerHit : public MageFireFlameOrb
+    {
+    public:
+        MageFireFlameOrbOwnerHit() : MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit", 944, true) {}
+        MageFireFlameOrbOwnerHit(char const* name, int order, bool capped) : MageFireFlameOrb(name, order, "orbHit"), m_capped(capped) {}
+
+    protected:
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps;
+            std::vector<Step> orb = MageFireFlameOrb::Steps();
+            steps.insert(steps.end(), orb.begin(), orb.end());
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            std::vector<SpellPrint> prints = MageFireFlameOrb::Prints();
+            prints.push_back(
+                { 73411, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } }
+            );
+            return prints;
+        }
+
+        uint32 TargetAura() const override { return 0; }
+        uint32 TargetLevel() const override { return kTargetLevel; }
+        uint32 CasterAura() const override { return m_capped ? kDontMiss : 0; }
+        bool CasterAuraPut() const override { return true; }
+
+        std::string Own(St const& st) const override
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            const uint64 camel = st.target.GetRawValue();
+            uint32 goes = 0, missed = 0, hits = 0;
+            const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                for (const char* suffix : suffixes)
+                {
+                    const std::string window = "step" + U(k + 1) + suffix;
+                    std::vector<Recorder::Seen const*> gos = m_rec.SeenIn(window, SMSG_SPELL_GO);
+                    for (size_t i = 0; i < gos.size(); ++i)
+                    {
+                        std::string go;
+                        uint32 spell = 0;
+                        if (gos[i]->payload.empty() || !Trace::DecodeSpellCast(true, &gos[i]->payload[0], gos[i]->payload.size(), roles, go) ||
+                            sscanf(go.c_str(), "spell=%u", &spell) != 1 || spell != kOrbHit)
+                        {
+                            continue;
+                        }
+                        ++goes;
+                        missed += go.find(" hit=[] miss=[target:") != std::string::npos ? 1 : 0;
+                    }
+                    std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(window, SMSG_SPELLNONMELEEDAMAGELOG);
+                    for (size_t i = 0; i < logs.size(); ++i)
+                    {
+                        Trace::SpellDamageLog log;
+                        if (!logs[i]->payload.empty() && Trace::ReadSpellDamageLog(&logs[i]->payload[0], logs[i]->payload.size(), log) &&
+                            log.spell == kOrbHit && log.target == camel)
+                        {
+                            ++hits;
+                        }
+                    }
+                }
+            }
+            Player* p = sPlayerRegistry.Find(st.player);
+            const float owner = p ? p->m_modSpellHitChance : 0.0f;
+            const Combat::HitCaps caps = Combat::BossHitCaps();
+            const float wantShare = m_capped ? caps.spell : Combat::InheritedHit(owner, caps.spell, caps.spell);
+            const int32 wantExpertise = m_capped ? 650 : Combat::InheritedExpertise(owner, caps.spell);
+            char buf[160];
+            snprintf(buf, sizeof(buf), "goes=%u,misses=%u,hits=%u,owner=%.0f,share=%.2f/%d", goes, missed, hits, owner, m_orbShare.spell,
+                     m_orbShare.expertise);
+            const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
+            const bool shareOk = std::fabs(m_orbShare.spell - wantShare) < 0.005f && m_orbShare.expertise == wantExpertise;
+            const bool ok = goes == kOrbHits && (!m_capped || missed == 0) && hits + missed == kOrbHits && ownerOk && shareOk;
+            return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
+        }
+
+    private:
+        static constexpr uint32 kOrbHit = 82739;
+        static constexpr uint32 kDontMiss = 73411;
+        static constexpr uint32 kTargetLevel = 88;
+        static constexpr uint32 kOrbHits = 15;
+
+        bool m_capped;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -12014,6 +12300,10 @@ namespace Harness
         r.Register(new MageFireImprovedFlamestrikeRankOne());
         r.Register(new MageFireInvisibilityFade());
         r.Register(new MageFireShareBeforeTaken());
+        r.Register(new MageFrostPetOwnerHit());
+        r.Register(new MageFireFlameOrbOwnerHit());
+        r.Register(new MageFrostPetOwnerHit("mage-pet-owner-hit-uncapped", 946, false));
+        r.Register(new MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit-uncapped", 947, false));
         r.Register(new MageFrostShatter());
     }
 }

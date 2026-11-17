@@ -23,6 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include "combat/HitInheritance.h"
 #include "spells/classes/mage/Mage.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/SpellScriptQueries.h"
@@ -181,6 +182,7 @@ namespace
                 {
                     m_creature->SetLevel(summoner->getLevel());
                 }
+                Combat::TakeOwnerHitSnapshot(*m_creature);
                 m_lifeMs = GetSpellDuration(sSpellStore.LookupEntry(m_spells->summonSpell));
                 if (!StartGlide(false))
                 {

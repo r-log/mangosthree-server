@@ -23,6 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include "combat/HitInheritance.h"
 #include <cmath>
 #include "Totem.h"
 #include "Log.h"
@@ -234,6 +235,7 @@ void Totem::SetOwner(Unit* owner)
     SetOwnerGuid(owner->GetObjectGuid());
     setFaction(owner->getFaction());
     SetLevel(owner->getLevel());
+    Combat::TakeOwnerHitSnapshot(*this);
 }
 
 /**
