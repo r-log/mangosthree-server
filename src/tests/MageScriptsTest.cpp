@@ -1354,6 +1354,27 @@ TEST(MageScripts_CombustionTickIsThePerSecondSumWithIgnitesShareBeforeMastery)
     CHECK_EQ(Mage::CombustionTick(negative, 1, NULL, 1.0f), int32(0));
 }
 
+TEST(MageScripts_CombustionTickRaisesEachShareByItsLowHealthBonusButNotIgnites)
+{
+    // Pyroblast 487 and Living Bomb 700 every 3 s at Molten Fury's 1.12: 162.33 x 1.12 + 233.33 x 1.12 = 443.1.
+    Mage::DotShare const ignite = { 2000, 2000 };
+    Mage::DotShare const raised[] = { { 487, 3000, 1.12f }, { 700, 3000, 1.12f } };
+    CHECK_EQ(Mage::CombustionTick(raised, 2, NULL, 1.0f), int32(443));
+
+    // Ignite's share, 1000 a second, takes none of it: the sum is 1443.1.
+    CHECK_EQ(Mage::CombustionTick(raised, 2, &ignite, 1.0f), int32(1443));
+
+    // A share left at the default, or given 0 or below, counts as it is: 162.33 + 233.33.
+    Mage::DotShare const plain[] = { { 487, 3000 }, { 700, 3000, 0.0f } };
+    CHECK_EQ(Mage::CombustionTick(plain, 2, NULL, 1.0f), int32(395));
+    Mage::DotShare const below[] = { { 487, 3000, -1.0f } };
+    CHECK_EQ(Mage::CombustionTick(below, 1, NULL, 1.0f), int32(162));
+
+    // Each share has its own bonus: one raised, one not.
+    Mage::DotShare const mixed[] = { { 600, 3000, 1.12f }, { 600, 3000 } };
+    CHECK_EQ(Mage::CombustionTick(mixed, 2, NULL, 1.0f), int32(424));
+}
+
 namespace
 {
     // The class options and the Spell.dbc rows of the stacking test, kept alive for the rest of the run.
