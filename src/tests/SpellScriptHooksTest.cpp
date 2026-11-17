@@ -387,6 +387,60 @@ namespace
             std::vector<SpellAuraHolder*> m_held;
     };
 
+    // A bare creature that holds damage-taken percent auras on the per-type list the engine reads them from, from holders
+    // made through their constructors; it deletes them when it goes.
+    class TakenAuraVictim : public BareCreature
+    {
+        public:
+            ~TakenAuraVictim()
+            {
+                Drop();
+            }
+
+            // Holds `spell`'s effect 0, a MOD_DAMAGE_PERCENT_TAKEN aura.
+            void Hold(SpellEntry const* spell)
+            {
+                SpellAuraHolder* holder = new SpellAuraHolder(spell, this, NULL, NULL, NULL);
+                holder->AddAura(CreateAura(spell, EFFECT_INDEX_0, NULL, holder, this), EFFECT_INDEX_0);
+                AddAuraToModList(holder->GetAuraByEffectIndex(EFFECT_INDEX_0));
+                m_held.push_back(holder);
+            }
+
+            void Drop()
+            {
+                m_auras.ByType(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN).clear();
+                for (SpellAuraHolder* holder : m_held)
+                {
+                    delete holder;
+                }
+                m_held.clear();
+            }
+
+        private:
+            std::vector<SpellAuraHolder*> m_held;
+    };
+
+    // Puts a MOD_DAMAGE_PERCENT_TAKEN spell of `amount` percent over the school mask `schools` into the spell and effect
+    // stores once.
+    SpellEntry const* StoreTakenAura(StoredClassScript& rows, uint32 spellId, int32 amount, int32 schools)
+    {
+        if (rows.spell.Entry().ID == spellId)
+        {
+            return &rows.spell.Entry();
+        }
+        rows.spell.Entry().ID = spellId;
+        rows.spell.effect.SpellID = spellId;
+        rows.spell.effect.EffectIndex = EFFECT_INDEX_0;
+        rows.spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        rows.spell.effect.EffectAura = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
+        rows.spell.effect.EffectBasePoints = amount;
+        rows.spell.effect.EffectMiscValue_0 = schools;
+        rows.spell.effect.ImplicitTarget_0 = TARGET_SELF;
+        sSpellStore.SetEntry(spellId, &rows.spell.Entry());
+        AddSpellEffectEntry(&rows.spell.effect);
+        return &rows.spell.Entry();
+    }
+
     // Sets the victim's health to `pct` percent of 1000 and its under-35% state as Unit::Update sets it.
     void SetHealthPct(Unit& victim, uint32 pct)
     {
@@ -1318,4 +1372,37 @@ TEST(SpellEffects_AMountDispelRemovesEveryMountWhateverItsValue)
     // What is left leaves through the engine's own removal.
     target.RemoveSpellAuraHolder(slowed);
     CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+TEST(SpellScriptHooks_DamageTakenMultiplierIsTheProductOfTheVictimsPercentAurasForTheSpellsSchool)
+{
+    static StoredClassScript curseRows;
+    static StoredClassScript fireRows;
+    SpellEntry const* curse = StoreTakenAura(curseRows, 94311, 8, 0x7e);
+    SpellEntry const* fireOnly = StoreTakenAura(fireRows, 94312, 10, SPELL_SCHOOL_MASK_FIRE);
+
+    SpellRowStorage fireballStorage, frostboltStorage;
+    SpellEntry const& fireball = AskedRow(fireballStorage, 94313, 0);
+    const_cast<SpellEntry&>(fireball).SchoolMask = SPELL_SCHOOL_MASK_FIRE;
+    SpellEntry const& frostbolt = AskedRow(frostboltStorage, 94314, 0);
+    const_cast<SpellEntry&>(frostbolt).SchoolMask = SPELL_SCHOOL_MASK_FROST;
+
+    BareCreature caster;
+    TakenAuraVictim victim;
+
+    // No aura: 1.0 for any school.
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, fireball), 1.0f));
+
+    // Curse of the Elements' +8% over the six schools: 1.08 for fire and for frost.
+    victim.Hold(curse);
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, fireball), 1.08f));
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, frostbolt), 1.08f));
+
+    // A fire-only +10% multiplies in for fire and leaves frost alone.
+    victim.Hold(fireOnly);
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, fireball), 1.08f * 1.10f));
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, frostbolt), 1.08f));
+
+    victim.Drop();
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, fireball), 1.0f));
 }
