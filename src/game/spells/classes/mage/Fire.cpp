@@ -245,7 +245,8 @@ namespace
 
     /// 11129: Combustion: its script effect puts Combustion (83853) on the target with a tick equal to the per-second
     /// damage of the caster's Pyroblast (11366, 92315), Living Bomb (44457), Frostfire Bolt (44614) and Ignite (12654)
-    /// on the target at this moment; Ignite's part is taken before the caster's Flashburn, which the engine applies to
+    /// on the target at this moment; the first three take the caster's bonus at the target's low health (Molten Fury)
+    /// that their stored ticks lack, Ignite's part is taken before the caster's Flashburn, which the engine applies to
     /// the new DoT. Flamestrike is not combined, nor is a holder with no time left. With nothing to combine the DoT is
     /// still applied, with a tick of 0. The script ends the effect, so the mage family switch, which has nothing for
     /// 11129, does not run.
@@ -267,7 +268,11 @@ namespace
             {
                 continue;
             }
-            Mage::DotShare const share = { view.amount, view.periodMs };
+            Mage::DotShare share = { view.amount, view.periodMs };
+            if (SpellEntry const* dotSpell = sSpellStore.LookupEntry(view.spellId))
+            {
+                share.lowHealthMultiplier = Spells::LowHealthDamageMultiplier(ctx.caster, *ctx.target, *dotSpell);
+            }
             shares.push_back(share);
         }
 
@@ -606,7 +611,8 @@ int32 Mage::CombustionTick(DotShare const* shares, size_t count, DotShare const*
     {
         if (shares[i].periodMs)
         {
-            perSecond += double(shares[i].tick) * 1000.0 / double(shares[i].periodMs);
+            double const multiplier = shares[i].lowHealthMultiplier > 0.0f ? double(shares[i].lowHealthMultiplier) : 1.0;
+            perSecond += double(shares[i].tick) * 1000.0 / double(shares[i].periodMs) * multiplier;
         }
     }
     if (ignite && ignite->periodMs)
