@@ -7821,11 +7821,12 @@ namespace Harness
      * that makes the next spell cast at it miss; a Slow, which misses; then kBombCasts Living Bombs, kEveryMs apart, so
      * each lands on the bomb before it and no bomb runs out. A cast is read kReadMs after it.
      *
-     * `damageless`: `am=<the steps among the four hits whose windows cast 79683>,miss=<the same for the Slow that
-     * missed>,veto=<the 64343 casts in the windows of the five Slow and Polymorph steps>,bomb=<the Living Bomb steps
-     * whose windows cast 64343>`; OK at four, none, none and one or more, and the last Slow listed as missed. A hit of a
-     * spell with no damage effect rolls Arcane Missiles! and never Impact; a miss rolls neither; Living Bomb's cast rolls
-     * both. The rolls of a step are seeded, so the counts are the same each run.
+     * `damageless`: `am=<the steps among the four hits at whose read Arcane Missiles! (79683) stood on him>,miss=<the
+     * same for the Slow that missed>,veto=<the steps among the five Slow and Polymorph steps at whose read the Impact
+     * buff (64343) stood on him>,bomb=<the same over the Living Bomb steps>`; both buffs are taken off him at each
+     * read, so each step's count is its own. OK at four, none, none and one or more, and the last Slow listed as
+     * missed. A hit of a spell with no damage effect rolls Arcane Missiles! and never Impact; a miss rolls neither;
+     * Living Bomb's cast rolls both. The rolls of a step are seeded, so the counts are the same each run.
      */
     class MageOffensiveStateDamageless : public MageProcScenario
     {
@@ -7876,6 +7877,8 @@ namespace Harness
                 { 75533, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 186 }, { "eff0.EffectBasePoints", -100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 44457: 49 fields, fnv 87d07253
                 { 44457, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 3000 }, { "eff0.EffectBasePoints", 153 }, { "eff0.EffectBonusCoefficient", 1048844435 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 44461 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12355: 49 fields, fnv 58da00a3
+                { 12355, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 12 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 77 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRadiusIndex_0", 32 }, { "eff1.ImplicitTarget_0", 53 }, { "eff1.ImplicitTarget_1", 16 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 12357: 26 fields, fnv c557c869
                 { 12357, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 64343 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 64343: 26 fields, fnv d38ef595
@@ -7901,14 +7904,26 @@ namespace Harness
             };
         }
 
-        void ReadOwn(St& /*st*/, uint32 k, bool atRead, Player* /*p*/, Creature* target) override
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
-            if (atRead || k != kWaitStep || !target)
+            if (atRead)
+            {
+                st.seen[k].reads["am"] = p->HasAura(kArcaneMissilesBuff) ? 1 : 0;
+                st.seen[k].reads["impact"] = p->HasAura(kImpactBuff) ? 1 : 0;
+                p->RemoveAurasDueToSpell(kArcaneMissilesBuff);
+                p->RemoveAurasDueToSpell(kImpactBuff);
+                if (k == kMissStep && target)
+                {
+                    target->RemoveAurasDueToSpell(kWilyWits);
+                }
+                return;
+            }
+            if (k != kWaitStep || !target)
             {
                 return;
             }
             target->CastSpell(target, kWilyWits, true);
-            m_rec.Note("the Camel cast " + U(kWilyWits) + " on itself: " + (target->HasAura(kWilyWits) ? "on it" : "not on it"));
+            m_rec.Note("the Camel cast " + U(kWilyWits) + " on itself");
         }
 
         std::string Own(St const& st) const override
@@ -7918,31 +7933,31 @@ namespace Harness
                 return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
             }
             uint32 am = 0, veto = 0, bomb = 0;
-            for (uint32 k = 0; k < kHitSteps; ++k)
-            {
-                am += Triggered(st.seen[k], kArcaneMissilesBuff) ? 1u : 0u;
-            }
             for (uint32 k = 0; k < kSteps; ++k)
             {
-                if (k == kWaitStep || !Triggered(st.seen[k], kImpactBuff))
+                if (k == kWaitStep)
                 {
                     continue;
                 }
+                if (k < kHitSteps)
+                {
+                    am += Read(st.seen[k], "am");
+                }
                 if (k < kFirstBombStep)
                 {
-                    ++veto;
+                    veto += Read(st.seen[k], "impact");
                 }
                 else
                 {
-                    ++bomb;
+                    bomb += Read(st.seen[k], "impact");
                 }
             }
             const Seen& missedSlow = st.seen[kMissStep];
-            const uint32 miss = Triggered(missedSlow, kArcaneMissilesBuff) ? 1u : 0u;
+            const uint32 miss = Read(missedSlow, "am");
             const std::string value = "am=" + U(am) + ",miss=" + U(miss) + ",veto=" + U(veto) + ",bomb=" + U(bomb);
             const bool ok = am == kHitSteps && miss == 0 && veto == 0 && bomb >= 1 && missedSlow.missed;
-            const std::string detail = std::string("the last Slow ") + (missedSlow.missed ? "missed" : "hit") + "; the spells cast in its windows: " +
-                                       TriggeredText(missedSlow);
+            const std::string detail = std::string("the last Slow ") + (missedSlow.missed ? "missed" : "hit") +
+                                       "; each count is the steps at whose read the buff stood on him, taken off at each read";
             return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
         }
 
@@ -7958,7 +7973,7 @@ namespace Harness
         static constexpr int32 kOffensiveStatePoints = 100;
         static constexpr uint32 kReadMs = 2500;
         static constexpr uint32 kEveryMs = 3000;
-        static constexpr uint32 kWaitMs = 1000;
+        static constexpr uint32 kWaitMs = 3000;
         static constexpr uint32 kBombCasts = 12;
         static constexpr uint32 kHitSteps = 4;
         static constexpr uint32 kWaitStep = 4;
@@ -7966,14 +7981,10 @@ namespace Harness
         static constexpr uint32 kFirstBombStep = 6;
         static constexpr size_t kSteps = kFirstBombStep + kBombCasts;
 
-        static std::string TriggeredText(Seen const& seen)
+        static uint32 Read(Seen const& seen, char const* key)
         {
-            std::string out;
-            for (size_t i = 0; i < seen.triggered.size(); ++i)
-            {
-                out += (i ? "+" : "") + U(seen.triggered[i]);
-            }
-            return out.empty() ? std::string("none") : out;
+            std::map<std::string, int64>::const_iterator found = seen.reads.find(key);
+            return found != seen.reads.end() && found->second ? 1u : 0u;
         }
     };
 
