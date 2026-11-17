@@ -2124,16 +2124,16 @@ class Unit : public WorldObject
         MeleeHitOutcome RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackType attType, int32 crit_chance, int32 miss_chance, int32 dodge_chance, int32 parry_chance, int32 block_chance) const;
         /**
          * The dodge and parry chance an attacker's expertise takes off in RollMeleeOutcomeAgainst.
-         * @return the SPELL_AURA_MOD_EXPERTISE total times 25 here; Player returns its expertise
-         * reduction times 100
+         * @return the SPELL_AURA_MOD_EXPERTISE total times 25 plus what an owned creature takes from its
+         * owner's hit here; Player returns its expertise reduction times 100
          */
-        virtual int32 GetMeleeRollExpertiseReduction(WeaponAttackType /*attType*/) const { return GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25; }
+        virtual int32 GetMeleeRollExpertiseReduction(WeaponAttackType attType) const;
         /**
          * The dodge and parry chance an attacker's expertise takes off in MeleeSpellHitResult.
-         * @return the SPELL_AURA_MOD_EXPERTISE total times 25 here; Player returns its expertise
-         * reduction times 100.0f
+         * @return the SPELL_AURA_MOD_EXPERTISE total times 25 plus what an owned creature takes from its
+         * owner's hit here; Player returns its expertise reduction times 100.0f
          */
-        virtual int32 GetMeleeSpellExpertiseReduction(WeaponAttackType /*attType*/) const { return GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25; }
+        virtual int32 GetMeleeSpellExpertiseReduction(WeaponAttackType attType) const;
         /**
          * Fills the weapon damage range CalculateDamage uses for a normalized attack: does nothing
          * here; Player computes the range from its own weapon and stats.

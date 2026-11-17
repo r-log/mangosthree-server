@@ -23,6 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include "combat/HitInheritance.h"
 #include "Utilities/Errors.h"
 #include "Platform/Define.h"
 #include "Utilities/MathDefines.h"
@@ -760,6 +761,7 @@ bool Spell::DoSummonGuardian(CreatureSummonPositions& list, SummonPropertiesEntr
         spawnCreature->SetUInt32Value(UNIT_CREATED_BY_SPELL, m_spellInfo->ID);
 
         spawnCreature->InitStatsForLevel(level);
+        Combat::TakeOwnerHitSnapshot(*spawnCreature);
 
         if (CharmInfo* charmInfo = spawnCreature->GetCharmInfo())
         {
@@ -969,6 +971,10 @@ bool Spell::DoSummonPet(SpellEffectEntry const* effect)
     spawnCreature->SetUInt32Value(UNIT_CREATED_BY_SPELL, m_spellInfo->ID);
 
     spawnCreature->InitStatsForLevel(level);
+    if (m_duration > 0)
+    {
+        Combat::TakeOwnerHitSnapshot(*spawnCreature);
+    }
 
     spawnCreature->GetCharmInfo()->SetPetNumber(pet_number, false);
 

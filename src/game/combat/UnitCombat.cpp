@@ -25,6 +25,7 @@
 
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
+#include "combat/HitInheritance.h"
 #include "combat/MeleeChances.h"
 #include "combat/WeaponDamage.h"
 #include "Log.h"
@@ -537,6 +538,28 @@ bool Unit::IsSpellBlocked(Unit* pCaster, SpellEntry const* spellEntry, WeaponAtt
     return roll_chance_f(blockChance);
 }
 
+/**
+ * @brief The dodge and parry chance this unit's expertise takes off in a melee roll.
+ *
+ * @param attType The attack type being rolled.
+ * @return The expertise aura total times 25, plus the expertise an owned creature takes from its owner's hit.
+ */
+int32 Unit::GetMeleeRollExpertiseReduction(WeaponAttackType /*attType*/) const
+{
+    return GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25 + Combat::OwnerShareOf(*this).expertise;
+}
+
+/**
+ * @brief The dodge and parry chance this unit's expertise takes off in a melee spell roll.
+ *
+ * @param attType The attack type being rolled.
+ * @return The expertise aura total times 25, plus the expertise an owned creature takes from its owner's hit.
+ */
+int32 Unit::GetMeleeSpellExpertiseReduction(WeaponAttackType /*attType*/) const
+{
+    return GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25 + Combat::OwnerShareOf(*this).expertise;
+}
+
 // Melee based spells can be miss, parry or dodge on this step
 // Crit or block - determined on damage calculation phase! (and can be both in some time)
 float Unit::MeleeSpellMissChance(Unit* pVictim, WeaponAttackType attType, int32 skillDiff, SpellEntry const* spell)
@@ -579,14 +602,15 @@ float Unit::MeleeSpellMissChance(Unit* pVictim, WeaponAttackType attType, int32 
     // Miss = 100 - hit
     float missChance = 100.0f - hitChance;
 
-    // Bonuses from attacker aura and ratings
+    // Bonuses from attacker aura and ratings, and from the owner's hit for an owned creature
+    Combat::OwnerHitShare const ownerShare = Combat::OwnerShareOf(*this);
     if (attType == RANGED_ATTACK)
     {
-        missChance -= m_modRangedHitChance;
+        missChance -= m_modRangedHitChance + ownerShare.ranged;
     }
     else
     {
-        missChance -= m_modMeleeHitChance;
+        missChance -= m_modMeleeHitChance + ownerShare.melee;
     }
 
     // Limit miss chance from 0 to 60%
@@ -809,7 +833,7 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* pVictim, SpellEntry const* spell)
 
     int32 HitChance = modHitChance * 100;
     // Increase hit chance from attacker SPELL_AURA_MOD_SPELL_HIT_CHANCE and attacker ratings
-    HitChance += int32(m_modSpellHitChance * 100.0f);
+    HitChance += int32((m_modSpellHitChance + Combat::OwnerShareOf(*this).spell) * 100.0f);
 
 
     if (HitChance <  100)
@@ -974,9 +998,11 @@ float Unit::MeleeMissChanceCalc(const Unit* pVictim, WeaponAttackType attType) c
         }
     }
 
+    Combat::OwnerHitShare const ownerShare = Combat::OwnerShareOf(*this);
     return Combat::MeleeMissChance(hasVictim, attType, hasOffhandWeapon, isNormalSpellActive,
                                    hasMeleeSpell, attackerSkill, victimDefenseSkill,
-                                   victimIsPlayer, m_modRangedHitChance, m_modMeleeHitChance,
+                                   victimIsPlayer, m_modRangedHitChance + ownerShare.ranged,
+                                   m_modMeleeHitChance + ownerShare.melee,
                                    victimRangedHitChanceMod, victimMeleeHitChanceMod);
 }
 

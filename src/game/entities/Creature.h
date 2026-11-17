@@ -57,6 +57,7 @@
 #include "Common/TimeConstants.h"
 #include "GameTime.h"
 #include "Unit.h"
+#include "combat/HitInheritance.h"
 #include "SharedDefines.h"
 #include "LootMgr.h"
 #include "DBCEnums.h"
@@ -211,6 +212,9 @@ class Creature : public Unit
         CreatureSubtype GetSubtype() const { return m_subtype; }
         bool IsPet() const override { return m_subtype == CREATURE_SUBTYPE_PET; }
         bool IsTotem() const override { return m_subtype == CREATURE_SUBTYPE_TOTEM; }
+        /// The share of its owner's hit a temporary summon took when it was summoned.
+        Combat::OwnerHitSnapshot const& GetOwnerHitSnapshot() const { return m_ownerHitSnapshot; }
+        void SetOwnerHitSnapshot(Combat::OwnerHitSnapshot const& snapshot) { m_ownerHitSnapshot = snapshot; }
         bool IsTemporarySummon() const { return m_subtype == CREATURE_SUBTYPE_TEMPORARY_SUMMON; }
         // The unit that summoned a temporary summon; empty for any other creature
         virtual ObjectGuid GetSummonerGuid() const { return ObjectGuid(); }
@@ -612,6 +616,8 @@ class Creature : public Unit
         Geometry::Placement m_spawn;
 
         bool DisableReputationGain;
+
+        Combat::OwnerHitSnapshot m_ownerHitSnapshot;
 
     private:
         /// Whether an option of the creature's gossip menu names a trainer list that is not empty.

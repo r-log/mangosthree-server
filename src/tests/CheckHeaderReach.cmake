@@ -29,6 +29,7 @@ set(REACH_RULES
     "spells/pipeline/Spell.h|proto/WorldPacket.h,proto/Opcodes.h"
     "combat/ArmorReduction.h|entities/Unit.h,entities/Object.h,entities/player/Player.h,entities/Creature.h,spells/auras/SpellAuras.h,session/WorldSession.h,data/dbc/DBCStores.h,data/dbc/DBCStructure.h"
     "combat/MeleeChances.h|entities/Unit.h,entities/Object.h,entities/player/Player.h,entities/Creature.h,spells/auras/SpellAuras.h,session/WorldSession.h,data/dbc/DBCStores.h,data/dbc/DBCStructure.h"
+    "combat/HitInheritance.h|entities/Unit.h,entities/Object.h,entities/player/Player.h,entities/Creature.h,spells/auras/SpellAuras.h,session/WorldSession.h,data/dbc/DBCStores.h,data/dbc/DBCStructure.h"
     "combat/SpellBonus.h|entities/Unit.h,entities/Object.h,entities/player/Player.h,entities/Creature.h,spells/auras/SpellAuras.h,session/WorldSession.h,data/dbc/DBCStores.h,data/dbc/DBCStructure.h"
     "combat/WeaponDamage.h|entities/Unit.h,entities/Object.h,entities/player/Player.h,entities/Creature.h,spells/auras/SpellAuras.h,session/WorldSession.h,data/dbc/DBCStores.h,data/dbc/DBCStructure.h"
     "spells/AuraContainer.h|entities/Unit.h,entities/Object.h,spells/auras/SpellAuras.h,data/dbc/DBCStructure.h,session/WorldSession.h"

@@ -34,6 +34,7 @@
 #include "TestHarness.h"
 
 #include "combat/ArmorReduction.h"
+#include "combat/HitInheritance.h"
 #include "combat/MeleeChances.h"
 #include "combat/SpellBonus.h"
 #include "combat/WeaponDamage.h"
@@ -334,4 +335,132 @@ TEST(CombatLeaf_DotShareTick)
 
     // No ticks: nothing.
     CHECK_EQ(Combat::DotShareTick(10000.0f, 40, 0), int32(0));
+}
+
+TEST(CombatLeaf_BossHitCaps)
+{
+    // A unit of any level against a target three levels up: 17 percent spell miss, 8 percent melee miss.
+    Combat::HitCaps const caps = Combat::BossHitCaps();
+    CHECK(NearF(caps.spell, 17.0f));
+    CHECK(NearF(caps.melee, 8.0f));
+}
+
+TEST(CombatLeaf_OwnerHitKind)
+{
+    Combat::HitCaps const caps = Combat::BossHitCaps();
+
+    Combat::HitKind kind = Combat::OwnerHitKind(CLASS_HUNTER, false, caps);
+    CHECK_EQ(int(kind.source), int(Combat::HIT_SOURCE_RANGED));
+    CHECK(NearF(kind.cap, caps.melee));
+
+    uint8 const meleeClasses[] = { CLASS_WARRIOR, CLASS_PALADIN, CLASS_ROGUE, CLASS_DEATH_KNIGHT };
+    for (size_t i = 0; i < sizeof(meleeClasses); ++i)
+    {
+        kind = Combat::OwnerHitKind(meleeClasses[i], false, caps);
+        CHECK_EQ(int(kind.source), int(Combat::HIT_SOURCE_MELEE));
+        CHECK(NearF(kind.cap, caps.melee));
+    }
+
+    uint8 const spellClasses[] = { CLASS_MAGE, CLASS_WARLOCK, CLASS_PRIEST, CLASS_DRUID };
+    for (size_t i = 0; i < sizeof(spellClasses); ++i)
+    {
+        kind = Combat::OwnerHitKind(spellClasses[i], false, caps);
+        CHECK_EQ(int(kind.source), int(Combat::HIT_SOURCE_SPELL));
+        CHECK(NearF(kind.cap, caps.spell));
+    }
+
+    // A shaman takes spell hit, and melee hit when his primary tree is the melee one.
+    kind = Combat::OwnerHitKind(CLASS_SHAMAN, false, caps);
+    CHECK_EQ(int(kind.source), int(Combat::HIT_SOURCE_SPELL));
+    CHECK(NearF(kind.cap, caps.spell));
+    kind = Combat::OwnerHitKind(CLASS_SHAMAN, true, caps);
+    CHECK_EQ(int(kind.source), int(Combat::HIT_SOURCE_MELEE));
+    CHECK(NearF(kind.cap, caps.melee));
+}
+
+TEST(CombatLeaf_InheritedHit)
+{
+    // At the owner cap a pet is at its own cap: a spell-capped owner has a melee-capped pet, and the other way round.
+    CHECK(NearF(Combat::InheritedHit(17.0f, 17.0f, 8.0f), 8.0f));
+    CHECK(NearF(Combat::InheritedHit(8.0f, 8.0f, 17.0f), 17.0f));
+    CHECK(NearF(Combat::InheritedHit(8.5f, 17.0f, 17.0f), 8.5f));
+
+    // Below the cap the pet is in the same proportion below its own.
+    CHECK(NearF(Combat::InheritedHit(4.0f, 8.0f, 17.0f), 8.5f));
+    CHECK(NearF(Combat::InheritedHit(0.0f, 17.0f, 8.0f), 0.0f));
+
+    // Above the cap the pet is at its own cap, never above it.
+    CHECK(NearF(Combat::InheritedHit(100.0f, 17.0f, 8.0f), 8.0f));
+
+    // An owner debuffed below zero passes it on in proportion.
+    CHECK(NearF(Combat::InheritedHit(-8.5f, 17.0f, 17.0f), -8.5f));
+
+    // No cap, no share.
+    CHECK(NearF(Combat::InheritedHit(5.0f, 0.0f, 8.0f), 0.0f));
+    CHECK(NearF(Combat::InheritedHit(5.0f, -1.0f, 8.0f), 0.0f));
+}
+
+TEST(CombatLeaf_InheritedExpertise)
+{
+    // 26 expertise at the cap, each worth 25 hundredths of a percent.
+    CHECK_EQ(Combat::InheritedExpertise(17.0f, 17.0f), int32(650));
+    CHECK_EQ(Combat::InheritedExpertise(8.0f, 8.0f), int32(650));
+    CHECK_EQ(Combat::InheritedExpertise(8.5f, 17.0f), int32(325));
+    CHECK_EQ(Combat::InheritedExpertise(100.0f, 17.0f), int32(650));
+    CHECK_EQ(Combat::InheritedExpertise(0.0f, 17.0f), int32(0));
+    CHECK_EQ(Combat::InheritedExpertise(-5.0f, 17.0f), int32(0));
+    CHECK_EQ(Combat::InheritedExpertise(5.0f, 0.0f), int32(0));
+}
+
+TEST(CombatLeaf_InheritedShare)
+{
+    Combat::HitCaps const caps = Combat::BossHitCaps();
+
+    // A hit-capped caster has a pet with spell hit and melee hit at their caps and expertise capped.
+    Combat::HitKind const spell = Combat::OwnerHitKind(CLASS_MAGE, false, caps);
+    Combat::OwnerHitShare share = Combat::InheritedShare(spell, caps.spell, caps);
+    CHECK(NearF(share.spell, caps.spell));
+    CHECK(NearF(share.melee, caps.melee));
+    CHECK(NearF(share.ranged, caps.melee));
+    CHECK_EQ(share.expertise, int32(650));
+
+    // A caster at half the cap: half of each.
+    share = Combat::InheritedShare(spell, caps.spell / 2.0f, caps);
+    CHECK(NearF(share.spell, caps.spell / 2.0f));
+    CHECK(NearF(share.melee, caps.melee / 2.0f));
+    CHECK_EQ(share.expertise, int32(325));
+
+    // A hunter at his ranged cap has a pet that is capped on spell hit too, 17 from 8.
+    Combat::HitKind const ranged = Combat::OwnerHitKind(CLASS_HUNTER, false, caps);
+    share = Combat::InheritedShare(ranged, caps.melee, caps);
+    CHECK(NearF(share.spell, caps.spell));
+    CHECK(NearF(share.melee, caps.melee));
+    CHECK_EQ(share.expertise, int32(650));
+}
+
+TEST(CombatLeaf_ChosenShare)
+{
+    Combat::OwnerHitShare live;
+    live.spell = 17.0f;
+    live.melee = 8.0f;
+    live.ranged = 8.0f;
+    live.expertise = 650;
+
+    // A permanent pet took no snapshot and rolls with its owner hit now.
+    Combat::OwnerHitSnapshot none;
+    Combat::OwnerHitShare chosen = Combat::ChosenShare(none, live);
+    CHECK(NearF(chosen.spell, 17.0f));
+    CHECK_EQ(chosen.expertise, int32(650));
+
+    // A temporary summon keeps what its owner had when it was summoned, whatever he has now.
+    Combat::OwnerHitSnapshot taken;
+    taken.taken = true;
+    taken.share.spell = 8.5f;
+    taken.share.melee = 4.0f;
+    taken.share.ranged = 4.0f;
+    taken.share.expertise = 325;
+    chosen = Combat::ChosenShare(taken, live);
+    CHECK(NearF(chosen.spell, 8.5f));
+    CHECK(NearF(chosen.melee, 4.0f));
+    CHECK_EQ(chosen.expertise, int32(325));
 }
