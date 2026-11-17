@@ -49,6 +49,7 @@
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/SpellScriptQueries.h"
 #include "Creature.h"
 #include "Player.h"
 #include "WorldSession.h"
@@ -407,6 +408,65 @@ namespace
         }
     }
 
+    // Effect rows shaped as the client's data holds the spells a proc's damage check reads, under test-only ids, put
+    // into the effect store once for the rest of the run: a direct damage spell (Fireball, Fire Blast), a periodic
+    // damage aura beside a dummy (Living Bomb), a periodic percent damage and a periodic leech aura, a weapon damage
+    // effect, and the spells that deal none (Slow's three auras, Polymorph's confuse, Counterspell's interrupt, Deep
+    // Freeze's stun) and one that only triggers a spell.
+    uint32 const ROW_DIRECT_DAMAGE = 9420001;
+    uint32 const ROW_PERIODIC_DAMAGE_WITH_DUMMY = 9420002;
+    uint32 const ROW_PERIODIC_PERCENT = 9420003;
+    uint32 const ROW_PERIODIC_LEECH = 9420004;
+    uint32 const ROW_WEAPON_DAMAGE = 9420005;
+    uint32 const ROW_SLOW_AURAS = 9420006;
+    uint32 const ROW_CONFUSE = 9420007;
+    uint32 const ROW_INTERRUPT = 9420008;
+    uint32 const ROW_STUN = 9420009;
+    uint32 const ROW_TRIGGERS_DAMAGE = 9420010;
+
+    void AddDamageCheckRows()
+    {
+        struct Row
+        {
+            uint32 spellId;
+            uint32 effectIndex;
+            uint32 effect;
+            uint32 aura;
+        };
+        static Row const rows[] =
+        {
+            { ROW_DIRECT_DAMAGE, 0, SPELL_EFFECT_SCHOOL_DAMAGE, 0 },
+            { ROW_PERIODIC_DAMAGE_WITH_DUMMY, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_PERIODIC_DAMAGE },
+            { ROW_PERIODIC_DAMAGE_WITH_DUMMY, 1, SPELL_EFFECT_DUMMY, 0 },
+            { ROW_PERIODIC_PERCENT, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_PERIODIC_DAMAGE_PERCENT },
+            { ROW_PERIODIC_LEECH, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_PERIODIC_LEECH },
+            { ROW_WEAPON_DAMAGE, 0, SPELL_EFFECT_NORMALIZED_WEAPON_DMG, 0 },
+            { ROW_SLOW_AURAS, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_DECREASE_SPEED },
+            { ROW_SLOW_AURAS, 1, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_RANGED_HASTE },
+            { ROW_SLOW_AURAS, 2, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK },
+            { ROW_CONFUSE, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_CONFUSE },
+            { ROW_INTERRUPT, 0, SPELL_EFFECT_INTERRUPT_CAST, 0 },
+            { ROW_STUN, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_STUN },
+            { ROW_TRIGGERS_DAMAGE, 0, SPELL_EFFECT_TRIGGER_SPELL, 0 },
+        };
+        static SpellEffectEntry effects[sizeof(rows) / sizeof(rows[0])];
+        static bool added = false;
+        if (added)
+        {
+            return;
+        }
+        added = true;
+        for (std::size_t i = 0; i < sizeof(rows) / sizeof(rows[0]); ++i)
+        {
+            effects[i] = SpellEffectEntry();
+            effects[i].SpellID = rows[i].spellId;
+            effects[i].EffectIndex = rows[i].effectIndex;
+            effects[i].Effect = rows[i].effect;
+            effects[i].EffectAura = rows[i].aura;
+            AddSpellEffectEntry(&effects[i]);
+        }
+    }
+
     // A proc of `spellId`'s effect `effIndex` on `owner`, with the event's spell, flags and the aura's amount given;
     // the event's other unit and its damage too, when given.
     SpellHandlerOutcome<SpellAuraProcResult> Proc(SpellHandlerRegistry const& registry, Unit& owner, uint32 spellId,
@@ -432,11 +492,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Frostfire Bolt at the after-hit hook. Frost: the 74396 boost and proc labels; Ice Lance at the damage-done hook. At
     // the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity
     // State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the
-    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. 64 rows, 64 keys and 3 defaults, none
-    // twice.
+    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact also at the check-proc hook. 66 rows,
+    // 66 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(67));
-    CHECK_EQ(registry.Count(), std::size_t(64));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(69));
+    CHECK_EQ(registry.Count(), std::size_t(66));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -445,6 +505,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(21));
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
@@ -470,7 +531,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 37, 37, 0 },
+        { &Mage::RegisterFire, 39, 39, 0 },
         { &Mage::RegisterFrost, 7, 7, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
@@ -484,8 +545,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(67));
-    CHECK_EQ(registry.Count(), std::size_t(64));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(69));
+    CHECK_EQ(registry.Count(), std::size_t(66));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -496,7 +557,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(64));
+    CHECK_EQ(mine.size(), std::size_t(66));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -654,7 +715,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     CHECK_EQ(ids, std::size_t(21));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
-    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(0));
+    CHECK_EQ(game.CountAt(CheckProcHook::Key), sizeof(IMPACT_IDS) / sizeof(uint32));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
     // no aura) and 28682 (absent from the client's data), and Arcane Blast's buff (36032 holds no damage-done aura).
@@ -1515,6 +1576,61 @@ TEST(MageScripts_ImpactClearsFireBlastsCooldownWhenItsProcTriggerEffectProcs)
         CHECK(!mage.GetSpellCooldownMgr().HasSpellCooldown(2136, now));
         CHECK_EQ(s_cleared.size(), std::size_t(1));
         CHECK(!s_cleared.empty() && s_cleared[0] == 2136);
+    }
+}
+
+TEST(MageScripts_DealsDamageReadsTheSpellsOwnEffectRows)
+{
+    AddDamageCheckRows();
+    SpellRowStorage row;
+    for (uint32 spellId : { ROW_DIRECT_DAMAGE, ROW_PERIODIC_DAMAGE_WITH_DUMMY, ROW_PERIODIC_PERCENT, ROW_PERIODIC_LEECH,
+                            ROW_WEAPON_DAMAGE })
+    {
+        CHECK(Spells::DealsDamage(SpellRow(row, spellId)));
+    }
+    for (uint32 spellId : { ROW_SLOW_AURAS, ROW_CONFUSE, ROW_INTERRUPT, ROW_STUN, ROW_TRIGGERS_DAMAGE, 0u })
+    {
+        CHECK(!Spells::DealsDamage(SpellRow(row, spellId)));
+    }
+}
+
+TEST(MageScripts_ImpactRollsOnlyFromSpellsThatDealDamage)
+{
+    AddDamageCheckRows();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    BareCreature owner;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage impactRow;
+    SpellRowStorage eventRow;
+
+    for (uint32 impact : IMPACT_IDS)
+    {
+        CHECK(registry.Find<CheckProcHook>(impact) != NULL);
+
+        // The spells that deal damage, Living Bomb's cast among them, go on to the other checks.
+        for (uint32 spellId : { ROW_DIRECT_DAMAGE, ROW_PERIODIC_DAMAGE_WITH_DUMMY })
+        {
+            CheckProcContext ctx(owner, NULL, SpellRow(impactRow, impact), AuraHandle(holder), &SpellRow(eventRow, spellId),
+                                 0x10000, PROC_EX_NORMAL_HIT, 0);
+            CHECK(registry.Dispatch<CheckProcHook>(impact, ctx).IsContinue());
+        }
+
+        // A hit that deals none (Slow, Polymorph, Counterspell, Deep Freeze) is refused.
+        for (uint32 spellId : { ROW_SLOW_AURAS, ROW_CONFUSE, ROW_INTERRUPT, ROW_STUN })
+        {
+            CheckProcContext ctx(owner, NULL, SpellRow(impactRow, impact), AuraHandle(holder), &SpellRow(eventRow, spellId),
+                                 0x10000, PROC_EX_NORMAL_HIT, 0);
+            SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(impact, ctx);
+            CHECK(outcome.IsReturn());
+            CHECK(!outcome.GetValue());
+        }
+
+        // An event with no spell goes on.
+        CheckProcContext melee(owner, NULL, SpellRow(impactRow, impact), AuraHandle(holder), NULL, 0x10000,
+                               PROC_EX_NORMAL_HIT, 0);
+        CHECK(registry.Dispatch<CheckProcHook>(impact, melee).IsContinue());
     }
 }
 
