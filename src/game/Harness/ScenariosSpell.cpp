@@ -128,12 +128,15 @@
 // DoTs' unhasted period, with Flashburn once in each share and the Camel's damage-taken effects once in the tick.
 // 942 a staged Fire mage's Slow and Polymorph hits roll Arcane Missiles! and never Impact, a Slow that misses rolls
 // neither, and Living Bomb's cast rolls Impact.
+// 948 Molten Armor's hit rolls Impact and Arcane Missiles!, never ignites, never starts another Molten Armor, and does
+// not break the Polymorph, Blind or Frost Nova on the Camel it hits.
 // 943 a hit-capped Frost mage's Water Elemental casts twenty Waterbolts at a Camel three levels above it and none
 // misses; 944 a hit-capped Fire mage's Flame Orb hits a Camel three levels above it fifteen times and none misses;
-// 946 and 947 are the same without the hit, with the pet's and the orb's share in proportion. 992 a staged Frost mage's
-// Ice Lance does double damage to a Camel that Frost Nova froze, and 2000 rolls of Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
+// 946 and 947 are the same with a hit rating below the cap, with the pet's and the orb's share in proportion. 992 a
+// staged Frost mage's Ice Lance does double damage to a Camel that Frost Nova froze, and 2000 rolls of
+// Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
 // sheet chance and Glyph of Frostbolt's 5 together.
-// The guard of 931-938, 941-945, 946, 947, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 941-948, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3970,16 +3973,17 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 951, 952, 954-957, 962-978, 980-992): a human mage staged to level 85
-     * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
-     * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
-     * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
+     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-992): a human
+     * mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings and spells
+     * (Scenario::StagePlayer), then whatever the scenario does to him once staged (AfterStage), then the pet the
+     * scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85 unless the scenario sets its
+     * own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
-     *    a hit aura), that aura put on him by a triggered self-cast when he does not hold it; his mana set to its
-     *    maximum by call; for a step that must crit, Increased Critical Spell (23434, a spell crit chance aura) put on
-     *    him at kCritAuraPoints by a triggered self-cast, and for one that must not, taken off him by call, or put on
-     *    him at NonCritAuraPoints() when the scenario names such points (a holder of 23434 at other points is taken off
-     *    first); then the spell cast at the Camel through the CAST_SPELL handler's calls. One every CastEveryMs()
+     *    a hit aura), that aura put on him when he does not hold it, by a triggered self-cast or, when CasterAuraPut()
+     *    is set, without a cast; his mana set to its maximum by call; for a step that must crit, Increased Critical
+     *    Spell (23434, a spell crit chance aura) put on him at kCritAuraPoints by a triggered self-cast, and for one
+     *    that must not, taken off him by call, or put on him at NonCritAuraPoints() when the scenario names such points
+     *    (a holder of 23434 at other points is taken off first); then the spell cast at the Camel through the CAST_SPELL handler's calls. One every CastEveryMs()
      *    (kCastEveryMs unless the scenario sets its own), read CastReadMs() after (kCastReadMs unless the scenario sets
      *    its own). An aura cast is the same cast of a spell that applies an aura and sends no damage log of its own.
      *    A moving cast (MovingCast) is made with his client's movement word at MOVEFLAG_FORWARD from just before the
@@ -3991,6 +3995,7 @@ namespace Harness
      *    on; a cast as the client (`asClient`) is sent as the client's CMSG_CAST_SPELL to the CAST_SPELL handler itself
      *    (CastAsClient), so the spell the server casts is the one the handler chooses, and the record reads the step's
      *    cast from the packets that carry its cast count;
+     *  - a pet cast (PetCast): the step's spell cast by the pet the scenario named;
      *  - a self aura: the step's spell cast by him at himself, triggered, with nothing put on him first;
      *  - a swing: his health set to SwingHealth() by call (his maximum unless the scenario names one), then the Camel's
      *    melee swing at him (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
@@ -9676,6 +9681,233 @@ namespace Harness
     };
 
     /**
+     * S948 `mage-fire-molten-armor-procs`: Molten Armor's hit (34913) starts procs, never ignites, never starts
+     * another Molten Armor and never breaks Polymorph, Blind or Frost Nova. A Fire mage staged as in 968 (Burning Soul 3,
+     * Improved Fire Blast 2, Ignite 3, Impact 2; kSpellPower spell power), Polymorph (118) learned, Precision on him
+     * before each cast and Increased Critical Spell on him at +100 from the first step to the end, so every 34913
+     * crits; the Camel holds Molten Armor (30482) too, put on it in the first step. Steps: Molten Armor cast at
+     * himself; kSwings swings of the Camel at him, each hit of which casts 34913 at the Camel; Polymorph cast at the
+     * Camel; then three phases in which the Camel holds Polymorph, Blind (2094) and Frost Nova (122), and in each
+     * step of a phase he casts 34913 at it by call as the armor's proc does (triggered, naming the holder of 30482),
+     * each read kSwingReadMs after: kStrikes, kBlindStrikes and kNovaStrikes steps. Blind and Frost Nova are put on
+     * the Camel as the GM aura command puts an aura, ready as a cast leaves it and for kPhaseAuraMs, the aura of the phase
+     * before taken off it.
+     *
+     * `armorProcs`: `crits=<34913 hits that crit>/<34913 hits>,ignite=<steps with 12654 on the Camel or cast>,
+     * impact=<swings after which 64343 was on him>,answered=<34913 hits the Camel dealt>,
+     * poly=<the Camel's 118 after the cast, then after each strike, 1 held>,
+     * blind=<the Camel's 2094 after each strike, 1 held>,nova=<strikes after which its 122 was held>/<strikes>`.
+     * OK when every 34913 hit crit and each swing that hit logged one, nothing of Ignite (12654) was ever on the Camel or
+     * cast, Impact's 64343 was on him after at least one swing, the Camel dealt no 34913, Polymorph landed and each
+     * strike logged one 34913 and left the Camel's aura of its phase on.
+     */
+    class MageFireMoltenArmorProcs : public MageFireProofScenario
+    {
+    public:
+        MageFireMoltenArmorProcs() : MageFireProofScenario("mage-fire-molten-armor-procs", 948, "armorProcs") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10529, 2 }, { 10537, 1 } };
+        }
+        std::vector<uint32> Spells() const override { return { kMoltenArmor, kPolymorph }; }
+        bool TakesDamage() const override { return true; }
+        uint32 CasterAura() const override { return kPrecision; }
+        uint32 Watched() const override { return kPolymorph; }
+        bool WatchedOnTarget() const override { return true; }
+        int32 NonCritAuraPoints() const override { return kCritAuraPoints; }
+
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps = { AuraCast(kMoltenArmor, 0) };
+            steps.insert(steps.end(), kSwings, Swing());
+            steps.push_back(AuraCast(kPolymorph, 0));
+            steps.insert(steps.end(), kStrikes + kBlindStrikes + kNovaStrikes, Wait(kSwingEveryMs));
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return ProofPrints({
+                // 30482: 72 fields, fnv 920fa0aa
+                { 30482, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 34913 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 197 }, { "eff1.EffectBasePoints", -5 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 57 }, { "eff2.EffectBasePoints", 3 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 1792 }, { "eff2.EffectMiscValue_1", 4 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 34913: 26 fields, fnv aa3af5ec
+                { 34913, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 75 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 64343: 26 fields, fnv d38ef595
+                { 64343, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 12355 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12355: 49 fields, fnv 58da00a3
+                { 12355, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 12 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 77 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRadiusIndex_0", 32 }, { "eff1.ImplicitTarget_0", 53 }, { "eff1.ImplicitTarget_1", 16 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12357: 26 fields, fnv c557c869
+                { 12357, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 64343 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 118: 49 fields, fnv ffbe2272
+                { 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 122: 49 fields, fnv 2ec0d9e1
+                { 122, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 18 }, { "eff0.EffectBonusCoefficient", 1044750795 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRadiusIndex_1", 32 }, { "eff0.EffectRealPointsPerLevel", 1056964608 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 26 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 7 }, { "eff1.EffectRadiusIndex_1", 32 }, { "eff1.ImplicitTarget_0", 22 }, { "eff1.ImplicitTarget_1", 15 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 2094: 49 fields, fnv dc461f15
+                { 2094, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -60 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 5 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+            });
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            Seen& seen = st.seen[k];
+            if (!atRead)
+            {
+                seen.reads["igniteHeld"] = target->GetSpellAuraHolder(kIgniteDot) ? 1 : 0;
+                if (k == 0)
+                {
+                    PutReadyAura(target, kMoltenArmor, kPhaseAuraMs);
+                    m_rec.Note("30482 put on the Camel: " + HolderOf(target, kMoltenArmor));
+                }
+                if (k == kBlindStart || k == kNovaStart)
+                {
+                    target->RemoveAurasDueToSpell(PhaseAura(k - 1));
+                    PutReadyAura(target, PhaseAura(k), kPhaseAuraMs);
+                    m_rec.Note(U(PhaseAura(k)) + " put on the Camel: " + HolderOf(target, PhaseAura(k)));
+                }
+                if (k >= kFirstStrike)
+                {
+                    const uint32 phaseAura = PhaseAura(k);
+                    p->CastSpell(target, kMoltenArmorHit, true, NULL, p->GetAura(kMoltenArmor, EFFECT_INDEX_0));
+                    seen.reads["heldAfterStrike"] = target->GetSpellAuraHolder(phaseAura) ? 1 : 0;
+                    m_rec.Note("34913 cast at the Camel by call; " + U(phaseAura) + " on it: " + HolderOf(target, phaseAura));
+                }
+            }
+            else
+            {
+                seen.reads["igniteHeld"] = std::max<int64>(seen.reads["igniteHeld"], target->GetSpellAuraHolder(kIgniteDot) ? 1 : 0);
+                seen.reads["held"] = target->GetSpellAuraHolder(PhaseAura(k)) ? 1 : 0;
+                seen.reads["impact"] = p->HasAura(kImpactBuff) ? 1 : 0;
+                p->RemoveAurasDueToSpell(kImpactBuff);
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            uint32 hits = 0;
+            uint32 casts = 0;
+            uint32 crits = 0;
+            uint32 ignite = 0;
+            uint32 impact = 0;
+            uint32 answered = 0;
+            uint32 novaHeld = 0;
+            bool ok = true;
+            std::string swings;
+            for (uint32 k = 1; k < st.steps.size(); ++k)
+            {
+                Seen const& seen = st.seen[k];
+                const bool swing = k <= kSwings;
+                const bool strike = k >= kFirstStrike;
+                const std::vector<std::string> lines = HitAmounts(k, kMoltenArmorHit);
+                const bool hit = swing && seen.read && seen.healthAfter < seen.healthBefore;
+                for (size_t i = 0; i < lines.size(); ++i)
+                {
+                    ++casts;
+                    crits += !lines[i].empty() && lines[i][lines[i].size() - 1] == 'c' ? 1 : 0;
+                }
+                answered += OtherHits(k, kMoltenArmorHit);
+                if (swing)
+                {
+                    hits += hit ? 1 : 0;
+                    ok = ok && seen.read && (hit ? lines.size() == 1 : lines.empty());
+                    impact += Kept(st, k, "impact") == 1 ? 1 : 0;
+                    swings += "; " + U(k + 1) + (hit ? " hit" : " not hit") + ": 34913 [" + (lines.empty() ? std::string("") : lines[0]) + "]";
+                }
+                if (strike)
+                {
+                    ok = ok && lines.size() == 1 && Kept(st, k, "heldAfterStrike") == 1 && Kept(st, k, "held") == 1;
+                    novaHeld += k >= kNovaStart && Kept(st, k, "heldAfterStrike") == 1 ? 1 : 0;
+                }
+                ignite += Kept(st, k, "igniteHeld") == 1 || Triggered(seen, kIgniteDot) ? 1 : 0;
+            }
+            std::string poly = U(Kept(st, kPolyStep, "held") == 1 ? 1 : 0);
+            std::string blind;
+            for (uint32 k = kFirstStrike; k < kNovaStart; ++k)
+            {
+                std::string& phase = k < kBlindStart ? poly : blind;
+                phase += (phase.empty() ? "" : "+") + U(Kept(st, k, "heldAfterStrike") == 1 ? 1 : 0);
+            }
+            ok = ok && hits > 0 && casts == crits && ignite == 0 && impact > 0 && answered == 0 &&
+                 Kept(st, kPolyStep, "held") == 1;
+            const std::string value = "crits=" + U(crits) + "/" + U(casts) + ",ignite=" + U(ignite) + ",impact=" + U(impact) +
+                                      ",answered=" + U(answered) + ",poly=" + poly + ",blind=" + blind +
+                                      ",nova=" + U(novaHeld) + "/" + U(kNovaStrikes);
+            const std::string detail = "each swing that hits him casts 34913 once and every one crits; no 12654 on the Camel or cast; Impact's "
+                                       "64343 on him after at least one swing; the Camel deals no 34913; the Camel's 118 held after the "
+                                       "cast and after each of " + U(kStrikes) + " strikes, its 2094 after each of " + U(kBlindStrikes) +
+                                       ", its 122 after each of " + U(kNovaStrikes) + swings;
+            return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kMoltenArmor = 30482;
+        static constexpr uint32 kMoltenArmorHit = 34913;
+        static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kImpactBuff = 64343;
+        static constexpr uint32 kPolymorph = 118;
+        static constexpr uint32 kBlind = 2094;
+        static constexpr uint32 kFrostNova = 122;
+        static constexpr uint32 kSwings = 50;
+        static constexpr uint32 kStrikes = 3;
+        static constexpr uint32 kBlindStrikes = 3;
+        static constexpr uint32 kNovaStrikes = 30;
+        static constexpr int32 kPhaseAuraMs = 120000;
+        static constexpr uint32 kPolyStep = kSwings + 1;
+        static constexpr uint32 kFirstStrike = kSwings + 2;
+        static constexpr uint32 kBlindStart = kFirstStrike + kStrikes;
+        static constexpr uint32 kNovaStart = kBlindStart + kBlindStrikes;
+
+        /// The aura of `spell` put on `unit` as PutAura puts it, for `durationMs`, and ready as a cast leaves it, so that
+        /// its procs run.
+        static void PutReadyAura(Unit* unit, uint32 spell, int32 durationMs)
+        {
+            PutAura(unit, spell);
+            if (SpellAuraHolder* holder = unit->GetSpellAuraHolder(spell))
+            {
+                holder->SetAuraMaxDuration(durationMs);
+                holder->SetAuraDuration(durationMs);
+                holder->SetState(SPELLAURAHOLDER_STATE_READY);
+            }
+        }
+
+        /// The aura the Camel holds at step k: Polymorph, then Blind from kBlindStart, then Frost Nova from kNovaStart.
+        static uint32 PhaseAura(uint32 k) { return k >= kNovaStart ? kFrostNova : k >= kBlindStart ? kBlind : kPolymorph; }
+
+        /// The damage logs of `spell` in step k's windows that the mage did not deal.
+        uint32 OtherHits(uint32 k, uint32 spell) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            uint32 count = 0;
+            const std::string marker = ".hit." + U(spell) + "=";
+            const std::vector<std::string> windows = StepWindows(k);
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(windows[w], SMSG_SPELLNONMELEEDAMAGELOG);
+                for (size_t i = 0; i < logs.size(); ++i)
+                {
+                    if (logs[i]->payload.empty())
+                    {
+                        continue;
+                    }
+                    std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &logs[i]->payload[0],
+                                                                             logs[i]->payload.size(), roles);
+                    if (fields.size() == 1 && fields[0].find(marker) != std::string::npos &&
+                        fields[0].compare(0, 9, "hit self.") != 0)
+                    {
+                        ++count;
+                    }
+                }
+            }
+            return count;
+        }
+    };
+
+    /**
      * S989 `mage-fire-pyroblast-path`: the instant Pyroblast's way through the server, on a Fire mage staged as
      * MageFireProofScenario stages him who learned Pyroblast! (92315). Pyroblast! asks for Hot Streak (48108) on its
      * caster (SpellAuraRestrictions 1073, read by Spell::CheckCast), and Hot Streak's aura 332 names 92315 for the
@@ -12062,12 +12294,13 @@ namespace Harness
      * three levels above it. The mage is staged as 957 stages him and holds Don't Miss! (73411, +100 spell hit and
      * +100 hit), which keeps him at his spell hit cap; the Camel is level 88 and holds nothing; the pet is built
      * kPetOffset yards to his side after he is staged and holds nothing of its own. Twenty steps, one every 3 s: the
-     * pet casts Waterbolt at the Camel. S946 `mage-pet-owner-hit-uncapped` is the same without Don't Miss!.
+     * pet casts Waterbolt at the Camel. S946 `mage-pet-owner-hit-uncapped` is the same without
+     * Don't Miss! and with kHitRating (820) of spell hit rating put on him, so his hit is above 0 and under the cap.
      *
      * `petHit`: `misses=<casts whose SPELL_GO lists the Camel as missed>/<casts seen>,owner=<his spell hit field>,
      * pet=<the pet's spell hit field>,share=<the spell hit of Combat::OwnerShareOf(pet)>/<its expertise>`; OK when
-     * every one of the twenty casts was seen, the owner's field is 100 (S946: under the spell cap), the pet's own field
-     * is 0 and the share is the spell cap of 17 with 650 expertise and no cast missed (S946: the owner's hit in
+     * every one of the twenty casts was seen, the owner's field is 100 (S946: above 0 and under the spell cap), the
+     * pet's own field is 0 and the share is the spell cap of 17 with 650 expertise and no cast missed (S946: the owner's hit in
      * proportion, and no miss is asked of it): the owner's hit is read at each roll, not copied into the pet.
      */
     class MageFrostPetOwnerHit : public MageFrostIceLance
@@ -12105,6 +12338,14 @@ namespace Harness
         bool CasterAuraPut() const override { return true; }
         uint32 TargetLevel() const override { return kTargetLevel; }
         uint32 PetEntry() const override { return kWaterElemental; }
+
+        void AfterStage(Player& p) override
+        {
+            if (!m_capped)
+            {
+                p.ApplyRatingMod(CR_HIT_SPELL, kHitRating, true);
+            }
+        }
         uint32 CastReadMs() const override { return kPetCastReadMs; }
 
         std::string Own(St const& st) const override
@@ -12131,7 +12372,7 @@ namespace Harness
             const int32 wantExpertise = m_capped ? 650 : Combat::InheritedExpertise(owner, caps.spell);
             char buf[160];
             snprintf(buf, sizeof(buf), "misses=%u/%u,owner=%.0f,pet=%.0f,share=%.2f/%d", missed, seen, owner, pet, share.spell, share.expertise);
-            const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
+            const bool ownerOk = m_capped ? owner == 100.0f : (owner > 0.0f && owner < caps.spell);
             const bool shareOk = std::fabs(share.spell - wantShare) < 0.005f && share.expertise == wantExpertise;
             const bool ok = seen == kCasts && (!m_capped || missed == 0) && ownerOk && pet == 0.0f && shareOk;
             return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
@@ -12143,6 +12384,7 @@ namespace Harness
         static constexpr uint32 kDontMiss = 73411;
         static constexpr uint32 kWaterElemental = 510;
         static constexpr uint32 kTargetLevel = 88;
+        static constexpr int32 kHitRating = 820;
         static constexpr uint32 kPetCastEveryMs = 3000;
         static constexpr uint32 kPetCastReadMs = 2900;
 
@@ -12152,12 +12394,13 @@ namespace Harness
     /**
      * S944 `mage-fire-flame-orb-owner-hit`: 971's mage and orb with the Camel at level 88 holding no Hit Me and the mage
      * holding Don't Miss! (73411, +100 spell hit and +100 hit), so he is at his spell hit cap. One step: Flame Orb under
-     * the crit aura, kStepMs to the end. S947 `mage-fire-flame-orb-owner-hit-uncapped` is the same without Don't Miss!.
+     * the crit aura, kStepMs to the end. S947 `mage-fire-flame-orb-owner-hit-uncapped` is the same without
+     * Don't Miss! and with kHitRating (820) of spell hit rating put on him, so his hit is above 0 and under the cap.
      *
      * `orbHit`: `goes=<SPELL_GO of the orb's hit>,misses=<of them listing the Camel as missed>,hits=<its damage logs on
      * the Camel>,owner=<his spell hit field>,share=<the spell hit of Combat::OwnerShareOf(orb)>/<its expertise>`; OK
-     * when there are kOrbHits goes and every one is a hit or a miss, the owner's field is 100 (S947: under the spell
-     * cap) and the share is the spell cap of 17 with 650 expertise and no hit missed (S947: the owner's hit in
+     * when there are kOrbHits goes and every one is a hit or a miss, the owner's field is 100 (S947: above 0 and under
+     * the spell cap) and the share is the spell cap of 17 with 650 expertise and no hit missed (S947: the owner's hit in
      * proportion, and misses are allowed): the orb rolls with its summoner's hit as of its summon.
      */
     class MageFireFlameOrbOwnerHit : public MageFireFlameOrb
@@ -12188,6 +12431,14 @@ namespace Harness
         uint32 TargetLevel() const override { return kTargetLevel; }
         uint32 CasterAura() const override { return m_capped ? kDontMiss : 0; }
         bool CasterAuraPut() const override { return true; }
+
+        void AfterStage(Player& p) override
+        {
+            if (!m_capped)
+            {
+                p.ApplyRatingMod(CR_HIT_SPELL, kHitRating, true);
+            }
+        }
 
         std::string Own(St const& st) const override
         {
@@ -12233,7 +12484,7 @@ namespace Harness
             char buf[160];
             snprintf(buf, sizeof(buf), "goes=%u,misses=%u,hits=%u,owner=%.0f,share=%.2f/%d", goes, missed, hits, owner, m_orbShare.spell,
                      m_orbShare.expertise);
-            const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
+            const bool ownerOk = m_capped ? owner == 100.0f : (owner > 0.0f && owner < caps.spell);
             const bool shareOk = std::fabs(m_orbShare.spell - wantShare) < 0.005f && m_orbShare.expertise == wantExpertise;
             const bool ok = goes == kOrbHits && (!m_capped || missed == 0) && hits + missed == kOrbHits && ownerOk && shareOk;
             return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
@@ -12243,6 +12494,7 @@ namespace Harness
         static constexpr uint32 kOrbHit = 82739;
         static constexpr uint32 kDontMiss = 73411;
         static constexpr uint32 kTargetLevel = 88;
+        static constexpr int32 kHitRating = 820;
         static constexpr uint32 kOrbHits = 15;
 
         bool m_capped;
@@ -12576,6 +12828,7 @@ namespace Harness
         r.Register(new MageFireMoltenFuryTick());
         r.Register(new MageFireCombustionMoltenFury());
         r.Register(new MageFireMoltenArmor());
+        r.Register(new MageFireMoltenArmorProcs());
         r.Register(new MageFirePyroblastPath());
         r.Register(new MageFireBlazingSpeedDispel());
         r.Register(new MageFireMageWardBreak());

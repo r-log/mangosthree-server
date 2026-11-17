@@ -73,6 +73,15 @@ uint32 AuraTargetLimit(uint32 spellId);
 /// the procs of that unit and of the units it hits.
 bool TriggeredCastStartsProcs(uint32 spellId);
 
+/// Whether a cast of `castSpellId` that an aura triggered starts the procs of an aura whose Ex3 attributes are
+/// `auraAttributesEx3`. Every aura answers for a cast TriggeredCastStartsProcs admits, except that Molten Armor's hit
+/// starts only the auras that can proc from procs (SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS).
+bool TriggeredCastStartsProcsOf(uint32 castSpellId, uint32 auraAttributesEx3);
+
+/// Whether the damage of a spell whose Ex4 attributes are `attributesEx4` removes the victim's break-on-damage auras;
+/// a reactive damage proc (SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC) does not.
+bool DamageBreaksAuras(uint32 attributesEx4);
+
 /// The spells a proc casts for the rank of the aura or of the spell that procs it; 0 for a spell the table does not hold.
 uint32 GetArcanePotencyProcSpell(uint32 rankSpellId);
 uint32 GetSecondWindProcSpell(uint32 rankSpellId);

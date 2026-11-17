@@ -48,8 +48,9 @@ namespace
     /// Ignite's damage over time, the spell the talent's ranks cast.
     uint32 const IGNITE_DOT = 12654;
 
-    /// The Fire hits that do not ignite: Living Bomb's explosion, Flame Orb's hits and Fire Power's explosion.
-    uint32 const NOT_IGNITING[] = { 44461, 82739, 83619 };
+    /// The Fire hits that do not ignite: Molten Armor's hit, Living Bomb's explosion, Flame Orb's hits and Fire Power's
+    /// explosion.
+    uint32 const NOT_IGNITING[] = { 34913, 44461, 82739, 83619 };
 
     /// The ticks Ignite (12654) deals: its duration over its periodic effect's period; 0 when the spell store has no
     /// 12654 or its effect no period.
@@ -66,9 +67,9 @@ namespace
     }
 
     /// 11119, 11120, 12846: Ignite: a critical strike of one of the mage's direct Fire spells puts the aura's percent of
-    /// its damage on the victim as Ignite (12654), two ticks over its duration. The explosion of Living Bomb (44461),
-    /// Flame Orb's hits (82739) and Fire Power's explosion (83619) do not ignite. A share below one point per tick
-    /// banks nothing, so a running Ignite is left as it is.
+    /// its damage on the victim as Ignite (12654), two ticks over its duration. The hit of Molten Armor (34913), the
+    /// explosion of Living Bomb (44461), Flame Orb's hits (82739) and Fire Power's explosion (83619) do not ignite. A
+    /// share below one point per tick banks nothing, so a running Ignite is left as it is.
     ProcOutcome IgniteProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
