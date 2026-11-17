@@ -1186,10 +1186,10 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
-    // The check-proc hook holds Impact's two ranks', the proc hook the mage's 21 proc scripts, the target hook
-    // Blink's and the orb's scan's, the damage-done hook the 22 spells Frostburn's class mask covers, the
-    // crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook
-    // Pyromaniac's ten (its eight DoTs and two ranks), the aura-remove hook Hot Streak's buff's, Mage Ward's and Pyromaniac's ten, the dummy-effect
+    // The check-proc hook holds Impact's two ranks', the proc hook the mage's 21 proc scripts, the target hook Blink's
+    // and the orb's scan's, the damage-done hook the 22 spells Frostburn's class mask covers, the crit-chance hook the
+    // 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its eight
+    // DoTs and two ranks), the aura-remove hook Hot Streak's buff's, Mage Ward's and Pyromaniac's ten, the dummy-effect
     // hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's, the after-cast hook Blast Wave's and the
     // after-hit hook Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =

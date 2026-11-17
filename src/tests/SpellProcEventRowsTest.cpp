@@ -250,7 +250,7 @@ TEST(SpellProcEventRows_MoltenArmorWithNoRowTakesTheSwingsThatHitAndNotTheOnesTh
     CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kMoltenArmorFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT, PROC_EX_NORMAL_HIT));
 }
 
-TEST(SpellProcEventRows_HitKindAcceptedRefusesOnlyAnAskedForHitThatDealtNothingForRowsWithoutTheBit)
+TEST(SpellProcEventRows_HitKindAcceptedForRowsWithoutTheBitRefusesAMissAndAnAskedForHitThatDealtNothing)
 {
     // No extra requirement: a hit or a crit that dealt damage or healed, or a cast end.
     CHECK(!SpellMgr::HitKindAccepted(PROC_EX_NONE, PROC_EX_NORMAL_HIT, false));

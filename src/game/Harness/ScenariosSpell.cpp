@@ -124,7 +124,9 @@
 // health ticks with the Molten Fury of the Pyroblast DoT it combines; 941 Ignite and Glyph of Frostfire's DoT take their
 // share of a hit before the target's damage-taken effects, on a Camel under Curse of the Elements and on a bare one.
 // 942 a staged Fire mage's Slow and Polymorph hits roll Arcane Missiles! and never Impact, a Slow that misses rolls
-// neither, and Living Bomb's cast rolls Impact.
+// neither, and Living Bomb's cast rolls Impact. 992 a staged Frost mage's Ice Lance does double damage to a Camel that
+// Frost Nova froze, and 2000 rolls of Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
+// sheet chance and Glyph of Frostbolt's 5 together.
 // The guard of 931-938, 941, 942, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
@@ -3962,7 +3964,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 951, 952, 954-957, 962-978, 980-991): a human mage staged to level 85
+     * What the mage scenarios share (941, 942, 951, 952, 954-957, 962-978, 980-992): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -6036,8 +6038,8 @@ namespace Harness
      * done damage is multiplied when the target is frozen, or when Fingers of Frost (44544) on him lets it act as if it
      * were. Steps: Ice Lance at the Camel; Frost Nova, which freezes it; Ice Lance at the frozen Camel; then three
      * rounds of three Frostbolts and an Ice Lance, every hit a chance for Fingers of Frost. One cast every 4.7 s: under
-     * the harness's seed base no cast crits, and Fingers of Frost procs after casts 7, 10 and 13, so the Ice Lances of
-     * casts 11 and 15 have it.
+     * the harness's seed base no cast crits, and Fingers of Frost triggers at steps 5, 12 and 14, so the Ice Lances of
+     * steps 7 and 15 have it.
      *
      * `iceLance`: each Ice Lance's state when cast (`frozen`, `fingers` when 44544 was on him and the Camel not frozen,
      * else `plain`) and its amount; OK when there is a frozen one and a plain one, and each frozen or fingers one dealt
@@ -6078,6 +6080,8 @@ namespace Harness
                 // 44544: 26 fields, fnv 65bc81c5
                 { 44544, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 262 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 4503599627370496 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 { 74396, { { "absent", 1 } } },
+                // 56370: 26 fields
+                { 56370, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 76613: 49 fields, fnv a5f94991
                 { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 79684: 26 fields, fnv 8068d7f8
@@ -7830,8 +7834,8 @@ namespace Harness
      * read, so each step's count is its own. OK at four, none, none and one or more, and the last Slow listed as
      * missed. A hit of a spell with no damage effect rolls Arcane Missiles! and never Impact; a miss rolls neither;
      * Living Bomb's cast rolls both. The rolls of a step are seeded, so the counts are the same each run. The count of
-     * Impact buffs reads 0 whether or not Impact refuses these spells (its roll is 10% a hit), so the refusal itself
-     * is proved by MageScripts_ImpactRollsOnlyFromSpellsThatDealDamage.
+     * Impact buffs can read 0 even when Impact does not refuse these spells (each roll is 10% a hit), so the unit test
+     * MageScripts_ImpactRollsOnlyFromSpellsThatDealDamage proves the refusal.
      */
     class MageOffensiveStateDamageless : public MageProcScenario
     {
@@ -11525,20 +11529,24 @@ namespace Harness
     };
 
     /**
-     * S992 `mage-frost-shatter`: Shatter's second rank (12982) on a staged Frost mage, who casts Ice Lance (30455) at a
-     * Camel that is not frozen and at one Frost Nova (122) froze; Frostbolt (116) and the Mastery passive (86473) are
-     * learned, the mage holds no Fingers of Frost, and the crit aura is held at -100 so no cast crits. An Ice Lance deals
-     * double damage to a frozen target (its effect 1 value is 100), and Frostburn adds the mastery percent to it; the
-     * second rank of Shatter multiplies the crit chance of a spell that counts its target as frozen by 3. Steps: three
-     * Ice Lances; then five times Frost Nova, its cooldown taken off first, and Ice Lance. At each cast's act the
-     * scenario reads the Camel's frozen state and the crit chance the CritChance hook leaves of a base of kBaseCrit
-     * percent for Ice Lance at him.
+     * S992 `mage-frost-shatter`: Shatter's second rank (12982) and Glyph of Frostbolt (56370, 5 percent more crit
+     * chance for Frostbolt) on a staged Frost mage, who casts Ice Lance (30455) at a Camel that is not frozen and at one
+     * Frost Nova (122) froze; Frostbolt (116) and the Mastery passive (86473) are learned, the mage holds no Fingers of
+     * Frost, and the crit aura is held at -100 so no cast crits. An Ice Lance deals double damage to a frozen target (its
+     * effect 1 value is 100), and Frostburn adds the mastery percent to it; the second rank of Shatter multiplies the
+     * whole crit chance of a spell that counts its target as frozen by 3, the glyph's 5 included. Steps: three Ice
+     * Lances; then five times Frost Nova, its cooldown taken off first, and Ice Lance. At the first cast's act for each
+     * state of the Camel the scenario takes the crit aura off him, reads his Frostbolt crit chance and rolls
+     * Unit::IsSpellCrit for Frostbolt at the Camel kRolls times, which runs the CritChance hook and the spell
+     * modifiers as a cast does, and puts the aura back.
      *
-     * `shatter`: `iceLance=<frozen mean>,<plain mean>,ratio=<frozen over plain, in hundredths>,chance=<unfrozen>,<frozen>`:
-     * the mean damage of the Ice Lances that did not crit, by the Camel's state when each was cast, and the chance read
-     * for the unfrozen and for the frozen Camel, in hundredths of a percent. OK when there are at least three Ice Lances
-     * of each state, the ratio is between 190 and 240 (double, with Frostburn's 5 percent and the damage's spread; not
-     * triple), and every chance read is 2000 for an unfrozen Camel and 6000 for a frozen one.
+     * `shatter`: `iceLance=<frozen mean>,<plain mean>,ratio=<frozen over plain, in hundredths>,sheet=<his Frostbolt crit
+     * chance>,chance=<unfrozen>,<frozen>`: the mean damage of the Ice Lances that did not crit, by the Camel's state
+     * when each was cast, the sheet chance, and the share of the kRolls rolls that crit for the unfrozen and for the
+     * frozen Camel, all in hundredths of a percent. OK when there are at least three Ice Lances of each state, the ratio
+     * is between 190 and 240 (double, with Frostburn's 5 percent and the damage's spread; not triple), and the shares are
+     * within kTolerance of (sheet + 5) for the unfrozen Camel and of 3 x (sheet + 5) for the frozen one; a hook that
+     * multiplied the sheet alone would read 10 points below the second.
      */
     class MageFrostShatter : public MageProcScenario
     {
@@ -11547,7 +11555,8 @@ namespace Harness
 
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11158, 1 } }; }
-        std::vector<uint32> Spells() const override { return { kIceLance, kFrostNova, 116, 86473 }; }
+        std::vector<uint32> Spells() const override { return { kIceLance, kFrostNova, kFrostbolt, 86473 }; }
+        std::vector<uint32> Glyphs() const override { return { kGlyphOfFrostboltSlot }; }
         int32 NonCritAuraPoints() const override { return -100; }
         bool NotesBeforeStep() const override { return true; }
 
@@ -11573,6 +11582,7 @@ namespace Harness
                 { 122, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 18 }, { "eff0.EffectBonusCoefficient", 1044750795 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRadiusIndex_1", 32 }, { "eff0.EffectRealPointsPerLevel", 1056964608 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 26 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 7 }, { "eff1.EffectRadiusIndex_1", 32 }, { "eff1.ImplicitTarget_0", 22 }, { "eff1.ImplicitTarget_1", 15 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 116: 72 fields, fnv e7ba11a7
                 { 116, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 17 }, { "eff1.EffectBonusCoefficient", 1064396915 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 3 }, { "eff1.EffectRealPointsPerLevel", 1056964608 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 12982: 49 fields, fnv 78c33ea5
                 { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 76613: 49 fields, fnv a5f94991
                 { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
@@ -11587,26 +11597,55 @@ namespace Harness
             };
         }
 
-        /// At each cast's act: the Camel's frozen state, and the chance the CritChance hook leaves of kBaseCrit for Ice
-        /// Lance at him, in hundredths of a percent.
+        /// At each cast's act: the Camel's frozen state; and, at the first cast for each state, the sheet Frostbolt crit
+        /// chance with the crit aura off and the number of kRolls rolls of Unit::IsSpellCrit for Frostbolt at the Camel
+        /// that crit, with the aura put back as it was.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             if (atRead || !IsCast(st.steps[k]))
             {
                 return;
             }
-            SpellEntry const* lance = sSpellStore.LookupEntry(kIceLance);
-            float chance = kBaseCrit;
-            if (lance)
-            {
-                CritChanceContext ctx(*p, *target, *lance, chance);
-                SpellHandlerRegistry::Game().Dispatch<CritChanceHook>(kIceLance, ctx);
-            }
+            bool const frozen = target->IsFrozen();
             Seen& seen = st.seen[k];
-            seen.reads["frozen"] = target->IsFrozen() ? 1 : 0;
-            seen.reads["chance"] = int64(std::lround(chance * 100.0f));
-            m_rec.Note(std::string("the Camel ") + (target->IsFrozen() ? "frozen" : "not frozen") + ", the crit chance of Ice Lance at him " +
-                       U(uint64(seen.reads["chance"])) + " hundredths of a percent from a base of " + U(uint32(kBaseCrit)) + "%");
+            seen.reads["frozen"] = frozen ? 1 : 0;
+            for (uint32 j = 0; j < k; ++j)
+            {
+                std::map<std::string, int64>::const_iterator done = st.seen[j].reads.find("rolls");
+                std::map<std::string, int64>::const_iterator was = st.seen[j].reads.find("frozen");
+                if (done != st.seen[j].reads.end() && was != st.seen[j].reads.end() && (was->second != 0) == frozen)
+                {
+                    m_rec.Note(std::string("the Camel ") + (frozen ? "frozen" : "not frozen") + ", read already");
+                    return;
+                }
+            }
+            SpellEntry const* bolt = sSpellStore.LookupEntry(kFrostbolt);
+            if (!bolt)
+            {
+                return;
+            }
+            Aura const* critAura = p->GetAura(kCritAura, EFFECT_INDEX_0);
+            int32 points = critAura ? critAura->GetModifier()->m_amount : 0;
+            if (critAura)
+            {
+                p->RemoveAurasDueToSpell(kCritAura);
+            }
+            float const sheet = p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_FROST);
+            uint32 crits = 0;
+            for (uint32 roll = 0; roll < kRolls; ++roll)
+            {
+                crits += p->IsSpellCrit(target, bolt, SPELL_SCHOOL_MASK_FROST) ? 1 : 0;
+            }
+            if (points)
+            {
+                p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
+            }
+            seen.reads["rolls"] = kRolls;
+            seen.reads["sheet"] = int64(std::lround(sheet * 100.0f));
+            seen.reads["share"] = int64(crits) * 10000 / kRolls;
+            m_rec.Note(std::string("the Camel ") + (frozen ? "frozen" : "not frozen") + ", his Frostbolt crit chance " +
+                       U(uint64(seen.reads["sheet"])) + " hundredths of a percent with the crit aura off; " + U(crits) + " of " + U(kRolls) +
+                       " IsSpellCrit rolls crit, " + U(uint64(seen.reads["share"])) + " hundredths of a percent");
         }
 
         std::string Own(St const& st) const override
@@ -11627,34 +11666,43 @@ namespace Harness
             const uint64 plainMean = plainCount ? plainSum / plainCount : 0;
             const uint64 ratio = plainMean ? frozenMean * 100 / plainMean : 0;
 
-            bool chancesOk = true;
-            int64 plainChance = -1, frozenChance = -1;
+            int64 sheet = -1, plainShare = -1, frozenShare = -1;
             for (uint32 k = 0; k < st.steps.size(); ++k)
             {
-                std::map<std::string, int64>::const_iterator chance = st.seen[k].reads.find("chance");
-                std::map<std::string, int64>::const_iterator frozen = st.seen[k].reads.find("frozen");
-                if (chance == st.seen[k].reads.end() || frozen == st.seen[k].reads.end())
+                std::map<std::string, int64> const& reads = st.seen[k].reads;
+                std::map<std::string, int64>::const_iterator share = reads.find("share");
+                std::map<std::string, int64>::const_iterator frozen = reads.find("frozen");
+                std::map<std::string, int64>::const_iterator sheetRead = reads.find("sheet");
+                if (share == reads.end() || frozen == reads.end() || sheetRead == reads.end())
                 {
                     continue;
                 }
-                int64& kept = frozen->second ? frozenChance : plainChance;
-                kept = chance->second;
-                chancesOk = chancesOk && chance->second == (frozen->second ? 6000 : 2000);
+                (frozen->second ? frozenShare : plainShare) = share->second;
+                sheet = sheetRead->second;
             }
-            const bool ok = frozenCount >= 3 && plainCount >= 3 && ratio >= 190 && ratio <= 240 && chancesOk && plainChance == 2000 &&
-                            frozenChance == 6000;
-            const std::string value = "iceLance=" + U(frozenMean) + "," + U(plainMean) + ",ratio=" + U(ratio) + ",chance=" +
-                                      U(uint64(plainChance < 0 ? 0 : plainChance)) + "," + U(uint64(frozenChance < 0 ? 0 : frozenChance));
+            const int64 glyph = 500;
+            const int64 plainWanted = sheet + glyph;
+            const int64 frozenWanted = std::min<int64>(10000, 3 * (sheet + glyph));
+            auto near = [](int64 value, int64 wanted) { return value >= 0 && (value > wanted ? value - wanted : wanted - value) <= kTolerance; };
+            const bool sharesOk = sheet >= 0 && near(plainShare, plainWanted) && near(frozenShare, frozenWanted);
+            const bool ok = frozenCount >= 3 && plainCount >= 3 && ratio >= 190 && ratio <= 240 && sharesOk;
+            const std::string value = "iceLance=" + U(frozenMean) + "," + U(plainMean) + ",ratio=" + U(ratio) + ",sheet=" +
+                                      U(uint64(sheet < 0 ? 0 : sheet)) + ",chance=" + U(uint64(plainShare < 0 ? 0 : plainShare)) + "," +
+                                      U(uint64(frozenShare < 0 ? 0 : frozenShare));
             const std::string detail = U(frozenCount) + " Ice Lances at a frozen Camel and " + U(plainCount) +
-                                       " at an unfrozen one that did not crit; the crit chance read for each Camel, from a base of " +
-                                       U(uint32(kBaseCrit)) + "%: " + (chancesOk ? "as Shatter's rank 2 triples it for the frozen one only" : "not as wanted") + ")";
+                                       " at an unfrozen one that did not crit; the share of " + U(kRolls) + " IsSpellCrit rolls for Frostbolt that crit, wanted " +
+                                       U(uint64(plainWanted < 0 ? 0 : plainWanted)) + " and " + U(uint64(frozenWanted < 0 ? 0 : frozenWanted)) +
+                                       " within " + U(uint32(kTolerance)) + ": " + (sharesOk ? "as Shatter's rank 2 triples the sheet chance and the glyph's 5 for the frozen one only" : "not as wanted") + ")";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
 
     private:
         static constexpr uint32 kIceLance = 30455;
         static constexpr uint32 kFrostNova = 122;
-        static constexpr float kBaseCrit = 20.0f;
+        static constexpr uint32 kFrostbolt = 116;
+        static constexpr uint32 kGlyphOfFrostboltSlot = 319;
+        static constexpr uint32 kRolls = 2000;
+        static constexpr int64 kTolerance = 350;
     };
 
     /**
