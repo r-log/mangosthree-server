@@ -51,7 +51,7 @@ namespace Combat
         // The page of the shaman melee tree among his three talent trees.
         uint32 const kShamanMeleeTreePage = 1;
 
-        // Whether the shaman holds a mastery spell of his melee tree, which only the primary tree's holder is on him.
+        // Whether the shaman holds a mastery spell of his melee tree, which he holds only while that tree is his primary tree.
         bool UsesMeleeTree(Unit const& owner)
         {
             if (owner.getClass() != CLASS_SHAMAN)
@@ -73,10 +73,10 @@ namespace Combat
             return false;
         }
 
-        OwnerHitShare LiveShare(Unit const& owner)
+        OwnerHitShare LiveShare(Unit const& owner, bool totem)
         {
             HitCaps const caps = BossHitCaps();
-            HitKind const kind = OwnerHitKind(owner.getClass(), UsesMeleeTree(owner), caps);
+            HitKind const kind = SummonHitKind(owner.getClass(), UsesMeleeTree(owner), totem, caps);
             float percent = owner.m_modSpellHitChance;
             if (kind.source == HIT_SOURCE_MELEE)
             {
@@ -127,6 +127,11 @@ namespace Combat
                 break;
         }
         return kind;
+    }
+
+    HitKind SummonHitKind(uint8 ownerClass, bool meleeTree, bool totem, HitCaps const& caps)
+    {
+        return OwnerHitKind(ownerClass, !totem && meleeTree, caps);
     }
 
     float InheritedHit(float ownerPercent, float ownerCap, float petCap)
@@ -191,7 +196,7 @@ namespace Combat
         }
         OwnerHitSnapshot const& snapshot = creature->GetOwnerHitSnapshot();
         Unit const* owner = snapshot.taken || !unit.IsInWorld() ? NULL : RatingOwner(unit);
-        return ChosenShare(snapshot, owner ? LiveShare(*owner) : OwnerHitShare());
+        return ChosenShare(snapshot, owner ? LiveShare(*owner, unit.IsTotem()) : OwnerHitShare());
     }
 
     void TakeOwnerHitSnapshot(Unit& unit)
@@ -204,7 +209,7 @@ namespace Combat
         }
         OwnerHitSnapshot snapshot;
         snapshot.taken = true;
-        snapshot.share = LiveShare(*owner);
+        snapshot.share = LiveShare(*owner, unit.IsTotem());
         creature->SetOwnerHitSnapshot(snapshot);
     }
 }

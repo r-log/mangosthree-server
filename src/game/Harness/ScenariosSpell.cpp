@@ -36,6 +36,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
+#include "combat/HitInheritance.h"
 #include "combat/SpellBonus.h"
 #include "data/GameConfig.h"
 #include "DBCStores.h"
@@ -10089,6 +10090,7 @@ namespace Harness
         void Prepare() override
         {
             m_read = OrbRead();
+            m_orbShare = Combat::OwnerHitShare();
             m_lift = 0.0f;
             m_liftRead = false;
             m_player = ObjectGuid();
@@ -10177,6 +10179,7 @@ namespace Harness
                 m_read.runRate = orb->GetSpeedRate(MOVE_RUN);
                 m_read.hover = (orb->WireFlags() & MOVEFLAG_HOVER) != 0;
                 m_read.height = orb->GetFloatValue(UNIT_FIELD_HOVERHEIGHT);
+                m_orbShare = Combat::OwnerShareOf(*orb);
             }
             At(kLateReadMs - CastReadMs(), [this]() { ReadLate(); });
 
@@ -10264,6 +10267,9 @@ namespace Harness
                                        U(kBlastLow) + ".." + U(kBlastHigh) + "); " + U(elsewhere) + " on other units" + buf;
             return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
         }
+
+        /// The share the orb held at the step's read.
+        Combat::OwnerHitShare m_orbShare;
 
     private:
         /// What the step's read found of his orb.
@@ -11875,28 +11881,25 @@ namespace Harness
      * S943 `mage-pet-owner-hit`: a Water Elemental (510) that a Frost mage owns casts Waterbolt (31707) at a Camel
      * three levels above it. The mage is staged as 957 stages him and holds Don't Miss! (73411, +100 spell hit and
      * +100 hit), which keeps him at his spell hit cap; the Camel is level 88 and holds nothing; the pet is built
-     * kPetOffset yards to his side after he is staged and holds nothing of its own. A wait of kLeadMs, then twenty steps,
-     * one every 3 s: the pet casts Waterbolt at the Camel. The wait moves the casts onto ticks whose seeded rolls miss on a
-     * build where the pet rolls with its own hit.
+     * kPetOffset yards to his side after he is staged and holds nothing of its own. Twenty steps, one every 3 s: the
+     * pet casts Waterbolt at the Camel. S945 `mage-pet-owner-hit-uncapped` is the same without Don't Miss!.
      *
      * `petHit`: `misses=<casts whose SPELL_GO lists the Camel as missed>/<casts seen>,owner=<his spell hit field>,
-     * pet=<the pet's spell hit field>`; OK when every one of the twenty casts was seen, none missed, the owner's field
-     * is 100 and the pet's own is 0: the owner's hit is read at each roll, not copied into the pet.
+     * pet=<the pet's spell hit field>,share=<the spell hit of Combat::OwnerShareOf(pet)>/<its expertise>`; OK when
+     * every one of the twenty casts was seen, the owner's field is 100 (S945: under the spell cap), the pet's own field
+     * is 0 and the share is the spell cap of 17 with 650 expertise and no cast missed (S945: the owner's hit in
+     * proportion, and no miss is asked of it): the owner's hit is read at each roll, not copied into the pet.
      */
     class MageFrostPetOwnerHit : public MageFrostIceLance
     {
     public:
-        MageFrostPetOwnerHit() : MageFrostPetOwnerHit("mage-pet-owner-hit", kLeadMs) {}
-        MageFrostPetOwnerHit(char const* name, uint32 leadMs) : MageFrostIceLance(name, 943, "petHit"), m_leadMs(leadMs) {}
+        MageFrostPetOwnerHit() : MageFrostPetOwnerHit("mage-pet-owner-hit", 943, true) {}
+        MageFrostPetOwnerHit(char const* name, int order, bool capped) : MageFrostIceLance(name, order, "petHit"), m_capped(capped) {}
 
     protected:
         std::vector<Step> Steps() const override
         {
             std::vector<Step> steps;
-            if (m_leadMs)
-            {
-                steps.push_back(Wait(m_leadMs));
-            }
             for (uint32 i = 0; i < kCasts; ++i)
             {
                 steps.push_back(PetCast(kWaterbolt, kPetCastEveryMs));
@@ -11918,7 +11921,7 @@ namespace Harness
 
         uint32 Watched() const override { return 0; }
         bool NotesBeforeStep() const override { return false; }
-        uint32 CasterAura() const override { return kDontMiss; }
+        uint32 CasterAura() const override { return m_capped ? kDontMiss : 0; }
         bool CasterAuraPut() const override { return true; }
         uint32 TargetLevel() const override { return kTargetLevel; }
         uint32 PetEntry() const override { return kWaterElemental; }
@@ -11933,23 +11936,29 @@ namespace Harness
                 missed += st.seen[k].missed ? 1 : 0;
             }
             float owner = 0.0f, pet = 0.0f;
+            Combat::OwnerHitShare share;
             if (Player* p = sPlayerRegistry.Find(st.player))
             {
                 owner = p->m_modSpellHitChance;
                 if (Pet* own = p->GetPet())
                 {
                     pet = own->m_modSpellHitChance;
+                    share = Combat::OwnerShareOf(*own);
                 }
             }
-            char buf[128];
-            snprintf(buf, sizeof(buf), "misses=%u/%u,owner=%.0f,pet=%.0f", missed, seen, owner, pet);
-            const bool ok = seen == kCasts && missed == 0 && owner == 100.0f && pet == 0.0f;
+            const Combat::HitCaps caps = Combat::BossHitCaps();
+            const float wantShare = m_capped ? caps.spell : Combat::InheritedHit(owner, caps.spell, caps.spell);
+            const int32 wantExpertise = m_capped ? 650 : Combat::InheritedExpertise(owner, caps.spell);
+            char buf[160];
+            snprintf(buf, sizeof(buf), "misses=%u/%u,owner=%.0f,pet=%.0f,share=%.2f/%d", missed, seen, owner, pet, share.spell, share.expertise);
+            const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
+            const bool shareOk = std::fabs(share.spell - wantShare) < 0.005f && share.expertise == wantExpertise;
+            const bool ok = seen == kCasts && (!m_capped || missed == 0) && ownerOk && pet == 0.0f && shareOk;
             return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
         }
 
     private:
         static constexpr uint32 kCasts = 20;
-        static constexpr uint32 kLeadMs = 300;
         static constexpr uint32 kWaterbolt = 31707;
         static constexpr uint32 kDontMiss = 73411;
         static constexpr uint32 kWaterElemental = 510;
@@ -11957,33 +11966,30 @@ namespace Harness
         static constexpr uint32 kPetCastEveryMs = 3000;
         static constexpr uint32 kPetCastReadMs = 2900;
 
-        uint32 m_leadMs;
+        bool m_capped;
     };
 
     /**
      * S944 `mage-fire-flame-orb-owner-hit`: 971's mage and orb with the Camel at level 88 holding no Hit Me and the mage
      * holding Don't Miss! (73411, +100 spell hit and +100 hit), so he is at his spell hit cap. One step: Flame Orb under
-     * the crit aura, kStepMs to the end, after a wait of kLeadMs that moves the orb's rolls onto ticks whose seeded rolls
-     * miss on a build where the orb rolls with its own hit.
+     * the crit aura, kStepMs to the end. S946 `mage-fire-flame-orb-owner-hit-uncapped` is the same without Don't Miss!.
      *
      * `orbHit`: `goes=<SPELL_GO of the orb's hit>,misses=<of them listing the Camel as missed>,hits=<its damage logs on
-     * the Camel>,owner=<his spell hit field>`; OK when there are kOrbHits of each, no miss and the owner's field is 100:
-     * the orb rolls with its summoner's hit.
+     * the Camel>,owner=<his spell hit field>,share=<the spell hit of Combat::OwnerShareOf(orb)>/<its expertise>`; OK
+     * when there are kOrbHits goes and hits, the owner's field is 100 (S946: under the spell cap) and the share is the
+     * spell cap of 17 with 650 expertise and no hit missed (S946: the owner's hit in proportion, and no miss is asked
+     * of it): the orb rolls with its summoner's hit as of its summon.
      */
     class MageFireFlameOrbOwnerHit : public MageFireFlameOrb
     {
     public:
-        MageFireFlameOrbOwnerHit() : MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit", kLeadMs) {}
-        MageFireFlameOrbOwnerHit(char const* name, uint32 leadMs) : MageFireFlameOrb(name, 944, "orbHit"), m_leadMs(leadMs) {}
+        MageFireFlameOrbOwnerHit() : MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit", 944, true) {}
+        MageFireFlameOrbOwnerHit(char const* name, int order, bool capped) : MageFireFlameOrb(name, order, "orbHit"), m_capped(capped) {}
 
     protected:
         std::vector<Step> Steps() const override
         {
             std::vector<Step> steps;
-            if (m_leadMs)
-            {
-                steps.push_back(Wait(m_leadMs));
-            }
             std::vector<Step> orb = MageFireFlameOrb::Steps();
             steps.insert(steps.end(), orb.begin(), orb.end());
             return steps;
@@ -12000,7 +12006,7 @@ namespace Harness
 
         uint32 TargetAura() const override { return 0; }
         uint32 TargetLevel() const override { return kTargetLevel; }
-        uint32 CasterAura() const override { return kDontMiss; }
+        uint32 CasterAura() const override { return m_capped ? kDontMiss : 0; }
         bool CasterAuraPut() const override { return true; }
 
         std::string Own(St const& st) const override
@@ -12041,9 +12047,15 @@ namespace Harness
             }
             Player* p = sPlayerRegistry.Find(st.player);
             const float owner = p ? p->m_modSpellHitChance : 0.0f;
-            char buf[128];
-            snprintf(buf, sizeof(buf), "goes=%u,misses=%u,hits=%u,owner=%.0f", goes, missed, hits, owner);
-            const bool ok = goes == kOrbHits && missed == 0 && hits == kOrbHits && owner == 100.0f;
+            const Combat::HitCaps caps = Combat::BossHitCaps();
+            const float wantShare = m_capped ? caps.spell : Combat::InheritedHit(owner, caps.spell, caps.spell);
+            const int32 wantExpertise = m_capped ? 650 : Combat::InheritedExpertise(owner, caps.spell);
+            char buf[160];
+            snprintf(buf, sizeof(buf), "goes=%u,misses=%u,hits=%u,owner=%.0f,share=%.2f/%d", goes, missed, hits, owner, m_orbShare.spell,
+                     m_orbShare.expertise);
+            const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
+            const bool shareOk = std::fabs(m_orbShare.spell - wantShare) < 0.005f && m_orbShare.expertise == wantExpertise;
+            const bool ok = goes == kOrbHits && (!m_capped || missed == 0) && hits == kOrbHits && ownerOk && shareOk;
             return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
         }
 
@@ -12052,9 +12064,8 @@ namespace Harness
         static constexpr uint32 kDontMiss = 73411;
         static constexpr uint32 kTargetLevel = 88;
         static constexpr uint32 kOrbHits = 15;
-        static constexpr uint32 kLeadMs = 250;
 
-        uint32 m_leadMs;
+        bool m_capped;
     };
 
     void RegisterSpellScenarios(Runner& r)
@@ -12113,5 +12124,7 @@ namespace Harness
         r.Register(new MageFireShareBeforeTaken());
         r.Register(new MageFrostPetOwnerHit());
         r.Register(new MageFireFlameOrbOwnerHit());
+        r.Register(new MageFrostPetOwnerHit("mage-pet-owner-hit-uncapped", 945, false));
+        r.Register(new MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit-uncapped", 946, false));
     }
 }

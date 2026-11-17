@@ -933,6 +933,11 @@ bool Spell::DoSummonPet(SpellEffectEntry const* effect)
                 spawnCreature->Place().MoveTo(m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ, -m_caster->Where().Facing());
             }
 
+            if (m_duration > 0)
+            {
+                Combat::TakeOwnerHitSnapshot(*spawnCreature);
+            }
+
             return true;
         }
 

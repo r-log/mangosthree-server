@@ -94,6 +94,18 @@ namespace Combat
     HitKind OwnerHitKind(uint8 ownerClass, bool meleeTree, HitCaps const& caps);
 
     /**
+     * @brief Which of the owner's hit chances a summon takes: the owner's own kind, except that a totem takes a
+     *        shaman's spell hit whatever his primary tree.
+     *
+     * @param ownerClass The owner's class.
+     * @param meleeTree Whether the owner is a shaman whose primary tree is the melee one.
+     * @param totem Whether the summon is a totem.
+     * @param caps BossHitCaps().
+     * @return The kind the summon's share is taken from.
+     */
+    HitKind SummonHitKind(uint8 ownerClass, bool meleeTree, bool totem, HitCaps const& caps);
+
+    /**
      * @brief A pet's hit chance of one kind from its owner's.
      *
      * @param ownerPercent The owner's hit chance of his kind, in percent.
@@ -139,7 +151,7 @@ namespace Combat
      *
      * @return The player that owns a creature, found by guid; NULL for a player, a creature with no owner or
      *         with a creature as owner, a creature charmed by someone other than its owner, and an owner that is
-     *         not on the map.
+     *         not in the world.
      */
     Unit const* RatingOwner(Unit const& unit);
 

@@ -378,6 +378,28 @@ TEST(CombatLeaf_OwnerHitKind)
     CHECK(NearF(kind.cap, caps.melee));
 }
 
+TEST(CombatLeaf_SummonHitKind)
+{
+    Combat::HitCaps const caps = Combat::BossHitCaps();
+
+    // An Enhancement shaman at 8 percent melee hit and 2 percent spell hit: his pets take the melee share, his totems
+    // the spell one.
+    Combat::HitKind kind = Combat::SummonHitKind(CLASS_SHAMAN, true, false, caps);
+    CHECK_EQ(int(kind.source), int(Combat::HIT_SOURCE_MELEE));
+    Combat::OwnerHitShare share = Combat::InheritedShare(kind, 8.0f, caps);
+    CHECK(NearF(share.spell, caps.spell));
+
+    kind = Combat::SummonHitKind(CLASS_SHAMAN, true, true, caps);
+    CHECK_EQ(int(kind.source), int(Combat::HIT_SOURCE_SPELL));
+    CHECK(NearF(kind.cap, caps.spell));
+    share = Combat::InheritedShare(kind, 2.0f, caps);
+    CHECK(NearF(share.spell, 2.0f));
+
+    // Other owners are unchanged by the totem flag.
+    kind = Combat::SummonHitKind(CLASS_WARRIOR, false, true, caps);
+    CHECK_EQ(int(kind.source), int(Combat::HIT_SOURCE_MELEE));
+}
+
 TEST(CombatLeaf_InheritedHit)
 {
     // At the owner cap a pet is at its own cap: a spell-capped owner has a melee-capped pet, and the other way round.
