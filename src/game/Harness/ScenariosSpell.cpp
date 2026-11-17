@@ -3970,7 +3970,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 951, 952, 954-957, 962-978, 980-992): a human mage staged to level 85
+     * What the mage scenarios share (941, 942, 948, 951, 952, 954-957, 962-978, 980-992): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -9676,6 +9676,151 @@ namespace Harness
     };
 
     /**
+     * S948 `mage-fire-molten-armor-procs`: Molten Armor's hit (34913) starts procs and neither ignites nor breaks
+     * Polymorph. A Fire mage staged as in 968 (Burning Soul 3, Improved Fire Blast 2, Ignite 3, Impact 2; kSpellPower
+     * spell power), Polymorph (118) learned, Precision on him before each cast and Increased Critical Spell on him at
+     * +100 from the first step to the end, so every 34913 crits. Steps: Molten Armor cast at himself; kSwings swings of
+     * the Camel at him, each hit of which casts 34913 at the Camel; Polymorph cast at the Camel; kStrikes steps in each
+     * of which he casts 34913 at the polymorphed Camel by call as the armor's proc does (triggered, naming the holder of
+     * 30482), each read kSwingReadMs after.
+     *
+     * `armorProcs`: `crits=<34913 hits that crit>/<34913 hits>,ignite=<steps with 12654 on the Camel or cast>,
+     * impact=<swings after which 64343 was on him>,poly=<the Camel's 118 after the cast, then after each strike, 1 held>`.
+     * OK when every 34913 hit crit and each swing that hit logged one, nothing of Ignite (12654) was ever on the Camel or
+     * cast, Impact's 64343 was on him after at least one swing, Polymorph landed and each strike logged one 34913 and left
+     * the Camel's 118 on.
+     */
+    class MageFireMoltenArmorProcs : public MageFireProofScenario
+    {
+    public:
+        MageFireMoltenArmorProcs() : MageFireProofScenario("mage-fire-molten-armor-procs", 948, "armorProcs") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10529, 2 }, { 10537, 1 } };
+        }
+        std::vector<uint32> Spells() const override { return { kMoltenArmor, kPolymorph }; }
+        bool TakesDamage() const override { return true; }
+        uint32 CasterAura() const override { return kPrecision; }
+        uint32 Watched() const override { return kPolymorph; }
+        bool WatchedOnTarget() const override { return true; }
+        int32 NonCritAuraPoints() const override { return kCritAuraPoints; }
+
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps = { AuraCast(kMoltenArmor, 0) };
+            steps.insert(steps.end(), kSwings, Swing());
+            steps.push_back(AuraCast(kPolymorph, 0));
+            steps.insert(steps.end(), kStrikes, Wait(kSwingEveryMs));
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return ProofPrints({
+                // 30482: 72 fields, fnv 920fa0aa
+                { 30482, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 34913 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 197 }, { "eff1.EffectBasePoints", -5 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 57 }, { "eff2.EffectBasePoints", 3 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 1792 }, { "eff2.EffectMiscValue_1", 4 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 34913: 26 fields, fnv aa3af5ec
+                { 34913, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 75 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 64343: 26 fields, fnv d38ef595
+                { 64343, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 12355 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12355: 49 fields, fnv 58da00a3
+                { 12355, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 12 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 77 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRadiusIndex_0", 32 }, { "eff1.ImplicitTarget_0", 53 }, { "eff1.ImplicitTarget_1", 16 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12357: 26 fields, fnv c557c869
+                { 12357, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 64343 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 118: 49 fields, fnv ffbe2272
+                { 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+            });
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            Seen& seen = st.seen[k];
+            if (!atRead)
+            {
+                seen.reads["igniteHeld"] = target->GetSpellAuraHolder(kIgniteDot) ? 1 : 0;
+                if (k >= kFirstStrike)
+                {
+                    p->CastSpell(target, kMoltenArmorHit, true, NULL, p->GetAura(kMoltenArmor, EFFECT_INDEX_0));
+                    seen.reads["polyAfterStrike"] = target->GetSpellAuraHolder(kPolymorph) ? 1 : 0;
+                    m_rec.Note("34913 cast at the Camel by call; 118 on it: " + HolderOf(target, kPolymorph));
+                }
+            }
+            else
+            {
+                seen.reads["igniteHeld"] = std::max<int64>(seen.reads["igniteHeld"], target->GetSpellAuraHolder(kIgniteDot) ? 1 : 0);
+                seen.reads["poly"] = target->GetSpellAuraHolder(kPolymorph) ? 1 : 0;
+                seen.reads["impact"] = p->HasAura(kImpactBuff) ? 1 : 0;
+                p->RemoveAurasDueToSpell(kImpactBuff);
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            uint32 hits = 0;
+            uint32 casts = 0;
+            uint32 crits = 0;
+            uint32 ignite = 0;
+            uint32 impact = 0;
+            bool ok = true;
+            std::string swings;
+            for (uint32 k = 1; k < st.steps.size(); ++k)
+            {
+                Seen const& seen = st.seen[k];
+                const bool swing = k <= kSwings;
+                const bool strike = k >= kFirstStrike;
+                const std::vector<std::string> lines = HitAmounts(k, kMoltenArmorHit);
+                const bool hit = swing && seen.read && seen.healthAfter < seen.healthBefore;
+                for (size_t i = 0; i < lines.size(); ++i)
+                {
+                    ++casts;
+                    crits += !lines[i].empty() && lines[i][lines[i].size() - 1] == 'c' ? 1 : 0;
+                }
+                if (swing)
+                {
+                    hits += hit ? 1 : 0;
+                    ok = ok && seen.read && (hit ? lines.size() == 1 : lines.empty());
+                    impact += Kept(st, k, "impact") == 1 ? 1 : 0;
+                    swings += "; " + U(k + 1) + (hit ? " hit" : " not hit") + ": 34913 [" + (lines.empty() ? std::string("") : lines[0]) + "]";
+                }
+                if (strike)
+                {
+                    ok = ok && lines.size() == 1 && Kept(st, k, "polyAfterStrike") == 1 && Kept(st, k, "poly") == 1;
+                }
+                ignite += Kept(st, k, "igniteHeld") == 1 || Triggered(seen, kIgniteDot) ? 1 : 0;
+            }
+            std::string poly = U(Kept(st, kPolyStep, "poly") == 1 ? 1 : 0);
+            for (uint32 k = kFirstStrike; k < st.steps.size(); ++k)
+            {
+                poly += "+" + U(Kept(st, k, "polyAfterStrike") == 1 ? 1 : 0);
+            }
+            ok = ok && hits > 0 && casts == crits && ignite == 0 && impact > 0 && Kept(st, kPolyStep, "poly") == 1;
+            const std::string value = "crits=" + U(crits) + "/" + U(casts) + ",ignite=" + U(ignite) + ",impact=" + U(impact) +
+                                      ",poly=" + poly;
+            const std::string detail = "each swing that hits him casts 34913 once and every one crits; no 12654 on the Camel or cast; Impact's "
+                                       "64343 on him after at least one swing; the Camel's 118 held after the cast and after each of " +
+                                       U(kStrikes) + " strikes" + swings;
+            return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kMoltenArmor = 30482;
+        static constexpr uint32 kMoltenArmorHit = 34913;
+        static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kImpactBuff = 64343;
+        static constexpr uint32 kPolymorph = 118;
+        static constexpr uint32 kSwings = 25;
+        static constexpr uint32 kStrikes = 3;
+        static constexpr uint32 kPolyStep = kSwings + 1;
+        static constexpr uint32 kFirstStrike = kSwings + 2;
+    };
+
+    /**
      * S989 `mage-fire-pyroblast-path`: the instant Pyroblast's way through the server, on a Fire mage staged as
      * MageFireProofScenario stages him who learned Pyroblast! (92315). Pyroblast! asks for Hot Streak (48108) on its
      * caster (SpellAuraRestrictions 1073, read by Spell::CheckCast), and Hot Streak's aura 332 names 92315 for the
@@ -12576,6 +12721,7 @@ namespace Harness
         r.Register(new MageFireMoltenFuryTick());
         r.Register(new MageFireCombustionMoltenFury());
         r.Register(new MageFireMoltenArmor());
+        r.Register(new MageFireMoltenArmorProcs());
         r.Register(new MageFirePyroblastPath());
         r.Register(new MageFireBlazingSpeedDispel());
         r.Register(new MageFireMageWardBreak());
