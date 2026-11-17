@@ -42,6 +42,7 @@
 /// whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
+#include "combat/SpellBonus.h"
 #include "spells/classes/mage/Mage.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/handlers/AurasHandlers.h"
@@ -1693,23 +1694,45 @@ TEST(MageScripts_FrostfireGlyphTickIsTheStacksShareOfTheHitWithMastery)
     CHECK_EQ(Mage::FrostfireGlyphTick(3000, 3, 0, 1, 1.0f), int32(0));
 }
 
+TEST(MageScripts_ASharesHitIsTheDealtDamageOverTheFactorsItsTicksTakeAgain)
+{
+    // The nearest whole hit before the factor; the damage as it is for a factor of 0 or below.
+    CHECK_EQ(Mage::ShareBase(10000, 1.08f), uint32(9259));
+    CHECK_EQ(Mage::ShareBase(10000, 0.9f), uint32(11111));
+    CHECK_EQ(Mage::ShareBase(10000, 1.0f), uint32(10000));
+    CHECK_EQ(Mage::ShareBase(10000, 0.0f), uint32(10000));
+
+    // Ignite's 40% over two ticks of a 10000 crit on a target that takes 8% more: the share is cut from 9259, so a tick
+    // is 1851 and the tick that takes the 8% again is 1999; cut from the 10000 dealt it would be 2000 and 2160.
+    int32 const tick = Combat::DotShareTick(float(Mage::ShareBase(10000, 1.08f)), 40, 2);
+    CHECK_EQ(tick, int32(1851));
+    CHECK_EQ(uint32(float(tick) * 1.08f), uint32(1999));
+    CHECK_EQ(Combat::DotShareTick(10000.0f, 40, 2), int32(2000));
+    CHECK_EQ(uint32(2000 * 1.08f), uint32(2160));
+
+    // The glyph divides by the caster's low-health bonus and the target's taken effects together: a 3240 hit that took
+    // 1.12 and 1.08 comes back to 2679, whose 3% over four ticks is 20.
+    CHECK_EQ(Mage::ShareBase(3240, 1.12f * 1.08f), uint32(2679));
+    CHECK_EQ(Combat::DotShareTick(float(Mage::ShareBase(3240, 1.12f * 1.08f)), 3, 4), int32(20));
+}
+
 TEST(MageScripts_FrostfireGlyphShareLeavesOutMoltenFurySoEachTickTakesItOnce)
 {
     // A 3000 hit that Molten Fury's third rank raised by 12% at a target under 35% health deals 3360; the share is
     // taken from the 3000 before it, the nearest whole hit, and from 3000 itself, Molten Fury's first rank's 3120 and
     // no bonus at all.
-    CHECK_EQ(Mage::FrostfireGlyphHit(3360, 1.12f), uint32(3000));
-    CHECK_EQ(Mage::FrostfireGlyphHit(3120, 1.04f), uint32(3000));
-    CHECK_EQ(Mage::FrostfireGlyphHit(3000, 1.0f), uint32(3000));
-    CHECK_EQ(Mage::FrostfireGlyphHit(0, 1.12f), uint32(0));
-    CHECK_EQ(Mage::FrostfireGlyphHit(3000, 0.0f), uint32(3000));
+    CHECK_EQ(Mage::ShareBase(3360, 1.12f), uint32(3000));
+    CHECK_EQ(Mage::ShareBase(3120, 1.04f), uint32(3000));
+    CHECK_EQ(Mage::ShareBase(3000, 1.0f), uint32(3000));
+    CHECK_EQ(Mage::ShareBase(0, 1.12f), uint32(0));
+    CHECK_EQ(Mage::ShareBase(3000, 0.0f), uint32(3000));
 
     // At 30% health the tick takes the 12% once, as Aura::PeriodicTick multiplies it: one stack int(22 x 1.12) = 24,
     // three int(66 x 1.12) = 73. A share taken from the raised 3360 would tick int(25 x 1.12) = 28 and int(75 x 1.12)
     // = 84, the bonus twice.
     float const moltenFury = 1.12f;
-    int32 const oneStack = Mage::FrostfireGlyphTick(Mage::FrostfireGlyphHit(3360, moltenFury), 3, 4, 1, 1.0f);
-    int32 const threeStacks = Mage::FrostfireGlyphTick(Mage::FrostfireGlyphHit(3360, moltenFury), 3, 4, 3, 1.0f);
+    int32 const oneStack = Mage::FrostfireGlyphTick(Mage::ShareBase(3360, moltenFury), 3, 4, 1, 1.0f);
+    int32 const threeStacks = Mage::FrostfireGlyphTick(Mage::ShareBase(3360, moltenFury), 3, 4, 3, 1.0f);
     CHECK_EQ(oneStack, int32(22));
     CHECK_EQ(threeStacks, int32(66));
     CHECK_EQ(uint32(uint32(oneStack) * moltenFury), uint32(24));

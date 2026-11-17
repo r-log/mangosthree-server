@@ -44,7 +44,7 @@
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacBurns, PyromaniacActive,
  * PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's
  * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and
- * Glyph of Frostfire's (FrostfireGlyphHit and FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its
+ * the shares' (ShareBase) and Glyph of Frostfire's (FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its
  * creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue,
  * OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows
  * through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per
@@ -267,11 +267,11 @@ namespace Mage
     /// lacks it. Defined in Fire.cpp.
     int32 ImprovedFlamestrikeChance(uint32 talentSpell);
 
-    /// The hit Glyph of Frostfire's share is taken from: `dealtAndAbsorbed`, the bolt's damage dealt and absorbed,
-    /// over `lowHealthMultiplier`, the caster's bonus at the target's low health that the hit took and that each tick
-    /// of the DoT takes again (Spells::LowHealthDamageMultiplier), rounded to the nearest; the damage as it is for a
-    /// multiplier of 0 or below. Defined in Fire.cpp.
-    uint32 FrostfireGlyphHit(uint32 dealtAndAbsorbed, float lowHealthMultiplier);
+    /// The hit a share of Ignite or Glyph of Frostfire is taken from: `dealt` over `multiplier`, the factors the hit took
+    /// that each tick of the share takes again (the victim's damage-taken effects, Spells::DamageTakenMultiplier, and the
+    /// caster's bonus at the target's low health, Spells::LowHealthDamageMultiplier), rounded to the nearest; `dealt`
+    /// as it is for a multiplier of 0 or below. Defined in Fire.cpp.
+    uint32 ShareBase(uint32 dealt, float multiplier);
 
     /// The tick of the Frostfire Bolt DoT under Glyph of Frostfire: `stacks` times the share of one bolt's hit
     /// (Combat::DotShareTick(hit, percent, ticks)), then the caster's mastery modifier on the spell, truncated. Defined
