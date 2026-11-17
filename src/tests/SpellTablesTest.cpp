@@ -325,6 +325,20 @@ TEST(SpellTables_LivingBombsExplosionAndMoltenArmorsHitAreTheTriggeredCastsThatS
     CHECK_EQ(rows, uint32(2));
 }
 
+TEST(SpellTables_MoltenArmorsHitStartsOnlyTheProcsOfAurasThatCanProcFromProcs)
+{
+    // Molten Armor's hit starts an aura's procs only when the aura carries the bit; no other cast is held back
+    CHECK(TriggeredCastStartsProcsOf(34913, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS));
+    CHECK(TriggeredCastStartsProcsOf(34913, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS | 0x1));
+    CHECK(!TriggeredCastStartsProcsOf(34913, 0));
+    CHECK(!TriggeredCastStartsProcsOf(34913, ~uint32(SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS)));
+    for (uint32 spellId : { 44461u, 82739u, 30482u, 12345u, 0u })
+    {
+        CHECK(TriggeredCastStartsProcsOf(spellId, 0));
+        CHECK(TriggeredCastStartsProcsOf(spellId, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS));
+    }
+}
+
 TEST(SpellTables_DamageOfAReactiveDamageProcDoesNotBreakAuras)
 {
     CHECK(!DamageBreaksAuras(SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC));

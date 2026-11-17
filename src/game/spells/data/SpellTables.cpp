@@ -318,6 +318,12 @@ namespace
         44461,  // Living Bomb's explosion, cast for the mage by the bomb's aura when it runs out
     };
 
+    /// The spells of PROC_STARTING_TRIGGERED_CASTS that start only the procs of auras that can proc from procs.
+    constexpr uint32 PROC_STARTING_CASTS_FOR_PROC_PERMITTED_AURAS[] =
+    {
+        34913,  // Molten Armor's hit
+    };
+
     /// A spell id and the value it answers.
     struct SpellAnswer
     {
@@ -760,6 +766,12 @@ bool MayTargetTaxiFlyer(uint32 spellId)
 bool TriggeredCastStartsProcs(uint32 spellId)
 {
     return Holds(PROC_STARTING_TRIGGERED_CASTS, spellId);
+}
+
+bool TriggeredCastStartsProcsOf(uint32 castSpellId, uint32 auraAttributesEx3)
+{
+    return !Holds(PROC_STARTING_CASTS_FOR_PROC_PERMITTED_AURAS, castSpellId) ||
+           (auraAttributesEx3 & SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS);
 }
 
 bool DamageBreaksAuras(uint32 attributesEx4)

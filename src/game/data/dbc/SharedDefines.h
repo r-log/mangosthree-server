@@ -423,7 +423,7 @@ enum SpellAttributesEx3
     SPELL_ATTR_EX3_UNK23                       = 0x00800000,// 23
     SPELL_ATTR_EX3_REQ_OFFHAND                 = 0x01000000,// 24 Req offhand weapon
     SPELL_ATTR_EX3_UNK25                       = 0x02000000,// 25 no cause spell pushback ?
-    SPELL_ATTR_EX3_UNK26                       = 0x04000000,// 26
+    SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS        = 0x04000000,// 26 a spell cast by a proc can start this aura's proc
     SPELL_ATTR_EX3_UNK27                       = 0x08000000,// 27
     SPELL_ATTR_EX3_UNK28                       = 0x10000000,// 28
     SPELL_ATTR_EX3_NO_DONE_BONUS               = 0x20000000,// 29 a damage effect of the spell takes no spell power share
@@ -447,7 +447,7 @@ enum SpellAttributesEx4
     SPELL_ATTR_EX4_UNK11                       = 0x00000800,// 11
     SPELL_ATTR_EX4_UNK12                       = 0x00001000,// 12
     SPELL_ATTR_EX4_UNK13                       = 0x00002000,// 13
-    SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC        = 0x00004000,// 14 damage of a reactive proc spell never breaks the victim's auras that break on damage
+    SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC        = 0x00004000,// 14 damage never breaks the victim's auras that break on damage
     SPELL_ATTR_EX4_UNK15                       = 0x00008000,// 15
     SPELL_ATTR_EX4_NOT_USABLE_IN_ARENA         = 0x00010000,// 16 not usable in arena
     SPELL_ATTR_EX4_USABLE_IN_ARENA             = 0x00020000,// 17 usable in arena

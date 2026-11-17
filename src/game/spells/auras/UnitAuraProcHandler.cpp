@@ -417,6 +417,45 @@ pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
     &Unit::HandleNULLProc                                   //370 1 spells in 4.3.4 Fair Far Clip
 };
 
+namespace
+{
+    bool BreaksOnDamage(SpellAuraHolder const& holder)
+    {
+        if (holder.IsPositive())
+        {
+            return false;
+        }
+
+        if (holder.GetSpellProto()->GetAuraInterruptFlags() & (AURA_INTERRUPT_FLAG_DAMAGE | AURA_INTERRUPT_FLAG_DAMAGE2))
+        {
+            return true;
+        }
+
+        for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+        {
+            Aura const* aura = holder.GetAuraByEffectIndex(SpellEffectIndex(i));
+            if (!aura)
+            {
+                continue;
+            }
+
+            AuraType const type = aura->GetModifier()->m_auraname;
+            if (AuraProcHandler[type] == &Unit::HandleRemoveByDamageChanceProc)
+            {
+                return true;
+            }
+
+            bool const crowdControl = type == SPELL_AURA_MOD_CONFUSE || type == SPELL_AURA_MOD_STUN || type == SPELL_AURA_MOD_PACIFY;
+            if (crowdControl && holder.GetAuraCharges() > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 /**
  * @brief Checks whether a proc aura may trigger for the current spell event context.
  *
@@ -2960,12 +2999,22 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
             const SpellEntry* se = itr->second->GetSpellProto();
 
             // check if the aura is interruptible by damage and if its not just added by this spell (spell who is responsible for this damage is procSpell)
-            if (se->GetAuraInterruptFlags() & AURA_INTERRUPT_FLAG_DAMAGE && (!procSpell || procSpell->ID != se->ID) &&
-                (!procSpell || DamageBreaksAuras(procSpell->AttributesExD)))
+            if (se->GetAuraInterruptFlags() & AURA_INTERRUPT_FLAG_DAMAGE &&
+                (!procSpell || (procSpell->ID != se->ID && DamageBreaksAuras(procSpell->AttributesExD))))
             {
                 DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "ProcDamageAndSpell: Added Spell %u to 'remove aura due to spell' list! Reason: Damage received.", se->ID);
                 removedSpells.push_back(se->ID);
             }
+            continue;
+        }
+
+        if (procSpell && !TriggeredCastStartsProcsOf(procSpell->ID, itr->second->GetSpellProto()->AttributesExC))
+        {
+            continue;
+        }
+
+        if (isVictim && procSpell && !DamageBreaksAuras(procSpell->AttributesExD) && BreaksOnDamage(*itr->second))
+        {
             continue;
         }
 

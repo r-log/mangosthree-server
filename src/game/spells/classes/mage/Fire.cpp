@@ -68,8 +68,8 @@ namespace
 
     /// 11119, 11120, 12846: Ignite: a critical strike of one of the mage's direct Fire spells puts the aura's percent of
     /// its damage on the victim as Ignite (12654), two ticks over its duration. The hit of Molten Armor (34913), the
-    /// explosion of Living Bomb (44461), Flame Orb's hits (82739) and Fire Power's explosion (83619) do not ignite. A share below one point per tick
-    /// banks nothing, so a running Ignite is left as it is.
+    /// explosion of Living Bomb (44461), Flame Orb's hits (82739) and Fire Power's explosion (83619) do not ignite. A
+    /// share below one point per tick banks nothing, so a running Ignite is left as it is.
     ProcOutcome IgniteProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
