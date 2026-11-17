@@ -7936,7 +7936,9 @@ namespace Harness
      * Precision (13843, +6% spell hit), so no cast misses a level-85 Camel but the one meant to. Steps: Slow twice and
      * Polymorph twice at the Camel, each a hit; a wait, at whose start the Camel casts Wily Wits (75533) on itself, an aura
      * that makes the next spell cast at it miss; a Slow, which misses; then kBombCasts Living Bombs, kEveryMs apart, so
-     * each lands on the bomb before it and no bomb runs out. A cast is read kReadMs after it.
+     * each lands on the bomb before it and no bomb runs out. A cast is read kReadMs after it. The Camel takes him as
+     * its victim at the first step, so when the first bomb's tick breaks its Polymorph it turns on him and does not run
+     * home and evade the next bomb.
      *
      * `damageless`: `am=<the steps among the four hits at whose read Arcane Missiles! (79683) stood on him>,miss=<the
      * same for the Slow that missed>,veto=<the steps among the five Slow and Polymorph steps at whose read the Impact
@@ -8036,6 +8038,13 @@ namespace Harness
                     target->RemoveAurasDueToSpell(kWilyWits);
                 }
                 return;
+            }
+            if (k == 0 && target)
+            {
+                // the first Living Bomb tick breaks the Polymorph; a Camel with no victim would run home then and
+                // evade the next bomb (Unit::SetConfused, Creature::IsInEvadeMode)
+                const bool attacking = target->Attack(p, false);
+                m_rec.Note(std::string("the Camel takes him as its victim: ") + (attacking ? "it does" : "refused"));
             }
             if (k != kWaitStep || !target)
             {
