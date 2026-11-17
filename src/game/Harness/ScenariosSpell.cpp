@@ -9185,10 +9185,10 @@ namespace Harness
             char buf[512];
             snprintf(buf, sizeof(buf),
                      "the Pyroblast DoT's tick %u (the plain tick %u wanted); 83853 ticks before step 4 %u, each int(%u x 1000 / %u) = %u "
-                     "wanted (at least %u); from step 4 %u, at least %u wanted, each int(%u x 1000 / %u x %.2f) = %u; the Camel under 35%% at "
+                     "wanted (at least %u); from step 4 %u, exactly %u wanted, each int(%u x 1000 / %u x %.2f) = %u; the Camel under 35%% at "
                      "step 2's read %s, at step 4's %s; 86880's amount on him %d",
                      first, kPlainTick, uint32(above.size()), first, kPyroblastPeriod, wantAbove, uint32(kMinAbove), uint32(below.size()),
-                     uint32(kBelowTicks), first, kPyroblastPeriod, lowHealth, wantBelow, Under35Text(underAbove), Under35Text(underBelow),
+                     uint32(kBelowTicks + 1), first, kPyroblastPeriod, lowHealth, wantBelow, Under35Text(underAbove), Under35Text(underBelow),
                      amount);
             return value + (ok ? "(OK: " : "(BUG: ") + buf + ")";
         }

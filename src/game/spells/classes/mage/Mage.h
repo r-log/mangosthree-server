@@ -45,7 +45,7 @@
  * PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's
  * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and
  * the shares' (ShareBase) and Glyph of Frostfire's (FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its
- * creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, OrbCadenceFor, OrbHitDue,
+ * creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue,
  * OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows
  * through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per
  * script hook.
@@ -116,6 +116,11 @@ namespace Mage
     /// `sees` accepts; NULL when none. Defined in Orb.cpp.
     Unit* ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& candidates,
                            std::function<bool(Unit const&)> const& sees);
+
+    /// Leaves in `targets` the closest of them to `from` that an orb may strike (ClosestOrbTarget), or none. Defined in
+    /// Orb.cpp.
+    void KeepClosestOrbTarget(WorldObject const& from, std::list<Unit*>& targets,
+                              std::function<bool(Unit const&)> const& sees);
 
     /// The cadence of an orb's hits, in scans of its own aura.
     struct OrbCadence

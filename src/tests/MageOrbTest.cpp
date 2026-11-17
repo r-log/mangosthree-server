@@ -457,6 +457,27 @@ TEST(MageOrb_TheScansTargetHookKeepsOnlyWhatTheOrbSees)
     CHECK_EQ(maxTargets, uint32(0));
 }
 
+TEST(MageOrb_KeepClosestOrbTargetLeavesTheClosestSeenEnemyAlone)
+{
+    OrbTestCreature orb;
+    OrbTestCreature at3;
+    OrbTestCreature at5;
+    orb.PlaceAt(0.0f);
+    at3.PlaceAt(3.0f);
+    at5.PlaceAt(5.0f);
+    at3.SetCreatureType(CREATURE_TYPE_CRITTER);
+    std::list<Unit*> targets;
+    targets.push_back(&at3);
+    targets.push_back(&at5);
+    Mage::KeepClosestOrbTarget(orb, targets, [](Unit const&) { return true; });
+    CHECK_EQ(targets.size(), std::size_t(1));
+    CHECK(targets.front() == &at5);
+
+    targets.push_back(&at3);
+    Mage::KeepClosestOrbTarget(orb, targets, [](Unit const&) { return false; });
+    CHECK(targets.empty());
+}
+
 TEST(MageOrb_TheRowsSitOnTheirHooksAndTheOrbHasItsAI)
 {
     // The orb spell at the dummy-effect hook, the scan at the target hook and at the dummy-effect hook: three rows,

@@ -37,7 +37,6 @@
 #include "movement/typedefs.h"
 
 #include <algorithm>
-#include <functional>
 #include <cmath>
 
 namespace
@@ -96,17 +95,13 @@ namespace
         return SpellHandlerOutcome<void>::Return();
     }
 
-    /// 82734: the orb's scan: of the enemies within its radius keeps the closest one the orb may strike
-    /// (Mage::ClosestOrbTarget), or none.
+    /// 82734: the orb's scan: of the enemies within its radius keeps the closest one the orb may strike and sees
+    /// (Mage::KeepClosestOrbTarget), or none. Sight is taken from the enemy to the orb, as the hit's target check takes
+    /// it (Spell::CheckTarget).
     SpellHandlerOutcome<void> OrbScanTargets(SelectTargetsContext& ctx)
     {
-        Unit* closest = Mage::ClosestOrbTarget(ctx.caster, ctx.targets,
+        Mage::KeepClosestOrbTarget(ctx.caster, ctx.targets,
             [&ctx](Unit const& unit) { return HasLineOfSight(unit, ctx.caster); });
-        ctx.targets.clear();
-        if (closest)
-        {
-            ctx.targets.push_back(closest);
-        }
         return SpellHandlerOutcome<void>::Continue();
     }
 
@@ -561,6 +556,17 @@ Unit* Mage::ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& ca
         }
     }
     return closest;
+}
+
+void Mage::KeepClosestOrbTarget(WorldObject const& from, std::list<Unit*>& targets,
+                                std::function<bool(Unit const&)> const& sees)
+{
+    Unit* closest = ClosestOrbTarget(from, targets, sees);
+    targets.clear();
+    if (closest)
+    {
+        targets.push_back(closest);
+    }
 }
 
 Mage::OrbCadence Mage::OrbCadenceFor(OrbSpells const& spells)
