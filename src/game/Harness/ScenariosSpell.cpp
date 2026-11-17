@@ -37,6 +37,8 @@
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "combat/HitInheritance.h"
+#include "spells/SpellScriptHooks.h"
+#include "spells/handlers/SpellHandlerRegistry.h"
 #include "combat/SpellBonus.h"
 #include "data/GameConfig.h"
 #include "DBCStores.h"
@@ -125,8 +127,11 @@
 // 942 a staged Fire mage's Slow and Polymorph hits roll Arcane Missiles! and never Impact, a Slow that misses rolls
 // neither, and Living Bomb's cast rolls Impact.
 // 943 a hit-capped Frost mage's Water Elemental casts twenty Waterbolts at a Camel three levels above it and none
-// misses; 944 a hit-capped Fire mage's Flame Orb hits a Camel three levels above it fifteen times and none misses.
-// The guard of 931-938, 941-944, 950-978 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
+// misses; 944 a hit-capped Fire mage's Flame Orb hits a Camel three levels above it fifteen times and none misses;
+// 946 and 947 are the same without the hit, with the pet's and the orb's share in proportion. 992 a staged Frost mage's
+// Ice Lance does double damage to a Camel that Frost Nova froze, and 2000 rolls of Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
+// sheet chance and Glyph of Frostbolt's 5 together.
+// The guard of 931-938, 941-944, 946, 947, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3963,7 +3968,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 951, 952, 954-957, 962-978, 980-991): a human mage staged to level 85
+     * What the mage scenarios share (941, 942, 951, 952, 954-957, 962-978, 980-992): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -6119,8 +6124,8 @@ namespace Harness
      * done damage is multiplied when the target is frozen, or when Fingers of Frost (44544) on him lets it act as if it
      * were. Steps: Ice Lance at the Camel; Frost Nova, which freezes it; Ice Lance at the frozen Camel; then three
      * rounds of three Frostbolts and an Ice Lance, every hit a chance for Fingers of Frost. One cast every 4.7 s: under
-     * the harness's seed base no cast crits, and Fingers of Frost procs after casts 7, 10 and 13, so the Ice Lances of
-     * casts 11 and 15 have it.
+     * the harness's seed base no cast crits, and Fingers of Frost triggers at steps 5, 12 and 14, so the Ice Lances of
+     * steps 7 and 15 have it.
      *
      * `iceLance`: each Ice Lance's state when cast (`frozen`, `fingers` when 44544 was on him and the Camel not frozen,
      * else `plain`) and its amount; OK when there is a frozen one and a plain one, and each frozen or fingers one dealt
@@ -7914,7 +7919,9 @@ namespace Harness
      * buff (64343) stood on him>,bomb=<the same over the Living Bomb steps>`; both buffs are taken off him at each
      * read, so each step's count is its own. OK at four, none, none and one or more, and the last Slow listed as
      * missed. A hit of a spell with no damage effect rolls Arcane Missiles! and never Impact; a miss rolls neither;
-     * Living Bomb's cast rolls both. The rolls of a step are seeded, so the counts are the same each run.
+     * Living Bomb's cast rolls both. The rolls of a step are seeded, so the counts are the same each run. The count of
+     * Impact buffs can read 0 even when Impact does not refuse these spells (each roll is 10% a hit), so the unit test
+     * MageScripts_ImpactRollsOnlyFromSpellsThatDealDamage proves the refusal.
      */
     class MageOffensiveStateDamageless : public MageProcScenario
     {
@@ -10127,8 +10134,6 @@ namespace Harness
                 { 82690, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 82734 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 104 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 82734: 26 fields, fnv af0731ee
                 { 82734, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
-                // 82733: 26 fields, fnv ba87eed9
-                { 82733, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82736: 26 fields, fnv 63cfd739
                 { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82739: 26 fields, fnv 47d44820
@@ -10491,8 +10496,6 @@ namespace Harness
                 { 82690, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 82734 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 104 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 82734: 26 fields, fnv af0731ee
                 { 82734, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
-                // 82733: 26 fields, fnv ba87eed9
-                { 82733, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82736: 26 fields, fnv 63cfd739
                 { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82739: 26 fields, fnv 47d44820
@@ -10653,8 +10656,6 @@ namespace Harness
                 { 82690, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 82734 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 104 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 82734: 26 fields, fnv af0731ee
                 { 82734, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
-                // 82733: 26 fields, fnv ba87eed9
-                { 82733, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82736: 26 fields, fnv 63cfd739
                 { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82739: 26 fields, fnv 47d44820
@@ -11445,7 +11446,7 @@ namespace Harness
      * OK when t1 is int(t0 x 0.9) and t2 int(t1 x 0.9), one point either side, e is 0 with the list empty, he out of
      * combat and holding 32612; u1 and u2 follow u0 the same way, u3 (the second fade's own read, after the cancel)
      * equals u2, 66 and 32612 are gone, and he is in combat with the list not empty; the last threat update the client
-     * was sent through the first fade's second wait is above 0 and below t0, and the last of the whole record is above
+     * was sent through the first fade's second wait is above 0 and at most t1 + 1, and the last of the whole record is above
      * 0 and at most u1 + 1.
      */
     class MageFireInvisibilityFade : public MageProcScenario
@@ -11574,7 +11575,7 @@ namespace Harness
             const bool endOk = e == 0 && endEmpty == 1 && endCombat == 0 && endInvis == 1;
             const bool cancelOk = u0 > 0 && Near(u1, int64(u0 * 0.9)) && Near(u2, int64(u1 * 0.9)) && u3 == u2 && cancelFade == 0 &&
                                   cancelInvis == 0 && cancelCombat == 1 && cancelEmpty == 0;
-            const bool sentOk = sent1 > 0 && sent1 < t0 && sent2 > 0 && sent2 <= u1 + 1;
+            const bool sentOk = sent1 > 0 && sent1 <= t1 + 1 && sent2 > 0 && sent2 <= u1 + 1;
 
             Seen const& hit = st.seen[0];
             const std::string value = "fade=" + U(uint64(t0 < 0 ? 0 : t0)) + "," + U(uint64(t1 < 0 ? 0 : t1)) + "," + U(uint64(t2 < 0 ? 0 : t2)) +
@@ -11583,23 +11584,23 @@ namespace Harness
                                       U(uint64(u0 < 0 ? 0 : u0)) + "," + U(uint64(u1 < 0 ? 0 : u1)) + "," + U(uint64(u2 < 0 ? 0 : u2)) + "," +
                                       U(uint64(u3 < 0 ? 0 : u3)) + "," + U(uint64(cancelFade < 0 ? 0 : cancelFade)) + "," +
                                       U(uint64(cancelInvis < 0 ? 0 : cancelInvis)) + "," + U(uint64(cancelCombat < 0 ? 0 : cancelCombat)) +
-                                      ",sent=" +
-                                      U(uint64(sent1 < 0 ? 0 : sent1)) + "," + U(uint64(sent2 < 0 ? 0 : sent2));
+                                      ",sent=" + U(uint64(sent1 < 0 ? 0 : sent1)) + "," + U(uint64(sent2 < 0 ? 0 : sent2));
             char buf[1280];
             snprintf(buf, sizeof(buf),
                      "Fire Blast's hit %s %u and his threat after it %lld; each tick keeps 90%% of what the list held, one point either side "
                      "(fade %s: int(%lld x 0.9) = %lld wanted at the first wait, int(%lld x 0.9) = %lld at the second); after the expiry %lld "
                      "with the list %s, he %s and 32612 %s (%s); the cancelled fade: int(%lld x 0.9) = %lld wanted at the first wait, "
-                     "int(%lld x 0.9) = %lld at the second, %lld at the read of the fade it cancels, 66 %s, 32612 %s, he %s, the list %s (%s); the last SMSG_THREAT_UPDATE the client was sent by "
-                     "the second wait of the first fade carries %lld, wanted below %lld "
-                     "(%s), and by the end of the record %lld, wanted at most %lld (%s)",
+                     "int(%lld x 0.9) = %lld at the second, %lld at the read of the fade it cancels, 66 %s, 32612 %s, he %s, "
+                     "the list %s (%s); the last SMSG_THREAT_UPDATE the client was sent by "
+                     "the second wait of the first fade carries %lld, wanted at most %lld (%s), "
+                     "and by the end of the record %lld, wanted at most %lld (%s)",
                      hit.logRead ? "of" : "unread", hit.amount, (long long)t0, fadeOk ? "OK" : "BUG", (long long)t0, (long long)int64(t0 * 0.9),
                      (long long)t1, (long long)int64(t1 * 0.9), (long long)e, endEmpty == 1 ? "empty" : "not empty",
                      endCombat == 1 ? "in combat" : "out of combat", endInvis == 1 ? "held" : "gone", endOk ? "OK" : "BUG",
                      (long long)u0, (long long)int64(u0 * 0.9), (long long)u1, (long long)int64(u1 * 0.9), (long long)u3,
                      cancelFade == 1 ? "held" : "gone", cancelInvis == 1 ? "held" : "gone", cancelCombat == 1 ? "in combat" : "out of combat",
                      cancelEmpty == 1 ? "empty" : "not empty", cancelOk ? "OK" : "BUG",
-                     (long long)sent1, (long long)t0, (sent1 > 0 && sent1 < t0) ? "OK" : "BUG", (long long)sent2, (long long)u1 + 1,
+                     (long long)sent1, (long long)t1 + 1, (sent1 > 0 && sent1 <= t1 + 1) ? "OK" : "BUG", (long long)sent2, (long long)u1 + 1,
                      (sent2 > 0 && sent2 <= u1 + 1) ? "OK" : "BUG");
             return value + ((fadeOk && endOk && cancelOk && sentOk) ? "(OK: " : "(BUG: ") + buf + ")";
         }
@@ -11618,6 +11619,183 @@ namespace Harness
         static constexpr uint32 kCancelFirstWait = 7;
         static constexpr uint32 kCancelSecondWait = 8;
         static constexpr uint32 kCancelStep = 9;
+    };
+
+    /**
+     * S992 `mage-frost-shatter`: Shatter's second rank (12982) and Glyph of Frostbolt (56370, 5 percent more crit
+     * chance for Frostbolt) on a staged Frost mage, who casts Ice Lance (30455) at a Camel that is not frozen and at one
+     * Frost Nova (122) froze; Frostbolt (116) and the Mastery passive (86473) are learned, the mage holds no Fingers of
+     * Frost, and the crit aura is held at -100 so no cast crits. An Ice Lance deals double damage to a frozen target (its
+     * effect 1 value is 100), and Frostburn adds the mastery percent to it; the second rank of Shatter multiplies the
+     * whole crit chance of a spell that counts its target as frozen by 3, the glyph's 5 included. Steps: three Ice
+     * Lances; then five times Frost Nova, its cooldown taken off first, and Ice Lance. At the first cast's act for each
+     * state of the Camel the scenario takes the crit aura off him, reads his Frostbolt crit chance and rolls
+     * Unit::IsSpellCrit for Frostbolt at the Camel kRolls times, which runs the CritChance hook and the spell
+     * modifiers as a cast does, and puts the aura back.
+     *
+     * `shatter`: `iceLance=<frozen mean>,<plain mean>,ratio=<frozen over plain, in hundredths>,sheet=<his Frostbolt crit
+     * chance>,chance=<unfrozen>,<frozen>`: the mean damage of the Ice Lances that did not crit, by the Camel's state
+     * when each was cast, the sheet chance, and the share of the kRolls rolls that crit for the unfrozen and for the
+     * frozen Camel, all in hundredths of a percent. OK when there are at least three Ice Lances of each state, the ratio
+     * is between 190 and 240 (double, with Frostburn's 5 percent and the damage's spread; not triple), and the shares are
+     * within kTolerance of (sheet + 5) for the unfrozen Camel and of 3 x (sheet + 5) for the frozen one; a hook that
+     * multiplied the sheet alone would read 10 points below the second.
+     */
+    class MageFrostShatter : public MageProcScenario
+    {
+    public:
+        MageFrostShatter() : MageProcScenario("mage-frost-shatter", 992, "shatter") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11158, 1 } }; }
+        std::vector<uint32> Spells() const override { return { kIceLance, kFrostNova, kFrostbolt, 86473 }; }
+        std::vector<uint32> Glyphs() const override { return { kGlyphOfFrostboltSlot }; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        bool NotesBeforeStep() const override { return true; }
+
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps = { Cast(kIceLance, false), Cast(kIceLance, false), Cast(kIceLance, false) };
+            for (uint32 round = 0; round < 5; ++round)
+            {
+                Step nova = Cast(kFrostNova, false);
+                nova.clearCooldown = true;
+                steps.push_back(nova);
+                steps.push_back(Cast(kIceLance, false));
+            }
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 30455: 49 fields, fnv c88f610e
+                { 30455, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 160 }, { "eff0.EffectBonusCoefficient", 1052870967 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 27 }, { "eff0.EffectRealPointsPerLevel", 1078774989 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 3 }, { "eff1.EffectBasePoints", 100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 122: 49 fields, fnv 2ec0d9e1
+                { 122, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 18 }, { "eff0.EffectBonusCoefficient", 1044750795 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRadiusIndex_1", 32 }, { "eff0.EffectRealPointsPerLevel", 1056964608 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 26 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 7 }, { "eff1.EffectRadiusIndex_1", 32 }, { "eff1.ImplicitTarget_0", 22 }, { "eff1.ImplicitTarget_1", 15 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 116: 72 fields, fnv e7ba11a7
+                { 116, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 17 }, { "eff1.EffectBonusCoefficient", 1064396915 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 3 }, { "eff1.EffectRealPointsPerLevel", 1056964608 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At each cast's act: the Camel's frozen state; and, at the first cast for each state, the sheet Frostbolt crit
+        /// chance with the crit aura off and the number of kRolls rolls of Unit::IsSpellCrit for Frostbolt at the Camel
+        /// that crit, with the aura put back as it was.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            if (atRead || !IsCast(st.steps[k]))
+            {
+                return;
+            }
+            bool const frozen = target->IsFrozen();
+            Seen& seen = st.seen[k];
+            seen.reads["frozen"] = frozen ? 1 : 0;
+            for (uint32 j = 0; j < k; ++j)
+            {
+                std::map<std::string, int64>::const_iterator done = st.seen[j].reads.find("rolls");
+                std::map<std::string, int64>::const_iterator was = st.seen[j].reads.find("frozen");
+                if (done != st.seen[j].reads.end() && was != st.seen[j].reads.end() && (was->second != 0) == frozen)
+                {
+                    m_rec.Note(std::string("the Camel ") + (frozen ? "frozen" : "not frozen") + ", read already");
+                    return;
+                }
+            }
+            SpellEntry const* bolt = sSpellStore.LookupEntry(kFrostbolt);
+            if (!bolt)
+            {
+                return;
+            }
+            Aura const* critAura = p->GetAura(kCritAura, EFFECT_INDEX_0);
+            int32 points = critAura ? critAura->GetModifier()->m_amount : 0;
+            if (critAura)
+            {
+                p->RemoveAurasDueToSpell(kCritAura);
+            }
+            float const sheet = p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_FROST);
+            uint32 crits = 0;
+            for (uint32 roll = 0; roll < kRolls; ++roll)
+            {
+                crits += p->IsSpellCrit(target, bolt, SPELL_SCHOOL_MASK_FROST) ? 1 : 0;
+            }
+            if (points)
+            {
+                p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
+            }
+            seen.reads["rolls"] = kRolls;
+            seen.reads["sheet"] = int64(std::lround(sheet * 100.0f));
+            seen.reads["share"] = int64(crits) * 10000 / kRolls;
+            m_rec.Note(std::string("the Camel ") + (frozen ? "frozen" : "not frozen") + ", his Frostbolt crit chance " +
+                       U(uint64(seen.reads["sheet"])) + " hundredths of a percent with the crit aura off; " + U(crits) + " of " + U(kRolls) +
+                       " IsSpellCrit rolls crit, " + U(uint64(seen.reads["share"])) + " hundredths of a percent");
+        }
+
+        std::string Own(St const& st) const override
+        {
+            uint64 frozenSum = 0, plainSum = 0;
+            uint32 frozenCount = 0, plainCount = 0;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                Seen const& seen = st.seen[k];
+                if (st.steps[k].spell != kIceLance || !seen.logRead || seen.crit || seen.missed)
+                {
+                    continue;
+                }
+                (seen.targetFrozen ? frozenSum : plainSum) += seen.amount;
+                ++(seen.targetFrozen ? frozenCount : plainCount);
+            }
+            const uint64 frozenMean = frozenCount ? frozenSum / frozenCount : 0;
+            const uint64 plainMean = plainCount ? plainSum / plainCount : 0;
+            const uint64 ratio = plainMean ? frozenMean * 100 / plainMean : 0;
+
+            int64 sheet = -1, plainShare = -1, frozenShare = -1;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                std::map<std::string, int64> const& reads = st.seen[k].reads;
+                std::map<std::string, int64>::const_iterator share = reads.find("share");
+                std::map<std::string, int64>::const_iterator frozen = reads.find("frozen");
+                std::map<std::string, int64>::const_iterator sheetRead = reads.find("sheet");
+                if (share == reads.end() || frozen == reads.end() || sheetRead == reads.end())
+                {
+                    continue;
+                }
+                (frozen->second ? frozenShare : plainShare) = share->second;
+                sheet = sheetRead->second;
+            }
+            const int64 glyph = 500;
+            const int64 plainWanted = sheet + glyph;
+            const int64 frozenWanted = std::min<int64>(10000, 3 * (sheet + glyph));
+            auto within = [](int64 value, int64 wanted) { return value >= 0 && (value > wanted ? value - wanted : wanted - value) <= kTolerance; };
+            const bool sharesOk = sheet >= 0 && within(plainShare, plainWanted) && within(frozenShare, frozenWanted);
+            const bool ok = frozenCount >= 3 && plainCount >= 3 && ratio >= 190 && ratio <= 240 && sharesOk;
+            const std::string value = "iceLance=" + U(frozenMean) + "," + U(plainMean) + ",ratio=" + U(ratio) + ",sheet=" +
+                                      U(uint64(sheet < 0 ? 0 : sheet)) + ",chance=" + U(uint64(plainShare < 0 ? 0 : plainShare)) + "," +
+                                      U(uint64(frozenShare < 0 ? 0 : frozenShare));
+            const std::string detail = U(frozenCount) + " Ice Lances at a frozen Camel and " + U(plainCount) +
+                                       " at an unfrozen one that did not crit; the share of " + U(kRolls) + " IsSpellCrit rolls for Frostbolt that crit, wanted " +
+                                       U(uint64(plainWanted < 0 ? 0 : plainWanted)) + " and " + U(uint64(frozenWanted < 0 ? 0 : frozenWanted)) +
+                                       " within " + U(uint32(kTolerance)) + ": " + (sharesOk ? "as Shatter's rank 2 triples the sheet chance and the glyph's 5 for the frozen one only" : "not as wanted") + ")";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kIceLance = 30455;
+        static constexpr uint32 kFrostNova = 122;
+        static constexpr uint32 kFrostbolt = 116;
+        static constexpr uint32 kGlyphOfFrostboltSlot = 319;
+        static constexpr uint32 kRolls = 2000;
+        static constexpr int64 kTolerance = 350;
     };
 
     /**
@@ -12126,5 +12304,6 @@ namespace Harness
         r.Register(new MageFireFlameOrbOwnerHit());
         r.Register(new MageFrostPetOwnerHit("mage-pet-owner-hit-uncapped", 946, false));
         r.Register(new MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit-uncapped", 947, false));
+        r.Register(new MageFrostShatter());
     }
 }

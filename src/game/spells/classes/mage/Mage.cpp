@@ -206,7 +206,7 @@ namespace
 
     uint32 const HOT_STREAK_TALENT = 44445;
 
-    /// 79684: Offensive State: a mage without Hot Streak (44445) rolls the aura's percent after each damaging spell the
+    /// 79684: Offensive State: a mage without Hot Streak (44445) rolls the aura's percent after each spell hit the
     /// proc accepts, and on success casts Arcane Missiles! (79683) on himself; a mage with Hot Streak never does.
     ProcOutcome OffensiveStateProc(OnProcContext& ctx)
     {
