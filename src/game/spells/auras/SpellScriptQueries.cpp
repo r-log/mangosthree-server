@@ -174,6 +174,37 @@ float Spells::LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, 
     return multiplier;
 }
 
+bool Spells::DealsDamage(SpellEntry const& spell)
+{
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        SpellEffectEntry const* const effect = spell.GetSpellEffect(SpellEffectIndex(i));
+        if (!effect)
+        {
+            continue;
+        }
+        switch (effect->Effect)
+        {
+            case SPELL_EFFECT_SCHOOL_DAMAGE:
+            case SPELL_EFFECT_ENVIRONMENTAL_DAMAGE:
+            case SPELL_EFFECT_HEALTH_LEECH:
+            case SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL:
+            case SPELL_EFFECT_WEAPON_PERCENT_DAMAGE:
+            case SPELL_EFFECT_WEAPON_DAMAGE:
+            case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+                return true;
+            default:
+                break;
+        }
+        if (effect->EffectAura == SPELL_AURA_PERIODIC_DAMAGE || effect->EffectAura == SPELL_AURA_PERIODIC_DAMAGE_PERCENT ||
+            effect->EffectAura == SPELL_AURA_PERIODIC_LEECH)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 int32* ScriptWordOf(Unit& unit, uint32 spellId, SpellEffectIndex eff)
 {
     Unit::SpellAuraHolderBounds const bounds = unit.GetSpellAuraHolderBounds(spellId);

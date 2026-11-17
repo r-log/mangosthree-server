@@ -1303,27 +1303,7 @@ bool Aura::CanProcFrom(SpellEntry const* spell, uint32 /*procFlag*/, uint32 Even
     {
         if (!(EventProcEx & PROC_EX_EX_TRIGGER_ALWAYS))
         {
-            // Check for extra req (if none) and hit/crit
-            if (EventProcEx == PROC_EX_NONE)
-            {
-                // No extra req, so can trigger only for active (damage/healing present) and hit/crit
-                if (((procEx & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT)) && active) || procEx == PROC_EX_CAST_END)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else // Passive spells hits here only if resist/reflect/immune/evade
-            {
-                // Passive spells can`t trigger if need hit (exclude cases when procExtra include non-active flags)
-                if ((EventProcEx & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT) & procEx) && !active)
-                {
-                    return false;
-                }
-            }
+            return SpellMgr::HitKindAccepted(EventProcEx, procEx, active);
         }
         return true;
     }

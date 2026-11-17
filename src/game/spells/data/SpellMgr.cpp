@@ -1680,6 +1680,23 @@ bool SpellMgr::IsSpellProcEventCanTriggeredBy(SpellProcEventEntry const* spellPr
     return false;
 }
 
+bool SpellMgr::HitKindAccepted(uint32 eventProcEx, uint32 procEx, bool active)
+{
+    constexpr uint32 hitKinds = PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT;
+
+    if (eventProcEx == PROC_EX_NONE)
+    {
+        return ((procEx & hitKinds) && active) || procEx == PROC_EX_CAST_END;
+    }
+
+    if (eventProcEx & PROC_EX_HIT_WITHOUT_DAMAGE)
+    {
+        return (eventProcEx & procEx & hitKinds) != 0;
+    }
+
+    return !((eventProcEx & hitKinds & procEx) && !active);
+}
+
 /**
  * @brief Checks whether one spell is a rank of another spell.
  *
