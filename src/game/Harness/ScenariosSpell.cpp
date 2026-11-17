@@ -3957,7 +3957,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (951, 952, 954-957, 962-977, 980-991): a human mage staged to level 85
+     * What the mage scenarios share (951, 952, 954-957, 962-978, 980-991): a human mage staged to level 85
      * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
      * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
      * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -9091,16 +9091,17 @@ namespace Harness
      *  1. Pyroblast (11366) at the Camel at full health: its DoT holds a tick of p = 487;
      *  2. kCombustionAfterMs later, Combustion at the Camel above 35%: its DoT ticks int(p x 1000 / 3000) = 162;
      *  3. the Camel's health set to kUnderPct percent of its maximum;
-     *  4. Combustion again, its cooldown taken off him by call first, with the Camel under 35%: the DoT it replaces
-     *     ticks int(p x 1000 / 3000 x 1.12) = 181 for its whole duration. 83853 takes no Molten Fury of its own, so
-     *     the 12% comes only from the share of the Pyroblast DoT.
+     *  4. Combustion again, its cooldown taken off him by call first, with the Camel under 35%: the DoT, which replaces
+     *     step 2's, ticks int(p x 1000 / 3000 x 1.12) = 181 for its whole duration. One plain 162 tick of the replaced
+     *     DoT lands after step 3, with the Camel under 35%: 83853 takes no Molten Fury of its own, so the 12% comes
+     *     only from the share of the Pyroblast DoT.
      *
      * `combustionMoltenFury`: `above=<tick>x<count>,below=<tick>x<count>`: the first and the count of the 83853 ticks
      * dealt before step 4 and from it on. OK when the Pyroblast DoT's tick is the plain kPlainTick, the Camel was not
      * under 35% at step 2's read and was at step 4's, every tick before step 4 is the plain share, at least
      * kMinAbove of them, and every tick from step 4 on is the share times (100 + the amount of 86880's aura on him)
-     * / 100, at least kBelowTicks of them (Combustion's duration over its period, and one more when the DoT replaces a
-     * running one).
+     * / 100, exactly kBelowTicks + 1 of them (Combustion's duration over its period, and one more when the DoT
+     * replaces a running one).
      */
     class MageFireCombustionMoltenFury : public MageFireMoltenFuryTick
     {
@@ -9168,7 +9169,7 @@ namespace Harness
             const int64 underBelow = Under35(st, kBelowStep);
 
             bool ok = st.steps.size() == 4 && amount > 0 && first == kPlainTick && underAbove == 0 && underBelow == 1 &&
-                      above.size() >= kMinAbove && below.size() >= kBelowTicks;
+                      above.size() >= kMinAbove && below.size() == kBelowTicks + 1;
             for (size_t i = 0; i < above.size(); ++i)
             {
                 ok = ok && above[i] == wantAbove;
