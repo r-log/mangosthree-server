@@ -970,6 +970,7 @@ TEST(SpellScriptHooks_FindPeriodicDamageReadsTheCastersPeriodicDamageEffectsOnAU
     SpellAuraHolder* mine = DotHolder(dot, target, mage, 500);
     SpellAuraHolder* theirs = DotHolder(dot, target, otherCaster, 900);
     SpellAuraHolder* mineToo = DotHolder(other, target, mage, 2000);
+    mineToo->GetAuraByEffectIndex(EFFECT_INDEX_0)->GetModifier()->periodictime = 1600;
     target.HoldAura(kDotSpell, *mine);
     target.HoldAura(kDotSpell, *theirs);
     target.HoldAura(kOtherDotSpell, *mineToo);
@@ -986,7 +987,7 @@ TEST(SpellScriptHooks_FindPeriodicDamageReadsTheCastersPeriodicDamageEffectsOnAU
         CHECK_EQ(found[0].spellId, kOtherDotSpell);
         CHECK_EQ(int(found[0].effIndex), int(EFFECT_INDEX_0));
         CHECK_EQ(found[0].amount, int32(2000));
-        CHECK_EQ(found[0].periodMs, uint32(2000));
+        CHECK_EQ(found[0].periodMs, uint32(1600));
         CHECK_EQ(found[0].remainingMs, int32(4000));
         CHECK_EQ(found[0].remainingTicks, uint32(2));
         CHECK_EQ(found[0].amountBeforeDone, int32(2000));

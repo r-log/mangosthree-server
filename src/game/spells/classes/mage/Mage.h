@@ -225,12 +225,11 @@ namespace Mage
     };
 
     /// Combustion's tick: the per-second damage of the shares summed (each `tick * 1000 / periodMs`, times the share's
-    /// `lowHealthMultiplier` and divided by its `heldMastery`), where the Ignite share, when `ignite` is given, is
-    /// first divided by `igniteMultiplier`, the mastery the engine applies to the new DoT once more; Ignite's share
-    /// takes no low-health multiplier.
-    /// Truncated to an integer once, after the sum. A share with a period of 0 adds nothing, a multiplier of 0 or
-    /// below leaves the Ignite share undivided, and a sum below 0 is 0. Defined in Fire.cpp.
-    int32 CombustionTick(DotShare const* shares, size_t count, DotShare const* ignite, float igniteMultiplier);
+    /// `lowHealthMultiplier` and divided by its `heldMastery`), plus Ignite's share when `ignite` is given, which holds
+    /// no mastery and takes no low-health multiplier.
+    /// Truncated to an integer once, after the sum. A share with a period of 0 adds nothing, and a sum below 0 is 0.
+    /// Defined in Fire.cpp.
+    int32 CombustionTick(DotShare const* shares, size_t count, DotShare const* ignite);
 
     /// Whether a holder of `spellId` is periodic Fire damage that counts its target for Pyromaniac: Pyroblast (11366,
     /// 92315), Living Bomb (44457), Ignite (12654), Combustion (83853), Flamestrike (2120) and Frostfire Bolt (44614).
