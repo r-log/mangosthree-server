@@ -124,7 +124,7 @@
 // health ticks with the Molten Fury of the Pyroblast DoT it combines.
 // 942 a staged Fire mage's Slow and Polymorph hits roll Arcane Missiles! and never Impact, a Slow that misses rolls
 // neither, and Living Bomb's cast rolls Impact.
-// The guard of 931-938, 950-978 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 942, 950-978 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -7828,7 +7828,9 @@ namespace Harness
      * buff (64343) stood on him>,bomb=<the same over the Living Bomb steps>`; both buffs are taken off him at each
      * read, so each step's count is its own. OK at four, none, none and one or more, and the last Slow listed as
      * missed. A hit of a spell with no damage effect rolls Arcane Missiles! and never Impact; a miss rolls neither;
-     * Living Bomb's cast rolls both. The rolls of a step are seeded, so the counts are the same each run.
+     * Living Bomb's cast rolls both. The rolls of a step are seeded, so the counts are the same each run. The count of
+     * Impact buffs reads 0 whether or not Impact refuses these spells (its roll is 10% a hit), so the refusal itself
+     * is proved by MageScripts_ImpactRollsOnlyFromSpellsThatDealDamage.
      */
     class MageOffensiveStateDamageless : public MageProcScenario
     {
