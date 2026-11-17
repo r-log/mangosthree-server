@@ -247,13 +247,23 @@ namespace
     /// combined.
     uint32 const COMBUSTION_SHARES[] = { 11366, 92315, 44457, 44614 };
 
+    /// Whether Combustion builds the share of `spellId` again at its cast: every one of COMBUSTION_SHARES but Frostfire
+    /// Bolt, whose glyph tick is cut from a hit and stays as the aura holds it.
+    bool CombustionRebuildsShare(uint32 spellId)
+    {
+        return spellId != COMBUSTION_SHARES[3];
+    }
+
     /// 11129: Combustion: its script effect puts Combustion (83853) on the target with a tick equal to the per-second
     /// damage of the caster's Pyroblast (11366, 92315), Living Bomb (44457), Frostfire Bolt (44614) and Ignite (12654)
-    /// on the target at this moment; the first three take the caster's bonus at the target's low health (Molten Fury)
-    /// that their stored ticks lack, Ignite's part is taken before the caster's Flashburn, which the engine applies to
-    /// the new DoT. Flamestrike is not combined, nor is a holder with no time left. With nothing to combine the DoT is
-    /// still applied, with a tick of 0. The script ends the effect, so the mage family switch, which has nothing for
-    /// 11129, does not run.
+    /// on the target at this moment. Pyroblast's and Living Bomb's parts are the DoT's tick as it would be cast now:
+    /// the amount before the caster's bonus through the caster's done damage of a DoT (spell power, percent bonuses and
+    /// mastery as they are now), over the period the spell gives before haste. The first three take the caster's bonus
+    /// at the target's low health (Molten Fury) that the done damage of a DoT lacks. Frostfire Bolt's and Ignite's
+    /// parts are the ticks the auras hold. Every part is divided by the caster's Flashburn, which the engine applies
+    /// once to the new DoT, so each part holds it once. Flamestrike is not combined, nor is a holder with no time
+    /// left. With nothing to combine the DoT is still applied, with a tick of 0. The script ends the effect, so the
+    /// mage family switch, which has nothing for 11129, does not run.
     SpellHandlerOutcome<void> CombustionEffect(DummyEffectContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.target)
@@ -262,6 +272,14 @@ namespace
         }
 
         ObjectGuid const caster = ctx.caster.GetObjectGuid();
+
+        // the caster's mastery on the new DoT: the step SpellDamageBonusDone takes for a spell without damage modifiers
+        float flashburn = 1.0f;
+        if (SpellModMgr* mods = ctx.caster.GetSpellMods())
+        {
+            mods->ApplySpellMod(COMBUSTION_DOT, SPELLMOD_DOT, flashburn, true);
+        }
+
         std::vector<PeriodicDamageView> found;
         std::vector<Mage::DotShare> shares;
         FindPeriodicDamage(*ctx.target, caster, COMBUSTION_SHARES, sizeof(COMBUSTION_SHARES) / sizeof(COMBUSTION_SHARES[0]),
@@ -273,9 +291,16 @@ namespace
                 continue;
             }
             Mage::DotShare share = { view.amount, view.periodMs };
+            share.heldMastery = flashburn;
             if (SpellEntry const* dotSpell = sSpellStore.LookupEntry(view.spellId))
             {
                 share.lowHealthMultiplier = Spells::LowHealthDamageMultiplier(ctx.caster, *ctx.target, *dotSpell);
+                if (CombustionRebuildsShare(view.spellId) && view.amountBeforeDone > 0 && view.basePeriodMs > 0)
+                {
+                    share.tick = int32(ctx.caster.SpellDamageBonusDone(ctx.target, dotSpell, uint32(view.amountBeforeDone),
+                                                                       DOT, view.stacks ? view.stacks : 1));
+                    share.periodMs = view.basePeriodMs;
+                }
             }
             shares.push_back(share);
         }
@@ -289,7 +314,7 @@ namespace
             ignite.periodMs = found[0].periodMs;
         }
 
-        // the caster's mastery on Ignite: the step SpellDamageBonusDone takes for a spell without damage modifiers
+        // the caster's mastery on Ignite, as on the new DoT
         float igniteMultiplier = 1.0f;
         if (SpellModMgr* mods = ctx.caster.GetSpellMods())
         {
@@ -630,7 +655,8 @@ int32 Mage::CombustionTick(DotShare const* shares, size_t count, DotShare const*
         if (shares[i].periodMs)
         {
             double const multiplier = shares[i].lowHealthMultiplier > 0.0f ? double(shares[i].lowHealthMultiplier) : 1.0;
-            perSecond += double(shares[i].tick) * 1000.0 / double(shares[i].periodMs) * multiplier;
+            double const held = shares[i].heldMastery > 0.0f ? double(shares[i].heldMastery) : 1.0;
+            perSecond += double(shares[i].tick) * 1000.0 / double(shares[i].periodMs) * multiplier / held;
         }
     }
     if (ignite && ignite->periodMs)
