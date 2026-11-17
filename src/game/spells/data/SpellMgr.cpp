@@ -1689,9 +1689,9 @@ bool SpellMgr::HitKindAccepted(uint32 eventProcEx, uint32 procEx, bool active)
         return ((procEx & hitKinds) && active) || procEx == PROC_EX_CAST_END;
     }
 
-    if ((eventProcEx & PROC_EX_HIT_WITHOUT_DAMAGE) && (eventProcEx & procEx & hitKinds))
+    if (eventProcEx & PROC_EX_HIT_WITHOUT_DAMAGE)
     {
-        return true;
+        return (eventProcEx & procEx & hitKinds) != 0;
     }
 
     return !((eventProcEx & hitKinds & procEx) && !active);
