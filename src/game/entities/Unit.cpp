@@ -3894,12 +3894,6 @@ bool Unit::IsIgnoreUnitState(SpellEntry const* spell, IgnoreUnitState ignoreStat
     {
         if ((*itr)->GetModifier()->m_miscvalue == ignoreState)
         {
-            // frozen state absent ignored for all spells
-            if (ignoreState == IGNORE_UNIT_TARGET_NON_FROZEN)
-            {
-                return true;
-            }
-
             if ((*itr)->isAffectedOnSpell(spell))
             {
                 return true;
