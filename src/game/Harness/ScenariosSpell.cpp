@@ -3985,9 +3985,10 @@ namespace Harness
      *    is set, without a cast; his mana set to its maximum by call; for a step that must crit, Increased Critical
      *    Spell (23434, a spell crit chance aura) put on him at kCritAuraPoints by a triggered self-cast, and for one
      *    that must not, taken off him by call, or put on him at NonCritAuraPoints() when the scenario names such points
-     *    (a holder of 23434 at other points is taken off first); then the spell cast at the Camel through the CAST_SPELL handler's calls. One every CastEveryMs()
-     *    (kCastEveryMs unless the scenario sets its own), read CastReadMs() after (kCastReadMs unless the scenario sets
-     *    its own). An aura cast is the same cast of a spell that applies an aura and sends no damage log of its own.
+     *    (a holder of 23434 at other points is taken off first); then the spell cast at the Camel through the
+     *    CAST_SPELL handler's calls. One every CastEveryMs() (kCastEveryMs unless the scenario sets its own), read
+     *    CastReadMs() after (kCastReadMs unless the scenario sets its own). An aura cast is the same cast of a spell
+     *    that applies an aura and sends no damage log of its own.
      *    A moving cast (MovingCast) is made with his client's movement word at MOVEFLAG_FORWARD from just before the
      *    cast to its read, where the word he had is put back; a cast that clears its cooldown first takes the spell's
      *    cooldown off him by call (Player::RemoveSpellCooldown), since the stepped clock never runs out a cooldown
@@ -9683,24 +9684,24 @@ namespace Harness
     };
 
     /**
-     * S948 `mage-fire-molten-armor-procs`: Molten Armor's hit (34913) starts procs, never ignites, never starts
-     * another Molten Armor and never breaks Polymorph, Blind or Frost Nova. A Fire mage staged as in 968 (Burning Soul 3,
+     * S948 `mage-fire-molten-armor-procs`: Molten Armor's hit (34913) starts procs, never ignites, never starts another
+     * Molten Armor and never breaks Polymorph, Blind or Frost Nova. A Fire mage staged as in 968 (Burning Soul 3,
      * Improved Fire Blast 2, Ignite 3, Impact 2; kSpellPower spell power), Polymorph (118) learned, Precision on him
      * before each cast and Increased Critical Spell on him at +100 from the first step to the end, so every 34913
      * crits; the Camel holds Molten Armor (30482) too, put on it in the first step. Steps: Molten Armor cast at
      * himself; kSwings swings of the Camel at him, each hit of which casts 34913 at the Camel; Polymorph cast at the
-     * Camel; then three phases in which the Camel holds Polymorph, Blind (2094) and Frost Nova (122), and in each
-     * step of a phase he casts 34913 at it by call as the armor's proc does (triggered, naming the holder of 30482),
-     * each read kSwingReadMs after: kStrikes, kBlindStrikes and kNovaStrikes steps. Blind and Frost Nova are put on
-     * the Camel as the GM aura command puts an aura, ready as a cast leaves it and for kPhaseAuraMs, the aura of the phase
+     * Camel; then three phases in which the Camel holds Polymorph, Blind (2094) and Frost Nova (122), and in each step
+     * of a phase he casts 34913 at it by call as the armor's proc does (triggered, naming the holder of 30482), each
+     * read kSwingReadMs after: kStrikes, kBlindStrikes and kNovaStrikes steps. Blind and Frost Nova are put on the
+     * Camel as the GM aura command puts an aura, ready as a cast leaves it and for kPhaseAuraMs, the aura of the phase
      * before taken off it.
      *
      * `armorProcs`: `crits=<34913 hits that crit>/<34913 hits>,ignite=<steps with 12654 on the Camel or cast>,
      * impact=<swings after which 64343 was on him>,answered=<34913 hits the Camel dealt>,
      * poly=<the Camel's 118 after the cast, then after each strike, 1 held>,
      * blind=<the Camel's 2094 after each strike, 1 held>,nova=<strikes after which its 122 was held>/<strikes>`.
-     * OK when every 34913 hit crit and each swing that hit logged one, nothing of Ignite (12654) was ever on the Camel or
-     * cast, Impact's 64343 was on him after at least one swing, the Camel dealt no 34913, Polymorph landed and each
+     * OK when every 34913 hit crit and each swing that hit logged one, nothing of Ignite (12654) was ever on the Camel
+     * or cast, Impact's 64343 was on him after at least one swing, the Camel dealt no 34913, Polymorph landed and each
      * strike logged one 34913 and left the Camel's aura of its phase on.
      */
     class MageFireMoltenArmorProcs : public MageFireProofScenario
@@ -9864,8 +9865,8 @@ namespace Harness
         static constexpr uint32 kBlindStart = kFirstStrike + kStrikes;
         static constexpr uint32 kNovaStart = kBlindStart + kBlindStrikes;
 
-        /// The aura of `spell` put on `unit` as PutAura puts it, for `durationMs`, and ready as a cast leaves it, so that
-        /// its procs run.
+        /// The aura of `spell` put on `unit` as PutAura puts it, for `durationMs`, and ready as a cast leaves it, so
+        /// that its procs run.
         static void PutReadyAura(Unit* unit, uint32 spell, int32 durationMs)
         {
             PutAura(unit, spell);
@@ -12302,8 +12303,9 @@ namespace Harness
      * `petHit`: `misses=<casts whose SPELL_GO lists the Camel as missed>/<casts seen>,owner=<his spell hit field>,
      * pet=<the pet's spell hit field>,share=<the spell hit of Combat::OwnerShareOf(pet)>/<its expertise>`; OK when
      * every one of the twenty casts was seen, the owner's field is 100 (S946: above 0 and under the spell cap), the
-     * pet's own field is 0 and the share is the spell cap of 17 with 650 expertise and no cast missed (S946: the owner's hit in
-     * proportion, and no miss is asked of it): the owner's hit is read at each roll, not copied into the pet.
+     * pet's own field is 0 and the share is the spell cap of 17 with 650 expertise and no cast missed (S946: the
+     * owner's hit in proportion, and no miss is asked of it): the owner's hit is read at each roll, not copied into the
+     * pet.
      */
     class MageFrostPetOwnerHit : public MageFrostIceLance
     {
@@ -12402,8 +12404,8 @@ namespace Harness
      * `orbHit`: `goes=<SPELL_GO of the orb's hit>,misses=<of them listing the Camel as missed>,hits=<its damage logs on
      * the Camel>,owner=<his spell hit field>,share=<the spell hit of Combat::OwnerShareOf(orb)>/<its expertise>`; OK
      * when there are kOrbHits goes and every one is a hit or a miss, the owner's field is 100 (S947: above 0 and under
-     * the spell cap) and the share is the spell cap of 17 with 650 expertise and no hit missed (S947: the owner's hit in
-     * proportion, and misses are allowed): the orb rolls with its summoner's hit as of its summon.
+     * the spell cap) and the share is the spell cap of 17 with 650 expertise and no hit missed (S947: the owner's hit
+     * in proportion, and misses are allowed): the orb rolls with its summoner's hit as of its summon.
      */
     class MageFireFlameOrbOwnerHit : public MageFireFlameOrb
     {
@@ -12793,21 +12795,21 @@ namespace Harness
      *  4. Pyroblast (11366), which must crit: its DoT and Ignite (12654) go on the Camel;
      *  5. nothing, but kMasteryGain more mastery rating is added to him by call as an item's rating adds it, after both
      *     hits landed;
-     *  6. Combustion (11129), which must not crit: the Ignite, Pyroblast and Frostfire DoTs the Camel holds are read as it
-     *     casts;
+     *  6. Combustion (11129), which must not crit: the Ignite, Pyroblast and Frostfire DoTs the Camel holds are read
+     *     as it casts;
      *  7. nothing, to read the 83853 ticks.
      *
      * `masteryAtTheCast`: `tick=<the first 83853 tick>,ticks=<how many>,want=<the band>,flashburn=<before>/<after>,
      * moves=<Ignite>/<glyph>`. With F the Flashburn on 83853 at the cast, I the Ignite tick before its mastery (the
      * amount the aura holds before the done step) and G the glyph tick before its mastery, over the aura's period g,
      * and P the Pyroblast tick as its caster's done damage of a DoT gives it now over 3000 ms, the sum a second is
-     * I / 2 + P / 3 / F + G / g (Ignite and the glyph at the cast's mastery once, Pyroblast's built at it and divided by
-     * it), and the tick is that sum taken through 83853's done damage (SpellDamageBonusDone, which gives F once) and the
-     * Camel's damage-taken effects, within one. `moves` are the seconds' damage the Ignite and the glyph parts move
+     * I / 2 + P / 3 / F + G / g (Ignite and the glyph at the cast's mastery once, Pyroblast's built at it and divided
+     * by it), and the tick is that sum taken through 83853's done damage (SpellDamageBonusDone, which gives F once) and
+     * the Camel's damage-taken effects, within one. `moves` are the seconds' damage the Ignite and the glyph parts move
      * between the two masteries: I x (F - F0) / 2 and G x (F - F0) / g, so a part left at the mastery of its hit shows.
      * F0 is the Flashburn at the hits. OK when mastery rose, I x F0 and G x F0 are each the tick its aura stores within
-     * one (so I and G hold no mastery), both moves are at least kMinMove, every 83853 tick is the first and in the band,
-     * there are at least nine of them and none crit. BUG with the values in the detail otherwise.
+     * one (so I and G hold no mastery), both moves are at least kMinMove, every 83853 tick is the first and in the
+     * band, there are at least nine of them and none crit. BUG with the values in the detail otherwise.
      */
     class MageFireCombustionMasteryAtTheCast : public MageProcScenario
     {
