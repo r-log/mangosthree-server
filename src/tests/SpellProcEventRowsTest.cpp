@@ -70,9 +70,10 @@ namespace
     ProcSpell const kArcaneMissile = { 7268, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000000200000), 0 };
     ProcSpell const kArcaneBarrage = { 44425, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000800000000000), 0 };
     ProcSpell const kStarfire = { 2912, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_DRUID, UI64LIT(0x0000000000000004), 0 };
+    ProcSpell const kPolymorph = { 118, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000001000000), 0 };
 
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
-                                  kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire };
+                                  kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -140,6 +141,9 @@ namespace
                                                 PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
     SpellProcEventEntry const kArcaneMissilesProc = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000200800), 0,
                                                             PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+    /// Offensive State 79684 and Impact 11103: family 3, no mask, a hit or a crit with or without damage.
+    SpellProcEventEntry const kOffensiveState = ProcRow(0, SPELLFAMILY_MAGE, 0, 0,
+                                                        PROC_EX_HIT_WITHOUT_DAMAGE | PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
 
     /// The proc flags the aura answers: the row's, or Spell.dbc's when the row holds none.
     uint32 EventFlags(SpellProcEventEntry const* row, uint32 spellProcFlags)
@@ -244,4 +248,47 @@ TEST(SpellProcEventRows_MoltenArmorWithNoRowTakesTheSwingsThatHitAndNotTheOnesTh
     CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kMoltenArmorFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT, PROC_EX_DODGE));
     CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kMoltenArmorFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT, PROC_EX_MISS));
     CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kMoltenArmorFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT, PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_HitKindAcceptedKeepsTodaysAnswersForRowsWithoutTheBit)
+{
+    // No extra requirement: a hit or a crit that dealt damage or healed, or a cast end.
+    CHECK(!SpellMgr::HitKindAccepted(PROC_EX_NONE, PROC_EX_NORMAL_HIT, false));
+    CHECK(SpellMgr::HitKindAccepted(PROC_EX_NONE, PROC_EX_NORMAL_HIT, true));
+    CHECK(SpellMgr::HitKindAccepted(PROC_EX_NONE, PROC_EX_CRITICAL_HIT, true));
+    CHECK(SpellMgr::HitKindAccepted(PROC_EX_NONE, PROC_EX_CAST_END, false));
+    CHECK(!SpellMgr::HitKindAccepted(PROC_EX_NONE, PROC_EX_MISS, true));
+
+    // An extra requirement without the bit: a hit it asks for must have dealt damage or healed.
+    uint32 const hits = PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT;
+    CHECK(!SpellMgr::HitKindAccepted(hits, PROC_EX_NORMAL_HIT, false));
+    CHECK(SpellMgr::HitKindAccepted(hits, PROC_EX_NORMAL_HIT, true));
+    CHECK(SpellMgr::HitKindAccepted(PROC_EX_CRITICAL_HIT, PROC_EX_NORMAL_HIT, false));
+    CHECK(SpellMgr::HitKindAccepted(PROC_EX_RESIST, PROC_EX_RESIST, false));
+}
+
+TEST(SpellProcEventRows_HitKindAcceptedTakesAHitWithoutDamageWhenTheRowHasTheBit)
+{
+    uint32 const row = PROC_EX_HIT_WITHOUT_DAMAGE | PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT;
+    CHECK_EQ(row, uint32(0x4003));
+    CHECK(SpellMgr::HitKindAccepted(row, PROC_EX_NORMAL_HIT, false));
+    CHECK(SpellMgr::HitKindAccepted(row, PROC_EX_NORMAL_HIT, true));
+    CHECK(SpellMgr::HitKindAccepted(row, PROC_EX_CRITICAL_HIT, false));
+    CHECK(!SpellMgr::HitKindAccepted(row, PROC_EX_MISS, false));
+    CHECK(!SpellMgr::HitKindAccepted(row, PROC_EX_RESIST, false));
+    CHECK(!SpellMgr::HitKindAccepted(row, PROC_EX_IMMUNE, false));
+    CHECK(!SpellMgr::HitKindAccepted(row, PROC_EX_REFLECT, false));
+}
+
+TEST(SpellProcEventRows_OffensiveStateTakesEveryMageHitWithOrWithoutDamageAndNoMiss)
+{
+    CHECK(PassesGate(kOffensiveState, kPolymorph, PROC_EX_NORMAL_HIT));
+    CHECK(PassesGate(kOffensiveState, kFireball, PROC_EX_NORMAL_HIT));
+    CHECK(PassesGate(kOffensiveState, kFireball, PROC_EX_CRITICAL_HIT));
+    CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_MISS));
+    CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_RESIST));
+    CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_IMMUNE));
+    CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_REFLECT));
+    CHECK(!PassesGate(kOffensiveState, kFireball, PROC_EX_CAST_END));
+    CHECK(!PassesGate(kOffensiveState, kStarfire, PROC_EX_NORMAL_HIT));
 }

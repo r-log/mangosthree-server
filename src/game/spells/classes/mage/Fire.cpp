@@ -488,6 +488,18 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), &ctx.caster));
     }
 
+    /// 11103, 12357: Impact: the proc rolls on the caster's damaging spells only: a hit of a spell with no damage effect
+    /// of its own (Slow, Polymorph, Counterspell, Deep Freeze) is refused; Living Bomb's cast, whose rows hold its
+    /// damage over time, is accepted.
+    SpellHandlerOutcome<bool> ImpactCheckProc(CheckProcContext& ctx)
+    {
+        if (ctx.procSpell && !Spells::DealsDamage(*ctx.procSpell))
+        {
+            return SpellHandlerOutcome<bool>::Return(false);
+        }
+        return SpellHandlerOutcome<bool>::Continue();
+    }
+
     /// The caster's DoTs Impact copies, in the order it copies them: Pyroblast (11366), Pyroblast! (92315), Living Bomb
     /// (44457), Ignite (12654) and Combustion (83853).
     uint32 const IMPACT_SPREAD_DOTS[] = { 11366, 92315, 44457, 12654, 83853 };
@@ -754,6 +766,7 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AuraRemoveHook>(registry, PYROMANIAC, &PyromaniacTalentRemove);
     rows += RegisterRanks<DummyEffectHook>(registry, COMBUSTION, &CombustionEffect);
     rows += RegisterRanks<OnProcHook>(registry, IMPACT, &ImpactProc);
+    rows += RegisterRanks<CheckProcHook>(registry, IMPACT, &ImpactCheckProc);
     rows += RegisterRanks<DummyEffectHook>(registry, IMPACT_SPREAD, &ImpactSpreadEffect);
     rows += RegisterRanks<AfterCastHook>(registry, BLAST_WAVE, &BlastWaveAfterCast);
     return rows;

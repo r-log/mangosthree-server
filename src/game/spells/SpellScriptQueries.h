@@ -90,6 +90,15 @@ namespace Spells
      * resilience.
      */
     float DamageTakenMultiplier(Unit& victim, Unit const& caster, SpellEntry const& spell);
+
+    /**
+     * @brief Whether the spell's own rows deal damage.
+     *
+     * A SCHOOL_DAMAGE, WEAPON_DAMAGE, WEAPON_DAMAGE_NOSCHOOL, WEAPON_PERCENT_DAMAGE, NORMALIZED_WEAPON_DMG, HEALTH_LEECH
+     * or ENVIRONMENTAL_DAMAGE effect, or a PERIODIC_DAMAGE, PERIODIC_DAMAGE_PERCENT or PERIODIC_LEECH aura. A spell that
+     * only triggers another is not counted by what it triggers.
+     */
+    bool DealsDamage(SpellEntry const& spell);
 }
 
 /// The script word of effect `eff` of the first holder of `spellId` on `unit` that is not deleted, whoever cast it;

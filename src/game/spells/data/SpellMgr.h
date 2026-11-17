@@ -1022,7 +1022,9 @@ enum ProcFlagsEx
     /// Melee hit result can be Interrupt (not used)
     PROC_EX_INTERRUPT           = 0x0001000,
     PROC_EX_FULL_BLOCK          = 0x0002000,                // block al attack damage
-    PROC_EX_RESERVED2           = 0x0004000,
+    /// A row with this bit counts a hit (normal or critical) that dealt no damage and healed nothing as a hit; misses,
+    /// resists, dodges, parries, blocks, evades, immunes, deflects and reflects are still refused.
+    PROC_EX_HIT_WITHOUT_DAMAGE  = 0x0004000,
     PROC_EX_RESERVED3           = 0x0008000,
     /// If set trigger always ( no matter another flags) used for drop charges
     PROC_EX_EX_TRIGGER_ALWAYS   = 0x0010000,
@@ -1355,6 +1357,11 @@ class SpellMgr
         }
 
         static bool IsSpellProcEventCanTriggeredBy(SpellProcEventEntry const* spellProcEvent, uint32 EventProcFlag, SpellEntry const* procSpell, uint32 procFlags, uint32 procExtra);
+
+        /// Whether a proc effect without a class mask accepts the event: with no extra requirement, a normal or critical hit
+        /// that dealt damage or healed, or a cast end; with one, a hit or crit the row asks for that dealt damage or healed,
+        /// or, when the row carries PROC_EX_HIT_WITHOUT_DAMAGE, one that did not.
+        static bool HitKindAccepted(uint32 eventProcEx, uint32 procEx, bool active);
 
         // Spell bonus data
         SpellBonusEntry const* GetSpellBonusData(uint32 spellId) const
