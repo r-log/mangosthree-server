@@ -397,7 +397,7 @@ namespace
                 Drop();
             }
 
-            // Holds `spell`'s effect 0, a MOD_DAMAGE_PERCENT_TAKEN aura.
+            // Holds `spell`'s effect 0, a MOD_DAMAGE_PERCENT_TAKEN or MOD_AOE_DAMAGE_AVOIDANCE aura.
             void Hold(SpellEntry const* spell)
             {
                 SpellAuraHolder* holder = new SpellAuraHolder(spell, this, NULL, NULL, NULL);
@@ -409,6 +409,7 @@ namespace
             void Drop()
             {
                 m_auras.ByType(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN).clear();
+                m_auras.ByType(SPELL_AURA_MOD_AOE_DAMAGE_AVOIDANCE).clear();
                 for (SpellAuraHolder* holder : m_held)
                 {
                     delete holder;
@@ -422,7 +423,8 @@ namespace
 
     // Puts a MOD_DAMAGE_PERCENT_TAKEN spell of `amount` percent over the school mask `schools` into the spell and effect
     // stores once.
-    SpellEntry const* StoreTakenAura(StoredClassScript& rows, uint32 spellId, int32 amount, int32 schools)
+    SpellEntry const* StoreTakenAura(StoredClassScript& rows, uint32 spellId, int32 amount, int32 schools,
+                                     AuraType auraType = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN)
     {
         if (rows.spell.Entry().ID == spellId)
         {
@@ -432,7 +434,7 @@ namespace
         rows.spell.effect.SpellID = spellId;
         rows.spell.effect.EffectIndex = EFFECT_INDEX_0;
         rows.spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
-        rows.spell.effect.EffectAura = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
+        rows.spell.effect.EffectAura = auraType;
         rows.spell.effect.EffectBasePoints = amount;
         rows.spell.effect.EffectMiscValue_0 = schools;
         rows.spell.effect.ImplicitTarget_0 = TARGET_SELF;
@@ -1405,4 +1407,40 @@ TEST(SpellScriptHooks_DamageTakenMultiplierIsTheProductOfTheVictimsPercentAurasF
 
     victim.Drop();
     CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, fireball), 1.0f));
+}
+
+TEST(SpellScriptHooks_DamageTakenMultiplierTakesAreaAvoidanceForAnAreaRowOnly)
+{
+    static StoredClassScript avoidanceRows;
+    static StoredClassScript areaRows;
+    static StoredClassScript singleRows;
+    SpellEntry const* avoidance = StoreTakenAura(avoidanceRows, 94315, -50, 0x7e, SPELL_AURA_MOD_AOE_DAMAGE_AVOIDANCE);
+
+    // A fire row whose effect 0 targets every enemy in an area (Blast Wave's), and one that targets a single enemy.
+    auto storeFireRow = [](StoredClassScript& rows, uint32 spellId, Targets target) -> SpellEntry const&
+    {
+        if (rows.spell.Entry().ID != spellId)
+        {
+            rows.spell.Entry().ID = spellId;
+            rows.spell.Entry().SchoolMask = SPELL_SCHOOL_MASK_FIRE;
+            rows.spell.effect.SpellID = spellId;
+            rows.spell.effect.EffectIndex = EFFECT_INDEX_0;
+            rows.spell.effect.ImplicitTarget_0 = target;
+            sSpellStore.SetEntry(spellId, &rows.spell.Entry());
+            AddSpellEffectEntry(&rows.spell.effect);
+        }
+        return rows.spell.Entry();
+    };
+    SpellEntry const& blastWave = storeFireRow(areaRows, 94316, TARGET_ALL_ENEMY_IN_AREA_INSTANT);
+    SpellEntry const& ignite = storeFireRow(singleRows, 94317, TARGET_CHAIN_DAMAGE);
+
+    BareCreature caster;
+    TakenAuraVictim victim;
+    victim.Hold(avoidance);
+
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, blastWave), 0.5f));
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, ignite), 1.0f));
+
+    victim.Drop();
+    CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, blastWave), 1.0f));
 }
