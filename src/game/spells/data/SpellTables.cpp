@@ -24,6 +24,7 @@
  */
 
 #include "spells/data/SpellTables.h"
+#include "data/dbc/SharedDefines.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -313,6 +314,7 @@ namespace
     /// a cast of that unit's own does.
     constexpr uint32 PROC_STARTING_TRIGGERED_CASTS[] =
     {
+        34913,  // Molten Armor's hit, cast by the armor's aura at the unit that struck the mage
         44461,  // Living Bomb's explosion, cast for the mage by the bomb's aura when it runs out
     };
 
@@ -758,6 +760,11 @@ bool MayTargetTaxiFlyer(uint32 spellId)
 bool TriggeredCastStartsProcs(uint32 spellId)
 {
     return Holds(PROC_STARTING_TRIGGERED_CASTS, spellId);
+}
+
+bool DamageBreaksAuras(uint32 attributesEx4)
+{
+    return !(attributesEx4 & SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC);
 }
 
 uint32 AuraTargetLimit(uint32 spellId)

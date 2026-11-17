@@ -301,18 +301,19 @@ TEST(SpellTables_TheAuraTargetLimitsAreTheTablesRowsAndNoOther)
     }
 }
 
-TEST(SpellTables_LivingBombsExplosionIsTheOneTriggeredCastThatStartsProcs)
+TEST(SpellTables_LivingBombsExplosionAndMoltenArmorsHitAreTheTriggeredCastsThatStartProcs)
 {
-    // Living Bomb's explosion, which the bomb's aura casts when it runs out
+    // Living Bomb's explosion, which the bomb's aura casts when it runs out, and Molten Armor's hit
     CHECK(TriggeredCastStartsProcs(44461));
+    CHECK(TriggeredCastStartsProcs(34913));
 
     // Living Bomb itself, Ignite's DoT, Fire Power's explosion, Flame Orb's hit and an id no table holds do not
-    for (uint32 spellId : { 44457u, 12654u, 83619u, 82739u, 12345u, 0u })
+    for (uint32 spellId : { 44457u, 12654u, 83619u, 82739u, 30482u, 12345u, 0u })
     {
         CHECK(!TriggeredCastStartsProcs(spellId));
     }
 
-    // The table holds exactly its one row
+    // The table holds exactly its two rows
     uint32 rows = 0;
     for (uint32 spellId = 0; spellId < 1000000; ++spellId)
     {
@@ -321,7 +322,16 @@ TEST(SpellTables_LivingBombsExplosionIsTheOneTriggeredCastThatStartsProcs)
             ++rows;
         }
     }
-    CHECK_EQ(rows, uint32(1));
+    CHECK_EQ(rows, uint32(2));
+}
+
+TEST(SpellTables_DamageOfAReactiveDamageProcDoesNotBreakAuras)
+{
+    CHECK(!DamageBreaksAuras(SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC));
+    CHECK(!DamageBreaksAuras(0xc080));
+    CHECK(DamageBreaksAuras(0));
+    CHECK(DamageBreaksAuras(0x8080));
+    CHECK(DamageBreaksAuras(~uint32(SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC)));
 }
 
 TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
