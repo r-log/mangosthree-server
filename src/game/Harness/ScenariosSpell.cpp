@@ -11882,12 +11882,12 @@ namespace Harness
      * three levels above it. The mage is staged as 957 stages him and holds Don't Miss! (73411, +100 spell hit and
      * +100 hit), which keeps him at his spell hit cap; the Camel is level 88 and holds nothing; the pet is built
      * kPetOffset yards to his side after he is staged and holds nothing of its own. Twenty steps, one every 3 s: the
-     * pet casts Waterbolt at the Camel. S945 `mage-pet-owner-hit-uncapped` is the same without Don't Miss!.
+     * pet casts Waterbolt at the Camel. S946 `mage-pet-owner-hit-uncapped` is the same without Don't Miss!.
      *
      * `petHit`: `misses=<casts whose SPELL_GO lists the Camel as missed>/<casts seen>,owner=<his spell hit field>,
      * pet=<the pet's spell hit field>,share=<the spell hit of Combat::OwnerShareOf(pet)>/<its expertise>`; OK when
-     * every one of the twenty casts was seen, the owner's field is 100 (S945: under the spell cap), the pet's own field
-     * is 0 and the share is the spell cap of 17 with 650 expertise and no cast missed (S945: the owner's hit in
+     * every one of the twenty casts was seen, the owner's field is 100 (S946: under the spell cap), the pet's own field
+     * is 0 and the share is the spell cap of 17 with 650 expertise and no cast missed (S946: the owner's hit in
      * proportion, and no miss is asked of it): the owner's hit is read at each roll, not copied into the pet.
      */
     class MageFrostPetOwnerHit : public MageFrostIceLance
@@ -11972,12 +11972,12 @@ namespace Harness
     /**
      * S944 `mage-fire-flame-orb-owner-hit`: 971's mage and orb with the Camel at level 88 holding no Hit Me and the mage
      * holding Don't Miss! (73411, +100 spell hit and +100 hit), so he is at his spell hit cap. One step: Flame Orb under
-     * the crit aura, kStepMs to the end. S946 `mage-fire-flame-orb-owner-hit-uncapped` is the same without Don't Miss!.
+     * the crit aura, kStepMs to the end. S947 `mage-fire-flame-orb-owner-hit-uncapped` is the same without Don't Miss!.
      *
      * `orbHit`: `goes=<SPELL_GO of the orb's hit>,misses=<of them listing the Camel as missed>,hits=<its damage logs on
      * the Camel>,owner=<his spell hit field>,share=<the spell hit of Combat::OwnerShareOf(orb)>/<its expertise>`; OK
-     * when there are kOrbHits goes and hits, the owner's field is 100 (S946: under the spell cap) and the share is the
-     * spell cap of 17 with 650 expertise and no hit missed (S946: the owner's hit in proportion, and no miss is asked
+     * when there are kOrbHits goes and hits, the owner's field is 100 (S947: under the spell cap) and the share is the
+     * spell cap of 17 with 650 expertise and no hit missed (S947: the owner's hit in proportion, and no miss is asked
      * of it): the orb rolls with its summoner's hit as of its summon.
      */
     class MageFireFlameOrbOwnerHit : public MageFireFlameOrb
@@ -12124,7 +12124,7 @@ namespace Harness
         r.Register(new MageFireShareBeforeTaken());
         r.Register(new MageFrostPetOwnerHit());
         r.Register(new MageFireFlameOrbOwnerHit());
-        r.Register(new MageFrostPetOwnerHit("mage-pet-owner-hit-uncapped", 945, false));
-        r.Register(new MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit-uncapped", 946, false));
+        r.Register(new MageFrostPetOwnerHit("mage-pet-owner-hit-uncapped", 946, false));
+        r.Register(new MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit-uncapped", 947, false));
     }
 }
