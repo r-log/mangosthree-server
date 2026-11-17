@@ -348,6 +348,73 @@ TEST(SpellTables_DamageOfAReactiveDamageProcDoesNotBreakAuras)
     CHECK(DamageBreaksAuras(~uint32(SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC)));
 }
 
+namespace
+{
+    // the aura interrupt flags of Polymorph (118), Wyvern Sting (19386) and Ring of Frost (82691), SpellInterrupts.dbc
+    const uint32 kPolymorphFlags = 0x08080000;
+    const uint32 kWyvernStingFlags = 0x00480002;
+    const uint32 kRingOfFrostFlags = 0x08480000;
+    // the Ex4 attributes of Molten Armor's hit (34913), Spell.dbc
+    const uint32 kMoltenArmorHitEx4 = 0xc080;
+}
+
+TEST(SpellTables_PolymorphBreaksOnAnyDamageThatGetsThrough)
+{
+    // a direct hit or a periodic tick that deals damage
+    CHECK(BreaksOnDamageProc(1, true, 0, false, 0, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(BreaksOnDamageProc(355, true, 0, false, 0x8080, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+
+    // a hit the absorbs take whole, or one that deals nothing
+    CHECK(!BreaksOnDamageProc(0, true, 0, false, 0, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(!BreaksOnDamageProc(0, false, 0, false, 0, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+
+    // a heal is not damage taken, whatever its amount
+    CHECK(!BreaksOnDamageProc(5000, false, 0, false, 0, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+
+    // Molten Armor's hit and any other reactive damage proc
+    CHECK(!BreaksOnDamageProc(244, true, 0, false, kMoltenArmorHitEx4, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(!BreaksOnDamageProc(244, true, 0, false, SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC, kPolymorphFlags,
+                              SPELL_AURA_MOD_CONFUSE));
+
+    // the aura's own spell
+    CHECK(!BreaksOnDamageProc(500, true, 0, true, 0, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+}
+
+TEST(SpellTables_AConfuseWithChargesKeepsItsChargeModel)
+{
+    // Dragon's Breath (one charge): the charge goes on the hit, not this rule
+    CHECK(!BreaksOnDamageProc(500, true, 1, false, 0, 0, SPELL_AURA_MOD_CONFUSE));
+    CHECK(!BreaksOnDamageProc(500, true, 2, false, 0, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+}
+
+TEST(SpellTables_AStunBreaksOnDamageOnlyWhenItsInterruptFlagsSaySo)
+{
+    // Wyvern Sting: "Any damage will cancel the effect"
+    CHECK(BreaksOnDamageProc(500, true, 0, false, 0, kWyvernStingFlags, SPELL_AURA_MOD_STUN));
+    CHECK(BreaksOnDamageProc(500, true, 0, false, 0, AURA_INTERRUPT_FLAG_DAMAGE, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnDamageProc(0, true, 0, false, 0, kWyvernStingFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnDamageProc(500, true, 0, false, kMoltenArmorHitEx4, kWyvernStingFlags, SPELL_AURA_MOD_STUN));
+
+    // Ring of Frost (no AURA_INTERRUPT_FLAG_DAMAGE, no charges) and a stun with no flags at all
+    CHECK(!BreaksOnDamageProc(500, true, 0, false, 0, kRingOfFrostFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnDamageProc(500, true, 0, false, 0, 0, SPELL_AURA_MOD_STUN));
+
+    // Gouge and Repentance (one charge) keep their charge
+    CHECK(!BreaksOnDamageProc(500, true, 1, false, 0, AURA_INTERRUPT_FLAG_DAMAGE, SPELL_AURA_MOD_STUN));
+}
+
+TEST(SpellTables_NoOtherAuraTypeBreaksOnAnyDamage)
+{
+    // Polymorph's and Hex's transform, Hex's pacify-silence, a fear and a root: none breaks through this rule
+    for (uint32 auraType : { uint32(SPELL_AURA_TRANSFORM), uint32(SPELL_AURA_MOD_PACIFY_SILENCE),
+                             uint32(SPELL_AURA_MOD_FEAR), uint32(SPELL_AURA_MOD_ROOT), uint32(SPELL_AURA_MOD_PACIFY),
+                             uint32(SPELL_AURA_NONE) })
+    {
+        CHECK(!BreaksOnDamageProc(500, true, 0, false, 0, kPolymorphFlags, auraType));
+        CHECK(!BreaksOnDamageProc(500, true, 0, false, 0, kWyvernStingFlags, auraType));
+    }
+}
+
 TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
 {
     CHECK_EQ(GetArcanePotencyProcSpell(31571), uint32(57529));
