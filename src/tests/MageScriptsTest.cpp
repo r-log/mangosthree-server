@@ -1362,10 +1362,11 @@ TEST(MageScripts_CombustionTickIsThePerSecondSumWithIgnitesShareBeforeMastery)
     Mage::DotShare const ignite = { 2000, 2000 };
     CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &ignite), int32(1400));
 
-    // Ignite's share is the rolled tick before its mastery, so the engine's Flashburn on 83853 reaches it once, at the
-    // mastery of the cast: Ignite rolled at 1.0 and Combustion cast at 1.224 give 1400 x 1.224 whatever the mastery
-    // was when Ignite hit.
-    CHECK_EQ(int32(double(Mage::CombustionTick(pyroblastAndBomb, 2, &ignite)) * 1.224), int32(1713));
+    // Ignite's share is its tick before mastery and is not divided by a held mastery: an Ignite that hit at 1.224
+    // still gives 1400, not 1000 / 1.224 + 400, so the engine's Flashburn on 83853 reaches it once, at the cast.
+    Mage::DotShare igniteHitAtMastery = { 2000, 2000 };
+    igniteHitAtMastery.heldMastery = 1.224f;
+    CHECK_EQ(Mage::CombustionTick(pyroblastAndBomb, 2, &igniteHitAtMastery), int32(1400));
 
     // A hasted Pyroblast ticks every 2400 ms, so it gives more a second: 1000 + 208.33 + 233.33 = 1441.67, truncated
     // once after the sum.
@@ -1474,7 +1475,7 @@ TEST(MageScripts_CombustionTickBuildsLivingBombAndPyroblastFromSpellPowerAndMast
     CHECK_EQ(Mage::CombustionTick(divided, 1, NULL), int32(408));
 }
 
-TEST(MageScripts_CombustionTickOverTheUnhastedPeriodIsTheSameAtEveryHaste)
+TEST(MageScripts_CombustionTickOverTheUnhastedPeriodNotTheHastedOne)
 {
     // Each share is over the spell's own 3000 ms, whatever period a hasted aura ticks at: 900 and 1500 over 3 s.
     Mage::DotShare const unhasted[] = { { 900, 3000 }, { 1500, 3000 } };

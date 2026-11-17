@@ -262,8 +262,9 @@ namespace
     /// at the target's low health (Molten Fury) that the done damage of a DoT lacks. Frostfire Bolt's and Ignite's
     /// parts are the ticks the auras hold before the caster's mastery, over the period the aura holds. The engine
     /// applies the caster's Flashburn once to the new DoT, so every part holds it once: the rebuilt parts are divided
-    /// by it, the parts held before mastery are not. Flamestrike is not combined, nor is a holder with no time left. With nothing to combine the DoT is still applied, with a tick of 0. The script ends the effect, so the
-    /// mage family switch, which has nothing for 11129, does not run.
+    /// by it, the parts held before mastery are not. Flamestrike is not combined, nor is a holder with no time left.
+    /// With nothing to combine the DoT is still applied, with a tick of 0. The script ends the effect, so the mage
+    /// family switch, which has nothing for 11129, does not run.
     SpellHandlerOutcome<void> CombustionEffect(DummyEffectContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.target)

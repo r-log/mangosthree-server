@@ -12553,8 +12553,9 @@ namespace Harness
      * it), and the tick is that sum taken through 83853's done damage (SpellDamageBonusDone, which gives F once) and the
      * Camel's damage-taken effects, within one. `moves` are the seconds' damage the Ignite and the glyph parts move
      * between the two masteries: I x (F - F0) / 2 and G x (F - F0) / g, so a part left at the mastery of its hit shows.
-     * OK when mastery rose, both moves are at least kMinMove, every 83853 tick is the first and in the band, there are
-     * at least nine of them and none crit. BUG with the values in the detail otherwise.
+     * F0 is the Flashburn at the hits. OK when mastery rose, I x F0 and G x F0 are each the tick its aura stores within
+     * one (so I and G hold no mastery), both moves are at least kMinMove, every 83853 tick is the first and in the band,
+     * there are at least nine of them and none crit. BUG with the values in the detail otherwise.
      */
     class MageFireCombustionMasteryAtTheCast : public MageProcScenario
     {
@@ -12679,6 +12680,7 @@ namespace Harness
                 const uint32 done = p->SpellDamageBonusDone(target, combustionSpell, uint32(sum), DOT, 1);
                 Seen& seen = st.seen[k];
                 seen.reads["ignite"] = int64(igniteBase);
+                seen.reads["igniteStored"] = ignite->GetModifier()->m_amount;
                 seen.reads["glyph"] = int64(glyphBase);
                 seen.reads["glyphPeriod"] = int64(glyphPeriod);
                 seen.reads["glyphStored"] = glyph->GetModifier()->m_amount;
@@ -12734,8 +12736,21 @@ namespace Harness
             const int64 moveGlyph = Kept(st, kCombustionStep, "moveGlyph");
             const uint32 first = ticks.empty() ? 0 : ticks[0].first;
 
+            // each part's tick before its mastery, times the Flashburn at its hit, is the tick its aura stores
+            const double hitFlashburn = double(before) / 100000.0;
+            const int64 igniteBase = Kept(st, kCombustionStep, "ignite");
+            const int64 igniteStored = Kept(st, kCombustionStep, "igniteStored");
+            const int64 glyphBase = Kept(st, kCombustionStep, "glyph");
+            const int64 glyphStored = Kept(st, kCombustionStep, "glyphStored");
+            const int64 igniteAtHit = int64(double(igniteBase) * hitFlashburn);
+            const int64 glyphAtHit = int64(double(glyphBase) * hitFlashburn);
+            const bool baseIsStoredAtHit = igniteBase > 0 && glyphBase > 0 && igniteAtHit - igniteStored <= 1 &&
+                                           igniteStored - igniteAtHit <= 1 && glyphAtHit - glyphStored <= 1 &&
+                                           glyphStored - glyphAtHit <= 1;
+
             bool ok = st.steps.size() == 7 && before > 0 && after > before && low >= 0 && high >= low && ticks.size() >= 9 &&
-                      moveIgnite >= kMinMove && moveGlyph >= kMinMove && int64(first) >= low && int64(first) <= high;
+                      baseIsStoredAtHit && moveIgnite >= kMinMove && moveGlyph >= kMinMove && int64(first) >= low &&
+                      int64(first) <= high;
             std::string tickText;
             for (size_t t = 0; t < ticks.size(); ++t)
             {
@@ -12748,11 +12763,12 @@ namespace Harness
                                       std::to_string(after) + ",moves=" + std::to_string(moveIgnite) + "/" + std::to_string(moveGlyph);
             char buf[1024];
             snprintf(buf, sizeof(buf),
-                     "83853 ticks [%s]; Ignite before its mastery %lld, Pyroblast at the cast %lld, Frostfire %lld over %lld (stored %lld, %lld stacks); "
+                     "83853 ticks [%s]; Ignite before its mastery %lld (stored %lld), Pyroblast at the cast %lld, Frostfire %lld over %lld "
+                     "(stored %lld, %lld stacks); at the hits' Flashburn the Ignite part is %lld and the glyph part %lld; "
                      "the tick wanted is %lld..%lld; moving the masteries moves the Ignite part %lld and the glyph part %lld a second",
-                     tickText.c_str(), (long long)Kept(st, kCombustionStep, "ignite"), (long long)Kept(st, kCombustionStep, "pyroblast"),
-                     (long long)Kept(st, kCombustionStep, "glyph"), (long long)Kept(st, kCombustionStep, "glyphPeriod"),
-                     (long long)Kept(st, kCombustionStep, "glyphStored"), (long long)Kept(st, kCombustionStep, "stacks"), (long long)low,
+                     tickText.c_str(), (long long)igniteBase, (long long)igniteStored, (long long)Kept(st, kCombustionStep, "pyroblast"),
+                     (long long)glyphBase, (long long)Kept(st, kCombustionStep, "glyphPeriod"), (long long)glyphStored,
+                     (long long)Kept(st, kCombustionStep, "stacks"), (long long)igniteAtHit, (long long)glyphAtHit, (long long)low,
                      (long long)high, (long long)moveIgnite, (long long)moveGlyph);
             return value + (ok ? "(OK: " : "(BUG: ") + buf + ")";
         }
