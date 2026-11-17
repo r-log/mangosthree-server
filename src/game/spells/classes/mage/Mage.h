@@ -301,6 +301,11 @@ namespace Mage
     /// second rank, 2 for the first, 1 for neither. Defined in Frost.cpp.
     float ShatterFactor(bool knowsRankOne, bool knowsRankTwo);
 
+    /// The crit chance a hook leaves so that the engine, which then adds the spell's flat crit-chance modifiers
+    /// `flatMods`, ends at `factor` times the chance with them: (chance + flatMods) * factor - flatMods. Defined in
+    /// Frost.cpp.
+    float ShatterCritChance(float chance, float factor, float flatMods);
+
     /// Whether `spellId` is a mage spell Shatter's class mask covers: the ones that take its crit factor. Defined in
     /// Frost.cpp.
     bool ShatterCovers(uint32 spellId);

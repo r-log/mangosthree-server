@@ -28,19 +28,19 @@
 /// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// the frozen query, Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two
-/// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at the dummy aura hook, Pyromaniac's
-/// leaves (a Frostfire Bolt burning only with its periodic damage among them) and its rows at the aura-apply and
-/// aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with the auras of
-/// its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of its spread at the
-/// dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of Frostfire's
-/// hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's apply and its after-hit
-/// exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or creates an
-/// item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no
-/// map, template or AI), with the effect rows the scripts read added to the effect store as the client's data holds
-/// them, and a holder put in the creature's holder map where a script asks whether it holds an aura. The cooldown
-/// Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown sinks the test
-/// installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three auras
-/// whose apply and removal change nothing on the unit.
+/// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at
+/// the dummy aura hook, Pyromaniac's leaves (a Frostfire Bolt burning only with its periodic damage among them) and its
+/// rows at the aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's
+/// stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of
+/// its spread at the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook,
+/// Glyph of Frostfire's hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's
+/// apply and its after-hit exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a
+/// level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update
+/// fields allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the
+/// client's data holds them, and a holder put in the creature's holder map where a script asks whether it holds an
+/// aura. The cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown
+/// sinks the test installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of
+/// three auras whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -486,15 +486,15 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // The class-wide file: Invisibility at the trigger-spell site; Polymorph Cast Visual, Blink, Conjure Refreshment
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
-    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook,
-    // Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the aura-apply and
-    // aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the after-cast hook, and
-    // Frostfire Bolt at the after-hit hook. Frost: the 74396 boost and proc labels; the 22 spells Frostburn's mask covers at the damage-done hook and the 26
-    // Shatter's covers at the crit-chance hook. At
-    // the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity
-    // State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the
-    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact also at the check-proc hook. 116 rows,
-    // 113 keys and 3 defaults, none twice.
+    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura
+    // hook, Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the
+    // aura-apply and aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the
+    // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 74396 boost and proc labels; the 22 spells
+    // Frostburn's mask covers at the damage-done hook and the 26 Shatter's covers at the crit-chance hook. At the proc
+    // hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State
+    // and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the
+    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact also at the check-proc hook.
+    // 116 rows, 113 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
     CHECK_EQ(RegisterMageScripts(registry), uint32(116));
     CHECK_EQ(registry.Count(), std::size_t(113));
@@ -2294,6 +2294,15 @@ TEST(MageScripts_ShatterRaisesTheCritChanceOfASpellThatCountsItsTargetAsFrozen)
     CritChanceContext orb(rankTwo, victim, SpellRow(row, 82739), orbHit);
     CHECK(registry.Dispatch<CritChanceHook>(82739, orb).IsContinue());
     CHECK(Near(orbHit, 30.0f));
+
+    // The engine adds the spell's flat crit-chance modifiers after the hook, and Shatter multiplies them too: a sheet
+    // chance of 20 with Glyph of Frostbolt's 5 and the second rank leaves 70 at the hook and ends at 75; without the
+    // glyph it leaves 60. The first rank with the glyph ends at 50.
+    CHECK(Near(Mage::ShatterCritChance(20.0f, 3.0f, 5.0f), 70.0f));
+    CHECK(Near(Mage::ShatterCritChance(20.0f, 3.0f, 5.0f) + 5.0f, 75.0f));
+    CHECK(Near(Mage::ShatterCritChance(20.0f, 3.0f, 0.0f), 60.0f));
+    CHECK(Near(Mage::ShatterCritChance(20.0f, 2.0f, 5.0f) + 5.0f, 50.0f));
+    CHECK(Near(Mage::ShatterCritChance(20.0f, 1.0f, 5.0f), 20.0f));
 }
 
 TEST(MageScripts_FrostburnShatterAndIceLanceMultiplyTheDamageOnceEachForAFrozenTarget)

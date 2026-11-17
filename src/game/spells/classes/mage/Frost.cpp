@@ -24,6 +24,7 @@
  */
 
 #include "spells/classes/mage/Mage.h"
+#include "spells/SpellModMgr.h"
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "entities/Unit.h"
@@ -91,13 +92,20 @@ namespace
         return spell ? spell->CalculateSimpleValue(index) : 0;
     }
 
-    /// Every spell of SHATTER_SPELLS: Shatter multiplies the crit chance by its factor when the spell counts its target
-    /// as frozen.
+    /// Every spell of SHATTER_SPELLS: Shatter multiplies the whole crit chance by its factor when the spell counts its
+    /// target as frozen. The caster's flat crit-chance modifiers for the spell are added after this hook, so the chance
+    /// is raised to the factor times the chance with them, less them.
     SpellHandlerOutcome<void> FrostCritChance(CritChanceContext& ctx)
     {
         if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell) != Mage::NOT_FROZEN)
         {
-            ctx.critChance *= Mage::ShatterFactor(ctx.caster.HasAura(SHATTER_RANK_ONE), ctx.caster.HasAura(SHATTER_RANK_TWO));
+            float flatMods = 0.0f;
+            if (SpellModMgr* mods = ctx.caster.GetSpellMods())
+            {
+                mods->ApplySpellMod(ctx.spell.ID, SPELLMOD_CRITICAL_CHANCE, flatMods);
+            }
+            float const factor = Mage::ShatterFactor(ctx.caster.HasAura(SHATTER_RANK_ONE), ctx.caster.HasAura(SHATTER_RANK_TWO));
+            ctx.critChance = Mage::ShatterCritChance(ctx.critChance, factor, flatMods);
         }
         return SpellHandlerOutcome<void>::Continue();
     }
@@ -212,6 +220,11 @@ Mage::FrozenKind Mage::CountsAsFrozen(Unit const& caster, Unit const& target, Sp
 float Mage::ShatterFactor(bool knowsRankOne, bool knowsRankTwo)
 {
     return knowsRankTwo ? 3.0f : knowsRankOne ? 2.0f : 1.0f;
+}
+
+float Mage::ShatterCritChance(float chance, float factor, float flatMods)
+{
+    return (chance + flatMods) * factor - flatMods;
 }
 
 bool Mage::ShatterCovers(uint32 spellId)
