@@ -872,8 +872,9 @@ TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
     CHECK(outcome.IsReturn());
     CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
 
-    // A crit of Living Bomb's explosion, of a Flame Orb hit or of Fire Power's explosion is refused, by its id.
-    for (uint32 spellId : { 44461u, 82739u, 83619u })
+    // A crit of Molten Armor's hit, of Living Bomb's explosion, of a Flame Orb hit or of Fire Power's explosion is
+    // refused, by its id.
+    for (uint32 spellId : { 34913u, 44461u, 82739u, 83619u })
     {
         SpellRowStorage notIgniting;
         outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &SpellRow(notIgniting, spellId), PROC_EX_CRITICAL_HIT, 40,
