@@ -10036,8 +10036,6 @@ namespace Harness
                 { 82690, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 82734 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 104 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 82734: 26 fields, fnv af0731ee
                 { 82734, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
-                // 82733: 26 fields, fnv ba87eed9
-                { 82733, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82736: 26 fields, fnv 63cfd739
                 { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82739: 26 fields, fnv 47d44820
@@ -10396,8 +10394,6 @@ namespace Harness
                 { 82690, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 82734 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 104 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 82734: 26 fields, fnv af0731ee
                 { 82734, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
-                // 82733: 26 fields, fnv ba87eed9
-                { 82733, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82736: 26 fields, fnv 63cfd739
                 { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82739: 26 fields, fnv 47d44820
@@ -10558,8 +10554,6 @@ namespace Harness
                 { 82690, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 82734 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 104 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 82734: 26 fields, fnv af0731ee
                 { 82734, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
-                // 82733: 26 fields, fnv ba87eed9
-                { 82733, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82736: 26 fields, fnv 63cfd739
                 { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 82739: 26 fields, fnv 47d44820
@@ -11350,7 +11344,7 @@ namespace Harness
      * OK when t1 is int(t0 x 0.9) and t2 int(t1 x 0.9), one point either side, e is 0 with the list empty, he out of
      * combat and holding 32612; u1 and u2 follow u0 the same way, u3 (the second fade's own read, after the cancel)
      * equals u2, 66 and 32612 are gone, and he is in combat with the list not empty; the last threat update the client
-     * was sent through the first fade's second wait is above 0 and below t0, and the last of the whole record is above
+     * was sent through the first fade's second wait is above 0 and at most t1 + 1, and the last of the whole record is above
      * 0 and at most u1 + 1.
      */
     class MageFireInvisibilityFade : public MageProcScenario
@@ -11479,7 +11473,7 @@ namespace Harness
             const bool endOk = e == 0 && endEmpty == 1 && endCombat == 0 && endInvis == 1;
             const bool cancelOk = u0 > 0 && Near(u1, int64(u0 * 0.9)) && Near(u2, int64(u1 * 0.9)) && u3 == u2 && cancelFade == 0 &&
                                   cancelInvis == 0 && cancelCombat == 1 && cancelEmpty == 0;
-            const bool sentOk = sent1 > 0 && sent1 < t0 && sent2 > 0 && sent2 <= u1 + 1;
+            const bool sentOk = sent1 > 0 && sent1 <= t1 + 1 && sent2 > 0 && sent2 <= u1 + 1;
 
             Seen const& hit = st.seen[0];
             const std::string value = "fade=" + U(uint64(t0 < 0 ? 0 : t0)) + "," + U(uint64(t1 < 0 ? 0 : t1)) + "," + U(uint64(t2 < 0 ? 0 : t2)) +
@@ -11488,23 +11482,23 @@ namespace Harness
                                       U(uint64(u0 < 0 ? 0 : u0)) + "," + U(uint64(u1 < 0 ? 0 : u1)) + "," + U(uint64(u2 < 0 ? 0 : u2)) + "," +
                                       U(uint64(u3 < 0 ? 0 : u3)) + "," + U(uint64(cancelFade < 0 ? 0 : cancelFade)) + "," +
                                       U(uint64(cancelInvis < 0 ? 0 : cancelInvis)) + "," + U(uint64(cancelCombat < 0 ? 0 : cancelCombat)) +
-                                      ",sent=" +
-                                      U(uint64(sent1 < 0 ? 0 : sent1)) + "," + U(uint64(sent2 < 0 ? 0 : sent2));
+                                      ",sent=" + U(uint64(sent1 < 0 ? 0 : sent1)) + "," + U(uint64(sent2 < 0 ? 0 : sent2));
             char buf[1280];
             snprintf(buf, sizeof(buf),
                      "Fire Blast's hit %s %u and his threat after it %lld; each tick keeps 90%% of what the list held, one point either side "
                      "(fade %s: int(%lld x 0.9) = %lld wanted at the first wait, int(%lld x 0.9) = %lld at the second); after the expiry %lld "
                      "with the list %s, he %s and 32612 %s (%s); the cancelled fade: int(%lld x 0.9) = %lld wanted at the first wait, "
-                     "int(%lld x 0.9) = %lld at the second, %lld at the read of the fade it cancels, 66 %s, 32612 %s, he %s, the list %s (%s); the last SMSG_THREAT_UPDATE the client was sent by "
-                     "the second wait of the first fade carries %lld, wanted below %lld "
-                     "(%s), and by the end of the record %lld, wanted at most %lld (%s)",
+                     "int(%lld x 0.9) = %lld at the second, %lld at the read of the fade it cancels, 66 %s, 32612 %s, he %s, "
+                     "the list %s (%s); the last SMSG_THREAT_UPDATE the client was sent by "
+                     "the second wait of the first fade carries %lld, wanted at most %lld (%s), "
+                     "and by the end of the record %lld, wanted at most %lld (%s)",
                      hit.logRead ? "of" : "unread", hit.amount, (long long)t0, fadeOk ? "OK" : "BUG", (long long)t0, (long long)int64(t0 * 0.9),
                      (long long)t1, (long long)int64(t1 * 0.9), (long long)e, endEmpty == 1 ? "empty" : "not empty",
                      endCombat == 1 ? "in combat" : "out of combat", endInvis == 1 ? "held" : "gone", endOk ? "OK" : "BUG",
                      (long long)u0, (long long)int64(u0 * 0.9), (long long)u1, (long long)int64(u1 * 0.9), (long long)u3,
                      cancelFade == 1 ? "held" : "gone", cancelInvis == 1 ? "held" : "gone", cancelCombat == 1 ? "in combat" : "out of combat",
                      cancelEmpty == 1 ? "empty" : "not empty", cancelOk ? "OK" : "BUG",
-                     (long long)sent1, (long long)t0, (sent1 > 0 && sent1 < t0) ? "OK" : "BUG", (long long)sent2, (long long)u1 + 1,
+                     (long long)sent1, (long long)t1 + 1, (sent1 > 0 && sent1 <= t1 + 1) ? "OK" : "BUG", (long long)sent2, (long long)u1 + 1,
                      (sent2 > 0 && sent2 <= u1 + 1) ? "OK" : "BUG");
             return value + ((fadeOk && endOk && cancelOk && sentOk) ? "(OK: " : "(BUG: ") + buf + ")";
         }
