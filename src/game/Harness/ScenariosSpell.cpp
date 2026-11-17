@@ -130,8 +130,9 @@
 // neither, and Living Bomb's cast rolls Impact.
 // 943 a hit-capped Frost mage's Water Elemental casts twenty Waterbolts at a Camel three levels above it and none
 // misses; 944 a hit-capped Fire mage's Flame Orb hits a Camel three levels above it fifteen times and none misses;
-// 946 and 947 are the same without the hit, with the pet's and the orb's share in proportion. 992 a staged Frost mage's
-// Ice Lance does double damage to a Camel that Frost Nova froze, and 2000 rolls of Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
+// 946 and 947 are the same with a hit rating below the cap, with the pet's and the orb's share in proportion. 992 a
+// staged Frost mage's Ice Lance does double damage to a Camel that Frost Nova froze, and 2000 rolls of
+// Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
 // sheet chance and Glyph of Frostbolt's 5 together.
 // The guard of 931-938, 941-945, 946, 947, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
@@ -3970,13 +3971,15 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 948, 951, 952, 954-957, 962-978, 980-992): a human mage staged to level 85
-     * with the scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the
-     * scenario does to him once staged (AfterStage), and a Camel (50249) staged to level 85 ten yards in front of him
-     * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
+     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-992): a human
+     * mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings and spells
+     * (Scenario::StagePlayer), then whatever the scenario does to him once staged (AfterStage), then the pet the
+     * scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85 unless the scenario sets its
+     * own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
-     *    a hit aura), that aura put on him by a triggered self-cast when he does not hold it; his mana set to its
-     *    maximum by call; for a step that must crit, Increased Critical Spell (23434, a spell crit chance aura) put on
+     *    a hit aura), that aura put on him when he does not hold it, by a triggered self-cast or, when CasterAuraPut()
+     *    is set, without a cast; his mana set to its maximum by call; for a step that must crit, Increased Critical
+     *    Spell (23434, a spell crit chance aura) put on
      *    him at kCritAuraPoints by a triggered self-cast, and for one that must not, taken off him by call, or put on
      *    him at NonCritAuraPoints() when the scenario names such points (a holder of 23434 at other points is taken off
      *    first); then the spell cast at the Camel through the CAST_SPELL handler's calls. One every CastEveryMs()
@@ -3991,6 +3994,7 @@ namespace Harness
      *    on; a cast as the client (`asClient`) is sent as the client's CMSG_CAST_SPELL to the CAST_SPELL handler itself
      *    (CastAsClient), so the spell the server casts is the one the handler chooses, and the record reads the step's
      *    cast from the packets that carry its cast count;
+     *  - a pet cast (PetCast): the step's spell cast by the pet the scenario named;
      *  - a self aura: the step's spell cast by him at himself, triggered, with nothing put on him first;
      *  - a swing: his health set to SwingHealth() by call (his maximum unless the scenario names one), then the Camel's
      *    melee swing at him (Unit::AttackerStateUpdate). One every kSwingEveryMs, read kSwingReadMs after;
@@ -12250,6 +12254,14 @@ namespace Harness
         bool CasterAuraPut() const override { return true; }
         uint32 TargetLevel() const override { return kTargetLevel; }
         uint32 PetEntry() const override { return kWaterElemental; }
+
+        void AfterStage(Player& p) override
+        {
+            if (!m_capped)
+            {
+                p.ApplyRatingMod(CR_HIT_SPELL, kHitRating, true);
+            }
+        }
         uint32 CastReadMs() const override { return kPetCastReadMs; }
 
         std::string Own(St const& st) const override
@@ -12276,7 +12288,7 @@ namespace Harness
             const int32 wantExpertise = m_capped ? 650 : Combat::InheritedExpertise(owner, caps.spell);
             char buf[160];
             snprintf(buf, sizeof(buf), "misses=%u/%u,owner=%.0f,pet=%.0f,share=%.2f/%d", missed, seen, owner, pet, share.spell, share.expertise);
-            const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
+            const bool ownerOk = m_capped ? owner == 100.0f : (owner > 0.0f && owner < caps.spell);
             const bool shareOk = std::fabs(share.spell - wantShare) < 0.005f && share.expertise == wantExpertise;
             const bool ok = seen == kCasts && (!m_capped || missed == 0) && ownerOk && pet == 0.0f && shareOk;
             return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
@@ -12288,6 +12300,7 @@ namespace Harness
         static constexpr uint32 kDontMiss = 73411;
         static constexpr uint32 kWaterElemental = 510;
         static constexpr uint32 kTargetLevel = 88;
+        static constexpr int32 kHitRating = 820;
         static constexpr uint32 kPetCastEveryMs = 3000;
         static constexpr uint32 kPetCastReadMs = 2900;
 
@@ -12334,6 +12347,14 @@ namespace Harness
         uint32 CasterAura() const override { return m_capped ? kDontMiss : 0; }
         bool CasterAuraPut() const override { return true; }
 
+        void AfterStage(Player& p) override
+        {
+            if (!m_capped)
+            {
+                p.ApplyRatingMod(CR_HIT_SPELL, kHitRating, true);
+            }
+        }
+
         std::string Own(St const& st) const override
         {
             Trace::Roles const& roles = m_rec.Roles();
@@ -12378,7 +12399,7 @@ namespace Harness
             char buf[160];
             snprintf(buf, sizeof(buf), "goes=%u,misses=%u,hits=%u,owner=%.0f,share=%.2f/%d", goes, missed, hits, owner, m_orbShare.spell,
                      m_orbShare.expertise);
-            const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
+            const bool ownerOk = m_capped ? owner == 100.0f : (owner > 0.0f && owner < caps.spell);
             const bool shareOk = std::fabs(m_orbShare.spell - wantShare) < 0.005f && m_orbShare.expertise == wantExpertise;
             const bool ok = goes == kOrbHits && (!m_capped || missed == 0) && hits + missed == kOrbHits && ownerOk && shareOk;
             return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
@@ -12388,6 +12409,7 @@ namespace Harness
         static constexpr uint32 kOrbHit = 82739;
         static constexpr uint32 kDontMiss = 73411;
         static constexpr uint32 kTargetLevel = 88;
+        static constexpr int32 kHitRating = 820;
         static constexpr uint32 kOrbHits = 15;
 
         bool m_capped;
