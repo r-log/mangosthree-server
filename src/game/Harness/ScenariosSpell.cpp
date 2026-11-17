@@ -124,6 +124,8 @@
 // drops the mage from the list, and a cancelled fade keeps what its ticks took; 978 a Fire mage's Combustion under 35%
 // health ticks with the Molten Fury of the Pyroblast DoT it combines; 941 Ignite and Glyph of Frostfire's DoT take their
 // share of a hit before the target's damage-taken effects, on a Camel under Curse of the Elements and on a bare one.
+// 945 Combustion builds its Living Bomb and Pyroblast shares from the mage's spell power and mastery at the cast, over the
+// DoTs' unhasted period, with Flashburn once in each share and the Camel's damage-taken effects once in the tick.
 // 942 a staged Fire mage's Slow and Polymorph hits roll Arcane Missiles! and never Impact, a Slow that misses rolls
 // neither, and Living Bomb's cast rolls Impact.
 // 943 a hit-capped Frost mage's Water Elemental casts twenty Waterbolts at a Camel three levels above it and none
@@ -131,7 +133,7 @@
 // 946 and 947 are the same without the hit, with the pet's and the orb's share in proportion. 992 a staged Frost mage's
 // Ice Lance does double damage to a Camel that Frost Nova froze, and 2000 rolls of Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
 // sheet chance and Glyph of Frostbolt's 5 together.
-// The guard of 931-938, 941-944, 946, 947, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
+// The guard of 931-938, 941-945, 946, 947, 950-978 and 980-992 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -12246,6 +12248,287 @@ namespace Harness
         bool m_capped;
     };
 
+    /**
+     * S945 `mage-fire-combustion-at-the-cast`: Combustion's DoT (83853) builds its Living Bomb and Pyroblast shares from
+     * the mage's spell power and mastery at the cast, over the DoTs' own unhasted period, with Flashburn once in each
+     * share and the target's damage-taken effects once in the tick. A Fire mage staged as 955 stages him, with Living
+     * Bomb and the Mastery passive (86473) learned, kMasteryRating mastery rating, kHasteRating haste rating (20% cast
+     * haste, so Pyroblast's and Living Bomb's DoTs tick every 2.5 s and 83853 every 0.83 s) and kSpellPower spell power.
+     * The Camel holds Curse of the Elements (1490) from its spawn: +8% damage taken. Steps:
+     *  1. Pyroblast, which must crit: its DoT and Ignite (12654) go on the Camel;
+     *  2. Living Bomb (44457) on the Camel;
+     *  3. Flame of the Seer (52281) cast on him at kSpellPowerGain: that much more spell power, after both DoTs went up;
+     *  4. Combustion (11129), which must not crit: the Ignite, Pyroblast and Living Bomb ticks the Camel holds are read
+     *     as it casts, and the two DoTs' tick as the caster's done damage of a DoT gives it now (SpellDamageBonusDone,
+     *     on the amount before the caster's bonus the aura holds);
+     *  5. Pyroblast and 6. Living Bomb again, not crit: the DoTs' amounts a fresh cast holds at the new spell power,
+     *     which are the two tick values step 4 read.
+     *
+     * `atTheCast`: `tick=<the first 83853 tick>,ticks=<how many>,want=<the band>,sp=<spell power before>/<after>,
+     * fresh=<Living Bomb>/<Pyroblast>`. With I the Ignite tick the aura holds, L and P the Living Bomb and Pyroblast
+     * ticks at the new spell power and mastery, each as the aura of a fresh cast holds it, the tick before the Camel's
+     * damage-taken effects is I / 2 + L / 3 + P / 3, one Flashburn in each term, and the band is that value, less the
+     * three the integer steps may drop and plus one, each through SpellDamageBonusTaken on the Camel, which takes the
+     * curse once. OK when the staged spell power rose by at least kSpellPowerGain less one, the fresh amounts are the
+     * values step 4 read, every 83853 tick is the first, it is in the band and there are more than ten of them (haste
+     * adds ticks and does not change a tick), and no tick crit. BUG with the values in the detail otherwise.
+     */
+    class MageFireCombustionAtTheCast : public MageProcScenario
+    {
+    public:
+        MageFireCombustionAtTheCast() : MageProcScenario("mage-fire-combustion-at-the-cast", 945, "atTheCast") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10529, 2 }, { 11434, 2 }, { 10555, 1 }, { 10573, 0 }, { 10547, 0 }, { 10561, 0 } };
+        }
+        std::vector<uint32> Spells() const override { return { kLivingBomb, kMasteryPassive }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        int32 HasteRating() const override { return kHasteRating; }
+        int32 MasteryRating() const override { return kMasteryRating; }
+        uint32 CasterAura() const override { return kPrecision; }
+        uint32 TargetAura() const override { return kCurse; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 Watched() const override { return kCombustionDot; }
+        bool WatchedOnTarget() const override { return true; }
+        bool ReadsPeriodic() const override { return true; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step pyroblast = Cast(kPyroblast, true);
+            pyroblast.everyMs = kBombAfterMs;
+            Step combustion = Cast(kCombustion, false);
+            combustion.everyMs = kRecastAfterMs;
+            Step pyroblastAgain = Cast(kPyroblast, false);
+            pyroblastAgain.everyMs = kBombAgainAfterMs;
+            return { pyroblast, AuraCast(kLivingBomb, kPowerAfterMs), Wait(kCombustionAfterMs), combustion, pyroblastAgain,
+                     AuraCast(kLivingBomb, kLastStepMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 11366: 49 fields, fnv 7ef90b4a
+                { 11366, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 140 }, { "eff0.EffectBonusCoefficient", 1069925007 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 47 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 3 }, { "eff1.EffectAuraPeriod", 3000 }, { "eff1.EffectBasePoints", 14 }, { "eff1.EffectBonusCoefficient", 1043878380 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 11129: 49 fields, fnv 9ccc32ac
+                { 11129, { { "eff0.present", 1 }, { "eff0.Effect", 77 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 17867076534295 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 23 }, { "eff1.EffectBonusCoefficient", 1054582243 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 9 }, { "eff1.EffectRealPointsPerLevel", 1058642330 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 83853: 26 fields, fnv 87a2a19f
+                { 83853, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 25 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44445: 49 fields, fnv effa745d
+                { 44445, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 33 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 34359738368 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 48108: 26 fields, fnv 28b4e817
+                { 48108, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 332 }, { "eff0.EffectBasePoints", 92315 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags2", 4096 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44457: 49 fields, fnv 87d07253
+                { 44457, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 3000 }, { "eff0.EffectBasePoints", 153 }, { "eff0.EffectBonusCoefficient", 1048844435 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 44461 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44461: 26 fields, fnv f40ea43f
+                { 44461, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 306 }, { "eff0.EffectBonusCoefficient", 1057216266 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.EffectSpellClassMask.Flags", 12582935 }, { "eff0.ImplicitTarget_0", 53 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 86473: 26 fields, fnv d7de8265
+                { 86473, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 318 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 76595: 49 fields, fnv ab04106a
+                { 76595, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBonusCoefficient", 1077097267 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 22 }, { "eff0.EffectSpellClassMask.Flags", 580542277877760 }, { "eff0.EffectSpellClassMask.Flags2", 1024 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 280 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 52281: 26 fields, fnv e7106a10
+                { 52281, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 13 }, { "eff0.EffectBasePoints", 400 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 1490: 72 fields, fnv 4bc3085d
+                { 1490, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 22 }, { "eff0.EffectBasePoints", -45 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 87 }, { "eff1.EffectBasePoints", 8 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 126 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 226 }, { "eff2.EffectAuraPeriod", 2000 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            if (k == kPowerStep && !atRead)
+            {
+                const int32 before = p->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
+                int32 points = kSpellPowerGain;
+                p->CastCustomSpell(p, kSpellPowerAura, &points, NULL, NULL, true);
+                const int32 after = p->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
+                st.seen[k].reads["spBefore"] = before;
+                st.seen[k].reads["spAfter"] = after;
+                m_rec.Note("his " + U(kSpellPowerAura) + " cast on him at " + std::to_string(kSpellPowerGain) + "; fire spell power " +
+                           std::to_string(before) + " -> " + std::to_string(after));
+                return;
+            }
+            if (k == kCombustionStep && !atRead)
+            {
+                Aura const* ignite = target->GetAura(kIgniteDot, EFFECT_INDEX_0);
+                Aura const* bomb = target->GetAura(kLivingBomb, EFFECT_INDEX_0);
+                Aura const* pyroblast = target->GetAura(kPyroblast, EFFECT_INDEX_1);
+                SpellEntry const* bombSpell = sSpellStore.LookupEntry(kLivingBomb);
+                SpellEntry const* pyroblastSpell = sSpellStore.LookupEntry(kPyroblast);
+                SpellEntry const* combustionSpell = sSpellStore.LookupEntry(kCombustionDot);
+                if (!ignite || !bomb || !pyroblast || !bombSpell || !pyroblastSpell || !combustionSpell)
+                {
+                    m_rec.Note(std::string("a DoT is missing at the cast: Ignite ") + (ignite ? "held" : "absent") + ", Living Bomb " +
+                               (bomb ? "held" : "absent") + ", Pyroblast " + (pyroblast ? "held" : "absent"));
+                    return;
+                }
+                const uint32 bombDone = p->SpellDamageBonusDone(target, bombSpell, uint32(bomb->GetTickAmountBeforeDone()), DOT,
+                                                                 bomb->GetStackAmount());
+                const uint32 pyroblastDone = p->SpellDamageBonusDone(target, pyroblastSpell, uint32(pyroblast->GetTickAmountBeforeDone()), DOT,
+                                                                     pyroblast->GetStackAmount());
+                const uint32 igniteTick = uint32(ignite->GetModifier()->m_amount);
+                const double sum = double(igniteTick) * 1000.0 / double(kIgnitePeriod) + double(bombDone) * 1000.0 / double(kShareDbcPeriod) +
+                                   double(pyroblastDone) * 1000.0 / double(kShareDbcPeriod);
+                const uint32 before = uint32(sum);
+                const uint32 low = before > kRoundingLoss ? before - kRoundingLoss : 0;
+                Seen& seen = st.seen[k];
+                seen.reads["ignite"] = igniteTick;
+                seen.reads["bomb"] = bombDone;
+                seen.reads["pyroblast"] = pyroblastDone;
+                seen.reads["bombBefore"] = bomb->GetTickAmountBeforeDone();
+                seen.reads["pyroblastBefore"] = pyroblast->GetTickAmountBeforeDone();
+                seen.reads["beforeTaken"] = before;
+                seen.reads["wantLow"] = target->SpellDamageBonusTaken(p, combustionSpell, low, DOT, 1);
+                seen.reads["wantHigh"] = target->SpellDamageBonusTaken(p, combustionSpell, before + 1, DOT, 1);
+                m_rec.Note("at the cast: Ignite's tick " + U(igniteTick) + ", Living Bomb " + U(uint32(bomb->GetTickAmountBeforeDone())) + " -> " +
+                           U(bombDone) + ", Pyroblast " + U(uint32(pyroblast->GetTickAmountBeforeDone())) + " -> " + U(pyroblastDone) +
+                           "; before the Camel's damage-taken effects " + U(before) + ", taken " + U(uint32(seen.reads["wantLow"])) + ".." +
+                           U(uint32(seen.reads["wantHigh"])));
+                return;
+            }
+            if (atRead && (k == kPyroblastAgainStep || k == kBombAgainStep))
+            {
+                Aura const* fresh = k == kBombAgainStep ? target->GetAura(kLivingBomb, EFFECT_INDEX_0) : target->GetAura(kPyroblast, EFFECT_INDEX_1);
+                st.seen[k].reads["fresh"] = fresh ? fresh->GetModifier()->m_amount : kNone;
+                m_rec.Note(std::string("the fresh ") + (k == kBombAgainStep ? "Living Bomb" : "Pyroblast") + " DoT holds " +
+                           (fresh ? std::to_string(fresh->GetModifier()->m_amount) : std::string("nothing")));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            std::vector<std::pair<uint32, bool> > ticks;
+            Trace::Roles const& roles = m_rec.Roles();
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const char* suffixes[] = { "", "+tick", "-read", "-read+tick" };
+                for (const char* suffix : suffixes)
+                {
+                    std::vector<Recorder::Seen const*> seen = m_rec.SeenIn("step" + U(k + 1) + suffix, SMSG_PERIODICAURALOG);
+                    for (size_t i = 0; i < seen.size(); ++i)
+                    {
+                        if (seen[i]->payload.empty())
+                        {
+                            continue;
+                        }
+                        std::vector<std::string> fields = Trace::CombatLogFields(SMSG_PERIODICAURALOG, &seen[i]->payload[0],
+                                                                                 seen[i]->payload.size(), roles);
+                        for (size_t f = 0; f < fields.size(); ++f)
+                        {
+                            uint32 spell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                            if (sscanf(fields[f].c_str(), "tick self.tick.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted) == 5 &&
+                                spell == kCombustionDot)
+                            {
+                                ticks.push_back(std::make_pair(amount, crit != 0));
+                            }
+                        }
+                    }
+                }
+            }
+
+            const int64 spBefore = Kept(st, kPowerStep, "spBefore");
+            const int64 spAfter = Kept(st, kPowerStep, "spAfter");
+            const int64 low = Kept(st, kCombustionStep, "wantLow");
+            const int64 high = Kept(st, kCombustionStep, "wantHigh");
+            const int64 bomb = Kept(st, kCombustionStep, "bomb");
+            const int64 pyroblast = Kept(st, kCombustionStep, "pyroblast");
+            const int64 freshBomb = Kept(st, kBombAgainStep, "fresh");
+            const int64 freshPyroblast = Kept(st, kPyroblastAgainStep, "fresh");
+            const uint32 first = ticks.empty() ? 0 : ticks[0].first;
+
+            bool ok = st.steps.size() == 6 && st.seen[kPyroblastStep].logRead && st.seen[kPyroblastStep].crit && spBefore >= 0 &&
+                      spAfter - spBefore >= kSpellPowerGain - 1 && low >= 0 && high >= low && ticks.size() > 10 &&
+                      int64(first) >= low && int64(first) <= high && freshBomb == bomb && freshPyroblast == pyroblast;
+            std::string tickText;
+            for (size_t t = 0; t < ticks.size(); ++t)
+            {
+                ok = ok && ticks[t].first == first && !ticks[t].second;
+                tickText += (t ? " " : "") + U(ticks[t].first) + (ticks[t].second ? "c" : "");
+            }
+
+            Seen const& combustionStep = st.seen.size() > kCombustionStep ? st.seen[kCombustionStep] : st.seen[0];
+            const std::string period = combustionStep.periodicRead
+                                       ? "period " + std::to_string(combustionStep.period) + ", duration " + std::to_string(combustionStep.duration) +
+                                         "/" + std::to_string(combustionStep.maxDuration)
+                                       : std::string("no periodic effect");
+            const std::string value = "tick=" + (ticks.empty() ? std::string("none") : U(first)) + ",ticks=" + U(ticks.size()) + ",want=" +
+                                      std::to_string(low) + ".." + std::to_string(high) + ",sp=" + std::to_string(spBefore) + "/" +
+                                      std::to_string(spAfter) + ",fresh=" + std::to_string(freshBomb) + "/" + std::to_string(freshPyroblast);
+            char buf[1280];
+            snprintf(buf, sizeof(buf),
+                     "83853 ticks [%s]; Ignite's tick %lld, Living Bomb at the new spell power %lld (its amount before the caster's bonus %lld), "
+                     "Pyroblast %lld (%lld): %lld / 2 + %lld / 3 + %lld / 3 = %lld before the Camel's damage-taken effects, taken %lld..%lld; "
+                     "the fresh casts' DoTs hold %lld and %lld, wanted %lld and %lld; 83853 at the read of step 4: %s; Pyroblast %s",
+                     tickText.c_str(), (long long)Kept(st, kCombustionStep, "ignite"), (long long)bomb,
+                     (long long)Kept(st, kCombustionStep, "bombBefore"), (long long)pyroblast,
+                     (long long)Kept(st, kCombustionStep, "pyroblastBefore"), (long long)Kept(st, kCombustionStep, "ignite"), (long long)bomb,
+                     (long long)pyroblast, (long long)Kept(st, kCombustionStep, "beforeTaken"), (long long)low, (long long)high,
+                     (long long)freshBomb, (long long)freshPyroblast, (long long)bomb, (long long)pyroblast, period.c_str(),
+                     st.seen[kPyroblastStep].logRead ? (st.seen[kPyroblastStep].crit ? "crit" : "no crit") : "unread");
+            return value + (ok ? "(OK: " : "(BUG: ") + buf + ")";
+        }
+
+    private:
+        static constexpr uint32 kPyroblast = 11366;
+        static constexpr uint32 kCombustion = 11129;
+        static constexpr uint32 kCombustionDot = 83853;
+        static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kLivingBomb = 44457;
+        static constexpr uint32 kMasteryPassive = 86473;
+        static constexpr uint32 kSpellPowerAura = 52281;
+        static constexpr uint32 kCurse = 1490;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr int32 kSpellPowerGain = 1500;
+        static constexpr int32 kHasteRating = 2561;
+        static constexpr int32 kMasteryRating = 1000;
+        static constexpr uint32 kIgnitePeriod = 2000;
+        static constexpr uint32 kShareDbcPeriod = 3000;
+        static constexpr uint32 kRoundingLoss = 3;
+        static constexpr uint32 kBombAfterMs = 3700;
+        static constexpr uint32 kPowerAfterMs = 1000;
+        static constexpr uint32 kCombustionAfterMs = 1000;
+        static constexpr uint32 kRecastAfterMs = 3700;
+        static constexpr uint32 kBombAgainAfterMs = 4000;
+        static constexpr uint32 kLastStepMs = 4500;
+        static constexpr uint32 kPyroblastStep = 0;
+        static constexpr uint32 kPowerStep = 2;
+        static constexpr uint32 kCombustionStep = 3;
+        static constexpr uint32 kPyroblastAgainStep = 4;
+        static constexpr uint32 kBombAgainStep = 5;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -12300,6 +12583,7 @@ namespace Harness
         r.Register(new MageFireImprovedFlamestrikeRankOne());
         r.Register(new MageFireInvisibilityFade());
         r.Register(new MageFireShareBeforeTaken());
+        r.Register(new MageFireCombustionAtTheCast());
         r.Register(new MageFrostPetOwnerHit());
         r.Register(new MageFireFlameOrbOwnerHit());
         r.Register(new MageFrostPetOwnerHit("mage-pet-owner-hit-uncapped", 946, false));

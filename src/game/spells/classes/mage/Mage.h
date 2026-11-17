@@ -213,18 +213,21 @@ namespace Mage
     /// mode, in which casting Pyroblast! removes it) and its caster holds Item - Mage T10 2P Bonus. Defined in Fire.cpp.
     bool PushingTheLimitOnRemove(AuraRemoveMode mode, bool casterHasT10TwoPiece);
 
-    /// One DoT's part of Combustion: its tick, its period and the bonus the caster takes on it at the target's low
-    /// health (Spells::LowHealthDamageMultiplier), which the aura's stored tick does not hold.
+    /// One DoT's part of Combustion: its tick, its period, the bonus the caster takes on it at the target's low
+    /// health (Spells::LowHealthDamageMultiplier), which the aura's stored tick does not hold, and the mastery
+    /// multiplier the tick already holds.
     struct DotShare
     {
         int32 tick;                                 ///< the damage of one tick, as the aura holds it
         uint32 periodMs;                            ///< the time between ticks, as the aura holds it
         float lowHealthMultiplier = 1.0f;           ///< multiplies the share; 0 or below leaves it as it is
+        float heldMastery = 1.0f;                   ///< divides the share; 0 or below leaves it as it is
     };
 
     /// Combustion's tick: the per-second damage of the shares summed (each `tick * 1000 / periodMs`, times the share's
-    /// `lowHealthMultiplier`), where the Ignite share, when `ignite` is given, is first divided by `igniteMultiplier`,
-    /// the mastery the engine applies to the new DoT once more; Ignite's share takes no low-health multiplier.
+    /// `lowHealthMultiplier` and divided by its `heldMastery`), where the Ignite share, when `ignite` is given, is
+    /// first divided by `igniteMultiplier`, the mastery the engine applies to the new DoT once more; Ignite's share
+    /// takes no low-health multiplier.
     /// Truncated to an integer once, after the sum. A share with a period of 0 adds nothing, a multiplier of 0 or
     /// below leaves the Ignite share undivided, and a sum below 0 is 0. Defined in Fire.cpp.
     int32 CombustionTick(DotShare const* shares, size_t count, DotShare const* ignite, float igniteMultiplier);

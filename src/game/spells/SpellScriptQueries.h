@@ -47,6 +47,9 @@ struct PeriodicDamageView
     uint32 periodMs;                                ///< the time between ticks, as the aura holds it
     int32 remainingMs;                              ///< the holder's time left; -1 when it does not run out
     uint32 remainingTicks;                          ///< the ticks left
+    int32 amountBeforeDone;                         ///< the damage of one tick before its caster's bonus, as the aura holds it
+    uint32 stacks;                                  ///< the holder's stack
+    uint32 basePeriodMs;                            ///< the time between ticks the spell's effect gives, before haste
 };
 
 /// Fills `out`, cleared first, with every periodic damage effect (SPELL_AURA_PERIODIC_DAMAGE) that `caster` has on

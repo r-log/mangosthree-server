@@ -1412,6 +1412,89 @@ TEST(MageScripts_CombustionTickRaisesEachShareByItsLowHealthBonusButNotIgnites)
 
 namespace
 {
+    // A DoT's tick as the done damage of a DoT gives it: (base + coefficient x spell power) x Flashburn, truncated.
+    int32 DoneTick(double base, double coefficient, double spellPower, double flashburn)
+    {
+        return int32((base + coefficient * spellPower) * flashburn);
+    }
+
+    // Combustion's tick as the engine gives it: the sum the script passes, then the new DoT's own Flashburn, truncated.
+    int32 EngineTick(int32 sum, double flashburn)
+    {
+        return int32(double(sum) * flashburn);
+    }
+}
+
+TEST(MageScripts_CombustionTickBuildsLivingBombAndPyroblastFromSpellPowerAndMasteryWithFlashburnOnce)
+{
+    // Living Bomb (500 + 0.3 x spell power) and Pyroblast (280 + 0.11 x spell power) rebuilt at the cast over their
+    // unhasted 3 s period, each tick holding the cast's Flashburn and divided by it, so that the engine's Flashburn on
+    // 83853 gives it back once. Ignite's stored tick is 2000 every 2 s and holds its own Flashburn.
+    double const spellPowers[] = { 3000.0, 5200.0 };
+    double const masteries[] = { 1.0, 1.224, 1.31 };
+    for (double spellPower : spellPowers)
+    {
+        for (double flashburn : masteries)
+        {
+            int32 const bomb = DoneTick(500.0, 0.3, spellPower, flashburn);
+            int32 const pyroblast = DoneTick(280.0, 0.11, spellPower, flashburn);
+            Mage::DotShare shares[] = { { pyroblast, 3000 }, { bomb, 3000 } };
+            shares[0].heldMastery = float(flashburn);
+            shares[1].heldMastery = float(flashburn);
+            Mage::DotShare const ignite = { 2000, 2000 };
+            int32 const tick = EngineTick(Mage::CombustionTick(shares, 2, &ignite, float(flashburn)), flashburn);
+
+            // Ignite/2 + LB(SP, M)/3 + Pyroblast(SP, M)/3: Flashburn once in each term.
+            double const expected = 1000.0 + double(bomb) / 3.0 + double(pyroblast) / 3.0;
+            CHECK(double(tick) >= expected - 2.0 && double(tick) <= expected + 0.001);
+        }
+    }
+
+    // More spell power moves the shares: +1200 raises the sum by (0.3 + 0.11) x 1200 / 3 = 164 before the engine's
+    // Flashburn.
+    Mage::DotShare low[] = { { DoneTick(280.0, 0.11, 3000.0, 1.224), 3000 }, { DoneTick(500.0, 0.3, 3000.0, 1.224), 3000 } };
+    Mage::DotShare high[] = { { DoneTick(280.0, 0.11, 4200.0, 1.224), 3000 }, { DoneTick(500.0, 0.3, 4200.0, 1.224), 3000 } };
+    for (Mage::DotShare& share : low)
+    {
+        share.heldMastery = 1.224f;
+    }
+    for (Mage::DotShare& share : high)
+    {
+        share.heldMastery = 1.224f;
+    }
+    int32 const gain = Mage::CombustionTick(high, 2, NULL, 1.224f) - Mage::CombustionTick(low, 2, NULL, 1.224f);
+    CHECK(gain >= 163 && gain <= 165);
+
+    // A share holding Flashburn that is not divided would carry it twice once the engine's own is on it.
+    Mage::DotShare undivided[] = { { 1224, 3000 } };
+    Mage::DotShare divided[] = { { 1224, 3000 } };
+    divided[0].heldMastery = 1.224f;
+    CHECK_EQ(Mage::CombustionTick(undivided, 1, NULL, 1.0f), int32(408));
+    CHECK_EQ(Mage::CombustionTick(divided, 1, NULL, 1.0f), int32(333));
+
+    // A held mastery of 0 or below leaves the share as it is.
+    divided[0].heldMastery = 0.0f;
+    CHECK_EQ(Mage::CombustionTick(divided, 1, NULL, 1.0f), int32(408));
+    divided[0].heldMastery = -1.0f;
+    CHECK_EQ(Mage::CombustionTick(divided, 1, NULL, 1.0f), int32(408));
+}
+
+TEST(MageScripts_CombustionTickOverTheUnhastedPeriodIsTheSameAtEveryHaste)
+{
+    // At 20% haste Living Bomb and Pyroblast tick every 2500 ms, yet each share is divided by the spell's own 3000 ms,
+    // and the tick, cut from the stats and not from the haste, is the same: haste only adds Combustion ticks.
+    Mage::DotShare const unhasted[] = { { 900, 3000 }, { 1500, 3000 } };
+    Mage::DotShare const atTwentyPercentHaste[] = { { 900, 3000 }, { 1500, 3000 } };
+    CHECK_EQ(Mage::CombustionTick(atTwentyPercentHaste, 2, NULL, 1.0f), Mage::CombustionTick(unhasted, 2, NULL, 1.0f));
+    CHECK_EQ(Mage::CombustionTick(unhasted, 2, NULL, 1.0f), int32(800));
+
+    // The hasted period the aura holds, taken as the period, would put the shares 20% high: 2400 over 2.5 s.
+    Mage::DotShare const hastedPeriod[] = { { 900, 2500 }, { 1500, 2500 } };
+    CHECK_EQ(Mage::CombustionTick(hastedPeriod, 2, NULL, 1.0f), int32(960));
+}
+
+namespace
+{
     // The class options and the Spell.dbc rows of the stacking test, kept alive for the rest of the run.
     const uint32 kOptionsCombustionDot = 94207;
     const uint32 kOptionsResistanceAura = 94208;

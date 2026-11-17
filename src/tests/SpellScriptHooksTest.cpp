@@ -989,6 +989,9 @@ TEST(SpellScriptHooks_FindPeriodicDamageReadsTheCastersPeriodicDamageEffectsOnAU
         CHECK_EQ(found[0].periodMs, uint32(2000));
         CHECK_EQ(found[0].remainingMs, int32(4000));
         CHECK_EQ(found[0].remainingTicks, uint32(2));
+        CHECK_EQ(found[0].amountBeforeDone, int32(2000));
+        CHECK_EQ(found[0].stacks, uint32(1));
+        CHECK_EQ(found[0].basePeriodMs, uint32(2000));
         CHECK_EQ(found[1].spellId, kDotSpell);
         CHECK_EQ(int(found[1].effIndex), int(EFFECT_INDEX_0));
         CHECK_EQ(found[1].amount, int32(500));

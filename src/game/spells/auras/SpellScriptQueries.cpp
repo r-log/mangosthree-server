@@ -61,6 +61,10 @@ size_t FindPeriodicDamage(Unit const& target, ObjectGuid const& caster, uint32 c
                 view.periodMs = aura->GetModifier()->periodictime;
                 view.remainingMs = holder->GetAuraDuration();
                 view.remainingTicks = maxTicks > ticksDone ? maxTicks - ticksDone : 0;
+                view.amountBeforeDone = aura->GetTickAmountBeforeDone();
+                view.stacks = holder->GetStackAmount();
+                SpellEffectEntry const* effect = aura->GetSpellEffect();
+                view.basePeriodMs = effect ? effect->EffectAuraPeriod : 0;
                 out.push_back(view);
             }
         }
