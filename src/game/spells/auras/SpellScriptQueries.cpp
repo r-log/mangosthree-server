@@ -25,6 +25,10 @@
 
 #include "spells/SpellScriptQueries.h"
 #include "spells/auras/SpellAuras.h"
+#include "combat/SpellBonus.h"
+#include "spells/data/SpellMgr.h"
+#include "spells/handlers/SpellHandlerRegistry.h"
+#include "spells/handlers/UnitSpellBonusHandlers.h"
 
 size_t FindPeriodicDamage(Unit const& target, ObjectGuid const& caster, uint32 const* spellIds, size_t count,
                           std::vector<PeriodicDamageView>& out)
@@ -172,6 +176,53 @@ float Spells::LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, 
         }
     }
     return multiplier;
+}
+
+float Spells::DamageTakenMultiplier(Unit& victim, Unit const& caster, SpellEntry const& spell)
+{
+    SpellEntry const* spellProto = &spell;
+    uint32 const schoolMask = spell.SchoolMask;
+
+    float takenTotalMod = victim.GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
+
+    Unit::AuraList const& dummyAuras = victim.GetAurasByType(SPELL_AURA_DUMMY);
+    for (Unit::AuraList::const_iterator i = dummyAuras.begin(); i != dummyAuras.end(); ++i)
+    {
+        SpellDamageTakenContext ctx(&victim, spellProto, takenTotalMod, i);
+        if (SpellHandlerRegistry::Game().Dispatch<SpellDamageTakenSite>((*i)->GetId(), ctx).IsLoopContinue())
+        {
+            continue;
+        }
+    }
+
+    Unit::AuraList const& ownerTaken = victim.GetAurasByType(SPELL_AURA_MOD_DAMAGE_FROM_CASTER);
+    for (Unit::AuraList::const_iterator i = ownerTaken.begin(); i != ownerTaken.end(); ++i)
+    {
+        if ((*i)->GetCasterGuid() == caster.GetObjectGuid() && (*i)->isAffectedOnSpell(spellProto))
+        {
+            takenTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
+        }
+    }
+
+    float const mechanicDamageTakenMultiplier = victim.GetTotalAuraMultiplierByMiscValueForMask(
+        SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, GetAllSpellMechanicMask(spellProto));
+
+    bool const isAreaOfEffectSpell = IsAreaOfEffectSpell(spellProto);
+    float aoeDamageAvoidanceMultiplier = 1.0f;
+    bool isPet = false;
+    float petAoeDamageAvoidanceMultiplier = 1.0f;
+    if (isAreaOfEffectSpell)
+    {
+        aoeDamageAvoidanceMultiplier = victim.GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_AOE_DAMAGE_AVOIDANCE, schoolMask);
+        isPet = victim.IsPet();
+        if (isPet)
+        {
+            petAoeDamageAvoidanceMultiplier = victim.GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_PET_AOE_DAMAGE_AVOIDANCE, schoolMask);
+        }
+    }
+
+    return Combat::SpellDamageTakenPercent(takenTotalMod, mechanicDamageTakenMultiplier, isAreaOfEffectSpell,
+                                           aoeDamageAvoidanceMultiplier, isPet, petAoeDamageAvoidanceMultiplier);
 }
 
 int32* ScriptWordOf(Unit& unit, uint32 spellId, SpellEffectIndex eff)

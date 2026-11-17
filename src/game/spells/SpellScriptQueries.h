@@ -77,6 +77,17 @@ namespace Spells
      * otherwise. Read at a direct hit and at every tick of a periodic damage effect.
      */
     float LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, SpellEntry const& spell);
+
+    /**
+     * @brief The multiplier the victim's damage-taken effects put on a hit of `spell` from `caster`.
+     *
+     * The percent damage-taken auras for the spell's school, the dummy-aura bodies of the damage-taken site, the
+     * caster-bound damage-taken auras, then the mechanic, area-of-effect and pet-area multipliers
+     * (Combat::SpellDamageTakenPercent); 1.0 for a victim with none. Unit::SpellDamageBonusTaken takes its percent part
+     * from this. The flat damage-taken bonus (SPELL_AURA_MOD_DAMAGE_TAKEN) is not in it, and neither is the victim's
+     * resilience.
+     */
+    float DamageTakenMultiplier(Unit& victim, Unit const& caster, SpellEntry const& spell);
 }
 
 /// The script word of effect `eff` of the first holder of `spellId` on `unit` that is not deleted, whoever cast it;
