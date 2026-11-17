@@ -278,6 +278,32 @@ namespace Mage
     /// in Fire.cpp.
     int32 FrostfireGlyphTick(uint32 hit, uint32 percent, uint32 ticks, uint32 stacks, float masteryMultiplier);
 
+    /// How a mage's spell counts its target for the frozen rules.
+    enum FrozenKind
+    {
+        NOT_FROZEN,                                 ///< the spell takes none of the frozen bonuses
+        REALLY_FROZEN,                              ///< the target holds the frozen aura state
+        FINGERS                                     ///< the target does not, and the spell counts it as frozen all the same
+    };
+
+    /// How `spell`, cast by `caster` at `target`, counts the target: REALLY_FROZEN when the target holds the frozen aura
+    /// state; else FINGERS for Deep Freeze's damage (71757, cast only at a target a stun cannot hold), and for Ice
+    /// Lance (30455) and Deep Freeze (44572) while the caster holds Fingers of Frost (44544); else NOT_FROZEN. Defined
+    /// in Frost.cpp.
+    FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell);
+
+    /// Shatter's factor on the crit chance of a spell that counts its target as frozen: 3 for a caster who knows the
+    /// second rank, 2 for the first, 1 for neither. Defined in Frost.cpp.
+    float ShatterFactor(bool knowsRankOne, bool knowsRankTwo);
+
+    /// Whether `spellId` is a mage spell Shatter's class mask covers: the ones that take its crit factor. Defined in
+    /// Frost.cpp.
+    bool ShatterCovers(uint32 spellId);
+
+    /// Whether `spellId` is a mage spell Frostburn's class mask covers: the ones that take its mastery bonus. Defined
+    /// in Frost.cpp.
+    bool FrostburnCovers(uint32 spellId);
+
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.
     /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value. Defined in
