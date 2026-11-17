@@ -119,8 +119,9 @@
 // snare without Molten Shields; 982 with Molten Shields it removes the snare, and a Mage Ward a blow breaks brings
 // Blazing Speed; 990 Invisibility's fade takes a tenth of a Fire mage's threat from the Camel each second, its end
 // drops the mage from the list, and a cancelled fade keeps what its ticks took; 978 a Fire mage's Combustion under 35%
-// health ticks with the Molten Fury of the Pyroblast DoT it combines.
-// The guard of 931-938, 950-978 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
+// health ticks with the Molten Fury of the Pyroblast DoT it combines; 941 Ignite and Glyph of Frostfire's DoT take their
+// share of a hit before the target's damage-taken effects, on a Camel under Curse of the Elements and on a bare one.
+// The guard of 931-938, 941, 950-978 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -11345,6 +11346,263 @@ namespace Harness
         static constexpr uint32 kCancelStep = 9;
     };
 
+    /**
+     * S941 `mage-fire-share-before-taken`: Ignite and Glyph of Frostfire's DoT take their share of a hit before the
+     * target's damage-taken effects, which each tick then takes once. A Fire mage staged as in 966 (Burning Soul 3,
+     * Improved Fire Blast 2, Ignite 3, kSpellPower spell power, no mastery) and 984 (Glyph of Frostfire, Frostfire Bolt
+     * learned), with Precision on him before each cast. The Camel holds Curse of the Elements (1490) from its spawn:
+     * its effect 1 is a damage-taken aura of +8% over the six schools. Steps: a Fireball that must crit, kFireballEveryMs
+     * before a Frostfire Bolt that must not (the Ignite is out by then), then the curse taken off the Camel, then the
+     * same Fireball and bolt again with no damage-taken aura on it. Each Fireball's crit puts Ignite on the Camel (two
+     * ticks) and each bolt's glyph DoT ticks four times.
+     *
+     * `share`: `ignite=<the two Ignite ticks on the cursed Camel>+<the two on the bare one>,bolt=<the four glyph ticks
+     * on the cursed Camel>+<the four on the bare one>`, each tick group `/`-joined. With t the Camel's damage-taken
+     * factor (1.08 cursed, 1 bare), Ignite's tick is int(int(D / t + 0.5) x 40 / 100) / 2 x t and the glyph's is
+     * int(int(h / t + 0.5) x <61205's effect 2> / 100) / <ticks> x t, each truncated as the engine truncates, for D the
+     * Fireball's hit and h the bolt's hit dealt and absorbed. OK when both Fireballs crit, no bolt or tick crits, each
+     * group has its tick count and every tick is that value. BUG with the values in the detail otherwise.
+     */
+    class MageFireShareBeforeTaken : public MageProcScenario
+    {
+    public:
+        MageFireShareBeforeTaken() : MageProcScenario("mage-fire-share-before-taken", 941, "share") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10529, 2 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFrostfireBolt }; }
+        std::vector<uint32> Glyphs() const override { return { kGlyphOfFrostfireSlot }; }
+        int32 SpellPower() const override { return kSpellPower; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step fireball = Cast(133, true);
+            fireball.everyMs = kFireballEveryMs;
+            Step bolt = Cast(kFrostfireBolt, false);
+            bolt.everyMs = kLastStepMs;
+            return { fireball, bolt, Removal(kCurse, AURA_REMOVE_BY_DEFAULT, kRemovalEveryMs), fireball, bolt };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 133: 26 fields, fnv 81dba6e7
+                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84254: 26 fields, fnv 68c83b92
+                { 84254, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 70 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 9 }, { "eff0.EffectSpellClassMask.Flags", 26389977761973 }, { "eff0.EffectSpellClassMask.Flags2", 192 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11080: 49 fields, fnv ce553bfe
+                { 11080, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 2 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", 10 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 5 }, { "eff1.EffectSpellClassMask.Flags", 2 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44614: 72 fields, fnv 0aade896
+                { 44614, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 628 }, { "eff1.EffectBonusCoefficient", 1064967340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 103 }, { "eff1.EffectRealPointsPerLevel", 1081711002 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 3 }, { "eff2.EffectAuraPeriod", 3000 }, { "eff2.EffectBasePoints", 1 }, { "eff2.EffectBonusCoefficient", 1005596799 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 61205: 72 fields, fnv a41173db
+                { 61205, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 17592186044416 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", 3000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 1 }, { "eff1.EffectSpellClassMask.Flags", 17592186044416 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 4 }, { "eff2.EffectBasePoints", 3 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 1490: 72 fields
+                { 1490, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 22 }, { "eff0.EffectBasePoints", -45 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 87 }, { "eff1.EffectBasePoints", 8 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 126 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 226 }, { "eff2.EffectAuraPeriod", 2000 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+            };
+        }
+
+        uint32 Watched() const override { return kFrostfireBolt; }
+        bool WatchedOnTarget() const override { return true; }
+        bool ReadsPeriodic() const override { return true; }
+        uint32 CasterAura() const override { return kPrecision; }
+        uint32 TargetAura() const override { return kCurse; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 CastReadMs() const override { return kBoltReadMs; }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* target) override
+        {
+            if (!atRead)
+            {
+                return;
+            }
+            Aura const* curse = target->GetAura(kCurse, EFFECT_INDEX_1);
+            st.seen[k].reads["curse"] = curse ? curse->GetModifier()->m_amount : kNone;
+            m_rec.Note("1490 on the Camel: " + HolderOf(target, kCurse) + "; its damage-taken effect " +
+                       (curse ? std::to_string(curse->GetModifier()->m_amount) : std::string("absent")));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            // the Fireball hits and the Ignite ticks after each, the bolt hits and the glyph ticks after each, in the
+            // order the record holds them
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<uint32> fireballs;
+            std::vector<uint32> bolts;
+            std::vector<std::vector<uint32> > igniteTicks;
+            std::vector<std::vector<uint32> > boltTicks;
+            bool fireballCrit = true;
+            bool boltCrit = false;
+            bool tickCrit = false;
+            std::vector<Recorder::Seen> const& packets = m_rec.Packets();
+            for (size_t i = 0; i < packets.size(); ++i)
+            {
+                Recorder::Seen const& packet = packets[i];
+                const bool hit = packet.opcode == SMSG_SPELLNONMELEEDAMAGELOG;
+                if ((!hit && packet.opcode != SMSG_PERIODICAURALOG) || packet.payload.empty())
+                {
+                    continue;
+                }
+                const std::vector<std::string> fields = Trace::CombatLogFields(packet.opcode, &packet.payload[0], packet.payload.size(), roles);
+                for (size_t f = 0; f < fields.size(); ++f)
+                {
+                    uint32 spell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                    const int parsed = hit ? sscanf(fields[f].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted)
+                                           : sscanf(fields[f].c_str(), "tick self.tick.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed, &resisted);
+                    if (parsed != 5)
+                    {
+                        continue;
+                    }
+                    if (hit && spell == 133)
+                    {
+                        fireballs.push_back(amount + absorbed);
+                        fireballCrit = fireballCrit && crit != 0;
+                        igniteTicks.push_back(std::vector<uint32>());
+                    }
+                    else if (hit && spell == kFrostfireBolt)
+                    {
+                        bolts.push_back(amount + absorbed);
+                        boltCrit = boltCrit || crit != 0;
+                        boltTicks.push_back(std::vector<uint32>());
+                    }
+                    else if (!hit && spell == kIgniteDot && !igniteTicks.empty())
+                    {
+                        igniteTicks.back().push_back(amount);
+                        tickCrit = tickCrit || crit != 0;
+                    }
+                    else if (!hit && spell == kFrostfireBolt && !boltTicks.empty())
+                    {
+                        boltTicks.back().push_back(amount);
+                        tickCrit = tickCrit || crit != 0;
+                    }
+                }
+            }
+
+            // the glyph's percent from its row, Ignite's tick count from its row, and the glyph DoT's tick count over
+            // its full duration at the bolts' reads
+            SpellEntry const* glyph = sSpellStore.LookupEntry(kGlyphOfFrostfire);
+            const int32 percent = glyph ? glyph->CalculateSimpleValue(EFFECT_INDEX_2) : 0;
+            SpellEntry const* dot = sSpellStore.LookupEntry(kIgniteDot);
+            SpellEffectEntry const* dotEffect = dot ? dot->GetSpellEffect(EFFECT_INDEX_0) : NULL;
+            const int32 duration = GetSpellDuration(dot);
+            const uint32 period = dotEffect ? dotEffect->EffectAuraPeriod : 0;
+            const uint32 igniteCount = period && duration > 0 ? uint32(duration) / period : 0;
+            const uint32 boltCount = BoltTicksAt(st, kFirstBolt);
+
+            bool ok = fireballs.size() == 2 && bolts.size() == 2 && fireballCrit && !boltCrit && !tickCrit && percent > 0 &&
+                      igniteCount > 0 && boltCount > 0 && BoltTicksAt(st, kSecondBolt) == boltCount;
+            const int64 curse = Kept(st, kFirstFireball, "curse");
+            ok = ok && curse > 0 && Kept(st, kRemoval, "curse") == kNone;
+
+            const bool counted = fireballs.size() == 2 && bolts.size() == 2 && igniteTicks.size() == 2 && boltTicks.size() == 2;
+            std::string igniteText, boltText, detail;
+            for (uint32 phase = 0; phase < 2 && counted && igniteCount > 0 && boltCount > 0; ++phase)
+            {
+                const float taken = phase == 0 ? (100.0f + float(curse)) / 100.0f : 1.0f;
+                const uint32 igniteBase = uint32(float(fireballs[phase]) / taken + 0.5f);
+                const int32 igniteShare = int32(float(igniteBase) * kIgnitePercent / 100) / int32(igniteCount);
+                const uint32 igniteWant = uint32(float(igniteShare) * taken);
+                const uint32 boltBase = uint32(float(bolts[phase]) / taken + 0.5f);
+                const int32 boltShare = int32(float(boltBase) * uint32(percent) / 100) / int32(boltCount);
+                const uint32 boltWant = uint32(float(boltShare) * taken);
+                ok = ok && igniteTicks[phase].size() == igniteCount && boltTicks[phase].size() == boltCount;
+                igniteText += (phase ? "+" : "") + TickList(igniteTicks[phase]);
+                boltText += (phase ? "+" : "") + TickList(boltTicks[phase]);
+                for (uint32 tick : igniteTicks[phase])
+                {
+                    ok = ok && tick == igniteWant;
+                }
+                for (uint32 tick : boltTicks[phase])
+                {
+                    ok = ok && tick == boltWant;
+                }
+                detail += std::string(phase ? "; bare Camel: " : "cursed Camel: ") + "Fireball " + U(fireballs[phase]) + " (share base " +
+                          U(igniteBase) + ", tick " + U(igniteWant) + " each), Frostfire Bolt " + U(bolts[phase]) + " (share base " +
+                          U(boltBase) + ", tick " + U(boltWant) + " each)";
+            }
+            if (!ok && detail.empty())
+            {
+                detail = "fireballs " + U(fireballs.size()) + ", bolts " + U(bolts.size()) + ", curse " + std::to_string(curse) +
+                         ", fireball crit " + (fireballCrit ? "yes" : "no") + ", bolt crit " + (boltCrit ? "yes" : "no") +
+                         ", tick crit " + (tickCrit ? "yes" : "no") + ", ignite ticks per Ignite " + U(igniteCount) +
+                         ", bolt ticks per DoT " + U(boltCount);
+            }
+            const std::string value = "ignite=" + (igniteText.empty() ? std::string("none") : igniteText) + ",bolt=" +
+                                      (boltText.empty() ? std::string("none") : boltText);
+            return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kFrostfireBolt = 44614;
+        static constexpr uint32 kGlyphOfFrostfire = 61205;
+        static constexpr uint32 kGlyphOfFrostfireSlot = 591;
+        static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kCurse = 1490;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kIgnitePercent = 40;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kFireballEveryMs = 6000;
+        static constexpr uint32 kRemovalEveryMs = 1000;
+        static constexpr uint32 kLastStepMs = 15500;
+        static constexpr uint32 kBoltReadMs = 3100;
+        static constexpr uint32 kFirstFireball = 0;
+        static constexpr uint32 kFirstBolt = 1;
+        static constexpr uint32 kRemoval = 2;
+        static constexpr uint32 kSecondBolt = 4;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+
+        /// The tick count of the bolt's DoT at the read of step k: its full duration over its period; 0 for none.
+        static uint32 BoltTicksAt(St const& st, uint32 k)
+        {
+            if (k >= st.seen.size())
+            {
+                return 0;
+            }
+            Seen const& seen = st.seen[k];
+            return seen.periodicRead && seen.period > 0 ? uint32(seen.maxDuration / seen.period) : 0;
+        }
+
+        /// The amounts `/`-joined; `none` for none.
+        static std::string TickList(std::vector<uint32> const& amounts)
+        {
+            std::string out;
+            for (size_t i = 0; i < amounts.size(); ++i)
+            {
+                out += (i ? "/" : "") + U(amounts[i]);
+            }
+            return out.empty() ? std::string("none") : out;
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -11397,5 +11655,6 @@ namespace Harness
         r.Register(new MageFireImprovedFlamestrike());
         r.Register(new MageFireImprovedFlamestrikeRankOne());
         r.Register(new MageFireInvisibilityFade());
+        r.Register(new MageFireShareBeforeTaken());
     }
 }
