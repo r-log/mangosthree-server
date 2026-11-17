@@ -1187,6 +1187,16 @@ TEST(MageScripts_PyromaniacsHasteIsTheRanksEffectValue)
     CHECK_EQ(Mage::PyromaniacHaste(0), int32(0));
 }
 
+TEST(MageScripts_InvisibilityFadeTakesATenthPerTick)
+{
+    // Only the fade (66) takes threat; the state it ends in (32612), its trigger id and other spells take none.
+    CHECK_EQ(Mage::InvisibilityThreatPercent(66), int32(-10));
+    CHECK_EQ(Mage::InvisibilityThreatPercent(32612), int32(0));
+    CHECK_EQ(Mage::InvisibilityThreatPercent(35009), int32(0));
+    CHECK_EQ(Mage::InvisibilityThreatPercent(2136), int32(0));
+    CHECK_EQ(Mage::InvisibilityThreatPercent(0), int32(0));
+}
+
 TEST(MageScripts_PyromaniacFindsNoBurningEnemyForAMageNoEnemyHates)
 {
     // No unit's threat list holds a bare creature, so its walk finds no enemy.
@@ -1900,13 +1910,13 @@ TEST(MageScripts_FrostfireBoltsFourthGlyphedBoltRewritesTheBurnWithItsOwnHitAtTh
     AuraHandle(*holder).SetAmount(EFFECT_INDEX_0, 69);
     CHECK_EQ(holder->GetStackAmount(), uint32(3));
 
-    // The fourth bolt's hit, 3130 (3000 dealt and 130 absorbed): the stacks stay at three and the tick is the newest
-    // hit's share times three, 3 x (int(3130 x 3 / 100) / 4) = 69, not the 23 of one stack; a hit of 4000 gives
-    // 3 x (120 / 4) = 90.
-    AfterHitContext fourth(glyphed, target, SpellRow(row, kFrostfireBolt), 3000, false, 130, 0, false);
+    // The fourth bolt's hit, 2000 (1900 dealt and 100 absorbed): the stacks stay at three and the tick is the newest
+    // hit's share times three, 3 x (int(2000 x 3 / 100) / 4) = 45, below the 69 it replaces, not the 15 of one
+    // stack; a hit of 4000 gives 3 x (120 / 4) = 90.
+    AfterHitContext fourth(glyphed, target, SpellRow(row, kFrostfireBolt), 1900, false, 100, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, fourth).IsContinue());
     CHECK_EQ(holder->GetStackAmount(), uint32(3));
-    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(69));
+    CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(45));
     AfterHitContext bigger(glyphed, target, SpellRow(row, kFrostfireBolt), 4000, false, 0, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(kFrostfireBolt, bigger).IsContinue());
     CHECK_EQ(holder->GetStackAmount(), uint32(3));

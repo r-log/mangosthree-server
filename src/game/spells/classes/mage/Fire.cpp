@@ -349,8 +349,8 @@ namespace
 
     /// A Frostfire Bolt holder of a caster without Glyph of Frostfire that holds no slow, because its target is immune
     /// to the slow, has only the periodic damage the bolt does not deal: its time is set to run out, and the unit's own
-    /// expiry removes it at its next update with no tick. Mage::PyromaniacBurns and Combustion pass over a holder with
-    /// no time left.
+    /// expiry removes it at its next update. Mage::PyromaniacTargets and Combustion pass over a holder with no time
+    /// left.
     void ExpireWithoutSlow(AuraHandle& aura)
     {
         if (!aura.HasEffect(EFFECT_INDEX_0))
@@ -364,7 +364,7 @@ namespace
     /// left with the periodic damage alone by its target's immunity to the slow runs out (ExpireWithoutSlow). Then,
     /// with the holder as that leaves it, the caster's burning enemies are counted again for Pyromaniac, as
     /// PyromaniacDotApply counts them: a bolt without its periodic damage or its time makes no enemy burn
-    /// (Mage::PyromaniacBurns). The holder's boosts still run.
+    /// (Mage::PyromaniacTargets). The holder's boosts still run.
     SpellHandlerOutcome<void> FrostfireBoltAuraApply(AuraApplyContext& ctx)
     {
         if (ctx.real && ctx.caster)

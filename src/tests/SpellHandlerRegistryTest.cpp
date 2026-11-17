@@ -5121,8 +5121,12 @@ TEST(AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults)
     CHECK(locals.triggerTarget == NULL);
     CHECK(locals.triggerCaster == NULL);
 
-    // Invisibility's and Cat Form's bodies only return.
-    CHECK(registry.Dispatch<AuraTriggerSpellMageSite>(66, ctx).IsReturn());
+    // Invisibility's body takes threat off the aura's target and Cat Form's only returns; both end the trigger.
+    ValuedCreature fading;
+    TriggerSpellLocals fadeLocals(66);
+    fadeLocals.target = &fading;
+    AuraTriggerSpellContext fadeCtx = fadeLocals.Context(NULL);
+    CHECK(registry.Dispatch<AuraTriggerSpellMageSite>(66, fadeCtx).IsReturn());
     CHECK(registry.Dispatch<AuraTriggerSpellDruidSite>(768, ctx).IsReturn());
     CHECK_EQ(locals.triggerSpellId, uint32(0));
 

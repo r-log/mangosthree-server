@@ -822,6 +822,10 @@ void ThreatManager::processThreatEvent(ThreatRefStatusChangeEvent* threatRefStat
             {
                 setDirty(true);                              // the order in the threat list might have changed
             }
+            if (hostileReference->isOnline())
+            {
+                iUpdateNeed = true;
+            }
             break;
         case UEV_THREAT_REF_ONLINE_STATUS:
             if (!hostileReference->isOnline())
