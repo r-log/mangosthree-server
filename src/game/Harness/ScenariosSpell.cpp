@@ -11683,8 +11683,8 @@ namespace Harness
             const int64 glyph = 500;
             const int64 plainWanted = sheet + glyph;
             const int64 frozenWanted = std::min<int64>(10000, 3 * (sheet + glyph));
-            auto near = [](int64 value, int64 wanted) { return value >= 0 && (value > wanted ? value - wanted : wanted - value) <= kTolerance; };
-            const bool sharesOk = sheet >= 0 && near(plainShare, plainWanted) && near(frozenShare, frozenWanted);
+            auto within = [](int64 value, int64 wanted) { return value >= 0 && (value > wanted ? value - wanted : wanted - value) <= kTolerance; };
+            const bool sharesOk = sheet >= 0 && within(plainShare, plainWanted) && within(frozenShare, frozenWanted);
             const bool ok = frozenCount >= 3 && plainCount >= 3 && ratio >= 190 && ratio <= 240 && sharesOk;
             const std::string value = "iceLance=" + U(frozenMean) + "," + U(plainMean) + ",ratio=" + U(ratio) + ",sheet=" +
                                       U(uint64(sheet < 0 ? 0 : sheet)) + ",chance=" + U(uint64(plainShare < 0 ? 0 : plainShare)) + "," +
