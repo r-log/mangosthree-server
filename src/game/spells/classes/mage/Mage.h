@@ -44,11 +44,11 @@
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacBurns, PyromaniacActive,
  * PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's
  * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and
- * the shares' (ShareBase) and Glyph of Frostfire's (FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its
- * creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue,
- * OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows
- * through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per
- * script hook.
+ * the shares' (ShareBase) and Glyph of Frostfire's (FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb
+ * summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
+ * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs,
+ * OrbExplosionChance and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table
+ * per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
