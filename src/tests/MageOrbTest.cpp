@@ -375,6 +375,7 @@ TEST(MageOrb_TheScanKeepsTheClosestEnemyTheOrbMayStrike)
     at3.PlaceAt(3.0f);
     at5.PlaceAt(5.0f);
     at8.PlaceAt(8.0f);
+    auto const seesAll = [](Unit const&) { return true; };
     std::list<Unit*> candidates;
     candidates.push_back(&at8);
     candidates.push_back(&at3);
@@ -382,23 +383,29 @@ TEST(MageOrb_TheScanKeepsTheClosestEnemyTheOrbMayStrike)
     candidates.push_back(&at5);
 
     // The closest of the three, whatever the order of the list; a unit outside the orb's frame is never kept.
-    CHECK(Mage::ClosestOrbTarget(orb, candidates) == &at3);
+    CHECK(Mage::ClosestOrbTarget(orb, candidates, seesAll) == &at3);
+
+    // An enemy the orb cannot see is skipped for the next closest one, and with none in sight there is none.
+    auto const hides = [&at3](Unit const& unit) { return &unit != &at3; };
+    CHECK(Mage::ClosestOrbTarget(orb, candidates, hides) == &at5);
+    auto const seesNone = [](Unit const&) { return false; };
+    CHECK(Mage::ClosestOrbTarget(orb, candidates, seesNone) == NULL);
 
     // A critter is skipped for the next one.
     at3.SetCreatureType(CREATURE_TYPE_CRITTER);
-    CHECK(Mage::ClosestOrbTarget(orb, candidates) == &at5);
+    CHECK(Mage::ClosestOrbTarget(orb, candidates, seesAll) == &at5);
     at3.SetCreatureType(CREATURE_TYPE_BEAST);
 
     // A polymorphed unit is skipped, and with every unit polymorphed there is none.
     at3.SetTransform(118);
     CHECK(at3.IsPolymorphed());
-    CHECK(Mage::ClosestOrbTarget(orb, candidates) == &at5);
+    CHECK(Mage::ClosestOrbTarget(orb, candidates, seesAll) == &at5);
     at5.SetTransform(118);
     at8.SetTransform(118);
-    CHECK(Mage::ClosestOrbTarget(orb, candidates) == NULL);
+    CHECK(Mage::ClosestOrbTarget(orb, candidates, seesAll) == NULL);
 
     // No candidates, no target.
-    CHECK(Mage::ClosestOrbTarget(orb, std::list<Unit*>()) == NULL);
+    CHECK(Mage::ClosestOrbTarget(orb, std::list<Unit*>(), seesAll) == NULL);
 }
 
 TEST(MageOrb_AnOrbOwnedByItsMageTakesTheUnitsHeMayAttack)
@@ -423,7 +430,7 @@ TEST(MageOrb_AnOrbOwnedByItsMageTakesTheUnitsHeMayAttack)
     CHECK(!orb.IsFriendlyTo(&camel));
 }
 
-TEST(MageOrb_TheScansTargetHookCutsTheListToTheClosest)
+TEST(MageOrb_TheScansTargetHookKeepsOnlyWhatTheOrbSees)
 {
     StoreOrbSpells();
     SpellHandlerRegistry registry;
@@ -443,17 +450,11 @@ TEST(MageOrb_TheScansTargetHookCutsTheListToTheClosest)
     targets.push_back(&at5);
     uint32 maxTargets = 0;
     SelectTargetsContext ctx(orb, *scan, EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT, targets, maxTargets);
+    // The units here stand in no world, so the engine's sight test sees none of them and the scan keeps none; the
+    // choice among seen units is MageOrb_TheScanKeepsTheClosestEnemyTheOrbMayStrike.
     CHECK(registry.Dispatch<SelectTargetsHook>(82734, ctx).IsContinue());
-    REQUIRE(targets.size() == 1);
-    CHECK(targets.front() == &at5);
+    CHECK(targets.empty());
     CHECK_EQ(maxTargets, uint32(0));
-
-    // A list with no unit the orb may strike is emptied.
-    std::list<Unit*> critters;
-    critters.push_back(&at3);
-    SelectTargetsContext none(orb, *scan, EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT, critters, maxTargets);
-    CHECK(registry.Dispatch<SelectTargetsHook>(82734, none).IsContinue());
-    CHECK(critters.empty());
 }
 
 TEST(MageOrb_TheRowsSitOnTheirHooksAndTheOrbHasItsAI)
