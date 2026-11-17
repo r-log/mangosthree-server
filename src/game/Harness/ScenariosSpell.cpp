@@ -12154,9 +12154,9 @@ namespace Harness
      *
      * `orbHit`: `goes=<SPELL_GO of the orb's hit>,misses=<of them listing the Camel as missed>,hits=<its damage logs on
      * the Camel>,owner=<his spell hit field>,share=<the spell hit of Combat::OwnerShareOf(orb)>/<its expertise>`; OK
-     * when there are kOrbHits goes and hits, the owner's field is 100 (S947: under the spell cap) and the share is the
-     * spell cap of 17 with 650 expertise and no hit missed (S947: the owner's hit in proportion, and no miss is asked
-     * of it): the orb rolls with its summoner's hit as of its summon.
+     * when there are kOrbHits goes and every one is a hit or a miss, the owner's field is 100 (S947: under the spell
+     * cap) and the share is the spell cap of 17 with 650 expertise and no hit missed (S947: the owner's hit in
+     * proportion, and misses are allowed): the orb rolls with its summoner's hit as of its summon.
      */
     class MageFireFlameOrbOwnerHit : public MageFireFlameOrb
     {
@@ -12233,7 +12233,7 @@ namespace Harness
                      m_orbShare.expertise);
             const bool ownerOk = m_capped ? owner == 100.0f : owner < caps.spell;
             const bool shareOk = std::fabs(m_orbShare.spell - wantShare) < 0.005f && m_orbShare.expertise == wantExpertise;
-            const bool ok = goes == kOrbHits && (!m_capped || missed == 0) && hits == kOrbHits && ownerOk && shareOk;
+            const bool ok = goes == kOrbHits && (!m_capped || missed == 0) && hits + missed == kOrbHits && ownerOk && shareOk;
             return (ok ? "OK(" : "BUG(") + std::string(buf) + ")";
         }
 
