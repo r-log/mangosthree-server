@@ -484,9 +484,11 @@ class  Aura
         int32 GetAuraDuration() const { return GetHolder()->GetAuraDuration(); }
         time_t GetAuraApplyTime() const { return m_applyTime; }
         uint32 GetAuraTicks() const { return m_periodicTick; }
-        /// A periodic damage aura's tick amount before its caster's done-side step at the apply; the amount itself for an
-        /// aura loaded from the database or not applied yet.
+        /// A periodic damage aura's tick amount before its caster's done-side step at the apply, or as a script last wrote
+        /// it (SetTickAmountBeforeDone); the amount itself for an aura loaded from the database or not applied yet.
         int32 GetTickAmountBeforeDone() const { return m_tickAmountBeforeDone; }
+        /// Writes the tick amount before the done-side step; the aura's amount is not changed.
+        void SetTickAmountBeforeDone(int32 amount) { m_tickAmountBeforeDone = amount; }
         /// How many ticks the aura deals over the holder's maximum duration, its first tick m_firstTickDelay after the
         /// apply (Spells::TickCount).
         uint32 GetAuraMaxTicks() const;

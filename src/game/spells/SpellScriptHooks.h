@@ -147,6 +147,9 @@ class AuraHandle
         /// Writes the amount of the holder's aura at `eff`, when there is one, without applying the aura again. When the
         /// amount changes and the holder sends its effects' amounts (AFLAG_EFFECT_AMOUNT_SEND), the clients are told.
         void SetAmount(SpellEffectIndex eff, int32 amount);
+        /// Writes the amount the holder's aura at `eff` holds before its caster's done-side bonus (what a script reads as
+        /// PeriodicDamageView::amountBeforeDone), when there is one; the aura's amount is not changed.
+        void SetAmountBeforeDone(SpellEffectIndex eff, int32 amount);
         /// The holder's stack count.
         uint32 Stacks() const;
         /// Sets the holder's stack count to `stacks`, recomputing and re-applying every aura's amount as a stack change

@@ -61,6 +61,14 @@ void AuraHandle::SetAmount(SpellEffectIndex eff, int32 amount)
     }
 }
 
+void AuraHandle::SetAmountBeforeDone(SpellEffectIndex eff, int32 amount)
+{
+    if (Aura* aura = m_holder.GetAuraByEffectIndex(eff))
+    {
+        aura->SetTickAmountBeforeDone(amount);
+    }
+}
+
 uint32 AuraHandle::Stacks() const
 {
     return m_holder.GetStackAmount();
