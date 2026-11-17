@@ -118,8 +118,9 @@
 // Pyroblast accepted, refused, swapped in by the cast handler and not swapped; 981 Blazing Speed keeps a Fire mage's
 // snare without Molten Shields; 982 with Molten Shields it removes the snare, and a Mage Ward a blow breaks brings
 // Blazing Speed; 990 Invisibility's fade takes a tenth of a Fire mage's threat from the Camel each second, its end
-// drops the mage from the list, and a cancelled fade keeps what its ticks took.
-// The guard of 931-938, 950-977 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
+// drops the mage from the list, and a cancelled fade keeps what its ticks took; 978 a Fire mage's Combustion under 35%
+// health ticks with the Molten Fury of the Pyroblast DoT it combines.
+// The guard of 931-938, 950-978 and 980-991 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -8920,6 +8921,8 @@ namespace Harness
         MageFireMoltenFuryTick() : MageProcScenario("mage-fire-molten-fury-tick", 983, "moltenFury") {}
 
     protected:
+        MageFireMoltenFuryTick(char const* name, int order, char const* ownCategory) : MageProcScenario(name, order, ownCategory) {}
+
         std::vector<std::pair<uint32, uint32> > Talents() const override
         {
             return { { 10531, 2 }, { 10523, 1 }, { 10545, 1 }, { 11434, 2 }, { 10555, 1 }, { 10551, 0 }, { 10547, 1 }, { 11433, 1 },
@@ -9079,6 +9082,130 @@ namespace Harness
         static constexpr int32 kFireBlastLow = 955;
         static constexpr int32 kFireBlastHigh = 1131;
         static constexpr float kDoneMultiplier = 1.25f * 1.03f;
+    };
+
+    /**
+     * S978 `mage-fire-combustion-molten-fury`: 983's staging (Molten Fury rank 3, +12 against a target under 35%
+     * health, Combustion, Fire Specialization and Fire Power 3, no mastery, no crit), and Combustion's DoT (83853) as
+     * it carries the Molten Fury of the Pyroblast DoT it combines. Steps:
+     *  1. Pyroblast (11366) at the Camel at full health: its DoT holds a tick of p = 487;
+     *  2. kCombustionAfterMs later, Combustion at the Camel above 35%: its DoT ticks int(p x 1000 / 3000) = 162;
+     *  3. the Camel's health set to kUnderPct percent of its maximum;
+     *  4. Combustion again, its cooldown taken off him by call first, with the Camel under 35%: the DoT it replaces
+     *     ticks int(p x 1000 / 3000 x 1.12) = 181 for its whole duration. 83853 takes no Molten Fury of its own, so
+     *     the 12% comes only from the share of the Pyroblast DoT.
+     *
+     * `combustionMoltenFury`: `above=<tick>x<count>,below=<tick>x<count>`: the first and the count of the 83853 ticks
+     * dealt before step 4 and from it on. OK when the Pyroblast DoT's tick is the plain kPlainTick, the Camel was not
+     * under 35% at step 2's read and was at step 4's, every tick before step 4 is the plain share, at least
+     * kMinAbove of them, and every tick from step 4 on is the share times (100 + the amount of 86880's aura on him)
+     * / 100, at least kBelowTicks of them (Combustion's duration over its period, and one more when the DoT replaces a
+     * running one).
+     */
+    class MageFireCombustionMoltenFury : public MageFireMoltenFuryTick
+    {
+    public:
+        MageFireCombustionMoltenFury() : MageFireMoltenFuryTick("mage-fire-combustion-molten-fury", 978, "combustionMoltenFury") {}
+
+    protected:
+        uint32 Watched() const override { return kCombustionDot; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step pyroblast = Cast(kPyroblast, false);
+            pyroblast.everyMs = kCombustionAfterMs;
+            Step above = Cast(kCombustion, false);
+            above.everyMs = kHealthAfterMs;
+            Step below = Cast(kCombustion, false);
+            below.clearCooldown = true;
+            below.everyMs = kLastStepMs;
+            return { pyroblast, above, TargetHealth(kUnderPct, kRecastAfterMs), below };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            std::vector<SpellPrint> prints = MageFireMoltenFuryTick::Prints();
+            const std::vector<SpellPrint> own = {
+                // 11129: 49 fields, fnv 9ccc32ac
+                { 11129, { { "eff0.present", 1 }, { "eff0.Effect", 77 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 17867076534295 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 23 }, { "eff1.EffectBonusCoefficient", 1054582243 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 9 }, { "eff1.EffectRealPointsPerLevel", 1058642330 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 83853: 26 fields, fnv 87a2a19f
+                { 83853, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 25 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+            prints.insert(prints.end(), own.begin(), own.end());
+            return prints;
+        }
+
+        std::string Own(St const& st) const override
+        {
+            std::vector<uint32> plain;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const std::vector<uint32> stepTicks = TickAmounts(k, kPyroblast);
+                plain.insert(plain.end(), stepTicks.begin(), stepTicks.end());
+            }
+            std::vector<uint32> above;
+            std::vector<uint32> below;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                const std::vector<uint32> stepTicks = TickAmounts(k, kCombustionDot);
+                std::vector<uint32>& into = k < kBelowStep ? above : below;
+                into.insert(into.end(), stepTicks.begin(), stepTicks.end());
+            }
+
+            int32 amount = 0;
+            if (Player* p = sPlayerRegistry.Find(st.player))
+            {
+                if (Aura const* moltenFury = p->GetAura(kMoltenFury3, EFFECT_INDEX_0))
+                {
+                    amount = moltenFury->GetModifier()->m_amount;
+                }
+            }
+            const uint32 first = plain.empty() ? 0 : plain[0];
+            const float lowHealth = (100.0f + amount) / 100.0f;
+            const uint32 wantAbove = uint32(double(first) * 1000.0 / double(kPyroblastPeriod));
+            const uint32 wantBelow = uint32(double(first) * 1000.0 / double(kPyroblastPeriod) * double(lowHealth));
+            const int64 underAbove = Under35(st, 1);
+            const int64 underBelow = Under35(st, kBelowStep);
+
+            bool ok = st.steps.size() == 4 && amount > 0 && first == kPlainTick && underAbove == 0 && underBelow == 1 &&
+                      above.size() >= kMinAbove && below.size() >= kBelowTicks;
+            for (size_t i = 0; i < above.size(); ++i)
+            {
+                ok = ok && above[i] == wantAbove;
+            }
+            for (size_t i = 0; i < below.size(); ++i)
+            {
+                ok = ok && below[i] == wantBelow;
+            }
+
+            const std::string value = "above=" + (above.empty() ? std::string("none") : U(above[0])) + "x" + U(above.size()) +
+                                      ",below=" + (below.empty() ? std::string("none") : U(below[0])) + "x" + U(below.size());
+            char buf[512];
+            snprintf(buf, sizeof(buf),
+                     "the Pyroblast DoT's tick %u (the plain tick %u wanted); 83853 ticks before step 4 %u, each int(%u x 1000 / %u) = %u "
+                     "wanted (at least %u); from step 4 %u, at least %u wanted, each int(%u x 1000 / %u x %.2f) = %u; the Camel under 35%% at "
+                     "step 2's read %s, at step 4's %s; 86880's amount on him %d",
+                     first, kPlainTick, uint32(above.size()), first, kPyroblastPeriod, wantAbove, uint32(kMinAbove), uint32(below.size()),
+                     uint32(kBelowTicks), first, kPyroblastPeriod, lowHealth, wantBelow, Under35Text(underAbove), Under35Text(underBelow),
+                     amount);
+            return value + (ok ? "(OK: " : "(BUG: ") + buf + ")";
+        }
+
+    private:
+        static constexpr uint32 kPyroblast = 11366;
+        static constexpr uint32 kCombustion = 11129;
+        static constexpr uint32 kCombustionDot = 83853;
+        static constexpr uint32 kMoltenFury3 = 86880;
+        static constexpr uint32 kPyroblastPeriod = 3000;
+        static constexpr uint32 kCombustionAfterMs = 4300;
+        static constexpr uint32 kHealthAfterMs = 4000;
+        static constexpr uint32 kRecastAfterMs = 1000;
+        static constexpr uint32 kLastStepMs = 12000;
+        static constexpr uint32 kUnderPct = 30;
+        static constexpr uint32 kBelowStep = 3;
+        static constexpr uint32 kPlainTick = 487;
+        static constexpr size_t kMinAbove = 3;
+        static constexpr size_t kBelowTicks = 10;
     };
 
     /**
@@ -11261,6 +11388,7 @@ namespace Harness
         r.Register(new MageFireCastPassives());
         r.Register(new MageFireGlyphs());
         r.Register(new MageFireMoltenFuryTick());
+        r.Register(new MageFireCombustionMoltenFury());
         r.Register(new MageFireMoltenArmor());
         r.Register(new MageFirePyroblastPath());
         r.Register(new MageFireBlazingSpeedDispel());
