@@ -89,7 +89,11 @@ namespace
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
         }
 
-        int32 const tick = Combat::DotShareTick(float(ctx.damage), uint32(ctx.triggerAmount), IgniteTicks());
+        // the hit before the victim's damage-taken effects, divided by the multiplier of the DoT that ticks (the
+        // Ignite row's own); the flat taken bonus stays in
+        SpellEntry const* igniteDot = sSpellStore.LookupEntry(IGNITE_DOT);
+        float const taken = igniteDot ? Spells::DamageTakenMultiplier(*ctx.victim, ctx.caster, *igniteDot) : 1.0f;
+        int32 const tick = Combat::DotShareTick(float(Mage::ShareBase(ctx.damage, taken)), uint32(ctx.triggerAmount), IgniteTicks());
         if (tick <= 0)
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
@@ -386,11 +390,11 @@ namespace
 
     /// 44614: Frostfire Bolt: after its hit lands, on the caster's own holder of it on the target. With Glyph of
     /// Frostfire (61205) the holder's periodic damage becomes the glyph's share of the hit: its effect 2, in percent,
-    /// of the damage dealt and absorbed, taken before the caster's bonus at the target's low health, Molten Fury, which
-    /// each tick takes again (Mage::FrostfireGlyphHit); spread over the ticks the holder's time left holds at its
-    /// period, times the holder's stacks, with the caster's mastery on the spell (Mage::FrostfireGlyphTick). Without
-    /// the glyph a holder that stacked is set back to one stack, so the slow keeps its own value, and one with no slow
-    /// runs out (ExpireWithoutSlow).
+    /// of the damage dealt and absorbed, taken before the caster's bonus at the target's low health, Molten Fury, and
+    /// the target's damage-taken effects, which each tick takes again (Mage::ShareBase); spread over the ticks the
+    /// holder's time left holds at its period, times the holder's stacks, with the caster's mastery on the spell
+    /// (Mage::FrostfireGlyphTick). Without the glyph a holder that stacked is set back to one stack, so the slow keeps
+    /// its own value, and one with no slow runs out (ExpireWithoutSlow).
     SpellHandlerOutcome<void> FrostfireBoltAfterHit(AfterHitContext& ctx)
     {
         if (ctx.heal)
@@ -431,9 +435,11 @@ namespace
         {
             mods->ApplySpellMod(FROSTFIRE_BOLT_SPELL, SPELLMOD_DOT, mastery, true);
         }
-        // the hit before the caster's bonus at the target's low health, which each tick of the DoT takes again
+        // the hit before the caster's bonus at the target's low health and the target's damage-taken effects, which each
+        // tick of the DoT takes again; the flat taken bonus stays in
         float const lowHealth = Spells::LowHealthDamageMultiplier(ctx.caster, ctx.target, ctx.spell);
-        uint32 const hit = Mage::FrostfireGlyphHit(ctx.amount + ctx.absorbed, lowHealth);
+        float const taken = Spells::DamageTakenMultiplier(ctx.target, ctx.caster, ctx.spell);
+        uint32 const hit = Mage::ShareBase(ctx.amount + ctx.absorbed, lowHealth * taken);
         aura.SetAmount(dot.effIndex, Mage::FrostfireGlyphTick(hit, uint32(percent), ticks, aura.Stacks(), mastery));
         return SpellHandlerOutcome<void>::Continue();
     }
@@ -710,13 +716,13 @@ int32 Mage::ImprovedFlamestrikeChance(uint32 talentSpell)
     return talent ? talent->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
 }
 
-uint32 Mage::FrostfireGlyphHit(uint32 dealtAndAbsorbed, float lowHealthMultiplier)
+uint32 Mage::ShareBase(uint32 dealt, float multiplier)
 {
-    if (lowHealthMultiplier <= 0.0f)
+    if (multiplier <= 0.0f)
     {
-        return dealtAndAbsorbed;
+        return dealt;
     }
-    return uint32(float(dealtAndAbsorbed) / lowHealthMultiplier + 0.5f);
+    return uint32(float(dealt) / multiplier + 0.5f);
 }
 
 int32 Mage::FrostfireGlyphTick(uint32 hit, uint32 percent, uint32 ticks, uint32 stacks, float masteryMultiplier)

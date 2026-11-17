@@ -79,6 +79,19 @@ namespace Spells
     float LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, SpellEntry const& spell);
 
     /**
+     * @brief The multiplier the victim's damage-taken effects put on a hit of `spell` from `caster`, as
+     * Unit::SpellDamageBonusTaken applies it: for a spell of damage class NONE or MAGIC. A melee or ranged spell takes
+     * the multiplier of Unit::MeleeDamageBonusTaken, which this does not mirror.
+     *
+     * The percent damage-taken auras for the spell's school, the dummy-aura bodies of the damage-taken site, the
+     * caster-bound damage-taken auras, then the mechanic, area-of-effect and pet-area multipliers
+     * (Combat::SpellDamageTakenPercent); 1.0 for a victim with none. Unit::SpellDamageBonusTaken takes its percent part
+     * from this. The flat damage-taken bonus (SPELL_AURA_MOD_DAMAGE_TAKEN) is not in it, and neither is the victim's
+     * resilience.
+     */
+    float DamageTakenMultiplier(Unit& victim, Unit const& caster, SpellEntry const& spell);
+
+    /**
      * @brief Whether the spell's own rows deal damage.
      *
      * A SCHOOL_DAMAGE, WEAPON_DAMAGE, WEAPON_DAMAGE_NOSCHOOL, WEAPON_PERCENT_DAMAGE, NORMALIZED_WEAPON_DMG, HEALTH_LEECH

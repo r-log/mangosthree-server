@@ -630,57 +630,10 @@ uint32 Unit::SpellDamageBonusTaken(Unit* pCaster, SpellEntry const* spellProto, 
         return pdamage;
     }
 
-    uint32 schoolMask = spellProto->SchoolMask;
-
-    // Taken total percent damage auras
-    float TakenTotalMod = 1.0f;
     int32 TakenTotal = 0;
 
-    // ..taken
-    TakenTotalMod *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
-
-    // .. taken pct: dummy auras
-    AuraList const& mDummyAuras = GetAurasByType(SPELL_AURA_DUMMY);
-    for (AuraList::const_iterator i = mDummyAuras.begin(); i != mDummyAuras.end(); ++i)
-    {
-        SpellDamageTakenContext ctx(this, spellProto, TakenTotalMod, i);
-        if (SpellHandlerRegistry::Game().Dispatch<SpellDamageTakenSite>((*i)->GetId(), ctx).IsLoopContinue())
-        {
-            continue;
-        }
-    }
-
-    // From caster spells
-    AuraList const& mOwnerTaken = GetAurasByType(SPELL_AURA_MOD_DAMAGE_FROM_CASTER);
-    for (AuraList::const_iterator i = mOwnerTaken.begin(); i != mOwnerTaken.end(); ++i)
-    {
-        if ((*i)->GetCasterGuid() == pCaster->GetObjectGuid() && (*i)->isAffectedOnSpell(spellProto))
-        {
-            TakenTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-        }
-    }
-
-    // Mod damage from spell mechanic
-    float const mechanicDamageTakenMultiplier = GetTotalAuraMultiplierByMiscValueForMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, GetAllSpellMechanicMask(spellProto));
-
-    // Mod damage taken from AoE spells
-    bool const isAreaOfEffectSpell = IsAreaOfEffectSpell(spellProto);
-    float aoeDamageAvoidanceMultiplier = 1.0f;
-    bool isPet = false;
-    float petAoeDamageAvoidanceMultiplier = 1.0f;
-    if (isAreaOfEffectSpell)
-    {
-        aoeDamageAvoidanceMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_AOE_DAMAGE_AVOIDANCE, schoolMask);
-        isPet = IsPet();
-        if (isPet)
-        {
-            petAoeDamageAvoidanceMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_PET_AOE_DAMAGE_AVOIDANCE, schoolMask);
-        }
-    }
-
-    TakenTotalMod = Combat::SpellDamageTakenPercent(TakenTotalMod, mechanicDamageTakenMultiplier,
-                                                    isAreaOfEffectSpell, aoeDamageAvoidanceMultiplier,
-                                                    isPet, petAoeDamageAvoidanceMultiplier);
+    // Taken total percent damage auras
+    float const TakenTotalMod = Spells::DamageTakenMultiplier(*this, *pCaster, *spellProto);
 
     // Taken fixed damage bonus auras
     int32 TakenAdvertisedBenefit = SpellBaseDamageBonusTaken(GetSpellSchoolMask(spellProto));
