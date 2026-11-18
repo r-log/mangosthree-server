@@ -378,17 +378,20 @@ namespace Mage
         FINGERS                                     ///< the target does not, and the spell counts it as frozen all the same
     };
 
-    /// How `spell`, cast by `caster` at `target`, counts the target for damage of `damageType`: REALLY_FROZEN when the
-    /// target holds the frozen aura state; else, for a hit, FINGERS for Deep Freeze's damage (71757, cast only at a
-    /// target a stun cannot hold) and for a spell that uses a Fingers of Frost charge (UsesFingers); else NOT_FROZEN,
-    /// and always NOT_FROZEN for a periodic effect (DOT) at a target that is not frozen. Defined in Frost.cpp.
+    /// How `spell`, cast by `caster` at `target` with the cast time `castTime` its timer started at, counts the target
+    /// for damage of `damageType`: REALLY_FROZEN when the target holds the frozen aura state; else, for a hit, FINGERS
+    /// for Deep Freeze's damage (71757, cast only at a target a stun cannot hold) and for a spell that uses a Fingers
+    /// of Frost charge (UsesFingers); else NOT_FROZEN, and always NOT_FROZEN for a periodic effect (DOT) at a target
+    /// that is not frozen. Defined in Frost.cpp.
     FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell,
-                              DamageEffectType damageType);
+                              DamageEffectType damageType, uint32 castTime);
 
-    /// Whether `spell`, cast by `caster`, uses a Fingers of Frost charge: the caster holds Fingers of Frost (44544) and
-    /// the spell is Ice Lance (30455), Deep Freeze (44572), or a Frostfire Bolt (44614) cast while Brain Freeze's buff
-    /// (57761) makes it instant. The target's state plays no part. Defined in Frost.cpp.
-    bool UsesFingers(Unit const& caster, SpellEntry const& spell);
+    /// Whether `spell`, cast by `caster` with the cast time `castTime` its timer started at, uses a Fingers of Frost
+    /// charge: the caster holds Fingers of Frost (44544) and the spell is Ice Lance (30455), Deep Freeze (44572), or a
+    /// Frostfire Bolt (44614) that uses Brain Freeze's buff (UsesBrainFreeze: it went off as it started while he held
+    /// the buff). A bolt cast in full uses no charge, under a buff that came during the cast too. The target's state
+    /// plays no part. Defined in Frost.cpp.
+    bool UsesFingers(Unit const& caster, SpellEntry const& spell, uint32 castTime);
 
     /// Whether `spell`, cast by `caster` with the cast time `castTime` its timer started at, uses Brain Freeze's buff
     /// (57761): a Fireball (133) or a Frostfire Bolt (44614) that went off as it started (`castTime` 0) while the

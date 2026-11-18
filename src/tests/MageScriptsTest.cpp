@@ -2940,22 +2940,23 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
     // Freeze's damage always does.
     for (uint32 spellId : { kIceLance, kDeepFreeze })
     {
-        CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE)),
+        CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE, 0)),
                  int(Mage::FINGERS));
-        CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE)),
+        CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE, 0)),
                  int(Mage::NOT_FROZEN));
     }
     for (uint32 spellId : { kFrostbolt, kFrostfireBoltSpell, 122u, 133u })
     {
-        CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE)),
+        CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE, 0)),
                  int(Mage::NOT_FROZEN));
-        CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE)),
+        CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE, 0)),
                  int(Mage::NOT_FROZEN));
     }
-    CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE)),
+    CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE, 0)),
              int(Mage::FINGERS));
 
-    // The Frostfire Bolt Brain Freeze makes instant counts it as frozen under Fingers of Frost, and not without it.
+    // The Frostfire Bolt Brain Freeze makes instant counts it as frozen under Fingers of Frost, and not without it; one
+    // cast in full does not, under a buff that came during its cast too.
     BareCreature brainFreeze;
     BareCreature both;
     HolderStorage brainFreezeStorage;
@@ -2964,18 +2965,20 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
     brainFreeze.HoldAura(kBrainFreezeBuff, EmptyHolder(brainFreezeStorage));
     both.HoldAura(kFingersOfFrost, EmptyHolder(bothFingers));
     both.HoldAura(kBrainFreezeBuff, EmptyHolder(bothBrainFreeze));
-    CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, kFrostfireBoltSpell), SPELL_DIRECT_DAMAGE)),
+    CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, kFrostfireBoltSpell), SPELL_DIRECT_DAMAGE, 0)),
              int(Mage::FINGERS));
-    CHECK_EQ(int(Mage::CountsAsFrozen(brainFreeze, victim, SpellRow(row, kFrostfireBoltSpell), SPELL_DIRECT_DAMAGE)),
+    CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, kFrostfireBoltSpell), SPELL_DIRECT_DAMAGE, 2500)),
              int(Mage::NOT_FROZEN));
-    CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, kFrostbolt), SPELL_DIRECT_DAMAGE)),
+    CHECK_EQ(int(Mage::CountsAsFrozen(brainFreeze, victim, SpellRow(row, kFrostfireBoltSpell), SPELL_DIRECT_DAMAGE, 0)),
+             int(Mage::NOT_FROZEN));
+    CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, kFrostbolt), SPELL_DIRECT_DAMAGE, 0)),
              int(Mage::NOT_FROZEN));
 
     // The bolt's periodic effect counts the target by its own state alone: under both buffs it does not count an
     // unfrozen target as frozen, and neither does any other periodic effect.
     for (uint32 spellId : { kFrostfireBoltSpell, kIceLance, kDeepFreezeDamage })
     {
-        CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, spellId), DOT)), int(Mage::NOT_FROZEN));
+        CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, spellId), DOT, 0)), int(Mage::NOT_FROZEN));
     }
 
     // A frozen target: every spell counts it as frozen, with the charge or without, and so does a periodic effect.
@@ -2983,12 +2986,12 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
     CHECK(victim.IsFrozen());
     for (uint32 spellId : { kIceLance, kDeepFreeze, kFrostbolt, kFrostfireBoltSpell, 122u })
     {
-        CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE)),
+        CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE, 0)),
                  int(Mage::REALLY_FROZEN));
-        CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE)),
+        CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE, 0)),
                  int(Mage::REALLY_FROZEN));
     }
-    CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, kFrostfireBoltSpell), DOT)),
+    CHECK_EQ(int(Mage::CountsAsFrozen(both, victim, SpellRow(row, kFrostfireBoltSpell), DOT, 0)),
              int(Mage::REALLY_FROZEN));
 }
 
@@ -3260,15 +3263,20 @@ TEST(MageScripts_ASpellUsesAFingersChargeByTheBuffNotByTheTargetsState)
     SpellRowStorage row;
     for (uint32 spellId : { kIceLance, kDeepFreeze })
     {
-        CHECK(Mage::UsesFingers(fingers, SpellRow(row, spellId)));
-        CHECK(Mage::UsesFingers(both, SpellRow(row, spellId)));
-        CHECK(!Mage::UsesFingers(none, SpellRow(row, spellId)));
+        CHECK(Mage::UsesFingers(fingers, SpellRow(row, spellId), 0));
+        CHECK(Mage::UsesFingers(fingers, SpellRow(row, spellId), 1500));
+        CHECK(Mage::UsesFingers(both, SpellRow(row, spellId), 0));
+        CHECK(!Mage::UsesFingers(none, SpellRow(row, spellId), 0));
     }
-    CHECK(!Mage::UsesFingers(fingers, SpellRow(row, kFrostfireBoltSpell)));
-    CHECK(Mage::UsesFingers(both, SpellRow(row, kFrostfireBoltSpell)));
+    // A Frostfire Bolt uses one only when Brain Freeze's buff made it instant: not one cast in full, under a buff that
+    // came during its cast either.
+    CHECK(!Mage::UsesFingers(fingers, SpellRow(row, kFrostfireBoltSpell), 0));
+    CHECK(Mage::UsesFingers(both, SpellRow(row, kFrostfireBoltSpell), 0));
+    CHECK(!Mage::UsesFingers(both, SpellRow(row, kFrostfireBoltSpell), 2500));
+    CHECK(!Mage::UsesFingers(both, SpellRow(row, kFrostfireBoltSpell), 1));
     for (uint32 spellId : { kFrostbolt, kDeepFreezeDamage, 133u, 120u })
     {
-        CHECK(!Mage::UsesFingers(both, SpellRow(row, spellId)));
+        CHECK(!Mage::UsesFingers(both, SpellRow(row, spellId), 0));
     }
 }
 
@@ -3332,6 +3340,18 @@ TEST(MageScripts_FingersOfFrostsUsersTakeTheChargeAtTheLaunchHookAndNowhereElse)
         CHECK(registry.Dispatch<LaunchHook>(spellId, tookItsTime).IsContinue());
         CHECK(brainFreezeMage.HasAura(kBrainFreezeBuff));
     }
+
+    // A Frostfire Bolt cast in full under both buffs keeps both: the buff did not make it instant, so it uses no
+    // charge either.
+    BareCreature bothMage;
+    HolderStorage bothFingers;
+    HolderStorage bothBrainFreeze;
+    bothMage.HoldAura(kFingersOfFrost, EmptyHolder(bothFingers));
+    bothMage.HoldAura(kBrainFreezeBuff, EmptyHolder(bothBrainFreeze));
+    LaunchContext fullBolt(bothMage, SpellRow(row, kFrostfireBoltSpell), 2500);
+    CHECK(registry.Dispatch<LaunchHook>(kFrostfireBoltSpell, fullBolt).IsContinue());
+    CHECK(bothMage.HasAura(kFingersOfFrost));
+    CHECK(bothMage.HasAura(kBrainFreezeBuff));
 }
 
 TEST(MageScripts_BrainFreezesBuffIsUsedByTheFireballOrFrostfireBoltItMadeInstant)

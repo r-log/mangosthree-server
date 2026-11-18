@@ -24,6 +24,7 @@
  */
 
 #include "spells/classes/mage/Mage.h"
+#include "spells/pipeline/Spell.h"
 #include "spells/SpellModMgr.h"
 #include "entities/Unit.h"
 #include "entities/Creature.h"
@@ -76,13 +77,27 @@ namespace
         return spell ? spell->CalculateSimpleValue(index) : 0;
     }
 
+    /// The cast time in ms that the caster's cast of `spell` in one of his current spell slots started with, when that
+    /// cast has not been launched yet: the cast whose hit the crit-chance and damage-done hooks reckon as it goes off.
+    /// 0 when it is not above 0, and when no slot holds such a cast, as for a triggered cast, which stands in none.
+    uint32 CastTimeGoingOff(Unit const& caster, SpellEntry const& spell)
+    {
+        Spell const* cast = caster.FindCurrentSpellBySpellId(spell.ID);
+        if (!cast || cast->getState() != SPELL_STATE_PREPARING || cast->GetCastTime() <= 0)
+        {
+            return 0;
+        }
+        return uint32(cast->GetCastTime());
+    }
+
     /// Every spell of SHATTER_SPELLS: Shatter multiplies the whole crit chance by its factor when the spell counts its
     /// target as frozen, a periodic tick by the target's own state alone. The caster's flat crit-chance modifiers for
     /// the spell are added after this hook, so the chance is raised to the factor times the chance with them, less
     /// them.
     SpellHandlerOutcome<void> FrostCritChance(CritChanceContext& ctx)
     {
-        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType) != Mage::NOT_FROZEN)
+        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType,
+                                 CastTimeGoingOff(ctx.caster, ctx.spell)) != Mage::NOT_FROZEN)
         {
             float flatMods = 0.0f;
             if (SpellModMgr* mods = ctx.caster.GetSpellMods())
@@ -104,7 +119,8 @@ namespace
     /// charge and Brain Freeze's buff.
     SpellHandlerOutcome<void> FrostDamageDone(DamageDoneContext& ctx)
     {
-        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType) == Mage::NOT_FROZEN)
+        uint32 const castTime = CastTimeGoingOff(ctx.caster, ctx.spell);
+        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType, castTime) == Mage::NOT_FROZEN)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
@@ -127,7 +143,7 @@ namespace
         }
         else if (ctx.spell.ID == ICE_LANCE_SPELL)
         {
-            ctx.doneTotalMod *= Mage::IceLanceMultiplier(true, Mage::UsesFingers(ctx.caster, ctx.spell),
+            ctx.doneTotalMod *= Mage::IceLanceMultiplier(true, Mage::UsesFingers(ctx.caster, ctx.spell, castTime),
                                                          EffectValue(ICE_LANCE_SPELL, EFFECT_INDEX_1),
                                                          ICE_LANCE_FINGERS_PERCENT);
         }
@@ -140,7 +156,7 @@ namespace
     /// dead takes both all the same.
     SpellHandlerOutcome<void> FrostLaunch(LaunchContext& ctx)
     {
-        if (Mage::UsesFingers(ctx.caster, ctx.spell))
+        if (Mage::UsesFingers(ctx.caster, ctx.spell, ctx.castTime))
         {
             Mage::UseFingersCharge(ctx.caster);
         }
@@ -212,7 +228,7 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
 }
 
 Mage::FrozenKind Mage::CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell,
-                                      DamageEffectType damageType)
+                                      DamageEffectType damageType, uint32 castTime)
 {
     if (target.IsFrozen())
     {
@@ -222,21 +238,21 @@ Mage::FrozenKind Mage::CountsAsFrozen(Unit const& caster, Unit const& target, Sp
     {
         return NOT_FROZEN;
     }
-    if (spell.ID == DEEP_FREEZE_DAMAGE || UsesFingers(caster, spell))
+    if (spell.ID == DEEP_FREEZE_DAMAGE || UsesFingers(caster, spell, castTime))
     {
         return FINGERS;
     }
     return NOT_FROZEN;
 }
 
-bool Mage::UsesFingers(Unit const& caster, SpellEntry const& spell)
+bool Mage::UsesFingers(Unit const& caster, SpellEntry const& spell, uint32 castTime)
 {
     if (!caster.HasAura(FINGERS_OF_FROST_BUFF))
     {
         return false;
     }
     return spell.ID == ICE_LANCE_SPELL || spell.ID == DEEP_FREEZE ||
-           (spell.ID == FROSTFIRE_BOLT && caster.HasAura(BRAIN_FREEZE_BUFF));
+           (spell.ID == FROSTFIRE_BOLT && UsesBrainFreeze(caster, spell, castTime));
 }
 
 bool Mage::UsesBrainFreeze(Unit const& caster, SpellEntry const& spell, uint32 castTime)
