@@ -121,7 +121,8 @@ namespace
     // Impact's ids at the proc hook: the talent's two ranks.
     uint32 const IMPACT_IDS[] = { 11103, 12357 };
 
-    // The id Clearcasting's script holds at the check-proc hook: the buff, whose charge Pyroblast! does not take.
+    // The id Clearcasting's script holds at the check-proc hook: the buff, whose charge only a spell it makes cheaper
+    // takes.
     uint32 const CLEARCASTING_IDS[] = { 12536 };
 
     // The id Impact's spread holds at the dummy-effect hook: the spell the Impact buff casts at its Fire Blast's victim.
@@ -1282,7 +1283,7 @@ namespace
     // cost, as an item's spell is; a priest spell and a mage spell of a rage cost, on Fireball's mask bit.
     ClearcastingEvent const CLEARCASTING_EVENTS[] =
     {
-        { 133, SPELLFAMILY_MAGE, 0x00000001, 0, 0, POWER_MANA, 0, 9, true },
+        { 133, SPELLFAMILY_MAGE, 0x00000001, 0, 0x00000008, POWER_MANA, 0, 9, true },
         { 11366, SPELLFAMILY_MAGE, 0x00400000, 0, 0x00001008, POWER_MANA, 0, 17, true },
         { 82731, SPELLFAMILY_MAGE, 0, 0, 0x00000880, POWER_MANA, 0, 6, true },
         { kFlatCostSpell, SPELLFAMILY_MAGE, 0x00000001, 0, 0, POWER_MANA, 100, 0, true },
