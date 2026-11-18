@@ -138,10 +138,11 @@
 // staged Frost mage's Ice Lance does double damage to a Camel that Frost Nova froze, and 2000 rolls of
 // Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
 // sheet chance and Glyph of Frostbolt's 5 together. 993 a staged Frost mage's Frostbolts give Fingers of Frost and
-// Replenishment and his Fire Blasts no charge; by call, Blizzard's Chilled and a bare Frostfire Bolt give charges and
-// Frost Armor's Chilled and a glyphed bolt none; Ice Block's glyph resets Frost Nova. 994 Fingers of Frost's two
-// charges: each Ice Lance, Deep Freeze and Brain Freeze Frostfire Bolt that lands uses one, a missed Ice Lance none,
-// and Ice Lance deals a quarter more with one, at an unfrozen and at a frozen Camel.
+// Replenishment and his Fire Blasts no charge; by call, Blizzard's Chilled and a Frostfire Bolt, bare or glyphed, give
+// charges and Frost Armor's Chilled none; Ice Block's glyph resets Frost Nova. 994 Fingers of Frost's two charges:
+// each Ice Lance, Deep Freeze and Brain Freeze Frostfire Bolt takes one as it is cast, a missed Ice Lance too, a copy
+// cast while the first Ice Lance flies finds none, a bolt keeps a charge it gets after its launch, Ice Lance deals a
+// quarter more with one at an unfrozen and at a frozen Camel, and the bolt's tick takes no Shatter under the buffs.
 // 1025 Polymorph and Wyvern Sting on the Camel break on a direct hit and on a periodic tick, not on Molten Armor's
 // hit, a heal or a hit a shield takes whole, and Hex breaks on a chance per hit.
 // 1026 a root, a fear and Hex on the Camel count the damage a shield absorbed and the damage its damage-reduction
@@ -13603,15 +13604,15 @@ namespace Harness
      * before each; a wait at whose act the scenario makes kCalls cast-end procs on him by call, as Spell::cast makes
      * one at a launch (Unit::ProcDamageAndSpell with the harmful-spell flag and PROC_EX_CAST_END), each with Fingers
      * of Frost (44544) taken off him first, for Blizzard's Chilled (12484), Frost Armor's Chilled (7321), Frostfire
-     * Bolt (44614), and Frostfire Bolt again with Glyph of Frostfire's aura (61205) put on him; then Frost Nova (122)
-     * and Ice Block (45438), whose glyph is to take Frost Nova's cooldown off.
+     * Bolt (44614), and Frostfire Bolt again with Glyph of Frostfire (61205) cast on him, triggered, as a staged glyph
+     * is; then Frost Nova (122) and Ice Block (45438), whose glyph is to take Frost Nova's cooldown off.
      *
      * `procRows`: `bolts=<44544 casts in the Frostbolts' windows>,blasts=<in the Fire Blasts'>,brainFreeze=<57761 casts
      * in the Frostbolts' windows>,replenishment=<57669 casts in the Frostbolts' windows>,chill=,frostArmor=,bolt=,
      * glyphedBolt=<the by-call procs that left him holding 44544, of kCalls each>,novaReset=<1 when Frost Nova was off
-     * cooldown at Ice Block's read>`; OK when the Frostbolts, Blizzard's Chilled and the bare Frostfire Bolt gave
-     * charges, the Fire Blasts, Frost Armor's Chilled and the glyphed bolt none, and Enduring Winter gave
-     * Replenishment. `novaReset` is recorded, not judged.
+     * cooldown at Ice Block's read>`; OK when the Frostbolts, Blizzard's Chilled and the Frostfire Bolt, bare and
+     * glyphed, gave charges, the Fire Blasts and Frost Armor's Chilled none, and Enduring Winter gave Replenishment.
+     * `novaReset` is recorded, not judged.
      */
     class MageFrostProcRows : public MageProcScenario
     {
@@ -13718,7 +13719,8 @@ namespace Harness
                 seen.reads["chill"] = GrantsByCall(p, target, kBlizzardChill);
                 seen.reads["frostArmor"] = GrantsByCall(p, target, kFrostArmorChill);
                 seen.reads["bolt"] = GrantsByCall(p, target, kFrostfireBolt);
-                PutAura(p, kGlyphOfFrostfire);
+                p->CastSpell(p, kGlyphOfFrostfire, true);
+                m_rec.Note(std::string("Glyph of Frostfire on him: ") + (p->HasAura(kGlyphOfFrostfire) ? "yes" : "no"));
                 seen.reads["glyphedBolt"] = GrantsByCall(p, target, kFrostfireBolt);
                 p->RemoveAurasDueToSpell(kGlyphOfFrostfire);
                 m_rec.Note("cast-end procs by call, " + U(kCalls) + " each: Blizzard's Chilled " +
@@ -13763,11 +13765,11 @@ namespace Harness
                                       ",frostArmor=" + shown(frostArmor) + ",bolt=" + shown(bolt) +
                                       ",glyphedBolt=" + shown(glyphedBolt) + ",novaReset=" + shown(novaReset);
             const bool ok = bolts >= 1 && blasts == 0 && replenishment >= 1 && chill >= 1 && frostArmor == 0 &&
-                            bolt >= 1 && glyphedBolt == 0;
+                            bolt >= 1 && glyphedBolt >= 1;
             const std::string detail = "Fingers of Frost from " + U(kBolts) + " Frostbolts and none from " +
                                        U(kBlasts) + " Fire Blasts; Replenishment from Enduring Winter; by call, "
-                                       "charges from Blizzard's Chilled and a bare Frostfire Bolt and none from Frost "
-                                       "Armor's Chilled or a glyphed bolt)";
+                                       "charges from Blizzard's Chilled and a Frostfire Bolt, bare and glyphed, and "
+                                       "none from Frost Armor's Chilled)";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
 
@@ -13830,26 +13832,35 @@ namespace Harness
 
     /**
      * S994 `mage-frost-fingers`: Fingers of Frost's charges (44544, two stacks at most) and the spells that use them,
-     * for a staged Frost mage with Piercing Ice 3, so no talent of his gives a charge: each charge is a wait at whose
-     * act he casts 44544 at himself, triggered, as Brain Freeze's buff (57761) is. Ice Lance (30455) and Frostfire
-     * Bolt (44614) travel kDistance yards to the Camel at 38 and 28 yards a second; Deep Freeze (44572), learned as a
-     * spell, lands as it is cast. He holds kSpellPower spell power, so an Ice Lance's own spread is small beside it,
-     * and the crit aura at -100, so no cast crits; each cast's read sets the Camel's health back to its maximum.
-     * Steps: two charges and three Ice Lances; a charge and Deep Freeze at the unfrozen Camel; Ice Lance at the Camel
-     * Deep Freeze froze; a charge and Ice Lance at the frozen Camel; a wait for the stun to end; a charge and two Ice
-     * Lances one global cooldown apart; a charge, with Wily Wits (75533, 100 less chance for a spell to hit its
-     * holder) put on the Camel after it, an Ice Lance that misses (the aura taken off at its read) and one that lands;
-     * a charge, Brain Freeze's buff and a Frostfire Bolt it makes instant; a charge, a Frostfire Bolt cast in full
-     * and a wait for it to land.
+     * for a staged Frost mage with Piercing Ice 3 and Shatter 2, so no talent of his gives a charge: each charge is a
+     * wait at whose act he casts 44544 at himself, triggered, and Brain Freeze's buff (57761) is cast the same way. Ice
+     * Lance (30455) and Frostfire Bolt (44614) travel kDistance yards to the Camel at 38 and 28 yards a second (0.66
+     * and 0.89 s); Deep Freeze (44572), learned as a spell, lands as it is cast. He holds kSpellPower spell power, so
+     * an Ice Lance's own spread is small beside it, and the crit aura at -100, so no cast crits; each cast's read sets
+     * the Camel's health back to its maximum. Steps: two charges and three Ice Lances; a charge and Deep Freeze at the
+     * unfrozen Camel; Ice Lance at the Camel Deep Freeze froze; a charge and Ice Lance at the frozen Camel; a wait for
+     * the stun to end; a charge and an Ice Lance at whose act he casts a copy of it at the Camel, triggered, while the
+     * first flies, as a Dragonwrath copy is cast; a charge, with Wily Wits (75533, 100 less chance for a spell to hit
+     * its holder) put on the Camel after it as PutReadyAura puts it, an Ice Lance that misses (the aura taken off at
+     * its read) and one that lands; a charge, a Frostfire Bolt cast in full and a wait for it to land; Brain Freeze's
+     * buff and a Frostfire Bolt it makes instant; the buff again and a second instant bolt, at whose act, after its
+     * launch and before it lands, he casts a charge at himself; a wait at whose act the scenario rolls
+     * Unit::IsSpellCrit for Frostfire Bolt at the unfrozen Camel kRolls times as a hit and kRolls times as a periodic
+     * tick (DOT), with the crit aura at kRollCritPoints for the rolls, while he holds Fingers of Frost and Brain
+     * Freeze's buff.
      *
-     * `fingers`: `lance=<each Ice Lance's damage over the third one's, in hundredths, or miss>,stacks=<the stack of
-     * 44544 at the read of each step that may use a charge, and at the last wait's>,deepFreeze=<1 when Deep Freeze went
-     * and the Camel was frozen right after>,brainFreezeLeft=<1 when Brain Freeze's buff was still on him right after
-     * the first bolt's act>`; the buff is then taken off him by call, so that the second bolt is cast in full.
-     * OK at `lance=250,250,100,200,250,250,100,miss,250`, each within kTolerance, `stacks=1,0,0,0,0,0,0,0,1,0,0,1,1`
-     * and `deepFreeze=1`: a charge adds a quarter to the double damage at an unfrozen and at a frozen Camel and is
-     * taken when the spell lands, a miss takes none, two Ice Lances do not share one, and a Frostfire Bolt takes one
-     * only when Brain Freeze made it instant. `brainFreezeLeft` is recorded, not judged.
+     * `fingers`: `lance=<each Ice Lance's damage over the third one's, in hundredths, or miss; the two of the copy's
+     * step, the larger first>,stacks=<the stack of 44544 at the read of each step that may use a charge, and at the
+     * last wait's>,deepFreeze=<1 when Deep Freeze went and the Camel was frozen right after>,brainFreezeLeft=<1 when
+     * Brain Freeze's buff was still on him right after the first instant bolt's act>,sheet=<his crit chance for the
+     * bolt's first school at the rolls>,hit=,tick=<the share of each kind of roll that crit>`, the last three in
+     * hundredths of a percent. OK at `lance=250,250,100,200,250,250,100,miss,100`, each within kTolerance, with two
+     * hits in the copy's step, `stacks=1,0,0,0,0,0,0,0,0,1,0,1,1`, `deepFreeze=1`, `tick` within kRollTolerance of
+     * `sheet` and `hit` of three times it: a charge adds a quarter to the double damage at an unfrozen and at a frozen
+     * Camel and is taken as the spell is cast, so a miss takes it and the copy cast while the first Ice Lance flies
+     * finds none; a Frostfire Bolt takes one only when Brain Freeze made it instant, and a charge he gets after its
+     * launch stays; under the two buffs the bolt's hit takes Shatter's factor and its tick does not. `brainFreezeLeft`
+     * is recorded, not judged.
      */
     class MageFrostFingers : public MageProcScenario
     {
@@ -13857,7 +13868,7 @@ namespace Harness
         MageFrostFingers() : MageProcScenario("mage-frost-fingers", 994, "fingers") {}
 
     protected:
-        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11157, 2 } }; }
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11157, 2 }, { 11158, 1 } }; }
         std::vector<uint32> Spells() const override { return { kIceLance, kDeepFreeze, kFrostfireBolt }; }
         int32 SpellPower() const override { return kSpellPower; }
         int32 NonCritAuraPoints() const override { return -100; }
@@ -13878,10 +13889,11 @@ namespace Harness
             missed.refusal = true;
             return { charge, charge, lance, lance, lance,
                      charge, AuraCast(kDeepFreeze, 1600), lance, charge, lance, Wait(1000),
-                     charge, lance, lance,
+                     charge, lance,
                      charge, missed, lance,
-                     charge, brainFreeze, Cast(kFrostfireBolt, false),
-                     charge, AuraCast(kFrostfireBolt, 4500), Wait(300) };
+                     charge, AuraCast(kFrostfireBolt, 4500), Wait(300),
+                     brainFreeze, Cast(kFrostfireBolt, false),
+                     brainFreeze, Cast(kFrostfireBolt, false), Wait(300) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -13901,6 +13913,8 @@ namespace Harness
                 { 75533, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 186 }, { "eff0.EffectBasePoints", -100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 12953: 26 fields, fnv 5ddaf0d2
                 { 12953, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 17592186175520 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 76613: 49 fields, fnv a5f94991
                 { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 79684: 26 fields, fnv 8068d7f8
@@ -13915,9 +13929,11 @@ namespace Harness
         }
 
         /// At a step's act: a wait that names a spell casts it at him, triggered; then the Camel's frozen state and
-        /// whether he holds Brain Freeze's buff, which the act of the instant bolt then takes off him; at the act of
-        /// the charge before the missed Ice Lance, Wily Wits put on the Camel, taken off at that Ice Lance's read. At
-        /// each read: the stack of 44544 he holds, and the Camel's health set back to its maximum.
+        /// whether he holds Brain Freeze's buff. At the act of the copy's step, a copy of Ice Lance cast at the Camel,
+        /// triggered; at the second instant bolt's, a charge cast at him, triggered; at the act of the charge before
+        /// the missed Ice Lance, Wily Wits put on the Camel, taken off at that Ice Lance's read; at the last wait's,
+        /// the rolls (RollBolt). At each read: the stack of 44544 he holds, and the Camel's health set back to its
+        /// maximum.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             Seen& seen = st.seen[k];
@@ -13929,15 +13945,31 @@ namespace Harness
                 }
                 seen.reads["frozenAfter"] = target->IsFrozen() ? 1 : 0;
                 seen.reads["brainFreezeAfter"] = p->HasAura(kBrainFreeze) ? 1 : 0;
-                if (k == kInstantBoltStep && p->HasAura(kBrainFreeze))
+                if (k == kPairStep)
                 {
-                    p->RemoveAurasDueToSpell(kBrainFreeze);
-                    m_rec.Note("Brain Freeze's buff still on him after the bolt's launch; taken off by call");
+                    p->CastSpell(target, kIceLance, true);
+                    m_rec.Note("a copy of Ice Lance cast at the Camel, triggered, while the first flies");
                 }
-                if (k == kMissStep - 1)
+                else if (k == kInstantBoltStep)
                 {
-                    PutAura(target, kWilyWits);
+                    m_rec.Note(std::string("Brain Freeze's buff on him after the bolt's launch: ") +
+                               (seen.reads["brainFreezeAfter"] ? "yes" : "no"));
+                }
+                else if (k == kKeptBoltStep)
+                {
+                    p->CastSpell(p, kFingersOfFrost, true);
+                    SpellAuraHolder* holder = p->GetSpellAuraHolder(kFingersOfFrost);
+                    m_rec.Note("a charge cast on him, triggered, after the bolt's launch: stack " +
+                               U(holder ? holder->GetStackAmount() : 0));
+                }
+                else if (k == kMissStep - 1)
+                {
+                    PutReadyAura(target, kWilyWits, kWilyWitsMs);
                     m_rec.Note(std::string("Wily Wits on the Camel: ") + (target->HasAura(kWilyWits) ? "yes" : "no"));
+                }
+                else if (k == kRollStep)
+                {
+                    RollBolt(seen, p, target);
                 }
                 return;
             }
@@ -13954,31 +13986,34 @@ namespace Harness
         {
             uint32 const plain = st.seen.size() > kPlainStep && st.seen[kPlainStep].logRead ?
                                  st.seen[kPlainStep].amount : 0;
-            std::string lance, stacks;
-            bool lanceOk = plain > 0;
-            uint32 lances = 0;
-            static const int64 wantedLance[] = { 250, 250, 100, 200, 250, 250, 100, -1, 250 };
-            static const int64 wantedStacks[] = { 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1 };
+            auto ratioOf = [plain](uint32 amount) { return plain ? int64(amount) * 100 / plain : int64(0); };
+            static const int64 wantedLance[] = { 250, 250, 100, 200, 250, 250, 100, -1, 100 };
+            static const int64 wantedStacks[] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1 };
+            std::vector<int64> lances;
+            size_t pairHits = 0;
+            std::string stacks;
             uint32 stackReads = 0;
             bool stacksOk = true;
             for (uint32 k = 0; k < st.steps.size(); ++k)
             {
                 Step const& step = st.steps[k];
                 Seen const& seen = st.seen[k];
-                if (step.spell == kIceLance)
+                if (step.spell == kIceLance && k == kPairStep)
                 {
-                    int64 ratio = -1;
-                    std::string shown = "miss";
-                    if (!seen.missed)
+                    std::vector<uint32> hits = LanceHits(st, k);
+                    pairHits = hits.size();
+                    if (hits.size() >= 2 && hits[1] > hits[0])
                     {
-                        ratio = seen.logRead && plain ? int64(seen.amount) * 100 / plain : 0;
-                        shown = std::to_string(ratio);
+                        std::swap(hits[0], hits[1]);
                     }
-                    lance += (lance.empty() ? "" : ",") + shown;
-                    const int64 wanted = lances < 9 ? wantedLance[lances] : -2;
-                    lanceOk = lanceOk && (wanted < 0 ? ratio == wanted
-                                                     : ratio >= wanted - kTolerance && ratio <= wanted + kTolerance);
-                    ++lances;
+                    for (size_t i = 0; i < 2; ++i)
+                    {
+                        lances.push_back(i < hits.size() ? ratioOf(hits[i]) : 0);
+                    }
+                }
+                else if (step.spell == kIceLance)
+                {
+                    lances.push_back(seen.missed ? -1 : seen.logRead ? ratioOf(seen.amount) : 0);
                 }
                 if (step.spell == kIceLance || step.spell == kDeepFreeze || step.spell == kFrostfireBolt || step.wait)
                 {
@@ -13993,16 +14028,39 @@ namespace Harness
                     ++stackReads;
                 }
             }
+            std::string lance;
+            bool lanceOk = plain > 0 && lances.size() == 9 && pairHits == 2;
+            for (size_t i = 0; i < lances.size(); ++i)
+            {
+                lance += (i ? "," : "") + (lances[i] < 0 ? std::string("miss") : std::to_string(lances[i]));
+                const int64 wanted = i < 9 ? wantedLance[i] : -2;
+                const bool inBand = lances[i] >= wanted - kTolerance && lances[i] <= wanted + kTolerance;
+                lanceOk = lanceOk && (wanted < 0 ? lances[i] == wanted : inBand);
+            }
             const bool deepFreeze = st.seen.size() > kDeepFreezeStep && st.seen[kDeepFreezeStep].goSeen &&
                                     Kept(st, kDeepFreezeStep, "frozenAfter") == 1;
             const int64 brainFreezeLeft = Kept(st, kInstantBoltStep, "brainFreezeAfter");
-            const std::string left = brainFreezeLeft == kNone ? std::string("none") : std::to_string(brainFreezeLeft);
+            const int64 sheet = Kept(st, kRollStep, "sheet");
+            const int64 hit = Kept(st, kRollStep, "hitShare");
+            const int64 tick = Kept(st, kRollStep, "tickShare");
+            const int64 hitWanted = std::min<int64>(10000, 3 * sheet);
+            auto within = [](int64 value, int64 wanted)
+            {
+                return value >= 0 && (value > wanted ? value - wanted : wanted - value) <= kRollTolerance;
+            };
+            const bool rollsOk = Kept(st, kRollStep, "held") == 1 && sheet > 0 && within(tick, sheet) &&
+                                 within(hit, hitWanted);
+            auto shown = [](int64 v) { return v == kNone ? std::string("none") : std::to_string(v); };
             const std::string value = "lance=" + lance + ",stacks=" + stacks + ",deepFreeze=" +
-                                      (deepFreeze ? "1" : "0") + ",brainFreezeLeft=" + left;
-            const bool ok = lanceOk && lances == 9 && stacksOk && stackReads == 13 && deepFreeze;
+                                      (deepFreeze ? "1" : "0") + ",brainFreezeLeft=" + shown(brainFreezeLeft) +
+                                      ",sheet=" + shown(sheet) + ",hit=" + shown(hit) + ",tick=" + shown(tick);
+            const bool ok = lanceOk && stacksOk && stackReads == 13 && deepFreeze && rollsOk;
             const std::string detail = "Ice Lance against the plain one " + U(plain) +
-                                       ", wanted 250,250,100,200,250,250,100,miss,250 within " + U(uint32(kTolerance)) +
-                                       "; stacks wanted 1,0,0,0,0,0,0,0,1,0,0,1,1)";
+                                       ", wanted 250,250,100,200,250,250,100,miss,100 within " + U(uint32(kTolerance)) +
+                                       " and two hits in the copy's step, " + U(uint32(pairHits)) +
+                                       " seen; stacks wanted 1,0,0,0,0,0,0,0,0,1,0,1,1; the bolt's tick share wanted "
+                                       "at the sheet chance and its hit share at three times it, within " +
+                                       U(uint32(kRollTolerance)) + ")";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
 
@@ -14013,13 +14071,20 @@ namespace Harness
         static constexpr uint32 kFingersOfFrost = 44544;
         static constexpr uint32 kBrainFreeze = 57761;
         static constexpr uint32 kWilyWits = 75533;
+        static constexpr int32 kWilyWitsMs = 5000;
         static constexpr int32 kSpellPower = 2000;
         static constexpr float kDistance = 25.0f;
         static constexpr int64 kTolerance = 5;
+        static constexpr uint32 kRolls = 2000;
+        static constexpr int32 kRollCritPoints = 20;
+        static constexpr int64 kRollTolerance = 350;
         static constexpr uint32 kPlainStep = 4;
         static constexpr uint32 kDeepFreezeStep = 6;
-        static constexpr uint32 kMissStep = 15;
-        static constexpr uint32 kInstantBoltStep = 19;
+        static constexpr uint32 kPairStep = 12;
+        static constexpr uint32 kMissStep = 14;
+        static constexpr uint32 kInstantBoltStep = 20;
+        static constexpr uint32 kKeptBoltStep = 22;
+        static constexpr uint32 kRollStep = 23;
         static constexpr int64 kNone = -1;
 
         /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
@@ -14031,6 +14096,79 @@ namespace Harness
             }
             std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
             return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+
+        /// The amounts of the Ice Lance hits whose damage logs came in step k's windows, in the order they came.
+        std::vector<uint32> LanceHits(St const& st, uint32 k) const
+        {
+            std::vector<std::string> const windows = StepWindows(k);
+            Trace::Roles const roles = RolesAt(st, st.steps[k].target);
+            std::vector<uint32> amounts;
+            for (Recorder::Seen const& packet : m_rec.Packets())
+            {
+                if (packet.opcode != SMSG_SPELLNONMELEEDAMAGELOG || packet.payload.empty() ||
+                    std::find(windows.begin(), windows.end(), packet.window) == windows.end())
+                {
+                    continue;
+                }
+                std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG,
+                                                                         &packet.payload[0], packet.payload.size(),
+                                                                         roles);
+                uint32 spell = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                if (fields.size() == 1 &&
+                    sscanf(fields[0].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &spell, &amount, &crit, &absorbed,
+                           &resisted) == 5 &&
+                    spell == kIceLance)
+                {
+                    amounts.push_back(amount);
+                }
+            }
+            return amounts;
+        }
+
+        /// kRolls rolls of Unit::IsSpellCrit for Frostfire Bolt at the Camel as a hit, and kRolls as a periodic tick
+        /// (DOT), with the crit aura held at kRollCritPoints for them and put back as it was after; kept with his crit
+        /// chance for the bolt's first school at the rolls and whether he held Fingers of Frost and Brain Freeze's
+        /// buff.
+        void RollBolt(Seen& seen, Player* p, Creature* target)
+        {
+            SpellEntry const* bolt = sSpellStore.LookupEntry(kFrostfireBolt);
+            if (!bolt)
+            {
+                return;
+            }
+            Aura const* critAura = p->GetAura(kCritAura, EFFECT_INDEX_0);
+            int32 points = critAura ? critAura->GetModifier()->m_amount : 0;
+            if (critAura)
+            {
+                p->RemoveAurasDueToSpell(kCritAura);
+            }
+            int32 rollPoints = kRollCritPoints;
+            p->CastCustomSpell(p, kCritAura, &rollPoints, NULL, NULL, true);
+            SpellSchoolMask const mask = GetSpellSchoolMask(bolt);
+            float const sheet = p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + GetFirstSchoolInMask(mask));
+            uint32 hits = 0;
+            uint32 ticks = 0;
+            for (uint32 roll = 0; roll < kRolls; ++roll)
+            {
+                hits += p->IsSpellCrit(target, bolt, mask) ? 1 : 0;
+                ticks += p->IsSpellCrit(target, bolt, mask, BASE_ATTACK, DOT) ? 1 : 0;
+            }
+            p->RemoveAurasDueToSpell(kCritAura);
+            if (points)
+            {
+                p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
+            }
+            seen.reads["held"] = p->HasAura(kFingersOfFrost) && p->HasAura(kBrainFreeze) ? 1 : 0;
+            seen.reads["sheet"] = int64(std::lround(sheet * 100.0f));
+            seen.reads["hitShare"] = int64(hits) * 10000 / kRolls;
+            seen.reads["tickShare"] = int64(ticks) * 10000 / kRolls;
+            m_rec.Note(std::string("Fingers of Frost and Brain Freeze's buff on him: ") +
+                       (seen.reads["held"] ? "yes" : "no") + "; the Camel " +
+                       (target->IsFrozen() ? "frozen" : "not frozen") + "; his crit chance for the bolt " +
+                       U(uint64(seen.reads["sheet"])) + " hundredths of a percent with the crit aura at " +
+                       std::to_string(kRollCritPoints) + "; of " + U(kRolls) + " IsSpellCrit rolls " + U(hits) +
+                       " crit as a hit and " + U(ticks) + " as a periodic tick");
         }
     };
 
