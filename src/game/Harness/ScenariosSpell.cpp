@@ -14721,15 +14721,15 @@ namespace Harness
      * Shatter 2 (12982), Glyph of Deep Freeze (696, its aura 63090), the Mastery passive (86473) and kMasteryRating
      * mastery rating; Deep Freeze and Frost Nova (122) learned. His target is a Felflame Infernal (1) (35262), a
      * creature of the world database that runs no AI, binds no script and whose template is immune to stuns, snares and
-     * charms alone (MechanicImmuneMask 0xC01), spawned at level 85 where the other mage scenarios spawn their Camel;
-     * the notes call it the Camel. Before each cast he takes Precision (13843, +6% spell hit), so no cast misses, and
-     * the crit aura at -100, so none crits. Each Fingers of Frost charge is a wait at whose act he casts 44544 at
-     * himself, triggered. Steps: two charges; Deep Freeze at the Infernal, whose stun the Infernal is immune to, so
-     * Deep Freeze Immunity State (71761) casts Deep Freeze's damage (71757) at it; a wait at whose act the scenario
-     * reads Unit::SpellDamageBonusDone of kDoneBase for 71757 at the Infernal before and after his mastery rating is
-     * raised by kRatingGain (taken back after), then rolls Unit::IsSpellCrit for 71757 at it kRolls times with the crit
-     * aura at kRollCritPoints; Frost Nova, its cooldown taken off first; a wait at whose act the rolls are made again
-     * at the Infernal Frost Nova froze.
+     * charms alone (MechanicImmuneMask 0xC01), spawned at its template's level 82 (the world database's class level
+     * stats for its class and expansion hold no damage above level 83); the notes call it the Camel. Before each cast
+     * he takes Precision (13843, +6% spell hit), so no cast misses, and the crit aura at -100, so none crits. Each
+     * Fingers of Frost charge is a wait at whose act he casts 44544 at himself, triggered. Steps: two charges; Deep
+     * Freeze at the Infernal, whose stun the Infernal is immune to, so Deep Freeze Immunity State (71761) casts Deep
+     * Freeze's damage (71757) at it; a wait at whose act the scenario reads Unit::SpellDamageBonusDone of kDoneBase for
+     * 71757 at the Infernal before and after his mastery rating is raised by kRatingGain (taken back after), then rolls
+     * Unit::IsSpellCrit for 71757 at it kRolls times with the crit aura at kRollCritPoints; Frost Nova, its cooldown
+     * taken off first; a wait at whose act the rolls are made again at the Infernal Frost Nova froze.
      *
      * `deepFreeze`: `hits=<71757 damage logs in Deep Freeze's windows>,damage=<the first one's amount>,stun=<1 when the
      * Infernal held 44572 at Deep Freeze's read>,stacks=<44544's stack at the second charge's read and at Deep
@@ -14755,6 +14755,7 @@ namespace Harness
         uint32 CasterAura() const override { return kPrecision; }
         int32 NonCritAuraPoints() const override { return -100; }
         uint32 TargetEntry() const override { return kInfernal; }
+        uint32 TargetLevel() const override { return kInfernalLevel; }
         uint32 CastEveryMs() const override { return 1600; }
         uint32 CastReadMs() const override { return 1200; }
         uint32 Watched() const override { return kFingersOfFrost; }
@@ -14879,6 +14880,7 @@ namespace Harness
 
     private:
         static constexpr uint32 kInfernal = 35262;
+        static constexpr uint32 kInfernalLevel = 82;
         static constexpr uint32 kDeepFreeze = 44572;
         static constexpr uint32 kDeepFreezeDamage = 71757;
         static constexpr uint32 kFingersOfFrost = 44544;
