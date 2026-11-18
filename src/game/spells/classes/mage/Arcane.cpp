@@ -110,10 +110,13 @@ namespace
     }
 
     /// 79683: Arcane Missiles!: at its apply the mage gets Arcane Missiles Aurastate (79808), which Arcane Missiles
-    /// (5143) asks for on its caster.
+    /// (5143) asks for on its caster. The call before the holder is added does nothing.
     SpellHandlerOutcome<void> ArcaneMissilesBuffApply(AuraApplyContext& ctx)
     {
-        PairArcaneMissilesAurastate(ctx);
+        if (ctx.real)
+        {
+            PairArcaneMissilesAurastate(ctx);
+        }
         return SpellHandlerOutcome<void>::Continue();
     }
 
@@ -126,10 +129,11 @@ namespace
     }
 
     /// 5143: Arcane Missiles: the channel's holder on the mage himself, applied at the cast, takes Arcane Missiles!
-    /// (79683) off him: the cast uses it up. The channel's holder on its target does nothing here.
+    /// (79683) off him: the cast uses it up. The channel's holder on its target, and the call before the holder is
+    /// added, do nothing here.
     SpellHandlerOutcome<void> ArcaneMissilesChannelApply(AuraApplyContext& ctx)
     {
-        if (ctx.caster == &ctx.target)
+        if (ctx.real && ctx.caster == &ctx.target)
         {
             ctx.RemoveAura(ctx.target, ARCANE_MISSILES_BUFF);
         }

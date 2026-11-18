@@ -476,9 +476,12 @@ static void RemoveTargetsOverLimit(Unit& caster, Unit& target, SpellEntry const*
 /**
  * @brief Adds an aura holder to the unit after stacking and conflict checks.
  *
+ * The spell's aura-apply hook runs twice: before the stacking checks, with the holder not yet added (`real` false),
+ * where a script may take an effect off the holder or cap its stack, and after the holder's auras are applied.
  * A periodic effect its caster applies again, of a spell that does not stack, keeps the time its old aura had to the
  * next tick and lasts its full duration after it (CarryPeriodicTimers); a damage-over-time effect that carries its
- * remaining damage spreads the old and the new totals over the new tick count.
+ * remaining damage spreads the old and the new totals over the new tick count. A holder whose script capped its stack
+ * (SpellAuraHolder::SetStackCap) and that is at its cap is refreshed by its caster's re-application.
  *
  * @param holder The aura holder to add.
  * @return True if the holder remained applied; otherwise, false.
@@ -504,6 +507,11 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
         delete holder;
         return false;
     }
+
+    // the holder's script shapes it before the stacking checks see it: the holder is not in the map and none of its
+    // auras is applied; the outcome is not read
+    AuraApplyContext shapeCtx(*this, holder->GetCaster(), *aurSpellInfo, AuraHandle(*holder), false);
+    SpellHandlerRegistry::Game().Dispatch<AuraApplyHook>(holder->GetId(), shapeCtx);
 
     // passive and persistent auras can stack with themselves any number of times
     if ((!holder->IsPassive() && !holder->IsPersistent()) || holder->IsAreaAura())

@@ -455,11 +455,14 @@ namespace
     }
 
     /// 2120, 11366, 12654, 44457, 83853, 88148, 92315: the DoTs Pyromaniac counts, when their holder is added:
-    /// the caster's burning enemies are counted again with the new holder on its target (PyromaniacRecount). The
-    /// holder's boosts still run.
+    /// the caster's burning enemies are counted again with the new holder on its target (PyromaniacRecount). The call
+    /// before the holder is added counts nothing. The holder's boosts still run.
     SpellHandlerOutcome<void> PyromaniacDotApply(AuraApplyContext& ctx)
     {
-        PyromaniacRecount(ctx.caster, ctx.target);
+        if (ctx.real)
+        {
+            PyromaniacRecount(ctx.caster, ctx.target);
+        }
         return SpellHandlerOutcome<void>::Continue();
     }
 
@@ -479,17 +482,31 @@ namespace
         }
     }
 
-    /// 44614: Frostfire Bolt: when its holder is added, a caster with Glyph of Frostfire (61205) takes the slow (effect
-    /// 0) off it and any other caster the periodic damage (effect 2), so the bolt slows or burns, never both; a holder
-    /// left with the periodic damage alone by its target's immunity to the slow runs out (ExpireWithoutSlow). Then,
-    /// with the holder as that leaves it, the caster's burning enemies are counted again for Pyromaniac, as
+    /// 44614: Frostfire Bolt: before its holder is added, a caster with Glyph of Frostfire (61205) takes the slow
+    /// (effect 0) off it, so the stacking checks never see a slow of his, and any other caster's holder is capped at
+    /// one stack, so his own re-cast refreshes it. When the holder is added, the glyphed caster's loses the slow if it
+    /// still has one, and any other caster's the periodic damage (effect 2), so the bolt slows or burns, never both; a
+    /// holder left with the periodic damage alone by its target's immunity to the slow runs out (ExpireWithoutSlow).
+    /// Then, with the holder as that leaves it, the caster's burning enemies are counted again for Pyromaniac, as
     /// PyromaniacDotApply counts them: a bolt without its periodic damage or its time makes no enemy burn
     /// (Mage::PyromaniacTargets). The holder's boosts still run.
     SpellHandlerOutcome<void> FrostfireBoltAuraApply(AuraApplyContext& ctx)
     {
-        if (ctx.real && ctx.caster)
+        if (ctx.caster)
         {
             bool const glyphed = ctx.caster->HasAura(GLYPH_OF_FROSTFIRE);
+            if (!ctx.real)
+            {
+                if (glyphed)
+                {
+                    ctx.aura.RemoveEffect(EFFECT_INDEX_0);
+                }
+                else
+                {
+                    ctx.aura.CapStacks(1);
+                }
+                return SpellHandlerOutcome<void>::Continue();
+            }
             ctx.aura.RemoveEffect(glyphed ? EFFECT_INDEX_0 : EFFECT_INDEX_2);
             if (!glyphed)
             {
@@ -569,11 +586,14 @@ namespace
     }
 
     /// 34293, 34295: Pyromaniac: when the talent's holder is added (a login, a respec, a new rank), Pyromaniac's haste
-    /// (83582) is taken off the mage; the next DoT it counts puts the haste back when it is due. The holder's boosts
-    /// still run.
+    /// (83582) is taken off the mage; the next DoT it counts puts the haste back when it is due. The call before the
+    /// holder is added takes nothing off. The holder's boosts still run.
     SpellHandlerOutcome<void> PyromaniacTalentApply(AuraApplyContext& ctx)
     {
-        ctx.RemoveAura(ctx.target, PYROMANIAC_HASTE);
+        if (ctx.real)
+        {
+            ctx.RemoveAura(ctx.target, PYROMANIAC_HASTE);
+        }
         return SpellHandlerOutcome<void>::Continue();
     }
 

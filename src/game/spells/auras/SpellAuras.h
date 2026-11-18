@@ -114,6 +114,9 @@ class  SpellAuraHolder
         uint32 GetStackAmount() const { return m_stackAmount; }
         void SetStackAmount(uint32 stackAmount);
         bool ModStackAmount(int32 num); // return true if last charge dropped
+        /// The stack limit ModStackAmount holds the holder to in place of its spell's; 0 for the spell's.
+        uint32 GetStackCap() const { return m_stackCap; }
+        void SetStackCap(uint32 cap) { m_stackCap = cap; }
 
         Aura* GetAuraByEffectIndex(SpellEffectIndex index) const { return m_auras[index]; }
         SpellEntry const* GetTriggeredBy() const { return m_triggeredBy; }
@@ -244,6 +247,7 @@ class  SpellAuraHolder
         uint8 m_auraLevel;                                  // Aura level (store caster level for correct show level dep amount)
         uint32 m_procCharges;                               // Aura charges (0 for infinite)
         uint32 m_stackAmount;                               // Aura stack amount
+        uint32 m_stackCap;                                  // Stack limit in place of the spell's; 0 for the spell's
         int32 m_maxDuration;                                // Max aura duration
         int32 m_duration;                                   // Current time
         int32 m_timeCla;                                    // Timer for power per sec calculation
