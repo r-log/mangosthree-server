@@ -1447,6 +1447,14 @@ void Aura::TriggerSpell()
         return;
     }
 
+    uint32 tickAmount = m_modifier.m_amount > 0 ? uint32(m_modifier.m_amount) : 0;
+    PeriodicTickContext tickCtx(*GetTarget(), GetCaster(), *GetSpellProto(), m_effIndex, AuraHandle(*GetHolder()),
+                                tickAmount, true);
+    if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(GetId(), tickCtx).IsReturn())
+    {
+        return;
+    }
+
     // generic casting code with custom spells and target/caster customs
     uint32 trigger_spell_id = m_spellEffect->EffectTriggerSpell;
 
