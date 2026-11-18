@@ -29,7 +29,8 @@
 /// with Arcane Missiles! and the channel's use of the buff, Arcane Blast's buff spent only at the cast of another
 /// Arcane damage spell, Ignite's munching leaves against the roll-over, Clearcasting used up only by a spell its cost
 /// modifier makes cheaper, the slows Torment the Weak counts and its multiplier, Nether Vortex's Slow and its
-/// refusals, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
+/// refusals, Invocation's buff from a Counterspell that interrupted a cast alone, Improved Polymorph's stun and marker
+/// when damage breaks a Polymorph, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// the frozen query, Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two
 /// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at
@@ -152,6 +153,14 @@ namespace
 
     // The ids Nether Vortex's script holds at the proc hook: its two ranks.
     uint32 const NETHER_VORTEX_IDS[] = { 86181, 86209 };
+
+    // The ids Invocation's script holds at the check-proc hook: its two ranks, whose buff only a Counterspell that
+    // interrupted a cast gives.
+    uint32 const INVOCATION_IDS[] = { 84722, 84723 };
+
+    // The ids Improved Polymorph's script holds at the aura-remove hook: every form of Polymorph a mage casts, the
+    // spells of the Arcane skill line with Polymorph's class mask and a confuse and a transform aura.
+    uint32 const POLYMORPH_IDS[] = { 118, 28271, 28272, 61025, 61305, 61721, 61780 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -597,12 +606,13 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // at the launch hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact;
     // Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency, Mana Shield
     // and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane Missiles at the
-    // aura-apply hook and Torment the Weak's three ranks at the damage-done hook. The orb: Flame Orb at the
-    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact, Clearcasting, Arcane Blast's
-    // buff and Fingers of Frost also at the check-proc hook. 130 rows, 127 keys and 3 defaults, none twice.
+    // aura-apply hook, Torment the Weak's three ranks at the damage-done hook and the seven forms of Polymorph at the
+    // aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and dummy-effect
+    // hooks. Impact, Clearcasting, Arcane Blast's buff, Fingers of Frost and Invocation's two ranks also at the
+    // check-proc hook. 139 rows, 136 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(130));
-    CHECK_EQ(registry.Count(), std::size_t(127));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(139));
+    CHECK_EQ(registry.Count(), std::size_t(136));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -611,13 +621,13 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(23));
-    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(7));
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(9));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(12));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(13));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(20));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(3));
@@ -641,7 +651,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 58, 58, 0 },
-        { &Mage::RegisterArcane, 14, 14, 0 },
+        { &Mage::RegisterArcane, 23, 23, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
     };
     for (PerFile const& file : files)
@@ -653,8 +663,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(130));
-    CHECK_EQ(registry.Count(), std::size_t(127));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(139));
+    CHECK_EQ(registry.Count(), std::size_t(136));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -665,7 +675,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(127));
+    CHECK_EQ(mine.size(), std::size_t(136));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -824,7 +834,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key),
              (sizeof(IMPACT_IDS) + sizeof(CLEARCASTING_IDS) + sizeof(ARCANE_BLAST_BUFF_IDS) +
-              sizeof(FINGERS_OF_FROST_IDS)) / sizeof(uint32));
+              sizeof(FINGERS_OF_FROST_IDS) + sizeof(INVOCATION_IDS)) / sizeof(uint32));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
     // no aura) and 28682 (absent from the client's data). Arcane Blast's buff (36032) holds no proc script: its
@@ -1473,7 +1483,8 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
                                                 sizeof(MAGE_WARD_IDS) / sizeof(uint32) +
                                                 sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) +
                                                 sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
-                                                sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32));
+                                                sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) +
+                                                sizeof(POLYMORPH_IDS) / sizeof(uint32));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
     // out it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
@@ -1489,6 +1500,7 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
     {
         AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEATH,
         AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_TRACKING, AURA_REMOVE_BY_TARGET_LIMIT,
+        AURA_REMOVE_BY_DAMAGE,
     };
     for (AuraRemoveMode mode : silent)
     {
@@ -1502,12 +1514,14 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
 TEST(MageScripts_LivingBombExplodesOnlyWhenItsAuraRunsOut)
 {
     // The aura running out explodes the bomb; a dispel, its target's death, a plain removal, a re-application, a
-    // cancel, a broken shield, a tracked aura's replacement, the caster's fourth bomb and a delete do not.
+    // cancel, a broken shield, a tracked aura's replacement, the caster's fourth bomb, a delete and a break by damage
+    // do not.
     CHECK(Mage::LivingBombExplodes(AURA_REMOVE_BY_EXPIRE));
     AuraRemoveMode const silent[] =
     {
         AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL,
         AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_TRACKING, AURA_REMOVE_BY_TARGET_LIMIT, AURA_REMOVE_BY_DELETE,
+        AURA_REMOVE_BY_DAMAGE,
     };
     for (AuraRemoveMode mode : silent)
     {
@@ -1642,14 +1656,15 @@ TEST(MageScripts_AMageWardThatDamageUsesUpBringsBlazingSpeedOnlyWithMoltenShield
 {
     // The decision: the ward's last point used up by damage (the shield-break mode) with a caster who knows Molten
     // Shields; a break for a caster without the talent gives nothing, and so do its running out, a cancel, a dispel, a
-    // plain removal, a re-application, a death, a delete, a tracked aura's replacement and a target limit.
+    // plain removal, a re-application, a death, a delete, a tracked aura's replacement, a target limit and a break of a
+    // crowd control by damage.
     CHECK(Mage::MageWardTriggersBlazingSpeed(AURA_REMOVE_BY_SHIELD_BREAK, true));
     CHECK(!Mage::MageWardTriggersBlazingSpeed(AURA_REMOVE_BY_SHIELD_BREAK, false));
     AuraRemoveMode const silent[] =
     {
         AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEFAULT,
         AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_TRACKING,
-        AURA_REMOVE_BY_TARGET_LIMIT,
+        AURA_REMOVE_BY_TARGET_LIMIT, AURA_REMOVE_BY_DAMAGE,
     };
     for (AuraRemoveMode mode : silent)
     {
@@ -3575,4 +3590,178 @@ TEST(MageScripts_NetherVortexRefusesEveryEventButAnArcaneBlastHitWithNoSlowOut)
         CHECK(reached.IsReturn());
         CHECK_EQ(int(reached.GetValue()), int(SPELL_AURA_PROC_FAILED));
     }
+}
+
+TEST(MageScripts_InvocationGrantsOnlyForACounterspellThatInterruptedACast)
+{
+    // The fact a hit's interrupt effect gives its proc event: PROC_EX_INTERRUPT, alone or beside the hit's kind.
+    CHECK(SpellMgr::InterruptedACast(PROC_EX_INTERRUPT));
+    CHECK(SpellMgr::InterruptedACast(PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT));
+    for (uint32 procEx : { uint32(PROC_EX_NONE), uint32(PROC_EX_NORMAL_HIT), uint32(PROC_EX_CRITICAL_HIT),
+                           uint32(PROC_EX_CAST_END), uint32(PROC_EX_MISS), uint32(PROC_EX_RESIST),
+                           uint32(PROC_EX_IMMUNE) })
+    {
+        CHECK(!SpellMgr::InterruptedACast(procEx));
+    }
+
+    // A hit of Counterspell (2139) that interrupted a cast gives the buff.
+    CHECK(Mage::InvocationGrants(2139, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT));
+
+    // Its hit on a target that casts nothing, its miss, its resist, its immunity and the end of its cast do not.
+    for (uint32 procEx : { uint32(PROC_EX_NORMAL_HIT), uint32(PROC_EX_MISS), uint32(PROC_EX_RESIST),
+                           uint32(PROC_EX_IMMUNE), uint32(PROC_EX_CAST_END), uint32(PROC_EX_NONE) })
+    {
+        CHECK(!Mage::InvocationGrants(2139, procEx));
+    }
+
+    // Nor does a hit of any other spell, an interrupt of another class among them (Pummel, 6552; Kick, 1766; Wind
+    // Shear, 57994), or an event with no spell.
+    for (uint32 spellId : { 133u, 30451u, 118u, 6552u, 1766u, 57994u, 0u })
+    {
+        CHECK(!Mage::InvocationGrants(spellId, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT));
+        CHECK(!Mage::InvocationGrants(spellId, PROC_EX_NORMAL_HIT));
+    }
+}
+
+TEST(MageScripts_InvocationAcceptsACounterspellThatInterruptedACastAndDropsEveryOtherEvent)
+{
+    // The rows: the two ranks at the check-proc hook, one body, not Arcane Blast's buff's, the same in the game's
+    // table; no proc script on the ranks or on the buff (87098), and no check-proc script on the buff.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<CheckProcHook>(registry, INVOCATION_IDS);
+    SpellHandler<CheckProcHook>::Function const invocation = registry.Find<CheckProcHook>(84723);
+    CHECK(registry.Find<CheckProcHook>(84722) == invocation);
+    CHECK(invocation != registry.Find<CheckProcHook>(36032));
+    for (uint32 spellId : { 84722u, 84723u, 87098u })
+    {
+        CHECK(registry.Find<OnProcHook>(spellId) == NULL);
+    }
+    CHECK(registry.Find<CheckProcHook>(87098) == NULL);
+
+    // Both ranks answer true for a Counterspell hit that interrupted a cast, so the engine's proc goes on though the
+    // hit dealt no damage, and false for every other event: a Counterspell hit on a target that casts nothing, the end
+    // of its cast, its miss, a Fireball hit with or without the interrupt mark, and an event with no spell.
+    BareCreature mage;
+    BareCreature camel;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage rankRow;
+    SpellRowStorage counterspellRow;
+    SpellRowStorage fireballRow;
+    SpellEntry const& counterspell = SpellRow(counterspellRow, 2139);
+    SpellEntry const& fireball = SpellRow(fireballRow, 133);
+    struct Event
+    {
+        SpellEntry const* spell;
+        uint32 procEx;
+        bool accepted;
+    };
+    Event const events[] =
+    {
+        { &counterspell, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT, true },
+        { &counterspell, PROC_EX_NORMAL_HIT, false },
+        { &counterspell, PROC_EX_CAST_END, false },
+        { &counterspell, PROC_EX_MISS, false },
+        { &fireball, PROC_EX_NORMAL_HIT, false },
+        { &fireball, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT, false },
+        { NULL, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT, false },
+    };
+    for (uint32 rank : INVOCATION_IDS)
+    {
+        for (Event const& event : events)
+        {
+            CheckProcContext ctx(mage, &camel, SpellRow(rankRow, rank), AuraHandle(holder), event.spell, 0x10000,
+                                 event.procEx, 0);
+            SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(rank, ctx);
+            CHECK(outcome.IsReturn());
+            CHECK_EQ(outcome.GetValue(), event.accepted);
+        }
+    }
+}
+
+TEST(MageScripts_ImprovedPolymorphStunsOnlyWhenDamageBreaksAPolymorphOnAnUnmarkedTarget)
+{
+    // Damage broke the Polymorph of a caster who knows a rank, on a target without the marker: the second rank's 3 s
+    // stun (83047), the first rank's 1.5 s one (83046); a caster who holds both takes the second's.
+    CHECK_EQ(Mage::ImprovedPolymorphStun(AURA_REMOVE_BY_DAMAGE, false, true, false), uint32(83047));
+    CHECK_EQ(Mage::ImprovedPolymorphStun(AURA_REMOVE_BY_DAMAGE, true, false, false), uint32(83046));
+    CHECK_EQ(Mage::ImprovedPolymorphStun(AURA_REMOVE_BY_DAMAGE, true, true, false), uint32(83047));
+
+    // None for a caster who knows neither rank, and none while the target holds Improved Polymorph Marker (87515).
+    CHECK_EQ(Mage::ImprovedPolymorphStun(AURA_REMOVE_BY_DAMAGE, false, false, false), uint32(0));
+    CHECK_EQ(Mage::ImprovedPolymorphStun(AURA_REMOVE_BY_DAMAGE, false, true, true), uint32(0));
+    CHECK_EQ(Mage::ImprovedPolymorphStun(AURA_REMOVE_BY_DAMAGE, true, false, true), uint32(0));
+
+    // None for a Polymorph that ran out, was dispelled, cancelled, removed by the plain call, replaced, taken off at a
+    // death or by a delete, or by any other removal.
+    AuraRemoveMode const silent[] =
+    {
+        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEATH,
+        AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_TRACKING,
+        AURA_REMOVE_BY_TARGET_LIMIT,
+    };
+    for (AuraRemoveMode mode : silent)
+    {
+        CHECK_EQ(Mage::ImprovedPolymorphStun(mode, true, true, false), uint32(0));
+    }
+}
+
+TEST(MageScripts_PolymorphsRemovalRunsImprovedPolymorph)
+{
+    // The rows: the seven forms at the aura-remove hook, one body, the same in the game's table. The forms no mage
+    // learns (Polymorph - Penguin 59634, the other Turkey 71319, SelfSheep 53325), the talent's ranks, its stuns and
+    // its marker hold no row there or at the aura-apply hook.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CheckRowsInTheGame<AuraRemoveHook>(registry, POLYMORPH_IDS);
+    SpellHandler<AuraRemoveHook>::Function const polymorph = registry.Find<AuraRemoveHook>(118);
+    for (uint32 spellId : POLYMORPH_IDS)
+    {
+        CHECK(registry.Find<AuraRemoveHook>(spellId) == polymorph);
+    }
+    for (uint32 spellId : { 59634u, 71319u, 53325u, 11210u, 12592u, 83046u, 83047u, 87515u })
+    {
+        CHECK(game.Find<AuraRemoveHook>(spellId) == NULL);
+        CHECK(game.Find<AuraApplyHook>(spellId) == NULL);
+    }
+
+    // The script lets the removal's boosts run every time. A Polymorph that ran out, was dispelled, cancelled or
+    // removed by the plain call casts nothing, and so does a break by damage whose caster cannot be found or knows no
+    // rank, or whose target holds the marker. A break by damage of a caster who knows the second rank, on a target
+    // without the marker, goes on to the casts of the stun and the marker, which the test's spell store lacks, so
+    // nothing is cast.
+    BareCreature mage;
+    BareCreature camel;
+    SpellRowStorage row;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    AuraRemoveMode const notDamage[] =
+    {
+        AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEFAULT,
+    };
+    for (AuraRemoveMode mode : notDamage)
+    {
+        AuraRemoveContext removed(camel, &mage, SpellRow(row, 118), AuraHandle(holder), mode);
+        CHECK(registry.Dispatch<AuraRemoveHook>(118, removed).IsContinue());
+    }
+    AuraRemoveContext noCaster(camel, NULL, SpellRow(row, 118), AuraHandle(holder), AURA_REMOVE_BY_DAMAGE);
+    CHECK(registry.Dispatch<AuraRemoveHook>(118, noCaster).IsContinue());
+    AuraRemoveContext noTalent(camel, &mage, SpellRow(row, 118), AuraHandle(holder), AURA_REMOVE_BY_DAMAGE);
+    CHECK(registry.Dispatch<AuraRemoveHook>(118, noTalent).IsContinue());
+    HolderStorage talentStorage;
+    mage.HoldAura(12592, EmptyHolder(talentStorage));
+    CHECK(mage.HasAura(12592));
+    BareCreature marked;
+    HolderStorage markerStorage;
+    marked.HoldAura(87515, EmptyHolder(markerStorage));
+    AuraRemoveContext onMarked(marked, &mage, SpellRow(row, 61305), AuraHandle(holder), AURA_REMOVE_BY_DAMAGE);
+    CHECK(registry.Dispatch<AuraRemoveHook>(61305, onMarked).IsContinue());
+    CHECK(sSpellStore.LookupEntry(83047) == NULL);
+    CHECK(sSpellStore.LookupEntry(87515) == NULL);
+    AuraRemoveContext broken(camel, &mage, SpellRow(row, 118), AuraHandle(holder), AURA_REMOVE_BY_DAMAGE);
+    CHECK(registry.Dispatch<AuraRemoveHook>(118, broken).IsContinue());
+    CHECK(!camel.HasAura(83047));
+    CHECK(!camel.HasAura(87515));
 }

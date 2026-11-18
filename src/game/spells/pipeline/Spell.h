@@ -671,6 +671,7 @@ class Spell
         int32 m_damage;                                     // Damage   in effects count here
         int32 m_healing;                                    // Healing in effects count here
         int32 m_healthLeech;                                // Health leech in effects for all targets count here
+        bool m_hitInterruptedCast;                          // the interrupt effect stopped the current target's cast
 
         //******************************************
         // Spell trigger system

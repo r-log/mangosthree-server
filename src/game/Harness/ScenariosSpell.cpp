@@ -4902,6 +4902,7 @@ namespace Harness
                 case AURA_REMOVE_BY_EXPIRE:         return "expire";
                 case AURA_REMOVE_BY_TRACKING:       return "tracking";
                 case AURA_REMOVE_BY_TARGET_LIMIT:   return "targetLimit";
+                case AURA_REMOVE_BY_DAMAGE:         return "damage";
             }
             return "mode" + U(uint32(mode));
         }
