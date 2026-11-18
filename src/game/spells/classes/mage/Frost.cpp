@@ -76,9 +76,9 @@ namespace
     }
 
     /// Every spell of SHATTER_SPELLS: Shatter multiplies the whole crit chance by its factor when the spell counts its
-    /// target as frozen, a periodic tick by the target's own state alone. The caster's flat crit-chance modifiers for
-    /// the spell are added after this hook, so the chance is raised to the factor times the chance with them, less
-    /// them.
+    /// target as frozen, Deep Freeze's damage (71757) and a periodic tick by the target's own state alone. The caster's
+    /// flat crit-chance modifiers for the spell are added after this hook, so the chance is raised to the factor times
+    /// the chance with them, less them.
     SpellHandlerOutcome<void> FrostCritChance(CritChanceContext& ctx)
     {
         if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType) != Mage::NOT_FROZEN)
@@ -94,26 +94,23 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// Every spell of FROSTBURN_SPELLS, when it counts its target as frozen: Frostburn's mastery amount (when above 0)
-    /// raises the damage done; Frostbolt also takes Shatter's effect-1 percent for the rank the caster knows, and Ice
-    /// Lance its own effect-1 percent (100: double damage) and ICE_LANCE_FINGERS_PERCENT more while it uses a Fingers
-    /// of Frost charge. Deep Freeze's damage (71757) is cast only at a target no stun holds, so it counts as frozen
+    /// Every spell of FROSTBURN_SPELLS, when it counts its target as frozen: Frostburn's mastery amount raises the
+    /// damage done; Frostbolt also takes Shatter's effect-1 percent for the rank the caster knows, and Ice Lance its
+    /// own effect-1 percent (100: double damage) and ICE_LANCE_FINGERS_PERCENT more while it uses a Fingers of Frost
+    /// charge. Deep Freeze's damage (71757), cast only at a target no stun holds, takes Frostburn at any target,
     /// whenever it is cast. A periodic effect's amount counts the target by its own state alone. Ice Lance and
     /// Frostfire Bolt travel to their target, and their hit is reckoned at the launch, before FingersUse takes the
     /// charge.
     SpellHandlerOutcome<void> FrostDamageDone(DamageDoneContext& ctx)
     {
-        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType) == Mage::NOT_FROZEN)
+        if (ctx.spell.ID != DEEP_FREEZE_DAMAGE &&
+            Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType) == Mage::NOT_FROZEN)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
         if (SpellAuraHolder* holder = ctx.caster.GetSpellAuraHolder(FROSTBURN))
         {
-            int32 const amount = AuraHandle(*holder).Amount(EFFECT_INDEX_0);
-            if (amount > 0)
-            {
-                ctx.doneTotalMod *= (100.0f + amount) / 100.0f;
-            }
+            ctx.doneTotalMod *= (100.0f + AuraHandle(*holder).Amount(EFFECT_INDEX_0)) / 100.0f;
         }
         if (ctx.spell.ID == FROSTBOLT)
         {
@@ -213,7 +210,7 @@ Mage::FrozenKind Mage::CountsAsFrozen(Unit const& caster, Unit const& target, Sp
     {
         return NOT_FROZEN;
     }
-    if (spell.ID == DEEP_FREEZE_DAMAGE || UsesFingers(caster, spell))
+    if (UsesFingers(caster, spell))
     {
         return FINGERS;
     }
