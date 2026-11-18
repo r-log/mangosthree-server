@@ -433,30 +433,24 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
     DamageDoneContext damageDoneCtx(*this, *pVictim, *spellProto, damagetype, DoneTotalMod);
     SpellHandlerRegistry::Game().Dispatch<DamageDoneHook>(spellProto->ID, damageDoneCtx);
 
+    // the rows of the caster's dummy auras, each keyed by its aura's spell: a talent that changes the damage of the
+    // spells it covers
+    AuraList const& doneDummies = GetAurasByType(SPELL_AURA_DUMMY);
+    for (AuraList::const_iterator i = doneDummies.begin(); i != doneDummies.end(); ++i)
+    {
+        SpellHandler<DamageDoneHook>::Function const done =
+            SpellHandlerRegistry::Game().Find<DamageDoneHook>((*i)->GetId());
+        if (done)
+        {
+            done(damageDoneCtx);
+        }
+    }
+
     SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();
 
     // Custom scripted damage
     switch(spellProto->GetSpellFamilyName())
     {
-        case SPELLFAMILY_MAGE:
-        {
-            // Torment the weak affected (Arcane Barrage, Arcane Blast, Frostfire Bolt, Arcane Missiles, Fireball)
-            if (classOptions && (classOptions->SpellClassMask & UI64LIT(0x0000900020200021)) &&
-                (pVictim->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) || pVictim->HasAuraType(SPELL_AURA_HASTE_ALL)))
-            {
-                // Search for Torment the weak dummy aura
-                Unit::AuraList const& ttw = GetAurasByType(SPELL_AURA_DUMMY);
-                for (Unit::AuraList::const_iterator i = ttw.begin(); i != ttw.end(); ++i)
-                {
-                    if ((*i)->GetSpellProto()->SpellIconID == 3263)
-                    {
-                        DoneTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-                        break;
-                    }
-                }
-            }
-            break;
-        }
         case SPELLFAMILY_WARLOCK:
         {
             // Drain Soul

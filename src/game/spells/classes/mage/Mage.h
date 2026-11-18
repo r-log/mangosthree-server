@@ -286,6 +286,32 @@ namespace Mage
     /// does, as Arcane Missiles' missile (7268) does for the channel (5143); one level down. Defined in Arcane.cpp.
     bool DealsOrTriggersDamage(SpellEntry const& spell);
 
+    /// Whether an aura of `auraType` whose amount is `amount` snares or slows the unit it is on, for Torment the Weak:
+    /// a negative amount of a movement-speed slow (SPELL_AURA_MOD_DECREASE_SPEED), of an attack-speed aura
+    /// (SPELL_AURA_MOD_ATTACKSPEED, SPELL_AURA_MOD_ATTACKSPEED_2, SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE,
+    /// SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED, SPELL_AURA_MOD_MELEE_ATTACK_SPEED and
+    /// SPELL_AURA_MOD_RANGED_ATTACK_SPEED), of a cast-speed aura (SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK and
+    /// SPELL_AURA_HASTE_SPELLS) or of SPELL_AURA_HASTE_ALL. Defined in Arcane.cpp.
+    bool CountsAsSlow(uint32 auraType, int32 amount);
+
+    /// Whether `unit` holds an aura that CountsAsSlow: the most negative amount of each of those aura types on it.
+    /// Defined in Arcane.cpp.
+    bool IsSnaredOrSlowed(Unit const& unit);
+
+    /// Torment the Weak's multiplier on the damage of a spell of family `spellFamily` and school mask `schoolMask`:
+    /// 1 + `percent` / 100 for a mage spell whose school mask holds Arcane at a target that is snared or slowed
+    /// (`targetSlowed`), 1 otherwise or for a percent of 0 or less. Defined in Arcane.cpp.
+    float TormentTheWeakMultiplier(int32 percent, uint32 spellFamily, uint32 schoolMask, bool targetSlowed);
+
+    /// Whether `mage` has his Slow (31589) on a unit: the single-target aura he tracks (Slow affects one target at a
+    /// time). Defined in Arcane.cpp.
+    bool HasSlowOut(Unit const& mage);
+
+    /// Whether Nether Vortex casts Slow (31589) for an event: a hit, normal or critical (`procEx`), of Arcane Blast
+    /// (30451, `procSpellId`) that dealt damage (`damage` above 0), while none of the mage's Slow is on any unit
+    /// (`slowOut` false). Defined in Arcane.cpp.
+    bool NetherVortexSlows(uint32 procSpellId, uint32 procEx, uint32 damage, bool slowOut);
+
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
     /// one to `bombsSpread` when it answers true for it. Defined in Fire.cpp.

@@ -157,8 +157,11 @@
 // 1101 a staged Arcane mage's Arcane Blast stacks its buff four times, each stack adding to the next Arcane Blast's
 // cost, taking from its cast time and adding to its damage and to Arcane Explosion's, more with Glyph of Arcane Blast;
 // Arcane Explosion keeps the stacks, and Arcane Barrage and Arcane Missiles take them off at their cast.
-// The guard of 931-938, 941-978, 980-994, 1025-1028 and 1100-1101 (Qualify) fingerprints every spell a scenario reaches
-// and refuses the random-pick labels, the random chain targets and any script binding.
+// 1103 a staged Arcane mage's Arcane Blast deals 6% more to a Camel under a movement, a cast or an attack slow with
+// Torment the Weak 3, and with Nether Vortex 2 slows its target while none of his Slow is out: never a second Camel
+// while one holds it, never by refreshing it, never from Fireball or Arcane Barrage.
+// The guard of 931-938, 941-978, 980-994, 1025-1028, 1100-1101 and 1103 (Qualify) fingerprints every spell a scenario
+// reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -3995,7 +3998,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-994,
-     * 1025-1028, 1100-1101): a human mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings
+     * 1025-1028, 1100-1101, 1103): a human mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings
      * and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged (AfterStage), then the
      * pet the scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85 unless the scenario
      * sets its own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps,
@@ -15329,6 +15332,362 @@ namespace Harness
         }
     };
 
+    /**
+     * S1103 `mage-arcane-torment-vortex`: Torment the Weak (55340, rank 3 of 3) and Nether Vortex (86209, rank 2 of 2)
+     * on a staged Arcane mage. Torment the Weak: his Arcane damage spells deal 6% more damage to a target that is
+     * snared or slowed, by a movement-speed, an attack-speed or a cast-speed slow. Nether Vortex: when his Arcane
+     * Blast (30451) damages a target while none of his Slow (31589) is on any unit, it casts Slow at that target (rank
+     * 2: always); while his Slow is out it does nothing, and no other spell of his calls it. Staged with Improved
+     * Counterspell (11255, rank 1 of 2, an Arcane talent that touches none of these spells), so the stage learns the
+     * Arcane tree's spells, Arcane Barrage (44425) among them; Arcane Blast, Fireball (133), Torment the Weak 3 and
+     * Slow learned through Player::learnSpell, as the stage learns its spells (their talents stand on the second and
+     * fifth rows, which ask for points this stage does not spend); kSpellPower spell power, so the base damage's roll
+     * moves a hit by less than one percent. Once staged, his Offensive State (79684) and Mana Adept (76547) are taken
+     * off, so no Arcane Missiles! comes and the mana a cast spends moves no damage. Two Camels stand ten yards ahead, A
+     * (the first) and B. Before each cast at a Camel he takes Precision (13843, +6% spell hit), so nothing misses, and
+     * the crit aura at -100, so nothing crits. At the read of each Arcane Blast his Arcane Blast buff (36032) is taken
+     * off him, so every Arcane Blast is cast and deals its damage at no stack. The slows put on a Camel are put as the
+     * GM aura command puts them, with no cast: Hamstring (1715, movement speed -50%), Mind-numbing Poison (25810,
+     * casting speed -30%) and Thunder Clap's attack-speed slow (6343's effect 1, attack speed -20%). Steps, kEveryMs
+     * apart unless named; a Camel health step sets that Camel's health to its maximum, kHealthMs before the next step:
+     *  1. Arcane Blast at A, not slowed;
+     *  2. A's health; Hamstring put on A;          3. Arcane Blast at A;
+     *  4. A's health; Hamstring off, Mind-numbing Poison put on A;     5. Arcane Blast at A;
+     *  6. A's health; Mind-numbing Poison off, Thunder Clap put on A;   7. Arcane Blast at A;
+     *  8. A's health; Thunder Clap off; he learns Nether Vortex 2 (86209) through Player::learnSpell;
+     *  9. Arcane Blast at A, not slowed, with no Slow of his out: Nether Vortex slows A;
+     * 10. B's health; 11. Arcane Blast at B while his Slow holds A: none on B;
+     * 12. A's health; 13. Arcane Blast at A under his Slow: A's Slow is not refreshed;
+     * 14. his Slow taken off A by the plain call, kHealthMs before the next step;
+     * 15. B's health; 16. Fireball at B, kFireballMs before the next step; 17. Arcane Barrage at B;
+     * 18. B's health; 19. Arcane Blast at B, with no Slow of his out: Nether Vortex slows B.
+     * Right after each step acts and at its read, the scenario keeps whether A and B hold his 31589, the time A's has
+     * left and whether he tracks a 31589 as his single-target aura. A cast's damage is its damage log's.
+     *
+     * `torment`: `torment=speed:<3>,cast:<5>,attack:<7>,none:<9>+<11>,slow:<13>,vortex=first:<9>,second:<11>,
+     * refresh:<13>,removal:<14>,fireball:<16>,barrage:<17>,after:<19>`, by step number. Under `torment` each is the
+     * step's Arcane Blast damage over step 1's. Under `vortex` each is two digits, 1 for yes: whether the step's Camel
+     * holds his 31589 at the step's read (for Fireball, at step 17's act, after its hit), then whether the step's
+     * windows hold an SMSG_SPELL_GO of 31589; `refresh` is `kept` when A's Slow has less time left at step 13's read
+     * than at step 11's, `refreshed` when not, `none` when A held none at either read, then `/` and the second digit;
+     * `removal` is whether A holds his 31589 and whether he tracks one, at step 14's read. OK when speed, cast, attack
+     * and slow are within kRatioSlack of x1.06 and both of none within it of x1.00, first and after are 11, second,
+     * fireball and barrage 00, refresh kept/0 and removal 00.
+     */
+    class MageArcaneTormentVortex : public MageProcScenario
+    {
+    public:
+        MageArcaneTormentVortex() : MageProcScenario("mage-arcane-torment-vortex", 1103, "torment") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kArcaneBlast, kFireball, kTorment, kSlow }; }
+        std::vector<uint32> SpellsLearnedLater() const override { return { kNetherVortex }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 TargetCount() const override { return 2; }
+        uint32 CastEveryMs() const override { return kEveryMs; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 Watched() const override { return kSlow; }
+        bool WatchedOnTarget() const override { return true; }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kTorment) + (p.HasAura(kTorment) ? " on him" : " not on him") + "; " + U(kSlow) +
+                       (p.HasSpell(kSlow) ? " known" : " unknown"));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            const Step blastA = Cast(kArcaneBlast, false);
+            const Step blastB = Aimed(Cast(kArcaneBlast, false), kCamelB);
+            const Step healthA = CamelHealth(kCamelA);
+            const Step healthB = CamelHealth(kCamelB);
+            Step fireball = Aimed(Cast(kFireball, false), kCamelB);
+            fireball.everyMs = kFireballMs;
+            return { blastA, healthA, blastA, healthA, blastA, healthA, blastA, healthA, blastA, healthB, blastB, healthA, blastA,
+                     Removal(kSlow, AURA_REMOVE_BY_DEFAULT, kHealthMs), healthB, fireball, Aimed(Cast(kArcaneBarrage, false), kCamelB),
+                     healthB, blastB };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 30451: 49 fields, fnv d3aeb596
+                { 30451, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 841 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 137 }, { "eff0.EffectRealPointsPerLevel", 1084227584 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 64 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 536870912 }, { "eff1.EffectTriggerSpell", 36032 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 36032: 72 fields, fnv 62406494
+                { 36032, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 536875008 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", 150 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 14 }, { "eff1.EffectSpellClassMask.Flags", 536870912 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 107 }, { "eff2.EffectBasePoints", -100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 10 }, { "eff2.EffectSpellClassMask.Flags", 536870912 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 133: 26 fields, fnv 81dba6e7
+                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44425: 26 fields, fnv 6c64d138
+                { 44425, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 345 }, { "eff0.EffectBonusCoefficient", 1063792935 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 78 }, { "eff0.EffectRealPointsPerLevel", 1075838976 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31589: 72 fields, fnv b6a65259
+                { 31589, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -60 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.EffectSpellClassMask.Flags", 14684919 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 218 }, { "eff1.EffectBasePoints", -60 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 12589815 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 216 }, { "eff2.EffectBasePoints", -30 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectSpellClassMask.Flags", 4194437 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 55340: 26 fields, fnv ddc0d979
+                { 55340, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 11 }, { "eff0.EffectSpellClassMask.Flags", 2359296 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 86209: 26 fields, fnv 0d0f7f9c
+                { 86209, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 1715: 26 fields, fnv 5ca4e43e
+                { 1715, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 25810: 26 fields, fnv 0299830b
+                { 25810, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 216 }, { "eff0.EffectBasePoints", -30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 6343: 49 fields, fnv 5dd9ed53
+                { 6343, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 14 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 342 }, { "eff1.EffectBasePoints", -20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 8 }, { "eff1.EffectRadiusIndex_1", 14 }, { "eff1.ImplicitTarget_0", 22 }, { "eff1.ImplicitTarget_1", 15 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            if (!atRead)
+            {
+                Act(k, p, target);
+            }
+            else if (st.steps[k].spell == kArcaneBlast)
+            {
+                const bool held = p->HasAura(kBuff);
+                p->RemoveAurasDueToSpell(kBuff);
+                m_rec.Note("his " + U(kBuff) + (held ? " taken off" : " was not on him"));
+            }
+            Creature* camelA = Get(st.targets[kCamelA]);
+            Creature* camelB = st.targets.size() > kCamelB ? Get(st.targets[kCamelB]) : NULL;
+            const std::string at = atRead ? "" : "act.";
+            reads[at + "slowA"] = HisSlowLeft(camelA, p) >= 0 ? 1 : 0;
+            reads[at + "slowB"] = HisSlowLeft(camelB, p) >= 0 ? 1 : 0;
+            reads[at + "slowALeft"] = HisSlowLeft(camelA, p);
+            reads[at + "tracked"] = TracksSlow(p) ? 1 : 0;
+            m_rec.Note(std::string(atRead ? "at the read" : "right after the step acts") + ": his " + U(kSlow) + " on A " +
+                       (reads[at + "slowA"] ? std::to_string(reads[at + "slowALeft"]) + " ms left" : std::string("none")) + ", on B " +
+                       (reads[at + "slowB"] ? std::string("held") : std::string("none")) + "; he tracks " +
+                       (reads[at + "tracked"] ? std::string("a ") + U(kSlow) : std::string("none")));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const double speed = Ratio(st, kSpeedCast, kBaseCast);
+            const double cast = Ratio(st, kCastSlowCast, kBaseCast);
+            const double attack = Ratio(st, kAttackCast, kBaseCast);
+            const double noneA = Ratio(st, kFirstVortex, kBaseCast);
+            const double noneB = Ratio(st, kSecondVortex, kBaseCast);
+            const double slow = Ratio(st, kRefreshCast, kBaseCast);
+            const std::string torment = "speed:" + RatioText(speed) + ",cast:" + RatioText(cast) + ",attack:" + RatioText(attack) + ",none:" +
+                                        RatioText(noneA) + "+" + RatioText(noneB) + ",slow:" + RatioText(slow);
+
+            const std::string first = Num(Kept(st, kFirstVortex, "slowA")) + Fired(st, kFirstVortex);
+            const std::string second = Num(Kept(st, kSecondVortex, "slowB")) + Fired(st, kSecondVortex);
+            const int64 leftBefore = Kept(st, kSecondVortex, "slowALeft");
+            const int64 leftAfter = Kept(st, kRefreshCast, "slowALeft");
+            const std::string refresh = std::string(leftBefore < 0 || leftAfter < 0 ? "none" : leftAfter < leftBefore ? "kept" : "refreshed") +
+                                        "/" + Fired(st, kRefreshCast);
+            const std::string removal = Num(Kept(st, kRemovalStep, "slowA")) + Num(Kept(st, kRemovalStep, "tracked"));
+            const std::string fireball = Num(Kept(st, kBarrageCast, "act.slowB")) + Fired(st, kFireballCast);
+            const std::string barrage = Num(Kept(st, kBarrageCast, "slowB")) + Fired(st, kBarrageCast);
+            const std::string after = Num(Kept(st, kAfterCast, "slowB")) + Fired(st, kAfterCast);
+            const std::string vortex = "first:" + first + ",second:" + second + ",refresh:" + refresh + ",removal:" + removal +
+                                       ",fireball:" + fireball + ",barrage:" + barrage + ",after:" + after;
+
+            const bool ok = Near(speed, kTormentTop) && Near(cast, kTormentTop) && Near(attack, kTormentTop) && Near(noneA, 1.0) &&
+                            Near(noneB, 1.0) && Near(slow, kTormentTop) && first == "11" && second == "00" && refresh == "kept/0" &&
+                            removal == "00" && fireball == "00" && barrage == "00" && after == "11";
+            return (ok ? "OK(" : "BUG(") + std::string("torment=") + torment + ",vortex=" + vortex +
+                   "; torment: each Arcane Blast's damage over step 1's; vortex: his 31589 on the step's Camel at the read, then a " +
+                   "cast of 31589 in the step's windows; refresh: A's Slow time left at step 13's read against step 11's; removal: " +
+                   "his 31589 on A and his tracked Slow at step 14's read)";
+        }
+
+    private:
+        static constexpr uint32 kArcaneBlast = 30451;
+        static constexpr uint32 kBuff = 36032;
+        static constexpr uint32 kFireball = 133;
+        static constexpr uint32 kArcaneBarrage = 44425;
+        static constexpr uint32 kSlow = 31589;
+        static constexpr uint32 kTorment = 55340;
+        static constexpr uint32 kNetherVortex = 86209;
+        static constexpr uint32 kSpeedSlow = 1715;
+        static constexpr uint32 kCastSlow = 25810;
+        static constexpr uint32 kAttackSlow = 6343;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr int32 kSpellPower = 20000;
+        static constexpr uint32 kEveryMs = 2400;
+        static constexpr uint32 kReadMs = 2200;
+        static constexpr uint32 kHealthMs = 400;
+        static constexpr uint32 kFireballMs = 3600;
+        static constexpr double kTormentTop = 1.06;
+        static constexpr double kRatioSlack = 0.02;
+        static constexpr uint32 kCamelA = 0;
+        static constexpr uint32 kCamelB = 1;
+        static constexpr uint32 kBaseCast = 0;
+        static constexpr uint32 kSpeedOn = 1;
+        static constexpr uint32 kSpeedCast = 2;
+        static constexpr uint32 kCastSlowOn = 3;
+        static constexpr uint32 kCastSlowCast = 4;
+        static constexpr uint32 kAttackOn = 5;
+        static constexpr uint32 kAttackCast = 6;
+        static constexpr uint32 kLearnStep = 7;
+        static constexpr uint32 kFirstVortex = 8;
+        static constexpr uint32 kSecondVortex = 10;
+        static constexpr uint32 kRefreshCast = 12;
+        static constexpr uint32 kRemovalStep = 13;
+        static constexpr uint32 kFireballCast = 15;
+        static constexpr uint32 kBarrageCast = 16;
+        static constexpr uint32 kAfterCast = 18;
+        static constexpr size_t kSteps = 19;
+
+        /// `step` aimed at the Camel of index `camel`.
+        static Step Aimed(Step step, uint32 camel)
+        {
+            step.target = camel;
+            return step;
+        }
+
+        /// The health of the Camel of index `camel` set to its maximum, kHealthMs before the next step.
+        static Step CamelHealth(uint32 camel)
+        {
+            return Aimed(TargetHealth(100, kHealthMs), camel);
+        }
+
+        static std::string Num(int64 v)
+        {
+            return std::to_string(v);
+        }
+
+        /// A read ReadOwn kept for step k; -1 when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        /// "1" when step k's windows hold an SMSG_SPELL_GO of his Slow, else "0".
+        static std::string Fired(St const& st, uint32 k)
+        {
+            return Triggered(st.seen[k], kSlow) ? "1" : "0";
+        }
+
+        /// Step k's damage over step `base`'s, each its own spell's first damage log, read and no crit; -1 otherwise.
+        static double Ratio(St const& st, uint32 k, uint32 base)
+        {
+            Seen const& seen = st.seen[k];
+            Seen const& first = st.seen[base];
+            if (!seen.logRead || !first.logRead || seen.crit || first.crit || !seen.amount || !first.amount)
+            {
+                return -1.0;
+            }
+            return double(seen.amount) / double(first.amount);
+        }
+
+        static std::string RatioText(double ratio)
+        {
+            if (ratio < 0.0)
+            {
+                return "x?";
+            }
+            char buf[32];
+            snprintf(buf, sizeof(buf), "x%.2f", ratio);
+            return buf;
+        }
+
+        static bool Near(double ratio, double wanted)
+        {
+            return ratio >= 0.0 && std::fabs(ratio - wanted) <= kRatioSlack;
+        }
+
+        /// The milliseconds his Slow on `camel` has left; -1 when `camel` holds none of his.
+        static int64 HisSlowLeft(Creature* camel, Player* p)
+        {
+            SpellAuraHolder* holder = camel ? camel->GetSpellAuraHolder(kSlow, p->GetObjectGuid()) : NULL;
+            return holder ? int64(holder->GetAuraDuration()) : -1;
+        }
+
+        /// Whether he tracks a Slow as his single-target aura.
+        static bool TracksSlow(Player* p)
+        {
+            Unit::TrackedAuraTargetMap const& tracked = p->GetTrackedAuraTargets(TRACK_AURA_TYPE_SINGLE_TARGET);
+            for (Unit::TrackedAuraTargetMap::const_iterator i = tracked.begin(); i != tracked.end(); ++i)
+            {
+                if (i->first && i->first->ID == kSlow)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// What step k does besides the base's step, right after it acts: the slows put on A and taken off it, and
+        /// Nether Vortex learned.
+        void Act(uint32 k, Player* p, Creature* target)
+        {
+            uint32 off = 0;
+            uint32 on = 0;
+            switch (k)
+            {
+                case kSpeedOn:
+                    on = kSpeedSlow;
+                    break;
+                case kCastSlowOn:
+                    off = kSpeedSlow;
+                    on = kCastSlow;
+                    break;
+                case kAttackOn:
+                    off = kCastSlow;
+                    on = kAttackSlow;
+                    break;
+                case kLearnStep:
+                    off = kAttackSlow;
+                    break;
+                default:
+                    return;
+            }
+            if (off)
+            {
+                target->RemoveAurasDueToSpell(off);
+                m_rec.Note(U(off) + " taken off the Camel: " + (target->HasAura(off) ? "still on it" : "gone"));
+            }
+            if (on)
+            {
+                PutAura(target, on);
+                m_rec.Note(U(on) + " put on the Camel: " + HolderOf(target, on));
+            }
+            if (k == kLearnStep)
+            {
+                p->learnSpell(kNetherVortex, false);
+                m_rec.Note("he learns " + U(kNetherVortex) + (p->HasSpell(kNetherVortex) ? " (known, " : " (unknown, ") +
+                           (p->HasAura(kNetherVortex) ? "its aura on him)" : "no aura)"));
+            }
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -15399,5 +15758,6 @@ namespace Harness
         r.Register(new MageFireClearcasting());
         r.Register(new MageArcaneMissiles());
         r.Register(new MageArcaneBlastStacks());
+        r.Register(new MageArcaneTormentVortex());
     }
 }
